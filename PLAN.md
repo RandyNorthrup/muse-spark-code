@@ -1152,9 +1152,12 @@ owner's key).** Certification record: `docs/certification/m7.md`.
 
 ### M9 — Voice dictation on the operating system's recogniser
 
-**Status 2026-09-22: built and certified on Windows against a synthesised
-recording; the owner's microphone check in the dev host and the macOS
-helper's first run are pending.** Certification record:
+**Status 2026-09-22: built; certified on Windows against a synthesised
+recording through the real recogniser, and on the owner's Mac mini for the
+helper's permissions, engine and recognition lifecycle (three defects found
+and fixed there). Pending: recognised text from real speech on each
+platform, which needs a microphone (the owner's PC has none attached at the
+moment; the mini has no input device).** Certification record:
 `docs/certification/m9.md`.
 
 - **Goal**: Claude Code's microphone ("Tap or hold to record Ctrl+D")
@@ -1197,7 +1200,21 @@ helper's first run are pending.** Certification record:
     the two usage descriptions embedded in `__info_plist`, ad-hoc signed)
     in CI's `native-darwin` job; the `package` job ships it in the
     `.vsix`. A package built elsewhere lacks the binary and the panel says
-    so. The binary is git-ignored.
+    so. The binary is git-ignored. Found on the owner's Mac mini
+    (2026-09-22, macOS 15.7.4, no microphone attached): AVFAudio reports
+    some failures as Objective-C exceptions that Swift cannot catch, so the
+    helper checks CoreAudio's default input device and the hardware input
+    format before touching the engine (a Mac with no input device gets an
+    error line, not a crash); the tap uses the hardware input format,
+    since the input node's cached output format (44.1 kHz) no longer
+    matches the device after a device change (48 kHz) and the mismatch is
+    a fatal assertion; each start step writes a marker to stderr so an
+    unexpected exit names the step; `--input-device <UID>` pins the capture
+    device (the rig's Teams loopback driver cannot be a default input:
+    `kAudioDevicePropertyDeviceCanBeDefaultDevice` is 0, and an aggregate
+    over it inherits that); and Apple refuses recognition with "Siri and
+    Dictation are disabled" until Dictation or Siri is on in System
+    Settings, which the helper passes through verbatim.
   - **Linux**: `locateDictationHelper` answers "unavailable" with the
     reason; the button is dimmed with that as its title (not `disabled`,
     so the tooltip still shows).
@@ -1223,10 +1240,11 @@ helper's first run are pending.** Certification record:
   `text` line and `stopped`, exit 0 (done: 827 ms, "Although settings file
   in fix the bug" for "open the settings file and fix the bug", confidence
   0.46, the classic engine's accuracy as warned to the owner); the owner
-  speaks into the dev host and the words land in the composer (pending);
-  the macOS helper compiles in CI and, on a Mac, prompts for the
-  microphone and speech recognition once and then transcribes (compile:
-  CI; run: pending, no Mac at hand).
+  speaks into the dev host and the words land in the composer (pending: no
+  microphone on the PC at the moment); the macOS helper compiles in CI
+  and, on a Mac, prompts for the microphone and speech recognition once
+  and then transcribes (done on the Mac mini up to `listening` and a clean
+  `stopped`; text from real speech pending an input device).
 - **Gates added**: `lint:ps` (PSScriptAnalyzer, `PSGallery` settings,
   exit = finding count; real on Windows, a reported skip elsewhere;
   installed on the CI Windows runner in a step).

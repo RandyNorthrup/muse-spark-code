@@ -339,11 +339,11 @@ third-party engine is involved: recognition runs on the operating system's
 own recogniser in a small helper process that the extension keeps warm for
 five minutes after a recording.
 
-| Platform | How                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech` (the desktop recogniser that ships with Windows; English is always installed, other languages come with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing.                                                                                            |
-| macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace `.vsix`. macOS asks once for the microphone and for speech recognition. Recognition is on the device when Apple supports it for your language; otherwise Apple's servers transcribe under Apple's terms, at no charge. A `.vsix` built on Windows or Linux has no helper and the button says so. |
-| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                                                    |
+| Platform | How                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech` (the desktop recogniser that ships with Windows; English is always installed, other languages come with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing.                                                                                                                                                                                                               |
+| macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace `.vsix`. **Dictation (System Settings > Keyboard) or Siri must be on**, or Apple answers "Siri and Dictation are disabled". macOS asks once for the microphone and for speech recognition. Recognition is on the device when Apple supports it for your language; otherwise Apple's servers transcribe under Apple's terms, at no charge. A `.vsix` built on Windows or Linux has no helper and the button says so. |
+| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 Troubleshooting on Windows: the helper can replay a WAV file instead of the
 microphone, which separates a recogniser problem from a microphone one:
@@ -353,6 +353,13 @@ microphone, which separates a recogniser problem from a microphone one:
 ```
 
 Type `start` and press Enter; the phrases print as JSON lines, then `stopped`.
+
+On macOS the helper takes `--input-device <CoreAudio UID>` to capture from
+one specific device instead of the system default (the test rig feeds it a
+loopback device; a Mac with several microphones can be pinned to one). Run
+it by hand from Terminal the same way (`start`, `stop`, `quit` on stdin); a
+Mac without any input device reports "no audio input device is available",
+and the step markers on stderr name where a start failed.
 
 ## Settings
 
