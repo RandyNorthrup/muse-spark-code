@@ -26,6 +26,9 @@ describe('shellInvocation', () => {
   })
 })
 
+const SHELL_BUDGET_MS = 120_000
+const TEST_BUDGET_MS = 3 * SHELL_BUDGET_MS
+
 const io = () =>
   createToolIo({
     platform: process.platform,
@@ -55,26 +58,28 @@ describe('createToolIo (real file system and shell)', () => {
     await expect(io().readFile(root)).rejects.toThrow()
   })
 
-  it('runs one command line in the given directory and reports its exit', async () => {
-    const command =
-      process.platform === 'win32'
-        ? 'Write-Output ok; Get-Location | Select-Object -ExpandProperty Path'
-        : 'echo ok; pwd'
-    const result = await io().runShell(command, root, 30_000)
-    expect(result.exitCode).toBe(0)
-    expect(result.isTimedOut).toBe(false)
-    const lines = result.stdout.trim().split(/\r?\n/)
-    expect(lines[0]).toBe('ok')
-    // Canonical on both sides: macOS temp dirs sit behind /private symlinks
-    // and Windows runners hand out 8.3 short names for the temp folder.
-    expect(realpathSync.native(lines[1] ?? '')).toBe(realpathSync.native(root))
-    const failing = await io().runShell(
-      process.platform === 'win32' ? 'exit 3' : 'exit 3',
-      root,
-      30_000,
-    )
-    expect(failing.exitCode).toBe(3)
-  }, 60_000)
+  it(
+    'runs one command line in the given directory and reports its exit',
+    async () => {
+      const command =
+        process.platform === 'win32'
+          ? 'Write-Output ok; Get-Location | Select-Object -ExpandProperty Path'
+          : 'echo ok; pwd'
+      // A cold GitHub Windows runner has taken over 30 s for its first
+      // PowerShell start (CI on f5831a0), so the budget is generous.
+      const result = await io().runShell(command, root, SHELL_BUDGET_MS)
+      expect(result.exitCode).toBe(0)
+      expect(result.isTimedOut).toBe(false)
+      const lines = result.stdout.trim().split(/\r?\n/)
+      expect(lines[0]).toBe('ok')
+      // Canonical on both sides: macOS temp dirs sit behind /private symlinks
+      // and Windows runners hand out 8.3 short names for the temp folder.
+      expect(realpathSync.native(lines[1] ?? '')).toBe(realpathSync.native(root))
+      const failing = await io().runShell('exit 3', root, SHELL_BUDGET_MS)
+      expect(failing.exitCode).toBe(3)
+    },
+    TEST_BUDGET_MS,
+  )
 
   it('stops a command that outlives its timeout', async () => {
     const command = process.platform === 'win32' ? 'Start-Sleep -Seconds 30' : 'sleep 30'
