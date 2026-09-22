@@ -7,8 +7,17 @@ function renderMarkdown(text: string) {
   const onOpenLink = vi.fn()
   const onCopy = vi.fn()
   const onInsert = vi.fn()
-  render(<MarkdownView text={text} onOpenLink={onOpenLink} onCopy={onCopy} onInsert={onInsert} />)
-  return { onOpenLink, onCopy, onInsert }
+  const onApply = vi.fn()
+  render(
+    <MarkdownView
+      text={text}
+      onOpenLink={onOpenLink}
+      onCopy={onCopy}
+      onInsert={onInsert}
+      onApply={onApply}
+    />,
+  )
+  return { onOpenLink, onCopy, onInsert, onApply }
 }
 
 describe('MarkdownView', () => {
@@ -55,5 +64,11 @@ describe('MarkdownView', () => {
     renderMarkdown('```\nline one\nline two\n```')
     expect(screen.getByText('Copy')).toBeInTheDocument()
     expect(document.querySelector('.code-block-body')?.textContent).toBe('line one\nline two')
+  })
+
+  it('offers Apply beside Copy and Insert', () => {
+    const { onApply } = renderMarkdown('```py\nprint(1)\n```')
+    fireEvent.click(screen.getByText('Apply'))
+    expect(onApply).toHaveBeenCalledWith('print(1)')
   })
 })

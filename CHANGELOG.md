@@ -9,6 +9,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Milestone M5, editor integration: the open-file chip beside the model pill
+  (`App.tsx L5-10`, `×` to leave it out) sends the active file or selection
+  with the message in Claude Code's own wording (`<ide_selection>` with the
+  selected text, `<ide_opened_file>` for a bare file; excluded files share
+  their path only) while `turn/start.displayText` keeps the transcript to
+  what was typed; autosave of every dirty editor before a turn; **Open
+  diff** and **Revert** on finished Edit / Write rows, rebuilt from the
+  stored patch document through a `muse-edit:` content provider and
+  `vscode.diff`, refusing when the file changed since; **Apply** on code
+  blocks (replace the selection); a per-window IDE tool server (MCP over
+  loopback HTTP with a bearer token, requested through the `sessionMcp`
+  capability and registered with `session/start`) exposing `getDiagnostics`,
+  the errors and warnings of the Problems panel. Harness scenario `editor`.
+  Tool rows now label the CLI's `search` tool (`Search`, with its pattern)
+  and the IDE tool (`Diagnostics`), both seen on the live M5 turns.
+
 - Windows shell-sandbox setup from inside the extension (`PLAN.md` D12): when
   a chat opens, `muse sandbox windows check` runs once per extension host and
   a `setup_required` result raises a notification with _Set up now_ / _Not

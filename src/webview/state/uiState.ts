@@ -22,6 +22,7 @@ import {
 import type {
   AttachmentSummary,
   AuthStatus,
+  EditorContextSummary,
   HostToWebviewMessage,
   MentionItem,
   ModelOption,
@@ -72,6 +73,8 @@ export type TranscriptEntry =
       readonly status: 'pending' | 'sent' | 'failed'
       readonly reason?: string
       readonly attachments: readonly AttachmentSummary[]
+      /** The open-file chip that went with the message (M5). */
+      readonly contextLabel?: string
     }
   | {
       readonly kind: 'assistant'
@@ -178,6 +181,10 @@ export interface UiState {
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
+  /** The active editor as the host last reported it (M5). */
+  readonly editorContext: EditorContextSummary | undefined
+  /** The file whose chip the user closed; forgotten when another file is active. */
+  readonly dismissedEditorPath: string | undefined
 }
 
 export type UiAction =
@@ -191,9 +198,12 @@ export type UiAction =
       readonly localId: string
       readonly text: string
       readonly attachments: readonly AttachmentSummary[]
+      readonly contextLabel: string | undefined
     }
   | { readonly type: 'attachmentRemoved'; readonly id: string }
   | { readonly type: 'conversationCleared' }
+  /** The × on the open-file chip. */
+  | { readonly type: 'editorContextDismissed' }
   /** The user chose on an approval card; lock that stage until the host moves on. */
   | {
       readonly type: 'approvalDecided'
@@ -226,6 +236,8 @@ export const initialUiState: UiState = {
   todos: [],
   outputPages: {},
   localSequence: 0,
+  editorContext: undefined,
+  dismissedEditorPath: undefined,
 }
 
 const SUMMARY_FIELD_PREFIX = 'summary.'
@@ -599,6 +611,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'insertText': {
       return withInsert(state, message.text)
     }
+    case 'editorContext': {
+      // A dismissal holds only while the same file stays active.
+      const isSameFile = message.context?.relativePath === state.dismissedEditorPath
+      return {
+        ...state,
+        editorContext: message.context,
+        dismissedEditorPath: isSameFile ? state.dismissedEditorPath : undefined,
+      }
+    }
     case 'authState': {
       return { ...state, auth: { status: message.status, detail: message.detail } }
     }
@@ -705,9 +726,13 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
             text: action.text,
             status: 'pending',
             attachments: action.attachments,
+            ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
           },
         ],
       }
+    }
+    case 'editorContextDismissed': {
+      return { ...state, dismissedEditorPath: state.editorContext?.relativePath }
     }
     case 'attachmentRemoved': {
       return { ...state, attachments: state.attachments.filter((entry) => entry.id !== action.id) }
@@ -749,6 +774,15 @@ export function canSend(state: UiState): boolean {
   return (
     state.auth.status === 'signedIn' && (state.draft.trim() !== '' || state.attachments.length > 0)
   )
+}
+
+/** The open-file chip to show: the setting is on and the user has not closed it. */
+export function visibleEditorContext(state: UiState): EditorContextSummary | undefined {
+  const { editorContext } = state
+  if (editorContext === undefined || state.settings?.attachOpenFile !== true) {
+    return undefined
+  }
+  return editorContext.relativePath === state.dismissedEditorPath ? undefined : editorContext
 }
 
 /** Whether any tool row is waiting on the user (approval or question). */

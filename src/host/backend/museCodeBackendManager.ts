@@ -15,7 +15,11 @@ import {
   type MuseLaunch,
   resolveMuseLaunch,
 } from '../../core/backends/musecode/launch'
-import { MSP_CLIENT_NAME, type EnvironmentVariable } from '../../shared/constants'
+import {
+  type EnvironmentVariable,
+  MSP_CLIENT_NAME,
+  MSP_REQUESTED_CAPABILITIES,
+} from '../../shared/constants'
 import type { Logger } from '../logger'
 
 export interface BackendManagerDeps {
@@ -26,6 +30,8 @@ export interface BackendManagerDeps {
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
 }
+
+const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 
 function readTextFileOrUndefined(filePath: string): string | undefined {
   try {
@@ -67,9 +73,18 @@ export class MuseCodeBackendManager {
     const spawned = await handshake.initialize({
       clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
       // The panel renders question cards (M4), so the host may send
-      // `userInput/requested` instead of answering questions itself.
-      capabilities: { userInputDialogs: true },
+      // `userInput/requested` instead of answering questions itself; the IDE
+      // tool server (M5) needs the `sessionMcp` grant.
+      capabilities: {
+        userInputDialogs: true,
+        requestedCapabilities: [...MSP_REQUESTED_CAPABILITIES],
+      },
     })
+    if (!spawned.initializeResult.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
+      this.deps.log.warn(
+        `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${spawned.initializeResult.grantedCapabilities.join(', ')})`,
+      )
+    }
     if (spawned.fingerprintWarning !== undefined) {
       this.deps.log.warn(
         `MSP schema fingerprint mismatch: ${JSON.stringify(spawned.fingerprintWarning)}`,

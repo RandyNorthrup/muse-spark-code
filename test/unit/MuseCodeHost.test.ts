@@ -101,6 +101,7 @@ describe('MuseCodeHost', () => {
       serverName: 'muse',
       serverVersion: '1.3.0-test',
       museHome: '/home/test/.local/share/muse',
+      grantedCapabilities: [],
     })
   })
 

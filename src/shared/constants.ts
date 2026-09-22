@@ -40,6 +40,7 @@ export const VSCODE_COMMANDS = {
   setContext: 'setContext',
   openSettings: 'workbench.action.openSettings',
   openKeybindings: 'workbench.action.openGlobalKeybindings',
+  diff: 'vscode.diff',
 } as const
 
 // Settings (package.json `contributes.configuration`). Keys are relative to
@@ -188,15 +189,18 @@ export const HAS_APPROVAL_UI = true
 
 // --- Transcript (M4) ---
 
-// Tool names seen on the wire (Muse Code 1.3.0, live capture 2026-09-21) and
-// the label the row shows; unknown tools show their raw name.
+// Tool names seen on the wire (Muse Code 1.3.0, live captures 2026-09-21/22)
+// and the label the row shows; unknown tools show their raw name. The IDE
+// tool is named by the CLI's MCP catalog: `mcp__<server>__<tool>`.
 export const TOOL_LABELS: Readonly<Record<string, string>> = {
   write_file: 'Write',
   edit_file: 'Edit',
   read_file: 'Read',
+  search: 'Search',
   bash: 'Bash',
   powershell: 'PowerShell',
   request_user_input: 'Question',
+  mcp__ide__getDiagnostics: 'Diagnostics',
 }
 export const SHELL_TOOLS: ReadonlySet<string> = new Set(['bash', 'powershell', 'shell', 'cmd'])
 export const FILE_EDIT_TOOLS: ReadonlySet<string> = new Set(['write_file', 'edit_file'])
@@ -227,6 +231,50 @@ export const SANDBOX_CHECK_TIMEOUT_MS = 30 * 1000
 export const SANDBOX_SETUP_TIMEOUT_MS = 5 * 60 * 1000
 // Output cap for the short CLI commands the extension runs itself.
 export const CLI_OUTPUT_MAX_BYTES = 1024 * 1024
+// --- Editor integration (M5, PLAN.md §6 M5) ---
+
+// Active-editor changes are broadcast to the composer after this quiet gap.
+export const EDITOR_CONTEXT_DEBOUNCE_MS = 150
+// The selected text handed to the model with a message; longer selections
+// are clipped with a marker rather than dropped.
+export const SELECTION_TEXT_MAX_CHARS = 64 * 1024
+// The wording Claude Code uses for editor context (its system reminders).
+export const IDE_CONTEXT_TAGS = {
+  selection: 'ide_selection',
+  openedFile: 'ide_opened_file',
+} as const
+// Virtual documents holding a file's pre-edit text for the diff view.
+export const MUSE_EDIT_SCHEME = 'muse-edit'
+// A stored patch document is read whole for review; this many pages of
+// OUTPUT_PAGE_BYTES is far beyond any edit the tools produce.
+export const PATCH_DOCUMENT_MAX_PAGES = 8
+// The IDE tool server `muse serve` reaches over loopback (session MCP).
+export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp'] as const
+export const IDE_MCP_SERVER_NAME = 'ide'
+export const IDE_MCP_SERVER_INFO = { name: 'muse_spark_ide', version: '1' } as const
+export const IDE_MCP_PATH = '/mcp'
+export const IDE_MCP_LOOPBACK_HOST = '127.0.0.1'
+export const IDE_MCP_TOKEN_BYTES = 32
+export const IDE_MCP_TOOL_DIAGNOSTICS = 'getDiagnostics'
+// Newest MCP revision the server answers with when the client names none.
+export const MCP_PROTOCOL_VERSION = '2025-06-18'
+// Diagnostics beyond this many are summarised as a count.
+export const DIAGNOSTICS_MAX_ENTRIES = 200
+export const JSON_RPC_ERRORS = {
+  parseError: -32_700,
+  invalidRequest: -32_600,
+  methodNotFound: -32_601,
+  invalidParams: -32_602,
+} as const
+export const HTTP_STATUS = {
+  ok: 200,
+  accepted: 202,
+  badRequest: 400,
+  unauthorized: 401,
+  notFound: 404,
+  methodNotAllowed: 405,
+} as const
+
 // Muse Code versions whose Windows sandbox cannot enter C:\Users\<user>, so a
 // workspace under the profile runs shell commands in PowerShell's own folder
 // (verified live 2026-09-22 on 1.3.0 through the panel and `muse exec`).
@@ -431,6 +479,24 @@ export const UI_TEXT = {
   sandboxNotNeeded: 'Muse Code needs no sandbox setup on this platform.',
   sandboxCliMissing: 'Muse Code is not installed, so its sandbox cannot be checked.',
   sandboxCheckFailed: 'Muse Code sandbox check could not run',
+  // Editor integration (M5).
+  editorContextTitle: 'Shared with Muse as context; × leaves it out',
+  editorContextRemove: 'Leave the open file out',
+  editorContextLabel: 'Open file',
+  linePrefix: 'L',
+  openDiff: 'Open diff',
+  revertEdit: 'Revert',
+  applyCode: 'Apply',
+  noEditorForApply: 'Open a text editor to apply code into it.',
+  diffTitleSuffix: 'Muse edit',
+  editReverted: 'Reverted',
+  editCreatedRemoved: 'Moved to the trash (Muse created it)',
+  editNotRebuildable: 'cannot be rebuilt: the file changed since this edit',
+  editPathRefused: 'refused: the edited path is outside the workspace',
+  editNoPatch: 'This edit left no patch document.',
+  selectionClipped: '[selection clipped]',
+  selectionNotShared:
+    'Its content is not shared because the file is excluded from the workspace index.',
   sandboxProfileNotice: String.raw`This workspace is under your user profile, which the Windows sandbox of this Muse Code version cannot enter: shell commands will start in the PowerShell folder instead of the project and take about half a minute each. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
 } as const
 

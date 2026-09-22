@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import {
+  MuseCodeHost,
+  type SessionMcpHttpServer,
+} from '../../src/core/backends/musecode/MuseCodeHost'
+import type { EditorContext } from '../../src/core/editorContext'
 import type { AuthService, AuthSnapshot } from '../../src/host/auth/authService'
 import {
   ConversationController,
@@ -11,7 +15,7 @@ import {
 } from '../../src/host/conversation/conversationController'
 import type { HostAction, MentionItem } from '../../src/shared/protocol'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
-import { fakeMspHost, settle } from './helpers/fakeMsp'
+import { fakeInitializeResult, fakeMspHost, settle } from './helpers/fakeMsp'
 
 interface FakeAuth {
   readonly service: AuthService
@@ -101,6 +105,12 @@ function setup(
     isBypassAllowed?: boolean
     platform?: NodeJS.Platform
     userProfileDir?: string
+    editorContext?: EditorContext
+    isAutosaveEnabled?: boolean
+    /** Files the fake mention index lists (for the selection-text rule). */
+    indexed?: readonly string[]
+    ideMcpEndpoint?: SessionMcpHttpServer
+    grantedCapabilities?: readonly string[]
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -162,8 +172,25 @@ function setup(
       },
     ],
   }))
+  handle.server.handle('item/readOutput', (params) => ({
+    content: `{"files":[{"path":"notes.md","hunks":[]}]}#${String(params['outputRef'])}`,
+    encoding: 'utf8',
+    mediaType: 'application/json',
+    offsetBytes: 0,
+    byteLen: 40,
+    eof: true,
+  }))
   const log = new FakeLogOutputChannel()
-  const host = new MuseCodeHost(handle.host, log)
+  const host = new MuseCodeHost(
+    {
+      ...handle.host,
+      initializeResult: {
+        ...fakeInitializeResult,
+        grantedCapabilities: [...(options.grantedCapabilities ?? [])],
+      },
+    },
+    log,
+  )
   const auth = fakeAuth(options.status)
   const surface = fakeSurface('s')
   const openExternal = vi.fn<(url: string) => void>()
@@ -176,6 +203,9 @@ function setup(
   const inserted: string[] = []
   let hasEditor = true
   const onSandboxUnavailable = vi.fn<() => void>()
+  const saveAll = vi.fn(() => Promise.resolve())
+  const applied: string[] = []
+  const reviews: [string, string, string][] = []
   const controller = new ConversationController({
     surface,
     auth: auth.service,
@@ -193,6 +223,8 @@ function setup(
         ]
         return Promise.resolve(items.slice(0, limit))
       },
+      contains: (relativePath: string) =>
+        Promise.resolve((options.indexed ?? ['src/a.ts']).includes(relativePath)),
     },
     files: {
       showOpenDialog: () => Promise.resolve(picked),
@@ -218,6 +250,24 @@ function setup(
     onSandboxUnavailable,
     platform: options.platform ?? 'linux',
     userProfileDir: options.userProfileDir,
+    editorContext: () => options.editorContext,
+    isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
+    saveAll,
+    applyCode: (text: string) => {
+      applied.push(text)
+      return Promise.resolve(hasEditor)
+    },
+    editReview: {
+      openDiff: (itemId: string, patchJson: string) => {
+        reviews.push(['openDiff', itemId, patchJson])
+        return Promise.resolve([{ level: 'info' as const, text: `opened ${itemId}` }])
+      },
+      revert: (itemId: string, patchJson: string) => {
+        reviews.push(['revert', itemId, patchJson])
+        return Promise.resolve([{ level: 'info' as const, text: `reverted ${itemId}` }])
+      },
+    },
+    ideMcpEndpoint: () => options.ideMcpEndpoint,
     newAttachmentId: () => {
       attachmentCount += 1
       return `att-${String(attachmentCount)}`
@@ -252,6 +302,9 @@ function setup(
     copied,
     inserted,
     onSandboxUnavailable,
+    saveAll,
+    applied,
+    reviews,
     setHasEditor: (isOpen: boolean) => {
       hasEditor = isOpen
     },
@@ -954,6 +1007,142 @@ describe('ConversationController: transcript actions (M4)', () => {
     for (const t of [outside, posix]) {
       expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
     }
+  })
+})
+
+const sendWithContext = (t: ReturnType<typeof setup>, text = 'explain') =>
+  t.controller.handle({
+    type: 'sendMessage',
+    localId: 'l1',
+    text,
+    attachmentIds: [],
+    includeEditorContext: true,
+  })
+const turnStartParams = (t: ReturnType<typeof setup>) =>
+  t.server.requestsFor('turn/start')[0]?.params ?? {}
+
+describe('ConversationController: editor integration (M5)', () => {
+  const selection: EditorContext = {
+    relativePath: 'src/a.ts',
+    startLine: 5,
+    endLine: 6,
+    isEmpty: false,
+    selectedText: 'const a = 1',
+  }
+
+  it('appends the selection as an ide_selection part and keeps the typed text as displayText', async () => {
+    const t = setup({ editorContext: selection })
+    await sendWithContext(t)
+    const params = turnStartParams(t)
+    expect(params['input']).toEqual([
+      { type: 'text', text: 'explain' },
+      {
+        type: 'text',
+        text: '<ide_selection>The user selected the lines 5 to 6 from src/a.ts:\nconst a = 1\n</ide_selection>',
+      },
+    ])
+    expect(params['displayText']).toBe('explain')
+  })
+
+  it('shares only the path of a file the mention index does not list', async () => {
+    const t = setup({ editorContext: selection, indexed: [] })
+    await sendWithContext(t)
+    const parts = turnStartParams(t)['input'] as { text: string }[]
+    expect(parts[1]?.text).toContain('not shared')
+    expect(parts[1]?.text).not.toContain('const a = 1')
+  })
+
+  it('names the open file when nothing is selected, and adds nothing when the chip is off', async () => {
+    const opened = setup({
+      editorContext: { ...selection, isEmpty: true, selectedText: undefined },
+    })
+    await sendWithContext(opened)
+    expect((turnStartParams(opened)['input'] as { text: string }[])[1]?.text).toContain(
+      '<ide_opened_file>The user opened the file src/a.ts',
+    )
+    const off = setup({ editorContext: selection })
+    await off.send('l1', 'explain')
+    expect(turnStartParams(off)['input']).toEqual([{ type: 'text', text: 'explain' }])
+    expect(turnStartParams(off)['displayText']).toBeUndefined()
+  })
+
+  it('saves every editor before the turn when autosave is on, and never otherwise', async () => {
+    const on = setup({ isAutosaveEnabled: true })
+    await on.send('l1', 'hi')
+    expect(on.saveAll).toHaveBeenCalledTimes(1)
+    expect(on.server.requestsFor('turn/start')).toHaveLength(1)
+    const off = setup({ isAutosaveEnabled: false })
+    await off.send('l1', 'hi')
+    expect(off.saveAll).not.toHaveBeenCalled()
+  })
+
+  it('logs a failed autosave and still sends', async () => {
+    const t = setup({ isAutosaveEnabled: true })
+    t.saveAll.mockRejectedValueOnce(new Error('disk full'))
+    await t.send('l1', 'hi')
+    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('disk full'))
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  })
+
+  it('applies code into the editor, or explains when none is open', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'applyCode', text: 'x = 1' })
+    expect(t.applied).toEqual(['x = 1'])
+    t.setHasEditor(false)
+    await t.controller.handle({ type: 'applyCode', text: 'y' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'info',
+      text: 'Open a text editor to apply code into it.',
+    })
+  })
+
+  it('fetches the stored patch for a review and relays the notices', async () => {
+    const t = setup()
+    await t.send('l1', 'edit it')
+    await t.controller.handle({ type: 'openEditDiff', itemId: 'c1', outputRef: 'tool_patch-1' })
+    await t.controller.handle({ type: 'revertEdit', itemId: 'c1', outputRef: 'tool_patch-1' })
+    expect(t.reviews).toEqual([
+      ['openDiff', 'c1', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-1'],
+      ['revert', 'c1', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-1'],
+    ])
+    const reads = t.server.requestsFor('item/readOutput')
+    expect(reads).toHaveLength(2)
+    expect(reads[0]?.params).toMatchObject({
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+      offsetBytes: 0,
+    })
+    const notices = t.surface.posted.flatMap((m) => (m.type === 'notice' ? [m.text] : []))
+    expect(notices).toEqual(['opened c1', 'reverted c1'])
+  })
+
+  it('does nothing for a review without a session', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'openEditDiff', itemId: 'c1', outputRef: 'r' })
+    expect(t.reviews).toEqual([])
+  })
+
+  it('registers the IDE tool server with session/start only when sessionMcp was granted', async () => {
+    const endpoint = { url: 'http://127.0.0.1:1/mcp', headers: { Authorization: 'Bearer t' } }
+    const granted = setup({ ideMcpEndpoint: endpoint, grantedCapabilities: ['sessionMcp'] })
+    await granted.send('l1', 'hi')
+    expect(granted.server.requestsFor('session/start')[0]?.params?.['config']).toEqual({
+      mcpServers: {
+        ide: {
+          transport: 'streamableHttp',
+          url: endpoint.url,
+          headers: endpoint.headers,
+          mode: 'optional',
+        },
+      },
+    })
+    const denied = setup({ ideMcpEndpoint: endpoint })
+    await denied.send('l1', 'hi')
+    expect(denied.server.requestsFor('session/start')[0]?.params?.['config']).toBeUndefined()
+    const noServer = setup({ grantedCapabilities: ['sessionMcp'] })
+    await noServer.send('l1', 'hi')
+    expect(noServer.server.requestsFor('session/start')[0]?.params?.['config']).toBeUndefined()
   })
 })
 

@@ -1265,3 +1265,32 @@ body {
 .tool-more:hover {
   color: var(--vscode-foreground);
 }
+
+/* --- editor integration (M5) --- */
+
+/* The open-file chip beside the model pill: a pill that hugs its text. */
+.editor-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 220px;
+  padding: 1px 4px 1px 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  color: var(--vscode-foreground);
+  font-size: 0.85em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.editor-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Open diff / Revert under an edit row. */
+.tool-actions {
+  display: flex;
+  gap: 2px;
+  padding-left: calc(var(--ms-gap) + 2px);
+}

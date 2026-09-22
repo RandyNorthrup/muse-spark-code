@@ -24,6 +24,8 @@ export interface HostInfo {
   readonly serverName: string
   readonly serverVersion: string
   readonly museHome: string
+  /** Capabilities the host granted at `initialize` (`sessionMcp`, …). */
+  readonly grantedCapabilities: readonly string[]
 }
 
 export interface ModelSummary {
@@ -41,10 +43,18 @@ export interface SkillSummary {
   readonly argumentHint: string | undefined
 }
 
+/** A per-session MCP server over streamable HTTP (MSP `SessionMcpServerConfig`). */
+export interface SessionMcpHttpServer {
+  readonly url: string
+  readonly headers: Readonly<Record<string, string>>
+}
+
 export interface StartSessionOptions {
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: string
+  /** IDE tool servers, keyed by name; needs the `sessionMcp` grant. */
+  readonly mcpServers?: Readonly<Record<string, SessionMcpHttpServer>>
 }
 
 /** One ordered content part of a turn (MSP `TurnInputPart`). */
@@ -99,6 +109,7 @@ export type SessionEventListener = (event: AgentEvent) => void
 const initializeResultSchema = z.object({
   serverInfo: z.object({ name: z.string(), version: z.string() }),
   museHome: z.string(),
+  grantedCapabilities: z.optional(z.array(z.string())),
 })
 
 const sessionStartResultSchema = z.object({
@@ -195,8 +206,18 @@ export class MuseSession {
   }
 
   /** Submit one user turn; queued behind a running turn by host default. */
-  public async sendTurn(parts: readonly TurnPart[]): Promise<TurnSubmission> {
-    const result = turnStartResultSchema.parse(await this.command('turn/start', { input: parts }))
+  /**
+   * Submit a turn. `displayText` is the transcript's presentation form of the
+   * prompt (MSP: durable, never model-visible), used when the parts carry
+   * more than the user typed (editor context, M5).
+   */
+  public async sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
+    const result = turnStartResultSchema.parse(
+      await this.command('turn/start', {
+        input: parts,
+        ...(displayText !== undefined && { displayText }),
+      }),
+    )
     return { turnId: result.turnId, disposition: result.disposition ?? DEFAULT_DISPOSITION }
   }
 
@@ -309,6 +330,7 @@ export class MuseCodeHost {
       serverName: parsed.serverInfo.name,
       serverVersion: parsed.serverInfo.version,
       museHome: parsed.museHome,
+      grantedCapabilities: parsed.grantedCapabilities ?? [],
     }
     host.connection.onNotification((notification) => {
       const mapped = mapNotification(notification)
@@ -369,6 +391,22 @@ export class MuseCodeHost {
         workspaceRoot: options.workspaceRoot,
         modelId: options.modelId,
         approvalMode: options.approvalMode,
+        ...(options.mcpServers !== undefined && {
+          config: {
+            mcpServers: Object.fromEntries(
+              Object.entries(options.mcpServers).map(([name, server]) => [
+                name,
+                // `optional`: a tool-server hiccup never blocks the session.
+                {
+                  transport: 'streamableHttp',
+                  url: server.url,
+                  headers: server.headers,
+                  mode: 'optional',
+                },
+              ]),
+            ),
+          },
+        }),
       },
       { commandId },
     )

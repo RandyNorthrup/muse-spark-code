@@ -1,4 +1,5 @@
-// A fenced code block: language tag, highlighted body, Copy and Insert.
+// A fenced code block: language tag, highlighted body, Copy, Insert at
+// cursor and Apply (replace the editor selection).
 
 import { useEffect, useState } from 'react'
 import { COPIED_FEEDBACK_MS, UI_TEXT } from '../../shared/constants'
@@ -9,9 +10,10 @@ export interface CodeBlockProps {
   readonly language: string | undefined
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
+  readonly onApply: (text: string) => void
 }
 
-export function CodeBlock({ code, language, onCopy, onInsert }: CodeBlockProps) {
+export function CodeBlock({ code, language, onCopy, onInsert, onApply }: CodeBlockProps) {
   const [isCopied, setIsCopied] = useState(false)
   useEffect(() => {
     if (!isCopied) {
@@ -51,6 +53,15 @@ export function CodeBlock({ code, language, onCopy, onInsert }: CodeBlockProps) 
             }}
           >
             {UI_TEXT.insertCode}
+          </button>
+          <button
+            type="button"
+            className="code-block-button"
+            onClick={() => {
+              onApply(code)
+            }}
+          >
+            {UI_TEXT.applyCode}
           </button>
         </span>
       </div>

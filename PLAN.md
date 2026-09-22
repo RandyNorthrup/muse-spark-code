@@ -288,7 +288,16 @@ unavailable: windows_elevated setup_required`. The extension now handles
   **again** → `approval/resolved`). A second `approval/decide` for that stage
   is rejected (`approval … is already resolved`), so the card locks the
   decided stage (`decidedSourceIndex`) until the requirement index changes or
-  the approval resolves.
+  the approval resolves. Pipelines count as stages too: `a | b; c | d` asked
+  four times (M5 live edit turn), with the last stage repeated.
+- On Windows the stored patch document names files with the extended-length
+  prefix (`"path":"\\?\C:\muse-live-ws\notes.md"`, M5 live edit turn), not
+  the relative `notes.md` of the M4 fixture; anything resolving those paths
+  strips `\\?\` / `\\?\UNC\` first (`EditReview`).
+- The model also uses a `search {glob, output_mode, pattern}` tool (M5 live
+  edit turn); MCP tool calls from a session server arrive as
+  `toolCall` items named `mcp__<server>__<tool>` and are gated by
+  `approval/requested` in prompting modes like any unmatched tool.
 
 ### D12 — The extension sets up Muse Code's Windows sandbox itself (2026-09-22)
 
@@ -778,14 +787,77 @@ C:\…\App.test.tsx`, `Bash List the session images…`) with a one-line
 
 ### M5 — Editor integration
 
-- **Scope**: selection / active-file chips (`attachOpenFile`), Alt+K mention
-  insertion, autosave before turns, edit diffs: read `patchRef` content and
-  open `vscode.diff` on virtual documents, Accept / Reject wired to the
-  approval flow, "Proposed changes" tab; insert/apply code into the active
-  editor; diagnostics exposure via `sessionMcp` capability (local MCP server
-  offering `getDiagnostics`) if the CLI honours it, otherwise as a
-  user-invoked "Attach diagnostics" action.
-- **Tests**: diff document provider; apply-at-cursor; selection formatter.
+**Status 2026-09-22: complete.** Certification record: `docs/certification/m5.md`.
+Delivered: the open-file chip and its `<ide_selection>` /
+`<ide_opened_file>` part with `displayText`, autosave before turns, Open
+diff / Revert on finished edit rows through a `muse-edit:` content provider
+and reverse-applied patch hunks, Apply on code blocks, and the IDE tool
+server (MCP over loopback HTTP, `sessionMcp`) exposing `getDiagnostics`,
+which `muse serve` catalogs as `mcp__ide__getDiagnostics`. All three flows
+verified live through the controller (editor context answered without
+tools, the model called the diagnostics tool, an edit was diffed and
+reverted on disk); the live edit turn caught and fixed the extended-length
+patch path (D11). Design fixed before code, from the Claude Code docs
+(research notes) and the MSP facts below.
+
+- **Facts that shape it**: in-workspace file edits are applied by the CLI at
+  once and never prompt (D11), so a Claude-Code-style "review before write"
+  is impossible on MSP — the review is _after the fact_ (open the diff,
+  revert). `muse serve` grants `userShell`, `sessionMcp` and
+  `sessionListStream` when asked at `initialize` (probe 2026-09-22), and
+  `session/start.config.mcpServers` takes a per-session MCP server over
+  `stdio` or `streamableHttp` (closed union), so an IDE tool server for
+  diagnostics is possible without a child process: the extension host serves
+  MCP over loopback HTTP with a per-host bearer token. `turn/start` has
+  `displayText` ("presentation form … never model-visible"), which lets the
+  durable transcript show what the user typed while the model also gets the
+  editor context.
+- **Editor context** (`attachOpenFile`, on by default): the host watches the
+  active editor and its selection (debounced), broadcasts `editorContext` to
+  every surface, and the composer shows a chip after the model pill (file
+  icon, basename, `L5-10` while lines are selected, `×` to drop it until the
+  file changes) as in the Claude Code bar. On send the webview says whether
+  the chip was on; the host then appends a text part in the Claude Code
+  wording — `<ide_selection>The user selected the lines 5 to 10 from
+src/x.ts:\n…\n</ide_selection>` with the selected text (clipped), or
+  `<ide_opened_file>The user opened the file src/x.ts in the IDE. This may
+or may not be related to the current task.</ide_opened_file>` — and sets
+  `displayText` to the typed text. The user card shows the same chip.
+- **Autosave**: with `museSpark.autosave` on, every send first saves all
+  dirty editors (`workspace.saveAll(false)`), so the CLI reads what the user
+  sees.
+- **Edit review**: Edit / Write rows gain **Open diff** and **Revert** once
+  the item completes with a `patchRef`. Open diff fetches the stored patch
+  document, rebuilds the pre-edit text by reverse-applying its hunks to the
+  file as it is now, serves it through a `TextDocumentContentProvider`
+  (`muse-edit:` scheme) and opens `vscode.diff(before, file)`. Revert writes
+  the rebuilt text back through a `WorkspaceEdit` (a file the edit created is
+  moved to the trash) and posts a notice. When the hunks no longer match the
+  file (the user or a later edit changed it) both say so instead of guessing.
+  The "Proposed changes" tab and Accept / Reject-before-write from the first
+  cut are dropped: MSP offers no pre-write hook for in-workspace edits.
+- **Code block Apply**: replaces the active editor's selection with the block
+  (inserts at the caret when nothing is selected) and reveals the result;
+  Insert at cursor and Copy stay as in M4.
+- **Diagnostics**: `initialize` requests `sessionMcp`; `session/start`
+  registers `ide` as a `streamableHttp` MCP server served by the extension
+  host on `127.0.0.1:<ephemeral>` with an `Authorization: Bearer <token>`
+  header (token minted per extension host, never logged, never on disk). The
+  server implements `initialize`, `ping`, `tools/list` and `tools/call` for
+  `getDiagnostics { uri? }` (errors and warnings from
+  `languages.getDiagnostics`, capped), `mode: optional` so a server hiccup
+  never blocks a session. Verified live: see `docs/certification/m5.md`.
+- **Alt+K** (M3) is unchanged.
+- **Tests**: patch reverse-apply (exact match, mismatch, created file, CRLF);
+  `muse-edit` content provider and the diff / revert host module with fakes;
+  editor-context text builder; the composer chip, dismissal and user-card
+  chip; controller parts + `displayText` + autosave; the MCP HTTP server over
+  a real loopback socket (auth, `tools/list`, `tools/call`, notifications
+  → 202, GET → 405).
+- **Security**: the MCP server binds loopback only, requires the bearer
+  token, exposes one read-only tool and answers nothing else; reverts never
+  touch files outside the workspace (paths come from the patch document and
+  are resolved against the workspace root; anything escaping it is refused).
 
 ### M6 — Sessions, history, rewind
 

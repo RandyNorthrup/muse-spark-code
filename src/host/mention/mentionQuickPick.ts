@@ -27,7 +27,7 @@ export type MentionQuickPick = Pick<
 
 export interface MentionQuickPickDeps {
   readonly createQuickPick: () => MentionQuickPick
-  readonly mentions: MentionSearch
+  readonly mentions: Pick<MentionSearch, 'search'>
   readonly limit: number
   readonly placeholder: string
 }

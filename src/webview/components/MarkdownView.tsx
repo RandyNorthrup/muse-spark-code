@@ -12,6 +12,7 @@ export interface MarkdownViewProps {
   readonly onOpenLink: (url: string) => void
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
+  readonly onApply: (text: string) => void
 }
 
 const LANGUAGE_CLASS = /language-([\w+#-]+)/
@@ -28,7 +29,7 @@ function textOf(children: ReactNode): string {
   return Array.isArray(children) ? children.map((child) => textOf(child as ReactNode)).join('') : ''
 }
 
-function MarkdownViewInner({ text, onOpenLink, onCopy, onInsert }: MarkdownViewProps) {
+function MarkdownViewInner({ text, onOpenLink, onCopy, onInsert, onApply }: MarkdownViewProps) {
   return (
     <div className="markdown">
       <Markdown
@@ -63,6 +64,7 @@ function MarkdownViewInner({ text, onOpenLink, onCopy, onInsert }: MarkdownViewP
                 language={language}
                 onCopy={onCopy}
                 onInsert={onInsert}
+                onApply={onApply}
               />
             )
           },

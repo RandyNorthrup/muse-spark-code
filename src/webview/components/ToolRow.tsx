@@ -18,6 +18,9 @@ export interface ToolRowProps {
   readonly onReadOutput: (itemId: string, outputRef: string, offsetBytes: number) => void
   readonly onDecide: ApprovalCardProps['onDecide']
   readonly onAnswer: QuestionCardProps['onAnswer']
+  /** Edit review (M5): the stored patch of a completed edit-family item. */
+  readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
+  readonly onRevertEdit: (itemId: string, outputRef: string) => void
 }
 
 function statusClass(entry: ToolEntry): string {
@@ -122,12 +125,23 @@ function ShellBody({
   )
 }
 
-export function ToolRow({ entry, patchPage, onReadOutput, onDecide, onAnswer }: ToolRowProps) {
+export function ToolRow({
+  entry,
+  patchPage,
+  onReadOutput,
+  onDecide,
+  onAnswer,
+  onOpenEditDiff,
+  onRevertEdit,
+}: ToolRowProps) {
   const presentation = describeTool(entry.tool, entry.args)
   const isWaiting = entry.approval !== undefined || entry.question !== undefined
   const [isOpen, setIsOpen] = useState(false)
   const change = changeSummary(entry.patchSummary)
   const isFailed = entry.status !== 'inProgress' && entry.status !== 'completed'
+  // A finished edit with a stored patch can be reviewed in the editor.
+  const reviewRef =
+    presentation.body === 'edit' && entry.status === 'completed' ? entry.patchRef : undefined
   const toggle = () => {
     const isOpening = !isOpen
     setIsOpen(isOpening)
@@ -174,6 +188,28 @@ export function ToolRow({ entry, patchPage, onReadOutput, onDecide, onAnswer }: 
         )}
       </button>
       {change === undefined ? null : <div className="tool-change">{change}</div>}
+      {reviewRef === undefined ? null : (
+        <div className="tool-actions">
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onOpenEditDiff(entry.id, reviewRef.id)
+            }}
+          >
+            {UI_TEXT.openDiff}
+          </button>
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onRevertEdit(entry.id, reviewRef.id)
+            }}
+          >
+            {UI_TEXT.revertEdit}
+          </button>
+        </div>
+      )}
       {isFailed ? (
         <div className="tool-failure" role="alert">
           {entry.status === 'rejected' ? UI_TEXT.toolRejected : UI_TEXT.toolFailed}

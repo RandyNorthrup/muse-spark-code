@@ -6,15 +6,24 @@
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
-import type { MuseCodeHost, MuseSession, TurnPart } from '../../core/backends/musecode/MuseCodeHost'
+import type {
+  MuseCodeHost,
+  MuseSession,
+  SessionMcpHttpServer,
+  TurnPart,
+} from '../../core/backends/musecode/MuseCodeHost'
 import { isProfileWorkspaceLimited } from '../../core/backends/musecode/sandbox'
+import { type EditorContext, editorContextText } from '../../core/editorContext'
 import {
   ALLOWED_LINK_SCHEMES,
   DEFAULT_EFFORT,
   type EffortLevel,
+  IDE_MCP_SERVER_NAME,
   IMAGE_EXTENSIONS,
   MENTION_RESULT_LIMIT,
+  MSP_REQUESTED_CAPABILITIES,
   OUTPUT_PAGE_BYTES,
+  PATCH_DOCUMENT_MAX_PAGES,
   type PermissionMode,
   SANDBOX_FAILURE_MARKER,
   UI_TEXT,
@@ -31,6 +40,7 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import type { AuthService } from '../auth/authService'
+import type { ReviewNotice } from '../editor/editReview'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
 
@@ -53,6 +63,14 @@ export interface FileAccess {
 
 export interface MentionSearch {
   search(query: string, limit: number): Promise<readonly MentionItem[]>
+  /** Whether the file is in the index (excluded files share their path only). */
+  contains(relativePath: string): Promise<boolean>
+}
+
+/** Edit review (M5): each call returns the notices to show in the transcript. */
+export interface EditReviewActions {
+  openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
+  revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
 }
 
 export interface ConversationDeps {
@@ -79,6 +97,16 @@ export interface ConversationDeps {
   readonly platform: NodeJS.Platform
   /** `%USERPROFILE%`; undefined off Windows (the sandbox notice, D12). */
   readonly userProfileDir: string | undefined
+  /** The active editor for the file chip (M5); undefined when none. */
+  readonly editorContext: () => EditorContext | undefined
+  /** `museSpark.autosave`: save dirty editors before every turn. */
+  readonly isAutosaveEnabled: () => boolean
+  readonly saveAll: () => Promise<void>
+  /** Code block "Apply": replace the active editor's selection; false without an editor. */
+  readonly applyCode: (text: string) => Promise<boolean>
+  readonly editReview: EditReviewActions
+  /** The IDE tool server for `session/start`, when it is listening. */
+  readonly ideMcpEndpoint: () => SessionMcpHttpServer | undefined
   readonly newAttachmentId: () => string
   readonly log: Logger
 }
@@ -95,6 +123,7 @@ const MISSING_RUN_REASON = 'missing_run'
 const NOTHING_TO_COMPACT = 'Nothing to compact yet.'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const FALLBACK_MODE: PermissionMode = 'manual'
+const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -305,6 +334,54 @@ export class ConversationController {
     }
   }
 
+  private async applyCode(text: string): Promise<void> {
+    if (!(await this.deps.applyCode(text))) {
+      this.notice('info', UI_TEXT.noEditorForApply)
+    }
+  }
+
+  /** The whole stored patch document (small; paged only in principle). */
+  private async fetchPatch(itemId: string, outputRef: string): Promise<string | undefined> {
+    if (this.session === undefined) {
+      return undefined
+    }
+    let content = ''
+    let offsetBytes = 0
+    for (let page = 0; page < PATCH_DOCUMENT_MAX_PAGES; page += 1) {
+      const chunk = await this.session.readOutput({
+        itemId,
+        outputRef,
+        offsetBytes,
+        lengthBytes: OUTPUT_PAGE_BYTES,
+      })
+      content += chunk.content
+      if (chunk.eof) {
+        return content
+      }
+      offsetBytes = chunk.offsetBytes + chunk.byteLen
+    }
+    throw new Error(`patch document ${outputRef} is larger than expected`)
+  }
+
+  private async reviewEdit(
+    action: 'openDiff' | 'revert',
+    itemId: string,
+    outputRef: string,
+  ): Promise<void> {
+    try {
+      const patch = await this.fetchPatch(itemId, outputRef)
+      if (patch === undefined) {
+        return
+      }
+      const notices = await this.deps.editReview[action](itemId, patch)
+      for (const notice of notices) {
+        this.notice(notice.level, notice.text)
+      }
+    } catch (error: unknown) {
+      this.notice('error', `Could not review the edit: ${describe(error)}`)
+    }
+  }
+
   private async ensureModels(host: MuseCodeHost): Promise<void> {
     if (this.models !== undefined) {
       return
@@ -358,10 +435,14 @@ export class ConversationController {
     }
     const host = await this.deps.ensureHost()
     await this.ensureModels(host)
+    const ideEndpoint = this.deps.ideMcpEndpoint()
+    const hasSessionMcp = host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)
     const session = await host.startSession({
       workspaceRoot,
       modelId: this.modelId,
       approvalMode: approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+      ...(ideEndpoint !== undefined &&
+        hasSessionMcp && { mcpServers: { [IDE_MCP_SERVER_NAME]: ideEndpoint } }),
     })
     this.session = session
     this.unsubscribe = session.onEvent((event) => {
@@ -418,7 +499,11 @@ export class ConversationController {
     return trimmed === '' ? images : [{ type: 'text', text }, ...images]
   }
 
-  private async submit(session: MuseSession, parts: readonly TurnPart[]): Promise<string> {
+  private async submit(
+    session: MuseSession,
+    parts: readonly TurnPart[],
+    displayText: string | undefined,
+  ): Promise<string> {
     if (this.activeTurnId !== undefined) {
       try {
         return await session.steer(this.activeTurnId, parts)
@@ -426,26 +511,66 @@ export class ConversationController {
         this.deps.log.warn(`turn/steer failed (${describe(error)}); submitting as a new turn`)
       }
     }
-    const submission = await session.sendTurn(parts)
+    const submission = await session.sendTurn(parts, displayText)
     return submission.turnId
+  }
+
+  /**
+   * The editor-context part for this message (Claude Code's IDE reminder).
+   * A file the mention index does not list (gitignored / excluded) shares
+   * its path but not its text.
+   */
+  private async contextPart(context: EditorContext | undefined): Promise<TurnPart | undefined> {
+    if (context === undefined) {
+      return undefined
+    }
+    const isShareable =
+      context.selectedText !== undefined &&
+      (await this.deps.mentions.contains(context.relativePath))
+    return {
+      type: 'text',
+      text: editorContextText({
+        ...context,
+        selectedText: isShareable ? context.selectedText : undefined,
+      }),
+    }
+  }
+
+  private async autosave(): Promise<void> {
+    if (!this.deps.isAutosaveEnabled()) {
+      return
+    }
+    try {
+      await this.deps.saveAll()
+    } catch (error: unknown) {
+      this.deps.log.warn(`Autosave before the turn failed: ${describe(error)}`)
+    }
   }
 
   private async send(
     localId: string,
     text: string,
     attachmentIds: readonly string[],
+    isEditorContextIncluded: boolean,
   ): Promise<void> {
     try {
       const session = await this.sessionForAction(localId)
       if (session === undefined) {
         return
       }
-      const parts = this.buildParts(text, attachmentIds)
-      if (parts.length === 0) {
+      await this.autosave()
+      const typed = this.buildParts(text, attachmentIds)
+      if (typed.length === 0) {
         this.post({ type: 'sendFailed', localId, reason: NOTHING_TO_SEND_REASON })
         return
       }
-      const turnId = await this.submit(session, parts)
+      const context = await this.contextPart(
+        isEditorContextIncluded ? this.deps.editorContext() : undefined,
+      )
+      const parts = context === undefined ? typed : [...typed, context]
+      // With extra context the durable transcript keeps the typed text only.
+      const displayText = context === undefined ? undefined : text
+      const turnId = await this.submit(session, parts, displayText)
       this.activeTurnId = turnId
       this.post({ type: 'turnAccepted', localId, turnId })
     } catch (error: unknown) {
@@ -635,7 +760,12 @@ export class ConversationController {
   public async handle(message: ConversationMessage): Promise<void> {
     switch (message.type) {
       case 'sendMessage': {
-        await this.send(message.localId, message.text, message.attachmentIds)
+        await this.send(
+          message.localId,
+          message.text,
+          message.attachmentIds,
+          message.includeEditorContext === true,
+        )
         break
       }
       case 'cancelTurn': {
@@ -678,6 +808,18 @@ export class ConversationController {
       }
       case 'insertCode': {
         await this.insertCode(message.text)
+        break
+      }
+      case 'applyCode': {
+        await this.applyCode(message.text)
+        break
+      }
+      case 'openEditDiff': {
+        await this.reviewEdit('openDiff', message.itemId, message.outputRef)
+        break
+      }
+      case 'revertEdit': {
+        await this.reviewEdit('revert', message.itemId, message.outputRef)
         break
       }
       case 'setModel': {

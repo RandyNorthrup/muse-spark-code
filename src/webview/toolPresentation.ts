@@ -28,6 +28,8 @@ interface ParsedArgs {
   readonly command: string | undefined
   readonly description: string | undefined
   readonly content: string | undefined
+  /** The `search` tool's regular expression (live 2026-09-22). */
+  readonly pattern: string | undefined
 }
 
 const NO_ARGS: ParsedArgs = {
@@ -35,6 +37,7 @@ const NO_ARGS: ParsedArgs = {
   command: undefined,
   description: undefined,
   content: undefined,
+  pattern: undefined,
 }
 
 function parseArgs(args: string): ParsedArgs {
@@ -50,6 +53,7 @@ function parseArgs(args: string): ParsedArgs {
       command: pick('command'),
       description: pick('description'),
       content: pick('content'),
+      pattern: pick('pattern'),
     }
   } catch {
     return NO_ARGS
@@ -78,7 +82,7 @@ export function describeTool(tool: string, args: string): ToolPresentation {
   }
   return {
     label,
-    summary: parsed.path ?? parsed.description ?? '',
+    summary: parsed.path ?? parsed.pattern ?? parsed.description ?? '',
     body: 'generic',
     command: undefined,
   }

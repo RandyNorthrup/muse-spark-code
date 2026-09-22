@@ -48,6 +48,9 @@ function renderTranscript(
     onReadOutput: vi.fn(),
     onDecide: vi.fn(),
     onAnswer: vi.fn(),
+    onApply: vi.fn(),
+    onOpenEditDiff: vi.fn(),
+    onRevertEdit: vi.fn(),
     ...overrides,
   }
   render(<Transcript {...props} />)
@@ -278,5 +281,55 @@ describe('Transcript', () => {
     expect(screen.getByText('Hide 2 steps hidden by Focus view')).toBeInTheDocument()
     expect(screen.getAllByText('Read')).toHaveLength(1)
     expect(screen.getByText('Show 1 step hidden by Focus view')).toBeInTheDocument()
+  })
+})
+
+describe('Transcript editor integration (M5)', () => {
+  it('shows the open-file chip on the user card that carried it', () => {
+    renderTranscript([
+      {
+        kind: 'user',
+        id: 'u1',
+        text: 'explain',
+        status: 'sent',
+        attachments: [],
+        contextLabel: 'App.tsx L5-10',
+      },
+      { kind: 'user', id: 'u2', text: 'bare', status: 'sent', attachments: [] },
+    ])
+    expect(screen.getByText('App.tsx L5-10')).toBeInTheDocument()
+    expect(screen.getAllByRole('list', { name: 'Attachments' })).toHaveLength(1)
+  })
+
+  it('offers Open diff and Revert on a completed edit with a patch, and nowhere else', () => {
+    const props = renderTranscript([
+      tool({
+        id: 'ed',
+        tool: 'edit_file',
+        args: '{"find":"a","path":"notes.md","replace":"b"}',
+        patchRef: { id: 'tool_patch-1', byteLen: 300 },
+      }),
+      tool({
+        id: 'running',
+        tool: 'write_file',
+        args: '{"path":"x.md","content":"hi"}',
+        status: 'inProgress',
+        patchRef: { id: 'tool_patch-2', byteLen: 30 },
+      }),
+      tool({ id: 'rd', tool: 'read_file', args: '{"path":"notes.md"}' }),
+    ])
+    expect(screen.getAllByText('Open diff')).toHaveLength(1)
+    fireEvent.click(screen.getByText('Open diff'))
+    expect(props.onOpenEditDiff).toHaveBeenCalledWith('ed', 'tool_patch-1')
+    fireEvent.click(screen.getByText('Revert'))
+    expect(props.onRevertEdit).toHaveBeenCalledWith('ed', 'tool_patch-1')
+  })
+
+  it('routes a code block Apply to the host', () => {
+    const props = renderTranscript([
+      { kind: 'assistant', id: 'a', text: '```ts\nlet a = 1\n```', isStreaming: false },
+    ])
+    fireEvent.click(screen.getByText('Apply'))
+    expect(props.onApply).toHaveBeenCalledWith('let a = 1')
   })
 })

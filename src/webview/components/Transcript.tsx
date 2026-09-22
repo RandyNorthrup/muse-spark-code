@@ -9,7 +9,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
 import { splitForStreaming } from '../streamSplit'
 import type { ApprovalDecisionInput } from './ApprovalCard'
-import { ImageIcon } from './icons'
+import { FileIcon, ImageIcon } from './icons'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
@@ -26,6 +26,10 @@ export interface TranscriptProps {
   readonly onReadOutput: (itemId: string, outputRef: string, offsetBytes: number) => void
   readonly onDecide: (decision: ApprovalDecisionInput) => void
   readonly onAnswer: (userInputId: string, answers: readonly QuestionAnswer[]) => void
+  /** Code block Apply and edit review (M5). */
+  readonly onApply: (text: string) => void
+  readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
+  readonly onRevertEdit: (itemId: string, outputRef: string) => void
 }
 
 type StepEntry = Extract<TranscriptEntry, { kind: 'tool' | 'reasoning' }>
@@ -62,10 +66,17 @@ export function segment(entries: readonly TranscriptEntry[], isFocusView: boolea
 }
 
 function UserCard({ entry }: { readonly entry: Extract<TranscriptEntry, { kind: 'user' }> }) {
+  const hasChips = entry.attachments.length > 0 || entry.contextLabel !== undefined
   return (
     <li className={`message message-user message-${entry.status}`}>
-      {entry.attachments.length === 0 ? null : (
+      {hasChips ? (
         <ul className="chips chips-strip" aria-label={UI_TEXT.attachmentsLabel}>
+          {entry.contextLabel === undefined ? null : (
+            <li className="chip" title={UI_TEXT.editorContextLabel}>
+              <FileIcon />
+              <span className="chip-name">{entry.contextLabel}</span>
+            </li>
+          )}
           {entry.attachments.map((attachment) => (
             <li key={attachment.id} className="chip">
               <ImageIcon />
@@ -76,7 +87,7 @@ function UserCard({ entry }: { readonly entry: Extract<TranscriptEntry, { kind: 
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
       <div className="message-text">{entry.text}</div>
       {entry.status === 'failed' ? (
         <div className="message-error" role="alert">
@@ -94,27 +105,24 @@ function UserCard({ entry }: { readonly entry: Extract<TranscriptEntry, { kind: 
  * paragraph rather than the whole reply (docs/certification/m4.md). The
  * value is also deferred so React never blocks input on that render.
  */
-function AssistantRow({
-  entry,
-  onOpenLink,
-  onCopy,
-  onInsert,
-}: {
+interface AssistantRowProps {
   readonly entry: Extract<TranscriptEntry, { kind: 'assistant' }>
   readonly onOpenLink: (url: string) => void
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
-}) {
+  readonly onApply: (text: string) => void
+}
+
+function AssistantRow({ entry, onOpenLink, onCopy, onInsert, onApply }: AssistantRowProps) {
   const text = useDeferredValue(entry.text)
   const { head, tail } = entry.isStreaming ? splitForStreaming(text) : { head: '', tail: text }
+  const actions = { onOpenLink, onCopy, onInsert, onApply }
   return (
     <li className="message message-assistant" aria-busy={entry.isStreaming}>
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
       <div className="message-body">
-        {head === '' ? null : (
-          <MarkdownView text={head} onOpenLink={onOpenLink} onCopy={onCopy} onInsert={onInsert} />
-        )}
-        <MarkdownView text={tail} onOpenLink={onOpenLink} onCopy={onCopy} onInsert={onInsert} />
+        {head === '' ? null : <MarkdownView text={head} {...actions} />}
+        <MarkdownView text={tail} {...actions} />
         {entry.isStreaming ? <span className="cursor" aria-hidden="true" /> : null}
       </div>
     </li>
@@ -160,6 +168,9 @@ export function Transcript(props: TranscriptProps) {
     onReadOutput,
     onDecide,
     onAnswer,
+    onApply,
+    onOpenEditDiff,
+    onRevertEdit,
   } = props
   const renderStep = (entry: StepEntry) =>
     entry.kind === 'reasoning' ? (
@@ -176,6 +187,8 @@ export function Transcript(props: TranscriptProps) {
         onReadOutput={onReadOutput}
         onDecide={onDecide}
         onAnswer={onAnswer}
+        onOpenEditDiff={onOpenEditDiff}
+        onRevertEdit={onRevertEdit}
       />
     )
   const renderEntry = (entry: TranscriptEntry) => {
@@ -191,6 +204,7 @@ export function Transcript(props: TranscriptProps) {
             onOpenLink={onOpenLink}
             onCopy={onCopy}
             onInsert={onInsert}
+            onApply={onApply}
           />
         )
       }

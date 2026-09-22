@@ -19,6 +19,8 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     pendingInsert: undefined,
     attachments: [],
     mentionResults: undefined,
+    editorContextLabel: undefined,
+    onDismissEditorContext: vi.fn(),
     onDraftChange: vi.fn(),
     onInsertApplied: vi.fn(),
     onSubmit: vi.fn(),
@@ -297,5 +299,24 @@ describe('Composer chrome', () => {
       draft: Array.from({ length: 40 }, () => 'x').join('\n'),
     })
     expect(textarea).toHaveAttribute('rows', '10')
+  })
+})
+
+describe('Composer open-file chip (M5)', () => {
+  it('shows the label beside the model pill and closes on its ×', () => {
+    const { props } = renderComposer({ editorContextLabel: 'App.tsx L5-10' })
+    const chip = screen.getByText('App.tsx L5-10')
+    expect(chip.closest('.editor-chip')).toHaveAttribute(
+      'title',
+      'Shared with Muse as context; × leaves it out',
+    )
+    expect(chip.closest('.composer-toolbar-group')).toContainElement(screen.getByLabelText('Model'))
+    fireEvent.click(screen.getByLabelText('Leave the open file out: App.tsx L5-10'))
+    expect(props.onDismissEditorContext).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders nothing without a label', () => {
+    renderComposer()
+    expect(document.querySelector('.editor-chip')).toBeNull()
   })
 })

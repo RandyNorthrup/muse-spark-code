@@ -175,6 +175,7 @@ describe('App conversation', () => {
       localId: 'local-1',
       text: 'hello muse',
       attachmentIds: ['att-1'],
+      includeEditorContext: false,
     })
     expect(textarea()).toHaveValue('')
     // The chip leaves the composer and rides along in the user card.
@@ -215,6 +216,7 @@ describe('App conversation', () => {
       localId: 'local-1',
       text: 'and also',
       attachmentIds: [],
+      includeEditorContext: false,
     })
   })
 
@@ -663,5 +665,91 @@ describe('App palette', () => {
     renderReady()
     deliver({ type: 'notice', level: 'warning', text: 'Reasoning effort could not be applied' })
     expect(screen.getByRole('status')).toHaveTextContent('Reasoning effort could not be applied')
+  })
+})
+
+describe('App editor integration (M5)', () => {
+  const context = { relativePath: 'src/App.tsx', startLine: 5, endLine: 10, isEmpty: false }
+
+  it('sends the open-file chip with the message and shows it on the user card', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'editorContext', context })
+    expect(screen.getByText('App.tsx L5-10')).toBeInTheDocument()
+    fireEvent.change(textarea(), { target: { value: 'explain' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'explain',
+      attachmentIds: [],
+      includeEditorContext: true,
+    })
+    // The chip stays in the composer and is echoed on the card.
+    expect(screen.getAllByText('App.tsx L5-10')).toHaveLength(2)
+  })
+
+  it('leaves the context out once dismissed, until another file is active', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'editorContext', context })
+    fireEvent.click(screen.getByLabelText('Leave the open file out: App.tsx L5-10'))
+    expect(screen.queryByText('App.tsx L5-10')).toBeNull()
+    fireEvent.change(textarea(), { target: { value: 'hi' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'sendMessage', includeEditorContext: false }),
+    )
+    deliver({ type: 'editorContext', context: { ...context, relativePath: 'src/b.ts' } })
+    expect(screen.getByText('b.ts L5-10')).toBeInTheDocument()
+  })
+
+  it('hides the chip while attachOpenFile is off', () => {
+    renderReady()
+    deliver({ type: 'settingsChanged', settings: { ...testSettings, attachOpenFile: false } })
+    deliver({ type: 'editorContext', context })
+    expect(screen.queryByText('App.tsx L5-10')).toBeNull()
+  })
+
+  it('routes Apply and the edit review actions to the host', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'ed',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'edit_file',
+          args: '{"find":"a","path":"notes.md","replace":"b"}',
+          patchRef: { id: 'tool_patch-1', byteLen: 300 },
+        },
+      },
+    })
+    fireEvent.click(screen.getByText('Open diff'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'openEditDiff',
+      itemId: 'ed',
+      outputRef: 'tool_patch-1',
+    })
+    fireEvent.click(screen.getByText('Revert'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'revertEdit',
+      itemId: 'ed',
+      outputRef: 'tool_patch-1',
+    })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'm',
+          kind: 'agentMessage',
+          status: 'completed',
+          text: '```js\nlet a = 1\n```',
+        },
+      },
+    })
+    fireEvent.click(screen.getByText('Apply'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'applyCode', text: 'let a = 1' })
   })
 })

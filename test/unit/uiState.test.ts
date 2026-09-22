@@ -8,6 +8,7 @@ import {
   uiReducer,
   type UiAction,
   type UiState,
+  visibleEditorContext,
 } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
 
@@ -74,7 +75,7 @@ describe('uiReducer: sending', () => {
   it('echoes the user message as pending and clears the draft', () => {
     const state = reduceAll([
       { type: 'draftChanged', draft: 'hello' },
-      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [] },
+      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [], contextLabel: undefined },
     ])
     expect(state.draft).toBe('')
     expect(state.transcript).toEqual([
@@ -84,7 +85,7 @@ describe('uiReducer: sending', () => {
 
   it('marks the echo sent and the turn active on turnAccepted', () => {
     const state = reduceAll([
-      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [] },
+      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [], contextLabel: undefined },
       host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
     ])
     expect(state.transcript[0]).toMatchObject({ status: 'sent' })
@@ -93,7 +94,7 @@ describe('uiReducer: sending', () => {
 
   it('marks the echo failed with the reason on sendFailed', () => {
     const state = reduceAll([
-      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [] },
+      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [], contextLabel: undefined },
       host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first' }),
     ])
     expect(state.transcript[0]).toMatchObject({ status: 'failed', reason: 'Sign in first' })
@@ -113,7 +114,13 @@ describe('uiReducer: sending', () => {
   it('clears attachments with the draft on submit', () => {
     const state = reduceAll([
       host({ type: 'attachmentAdded', attachment }),
-      { type: 'submitted', localId: 'l1', text: 'see image', attachments: [attachment] },
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'see image',
+        attachments: [attachment],
+        contextLabel: undefined,
+      },
     ])
     expect(state.attachments).toEqual([])
     expect(state.transcript[0]).toMatchObject({ attachments: [attachment] })
@@ -646,5 +653,53 @@ describe('uiReducer: agent events', () => {
     expect(state.usage).toEqual({ inputTokens: 5, outputTokens: 2, cachedTokens: 1 })
     expect(state.context).toEqual({ usedTokens: 7, windowTokens: 10, pressure: 'normal' })
     expect(state.model).toEqual({ modelId: 'b', contextLimit: 10 })
+  })
+})
+
+describe('uiReducer: editor context (M5)', () => {
+  const context = { relativePath: 'src/a.ts', startLine: 1, endLine: 1, isEmpty: true }
+
+  it('shows the host-reported editor while the setting is on', () => {
+    const state = reduceAll([host(init), host({ type: 'editorContext', context })])
+    expect(visibleEditorContext(state)).toEqual(context)
+    const off = uiReducer(
+      state,
+      host({ type: 'settingsChanged', settings: { ...testSettings, attachOpenFile: false } }),
+    )
+    expect(visibleEditorContext(off)).toBeUndefined()
+    expect(
+      visibleEditorContext(uiReducer(state, host({ type: 'editorContext', context: undefined }))),
+    ).toBeUndefined()
+  })
+
+  it('remembers a dismissal for that file only', () => {
+    const shown = reduceAll([host(init), host({ type: 'editorContext', context })])
+    const dismissed = uiReducer(shown, { type: 'editorContextDismissed' })
+    expect(visibleEditorContext(dismissed)).toBeUndefined()
+    // A selection change in the same file keeps it hidden.
+    const moved = uiReducer(
+      dismissed,
+      host({
+        type: 'editorContext',
+        context: { ...context, startLine: 4, endLine: 6, isEmpty: false },
+      }),
+    )
+    expect(visibleEditorContext(moved)).toBeUndefined()
+    // Another file brings the chip back, and the dismissal is forgotten: the
+    // first file shows again when it becomes active later.
+    const other = uiReducer(
+      moved,
+      host({ type: 'editorContext', context: { ...context, relativePath: 'src/b.ts' } }),
+    )
+    expect(visibleEditorContext(other)).toMatchObject({ relativePath: 'src/b.ts' })
+    const back = uiReducer(other, host({ type: 'editorContext', context }))
+    expect(visibleEditorContext(back)).toEqual(context)
+  })
+
+  it('records the chip label on the submitted user card', () => {
+    const state = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'hi', attachments: [], contextLabel: 'a.ts' },
+    ])
+    expect(state.transcript[0]).toMatchObject({ kind: 'user', contextLabel: 'a.ts' })
   })
 })

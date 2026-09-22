@@ -508,6 +508,19 @@
         attach: () => {
           click('Attach')
         },
+        // --- M5 editor integration: the open-file chip and the edit actions ---
+        editor: () => {
+          send({
+            type: 'editorContext',
+            context: {
+              relativePath: 'src/webview/App.tsx',
+              startLine: 5,
+              endLine: 10,
+              isEmpty: false,
+            },
+          })
+          later(50, () => setDraft('what does this do?'))
+        },
         // --- M4 transcript scenarios: events shaped as the live capture ---
         markdown: () => {
           event({ type: 'turnStarted', turnId: 'tm' })

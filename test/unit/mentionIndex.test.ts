@@ -77,3 +77,13 @@ describe('MentionIndex', () => {
     expect(log.warn).toHaveBeenCalledWith('Mention index truncated to 2 of 3 paths')
   })
 })
+
+describe('MentionIndex.contains', () => {
+  it('knows the indexed files and not their folders or anything excluded', async () => {
+    const { index } = setup(['src/webview/App.tsx', 'README.md'])
+    await expect(index.contains('src/webview/App.tsx')).resolves.toBe(true)
+    await expect(index.contains('README.md')).resolves.toBe(true)
+    await expect(index.contains('src/')).resolves.toBe(false)
+    await expect(index.contains('node_modules/x.js')).resolves.toBe(false)
+  })
+})

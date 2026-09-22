@@ -3,7 +3,7 @@
 // `item/readOutput` (unified hunks with line numbers), and the edit tool's
 // `visibleOutput`, a headerless unified diff used until the document arrives.
 
-import * as z from 'zod/mini'
+import { ADD_MARKER, parsePatchFiles, REMOVE_MARKER } from '../shared/patchDocument'
 
 export interface DiffRow {
   readonly kind: 'context' | 'add' | 'remove' | 'hunk'
@@ -17,24 +17,7 @@ export interface FileDiff {
   readonly rows: readonly DiffRow[]
 }
 
-const patchDocumentSchema = z.object({
-  files: z.array(
-    z.object({
-      path: z.string(),
-      hunks: z.array(
-        z.object({
-          oldStart: z.number(),
-          newStart: z.number(),
-          lines: z.array(z.string()),
-        }),
-      ),
-    }),
-  ),
-})
-
 const HUNK_SEPARATOR: DiffRow = { kind: 'hunk', oldLine: undefined, newLine: undefined, text: '' }
-const ADD_MARKER = '+'
-const REMOVE_MARKER = '-'
 const HUNK_HEADER = '@@'
 const OLD_FILE_HEADER = '--- '
 const NEW_FILE_HEADER = '+++ '
@@ -71,17 +54,11 @@ function rowsOfHunk(lines: readonly string[], oldStart: number, newStart: number
 
 /** The stored patch document as file diffs; undefined when it is not one. */
 export function parsePatchDocument(json: string): readonly FileDiff[] | undefined {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(json)
-  } catch {
+  const files = parsePatchFiles(json)
+  if (files === undefined) {
     return undefined
   }
-  const result = patchDocumentSchema.safeParse(parsed)
-  if (!result.success) {
-    return undefined
-  }
-  return result.data.files.map((file) => ({
+  return files.map((file) => ({
     path: file.path,
     rows: file.hunks.flatMap((hunk, index) => [
       ...(index === 0 ? [] : [HUNK_SEPARATOR]),

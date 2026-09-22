@@ -5,15 +5,18 @@ inside the editor, modelled on the Claude Code VS Code extension: sidebar or
 editor-tab conversations, a slash-command palette, model and reasoning-effort
 picker, permission modes, streaming markdown, diff review, and session history.
 
-> **Status: milestone M4 (transcript rendering).** You can sign in (Meta
+> **Status: milestone M5 (editor integration).** You can sign in (Meta
 > account through the Muse Code CLI, or a Model API key), hold streaming
 > conversations with markdown and highlighted code, use the "/" palette,
 > attach images, `@`-mention files, pick the model, effort and permission
 > mode, steer a running turn, and watch the agent read, edit and write files
 > in tool rows with diffs, approve or reject gated commands from cards, and
-> answer its questions. On Windows the panel offers Muse Code's one-time
-> shell-sandbox setup itself (one administrator prompt). See
-> [`PLAN.md`](PLAN.md) for the milestone plan and the research behind it.
+> answer its questions. The open file or selection rides along as context,
+> finished edits can be diffed and reverted, code blocks apply into the
+> editor, and Muse can read the Problems panel through an IDE tool. On
+> Windows the panel offers Muse Code's one-time shell-sandbox setup itself
+> (one administrator prompt). See [`PLAN.md`](PLAN.md) for the milestone
+> plan and the research behind it.
 
 This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 "Muse Code" are Meta trademarks. You bring your own credentials.
@@ -133,6 +136,18 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
   on, the index comes from `git ls-files` (so `.gitignore` applies exactly);
   without git it falls back to VS Code's file search. `Alt+K` still inserts
   `@path#start-end` for the editor selection.
+- **Open-file chip** — with `museSpark.attachOpenFile` on (the default) the
+  active workspace file rides beside the model pill as `App.tsx`, or
+  `App.tsx L5-10` while lines are selected, exactly as in the Claude Code
+  bar. When you send, the host adds it to the prompt the way Claude Code's
+  IDE reminders do: `<ide_selection>` with the selected text (clipped at
+  64 KiB; a file the workspace index does not list, such as a gitignored one,
+  shares its path only) or `<ide_opened_file>` naming the file. The transcript
+  and the durable session keep only what you typed (`turn/start.displayText`),
+  and the user card shows the same chip. The `×` leaves the file out until
+  another file becomes active.
+- **Autosave** — with `museSpark.autosave` on, every send first saves all
+  dirty editors so the CLI reads what you see.
 - **Model pill** — `model effort`, e.g. `muse-spark-1.3 High`. Click it for
   the model list (`model/list`, context window shown per row; the choice is
   applied with `session/setModel`). Effort is Minimal / Low / Medium / High /
@@ -160,7 +175,8 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
   links open in your browser through VS Code (http, https and mailto only).
   Fenced code is highlighted (TypeScript, JavaScript, JSON, Bash, PowerShell,
   Python, CSS, HTML, Markdown, diff, YAML, SQL, Go, Rust, Java, C, C++, C#)
-  with **Copy** and **Insert at cursor** buttons.
+  with **Copy**, **Insert at cursor** and **Apply** buttons; Apply replaces
+  the active editor's selection with the block (or inserts it at the caret).
 - **Tool rows** show what the agent did, one per call: `Read`, `Edit`,
   `Write`, `PowerShell` / `Bash`, `Question`, or the raw tool name. A green
   dot means completed, a pulsing one running, red failed or rejected. Under
@@ -168,6 +184,19 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
   click the row for the diff (line-numbered once the stored patch has been
   fetched), the shell command and its output (`IN` / `OUT`), or the file
   contents read. Long outputs clip to twelve lines with **Show more**.
+- **Edit review** — Muse Code applies in-workspace edits as it goes (they
+  never prompt, see `PLAN.md` D11), so review happens after the fact: a
+  finished `Edit` or `Write` row offers **Open diff** (VS Code's diff editor,
+  the file before the edit on the left and the file as it is now on the
+  right, rebuilt from the stored patch) and **Revert** (writes the pre-edit
+  text back; a file the edit created goes to the trash). If the file changed
+  since the edit, both say so instead of guessing. Claude Code's
+  review-before-write has no MSP counterpart.
+- **Diagnostics** — Muse can ask VS Code for the errors and warnings in the
+  Problems panel: the extension serves a `getDiagnostics` tool to each
+  session over a loopback MCP server (`sessionMcp`), as Claude Code's IDE
+  server does. Nothing else is exposed, the server binds `127.0.0.1` only and
+  needs a per-window bearer token.
 - **Reasoning** collapses to `Thought for Ns`; click to read the summary
   parts the model exposed.
 - **Approval cards** appear under a gated tool call with the choices the CLI
@@ -192,8 +221,8 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 | --------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
 | `preferredLocation`               | `panel`  | Where new conversations open: `sidebar` or `panel` (editor tab)                            |
 | `initialPermissionMode`           | `manual` | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations       |
-| `autosave`                        | `true`   | Save dirty files before Muse reads or writes them                                          |
-| `attachOpenFile`                  | `true`   | Attach the active file to each message (off: selection only)                               |
+| `autosave`                        | `true`   | Save all dirty editors before every turn                                                   |
+| `attachOpenFile`                  | `true`   | Show the open-file chip and send the active file / selection with each message             |
 | `useCtrlEnterToSend`              | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                  |
 | `hideOnboarding`                  | `false`  | Hide the onboarding checklist                                                              |
 | `focusView`                       | `false`  | Show only prompts and responses                                                            |

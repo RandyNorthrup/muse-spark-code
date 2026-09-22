@@ -74,6 +74,16 @@ export class MentionIndex {
     return rankMatches(query, items, (item) => item.path, limit)
   }
 
+  /**
+   * Whether the index lists this file: false for gitignored / excluded files
+   * (and, since the index is capped, for files beyond the cap), which is when
+   * Claude Code shares a path but not its content.
+   */
+  public async contains(relativePath: string): Promise<boolean> {
+    const items = await this.load()
+    return items.some((item) => !item.isFolder && item.path === relativePath)
+  }
+
   /** Forget the cached list (a workspace file changed). */
   public invalidate(): void {
     this.cache = undefined

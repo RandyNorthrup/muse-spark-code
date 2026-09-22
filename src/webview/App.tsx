@@ -6,6 +6,7 @@ import {
   PERMISSION_MODE_LABELS,
   UI_TEXT,
 } from '../shared/constants'
+import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { availablePermissionModes, nextPermissionMode } from '../shared/permissionModes'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
@@ -26,7 +27,13 @@ import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
 import { TodoPanel } from './components/TodoPanel'
 import { Transcript } from './components/Transcript'
-import { canSend, initialUiState, type UiState, uiReducer } from './state/uiState'
+import {
+  canSend,
+  initialUiState,
+  type UiState,
+  uiReducer,
+  visibleEditorContext,
+} from './state/uiState'
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -136,9 +143,26 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
     }
     const localId = newLocalId()
     const attachmentIds = state.attachments.map((attachment) => attachment.id)
-    dispatch({ type: 'submitted', localId, text, attachments: state.attachments })
-    postMessage({ type: 'sendMessage', localId, text, attachmentIds })
+    // The open-file chip travels with the message: the host adds the context.
+    const editorContext = visibleEditorContext(state)
+    dispatch({
+      type: 'submitted',
+      localId,
+      text,
+      attachments: state.attachments,
+      contextLabel: editorContext === undefined ? undefined : editorContextLabel(editorContext),
+    })
+    postMessage({
+      type: 'sendMessage',
+      localId,
+      text,
+      attachmentIds,
+      includeEditorContext: editorContext !== undefined,
+    })
   }, [state, newLocalId, postMessage])
+  const onDismissEditorContext = useCallback(() => {
+    dispatch({ type: 'editorContextDismissed' })
+  }, [])
   const onStop = useCallback(() => {
     postMessage({ type: 'cancelTurn' })
   }, [postMessage])
@@ -172,6 +196,24 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
   const onReadOutput = useCallback(
     (itemId: string, outputRef: string, offsetBytes: number) => {
       postMessage({ type: 'readOutput', itemId, outputRef, offsetBytes })
+    },
+    [postMessage],
+  )
+  const onApply = useCallback(
+    (text: string) => {
+      postMessage({ type: 'applyCode', text })
+    },
+    [postMessage],
+  )
+  const onOpenEditDiff = useCallback(
+    (itemId: string, outputRef: string) => {
+      postMessage({ type: 'openEditDiff', itemId, outputRef })
+    },
+    [postMessage],
+  )
+  const onRevertEdit = useCallback(
+    (itemId: string, outputRef: string) => {
+      postMessage({ type: 'revertEdit', itemId, outputRef })
     },
     [postMessage],
   )
@@ -471,9 +513,13 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
         onReadOutput={onReadOutput}
         onDecide={onDecide}
         onAnswer={onAnswer}
+        onApply={onApply}
+        onOpenEditDiff={onOpenEditDiff}
+        onRevertEdit={onRevertEdit}
       />
     )
   }
+  const editorContext = visibleEditorContext(state)
 
   let floating
   switch (overlay) {
@@ -570,6 +616,10 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
           pendingInsert={state.pendingInsert}
           attachments={state.attachments}
           mentionResults={state.mentionResults}
+          editorContextLabel={
+            editorContext === undefined ? undefined : editorContextLabel(editorContext)
+          }
+          onDismissEditorContext={onDismissEditorContext}
           onDraftChange={onDraftChange}
           onInsertApplied={onInsertApplied}
           onSubmit={onSubmit}

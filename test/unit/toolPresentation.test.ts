@@ -51,6 +51,20 @@ describe('describeTool', () => {
     expect(describeTool('mystery', 'not json')).toMatchObject({ label: 'mystery', summary: '' })
     expect(describeTool('mystery', '42')).toMatchObject({ summary: '' })
   })
+
+  it('labels the search tool by its pattern and the IDE diagnostics tool by name (live 2026-09-22)', () => {
+    expect(
+      describeTool(
+        'search',
+        '{"glob":["**/notes.md"],"output_mode":"files_with_matches","pattern":"^"}',
+      ),
+    ).toEqual({ label: 'Search', summary: '^', body: 'generic', command: undefined })
+    expect(describeTool('mcp__ide__getDiagnostics', '{}')).toMatchObject({
+      label: 'Diagnostics',
+      summary: '',
+      body: 'generic',
+    })
+  })
 })
 
 describe('changeSummary', () => {

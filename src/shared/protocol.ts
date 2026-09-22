@@ -83,6 +83,19 @@ export type AttachmentSummary = z.infer<typeof attachmentSchema>
 const mentionItemSchema = z.object({ path: z.string(), isFolder: z.boolean() })
 export type MentionItem = z.infer<typeof mentionItemSchema>
 
+// The active editor as the composer chip shows it (M5). The selected text
+// itself stays in the host; the webview only needs the label.
+const editorContextSummarySchema = z.object({
+  /** Workspace-relative with forward slashes. */
+  relativePath: z.string(),
+  /** 1-based, inclusive. */
+  startLine: z.number(),
+  endLine: z.number(),
+  /** True when nothing is highlighted (a bare caret). */
+  isEmpty: z.boolean(),
+})
+export type EditorContextSummary = z.infer<typeof editorContextSummarySchema>
+
 const composerStateSchema = z.object({
   type: z.literal('composerState'),
   effort: z.enum(EFFORT_LEVELS),
@@ -104,6 +117,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     localId: z.string(),
     text: z.string(),
     attachmentIds: z.array(z.string()),
+    /** The editor-context chip was on: the host adds the active file / selection. */
+    includeEditorContext: z.optional(z.boolean()),
   }),
   // The user pressed Stop.
   z.object({ type: z.literal('cancelTurn') }),
@@ -165,6 +180,11 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Code block actions.
   z.object({ type: z.literal('copyText'), text: z.string() }),
   z.object({ type: z.literal('insertCode'), text: z.string() }),
+  // Replace the active editor's selection with the block (M5).
+  z.object({ type: z.literal('applyCode'), text: z.string() }),
+  // Edit review (M5): the stored patch of a completed edit-family item.
+  z.object({ type: z.literal('openEditDiff'), itemId: z.string(), outputRef: z.string() }),
+  z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -183,6 +203,11 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('focusInput') }),
   // Insert text at the composer caret (Alt+K mention reference).
   z.object({ type: z.literal('insertText'), text: z.string() }),
+  // The active editor changed (M5); undefined when no text file is active.
+  z.object({
+    type: z.literal('editorContext'),
+    context: z.optional(editorContextSummarySchema),
+  }),
   // Backend / credential state, driving the sign-in screen and Send button.
   z.object({
     type: z.literal('authState'),

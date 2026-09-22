@@ -26,7 +26,7 @@ import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../sha
 import { blobToBase64, parseUriList } from '../base64'
 import type { MentionResults } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
-import { PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
+import { CloseIcon, FileIcon, PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
 import { MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
 
@@ -51,6 +51,9 @@ export interface ComposerProps {
   readonly pendingInsert: string | undefined
   readonly attachments: readonly AttachmentSummary[]
   readonly mentionResults: MentionResults | undefined
+  /** The open-file chip ("PLAN.md L5-10"); undefined hides it (M5). */
+  readonly editorContextLabel: string | undefined
+  readonly onDismissEditorContext: () => void
   readonly onDraftChange: (draft: string) => void
   readonly onInsertApplied: () => void
   readonly onSubmit: () => void
@@ -120,6 +123,8 @@ export function Composer(props: ComposerProps) {
     pendingInsert,
     attachments,
     mentionResults,
+    editorContextLabel,
+    onDismissEditorContext,
     onDraftChange,
     onInsertApplied,
     onSubmit,
@@ -373,6 +378,22 @@ export function Composer(props: ComposerProps) {
           >
             {modelLabel}
           </button>
+          {editorContextLabel === undefined ? null : (
+            <span className="editor-chip" title={UI_TEXT.editorContextTitle}>
+              <FileIcon />
+              <span className="editor-chip-label">{editorContextLabel}</span>
+              <button
+                type="button"
+                className="chip-remove"
+                title={UI_TEXT.editorContextRemove}
+                aria-label={`${UI_TEXT.editorContextRemove}: ${editorContextLabel}`}
+                onMouseDown={keepMenuFocus}
+                onClick={onDismissEditorContext}
+              >
+                <CloseIcon />
+              </button>
+            </span>
+          )}
         </div>
         <div className="composer-toolbar-group">
           {contextLabel === undefined ? null : (

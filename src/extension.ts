@@ -7,12 +7,17 @@ import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { CliInvocation } from './core/backends/musecode/sandbox'
+import { type DiagnosticEntry, type DiagnosticSeverity, diagnosticsTool } from './core/diagnostics'
+import type { EditorContext } from './core/editorContext'
 import type { MentionSource } from './core/mention'
 import { MentionIndex } from './core/mentionIndex'
 import { AuthService } from './host/auth/authService'
 import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
+import { EditorContextTracker } from './host/editor/editorContextTracker'
+import { EditReview } from './host/editor/editReview'
+import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { insertMentionReference } from './host/commands/insertMention'
 import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
@@ -41,6 +46,7 @@ import {
   GLOBAL_STATE_KEYS,
   MENTION_INDEX_LIMIT,
   MENTION_INDEX_TTL_MS,
+  MUSE_EDIT_SCHEME,
   MUSE_LOGIN_TERMINAL_NAME,
   PRODUCT_NAME,
   SETTINGS_SECTION,
@@ -68,6 +74,53 @@ function activeSelection(): MentionSource | undefined {
     startLine: editor.selection.start.line + 1,
     endLine: editor.selection.end.line + 1,
     isEmpty: editor.selection.isEmpty,
+  }
+}
+
+/** The active workspace file and selection for the open-file chip (M5). */
+function editorSnapshot(): EditorContext | undefined {
+  const editor = vscode.window.activeTextEditor
+  const selection = activeSelection()
+  if (editor === undefined || selection === undefined) {
+    return undefined
+  }
+  const relativePath = relativePathInWorkspace(editor.document.uri)
+  if (relativePath === undefined) {
+    return undefined
+  }
+  return {
+    ...selection,
+    relativePath,
+    selectedText: selection.isEmpty ? undefined : editor.document.getText(editor.selection),
+  }
+}
+
+const DIAGNOSTIC_SEVERITIES: readonly DiagnosticSeverity[] = [
+  'error',
+  'warning',
+  'information',
+  'hint',
+]
+
+/** Every diagnostic VS Code holds, as plain entries for the IDE tool. */
+function collectDiagnostics(): readonly DiagnosticEntry[] {
+  return vscode.languages.getDiagnostics().flatMap(([uri, diagnostics]) =>
+    diagnostics.map((diagnostic): DiagnosticEntry => ({
+      path: relativePathInWorkspace(uri) ?? uri.fsPath,
+      severity: DIAGNOSTIC_SEVERITIES[diagnostic.severity] ?? 'error',
+      line: diagnostic.range.start.line + 1,
+      column: diagnostic.range.start.character + 1,
+      message: diagnostic.message,
+      source: diagnostic.source,
+    })),
+  )
+}
+
+async function readTextFile(fsPath: string): Promise<string | undefined> {
+  try {
+    return new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)))
+  } catch {
+    return undefined
   }
 }
 
@@ -228,6 +281,47 @@ export function activate(context: vscode.ExtensionContext): void {
     log,
   })
 
+  const editorContext = new EditorContextTracker({
+    broadcast: (summary) => {
+      registry.broadcast({ type: 'editorContext', context: summary })
+    },
+  })
+  const ideServer = new IdeMcpServer(
+    [diagnosticsTool({ getDiagnostics: collectDiagnostics, workspaceRoot })],
+    log,
+  )
+  const startIdeServer = async (): Promise<void> => {
+    try {
+      await ideServer.start()
+    } catch (error: unknown) {
+      log.warn(`IDE tool server could not start; diagnostics stay unavailable: ${String(error)}`)
+    }
+  }
+  void startIdeServer()
+  const editReview = new EditReview({
+    platform: process.platform,
+    workspaceRoot: workspaceRoot ?? '',
+    readFile: readTextFile,
+    writeFile: async (fsPath, content) => {
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(fsPath),
+        new TextEncoder().encode(content),
+      )
+    },
+    deleteFile: async (fsPath) => {
+      await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+    },
+    openDiff: async (beforeUri, fsPath, title) => {
+      await vscode.commands.executeCommand(
+        VSCODE_COMMANDS.diff,
+        vscode.Uri.parse(beforeUri),
+        vscode.Uri.file(fsPath),
+        title,
+      )
+    },
+    log,
+  })
+
   const mentions = new MentionIndex({
     listFiles: createWorkspaceFileLister({
       workspaceRoot: workspaceRoot ?? '',
@@ -315,7 +409,10 @@ export function activate(context: vscode.ExtensionContext): void {
         openExternal: (url) => {
           void vscode.env.openExternal(vscode.Uri.parse(url))
         },
-        mentions: { search: (query, limit) => mentions.search(query, limit) },
+        mentions: {
+          search: (query, limit) => mentions.search(query, limit),
+          contains: (relativePath) => mentions.contains(relativePath),
+        },
         files,
         isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
         runHostAction,
@@ -336,6 +433,28 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         platform: process.platform,
         userProfileDir: process.env['USERPROFILE'],
+        editorContext: () => editorContext.active,
+        isAutosaveEnabled: () => currentSettings().autosave,
+        saveAll: async () => {
+          await vscode.workspace.saveAll(false)
+        },
+        // Code block "Apply": the block replaces the selection (or lands at
+        // the caret); false when no text editor is active.
+        applyCode: async (text) => {
+          const editor = vscode.window.activeTextEditor
+          if (editor === undefined) {
+            return false
+          }
+          const isApplied = await editor.edit((builder) => {
+            builder.replace(editor.selection, text)
+          })
+          if (isApplied) {
+            editor.revealRange(editor.selection)
+          }
+          return isApplied
+        },
+        editReview,
+        ideMcpEndpoint: () => ideServer.current,
         newAttachmentId: () => crypto.randomUUID(),
         log,
       })
@@ -361,6 +480,7 @@ export function activate(context: vscode.ExtensionContext): void {
     },
     onSurfaceReady: (surface) => {
       controllerFor(surface).surfaceReady()
+      surface.post({ type: 'editorContext', context: editorContext.summary })
       if (auth.current.status === 'checking') {
         void auth.refresh()
       }
@@ -379,9 +499,25 @@ export function activate(context: vscode.ExtensionContext): void {
   const openSidebar = () => vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
   const fileWatcher = vscode.workspace.createFileSystemWatcher(FIND_FILES_GLOB, false, true, false)
 
+  editorContext.update(editorSnapshot())
   context.subscriptions.push(
     channel,
     fileWatcher,
+    editorContext,
+    {
+      dispose: () => {
+        ideServer.close()
+      },
+    },
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      editorContext.update(editorSnapshot())
+    }),
+    vscode.window.onDidChangeTextEditorSelection(() => {
+      editorContext.update(editorSnapshot())
+    }),
+    vscode.workspace.registerTextDocumentContentProvider(MUSE_EDIT_SCHEME, {
+      provideTextDocumentContent: (uri) => editReview.provide(uri.path),
+    }),
     fileWatcher.onDidCreate(() => {
       mentions.invalidate()
     }),
