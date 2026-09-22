@@ -1,0 +1,95 @@
+// Complete fakes for the VS Code interfaces src/host consumes. Complete means
+// every member of the real interface is implemented, so no cast is needed and
+// the compiler reports when the API changes.
+
+import type * as vscode from 'vscode'
+import { vi } from 'vitest'
+import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
+
+function acceptMessage(_message: unknown): Thenable<boolean> {
+  return Promise.resolve(true)
+}
+
+export class FakeWebview implements vscode.Webview {
+  public options: vscode.WebviewOptions = {}
+  public html = ''
+  public readonly cspSource = 'vscode-webview://fake'
+  public readonly messages = new EventEmitter<unknown>()
+  public readonly onDidReceiveMessage = this.messages.event
+  public readonly postMessage = vi.fn(acceptMessage)
+
+  public asWebviewUri(localResource: vscode.Uri): vscode.Uri {
+    return new FakeUri(`webview${localResource.path}`)
+  }
+}
+
+export class FakeWebviewView implements vscode.WebviewView {
+  public readonly viewType = 'fake.view'
+  public readonly webview = new FakeWebview()
+  public title = 'Fake view'
+  public description = ''
+  public badge: vscode.ViewBadge | undefined = undefined
+  public visible = true
+  public readonly disposed = new EventEmitter<void>()
+  public readonly onDidDispose = this.disposed.event
+  public readonly visibility = new EventEmitter<void>()
+  public readonly onDidChangeVisibility = this.visibility.event
+
+  public show(): void {
+    this.visible = true
+  }
+}
+
+export class FakeWebviewPanel implements vscode.WebviewPanel {
+  public readonly webview = new FakeWebview()
+  public readonly options: vscode.WebviewPanelOptions = {}
+  public iconPath?: vscode.IconPath
+  public viewColumn: vscode.ViewColumn | undefined = undefined
+  public active = true
+  public visible = true
+  public readonly disposed = new EventEmitter<void>()
+  public readonly onDidDispose = this.disposed.event
+  public readonly viewStateChanges =
+    new EventEmitter<vscode.WebviewPanelOnDidChangeViewStateEvent>()
+  public readonly onDidChangeViewState = this.viewStateChanges.event
+
+  public constructor(
+    public readonly viewType: string,
+    public title: string,
+  ) {}
+
+  public reveal(): void {
+    this.visible = true
+  }
+
+  public dispose(): void {
+    this.disposed.fire()
+  }
+}
+
+export class FakeLogOutputChannel implements vscode.LogOutputChannel {
+  public readonly name = 'fake'
+  public logLevel = 0 as vscode.LogLevel
+  public readonly logLevelChanges = new EventEmitter<vscode.LogLevel>()
+  public readonly onDidChangeLogLevel = this.logLevelChanges.event
+  public readonly trace = vi.fn()
+  public readonly debug = vi.fn()
+  public readonly info = vi.fn()
+  public readonly warn = vi.fn()
+  public readonly error = vi.fn()
+  public readonly append = vi.fn()
+  public readonly appendLine = vi.fn()
+  public readonly replace = vi.fn()
+  public readonly clear = vi.fn()
+  public readonly show = vi.fn()
+  public readonly hide = vi.fn()
+  public readonly dispose = vi.fn()
+}
+
+export function fakeHostContext() {
+  return {
+    extensionUri: Uri.file('/ext'),
+    extensionVersion: '1.2.3',
+    log: new FakeLogOutputChannel(),
+  }
+}

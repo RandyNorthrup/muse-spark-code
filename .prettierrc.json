@@ -1,0 +1,12 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "overrides": [
+    {
+      "files": ["*.jsonc", "tsconfig*.json", ".vscode/*.json"],
+      "options": { "parser": "jsonc", "trailingComma": "none" }
+    }
+  ]
+}

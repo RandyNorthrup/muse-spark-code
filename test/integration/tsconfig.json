@@ -1,0 +1,10 @@
+{
+  // Integration tests run by @vscode/test-cli inside the Extension Development
+  // Host with mocha's TDD interface (suite/test globals).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node", "vscode", "mocha"]
+  },
+  "include": ["./**/*.ts", "../../src/shared/**/*.ts"]
+}

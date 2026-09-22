@@ -1,0 +1,49 @@
+{
+  // Shared strict base. Every project tsconfig in this repo extends it.
+  //
+  // `strict: true` is NOT the strictest setting. The four options after it are
+  // excluded from `strict` because they break real code, and they are the ones
+  // that actually catch bugs.
+  "compilerOptions": {
+    "strict": true,
+
+    // --- not included in `strict` ---
+    // arr[i] is T | undefined, not T.
+    "noUncheckedIndexedAccess": true,
+    // `{a?: string}` and `{a: string | undefined}` stop being interchangeable.
+    "exactOptionalPropertyTypes": true,
+    // Subclass members that override must say `override`.
+    "noImplicitOverride": true,
+    // obj.foo is an error when foo only exists via an index signature.
+    "noPropertyAccessFromIndexSignature": true,
+
+    // --- unused code (dead-code gate at the compiler level) ---
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+
+    // --- correctness ---
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "useUnknownInCatchVariables": true,
+
+    // --- module hygiene ---
+    // Import elision becomes explicit; prevents accidental runtime imports of
+    // type-only modules. esbuild performs the actual emit.
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    // The one deliberate loosening: type-checking every .d.ts in node_modules
+    // is slow and fails on third-party bugs we cannot fix.
+    "skipLibCheck": true,
+
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "noEmit": true
+  }
+}

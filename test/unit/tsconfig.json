@@ -1,0 +1,19 @@
+{
+  // Unit tests (vitest). Node + DOM libs because webview component tests run
+  // under jsdom; `vscode` resolves to test/mocks/vscode.ts via the vitest alias
+  // and to @types/vscode for type-checking, so mocks are checked against the
+  // real API surface.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node", "vscode", "vscode-webview", "@testing-library/jest-dom"]
+  },
+  "include": [
+    "./**/*.ts",
+    "./**/*.tsx",
+    "../../src/**/*.ts",
+    "../../src/**/*.tsx",
+    "../../package.json"
+  ]
+}

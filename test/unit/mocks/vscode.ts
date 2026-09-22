@@ -1,0 +1,84 @@
+// Minimal stand-in for the `vscode` module in unit tests (vitest alias in
+// vitest.config.ts). Only what src/host actually touches is implemented, and
+// each piece is typed against @types/vscode so drift is a compile error.
+
+import type * as vscode from 'vscode'
+import { vi } from 'vitest'
+
+export class FakeUri implements vscode.Uri {
+  public readonly scheme = 'file'
+  public readonly authority = ''
+  public readonly query = ''
+  public readonly fragment = ''
+
+  public constructor(public readonly path: string) {}
+
+  public get fsPath(): string {
+    return this.path
+  }
+
+  public with(): vscode.Uri {
+    return this
+  }
+
+  public toString(): string {
+    return `${this.scheme}://${this.path}`
+  }
+
+  public toJSON(): unknown {
+    return { scheme: this.scheme, path: this.path }
+  }
+}
+
+export const Uri = {
+  file(path: string): vscode.Uri {
+    return new FakeUri(path)
+  },
+  joinPath(base: vscode.Uri, ...segments: string[]): vscode.Uri {
+    return new FakeUri([base.path, ...segments].join('/'))
+  },
+}
+
+export class Disposable implements vscode.Disposable {
+  public constructor(private readonly onDispose: () => void) {}
+
+  public dispose(): void {
+    this.onDispose()
+  }
+}
+
+export class EventEmitter<T> implements vscode.EventEmitter<T> {
+  private readonly listeners = new Set<(value: T) => unknown>()
+
+  public event: vscode.Event<T> = (listener, thisArgs?: unknown, disposables?) => {
+    const bound = thisArgs === undefined ? listener : listener.bind(thisArgs)
+    this.listeners.add(bound)
+    const disposable = new Disposable(() => {
+      this.listeners.delete(bound)
+    })
+    disposables?.push(disposable)
+    return disposable
+  }
+
+  public fire(value: T): void {
+    for (const listener of this.listeners) {
+      listener(value)
+    }
+  }
+
+  public dispose(): void {
+    this.listeners.clear()
+  }
+}
+
+export const ViewColumn = {
+  Active: -1,
+  Beside: -2,
+  One: 1,
+} as const
+
+export const window = {
+  createWebviewPanel: vi.fn<typeof vscode.window.createWebviewPanel>(),
+}
+
+export const version = '0.0.0-test'

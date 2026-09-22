@@ -1,0 +1,12 @@
+{
+  // Webview project: browser runtime, React 19 automatic JSX runtime.
+  // Shares src/shared/** with the host project; must never import from
+  // src/host or src/core (those pull in Node and `vscode`).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vscode-webview"]
+  },
+  "include": ["./**/*.ts", "./**/*.tsx", "../shared/**/*.ts"]
+}

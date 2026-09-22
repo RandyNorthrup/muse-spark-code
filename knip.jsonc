@@ -1,0 +1,55 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+
+  // Dead-code gate: unused FILES, unused EXPORTS, unused DEPENDENCIES across
+  // the whole project graph. Run as a gate with plain `knip`: every rule below
+  // is "error", and knip exits 1 whenever an error-level issue exists.
+  //
+  // Do NOT add `--strict`. Verified 2026-09-21: `--strict` implies production
+  // mode, and production mode only reads `entry` patterns suffixed with `!`.
+  // With this config that meant zero entry files, zero analysis, and exit 0
+  // even with a planted unused export. Plain `knip` caught the same plant.
+  //
+  // This is .jsonc on purpose: knip 6 validates its config strictly and rejects
+  // the knip 5 `"//": [...]` pseudo-comment convention.
+
+  "entry": [
+    "src/extension.ts",
+    "src/webview/main.tsx",
+    "test/unit/**/*.test.{ts,tsx}",
+    "test/integration/**/*.test.ts",
+    "scripts/**/*.mjs",
+    ".vscode-test.mjs"
+  ],
+
+  "project": ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}", "scripts/**/*.mjs"],
+
+  // `vscode` (the extension host module) needs no entry here: knip resolves it
+  // through @types/vscode. @vscode/test-electron is required by @vscode/test-cli
+  // as an unlisted peer ("Can't resolve '@vscode/test-electron'" without it)
+  // and is never imported by our code, so knip cannot see its use.
+  "ignoreDependencies": ["@vscode/test-electron"],
+
+  // gitleaks is a system binary (winget/brew), not an npm package; the
+  // pre-commit hook and security:secrets script call it by name.
+  "ignoreBinaries": ["gitleaks"],
+
+  "ignoreExportsUsedInFile": true,
+
+  // error = fails the run.
+  //
+  // `cycles` is deliberately absent: knip 6's rule reported nothing against a
+  // deliberately circular pair. Cycles are gated by dpdm (`npm run cycles`).
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "unlisted": "error",
+    "unresolved": "error",
+    "exports": "error",
+    "types": "error",
+    "duplicates": "error",
+    "binaries": "error",
+    "enumMembers": "error"
+  }
+}

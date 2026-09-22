@@ -1,0 +1,11 @@
+{
+  // Extension host project: src/extension.ts, src/host/**, src/core/**, src/shared/**.
+  // Runs inside VS Code's Node-based extension host; no DOM types here.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node", "vscode"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "exclude": ["src/webview/**"]
+}
