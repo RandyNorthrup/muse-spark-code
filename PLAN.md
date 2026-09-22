@@ -65,6 +65,36 @@ Therefore:
   ("circumvent access controls", "reverse engineer harnesses") and the
   subscription wording, and community forks report silent breakage.
 
+### D1a — Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)
+
+| OS                    | Install dir (installer default)                                             | Entry                                                                                            | Beside it                                                                                       | Credential                                                                                   |
+| --------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Windows               | `%LOCALAPPDATA%\Programs\muse` (added to the user PATH)                     | `muse.cmd` → `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .muse-launcher.ps1 <args>` | `muse-bin-<version>.exe` (~415 MB), `.muse-version`, `.muse-release-info.json`, `.muse-channel` | `%USERPROFILE%\.config\muse\auth.json`                                                       |
+| Linux (Kubuntu 26.04) | `~/.local/bin` (`MUSE_INSTALL_DIR` overrides; PATH added to shell rc files) | `muse` bash launcher (33 KB; needs bash, not sh)                                                 | `muse-bin-<version>` (~314 MB), `.muse-version`, `.muse-release-info.json`                      | `$XDG_CONFIG_HOME/muse/auth.json` or `~/.config/muse/auth.json` (`MUSE_AUTH_PATH` overrides) |
+| macOS 15.7 (Mac mini) | `~/.local/bin` (PATH added to `~/.zshrc`)                                   | same bash launcher                                                                               | same                                                                                            | same as Linux                                                                                |
+
+Constraints and decisions:
+
+1. Node 22 refuses to `spawn` a `.cmd`/`.bat` without `shell: true` (EINVAL,
+   the CVE-2024-27980 hardening); `@muse-code/sdk`'s `spawnMspConnection` on
+   `muse.cmd` fails exactly this way (verified). A shell string is banned here
+   (D4). On Windows the extension spawns either `powershell.exe` with an
+   explicit argument array replicating the shim, or `muse-bin-<version>.exe`
+   directly (version read from `.muse-version`). Both were verified end to end
+   (§5.4); the direct exe is the default (1.1 s handshake vs 2.0 s, no
+   PowerShell in the stdio path) and the launcher path is the fallback that
+   keeps Meta's hourly self-update logic.
+2. On Linux/macOS the bash launcher is spawned directly (shebang, no shell).
+3. The child `PSModulePath` must be sanitised on Windows (M2 hazard note).
+4. `muse serve` accepts no provider flag: it always uses the Meta provider, so a
+   signed-in CLI (or `META_API_KEY` in the child env) is required even for
+   smoke tests. The credential-free `--provider echo` exists only for the TUI
+   and `exec`.
+5. MSP `initialize` rejects `clientInfo.name` outside `^[a-z0-9_]+$`; ours is
+   `muse_spark_code`.
+6. Discovery order everywhere: `museSpark.museBinaryPath` setting, then
+   `PATH`, then the per-OS default install dir above.
+
 ### D2 — Thin, schema-validated HTTP client for the Model API instead of the `openai` npm SDK
 
 The `openai` package (7.20.0) pulls seven optional peers, requires Node ≥ 22
@@ -298,6 +328,41 @@ resume`; rename → `session/rename`; rewind/fork → `session/fork`; /compact �
 `approval/request`; questions → `userInput/request`; tool rows → `toolCall`
 items + `item/readOutput`; skills → `skill/list` + `skill` input part;
 "!" shell → `session/userShell`; agent map → `subagent/*`, `task/*`.
+
+### 5.4 Live MSP smoke test (Windows, 2026-09-22, signed-in CLI)
+
+Script: session scratchpad `sdk-probe/echo-smoke2.mjs` over `@muse-code/sdk` 1.3.0
+against Muse Code 1.3.0-R3401.1, both spawn modes (D1a). Observed:
+
+- `initialize` → `session/start` → `turn/start` → streamed `item/delta`
+  (`{ itemId, field: "text", delta }`) → `turn/completed`
+  (`terminal: "completed", durationMs: 11214, timeToFirstTokenMs: 5123`).
+- **The host's default session model is `muse-spark-1.3-contributor`** (the
+  training-consent tier). The extension must always pass `modelId` on
+  `session/start` and default to `muse-spark-1.3`; contributor stays opt-in
+  (D4).
+- `model/list` returns `providerId: "meta"`, entries with `contextLimit:
+1007997`, `outputLimit: 128000`, `cost: { input: "1.25", output: "4.25",
+cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
+- Default `approvalMode.mode` is `onRequest`. Session files live under
+  `~/.local/share/muse/sessions/YYYY/MM/DD/<sessionId>/session.jsonl` (also
+  on Windows).
+- Item kinds seen in one turn: `userMessage` (completed immediately),
+  `reminderChild` (host-internal, in progress → completed), `agentMessage`
+  (started → delta → completed). `session/tokenUsage` (inputTokens 20804,
+  cachedTokens 10481, outputTokens 210) and `session/contextUsage`
+  (`windowTokens: 1007997, usedTokens: 21014, pressure: "normal"`) arrive after
+  the message completes.
+- `usage/read` returned `{}` for this pay-as-you-go account (no subscription
+  window); the Account & usage panel must render token totals in that case.
+- On `close()`: `session/closed { reason: "hostShutdown" }`, then
+  `session/statusChanged { status: "notLoaded" }`, child exit code 0.
+- The SDK's `SpawnedMspConnection` did not expose `serverInfo`/`museHome`/
+  `fingerprint` on the object returned by `initialize` in this build (all
+  `undefined`); read them from the raw `initialize` result instead (verify at
+  M2).
+- A hung run left a `muse-bin` child alive after the Node parent exited; the
+  extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
 

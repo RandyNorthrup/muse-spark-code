@@ -22,6 +22,11 @@ two sanctioned paths (see `PLAN.md` §2 D1):
 | **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`) or `META_API_KEY`; subscriptions work because the CLI makes the requests | Planned (M2) |
 | **Meta Model API** (`https://api.meta.ai/v1`, OpenAI-compatible)             | Paste a key from dev.meta.ai; stored in VS Code SecretStorage                                                         | Planned (M7) |
 
+## Platforms
+
+Windows, macOS and Linux are all first-class targets. CI runs the complete gate
+set, including the VS Code integration tests, on all three.
+
 ## Stack
 
 - TypeScript 6.0.3 (pinned: `typescript-eslint` does not yet support TS 7),

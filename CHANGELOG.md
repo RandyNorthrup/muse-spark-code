@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Security
+
+- GitHub Actions pinned to full commit SHAs and npm given a minimum release
+  age of 3 days, both raised as blocking findings by the semgrep CI job.
+
 ### Added
 
 - Project scaffold (milestone M0): TypeScript 6.0.3 extension host + React 19
