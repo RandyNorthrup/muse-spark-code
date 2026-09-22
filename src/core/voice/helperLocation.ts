@@ -45,13 +45,14 @@ export function locateDictationHelper(probe: HelperProbe): HelperLocation {
       if (probe.systemRoot === undefined) {
         return { isAvailable: false, reason: UI_TEXT.dictationUnavailableWindows }
       }
+      // Windows paths whatever the host (the unit tests run on all three).
       return {
         isAvailable: true,
         invocation: {
-          command: path.join(probe.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
+          command: path.win32.join(probe.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
           args: [
             ...WINDOWS_SCRIPT_ARGS,
-            path.join(probe.helperDir, ...DICTATION_WINDOWS_SCRIPT_SEGMENTS),
+            path.win32.join(probe.helperDir, ...DICTATION_WINDOWS_SCRIPT_SEGMENTS),
           ],
         },
       }

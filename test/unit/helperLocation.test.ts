@@ -5,30 +5,24 @@ import { locateDictationHelper } from '../../src/core/voice/helperLocation'
 const helperDir = path.join('ext', 'native')
 
 describe('locateDictationHelper', () => {
-  it('runs the bundled script with Windows PowerShell 5.1 on Windows', () => {
+  it('runs the bundled script with Windows PowerShell 5.1 on Windows (from any host)', () => {
     const location = locateDictationHelper({
       platform: 'win32',
       systemRoot: String.raw`C:\Windows`,
-      helperDir,
+      helperDir: String.raw`C:\ext\native`,
       fileExists: () => false,
     })
     expect(location).toEqual({
       isAvailable: true,
       invocation: {
-        command: path.join(
-          String.raw`C:\Windows`,
-          'System32',
-          'WindowsPowerShell',
-          'v1.0',
-          'powershell.exe',
-        ),
+        command: String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
         args: [
           '-NoProfile',
           '-NonInteractive',
           '-ExecutionPolicy',
           'Bypass',
           '-File',
-          path.join(helperDir, 'windows', 'dictate.ps1'),
+          String.raw`C:\ext\native\windows\dictate.ps1`,
         ],
       },
     })
