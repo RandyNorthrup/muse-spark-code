@@ -3,7 +3,7 @@
   "displayName": "Muse Spark Code (Unofficial)",
   "description": "Unofficial VS Code chat panel for Meta's Muse Spark model, driven through the Muse Code CLI or a Meta Model API key.",
   "version": "0.0.0",
-  "publisher": "randynorthrup",
+  "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
   "repository": {

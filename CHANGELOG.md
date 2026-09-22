@@ -10,7 +10,7 @@ happened, not what was planned; superseded entries are kept.
 ### Security
 
 - GitHub Actions pinned to full commit SHAs and npm given a minimum release
-  age of 3 days, both raised as blocking findings by the semgrep CI job.
+  age of 7 days, both raised as blocking findings by the semgrep CI job.
 
 ### Added
 

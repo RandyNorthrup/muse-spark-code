@@ -137,8 +137,9 @@ media/                      activity-bar icon
 ## Deployment
 
 `npm run package` produces `muse-spark-code-<version>.vsix`. Publishing to the
-Marketplace requires a real publisher id (currently the placeholder
-`randynorthrup`, see `PLAN.md` Q2). CI (`.github/workflows/ci.yml`) runs the
+Marketplace uses publisher `RandyNorthrup` (confirmed on the marketplace
+management page); publishing needs `npx vsce login RandyNorthrup` with a
+Marketplace-manage PAT. CI (`.github/workflows/ci.yml`) runs the
 quality gates on Ubuntu and Windows, integration tests under xvfb on Ubuntu,
 gitleaks over full history, and semgrep.
 

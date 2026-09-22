@@ -6,7 +6,7 @@ export const PRODUCT_NAME = 'Muse Spark'
 
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.
-export const EXTENSION_PUBLISHER = 'randynorthrup'
+export const EXTENSION_PUBLISHER = 'RandyNorthrup'
 export const EXTENSION_NAME = 'muse-spark-code'
 export const EXTENSION_QUALIFIED_ID = `${EXTENSION_PUBLISHER}.${EXTENSION_NAME}`
 
