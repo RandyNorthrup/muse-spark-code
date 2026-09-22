@@ -9,6 +9,36 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- The permission-mode button opens a **Modes** menu (Manual / Edit
+  automatically / Plan / Auto with one-line descriptions, `⇧ + tab to switch`,
+  a tick on the current mode, and an `Effort (level)` row with the dots in
+  the footer), matching the Claude Code popout; the palette's "Permission
+  mode" row opens the same menu. Shift+Tab still cycles.
+- `museSpark.allowDangerouslySkipPermissions` (default off): lists Bypass
+  permissions in the Modes menu and the cycle, as the Claude Code setting of
+  the same name does. While off, the host refuses `bypassPermissions` with a
+  notice, and `initialPermissionMode: bypassPermissions` starts in Manual with
+  a logged warning. Replaces the modal confirmation.
+- The `+` button opens an attach menu: _Upload from computer_ (the native
+  dialog) and _Add context_ (starts an `@` mention at the caret).
+- Effort tiers verified live per model (one turn per tier through Muse Code
+  1.3.0; `PLAN.md` D10): the slider offers Minimal / Low / Medium / High /
+  Extra high / Max on `muse-spark-1.3` and stops at Extra high on
+  `muse-spark-1.2`, which rejects `max` with a 400; every dot names its tier
+  in a tooltip and to assistive technology, and switching to a model that
+  does not serve the current tier drops to the highest tier it does.
+- The composer placeholder reads "Queue another message…" while a turn runs.
+- The Meta logo the owner supplied is the brand mark in the panel's empty
+  state and the activity-bar icon (`media/icon.svg`, single-colour mask).
+- Harness scenarios `modes`, `modes-bypass`, `attach`, `add-context`; the
+  owner's Claude Code reference screenshots under `docs/reference/`.
+
+### Changed
+
+- The model pill reads `model effort` (the context window moved to the model
+  list rows), and it hugs its text instead of the 26 px control height.
+- Toggle Thinking is `Alt+T` (the Claude Code binding) instead of `Ctrl+O`.
+
 - Milestone M3, composer and command palette parity: the "/" palette
   ("Filter actions…"; Context / Model / Customize / Account & usage / Skills /
   Slash commands / Support; keyboard-only operation; opens from the "/" key

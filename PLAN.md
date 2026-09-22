@@ -195,19 +195,49 @@ the mode on the wire (`session/start.approvalMode`, `session/setApprovalMode`),
 closed vocabulary `allowAll | promptUnmatched | onRequest | denyUnmatched`.
 The Claude Code vocabulary is mapped in `src/shared/permissionModes.ts`:
 
-| UI mode            | MSP mode          | Note                                                  |
-| ------------------ | ----------------- | ----------------------------------------------------- |
-| Manual             | `promptUnmatched` | ask for everything no rule allows (`untrusted`)       |
-| Edit automatically | `promptUnmatched` | + the extension auto-answers file-edit approvals (M4) |
-| Plan               | `denyUnmatched`   | read and reason only                                  |
-| Auto               | `onRequest`       | the CLI default: judge-reviewed, prompt only on need  |
-| Bypass permissions | `allowAll`        | confirmed with a modal warning before it is applied   |
+| UI mode            | MSP mode          | Note                                                                |
+| ------------------ | ----------------- | ------------------------------------------------------------------- |
+| Manual             | `promptUnmatched` | ask for everything no rule allows (`untrusted`)                     |
+| Edit automatically | `promptUnmatched` | + the extension auto-answers file-edit approvals (M4)               |
+| Plan               | `denyUnmatched`   | read and reason only                                                |
+| Auto               | `onRequest`       | the CLI default: judge-reviewed, prompt only on need                |
+| Bypass permissions | `allowAll`        | listed only while `museSpark.allowDangerouslySkipPermissions` is on |
 
 `approval/requested` is a notification the host waits on; until M4 renders it,
 any prompting mode would hang the turn, so `HAS_APPROVAL_UI = false` collapses
 Manual / Edit automatically / Auto to `denyUnmatched` (M2 behaviour) and only
 Plan and Bypass differ. Flipping the constant is an M4 change with its own
 live verification of each mode.
+
+The mode button opens a **Modes** menu (title, `⇧ + tab to switch` hint, one
+row per mode with the Claude Code description adapted to Muse, a tick on the
+current one, and an `Effort (level)` row with the dots in the footer); Shift+Tab
+still cycles. Bypass permissions is gated the way the Claude Code extension
+gates it: the `allowDangerouslySkipPermissions` setting adds it to the menu and
+the cycle, and the host refuses `bypassPermissions` (with a notice) while the
+setting is off, including as `initialPermissionMode`, which then starts in
+Manual with a logged warning. The modal confirmation from the first M3 cut was
+replaced by this setting on 2026-09-21 (owner request for parity).
+
+### D10 — Effort tiers offered per model (verified live 2026-09-21)
+
+`model/list` carries no per-model effort information and
+`session/setReasoningEffort` only checks the closed vocabulary, so the tiers a
+model serves can only be learned by running a turn per tier. The probe
+(`scratchpad/live-effort.ts`, one "Reply with OK" turn per tier per Standard
+model, contributor tiers skipped) is recorded in `docs/certification/m3.md`.
+Outcome: `muse-spark-1.3` completes turns at every wire tier (`none` …
+`ultra`); `muse-spark-1.2` completes `none` … `xhigh` and fails `max` and
+`ultra` with the API's 400 `reasoning_effort 'max' is not supported for model
+'muse-spark-1.2'. Supported values: [minimal, low, medium, high, xhigh]`. The
+error for `ultra` names `max`, so the CLI forwards `ultra` as `max`. The UI
+therefore offers `minimal` … `max` on 1.3 and `minimal` … `xhigh` on 1.2
+(`EFFORT_LEVELS` and the per-family table `MODEL_EFFORT_LEVELS` in
+`constants.ts`; unknown families get the full range); `none` is the Thinking
+toggle and `ultra` is not listed because it is `max` on the wire. Switching to
+a model that does not serve the current tier drops the tier to the highest
+one it serves, so a stale `max` cannot fail every 1.2 turn. Every dot names
+its tier in a tooltip and to assistive technology.
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 
@@ -356,10 +386,30 @@ Edit automatically, Plan, Auto, Bypass); streaming markdown with highlighted
 code and Copy / Insert / Apply; native diff viewer with Accept / Reject;
 permission cards (Allow once / Always allow + scope / Deny); question cards;
 keybindings Ctrl+Esc (focus), Ctrl+Shift+Esc (new tab), Alt+K (insert
-`@file#lines`), Ctrl+Alt+F (focus view), Ctrl+O (toggle thinking);
+`@file#lines`), Ctrl+Alt+F (focus view), Alt+T (toggle extended thinking;
+Ctrl+O is the CLI's transcript toggle, not a VS Code binding);
 browser-based sign-in; `claudeCode.*`-style settings incl. initial permission
 mode. P1: tool rows, thinking blocks, plan approval, context %, usage panel,
 /compact. P2: rewind/fork, voice, /btw, agent map, session groups.
+
+Second docs pass (2026-09-21, every page under code.claude.com/docs that
+touches the VS Code composer, plus the owner's screenshots in
+`docs/reference/`): the composer bar is `+` (menu: Upload from computer / Add
+context / Browse the web), `/`, a prompt-cache clock ("59m"), an "N agents"
+pill, the model pill `Model Effort` (no context window in the pill), the
+open-file chip (`PLAN.md ×`), the mode button (`⚡ Auto`) that opens a Modes
+menu (Manual / Edit automatically / Plan / Auto with one-line descriptions,
+`⇧ + tab to switch`, an Effort row; Bypass only with
+`allowDangerouslySkipPermissions`), a microphone, and Send / Stop; the
+placeholder reads "Queue another message…" while a turn runs. Items with no
+Muse counterpart, verified and left out: **Browse the web** (needs the Claude
+in Chrome extension), the **prompt-cache clock** (no MSP cache-TTL signal;
+`session/tokenUsage` reports cached tokens only), the `/` menu's Output
+styles / Hooks / Permissions rules / Memory / Instructions / MCP / Remote
+Control entries (no MSP methods; Muse Code manages these in its own config),
+and the `!` shell prefix (not offered by the Claude Code extension either).
+Deferred, not dropped: the "N agents" pill (`subagent/*`, M4/M6), the
+open-file chip (M5), the microphone (M8, Q4).
 
 Parity mapping to MSP: model pill → `model/list` + `session/setModel`; effort
 → `session/setReasoningEffort`; permission mode → `session/setApprovalMode`;
@@ -545,10 +595,21 @@ mentions; paste and drop of images; drop of editor resources), the `@`
 mention menu over a `git ls-files` index (fuzzy-ranked, `.gitignore`
 respected, VS Code file search as the fallback), model pill + picker
 (`model/list`, `session/setModel`), effort slider and Thinking toggle
-(`session/setReasoningEffort`, Ctrl+O), the permission-mode button and
+(`session/setReasoningEffort`, Alt+T), the permission-mode button and
 Shift+Tab cycle mapped per D7, Enter while a turn runs → `turn/steer` with a
 fresh-turn fallback, `/clear` and `/compact`. Live checks recorded in the
 certification file.
+
+**Round two (2026-09-21, after the owner's second F5 check and the second docs
+pass in §5.3):** the mode button opens the Modes menu and the `+` button
+opens the attach menu (Upload from computer / Add context) instead of acting
+directly; Bypass permissions sits behind `allowDangerouslySkipPermissions`
+(D7); the pill reads `model effort` and hugs its text; the effort dots carry
+tooltips and offer the tiers verified per model (D10, Minimal … Max); the
+thinking toggle moved from Ctrl+O to Alt+T; the placeholder reads "Queue
+another message…" while a turn runs; the brand mark is the Meta logo the
+owner supplied (panel and activity bar). Harness scenarios `modes`,
+`modes-bypass`, `attach`, `add-context` cover the new surfaces.
 
 - **Scope**: "/" palette ("Filter actions…", groups Context / Model / Customize
   / Account & usage / Skills / Slash commands / Support) driven by a command
@@ -576,8 +637,21 @@ certification file.
   `availableChoices` with scope labels, optional feedback); question cards from
   `userInput/request`; pinned todo list; context % and token usage footer;
   turn errors and retry notices; Focus view.
+- **Reference (owner screenshots of the Claude Code transcript, 2026-09-21)**:
+  tool rows are a bullet + bold tool name + monospace argument (`Edit
+C:\…\App.test.tsx`, `Bash List the session images…`) with a one-line
+  summary under it (`Added 82 lines`, `Removed 6 lines`, `Modified`) and a
+  collapsible body: unified diffs with a line-number gutter and red/green
+  rows for edits, `IN` / `OUT` boxes for shell commands (output clipped with
+  a fade); reasoning collapses to `Thought for 14s`; assistant text that
+  answered a mid-turn message carries a `· summarized` suffix; a spinner line
+  with a rotating verb (`Calculating…`) sits under the last row while the
+  turn runs; user messages show their image chips (`image.png 695×1032`)
+  above the text in a horizontally scrollable strip; the mode button, pill and
+  Stop stay live in the composer throughout.
 - **Acceptance**: 10k-token response renders without jank (< 16 ms frames in
-  the webview profiler); approvals resolve; questions answer.
+  the webview profiler); approvals resolve; questions answer; the transcript
+  matches the reference above row for row.
 - **Tests**: reducer folds for each `AgentEvent`; markdown sanitisation blocks
   script/HTML injection; approval decision payloads.
 - **Security**: markdown rendered with `skipHtml`; links open via

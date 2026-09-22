@@ -15,7 +15,7 @@ import {
   type PermissionMode,
   UI_TEXT,
 } from '../../shared/constants'
-import { effortForThinking, isEffortLevel } from '../../shared/effort'
+import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent } from '../../shared/agentEvents'
 import { parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
@@ -63,8 +63,8 @@ export interface ConversationDeps {
   readonly openExternal: (url: string) => void
   readonly mentions: MentionSearch
   readonly files: FileAccess
-  /** Asks the user to confirm Bypass permissions; false keeps the current mode. */
-  readonly confirmBypass: () => Promise<boolean>
+  /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
+  readonly isBypassAllowed: () => boolean
   readonly runHostAction: (action: HostAction) => Promise<void>
   readonly newAttachmentId: () => string
   readonly log: Logger
@@ -80,6 +80,8 @@ const NOOP_STATUS = 'noop'
 // (verified live 2026-09-21); it is "nothing to do", not a failure.
 const MISSING_RUN_REASON = 'missing_run'
 const NOTHING_TO_COMPACT = 'Nothing to compact yet.'
+const BYPASS_MODE: PermissionMode = 'bypassPermissions'
+const FALLBACK_MODE: PermissionMode = 'manual'
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -101,6 +103,14 @@ export class ConversationController {
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
     this.permissionMode = deps.initialPermissionMode
+    if (this.permissionMode === BYPASS_MODE && !deps.isBypassAllowed()) {
+      // The initial-mode setting alone cannot switch approvals off; the
+      // explicit allow setting must be on too, as in Claude Code.
+      deps.log.warn(
+        'museSpark.initialPermissionMode is bypassPermissions but allowDangerouslySkipPermissions is off; starting in Manual',
+      )
+      this.permissionMode = FALLBACK_MODE
+    }
     this.attachments = new AttachmentStore(deps.newAttachmentId)
   }
 
@@ -351,6 +361,12 @@ export class ConversationController {
       }
     }
     this.postSessionInfo(modelId)
+    // A tier the new model does not serve would fail its turns with a 400
+    // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
+    const levels = effortLevelsFor(modelId)
+    if (!levels.includes(this.effort)) {
+      await this.updateEffort(levels.at(-1) ?? DEFAULT_EFFORT, this.isThinkingEnabled)
+    }
   }
 
   private async updateEffort(effort: EffortLevel, isThinkingEnabled: boolean): Promise<void> {
@@ -363,7 +379,8 @@ export class ConversationController {
   }
 
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
-    if (mode === 'bypassPermissions' && !(await this.deps.confirmBypass())) {
+    if (mode === BYPASS_MODE && !this.deps.isBypassAllowed()) {
+      this.notice('warning', UI_TEXT.bypassNotAllowed)
       this.postComposerState()
       return
     }
@@ -584,7 +601,7 @@ export class ConversationController {
     }
   }
 
-  /** Ctrl+O: flip the Thinking toggle for this conversation. */
+  /** Alt+T: flip the Thinking toggle for this conversation. */
   public async toggleThinking(): Promise<void> {
     await this.updateEffort(this.effort, !this.isThinkingEnabled)
   }

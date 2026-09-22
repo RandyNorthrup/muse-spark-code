@@ -41,6 +41,8 @@ function renderPalette(overrides: Partial<PaletteProps> = {}) {
   return { props, filter }
 }
 
+const TIER_NAME = /^(Minimal|Low|Medium|High|Extra high|Max)$/
+
 function activeOption(): HTMLElement | undefined {
   return screen.getAllByRole('option').find((node) => node.getAttribute('aria-selected') === 'true')
 }
@@ -91,6 +93,21 @@ describe('Palette (actions view)', () => {
     expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
     fireEvent.click(screen.getByLabelText('Max'))
     expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'max' })
+    // Every dot names its tier on hover, and only the model's tiers are offered.
+    expect(screen.getAllByRole('button', { name: TIER_NAME })).toHaveLength(6)
+    expect(screen.getByTitle('Extra high')).toBeInTheDocument()
+    expect(screen.getByTitle('High')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('offers only the tiers the current model serves', () => {
+    renderPalette({
+      groups: buildPalette({
+        ...context,
+        currentModel: { modelId: 'muse-spark-1.2', contextLimit: undefined },
+      }),
+    })
+    expect(screen.getAllByRole('button', { name: TIER_NAME })).toHaveLength(5)
+    expect(screen.queryByTitle('Max')).toBeNull()
   })
 
   it('ignores Left/Right on ordinary rows and activates rows by click', () => {

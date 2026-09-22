@@ -1,17 +1,26 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
-import { PERMISSION_MODE_LABELS, UI_TEXT } from '../shared/constants'
-import { effortLabel } from '../shared/effort'
-import { nextPermissionMode } from '../shared/permissionModes'
-import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
+import {
+  type EffortLevel,
+  PERMISSION_MODE_DETAILS,
+  PERMISSION_MODE_LABELS,
+  UI_TEXT,
+} from '../shared/constants'
+import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
+import { availablePermissionModes, nextPermissionMode } from '../shared/permissionModes'
+import { buildPalette, type PaletteAction } from '../shared/palette'
 import {
   parseHostToWebviewMessage,
   type SignInMethod,
   type WebviewToHostMessage,
 } from '../shared/protocol'
 import { Composer, type ImageData } from './components/Composer'
+import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
+import { AddContextIcon, UploadIcon } from './components/icons'
+import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteView } from './components/Palette'
+import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
 import { Transcript } from './components/Transcript'
 import { canSend, initialUiState, type UiState, uiReducer } from './state/uiState'
@@ -22,13 +31,20 @@ export interface AppProps {
   readonly newLocalId?: () => string
 }
 
+/** What floats above the composer: a palette view or one of the two menus. */
+type Overlay = PaletteView | 'modes' | 'attach'
+
 const GATED_STATUSES = new Set(['noCli', 'signedOut', 'signingIn', 'error'])
-const THINKING_OFF_LABEL = 'No thinking'
+const ATTACH_UPLOAD = 'upload'
+const ATTACH_CONTEXT = 'context'
+const MENTION_TRIGGER = '@'
+const WHITESPACE_END = /\s$/
 
 function isGated(state: UiState): boolean {
   return GATED_STATUSES.has(state.auth.status) && state.transcript.length === 0
 }
 
+/** The pill reads `model effort`, as the Claude Code pill does. */
 export function modelLabelFor(state: UiState): string {
   if (state.auth.status !== 'signedIn') {
     return UI_TEXT.notSignedIn
@@ -36,15 +52,19 @@ export function modelLabelFor(state: UiState): string {
   if (state.model === undefined) {
     return UI_TEXT.hostStarting
   }
-  const { modelId, contextLimit } = state.model
-  const window = contextLimit === undefined ? '' : ` (${formatTokenWindow(contextLimit)})`
-  const effort = state.isThinkingEnabled ? effortLabel(state.effort) : THINKING_OFF_LABEL
-  return `${modelId}${window} ${effort}`
+  const effort = state.isThinkingEnabled ? effortLabel(state.effort) : UI_TEXT.thinkingOff
+  return `${state.model.modelId} ${effort}`
 }
+
+const ATTACH_ENTRIES: readonly MenuEntry[] = [
+  { id: ATTACH_UPLOAD, label: UI_TEXT.uploadFromComputer, icon: <UploadIcon /> },
+  { id: ATTACH_CONTEXT, label: UI_TEXT.addContext, icon: <AddContextIcon /> },
+]
 
 export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: AppProps) {
   const [state, dispatch] = useReducer(uiReducer, initialUiState)
-  const [palette, setPalette] = useState<PaletteView | undefined>(undefined)
+  const [overlay, setOverlay] = useState<Overlay | undefined>(undefined)
+  const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
@@ -109,44 +129,50 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
     [postMessage],
   )
   const onCyclePermissionMode = useCallback(() => {
-    postMessage({ type: 'setPermissionMode', mode: nextPermissionMode(state.permissionMode) })
-  }, [postMessage, state.permissionMode])
-  const openPalette = useCallback(
-    (view: PaletteView) => {
-      if (state.skills === undefined) {
+    postMessage({
+      type: 'setPermissionMode',
+      mode: nextPermissionMode(state.permissionMode, canBypass),
+    })
+  }, [postMessage, state.permissionMode, canBypass])
+  const openOverlay = useCallback(
+    (view: Overlay) => {
+      if ((view === 'actions' || view === 'models') && state.skills === undefined) {
         postMessage({ type: 'listSkills' })
       }
-      setPalette(view)
+      setOverlay(view)
     },
     [postMessage, state.skills],
   )
-  const closePalette = useCallback(() => {
-    setPalette(undefined)
+  const closeOverlay = useCallback(() => {
+    setOverlay(undefined)
     dispatch({ type: 'focusRequested' })
   }, [])
-  // The slash button and the pill toggle their view: a second click closes.
-  const togglePalette = useCallback(
-    (view: PaletteView) => {
-      if (palette === view) {
-        closePalette()
+  // Every composer button toggles what it opens: a second click closes.
+  const toggleOverlay = useCallback(
+    (view: Overlay) => {
+      if (overlay === view) {
+        closeOverlay()
       } else {
-        openPalette(view)
+        openOverlay(view)
       }
     },
-    [palette, closePalette, openPalette],
+    [overlay, closeOverlay, openOverlay],
   )
   const onOpenPalette = useCallback(() => {
-    togglePalette('actions')
-  }, [togglePalette])
+    toggleOverlay('actions')
+  }, [toggleOverlay])
   const onOpenModelPicker = useCallback(() => {
-    togglePalette('models')
-  }, [togglePalette])
+    toggleOverlay('models')
+  }, [toggleOverlay])
+  const onOpenModeMenu = useCallback(() => {
+    toggleOverlay('modes')
+  }, [toggleOverlay])
+  const onOpenAttachMenu = useCallback(() => {
+    toggleOverlay('attach')
+  }, [toggleOverlay])
   const onPaletteBack = useCallback(() => {
-    setPalette('actions')
+    setOverlay('actions')
   }, [])
-  const onPickFile = useCallback(() => {
-    postMessage({ type: 'pickFile' })
-  }, [postMessage])
   const onRemoveAttachment = useCallback(
     (id: string) => {
       dispatch({ type: 'attachmentRemoved', id })
@@ -175,31 +201,66 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
   const onSelectModel = useCallback(
     (modelId: string) => {
       postMessage({ type: 'setModel', modelId })
-      closePalette()
+      closeOverlay()
     },
-    [postMessage, closePalette],
+    [postMessage, closeOverlay],
+  )
+  const onSelectEffort = useCallback(
+    (effort: EffortLevel) => {
+      postMessage({ type: 'setEffort', effort })
+    },
+    [postMessage],
+  )
+  const onSelectMode = useCallback(
+    (id: string) => {
+      const mode = availablePermissionModes(canBypass).find((candidate) => candidate === id)
+      if (mode !== undefined) {
+        postMessage({ type: 'setPermissionMode', mode })
+      }
+      closeOverlay()
+    },
+    [postMessage, canBypass, closeOverlay],
+  )
+  const onSelectAttach = useCallback(
+    (id: string) => {
+      if (id === ATTACH_UPLOAD) {
+        postMessage({ type: 'pickFile' })
+        setOverlay(undefined)
+        return
+      }
+      // "Add context": start an @-mention where the caret is; the mention
+      // menu opens as soon as the `@` lands. A mention token must follow
+      // whitespace, so one is added after a non-blank draft.
+      const isSpaceNeeded = state.draft !== '' && !WHITESPACE_END.test(state.draft)
+      dispatch({
+        type: 'insertRequested',
+        text: `${isSpaceNeeded ? ' ' : ''}${MENTION_TRIGGER}`,
+      })
+      setOverlay(undefined)
+    },
+    [postMessage, state.draft],
   )
   const onPaletteAction = useCallback(
     (action: PaletteAction) => {
       switch (action.type) {
         case 'attachFile': {
           postMessage({ type: 'pickFile' })
-          closePalette()
+          closeOverlay()
           break
         }
         case 'mentionFile': {
           postMessage({ type: 'pickMentionFile' })
-          closePalette()
+          closeOverlay()
           break
         }
         case 'clearConversation': {
           dispatch({ type: 'conversationCleared' })
           postMessage({ type: 'clearConversation' })
-          closePalette()
+          closeOverlay()
           break
         }
         case 'openModelPicker': {
-          setPalette('models')
+          setOverlay('models')
           break
         }
         case 'setEffort': {
@@ -210,8 +271,8 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
           postMessage({ type: 'setThinking', enabled: !state.isThinkingEnabled })
           break
         }
-        case 'cyclePermissionMode': {
-          onCyclePermissionMode()
+        case 'openPermissionModes': {
+          setOverlay('modes')
           break
         }
         case 'toggleFocusView':
@@ -223,27 +284,27 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
         case 'openKeybindings':
         case 'openLog': {
           postMessage({ type: 'hostAction', action: action.type })
-          closePalette()
+          closeOverlay()
           break
         }
         case 'signOut': {
           postMessage({ type: 'signOut' })
-          closePalette()
+          closeOverlay()
           break
         }
         case 'insertSkill': {
           dispatch({ type: 'insertRequested', text: `/${action.selector} ` })
-          setPalette(undefined)
+          setOverlay(undefined)
           break
         }
         case 'compact': {
           postMessage({ type: 'compact' })
-          closePalette()
+          closeOverlay()
           break
         }
         case 'openExternal': {
           postMessage({ type: 'openExternal', url: action.url })
-          closePalette()
+          closeOverlay()
           break
         }
         case 'none': {
@@ -251,7 +312,7 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
         }
       }
     },
-    [postMessage, closePalette, onCyclePermissionMode, state.isThinkingEnabled],
+    [postMessage, closeOverlay, state.isThinkingEnabled],
   )
 
   const paletteGroups = useMemo(
@@ -277,6 +338,25 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
       state.usage,
       state.skills,
     ],
+  )
+  const modeEntries = useMemo(
+    (): readonly MenuEntry[] =>
+      availablePermissionModes(canBypass).map((mode) => ({
+        id: mode,
+        label: PERMISSION_MODE_LABELS[mode],
+        detail: PERMISSION_MODE_DETAILS[mode],
+        icon: modeIcon(mode),
+        isChecked: mode === state.permissionMode,
+      })),
+    [canBypass, state.permissionMode],
+  )
+  const effortLevels = effortLevelsFor(state.model?.modelId)
+  const onStepEffort = useCallback(
+    (direction: -1 | 1) => {
+      onSelectEffort(effortAt(effortLevels, effortIndex(effortLevels, state.effort) + direction))
+      return true
+    },
+    [onSelectEffort, effortLevels, state.effort],
   )
 
   if (state.settings === undefined) {
@@ -313,6 +393,74 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
     body = <Transcript entries={state.transcript} />
   }
 
+  let floating
+  switch (overlay) {
+    case 'actions':
+    case 'models': {
+      floating = (
+        <Palette
+          key={overlay}
+          view={overlay}
+          groups={paletteGroups}
+          models={state.models}
+          currentModelId={state.model?.modelId}
+          onAction={onPaletteAction}
+          onSelectModel={onSelectModel}
+          onBack={onPaletteBack}
+          onClose={closeOverlay}
+        />
+      )
+      break
+    }
+    case 'modes': {
+      floating = (
+        <PopoverMenu
+          label={UI_TEXT.modesLabel}
+          title={UI_TEXT.modesTitle}
+          hint={
+            <span className="popover-hint">
+              <kbd>{UI_TEXT.modesHintKeys}</kbd> {UI_TEXT.modesHint}
+            </span>
+          }
+          entries={modeEntries}
+          align="right"
+          footer={
+            <div className="effort-row">
+              <span className="effort-row-label">
+                {UI_TEXT.effortItem} ({effortLabel(state.effort)})
+              </span>
+              <EffortSlider
+                levels={effortLevels}
+                current={state.effort}
+                onSelect={onSelectEffort}
+              />
+            </div>
+          }
+          onSelect={onSelectMode}
+          onStep={onStepEffort}
+          onClose={closeOverlay}
+        />
+      )
+      break
+    }
+    case 'attach': {
+      floating = (
+        <PopoverMenu
+          label={UI_TEXT.attachMenuLabel}
+          entries={ATTACH_ENTRIES}
+          align="left"
+          onSelect={onSelectAttach}
+          onClose={closeOverlay}
+        />
+      )
+      break
+    }
+    case undefined: {
+      floating = null
+      break
+    }
+  }
+
   return (
     <div className="app">
       <Header
@@ -324,19 +472,7 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
         {body}
       </main>
       <div className="composer-area">
-        {palette === undefined ? null : (
-          <Palette
-            key={palette}
-            view={palette}
-            groups={paletteGroups}
-            models={state.models}
-            currentModelId={state.model?.modelId}
-            onAction={onPaletteAction}
-            onSelectModel={onSelectModel}
-            onBack={onPaletteBack}
-            onClose={closePalette}
-          />
-        )}
+        {floating}
         <Composer
           draft={state.draft}
           placeholder={state.composerPlaceholder}
@@ -344,7 +480,7 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
           canSend={canSend(state)}
           isRunning={state.activeTurnId !== undefined}
           modelLabel={modelLabelFor(state)}
-          modeLabel={PERMISSION_MODE_LABELS[state.permissionMode]}
+          permissionMode={state.permissionMode}
           focusRequests={state.focusRequests}
           pendingInsert={state.pendingInsert}
           attachments={state.attachments}
@@ -357,7 +493,8 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
           onOpenPalette={onOpenPalette}
           onOpenModelPicker={onOpenModelPicker}
           onCyclePermissionMode={onCyclePermissionMode}
-          onPickFile={onPickFile}
+          onOpenModeMenu={onOpenModeMenu}
+          onOpenAttachMenu={onOpenAttachMenu}
           onRemoveAttachment={onRemoveAttachment}
           onSearchMentions={onSearchMentions}
           onAttachImage={onAttachImage}

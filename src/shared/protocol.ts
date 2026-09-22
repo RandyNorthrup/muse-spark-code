@@ -22,6 +22,7 @@ export const settingsSnapshotShape = {
   focusView: z.boolean(),
   respectGitIgnore: z.boolean(),
   confidentialWorkspace: z.boolean(),
+  allowDangerouslySkipPermissions: z.boolean(),
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)

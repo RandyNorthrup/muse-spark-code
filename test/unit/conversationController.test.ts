@@ -98,6 +98,7 @@ function setup(
     workspaceRoot?: string | undefined
     hasApprovalUi?: boolean
     initialPermissionMode?: ConversationDeps['initialPermissionMode']
+    isBypassAllowed?: boolean
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -167,7 +168,7 @@ function setup(
   const hostActions: HostAction[] = []
   let picked: PickedFile[] = []
   let mentionChoice: string | undefined = undefined
-  let isBypassConfirmed = true
+  let isBypassAllowed = options.isBypassAllowed ?? true
   let attachmentCount = 0
   const controller = new ConversationController({
     surface,
@@ -195,7 +196,7 @@ function setup(
       toRelativePath: (uri: string) =>
         uri.startsWith('file:///ws/') ? uri.slice('file:///ws/'.length) : undefined,
     },
-    confirmBypass: () => Promise.resolve(isBypassConfirmed),
+    isBypassAllowed: () => isBypassAllowed,
     runHostAction: (action: HostAction) => {
       hostActions.push(action)
       return action === 'openLog' ? Promise.reject(new Error('no channel')) : Promise.resolve()
@@ -228,8 +229,8 @@ function setup(
     setMentionChoice: (path: string | undefined) => {
       mentionChoice = path
     },
-    setBypassConfirmed: (isConfirmed: boolean) => {
-      isBypassConfirmed = isConfirmed
+    setBypassAllowed: (isAllowed: boolean) => {
+      isBypassAllowed = isAllowed
     },
   }
 }
@@ -441,6 +442,23 @@ describe('ConversationController: composer controls', () => {
     })
   })
 
+  it('drops the effort to the highest tier the new model serves', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'setEffort', effort: 'max' })
+    expect(t.server.requestsFor('session/setReasoningEffort').at(-1)?.params).toMatchObject({
+      reasoningEffort: 'max',
+    })
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
+    expect(t.server.requestsFor('session/setReasoningEffort').at(-1)?.params).toMatchObject({
+      reasoningEffort: 'xhigh',
+    })
+    expect(t.surface.posted.at(-1)).toEqual({ ...composerState, effort: 'xhigh' })
+    // Back on 1.3 the tier stays where it is: nothing to clamp.
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3' })
+    expect(t.server.requestsFor('session/setReasoningEffort')).toHaveLength(3)
+  })
+
   it('applies effort and thinking changes to the session and echoes the state', async () => {
     const t = setup()
     await t.controller.handle({ type: 'setEffort', effort: 'max' })
@@ -488,7 +506,7 @@ describe('ConversationController: composer controls', () => {
     expect(t.surface.posted.filter((m) => m.type === 'skillList')).toHaveLength(1)
   })
 
-  it('maps permission modes onto approval modes and confirms bypass', async () => {
+  it('maps permission modes onto approval modes and gates bypass on the setting', async () => {
     const t = setup({ initialPermissionMode: 'plan' })
     await t.send('l1', 'hi')
     expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
@@ -497,11 +515,16 @@ describe('ConversationController: composer controls', () => {
     await t.controller.handle({ type: 'setPermissionMode', mode: 'manual' })
     expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
     expect(t.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
-    t.setBypassConfirmed(false)
+    t.setBypassAllowed(false)
     await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
     expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    expect(t.surface.posted.at(-2)).toEqual({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('Allow dangerously skip permissions') as string,
+    })
     expect(t.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
-    t.setBypassConfirmed(true)
+    t.setBypassAllowed(true)
     await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
     expect(t.server.requestsFor('session/setApprovalMode')[0]?.params).toMatchObject({
       mode: 'allowAll',
@@ -525,6 +548,18 @@ describe('ConversationController: composer controls', () => {
     expect(t.surface.posted.at(-1)).toEqual({
       ...composerState,
       permissionMode: 'bypassPermissions',
+    })
+  })
+
+  it('starts in Manual when the initial mode is Bypass but the setting is off', async () => {
+    const t = setup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: false })
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual({ ...composerState, permissionMode: 'manual' })
+    expect(String(t.log.warn.mock.calls[0]?.[0])).toContain('allowDangerouslySkipPermissions')
+    const allowed = setup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: true })
+    await allowed.send('l1', 'hi')
+    expect(allowed.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'allowAll',
     })
   })
 

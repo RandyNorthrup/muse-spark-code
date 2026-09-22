@@ -107,6 +107,7 @@ export const testSettings: SettingsSnapshot = {
   focusView: false,
   respectGitIgnore: true,
   confidentialWorkspace: false,
+  allowDangerouslySkipPermissions: false,
 }
 
 export interface FakeHostContext extends WebviewHostContext {

@@ -11,8 +11,8 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     settings: testSettings,
     canSend: true,
     isRunning: false,
-    modelLabel: 'muse-spark-1.3 (1M) High',
-    modeLabel: 'Manual',
+    modelLabel: 'muse-spark-1.3 High',
+    permissionMode: 'manual',
     focusRequests: 0,
     pendingInsert: undefined,
     attachments: [],
@@ -25,7 +25,8 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     onOpenPalette: vi.fn(),
     onOpenModelPicker: vi.fn(),
     onCyclePermissionMode: vi.fn(),
-    onPickFile: vi.fn(),
+    onOpenModeMenu: vi.fn(),
+    onOpenAttachMenu: vi.fn(),
     onRemoveAttachment: vi.fn(),
     onSearchMentions: vi.fn(),
     onAttachImage: vi.fn(),
@@ -253,22 +254,24 @@ describe('Composer attachments', () => {
 })
 
 describe('Composer chrome', () => {
-  it('routes the toolbar buttons', () => {
-    const { props } = renderComposer()
-    fireEvent.click(screen.getByLabelText('Attach file'))
-    fireEvent.click(screen.getByLabelText('Commands'))
-    fireEvent.click(screen.getByLabelText('Model'))
-    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
-    expect(props.onPickFile).toHaveBeenCalledOnce()
+  it('routes the toolbar buttons without blurring an open menu', () => {
+    const { props } = renderComposer({ permissionMode: 'auto' })
+    for (const label of ['Attach', 'Commands', 'Model', 'Permission mode: Auto']) {
+      expect(fireEvent.mouseDown(screen.getByLabelText(label))).toBe(false)
+      fireEvent.click(screen.getByLabelText(label))
+    }
+    expect(props.onOpenAttachMenu).toHaveBeenCalledOnce()
     expect(props.onOpenPalette).toHaveBeenCalledOnce()
     expect(props.onOpenModelPicker).toHaveBeenCalledOnce()
-    expect(props.onCyclePermissionMode).toHaveBeenCalledOnce()
-    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M) High')
+    expect(props.onOpenModeMenu).toHaveBeenCalledOnce()
+    expect(props.onCyclePermissionMode).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 High')
   })
 
-  it('swaps Send for Stop while a turn is running', () => {
-    const { props } = renderComposer({ isRunning: true })
+  it('swaps Send for Stop and the placeholder while a turn is running', () => {
+    const { props, textarea } = renderComposer({ isRunning: true })
     expect(screen.queryByLabelText('Send')).toBeNull()
+    expect(textarea).toHaveAttribute('placeholder', 'Queue another message…')
     fireEvent.click(screen.getByLabelText('Stop'))
     expect(props.onStop).toHaveBeenCalledOnce()
   })

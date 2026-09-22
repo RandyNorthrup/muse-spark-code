@@ -19,6 +19,10 @@
 // live behaviour of each mode is verified when the approval cards land (M4);
 // until then any mode that would make the host wait on a decision the UI
 // cannot give collapses to `denyUnmatched`, which is what M2 shipped with.
+//
+// Bypass permissions is offered only while the
+// `museSpark.allowDangerouslySkipPermissions` setting is on, exactly as the
+// Claude Code extension gates it behind `allowDangerouslySkipPermissions`.
 
 import { PERMISSION_MODES, type PermissionMode } from './constants'
 
@@ -46,10 +50,22 @@ export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): A
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
 }
 
-/** Shift+Tab / the mode button: the next mode in the Claude Code order. */
-export function nextPermissionMode(mode: PermissionMode): PermissionMode {
-  const index = PERMISSION_MODES.indexOf(mode)
-  const next = PERMISSION_MODES[(index + 1) % PERMISSION_MODES.length]
+/** The modes the Modes menu lists, in the Claude Code order. */
+export function availablePermissionModes(canBypass: boolean): readonly PermissionMode[] {
+  return canBypass
+    ? PERMISSION_MODES
+    : PERMISSION_MODES.filter((mode) => mode !== 'bypassPermissions')
+}
+
+/**
+ * Shift+Tab: the next available mode in the Claude Code order. A current mode
+ * that is no longer available (Bypass after the setting was turned off)
+ * cycles to the first one.
+ */
+export function nextPermissionMode(mode: PermissionMode, canBypass: boolean): PermissionMode {
+  const modes = availablePermissionModes(canBypass)
+  const index = modes.indexOf(mode)
+  const next = modes[(index + 1) % modes.length]
   // The modulo keeps the index in range, but noUncheckedIndexedAccess cannot
   // see that; the fallback is unreachable and exists for the type only.
   return next ?? PERMISSION_MODES[0]

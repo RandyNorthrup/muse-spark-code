@@ -98,7 +98,7 @@ offers the **Muse Spark:** commands listed below.
 | Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)             | Move keyboard focus between the editor and the composer                                                                                              |
 | Muse Spark: Insert @-Mention for Selection | `Alt+K`                            | Insert `@path#start-end` for the active editor selection into the composer                                                                           |
 | Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on)                                                                   |
-| Muse Spark: Toggle Thinking                | `Ctrl+O` (`Cmd+O`), composer only  | Turn reasoning on or off for this conversation                                                                                                       |
+| Muse Spark: Toggle Thinking                | `Alt+T`, composer only             | Turn reasoning on or off for this conversation (the Claude Code binding)                                                                             |
 
 In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
 `museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
@@ -118,46 +118,55 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
   `skill/list`, inserted as `/selector` and sent as a skill part), Slash
   commands (`/compact`, `/clear`, `/logout`) and Support (output log, issues,
   docs).
-- **"+" attach** — a native file dialog. PNG, JPEG, GIF and WebP files become
-  `name W×H` chips and are sent as image parts (10 MB each, 20 per message);
-  any other file is inserted as an `@path` mention. Images can also be pasted
-  or dropped onto the composer, and files dragged from the Explorer become
-  mentions.
+- **"+" menu** — _Upload from computer_ opens a native file dialog: PNG, JPEG,
+  GIF and WebP files become `name W×H` chips and are sent as image parts
+  (10 MB each, 20 per message); any other file is inserted as an `@path`
+  mention. _Add context_ starts an `@` mention at the caret. Images can also
+  be pasted or dropped onto the composer, and files dragged from the Explorer
+  become mentions. (Claude Code's third entry, _Browse the web_, needs its
+  Chrome extension and has no Muse counterpart.)
 - **`@` mentions** — type `@` and a few letters; the menu lists matching
   files and folders from the workspace index, ranked fuzzily. `Enter` or
   `Tab` inserts `@path `, `Esc` dismisses. With `museSpark.respectGitIgnore`
   on, the index comes from `git ls-files` (so `.gitignore` applies exactly);
   without git it falls back to VS Code's file search. `Alt+K` still inserts
   `@path#start-end` for the editor selection.
-- **Model pill** — `model (window) effort`, e.g. `muse-spark-1.3 (1M) High`.
-  Click it for the model list (`model/list`; the choice is applied with
-  `session/setModel`). Effort is Low / Medium / High / Extra high / Max and is
-  sent as the session's reasoning-effort default; the CLI's own default is
-  High. The Thinking toggle (`Ctrl+O`) sends `none` while off.
-- **Permission mode** — the `</>` button or `Shift+Tab` cycles Manual → Edit
-  automatically → Plan → Auto → Bypass permissions (Bypass asks for
-  confirmation). The modes map onto the CLI's approval modes as recorded in
-  `PLAN.md` D7. **Until the approval cards ship (M4), every mode except Bypass
-  runs as `denyUnmatched`**: the agent can read and answer but not edit files
-  or run commands. Bypass permissions maps to `allowAll` and does let it.
+- **Model pill** — `model effort`, e.g. `muse-spark-1.3 High`. Click it for
+  the model list (`model/list`, context window shown per row; the choice is
+  applied with `session/setModel`). Effort is Minimal / Low / Medium / High /
+  Extra high / Max, each dot naming its tier on hover, and is sent as the
+  session's reasoning-effort default; the CLI's own default is High. Only the
+  tiers verified for the current model are offered (`PLAN.md` D10). The
+  Thinking toggle (`Alt+T`) sends `none` while off.
+- **Permission mode** — the mode button opens the Modes menu (Manual / Edit
+  automatically / Plan / Auto, each with a one-line description, plus the
+  Effort row); `Shift+Tab` cycles them. Bypass permissions appears only while
+  `museSpark.allowDangerouslySkipPermissions` is on. The modes map onto the
+  CLI's approval modes as recorded in `PLAN.md` D7. **Until the approval
+  cards ship (M4), every mode except Bypass runs as `denyUnmatched`**: the
+  agent can read and answer but not edit files or run commands. Bypass
+  permissions maps to `allowAll` and does let it.
+- **While a turn runs** the placeholder reads "Queue another message…": Enter
+  steers the running turn, Stop cancels it.
 
 ## Settings
 
 All settings live under `museSpark.*`; changes apply to open panels immediately.
 
-| Setting                 | Default  | Purpose                                                                                    |
-| ----------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `preferredLocation`     | `panel`  | Where new conversations open: `sidebar` or `panel` (editor tab)                            |
-| `initialPermissionMode` | `manual` | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations       |
-| `autosave`              | `true`   | Save dirty files before Muse reads or writes them                                          |
-| `attachOpenFile`        | `true`   | Attach the active file to each message (off: selection only)                               |
-| `useCtrlEnterToSend`    | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                  |
-| `hideOnboarding`        | `false`  | Hide the onboarding checklist                                                              |
-| `focusView`             | `false`  | Show only prompts and responses                                                            |
-| `respectGitIgnore`      | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                          |
-| `confidentialWorkspace` | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace          |
-| `museBinaryPath`        | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir |
-| `environmentVariables`  | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in    |
+| Setting                           | Default  | Purpose                                                                                    |
+| --------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `preferredLocation`               | `panel`  | Where new conversations open: `sidebar` or `panel` (editor tab)                            |
+| `initialPermissionMode`           | `manual` | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations       |
+| `autosave`                        | `true`   | Save dirty files before Muse reads or writes them                                          |
+| `attachOpenFile`                  | `true`   | Attach the active file to each message (off: selection only)                               |
+| `useCtrlEnterToSend`              | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                  |
+| `hideOnboarding`                  | `false`  | Hide the onboarding checklist                                                              |
+| `focusView`                       | `false`  | Show only prompts and responses                                                            |
+| `respectGitIgnore`                | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                          |
+| `confidentialWorkspace`           | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace          |
+| `allowDangerouslySkipPermissions` | `false`  | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)         |
+| `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir |
+| `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in    |
 
 ## Development commands
 

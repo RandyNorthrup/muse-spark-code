@@ -5,7 +5,6 @@
 // renders it and routes the chosen action.
 
 import {
-  EFFORT_LEVELS,
   type EffortLevel,
   ISSUES_URL,
   MUSE_DOCS_URL,
@@ -13,13 +12,18 @@ import {
   type PermissionMode,
   UI_TEXT,
 } from './constants'
-import { effortIndex, effortLabel } from './effort'
+import { effortLabel, effortLevelsFor } from './effort'
 import type { ModelOption, SkillOption } from './protocol'
 
 export type PaletteWidget =
   | { readonly kind: 'value'; readonly text: string }
   | { readonly kind: 'toggle'; readonly isOn: boolean }
-  | { readonly kind: 'slider'; readonly value: number; readonly max: number }
+  | {
+      readonly kind: 'slider'
+      /** The tiers the current model serves, lowest first. */
+      readonly levels: readonly EffortLevel[]
+      readonly current: EffortLevel
+    }
 
 export type PaletteAction =
   | { readonly type: 'attachFile' }
@@ -28,7 +32,7 @@ export type PaletteAction =
   | { readonly type: 'openModelPicker' }
   | { readonly type: 'setEffort'; readonly effort: EffortLevel }
   | { readonly type: 'toggleThinking' }
-  | { readonly type: 'cyclePermissionMode' }
+  | { readonly type: 'openPermissionModes' }
   | { readonly type: 'toggleFocusView' }
   | { readonly type: 'toggleCtrlEnterToSend' }
   | { readonly type: 'openSettings' }
@@ -166,8 +170,8 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: `${UI_TEXT.effortItem} (${effortLabel(context.effort)})`,
           widget: {
             kind: 'slider',
-            value: effortIndex(context.effort),
-            max: EFFORT_LEVELS.length - 1,
+            levels: effortLevelsFor(context.currentModel?.modelId),
+            current: context.effort,
           },
           action: { type: 'setEffort', effort: context.effort },
           isSlider: true,
@@ -188,7 +192,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           id: 'permissionMode',
           label: UI_TEXT.permissionModeItem,
           widget: { kind: 'value', text: PERMISSION_MODE_LABELS[context.permissionMode] },
-          action: { type: 'cyclePermissionMode' },
+          action: { type: 'openPermissionModes' },
         },
         {
           id: 'focusView',

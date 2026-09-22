@@ -73,6 +73,7 @@
         focusView: false,
         respectGitIgnore: true,
         confidentialWorkspace: false,
+        allowDangerouslySkipPermissions: false,
       }
       const models = [
         {
@@ -281,6 +282,25 @@
         shifttab: () => {
           textarea().focus()
           key({ key: 'Tab', shiftKey: true })
+        },
+        modes: () => {
+          click('Permission mode: Manual')
+        },
+        'modes-bypass': () => {
+          send({
+            type: 'settingsChanged',
+            settings: { ...settings, allowDangerouslySkipPermissions: true },
+          })
+          later(50, () => click('Permission mode: Manual'))
+        },
+        attach: () => {
+          click('Attach')
+        },
+        'add-context': () => {
+          click('Attach')
+          later(100, () => {
+            document.querySelector('[role="menuitem"]:nth-child(2)').click()
+          })
         },
         filter: () => {
           textarea().focus()

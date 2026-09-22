@@ -221,45 +221,137 @@ describe('App conversation', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Open a folder first')
   })
 
-  it('labels the model pill with model, context window and effort', () => {
+  it('labels the model pill with model and effort, like the Claude Code pill', () => {
     renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M) High')
-    deliver({ type: 'sessionInfo', modelId: 'small', contextLimit: 128_000 })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('small (128K) High')
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 High')
+    expect(screen.getByLabelText('Model')).not.toHaveTextContent('1M')
     deliver({
       type: 'composerState',
       effort: 'xhigh',
       isThinkingEnabled: false,
       permissionMode: 'manual',
     })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('small (128K) No thinking')
-    deliver({ type: 'sessionInfo', modelId: 'bare' })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('bare No thinking')
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 No thinking')
   })
 
-  it('cycles the permission mode from the button and Shift+Tab', () => {
+  it('opens the Modes menu from the button, selects a mode, and cycles on Shift+Tab', () => {
     const postMessage = renderReady()
     fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
-    expect(postMessage).toHaveBeenLastCalledWith({
+    const menu = screen.getByRole('menu', { name: 'Permission modes' })
+    expect(document.activeElement).toBe(menu)
+    expect(screen.getByText('Modes')).toBeInTheDocument()
+    expect(screen.getByText('⇧ + tab')).toBeInTheDocument()
+    expect(screen.getAllByRole('menuitemradio').map((node) => node.textContent)).toEqual([
+      'ManualMuse will ask for approval before making each editCurrent',
+      'Edit automaticallyMuse will edit files without asking and ask for everything else',
+      'PlanMuse will explore the code and present a plan before editing',
+      'AutoMuse will approve actions that pass a safety check and pause for anything risky',
+    ])
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit automatically/ }))
+    expect(postMessage).toHaveBeenCalledWith({
       type: 'setPermissionMode',
       mode: 'acceptEdits',
+    })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(textarea())
+    deliver({
+      type: 'composerState',
+      effort: 'high',
+      isThinkingEnabled: true,
+      permissionMode: 'auto',
+    })
+    expect(screen.getByLabelText('Permission mode: Auto')).toBeInTheDocument()
+    // Bypass is not allowed, so the cycle wraps from Auto to Manual.
+    fireEvent.keyDown(textarea(), { key: 'Tab', shiftKey: true })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setPermissionMode', mode: 'manual' })
+    // A second click on the button closes the menu again.
+    fireEvent.click(screen.getByLabelText('Permission mode: Auto'))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Permission mode: Auto'))
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('lists Bypass permissions only while the setting allows it', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'settingsChanged',
+      settings: { ...testSettings, allowDangerouslySkipPermissions: true },
+    })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.getByRole('menuitemradio', { name: /Bypass permissions/ })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowUp' })
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'setPermissionMode',
+      mode: 'bypassPermissions',
     })
     deliver({
       type: 'composerState',
       effort: 'high',
       isThinkingEnabled: true,
-      permissionMode: 'acceptEdits',
+      permissionMode: 'auto',
     })
     fireEvent.keyDown(textarea(), { key: 'Tab', shiftKey: true })
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setPermissionMode', mode: 'plan' })
-    expect(screen.getByLabelText('Permission mode: Edit automatically')).toBeInTheDocument()
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'setPermissionMode',
+      mode: 'bypassPermissions',
+    })
   })
 
-  it('routes the attach button, mention searches and attachment removal', () => {
+  it('steps the effort from the Modes menu footer with the dots and the arrows', () => {
     const postMessage = renderReady()
-    fireEvent.click(screen.getByLabelText('Attach file'))
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.getByText('Effort (High)')).toBeInTheDocument()
+    fireEvent.click(screen.getByTitle('Max'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'max' })
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowRight' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowLeft' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'medium' })
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('opens the Modes menu from the palette row', () => {
+    renderReady()
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: 'Permission mode' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(screen.getByRole('menu', { name: 'Permission modes' })).toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).toBeNull()
+  })
+
+  it('offers upload and add-context from the "+" menu', async () => {
+    const postMessage = renderReady()
+    fireEvent.click(screen.getByLabelText('Attach'))
+    expect(screen.getAllByRole('menuitem').map((node) => node.textContent)).toEqual([
+      'Upload from computer',
+      'Add context',
+    ])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Upload from computer' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'pickFile' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.change(textarea(), { target: { value: 'look at' } })
+    fireEvent.click(screen.getByLabelText('Attach'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add context' }))
+    expect(textarea()).toHaveValue('look at @')
+    // The caret lands after the `@` once the insert has committed.
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'searchMentions', requestId: 1, query: '' })
+    expect(screen.getByText('No matching files')).toBeInTheDocument()
+    deliver({
+      type: 'mentionResults',
+      requestId: 1,
+      items: [{ path: 'src/app.ts', isFolder: false }],
+    })
+    expect(screen.getByRole('option', { name: 'src/app.ts' })).toBeInTheDocument()
+  })
+
+  it('routes mention searches and attachment removal', () => {
+    const postMessage = renderReady()
     fireEvent.change(textarea(), { target: { value: '@ap', selectionStart: 3 } })
     fireEvent.keyUp(textarea(), { key: 'p' })
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -343,12 +435,6 @@ describe('App palette', () => {
     run('Effort')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Permission mode')
-    expect(postMessage).toHaveBeenLastCalledWith({
-      type: 'setPermissionMode',
-      mode: 'acceptEdits',
-    })
-    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
     run('Focus view')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'toggleFocusView' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
@@ -402,7 +488,7 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'setModel', modelId: 'muse-spark-1.2' })
     expect(screen.queryByRole('dialog')).toBeNull()
     deliver({ type: 'agentEvent', event: { type: 'modelChanged', modelId: 'muse-spark-1.2' } })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.2 (128K) High')
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.2 High')
 
     const filter = openPalette()
     fireEvent.change(filter, { target: { value: 'Switch model' } })

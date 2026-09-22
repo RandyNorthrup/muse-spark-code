@@ -54,6 +54,15 @@ export const PERMISSION_MODE_LABELS: Readonly<Record<PermissionMode, string>> = 
   auto: 'Auto',
   bypassPermissions: 'Bypass permissions',
 }
+// One line under each mode in the Modes menu (the Claude Code wording, with
+// Muse in place of Claude and the MSP behaviour behind each mode, PLAN.md D7).
+export const PERMISSION_MODE_DETAILS: Readonly<Record<PermissionMode, string>> = {
+  manual: 'Muse will ask for approval before making each edit',
+  acceptEdits: 'Muse will edit files without asking and ask for everything else',
+  plan: 'Muse will explore the code and present a plan before editing',
+  auto: 'Muse will approve actions that pass a safety check and pause for anything risky',
+  bypassPermissions: 'Muse will edit files and run commands without asking',
+}
 export const PREFERRED_LOCATIONS = ['sidebar', 'panel'] as const
 export type PreferredLocation = (typeof PREFERRED_LOCATIONS)[number]
 
@@ -72,6 +81,9 @@ export const SETTING_DEFAULTS = {
   focusView: false,
   respectGitIgnore: true,
   confidentialWorkspace: false,
+  // Claude Code's `allowDangerouslySkipPermissions`: Bypass permissions is
+  // listed in the Modes menu and the Shift+Tab cycle only while this is on.
+  allowDangerouslySkipPermissions: false,
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
 } as const
@@ -90,17 +102,30 @@ export const COMPOSER_MAX_ROWS = 10
 
 // --- Reasoning effort (MSP `ReasoningEffort`, PLAN.md §5.2) ---
 
-// The tiers the UI exposes, lowest first. `none`, `minimal` and `ultra` exist
-// on the wire but are not offered: `none` is what the Thinking toggle sends
-// when it is off, and the other two are outside the Claude Code parity range.
-export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+// The tiers the UI exposes, lowest first: the Model API's documented
+// `reasoning_effort` range (minimal … max), each verified live through Muse
+// Code with one turn per tier (docs/certification/m3.md, "Effort tiers per
+// model"). Two wire tiers are deliberately absent: `none` is what the
+// Thinking toggle sends when it is off, and `ultra` is forwarded to the API
+// as `max` (the API's rejection of `ultra` on muse-spark-1.2 names `max`),
+// so it would be a second dot for the same tier.
+export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
 export const EFFORT_LABELS: Readonly<Record<EffortLevel, string>> = {
+  minimal: 'Minimal',
   low: 'Low',
   medium: 'Medium',
   high: 'High',
   xhigh: 'Extra high',
   max: 'Max',
+}
+// The tiers each model family actually serves, keyed by model-id prefix
+// (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
+// with "Supported values: [minimal, low, medium, high, xhigh]"). Families not
+// listed get the full UI range.
+export const MODEL_EFFORT_LEVELS: Readonly<Record<string, readonly EffortLevel[]>> = {
+  'muse-spark-1.3': EFFORT_LEVELS,
+  'muse-spark-1.2': ['minimal', 'low', 'medium', 'high', 'xhigh'],
 }
 // `muse --help` documents `high` as the CLI's own default (verified 2026-09-21,
 // Muse Code 1.3.0); the extension starts there so the TUI and the panel agree.
@@ -200,6 +225,8 @@ export const UI_TEXT = {
   untitledConversation: 'Untitled',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
   composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
+  // Shown while a turn runs: Enter then steers the running turn.
+  composerQueuePlaceholder: 'Queue another message…',
   composerLabel: 'Message Muse',
   connecting: 'Connecting to the extension host…',
   notSignedIn: 'Not signed in',
@@ -224,10 +251,19 @@ export const UI_TEXT = {
   hostExited: 'Muse Code stopped unexpectedly.',
   hostStarting: 'Starting Muse Code…',
   working: 'Working…',
-  attachTitle: 'Attach file',
+  attachTitle: 'Attach',
+  attachMenuLabel: 'Attach',
+  uploadFromComputer: 'Upload from computer',
+  addContext: 'Add context',
   commandsTitle: 'Commands',
   modelPillTitle: 'Model and effort',
-  permissionModeTitle: 'Permission mode (Shift+Tab to cycle)',
+  permissionModeTitle: 'Permission mode',
+  modesTitle: 'Modes',
+  modesHintKeys: '⇧ + tab',
+  modesHint: 'to switch',
+  modesLabel: 'Permission modes',
+  bypassNotAllowed:
+    'Turn on the "Allow dangerously skip permissions" setting to use Bypass permissions.',
   focusViewBadge: 'Focus view',
   historyTitle: 'Session history',
   newConversationTitle: 'New conversation',
@@ -267,6 +303,7 @@ export const UI_TEXT = {
   reportIssue: 'Report an issue…',
   openDocs: 'Muse Code documentation',
   modelListLabel: 'Models',
+  thinkingOff: 'No thinking',
   modelContextSuffix: 'context',
   // @-mention menu and attachments.
   mentionMenuLabel: 'Files',
@@ -276,9 +313,6 @@ export const UI_TEXT = {
   attachmentTooLarge: 'Images must be 10 MB or smaller.',
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
   attachmentLimit: 'At most 20 images per message.',
-  bypassConfirm:
-    'Bypass permissions lets Muse edit files and run commands without asking. Use it only in a sandbox.',
-  bypassConfirmAction: 'Enable',
 } as const
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for

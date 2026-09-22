@@ -104,8 +104,8 @@
       },
       {
         "command": "museSpark.toggleThinking",
-        "key": "ctrl+o",
-        "mac": "cmd+o",
+        "key": "alt+t",
+        "mac": "alt+t",
         "when": "museSpark.inputFocused"
       }
     ],
@@ -187,6 +187,11 @@
           "type": "boolean",
           "default": false,
           "description": "Treat this workspace as confidential: contributor-tier models (whose traffic Meta may use for training) are blocked."
+        },
+        "museSpark.allowDangerouslySkipPermissions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow dangerously skip permissions: list Bypass permissions in the Modes menu. Muse then edits files and runs commands without asking; use only in a sandbox."
         },
         "museSpark.museBinaryPath": {
           "type": "string",

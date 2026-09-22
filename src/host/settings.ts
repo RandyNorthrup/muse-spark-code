@@ -66,6 +66,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     focusView: readSetting(config, 'focusView', log),
     respectGitIgnore: readSetting(config, 'respectGitIgnore', log),
     confidentialWorkspace: readSetting(config, 'confidentialWorkspace', log),
+    allowDangerouslySkipPermissions: readSetting(config, 'allowDangerouslySkipPermissions', log),
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
   }
@@ -83,5 +84,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     focusView: settings.focusView,
     respectGitIgnore: settings.respectGitIgnore,
     confidentialWorkspace: settings.confidentialWorkspace,
+    allowDangerouslySkipPermissions: settings.allowDangerouslySkipPermissions,
   }
 }

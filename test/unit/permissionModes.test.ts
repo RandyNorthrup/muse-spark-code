@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PERMISSION_MODES } from '../../src/shared/constants'
 import {
   approvalModeFor,
+  availablePermissionModes,
   isPermissionMode,
   nextPermissionMode,
 } from '../../src/shared/permissionModes'
@@ -28,13 +29,25 @@ describe('approvalModeFor', () => {
   })
 })
 
+describe('availablePermissionModes', () => {
+  it('lists Bypass permissions only when the setting allows it', () => {
+    expect(availablePermissionModes(true)).toEqual(PERMISSION_MODES)
+    expect(availablePermissionModes(false)).toEqual(['manual', 'acceptEdits', 'plan', 'auto'])
+  })
+})
+
 describe('nextPermissionMode', () => {
-  it('cycles through the Claude Code order and wraps', () => {
-    expect(nextPermissionMode('manual')).toBe('acceptEdits')
-    expect(nextPermissionMode('acceptEdits')).toBe('plan')
-    expect(nextPermissionMode('plan')).toBe('auto')
-    expect(nextPermissionMode('auto')).toBe('bypassPermissions')
-    expect(nextPermissionMode('bypassPermissions')).toBe('manual')
+  it('cycles through the Claude Code order and wraps, including Bypass when allowed', () => {
+    expect(nextPermissionMode('manual', true)).toBe('acceptEdits')
+    expect(nextPermissionMode('acceptEdits', true)).toBe('plan')
+    expect(nextPermissionMode('plan', true)).toBe('auto')
+    expect(nextPermissionMode('auto', true)).toBe('bypassPermissions')
+    expect(nextPermissionMode('bypassPermissions', true)).toBe('manual')
+  })
+
+  it('skips Bypass when it is not allowed and leaves it if it is current', () => {
+    expect(nextPermissionMode('auto', false)).toBe('manual')
+    expect(nextPermissionMode('bypassPermissions', false)).toBe('manual')
   })
 })
 

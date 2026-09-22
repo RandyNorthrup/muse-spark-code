@@ -120,15 +120,6 @@ async function runGit(args: readonly string[], cwd: string): Promise<string> {
   return stdout
 }
 
-async function didConfirmBypass(): Promise<boolean> {
-  const choice = await vscode.window.showWarningMessage(
-    UI_TEXT.bypassConfirm,
-    { modal: true },
-    UI_TEXT.bypassConfirmAction,
-  )
-  return choice === UI_TEXT.bypassConfirmAction
-}
-
 export function activate(context: vscode.ExtensionContext): void {
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
@@ -280,7 +271,7 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         mentions: { search: (query, limit) => mentions.search(query, limit) },
         files,
-        confirmBypass: didConfirmBypass,
+        isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
         runHostAction,
         newAttachmentId: () => crypto.randomUUID(),
         log,

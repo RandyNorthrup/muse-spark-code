@@ -2,8 +2,9 @@
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
 // permission mode, "/" on an empty draft opens the palette, "@" opens the
 // mention menu), attachment chips, paste/drop of images and editor files,
-// the attach and slash buttons, the model pill, the permission-mode button
-// and Send/Stop.
+// the attach ("+") and slash buttons, the model pill, the permission-mode
+// button and Send/Stop. The "+" button and the mode button open menus the
+// parent renders above the composer.
 
 import {
   type ClipboardEvent,
@@ -14,14 +15,20 @@ import {
   useRef,
   useState,
 } from 'react'
-import { COMPOSER_MAX_ROWS, UI_TEXT } from '../../shared/constants'
+import {
+  COMPOSER_MAX_ROWS,
+  PERMISSION_MODE_LABELS,
+  type PermissionMode,
+  UI_TEXT,
+} from '../../shared/constants'
 import { applyMention, type MentionQuery, mentionQueryAt } from '../../shared/mentions'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
 import { blobToBase64, parseUriList } from '../base64'
 import type { MentionResults } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
-import { CodeIcon, PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
+import { PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
 import { MentionMenu, mentionOptionId } from './MentionMenu'
+import { modeIcon } from './modeIcons'
 
 export interface ImageData {
   readonly name: string
@@ -36,7 +43,7 @@ export interface ComposerProps {
   readonly canSend: boolean
   readonly isRunning: boolean
   readonly modelLabel: string
-  readonly modeLabel: string
+  readonly permissionMode: PermissionMode
   readonly focusRequests: number
   readonly pendingInsert: string | undefined
   readonly attachments: readonly AttachmentSummary[]
@@ -48,8 +55,12 @@ export interface ComposerProps {
   readonly onFocusChange: (isFocused: boolean) => void
   readonly onOpenPalette: () => void
   readonly onOpenModelPicker: () => void
+  /** Shift+Tab. */
   readonly onCyclePermissionMode: () => void
-  readonly onPickFile: () => void
+  /** The mode button: the Modes menu. */
+  readonly onOpenModeMenu: () => void
+  /** The "+" button: the attach menu. */
+  readonly onOpenAttachMenu: () => void
   readonly onRemoveAttachment: (id: string) => void
   readonly onSearchMentions: (requestId: number, query: string) => void
   readonly onAttachImage: (image: ImageData) => void
@@ -79,11 +90,11 @@ export function isSendKey(
 }
 
 /**
- * A mousedown on a toggle button would blur the open palette's filter (which
+ * A mousedown on a toggle button would blur the open palette or menu (which
  * closes it) before the click could toggle; keeping focus where it is lets the
  * click decide.
  */
-function keepPaletteFocus(event: MouseEvent<HTMLButtonElement>): void {
+function keepMenuFocus(event: MouseEvent<HTMLButtonElement>): void {
   event.preventDefault()
 }
 
@@ -99,7 +110,7 @@ export function Composer(props: ComposerProps) {
     canSend,
     isRunning,
     modelLabel,
-    modeLabel,
+    permissionMode,
     focusRequests,
     pendingInsert,
     attachments,
@@ -112,7 +123,8 @@ export function Composer(props: ComposerProps) {
     onOpenPalette,
     onOpenModelPicker,
     onCyclePermissionMode,
-    onPickFile,
+    onOpenModeMenu,
+    onOpenAttachMenu,
     onRemoveAttachment,
     onSearchMentions,
     onAttachImage,
@@ -306,7 +318,7 @@ export function Composer(props: ComposerProps) {
         aria-activedescendant={
           isMentionOpen && mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
         }
-        placeholder={placeholder}
+        placeholder={isRunning ? UI_TEXT.composerQueuePlaceholder : placeholder}
         rows={rowsFor(draft)}
         value={draft}
         onChange={(event) => {
@@ -331,7 +343,8 @@ export function Composer(props: ComposerProps) {
             className="icon-button"
             title={UI_TEXT.attachTitle}
             aria-label={UI_TEXT.attachTitle}
-            onClick={onPickFile}
+            onMouseDown={keepMenuFocus}
+            onClick={onOpenAttachMenu}
           >
             <PlusIcon />
           </button>
@@ -340,7 +353,7 @@ export function Composer(props: ComposerProps) {
             className="icon-button"
             title={UI_TEXT.commandsTitle}
             aria-label={UI_TEXT.commandsTitle}
-            onMouseDown={keepPaletteFocus}
+            onMouseDown={keepMenuFocus}
             onClick={onOpenPalette}
           >
             <SlashIcon />
@@ -350,7 +363,7 @@ export function Composer(props: ComposerProps) {
             className="pill"
             title={UI_TEXT.modelPillTitle}
             aria-label="Model"
-            onMouseDown={keepPaletteFocus}
+            onMouseDown={keepMenuFocus}
             onClick={onOpenModelPicker}
           >
             {modelLabel}
@@ -361,11 +374,12 @@ export function Composer(props: ComposerProps) {
             type="button"
             className="mode-button"
             title={UI_TEXT.permissionModeTitle}
-            aria-label={`Permission mode: ${modeLabel}`}
-            onClick={onCyclePermissionMode}
+            aria-label={`Permission mode: ${PERMISSION_MODE_LABELS[permissionMode]}`}
+            onMouseDown={keepMenuFocus}
+            onClick={onOpenModeMenu}
           >
-            <CodeIcon />
-            <span>{modeLabel}</span>
+            {modeIcon(permissionMode)}
+            <span>{PERMISSION_MODE_LABELS[permissionMode]}</span>
           </button>
           {isRunning ? (
             <button

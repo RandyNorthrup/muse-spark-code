@@ -4,7 +4,7 @@
 // Enter activates, Left/Right step the slider, Esc goes back or closes.
 
 import { type KeyboardEvent, useEffect, useMemo, useState } from 'react'
-import { EFFORT_LABELS, EFFORT_LEVELS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import {
   filterPalette,
@@ -15,6 +15,7 @@ import {
   type PaletteWidget,
 } from '../../shared/palette'
 import type { ModelOption } from '../../shared/protocol'
+import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
 
 export type PaletteView = 'actions' | 'models'
@@ -51,21 +52,22 @@ export type PaletteEntry =
 const ROW_ID_PREFIX = 'palette-row-'
 
 function rowFor(item: PaletteItem, onAction: (action: PaletteAction) => void): PaletteRow {
-  const { action } = item
-  if (action.type === 'setEffort') {
-    const current = effortIndex(action.effort)
+  const { action, widget } = item
+  if (action.type === 'setEffort' && widget?.kind === 'slider') {
+    const { levels } = widget
+    const current = effortIndex(levels, action.effort)
     const step = (index: number) => {
-      onAction({ type: 'setEffort', effort: effortAt(index) })
+      onAction({ type: 'setEffort', effort: effortAt(levels, index) })
     }
     return {
       id: item.id,
       label: item.label,
       detail: item.detail,
-      widget: item.widget,
+      widget,
       isCurrent: false,
       // Enter steps up and wraps, so the row is usable without arrow keys.
       activate: () => {
-        step((current + 1) % EFFORT_LEVELS.length)
+        step((current + 1) % levels.length)
       },
       step,
     }
@@ -150,24 +152,17 @@ function Widget({
     }
     case 'slider': {
       return (
-        <span className="palette-slider">
-          {EFFORT_LEVELS.map((level, index) => (
-            <button
-              key={level}
-              type="button"
-              className={index <= widget.value ? 'slider-step slider-step-on' : 'slider-step'}
-              aria-label={EFFORT_LABELS[level]}
-              tabIndex={-1}
-              onMouseDown={(event) => {
-                event.preventDefault()
-              }}
-              onClick={(event) => {
-                event.stopPropagation()
-                onStep?.(index)
-              }}
-            />
-          ))}
-        </span>
+        <EffortSlider
+          levels={widget.levels}
+          current={widget.current}
+          onSelect={
+            onStep === undefined
+              ? undefined
+              : (level) => {
+                  onStep(effortIndex(widget.levels, level))
+                }
+          }
+        />
       )
     }
   }
@@ -266,7 +261,8 @@ export function Palette(props: PaletteProps) {
       case 'ArrowLeft': {
         if (active?.step !== undefined && active.widget?.kind === 'slider') {
           event.preventDefault()
-          active.step(active.widget.value + (event.key === 'ArrowRight' ? 1 : -1))
+          const { levels, current } = active.widget
+          active.step(effortIndex(levels, current) + (event.key === 'ArrowRight' ? 1 : -1))
         }
         break
       }

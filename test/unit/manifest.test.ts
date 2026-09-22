@@ -48,8 +48,8 @@ describe('package.json manifest', () => {
     expect(bindings.get(COMMAND_IDS.insertMentionReference)).toMatchObject({ key: 'alt+k' })
     expect(bindings.get(COMMAND_IDS.toggleFocusView)).toMatchObject({ key: 'ctrl+alt+f' })
     expect(bindings.get(COMMAND_IDS.toggleThinking)).toMatchObject({
-      key: 'ctrl+o',
-      mac: 'cmd+o',
+      key: 'alt+t',
+      mac: 'alt+t',
       when: 'museSpark.inputFocused',
     })
     for (const command of bindings.keys()) {

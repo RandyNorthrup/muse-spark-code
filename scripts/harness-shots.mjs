@@ -26,6 +26,10 @@ const SCENARIOS = [
   'transcript',
   'shifttab',
   'filter',
+  'modes',
+  'modes-bypass',
+  'attach',
+  'add-context',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'

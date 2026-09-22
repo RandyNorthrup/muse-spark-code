@@ -58,8 +58,15 @@ describe('buildPalette', () => {
     })
     expect(items.find((item) => item.id === 'effort')).toMatchObject({
       label: 'Effort (Extra high)',
-      widget: { kind: 'slider', value: 3, max: 4 },
+      widget: {
+        kind: 'slider',
+        levels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+        current: 'xhigh',
+      },
       isSlider: true,
+    })
+    expect(items.find((item) => item.id === 'permissionMode')?.action).toEqual({
+      type: 'openPermissionModes',
     })
     expect(items.find((item) => item.id === 'thinking')?.widget).toEqual({
       kind: 'toggle',
