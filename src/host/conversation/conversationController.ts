@@ -8,11 +8,14 @@ import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
 import type { MuseCodeHost, MuseSession, TurnPart } from '../../core/backends/musecode/MuseCodeHost'
 import {
+  ALLOWED_LINK_SCHEMES,
   DEFAULT_EFFORT,
   type EffortLevel,
   IMAGE_EXTENSIONS,
   MENTION_RESULT_LIMIT,
+  OUTPUT_PAGE_BYTES,
   type PermissionMode,
+  SANDBOX_FAILURE_MARKER,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
@@ -66,6 +69,10 @@ export interface ConversationDeps {
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
   readonly runHostAction: (action: HostAction) => Promise<void>
+  /** Code block "Copy": the system clipboard. */
+  readonly copyText: (text: string) => Promise<void>
+  /** Code block "Insert at cursor"; false when no text editor is active. */
+  readonly insertCode: (text: string) => Promise<boolean>
   readonly newAttachmentId: () => string
   readonly log: Logger
 }
@@ -99,6 +106,7 @@ export class ConversationController {
   private effort: EffortLevel = DEFAULT_EFFORT
   private isThinkingEnabled = true
   private activeTurnId: string | undefined
+  private hasWarnedSandbox = false
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -191,9 +199,102 @@ export class ConversationController {
         }
         break
       }
+      case 'itemUpdated':
+      case 'itemCompleted': {
+        this.noteSandboxFailure(event.item.failureReason)
+        break
+      }
       default: {
         break
       }
+    }
+  }
+
+  /** The shell tool's "sandbox not set up" failure gets one actionable notice. */
+  private noteSandboxFailure(failureReason: string | undefined): void {
+    if (this.hasWarnedSandbox || failureReason?.includes(SANDBOX_FAILURE_MARKER) !== true) {
+      return
+    }
+    this.hasWarnedSandbox = true
+    this.notice('warning', UI_TEXT.sandboxNotice)
+  }
+
+  private openLink(url: string): void {
+    let scheme: string
+    try {
+      scheme = new URL(url).protocol
+    } catch {
+      this.notice('warning', UI_TEXT.linkSchemeRefused)
+      return
+    }
+    if (!ALLOWED_LINK_SCHEMES.has(scheme)) {
+      this.notice('warning', UI_TEXT.linkSchemeRefused)
+      return
+    }
+    this.deps.openExternal(url)
+  }
+
+  private async decideApproval(
+    message: Extract<ConversationMessage, { type: 'decideApproval' }>,
+  ): Promise<void> {
+    if (this.session === undefined) {
+      return
+    }
+    try {
+      await this.session.decideApproval({
+        approvalId: message.approvalId,
+        choiceId: message.choiceId,
+        requirementId: message.requirementId,
+        ...(message.feedback !== undefined && { feedback: message.feedback }),
+      })
+    } catch (error: unknown) {
+      this.notice('error', `The decision was not accepted: ${describe(error)}`)
+    }
+  }
+
+  private async answerQuestion(
+    message: Extract<ConversationMessage, { type: 'answerQuestion' }>,
+  ): Promise<void> {
+    if (this.session === undefined) {
+      return
+    }
+    try {
+      await this.session.answerQuestions(message.userInputId, message.answers)
+    } catch (error: unknown) {
+      this.notice('error', `The answer was not accepted: ${describe(error)}`)
+    }
+  }
+
+  private async readOutput(
+    message: Extract<ConversationMessage, { type: 'readOutput' }>,
+  ): Promise<void> {
+    if (this.session === undefined) {
+      return
+    }
+    try {
+      const page = await this.session.readOutput({
+        itemId: message.itemId,
+        outputRef: message.outputRef,
+        offsetBytes: message.offsetBytes,
+        lengthBytes: OUTPUT_PAGE_BYTES,
+      })
+      this.post({
+        type: 'outputPage',
+        itemId: message.itemId,
+        outputRef: message.outputRef,
+        offsetBytes: page.offsetBytes,
+        byteLen: page.byteLen,
+        content: page.content,
+        eof: page.eof,
+      })
+    } catch (error: unknown) {
+      this.notice('error', `Could not load the output: ${describe(error)}`)
+    }
+  }
+
+  private async insertCode(text: string): Promise<void> {
+    if (!(await this.deps.insertCode(text))) {
+      this.notice('info', UI_TEXT.noEditorForInsert)
     }
   }
 
@@ -539,7 +640,27 @@ export class ConversationController {
         break
       }
       case 'openExternal': {
-        this.deps.openExternal(message.url)
+        this.openLink(message.url)
+        break
+      }
+      case 'decideApproval': {
+        await this.decideApproval(message)
+        break
+      }
+      case 'answerQuestion': {
+        await this.answerQuestion(message)
+        break
+      }
+      case 'readOutput': {
+        await this.readOutput(message)
+        break
+      }
+      case 'copyText': {
+        await this.deps.copyText(message.text)
+        break
+      }
+      case 'insertCode': {
+        await this.insertCode(message.text)
         break
       }
       case 'setModel': {

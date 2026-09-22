@@ -164,12 +164,15 @@ function setup(
   const host = new MuseCodeHost(handle.host, log)
   const auth = fakeAuth(options.status)
   const surface = fakeSurface('s')
-  const openExternal = vi.fn()
+  const openExternal = vi.fn<(url: string) => void>()
   const hostActions: HostAction[] = []
   let picked: PickedFile[] = []
   let mentionChoice: string | undefined = undefined
   let isBypassAllowed = options.isBypassAllowed ?? true
   let attachmentCount = 0
+  const copied: string[] = []
+  const inserted: string[] = []
+  let hasEditor = true
   const controller = new ConversationController({
     surface,
     auth: auth.service,
@@ -201,6 +204,14 @@ function setup(
       hostActions.push(action)
       return action === 'openLog' ? Promise.reject(new Error('no channel')) : Promise.resolve()
     },
+    copyText: (text: string) => {
+      copied.push(text)
+      return Promise.resolve()
+    },
+    insertCode: (text: string) => {
+      inserted.push(text)
+      return Promise.resolve(hasEditor)
+    },
     newAttachmentId: () => {
       attachmentCount += 1
       return `att-${String(attachmentCount)}`
@@ -231,6 +242,11 @@ function setup(
     },
     setBypassAllowed: (isAllowed: boolean) => {
       isBypassAllowed = isAllowed
+    },
+    copied,
+    inserted,
+    setHasEditor: (isOpen: boolean) => {
+      hasEditor = isOpen
     },
   }
 }
@@ -714,6 +730,173 @@ describe('ConversationController: context', () => {
     expect(t.surface.posted).toEqual([
       { type: 'notice', level: 'error', text: 'openLog failed: no channel' },
     ])
+  })
+})
+
+describe('ConversationController: transcript actions (M4)', () => {
+  it('forwards approval decisions and answers to the session and reports rejections', async () => {
+    const t = setup()
+    t.server.handle('approval/decide', (params) => ({
+      status: 'accepted',
+      commandId: params['commandId'],
+      approvalId: params['approvalId'],
+      terminal: true,
+    }))
+    t.server.handle('userInput/answer', (params) => ({
+      status: 'accepted',
+      commandId: params['commandId'],
+      userInputId: params['userInputId'],
+    }))
+    // Without a session the messages are ignored, never sent.
+    await t.controller.handle({
+      type: 'decideApproval',
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+    })
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    await t.send('l1', 'hi')
+    await t.controller.handle({
+      type: 'decideApproval',
+      approvalId: 'a1',
+      choiceId: 'abort',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+      feedback: 'not that',
+    })
+    expect(t.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      approvalId: 'a1',
+      choiceId: 'abort',
+      feedback: 'not that',
+    })
+    await t.controller.handle({
+      type: 'answerQuestion',
+      userInputId: 'q1',
+      answers: [{ questionId: 'c', selectedLabel: 'Red' }],
+    })
+    expect(t.server.requestsFor('userInput/answer')[0]?.params).toMatchObject({
+      userInputId: 'q1',
+      answers: [{ questionId: 'c', selectedLabel: 'Red' }],
+    })
+    t.server.handle('approval/decide', () => {
+      throw new Error('stale requirement')
+    })
+    await t.controller.handle({
+      type: 'decideApproval',
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+    })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringContaining('stale requirement') as string,
+    })
+    t.server.handle('userInput/answer', () => {
+      throw new Error('invalid answer')
+    })
+    await t.controller.handle({ type: 'answerQuestion', userInputId: 'q1', answers: [] })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      text: expect.stringContaining('invalid answer') as string,
+    })
+  })
+
+  it('serves output pages and reports a failed fetch', async () => {
+    const t = setup()
+    t.server.handle('item/readOutput', (params) => ({
+      content: '{"files":[]}',
+      encoding: 'utf8',
+      mediaType: 'application/json',
+      offsetBytes: params['offsetBytes'],
+      byteLen: 12,
+      eof: true,
+    }))
+    await t.controller.handle({ type: 'readOutput', itemId: 'c', outputRef: 'p', offsetBytes: 0 })
+    expect(t.server.requestsFor('item/readOutput')).toHaveLength(0)
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'readOutput', itemId: 'c', outputRef: 'p', offsetBytes: 0 })
+    expect(t.server.requestsFor('item/readOutput')[0]?.params).toMatchObject({
+      itemId: 'c',
+      outputRef: 'p',
+      offsetBytes: 0,
+      lengthBytes: 262_144,
+    })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'outputPage',
+      itemId: 'c',
+      outputRef: 'p',
+      offsetBytes: 0,
+      byteLen: 12,
+      content: '{"files":[]}',
+      eof: true,
+    })
+    t.server.handle('item/readOutput', () => {
+      throw new Error('missing')
+    })
+    await t.controller.handle({ type: 'readOutput', itemId: 'c', outputRef: 'p', offsetBytes: 0 })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringContaining('missing') as string,
+    })
+  })
+
+  it('copies and inserts code, explaining when no editor is open', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'copyText', text: 'const a = 1' })
+    expect(t.copied).toEqual(['const a = 1'])
+    await t.controller.handle({ type: 'insertCode', text: 'x' })
+    expect(t.inserted).toEqual(['x'])
+    expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
+    t.setHasEditor(false)
+    await t.controller.handle({ type: 'insertCode', text: 'y' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Open a text editor to insert code into it.',
+    })
+  })
+
+  it('opens http, https and mailto links only', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'openExternal', url: 'https://dev.meta.ai/' })
+    await t.controller.handle({ type: 'openExternal', url: 'mailto:someone@example.com' })
+    expect(t.openExternal.mock.calls.map(([url]) => url)).toEqual([
+      'https://dev.meta.ai/',
+      'mailto:someone@example.com',
+    ])
+    await t.controller.handle({ type: 'openExternal', url: 'file:///etc/passwd' })
+    await t.controller.handle({ type: 'openExternal', url: 'not a url' })
+    expect(t.openExternal).toHaveBeenCalledTimes(2)
+    expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(2)
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      level: 'warning',
+      text: expect.stringContaining('Only http, https and mailto') as string,
+    })
+  })
+
+  it('explains the sandbox setup once when the shell tool cannot run', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    const failure = {
+      sessionId: 's1',
+      item: {
+        itemId: 'c1',
+        kind: 'toolCall',
+        status: 'failed',
+        tool: 'powershell',
+        failureReason:
+          'environment failure: sandbox enforcement unavailable: windows_elevated setup_required',
+      },
+    }
+    t.server.notify('item/completed', failure)
+    t.server.notify('item/completed', { ...failure, item: { ...failure.item, itemId: 'c2' } })
+    await settle()
+    const notices = t.surface.posted.filter(
+      (m) => m.type === 'notice' && m.text.includes('muse sandbox windows setup'),
+    )
+    expect(notices).toHaveLength(1)
+    expect(notices[0]).toMatchObject({ level: 'warning' })
   })
 })
 

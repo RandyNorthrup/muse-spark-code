@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import type { QuestionAnswer } from '../shared/agentEvents'
 import {
   type EffortLevel,
   PERMISSION_MODE_DETAILS,
@@ -7,12 +8,13 @@ import {
 } from '../shared/constants'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { availablePermissionModes, nextPermissionMode } from '../shared/permissionModes'
-import { buildPalette, type PaletteAction } from '../shared/palette'
+import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import {
   parseHostToWebviewMessage,
   type SignInMethod,
   type WebviewToHostMessage,
 } from '../shared/protocol'
+import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { Composer, type ImageData } from './components/Composer'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
@@ -22,6 +24,7 @@ import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteView } from './components/Palette'
 import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
+import { TodoPanel } from './components/TodoPanel'
 import { Transcript } from './components/Transcript'
 import { canSend, initialUiState, type UiState, uiReducer } from './state/uiState'
 
@@ -29,6 +32,8 @@ export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
   /** Injected so tests get deterministic ids. */
   readonly newLocalId?: () => string
+  /** Injected so tests get deterministic timestamps. */
+  readonly now?: () => number
 }
 
 /** What floats above the composer: a palette view or one of the two menus. */
@@ -39,6 +44,7 @@ const ATTACH_UPLOAD = 'upload'
 const ATTACH_CONTEXT = 'context'
 const MENTION_TRIGGER = '@'
 const WHITESPACE_END = /\s$/
+const PERCENT = 100
 
 function isGated(state: UiState): boolean {
   return GATED_STATUSES.has(state.auth.status) && state.transcript.length === 0
@@ -56,12 +62,35 @@ export function modelLabelFor(state: UiState): string {
   return `${state.model.modelId} ${effort}`
 }
 
+/** "12% context" once the host has reported usage against a known window. */
+export function contextLabelFor(state: UiState): string | undefined {
+  const { context } = state
+  if (context?.windowTokens === undefined || context.windowTokens === 0) {
+    return undefined
+  }
+  const percent = Math.round((context.usedTokens / context.windowTokens) * PERCENT)
+  return `${String(percent)}% ${UI_TEXT.contextLabel}`
+}
+
+/** Tooltip detail for the context indicator. */
+function contextTitleFor(state: UiState): string | undefined {
+  const { context } = state
+  return context?.windowTokens === undefined
+    ? undefined
+    : `${formatTokenWindow(context.usedTokens)} of ${formatTokenWindow(context.windowTokens)} tokens (${context.pressure})`
+}
+
 const ATTACH_ENTRIES: readonly MenuEntry[] = [
   { id: ATTACH_UPLOAD, label: UI_TEXT.uploadFromComputer, icon: <UploadIcon /> },
   { id: ATTACH_CONTEXT, label: UI_TEXT.addContext, icon: <AddContextIcon /> },
 ]
 
-export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: AppProps) {
+// Stable defaults: a fresh function per render would re-run the message
+// effect (and re-post `ready`) on every render.
+const defaultLocalId = () => crypto.randomUUID()
+const defaultNow = () => Date.now()
+
+export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow }: AppProps) {
   const [state, dispatch] = useReducer(uiReducer, initialUiState)
   const [overlay, setOverlay] = useState<Overlay | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
@@ -73,14 +102,14 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
         console.warn(`Dropped malformed host message: ${parsed.error}`)
         return
       }
-      dispatch({ type: 'hostMessage', message: parsed.message })
+      dispatch({ type: 'hostMessage', message: parsed.message, at: now() })
     }
     window.addEventListener('message', onMessage)
     postMessage({ type: 'ready' })
     return () => {
       window.removeEventListener('message', onMessage)
     }
-  }, [postMessage])
+  }, [postMessage, now])
 
   const onDraftChange = useCallback((draft: string) => {
     dispatch({ type: 'draftChanged', draft })
@@ -107,7 +136,7 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
     }
     const localId = newLocalId()
     const attachmentIds = state.attachments.map((attachment) => attachment.id)
-    dispatch({ type: 'submitted', localId, text })
+    dispatch({ type: 'submitted', localId, text, attachments: state.attachments })
     postMessage({ type: 'sendMessage', localId, text, attachmentIds })
   }, [state, newLocalId, postMessage])
   const onStop = useCallback(() => {
@@ -125,6 +154,42 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
   const onOpenExternal = useCallback(
     (url: string) => {
       postMessage({ type: 'openExternal', url })
+    },
+    [postMessage],
+  )
+  const onCopy = useCallback(
+    (text: string) => {
+      postMessage({ type: 'copyText', text })
+    },
+    [postMessage],
+  )
+  const onInsert = useCallback(
+    (text: string) => {
+      postMessage({ type: 'insertCode', text })
+    },
+    [postMessage],
+  )
+  const onReadOutput = useCallback(
+    (itemId: string, outputRef: string, offsetBytes: number) => {
+      postMessage({ type: 'readOutput', itemId, outputRef, offsetBytes })
+    },
+    [postMessage],
+  )
+  const onDecide = useCallback(
+    (decision: ApprovalDecisionInput) => {
+      postMessage({
+        type: 'decideApproval',
+        approvalId: decision.approvalId,
+        choiceId: decision.choiceId,
+        requirementId: decision.requirementId,
+        ...(decision.feedback !== undefined && { feedback: decision.feedback }),
+      })
+    },
+    [postMessage],
+  )
+  const onAnswer = useCallback(
+    (userInputId: string, answers: readonly QuestionAnswer[]) => {
+      postMessage({ type: 'answerQuestion', userInputId, answers: [...answers] })
     },
     [postMessage],
   )
@@ -359,14 +424,12 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
     [onSelectEffort, effortLevels, state.effort],
   )
 
+  const title = state.title ?? UI_TEXT.untitledConversation
+
   if (state.settings === undefined) {
     return (
       <div className="app">
-        <Header
-          title={UI_TEXT.untitledConversation}
-          isFocusView={false}
-          onNewConversation={onNewConversation}
-        />
+        <Header title={title} isFocusView={false} onNewConversation={onNewConversation} />
         <main className="body">
           <p className="hint" role="status">
             {UI_TEXT.connecting}
@@ -376,6 +439,7 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
     )
   }
 
+  const isRunning = state.activeTurnId !== undefined
   let body
   if (isGated(state)) {
     body = (
@@ -390,7 +454,20 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
   } else if (state.transcript.length === 0) {
     body = <EmptyState hint={state.emptyStateHint} />
   } else {
-    body = <Transcript entries={state.transcript} />
+    body = (
+      <Transcript
+        entries={state.transcript}
+        isRunning={isRunning}
+        isFocusView={state.settings.focusView}
+        outputPages={state.outputPages}
+        onOpenLink={onOpenExternal}
+        onCopy={onCopy}
+        onInsert={onInsert}
+        onReadOutput={onReadOutput}
+        onDecide={onDecide}
+        onAnswer={onAnswer}
+      />
+    )
   }
 
   let floating
@@ -464,13 +541,14 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
   return (
     <div className="app">
       <Header
-        title={UI_TEXT.untitledConversation}
+        title={title}
         isFocusView={state.settings.focusView}
         onNewConversation={onNewConversation}
       />
       <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
         {body}
       </main>
+      <TodoPanel items={state.todos} />
       <div className="composer-area">
         {floating}
         <Composer
@@ -478,9 +556,11 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
           placeholder={state.composerPlaceholder}
           settings={state.settings}
           canSend={canSend(state)}
-          isRunning={state.activeTurnId !== undefined}
+          isRunning={isRunning}
           modelLabel={modelLabelFor(state)}
           permissionMode={state.permissionMode}
+          contextLabel={contextLabelFor(state)}
+          contextTitle={contextTitleFor(state)}
           focusRequests={state.focusRequests}
           pendingInsert={state.pendingInsert}
           attachments={state.attachments}

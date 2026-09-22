@@ -104,8 +104,9 @@
       },
       {
         "command": "museSpark.toggleThinking",
-        "key": "alt+t",
+        "key": "ctrl+alt+t",
         "mac": "alt+t",
+        "linux": "ctrl+alt+o",
         "when": "museSpark.inputFocused"
       }
     ],
@@ -308,5 +309,10 @@
   "overrides": {
     "serialize-javascript": "7.1.1",
     "diff": "8.0.3"
+  },
+  "dependencies": {
+    "highlight.js": "11.12.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   }
 }

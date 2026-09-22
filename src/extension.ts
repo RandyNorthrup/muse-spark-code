@@ -273,6 +273,18 @@ export function activate(context: vscode.ExtensionContext): void {
         files,
         isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
         runHostAction,
+        copyText: async (text) => {
+          await vscode.env.clipboard.writeText(text)
+        },
+        insertCode: async (text) => {
+          const editor = vscode.window.activeTextEditor
+          if (editor === undefined) {
+            return false
+          }
+          return await editor.edit((builder) => {
+            builder.insert(editor.selection.active, text)
+          })
+        },
         newAttachmentId: () => crypto.randomUUID(),
         log,
       })

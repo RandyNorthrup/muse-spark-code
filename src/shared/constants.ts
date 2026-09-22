@@ -174,10 +174,43 @@ export const MSP_CLIENT_NAME = 'muse_spark_code'
 // The host defaults new sessions to the contributor (training-consent) tier;
 // the extension always passes an explicit model and defaults to Standard.
 export const DEFAULT_MODEL_ID = 'muse-spark-1.3'
-// Approval cards (M4) are what let the host wait on a decision. Until they
-// ship, every permission mode that would prompt collapses to `denyUnmatched`
-// (see shared/permissionModes.ts); flipping this to true is an M4 change.
-export const HAS_APPROVAL_UI = false
+// Approval cards (M4) are what let the host wait on a decision; while this
+// was false (M2–M3) every permission mode that would prompt collapsed to
+// `denyUnmatched` (see shared/permissionModes.ts).
+export const HAS_APPROVAL_UI = true
+
+// --- Transcript (M4) ---
+
+// Tool names seen on the wire (Muse Code 1.3.0, live capture 2026-09-21) and
+// the label the row shows; unknown tools show their raw name.
+export const TOOL_LABELS: Readonly<Record<string, string>> = {
+  write_file: 'Write',
+  edit_file: 'Edit',
+  read_file: 'Read',
+  bash: 'Bash',
+  powershell: 'PowerShell',
+  request_user_input: 'Question',
+}
+export const SHELL_TOOLS: ReadonlySet<string> = new Set(['bash', 'powershell', 'shell', 'cmd'])
+export const FILE_EDIT_TOOLS: ReadonlySet<string> = new Set(['write_file', 'edit_file'])
+export const FILE_READ_TOOLS: ReadonlySet<string> = new Set(['read_file'])
+// Item kinds the transcript never shows: our own echo and host-internal children.
+export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'reminderChild'])
+// Collapsed tool bodies show this many lines before "Show more".
+export const OUTPUT_PREVIEW_LINES = 12
+// `item/readOutput` page size (the host serves at most 6 MiB per call).
+export const OUTPUT_PAGE_BYTES = 256 * 1024
+// The spinner line under the last row cycles through these while a turn runs.
+export const STATUS_VERBS = ['Thinking…', 'Working…', 'Calculating…', 'Composing…'] as const
+export const STATUS_VERB_INTERVAL_MS = 4000
+export const MILLISECONDS_PER_SECOND = 1000
+// Muse Code's shell tool reports this when its OS sandbox is not set up
+// (Windows: `muse sandbox windows setup` from an elevated shell).
+export const SANDBOX_FAILURE_MARKER = 'sandbox enforcement unavailable'
+// Link schemes the transcript opens; anything else is refused with a notice.
+export const ALLOWED_LINK_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:'])
+// A code block's Copy button reads "Copied" for this long.
+export const COPIED_FEEDBACK_MS = 1500
 export const MUSE_SERVE_ARGS = ['serve'] as const
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_DOCS_URL = 'https://dev.meta.ai/products/muse-code/'
@@ -313,6 +346,45 @@ export const UI_TEXT = {
   attachmentTooLarge: 'Images must be 10 MB or smaller.',
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
   attachmentLimit: 'At most 20 images per message.',
+  // Transcript rows.
+  thoughtFor: 'Thought for',
+  thinkingNow: 'Thinking',
+  addedLines: 'Added',
+  removedLines: 'Removed',
+  linesUnit: 'lines',
+  lineUnit: 'line',
+  modified: 'Modified',
+  inLabel: 'IN',
+  outLabel: 'OUT',
+  showMore: 'Show more',
+  showLess: 'Show less',
+  loadingOutput: 'Loading…',
+  toolFailed: 'Failed',
+  toolRejected: 'Rejected',
+  copyCode: 'Copy',
+  copiedCode: 'Copied',
+  insertCode: 'Insert at cursor',
+  approvalTitle: 'Muse wants to',
+  approvalProtectedWrite: 'Protected write',
+  approvalJudgeEscalated: 'Escalated by the safety check',
+  approvalFeedbackPlaceholder: 'Tell Muse what to do instead (optional)',
+  approvalDecided: 'Decided',
+  approvalStep: 'step',
+  approvalOf: 'of',
+  questionSubmit: 'Submit',
+  questionFreeTextPlaceholder: 'Type your answer',
+  questionAnswered: 'Answered',
+  todoTitle: 'Tasks',
+  focusHiddenOne: 'step hidden by Focus view',
+  focusHiddenMany: 'steps hidden by Focus view',
+  showSteps: 'Show',
+  hideSteps: 'Hide',
+  retryNotice: 'Model call failed; retrying',
+  contextLabel: 'context',
+  noEditorForInsert: 'Open a text editor to insert code into it.',
+  linkSchemeRefused: 'Only http, https and mailto links can be opened from the transcript.',
+  sandboxNotice:
+    'Muse Code cannot run shell commands until its OS sandbox is set up. On Windows run `muse sandbox windows setup` from an elevated PowerShell, then start a new conversation.',
 } as const
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for

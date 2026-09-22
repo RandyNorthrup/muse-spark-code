@@ -47,9 +47,12 @@ describe('package.json manifest', () => {
     })
     expect(bindings.get(COMMAND_IDS.insertMentionReference)).toMatchObject({ key: 'alt+k' })
     expect(bindings.get(COMMAND_IDS.toggleFocusView)).toMatchObject({ key: 'ctrl+alt+f' })
+    // Alt+T alone is a Windows menu-bar mnemonic (Terminal) and Ctrl+Alt+T is
+    // GNOME's terminal shortcut, so only macOS keeps the Claude Code binding.
     expect(bindings.get(COMMAND_IDS.toggleThinking)).toMatchObject({
-      key: 'alt+t',
+      key: 'ctrl+alt+t',
       mac: 'alt+t',
+      linux: 'ctrl+alt+o',
       when: 'museSpark.inputFocused',
     })
     for (const command of bindings.keys()) {

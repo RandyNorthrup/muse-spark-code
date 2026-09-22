@@ -9,6 +9,35 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Milestone M4, transcript rendering: assistant replies as GitHub-flavoured
+  markdown (react-markdown 10.1.0 + remark-gfm 4.0.1; raw HTML never
+  rendered, images as alt text, links through the host with an
+  http/https/mailto allow list) with highlighted fenced code (highlight.js
+  11.12.0 core, 18 grammars, Copy and Insert at cursor); tool rows for every
+  `toolCall` item (`Read` / `Edit` / `Write` / `PowerShell` / `Bash` /
+  `Question`, status dot, `Added N lines` / `Removed N lines` / `Modified`
+  from `patchSummary`, line-numbered diffs from the stored `tool_patch`
+  document via `item/readOutput` with the edit tool's unified `visibleOutput`
+  as the interim view, `IN` / `OUT` boxes for shell tools, clipped outputs
+  with Show more, generic rows for unknown tools and item kinds); reasoning
+  rows ("Thought for Ns", summary parts); approval cards from
+  `approval/requested` → `approval/decide`, following multi-stage
+  `approval/updated` (step n of N) with the CLI's own choices and optional
+  feedback; question cards for `request_user_input` → `userInput/answer`
+  (single, multiple, free text); the pinned task list
+  (`session/todoListChanged`); retry notices (`turn/retryScheduled`); the
+  session name in the header (`session/nameChanged`); the context-window
+  indicator in the composer; a status line with a rotating verb while a turn
+  runs; image chips inside user cards; Focus view folding steps behind one
+  expandable row (a card waiting on the user is never hidden). The `initialize`
+  handshake now declares `userInputDialogs`, `HAS_APPROVAL_UI` is on so
+  Manual / Edit automatically / Auto run as their real MSP modes, and the
+  `approval/request` / `userInput/request` server requests are declined
+  quietly because the commands settle them. A one-time notice explains
+  `muse sandbox windows setup` when the shell tool reports the sandbox is not
+  set up. Harness scenarios `markdown`, `tools`, `approval`, `question`,
+  `todo`, `focus`, `long`; `scripts/measure-markdown.mjs` for render cost.
+
 - The permission-mode button opens a **Modes** menu (Manual / Edit
   automatically / Plan / Auto with one-line descriptions, `⇧ + tab to switch`,
   a tick on the current mode, and an `Effort (level)` row with the dots in
@@ -32,12 +61,6 @@ happened, not what was planned; superseded entries are kept.
   state and the activity-bar icon (`media/icon.svg`, single-colour mask).
 - Harness scenarios `modes`, `modes-bypass`, `attach`, `add-context`; the
   owner's Claude Code reference screenshots under `docs/reference/`.
-
-### Changed
-
-- The model pill reads `model effort` (the context window moved to the model
-  list rows), and it hugs its text instead of the 26 px control height.
-- Toggle Thinking is `Alt+T` (the Claude Code binding) instead of `Ctrl+O`.
 
 - Milestone M3, composer and command palette parity: the "/" palette
   ("Filter actions…"; Context / Model / Customize / Account & usage / Skills /
@@ -95,6 +118,14 @@ happened, not what was planned; superseded entries are kept.
   `MODEL_API_KEY=` assignments) in front of the output channel; typed
   host ⇄ webview messages (`init`, `settingsChanged`, `focusInput`,
   `insertText`, `ready`, `inputFocusChanged`, `openNewTab`).
+
+### Changed
+
+- The model pill reads `model effort` (the context window moved to the model
+  list rows), and it hugs its text instead of the 26 px control height.
+- Toggle Thinking is `Ctrl+Alt+T` on Windows, `Option+T` on macOS (the Claude
+  Code binding) and `Ctrl+Alt+O` on Linux instead of `Ctrl+O`; the owner found
+  `Alt+T` opens the Windows Terminal menu before the composer sees it.
 
 ### Fixed
 

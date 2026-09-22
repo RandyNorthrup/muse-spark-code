@@ -8,7 +8,7 @@
 
 import type { Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
-import type { AgentEvent } from '../../../shared/agentEvents'
+import type { AgentEvent, QuestionAnswer, RequirementRef } from '../../../shared/agentEvents'
 import type { CoreLogger } from '../../logging'
 import { mapNotification } from './mapNotification'
 
@@ -70,6 +70,30 @@ export interface CompactOutcome {
   readonly reason: string | undefined
 }
 
+export interface ApprovalDecision {
+  readonly approvalId: string
+  readonly choiceId: string
+  readonly requirementId: RequirementRef
+  /** Only for choices with `acceptsFeedback`; delivered to the model. */
+  readonly feedback?: string
+}
+
+export interface OutputPageRequest {
+  readonly itemId: string
+  readonly outputRef: string
+  readonly offsetBytes: number
+  readonly lengthBytes: number
+}
+
+export interface OutputPage {
+  readonly content: string
+  readonly encoding: string
+  readonly mediaType: string
+  readonly offsetBytes: number
+  readonly byteLen: number
+  readonly eof: boolean
+}
+
 export type SessionEventListener = (event: AgentEvent) => void
 
 const initializeResultSchema = z.object({
@@ -114,7 +138,26 @@ const skillListResultSchema = z.object({
   ),
 })
 
+const readOutputResultSchema = z.object({
+  content: z.string(),
+  encoding: z.string(),
+  mediaType: z.string(),
+  offsetBytes: z.number(),
+  byteLen: z.number(),
+  eof: z.boolean(),
+})
+
 const DEFAULT_DISPOSITION = 'started'
+
+// The host also mirrors an approval or question as a JSON-RPC server request.
+// The SDK's own facade documents that the notification is the enrolled
+// surface and the decision travels as `approval/decide` / `userInput/answer`
+// (verified live 2026-09-21: the request was refused and the prompt still
+// settled from the command), so these two are declined quietly.
+const MIRRORED_SERVER_REQUESTS: ReadonlySet<string> = new Set([
+  'approval/request',
+  'userInput/request',
+])
 
 export class MuseSession {
   private readonly listeners = new Set<SessionEventListener>()
@@ -198,6 +241,39 @@ export class MuseSession {
     return { status: result.status, reason: result.reason }
   }
 
+  /**
+   * Answer a gated tool call. `requirementId` is the stage token from the
+   * request; a stale one is rejected by the host, never silently applied.
+   */
+  public async decideApproval(decision: ApprovalDecision): Promise<void> {
+    await this.command('approval/decide', {
+      approvalId: decision.approvalId,
+      choiceId: decision.choiceId,
+      requirementId: decision.requirementId,
+      ...(decision.feedback !== undefined && { feedback: decision.feedback }),
+    })
+  }
+
+  /** Answer every question of a `request_user_input` prompt. */
+  public async answerQuestions(
+    userInputId: string,
+    answers: readonly QuestionAnswer[],
+  ): Promise<void> {
+    await this.command('userInput/answer', { userInputId, answers: [...answers] })
+  }
+
+  /** One page of a stored tool output or patch document (`item/readOutput`). */
+  public async readOutput(request: OutputPageRequest): Promise<OutputPage> {
+    const result = await this.connection.command('item/readOutput', {
+      sessionId: this.sessionId,
+      itemId: request.itemId,
+      outputRef: request.outputRef,
+      offsetBytes: request.offsetBytes,
+      lengthBytes: request.lengthBytes,
+    })
+    return readOutputResultSchema.parse(result)
+  }
+
   /** The user-invocable skills in this session's workspace and plugins. */
   public async listSkills(): Promise<readonly SkillSummary[]> {
     const result = await this.connection.command('skill/list', { sessionId: this.sessionId })
@@ -247,7 +323,11 @@ export class MuseCodeHost {
       session.emit(mapped.event)
     })
     host.connection.onServerRequest((request) => {
-      this.log.warn(`Unsupported MSP server request ${request.method}; refusing`)
+      if (MIRRORED_SERVER_REQUESTS.has(request.method)) {
+        this.log.info(`MSP server request ${request.method} declined; answered by command`)
+      } else {
+        this.log.warn(`Unsupported MSP server request ${request.method}; refusing`)
+      }
       return Promise.reject(new Error(`unsupported server request: ${request.method}`))
     })
     void host.exited.then((exit) => {

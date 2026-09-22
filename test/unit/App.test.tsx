@@ -177,14 +177,19 @@ describe('App conversation', () => {
       attachmentIds: ['att-1'],
     })
     expect(textarea()).toHaveValue('')
-    expect(screen.queryByText('shot.png')).toBeNull()
+    // The chip leaves the composer and rides along in the user card.
+    expect(screen.queryByLabelText('Remove shot.png')).toBeNull()
+    expect(screen.getByText('shot.png').closest('.message-user')).not.toBeNull()
     expect(screen.getByText('hello muse')).toBeInTheDocument()
 
     deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1' })
     expect(screen.getByLabelText('Stop')).toBeInTheDocument()
     deliver({
       type: 'agentEvent',
-      event: { type: 'itemStarted', itemId: 'm1', kind: 'agentMessage' },
+      event: {
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress' },
+      },
     })
     deliver({
       type: 'agentEvent',
@@ -373,6 +378,138 @@ describe('App conversation', () => {
     fireEvent.click(screen.getByLabelText('Remove x.png'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'removeAttachment', id: 'a1' })
     expect(screen.queryByText('x.png')).toBeNull()
+  })
+})
+
+describe('App transcript (M4)', () => {
+  it('decides an approval from its card and answers a question from its card', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'approvalRequested',
+        approvalId: 'a1',
+        itemId: 'c1',
+        toolName: 'powershell',
+        rawArgs: '{"command":"ls"}',
+        requirementId: { approvalId: 'a1', sourceIndex: 0 },
+        subject: { kind: 'shell', command: 'ls' },
+        availableChoices: [
+          { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+          {
+            choiceId: 'abort',
+            label: 'Reject',
+            decision: 'abort',
+            scope: 'once',
+            acceptsFeedback: true,
+          },
+        ],
+        isJudgeEscalated: false,
+        isProtectedWrite: false,
+      },
+    })
+    fireEvent.change(screen.getByPlaceholderText(/what to do instead/), {
+      target: { value: 'no' },
+    })
+    fireEvent.click(screen.getByText('Reject'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'decideApproval',
+      approvalId: 'a1',
+      choiceId: 'abort',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+      feedback: 'no',
+    })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'questionRequested',
+        userInputId: 'q1',
+        itemId: 'c2',
+        questions: [
+          {
+            id: 'colour',
+            header: 'Colour',
+            question: 'Which?',
+            selection: { mode: 'single' },
+            options: [{ label: 'Red' }],
+          },
+        ],
+      },
+    })
+    fireEvent.click(screen.getByRole('radio', { name: 'Red' }))
+    fireEvent.click(screen.getByText('Submit'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'answerQuestion',
+      userInputId: 'q1',
+      answers: [{ questionId: 'colour', selectedLabel: 'Red' }],
+    })
+  })
+
+  it('routes code block actions, links and patch fetches to the host', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'm',
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'See [docs](https://dev.meta.ai/)\n\n```js\nlet a = 1\n```',
+        },
+      },
+    })
+    fireEvent.click(screen.getByRole('link', { name: 'docs' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'openExternal',
+      url: 'https://dev.meta.ai/',
+    })
+    fireEvent.click(screen.getByText('Copy'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'let a = 1' })
+    fireEvent.click(screen.getByText('Insert at cursor'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'insertCode', text: 'let a = 1' })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'e',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'edit_file',
+          args: '{"path":"a.ts"}',
+          patchRef: { id: 'tool_patch-1', byteLen: 20 },
+        },
+      },
+    })
+    fireEvent.click(screen.getByText('Edit'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'readOutput',
+      itemId: 'e',
+      outputRef: 'tool_patch-1',
+      offsetBytes: 0,
+    })
+  })
+
+  it('shows the session name, the context indicator and the todo panel', () => {
+    renderReady()
+    deliver({ type: 'agentEvent', event: { type: 'sessionNamed', name: 'Muse setup' } })
+    expect(screen.getByRole('heading', { name: 'Muse setup' })).toBeInTheDocument()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'contextUsage',
+        usedTokens: 120_000,
+        windowTokens: 1_000_000,
+        pressure: 'normal',
+      },
+    })
+    expect(screen.getByText('12% context')).toHaveAttribute('title', '120K of 1M tokens (normal)')
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
+    })
+    expect(screen.getByRole('region', { name: 'Tasks' })).toHaveTextContent('Write tests')
   })
 })
 

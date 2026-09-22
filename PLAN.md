@@ -239,6 +239,47 @@ a model that does not serve the current tier drops the tier to the highest
 one it serves, so a stale `max` cannot fail every 1.2 turn. Every dot names
 its tier in a tooltip and to assistive technology.
 
+### D11 — Transcript wire facts (live captures 2026-09-21/22, Muse Code 1.3.0)
+
+Everything the transcript renders was shaped by two raw MSP captures
+(`scratchpad/live-capture.mjs`, `live-capture2.mjs`; notifications verbatim in
+`docs/certification/m4.md`) rather than by the schema alone:
+
+- Tool vocabulary on Windows: `write_file {content, path}`, `read_file
+{path}`, `edit_file {find, path, replace}`, `powershell {command,
+description}` (`bash` elsewhere), `request_user_input {questions}`. Args are
+  verbatim JSON strings; `visibleOutput` carries the result text (`read_file`
+  numbers lines, `edit_file` emits a headerless unified diff, `write_file`
+  reports bytes). Edit-family calls add `patchSummary {files, added, removed}`
+  and a `patchRef` whose body (`item/readOutput`, `application/json`) is
+  `{files: [{path, hunks: [{oldStart, oldLines, newStart, newLines, lines}]}]}`.
+- `reasoning` items never appeared at any effort tier for these prompts; the
+  row is built from the schema (`summary.N` deltas, `text`) and fake-tested.
+- `promptUnmatched` does **not** prompt for in-workspace file tools; only
+  shell commands (and anything else policy leaves unmatched) raise
+  `approval/requested`. A write outside the workspace is refused outright
+  (`path escapes workspace`), no approval involved.
+- Approvals are **multi-stage**: `a; b` is two stages. Deciding stage 0
+  returns `terminal: false` and the host sends `approval/updated` with the
+  next `currentRequirementId` and choices; ignoring it hangs the turn (the
+  first probe did). The card follows `approval/updated` and shows "step n of
+  N" from `subject.stages`. Choices seen: `allow_once` (approved, once),
+  `allow_local_prefix` (approvedPolicyAmendment, localPersistent, with
+  `rulePreview` "Always allow in this workspace: <argv[0]> ..."), `abort`
+  (Reject, accepts feedback).
+- `userInput/request` and `approval/request` also arrive as JSON-RPC server
+  requests; the SDK facade treats the notification as the enrolled surface.
+  Refusing the server request and answering with `userInput/answer` /
+  `approval/decide` settles the prompt (`userInput/settled: answered`), so the
+  host declines those two quietly.
+- Shell tools need Muse Code's OS sandbox. On this machine `muse sandbox
+windows check` reports `setup_required` (`sandbox users are not ready`) and
+  every `powershell` call fails with `environment failure: sandbox enforcement
+unavailable: windows_elevated setup_required`; the fix is an elevated `muse
+sandbox windows setup`, which the extension explains once per conversation.
+  Live verification of a shell approval through the panel therefore waits on
+  the owner running that setup (recorded as deferred in the M4 certification).
+
 ### D8 — Attachments live in the host; images are validated by header parsing
 
 Pasted or dropped images cross postMessage once (base64) into an
@@ -386,7 +427,9 @@ Edit automatically, Plan, Auto, Bypass); streaming markdown with highlighted
 code and Copy / Insert / Apply; native diff viewer with Accept / Reject;
 permission cards (Allow once / Always allow + scope / Deny); question cards;
 keybindings Ctrl+Esc (focus), Ctrl+Shift+Esc (new tab), Alt+K (insert
-`@file#lines`), Ctrl+Alt+F (focus view), Alt+T (toggle extended thinking;
+`@file#lines`), Ctrl+Alt+F (focus view), Alt+T (toggle extended thinking, bound here as
+Ctrl+Alt+T on Windows and Ctrl+Alt+O on Linux because Alt+T is a Windows
+menu mnemonic;
 Ctrl+O is the CLI's transcript toggle, not a VS Code binding);
 browser-based sign-in; `claudeCode.*`-style settings incl. initial permission
 mode. P1: tool rows, thinking blocks, plan approval, context %, usage panel,
@@ -595,7 +638,7 @@ mentions; paste and drop of images; drop of editor resources), the `@`
 mention menu over a `git ls-files` index (fuzzy-ranked, `.gitignore`
 respected, VS Code file search as the fallback), model pill + picker
 (`model/list`, `session/setModel`), effort slider and Thinking toggle
-(`session/setReasoningEffort`, Alt+T), the permission-mode button and
+(`session/setReasoningEffort`, Ctrl+Alt+T / Option+T), the permission-mode button and
 Shift+Tab cycle mapped per D7, Enter while a turn runs → `turn/steer` with a
 fresh-turn fallback, `/clear` and `/compact`. Live checks recorded in the
 certification file.
@@ -606,7 +649,8 @@ opens the attach menu (Upload from computer / Add context) instead of acting
 directly; Bypass permissions sits behind `allowDangerouslySkipPermissions`
 (D7); the pill reads `model effort` and hugs its text; the effort dots carry
 tooltips and offer the tiers verified per model (D10, Minimal … Max); the
-thinking toggle moved from Ctrl+O to Alt+T; the placeholder reads "Queue
+thinking toggle moved from Ctrl+O to Ctrl+Alt+T (Option+T on macOS,
+Ctrl+Alt+O on Linux); the placeholder reads "Queue
 another message…" while a turn runs; the brand mark is the Meta logo the
 owner supplied (panel and activity bar). Harness scenarios `modes`,
 `modes-bypass`, `attach`, `add-context` cover the new surfaces.
@@ -629,6 +673,26 @@ owner supplied (panel and activity bar). Harness scenarios `modes`,
   effort/mode mappers with negative cases.
 
 ### M4 — Transcript rendering
+
+**Status 2026-09-22: complete.** Certification record: `docs/certification/m4.md`.
+Delivered: GitHub-flavoured markdown for assistant text (react-markdown 10 +
+remark-gfm 4, raw HTML never rendered, links through the host with an
+http/https/mailto allow list, images reduced to alt text), fenced code as
+highlighted blocks (highlight.js core, 18 grammars, Copy and Insert at
+cursor), tool rows built on the live wire shapes (Read / Edit / Write /
+PowerShell / Bash / Question labels, change line from `patchSummary`,
+numbered diffs from the stored `tool_patch` document via `item/readOutput`
+with the edit tool's unified `visibleOutput` as the interim view, `IN` /
+`OUT` boxes for shell tools, generic rows for unknown tools and kinds),
+reasoning rows ("Thought for Ns", summary parts), approval cards driven by
+`approval/requested` → `approval/decide` including the multi-stage
+`approval/updated` step, question cards for `request_user_input` →
+`userInput/answer`, the pinned task list, retry notices, the session name in
+the header, the context indicator in the composer, the status line with a
+rotating verb, image chips inside user cards, and Focus view folding steps
+behind one row. `HAS_APPROVAL_UI` is now true, so Manual / Edit
+automatically / Auto run as their real MSP modes (D7). Code-block "Apply"
+(diff into the editor) moved to M5 with the rest of the edit-review flow.
 
 - **Scope**: streaming markdown (react-markdown + remark-gfm, sanitised),
   syntax highlighting (Q5), code block Copy / Insert into file / Apply; tool

@@ -13,6 +13,8 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     isRunning: false,
     modelLabel: 'muse-spark-1.3 High',
     permissionMode: 'manual',
+    contextLabel: undefined,
+    contextTitle: undefined,
     focusRequests: 0,
     pendingInsert: undefined,
     attachments: [],
@@ -274,6 +276,15 @@ describe('Composer chrome', () => {
     expect(textarea).toHaveAttribute('placeholder', 'Queue another message…')
     fireEvent.click(screen.getByLabelText('Stop'))
     expect(props.onStop).toHaveBeenCalledOnce()
+  })
+
+  it('shows the context indicator only when known', () => {
+    const { view, props } = renderComposer()
+    expect(screen.queryByTitle(/tokens/)).toBeNull()
+    view.rerender(
+      <Composer {...props} contextLabel="12% context" contextTitle="120K of 1M tokens (normal)" />,
+    )
+    expect(screen.getByTitle('120K of 1M tokens (normal)')).toHaveTextContent('12% context')
   })
 
   it('grows with the draft', () => {

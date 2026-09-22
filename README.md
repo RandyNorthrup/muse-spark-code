@@ -5,14 +5,15 @@ inside the editor, modelled on the Claude Code VS Code extension: sidebar or
 editor-tab conversations, a slash-command palette, model and reasoning-effort
 picker, permission modes, streaming markdown, diff review, and session history.
 
-> **Status: milestone M3 (composer and command palette).** You can sign in
-> (Meta account through the Muse Code CLI, or a Model API key), hold streaming
-> conversations, use the "/" palette, attach images, `@`-mention files, pick
-> the model, effort and permission mode, and steer a running turn. Replies
-> render as plain text; the agent cannot yet edit files or run commands
-> because approvals arrive in M4 and unmatched approvals are denied until
-> then. See [`PLAN.md`](PLAN.md) for the milestone plan and the research
-> behind it.
+> **Status: milestone M4 (transcript rendering).** You can sign in (Meta
+> account through the Muse Code CLI, or a Model API key), hold streaming
+> conversations with markdown and highlighted code, use the "/" palette,
+> attach images, `@`-mention files, pick the model, effort and permission
+> mode, steer a running turn, and watch the agent read, edit and write files
+> in tool rows with diffs, approve or reject gated commands from cards, and
+> answer its questions. Shell commands need Muse Code's OS sandbox (see
+> Troubleshooting). See [`PLAN.md`](PLAN.md) for the milestone plan and the
+> research behind it.
 
 This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 "Muse Code" are Meta trademarks. You bring your own credentials.
@@ -91,14 +92,14 @@ offers the **Muse Spark:** commands listed below.
 
 ## Commands and keybindings
 
-| Command                                    | Default keybinding                 | What it does                                                                                                                                         |
-| ------------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Muse Spark: Open in Sidebar                | —                                  | Focus the chat view in the activity bar                                                                                                              |
-| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`) | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place |
-| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)             | Move keyboard focus between the editor and the composer                                                                                              |
-| Muse Spark: Insert @-Mention for Selection | `Alt+K`                            | Insert `@path#start-end` for the active editor selection into the composer                                                                           |
-| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on)                                                                   |
-| Muse Spark: Toggle Thinking                | `Alt+T`, composer only             | Turn reasoning on or off for this conversation (the Claude Code binding)                                                                             |
+| Command                                    | Default keybinding                                                 | What it does                                                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                | —                                                                  | Focus the chat view in the activity bar                                                                                                                   |
+| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`)                                 | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
+| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)                                             | Move keyboard focus between the editor and the composer                                                                                                   |
+| Muse Spark: Insert @-Mention for Selection | `Alt+K`                                                            | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
+| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on)                                                                        |
+| Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
 
 In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
 `museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
@@ -137,17 +138,50 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
   Extra high / Max, each dot naming its tier on hover, and is sent as the
   session's reasoning-effort default; the CLI's own default is High. Only the
   tiers verified for the current model are offered (`PLAN.md` D10). The
-  Thinking toggle (`Alt+T`) sends `none` while off.
+  Thinking toggle (`Ctrl+Alt+T`; `Option+T` on macOS) sends `none` while off.
 - **Permission mode** — the mode button opens the Modes menu (Manual / Edit
   automatically / Plan / Auto, each with a one-line description, plus the
   Effort row); `Shift+Tab` cycles them. Bypass permissions appears only while
   `museSpark.allowDangerouslySkipPermissions` is on. The modes map onto the
-  CLI's approval modes as recorded in `PLAN.md` D7. **Until the approval
-  cards ship (M4), every mode except Bypass runs as `denyUnmatched`**: the
-  agent can read and answer but not edit files or run commands. Bypass
-  permissions maps to `allowAll` and does let it.
+  CLI's approval modes as recorded in `PLAN.md` D7: Manual and Edit
+  automatically prompt for anything no rule allows, Plan denies it, Auto lets
+  the CLI's safety check decide and prompts only when it must, Bypass allows
+  everything. In practice Muse Code allows file reads and edits inside the
+  workspace without asking and gates shell commands, network access and
+  writes outside the workspace.
 - **While a turn runs** the placeholder reads "Queue another message…": Enter
   steers the running turn, Stop cancels it.
+
+## The transcript
+
+- **Replies** render as GitHub-flavoured markdown (tables, task lists,
+  strikethrough). Raw HTML is never rendered, images show their alt text, and
+  links open in your browser through VS Code (http, https and mailto only).
+  Fenced code is highlighted (TypeScript, JavaScript, JSON, Bash, PowerShell,
+  Python, CSS, HTML, Markdown, diff, YAML, SQL, Go, Rust, Java, C, C++, C#)
+  with **Copy** and **Insert at cursor** buttons.
+- **Tool rows** show what the agent did, one per call: `Read`, `Edit`,
+  `Write`, `PowerShell` / `Bash`, `Question`, or the raw tool name. A green
+  dot means completed, a pulsing one running, red failed or rejected. Under
+  an edit the row says `Added N lines`, `Removed N lines` or `Modified`;
+  click the row for the diff (line-numbered once the stored patch has been
+  fetched), the shell command and its output (`IN` / `OUT`), or the file
+  contents read. Long outputs clip to twelve lines with **Show more**.
+- **Reasoning** collapses to `Thought for Ns`; click to read the summary
+  parts the model exposed.
+- **Approval cards** appear under a gated tool call with the choices the CLI
+  offers (`Allow once`, `Always allow in this workspace: …`, `Reject` with
+  optional feedback to the model). A shell line with several commands is
+  approved one step at a time (`step 1 of 2`).
+- **Question cards** appear when the agent asks you something: pick an
+  option (or several), or type an answer, then **Submit**.
+- The **task list** the agent keeps is pinned above the composer; the
+  session's name replaces "Untitled" once the CLI allocates one; the
+  composer shows how much of the context window is used; a spinner line with
+  a verb sits under the last row while a turn runs.
+- **Focus view** (`Ctrl+Alt+F` or the setting) folds consecutive tool and
+  reasoning rows behind one `Show N steps` row; a card waiting on you is
+  never hidden.
 
 ## Settings
 
@@ -277,3 +311,9 @@ gitleaks over full history, and semgrep.
   pre-populate the folder from another machine.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
+- **Every shell command fails with `sandbox enforcement unavailable`** — Muse
+  Code runs commands inside an OS sandbox that needs a one-time setup. Check
+  with `muse sandbox windows check`; on Windows run `muse sandbox windows
+setup` from an elevated PowerShell, then start a new conversation. File
+  reads and edits work without it. The panel shows this notice once per
+  conversation when it sees the failure.

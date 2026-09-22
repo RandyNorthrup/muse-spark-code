@@ -3,6 +3,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import {
   canSend,
+  hasPendingRequest,
   initialUiState,
   uiReducer,
   type UiAction,
@@ -25,8 +26,10 @@ function reduceAll(actions: readonly UiAction[], start: UiState = initialUiState
   return state
 }
 
-function host(message: HostToWebviewMessage): UiAction {
-  return { type: 'hostMessage', message }
+const NOW = 1_000_000
+
+function host(message: HostToWebviewMessage, at = NOW): UiAction {
+  return { type: 'hostMessage', message, at }
 }
 
 function agent(event: AgentEvent): UiAction {
@@ -71,15 +74,17 @@ describe('uiReducer: sending', () => {
   it('echoes the user message as pending and clears the draft', () => {
     const state = reduceAll([
       { type: 'draftChanged', draft: 'hello' },
-      { type: 'submitted', localId: 'l1', text: 'hello' },
+      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [] },
     ])
     expect(state.draft).toBe('')
-    expect(state.transcript).toEqual([{ kind: 'user', id: 'l1', text: 'hello', status: 'pending' }])
+    expect(state.transcript).toEqual([
+      { kind: 'user', id: 'l1', text: 'hello', status: 'pending', attachments: [] },
+    ])
   })
 
   it('marks the echo sent and the turn active on turnAccepted', () => {
     const state = reduceAll([
-      { type: 'submitted', localId: 'l1', text: 'hello' },
+      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [] },
       host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
     ])
     expect(state.transcript[0]).toMatchObject({ status: 'sent' })
@@ -88,7 +93,7 @@ describe('uiReducer: sending', () => {
 
   it('marks the echo failed with the reason on sendFailed', () => {
     const state = reduceAll([
-      { type: 'submitted', localId: 'l1', text: 'hello' },
+      { type: 'submitted', localId: 'l1', text: 'hello', attachments: [] },
       host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first' }),
     ])
     expect(state.transcript[0]).toMatchObject({ status: 'failed', reason: 'Sign in first' })
@@ -108,9 +113,10 @@ describe('uiReducer: sending', () => {
   it('clears attachments with the draft on submit', () => {
     const state = reduceAll([
       host({ type: 'attachmentAdded', attachment }),
-      { type: 'submitted', localId: 'l1', text: 'see image' },
+      { type: 'submitted', localId: 'l1', text: 'see image', attachments: [attachment] },
     ])
     expect(state.attachments).toEqual([])
+    expect(state.transcript[0]).toMatchObject({ attachments: [attachment] })
   })
 })
 
@@ -201,7 +207,10 @@ describe('uiReducer: composer state', () => {
   it('appends notices and clears the conversation locally', () => {
     const state = reduceAll([
       agent({ type: 'turnStarted', turnId: 't1' }),
-      agent({ type: 'itemStarted', itemId: 'm1', kind: 'agentMessage' }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress' },
+      }),
       host({ type: 'notice', level: 'error', text: 'Compaction failed' }),
       host({ type: 'attachmentAdded', attachment }),
     ])
@@ -229,7 +238,10 @@ describe('uiReducer: agent events', () => {
   it('streams an assistant message and finalises it', () => {
     const state = reduceAll([
       agent({ type: 'turnStarted', turnId: 't1' }),
-      agent({ type: 'itemStarted', itemId: 'm1', kind: 'agentMessage', turnId: 't1' }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress', turnId: 't1', text: '' },
+      }),
       agent({ type: 'textDelta', itemId: 'm1', field: 'text', delta: 'hel' }),
       agent({ type: 'textDelta', itemId: 'm1', field: 'text', delta: 'lo' }),
     ])
@@ -241,10 +253,7 @@ describe('uiReducer: agent events', () => {
       [
         agent({
           type: 'itemCompleted',
-          itemId: 'm1',
-          kind: 'agentMessage',
-          status: 'completed',
-          text: 'hello!',
+          item: { itemId: 'm1', kind: 'agentMessage', status: 'completed', text: 'hello!' },
         }),
         agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
       ],
@@ -256,16 +265,323 @@ describe('uiReducer: agent events', () => {
     expect(done.activeTurnId).toBeUndefined()
   })
 
-  it('hides host-internal items and shows other items as activity', () => {
+  it('hides host-internal items and renders unknown kinds generically', () => {
     const state = reduceAll([
-      agent({ type: 'itemStarted', itemId: 'u', kind: 'userMessage' }),
-      agent({ type: 'itemStarted', itemId: 'r', kind: 'reminderChild' }),
-      agent({ type: 'itemStarted', itemId: 'tool', kind: 'toolCall' }),
-      agent({ type: 'itemCompleted', itemId: 'tool', kind: 'toolCall', status: 'completed' }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'u', kind: 'userMessage', status: 'completed' },
+      }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'r', kind: 'reminderChild', status: 'inProgress' },
+      }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 's', kind: 'subagent', status: 'inProgress', fallbackText: 'Explorer' },
+      }),
+      agent({
+        type: 'itemCompleted',
+        item: { itemId: 's', kind: 'subagent', status: 'completed' },
+      }),
+      agent({
+        type: 'itemCompleted',
+        item: { itemId: 'c', kind: 'compaction', status: 'completed' },
+      }),
     ])
     expect(state.transcript).toEqual([
-      { kind: 'activity', id: 'tool', itemKind: 'toolCall', status: 'completed' },
+      { kind: 'item', id: 's', itemKind: 'subagent', status: 'completed', text: 'Explorer' },
+      { kind: 'item', id: 'c', itemKind: 'compaction', status: 'completed', text: undefined },
     ])
+  })
+
+  it('folds tool calls: args, streamed output, updates with patch refs, failures', () => {
+    const started = agent({
+      type: 'itemStarted',
+      item: {
+        itemId: 'c1',
+        kind: 'toolCall',
+        status: 'inProgress',
+        tool: 'edit_file',
+        args: '{"path":"a"}',
+      },
+    })
+    const state = reduceAll([
+      started,
+      agent({ type: 'textDelta', itemId: 'c1', field: 'output', delta: 'edi' }),
+      agent({ type: 'textDelta', itemId: 'c1', field: 'output', delta: 'ted' }),
+      agent({
+        type: 'itemUpdated',
+        item: {
+          itemId: 'c1',
+          kind: 'toolCall',
+          status: 'inProgress',
+          patchSummary: { files: 1, added: 2, removed: 1 },
+          patchRef: { id: 'p', byteLen: 9 },
+        },
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({
+      kind: 'tool',
+      tool: 'edit_file',
+      args: '{"path":"a"}',
+      output: 'edited',
+      status: 'inProgress',
+      patchSummary: { files: 1, added: 2, removed: 1 },
+      patchRef: { id: 'p', byteLen: 9 },
+    })
+    const failed = uiReducer(
+      state,
+      agent({
+        type: 'itemCompleted',
+        item: {
+          itemId: 'c1',
+          kind: 'toolCall',
+          status: 'failed',
+          visibleOutput: 'tool failed',
+          failureReason: 'path escapes workspace',
+          outputRef: { id: 'o', byteLen: 3 },
+        },
+      }),
+    )
+    expect(failed.transcript[0]).toMatchObject({
+      status: 'failed',
+      output: 'tool failed',
+      failureReason: 'path escapes workspace',
+      outputRef: { id: 'o', byteLen: 3 },
+    })
+    // A completion for an item never started still creates the row.
+    const late = reduceAll([
+      agent({
+        type: 'itemCompleted',
+        item: { itemId: 'x', kind: 'toolCall', status: 'completed', tool: 'read_file' },
+      }),
+    ])
+    expect(late.transcript[0]).toMatchObject({
+      kind: 'tool',
+      tool: 'read_file',
+      status: 'completed',
+    })
+    // Deltas for fields the entry does not stream are ignored.
+    expect(
+      uiReducer(late, agent({ type: 'textDelta', itemId: 'x', field: 'text', delta: '?' })),
+    ).toEqual(late)
+  })
+
+  it('folds reasoning summary parts and measures the duration from the clock', () => {
+    const state = reduceAll([
+      host(
+        {
+          type: 'agentEvent',
+          event: {
+            type: 'itemStarted',
+            item: { itemId: 'r', kind: 'reasoning', status: 'inProgress' },
+          },
+        },
+        1000,
+      ),
+      agent({ type: 'textDelta', itemId: 'r', field: 'summary.0', delta: 'first' }),
+      agent({ type: 'textDelta', itemId: 'r', field: 'summary.2', delta: 'third' }),
+    ])
+    expect(state.transcript[0]).toMatchObject({
+      kind: 'reasoning',
+      parts: ['first', '', 'third'],
+      isStreaming: true,
+      startedAt: 1000,
+      durationMs: undefined,
+    })
+    const done = uiReducer(
+      state,
+      host(
+        {
+          type: 'agentEvent',
+          event: {
+            type: 'itemCompleted',
+            item: {
+              itemId: 'r',
+              kind: 'reasoning',
+              status: 'completed',
+              summary: ['first', 'second', 'third'],
+            },
+          },
+        },
+        15_200,
+      ),
+    )
+    expect(done.transcript[0]).toMatchObject({
+      parts: ['first', 'second', 'third'],
+      isStreaming: false,
+      durationMs: 14_200,
+    })
+    const raw = reduceAll([
+      agent({
+        type: 'itemCompleted',
+        item: { itemId: 'r2', kind: 'reasoning', status: 'completed', text: 'raw text' },
+      }),
+    ])
+    expect(raw.transcript[0]).toMatchObject({ kind: 'reasoning', parts: ['raw text'] })
+  })
+
+  it('attaches approvals to their tool row, follows stage updates, records the outcome', () => {
+    const requested = {
+      type: 'approvalRequested' as const,
+      approvalId: 'a1',
+      itemId: 'c1',
+      toolName: 'powershell',
+      rawArgs: '{"command":"ls"}',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+      subject: { kind: 'shell', command: 'ls' },
+      availableChoices: [
+        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+      ],
+      isJudgeEscalated: false,
+      isProtectedWrite: false,
+    }
+    // Request before the item: a placeholder row is created from the request.
+    const early = reduceAll([agent(requested)])
+    expect(early.transcript[0]).toMatchObject({
+      kind: 'tool',
+      id: 'c1',
+      tool: 'powershell',
+      args: '{"command":"ls"}',
+      approval: { approvalId: 'a1', requirementId: { sourceIndex: 0 } },
+    })
+    expect(hasPendingRequest(early)).toBe(true)
+    const updated = uiReducer(
+      early,
+      agent({
+        type: 'approvalUpdated',
+        approvalId: 'a1',
+        requirementId: { approvalId: 'a1', sourceIndex: 1 },
+        subject: { kind: 'shell', command: 'ls; pwd' },
+        availableChoices: [
+          { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+        ],
+      }),
+    )
+    expect(updated.transcript[0]).toMatchObject({
+      approval: {
+        requirementId: { sourceIndex: 1 },
+        subject: { command: 'ls; pwd' },
+        availableChoices: [{ choiceId: 'abort' }],
+      },
+    })
+    const resolved = uiReducer(
+      updated,
+      agent({
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      }),
+    )
+    expect(resolved.transcript[0]).toMatchObject({
+      approval: undefined,
+      approvalOutcome: { decision: 'approved', resolvedBy: 'user' },
+    })
+    expect(hasPendingRequest(resolved)).toBe(false)
+    // An update for an approval nobody holds changes nothing.
+    expect(
+      uiReducer(
+        resolved,
+        agent({
+          type: 'approvalUpdated',
+          approvalId: 'zz',
+          requirementId: { approvalId: 'zz', sourceIndex: 0 },
+          subject: { kind: 'shell' },
+          availableChoices: [],
+        }),
+      ),
+    ).toEqual(resolved)
+  })
+
+  it('attaches questions to their tool row and records the answers', () => {
+    const question = {
+      id: 'colour',
+      header: 'Colour',
+      question: 'Which?',
+      selection: { mode: 'single' },
+      options: [{ label: 'Red' }],
+    }
+    const state = reduceAll([
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'q', kind: 'toolCall', status: 'inProgress', tool: 'request_user_input' },
+      }),
+      agent({ type: 'questionRequested', userInputId: 'u1', itemId: 'q', questions: [question] }),
+    ])
+    expect(state.transcript[0]).toMatchObject({
+      question: { userInputId: 'u1', questions: [question] },
+    })
+    const early = reduceAll([
+      agent({ type: 'questionRequested', userInputId: 'u2', itemId: 'q2', questions: [question] }),
+    ])
+    expect(early.transcript[0]).toMatchObject({
+      kind: 'tool',
+      id: 'q2',
+      tool: 'request_user_input',
+    })
+    const settled = uiReducer(
+      state,
+      agent({
+        type: 'questionSettled',
+        userInputId: 'u1',
+        outcome: 'answered',
+        answers: [{ questionId: 'colour', selectedLabel: 'Red' }],
+      }),
+    )
+    expect(settled.transcript[0]).toMatchObject({
+      question: undefined,
+      questionOutcome: {
+        outcome: 'answered',
+        answers: [{ questionId: 'colour', selectedLabel: 'Red' }],
+      },
+    })
+  })
+
+  it('keeps todos, the session name, retry notices and output pages', () => {
+    const state = reduceAll([
+      agent({ type: 'todoChanged', items: [{ text: 'a', status: 'pending' }] }),
+      agent({ type: 'sessionNamed', name: 'Muse setup' }),
+      agent({
+        type: 'turnRetry',
+        turnId: 't',
+        attempt: 1,
+        maxAttempts: 3,
+        retryDelayMs: 5000,
+        reason: 'rate limited',
+      }),
+      host({
+        type: 'outputPage',
+        itemId: 'i',
+        outputRef: 'o',
+        offsetBytes: 0,
+        byteLen: 3,
+        content: 'abc',
+        eof: false,
+      }),
+      host({
+        type: 'outputPage',
+        itemId: 'i',
+        outputRef: 'o',
+        offsetBytes: 3,
+        byteLen: 2,
+        content: 'de',
+        eof: true,
+      }),
+    ])
+    expect(state.todos).toEqual([{ text: 'a', status: 'pending' }])
+    expect(state.title).toBe('Muse setup')
+    expect(state.transcript.at(-1)).toMatchObject({
+      kind: 'notice',
+      level: 'warning',
+      text: 'Attempt 1/3 failed (rate limited); retrying in 5 s.',
+    })
+    expect(state.outputPages['i:o']).toEqual({ content: 'abcde', isEof: true, nextOffset: 5 })
+    const cleared = uiReducer(state, { type: 'conversationCleared' })
+    expect(cleared.todos).toEqual([])
+    expect(cleared.title).toBeUndefined()
+    expect(cleared.outputPages).toEqual({})
   })
 
   it('adds an error entry when a turn fails and clears the active turn', () => {

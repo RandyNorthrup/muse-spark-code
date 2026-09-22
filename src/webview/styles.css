@@ -195,16 +195,16 @@ body {
 }
 
 .message {
-  max-width: 92%;
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
   border-radius: var(--ms-radius);
   line-height: 1.45;
 }
 
 .message-user {
-  align-self: flex-end;
+  align-self: stretch;
   color: var(--vscode-input-foreground);
   background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
 }
 
 .message-pending {
@@ -212,7 +212,11 @@ body {
 }
 
 .message-assistant {
-  align-self: flex-start;
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: flex-start;
+  max-width: none;
+  padding-left: 4px;
 }
 
 .message-text {
@@ -750,4 +754,514 @@ body {
 .slider-step:hover:enabled {
   color: var(--vscode-foreground);
   opacity: 85%;
+}
+
+/* --- transcript rows (M4) --- */
+
+/* Status dots: the left-hand timeline mark on every step row. */
+.tool-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground);
+}
+
+.message-assistant > .tool-dot {
+  margin-top: 0.55em;
+}
+
+.message-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.chips-strip {
+  flex-wrap: nowrap;
+  margin-bottom: 6px;
+  overflow-x: auto;
+}
+
+.tool-dot-ok {
+  background: var(--vscode-testing-iconPassed, #3fb950);
+}
+
+.tool-dot-failed {
+  background: var(--vscode-errorForeground);
+}
+
+.tool-dot-running {
+  background: var(--vscode-progressBar-background, var(--vscode-button-background));
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 35%;
+  }
+}
+
+.tool,
+.reasoning,
+.steps,
+.status-line {
+  padding-left: 4px;
+}
+
+.tool-header,
+.reasoning-header,
+.steps-toggle {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  color: var(--vscode-foreground);
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.reasoning-header:disabled {
+  cursor: default;
+}
+
+.tool-label {
+  font-weight: 600;
+}
+
+.tool-summary {
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-change,
+.tool-outcome {
+  padding-left: calc(8px + var(--ms-gap));
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.tool-failure {
+  margin: 2px 0 2px calc(8px + var(--ms-gap));
+  color: var(--vscode-errorForeground);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+}
+
+.tool-body,
+.reasoning-body,
+.approval,
+.question {
+  margin: 4px 0 4px calc(8px + var(--ms-gap));
+}
+
+.tool-pre {
+  margin: 0;
+  padding: 6px 8px;
+  overflow-x: auto;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tool-output,
+.shell-box {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-editorWidget-background);
+}
+
+.tool-output + .tool-output {
+  margin-top: 4px;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell-box {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.shell-label {
+  flex-shrink: 0;
+  padding: 6px 6px 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.75em;
+  letter-spacing: 0.05em;
+}
+
+.shell-out {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-more {
+  padding: 2px 8px;
+  border: 0;
+  color: var(--vscode-textLink-foreground);
+  font: inherit;
+  font-size: 0.85em;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tool-loading {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+/* Diff table: two gutters and the line; whole rows tinted for +/-. */
+.diff {
+  width: 100%;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  border-collapse: collapse;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+}
+
+.diff + .diff {
+  margin-top: 4px;
+}
+
+.diff td {
+  padding: 0 6px;
+  vertical-align: top;
+}
+
+.diff-gutter {
+  width: 2.5em;
+  color: var(--vscode-editorLineNumber-foreground, var(--vscode-descriptionForeground));
+  text-align: right;
+  user-select: none;
+}
+
+.diff-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-add {
+  background: var(--vscode-diffEditor-insertedLineBackground, rgb(46 160 67 / 20%));
+}
+
+.diff-remove {
+  background: var(--vscode-diffEditor-removedLineBackground, rgb(248 81 73 / 20%));
+}
+
+.diff-hunk {
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-editorWidget-background);
+}
+
+.reasoning-body p {
+  margin: 4px 0;
+  color: var(--vscode-descriptionForeground);
+  white-space: pre-wrap;
+}
+
+.reasoning-label {
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Focus view: consecutive steps fold into one row. */
+.steps-toggle {
+  color: var(--vscode-descriptionForeground);
+}
+
+.steps-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.status-line {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  color: var(--vscode-descriptionForeground);
+}
+
+.status-spark {
+  color: var(--vscode-button-background);
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- approval and question cards --- */
+
+.approval,
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--ms-gap);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-editorWidget-background);
+}
+
+.approval-title code,
+.markdown-inline {
+  padding: 0 3px;
+  border-radius: 3px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.95em;
+  background: var(--vscode-textCodeBlock-background, var(--vscode-badge-background));
+}
+
+.approval-flags {
+  display: flex;
+  gap: var(--ms-gap);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.approval-feedback,
+.question-input {
+  padding: 4px 6px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: var(--ms-radius);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  background: var(--vscode-input-background);
+  resize: vertical;
+}
+
+.approval-choices,
+.question-actions,
+.question-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.question-header {
+  font-weight: 600;
+}
+
+.question-option {
+  padding: 4px 10px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  color: var(--vscode-foreground);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.question-option-on {
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+/* --- todo panel --- */
+
+.todo {
+  margin: 0 var(--ms-gap);
+  padding: 6px var(--ms-gap);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  font-size: 0.9em;
+  background: var(--vscode-editorWidget-background);
+}
+
+.todo-title {
+  margin-bottom: 2px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.todo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-item {
+  display: flex;
+  gap: 6px;
+}
+
+.todo-completed {
+  color: var(--vscode-descriptionForeground);
+  text-decoration: line-through;
+}
+
+.todo-mark {
+  width: 1em;
+  text-align: center;
+}
+
+/* --- context indicator --- */
+
+.context-label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* --- markdown --- */
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote,
+.markdown table {
+  margin: 0.5em 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 0.8em 0 0.3em;
+  font-size: 1.05em;
+}
+
+.markdown a {
+  color: var(--vscode-textLink-foreground);
+}
+
+.markdown blockquote {
+  padding-left: var(--ms-gap);
+  border-left: 3px solid var(--vscode-panel-border);
+  color: var(--vscode-descriptionForeground);
+}
+
+.markdown table {
+  border-collapse: collapse;
+}
+
+.markdown th,
+.markdown td {
+  padding: 2px 8px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.markdown-image {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+/* --- code blocks --- */
+
+.code-block {
+  margin: 0.5em 0;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+}
+
+.code-block-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.8em;
+}
+
+.code-block-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.code-block-button {
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--vscode-descriptionForeground);
+  font: inherit;
+  font-size: 1em;
+  background: transparent;
+  cursor: pointer;
+}
+
+.code-block-body {
+  margin: 0;
+  padding: 6px 8px;
+  overflow-x: auto;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+/* highlight.js classes themed from VS Code colour tokens. */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-type {
+  color: var(--vscode-symbolIcon-keywordForeground, var(--vscode-textLink-foreground));
+}
+
+.hljs-string,
+.hljs-attr,
+.hljs-addition {
+  color: var(--vscode-debugTokenExpression-string, var(--vscode-foreground));
+}
+
+.hljs-number,
+.hljs-literal {
+  color: var(--vscode-debugTokenExpression-number, var(--vscode-foreground));
+}
+
+.hljs-comment,
+.hljs-meta,
+.hljs-deletion {
+  color: var(--vscode-descriptionForeground);
+}
+
+.hljs-title,
+.hljs-function,
+.hljs-variable {
+  color: var(--vscode-symbolIcon-functionForeground, var(--vscode-foreground));
+}
+
+/* --- states for the additions: (0,2,0) --- */
+
+.tool-header:focus-visible,
+.reasoning-header:focus-visible,
+.steps-toggle:focus-visible,
+.tool-more:focus-visible,
+.code-block-button:focus-visible,
+.question-option:focus-visible,
+.approval-feedback:focus-visible,
+.question-input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.code-block-button:hover,
+.tool-more:hover {
+  color: var(--vscode-foreground);
 }

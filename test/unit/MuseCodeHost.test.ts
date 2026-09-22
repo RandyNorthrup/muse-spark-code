@@ -266,12 +266,86 @@ describe('MuseCodeHost', () => {
     expect(active?.isActive).toBe(true)
   })
 
-  it('refuses server requests it cannot serve', async () => {
+  it('refuses server requests it cannot serve, quietly for the mirrored ones', async () => {
     const { server, log } = setup()
     server.serverRequest('userInput/request', { userInputId: 'u1', questions: [] })
+    server.serverRequest('approval/request', { approvalId: 'a1' })
+    server.serverRequest('session/somethingNew', {})
     await settle()
-    expect(server.clientResponses[0]).toMatchObject({ id: 1, error: expect.anything() })
+    expect(server.clientResponses).toHaveLength(3)
+    for (const response of server.clientResponses) {
+      expect(response).toMatchObject({ error: expect.anything() })
+    }
+    expect(log.info).toHaveBeenCalledTimes(2)
     expect(log.warn).toHaveBeenCalledOnce()
+  })
+
+  it('decides approvals, answers questions and reads output pages on the wire', async () => {
+    const { host, server } = setup()
+    server.handle('approval/decide', (params) => ({
+      ...ack(params),
+      approvalId: params['approvalId'],
+      terminal: true,
+    }))
+    server.handle('userInput/answer', (params) => ({
+      ...ack(params),
+      userInputId: params['userInputId'],
+    }))
+    server.handle('item/readOutput', (params) => ({
+      content: '{"files":[]}',
+      encoding: 'utf8',
+      mediaType: 'application/json',
+      offsetBytes: params['offsetBytes'],
+      byteLen: 12,
+      eof: true,
+    }))
+    const session = await host.startSession(startOptions)
+    await session.decideApproval({
+      approvalId: 'a1',
+      choiceId: 'abort',
+      requirementId: { approvalId: 'a1', sourceIndex: 1 },
+      feedback: 'use the file tool',
+    })
+    expect(server.requestsFor('approval/decide')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      approvalId: 'a1',
+      choiceId: 'abort',
+      requirementId: { approvalId: 'a1', sourceIndex: 1 },
+      feedback: 'use the file tool',
+    })
+    await session.decideApproval({
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 1 },
+    })
+    expect(server.requestsFor('approval/decide')[1]?.params).not.toHaveProperty('feedback')
+    await session.answerQuestions('q1', [{ questionId: 'colour', selectedLabel: 'Red' }])
+    expect(server.requestsFor('userInput/answer')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      userInputId: 'q1',
+      answers: [{ questionId: 'colour', selectedLabel: 'Red' }],
+    })
+    const page = await session.readOutput({
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+      offsetBytes: 0,
+      lengthBytes: 4096,
+    })
+    expect(server.requestsFor('item/readOutput')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+      offsetBytes: 0,
+      lengthBytes: 4096,
+    })
+    expect(page).toEqual({
+      content: '{"files":[]}',
+      encoding: 'utf8',
+      mediaType: 'application/json',
+      offsetBytes: 0,
+      byteLen: 12,
+      eof: true,
+    })
   })
 
   it('reports the host exit to listeners', async () => {

@@ -1,8 +1,24 @@
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
-// access here; the components apply focus and caret changes.
+// access here; the components apply focus and caret changes. Timestamps come
+// in with the action (`at`) so reasoning durations stay deterministic in tests.
 
-import type { AgentEvent } from '../../shared/agentEvents'
-import { DEFAULT_EFFORT, type EffortLevel, type PermissionMode } from '../../shared/constants'
+import type {
+  AgentEvent,
+  ApprovalChoice,
+  ApprovalSubject,
+  ItemSnapshot,
+  Question,
+  QuestionAnswer,
+  RequirementRef,
+  TodoItem,
+} from '../../shared/agentEvents'
+import {
+  DEFAULT_EFFORT,
+  type EffortLevel,
+  HIDDEN_ITEM_KINDS,
+  MILLISECONDS_PER_SECOND,
+  type PermissionMode,
+} from '../../shared/constants'
 import type {
   AttachmentSummary,
   AuthStatus,
@@ -15,6 +31,32 @@ import type {
 
 export type NoticeLevel = 'info' | 'warning' | 'error'
 
+export interface PendingApproval {
+  readonly approvalId: string
+  readonly requirementId: RequirementRef
+  readonly subject: ApprovalSubject
+  readonly rawArgs: string
+  readonly availableChoices: readonly ApprovalChoice[]
+  readonly isProtectedWrite: boolean
+  readonly isJudgeEscalated: boolean
+}
+
+export interface PendingQuestion {
+  readonly userInputId: string
+  readonly questions: readonly Question[]
+}
+
+export interface OutputRef {
+  readonly id: string
+  readonly byteLen: number
+}
+
+export interface PatchSummary {
+  readonly files: number
+  readonly added: number
+  readonly removed: number
+}
+
 export type TranscriptEntry =
   | {
       readonly kind: 'user'
@@ -22,6 +64,7 @@ export type TranscriptEntry =
       readonly text: string
       readonly status: 'pending' | 'sent' | 'failed'
       readonly reason?: string
+      readonly attachments: readonly AttachmentSummary[]
     }
   | {
       readonly kind: 'assistant'
@@ -30,10 +73,40 @@ export type TranscriptEntry =
       readonly isStreaming: boolean
     }
   | {
-      readonly kind: 'activity'
+      readonly kind: 'reasoning'
+      readonly id: string
+      /** Summary parts (`summary.N` deltas), or the raw text as one part. */
+      readonly parts: readonly string[]
+      readonly isStreaming: boolean
+      readonly startedAt: number
+      readonly durationMs: number | undefined
+    }
+  | {
+      readonly kind: 'tool'
+      readonly id: string
+      readonly tool: string
+      readonly args: string
+      readonly status: string
+      /** Transcript-visible output (`output` deltas / `visibleOutput`). */
+      readonly output: string
+      readonly failureReason: string | undefined
+      readonly patchSummary: PatchSummary | undefined
+      readonly patchRef: OutputRef | undefined
+      readonly outputRef: OutputRef | undefined
+      readonly approval: PendingApproval | undefined
+      readonly approvalOutcome:
+        { readonly decision: string; readonly resolvedBy: string } | undefined
+      readonly question: PendingQuestion | undefined
+      readonly questionOutcome:
+        { readonly outcome: string; readonly answers: readonly QuestionAnswer[] } | undefined
+    }
+  | {
+      /** Kinds the UI does not know (subagent, workflow, compaction, …). */
+      readonly kind: 'item'
       readonly id: string
       readonly itemKind: string
       readonly status: string
+      readonly text: string | undefined
     }
   | { readonly kind: 'error'; readonly id: string; readonly text: string }
   | {
@@ -60,11 +133,19 @@ export interface MentionResults {
   readonly items: readonly MentionItem[]
 }
 
+export interface OutputPage {
+  readonly content: string
+  readonly isEof: boolean
+  readonly nextOffset: number
+}
+
 export interface UiState {
   readonly phase: 'connecting' | 'ready'
   readonly emptyStateHint: string
   readonly composerPlaceholder: string
   readonly settings: SettingsSnapshot | undefined
+  /** The session's name once the host allocates one (`session/nameChanged`). */
+  readonly title: string | undefined
   readonly draft: string
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
@@ -85,17 +166,25 @@ export interface UiState {
   readonly activeTurnId: string | undefined
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
+  readonly todos: readonly TodoItem[]
+  /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
+  readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
 }
 
 export type UiAction =
-  | { readonly type: 'hostMessage'; readonly message: HostToWebviewMessage }
+  | { readonly type: 'hostMessage'; readonly message: HostToWebviewMessage; readonly at: number }
   | { readonly type: 'draftChanged'; readonly draft: string }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
-  | { readonly type: 'submitted'; readonly localId: string; readonly text: string }
+  | {
+      readonly type: 'submitted'
+      readonly localId: string
+      readonly text: string
+      readonly attachments: readonly AttachmentSummary[]
+    }
   | { readonly type: 'attachmentRemoved'; readonly id: string }
   | { readonly type: 'conversationCleared' }
 
@@ -104,6 +193,7 @@ export const initialUiState: UiState = {
   emptyStateHint: '',
   composerPlaceholder: '',
   settings: undefined,
+  title: undefined,
   draft: '',
   focusRequests: 0,
   pendingInsert: undefined,
@@ -120,11 +210,19 @@ export const initialUiState: UiState = {
   activeTurnId: undefined,
   usage: undefined,
   context: undefined,
+  todos: [],
+  outputPages: {},
   localSequence: 0,
 }
 
-// Host-internal items that carry nothing the user should see.
-const HIDDEN_ITEM_KINDS = new Set(['userMessage', 'reminderChild'])
+const SUMMARY_FIELD_PREFIX = 'summary.'
+const OUTPUT_FIELD = 'output'
+const TEXT_FIELD = 'text'
+const IN_PROGRESS = 'inProgress'
+
+export function outputPageKey(itemId: string, outputRef: string): string {
+  return `${itemId}:${outputRef}`
+}
 
 function updateEntry(
   transcript: readonly TranscriptEntry[],
@@ -154,38 +252,158 @@ function withNotice(state: UiState, level: NoticeLevel, text: string): UiState {
   }
 }
 
-function applyAgentEvent(state: UiState, event: AgentEvent): UiState {
+function toolEntry(item: ItemSnapshot): TranscriptEntry {
+  return {
+    kind: 'tool',
+    id: item.itemId,
+    tool: item.tool ?? item.kind,
+    args: item.args ?? '',
+    status: item.status,
+    output: item.visibleOutput ?? '',
+    failureReason: item.failureReason,
+    patchSummary: item.patchSummary,
+    patchRef: item.patchRef,
+    outputRef: item.outputRef,
+    approval: undefined,
+    approvalOutcome: undefined,
+    question: undefined,
+    questionOutcome: undefined,
+  }
+}
+
+function entryFor(item: ItemSnapshot, at: number): TranscriptEntry {
+  switch (item.kind) {
+    case 'agentMessage': {
+      return {
+        kind: 'assistant',
+        id: item.itemId,
+        text: item.text ?? '',
+        isStreaming: item.status === IN_PROGRESS,
+      }
+    }
+    case 'reasoning': {
+      const parts = item.summary ?? (item.text === undefined ? [] : [item.text])
+      return {
+        kind: 'reasoning',
+        id: item.itemId,
+        parts,
+        isStreaming: item.status === IN_PROGRESS,
+        startedAt: at,
+        durationMs: undefined,
+      }
+    }
+    case 'toolCall': {
+      return toolEntry(item)
+    }
+    default: {
+      return {
+        kind: 'item',
+        id: item.itemId,
+        itemKind: item.kind,
+        status: item.status,
+        text: item.fallbackText ?? item.text,
+      }
+    }
+  }
+}
+
+/** Fold a full item re-emission (`item/updated` / `item/completed`) into its entry. */
+function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): TranscriptEntry {
+  switch (entry.kind) {
+    case 'assistant': {
+      return { ...entry, text: item.text ?? entry.text, isStreaming: item.status === IN_PROGRESS }
+    }
+    case 'reasoning': {
+      const isStreaming = item.status === IN_PROGRESS
+      return {
+        ...entry,
+        parts: item.summary ?? (item.text === undefined ? entry.parts : [item.text]),
+        isStreaming,
+        durationMs: isStreaming ? entry.durationMs : at - entry.startedAt,
+      }
+    }
+    case 'tool': {
+      return {
+        ...entry,
+        tool: item.tool ?? entry.tool,
+        args: item.args ?? entry.args,
+        status: item.status,
+        output: item.visibleOutput ?? entry.output,
+        failureReason: item.failureReason ?? entry.failureReason,
+        patchSummary: item.patchSummary ?? entry.patchSummary,
+        patchRef: item.patchRef ?? entry.patchRef,
+        outputRef: item.outputRef ?? entry.outputRef,
+      }
+    }
+    case 'item': {
+      return { ...entry, status: item.status, text: item.fallbackText ?? item.text ?? entry.text }
+    }
+    default: {
+      return entry
+    }
+  }
+}
+
+function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
+  if (HIDDEN_ITEM_KINDS.has(item.kind)) {
+    return state
+  }
+  const isKnown = state.transcript.some((entry) => entry.id === item.itemId)
+  const transcript = isKnown
+    ? updateEntry(state.transcript, item.itemId, (entry) => mergeItem(entry, item, at))
+    : [...state.transcript, mergeItem(entryFor(item, at), item, at)]
+  return { ...state, transcript }
+}
+
+function applyDelta(entry: TranscriptEntry, field: string, delta: string): TranscriptEntry {
+  if (field === TEXT_FIELD && entry.kind === 'assistant') {
+    return { ...entry, text: entry.text + delta }
+  }
+  if (field === OUTPUT_FIELD && entry.kind === 'tool') {
+    return { ...entry, output: entry.output + delta }
+  }
+  if (entry.kind === 'reasoning' && field.startsWith(SUMMARY_FIELD_PREFIX)) {
+    const index = Number(field.slice(SUMMARY_FIELD_PREFIX.length))
+    const parts = [...entry.parts]
+    while (parts.length <= index) {
+      parts.push('')
+    }
+    parts[index] = (parts[index] ?? '') + delta
+    return { ...entry, parts }
+  }
+  return entry
+}
+
+/** The tool entry an approval or question belongs to, created if the request came first. */
+function withToolEntry(
+  state: UiState,
+  itemId: string,
+  placeholder: () => TranscriptEntry,
+  update: (entry: TranscriptEntry) => TranscriptEntry,
+): UiState {
+  const isKnown = state.transcript.some((entry) => entry.id === itemId)
+  const transcript = isKnown
+    ? updateEntry(state.transcript, itemId, update)
+    : [...state.transcript, update(placeholder())]
+  return { ...state, transcript }
+}
+
+function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState {
   switch (event.type) {
     case 'turnStarted': {
       return { ...state, activeTurnId: event.turnId }
     }
-    case 'itemStarted': {
-      if (HIDDEN_ITEM_KINDS.has(event.kind)) {
-        return state
-      }
-      const entry: TranscriptEntry =
-        event.kind === 'agentMessage'
-          ? { kind: 'assistant', id: event.itemId, text: '', isStreaming: true }
-          : { kind: 'activity', id: event.itemId, itemKind: event.kind, status: 'inProgress' }
-      return { ...state, transcript: [...state.transcript, entry] }
+    case 'itemStarted':
+    case 'itemUpdated':
+    case 'itemCompleted': {
+      return applyItem(state, event.item, at)
     }
     case 'textDelta': {
       return {
         ...state,
         transcript: updateEntry(state.transcript, event.itemId, (entry) =>
-          entry.kind === 'assistant' ? { ...entry, text: entry.text + event.delta } : entry,
+          applyDelta(entry, event.field, event.delta),
         ),
-      }
-    }
-    case 'itemCompleted': {
-      return {
-        ...state,
-        transcript: updateEntry(state.transcript, event.itemId, (entry) => {
-          if (entry.kind === 'assistant') {
-            return { ...entry, text: event.text ?? entry.text, isStreaming: false }
-          }
-          return entry.kind === 'activity' ? { ...entry, status: event.status } : entry
-        }),
       }
     }
     case 'turnCompleted': {
@@ -200,6 +418,14 @@ function applyAgentEvent(state: UiState, event: AgentEvent): UiState {
             ]
           : []
       return { ...state, activeTurnId: undefined, transcript: [...state.transcript, ...failure] }
+    }
+    case 'turnRetry': {
+      const seconds = Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND)
+      return withNotice(
+        state,
+        'warning',
+        `Attempt ${String(event.attempt)}/${String(event.maxAttempts)} failed (${event.reason}); retrying in ${String(seconds)} s.`,
+      )
     }
     case 'tokenUsage': {
       return {
@@ -234,6 +460,100 @@ function applyAgentEvent(state: UiState, event: AgentEvent): UiState {
     case 'sessionStatus': {
       return event.status === 'idle' ? { ...state, activeTurnId: undefined } : state
     }
+    case 'sessionNamed': {
+      return { ...state, title: event.name }
+    }
+    case 'approvalRequested': {
+      const approval: PendingApproval = {
+        approvalId: event.approvalId,
+        requirementId: event.requirementId,
+        subject: event.subject,
+        rawArgs: event.rawArgs,
+        availableChoices: event.availableChoices,
+        isProtectedWrite: event.isProtectedWrite,
+        isJudgeEscalated: event.isJudgeEscalated,
+      }
+      return withToolEntry(
+        state,
+        event.itemId,
+        () =>
+          toolEntry({
+            itemId: event.itemId,
+            kind: 'toolCall',
+            status: IN_PROGRESS,
+            tool: event.toolName,
+            args: event.rawArgs,
+          }),
+        (entry) => (entry.kind === 'tool' ? { ...entry, approval } : entry),
+      )
+    }
+    case 'approvalUpdated': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.approval?.approvalId === event.approvalId
+            ? {
+                ...entry,
+                approval: {
+                  ...entry.approval,
+                  requirementId: event.requirementId,
+                  subject: event.subject,
+                  availableChoices: event.availableChoices,
+                },
+              }
+            : entry,
+        ),
+      }
+    }
+    case 'approvalResolved': {
+      return {
+        ...state,
+        transcript: updateEntry(state.transcript, event.itemId, (entry) =>
+          entry.kind === 'tool'
+            ? {
+                ...entry,
+                approval: undefined,
+                approvalOutcome: { decision: event.decision, resolvedBy: event.resolvedBy },
+              }
+            : entry,
+        ),
+      }
+    }
+    case 'questionRequested': {
+      const question: PendingQuestion = {
+        userInputId: event.userInputId,
+        questions: event.questions,
+      }
+      return withToolEntry(
+        state,
+        event.itemId,
+        () =>
+          toolEntry({
+            itemId: event.itemId,
+            kind: 'toolCall',
+            status: IN_PROGRESS,
+            tool: 'request_user_input',
+          }),
+        (entry) => (entry.kind === 'tool' ? { ...entry, question } : entry),
+      )
+    }
+    case 'questionSettled': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.question?.userInputId === event.userInputId
+            ? {
+                ...entry,
+                question: undefined,
+                questionOutcome: { outcome: event.outcome, answers: event.answers },
+              }
+            : entry,
+        ),
+      }
+    }
+    case 'todoChanged': {
+      return { ...state, todos: event.items }
+    }
     case 'effortChanged':
     case 'approvalModeChanged':
     case 'skillsChanged': {
@@ -243,7 +563,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent): UiState {
   }
 }
 
-function applyHostMessage(state: UiState, message: HostToWebviewMessage): UiState {
+function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {
   switch (message.type) {
     case 'init': {
       return {
@@ -290,7 +610,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage): UiStat
       }
     }
     case 'agentEvent': {
-      return applyAgentEvent(state, message.event)
+      return applyAgentEvent(state, message.event, at)
     }
     case 'modelList': {
       return { ...state, models: message.models }
@@ -322,13 +642,30 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage): UiStat
     case 'notice': {
       return withNotice(state, message.level, message.text)
     }
+    case 'outputPage': {
+      const key = outputPageKey(message.itemId, message.outputRef)
+      const previous = state.outputPages[key]
+      const content =
+        message.offsetBytes === 0 ? message.content : (previous?.content ?? '') + message.content
+      return {
+        ...state,
+        outputPages: {
+          ...state.outputPages,
+          [key]: {
+            content,
+            isEof: message.eof,
+            nextOffset: message.offsetBytes + message.byteLen,
+          },
+        },
+      }
+    }
   }
 }
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
   switch (action.type) {
     case 'hostMessage': {
-      return applyHostMessage(state, action.message)
+      return applyHostMessage(state, action.message, action.at)
     }
     case 'draftChanged': {
       return { ...state, draft: action.draft }
@@ -349,7 +686,13 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         attachments: [],
         transcript: [
           ...state.transcript,
-          { kind: 'user', id: action.localId, text: action.text, status: 'pending' },
+          {
+            kind: 'user',
+            id: action.localId,
+            text: action.text,
+            status: 'pending',
+            attachments: action.attachments,
+          },
         ],
       }
     }
@@ -359,11 +702,14 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     case 'conversationCleared': {
       return {
         ...state,
+        title: undefined,
         transcript: [],
         attachments: [],
         activeTurnId: undefined,
         usage: undefined,
         context: undefined,
+        todos: [],
+        outputPages: {},
       }
     }
   }
@@ -373,5 +719,13 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
 export function canSend(state: UiState): boolean {
   return (
     state.auth.status === 'signedIn' && (state.draft.trim() !== '' || state.attachments.length > 0)
+  )
+}
+
+/** Whether any tool row is waiting on the user (approval or question). */
+export function hasPendingRequest(state: UiState): boolean {
+  return state.transcript.some(
+    (entry) =>
+      entry.kind === 'tool' && (entry.approval !== undefined || entry.question !== undefined),
   )
 }

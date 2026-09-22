@@ -66,6 +66,9 @@ export class MuseCodeBackendManager {
     })
     const spawned = await handshake.initialize({
       clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
+      // The panel renders question cards (M4), so the host may send
+      // `userInput/requested` instead of answering questions itself.
+      capabilities: { userInputDialogs: true },
     })
     if (spawned.fingerprintWarning !== undefined) {
       this.deps.log.warn(

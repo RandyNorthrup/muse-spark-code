@@ -44,6 +44,9 @@ export interface ComposerProps {
   readonly isRunning: boolean
   readonly modelLabel: string
   readonly permissionMode: PermissionMode
+  /** "12% context" once known; undefined hides the indicator. */
+  readonly contextLabel: string | undefined
+  readonly contextTitle: string | undefined
   readonly focusRequests: number
   readonly pendingInsert: string | undefined
   readonly attachments: readonly AttachmentSummary[]
@@ -111,6 +114,8 @@ export function Composer(props: ComposerProps) {
     isRunning,
     modelLabel,
     permissionMode,
+    contextLabel,
+    contextTitle,
     focusRequests,
     pendingInsert,
     attachments,
@@ -370,6 +375,11 @@ export function Composer(props: ComposerProps) {
           </button>
         </div>
         <div className="composer-toolbar-group">
+          {contextLabel === undefined ? null : (
+            <span className="context-label" title={contextTitle}>
+              {contextLabel}
+            </span>
+          )}
           <button
             type="button"
             className="mode-button"

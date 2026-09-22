@@ -30,6 +30,13 @@ const SCENARIOS = [
   'modes-bypass',
   'attach',
   'add-context',
+  'markdown',
+  'tools',
+  'approval',
+  'question',
+  'todo',
+  'focus',
+  'long',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'

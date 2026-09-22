@@ -165,5 +165,7 @@ export default tseslint.config(
     },
   },
 
-  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.vscode-test/**'] },
+  // harness-shots/ holds screenshots and a headless-Chrome profile (which
+  // Chrome fills with its own extension scripts); nothing there is ours.
+  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.vscode-test/**', 'harness-shots/**'] },
 )

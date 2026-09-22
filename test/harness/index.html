@@ -187,9 +187,16 @@
               const itemId = `m${String(turn)}`
               send({ type: 'turnAccepted', localId: message.localId, turnId })
               send({ type: 'agentEvent', event: { type: 'turnStarted', turnId } })
+              if (window.harnessSilent) {
+                // Transcript fixtures script their own items.
+                break
+              }
               send({
                 type: 'agentEvent',
-                event: { type: 'itemStarted', itemId, kind: 'agentMessage', turnId },
+                event: {
+                  type: 'itemStarted',
+                  item: { itemId, kind: 'agentMessage', status: 'inProgress', turnId, text: '' },
+                },
               })
               later(300, () =>
                 send({
@@ -207,9 +214,7 @@
                   type: 'agentEvent',
                   event: {
                     type: 'itemCompleted',
-                    itemId,
-                    kind: 'agentMessage',
-                    status: 'completed',
+                    item: { itemId, kind: 'agentMessage', status: 'completed' },
                   },
                 })
                 send({
@@ -217,6 +222,67 @@
                   event: { type: 'turnCompleted', turnId, terminal: 'completed' },
                 })
               })
+              break
+            }
+            case 'readOutput': {
+              later(30, () =>
+                send({
+                  type: 'outputPage',
+                  itemId: message.itemId,
+                  outputRef: message.outputRef,
+                  offsetBytes: 0,
+                  byteLen: 200,
+                  eof: true,
+                  content: JSON.stringify({
+                    files: [
+                      {
+                        path: 'src/webview/App.tsx',
+                        hunks: [
+                          {
+                            oldStart: 226,
+                            newStart: 226,
+                            lines: [
+                              "   it('labels the model pill', () => {",
+                              "-    expect(label).toBe('muse-spark-1.3 (1M) High')",
+                              "+    expect(label).toBe('muse-spark-1.3 High')",
+                              '     deliver({',
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  }),
+                }),
+              )
+              break
+            }
+            case 'decideApproval': {
+              later(30, () =>
+                send({
+                  type: 'agentEvent',
+                  event: {
+                    type: 'approvalResolved',
+                    approvalId: message.approvalId,
+                    itemId: 'sh1',
+                    decision: 'approved',
+                    resolvedBy: 'user',
+                  },
+                }),
+              )
+              break
+            }
+            case 'answerQuestion': {
+              later(30, () =>
+                send({
+                  type: 'agentEvent',
+                  event: {
+                    type: 'questionSettled',
+                    userInputId: message.userInputId,
+                    outcome: 'answered',
+                    answers: message.answers,
+                  },
+                }),
+              )
               break
             }
             default: {
@@ -231,6 +297,22 @@
     <div id="root"></div>
     <script src="../../dist/webview/main.js"></script>
     <script>
+      // Scripting errors and dropped host messages are written into the page
+      // so a screenshot shows them instead of a silent empty state.
+      const report = (text) => {
+        const line = document.createElement('pre')
+        line.className = 'harness-report'
+        line.textContent = text
+        document.body.prepend(line)
+      }
+      window.addEventListener('error', (event) => {
+        report(`harness error: ${event.message} (${event.filename}:${String(event.lineno)})`)
+      })
+      const originalWarn = console.warn.bind(console)
+      console.warn = (...args) => {
+        report(`warn: ${args.map(String).join(' ')}`)
+        originalWarn(...args)
+      }
       // `?scenario=<name>` drives the UI without a human, for headless shots.
       const scenario = new URLSearchParams(location.search).get('scenario')
       const textarea = () => document.querySelector('textarea')
@@ -250,6 +332,136 @@
           new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }),
         )
       const click = (label) => document.querySelector(`button[aria-label="${label}"]`).click()
+      const event = (payload) => send({ type: 'agentEvent', event: payload })
+      // About 10k tokens of markdown: prose plus a fenced block, repeated.
+      const longReply = () =>
+        [
+          'The reducer folds `item/delta` events into the open entry, so **streaming** text costs one array copy per delta; a 10k-token reply is about 40k characters.',
+          '',
+          '```ts',
+          'export function fold(state: State, delta: string): State {',
+          '  return { ...state, text: state.text + delta }',
+          '}',
+          '```',
+          '',
+          '',
+        ]
+          .join('\n')
+          .repeat(120)
+      // A run shaped like the live capture of 2026-09-21: user card, reasoning,
+      // Read, Edit (with patch), Write, PowerShell, then the reply. The shell
+      // row stays in progress when `isShellPending` so a card can attach.
+      const transcriptFixture = ({ isShellPending = false, isDone = false } = {}) => {
+        window.harnessSilent = true
+        setDraft('Edit notes.md, then list the folder')
+        key({ key: 'Enter' })
+        event({
+          type: 'itemStarted',
+          item: { itemId: 'r1', kind: 'reasoning', status: 'inProgress' },
+        })
+        event({
+          type: 'textDelta',
+          itemId: 'r1',
+          field: 'summary.0',
+          delta: 'Need to read the file first, then apply the edit.',
+        })
+        event({
+          type: 'itemCompleted',
+          item: {
+            itemId: 'r1',
+            kind: 'reasoning',
+            status: 'completed',
+            summary: ['Need to read the file first, then apply the edit.'],
+          },
+        })
+        event({
+          type: 'itemCompleted',
+          item: {
+            itemId: 'rd1',
+            kind: 'toolCall',
+            status: 'completed',
+            tool: 'read_file',
+            args: '{"path":"notes.md"}',
+            visibleOutput: 'Read text file `notes.md`.\n1|# Notes\n2|\n3|first line',
+          },
+        })
+        event({
+          type: 'itemStarted',
+          item: {
+            itemId: 'ed1',
+            kind: 'toolCall',
+            status: 'inProgress',
+            tool: 'edit_file',
+            args: '{"find":"first line","path":"notes.md","replace":"second line\\nthird line"}',
+          },
+        })
+        event({
+          type: 'itemCompleted',
+          item: {
+            itemId: 'ed1',
+            kind: 'toolCall',
+            status: 'completed',
+            tool: 'edit_file',
+            args: '{"find":"first line","path":"notes.md","replace":"second line\\nthird line"}',
+            visibleOutput:
+              'edited\nchanged lines: line 3\n--- original\n+++ updated\n@@\n-first line\n+second line\n+third line\n',
+            patchSummary: { files: 1, added: 2, removed: 1 },
+            patchRef: { id: 'tool_patch-ed1', byteLen: 318 },
+          },
+        })
+        event({
+          type: 'itemCompleted',
+          item: {
+            itemId: 'wr1',
+            kind: 'toolCall',
+            status: 'completed',
+            tool: 'write_file',
+            args: '{"content":"hi\\n","path":"hello.txt"}',
+            visibleOutput: 'wrote 3 bytes to hello.txt',
+            patchSummary: { files: 1, added: 1, removed: 0 },
+          },
+        })
+        event({
+          type: 'itemStarted',
+          item: {
+            itemId: 'sh1',
+            kind: 'toolCall',
+            status: 'inProgress',
+            tool: 'powershell',
+            args: '{"command":"Get-ChildItem -Force | Select-Object Name, Length","description":"List files in workspace folder"}',
+          },
+        })
+        if (!isShellPending) {
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'sh1',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'powershell',
+              args: '{"command":"Get-ChildItem -Force | Select-Object Name, Length","description":"List files in workspace folder"}',
+              visibleOutput:
+                'Name      Length\n----      ------\nhello.txt      3\nnotes.md      31\n',
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'am1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'Done. `notes.md` now contains the new lines and the folder has **two** files.',
+            },
+          })
+        }
+        if (isDone) {
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+        }
+        later(150, () => {
+          // Focus view hides the rows; nothing to expand then.
+          document.querySelectorAll('.tool-header')[1]?.click()
+        })
+      }
       const steps = {
         empty: () => {},
         palette: () => {
@@ -295,6 +507,160 @@
         },
         attach: () => {
           click('Attach')
+        },
+        // --- M4 transcript scenarios: events shaped as the live capture ---
+        markdown: () => {
+          event({ type: 'turnStarted', turnId: 'tm' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'md',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: [
+                'Here is the plan for the **transcript**:',
+                '',
+                '1. Parse the item stream',
+                '2. Render `MarkdownView` with GFM',
+                '',
+                '| Kind | Row |',
+                '| --- | --- |',
+                '| toolCall | ToolRow |',
+                '| reasoning | ReasoningRow |',
+                '',
+                '```ts',
+                'export function sum(a: number, b: number): number {',
+                '  return a + b // "sum"',
+                '}',
+                '```',
+                '',
+                '> Links go through the host: [docs](https://dev.meta.ai/).',
+              ].join('\n'),
+            },
+          })
+        },
+        tools: () => {
+          transcriptFixture()
+        },
+        approval: () => {
+          transcriptFixture()
+          event({
+            type: 'approvalRequested',
+            approvalId: 'a1',
+            itemId: 'sh1',
+            toolName: 'powershell',
+            rawArgs: '{"command":"Set-Content x; Get-Content x"}',
+            requirementId: { approvalId: 'a1', sourceIndex: 0 },
+            subject: {
+              kind: 'shell',
+              command: 'Set-Content -Path x -Value outside; Get-Content -Path x',
+              stages: [
+                {
+                  requirementId: { approvalId: 'a1', sourceIndex: 0 },
+                  position: 1,
+                  totalStages: 2,
+                  argv: ['Set-Content', '-Path', 'x', '-Value', 'outside'],
+                },
+                {
+                  requirementId: { approvalId: 'a1', sourceIndex: 1 },
+                  position: 2,
+                  totalStages: 2,
+                  argv: ['Get-Content', '-Path', 'x'],
+                },
+              ],
+            },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'allow_local_prefix',
+                label: 'Always allow in this workspace: Set-Content ...',
+                decision: 'approvedPolicyAmendment',
+                scope: 'localPersistent',
+                rulePreview: 'Always allow in this workspace: Set-Content ...',
+              },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
+          })
+        },
+        question: () => {
+          transcriptFixture()
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'q1',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'request_user_input',
+              args: '{"questions":[]}',
+            },
+          })
+          event({
+            type: 'questionRequested',
+            userInputId: 'u1',
+            itemId: 'q1',
+            questions: [
+              {
+                id: 'colour',
+                header: 'Colour',
+                question: 'Which colour do you prefer, red or blue?',
+                selection: { mode: 'single' },
+                options: [{ label: 'Red' }, { label: 'Blue', description: 'The cool one' }],
+              },
+            ],
+          })
+        },
+        todo: () => {
+          transcriptFixture()
+          event({
+            type: 'todoChanged',
+            items: [
+              { text: 'Read the capture', status: 'completed' },
+              { text: 'Render tool rows', status: 'inProgress', activeForm: 'Rendering tool rows' },
+              { text: 'Write the certification', status: 'pending' },
+            ],
+          })
+        },
+        // A 10k-token reply streamed in 100-character deltas: the visual check
+        // that a long markdown answer renders; render cost is measured in Node
+        // (scripts/measure-markdown.mjs), not here, because headless Chrome's
+        // virtual clock makes frame timing meaningless.
+        long: () => {
+          window.harnessSilent = true
+          setDraft('Explain the whole codebase')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemStarted',
+            item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
+          })
+          const chunks = longReply().match(/[\s\S]{1,100}/g)
+          let index = 0
+          const pump = () => {
+            const chunk = chunks[index]
+            index += 1
+            if (chunk === undefined) {
+              event({
+                type: 'itemCompleted',
+                item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
+              })
+              report(`long: ${String(chunks.length)} deltas rendered`)
+              return
+            }
+            event({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
+            setTimeout(pump, 0)
+          }
+          pump()
+        },
+        focus: () => {
+          send({ type: 'settingsChanged', settings: { ...settings, focusView: true } })
+          transcriptFixture()
         },
         'add-context': () => {
           click('Attach')

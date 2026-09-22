@@ -6,7 +6,7 @@
 // import from `vscode`, Node, or the DOM.
 
 import * as z from 'zod/mini'
-import { agentEventSchema } from './agentEvents'
+import { agentEventSchema, answerSchema, requirementRefSchema } from './agentEvents'
 import { EFFORT_LEVELS, PERMISSION_MODES, PREFERRED_LOCATIONS } from './constants'
 
 // Settings the webview needs to render. Host-only settings (binary path,
@@ -141,6 +141,30 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(z.string()) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  // Approval card: one of the request's `availableChoices`.
+  z.object({
+    type: z.literal('decideApproval'),
+    approvalId: z.string(),
+    choiceId: z.string(),
+    requirementId: requirementRefSchema,
+    feedback: z.optional(z.string()),
+  }),
+  // Question card: one answer per question.
+  z.object({
+    type: z.literal('answerQuestion'),
+    userInputId: z.string(),
+    answers: z.array(answerSchema),
+  }),
+  // Tool row: fetch one page of a stored output or patch document.
+  z.object({
+    type: z.literal('readOutput'),
+    itemId: z.string(),
+    outputRef: z.string(),
+    offsetBytes: z.number(),
+  }),
+  // Code block actions.
+  z.object({ type: z.literal('copyText'), text: z.string() }),
+  z.object({ type: z.literal('insertCode'), text: z.string() }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -193,6 +217,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('attachmentsCleared') }),
   // A one-line message for the transcript (failed host command, warnings).
   z.object({ type: z.literal('notice'), level: z.enum(NOTICE_LEVELS), text: z.string() }),
+  // One page of a stored tool output / patch document (answer to readOutput).
+  z.object({
+    type: z.literal('outputPage'),
+    itemId: z.string(),
+    outputRef: z.string(),
+    offsetBytes: z.number(),
+    byteLen: z.number(),
+    content: z.string(),
+    eof: z.boolean(),
+  }),
 ])
 
 export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema>
