@@ -11,6 +11,17 @@ import * as z from 'zod/mini'
 import type { AgentEvent, QuestionAnswer, RequirementRef } from '../../../shared/agentEvents'
 import type { CoreLogger } from '../../logging'
 import { mapNotification } from './mapNotification'
+import {
+  historyOutcome,
+  sessionClosedSchema,
+  type SessionEnvelope,
+  sessionEnvelopeSchema,
+  type SessionHistoryOutcome,
+  sessionListChangedSchema,
+  sessionListResultSchema,
+  type SessionRecord,
+  sessionRenameResultSchema,
+} from './sessionRecords'
 
 /** What the SDK's `SpawnedMspConnection` provides, narrowed to what we use. */
 export interface MspHost {
@@ -56,6 +67,29 @@ export interface StartSessionOptions {
   /** IDE tool servers, keyed by name; needs the `sessionMcp` grant. */
   readonly mcpServers?: Readonly<Record<string, SessionMcpHttpServer>>
 }
+
+export interface ListSessionsOptions {
+  readonly workspaceRoot: string
+  readonly limit: number
+  readonly cursor?: string
+}
+
+export interface SessionPage {
+  readonly sessions: readonly SessionRecord[]
+  readonly nextCursor: string | undefined
+}
+
+/** A session loaded by `session/resume` or minted by `session/fork` (M6). */
+export interface LoadedSession {
+  readonly session: MuseSession
+  readonly record: SessionRecord
+  readonly history: SessionHistoryOutcome
+}
+
+/** `session/listChanged` (a full row) or `session/closed` (unloaded). */
+export type SessionListEvent =
+  | { readonly type: 'changed'; readonly record: SessionRecord }
+  | { readonly type: 'closed'; readonly sessionId: string; readonly reason: string }
 
 /** One ordered content part of a turn (MSP `TurnInputPart`). */
 export type TurnPart =
@@ -105,6 +139,10 @@ export interface OutputPage {
 }
 
 export type SessionEventListener = (event: AgentEvent) => void
+
+const SESSION_LIST_CHANGED = 'session/listChanged'
+const SESSION_CLOSED = 'session/closed'
+const HISTORY_PREFERENCE_INLINE = 'inline'
 
 const initializeResultSchema = z.object({
   serverInfo: z.object({ name: z.string(), version: z.string() }),
@@ -295,6 +333,16 @@ export class MuseSession {
     return readOutputResultSchema.parse(result)
   }
 
+  /**
+   * Set the durable session name; resolves to the canonical name the host
+   * settled, or undefined when it will arrive as `session/nameChanged`.
+   * Muse Code 1.3.0 refuses this on Windows (UnsupportedPlatform, PLAN.md M6).
+   */
+  public async rename(name: string): Promise<string | undefined> {
+    const result = sessionRenameResultSchema.parse(await this.command('session/rename', { name }))
+    return result.name
+  }
+
   /** The user-invocable skills in this session's workspace and plugins. */
   public async listSkills(): Promise<readonly SkillSummary[]> {
     const result = await this.connection.command('skill/list', { sessionId: this.sessionId })
@@ -319,6 +367,7 @@ export class MuseSession {
 export class MuseCodeHost {
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: string) => void>()
+  private readonly listListeners = new Set<(event: SessionListEvent) => void>()
   public readonly info: HostInfo
 
   public constructor(
@@ -333,6 +382,9 @@ export class MuseCodeHost {
       grantedCapabilities: parsed.grantedCapabilities ?? [],
     }
     host.connection.onNotification((notification) => {
+      if (this.dispatchListEvent(notification.method, notification.params)) {
+        return
+      }
       const mapped = mapNotification(notification)
       if (mapped === undefined) {
         return
@@ -361,11 +413,163 @@ export class MuseCodeHost {
     })
   }
 
+  /**
+   * The list-stream notifications (`sessionListStream` grant) are about
+   * stored sessions, loaded here or not, so they bypass the per-session
+   * routing. True when the method was one of them.
+   */
+  private dispatchListEvent(method: string, params: unknown): boolean {
+    if (method !== SESSION_LIST_CHANGED && method !== SESSION_CLOSED) {
+      return false
+    }
+    const event = this.parseListEvent(method, params)
+    if (event === undefined) {
+      this.log.warn(`MSP ${method} had an unexpected shape; ignored`)
+      return true
+    }
+    for (const listener of this.listListeners) {
+      listener(event)
+    }
+    return true
+  }
+
+  private parseListEvent(method: string, params: unknown): SessionListEvent | undefined {
+    if (method === SESSION_LIST_CHANGED) {
+      const parsed = sessionListChangedSchema.safeParse(params)
+      return parsed.success ? { type: 'changed', record: parsed.data.session } : undefined
+    }
+    const parsed = sessionClosedSchema.safeParse(params)
+    return parsed.success
+      ? { type: 'closed', sessionId: parsed.data.sessionId, reason: parsed.data.reason }
+      : undefined
+  }
+
+  /** Registers the handle for a session this connection now holds. */
+  private track(record: { readonly sessionId: string }, modelId: string): MuseSession {
+    const existing = this.sessions.get(record.sessionId)
+    if (existing !== undefined) {
+      return existing
+    }
+    const handle = new MuseSession(record.sessionId, modelId, this.host.connection, () => {
+      this.sessions.delete(record.sessionId)
+    })
+    this.sessions.set(record.sessionId, handle)
+    return handle
+  }
+
+  private loaded(envelope: SessionEnvelope, modelId: string): LoadedSession {
+    return {
+      session: this.track(envelope.session, modelId),
+      record: envelope.session,
+      history: historyOutcome(envelope),
+    }
+  }
+
+  private mcpConfig(
+    mcpServers: Readonly<Record<string, SessionMcpHttpServer>> | undefined,
+  ): Record<string, unknown> {
+    if (mcpServers === undefined) {
+      return {}
+    }
+    return {
+      config: {
+        mcpServers: Object.fromEntries(
+          Object.entries(mcpServers).map(([name, server]) => [
+            name,
+            // `optional`: a tool-server hiccup never blocks the session.
+            {
+              transport: 'streamableHttp',
+              url: server.url,
+              headers: server.headers,
+              mode: 'optional',
+            },
+          ]),
+        ),
+      },
+    }
+  }
+
   public onExit(listener: (description: string) => void): () => void {
     this.exitListeners.add(listener)
     return () => {
       this.exitListeners.delete(listener)
     }
+  }
+
+  /** Stored-session changes on this host (needs the `sessionListStream` grant). */
+  public onSessionListEvent(listener: (event: SessionListEvent) => void): () => void {
+    this.listListeners.add(listener)
+    return () => {
+      this.listListeners.delete(listener)
+    }
+  }
+
+  /** One page of this workspace's stored sessions, newest activity first. */
+  public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
+    const result = await this.host.connection.command('session/list', {
+      workspaceRoot: options.workspaceRoot,
+      limit: options.limit,
+      ...(options.cursor !== undefined && { cursor: options.cursor }),
+    })
+    const page = sessionListResultSchema.parse(result)
+    return { sessions: page.sessions, nextCursor: page.nextCursor ?? undefined }
+  }
+
+  /**
+   * Load a stored session on this connection with its history inline where
+   * the host's budget allows (the served mode is reported). `modelId` is
+   * the caller's standing selection: the record's own `modelId` is the
+   * metadata fold's and not to be trusted (PLAN.md M6).
+   */
+  public async resumeSession(
+    sessionId: string,
+    modelId: string,
+    mcpServers?: Readonly<Record<string, SessionMcpHttpServer>>,
+  ): Promise<LoadedSession> {
+    const commandId = this.host.connection.mintCommandId()
+    const result = await this.host.connection.command(
+      'session/resume',
+      {
+        commandId,
+        sessionId,
+        history: HISTORY_PREFERENCE_INLINE,
+        ...this.mcpConfig(mcpServers),
+      },
+      { commandId },
+    )
+    return this.loaded(sessionEnvelopeSchema.parse(result), modelId)
+  }
+
+  /** A point-in-time read with items, without loading the session. */
+  public async readSession(sessionId: string): Promise<SessionHistoryOutcome> {
+    const result = await this.host.connection.command('session/read', {
+      sessionId,
+      excludeItems: false,
+    })
+    return historyOutcome(sessionEnvelopeSchema.parse(result))
+  }
+
+  /**
+   * Copy a session's completed turns (through `lastTurnId`, or all of them)
+   * into a new session, loaded here. Muse Code 1.3.0 refuses this on
+   * Windows ("invalid fork boundary ... WriteFailed", PLAN.md M6).
+   */
+  public async forkSession(
+    sessionId: string,
+    modelId: string,
+    lastTurnId?: string,
+  ): Promise<LoadedSession> {
+    const commandId = this.host.connection.mintCommandId()
+    const result = await this.host.connection.command(
+      'session/fork',
+      {
+        commandId,
+        sessionId,
+        ...(lastTurnId !== undefined && { cutPoint: { lastTurnId } }),
+      },
+      { commandId },
+    )
+    return this.loaded(sessionEnvelopeSchema.parse(result), modelId)
   }
 
   /** The visible model catalogue; with a session id the active row is flagged. */
@@ -391,36 +595,12 @@ export class MuseCodeHost {
         workspaceRoot: options.workspaceRoot,
         modelId: options.modelId,
         approvalMode: options.approvalMode,
-        ...(options.mcpServers !== undefined && {
-          config: {
-            mcpServers: Object.fromEntries(
-              Object.entries(options.mcpServers).map(([name, server]) => [
-                name,
-                // `optional`: a tool-server hiccup never blocks the session.
-                {
-                  transport: 'streamableHttp',
-                  url: server.url,
-                  headers: server.headers,
-                  mode: 'optional',
-                },
-              ]),
-            ),
-          },
-        }),
+        ...this.mcpConfig(options.mcpServers),
       },
       { commandId },
     )
     const { session } = sessionStartResultSchema.parse(result)
-    const handle = new MuseSession(
-      session.sessionId,
-      session.modelId ?? options.modelId,
-      this.host.connection,
-      () => {
-        this.sessions.delete(session.sessionId)
-      },
-    )
-    this.sessions.set(session.sessionId, handle)
-    return handle
+    return this.track(session, session.modelId ?? options.modelId)
   }
 
   public get sessionCount(): number {

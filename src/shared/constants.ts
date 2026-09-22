@@ -100,9 +100,29 @@ export const SETTING_DEFAULTS = {
   // Claude Code's `allowDangerouslySkipPermissions`: Bypass permissions is
   // listed in the Modes menu and the Shift+Tab cycle only while this is on.
   allowDangerouslySkipPermissions: false,
+  // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
+  // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
+  // deleted: MSP has no delete, and "Show archived" brings them back.
+  archiveInactiveSessions: 14,
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
   shellSandbox: 'auto' as ShellSandboxMode,
+} as const
+export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
+
+// --- Sessions (M6, PLAN.md §6 M6) ---
+
+// `session/list` page size (the host caps at 200) and how many pages the
+// dialog will follow before it stops.
+export const SESSION_LIST_LIMIT = 200
+export const SESSION_LIST_MAX_PAGES = 5
+// A surface that opens within this long of its last session's activity
+// resumes it (the Claude Code sidebar rule: "if a message was sent in the
+// last 10 minutes").
+export const SESSION_RESTORE_WINDOW_MS = 10 * 60 * 1000
+export const WORKSPACE_STATE_KEYS = {
+  archivedSessions: 'museSpark.archivedSessions',
+  lastSession: 'museSpark.lastSession',
 } as const
 
 // Webview bundle layout produced by scripts/build.mjs.
@@ -224,6 +244,10 @@ export const OUTPUT_PAGE_BYTES = 256 * 1024
 export const STATUS_VERBS = ['Thinking…', 'Working…', 'Calculating…', 'Composing…'] as const
 export const STATUS_VERB_INTERVAL_MS = 4000
 export const MILLISECONDS_PER_SECOND = 1000
+export const SECONDS_PER_MINUTE = 60
+export const MINUTES_PER_HOUR = 60
+export const HOURS_PER_DAY = 24
+export const DAYS_PER_WEEK = 7
 // Muse Code's shell tool reports this when its OS sandbox is not set up
 // (Windows: `muse sandbox windows setup` from an elevated shell).
 export const SANDBOX_FAILURE_MARKER = 'sandbox enforcement unavailable'
@@ -257,8 +281,9 @@ export const MUSE_EDIT_SCHEME = 'muse-edit'
 // A stored patch document is read whole for review; this many pages of
 // OUTPUT_PAGE_BYTES is far beyond any edit the tools produce.
 export const PATCH_DOCUMENT_MAX_PAGES = 8
-// The IDE tool server `muse serve` reaches over loopback (session MCP).
-export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp'] as const
+// The IDE tool server `muse serve` reaches over loopback (session MCP), and
+// the `session/listChanged` stream behind the History dialog (M6).
+export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream'] as const
 export const IDE_MCP_SERVER_NAME = 'ide'
 export const IDE_MCP_SERVER_INFO = { name: 'muse_spark_ide', version: '1' } as const
 export const IDE_MCP_PATH = '/mcp'
@@ -509,6 +534,42 @@ export const UI_TEXT = {
   selectionClipped: '[selection clipped]',
   selectionNotShared:
     'Its content is not shared because the file is excluded from the workspace index.',
+  // Session history (M6).
+  historyLabel: 'History',
+  historySearchPlaceholder: 'Search sessions',
+  historyEmpty: 'No sessions in this workspace yet.',
+  historyNoMatches: 'No sessions match.',
+  historyToday: 'Today',
+  historyYesterday: 'Yesterday',
+  historyWeek: 'Previous 7 days',
+  historyOlder: 'Older',
+  historyShowArchived: 'Show archived',
+  historyArchive: 'Archive',
+  historyUnarchive: 'Unarchive',
+  historyCurrent: 'current',
+  historyForkMark: 'fork',
+  historyTurns: 'turns',
+  historyTurn: 'turn',
+  justNow: 'just now',
+  minutesAgo: 'min ago',
+  hoursAgo: 'h ago',
+  daysAgo: 'd ago',
+  resumeItem: 'Resume',
+  resumeDetail: 'Pick a previous conversation in this workspace',
+  renameTitle: 'Rename this conversation',
+  renamePlaceholder: 'Conversation name',
+  forkFromHere: 'Fork from here',
+  forkTitle: 'Start a new conversation from the turns before this message',
+  forkedNotice: 'Forked into a new conversation.',
+  resumedNotice: 'Resumed',
+  historyUnavailable: 'The conversation history could not be loaded',
+  historyNotServed: 'The earlier messages of this conversation could not be shown',
+  unreadTooltip: 'Muse needs your attention',
+  unreadMark: '● ',
+  sessionRequired: 'Start a conversation first.',
+  resumeFailed: 'Could not resume the conversation',
+  forkFailed: 'Could not fork the conversation',
+  renameFailed: 'Could not rename the conversation',
   sandboxOffProfileNotice:
     "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
   sandboxRestartNotice:

@@ -3,6 +3,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import {
   canSend,
+  forkCutBefore,
   hasPendingRequest,
   initialUiState,
   uiReducer,
@@ -701,5 +702,141 @@ describe('uiReducer: editor context (M5)', () => {
       { type: 'submitted', localId: 'l1', text: 'hi', attachments: [], contextLabel: 'a.ts' },
     ])
     expect(state.transcript[0]).toMatchObject({ kind: 'user', contextLabel: 'a.ts' })
+  })
+})
+
+describe('uiReducer: session history (M6)', () => {
+  const userItem = {
+    itemId: 'u1',
+    kind: 'userMessage',
+    status: 'completed',
+    turnId: 't1',
+    text: 'what does this do?',
+    attachments: [{ type: 'image', mediaType: 'image/png', width: 2, height: 3 }],
+  }
+  const historyLoaded: HostToWebviewMessage = {
+    type: 'historyLoaded',
+    sessionId: 'old',
+    name: 'Old session',
+    todos: [{ text: 'finish', status: 'pending' }],
+    items: [
+      userItem,
+      { itemId: 'r1', kind: 'reminderChild', status: 'completed' },
+      { itemId: 'th', kind: 'reasoning', status: 'completed', summary: ['why'] },
+      {
+        itemId: 'c1',
+        kind: 'toolCall',
+        status: 'completed',
+        tool: 'read_file',
+        args: '{"path":"a.ts"}',
+        visibleOutput: 'ok',
+      },
+      { itemId: 'm1', kind: 'agentMessage', status: 'completed', text: 'It reads a file.' },
+      { itemId: 'u2', kind: 'userMessage', status: 'completed', turnId: 't2', text: 'thanks' },
+    ],
+  }
+
+  it('records the session id with the session info and clears it with the conversation', () => {
+    const state = reduceAll([
+      host({ type: 'sessionInfo', modelId: 'm', contextLimit: 1, sessionId: 's1' }),
+    ])
+    expect(state.sessionId).toBe('s1')
+    expect(uiReducer(state, { type: 'conversationCleared' }).sessionId).toBeUndefined()
+  })
+
+  it('keeps the session list and archived ids the host posts', () => {
+    const row = {
+      sessionId: 's1',
+      title: 'T',
+      isNamed: false,
+      createdAt: 'c',
+      updatedAt: 'u',
+      status: 'idle',
+      turnCount: 1,
+      isFork: false,
+    }
+    const state = reduceAll([host({ type: 'sessionList', sessions: [row], archivedIds: ['x'] })])
+    expect(state.sessions).toEqual([row])
+    expect(state.archivedIds).toEqual(['x'])
+  })
+
+  it('rebuilds the transcript from stored items: user cards, hidden children, final rows', () => {
+    const state = reduceAll([
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'live', kind: 'agentMessage', status: 'inProgress', text: 'x' },
+      }),
+      agent({ type: 'turnStarted', turnId: 'live-turn' }),
+      host(historyLoaded),
+    ])
+    expect(state.sessionId).toBe('old')
+    expect(state.title).toBe('Old session')
+    expect(state.todos).toEqual([{ text: 'finish', status: 'pending' }])
+    expect(state.activeTurnId).toBeUndefined()
+    expect(state.transcript.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      'user:u1',
+      'reasoning:th',
+      'tool:c1',
+      'assistant:m1',
+      'user:u2',
+    ])
+    expect(state.transcript[0]).toEqual({
+      kind: 'user',
+      id: 'u1',
+      text: 'what does this do?',
+      status: 'sent',
+      attachments: [{ id: 'u1:0', name: 'image/png', width: 2, height: 3 }],
+      turnId: 't1',
+    })
+    expect(state.transcript[1]).toMatchObject({ parts: ['why'], isStreaming: false })
+    expect(state.transcript[2]).toMatchObject({ tool: 'read_file', output: 'ok' })
+    expect(state.transcript[3]).toEqual({
+      kind: 'assistant',
+      id: 'm1',
+      text: 'It reads a file.',
+      isStreaming: false,
+    })
+  })
+
+  it('tolerates a user item without text, turn or attachments', () => {
+    const state = reduceAll([
+      host({
+        type: 'historyLoaded',
+        sessionId: 's',
+        todos: [],
+        items: [{ itemId: 'u', kind: 'userMessage', status: 'completed' }],
+      }),
+    ])
+    expect(state.transcript[0]).toEqual({
+      kind: 'user',
+      id: 'u',
+      text: '',
+      status: 'sent',
+      attachments: [],
+    })
+    expect(state.title).toBeUndefined()
+  })
+
+  it('keeps the turn id on a sent card so a fork can cut before it', () => {
+    const state = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'one', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
+      { type: 'submitted', localId: 'l2', text: 'two', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l2', turnId: 't2' }),
+      { type: 'submitted', localId: 'l3', text: 'three', attachments: [], contextLabel: undefined },
+    ])
+    expect(state.transcript[0]).toMatchObject({ turnId: 't1' })
+    expect(forkCutBefore(state.transcript, 'l1')).toEqual({ type: 'fresh' })
+    expect(forkCutBefore(state.transcript, 'l2')).toEqual({ type: 'afterTurn', lastTurnId: 't1' })
+    // A pending card (no turn yet) is not a fork point; a missing id neither.
+    expect(forkCutBefore(state.transcript, 'l3')).toBeUndefined()
+    expect(forkCutBefore(state.transcript, 'ghost')).toBeUndefined()
+  })
+
+  it('cuts a replayed transcript before the chosen message', () => {
+    const state = reduceAll([host(historyLoaded)])
+    expect(forkCutBefore(state.transcript, 'u2')).toEqual({ type: 'afterTurn', lastTurnId: 't1' })
+    expect(forkCutBefore(state.transcript, 'u1')).toEqual({ type: 'fresh' })
+    expect(forkCutBefore(state.transcript, 'm1')).toBeUndefined()
   })
 })

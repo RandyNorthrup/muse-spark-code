@@ -40,11 +40,17 @@ export interface ChatSurface extends vscode.Disposable {
   post(message: HostToWebviewMessage): void
   /** Bring the surface into view and give it keyboard focus. */
   reveal(): void
+  /** The conversation needs the user (turn done, approval, question): mark it when hidden (M6). */
+  markUnread(): void
+  /** The conversation's name, shown on the tab or beside the view name (M6). */
+  setTitle(title: string): void
 }
 
 export interface SurfaceOptions {
   readonly id: string
   readonly reveal: () => void
+  readonly markUnread: () => void
+  readonly setTitle: (title: string) => void
 }
 
 function buildInitMessage(context: WebviewHostContext): HostToWebviewMessage {
@@ -83,6 +89,8 @@ export function configureWebview(
       void webview.postMessage(message)
     },
     reveal: options.reveal,
+    markUnread: options.markUnread,
+    setTitle: options.setTitle,
     dispose() {
       subscription.dispose()
     },

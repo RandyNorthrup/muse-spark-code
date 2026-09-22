@@ -20,6 +20,7 @@ import { Composer, type ImageData } from './components/Composer'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
+import { HistoryDialog } from './components/HistoryDialog'
 import { AddContextIcon, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteView } from './components/Palette'
@@ -29,6 +30,7 @@ import { TodoPanel } from './components/TodoPanel'
 import { Transcript } from './components/Transcript'
 import {
   canSend,
+  forkCutBefore,
   initialUiState,
   type UiState,
   uiReducer,
@@ -43,8 +45,8 @@ export interface AppProps {
   readonly now?: () => number
 }
 
-/** What floats above the composer: a palette view or one of the two menus. */
-type Overlay = PaletteView | 'modes' | 'attach'
+/** What floats above the composer: a palette view, a menu or the History dialog. */
+type Overlay = PaletteView | 'modes' | 'attach' | 'history'
 
 const GATED_STATUSES = new Set(['noCli', 'signedOut', 'signingIn', 'error'])
 const ATTACH_UPLOAD = 'upload'
@@ -251,6 +253,10 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       if ((view === 'actions' || view === 'models') && state.skills === undefined) {
         postMessage({ type: 'listSkills' })
       }
+      if (view === 'history') {
+        // Always re-list: the rows change while the dialog is closed.
+        postMessage({ type: 'listSessions' })
+      }
       setOverlay(view)
     },
     [postMessage, state.skills],
@@ -285,6 +291,44 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
   const onPaletteBack = useCallback(() => {
     setOverlay('actions')
   }, [])
+  const onOpenHistory = useCallback(() => {
+    toggleOverlay('history')
+  }, [toggleOverlay])
+  const onResumeSession = useCallback(
+    (sessionId: string) => {
+      postMessage({ type: 'resumeSession', sessionId })
+      closeOverlay()
+    },
+    [postMessage, closeOverlay],
+  )
+  const onSetSessionArchived = useCallback(
+    (sessionId: string, isArchived: boolean) => {
+      postMessage({ type: 'setSessionArchived', sessionId, isArchived })
+    },
+    [postMessage],
+  )
+  const onRename = useCallback(
+    (name: string) => {
+      postMessage({ type: 'renameSession', name })
+    },
+    [postMessage],
+  )
+  // "Fork from here" keeps the turns before that message; before the first
+  // message there is nothing to keep, so it is a new conversation.
+  const onFork = useCallback(
+    (entryId: string) => {
+      const cut = forkCutBefore(state.transcript, entryId)
+      if (cut === undefined) {
+        return
+      }
+      if (cut.type === 'fresh') {
+        onNewConversation()
+        return
+      }
+      postMessage({ type: 'forkSession', lastTurnId: cut.lastTurnId })
+    },
+    [state.transcript, onNewConversation, postMessage],
+  )
   const onRemoveAttachment = useCallback(
     (id: string) => {
       dispatch({ type: 'attachmentRemoved', id })
@@ -371,6 +415,10 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
           closeOverlay()
           break
         }
+        case 'openHistory': {
+          openOverlay('history')
+          break
+        }
         case 'openModelPicker': {
           setOverlay('models')
           break
@@ -424,7 +472,7 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
         }
       }
     },
-    [postMessage, closeOverlay, state.isThinkingEnabled],
+    [postMessage, closeOverlay, openOverlay, state.isThinkingEnabled],
   )
 
   const paletteGroups = useMemo(
@@ -516,6 +564,7 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
         onApply={onApply}
         onOpenEditDiff={onOpenEditDiff}
         onRevertEdit={onRevertEdit}
+        onFork={state.sessionId === undefined ? undefined : onFork}
       />
     )
   }
@@ -583,6 +632,21 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       )
       break
     }
+    case 'history': {
+      floating = (
+        <HistoryDialog
+          sessions={state.sessions}
+          archivedIds={state.archivedIds}
+          currentSessionId={state.sessionId}
+          archiveAfterDays={state.settings.archiveInactiveSessions}
+          now={now}
+          onResume={onResumeSession}
+          onSetArchived={onSetSessionArchived}
+          onClose={closeOverlay}
+        />
+      )
+      break
+    }
     case undefined: {
       floating = null
       break
@@ -595,6 +659,8 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
         title={title}
         isFocusView={state.settings.focusView}
         onNewConversation={onNewConversation}
+        onOpenHistory={onOpenHistory}
+        onRename={state.sessionId === undefined ? undefined : onRename}
       />
       <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
         {body}

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
 import {
+  ARCHIVE_DAY_CHOICES,
   CHAT_VIEW_ID,
   COMMAND_IDS,
   EXTENSION_NAME,
@@ -70,6 +71,11 @@ describe('package.json manifest', () => {
     for (const [key, value] of Object.entries(SETTING_DEFAULTS)) {
       expect(properties[`${SETTINGS_SECTION}.${key}`]?.default, key).toEqual(value)
     }
+  })
+
+  it('offers the Claude Code archive periods for archiveInactiveSessions', () => {
+    const properties = manifest.contributes.configuration.properties
+    expect(properties['museSpark.archiveInactiveSessions'].enum).toEqual([...ARCHIVE_DAY_CHOICES])
   })
 
   it('pins @types/vscode to the engines.vscode minimum', () => {

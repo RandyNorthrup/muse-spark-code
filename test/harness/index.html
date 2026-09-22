@@ -74,6 +74,7 @@
         respectGitIgnore: true,
         confidentialWorkspace: false,
         allowDangerouslySkipPermissions: false,
+        archiveInactiveSessions: 14,
       }
       const models = [
         {
@@ -111,6 +112,138 @@
         sizeBytes: 12345,
       })
       let composer = { effort: 'high', isThinkingEnabled: true, permissionMode: 'manual' }
+      // Stored sessions shaped as `session/list` rows after the host mapping (M6).
+      const ago = (ms) => new Date(Date.now() - ms).toISOString()
+      const HOUR = 60 * 60 * 1000
+      const storedSessions = [
+        {
+          sessionId: 'now',
+          title: 'Fix the parser',
+          isNamed: true,
+          createdAt: ago(3 * HOUR),
+          updatedAt: ago(10 * 60 * 1000),
+          lastActivityAt: ago(10 * 60 * 1000),
+          branch: 'main',
+          status: 'idle',
+          turnCount: 4,
+          isFork: false,
+        },
+        {
+          sessionId: 'today',
+          title: 'what does this do?',
+          isNamed: false,
+          createdAt: ago(5 * HOUR),
+          updatedAt: ago(5 * HOUR),
+          status: 'notLoaded',
+          turnCount: 1,
+          isFork: false,
+        },
+        {
+          sessionId: 'yesterday',
+          title: 'Write the README section on the sandbox',
+          isNamed: false,
+          createdAt: ago(26 * HOUR),
+          updatedAt: ago(26 * HOUR),
+          branch: 'docs/sandbox',
+          status: 'notLoaded',
+          turnCount: 3,
+          isFork: true,
+        },
+        {
+          sessionId: 'week',
+          title: 'Approval card stage lock',
+          isNamed: false,
+          createdAt: ago(4 * 24 * HOUR),
+          updatedAt: ago(4 * 24 * HOUR),
+          status: 'notLoaded',
+          turnCount: 7,
+          isFork: false,
+        },
+        {
+          sessionId: 'older',
+          title: 'Scaffold the extension',
+          isNamed: false,
+          createdAt: ago(9 * 24 * HOUR),
+          updatedAt: ago(9 * 24 * HOUR),
+          status: 'notLoaded',
+          turnCount: 12,
+          isFork: false,
+        },
+        {
+          sessionId: 'stale',
+          title: 'Forgotten experiment',
+          isNamed: false,
+          createdAt: ago(20 * 24 * HOUR),
+          updatedAt: ago(20 * 24 * HOUR),
+          status: 'notLoaded',
+          turnCount: 2,
+          isFork: false,
+        },
+      ]
+      const archivedIds = ['week']
+      const storedHistory = (sessionId, row, lastTurnId) => {
+        const items = [
+          {
+            itemId: 'u1',
+            kind: 'userMessage',
+            status: 'completed',
+            turnId: 't1',
+            text: 'Fix the parser so `a ?? b` binds tighter than `||`.',
+          },
+          {
+            itemId: 'r1',
+            kind: 'reasoning',
+            status: 'completed',
+            summary: ['Look at the precedence table first.'],
+          },
+          {
+            itemId: 'rd1',
+            kind: 'toolCall',
+            status: 'completed',
+            tool: 'read_file',
+            args: '{"path":"src/parser.ts"}',
+            visibleOutput: 'Read text file `src/parser.ts`.',
+          },
+          {
+            itemId: 'm1',
+            kind: 'agentMessage',
+            status: 'completed',
+            text: 'The precedence table lists `??` below `||`; swapping the two rows fixes it.',
+          },
+          {
+            itemId: 'u2',
+            kind: 'userMessage',
+            status: 'completed',
+            turnId: 't2',
+            text: 'Do it and add a test.',
+            attachments: [{ type: 'image', mediaType: 'image/png', width: 686, height: 695 }],
+          },
+          {
+            itemId: 'ed1',
+            kind: 'toolCall',
+            status: 'completed',
+            tool: 'edit_file',
+            args: '{"find":"a","path":"src/parser.ts","replace":"b"}',
+            visibleOutput: 'edited',
+            patchSummary: { files: 1, added: 2, removed: 2 },
+            patchRef: { id: 'tool_patch-ed1', byteLen: 200 },
+          },
+          {
+            itemId: 'm2',
+            kind: 'agentMessage',
+            status: 'completed',
+            text: 'Done: the rows are swapped and `parser.test.ts` covers both forms.',
+          },
+        ]
+        const cut =
+          lastTurnId === undefined ? items.length : items.findIndex((i) => i.turnId === 't2')
+        return {
+          sessionId,
+          ...(row?.isNamed && { name: row.title }),
+          items: items.slice(0, cut),
+          todos: [],
+        }
+      }
       let turn = 0
       const outbox = []
       window.harnessOutbox = outbox
@@ -268,6 +401,60 @@
                     resolvedBy: 'user',
                   },
                 }),
+              )
+              break
+            }
+            // --- Session history (M6) ---
+            case 'listSessions': {
+              later(40, () => send({ type: 'sessionList', sessions: storedSessions, archivedIds }))
+              break
+            }
+            case 'setSessionArchived': {
+              if (message.isArchived) {
+                archivedIds.push(message.sessionId)
+              } else {
+                archivedIds.splice(archivedIds.indexOf(message.sessionId), 1)
+              }
+              send({ type: 'sessionList', sessions: storedSessions, archivedIds })
+              break
+            }
+            case 'resumeSession': {
+              const row = storedSessions.find((s) => s.sessionId === message.sessionId)
+              later(60, () => {
+                send({ type: 'historyLoaded', ...storedHistory(message.sessionId, row) })
+                send({ type: 'notice', level: 'info', text: `Resumed ${row?.title ?? ''}` })
+                send({
+                  type: 'sessionInfo',
+                  modelId: 'muse-spark-1.3',
+                  contextLimit: 1007997,
+                  sessionId: message.sessionId,
+                })
+              })
+              break
+            }
+            case 'forkSession': {
+              later(60, () => {
+                send({
+                  type: 'historyLoaded',
+                  ...storedHistory('forked', undefined, message.lastTurnId),
+                })
+                send({
+                  type: 'notice',
+                  level: 'info',
+                  text: 'Forked into a new conversation. Fix the parser',
+                })
+                send({
+                  type: 'sessionInfo',
+                  modelId: 'muse-spark-1.3',
+                  contextLimit: 1007997,
+                  sessionId: 'forked',
+                })
+              })
+              break
+            }
+            case 'renameSession': {
+              later(40, () =>
+                send({ type: 'agentEvent', event: { type: 'sessionNamed', name: message.name } }),
               )
               break
             }
@@ -679,6 +866,28 @@
           click('Attach')
           later(100, () => {
             document.querySelector('[role="menuitem"]:nth-child(2)').click()
+          })
+        },
+        history: () => {
+          click('Session history')
+          later(300, () => {
+            const search = document.querySelector('.history .palette-filter')
+            search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+          })
+        },
+        resume: () => {
+          send({
+            type: 'sessionInfo',
+            modelId: 'muse-spark-1.3',
+            contextLimit: 1007997,
+            sessionId: 'now',
+          })
+          window.harnessOutbox.push({ type: 'resumeSession', sessionId: 'now' })
+          window.acquireVsCodeApi().postMessage({ type: 'resumeSession', sessionId: 'now' })
+          later(400, () => {
+            const card = document.querySelectorAll('.message-user')[1]
+            card?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+            card?.querySelector('.fork-button')?.focus()
           })
         },
         filter: () => {

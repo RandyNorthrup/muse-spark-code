@@ -30,6 +30,8 @@ export interface TranscriptProps {
   readonly onApply: (text: string) => void
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   readonly onRevertEdit: (itemId: string, outputRef: string) => void
+  /** "Fork from here" on user cards (M6); absent while no session exists. */
+  readonly onFork?: ((entryId: string) => void) | undefined
 }
 
 type StepEntry = Extract<TranscriptEntry, { kind: 'tool' | 'reasoning' }>
@@ -65,7 +67,13 @@ export function segment(entries: readonly TranscriptEntry[], isFocusView: boolea
   return segments
 }
 
-function UserCard({ entry }: { readonly entry: Extract<TranscriptEntry, { kind: 'user' }> }) {
+function UserCard({
+  entry,
+  onFork,
+}: {
+  readonly entry: Extract<TranscriptEntry, { kind: 'user' }>
+  readonly onFork: ((entryId: string) => void) | undefined
+}) {
   const hasChips = entry.attachments.length > 0 || entry.contextLabel !== undefined
   return (
     <li className={`message message-user message-${entry.status}`}>
@@ -81,9 +89,11 @@ function UserCard({ entry }: { readonly entry: Extract<TranscriptEntry, { kind: 
             <li key={attachment.id} className="chip">
               <ImageIcon />
               <span className="chip-name">{attachment.name}</span>
-              <span className="chip-size">
-                {attachment.width}×{attachment.height}
-              </span>
+              {attachment.width === undefined || attachment.height === undefined ? null : (
+                <span className="chip-size">
+                  {attachment.width}×{attachment.height}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -94,6 +104,18 @@ function UserCard({ entry }: { readonly entry: Extract<TranscriptEntry, { kind: 
           {entry.reason}
         </div>
       ) : null}
+      {onFork === undefined || entry.status !== 'sent' ? null : (
+        <button
+          type="button"
+          className="fork-button"
+          title={UI_TEXT.forkTitle}
+          onClick={() => {
+            onFork(entry.id)
+          }}
+        >
+          {UI_TEXT.forkFromHere}
+        </button>
+      )}
     </li>
   )
 }
@@ -171,6 +193,7 @@ export function Transcript(props: TranscriptProps) {
     onApply,
     onOpenEditDiff,
     onRevertEdit,
+    onFork,
   } = props
   const renderStep = (entry: StepEntry) =>
     entry.kind === 'reasoning' ? (
@@ -194,7 +217,7 @@ export function Transcript(props: TranscriptProps) {
   const renderEntry = (entry: TranscriptEntry) => {
     switch (entry.kind) {
       case 'user': {
-        return <UserCard key={entry.id} entry={entry} />
+        return <UserCard key={entry.id} entry={entry} onFork={onFork} />
       }
       case 'assistant': {
         return (

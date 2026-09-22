@@ -29,6 +29,7 @@ import type {
   SettingsSnapshot,
   SkillOption,
 } from '../../shared/protocol'
+import type { SessionRow } from '../../shared/sessions'
 
 export type NoticeLevel = 'info' | 'warning' | 'error'
 
@@ -65,6 +66,17 @@ export interface PatchSummary {
   readonly removed: number
 }
 
+/**
+ * An image chip on a user card: what was attached now, or what the durable
+ * log echoes for a replayed message (media type and pixel size only, M6).
+ */
+export interface UserAttachment {
+  readonly id: string
+  readonly name: string
+  readonly width?: number
+  readonly height?: number
+}
+
 export type TranscriptEntry =
   | {
       readonly kind: 'user'
@@ -72,9 +84,11 @@ export type TranscriptEntry =
       readonly text: string
       readonly status: 'pending' | 'sent' | 'failed'
       readonly reason?: string
-      readonly attachments: readonly AttachmentSummary[]
+      readonly attachments: readonly UserAttachment[]
       /** The open-file chip that went with the message (M5). */
       readonly contextLabel?: string
+      /** The turn the message started, once known (fork cut points, M6). */
+      readonly turnId?: string
     }
   | {
       readonly kind: 'assistant'
@@ -156,6 +170,11 @@ export interface UiState {
   readonly settings: SettingsSnapshot | undefined
   /** The session's name once the host allocates one (`session/nameChanged`). */
   readonly title: string | undefined
+  /** The active session (rename and fork are offered with one), M6. */
+  readonly sessionId: string | undefined
+  /** The workspace's stored sessions, once the History dialog asked (M6). */
+  readonly sessions: readonly SessionRow[] | undefined
+  readonly archivedIds: readonly string[]
   readonly draft: string
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
@@ -217,6 +236,9 @@ export const initialUiState: UiState = {
   composerPlaceholder: '',
   settings: undefined,
   title: undefined,
+  sessionId: undefined,
+  sessions: undefined,
+  archivedIds: [],
   draft: '',
   focusRequests: 0,
   pendingInsert: undefined,
@@ -244,6 +266,7 @@ const SUMMARY_FIELD_PREFIX = 'summary.'
 const OUTPUT_FIELD = 'output'
 const TEXT_FIELD = 'text'
 const IN_PROGRESS = 'inProgress'
+const USER_MESSAGE_KIND = 'userMessage'
 
 export function outputPageKey(itemId: string, outputRef: string): string {
   return `${itemId}:${outputRef}`
@@ -367,6 +390,40 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       return entry
     }
   }
+}
+
+/** A user card rebuilt from a stored `userMessage` item (M6 replay). */
+function replayedUserEntry(item: ItemSnapshot): TranscriptEntry {
+  return {
+    kind: 'user',
+    id: item.itemId,
+    text: item.text ?? '',
+    status: 'sent',
+    attachments: (item.attachments ?? []).map((attachment, index) => ({
+      id: `${item.itemId}:${String(index)}`,
+      name: attachment.mediaType,
+      ...(attachment.width !== undefined && { width: attachment.width }),
+      ...(attachment.height !== undefined && { height: attachment.height }),
+    })),
+    ...(item.turnId !== undefined && { turnId: item.turnId }),
+  }
+}
+
+/**
+ * Rebuild the transcript from a session's stored items (`historyLoaded`):
+ * user messages become cards (the live path hides them, its own echo being
+ * the card), everything else takes the live rows at their final state.
+ */
+function replayHistory(items: readonly ItemSnapshot[], at: number): readonly TranscriptEntry[] {
+  const transcript: TranscriptEntry[] = []
+  for (const item of items) {
+    if (item.kind === USER_MESSAGE_KIND) {
+      transcript.push(replayedUserEntry(item))
+    } else if (!HIDDEN_ITEM_KINDS.has(item.kind)) {
+      transcript.push(entryFor(item, at))
+    }
+  }
+  return transcript
 }
 
 function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
@@ -624,14 +681,34 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, auth: { status: message.status, detail: message.detail } }
     }
     case 'sessionInfo': {
-      return { ...state, model: { modelId: message.modelId, contextLimit: message.contextLimit } }
+      return {
+        ...state,
+        model: { modelId: message.modelId, contextLimit: message.contextLimit },
+        sessionId: message.sessionId,
+      }
+    }
+    case 'sessionList': {
+      return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
+    }
+    case 'historyLoaded': {
+      return {
+        ...state,
+        sessionId: message.sessionId,
+        title: message.name,
+        transcript: replayHistory(message.items, at),
+        todos: message.todos,
+        activeTurnId: undefined,
+        usage: undefined,
+        context: undefined,
+        outputPages: {},
+      }
     }
     case 'turnAccepted': {
       return {
         ...state,
         activeTurnId: message.turnId,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
-          entry.kind === 'user' ? { ...entry, status: 'sent' } : entry,
+          entry.kind === 'user' ? { ...entry, status: 'sent', turnId: message.turnId } : entry,
         ),
       }
     }
@@ -757,6 +834,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         title: undefined,
+        sessionId: undefined,
         transcript: [],
         attachments: [],
         activeTurnId: undefined,
@@ -783,6 +861,32 @@ export function visibleEditorContext(state: UiState): EditorContextSummary | und
     return undefined
   }
   return editorContext.relativePath === state.dismissedEditorPath ? undefined : editorContext
+}
+
+/** Where "Fork from here" on a user card cuts: after the previous turn, or a fresh start. */
+export type ForkCut =
+  { readonly type: 'afterTurn'; readonly lastTurnId: string } | { readonly type: 'fresh' }
+
+/**
+ * The cut point for forking before the given user card: the last turn of
+ * an earlier user message, or a fresh conversation when it is the first.
+ * Undefined when the id is not a sent user card.
+ */
+export function forkCutBefore(
+  transcript: readonly TranscriptEntry[],
+  entryId: string,
+): ForkCut | undefined {
+  const index = transcript.findIndex((entry) => entry.id === entryId)
+  const target = transcript[index]
+  if (target?.kind !== 'user' || target.status !== 'sent') {
+    return undefined
+  }
+  const earlier = transcript
+    .slice(0, index)
+    .findLast((entry) => entry.kind === 'user' && entry.turnId !== undefined)
+  return earlier?.kind === 'user' && earlier.turnId !== undefined
+    ? { type: 'afterTurn', lastTurnId: earlier.turnId }
+    : { type: 'fresh' }
 }
 
 /** Whether any tool row is waiting on the user (approval or question). */

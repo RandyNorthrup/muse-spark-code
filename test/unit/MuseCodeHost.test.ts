@@ -384,3 +384,148 @@ describe('MuseCodeHost', () => {
     expect(host.sessionCount).toBe(0)
   })
 })
+
+describe('MuseCodeHost: stored sessions (M6)', () => {
+  const stored = {
+    sessionId: 'old',
+    path: '/logs/old.jsonl',
+    status: 'notLoaded',
+    activeTurnId: null,
+    createdAt: '2026-09-22T10:00:00Z',
+    updatedAt: '2026-09-22T11:00:00Z',
+    workspaceRoot: '/ws',
+    providerId: 'meta',
+    modelId: 'muse-spark-1.3-contributor',
+    turnCount: 1,
+    forkedFrom: null,
+    title: 'Old prompt',
+  }
+  const items = [
+    { itemId: 'u1', kind: 'userMessage', status: 'completed', turnId: 't1', text: 'Old prompt' },
+  ]
+  const envelope = (session: Record<string, unknown>) => ({
+    session,
+    history: { mode: 'inline', items, snapshot: null },
+    pendingRequests: [],
+    viewCursor: 'v:old:3',
+  })
+
+  it('pages session/list for a workspace', async () => {
+    const { host, server } = setup()
+    server.handle('session/list', (params) => ({
+      sessions: [
+        { ...stored, sessionId: typeof params['cursor'] === 'string' ? params['cursor'] : 'first' },
+      ],
+      nextCursor: params['cursor'] === undefined ? 'next' : null,
+    }))
+    const first = await host.listSessions({ workspaceRoot: '/ws', limit: 50 })
+    expect(first.sessions[0]?.sessionId).toBe('first')
+    expect(first.nextCursor).toBe('next')
+    const second = await host.listSessions({ workspaceRoot: '/ws', limit: 50, cursor: 'next' })
+    expect(second.sessions[0]?.sessionId).toBe('next')
+    expect(second.nextCursor).toBeUndefined()
+    expect(server.requestsFor('session/list')[1]?.params).toMatchObject({
+      workspaceRoot: '/ws',
+      limit: 50,
+      cursor: 'next',
+    })
+    expect(server.requestsFor('session/list')[0]?.params).not.toHaveProperty('cursor')
+  })
+
+  it('resumes with inline history, tracks the session and routes its events', async () => {
+    const { host, server } = setup()
+    server.handle('session/resume', (params) =>
+      envelope({ ...stored, sessionId: params['sessionId'], status: 'idle' }),
+    )
+    const loaded = await host.resumeSession('old', 'muse-spark-1.3', {
+      ide: { url: 'http://127.0.0.1:1/mcp', headers: { Authorization: 'Bearer x' } },
+    })
+    expect(server.requestsFor('session/resume')[0]?.params).toMatchObject({
+      sessionId: 'old',
+      history: 'inline',
+      config: { mcpServers: { ide: { transport: 'streamableHttp', mode: 'optional' } } },
+    })
+    expect(loaded.session.sessionId).toBe('old')
+    expect(loaded.session.modelId).toBe('muse-spark-1.3')
+    expect(loaded.record.status).toBe('idle')
+    expect(loaded.history).toEqual({
+      mode: 'inline',
+      items,
+      name: undefined,
+      todos: [],
+    })
+    expect(host.sessionCount).toBe(1)
+    const events: AgentEvent[] = []
+    loaded.session.onEvent((event) => {
+      events.push(event)
+    })
+    server.notify('session/nameChanged', { sessionId: 'old', name: 'N' })
+    await settle()
+    expect(events).toEqual([{ type: 'sessionNamed', name: 'N' }])
+    // Resuming again hands back the same handle.
+    const again = await host.resumeSession('old', 'muse-spark-1.3')
+    expect(again.session).toBe(loaded.session)
+    expect(server.requestsFor('session/resume')[1]?.params).not.toHaveProperty('config')
+  })
+
+  it('reads a session without loading it, forks with an optional cut point, renames', async () => {
+    const { host, server } = setup()
+    server.handle('session/read', () => envelope(stored))
+    server.handle('session/fork', (params) =>
+      envelope({ ...stored, sessionId: 'fork', forkedFrom: { sessionId: params['sessionId'] } }),
+    )
+    server.handle('session/rename', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+      name: 'Canonical',
+    }))
+    const read = await host.readSession('old')
+    expect(read.items).toEqual(items)
+    expect(server.requestsFor('session/read')[0]?.params).toMatchObject({
+      sessionId: 'old',
+      excludeItems: false,
+    })
+    expect(host.sessionCount).toBe(0)
+    const fork = await host.forkSession('old', 'muse-spark-1.3', 't1')
+    expect(server.requestsFor('session/fork')[0]?.params).toMatchObject({
+      sessionId: 'old',
+      cutPoint: { lastTurnId: 't1' },
+    })
+    expect(fork.session.sessionId).toBe('fork')
+    expect(fork.record.forkedFrom).toEqual({ sessionId: 'old' })
+    await host.forkSession('old', 'muse-spark-1.3')
+    expect(server.requestsFor('session/fork')[1]?.params).not.toHaveProperty('cutPoint')
+    await expect(fork.session.rename('canonical')).resolves.toBe('Canonical')
+    expect(server.requestsFor('session/rename')[0]?.params).toMatchObject({
+      sessionId: 'fork',
+      name: 'canonical',
+    })
+    server.handle('session/rename', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+    }))
+    await expect(fork.session.rename('later')).resolves.toBeUndefined()
+  })
+
+  it('delivers list-stream events to their listeners without a session, warning on bad shapes', async () => {
+    const { host, server, log } = setup()
+    const events: unknown[] = []
+    const stop = host.onSessionListEvent((event) => {
+      events.push(event)
+    })
+    server.notify('session/listChanged', { session: stored })
+    server.notify('session/closed', { sessionId: 'old', reason: 'hostShutdown', viewCursor: 'v' })
+    server.notify('session/listChanged', { session: { sessionId: 'broken' } })
+    await settle()
+    expect(events).toEqual([
+      { type: 'changed', record: expect.objectContaining({ sessionId: 'old' }) },
+      { type: 'closed', sessionId: 'old', reason: 'hostShutdown' },
+    ])
+    expect(log.warn).toHaveBeenCalledOnce()
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('session/listChanged')
+    stop()
+    server.notify('session/closed', { sessionId: 'old', reason: 'idle', viewCursor: 'v' })
+    await settle()
+    expect(events).toHaveLength(2)
+  })
+})

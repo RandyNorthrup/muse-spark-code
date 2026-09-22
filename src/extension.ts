@@ -25,12 +25,13 @@ import {
   ConversationController,
   type FileAccess,
   type PickedFile,
+  type SessionMemory,
 } from './host/conversation/conversationController'
 import { createLogger } from './host/logger'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister } from './host/mention/workspaceFiles'
 import { readSettings, toSettingsSnapshot } from './host/settings'
-import { ChatViewProvider } from './host/views/ChatViewProvider'
+import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
@@ -54,12 +55,16 @@ import {
   UI_TEXT,
   VSCODE_COMMANDS,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
+  WORKSPACE_STATE_KEYS,
 } from './shared/constants'
 import type { HostAction } from './shared/protocol'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
 // field we read instead of trusting it.
 const packageManifestSchema = z.object({ version: z.string() })
+// `workspaceState` values are whatever an earlier version stored.
+const archivedIdsSchema = z.array(z.string())
+const lastSessionSchema = z.object({ sessionId: z.string(), at: z.number() })
 
 // `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
 const QUICK_PICK_LIMIT = 50
@@ -341,6 +346,26 @@ export function activate(context: vscode.ExtensionContext): void {
     log,
   })
 
+  // Session history memory (M6): archived ids and the last session, per
+  // workspace, in the extension's own `workspaceState`.
+  const sessions: SessionMemory = {
+    archivedIds: () =>
+      archivedIdsSchema.parse(
+        context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.archivedSessions) ?? [],
+      ),
+    setArchivedIds: async (ids) => {
+      await context.workspaceState.update(WORKSPACE_STATE_KEYS.archivedSessions, [...ids])
+    },
+    lastSession: () => {
+      const stored = context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.lastSession)
+      const parsed = lastSessionSchema.safeParse(stored)
+      return parsed.success ? parsed.data : undefined
+    },
+    setLastSession: async (last) => {
+      await context.workspaceState.update(WORKSPACE_STATE_KEYS.lastSession, last)
+    },
+  }
+
   const files: FileAccess = {
     showOpenDialog: async () => {
       const uris = await vscode.window.showOpenDialog({
@@ -462,6 +487,11 @@ export function activate(context: vscode.ExtensionContext): void {
         editReview,
         ideMcpEndpoint: () => ideServer.current,
         newAttachmentId: () => crypto.randomUUID(),
+        sessions,
+        // Only the sidebar reopens on its last session; a tab is a new
+        // conversation by construction (M6).
+        isRestorable: surface.id === SIDEBAR_SURFACE_ID,
+        now: () => Date.now(),
         log,
       })
       controllers.set(surface.id, controller)
@@ -485,10 +515,13 @@ export function activate(context: vscode.ExtensionContext): void {
       )
     },
     onSurfaceReady: (surface) => {
-      controllerFor(surface).surfaceReady()
+      const controller = controllerFor(surface)
+      controller.surfaceReady()
       surface.post({ type: 'editorContext', context: editorContext.summary })
       if (auth.current.status === 'checking') {
-        void auth.refresh()
+        void auth.refresh().then(() => controller.restoreRecentSession())
+      } else {
+        void controller.restoreRecentSession()
       }
       // No setup offer where this window will not use the sandbox anyway.
       if (!backend.shellSandboxPosture().isSandboxed) {

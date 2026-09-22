@@ -29,6 +29,7 @@ export type PaletteAction =
   | { readonly type: 'attachFile' }
   | { readonly type: 'mentionFile' }
   | { readonly type: 'clearConversation' }
+  | { readonly type: 'openHistory' }
   | { readonly type: 'openModelPicker' }
   | { readonly type: 'setEffort'; readonly effort: EffortLevel }
   | { readonly type: 'toggleThinking' }
@@ -153,6 +154,12 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         { id: 'attachFile', label: UI_TEXT.attachFile, action: { type: 'attachFile' } },
         { id: 'mentionFile', label: UI_TEXT.mentionFile, action: { type: 'mentionFile' } },
         { id: 'clear', label: UI_TEXT.clearConversation, action: { type: 'clearConversation' } },
+        {
+          id: 'resume',
+          label: UI_TEXT.resumeItem,
+          detail: UI_TEXT.resumeDetail,
+          action: { type: 'openHistory' },
+        },
       ],
     },
     {

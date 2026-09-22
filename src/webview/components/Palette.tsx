@@ -15,6 +15,7 @@ import {
   type PaletteWidget,
 } from '../../shared/palette'
 import type { ModelOption } from '../../shared/protocol'
+import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
 
@@ -232,16 +233,12 @@ export function Palette(props: PaletteProps) {
   useEffect(() => {
     const active = rows[activeIndex]
     if (active !== undefined) {
-      document
-        .querySelector(`#${ROW_ID_PREFIX}${CSS.escape(active.id)}`)
-        ?.scrollIntoView({ block: 'nearest' })
+      scrollRowIntoView(ROW_ID_PREFIX, active.id)
     }
   }, [rows, activeIndex])
 
   const move = (delta: number) => {
-    if (rows.length > 0) {
-      setActiveIndex((activeIndex + delta + rows.length) % rows.length)
-    }
+    setActiveIndex(wrapIndex(activeIndex, delta, rows.length))
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {

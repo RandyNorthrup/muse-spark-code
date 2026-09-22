@@ -10,12 +10,11 @@ import {
   answerSchema,
   approvalChoiceSchema,
   approvalSubjectSchema,
-  type ItemSnapshot,
-  itemSnapshotFields,
   questionSchema,
   requirementRefSchema,
   todoItemSchema,
 } from '../../../shared/agentEvents'
+import { toSnapshot, wireItemSchema } from './sessionRecords'
 
 export interface MappedNotification {
   readonly sessionId: string
@@ -27,13 +26,7 @@ export interface WireNotification {
   readonly params?: Record<string, unknown> | undefined
 }
 
-// The wire item is the snapshot with `turnId` nullable (`null` on userShell).
-const itemSchema = z.object({
-  ...itemSnapshotFields,
-  turnId: z.optional(z.nullable(z.string())),
-})
-
-type WireItem = z.infer<typeof itemSchema>
+const itemSchema = wireItemSchema
 
 const sessionScoped = { sessionId: z.string() }
 
@@ -135,12 +128,6 @@ function isMappedMethod(method: string): method is MappedMethod {
 
 /** The default delta field when the host omits one. */
 const DEFAULT_DELTA_FIELD = 'text'
-
-/** Drops the `null` turn (userShell) so the snapshot's `turnId` stays a string. */
-function toSnapshot(item: WireItem): ItemSnapshot {
-  const { turnId, ...rest } = item
-  return { ...rest, ...(typeof turnId === 'string' && { turnId }) }
-}
 
 export function mapNotification(notification: WireNotification): MappedNotification | undefined {
   const { method } = notification

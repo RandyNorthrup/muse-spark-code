@@ -201,6 +201,7 @@ body {
 }
 
 .message-user {
+  position: relative;
   align-self: stretch;
   color: var(--vscode-input-foreground);
   background: var(--vscode-input-background);
@@ -1293,4 +1294,99 @@ body {
   display: flex;
   gap: 2px;
   padding-left: calc(var(--ms-gap) + 2px);
+}
+
+/* --- session history (M6) --- */
+
+.header-title-button {
+  min-width: 0;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: text;
+}
+
+.header-title-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  font-weight: 600;
+  background: var(--vscode-input-background);
+}
+
+.history .palette-header {
+  gap: var(--ms-gap);
+  color: var(--vscode-descriptionForeground);
+}
+
+.history-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.85em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-row .palette-item-label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.history-current {
+  font-weight: normal;
+}
+
+.history-archive {
+  flex-shrink: 0;
+  min-width: 22px;
+  height: 22px;
+  visibility: hidden;
+}
+
+/* "Fork from here" shows on hover or focus, under the user card's text. */
+.fork-button {
+  margin-top: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-descriptionForeground);
+  font: inherit;
+  font-size: 0.85em;
+  background: transparent;
+  cursor: pointer;
+  visibility: hidden;
+}
+
+.header-title-button:hover,
+.fork-button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.header-title-button:focus-visible,
+.header-title-input:focus-visible,
+.history-archive:focus-visible,
+.fork-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.history-row:hover .history-archive,
+.history-row.palette-item-active .history-archive {
+  visibility: visible;
+}
+
+.message-user:hover .fork-button,
+.message-user:focus-within .fork-button {
+  visibility: visible;
 }

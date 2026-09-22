@@ -76,6 +76,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     respectGitIgnore: readSetting(config, 'respectGitIgnore', log),
     confidentialWorkspace: readSetting(config, 'confidentialWorkspace', log),
     allowDangerouslySkipPermissions: readSetting(config, 'allowDangerouslySkipPermissions', log),
+    archiveInactiveSessions: readSetting(config, 'archiveInactiveSessions', log),
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
@@ -95,5 +96,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     respectGitIgnore: settings.respectGitIgnore,
     confidentialWorkspace: settings.confidentialWorkspace,
     allowDangerouslySkipPermissions: settings.allowDangerouslySkipPermissions,
+    archiveInactiveSessions: settings.archiveInactiveSessions,
   }
 }

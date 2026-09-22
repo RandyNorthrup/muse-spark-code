@@ -7,8 +7,10 @@ import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
 import type {
+  LoadedSession,
   MuseCodeHost,
   MuseSession,
+  SessionListEvent,
   SessionMcpHttpServer,
   TurnPart,
 } from '../../core/backends/musecode/MuseCodeHost'
@@ -16,6 +18,7 @@ import {
   isProfileWorkspaceLimited,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
+import { type SessionRecord, toSessionRow } from '../../core/backends/musecode/sessionRecords'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import {
   ALLOWED_LINK_SCHEMES,
@@ -29,6 +32,9 @@ import {
   PATCH_DOCUMENT_MAX_PAGES,
   type PermissionMode,
   SANDBOX_FAILURE_MARKER,
+  SESSION_LIST_LIMIT,
+  SESSION_LIST_MAX_PAGES,
+  SESSION_RESTORE_WINDOW_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
@@ -76,6 +82,21 @@ export interface EditReviewActions {
   revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
 }
 
+/** The last session a surface held, for the reopen-within-ten-minutes rule. */
+export interface LastSession {
+  readonly sessionId: string
+  /** Epoch ms of its last activity as this extension saw it. */
+  readonly at: number
+}
+
+/** Per-workspace memory behind the History dialog (`workspaceState`, M6). */
+export interface SessionMemory {
+  archivedIds(): readonly string[]
+  setArchivedIds(ids: readonly string[]): Promise<void>
+  lastSession(): LastSession | undefined
+  setLastSession(last: LastSession | undefined): Promise<void>
+}
+
 export interface ConversationDeps {
   readonly surface: ChatSurface
   readonly auth: AuthService
@@ -113,6 +134,11 @@ export interface ConversationDeps {
   /** The IDE tool server for `session/start`, when it is listening. */
   readonly ideMcpEndpoint: () => SessionMcpHttpServer | undefined
   readonly newAttachmentId: () => string
+  /** Session history (M6). */
+  readonly sessions: SessionMemory
+  /** Whether this surface resumes its last session when it reopens (the sidebar). */
+  readonly isRestorable: boolean
+  readonly now: () => number
   readonly log: Logger
 }
 
@@ -129,6 +155,15 @@ const NOTHING_TO_COMPACT = 'Nothing to compact yet.'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const FALLBACK_MODE: PermissionMode = 'manual'
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
+const HISTORY_MODE_NONE = 'none'
+const NOT_LOADED_STATUS = 'notLoaded'
+// Events that mark a hidden surface unread (Claude Code's dot): the turn is
+// done, or the agent is waiting on a decision or an answer.
+const ATTENTION_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
+  'turnCompleted',
+  'approvalRequested',
+  'questionRequested',
+])
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -147,6 +182,9 @@ export class ConversationController {
   private isThinkingEnabled = true
   private activeTurnId: string | undefined
   private hasWarnedSandbox = false
+  /** The workspace's stored sessions once the dialog asked for them (M6). */
+  private sessionRecords: Map<string, SessionRecord> | undefined
+  private listWatch: { readonly host: MuseCodeHost; readonly unsubscribe: () => void } | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -180,7 +218,34 @@ export class ConversationController {
       type: 'sessionInfo',
       modelId,
       ...(contextLimit !== undefined && { contextLimit }),
+      ...(this.session !== undefined && { sessionId: this.session.sessionId }),
     })
+  }
+
+  private postSessionList(): void {
+    if (this.sessionRecords === undefined) {
+      return
+    }
+    this.post({
+      type: 'sessionList',
+      sessions: Array.from(this.sessionRecords.values(), (record) => toSessionRow(record)),
+      archivedIds: [...this.deps.sessions.archivedIds()],
+    })
+  }
+
+  /** Remember when this surface's session was last active (the restore rule). */
+  private noteActivity(): void {
+    if (this.session === undefined) {
+      return
+    }
+    void this.deps.sessions.setLastSession({
+      sessionId: this.session.sessionId,
+      at: this.deps.now(),
+    })
+  }
+
+  private setTitle(name: string | undefined): void {
+    this.deps.surface.setTitle(name ?? UI_TEXT.untitledConversation)
   }
 
   private postComposerState(): void {
@@ -208,6 +273,9 @@ export class ConversationController {
 
   private onEvent(event: AgentEvent): void {
     this.post({ type: 'agentEvent', event })
+    if (ATTENTION_EVENTS.has(event.type)) {
+      this.deps.surface.markUnread()
+    }
     switch (event.type) {
       case 'turnStarted': {
         this.activeTurnId = event.turnId
@@ -215,9 +283,14 @@ export class ConversationController {
       }
       case 'turnCompleted': {
         this.activeTurnId = undefined
+        this.noteActivity()
         if (event.terminal === 'failed' && event.errorKind === AUTH_REQUIRED_ERROR_KIND) {
           this.deps.auth.markAuthRequired(event.reason ?? AUTH_REQUIRED_ERROR_KIND)
         }
+        break
+      }
+      case 'sessionNamed': {
+        this.setTitle(event.name)
         break
       }
       case 'sessionStatus': {
@@ -456,45 +529,221 @@ export class ConversationController {
     return this.skillsRefresh
   }
 
+  /** The IDE tool server config for a new or resumed session, when granted. */
+  private mcpServersFor(
+    host: MuseCodeHost,
+  ): Readonly<Record<string, SessionMcpHttpServer>> | undefined {
+    const ideEndpoint = this.deps.ideMcpEndpoint()
+    const hasSessionMcp = host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)
+    return ideEndpoint !== undefined && hasSessionMcp
+      ? { [IDE_MCP_SERVER_NAME]: ideEndpoint }
+      : undefined
+  }
+
+  /** Take a session as this surface's: events, composer state, skills. */
+  private async attach(session: MuseSession): Promise<void> {
+    this.session = session
+    this.unsubscribe = session.onEvent((event) => {
+      this.onEvent(event)
+    })
+    this.postSessionInfo(this.modelId)
+    this.noteActivity()
+    await this.applyEffort(session)
+    void this.refreshSkills(session)
+  }
+
   private async ensureSession(workspaceRoot: string): Promise<MuseSession> {
     if (this.session !== undefined) {
       return this.session
     }
     const host = await this.deps.ensureHost()
     await this.ensureModels(host)
-    const ideEndpoint = this.deps.ideMcpEndpoint()
-    const hasSessionMcp = host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)
+    const mcpServers = this.mcpServersFor(host)
     const session = await host.startSession({
       workspaceRoot,
       modelId: this.modelId,
       approvalMode: approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
-      ...(ideEndpoint !== undefined &&
-        hasSessionMcp && { mcpServers: { [IDE_MCP_SERVER_NAME]: ideEndpoint } }),
+      ...(mcpServers !== undefined && { mcpServers }),
     })
-    this.session = session
-    this.unsubscribe = session.onEvent((event) => {
-      this.onEvent(event)
-    })
-    this.postSessionInfo(session.modelId)
+    this.modelId = session.modelId
+    await this.attach(session)
     this.noteShellSandbox(workspaceRoot, host.info.serverVersion)
-    await this.applyEffort(session)
-    void this.refreshSkills(session)
     return session
+  }
+
+  /** Why a user action cannot run now (signed out / no folder), posted as asked. */
+  private refuseAction(localId?: string): string | undefined {
+    const isSignedIn = this.deps.auth.current.status === 'signedIn'
+    const reason = isSignedIn ? undefined : NOT_SIGNED_IN_REASON
+    if (reason === undefined && this.deps.workspaceRoot !== undefined) {
+      return undefined
+    }
+    const text = reason ?? NO_WORKSPACE_REASON
+    this.post(
+      localId === undefined
+        ? { type: 'notice', level: 'warning', text }
+        : { type: 'sendFailed', localId, reason: text },
+    )
+    return text
   }
 
   /** The session for a user action, or undefined (with the reason posted). */
   private async sessionForAction(localId?: string): Promise<MuseSession | undefined> {
-    const isSignedIn = this.deps.auth.current.status === 'signedIn'
-    const reason = isSignedIn ? undefined : NOT_SIGNED_IN_REASON
-    if (reason !== undefined || this.deps.workspaceRoot === undefined) {
-      if (localId === undefined) {
-        this.notice('warning', reason ?? NO_WORKSPACE_REASON)
-      } else {
-        this.post({ type: 'sendFailed', localId, reason: reason ?? NO_WORKSPACE_REASON })
-      }
+    const refusal = this.refuseAction(localId)
+    if (refusal !== undefined || this.deps.workspaceRoot === undefined) {
       return undefined
     }
-    return await this.ensureSession(this.deps.workspaceRoot)
+    const session = await this.ensureSession(this.deps.workspaceRoot)
+    return session
+  }
+
+  // --- Session history (M6) ---
+
+  /** Follow `session/listChanged` / `session/closed` on the current host. */
+  private watchList(host: MuseCodeHost): void {
+    if (this.listWatch?.host === host) {
+      return
+    }
+    this.listWatch?.unsubscribe()
+    this.listWatch = {
+      host,
+      unsubscribe: host.onSessionListEvent((event) => {
+        this.onListEvent(event)
+      }),
+    }
+  }
+
+  private onListEvent(event: SessionListEvent): void {
+    if (this.sessionRecords === undefined) {
+      return
+    }
+    if (event.type === 'changed') {
+      if (event.record.workspaceRoot !== this.deps.workspaceRoot) {
+        return
+      }
+      this.sessionRecords.set(event.record.sessionId, event.record)
+    } else {
+      const record = this.sessionRecords.get(event.sessionId)
+      if (record === undefined) {
+        return
+      }
+      this.sessionRecords.set(event.sessionId, { ...record, status: NOT_LOADED_STATUS })
+    }
+    this.postSessionList()
+  }
+
+  private async listSessions(): Promise<void> {
+    if (this.deps.workspaceRoot === undefined) {
+      this.notice('warning', NO_WORKSPACE_REASON)
+      return
+    }
+    try {
+      const host = await this.deps.ensureHost()
+      this.watchList(host)
+      const records: SessionRecord[] = []
+      let cursor: string | undefined
+      for (let page = 0; page < SESSION_LIST_MAX_PAGES; page += 1) {
+        const result = await host.listSessions({
+          workspaceRoot: this.deps.workspaceRoot,
+          limit: SESSION_LIST_LIMIT,
+          ...(cursor !== undefined && { cursor }),
+        })
+        records.push(...result.sessions)
+        cursor = result.nextCursor
+        if (cursor === undefined) {
+          break
+        }
+      }
+      this.sessionRecords = new Map(records.map((record) => [record.sessionId, record]))
+      this.postSessionList()
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`)
+    }
+  }
+
+  /**
+   * Make a resumed or forked session this surface's: the transcript is
+   * rebuilt from its history, the model comes from the catalogue's active
+   * row (never the record's `modelId`, PLAN.md M6), and this surface's
+   * composer settings are applied to it.
+   */
+  private async adopt(host: MuseCodeHost, loaded: LoadedSession, notice: string): Promise<void> {
+    this.dropSession()
+    const models = await host.listModels(loaded.session.sessionId)
+    const active = models.find((model) => model.isActive)
+    if (active !== undefined) {
+      this.modelId = active.modelId
+    }
+    this.post({
+      type: 'historyLoaded',
+      sessionId: loaded.session.sessionId,
+      items: [...loaded.history.items],
+      ...(loaded.history.name !== undefined && { name: loaded.history.name }),
+      todos: [...loaded.history.todos],
+    })
+    this.setTitle(loaded.history.name)
+    this.notice('info', `${notice} ${loaded.history.name ?? toSessionRow(loaded.record).title}`)
+    if (loaded.history.mode === HISTORY_MODE_NONE) {
+      this.notice('warning', UI_TEXT.historyNotServed)
+    }
+    await this.attach(loaded.session)
+    const target = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
+    try {
+      await loaded.session.setApprovalMode(target)
+    } catch (error: unknown) {
+      this.notice('warning', `Could not apply the permission mode: ${describe(error)}`)
+    }
+  }
+
+  private async resumeSession(sessionId: string): Promise<void> {
+    if (this.refuseAction() !== undefined || this.session?.sessionId === sessionId) {
+      return
+    }
+    try {
+      const host = await this.deps.ensureHost()
+      await this.ensureModels(host)
+      this.watchList(host)
+      const loaded = await host.resumeSession(sessionId, this.modelId, this.mcpServersFor(host))
+      await this.adopt(host, loaded, UI_TEXT.resumedNotice)
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`)
+    }
+  }
+
+  private async forkSession(lastTurnId: string | undefined): Promise<void> {
+    if (this.session === undefined) {
+      this.notice('info', UI_TEXT.sessionRequired)
+      return
+    }
+    try {
+      const host = await this.deps.ensureHost()
+      const loaded = await host.forkSession(this.session.sessionId, this.modelId, lastTurnId)
+      await this.adopt(host, loaded, UI_TEXT.forkedNotice)
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`)
+    }
+  }
+
+  private async renameSession(name: string): Promise<void> {
+    const trimmed = name.trim()
+    if (trimmed === '' || this.session === undefined) {
+      return
+    }
+    try {
+      const canonical = await this.session.rename(trimmed)
+      if (canonical !== undefined) {
+        this.setTitle(canonical)
+        this.post({ type: 'agentEvent', event: { type: 'sessionNamed', name: canonical } })
+      }
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.renameFailed}: ${describe(error)}`)
+    }
+  }
+
+  private async setSessionArchived(sessionId: string, isArchived: boolean): Promise<void> {
+    const others = this.deps.sessions.archivedIds().filter((id) => id !== sessionId)
+    await this.deps.sessions.setArchivedIds(isArchived ? [...others, sessionId] : others)
+    this.postSessionList()
   }
 
   private buildParts(text: string, attachmentIds: readonly string[]): readonly TurnPart[] {
@@ -591,6 +840,7 @@ export class ConversationController {
       const turnId = await this.submit(session, parts, displayText)
       this.activeTurnId = turnId
       this.post({ type: 'turnAccepted', localId, turnId })
+      this.noteActivity()
     } catch (error: unknown) {
       const reason = describe(error)
       this.deps.log.error(`sendMessage failed: ${reason}`)
@@ -665,6 +915,8 @@ export class ConversationController {
   private clear(): void {
     this.dropSession()
     this.attachments.clear()
+    this.setTitle(undefined)
+    void this.deps.sessions.setLastSession(undefined)
     this.post({ type: 'attachmentsCleared' })
   }
 
@@ -896,7 +1148,50 @@ export class ConversationController {
         await this.runHostAction(message.action)
         break
       }
+      case 'listSessions': {
+        await this.listSessions()
+        break
+      }
+      case 'resumeSession': {
+        await this.resumeSession(message.sessionId)
+        break
+      }
+      case 'setSessionArchived': {
+        await this.setSessionArchived(message.sessionId, message.isArchived)
+        break
+      }
+      case 'forkSession': {
+        await this.forkSession(message.lastTurnId)
+        break
+      }
+      case 'renameSession': {
+        await this.renameSession(message.name)
+        break
+      }
     }
+  }
+
+  /**
+   * The Claude Code sidebar rule: a surface that reopens within ten minutes
+   * of its last session's activity picks that session up again; otherwise
+   * it starts empty and the History dialog has it.
+   */
+  public async restoreRecentSession(): Promise<void> {
+    const last = this.deps.sessions.lastSession()
+    if (
+      last === undefined ||
+      this.session !== undefined ||
+      !this.deps.isRestorable ||
+      this.deps.workspaceRoot === undefined ||
+      this.deps.auth.current.status !== 'signedIn'
+    ) {
+      return
+    }
+    if (this.deps.now() - last.at > SESSION_RESTORE_WINDOW_MS) {
+      await this.deps.sessions.setLastSession(undefined)
+      return
+    }
+    await this.resumeSession(last.sessionId)
   }
 
   /** Alt+T: flip the Thinking toggle for this conversation. */
@@ -907,10 +1202,13 @@ export class ConversationController {
   /** The host process died: forget the session and tell the user. */
   public hostExited(description: string): void {
     this.dropSession()
+    this.listWatch = undefined
     this.deps.auth.markBackendError(`${UI_TEXT.hostExited} (${description})`)
   }
 
   public dispose(): void {
     this.dropSession()
+    this.listWatch?.unsubscribe()
+    this.listWatch = undefined
   }
 }

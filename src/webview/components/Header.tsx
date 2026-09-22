@@ -1,3 +1,7 @@
+// The panel header: the conversation title (click to rename once a session
+// exists, M6), the Focus view badge, the History clock and New conversation.
+
+import { type KeyboardEvent, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { HistoryIcon, NewConversationIcon } from './icons'
 
@@ -5,12 +9,81 @@ export interface HeaderProps {
   readonly title: string
   readonly isFocusView: boolean
   readonly onNewConversation: () => void
+  /** Undefined while the shell is connecting (the buttons are inert then). */
+  readonly onOpenHistory?: (() => void) | undefined
+  /** Present once a session exists: the title becomes editable. */
+  readonly onRename?: ((name: string) => void) | undefined
 }
 
-export function Header({ title, isFocusView, onNewConversation }: HeaderProps) {
+function TitleEditor({
+  title,
+  onRename,
+}: {
+  readonly title: string
+  readonly onRename: (name: string) => void
+}) {
+  const [draft, setDraft] = useState<string | undefined>(undefined)
+  if (draft === undefined) {
+    return (
+      <button
+        type="button"
+        className="header-title-button"
+        title={UI_TEXT.renameTitle}
+        onClick={() => {
+          setDraft(title === UI_TEXT.untitledConversation ? '' : title)
+        }}
+      >
+        <h1 className="header-title">{title}</h1>
+      </button>
+    )
+  }
+  const commit = () => {
+    const name = draft.trim()
+    setDraft(undefined)
+    if (name !== '' && name !== title) {
+      onRename(name)
+    }
+  }
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commit()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setDraft(undefined)
+    }
+  }
+  return (
+    <input
+      className="header-title-input"
+      type="text"
+      aria-label={UI_TEXT.renameTitle}
+      placeholder={UI_TEXT.renamePlaceholder}
+      value={draft}
+      autoFocus
+      onChange={(event) => {
+        setDraft(event.target.value)
+      }}
+      onKeyDown={handleKeyDown}
+      onBlur={commit}
+    />
+  )
+}
+
+export function Header({
+  title,
+  isFocusView,
+  onNewConversation,
+  onOpenHistory,
+  onRename,
+}: HeaderProps) {
   return (
     <header className="header">
-      <h1 className="header-title">{title}</h1>
+      {onRename === undefined ? (
+        <h1 className="header-title">{title}</h1>
+      ) : (
+        <TitleEditor title={title} onRename={onRename} />
+      )}
       <div className="header-actions">
         {isFocusView ? <span className="badge">{UI_TEXT.focusViewBadge}</span> : null}
         <button
@@ -18,7 +91,8 @@ export function Header({ title, isFocusView, onNewConversation }: HeaderProps) {
           className="icon-button"
           title={UI_TEXT.historyTitle}
           aria-label={UI_TEXT.historyTitle}
-          disabled
+          disabled={onOpenHistory === undefined}
+          onClick={onOpenHistory}
         >
           <HistoryIcon />
         </button>

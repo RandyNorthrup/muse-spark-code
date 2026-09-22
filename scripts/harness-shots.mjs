@@ -38,6 +38,8 @@ const SCENARIOS = [
   'focus',
   'long',
   'editor',
+  'history',
+  'resume',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'

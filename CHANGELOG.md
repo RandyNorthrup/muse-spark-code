@@ -9,6 +9,30 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Milestone M6, sessions and history: a **History** dialog (header clock or
+  `/` → Resume) over the workspace's stored Muse Code sessions
+  (`session/list`, paged), grouped Today / Yesterday / Previous 7 days /
+  Older with search on names and branches, relative times, turn counts and
+  fork marks, live through `session/listChanged` / `session/closed`
+  (`sessionListStream` capability); **Resume** rebuilds the transcript from
+  the stored history (`session/resume` with `history: inline`, snapshot
+  state when the host serves that; your messages as cards from their
+  `displayText`, image chips from the attachment metadata) and continues the
+  session live, seeding the model from the catalogue's active row and
+  applying the surface's effort and permission mode; **Archive** /
+  **Unarchive** per row and `museSpark.archiveInactiveSessions` (1 / 2 / 7 /
+  14 days or never, default 14) kept in workspace state — hidden, never
+  deleted; the sidebar resumes its last session when reopened within ten
+  minutes of its last activity (Claude Code's rule), tabs always start
+  fresh; **Rename** by clicking the header title (`session/rename`, the
+  canonical name shown) and **Fork from here** on your messages
+  (`session/fork` with the previous turn as the cut point; a fork before the
+  first message is a new conversation) — both offered everywhere and
+  refused by Muse Code 1.3.0 on Windows, which the panel reports as a
+  notice; an unread badge on the hidden sidebar view and a `●` on a
+  background tab when a turn completes or the agent waits for an approval
+  or an answer; the tab and the view description follow the session name.
+
 - `museSpark.shellSandbox` (`auto` / `muse` / `off`, default `auto`): how
   shell commands run. `auto` keeps Muse Code's OS sandbox except for a
   Windows workspace under the user profile, where the 1.3.0 sandbox cannot

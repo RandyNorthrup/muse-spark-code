@@ -885,8 +885,24 @@ or may not be related to the current task.</ide_opened_file>` — and sets
 
 ### M6 — Sessions, history, rewind
 
-**Status 2026-09-22: design written; implementation next.** Wire probe
-(`scratchpad/probe-sessions.ts`, no tokens) against the day's live sessions:
+**Status 2026-09-22: complete.** Certification record: `docs/certification/m6.md`.
+Delivered as designed below: the History dialog (paged `session/list`,
+grouped and searchable, archive in `workspaceState`, live through the
+`sessionListStream` events), resume with inline/snapshot history replayed
+into the transcript, the sidebar's ten-minute restore, rename and fork
+(offered; Muse Code 1.3.0 refuses both on Windows and the panel shows the
+refusal), the unread badge / tab mark, and the tab title following the
+session name. Deviations from the design, all deliberate: a `none` history
+(host budget) is reported as a warning notice rather than paged through
+`view/page` (no session here has come close to the budget; the fallback
+stays on the M8 polish list); pending approvals / questions listed in a
+resume's `pendingRequests` are not re-shown (the host re-issues them as
+server requests, which this client declines by design; a resumed session
+with a decision pending is an edge the live check could not produce);
+resume applies the surface's effort and permission mode to the session
+instead of reading the session's own, so the composer never lies. Wire
+probe (`scratchpad/probe-sessions.ts`, no tokens) against the day's live
+sessions:
 
 - `session/list` rows carry `sessionId, path, status, activeTurnId,
 createdAt, updatedAt, workspaceRoot, providerId, modelId, turnCount,

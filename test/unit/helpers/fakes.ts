@@ -108,6 +108,7 @@ export const testSettings: SettingsSnapshot = {
   respectGitIgnore: true,
   confidentialWorkspace: false,
   allowDangerouslySkipPermissions: false,
+  archiveInactiveSessions: 14,
 }
 
 export interface FakeHostContext extends WebviewHostContext {
@@ -133,6 +134,8 @@ export function fakeHostContext(settings: SettingsSnapshot = testSettings): Fake
 export interface FakeSurface extends ChatSurface {
   readonly posted: HostToWebviewMessage[]
   readonly reveal: ReturnType<typeof vi.fn<() => void>>
+  readonly markUnread: ReturnType<typeof vi.fn<() => void>>
+  readonly setTitle: ReturnType<typeof vi.fn<(title: string) => void>>
 }
 
 export function fakeSurface(id: string): FakeSurface {
@@ -144,6 +147,8 @@ export function fakeSurface(id: string): FakeSurface {
       posted.push(message)
     },
     reveal: vi.fn<() => void>(),
+    markUnread: vi.fn<() => void>(),
+    setTitle: vi.fn<(title: string) => void>(),
     dispose() {
       // nothing to release in the fake
     },

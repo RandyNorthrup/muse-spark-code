@@ -129,6 +129,14 @@ describe('buildPalette', () => {
     expect(noLimit[1]?.items[0]?.widget).toEqual({ kind: 'value', text: 'm' })
   })
 
+  it('offers Resume in the Context group, opening the History dialog', () => {
+    const context_group = buildPalette(context).find((group) => group.id === 'context')
+    expect(context_group?.items.find((item) => item.id === 'resume')).toMatchObject({
+      label: 'Resume',
+      action: { type: 'openHistory' },
+    })
+  })
+
   it('routes every enabled row to a real action', () => {
     const rows = flattenPalette(buildPalette(context))
     for (const item of rows) {

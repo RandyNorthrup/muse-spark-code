@@ -6,8 +6,15 @@
 // import from `vscode`, Node, or the DOM.
 
 import * as z from 'zod/mini'
-import { agentEventSchema, answerSchema, requirementRefSchema } from './agentEvents'
+import {
+  agentEventSchema,
+  answerSchema,
+  itemSnapshotSchema,
+  requirementRefSchema,
+  todoItemSchema,
+} from './agentEvents'
 import { EFFORT_LEVELS, PERMISSION_MODES, PREFERRED_LOCATIONS } from './constants'
+import { sessionRowSchema } from './sessions'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -23,6 +30,8 @@ export const settingsSnapshotShape = {
   respectGitIgnore: z.boolean(),
   confidentialWorkspace: z.boolean(),
   allowDangerouslySkipPermissions: z.boolean(),
+  /** Days of inactivity after which the History dialog hides a session; 0 never. */
+  archiveInactiveSessions: z.number(),
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)
@@ -185,6 +194,17 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Edit review (M5): the stored patch of a completed edit-family item.
   z.object({ type: z.literal('openEditDiff'), itemId: z.string(), outputRef: z.string() }),
   z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
+  // Session history (M6).
+  z.object({ type: z.literal('listSessions') }),
+  z.object({ type: z.literal('resumeSession'), sessionId: z.string() }),
+  z.object({
+    type: z.literal('setSessionArchived'),
+    sessionId: z.string(),
+    isArchived: z.boolean(),
+  }),
+  /** Fork the current session through `lastTurnId` (all turns when absent). */
+  z.object({ type: z.literal('forkSession'), lastTurnId: z.optional(z.string()) }),
+  z.object({ type: z.literal('renameSession'), name: z.string() }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -214,11 +234,26 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     status: z.enum(AUTH_STATUSES),
     detail: z.optional(z.string()),
   }),
-  // The active session's model (shown in the composer pill).
+  // The active session's model (shown in the composer pill) and identity.
   z.object({
     type: z.literal('sessionInfo'),
     modelId: z.string(),
     contextLimit: z.optional(z.number()),
+    sessionId: z.optional(z.string()),
+  }),
+  // Session history (M6): the workspace's stored sessions for the dialog.
+  z.object({
+    type: z.literal('sessionList'),
+    sessions: z.array(sessionRowSchema),
+    archivedIds: z.array(z.string()),
+  }),
+  // A resumed or forked session's history: the transcript is rebuilt from it.
+  z.object({
+    type: z.literal('historyLoaded'),
+    sessionId: z.string(),
+    items: z.array(itemSnapshotSchema),
+    name: z.optional(z.string()),
+    todos: z.array(todoItemSchema),
   }),
   // The host accepted a sendMessage and the turn is running.
   z.object({ type: z.literal('turnAccepted'), localId: z.string(), turnId: z.string() }),

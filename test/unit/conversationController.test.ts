@@ -9,10 +9,12 @@ import type { AuthService, AuthSnapshot } from '../../src/host/auth/authService'
 import {
   ConversationController,
   type ConversationDeps,
+  type LastSession,
   NO_WORKSPACE_REASON,
   NOT_SIGNED_IN_REASON,
   NOTHING_TO_SEND_REASON,
   type PickedFile,
+  type SessionMemory,
 } from '../../src/host/conversation/conversationController'
 import type { HostAction, MentionItem } from '../../src/shared/protocol'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
@@ -68,6 +70,8 @@ const PNG = Uint8Array.from([
   0, 0, 0, 3,
 ])
 
+const NOW = Date.parse('2026-09-22T12:00:00Z')
+
 const composerState = {
   type: 'composerState',
   effort: 'high',
@@ -81,7 +85,12 @@ const modelList = {
     { modelId: 'muse-spark-1.2', displayLabel: 'y', isDefault: true },
   ],
 }
-const sessionInfo = { type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 }
+const sessionInfo = {
+  type: 'sessionInfo',
+  modelId: 'muse-spark-1.3',
+  contextLimit: 1_007_997,
+  sessionId: 's1',
+}
 const skillList = {
   type: 'skillList',
   skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'd', argumentHint: 'h' }],
@@ -113,6 +122,11 @@ function setup(
     ideMcpEndpoint?: SessionMcpHttpServer
     grantedCapabilities?: readonly string[]
     shellSandbox?: ShellSandboxPosture
+    /** Session history memory (M6). */
+    archivedIds?: readonly string[]
+    lastSession?: LastSession
+    isRestorable?: boolean
+    now?: number
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -154,13 +168,20 @@ function setup(
     status: 'accepted',
     commandId: params['commandId'],
   }))
-  handle.server.handle('model/list', () => ({
+  // The stored session `old` runs on 1.2 (its active row), as a resume must learn.
+  handle.server.handle('model/list', (params) => ({
     providerId: 'meta',
     profileId: null,
     source: 'catalog',
     models: [
       { modelId: 'muse-spark-1.3', displayLabel: 'x', contextLimit: 1_007_997, isDefault: false },
-      { modelId: 'muse-spark-1.2', displayLabel: 'y', contextLimit: null, isDefault: true },
+      {
+        modelId: 'muse-spark-1.2',
+        displayLabel: 'y',
+        contextLimit: null,
+        isDefault: true,
+        isActive: params['sessionId'] === 'old',
+      },
     ],
   }))
   handle.server.handle('skill/list', () => ({
@@ -208,6 +229,22 @@ function setup(
   const saveAll = vi.fn(() => Promise.resolve())
   const applied: string[] = []
   const reviews: [string, string, string][] = []
+  const memory = {
+    archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
+    lastSession: options.lastSession,
+  }
+  const sessions: SessionMemory = {
+    archivedIds: () => memory.archivedIds,
+    setArchivedIds: (ids) => {
+      memory.archivedIds = ids
+      return Promise.resolve()
+    },
+    lastSession: () => memory.lastSession,
+    setLastSession: (last) => {
+      memory.lastSession = last
+      return Promise.resolve()
+    },
+  }
   const controller = new ConversationController({
     surface,
     auth: auth.service,
@@ -275,6 +312,9 @@ function setup(
       attachmentCount += 1
       return `att-${String(attachmentCount)}`
     },
+    sessions,
+    isRestorable: options.isRestorable ?? false,
+    now: () => options.now ?? NOW,
     log,
   })
   const send = (localId: string, text: string, attachmentIds: string[] = []) =>
@@ -308,6 +348,7 @@ function setup(
     saveAll,
     applied,
     reviews,
+    memory,
     setHasEditor: (isOpen: boolean) => {
       hasEditor = isOpen
     },
@@ -1222,5 +1263,343 @@ describe('ConversationController: other messages', () => {
     await t.send('l2', 'next')
     expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
     expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+  })
+})
+
+// --- Session history (M6) ---
+
+const storedSession = {
+  sessionId: 'old',
+  path: '/logs/old.jsonl',
+  status: 'notLoaded',
+  activeTurnId: null,
+  createdAt: '2026-09-22T10:00:00Z',
+  updatedAt: '2026-09-22T11:00:00Z',
+  lastActivityAt: '2026-09-22T11:00:00Z',
+  workspaceRoot: '/ws',
+  providerId: 'meta',
+  modelId: 'muse-spark-1.3-contributor',
+  turnCount: 2,
+  forkedFrom: null,
+  title: 'Old prompt <ide_opened_file>x</ide_opened_file>',
+  firstUserPrompt: 'Old prompt',
+}
+const storedItems = [
+  { itemId: 'u1', kind: 'userMessage', status: 'completed', turnId: 't1', text: 'Old prompt' },
+  { itemId: 'm1', kind: 'agentMessage', status: 'completed', turnId: 't1', text: 'Reply' },
+]
+
+function envelope(session: Record<string, unknown>, mode = 'inline') {
+  return {
+    session,
+    history: {
+      mode,
+      items: mode === 'inline' ? storedItems : null,
+      snapshot: null,
+      ...(mode === 'none' && { noneReason: 'budget' }),
+    },
+    pendingRequests: [],
+    viewCursor: 'v:old:9',
+  }
+}
+
+function withHistory(
+  options: Parameters<typeof setup>[0] = {},
+  sessionOverrides: Record<string, unknown> = {},
+) {
+  const t = setup(options)
+  t.server.handle('session/list', (params) => ({
+    sessions: [{ ...storedSession, sessionId: params['cursor'] === undefined ? 'old' : 'page2' }],
+    nextCursor: params['cursor'] === undefined ? 'c2' : null,
+  }))
+  t.server.handle('session/resume', (params) =>
+    envelope({
+      ...storedSession,
+      sessionId: params['sessionId'],
+      status: 'idle',
+      ...sessionOverrides,
+    }),
+  )
+  t.server.handle('session/fork', () =>
+    envelope({ ...storedSession, sessionId: 'forked', forkedFrom: { sessionId: 'old' } }),
+  )
+  t.server.handle('session/rename', (params) => ({
+    commandId: params['commandId'],
+    status: 'accepted',
+    name: `${String(params['name'])} (canonical)`,
+  }))
+  return t
+}
+
+const historyLoaded = {
+  type: 'historyLoaded',
+  sessionId: 'old',
+  items: storedItems,
+  todos: [],
+}
+
+describe('ConversationController: session history (M6)', () => {
+  it('lists the workspace sessions page by page and posts rows with the archived ids', async () => {
+    const t = withHistory({ archivedIds: ['page2'] })
+    await t.controller.handle({ type: 'listSessions' })
+    const requests = t.server.requestsFor('session/list')
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.params).toMatchObject({ workspaceRoot: '/ws', limit: 200 })
+    expect(requests[0]?.params).not.toHaveProperty('cursor')
+    expect(requests[1]?.params).toMatchObject({ workspaceRoot: '/ws', limit: 200, cursor: 'c2' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'sessionList',
+      sessions: [
+        expect.objectContaining({ sessionId: 'old', title: 'Old prompt', turnCount: 2 }),
+        expect.objectContaining({ sessionId: 'page2' }),
+      ],
+      archivedIds: ['page2'],
+    })
+  })
+
+  it('refuses to list without a workspace and reports a host failure as a notice', async () => {
+    const noWorkspace = withHistory({ workspaceRoot: undefined })
+    await noWorkspace.controller.handle({ type: 'listSessions' })
+    expect(noWorkspace.surface.posted).toEqual([
+      { type: 'notice', level: 'warning', text: NO_WORKSPACE_REASON },
+    ])
+    const t = withHistory()
+    t.server.handle('session/list', () => {
+      throw new Error('index locked')
+    })
+    await t.controller.handle({ type: 'listSessions' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'The conversation history could not be loaded: index locked',
+    })
+  })
+
+  it('folds session/listChanged and session/closed into the posted rows once listed', async () => {
+    const t = withHistory()
+    t.server.notify('session/listChanged', { session: { ...storedSession, sessionId: 'early' } })
+    await settle()
+    expect(t.surface.posted).toEqual([])
+    await t.controller.handle({ type: 'listSessions' })
+    t.server.notify('session/listChanged', {
+      session: { ...storedSession, sessionId: 'new', status: 'running', title: 'Fresh' },
+    })
+    t.server.notify('session/listChanged', {
+      session: { ...storedSession, sessionId: 'elsewhere', workspaceRoot: '/other' },
+    })
+    t.server.notify('session/closed', { sessionId: 'new', reason: 'idle', viewCursor: 'v' })
+    t.server.notify('session/closed', { sessionId: 'unknown', reason: 'idle', viewCursor: 'v' })
+    await settle()
+    const lists = t.surface.posted.filter((message) => message.type === 'sessionList')
+    expect(lists).toHaveLength(3)
+    const last = lists.at(-1)
+    expect(last?.type === 'sessionList' && last.sessions.map((row) => row.sessionId)).toEqual([
+      'old',
+      'page2',
+      'new',
+    ])
+    expect(last?.type === 'sessionList' && last.sessions.at(-1)?.status).toBe('notLoaded')
+    expect(t.log.warn).not.toHaveBeenCalled()
+  })
+
+  it('resumes a stored session: history, model from the catalogue, composer state, title, memory', async () => {
+    const t = withHistory()
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    await settle()
+    expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({
+      sessionId: 'old',
+      history: 'inline',
+    })
+    expect(t.surface.posted).toEqual([
+      modelList,
+      { ...historyLoaded },
+      { type: 'notice', level: 'info', text: 'Resumed Old prompt' },
+      { type: 'sessionInfo', modelId: 'muse-spark-1.2', sessionId: 'old' },
+      skillList,
+    ])
+    expect(t.server.requestsFor('session/setReasoningEffort')[0]?.params).toMatchObject({
+      sessionId: 'old',
+    })
+    expect(t.server.requestsFor('session/setApprovalMode')[0]?.params).toMatchObject({
+      sessionId: 'old',
+      mode: 'denyUnmatched',
+    })
+    expect(t.surface.setTitle).toHaveBeenLastCalledWith('Untitled')
+    expect(t.memory.lastSession).toEqual({ sessionId: 'old', at: NOW })
+    // Already current: nothing happens.
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+    // The live events now reach this surface.
+    t.server.notify('session/nameChanged', { sessionId: 'old', name: 'Named later' })
+    await settle()
+    expect(t.surface.setTitle).toHaveBeenLastCalledWith('Named later')
+  })
+
+  it('warns when the host served no history, and reports a refused resume', async () => {
+    const none = withHistory()
+    none.server.handle('session/resume', (params) =>
+      envelope({ ...storedSession, sessionId: params['sessionId'], name: 'Big one' }, 'none'),
+    )
+    await none.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(none.surface.posted).toContainEqual({
+      type: 'historyLoaded',
+      sessionId: 'old',
+      items: [],
+      name: 'Big one',
+      todos: [],
+    })
+    expect(none.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: 'The earlier messages of this conversation could not be shown',
+    })
+    expect(none.surface.setTitle).toHaveBeenCalledWith('Big one')
+    const refused = withHistory()
+    refused.server.handle('session/resume', () => {
+      throw new Error('lease held elsewhere')
+    })
+    await refused.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(refused.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'Could not resume the conversation: lease held elsewhere',
+    })
+    const signedOut = withHistory({ status: 'signedOut' })
+    await signedOut.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(signedOut.server.requestsFor('session/resume')).toHaveLength(0)
+  })
+
+  it('forks the current session through a cut point and switches to the fork', async () => {
+    const t = withHistory()
+    await t.controller.handle({ type: 'forkSession', lastTurnId: 't1' })
+    expect(t.surface.posted).toEqual([
+      { type: 'notice', level: 'info', text: 'Start a conversation first.' },
+    ])
+    await t.send('l1', 'hi')
+    await settle()
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'forkSession', lastTurnId: 't1' })
+    expect(t.server.requestsFor('session/fork')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      cutPoint: { lastTurnId: 't1' },
+    })
+    expect(t.surface.posted[0]).toEqual({ ...historyLoaded, sessionId: 'forked' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Forked into a new conversation. Old prompt',
+    })
+    expect(t.host.sessionCount).toBe(1)
+    await t.controller.handle({ type: 'forkSession' })
+    expect(t.server.requestsFor('session/fork')[1]?.params).not.toHaveProperty('cutPoint')
+    t.server.handle('session/fork', () => {
+      throw new Error('invalid fork boundary: WriteFailed')
+    })
+    await t.controller.handle({ type: 'forkSession', lastTurnId: 't1' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'Could not fork the conversation: invalid fork boundary: WriteFailed',
+    })
+  })
+
+  it('renames the session to the canonical name, and reports a refusal', async () => {
+    const t = withHistory()
+    await t.controller.handle({ type: 'renameSession', name: 'Nothing yet' })
+    expect(t.server.requestsFor('session/rename')).toHaveLength(0)
+    await t.send('l1', 'hi')
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'renameSession', name: '  ' })
+    await t.controller.handle({ type: 'renameSession', name: ' Parser fix ' })
+    expect(t.server.requestsFor('session/rename')).toHaveLength(1)
+    expect(t.server.requestsFor('session/rename')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      name: 'Parser fix',
+    })
+    expect(t.surface.posted).toEqual([
+      { type: 'agentEvent', event: { type: 'sessionNamed', name: 'Parser fix (canonical)' } },
+    ])
+    expect(t.surface.setTitle).toHaveBeenLastCalledWith('Parser fix (canonical)')
+    t.server.handle('session/rename', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+    }))
+    await t.controller.handle({ type: 'renameSession', name: 'Later' })
+    expect(t.surface.posted).toHaveLength(1)
+    t.server.handle('session/rename', () => {
+      throw new Error('UnsupportedPlatform')
+    })
+    await t.controller.handle({ type: 'renameSession', name: 'Nope' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'Could not rename the conversation: UnsupportedPlatform',
+    })
+  })
+
+  it('archives and unarchives in workspace memory and re-posts the rows', async () => {
+    const t = withHistory({ archivedIds: ['a'] })
+    await t.controller.handle({ type: 'setSessionArchived', sessionId: 'b', isArchived: true })
+    expect(t.memory.archivedIds).toEqual(['a', 'b'])
+    expect(t.surface.posted).toEqual([])
+    await t.controller.handle({ type: 'listSessions' })
+    await t.controller.handle({ type: 'setSessionArchived', sessionId: 'a', isArchived: false })
+    expect(t.memory.archivedIds).toEqual(['b'])
+    expect(t.surface.posted.at(-1)).toMatchObject({ type: 'sessionList', archivedIds: ['b'] })
+    await t.controller.handle({ type: 'setSessionArchived', sessionId: 'b', isArchived: true })
+    expect(t.memory.archivedIds).toEqual(['b'])
+  })
+
+  it('reopens on the last session within ten minutes, forgets it after, and never on a tab', async () => {
+    const recent = { sessionId: 'old', at: NOW - 9 * 60 * 1000 }
+    const sidebar = withHistory({ isRestorable: true, lastSession: recent })
+    await sidebar.controller.restoreRecentSession()
+    expect(sidebar.server.requestsFor('session/resume')).toHaveLength(1)
+    expect(sidebar.surface.posted).toContainEqual(historyLoaded)
+    const stale = withHistory({
+      isRestorable: true,
+      lastSession: { sessionId: 'old', at: NOW - 11 * 60 * 1000 },
+    })
+    await stale.controller.restoreRecentSession()
+    expect(stale.server.requestsFor('session/resume')).toHaveLength(0)
+    expect(stale.memory.lastSession).toBeUndefined()
+    const tab = withHistory({ isRestorable: false, lastSession: recent })
+    await tab.controller.restoreRecentSession()
+    expect(tab.server.requestsFor('session/resume')).toHaveLength(0)
+    expect(tab.memory.lastSession).toEqual(recent)
+    const signedOut = withHistory({ isRestorable: true, lastSession: recent, status: 'signedOut' })
+    await signedOut.controller.restoreRecentSession()
+    expect(signedOut.server.requestsFor('session/resume')).toHaveLength(0)
+  })
+
+  it('remembers activity on sends and completed turns, and forgets it on clear', async () => {
+    const t = withHistory({ now: NOW })
+    await t.send('l1', 'hi')
+    expect(t.memory.lastSession).toEqual({ sessionId: 's1', at: NOW })
+    t.finishTurn()
+    await settle()
+    expect(t.memory.lastSession).toEqual({ sessionId: 's1', at: NOW })
+    await t.controller.handle({ type: 'clearConversation' })
+    expect(t.memory.lastSession).toBeUndefined()
+    expect(t.surface.setTitle).toHaveBeenLastCalledWith('Untitled')
+  })
+
+  it('marks the surface unread when a turn completes or the agent waits on the user', async () => {
+    const t = withHistory()
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    t.server.notify('item/delta', { sessionId: 's1', itemId: 'i', delta: 'x', viewCursor: 'v' })
+    await settle()
+    expect(t.surface.markUnread).not.toHaveBeenCalled()
+    t.server.notify('userInput/requested', {
+      sessionId: 's1',
+      userInputId: 'q',
+      itemId: 'i',
+      questions: [],
+      viewCursor: 'v',
+    })
+    t.finishTurn()
+    await settle()
+    expect(t.surface.markUnread).toHaveBeenCalledTimes(2)
   })
 })

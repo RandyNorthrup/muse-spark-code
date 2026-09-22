@@ -11,8 +11,10 @@ function nonceOf(html: string): string | undefined {
 function setup(context = fakeHostContext()) {
   const webview = new FakeWebview()
   const reveal = vi.fn<() => void>()
-  const surface = configureWebview(webview, context, { id: 'test', reveal })
-  return { webview, context, surface, reveal }
+  const markUnread = vi.fn<() => void>()
+  const setTitle = vi.fn<(title: string) => void>()
+  const surface = configureWebview(webview, context, { id: 'test', reveal, markUnread, setTitle })
+  return { webview, context, surface, reveal, markUnread, setTitle }
 }
 
 describe('configureWebview', () => {
@@ -70,11 +72,15 @@ describe('configureWebview', () => {
     expect(context.onSurfaceReady).not.toHaveBeenCalled()
   })
 
-  it('exposes the surface id and reveal callback', () => {
-    const { surface, reveal } = setup()
+  it('exposes the surface id and the reveal, unread and title callbacks', () => {
+    const { surface, reveal, markUnread, setTitle } = setup()
     expect(surface.id).toBe('test')
     surface.reveal()
+    surface.markUnread()
+    surface.setTitle('Renamed')
     expect(reveal).toHaveBeenCalledOnce()
+    expect(markUnread).toHaveBeenCalledOnce()
+    expect(setTitle).toHaveBeenCalledWith('Renamed')
   })
 
   it('posts host messages through the surface handle', () => {

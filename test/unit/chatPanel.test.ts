@@ -56,4 +56,20 @@ describe('openChatPanel', () => {
     panel.webview.messages.fire({ type: 'ready' })
     expect(panel.webview.postMessage).not.toHaveBeenCalled()
   })
+
+  it('names the tab after the conversation and marks it while inactive', () => {
+    const { panel, registry } = openFakePanel()
+    registry.active?.setTitle('Parser fix')
+    expect(panel.title).toBe('Parser fix')
+    registry.active?.markUnread()
+    expect(panel.title).toBe('Parser fix')
+    panel.active = false
+    registry.active?.markUnread()
+    expect(panel.title).toBe('● Parser fix')
+    registry.active?.setTitle('Renamed')
+    expect(panel.title).toBe('● Renamed')
+    panel.active = true
+    panel.viewStateChanges.fire({ webviewPanel: panel })
+    expect(panel.title).toBe('Renamed')
+  })
 })

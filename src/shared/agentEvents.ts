@@ -10,6 +10,14 @@ import * as z from 'zod/mini'
 /** A stored-output handle (`item/readOutput` fetches the bytes by `id`). */
 export const outputRefSchema = z.object({ id: z.string(), byteLen: z.number() })
 
+/** A user message's image, as the durable log echoes it (MSP `MessageAttachment`). */
+const messageAttachmentSchema = z.object({
+  type: z.string(),
+  mediaType: z.string(),
+  width: z.optional(z.number()),
+  height: z.optional(z.number()),
+})
+
 /** Server-authored edit summary: line counts, never hunks or bytes. */
 export const patchSummarySchema = z.object({
   files: z.number(),
@@ -43,6 +51,8 @@ export const itemSnapshotFields = {
   patchSummary: z.optional(patchSummarySchema),
   /** Server one-liner for kinds the UI does not know. */
   fallbackText: z.optional(z.string()),
+  /** `userMessage`: image attachment metadata (no bytes), for replayed history (M6). */
+  attachments: z.optional(z.array(messageAttachmentSchema)),
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)

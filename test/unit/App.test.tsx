@@ -753,3 +753,90 @@ describe('App editor integration (M5)', () => {
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'applyCode', text: 'let a = 1' })
   })
 })
+
+describe('App session history (M6)', () => {
+  const sessionRow = {
+    sessionId: 'old',
+    title: 'Old prompt',
+    isNamed: false,
+    createdAt: '2026-09-22T10:00:00Z',
+    updatedAt: new Date().toISOString(),
+    status: 'notLoaded',
+    turnCount: 2,
+    isFork: false,
+  }
+
+  it('opens the History dialog from the header, lists, resumes and archives', () => {
+    const postMessage = renderReady()
+    fireEvent.click(screen.getByLabelText('Session history'))
+    expect(postMessage).toHaveBeenCalledWith({ type: 'listSessions' })
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    deliver({ type: 'sessionList', sessions: [sessionRow], archivedIds: [] })
+    fireEvent.click(screen.getByLabelText('Archive: Old prompt'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'setSessionArchived',
+      sessionId: 'old',
+      isArchived: true,
+    })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'resumeSession', sessionId: 'old' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(textarea())
+  })
+
+  it('opens the History dialog from the palette Resume row', () => {
+    const postMessage = renderReady()
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: 'Resume' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'listSessions' })
+    expect(screen.getByRole('dialog', { name: 'History' })).toBeInTheDocument()
+  })
+
+  it('rebuilds the transcript from loaded history and offers Fork from here', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'historyLoaded',
+      sessionId: 'old',
+      name: 'Resumed one',
+      todos: [],
+      items: [
+        { itemId: 'u1', kind: 'userMessage', status: 'completed', turnId: 't1', text: 'first' },
+        { itemId: 'm1', kind: 'agentMessage', status: 'completed', text: 'reply' },
+        { itemId: 'u2', kind: 'userMessage', status: 'completed', turnId: 't2', text: 'second' },
+      ],
+    })
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Resumed one')
+    expect(screen.getByText('first')).toBeInTheDocument()
+    expect(screen.getByText('reply')).toBeInTheDocument()
+    const forks = screen.getAllByText('Fork from here')
+    expect(forks).toHaveLength(2)
+    fireEvent.click(forks[1]!)
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'forkSession', lastTurnId: 't1' })
+    // Before the first message there is nothing to keep: a new conversation.
+    fireEvent.click(forks[0]!)
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'clearConversation' })
+    expect(screen.queryByText('first')).toBeNull()
+  })
+
+  it('renames from the title once a session exists, and not before', () => {
+    const postMessage = renderReady()
+    expect(screen.queryByTitle('Rename this conversation')).toBeNull()
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    fireEvent.click(screen.getByTitle('Rename this conversation'))
+    const input = screen.getByLabelText<HTMLInputElement>('Rename this conversation')
+    expect(input.value).toBe('')
+    fireEvent.change(input, { target: { value: 'Parser work' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'renameSession', name: 'Parser work' })
+    deliver({ type: 'agentEvent', event: { type: 'sessionNamed', name: 'Parser work' } })
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Parser work')
+    // Escape and an unchanged name send nothing.
+    fireEvent.click(screen.getByTitle('Rename this conversation'))
+    fireEvent.keyDown(screen.getByLabelText('Rename this conversation'), { key: 'Escape' })
+    fireEvent.click(screen.getByTitle('Rename this conversation'))
+    fireEvent.blur(screen.getByLabelText('Rename this conversation'))
+    const renames = postMessage.mock.calls.filter(([message]) => message.type === 'renameSession')
+    expect(renames).toHaveLength(1)
+  })
+})

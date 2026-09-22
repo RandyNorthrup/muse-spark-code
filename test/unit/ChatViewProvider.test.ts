@@ -33,4 +33,24 @@ describe('ChatViewProvider', () => {
     view.webview.messages.fire({ type: 'ready' })
     expect(view.webview.postMessage).not.toHaveBeenCalled()
   })
+
+  it('badges the hidden view when the conversation needs attention, clearing it when shown', () => {
+    const { registry, view } = resolve()
+    view.visible = false
+    registry.active?.markUnread()
+    expect(view.badge).toEqual({ tooltip: 'Muse needs your attention', value: 1 })
+    view.visible = true
+    view.visibility.fire()
+    expect(view.badge).toBeUndefined()
+    registry.active?.markUnread()
+    expect(view.badge).toBeUndefined()
+  })
+
+  it('shows the conversation name as the view description, none for Untitled', () => {
+    const { registry, view } = resolve()
+    registry.active?.setTitle('Parser fix')
+    expect(view.description).toBe('Parser fix')
+    registry.active?.setTitle('Untitled')
+    expect(view.description).toBe('')
+  })
 })

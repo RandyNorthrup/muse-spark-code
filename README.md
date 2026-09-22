@@ -5,7 +5,7 @@ inside the editor, modelled on the Claude Code VS Code extension: sidebar or
 editor-tab conversations, a slash-command palette, model and reasoning-effort
 picker, permission modes, streaming markdown, diff review, and session history.
 
-> **Status: milestone M5 (editor integration).** You can sign in (Meta
+> **Status: milestone M6 (sessions and history).** You can sign in (Meta
 > account through the Muse Code CLI, or a Model API key), hold streaming
 > conversations with markdown and highlighted code, use the "/" palette,
 > attach images, `@`-mention files, pick the model, effort and permission
@@ -13,10 +13,13 @@ picker, permission modes, streaming markdown, diff review, and session history.
 > in tool rows with diffs, approve or reject gated commands from cards, and
 > answer its questions. The open file or selection rides along as context,
 > finished edits can be diffed and reverted, code blocks apply into the
-> editor, and Muse can read the Problems panel through an IDE tool. On
-> Windows the panel offers Muse Code's one-time shell-sandbox setup itself
-> (one administrator prompt). See [`PLAN.md`](PLAN.md) for the milestone
-> plan and the research behind it.
+> editor, and Muse can read the Problems panel through an IDE tool. Past
+> conversations of the workspace are one click away in the History dialog
+> (search, archive, resume with the full transcript), the sidebar picks its
+> last conversation back up within ten minutes, and a hidden panel shows a
+> dot when Muse needs you. On Windows the panel offers Muse Code's one-time
+> shell-sandbox setup itself (one administrator prompt). See
+> [`PLAN.md`](PLAN.md) for the milestone plan and the research behind it.
 
 This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 "Muse Code" are Meta trademarks. You bring your own credentials.
@@ -213,6 +216,39 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
   reasoning rows behind one `Show N steps` row; a card waiting on you is
   never hidden.
 
+## Sessions and history
+
+Every conversation is a Muse Code session stored on disk by the CLI, so
+nothing is lost when the panel closes.
+
+- **History** (the clock in the header, or `/` → **Resume**) lists this
+  workspace's stored sessions grouped Today / Yesterday / Previous 7 days /
+  Older, newest first, each with its name (or first prompt), how long ago it
+  was active, its turn count, git branch and whether it is a fork. Type to
+  search names and branches; `↑` `↓` and `Enter` (or a click) resume one,
+  `Esc` closes. Resuming rebuilds the transcript from the stored history
+  (your messages as cards, the agent's replies, reasoning and tool rows at
+  their final state) and continues the session live; the composer picks up
+  the session's model and your current effort and permission mode.
+- **Archive** (`×` on a row) hides a session from the list without deleting
+  anything (Muse Code has no delete); **Show archived** brings it back and
+  offers **Unarchive**. Sessions idle for longer than
+  `museSpark.archiveInactiveSessions` days (default 14) are hidden the same
+  way.
+- **The sidebar remembers**: reopening it within ten minutes of the last
+  message resumes that conversation, as in Claude Code; later it starts
+  empty and the History dialog has the old one. Editor tabs always start a
+  new conversation.
+- **Rename** by clicking the title in the header (`Enter` saves, `Esc`
+  cancels); the name the CLI settles on is shown. **Fork from here** on any
+  of your messages (hover it) starts a new conversation that keeps the turns
+  before that message, Claude Code's "rewind" without the file checkpoints
+  (use **Revert** on the edit rows for those). Muse Code 1.3.0 refuses both
+  on Windows (see Troubleshooting); the panel says so and nothing changes.
+- **Unread**: when a turn finishes, or the agent asks for an approval or an
+  answer, while the sidebar is hidden the Muse Spark view shows a badge, and
+  a background editor tab gets a `●` in its title, until you look.
+
 ## Settings
 
 All settings live under `museSpark.*`; changes apply to open panels immediately.
@@ -229,6 +265,7 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 | `respectGitIgnore`                | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                                                                                                                                                                                     |
 | `confidentialWorkspace`           | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                     |
 | `allowDangerouslySkipPermissions` | `false`  | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)                                                                                                                                                                    |
+| `archiveInactiveSessions`         | `14`     | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                             |
 | `shellSandbox`                    | `auto`   | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Changing it restarts the host |
 | `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir                                                                                                                                                            |
 | `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in                                                                                                                                                               |
@@ -354,6 +391,13 @@ gitleaks over full history, and semgrep.
   setup, start a new conversation. File reads and edits work without it;
   Linux and macOS need no setup (`muse sandbox` has only the `windows`
   subcommands).
+- **"Could not rename the conversation: … UnsupportedPlatform" / "Could not
+  fork the conversation: invalid fork boundary … WriteFailed"** — Muse Code
+  1.3.0 refuses `session/rename` and `session/fork` on Windows (the same two
+  commands work from the CLI's own TUI on Linux and macOS). The panel offers
+  both, shows the CLI's refusal as a notice and leaves the conversation as
+  it was. Names the CLI allocates itself still show in the header and the
+  History dialog.
 - **Shell commands run in `C:\Windows\System32\WindowsPowerShell\v1.0`
   instead of the project, and the first one takes ages** — Muse Code 1.3.0's
   Windows sandbox account cannot enter folders under `C:\Users\<you>`, so for

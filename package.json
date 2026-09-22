@@ -159,6 +159,25 @@
           "default": "manual",
           "description": "Permission mode for new conversations."
         },
+        "museSpark.archiveInactiveSessions": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            7,
+            14,
+            0
+          ],
+          "enumDescriptions": [
+            "Hide sessions idle for a day.",
+            "Hide sessions idle for two days.",
+            "Hide sessions idle for a week.",
+            "Hide sessions idle for two weeks.",
+            "Never hide sessions."
+          ],
+          "default": 14,
+          "description": "Hide sessions idle for this many days from the History dialog (they stay on disk; Show archived lists them)."
+        },
         "museSpark.shellSandbox": {
           "type": "string",
           "enum": [
