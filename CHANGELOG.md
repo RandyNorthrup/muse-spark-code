@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-09-22
+
+The first release: milestones M0 to M9 of `PLAN.md`, both backends,
+certified per milestone under `docs/certification/`.
+
 ### Added
 
 - Milestone M9, voice dictation: a microphone in the composer ("Tap or
@@ -30,14 +37,6 @@ happened, not what was planned; superseded entries are kept.
   macOS helper, the button is dimmed with the reason as its tooltip. No API
   cost, no third-party code, nothing sent to Meta. Gates: `lint:ps`
   (PSScriptAnalyzer over the helper script, real on Windows).
-
-## [0.1.0] - 2026-09-22
-
-The first release: milestones M0 to M8 of `PLAN.md`, both backends,
-certified per milestone under `docs/certification/`.
-
-### Added
-
 - Milestone M8, account & usage and packaging: an **Account & usage**
   dialog (palette row, `/usage`, `/cost`) showing the backend, the Muse Code
   subscription's current block and weekly window as bars with reset times
