@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- `museSpark.shellSandbox` (`auto` / `muse` / `off`, default `auto`): how
+  shell commands run. `auto` keeps Muse Code's OS sandbox except for a
+  Windows workspace under the user profile, where the 1.3.0 sandbox cannot
+  run commands in the project (meta-models/muse-code-sdk#26); there the host
+  is started with `--disable-sandbox` and commands run directly as the user,
+  in the project, still gated by the approval cards, as in Claude Code. The
+  transcript explains the switch once per session; changing the setting
+  restarts the host on the next message. Verified on the same workspace:
+  `--disable-sandbox` runs `Get-Location` in the workspace in 14 s, the
+  legacy shell tool does not help.
+
 - Milestone M5, editor integration: the open-file chip beside the model pill
   (`App.tsx L5-10`, `×` to leave it out) sends the active file or selection
   with the message in Claude Code's own wording (`<ide_selection>` with the

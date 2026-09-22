@@ -50,6 +50,7 @@ import {
   MUSE_LOGIN_TERMINAL_NAME,
   PRODUCT_NAME,
   SETTINGS_SECTION,
+  SHELL_SANDBOX_SETTING,
   UI_TEXT,
   VSCODE_COMMANDS,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
@@ -229,7 +230,16 @@ export function activate(context: vscode.ExtensionContext): void {
     getEnvironmentVariables: () => currentSettings().environmentVariables,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
+    getShellSandbox: () => currentSettings().shellSandbox,
+    userProfileDir: process.env['USERPROFILE'],
   })
+  /** Stops the host and the conversations on it; the next message respawns. */
+  const restartBackend = async (): Promise<void> => {
+    for (const controller of controllers.values()) {
+      controller.dispose()
+    }
+    await backend.dispose()
+  }
   const sandbox = new SandboxSetup({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
@@ -260,12 +270,7 @@ export function activate(context: vscode.ExtensionContext): void {
       },
       credentialFileExists: () => backend.credentialFileExists(),
       hasEnvironmentKey: () => backend.hasEnvironmentKey(),
-      restartBackend: async () => {
-        for (const controller of controllers.values()) {
-          controller.dispose()
-        }
-        await backend.dispose()
-      },
+      restartBackend,
     },
     credentials,
     runInTerminal,
@@ -433,6 +438,7 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         platform: process.platform,
         userProfileDir: process.env['USERPROFILE'],
+        shellSandbox: () => backend.shellSandboxPosture(),
         editorContext: () => editorContext.active,
         isAutosaveEnabled: () => currentSettings().autosave,
         saveAll: async () => {
@@ -484,6 +490,10 @@ export function activate(context: vscode.ExtensionContext): void {
       if (auth.current.status === 'checking') {
         void auth.refresh()
       }
+      // No setup offer where this window will not use the sandbox anyway.
+      if (!backend.shellSandboxPosture().isSandboxed) {
+        return
+      }
       void sandbox.offerIfNeeded('startup')
     },
     onConversationMessage: (surface, message) => {
@@ -534,6 +544,13 @@ export function activate(context: vscode.ExtensionContext): void {
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
       }
+      // A host keeps its sandbox posture for life: drop it so the next
+      // message spawns one with the new setting.
+      if (!event.affectsConfiguration(SHELL_SANDBOX_SETTING) || !backend.isRunning) {
+        return
+      }
+      void restartBackend()
+      registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.sandboxRestartNotice })
     }),
     vscode.commands.registerCommand(COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)

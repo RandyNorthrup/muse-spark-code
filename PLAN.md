@@ -341,8 +341,32 @@ minutes on the sandbox account's first logon); `muse exec` shows the same, so
 it is not the extension's spawn. Workspaces outside the profile (verified
 `C:\muse-live-ws`) run in place in about a second. The controller posts a
 one-time notice on Windows when the workspace is under `%USERPROFILE%` and the
-server version is 1.3.0 or older; file tools are unaffected. To report
-upstream; the extension will not touch profile ACLs.
+server version is 1.3.0 or older; file tools are unaffected. Reported
+upstream as meta-models/muse-code-sdk#26 (2026-09-22); the extension will
+not touch profile ACLs (the owner ruled that out, and the auto-mode
+classifier refused the experiment too).
+
+**Resolution — `museSpark.shellSandbox` (2026-09-22).** The owner's ruling:
+change how the sandbox is used, never the user's folder permissions. Muse
+Code's own knobs, verified against the same profile workspace with the same
+headless prompt: `muse exec --disable-sandbox` runs the command in the
+workspace (`C:\Users\<user>\muse-live-ws`) in 14 s end to end;
+`--enable-shell-tool` (the legacy shell) still lands in PowerShell's folder
+after 65 s. `muse serve --disable-sandbox` exists as a host-lifetime
+posture ("Sandbox posture (fixed for the host's lifetime)"), and approval
+mode stays on the wire, so the approval cards keep gating every command —
+which is exactly Claude Code's model (no OS sandbox, permission prompts).
+The setting has three values: `auto` (default; the sandbox except for a
+Windows workspace under the user profile, `resolveShellSandbox` →
+`profileWorkspace`), `muse` (always), `off` (never). The manager passes
+`serveArguments(posture)` into the launch, logs the posture at spawn, the
+controller posts one notice per session explaining an `auto` switch-off
+(or the wrong-folder warning when `muse` is forced), the sandbox setup
+offer is skipped where the window will not sandbox, and a change of the
+setting drops the host so the next message respawns it (a notice says so).
+Caveat from the CLI docs, kept in the README: without the sandbox Muse
+Code's file tools may write outside the workspace, so the approval modes
+matter more.
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 
@@ -861,12 +885,115 @@ or may not be related to the current task.</ide_opened_file>` — and sets
 
 ### M6 — Sessions, history, rewind
 
-- **Scope**: history dialog (`session/list`, search, time groups), resume
-  (`session/resume` with history mode inline/snapshot), titles
-  (`session/nameChanged`, rename), new/clear, archive after N days (setting),
-  rewind/fork on message hover (`session/fork`), `/compact`
-  (`session/compact`), multiple editor tabs = independent sessions, unread dot.
-- **Tests**: history index; fork cut-point mapping; archive policy.
+**Status 2026-09-22: design written; implementation next.** Wire probe
+(`scratchpad/probe-sessions.ts`, no tokens) against the day's live sessions:
+
+- `session/list` rows carry `sessionId, path, status, activeTurnId,
+createdAt, updatedAt, workspaceRoot, providerId, modelId, turnCount,
+forkedFrom, title, firstUserPrompt` (no `name` until one is allocated, no
+  `lastActivityAt` on rows — the resumed `Session` has it); `title` equals
+  the first prompt for unnamed sessions. `firstUserPrompt` / `title` are
+  built from the **whole** prompt, so the M5 `<ide_selection>` part shows up
+  in them: the History dialog strips `<ide_…>…</ide_…>` blocks for display.
+- `Session.modelId` is the metadata fold's model, which is the host default
+  `muse-spark-1.3-contributor` even for sessions our `session/start` opened
+  on `muse-spark-1.3` (the durable log shows every model request on
+  `muse-spark-1.3` and `run.model.configured` naming it). Never seed the
+  composer or label a row from `Session.modelId`; after a resume ask
+  `model/list` (`isActive`) for the session's model.
+- `session/resume` with `history: 'inline'` served `mode: inline` with the
+  full item array for a one-turn session (11 items: `userMessage`,
+  `reminderChild`s, `toolCall`s, `agentMessage`); `userMessage` items carry
+  `turnId`, `commandId` and `text`.
+- `session/rename` fails on Windows 1.3.0: "session name rename authority is
+  unavailable: … UnsupportedPlatform". The title stays read-only on Windows
+  (the error is surfaced as a notice if attempted); to re-check on Linux/macOS.
+- `session/fork` fails on Windows 1.3.0 too, with or without a `cutPoint`
+  and on a session this connection never loaded: "invalid fork boundary for
+  session …: WriteFailed" (`scratchpad/probe-fork.ts`). "Fork from here"
+  therefore ships behind the same honest path: the action is offered, the
+  CLI's refusal is shown as a notice, and the live check is deferred to
+  Linux/macOS.
+- `session/read` (point-in-time, no lease) serves the same inline history as
+  a resume (10 items for a one-turn session) and is what the fork cut-point
+  lookup and the dialog's preview use.
+- With `sessionListStream` granted, `session/listChanged` **does** arrive
+  (a full `Session` row), alongside `session/closed {reason: hostShutdown}`
+  and `session/statusChanged {status: notLoaded}` when the host shuts down;
+  nothing arrived within 3 s of a `session/resume` of a `notLoaded` session
+  in the same probe. The dialog therefore folds `session/listChanged` rows
+  when they come and still refreshes with `session/list` when it opens and
+  after its own actions. (A first run of this probe reported no
+  notifications at all because its handler was written `(method, params)`
+  while the SDK passes one `{method, params}` object — the same mistake
+  that stalled the sandbox probe; both were re-run with the right shape.)
+
+- **Wire facts (msp.d.ts, 1.3.0)**: `session/list {workspaceRoot?, limit ≤ 200,
+cursor?, updatedAfter?}` → `Session {sessionId, name?, firstUserPrompt?,
+createdAt, lastActivityAt?, modelId, branch?, status (notLoaded | idle |
+running), attention? (approvalPending | inputPending), forkedFrom, path}`
+  ordered by activity; `session/resume {sessionId, history: auto | inline |
+snapshot | anchored, cursor?, excludeItems?}` → `{session, history {mode,
+items | null, snapshot | null, noneReason?}, pendingRequests, viewCursor}`
+  (the served `mode` is authoritative; `snapshot.state.items` carries every
+  item at its latest revision plus name, todo list, context usage, effective
+  model, pending approvals / user inputs); `session/read` is the same
+  envelope without subscribing; `view/page {sessionId, limit 1–1000, cursor?,
+direction?}` pages the raw view events when history came back `none`;
+  `session/fork {sessionId, cutPoint?: {lastTurnId}}` → the resume envelope
+  for the **new** session with `forkedFrom`; `session/rename {name}` → the
+  canonical name (or `session/nameChanged` later); the `sessionListStream`
+  capability (granted, M5 probe) adds `session/listChanged` rows next to
+  `session/started` / `session/closed`. There is **no archive or delete
+  method**: archiving is client-side. `Item` carries `turnId`, `commandId`,
+  `displayText` and attachment metadata for `userMessage`, which is what a
+  replayed transcript needs.
+- **History dialog**: the header clock opens a History overlay above the
+  composer (palette styling): a search box filtering on name and first
+  prompt, rows grouped Today / Yesterday / Previous 7 days / Older by
+  `lastActivityAt ?? createdAt`, each row showing the name (or the first
+  prompt), the relative time and the branch, with hover actions Rename and
+  Archive; `Enter` / click resumes; keyboard navigation as in the palette.
+  Rows come from `session/list` for this workspace (paged to the cap) and
+  stay live through `session/listChanged` / `session/started` /
+  `session/closed`. Archived ids and the `museSpark.archiveInactiveSessions`
+  days (default 14; 1 / 2 / 7 / 14 / never, as Claude Code) live in
+  `workspaceState`; archived and stale rows are hidden, never deleted.
+- **Resume**: `session/resume` with `history: 'inline'` preferred; the host
+  posts one `historyLoaded {items, name, todos, context}` message and the
+  reducer rebuilds the transcript from the item snapshots (user cards from
+  `displayText ?? text` plus attachment metadata, the M4 rows for the rest)
+  before live events continue from `viewCursor`; a `snapshot` answer feeds
+  the same path from `snapshot.state`; `none` falls back to `view/page`
+  forward from the start through the M4 notification mapper. Pending
+  approvals / questions listed in `pendingRequests` are re-shown from the
+  snapshot pointers. The resumed session's model, effort and approval mode
+  seed the composer.
+- **Persistence**: the last session id per surface kind is kept in
+  `workspaceState`; a surface that opens within `SESSION_RESTORE_WINDOW_MS`
+  (10 minutes, the Claude Code sidebar rule) of that session's last activity
+  resumes it, otherwise it starts fresh and the dialog has it.
+- **Titles**: `session/nameChanged` already drives the header; clicking the
+  title edits it and sends `session/rename`, showing the canonical name the
+  host settles on.
+- **Fork ("Rewind")**: hovering a user card offers _Fork from here_:
+  `session/fork` with `cutPoint.lastTurnId` = the turn before that message
+  (the reducer maps `localId` → `turnId` from `turnAccepted` and keeps the
+  wire `turnId` on replayed user items), then the surface switches to the new
+  session from the fork's resume envelope. Claude Code's "Rewind code"
+  (workspace checkpoints) has no MSP counterpart and is not offered; the
+  M5 per-edit Revert is the closest tool.
+- **Unread dot**: a turn that completes, or an approval / question that
+  arrives, while the surface is hidden sets the view badge (`webviewView.badge`)
+  or the tab's unread mark, cleared when the surface becomes visible.
+- Already in place: new conversation (header button, `/clear`), `/compact`,
+  independent sessions per editor tab.
+- **Tests**: grouping, search and archive / restore policies (pure,
+  deterministic clock); reducer replay of inline and snapshot history
+  (M4 fixtures); fork cut-point mapping; rename round trip; badge policy;
+  list-stream row folding. Live: `session/list` shape, `session/resume`
+  served mode for a small session, `session/fork` envelope,
+  `session/rename` normalisation, `session/listChanged` with the capability.
 
 ### M7 — Model API backend (bring-your-own key)
 

@@ -20,7 +20,6 @@ import {
   MUSE_LAUNCHER_PS1_FILE,
   MUSE_POSIX_EXECUTABLE,
   MUSE_POSIX_INSTALL_SEGMENTS,
-  MUSE_SERVE_ARGS,
   MUSE_VERSION_FILE,
   MUSE_WINDOWS_EXE_SUFFIX,
   MUSE_WINDOWS_INSTALL_SEGMENTS,
@@ -43,11 +42,15 @@ export interface LaunchProbe {
   readonly fileExists: (filePath: string) => boolean
   /** Returns undefined when the file cannot be read. */
   readonly readTextFile: (filePath: string) => string | undefined
+  /** `serve` plus the host-posture flags (`serveArguments`, sandbox.ts). */
+  readonly serveArgs: readonly string[]
 }
 
 export interface MuseLaunch {
   readonly command: string
   readonly args: readonly string[]
+  /** The trailing `serve …` part of `args`, for callers that swap it out. */
+  readonly serveArgs: readonly string[]
   /** Directory the CLI was found in (for diagnostics and `muse login`). */
   readonly installDir: string
   /** The command a user-facing terminal should run (`muse.cmd` / `muse`). */
@@ -88,7 +91,8 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
         ok: true,
         launch: {
           command: probe.configuredPath,
-          args: MUSE_SERVE_ARGS,
+          args: probe.serveArgs,
+          serveArgs: probe.serveArgs,
           installDir,
           cliPath: p.join(installDir, MUSE_CMD_FILE),
         },
@@ -107,7 +111,8 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
           ok: true,
           launch: {
             command: exe,
-            args: MUSE_SERVE_ARGS,
+            args: probe.serveArgs,
+            serveArgs: probe.serveArgs,
             installDir: dir,
             cliPath: p.join(dir, MUSE_CMD_FILE),
           },
@@ -120,7 +125,8 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
         ok: true,
         launch: {
           command: p.join(probe.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
-          args: [...WINDOWS_POWERSHELL_ARGS, launcher, ...MUSE_SERVE_ARGS],
+          args: [...WINDOWS_POWERSHELL_ARGS, launcher, ...probe.serveArgs],
+          serveArgs: probe.serveArgs,
           installDir: dir,
           cliPath: p.join(dir, MUSE_CMD_FILE),
         },
@@ -146,7 +152,8 @@ function resolvePosix(probe: LaunchProbe): LaunchResolution {
         ok: true,
         launch: {
           command: candidate,
-          args: MUSE_SERVE_ARGS,
+          args: probe.serveArgs,
+          serveArgs: probe.serveArgs,
           installDir: p.dirname(candidate),
           cliPath: candidate,
         },

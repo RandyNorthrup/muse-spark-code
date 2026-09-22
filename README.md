@@ -217,20 +217,21 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
 
 All settings live under `museSpark.*`; changes apply to open panels immediately.
 
-| Setting                           | Default  | Purpose                                                                                    |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `preferredLocation`               | `panel`  | Where new conversations open: `sidebar` or `panel` (editor tab)                            |
-| `initialPermissionMode`           | `manual` | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations       |
-| `autosave`                        | `true`   | Save all dirty editors before every turn                                                   |
-| `attachOpenFile`                  | `true`   | Show the open-file chip and send the active file / selection with each message             |
-| `useCtrlEnterToSend`              | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                  |
-| `hideOnboarding`                  | `false`  | Hide the onboarding checklist                                                              |
-| `focusView`                       | `false`  | Show only prompts and responses                                                            |
-| `respectGitIgnore`                | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                          |
-| `confidentialWorkspace`           | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace          |
-| `allowDangerouslySkipPermissions` | `false`  | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)         |
-| `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir |
-| `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in    |
+| Setting                           | Default  | Purpose                                                                                                                                                                                                                                               |
+| --------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preferredLocation`               | `panel`  | Where new conversations open: `sidebar` or `panel` (editor tab)                                                                                                                                                                                       |
+| `initialPermissionMode`           | `manual` | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations                                                                                                                                                                  |
+| `autosave`                        | `true`   | Save all dirty editors before every turn                                                                                                                                                                                                              |
+| `attachOpenFile`                  | `true`   | Show the open-file chip and send the active file / selection with each message                                                                                                                                                                        |
+| `useCtrlEnterToSend`              | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                                                                                                                                                                             |
+| `hideOnboarding`                  | `false`  | Hide the onboarding checklist                                                                                                                                                                                                                         |
+| `focusView`                       | `false`  | Show only prompts and responses                                                                                                                                                                                                                       |
+| `respectGitIgnore`                | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                                                                                                                                                                                     |
+| `confidentialWorkspace`           | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                     |
+| `allowDangerouslySkipPermissions` | `false`  | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)                                                                                                                                                                    |
+| `shellSandbox`                    | `auto`   | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Changing it restarts the host |
+| `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir                                                                                                                                                            |
+| `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in                                                                                                                                                               |
 
 ## Development commands
 
@@ -358,7 +359,18 @@ gitleaks over full history, and semgrep.
   Windows sandbox account cannot enter folders under `C:\Users\<you>`, so for
   a workspace inside your profile it falls back to PowerShell's own folder
   (about 34 s per command; the very first command can take minutes while the
-  sandbox account logs on). The panel says so once per conversation. File
-  reads and edits are unaffected. A workspace outside the profile (for
-  example `C:\src\project`) runs commands in place in about a second. The
-  same happens in `muse exec`, so it is a CLI limitation, not the extension.
+  sandbox account logs on). `muse exec` does the same, so it is a CLI
+  limitation (reported as
+  [meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
+  With `museSpark.shellSandbox` at its default `auto`, the extension starts
+  Muse Code with `--disable-sandbox` for such workspaces: commands then run
+  directly as you, in the project, in about a second, and the approval cards
+  still gate them exactly as before (this is how Claude Code runs commands
+  too). The panel says so once per conversation. Set the setting to `muse`
+  to keep the sandbox regardless (the panel then warns about the wrong
+  folder) or `off` to never sandbox. Muse Code's own docs say that without
+  the sandbox its file tools may also write outside the workspace; in our
+  check over the extension's connection a `write_file` outside the
+  workspace was still refused (`path must resolve within the Active
+Workspace Root`). Keep Manual or Edit-automatically mode and read the
+  approval cards regardless.

@@ -19,6 +19,7 @@ function windowsProbe(files: Record<string, string | true>, overrides: Partial<L
       const content = files[filePath]
       return typeof content === 'string' ? content : undefined
     },
+    serveArgs: ['serve'],
     ...overrides,
   }
   return probe
@@ -34,6 +35,7 @@ function posixProbe(existing: string[], overrides: Partial<LaunchProbe> = {}): L
     systemRoot: undefined,
     fileExists: (filePath) => existing.includes(filePath),
     readTextFile: () => undefined,
+    serveArgs: ['serve'],
     ...overrides,
   }
 }
@@ -53,6 +55,7 @@ describe('resolveMuseLaunch on Windows', () => {
       launch: {
         command: String.raw`${winDir}\muse-bin-1.3.0-R3401.1.exe`,
         args: ['serve'],
+        serveArgs: ['serve'],
         installDir: winDir,
         cliPath: String.raw`${winDir}\muse.cmd`,
       },
@@ -82,6 +85,7 @@ describe('resolveMuseLaunch on Windows', () => {
     expect(result.ok && result.launch).toEqual({
       command: exe,
       args: ['serve'],
+      serveArgs: ['serve'],
       installDir: String.raw`E:\muse`,
       cliPath: String.raw`E:\muse\muse.cmd`,
     })
@@ -115,6 +119,7 @@ describe('resolveMuseLaunch on Windows', () => {
         String.raw`${winDir}\.muse-launcher.ps1`,
         'serve',
       ],
+      serveArgs: ['serve'],
       installDir: winDir,
       cliPath: String.raw`${winDir}\muse.cmd`,
     })
@@ -137,6 +142,7 @@ describe('resolveMuseLaunch on POSIX', () => {
     expect(result.ok && result.launch).toEqual({
       command: '/home/randy/.local/bin/muse',
       args: ['serve'],
+      serveArgs: ['serve'],
       installDir: '/home/randy/.local/bin',
       cliPath: '/home/randy/.local/bin/muse',
     })
@@ -149,6 +155,16 @@ describe('resolveMuseLaunch on POSIX', () => {
     })
     expect(resolveMuseLaunch(posixProbe(all))).toMatchObject({
       launch: { command: '/opt/tools/bin/muse' },
+    })
+  })
+
+  it('carries the host posture flags through as the serve tail', () => {
+    const result = resolveMuseLaunch(
+      posixProbe(['/home/randy/.local/bin/muse'], { serveArgs: ['serve', '--disable-sandbox'] }),
+    )
+    expect(result.ok && result.launch).toMatchObject({
+      args: ['serve', '--disable-sandbox'],
+      serveArgs: ['serve', '--disable-sandbox'],
     })
   })
 

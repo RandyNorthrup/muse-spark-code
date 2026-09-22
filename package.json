@@ -159,6 +159,21 @@
           "default": "manual",
           "description": "Permission mode for new conversations."
         },
+        "museSpark.shellSandbox": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "muse",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Use Muse Code's OS sandbox for shell commands, except on Windows for a workspace under your user profile, where the sandbox cannot run commands (they run directly as you there, still gated by approvals).",
+            "Always use Muse Code's OS sandbox for shell commands.",
+            "Never sandbox shell commands: they run directly as you, gated by the approval cards, as in Claude Code. Muse Code then also lets file tools write outside the workspace."
+          ],
+          "default": "auto",
+          "description": "Whether shell commands run inside Muse Code's OS sandbox. Changing it restarts the Muse Code host."
+        },
         "museSpark.autosave": {
           "type": "boolean",
           "default": true,

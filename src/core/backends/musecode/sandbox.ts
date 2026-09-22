@@ -9,12 +9,14 @@
 
 import path from 'node:path'
 import {
+  MUSE_DISABLE_SANDBOX_ARG,
   MUSE_SANDBOX_CHECK_ARGS,
   MUSE_SANDBOX_SETUP_ARGS,
   MUSE_SERVE_ARGS,
   SANDBOX_PROFILE_LIMITED_MAX_VERSION,
   SANDBOX_STATUS_READY,
   SANDBOX_STATUS_SETUP_REQUIRED,
+  type ShellSandboxMode,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
 } from '../../../shared/constants'
@@ -97,14 +99,15 @@ export function parseSandboxCheck(output: string): SandboxCheck {
 }
 
 /**
- * The CLI the backend spawns, running `args` instead of `serve`. Keeps the
- * PowerShell-launcher prefix when the resolver fell back to it.
+ * The CLI the backend spawns, running `args` instead of its `serve …`
+ * arguments. Keeps the PowerShell-launcher prefix when the resolver fell
+ * back to it.
  */
 export function museCliInvocation(launch: MuseLaunch, args: readonly string[]): CliInvocation {
-  const prefixLength = launch.args.length - MUSE_SERVE_ARGS.length
+  const prefixLength = launch.args.length - launch.serveArgs.length
   const suffix = launch.args.slice(prefixLength)
-  if (suffix.join(' ') !== MUSE_SERVE_ARGS.join(' ')) {
-    throw new Error(`Muse launch does not end with ${MUSE_SERVE_ARGS.join(' ')}`)
+  if (suffix.join(' ') !== launch.serveArgs.join(' ')) {
+    throw new Error(`Muse launch does not end with ${launch.serveArgs.join(' ')}`)
   }
   return { command: launch.command, args: [...launch.args.slice(0, prefixLength), ...args] }
 }
@@ -157,6 +160,19 @@ function isInsideDirectory(directory: string, candidate: string): boolean {
   return target === root || target.startsWith(`${root}${path.win32.sep}`)
 }
 
+/** A Windows workspace under `C:\Users\<user>`, where the sandbox cannot run commands. */
+export function isProfileWorkspace(
+  platform: NodeJS.Platform,
+  workspaceRoot: string,
+  userProfileDir: string | undefined,
+): boolean {
+  return (
+    platform === 'win32' &&
+    userProfileDir !== undefined &&
+    isInsideDirectory(userProfileDir, workspaceRoot)
+  )
+}
+
 /**
  * Whether Muse Code's Windows sandbox will run shell commands outside this
  * workspace: the affected CLI versions cannot enter `C:\Users\<user>`, so a
@@ -165,11 +181,50 @@ function isInsideDirectory(directory: string, candidate: string): boolean {
  */
 export function isProfileWorkspaceLimited(probe: ProfileWorkspaceProbe): boolean {
   return (
-    probe.platform === 'win32' &&
-    probe.userProfileDir !== undefined &&
     isVersionAtMost(probe.serverVersion, SANDBOX_PROFILE_LIMITED_MAX_VERSION) &&
-    isInsideDirectory(probe.userProfileDir, probe.workspaceRoot)
+    isProfileWorkspace(probe.platform, probe.workspaceRoot, probe.userProfileDir)
   )
+}
+
+export interface ShellSandboxProbe {
+  /** `museSpark.shellSandbox`. */
+  readonly mode: ShellSandboxMode
+  readonly platform: NodeJS.Platform
+  readonly workspaceRoot: string | undefined
+  readonly userProfileDir: string | undefined
+}
+
+/**
+ * Why the sandbox is on or off: the setting said so, `auto` turned it off
+ * for a Windows profile workspace, or nothing spoke and the CLI default
+ * (sandbox on) stands.
+ */
+export type ShellSandboxReason = 'setting' | 'profileWorkspace' | 'default'
+
+export interface ShellSandboxPosture {
+  readonly isSandboxed: boolean
+  readonly reason: ShellSandboxReason
+}
+
+/** The `muse serve` posture for this window (fixed for the host's lifetime). */
+export function resolveShellSandbox(probe: ShellSandboxProbe): ShellSandboxPosture {
+  if (probe.mode === 'muse') {
+    return { isSandboxed: true, reason: 'setting' }
+  }
+  if (probe.mode === 'off') {
+    return { isSandboxed: false, reason: 'setting' }
+  }
+  const isLimited =
+    probe.workspaceRoot !== undefined &&
+    isProfileWorkspace(probe.platform, probe.workspaceRoot, probe.userProfileDir)
+  return isLimited
+    ? { isSandboxed: false, reason: 'profileWorkspace' }
+    : { isSandboxed: true, reason: 'default' }
+}
+
+/** The `serve` arguments that install `posture` on the host. */
+export function serveArguments(posture: ShellSandboxPosture): readonly string[] {
+  return posture.isSandboxed ? MUSE_SERVE_ARGS : [...MUSE_SERVE_ARGS, MUSE_DISABLE_SANDBOX_ARG]
 }
 
 /** A PowerShell single-quoted literal; the only escape is a doubled quote. */

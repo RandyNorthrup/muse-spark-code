@@ -16,9 +16,15 @@ import {
   resolveMuseLaunch,
 } from '../../core/backends/musecode/launch'
 import {
+  resolveShellSandbox,
+  serveArguments,
+  type ShellSandboxPosture,
+} from '../../core/backends/musecode/sandbox'
+import {
   type EnvironmentVariable,
   MSP_CLIENT_NAME,
   MSP_REQUESTED_CAPABILITIES,
+  type ShellSandboxMode,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
 
@@ -29,6 +35,10 @@ export interface BackendManagerDeps {
   readonly getEnvironmentVariables: () => readonly EnvironmentVariable[]
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
+  /** `museSpark.shellSandbox`; read at each spawn (a host keeps its posture). */
+  readonly getShellSandbox: () => ShellSandboxMode
+  /** `%USERPROFILE%`; undefined off Windows. */
+  readonly userProfileDir: string | undefined
 }
 
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -52,6 +62,10 @@ export class MuseCodeBackendManager {
       throw new Error(`${resolution.reason} Searched: ${resolution.searched.join(', ')}`)
     }
     const launch: MuseLaunch = resolution.launch
+    const posture = this.shellSandboxPosture()
+    this.deps.log.info(
+      `Shell sandbox ${posture.isSandboxed ? 'on' : 'off'} (${posture.reason}) for this host`,
+    )
     const env = buildChildEnvironment({
       platform: process.platform,
       baseEnv: process.env,
@@ -116,6 +130,16 @@ export class MuseCodeBackendManager {
     }
   }
 
+  /** The sandbox posture the next spawn installs (PLAN.md D12). */
+  public shellSandboxPosture(): ShellSandboxPosture {
+    return resolveShellSandbox({
+      mode: this.deps.getShellSandbox(),
+      platform: process.platform,
+      workspaceRoot: this.deps.workspaceRoot,
+      userProfileDir: this.deps.userProfileDir,
+    })
+  }
+
   /** Where the CLI is, or why it could not be found. Cheap; no process. */
   public resolveLaunch(): LaunchResolution {
     const env = process.env
@@ -130,6 +154,7 @@ export class MuseCodeBackendManager {
       systemRoot: env['SystemRoot'],
       fileExists: existsSync,
       readTextFile: readTextFileOrUndefined,
+      serveArgs: serveArguments(this.shellSandboxPosture()),
     })
   }
 

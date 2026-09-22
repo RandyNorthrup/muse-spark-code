@@ -6,8 +6,10 @@ import {
   isVersionAtMost,
   museCliInvocation,
   parseSandboxCheck,
+  resolveShellSandbox,
   sandboxCheckInvocation,
   sandboxSetupInvocation,
+  serveArguments,
 } from '../../src/core/backends/musecode/sandbox'
 
 // Verbatim `muse sandbox windows check` output, 2026-09-22 (Muse Code 1.3.0),
@@ -29,6 +31,7 @@ const READY = ['backend=windows_elevated', 'status=ready', 'wfp_ready=true'].joi
 const exeLaunch: MuseLaunch = {
   command: String.raw`C:\Users\randy\AppData\Local\Programs\muse\muse-bin-1.3.0-R3401.1.exe`,
   args: ['serve'],
+  serveArgs: ['serve'],
   installDir: String.raw`C:\Users\randy\AppData\Local\Programs\muse`,
   cliPath: String.raw`C:\Users\randy\AppData\Local\Programs\muse\muse.cmd`,
 }
@@ -36,6 +39,7 @@ const exeLaunch: MuseLaunch = {
 const launcherLaunch: MuseLaunch = {
   command: String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
   args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'launcher.ps1', 'serve'],
+  serveArgs: ['serve'],
   installDir: 'dir',
   cliPath: 'dir/muse.cmd',
 }
@@ -95,6 +99,13 @@ describe('museCliInvocation', () => {
     expect(() => museCliInvocation({ ...exeLaunch, args: ['exec'] }, ['x'])).toThrow(
       'does not end with serve',
     )
+    // A host started without the sandbox still swaps its whole serve tail.
+    const unsandboxed = {
+      ...exeLaunch,
+      args: ['serve', '--disable-sandbox'],
+      serveArgs: ['serve', '--disable-sandbox'],
+    }
+    expect(sandboxCheckInvocation(unsandboxed).args).toEqual(['sandbox', 'windows', 'check'])
   })
 })
 
@@ -178,5 +189,59 @@ describe('isProfileWorkspaceLimited', () => {
         workspaceRoot: String.raw`C:\Users\randy\x`,
       }),
     ).toBe(false)
+  })
+})
+
+describe('resolveShellSandbox', () => {
+  const windows = {
+    platform: 'win32' as const,
+    userProfileDir: String.raw`C:\Users\randy`,
+  }
+
+  it('turns the sandbox off for a Windows profile workspace under auto, and on elsewhere', () => {
+    expect(
+      resolveShellSandbox({
+        ...windows,
+        mode: 'auto',
+        workspaceRoot: String.raw`c:\users\RANDY\Coding\x`,
+      }),
+    ).toEqual({ isSandboxed: false, reason: 'profileWorkspace' })
+    expect(
+      resolveShellSandbox({ ...windows, mode: 'auto', workspaceRoot: String.raw`C:\src\x` }),
+    ).toEqual({ isSandboxed: true, reason: 'default' })
+    expect(resolveShellSandbox({ ...windows, mode: 'auto', workspaceRoot: undefined })).toEqual({
+      isSandboxed: true,
+      reason: 'default',
+    })
+    expect(
+      resolveShellSandbox({
+        mode: 'auto',
+        platform: 'linux',
+        userProfileDir: undefined,
+        workspaceRoot: '/home/randy/x',
+      }),
+    ).toEqual({ isSandboxed: true, reason: 'default' })
+  })
+
+  it('obeys an explicit setting on any platform', () => {
+    const profile = String.raw`C:\Users\randy\x`
+    expect(resolveShellSandbox({ ...windows, mode: 'muse', workspaceRoot: profile })).toEqual({
+      isSandboxed: true,
+      reason: 'setting',
+    })
+    expect(
+      resolveShellSandbox({ ...windows, mode: 'off', workspaceRoot: String.raw`C:\src\x` }),
+    ).toEqual({
+      isSandboxed: false,
+      reason: 'setting',
+    })
+  })
+
+  it('maps the posture onto the serve arguments', () => {
+    expect(serveArguments({ isSandboxed: true, reason: 'default' })).toEqual(['serve'])
+    expect(serveArguments({ isSandboxed: false, reason: 'setting' })).toEqual([
+      'serve',
+      '--disable-sandbox',
+    ])
   })
 })

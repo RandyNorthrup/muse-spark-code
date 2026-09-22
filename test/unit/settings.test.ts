@@ -18,6 +18,7 @@ describe('readSettings', () => {
         useCtrlEnterToSend: true,
         museBinaryPath: 'C:/tools/muse.exe',
         environmentVariables: [{ name: 'MUSE_HOME', value: 'D:/muse' }],
+        shellSandbox: 'off',
       }),
       new FakeLogOutputChannel(),
     )
@@ -26,6 +27,7 @@ describe('readSettings', () => {
     expect(settings.useCtrlEnterToSend).toBe(true)
     expect(settings.museBinaryPath).toBe('C:/tools/muse.exe')
     expect(settings.environmentVariables).toEqual([{ name: 'MUSE_HOME', value: 'D:/muse' }])
+    expect(settings.shellSandbox).toBe('off')
   })
 
   it('logs and falls back to the default for an invalid value', () => {
@@ -34,12 +36,14 @@ describe('readSettings', () => {
       fakeSettingsSource({
         initialPermissionMode: 'yolo',
         environmentVariables: [{ name: 'X' }],
+        shellSandbox: 'sometimes',
       }),
       log,
     )
     expect(settings.initialPermissionMode).toBe('manual')
     expect(settings.environmentVariables).toEqual([])
-    expect(log.warn).toHaveBeenCalledTimes(2)
+    expect(settings.shellSandbox).toBe('auto')
+    expect(log.warn).toHaveBeenCalledTimes(3)
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.initialPermissionMode')
   })
 })
@@ -51,6 +55,7 @@ describe('toSettingsSnapshot', () => {
     )
     expect(snapshot).not.toHaveProperty('museBinaryPath')
     expect(snapshot).not.toHaveProperty('environmentVariables')
+    expect(snapshot).not.toHaveProperty('shellSandbox')
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
   })
 })

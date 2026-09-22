@@ -79,6 +79,14 @@ export interface EnvironmentVariable {
   readonly value: string
 }
 
+// Whether shell commands run inside Muse Code's OS sandbox. `auto` keeps the
+// sandbox except where it is known not to work: Windows workspaces under the
+// user's profile (PLAN.md D12, verified live 2026-09-22). `off` runs commands
+// directly as the user, gated by the approval cards, as Claude Code does.
+export const SHELL_SANDBOX_MODES = ['auto', 'muse', 'off'] as const
+export type ShellSandboxMode = (typeof SHELL_SANDBOX_MODES)[number]
+export const SHELL_SANDBOX_SETTING = 'museSpark.shellSandbox'
+
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
   initialPermissionMode: 'manual' as PermissionMode,
@@ -94,6 +102,7 @@ export const SETTING_DEFAULTS = {
   allowDangerouslySkipPermissions: false,
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
+  shellSandbox: 'auto' as ShellSandboxMode,
 } as const
 
 // Webview bundle layout produced by scripts/build.mjs.
@@ -284,6 +293,9 @@ export const ALLOWED_LINK_SCHEMES: ReadonlySet<string> = new Set(['http:', 'http
 // A code block's Copy button reads "Copied" for this long.
 export const COPIED_FEEDBACK_MS = 1500
 export const MUSE_SERVE_ARGS = ['serve'] as const
+// `muse serve --disable-sandbox`: "keep approval, but skip the sandbox"; a
+// host-lifetime posture, so changing it restarts the host (PLAN.md D12).
+export const MUSE_DISABLE_SANDBOX_ARG = '--disable-sandbox'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_DOCS_URL = 'https://dev.meta.ai/products/muse-code/'
 export const ISSUES_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issues'
@@ -497,6 +509,10 @@ export const UI_TEXT = {
   selectionClipped: '[selection clipped]',
   selectionNotShared:
     'Its content is not shared because the file is excluded from the workspace index.',
+  sandboxOffProfileNotice:
+    "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
+  sandboxRestartNotice:
+    'The shell sandbox setting changed; Muse Code restarts with it on the next message. Start a new conversation to continue.',
   sandboxProfileNotice: String.raw`This workspace is under your user profile, which the Windows sandbox of this Muse Code version cannot enter: shell commands will start in the PowerShell folder instead of the project and take about half a minute each. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
 } as const
 

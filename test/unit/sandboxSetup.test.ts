@@ -16,6 +16,7 @@ const launch: LaunchResolution = {
   launch: {
     command: String.raw`C:\muse\muse-bin-1.exe`,
     args: ['serve'],
+    serveArgs: ['serve'],
     installDir: String.raw`C:\muse`,
     cliPath: String.raw`C:\muse\muse.cmd`,
   },

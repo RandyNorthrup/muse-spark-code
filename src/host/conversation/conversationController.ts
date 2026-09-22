@@ -12,7 +12,10 @@ import type {
   SessionMcpHttpServer,
   TurnPart,
 } from '../../core/backends/musecode/MuseCodeHost'
-import { isProfileWorkspaceLimited } from '../../core/backends/musecode/sandbox'
+import {
+  isProfileWorkspaceLimited,
+  type ShellSandboxPosture,
+} from '../../core/backends/musecode/sandbox'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import {
   ALLOWED_LINK_SCHEMES,
@@ -97,6 +100,8 @@ export interface ConversationDeps {
   readonly platform: NodeJS.Platform
   /** `%USERPROFILE%`; undefined off Windows (the sandbox notice, D12). */
   readonly userProfileDir: string | undefined
+  /** The shell sandbox posture the host runs with (D12). */
+  readonly shellSandbox: () => ShellSandboxPosture
   /** The active editor for the file chip (M5); undefined when none. */
   readonly editorContext: () => EditorContext | undefined
   /** `museSpark.autosave`: save dirty editors before every turn. */
@@ -242,6 +247,28 @@ export class ConversationController {
       default: {
         break
       }
+    }
+  }
+
+  /**
+   * One notice per session about the shell sandbox (PLAN.md D12): `auto`
+   * turned it off for a Windows profile workspace, or the user forced it on
+   * where the CLI cannot run commands in the workspace.
+   */
+  private noteShellSandbox(workspaceRoot: string, serverVersion: string): void {
+    const posture = this.deps.shellSandbox()
+    if (posture.reason === 'profileWorkspace') {
+      this.notice('info', UI_TEXT.sandboxOffProfileNotice)
+      return
+    }
+    const isLimited = isProfileWorkspaceLimited({
+      platform: this.deps.platform,
+      workspaceRoot,
+      userProfileDir: this.deps.userProfileDir,
+      serverVersion,
+    })
+    if (isLimited && posture.isSandboxed) {
+      this.notice('warning', UI_TEXT.sandboxProfileNotice)
     }
   }
 
@@ -449,16 +476,7 @@ export class ConversationController {
       this.onEvent(event)
     })
     this.postSessionInfo(session.modelId)
-    if (
-      isProfileWorkspaceLimited({
-        platform: this.deps.platform,
-        workspaceRoot,
-        userProfileDir: this.deps.userProfileDir,
-        serverVersion: host.info.serverVersion,
-      })
-    ) {
-      this.notice('info', UI_TEXT.sandboxProfileNotice)
-    }
+    this.noteShellSandbox(workspaceRoot, host.info.serverVersion)
     await this.applyEffort(session)
     void this.refreshSkills(session)
     return session

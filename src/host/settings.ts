@@ -4,7 +4,13 @@
 // documented default so one bad key cannot take the whole panel down.
 
 import * as z from 'zod/mini'
-import { type EnvironmentVariable, SETTING_DEFAULTS, SETTINGS_SECTION } from '../shared/constants'
+import {
+  type EnvironmentVariable,
+  SETTING_DEFAULTS,
+  SETTINGS_SECTION,
+  SHELL_SANDBOX_MODES,
+  type ShellSandboxMode,
+} from '../shared/constants'
 import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol'
 import type { Logger } from './logger'
 
@@ -12,6 +18,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
   readonly environmentVariables: readonly EnvironmentVariable[]
+  /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
+  readonly shellSandbox: ShellSandboxMode
 }
 
 /**
@@ -31,6 +39,7 @@ const settingSchemas = {
   ...settingsSnapshotShape,
   museBinaryPath: z.string(),
   environmentVariables: z.array(environmentVariableSchema),
+  shellSandbox: z.enum(SHELL_SANDBOX_MODES),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -69,6 +78,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     allowDangerouslySkipPermissions: readSetting(config, 'allowDangerouslySkipPermissions', log),
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
+    shellSandbox: readSetting(config, 'shellSandbox', log),
   }
 }
 

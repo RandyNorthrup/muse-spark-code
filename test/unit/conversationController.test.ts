@@ -3,6 +3,7 @@ import {
   MuseCodeHost,
   type SessionMcpHttpServer,
 } from '../../src/core/backends/musecode/MuseCodeHost'
+import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
 import type { AuthService, AuthSnapshot } from '../../src/host/auth/authService'
 import {
@@ -111,6 +112,7 @@ function setup(
     indexed?: readonly string[]
     ideMcpEndpoint?: SessionMcpHttpServer
     grantedCapabilities?: readonly string[]
+    shellSandbox?: ShellSandboxPosture
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -250,6 +252,7 @@ function setup(
     onSandboxUnavailable,
     platform: options.platform ?? 'linux',
     userProfileDir: options.userProfileDir,
+    shellSandbox: () => options.shellSandbox ?? { isSandboxed: true, reason: 'default' },
     editorContext: () => options.editorContext,
     isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
     saveAll,
@@ -979,12 +982,13 @@ describe('ConversationController: transcript actions (M4)', () => {
     expect(t.onSandboxUnavailable).not.toHaveBeenCalled()
   })
 
-  it('warns once per session on Windows when the workspace is under the user profile', async () => {
+  it('warns once per session when the sandbox is forced on for a profile workspace', async () => {
     // The fake server reports 1.3.0-test, an affected version.
     const t = setup({
       platform: 'win32',
       userProfileDir: String.raw`C:\Users\randy`,
       workspaceRoot: String.raw`c:\users\RANDY\Coding\project`,
+      shellSandbox: { isSandboxed: true, reason: 'setting' },
     })
     await t.send('l1', 'hi')
     await t.send('l2', 'again')
@@ -992,7 +996,37 @@ describe('ConversationController: transcript actions (M4)', () => {
       (m) => m.type === 'notice' && m.text.includes('under your user profile'),
     )
     expect(notices).toHaveLength(1)
-    expect(notices[0]).toMatchObject({ level: 'info' })
+    expect(notices[0]).toMatchObject({
+      level: 'warning',
+      text: expect.stringContaining('shell commands will start in the PowerShell folder') as string,
+    })
+  })
+
+  it('explains once when auto turned the sandbox off for a profile workspace', async () => {
+    const t = setup({
+      platform: 'win32',
+      userProfileDir: String.raw`C:\Users\randy`,
+      workspaceRoot: String.raw`C:\Users\randy\project`,
+      shellSandbox: { isSandboxed: false, reason: 'profileWorkspace' },
+    })
+    await t.send('l1', 'hi')
+    const notices = t.surface.posted.filter((m) => m.type === 'notice')
+    expect(notices).toHaveLength(1)
+    expect(notices[0]).toMatchObject({
+      level: 'info',
+      text: expect.stringContaining('runs shell commands without the sandbox') as string,
+    })
+  })
+
+  it('says nothing when the user chose off, or when the sandbox is on and works', async () => {
+    const off = setup({
+      platform: 'win32',
+      userProfileDir: String.raw`C:\Users\randy`,
+      workspaceRoot: String.raw`C:\Users\randy\project`,
+      shellSandbox: { isSandboxed: false, reason: 'setting' },
+    })
+    await off.send('l1', 'hi')
+    expect(off.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
   })
 
   it('stays quiet for a workspace outside the profile and off Windows', async () => {
