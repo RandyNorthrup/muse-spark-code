@@ -5,6 +5,8 @@
 
 import * as z from 'zod/mini'
 import {
+  BACKEND_MODES,
+  type BackendMode,
   type EnvironmentVariable,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
@@ -20,6 +22,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly environmentVariables: readonly EnvironmentVariable[]
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
+  /** Which backend hosts conversations (PLAN.md D1, M7). */
+  readonly backend: BackendMode
 }
 
 /**
@@ -40,6 +44,7 @@ const settingSchemas = {
   museBinaryPath: z.string(),
   environmentVariables: z.array(environmentVariableSchema),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
+  backend: z.enum(BACKEND_MODES),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -80,6 +85,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
+    backend: readSetting(config, 'backend', log),
   }
 }
 

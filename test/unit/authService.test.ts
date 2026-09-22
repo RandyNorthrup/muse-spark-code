@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { AuthService, type AuthServiceDeps } from '../../src/host/auth/authService'
 import { CredentialStore } from '../../src/host/auth/credentialStore'
+import type { BackendMode } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 
@@ -8,7 +9,12 @@ interface Harness {
   readonly service: AuthService
   readonly deps: AuthServiceDeps
   readonly broadcasts: HostToWebviewMessage[]
-  readonly facts: { cliPresent: boolean; credentialFile: boolean; envKey: boolean }
+  readonly facts: {
+    cliPresent: boolean
+    credentialFile: boolean
+    envKey: boolean
+    backendMode: BackendMode
+  }
   readonly restartBackend: ReturnType<typeof vi.fn<() => Promise<void>>>
   readonly runInTerminal: ReturnType<
     typeof vi.fn<(cliPath: string, args: readonly string[]) => void>
@@ -17,7 +23,12 @@ interface Harness {
 
 function harness(overrides: Partial<AuthServiceDeps> = {}): Harness {
   const broadcasts: HostToWebviewMessage[] = []
-  const facts = { cliPresent: true, credentialFile: false, envKey: false }
+  const facts = {
+    cliPresent: true,
+    credentialFile: false,
+    envKey: false,
+    backendMode: 'auto' as BackendMode,
+  }
   const restartBackend = vi.fn<() => Promise<void>>(() => Promise.resolve())
   const runInTerminal = vi.fn<(cliPath: string, args: readonly string[]) => void>()
   let clock = 0
@@ -27,6 +38,7 @@ function harness(overrides: Partial<AuthServiceDeps> = {}): Harness {
         facts.cliPresent ? { ok: true, cliPath: '/bin/muse' } : { ok: false, reason: 'missing' },
       credentialFileExists: () => facts.credentialFile,
       hasEnvironmentKey: () => facts.envKey,
+      getBackendMode: () => facts.backendMode,
       restartBackend,
     },
     credentials: new CredentialStore(memorySecrets()),
@@ -47,19 +59,73 @@ function harness(overrides: Partial<AuthServiceDeps> = {}): Harness {
 }
 
 describe('AuthService.refresh', () => {
-  it('reports noCli with the reason when the CLI is missing', async () => {
+  it('reports noCli with the reason when the CLI is missing, offering the key path', async () => {
     const h = harness()
     h.facts.cliPresent = false
-    await expect(h.service.refresh()).resolves.toEqual({ status: 'noCli', detail: 'missing' })
-    expect(h.broadcasts.at(-1)).toEqual({ type: 'authState', status: 'noCli', detail: 'missing' })
+    await expect(h.service.refresh()).resolves.toEqual({
+      status: 'noCli',
+      detail: 'missing',
+      backend: undefined,
+      methods: ['apiKey'],
+    })
+    expect(h.broadcasts.at(-1)).toEqual({
+      type: 'authState',
+      status: 'noCli',
+      detail: 'missing',
+      methods: ['apiKey'],
+    })
+    expect(h.service.backend).toBeUndefined()
   })
 
-  it('derives signed out / signed in from the credential facts', async () => {
+  it('derives signed out / signed in from the CLI credential facts, on the Muse Code backend', async () => {
     const h = harness()
-    await expect(h.service.refresh()).resolves.toMatchObject({ status: 'signedOut' })
+    await expect(h.service.refresh()).resolves.toMatchObject({
+      status: 'signedOut',
+      backend: 'museCode',
+      methods: ['browser', 'apiKey'],
+    })
     h.facts.credentialFile = true
     await expect(h.service.refresh()).resolves.toMatchObject({ status: 'signedIn' })
-    expect(h.broadcasts.at(-1)).toEqual({ type: 'authState', status: 'signedIn' })
+    expect(h.broadcasts.at(-1)).toEqual({
+      type: 'authState',
+      status: 'signedIn',
+      backend: 'museCode',
+      methods: ['browser', 'apiKey'],
+    })
+    expect(h.service.backend).toBe('museCode')
+  })
+
+  it('takes the Model API backend from a stored key when the CLI has no session, and never mixes them', async () => {
+    const h = harness()
+    h.facts.cliPresent = false
+    await h.deps.credentials.setApiKey('LLM|1|secret')
+    await expect(h.service.refresh()).resolves.toMatchObject({
+      status: 'signedIn',
+      backend: 'modelApi',
+    })
+    // A CLI session takes precedence in auto: the subscription pays for CLI work.
+    h.facts.cliPresent = true
+    h.facts.credentialFile = true
+    await expect(h.service.refresh()).resolves.toMatchObject({
+      status: 'signedIn',
+      backend: 'museCode',
+    })
+    // Forced modes.
+    h.facts.backendMode = 'modelApi'
+    await expect(h.service.refresh()).resolves.toMatchObject({
+      status: 'signedIn',
+      backend: 'modelApi',
+      methods: ['apiKey'],
+    })
+    h.facts.backendMode = 'museCode'
+    h.facts.credentialFile = false
+    await expect(h.service.refresh()).resolves.toMatchObject({
+      status: 'signedOut',
+      backend: 'museCode',
+      methods: ['browser'],
+    })
+    h.facts.cliPresent = false
+    await expect(h.service.refresh()).resolves.toMatchObject({ status: 'noCli', methods: [] })
   })
 })
 
@@ -86,11 +152,24 @@ describe('AuthService.signIn', () => {
     expect(h.restartBackend).not.toHaveBeenCalled()
   })
 
-  it('stores a pasted API key and restarts the backend', async () => {
+  it('stores a pasted API key, restarts the backends and lands on the Model API backend', async () => {
     const h = harness()
-    await expect(h.service.signIn('apiKey')).resolves.toMatchObject({ status: 'signedIn' })
+    await expect(h.service.signIn('apiKey')).resolves.toMatchObject({
+      status: 'signedIn',
+      backend: 'modelApi',
+    })
     await expect(h.deps.credentials.getApiKey()).resolves.toBe('LLM|1|secret')
     expect(h.restartBackend).toHaveBeenCalledOnce()
+  })
+
+  it('accepts an API key without the CLI', async () => {
+    const h = harness()
+    h.facts.cliPresent = false
+    await expect(h.service.signIn('apiKey')).resolves.toMatchObject({
+      status: 'signedIn',
+      backend: 'modelApi',
+    })
+    expect(h.runInTerminal).not.toHaveBeenCalled()
   })
 
   it('leaves the state alone when the key prompt is dismissed', async () => {
@@ -100,7 +179,7 @@ describe('AuthService.signIn', () => {
     expect(h.restartBackend).not.toHaveBeenCalled()
   })
 
-  it('refuses to sign in when the CLI is missing', async () => {
+  it('refuses the browser sign-in when the CLI is missing', async () => {
     const h = harness()
     h.facts.cliPresent = false
     await expect(h.service.signIn('browser')).resolves.toMatchObject({ status: 'noCli' })
@@ -129,11 +208,21 @@ describe('AuthService.signOut and host reports', () => {
     const h = harness()
     h.facts.credentialFile = true
     await h.service.refresh()
-    expect(h.service.markAuthRequired('not logged in')).toEqual({
+    expect(h.service.markAuthRequired('not logged in')).toMatchObject({
       status: 'signedOut',
       detail: 'not logged in',
+      backend: 'museCode',
     })
-    expect(h.service.markBackendError('crashed')).toEqual({ status: 'error', detail: 'crashed' })
-    expect(h.service.toMessage()).toEqual({ type: 'authState', status: 'error', detail: 'crashed' })
+    expect(h.service.markBackendError('crashed')).toMatchObject({
+      status: 'error',
+      detail: 'crashed',
+    })
+    expect(h.service.toMessage()).toEqual({
+      type: 'authState',
+      status: 'error',
+      detail: 'crashed',
+      backend: 'museCode',
+      methods: ['browser', 'apiKey'],
+    })
   })
 })

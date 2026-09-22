@@ -1,0 +1,195 @@
+import { describe, expect, it } from 'vitest'
+import {
+  MissingApiKeyError,
+  ModelApiClient,
+  ModelApiError,
+} from '../../src/core/backends/modelapi/client'
+import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeModelApi } from './helpers/fakeModelApi'
+
+const body: CreateResponseBody = {
+  model: 'muse-spark-1.3',
+  input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }],
+  instructions: 'be brief',
+  tools: [],
+  tool_choice: 'auto',
+  reasoning: { effort: 'high', summary: 'auto' },
+  stream: true,
+  store: false,
+  include: ['reasoning.encrypted_content'],
+  max_output_tokens: 100,
+  prompt_cache_key: 's1',
+}
+
+/** `null` means no key is stored. */
+function setup(key: string | null = 'LLM|1|secret') {
+  const api = fakeModelApi()
+  const sleeps: number[] = []
+  const log = new FakeLogOutputChannel()
+  const client = new ModelApiClient({
+    fetch: api.fetch,
+    baseUrl: 'https://api.example.test/v1',
+    apiKey: () => Promise.resolve(key ?? undefined),
+    sleep: (ms) => {
+      sleeps.push(ms)
+      return Promise.resolve()
+    },
+    random: () => 0.5,
+    log,
+  })
+  return { api, client, sleeps, log }
+}
+
+function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[]> {
+  return Array.fromAsync(stream)
+}
+
+describe('ModelApiClient', () => {
+  it('sends the bearer key and lists the catalogue ids', async () => {
+    const { api, client } = setup()
+    await expect(client.listModels()).resolves.toEqual([
+      'muse-spark-1.3',
+      'muse-spark-1.3-contributor',
+      'muse-spark-1.2',
+      'muse-image-1.0',
+    ])
+    expect(api.requests[0]).toMatchObject({
+      path: '/models',
+      method: 'GET',
+      headers: { Authorization: 'Bearer LLM|1|secret', Accept: 'application/json' },
+    })
+  })
+
+  it('counts input tokens without the stream flag', async () => {
+    const { api, client } = setup()
+    const { stream: _stream, ...countable } = body
+    await expect(client.countInputTokens(countable)).resolves.toBe(42)
+    expect(api.requests[0]).toMatchObject({ path: '/responses/input_tokens', method: 'POST' })
+    expect(api.requests[0]?.body).not.toHaveProperty('stream')
+  })
+
+  it('streams the documented events in order, skipping unknown types', async () => {
+    const { api, client } = setup()
+    api.script({
+      reasoning: 'think',
+      text: 'hello',
+      calls: [{ name: 'read_file', arguments: '{}' }],
+    })
+    const events = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(events.map((event) => event.type)).toEqual([
+      'response.created',
+      'response.output_item.added',
+      'response.reasoning_summary_text.delta',
+      'response.output_item.done',
+      'response.output_item.added',
+      'response.output_text.delta',
+      'response.output_item.done',
+      'response.output_item.added',
+      'response.function_call_arguments.delta',
+      'response.function_call_arguments.done',
+      'response.output_item.done',
+      'response.completed',
+    ])
+    expect(api.requests[0]).toMatchObject({
+      path: '/responses',
+      method: 'POST',
+      headers: { Accept: 'text/event-stream' },
+      body: { stream: true, store: false, include: ['reasoning.encrypted_content'] },
+    })
+  })
+
+  it('retries 429 / 500 / 503 with backoff honouring Retry-After, then gives up', async () => {
+    const { api, client, sleeps, log } = setup()
+    api.script(
+      {
+        httpError: {
+          status: 429,
+          retryAfter: '2',
+          body: {
+            error: { message: 'slow down', type: 'rate_limit_error', code: 'rate_limit_exceeded' },
+          },
+        },
+      },
+      { httpError: { status: 503 } },
+      { httpError: { status: 500 } },
+      { text: 'finally' },
+    )
+    const events = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(events.at(-1)?.type).toBe('response.completed')
+    // Retry-After 2 s + 500 ms jitter, then 2 s + jitter and 4 s + jitter of backoff.
+    expect(sleeps).toEqual([2500, 2500, 4500])
+    expect(log.warn).toHaveBeenCalledTimes(3)
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('429')
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('slow down')
+
+    api.script({ httpError: { status: 503 } })
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toMatchObject({
+      name: 'ModelApiError',
+      status: 503,
+    })
+    expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(4 + 5)
+  })
+
+  it('does not retry 400 / 401 and reports the envelope', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({
+      httpError: {
+        status: 400,
+        body: {
+          error: {
+            message: 'temperature out of range',
+            type: 'invalid_request_error',
+            param: 'temperature',
+          },
+        },
+      },
+    })
+    let error: unknown
+    try {
+      await collect(client.streamResponse(body, new AbortController().signal))
+    } catch (error_: unknown) {
+      error = error_
+    }
+    expect(error).toBeInstanceOf(ModelApiError)
+    expect(error).toMatchObject({
+      status: 400,
+      kind: 'invalid_request_error',
+      code: undefined,
+      message: 'temperature out of range',
+    })
+    expect(sleeps).toEqual([])
+    const unauthorized = setup('LLM|bad')
+    await expect(unauthorized.client.listModels()).rejects.toMatchObject({
+      status: 401,
+      code: 'invalid_api_key',
+    })
+  })
+
+  it('retries a failed send, and stops when the caller aborted', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({ networkError: 'ECONNRESET' }, { text: 'back' })
+    const events = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(events.at(-1)?.type).toBe('response.completed')
+    expect(sleeps).toEqual([1500])
+    const controller = new AbortController()
+    controller.abort()
+    await expect(collect(client.streamResponse(body, controller.signal))).rejects.toMatchObject({
+      status: 0,
+    })
+  })
+
+  it('refuses without a key and fails on frames it cannot trust', async () => {
+    const missing = setup(null)
+    await expect(missing.client.listModels()).rejects.toBeInstanceOf(MissingApiKeyError)
+    const { api, client } = setup()
+    api.script({ garbage: true })
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('Malformed stream frame'),
+    })
+  })
+})

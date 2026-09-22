@@ -5,8 +5,9 @@ inside the editor, modelled on the Claude Code VS Code extension: sidebar or
 editor-tab conversations, a slash-command palette, model and reasoning-effort
 picker, permission modes, streaming markdown, diff review, and session history.
 
-> **Status: milestone M6 (sessions and history).** You can sign in (Meta
-> account through the Muse Code CLI, or a Model API key), hold streaming
+> **Status: milestone M7 (Model API backend).** You can sign in (Meta
+> account through the Muse Code CLI on your subscription, or a Model API key
+> on pay-as-you-go, never mixed), hold streaming
 > conversations with markdown and highlighted code, use the "/" palette,
 > attach images, `@`-mention files, pick the model, effort and permission
 > mode, steer a running turn, and watch the agent read, edit and write files
@@ -29,10 +30,19 @@ This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 Meta offers no OAuth flow for third-party apps, so the extension supports the
 two sanctioned paths (see `PLAN.md` §2 D1):
 
-| Backend                                                                      | How you sign in                                                                                                       | Status         |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`) or `META_API_KEY`; subscriptions work because the CLI makes the requests | Available (M2) |
-| **Meta Model API** (`https://api.meta.ai/v1`, OpenAI-compatible)             | Paste a key from dev.meta.ai; stored in VS Code SecretStorage                                                         | Planned (M7)   |
+| Backend                                                                      | How you sign in                                                                                                                      | Status         |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
+| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`); your Muse subscription pays because the CLI makes the requests with its own credential | Available (M2) |
+| **Meta Model API** (`https://api.meta.ai/v1`, OpenAI-compatible)             | Paste a key from dev.meta.ai; stored in VS Code SecretStorage; pay as you go; the extension's own tools                              | Available (M7) |
+
+The two are never mixed: the key you paste drives only the Model API
+backend and is never handed to the CLI, so subscription work is never
+billed to the key (until M7 the extension passed it to `muse serve` as
+`META_API_KEY`, which the CLI prefers over its own sign-in). The
+`museSpark.backend` setting picks: `auto` (default) uses the CLI when it is
+installed and signed in, otherwise the Model API when a key is stored;
+`museCode` and `modelApi` force one side. The `/` palette's **Backend** row
+under Account & usage shows which one this window runs on.
 
 ## Signing in
 
@@ -43,9 +53,9 @@ The panel shows a sign-in gate until a credential exists:
   code in your browser; the extension watches for the CLI's credential file
   (`~/.config/muse/auth.json`, or under `XDG_CONFIG_HOME`) for up to five
   minutes and then starts the backend.
-- **Use a Model API key** prompts for a key shaped like `LLM|<id>|<secret>`,
-  stores it in VS Code secret storage, and passes it to the CLI as
-  `META_API_KEY` for the child process only.
+- **Use a Model API key** prompts for a key shaped like `LLM|<id>|<secret>`
+  and stores it in VS Code secret storage. It works without the CLI and
+  starts the Model API backend; it is never passed to the CLI.
 - If the CLI is not installed, the gate links to the install instructions;
   the extension looks for it via `museSpark.museBinaryPath`, then `PATH`,
   then the platform's default install folder (`%LOCALAPPDATA%\Programs\muse`
@@ -78,7 +88,7 @@ set, including the VS Code integration tests, on all three.
 - [gitleaks](https://github.com/gitleaks/gitleaks) on `PATH` for the
   pre-commit hook and `npm run security:secrets`
 - The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
-  a Meta account, or a Meta Model API key (M7 adds the direct API backend)
+  a Meta account (subscription), or a Meta Model API key (pay as you go)
 - `git` on `PATH` for `.gitignore`-aware `@` mentions (optional; VS Code's
   file search is used without it)
 
@@ -216,6 +226,28 @@ step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
   reasoning rows behind one `Show N steps` row; a card waiting on you is
   never hidden.
 
+## The Model API backend
+
+With a pasted key and no signed-in CLI (or `museSpark.backend: modelApi`)
+the panel talks to `https://api.meta.ai/v1` itself: streamed
+`POST /responses` with stateless reasoning replay (`store: false`, the
+encrypted reasoning items are sent back each turn, so nothing is kept on
+Meta's side), the same effort tiers, and the extension's own tools in place
+of the CLI's: Read, Edit (exactly one match), Write, Search (regex + glob),
+List, the platform shell (PowerShell on Windows, bash elsewhere), plus
+questions to you and a task list. Every path is confined to the workspace;
+edits show the same diff rows with **Open diff** / **Revert**. The
+permission modes apply as in Claude Code: Manual asks before edits and
+commands, Edit automatically asks only for commands, Plan refuses both, Auto
+behaves like Edit automatically here (there is no safety classifier to
+consult), Bypass runs everything. Approval cards offer Allow once, Always
+allow in this session, and Reject with feedback. `/compact` summarises the
+conversation with one model call. Sessions on this backend live for the
+window: the History dialog lists them, but they are gone after a reload
+(a stored session log is on the M8 list). Skills are not available. A
+contributor-tier model asks once per conversation before it is used and is
+hidden in a confidential workspace, on either backend.
+
 ## Sessions and history
 
 Every conversation is a Muse Code session stored on disk by the CLI, so
@@ -266,6 +298,7 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 | `confidentialWorkspace`           | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                     |
 | `allowDangerouslySkipPermissions` | `false`  | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)                                                                                                                                                                    |
 | `archiveInactiveSessions`         | `14`     | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                             |
+| `backend`                         | `auto`   | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI                                                                                         |
 | `shellSandbox`                    | `auto`   | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Changing it restarts the host |
 | `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir                                                                                                                                                            |
 | `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in                                                                                                                                                               |
@@ -325,9 +358,9 @@ row in `PLAN.md` §8.
 The extension stores credentials in VS Code SecretStorage, never in files.
 `.env.example` documents the single variable tooling may read:
 
-| Variable       | Used by                      | Purpose                                                                                          |
-| -------------- | ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| `META_API_KEY` | Muse Code CLI (`muse serve`) | Optional API key the extension can inject into the CLI child process (M2). Never commit a value. |
+| Variable       | Used by                      | Purpose                                                                                                                                                          |
+| -------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `META_API_KEY` | Muse Code CLI (`muse serve`) | If you export it yourself the CLI inherits it untouched (and prefers it over its sign-in, as Meta documents). The extension never sets it. Never commit a value. |
 
 ## Project structure
 
@@ -391,6 +424,13 @@ gitleaks over full history, and semgrep.
   setup, start a new conversation. File reads and edits work without it;
   Linux and macOS need no setup (`muse sandbox` has only the `windows`
   subcommands).
+- **Model API charges while using the CLI** — up to M6 a key pasted into
+  the panel was passed to `muse serve` as `META_API_KEY`, which the CLI
+  prefers over its own sign-in, so CLI work was billed to the key. M7 stops
+  that: the CLI runs on its own credential only (check the "muse serve
+  credentials" line in the Muse Spark output log). If the CLI itself holds
+  a pay-as-you-go key (`muse auth set`), or `META_API_KEY` is exported in
+  your environment, the CLI still uses it, exactly as Meta documents.
 - **"Could not rename the conversation: … UnsupportedPlatform" / "Could not
   fork the conversation: invalid fork boundary … WriteFailed"** — Muse Code
   1.3.0 refuses `session/rename` and `session/fork` on Windows (the same two

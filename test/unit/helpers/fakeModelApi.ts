@@ -1,0 +1,296 @@
+// An in-process Meta Model API for unit tests: a `fetch` that answers
+// `GET /models`, `POST /responses/input_tokens` and the streamed
+// `POST /responses` from a script of replies, recording every request.
+// Streams are real `ReadableStream` bodies in the documented SSE framing
+// (dev.meta.ai/docs/protocols/responses), so the parser and the client run
+// exactly as they do against the service.
+
+export interface ScriptedCall {
+  readonly name: string
+  readonly arguments: string
+  readonly callId?: string
+}
+
+/** One model reply: streamed as reasoning + text + function calls. */
+export interface ScriptedReply {
+  readonly text?: string
+  readonly reasoning?: string
+  readonly calls?: readonly ScriptedCall[]
+  readonly usage?: { readonly input: number; readonly output: number; readonly cached?: number }
+  /** Serve this HTTP failure instead of a stream (before any event). */
+  readonly httpError?: {
+    readonly status: number
+    readonly body?: unknown
+    readonly retryAfter?: string
+  }
+  /** Cut the stream with a terminal `error` event after the text. */
+  readonly streamError?: { readonly code: string; readonly message: string }
+  /** End the stream with `response.failed` instead of `response.completed`. */
+  readonly failed?: { readonly code: string; readonly message: string }
+  /** Serve frames that are not JSON. */
+  readonly garbage?: boolean
+  /** Fail the fetch itself (network error) instead of answering. */
+  readonly networkError?: string
+}
+
+export interface RecordedRequest {
+  readonly path: string
+  readonly method: string
+  readonly headers: Record<string, string>
+  readonly body: unknown
+}
+
+export interface FakeModelApi {
+  readonly fetch: typeof fetch
+  readonly requests: RecordedRequest[]
+  /** Replies are consumed in order; the last one repeats when exhausted. */
+  script(...replies: readonly ScriptedReply[]): void
+  models: string[]
+  inputTokens: number
+  /** The bodies of every `POST /responses` seen, parsed. */
+  readonly responseBodies: () => readonly Record<string, unknown>[]
+}
+
+const encoder = new TextEncoder()
+
+function frame(event: Record<string, unknown>): string {
+  return `event: ${String(event['type'])}\ndata: ${JSON.stringify(event)}\n\n`
+}
+
+const ids = { counter: 0 }
+function nextId(prefix: string): string {
+  ids.counter += 1
+  return `${prefix}_${String(ids.counter)}`
+}
+
+/** The SSE text for one scripted reply, in the documented event order. */
+export function streamFor(reply: ScriptedReply, responseId: string): string {
+  const output: Record<string, unknown>[] = []
+  let text = frame({
+    type: 'response.created',
+    response: { id: responseId, status: 'in_progress', output: [] },
+  })
+  let index = 0
+  if (reply.reasoning !== undefined) {
+    const id = nextId('rs')
+    const item = { type: 'reasoning', id, summary: [], status: 'in_progress' }
+    text += frame({ type: 'response.output_item.added', output_index: index, item })
+    const reasoningPieces = reply.reasoning.match(/.{1,6}/g) ?? []
+    for (const piece of reasoningPieces) {
+      text += frame({
+        type: 'response.reasoning_summary_text.delta',
+        item_id: id,
+        summary_index: 0,
+        delta: piece,
+      })
+    }
+    const done = {
+      type: 'reasoning',
+      id,
+      summary: [{ type: 'summary_text', text: reply.reasoning }],
+      encrypted_content: `enc:${id}`,
+      status: 'completed',
+    }
+    text += frame({ type: 'response.output_item.done', output_index: index, item: done })
+    output.push(done)
+    index += 1
+  }
+  if (reply.text !== undefined) {
+    const id = nextId('msg')
+    text += frame({
+      type: 'response.output_item.added',
+      output_index: index,
+      item: { type: 'message', id, role: 'assistant', content: [], status: 'in_progress' },
+    })
+    const textPieces = reply.text.match(/.{1,5}/g) ?? []
+    for (const piece of textPieces) {
+      text += frame({ type: 'response.output_text.delta', item_id: id, delta: piece })
+    }
+    if (reply.streamError !== undefined) {
+      text += frame({
+        type: 'error',
+        code: reply.streamError.code,
+        message: reply.streamError.message,
+      })
+      return text
+    }
+    const done = {
+      type: 'message',
+      id,
+      role: 'assistant',
+      content: [{ type: 'output_text', text: reply.text, annotations: [] }],
+      status: 'completed',
+    }
+    text += frame({ type: 'response.output_item.done', output_index: index, item: done })
+    output.push(done)
+    index += 1
+  }
+  const calls = reply.calls ?? []
+  for (const call of calls) {
+    const id = nextId('fc')
+    const callId = call.callId ?? nextId('call')
+    text += frame({
+      type: 'response.output_item.added',
+      output_index: index,
+      item: {
+        type: 'function_call',
+        id,
+        call_id: callId,
+        name: call.name,
+        arguments: '',
+        status: 'in_progress',
+      },
+    })
+    text += frame({
+      type: 'response.function_call_arguments.delta',
+      item_id: id,
+      delta: call.arguments,
+    })
+    text += frame({
+      type: 'response.function_call_arguments.done',
+      item_id: id,
+      arguments: call.arguments,
+    })
+    const done = {
+      type: 'function_call',
+      id,
+      call_id: callId,
+      name: call.name,
+      arguments: call.arguments,
+      status: 'completed',
+    }
+    text += frame({ type: 'response.output_item.done', output_index: index, item: done })
+    output.push(done)
+    index += 1
+  }
+  // An event type this client does not know: skipped, never fatal.
+  text += frame({ type: 'response.something_new', detail: 1 })
+  if (reply.failed !== undefined) {
+    return `${text}${frame({
+      type: 'response.failed',
+      response: { id: responseId, status: 'failed', output, error: reply.failed },
+    })}`
+  }
+  const usage = reply.usage ?? { input: 10, output: 5 }
+  return `${text}${frame({
+    type: 'response.completed',
+    response: {
+      id: responseId,
+      status: 'completed',
+      model: 'muse-spark-1.3',
+      output,
+      usage: {
+        input_tokens: usage.input,
+        output_tokens: usage.output,
+        total_tokens: usage.input + usage.output,
+        input_tokens_details: { cached_tokens: usage.cached ?? 0 },
+        output_tokens_details: { reasoning_tokens: 1 },
+      },
+    },
+  })}`
+}
+
+function bodyStream(text: string): ReadableStream<Uint8Array> {
+  // Two chunks split mid-frame: the parser must buffer across chunks.
+  const bytes = encoder.encode(text)
+  const cut = Math.floor(bytes.length / 2)
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(bytes.subarray(0, cut))
+      controller.enqueue(bytes.subarray(cut))
+      controller.close()
+    },
+  })
+}
+
+function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  return Response.json(body, {
+    status,
+    headers: { 'content-type': 'application/json', ...headers },
+  })
+}
+
+function urlOf(input: string | URL | Request): URL {
+  if (typeof input === 'string') {
+    return new URL(input)
+  }
+  return input instanceof URL ? input : new URL(input.url)
+}
+
+export function fakeModelApi(): FakeModelApi {
+  const requests: RecordedRequest[] = []
+  let replies: ScriptedReply[] = [{ text: 'ok' }]
+  let consumed = 0
+  const api: FakeModelApi = {
+    requests,
+    models: ['muse-spark-1.3', 'muse-spark-1.3-contributor', 'muse-spark-1.2', 'muse-image-1.0'],
+    inputTokens: 42,
+    script(...next) {
+      replies = [...next]
+      consumed = 0
+    },
+    responseBodies: () =>
+      requests
+        .filter((request) => request.path === '/responses')
+        .map((request) => request.body as Record<string, unknown>),
+    fetch: (input, init) => {
+      const url = urlOf(input)
+      const method = init?.method ?? 'GET'
+      const headers = Object.fromEntries(
+        Object.entries((init?.headers ?? {}) as Record<string, string>),
+      )
+      const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
+      requests.push({ path: url.pathname.replace(/^\/v1/, ''), method, headers, body })
+      if (headers['Authorization'] !== 'Bearer LLM|1|secret') {
+        return Promise.resolve(
+          json(
+            {
+              error: { message: 'bad key', type: 'authentication_error', code: 'invalid_api_key' },
+            },
+            401,
+          ),
+        )
+      }
+      if (url.pathname.endsWith('/models')) {
+        return Promise.resolve(
+          json({ object: 'list', data: api.models.map((id) => ({ id, object: 'model' })) }),
+        )
+      }
+      if (url.pathname.endsWith('/responses/input_tokens')) {
+        return Promise.resolve(
+          json({ object: 'response.input_tokens', input_tokens: api.inputTokens }),
+        )
+      }
+      const reply = replies[Math.min(consumed, replies.length - 1)] ?? { text: 'ok' }
+      consumed += 1
+      if (reply.networkError !== undefined) {
+        return Promise.reject(new TypeError(reply.networkError))
+      }
+      if (reply.httpError !== undefined) {
+        return Promise.resolve(
+          json(
+            reply.httpError.body ?? {
+              error: { message: `status ${String(reply.httpError.status)}`, type: 'server_error' },
+            },
+            reply.httpError.status,
+            reply.httpError.retryAfter === undefined
+              ? {}
+              : { 'retry-after': reply.httpError.retryAfter },
+          ),
+        )
+      }
+      const text = reply.garbage === true ? 'data: {not json\n\n' : streamFor(reply, nextId('resp'))
+      const signal = init?.signal
+      if (signal?.aborted === true) {
+        return Promise.reject(new DOMException('aborted', 'AbortError'))
+      }
+      return Promise.resolve(
+        new Response(bodyStream(text), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+      )
+    },
+  }
+  return api
+}

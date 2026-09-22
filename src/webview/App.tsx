@@ -487,6 +487,7 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
         useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
         usage: state.usage,
         skills: state.skills,
+        backend: state.auth.backend,
       }),
     [
       state.model,
@@ -497,6 +498,7 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       state.settings,
       state.usage,
       state.skills,
+      state.auth.backend,
     ],
   )
   const modeEntries = useMemo(
@@ -541,6 +543,7 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       <SignIn
         status={state.auth.status}
         detail={state.auth.detail}
+        methods={state.auth.methods}
         onSignIn={onSignIn}
         onRetry={onRetry}
         onOpenExternal={onOpenExternal}

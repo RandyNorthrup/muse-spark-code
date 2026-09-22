@@ -87,6 +87,13 @@ export const SHELL_SANDBOX_MODES = ['auto', 'muse', 'off'] as const
 export type ShellSandboxMode = (typeof SHELL_SANDBOX_MODES)[number]
 export const SHELL_SANDBOX_SETTING = 'museSpark.shellSandbox'
 
+// Which backend hosts conversations (PLAN.md D1, M7): `auto` takes Muse
+// Code when the CLI is installed and the Model API when only a key is
+// present; the other two force one side.
+export const BACKEND_MODES = ['auto', 'museCode', 'modelApi'] as const
+export type BackendMode = (typeof BACKEND_MODES)[number]
+export const BACKEND_SETTING = 'museSpark.backend'
+
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
   initialPermissionMode: 'manual' as PermissionMode,
@@ -107,6 +114,7 @@ export const SETTING_DEFAULTS = {
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
   shellSandbox: 'auto' as ShellSandboxMode,
+  backend: 'auto' as BackendMode,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 
@@ -230,10 +238,82 @@ export const TOOL_LABELS: Readonly<Record<string, string>> = {
   powershell: 'PowerShell',
   request_user_input: 'Question',
   mcp__ide__getDiagnostics: 'Diagnostics',
+  list_files: 'List',
+  ask_user: 'Question',
+  todo_write: 'Tasks',
 }
 export const SHELL_TOOLS: ReadonlySet<string> = new Set(['bash', 'powershell', 'shell', 'cmd'])
 export const FILE_EDIT_TOOLS: ReadonlySet<string> = new Set(['write_file', 'edit_file'])
 export const FILE_READ_TOOLS: ReadonlySet<string> = new Set(['read_file'])
+// --- Meta Model API backend (M7, PLAN.md D1 / D2 / §5.1) ---
+
+export const MODEL_API_BASE_URL = 'https://api.meta.ai/v1'
+export const MODEL_API_SERVER_NAME = 'meta-model-api'
+export const MODEL_API_VERSION = 'v1'
+// Only chat models are listed; the catalogue also carries image, voice and
+// segmentation models.
+export const MODEL_API_MODEL_PREFIX = 'muse-spark-'
+export const CONTRIBUTOR_MODEL_SUFFIX = '-contributor'
+// dev.meta.ai/docs/models: every Muse Spark model has this window; the
+// output cap is well under the documented 131,072 maximum.
+export const MODEL_API_CONTEXT_WINDOW = 1_048_576
+export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
+// dev.meta.ai/docs/error-handling: 429 / 500 / 503 are retryable with
+// exponential backoff and jitter, honouring Retry-After; 3–5 attempts.
+export const MODEL_API_RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 500, 503])
+export const MODEL_API_MAX_RETRIES = 4
+export const MODEL_API_RETRY_BASE_MS = 1000
+export const MODEL_API_RETRY_MAX_MS = 60_000
+export const MODEL_API_RETRY_JITTER_MS = 1000
+export const HTTP_UNAUTHORIZED = 401
+// The turn error kind both backends report when the credential is refused;
+// the controller turns it into the signed-out gate.
+export const AUTH_REQUIRED_ERROR_KIND = 'authRequired'
+// The reasoning effort sent while the Thinking toggle is off (`none` is a 400).
+export const MODEL_API_EFFORT_OFF = 'minimal'
+// Context pressure thresholds (fraction of the window) for the indicator.
+export const CONTEXT_PRESSURE_MEDIUM = 0.7
+export const CONTEXT_PRESSURE_HIGH = 0.9
+// A turn stops after this many model calls (tool rounds) to bound a loop.
+export const MODEL_API_MAX_TOOL_ROUNDS = 50
+// The in-process tools (Claude Code's set, MSP's names where they exist so
+// the transcript rows render identically).
+export const MODEL_API_TOOLS = {
+  readFile: 'read_file',
+  writeFile: 'write_file',
+  editFile: 'edit_file',
+  search: 'search',
+  listFiles: 'list_files',
+  bash: 'bash',
+  powershell: 'powershell',
+  askUser: 'ask_user',
+  todoWrite: 'todo_write',
+} as const
+export const TOOL_OUTPUT_MAX_CHARS = 64_000
+export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
+export const READ_FILE_DEFAULT_LIMIT = 2000
+export const READ_FILE_MAX_LINE_CHARS = 2000
+export const SEARCH_MAX_RESULTS = 200
+export const SEARCH_MAX_FILE_BYTES = 1024 * 1024
+// The model's regular expression is evaluated on a worker thread that is
+// terminated when it overruns this budget (ReDoS containment); the worker
+// stops collecting after this many hits.
+export const SEARCH_TIMEOUT_MS = 20_000
+export const SEARCH_MAX_HITS = 5000
+export const SEARCH_PATTERN_MAX_LENGTH = 512
+export const SEARCH_WORKER_FILE = 'searchWorker.js'
+// A glob becomes a regular expression run over short relative paths; the
+// length cap keeps that bounded.
+export const GLOB_MAX_LENGTH = 256
+export const LIST_FILES_DEFAULT_LIMIT = 500
+export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
+export const SHELL_MAX_TIMEOUT_MS = 600_000
+export const SHELL_OUTPUT_MAX_BYTES = 4 * 1024 * 1024
+export const OUTPUT_REF_PREFIX = 'tool_patch-'
+// The stored output the transcript can page (`item/readOutput` parity).
+export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
+export const MODEL_API_OUTPUT_ENCODING = 'utf8'
+
 // Item kinds the transcript never shows: our own echo and host-internal children.
 export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'reminderChild'])
 // Collapsed tool bodies show this many lines before "Show more".
@@ -567,6 +647,35 @@ export const UI_TEXT = {
   unreadTooltip: 'Muse needs your attention',
   unreadMark: '● ',
   sessionRequired: 'Start a conversation first.',
+  // Model API backend (M7).
+  allowOnce: 'Allow once',
+  allowSessionPrefix: 'Always allow in this session:',
+  reject: 'Reject',
+  toolRefusedByMode: 'refused by the permission mode',
+  toolRejectedByUser: 'rejected by the user',
+  toolCancelled: 'cancelled',
+  contributorTitle: 'Contributor-tier model',
+  contributorDetail:
+    'Meta may use prompts and completions sent to a contributor-tier model to train its models, in exchange for the lower price. Use it for this conversation?',
+  contributorConfirm: 'Use contributor model',
+  contributorBlocked:
+    'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+  modelApiKeyMissing: 'Paste a Model API key to use the Meta Model API.',
+  backendItem: 'Backend',
+  backendDetail: 'museSpark.backend: auto / museCode / modelApi',
+  backendMuseCode: 'Muse Code (your Muse subscription)',
+  backendModelApi: 'Meta Model API (your key, pay as you go)',
+  modelApiUnauthorized: 'The Model API rejected the key. Sign in again with a valid key.',
+  modelApiBackendNotice:
+    'This conversation runs on the Meta Model API with the extension’s own tools (read, edit, write, search, list, shell). Sessions live for this window only.',
+  installOrKeyDetail:
+    'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
+  compactionDone: 'Context compacted',
+  compactionPrompt:
+    'Summarise this conversation so far for your own future reference: the goal, the decisions, the files touched with what changed, open questions, and what to do next. Be complete but concise; use plain Markdown.',
+  compactionPrefix: 'Summary of the conversation so far (the earlier messages were compacted):',
+  steeredPrefix: '[The user added while you were working]',
+  answersPrefix: 'The user answered:',
   resumeFailed: 'Could not resume the conversation',
   forkFailed: 'Could not fork the conversation',
   renameFailed: 'Could not rename the conversation',

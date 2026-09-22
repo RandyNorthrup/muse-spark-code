@@ -22,11 +22,13 @@ import {
 import type {
   AttachmentSummary,
   AuthStatus,
+  BackendKind,
   EditorContextSummary,
   HostToWebviewMessage,
   MentionItem,
   ModelOption,
   SettingsSnapshot,
+  SignInMethod,
   SkillOption,
 } from '../../shared/protocol'
 import type { SessionRow } from '../../shared/sessions'
@@ -180,7 +182,14 @@ export interface UiState {
   readonly focusRequests: number
   /** Text waiting to be inserted at the composer caret, if any. */
   readonly pendingInsert: string | undefined
-  readonly auth: { readonly status: AuthStatus; readonly detail: string | undefined }
+  readonly auth: {
+    readonly status: AuthStatus
+    readonly detail: string | undefined
+    /** The backend in use (M7); undefined until the host has decided. */
+    readonly backend: BackendKind | undefined
+    /** The sign-in paths the gate offers; undefined means both. */
+    readonly methods: readonly SignInMethod[] | undefined
+  }
   readonly model:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
   readonly models: readonly ModelOption[]
@@ -242,7 +251,7 @@ export const initialUiState: UiState = {
   draft: '',
   focusRequests: 0,
   pendingInsert: undefined,
-  auth: { status: 'checking', detail: undefined },
+  auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
   model: undefined,
   models: [],
   skills: undefined,
@@ -678,7 +687,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
     case 'authState': {
-      return { ...state, auth: { status: message.status, detail: message.detail } }
+      return {
+        ...state,
+        auth: {
+          status: message.status,
+          detail: message.detail,
+          backend: message.backend,
+          methods: message.methods,
+        },
+      }
     }
     case 'sessionInfo': {
       return {

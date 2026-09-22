@@ -19,6 +19,8 @@ const isWatch = args.has('--watch')
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
+const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const INTEGRATION_TEST_DIR = 'test/integration'
@@ -45,6 +47,16 @@ const hostOptions = {
   format: 'cjs',
   target: NODE_TARGET,
   external: ['vscode'],
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const searchWorkerOptions = {
+  ...common,
+  entryPoints: [SEARCH_WORKER_ENTRY],
+  outfile: SEARCH_WORKER_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: NODE_TARGET,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -84,18 +96,24 @@ function reportSize(path) {
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
+    esbuild.context(searchWorkerOptions),
     esbuild.context(webviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
-  const builds = [esbuild.build(hostOptions), esbuild.build(webviewOptions)]
+  const builds = [
+    esbuild.build(hostOptions),
+    esbuild.build(searchWorkerOptions),
+    esbuild.build(webviewOptions),
+  ]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
   await Promise.all(builds)
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
+  reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
 }

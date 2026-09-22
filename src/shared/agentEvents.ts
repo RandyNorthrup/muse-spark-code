@@ -24,6 +24,7 @@ export const patchSummarySchema = z.object({
   added: z.number(),
   removed: z.number(),
 })
+export type PatchSummary = z.infer<typeof patchSummarySchema>
 
 /**
  * One transcript item at one revision: the common fields plus the per-kind

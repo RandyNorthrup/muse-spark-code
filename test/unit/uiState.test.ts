@@ -64,10 +64,21 @@ describe('uiReducer: shell', () => {
 
   it('tracks auth and session info', () => {
     const state = reduceAll([
-      host({ type: 'authState', status: 'signedOut', detail: 'not logged in' }),
+      host({
+        type: 'authState',
+        status: 'signedOut',
+        detail: 'not logged in',
+        backend: 'modelApi',
+        methods: ['apiKey'],
+      }),
       host({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 }),
     ])
-    expect(state.auth).toEqual({ status: 'signedOut', detail: 'not logged in' })
+    expect(state.auth).toEqual({
+      status: 'signedOut',
+      detail: 'not logged in',
+      backend: 'modelApi',
+      methods: ['apiKey'],
+    })
     expect(state.model).toEqual({ modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
   })
 })

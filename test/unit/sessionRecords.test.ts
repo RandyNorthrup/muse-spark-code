@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import type { SessionRecord } from '../../src/core/agent/agentBackend'
+import { toSessionRow } from '../../src/core/agent/sessionRows'
 import {
   historyOutcome,
   type SessionEnvelope,
   sessionEnvelopeSchema,
-  type SessionRecord,
-  toSessionRow,
   toSnapshot,
 } from '../../src/core/backends/musecode/sessionRecords'
 

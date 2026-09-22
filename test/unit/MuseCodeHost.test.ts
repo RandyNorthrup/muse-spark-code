@@ -98,6 +98,7 @@ describe('MuseCodeHost', () => {
   it('reads the server identity from the handshake result', () => {
     const { host } = setup()
     expect(host.info).toEqual({
+      kind: 'museCode',
       serverName: 'muse',
       serverVersion: '1.3.0-test',
       museHome: '/home/test/.local/share/muse',

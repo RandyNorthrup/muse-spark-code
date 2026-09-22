@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import {
-  MuseCodeHost,
-  type SessionMcpHttpServer,
-} from '../../src/core/backends/musecode/MuseCodeHost'
+import type { SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
 import type { AuthService, AuthSnapshot } from '../../src/host/auth/authService'
@@ -18,6 +18,8 @@ import {
 } from '../../src/host/conversation/conversationController'
 import type { HostAction, MentionItem } from '../../src/shared/protocol'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
+import { fakeModelApi } from './helpers/fakeModelApi'
+import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeInitializeResult, fakeMspHost, settle } from './helpers/fakeMsp'
 
 interface FakeAuth {
@@ -122,6 +124,9 @@ function setup(
     ideMcpEndpoint?: SessionMcpHttpServer
     grantedCapabilities?: readonly string[]
     shellSandbox?: ShellSandboxPosture
+    /** Contributor-tier guard (M7). */
+    isConfidentialWorkspace?: boolean
+    confirmsContributor?: boolean
     /** Session history memory (M6). */
     archivedIds?: readonly string[]
     lastSession?: LastSession
@@ -229,6 +234,7 @@ function setup(
   const saveAll = vi.fn(() => Promise.resolve())
   const applied: string[] = []
   const reviews: [string, string, string][] = []
+  const contributorPrompts: string[] = []
   const memory = {
     archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
     lastSession: options.lastSession,
@@ -245,7 +251,7 @@ function setup(
       return Promise.resolve()
     },
   }
-  const controller = new ConversationController({
+  const deps: ConversationDeps = {
     surface,
     auth: auth.service,
     ensureHost: () => Promise.resolve(host),
@@ -274,6 +280,11 @@ function setup(
         uri.startsWith('file:///ws/') ? uri.slice('file:///ws/'.length) : undefined,
     },
     isBypassAllowed: () => isBypassAllowed,
+    isConfidentialWorkspace: () => options.isConfidentialWorkspace ?? false,
+    confirmContributor: (modelId: string) => {
+      contributorPrompts.push(modelId)
+      return Promise.resolve(options.confirmsContributor ?? true)
+    },
     runHostAction: (action: HostAction) => {
       hostActions.push(action)
       return action === 'openLog' ? Promise.reject(new Error('no channel')) : Promise.resolve()
@@ -316,7 +327,8 @@ function setup(
     isRestorable: options.isRestorable ?? false,
     now: () => options.now ?? NOW,
     log,
-  })
+  }
+  const controller = new ConversationController(deps)
   const send = (localId: string, text: string, attachmentIds: string[] = []) =>
     controller.handle({ type: 'sendMessage', localId, text, attachmentIds })
   const finishTurn = () => {
@@ -329,6 +341,7 @@ function setup(
     auth,
     surface,
     controller,
+    deps,
     openExternal,
     log,
     hostActions,
@@ -349,6 +362,7 @@ function setup(
     applied,
     reviews,
     memory,
+    contributorPrompts,
     setHasEditor: (isOpen: boolean) => {
       hasEditor = isOpen
     },
@@ -1601,5 +1615,105 @@ describe('ConversationController: session history (M6)', () => {
     t.finishTurn()
     await settle()
     expect(t.surface.markUnread).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('ConversationController: backends and tiers (M7)', () => {
+  it('asks once before a contributor model, and reverts when declined', async () => {
+    const t = setup({ confirmsContributor: false })
+    await t.send('l1', 'hi')
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel')).toHaveLength(0)
+    expect(t.surface.posted).toEqual([sessionInfo])
+    const yes = setup({ confirmsContributor: true })
+    await yes.send('l1', 'hi')
+    await yes.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    await yes.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3' })
+    await yes.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(yes.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(yes.server.requestsFor('session/setModel')).toHaveLength(3)
+  })
+
+  it('blocks contributor models in a confidential workspace and hides them from the list', async () => {
+    const t = setup({ isConfidentialWorkspace: true })
+    t.server.handle('model/list', () => ({
+      providerId: 'meta',
+      profileId: null,
+      source: 'catalog',
+      models: [
+        { modelId: 'muse-spark-1.3', displayLabel: 'x', contextLimit: 1, isDefault: false },
+        {
+          modelId: 'muse-spark-1.3-contributor',
+          displayLabel: 'c',
+          contextLimit: 1,
+          isDefault: true,
+        },
+      ],
+    }))
+    await t.send('l1', 'hi')
+    const list = t.surface.posted.find((message) => message.type === 'modelList')
+    expect(list?.type === 'modelList' && list.models.map((model) => model.modelId)).toEqual([
+      'muse-spark-1.3',
+    ])
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2-contributor' })
+    expect(t.contributorPrompts).toEqual([])
+    expect(t.surface.posted).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: 'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+      },
+      expect.objectContaining({ type: 'sessionInfo', modelId: 'muse-spark-1.3' }),
+    ])
+  })
+
+  it('explains the Model API backend once per session instead of the sandbox notice', async () => {
+    const t = setup({
+      platform: 'win32',
+      userProfileDir: String.raw`C:\Users\r`,
+      workspaceRoot: String.raw`C:\Users\r\ws`,
+    })
+    const api = fakeModelApi()
+    const modelApiHost = new ModelApiHost({
+      client: new ModelApiClient({
+        fetch: api.fetch,
+        baseUrl: 'https://api.example.test/v1',
+        apiKey: () => Promise.resolve('LLM|1|secret'),
+        sleep: () => Promise.resolve(),
+        random: () => 0,
+        log: t.log,
+      }),
+      workspaceRoot: String.raw`C:\Users\r\ws`,
+      platform: 'win32',
+      io: noopToolIo,
+      newId: () => 'fixed',
+      now: () => 0,
+      log: t.log,
+    })
+    const controller = new ConversationController({
+      ...t.deps,
+      ensureHost: () => Promise.resolve(modelApiHost),
+    })
+    api.script({ text: 'pong' })
+    await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'ping', attachmentIds: [] })
+    await settle()
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: expect.stringContaining('runs on the Meta Model API'),
+    })
+    expect(
+      t.surface.posted.some(
+        (message) => message.type === 'notice' && message.text.includes('sandbox'),
+      ),
+    ).toBe(false)
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'l1',
+      turnId: 'fixed',
+    })
   })
 })

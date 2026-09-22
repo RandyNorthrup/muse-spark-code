@@ -1,0 +1,69 @@
+// Owns the Model API host for this extension host (M7): one in-process
+// `ModelApiHost` over the real `fetch`, the stored key and the workspace's
+// files. Nothing is spawned; disposing it forgets the window's sessions.
+
+import { ModelApiClient } from '../../core/backends/modelapi/client'
+import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import type { ToolIo } from '../../core/backends/modelapi/tools'
+import { MODEL_API_BASE_URL } from '../../shared/constants'
+import type { Logger } from '../logger'
+
+export interface ModelApiBackendManagerDeps {
+  readonly log: Logger
+  readonly getApiKey: () => Promise<string | undefined>
+  readonly workspaceRoot: string | undefined
+  readonly io: ToolIo
+  readonly fetch: typeof fetch
+  readonly newId: () => string
+  readonly now: () => number
+  readonly sleep: (ms: number) => Promise<void>
+  readonly random: () => number
+}
+
+export class ModelApiBackendManager {
+  private host: ModelApiHost | undefined
+
+  public constructor(private readonly deps: ModelApiBackendManagerDeps) {}
+
+  /** The host, created on first use. Rejects without a workspace. */
+  public ensureHost(): Promise<ModelApiHost> {
+    if (this.host !== undefined) {
+      return Promise.resolve(this.host)
+    }
+    const { workspaceRoot } = this.deps
+    if (workspaceRoot === undefined) {
+      return Promise.reject(
+        new Error('Open a folder first; the Model API backend works inside a workspace.'),
+      )
+    }
+    const client = new ModelApiClient({
+      fetch: this.deps.fetch,
+      baseUrl: MODEL_API_BASE_URL,
+      apiKey: this.deps.getApiKey,
+      sleep: this.deps.sleep,
+      random: this.deps.random,
+      log: this.deps.log,
+    })
+    this.host = new ModelApiHost({
+      client,
+      workspaceRoot,
+      platform: process.platform,
+      io: this.deps.io,
+      newId: this.deps.newId,
+      now: this.deps.now,
+      log: this.deps.log,
+    })
+    this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')
+    return Promise.resolve(this.host)
+  }
+
+  public get isRunning(): boolean {
+    return this.host !== undefined
+  }
+
+  public async dispose(): Promise<void> {
+    const host = this.host
+    this.host = undefined
+    await host?.close()
+  }
+}

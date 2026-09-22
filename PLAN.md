@@ -64,6 +64,23 @@ Therefore:
   id, or scraping meta.ai sessions. Both contradict the Model API ToS
   ("circumvent access controls", "reverse engineer harnesses") and the
   subscription wording, and community forks report silent breakage.
+- **Amended 2026-09-22 (M7, owner ruling): the two credentials never mix.**
+  `muse login` stores a subscription-bound key in the CLI's own `auth.json`
+  (`obtained_via: device_code`, `mechanism: oauth`; "the subscription applies
+  to the Muse Code API key that is automatically connected in the Muse Code
+  CLI onboarding process", dev.meta.ai/docs/muse-code/subscriptions) and the
+  CLI "uses `META_API_KEY` if set, then a stored key, and only then a stored
+  browser session". From M2 to M6 the extension injected the key pasted into
+  the panel as `META_API_KEY` for `muse serve`, so with a pay-as-you-go key
+  stored the CLI billed subscription work to the key. The child environment
+  no longer carries the pasted key (`buildChildEnvironment` has no key
+  input; a `META_API_KEY` in the user's own environment is inherited
+  untouched, as the CLI documents). The pasted key drives only the Model
+  API backend. `museSpark.backend` (`auto` / `museCode` / `modelApi`) picks
+  the backend; `auto` takes the CLI when it has its own session, then the
+  Model API when a key is stored (`src/core/backendSelection.ts`). Verified
+  live with no key anywhere: `scratchpad/live-nokey.log`, in
+  `docs/certification/m7.md`.
 
 ### D1a — Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)
 
@@ -99,11 +116,14 @@ Constraints and decisions:
 
 The `openai` package (7.20.0) pulls seven optional peers, requires Node ≥ 22
 and would ship an entire API surface of which the extension uses three
-endpoints. A ~300-line client over global `fetch` with `eventsource-parser`
-for SSE and `zod` schemas for every response boundary is smaller, keeps
-`no-unsafe-*` lint rules meaningful, and lets us model Meta's documented
-deviations (`tool_choice` only `"auto"`, `reasoning_effort` `none` → 400).
-Revisit if Meta ships a first-party SDK.
+endpoints. A ~300-line client over global `fetch` with `zod` schemas for
+every response boundary is smaller, keeps `no-unsafe-*` lint rules
+meaningful, and lets us model Meta's documented deviations (`tool_choice`
+only `"auto"`, `reasoning_effort` `none` → 400). Revisit if Meta ships a
+first-party SDK. **Amended at M7:** the stream is plain WHATWG server-sent
+events (`event:` / `data:` lines), so the planned `eventsource-parser`
+dependency was not added; `src/core/backends/modelapi/sse.ts` (80 lines) is
+tested on chunk splits inside frames and inside multi-byte characters.
 
 ### D3 — Quality toolchain versions (verified against the npm registry 2026-09-21)
 
@@ -131,7 +151,6 @@ Revisit if Meta ships a first-party SDK.
 | `react` / `react-dom` / `@types/react` / `@types/react-dom`             | 19.3.0                            | Webview UI.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `zod`                                                                   | 4.6.5                             | Runtime validation of every webview ⇄ extension message and every HTTP/MSP boundary.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `@muse-code/sdk`                                                        | 1.3.0                             | Official MSP client. Developer Preview: "minor releases may alter APIs before 1.0" → exact pin, adapter isolated in one module, schema fingerprint checked at handshake. Installed with a one-off `--min-release-age=0` on 2026-09-22 (published 2026-09-18, inside the 7-day window); the lockfile pins it so `npm ci` is unaffected. Only its `Connection`/`spawnMspConnection` surface is used; `Connection.onNotification` holds a single handler, so the facade (`MuseClient`) is not composed. |
-| `eventsource-parser`                                                    | 4.1.1                             | SSE parsing for the Model API backend (M7).                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `husky` / `lint-staged`                                                 | 9.1.7 / 17.5.1                    | Pre-commit gates.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `jscpd`                                                                 | 5.3.1                             | Copy-paste detection.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm-run-all2`                                                          | 9.0.3                             | Runs gate scripts in sequence/parallel.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -390,16 +409,16 @@ create/delete file watcher. Ranking is a deterministic fuzzy scorer
 
 ## 3. Open questions (need the owner)
 
-| #   | Question                                                                                                                                                                                                                                                        | Default until answered                                            |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. Still open: does the owner hold a Muse Code subscription and/or a Model API key? `muse login` (device code in browser) started. | CLI present; credential state pending login.                      |
-| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                      | Closed.                                                           |
-| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                      | M7 required; see §10.                                             |
-| Q4  | Voice dictation (Web Speech API in webview) — wanted for v1?                                                                                                                                                                                                    | Deferred to M8 as P2.                                             |
-| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                           | Decide at M4 with measured bundle sizes.                          |
-| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                              | Detect and show "use Model API key" on Linux if `muse` is absent. |
-| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                         | Closed.                                                           |
-| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                  | Closed; PAT step deferred to M8.                                  |
+| #   | Question                                                                                                                                                                                                                                                                            | Default until answered                                            |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner holds both a Muse Code subscription (CLI signed in by device code) and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment). | Closed.                                                           |
+| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                          | Closed.                                                           |
+| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                          | M7 required; see §10.                                             |
+| Q4  | Voice dictation (Web Speech API in webview) — wanted for v1?                                                                                                                                                                                                                        | Deferred to M8 as P2.                                             |
+| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                               | Decide at M4 with measured bundle sizes.                          |
+| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                  | Detect and show "use Model API key" on Linux if `muse` is absent. |
+| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                             | Closed.                                                           |
+| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                      | Closed; PAT step deferred to M8.                                  |
 
 ## 4. Architecture
 
@@ -1013,6 +1032,10 @@ direction?}` pages the raw view events when history came back `none`;
 
 ### M7 — Model API backend (bring-your-own key)
 
+**Status 2026-09-22: complete against a fake server; live certification of
+the Model API path pending the owner's go (each live turn is billed to the
+owner's key).** Certification record: `docs/certification/m7.md`.
+
 - **Scope**: `ModelApiBackend` on `POST /v1/responses` streaming; tool harness
   (read, write, edit, glob, grep, shell) with a permission engine implementing
   the same five UI modes; diffs through the M5 path; `GET /v1/models` key
@@ -1022,6 +1045,53 @@ direction?}` pages the raw view events when history came back `none`;
   engine truth table; contract tests against a local fake server.
 - **Security**: shell tool disabled in Manual mode until approved per call;
   workspace-root path confinement for file tools.
+- **As built** (`src/core/agent/agentBackend.ts` is the internal protocol both
+  hosts implement; `src/core/backends/modelapi/`):
+  - `client.ts`: `GET /models`, `POST /responses/input_tokens`, streamed
+    `POST /responses`; the documented retry policy (429 / 500 / 503 with
+    exponential backoff, jitter and `Retry-After`, four retries before any
+    body is read; 400 / 401 / 403 / 404 / 413 / 504 never retried); the key
+    is read per request and never logged.
+  - `schemas.ts`: the Responses shapes read (message / function_call /
+    reasoning output items, usage, the stream event union with unknown types
+    skipped, the error envelope, the model list).
+  - `ModelApiHost.ts`: one session = a replayed conversation (`store: false`,
+    `include: ["reasoning.encrypted_content"]`, `prompt_cache_key` = session
+    id, `reasoning.summary: auto`, the UI effort mapped one-to-one and the
+    Thinking-off `none` sent as `minimal` because `none` is a 400). Each
+    turn streams reasoning summaries (`summary.N` deltas), text deltas and
+    function calls into the same AgentEvents as MSP; function calls run
+    through the permission engine and the tool harness, their results go
+    back as `function_call_output` items, up to 50 rounds per turn; steering
+    appends the input before the next model call; a second send queues;
+    cancel aborts the fetch and any pending card; `compact` summarises with
+    one model call and replays only the summary, then reports the new
+    context size from `/responses/input_tokens`; `session/list`, resume and
+    fork are served from the sessions this window holds (not persisted:
+    the M8 polish list carries a JSON session store); no skills; rename is
+    local.
+  - `tools.ts`: `read_file`, `edit_file` (exactly one match), `write_file`,
+    `search` (regex, glob, three output modes), `list_files`, the platform
+    shell (`powershell` on Windows, `bash` elsewhere, one command line
+    spawned as an argument array, timeout and output caps), `ask_user`
+    (question cards) and `todo_write` (the task list). Paths are confined to
+    the workspace root on both path styles. Edits leave a Muse-shaped patch
+    document (Open diff / Revert of M5 work unchanged).
+  - `permissions.ts`: `allowAll` runs everything; `onRequest` (Auto) runs
+    reads and edits and asks for shell — there is no LLM judge here, so Auto
+    is Edit-automatically with a prompt for commands; `promptUnmatched`
+    (Manual) asks for edits and shell; `denyUnmatched` (Plan) refuses both.
+    Cards offer Allow once / Always allow in this session / Reject with
+    feedback; a session rule never overrides a refusal.
+  - Host side: `ModelApiBackendManager` (real `fetch`, the stored key, the
+    workspace file lister, `toolIo.ts` over node:fs and child_process),
+    `backendSelection.ts` (see D1), the sign-in gate offering the paths the
+    selection allows, the palette's Backend row, and the contributor guard
+    (one modal yes per conversation; `confidentialWorkspace` hides the tier
+    and refuses it) applied to both backends.
+- **Live**: the no-key CLI check (`live-nokey.log`) is in m7.md. The Model
+  API path was certified against the in-process fake server only; a live
+  turn costs the owner's key and waits for their go.
 
 ### M8 — Account & usage, polish, packaging
 
@@ -1053,9 +1123,11 @@ direction?}` pages the raw view events when history came back `none`;
 
 Every suppression, cast, or ignored error must be listed here with its reason.
 
-| File   | Construct | Reason | Added |
-| ------ | --------- | ------ | ----- |
-| (none) |           |        |       |
+| File                                 | Construct                                                          | Reason                                                                                                                                                                                                                     | Added      |
+| ------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                    | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                        | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`   | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host. | 2026-09-22 |
+| `src/core/backends/modelapi/glob.ts` | `nosemgrep` on `new RegExp(source)` (`detect-non-literal-regexp`)  | The expression is assembled from bounded pieces (`[^/]*`, `(?:.*/)?`, escaped literals) out of a glob capped at `GLOB_MAX_LENGTH`, and only ever tested against short relative paths.                                      | 2026-09-22 |
 
 ## 9. Security assumptions and accepted residual risk
 
@@ -1069,6 +1141,9 @@ Every suppression, cast, or ignored error must be listed here with its reason.
 - The Model API backend (M7) executes tools in-process. Path confinement to
   the workspace root and per-call approval in Manual mode are the controls;
   "Bypass permissions" is opt-in via a setting exactly as in Claude Code.
+- The pasted Model API key is used only by the Model API backend and is
+  never handed to the Muse Code CLI (D1 amendment): subscription work is
+  never billed to the key, and the key never reaches another process.
 - Contributor-tier models send content Meta may train on; guarded by opt-in
   dialog and `confidentialWorkspace` setting.
 

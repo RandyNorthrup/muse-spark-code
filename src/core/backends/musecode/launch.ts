@@ -175,8 +175,6 @@ export interface ChildEnvironmentInput {
   readonly platform: NodeJS.Platform
   readonly baseEnv: NodeJS.ProcessEnv
   readonly extraVariables: readonly EnvironmentVariable[]
-  /** A Model API key from secret storage; injected as META_API_KEY when set. */
-  readonly apiKey: string | undefined
   readonly systemRoot: string | undefined
   readonly programFiles: string | undefined
 }
@@ -186,6 +184,11 @@ export interface ChildEnvironmentInput {
  * Windows PowerShell module directories: the CLI's launcher runs under
  * powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
  * path is inherited (verified failure: `Get-FileHash` not recognised).
+ *
+ * The Model API key from secret storage is deliberately NOT injected: the
+ * CLI prefers `META_API_KEY` over its browser session, which would bill the
+ * subscription's work to the key (PLAN.md D1, M7). A key already in the
+ * user's own environment is inherited untouched, as the CLI documents.
  */
 export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...input.baseEnv }
@@ -199,9 +202,6 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
   }
   for (const variable of input.extraVariables) {
     env[variable.name] = variable.value
-  }
-  if (input.apiKey !== undefined) {
-    env['META_API_KEY'] = input.apiKey
   }
   return env
 }

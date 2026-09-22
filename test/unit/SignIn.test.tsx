@@ -50,4 +50,24 @@ describe('SignIn', () => {
     renderSignIn({ status: 'signingIn' })
     expect(screen.getByText('Waiting for the browser sign-in to finish…')).toBeInTheDocument()
   })
+
+  it('offers only the paths the host lists, and the key path beside the install guidance', () => {
+    const props = renderSignIn({ methods: ['apiKey'] })
+    expect(screen.queryByText('Sign in with your Meta account')).toBeNull()
+    fireEvent.click(screen.getByText('Use a Model API key'))
+    expect(props.onSignIn).toHaveBeenCalledWith('apiKey')
+  })
+
+  it('shows the key path with the install guidance when the CLI is missing but a key would do', () => {
+    const props = renderSignIn({ status: 'noCli', methods: ['apiKey'] })
+    expect(
+      screen.getByText(
+        'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
+      ),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Use a Model API key'))
+    expect(props.onSignIn).toHaveBeenCalledWith('apiKey')
+    renderSignIn({ status: 'noCli', methods: [] })
+    expect(screen.queryAllByText('Use a Model API key')).toHaveLength(1)
+  })
 })

@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Milestone M7, the Meta Model API backend: with a pasted key the panel
+  talks to `api.meta.ai/v1` itself (streamed `POST /responses`, stateless
+  reasoning replay with `store: false`, the documented 429 / 500 / 503
+  backoff with `Retry-After`) and runs its own tools (Read, Edit, Write,
+  Search, List, PowerShell / bash, questions, task list) confined to the
+  workspace, behind the same permission modes and approval cards; `/compact`
+  summarises in one call; sessions, resume and fork for the window; the
+  `museSpark.backend` setting (`auto` / `museCode` / `modelApi`), a Backend
+  row in the palette, the sign-in gate offering the paths the selection
+  allows (the key path works without the CLI), and a contributor-tier guard
+  (one modal yes per conversation; hidden and refused in a confidential
+  workspace) on both backends. The internal `AgentHost` / `AgentSession`
+  protocol now sits between the controller and either backend.
+
 - Milestone M6, sessions and history: a **History** dialog (header clock or
   `/` → Resume) over the workspace's stored Muse Code sessions
   (`session/list`, paged), grouped Today / Yesterday / Previous 7 days /
@@ -198,6 +212,12 @@ setup` through the UAC prompt, re-checks, and reports. The new command
 
 ### Fixed
 
+- **Billing**: the Model API key pasted into the panel is no longer handed
+  to the Muse Code CLI. The CLI prefers `META_API_KEY` over its own sign-in,
+  so subscription work was billed to the key whenever one was stored. The
+  CLI now runs on its own credential only; the pasted key drives only the
+  Model API backend. Verified live with no key anywhere
+  (`docs/certification/m7.md`).
 - The History button toggles the dialog closed as well as open (its click
   used to blur the search box shut and reopen it), and the dialog hangs
   from the header rather than rising from the composer.

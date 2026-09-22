@@ -13,7 +13,7 @@ import {
   UI_TEXT,
 } from './constants'
 import { effortLabel, effortLevelsFor } from './effort'
-import type { ModelOption, SkillOption } from './protocol'
+import type { BackendKind, ModelOption, SkillOption } from './protocol'
 
 export type PaletteWidget =
   | { readonly kind: 'value'; readonly text: string }
@@ -79,6 +79,13 @@ export interface PaletteContext {
   readonly usage: UsageTotals | undefined
   /** undefined while the session has not been started, so nothing is known. */
   readonly skills: readonly SkillOption[] | undefined
+  /** The backend in use (M7); undefined until the host has decided. */
+  readonly backend: BackendKind | undefined
+}
+
+const BACKEND_LABELS: Readonly<Record<BackendKind, string>> = {
+  museCode: UI_TEXT.backendMuseCode,
+  modelApi: UI_TEXT.backendModelApi,
 }
 
 const TOKENS_PER_MILLION = 1_000_000
@@ -227,6 +234,16 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           widget: { kind: 'value', text: usageValue(context.usage) },
           action: { type: 'none' },
           isDisabled: true,
+        },
+        {
+          id: 'backend',
+          label: UI_TEXT.backendItem,
+          detail: UI_TEXT.backendDetail,
+          widget: {
+            kind: 'value',
+            text: context.backend === undefined ? '—' : BACKEND_LABELS[context.backend],
+          },
+          action: { type: 'openSettings' },
         },
         { id: 'signOut', label: UI_TEXT.signOutItem, action: { type: 'signOut' } },
       ],

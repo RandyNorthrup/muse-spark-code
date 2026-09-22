@@ -8,7 +8,28 @@
 
 import type { Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
-import type { AgentEvent, QuestionAnswer, RequirementRef } from '../../../shared/agentEvents'
+import type { AgentEvent, QuestionAnswer } from '../../../shared/agentEvents'
+import type {
+  AgentHost,
+  AgentSession,
+  ApprovalDecision,
+  CompactOutcome,
+  HostInfo,
+  ListSessionsOptions,
+  LoadedSession,
+  ModelSummary,
+  OutputPage,
+  OutputPageRequest,
+  SessionEventListener,
+  SessionHistoryOutcome,
+  SessionListEvent,
+  SessionMcpHttpServer,
+  SessionPage,
+  SkillSummary,
+  StartSessionOptions,
+  TurnPart,
+  TurnSubmission,
+} from '../../agent/agentBackend'
 import type { CoreLogger } from '../../logging'
 import { mapNotification } from './mapNotification'
 import {
@@ -16,10 +37,8 @@ import {
   sessionClosedSchema,
   type SessionEnvelope,
   sessionEnvelopeSchema,
-  type SessionHistoryOutcome,
   sessionListChangedSchema,
   sessionListResultSchema,
-  type SessionRecord,
   sessionRenameResultSchema,
 } from './sessionRecords'
 
@@ -31,114 +50,10 @@ export interface MspHost {
   close(): Promise<unknown>
 }
 
-export interface HostInfo {
-  readonly serverName: string
-  readonly serverVersion: string
+/** The MSP host's identity plus what the extension logs about it. */
+export interface MuseHostInfo extends HostInfo {
   readonly museHome: string
-  /** Capabilities the host granted at `initialize` (`sessionMcp`, …). */
-  readonly grantedCapabilities: readonly string[]
 }
-
-export interface ModelSummary {
-  readonly modelId: string
-  readonly displayLabel: string
-  readonly contextLimit: number | undefined
-  readonly isDefault: boolean
-  readonly isActive: boolean
-}
-
-export interface SkillSummary {
-  readonly selector: string
-  readonly displayName: string
-  readonly description: string
-  readonly argumentHint: string | undefined
-}
-
-/** A per-session MCP server over streamable HTTP (MSP `SessionMcpServerConfig`). */
-export interface SessionMcpHttpServer {
-  readonly url: string
-  readonly headers: Readonly<Record<string, string>>
-}
-
-export interface StartSessionOptions {
-  readonly workspaceRoot: string
-  readonly modelId: string
-  readonly approvalMode: string
-  /** IDE tool servers, keyed by name; needs the `sessionMcp` grant. */
-  readonly mcpServers?: Readonly<Record<string, SessionMcpHttpServer>>
-}
-
-export interface ListSessionsOptions {
-  readonly workspaceRoot: string
-  readonly limit: number
-  readonly cursor?: string
-}
-
-export interface SessionPage {
-  readonly sessions: readonly SessionRecord[]
-  readonly nextCursor: string | undefined
-}
-
-/** A session loaded by `session/resume` or minted by `session/fork` (M6). */
-export interface LoadedSession {
-  readonly session: MuseSession
-  readonly record: SessionRecord
-  readonly history: SessionHistoryOutcome
-}
-
-/** `session/listChanged` (a full row) or `session/closed` (unloaded). */
-export type SessionListEvent =
-  | { readonly type: 'changed'; readonly record: SessionRecord }
-  | { readonly type: 'closed'; readonly sessionId: string; readonly reason: string }
-
-/** One ordered content part of a turn (MSP `TurnInputPart`). */
-export type TurnPart =
-  | { readonly type: 'text'; readonly text: string }
-  | {
-      readonly type: 'image'
-      readonly base64Data: string
-      readonly mediaType: string
-      readonly width: number
-      readonly height: number
-    }
-  | { readonly type: 'skill'; readonly selector: string; readonly arguments?: string }
-
-export interface TurnSubmission {
-  readonly turnId: string
-  /** `started`, `queued` or `steered` (open on the wire). */
-  readonly disposition: string
-}
-
-export interface CompactOutcome {
-  readonly status: string
-  readonly reason: string | undefined
-}
-
-export interface ApprovalDecision {
-  readonly approvalId: string
-  readonly choiceId: string
-  readonly requirementId: RequirementRef
-  /** Only for choices with `acceptsFeedback`; delivered to the model. */
-  readonly feedback?: string
-}
-
-export interface OutputPageRequest {
-  readonly itemId: string
-  readonly outputRef: string
-  readonly offsetBytes: number
-  readonly lengthBytes: number
-}
-
-export interface OutputPage {
-  readonly content: string
-  readonly encoding: string
-  readonly mediaType: string
-  readonly offsetBytes: number
-  readonly byteLen: number
-  readonly eof: boolean
-}
-
-export type SessionEventListener = (event: AgentEvent) => void
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
 const SESSION_CLOSED = 'session/closed'
@@ -208,7 +123,7 @@ const MIRRORED_SERVER_REQUESTS: ReadonlySet<string> = new Set([
   'userInput/request',
 ])
 
-export class MuseSession {
+export class MuseSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   private isDisposed = false
 
@@ -364,11 +279,11 @@ export class MuseSession {
   }
 }
 
-export class MuseCodeHost {
+export class MuseCodeHost implements AgentHost {
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: string) => void>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
-  public readonly info: HostInfo
+  public readonly info: MuseHostInfo
 
   public constructor(
     private readonly host: MspHost,
@@ -376,6 +291,7 @@ export class MuseCodeHost {
   ) {
     const parsed = initializeResultSchema.parse(host.initializeResult)
     this.info = {
+      kind: 'museCode',
       serverName: parsed.serverInfo.name,
       serverVersion: parsed.serverInfo.version,
       museHome: parsed.museHome,

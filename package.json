@@ -178,6 +178,21 @@
           "default": 14,
           "description": "Hide sessions idle for this many days from the History dialog (they stay on disk; Show archived lists them)."
         },
+        "museSpark.backend": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "museCode",
+            "modelApi"
+          ],
+          "enumDescriptions": [
+            "Muse Code when the CLI is installed and signed in (billed to your Muse subscription); otherwise the Meta Model API with your pasted key.",
+            "Always the Muse Code CLI, with its own sign-in.",
+            "Always the Meta Model API with the key you pasted (pay as you go), using the extension's own tools."
+          ],
+          "default": "auto",
+          "description": "Which backend hosts conversations. The pasted Model API key is never handed to the Muse Code CLI, so subscription work is never billed to the key."
+        },
         "museSpark.shellSandbox": {
           "type": "string",
           "enum": [

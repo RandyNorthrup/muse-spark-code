@@ -178,12 +178,11 @@ describe('resolveMuseLaunch on POSIX', () => {
 })
 
 describe('buildChildEnvironment', () => {
-  it('resets PSModulePath on Windows and injects the key and extras', () => {
+  it('resets PSModulePath on Windows and adds the extras, never a META_API_KEY of its own', () => {
     const env = buildChildEnvironment({
       platform: 'win32',
       baseEnv: { PATH: 'x', PSModulePath: 'C:/pwsh7/Modules' },
       extraVariables: [{ name: 'MUSE_HOME', value: 'D:/muse' }],
-      apiKey: 'LLM|1|secret',
       systemRoot: String.raw`C:\Windows`,
       programFiles: String.raw`C:\Program Files`,
     })
@@ -191,20 +190,19 @@ describe('buildChildEnvironment', () => {
       PATH: 'x',
       PSModulePath: String.raw`C:\Program Files\WindowsPowerShell\Modules;C:\Windows\System32\WindowsPowerShell\v1.0\Modules`,
       MUSE_HOME: 'D:/muse',
-      META_API_KEY: 'LLM|1|secret',
     })
+    expect(env).not.toHaveProperty('META_API_KEY')
   })
 
-  it('leaves PSModulePath alone elsewhere and omits the key when absent', () => {
+  it('leaves PSModulePath alone elsewhere and passes an environment key through untouched', () => {
     const env = buildChildEnvironment({
       platform: 'linux',
-      baseEnv: { PATH: 'x', PSModulePath: 'keep' },
+      baseEnv: { PATH: 'x', PSModulePath: 'keep', META_API_KEY: 'from-the-user-shell' },
       extraVariables: [],
-      apiKey: undefined,
       systemRoot: undefined,
       programFiles: undefined,
     })
-    expect(env).toEqual({ PATH: 'x', PSModulePath: 'keep' })
+    expect(env).toEqual({ PATH: 'x', PSModulePath: 'keep', META_API_KEY: 'from-the-user-shell' })
   })
 })
 

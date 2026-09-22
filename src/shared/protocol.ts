@@ -51,6 +51,9 @@ export type AuthStatus = (typeof AUTH_STATUSES)[number]
 export const SIGN_IN_METHODS = ['browser', 'apiKey'] as const
 export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
 
+export const BACKEND_KINDS = ['museCode', 'modelApi'] as const
+export type BackendKind = (typeof BACKEND_KINDS)[number]
+
 // Things the webview asks the host to do outside the conversation itself.
 export const HOST_ACTIONS = [
   'openSettings',
@@ -233,6 +236,10 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('authState'),
     status: z.enum(AUTH_STATUSES),
     detail: z.optional(z.string()),
+    /** Which backend the window uses once signed in (M7). */
+    backend: z.optional(z.enum(BACKEND_KINDS)),
+    /** The sign-in paths the gate offers; both when absent. */
+    methods: z.optional(z.array(z.enum(SIGN_IN_METHODS))),
   }),
   // The active session's model (shown in the composer pill) and identity.
   z.object({

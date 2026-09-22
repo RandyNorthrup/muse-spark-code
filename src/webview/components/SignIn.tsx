@@ -1,5 +1,6 @@
 // The gate shown until a credential exists: install instructions when the CLI
-// is missing, the two sign-in paths otherwise, and error / waiting states.
+// is missing (with the Model API key as the other way in), the sign-in paths
+// the backend selection offers otherwise, and error / waiting states.
 
 import { MUSE_INSTALL_URL, UI_TEXT } from '../../shared/constants'
 import type { AuthStatus, SignInMethod } from '../../shared/protocol'
@@ -7,19 +8,49 @@ import type { AuthStatus, SignInMethod } from '../../shared/protocol'
 export interface SignInProps {
   readonly status: AuthStatus
   readonly detail: string | undefined
+  /** The paths to offer; both when the host has not said (M7). */
+  readonly methods?: readonly SignInMethod[] | undefined
   readonly onSignIn: (method: SignInMethod) => void
   readonly onRetry: () => void
   readonly onOpenExternal: (url: string) => void
 }
 
-export function SignIn({ status, detail, onSignIn, onRetry, onOpenExternal }: SignInProps) {
+const ALL_METHODS: readonly SignInMethod[] = ['browser', 'apiKey']
+
+export function SignIn({
+  status,
+  detail,
+  methods = ALL_METHODS,
+  onSignIn,
+  onRetry,
+  onOpenExternal,
+}: SignInProps) {
+  const hasBrowser = methods.includes('browser')
+  const hasApiKey = methods.includes('apiKey')
+  const apiKeyButton = hasApiKey ? (
+    <>
+      <button
+        type="button"
+        className="button-secondary"
+        onClick={() => {
+          onSignIn('apiKey')
+        }}
+      >
+        {UI_TEXT.signInApiKey}
+      </button>
+      <p className="gate-hint">{UI_TEXT.signInApiKeyDetail}</p>
+    </>
+  ) : null
+
   if (status === 'noCli') {
     return (
       <section className="gate" aria-labelledby="gate-title">
         <h2 id="gate-title" className="gate-title">
           {UI_TEXT.installTitle}
         </h2>
-        <p className="gate-detail">{UI_TEXT.installDetail}</p>
+        <p className="gate-detail">
+          {hasApiKey ? UI_TEXT.installOrKeyDetail : UI_TEXT.installDetail}
+        </p>
         {detail === undefined ? null : <p className="gate-diagnostic">{detail}</p>}
         <div className="gate-actions">
           <button
@@ -34,6 +65,7 @@ export function SignIn({ status, detail, onSignIn, onRetry, onOpenExternal }: Si
           <button type="button" className="button-secondary" onClick={onRetry}>
             {UI_TEXT.retryAction}
           </button>
+          {apiKeyButton}
         </div>
       </section>
     )
@@ -58,26 +90,21 @@ export function SignIn({ status, detail, onSignIn, onRetry, onOpenExternal }: Si
         </p>
       )}
       <div className="gate-actions">
-        <button
-          type="button"
-          className="button-primary"
-          onClick={() => {
-            onSignIn('browser')
-          }}
-        >
-          {UI_TEXT.signInBrowser}
-        </button>
-        <p className="gate-hint">{UI_TEXT.signInBrowserDetail}</p>
-        <button
-          type="button"
-          className="button-secondary"
-          onClick={() => {
-            onSignIn('apiKey')
-          }}
-        >
-          {UI_TEXT.signInApiKey}
-        </button>
-        <p className="gate-hint">{UI_TEXT.signInApiKeyDetail}</p>
+        {hasBrowser ? (
+          <>
+            <button
+              type="button"
+              className="button-primary"
+              onClick={() => {
+                onSignIn('browser')
+              }}
+            >
+              {UI_TEXT.signInBrowser}
+            </button>
+            <p className="gate-hint">{UI_TEXT.signInBrowserDetail}</p>
+          </>
+        ) : null}
+        {apiKeyButton}
         {status === 'error' ? (
           <button type="button" className="button-secondary" onClick={onRetry}>
             {UI_TEXT.retryAction}

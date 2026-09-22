@@ -5,7 +5,7 @@
   // real API surface.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "lib": ["ES2024", "ESNext.Array", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "types": ["node", "vscode", "vscode-webview", "@testing-library/jest-dom"]
   },

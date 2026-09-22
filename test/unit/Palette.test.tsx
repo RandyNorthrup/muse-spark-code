@@ -22,6 +22,7 @@ const context: PaletteContext = {
   useCtrlEnterToSend: false,
   usage: undefined,
   skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'Fixes a bug' }],
+  backend: 'museCode',
 }
 
 function renderPalette(overrides: Partial<PaletteProps> = {}) {

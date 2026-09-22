@@ -19,6 +19,7 @@ describe('readSettings', () => {
         museBinaryPath: 'C:/tools/muse.exe',
         environmentVariables: [{ name: 'MUSE_HOME', value: 'D:/muse' }],
         shellSandbox: 'off',
+        backend: 'modelApi',
       }),
       new FakeLogOutputChannel(),
     )
@@ -28,6 +29,7 @@ describe('readSettings', () => {
     expect(settings.museBinaryPath).toBe('C:/tools/muse.exe')
     expect(settings.environmentVariables).toEqual([{ name: 'MUSE_HOME', value: 'D:/muse' }])
     expect(settings.shellSandbox).toBe('off')
+    expect(settings.backend).toBe('modelApi')
   })
 
   it('logs and falls back to the default for an invalid value', () => {
@@ -56,6 +58,7 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('museBinaryPath')
     expect(snapshot).not.toHaveProperty('environmentVariables')
     expect(snapshot).not.toHaveProperty('shellSandbox')
+    expect(snapshot).not.toHaveProperty('backend')
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
   })
 })

@@ -4,13 +4,9 @@
 // live 2026-09-22 on Muse Code 1.3.0 (PLAN.md §6 M6, scratchpad probes).
 
 import * as z from 'zod/mini'
-import {
-  type ItemSnapshot,
-  itemSnapshotFields,
-  type TodoItem,
-  todoItemSchema,
-} from '../../../shared/agentEvents'
-import { sessionActivityFields, type SessionRow, sessionTitle } from '../../../shared/sessions'
+import { type ItemSnapshot, itemSnapshotFields, todoItemSchema } from '../../../shared/agentEvents'
+import { sessionActivityFields } from '../../../shared/sessions'
+import type { SessionHistoryOutcome } from '../../agent/agentBackend'
 
 export const sessionRecordSchema = z.object({
   sessionId: z.string(),
@@ -23,7 +19,6 @@ export const sessionRecordSchema = z.object({
   forkedFrom: z.optional(z.nullable(z.object({ sessionId: z.string() }))),
   workspaceRoot: z.optional(z.nullable(z.string())),
 })
-export type SessionRecord = z.infer<typeof sessionRecordSchema>
 
 // The wire item is the snapshot with `turnId` nullable (`null` on userShell)
 // and the user message's `displayText` (its presentation form, M5).
@@ -88,31 +83,6 @@ export const sessionRenameResultSchema = z.object({
   status: z.string(),
   name: z.optional(z.string()),
 })
-
-/** The History dialog row for a stored session. */
-export function toSessionRow(record: SessionRecord): SessionRow {
-  return {
-    sessionId: record.sessionId,
-    title: sessionTitle(record),
-    isNamed: record.name !== undefined,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-    ...(record.lastActivityAt !== undefined && { lastActivityAt: record.lastActivityAt }),
-    ...(record.branch !== undefined && { branch: record.branch }),
-    status: record.status,
-    turnCount: record.turnCount,
-    isFork: record.forkedFrom !== undefined && record.forkedFrom !== null,
-  }
-}
-
-/** What a resumed or forked session's history yields for the transcript. */
-export interface SessionHistoryOutcome {
-  /** `inline`, `snapshot`, `anchoredSnapshot` or `none` (then `items` is empty). */
-  readonly mode: string
-  readonly items: readonly ItemSnapshot[]
-  readonly name: string | undefined
-  readonly todos: readonly TodoItem[]
-}
 
 export function historyOutcome(envelope: SessionEnvelope): SessionHistoryOutcome {
   const { history, session } = envelope

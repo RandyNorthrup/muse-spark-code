@@ -6,6 +6,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import { selectBackend } from './core/backendSelection'
 import type { CliInvocation } from './core/backends/musecode/sandbox'
 import { type DiagnosticEntry, type DiagnosticSeverity, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
@@ -13,8 +14,10 @@ import type { MentionSource } from './core/mention'
 import { MentionIndex } from './core/mentionIndex'
 import { AuthService } from './host/auth/authService'
 import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
+import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
+import { createToolIo } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { EditReview } from './host/editor/editReview'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
@@ -36,6 +39,7 @@ import { openChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
 import {
+  BACKEND_SETTING,
   HAS_APPROVAL_UI,
   CHAT_VIEW_ID,
   CLI_OUTPUT_MAX_BYTES,
@@ -50,6 +54,7 @@ import {
   MUSE_EDIT_SCHEME,
   MUSE_LOGIN_TERMINAL_NAME,
   PRODUCT_NAME,
+  SEARCH_WORKER_FILE,
   SETTINGS_SECTION,
   SHELL_SANDBOX_SETTING,
   UI_TEXT,
@@ -233,17 +238,16 @@ export function activate(context: vscode.ExtensionContext): void {
     extensionVersion: version,
     getConfiguredBinaryPath: () => currentSettings().museBinaryPath,
     getEnvironmentVariables: () => currentSettings().environmentVariables,
-    getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     getShellSandbox: () => currentSettings().shellSandbox,
     userProfileDir: process.env['USERPROFILE'],
   })
-  /** Stops the host and the conversations on it; the next message respawns. */
+  /** Stops both hosts and the conversations on them; the next message respawns. */
   const restartBackend = async (): Promise<void> => {
     for (const controller of controllers.values()) {
       controller.dispose()
     }
-    await backend.dispose()
+    await Promise.all([backend.dispose(), modelApi.dispose()])
   }
   const sandbox = new SandboxSetup({
     platform: process.platform,
@@ -275,6 +279,7 @@ export function activate(context: vscode.ExtensionContext): void {
       },
       credentialFileExists: () => backend.credentialFileExists(),
       hasEnvironmentKey: () => backend.hasEnvironmentKey(),
+      getBackendMode: () => currentSettings().backend,
       restartBackend,
     },
     credentials,
@@ -332,19 +337,62 @@ export function activate(context: vscode.ExtensionContext): void {
     log,
   })
 
+  const listWorkspaceFiles = createWorkspaceFileLister({
+    workspaceRoot: workspaceRoot ?? '',
+    respectGitIgnore: () => currentSettings().respectGitIgnore,
+    runGit,
+    findFiles: findWorkspaceFiles,
+    log,
+  })
   const mentions = new MentionIndex({
-    listFiles: createWorkspaceFileLister({
-      workspaceRoot: workspaceRoot ?? '',
-      respectGitIgnore: () => currentSettings().respectGitIgnore,
-      runGit,
-      findFiles: findWorkspaceFiles,
-      log,
-    }),
+    listFiles: listWorkspaceFiles,
     now: () => Date.now(),
     ttlMs: MENTION_INDEX_TTL_MS,
     limit: MENTION_INDEX_LIMIT,
     log,
   })
+  // The Model API backend (M7): the pasted key, the workspace's files and a
+  // shell, all in this process. Its sessions live for this window.
+  const modelApi = new ModelApiBackendManager({
+    log,
+    getApiKey: () => credentials.getApiKey(),
+    workspaceRoot,
+    io: createToolIo({
+      platform: process.platform,
+      listFiles: listWorkspaceFiles,
+      systemRoot: process.env['SystemRoot'],
+      env: process.env,
+      searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE)
+        .fsPath,
+    }),
+    fetch: globalThis.fetch.bind(globalThis),
+    newId: () => crypto.randomUUID(),
+    now: () => Date.now(),
+    sleep: (ms) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+    random: () => Math.random(),
+  })
+  /** The host for the next conversation, by the same selection the sign-in gate uses. */
+  const ensureSelectedHost = async () => {
+    const choice = selectBackend({
+      setting: currentSettings().backend,
+      hasCli: backend.resolveLaunch().ok,
+      hasCliSession: backend.credentialFileExists() || backend.hasEnvironmentKey(),
+      hasStoredKey: (await credentials.getApiKey()) !== undefined,
+    })
+    if (choice.kind === 'modelApi') {
+      return await modelApi.ensureHost()
+    }
+    const host = await backend.ensureHost()
+    host.onExit((description) => {
+      for (const active of controllers.values()) {
+        active.hostExited(description)
+      }
+    })
+    return host
+  }
 
   // Session history memory (M6): archived ids and the last session, per
   // workspace, in the extension's own `workspaceState`.
@@ -423,15 +471,7 @@ export function activate(context: vscode.ExtensionContext): void {
       controller = new ConversationController({
         surface,
         auth,
-        ensureHost: async () => {
-          const host = await backend.ensureHost()
-          host.onExit((description) => {
-            for (const active of controllers.values()) {
-              active.hostExited(description)
-            }
-          })
-          return host
-        },
+        ensureHost: ensureSelectedHost,
         workspaceRoot,
         modelId: DEFAULT_MODEL_ID,
         initialPermissionMode: currentSettings().initialPermissionMode,
@@ -445,6 +485,15 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         files,
         isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
+        isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
+        // Contributor-tier models let Meta train on the traffic: one explicit
+        // yes per conversation before the model switches (PLAN.md §9).
+        confirmContributor: async (modelId) =>
+          (await vscode.window.showWarningMessage(
+            `${UI_TEXT.contributorTitle} ${modelId}: ${UI_TEXT.contributorDetail}`,
+            { modal: true },
+            UI_TEXT.contributorConfirm,
+          )) === UI_TEXT.contributorConfirm,
         runHostAction,
         copyText: async (text) => {
           await vscode.env.clipboard.writeText(text)
@@ -567,7 +616,7 @@ export function activate(context: vscode.ExtensionContext): void {
     fileWatcher.onDidDelete(() => {
       mentions.invalidate()
     }),
-    { dispose: () => void backend.dispose() },
+    { dispose: () => void restartBackend() },
     vscode.window.registerWebviewViewProvider(
       CHAT_VIEW_ID,
       new ChatViewProvider(hostContext, registry),
@@ -577,8 +626,13 @@ export function activate(context: vscode.ExtensionContext): void {
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
       }
-      // A host keeps its sandbox posture for life: drop it so the next
-      // message spawns one with the new setting.
+      // A host keeps its sandbox posture for life, and the backend choice
+      // is made per host: drop them so the next message spawns afresh.
+      const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
+      if (isBackendSetting) {
+        void restartBackend().then(() => auth.refresh())
+        return
+      }
       if (!event.affectsConfiguration(SHELL_SANDBOX_SETTING) || !backend.isRunning) {
         return
       }

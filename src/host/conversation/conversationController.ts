@@ -7,21 +7,24 @@ import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
 import type {
+  AgentHost,
+  AgentSession,
   LoadedSession,
-  MuseCodeHost,
-  MuseSession,
   SessionListEvent,
   SessionMcpHttpServer,
+  SessionRecord,
   TurnPart,
-} from '../../core/backends/musecode/MuseCodeHost'
+} from '../../core/agent/agentBackend'
+import { toSessionRow } from '../../core/agent/sessionRows'
 import {
   isProfileWorkspaceLimited,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
-import { type SessionRecord, toSessionRow } from '../../core/backends/musecode/sessionRecords'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import {
   ALLOWED_LINK_SCHEMES,
+  AUTH_REQUIRED_ERROR_KIND,
+  CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   type EffortLevel,
   IDE_MCP_SERVER_NAME,
@@ -100,7 +103,7 @@ export interface SessionMemory {
 export interface ConversationDeps {
   readonly surface: ChatSurface
   readonly auth: AuthService
-  readonly ensureHost: () => Promise<MuseCodeHost>
+  readonly ensureHost: () => Promise<AgentHost>
   readonly workspaceRoot: string | undefined
   readonly modelId: string
   readonly initialPermissionMode: PermissionMode
@@ -111,6 +114,10 @@ export interface ConversationDeps {
   readonly files: FileAccess
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
+  /** `museSpark.confidentialWorkspace`: contributor-tier models are blocked. */
+  readonly isConfidentialWorkspace: () => boolean
+  /** One explicit yes before a contributor-tier model is used (M7). */
+  readonly confirmContributor: (modelId: string) => Promise<boolean>
   readonly runHostAction: (action: HostAction) => Promise<void>
   /** Code block "Copy": the system clipboard. */
   readonly copyText: (text: string) => Promise<void>
@@ -145,7 +152,6 @@ export interface ConversationDeps {
 export const NO_WORKSPACE_REASON = 'Open a folder first; Muse works inside a workspace.'
 export const NOT_SIGNED_IN_REASON = 'Sign in before sending a message.'
 export const NOTHING_TO_SEND_REASON = 'Type a message or attach an image first.'
-export const AUTH_REQUIRED_ERROR_KIND = 'authRequired'
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
 // `session/compact` rejects with this reason before the first turn has run
@@ -169,8 +175,12 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function isContributorModel(modelId: string): boolean {
+  return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+}
+
 export class ConversationController {
-  private session: MuseSession | undefined
+  private session: AgentSession | undefined
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
   private skills: readonly SkillOption[] | undefined
@@ -182,9 +192,11 @@ export class ConversationController {
   private isThinkingEnabled = true
   private activeTurnId: string | undefined
   private hasWarnedSandbox = false
+  /** The contributor model the user said yes to (once per conversation). */
+  private confirmedContributor: string | undefined
   /** The workspace's stored sessions once the dialog asked for them (M6). */
   private sessionRecords: Map<string, SessionRecord> | undefined
-  private listWatch: { readonly host: MuseCodeHost; readonly unsubscribe: () => void } | undefined
+  private listWatch: { readonly host: AgentHost; readonly unsubscribe: () => void } | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -482,11 +494,14 @@ export class ConversationController {
     }
   }
 
-  private async ensureModels(host: MuseCodeHost): Promise<void> {
+  private async ensureModels(host: AgentHost): Promise<void> {
     if (this.models !== undefined) {
       return
     }
-    const models = await host.listModels()
+    const listed = await host.listModels()
+    const models = this.deps.isConfidentialWorkspace()
+      ? listed.filter((model) => !isContributorModel(model.modelId))
+      : listed
     this.models = models.map((model) => ({
       modelId: model.modelId,
       displayLabel: model.displayLabel,
@@ -496,7 +511,7 @@ export class ConversationController {
     this.post({ type: 'modelList', models: [...this.models] })
   }
 
-  private async applyEffort(session: MuseSession): Promise<void> {
+  private async applyEffort(session: AgentSession): Promise<void> {
     try {
       await session.setReasoningEffort(effortForThinking(this.effort, this.isThinkingEnabled))
     } catch (error: unknown) {
@@ -505,7 +520,7 @@ export class ConversationController {
     }
   }
 
-  private async loadSkills(session: MuseSession): Promise<void> {
+  private async loadSkills(session: AgentSession): Promise<void> {
     try {
       const skills = await session.listSkills()
       this.skills = skills.map((skill) => ({
@@ -524,14 +539,14 @@ export class ConversationController {
   }
 
   /** Re-list the skills; concurrent callers share the in-flight request. */
-  private refreshSkills(session: MuseSession): Promise<void> {
+  private refreshSkills(session: AgentSession): Promise<void> {
     this.skillsRefresh ??= this.loadSkills(session)
     return this.skillsRefresh
   }
 
   /** The IDE tool server config for a new or resumed session, when granted. */
   private mcpServersFor(
-    host: MuseCodeHost,
+    host: AgentHost,
   ): Readonly<Record<string, SessionMcpHttpServer>> | undefined {
     const ideEndpoint = this.deps.ideMcpEndpoint()
     const hasSessionMcp = host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)
@@ -541,7 +556,7 @@ export class ConversationController {
   }
 
   /** Take a session as this surface's: events, composer state, skills. */
-  private async attach(session: MuseSession): Promise<void> {
+  private async attach(session: AgentSession): Promise<void> {
     this.session = session
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
@@ -552,7 +567,7 @@ export class ConversationController {
     void this.refreshSkills(session)
   }
 
-  private async ensureSession(workspaceRoot: string): Promise<MuseSession> {
+  private async ensureSession(workspaceRoot: string): Promise<AgentSession> {
     if (this.session !== undefined) {
       return this.session
     }
@@ -567,7 +582,11 @@ export class ConversationController {
     })
     this.modelId = session.modelId
     await this.attach(session)
-    this.noteShellSandbox(workspaceRoot, host.info.serverVersion)
+    if (host.info.kind === 'modelApi') {
+      this.notice('info', UI_TEXT.modelApiBackendNotice)
+    } else {
+      this.noteShellSandbox(workspaceRoot, host.info.serverVersion)
+    }
     return session
   }
 
@@ -588,7 +607,7 @@ export class ConversationController {
   }
 
   /** The session for a user action, or undefined (with the reason posted). */
-  private async sessionForAction(localId?: string): Promise<MuseSession | undefined> {
+  private async sessionForAction(localId?: string): Promise<AgentSession | undefined> {
     const refusal = this.refuseAction(localId)
     if (refusal !== undefined || this.deps.workspaceRoot === undefined) {
       return undefined
@@ -600,7 +619,7 @@ export class ConversationController {
   // --- Session history (M6) ---
 
   /** Follow `session/listChanged` / `session/closed` on the current host. */
-  private watchList(host: MuseCodeHost): void {
+  private watchList(host: AgentHost): void {
     if (this.listWatch?.host === host) {
       return
     }
@@ -667,7 +686,7 @@ export class ConversationController {
    * row (never the record's `modelId`, PLAN.md M6), and this surface's
    * composer settings are applied to it.
    */
-  private async adopt(host: MuseCodeHost, loaded: LoadedSession, notice: string): Promise<void> {
+  private async adopt(host: AgentHost, loaded: LoadedSession, notice: string): Promise<void> {
     this.dropSession()
     const models = await host.listModels(loaded.session.sessionId)
     const active = models.find((model) => model.isActive)
@@ -767,7 +786,7 @@ export class ConversationController {
   }
 
   private async submit(
-    session: MuseSession,
+    session: AgentSession,
     parts: readonly TurnPart[],
     displayText: string | undefined,
   ): Promise<string> {
@@ -859,7 +878,27 @@ export class ConversationController {
     }
   }
 
+  /** Whether a contributor-tier model may be used here: blocked, or confirmed once. */
+  private async allowsModel(modelId: string): Promise<boolean> {
+    if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
+      return true
+    }
+    if (this.deps.isConfidentialWorkspace()) {
+      this.notice('warning', UI_TEXT.contributorBlocked)
+      return false
+    }
+    if (!(await this.deps.confirmContributor(modelId))) {
+      return false
+    }
+    this.confirmedContributor = modelId
+    return true
+  }
+
   private async setModel(modelId: string): Promise<void> {
+    if (!(await this.allowsModel(modelId))) {
+      this.postSessionInfo(this.modelId)
+      return
+    }
     const previous = this.modelId
     this.modelId = modelId
     if (this.session !== undefined) {

@@ -12,6 +12,7 @@ const BYTES_PER_KIB = 1024
  */
 const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
+  { path: 'dist/searchWorker.js', budgetKiB: 50 },
   { path: 'dist/webview/main.js', budgetKiB: 900 },
 ]
 

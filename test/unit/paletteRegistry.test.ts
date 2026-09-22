@@ -25,6 +25,7 @@ const context: PaletteContext = {
       argumentHint: '<env>',
     },
   ],
+  backend: 'museCode',
 }
 
 describe('formatTokenWindow', () => {
@@ -35,6 +36,12 @@ describe('formatTokenWindow', () => {
     expect(formatTokenWindow(512)).toBe('512')
   })
 })
+
+function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
+  return buildPalette({ ...base, backend })
+    .find((group) => group.id === 'account')
+    ?.items.find((item) => item.id === 'backend')
+}
 
 describe('buildPalette', () => {
   it('lays out the seven Claude Code groups in order', () => {
@@ -135,6 +142,19 @@ describe('buildPalette', () => {
       label: 'Resume',
       action: { type: 'openHistory' },
     })
+  })
+
+  it('shows the backend in use under Account & usage, opening the settings', () => {
+    expect(backendRow(context, 'museCode')).toMatchObject({
+      label: 'Backend',
+      widget: { kind: 'value', text: 'Muse Code (your Muse subscription)' },
+      action: { type: 'openSettings' },
+    })
+    expect(backendRow(context, 'modelApi')?.widget).toEqual({
+      kind: 'value',
+      text: 'Meta Model API (your key, pay as you go)',
+    })
+    expect(backendRow(context, undefined)?.widget).toEqual({ kind: 'value', text: '—' })
   })
 
   it('routes every enabled row to a real action', () => {

@@ -15,6 +15,7 @@
 
   "entry": [
     "src/extension.ts",
+    "src/host/backend/searchWorker.ts",
     "src/webview/main.tsx",
     "test/unit/**/*.test.{ts,tsx}",
     "test/integration/**/*.test.ts",

@@ -6,7 +6,7 @@ import { Buffer } from 'node:buffer'
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_IMAGE_BYTES, UI_TEXT } from '../shared/constants'
 import type { AttachmentSummary } from '../shared/protocol'
 import { readImageInfo } from './imageDimensions'
-import type { TurnPart } from './backends/musecode/MuseCodeHost'
+import type { TurnPart } from './agent/agentBackend'
 
 export type AddAttachmentResult =
   | { readonly ok: true; readonly attachment: AttachmentSummary }

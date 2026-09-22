@@ -33,7 +33,6 @@ export interface BackendManagerDeps {
   readonly extensionVersion: string
   readonly getConfiguredBinaryPath: () => string
   readonly getEnvironmentVariables: () => readonly EnvironmentVariable[]
-  readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
   /** `museSpark.shellSandbox`; read at each spawn (a host keeps its posture). */
   readonly getShellSandbox: () => ShellSandboxMode
@@ -70,10 +69,14 @@ export class MuseCodeBackendManager {
       platform: process.platform,
       baseEnv: process.env,
       extraVariables: this.deps.getEnvironmentVariables(),
-      apiKey: await this.deps.getApiKey(),
       systemRoot: process.env['SystemRoot'],
       programFiles: process.env['ProgramFiles'],
     })
+    // The CLI's own credential pays (its login or its own key); the key the
+    // panel stores is for the Model API backend and is never passed here.
+    this.deps.log.info(
+      `muse serve credentials: the CLI's own (credential file ${this.credentialFileExists() ? 'present' : 'absent'}, META_API_KEY in the environment ${this.hasEnvironmentKey() ? 'present' : 'absent'}); the extension's stored key is not passed`,
+    )
     this.deps.log.info(`Spawning ${launch.command} ${launch.args.join(' ')}`)
     const handshake = spawnMspConnection({
       command: launch.command,
