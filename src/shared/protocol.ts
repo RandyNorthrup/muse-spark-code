@@ -7,7 +7,7 @@
 
 import * as z from 'zod/mini'
 import { agentEventSchema } from './agentEvents'
-import { PERMISSION_MODES, PREFERRED_LOCATIONS } from './constants'
+import { EFFORT_LEVELS, PERMISSION_MODES, PREFERRED_LOCATIONS } from './constants'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -41,6 +41,54 @@ export type AuthStatus = (typeof AUTH_STATUSES)[number]
 export const SIGN_IN_METHODS = ['browser', 'apiKey'] as const
 export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
 
+// Things the webview asks the host to do outside the conversation itself.
+export const HOST_ACTIONS = [
+  'openSettings',
+  'openKeybindings',
+  'openLog',
+  'toggleFocusView',
+  'toggleCtrlEnterToSend',
+] as const
+export type HostAction = (typeof HOST_ACTIONS)[number]
+
+export const NOTICE_LEVELS = ['info', 'warning', 'error'] as const
+
+const modelOptionSchema = z.object({
+  modelId: z.string(),
+  displayLabel: z.string(),
+  contextLimit: z.optional(z.number()),
+  isDefault: z.boolean(),
+})
+export type ModelOption = z.infer<typeof modelOptionSchema>
+
+const skillOptionSchema = z.object({
+  selector: z.string(),
+  displayName: z.string(),
+  description: z.string(),
+  argumentHint: z.optional(z.string()),
+})
+export type SkillOption = z.infer<typeof skillOptionSchema>
+
+const attachmentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  mediaType: z.string(),
+  width: z.number(),
+  height: z.number(),
+  sizeBytes: z.number(),
+})
+export type AttachmentSummary = z.infer<typeof attachmentSchema>
+
+const mentionItemSchema = z.object({ path: z.string(), isFolder: z.boolean() })
+export type MentionItem = z.infer<typeof mentionItemSchema>
+
+const composerStateSchema = z.object({
+  type: z.literal('composerState'),
+  effort: z.enum(EFFORT_LEVELS),
+  isThinkingEnabled: z.boolean(),
+  permissionMode: z.enum(PERMISSION_MODES),
+})
+
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready') }),
@@ -50,8 +98,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Header "new conversation" button: open another editor-tab surface.
   z.object({ type: z.literal('openNewTab') }),
   // The user pressed Send. `localId` lets the host confirm or reject the
-  // optimistic echo the webview already rendered.
-  z.object({ type: z.literal('sendMessage'), localId: z.string(), text: z.string() }),
+  // optimistic echo the webview already rendered; `attachmentIds` name the
+  // images the host is holding for this message.
+  z.object({
+    type: z.literal('sendMessage'),
+    localId: z.string(),
+    text: z.string(),
+    attachmentIds: z.array(z.string()),
+  }),
   // The user pressed Stop.
   z.object({ type: z.literal('cancelTurn') }),
   z.object({ type: z.literal('signIn'), method: z.enum(SIGN_IN_METHODS) }),
@@ -59,6 +113,35 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Re-check for the CLI / restart the backend after an error.
   z.object({ type: z.literal('retryBackend') }),
   z.object({ type: z.literal('openExternal'), url: z.string() }),
+  // Composer controls.
+  z.object({ type: z.literal('setModel'), modelId: z.string() }),
+  z.object({ type: z.literal('setEffort'), effort: z.enum(EFFORT_LEVELS) }),
+  z.object({ type: z.literal('setThinking'), enabled: z.boolean() }),
+  z.object({ type: z.literal('setPermissionMode'), mode: z.enum(PERMISSION_MODES) }),
+  // "/clear": forget this surface's session; the next send starts a new one.
+  z.object({ type: z.literal('clearConversation') }),
+  // "/compact": ask the host to summarise older context.
+  z.object({ type: z.literal('compact') }),
+  // The palette opened: (re)load the session's skills.
+  z.object({ type: z.literal('listSkills') }),
+  // @-mention menu: `requestId` lets the webview drop stale answers.
+  z.object({ type: z.literal('searchMentions'), requestId: z.number(), query: z.string() }),
+  // "+" / "Attach file…": native open dialog; images become attachments,
+  // other files become `@path` mentions.
+  z.object({ type: z.literal('pickFile') }),
+  // "Mention file from this project…": QuickPick over the workspace index.
+  z.object({ type: z.literal('pickMentionFile') }),
+  // An image pasted or dropped into the composer.
+  z.object({
+    type: z.literal('attachImageData'),
+    name: z.string(),
+    mediaType: z.string(),
+    base64: z.string(),
+  }),
+  z.object({ type: z.literal('removeAttachment'), id: z.string() }),
+  // Editor resources dropped onto the composer (`text/uri-list`).
+  z.object({ type: z.literal('droppedUris'), uris: z.array(z.string()) }),
+  z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -96,6 +179,22 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('sendFailed'), localId: z.string(), reason: z.string() }),
   // One backend-agnostic conversation event (see agentEvents.ts).
   z.object({ type: z.literal('agentEvent'), event: agentEventSchema }),
+  // The host's model catalogue (for the picker and context-limit lookups).
+  z.object({ type: z.literal('modelList'), models: z.array(modelOptionSchema) }),
+  // The session's user-invocable skills (palette "Skills" group).
+  z.object({ type: z.literal('skillList'), skills: z.array(skillOptionSchema) }),
+  // The host-owned composer settings for this conversation.
+  composerStateSchema,
+  z.object({
+    type: z.literal('mentionResults'),
+    requestId: z.number(),
+    items: z.array(mentionItemSchema),
+  }),
+  z.object({ type: z.literal('attachmentAdded'), attachment: attachmentSchema }),
+  z.object({ type: z.literal('attachmentRejected'), name: z.string(), reason: z.string() }),
+  z.object({ type: z.literal('attachmentsCleared') }),
+  // A one-line message for the transcript (failed host command, warnings).
+  z.object({ type: z.literal('notice'), level: z.enum(NOTICE_LEVELS), text: z.string() }),
 ])
 
 export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema>

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { testSettings } from './helpers/fakes'
 
@@ -24,12 +25,31 @@ const init = {
   settings: testSettings,
 }
 
+const models = [
+  {
+    modelId: 'muse-spark-1.3',
+    displayLabel: 'Muse Spark 1.3',
+    contextLimit: 1_007_997,
+    isDefault: false,
+  },
+  {
+    modelId: 'muse-spark-1.2',
+    displayLabel: 'Muse Spark 1.2',
+    contextLimit: 128_000,
+    isDefault: false,
+  },
+]
+
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
-  const postMessage = vi.fn()
+  const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
   render(<App postMessage={postMessage} newLocalId={() => 'local-1'} />)
   deliver(init)
   deliver({ type: 'authState', status })
   return postMessage
+}
+
+function textarea() {
+  return screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
 }
 
 describe('App shell', () => {
@@ -52,16 +72,15 @@ describe('App shell', () => {
   it('renders the empty state once signed in and focuses the composer', () => {
     renderReady()
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
-    const textarea = screen.getByLabelText('Message Muse')
-    expect(textarea).toHaveAttribute('placeholder', init.composerPlaceholder)
-    expect(document.activeElement).toBe(textarea)
+    expect(textarea()).toHaveAttribute('placeholder', init.composerPlaceholder)
+    expect(document.activeElement).toBe(textarea())
     expect(screen.getByLabelText('Extension version')).toHaveTextContent('v9.9.9')
     expect(screen.getByLabelText('Model')).toHaveTextContent('Starting Muse Code')
   })
 
   it('reports composer focus changes and new-tab clicks to the host', () => {
     const postMessage = renderReady()
-    fireEvent.blur(screen.getByLabelText('Message Muse'))
+    fireEvent.blur(textarea())
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'inputFocusChanged', focused: false })
     fireEvent.click(screen.getByLabelText('New conversation'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'openNewTab' })
@@ -69,11 +88,10 @@ describe('App shell', () => {
 
   it('inserts host-provided text at the caret', () => {
     renderReady()
-    const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
-    fireEvent.change(textarea, { target: { value: 'look at ' } })
-    textarea.setSelectionRange(8, 8)
+    fireEvent.change(textarea(), { target: { value: 'look at ' } })
+    textarea().setSelectionRange(8, 8)
     deliver({ type: 'insertText', text: '@src/app.ts#5-10 ' })
-    expect(textarea).toHaveValue('look at @src/app.ts#5-10 ')
+    expect(textarea()).toHaveValue('look at @src/app.ts#5-10 ')
   })
 
   it('shows the Focus view badge when the setting changes', () => {
@@ -134,17 +152,29 @@ describe('App sign-in gate', () => {
 })
 
 describe('App conversation', () => {
-  it('sends the draft, echoes it, and streams the reply', () => {
+  it('sends the draft with attachment ids, echoes it, and streams the reply', () => {
     const postMessage = renderReady()
-    const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
-    fireEvent.change(textarea, { target: { value: 'hello muse' } })
-    fireEvent.keyDown(textarea, { key: 'Enter' })
+    deliver({
+      type: 'attachmentAdded',
+      attachment: {
+        id: 'att-1',
+        name: 'shot.png',
+        mediaType: 'image/png',
+        width: 2,
+        height: 3,
+        sizeBytes: 9,
+      },
+    })
+    fireEvent.change(textarea(), { target: { value: 'hello muse' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'sendMessage',
       localId: 'local-1',
       text: 'hello muse',
+      attachmentIds: ['att-1'],
     })
-    expect(textarea).toHaveValue('')
+    expect(textarea()).toHaveValue('')
+    expect(screen.queryByText('shot.png')).toBeNull()
     expect(screen.getByText('hello muse')).toBeInTheDocument()
 
     deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1' })
@@ -165,27 +195,206 @@ describe('App conversation', () => {
     expect(screen.getByLabelText('Send')).toBeInTheDocument()
   })
 
-  it('stops the running turn from the Stop button', () => {
+  it('stops the running turn from the Stop button and still lets Enter steer', () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
     fireEvent.click(screen.getByLabelText('Stop'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'cancelTurn' })
+    fireEvent.change(textarea(), { target: { value: 'and also' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'and also',
+      attachmentIds: [],
+    })
   })
 
   it('shows the send failure reason on the echoed message', () => {
     renderReady()
-    const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
-    fireEvent.change(textarea, { target: { value: 'hello' } })
-    fireEvent.keyDown(textarea, { key: 'Enter' })
+    fireEvent.change(textarea(), { target: { value: 'hello' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
     deliver({ type: 'sendFailed', localId: 'local-1', reason: 'Open a folder first' })
     expect(screen.getByRole('alert')).toHaveTextContent('Open a folder first')
   })
 
-  it('labels the model pill with the session model and context window', () => {
+  it('labels the model pill with model, context window and effort', () => {
     renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M)')
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M) High')
     deliver({ type: 'sessionInfo', modelId: 'small', contextLimit: 128_000 })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('small (128K)')
+    expect(screen.getByLabelText('Model')).toHaveTextContent('small (128K) High')
+    deliver({
+      type: 'composerState',
+      effort: 'xhigh',
+      isThinkingEnabled: false,
+      permissionMode: 'manual',
+    })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('small (128K) No thinking')
+    deliver({ type: 'sessionInfo', modelId: 'bare' })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('bare No thinking')
+  })
+
+  it('cycles the permission mode from the button and Shift+Tab', () => {
+    const postMessage = renderReady()
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'setPermissionMode',
+      mode: 'acceptEdits',
+    })
+    deliver({
+      type: 'composerState',
+      effort: 'high',
+      isThinkingEnabled: true,
+      permissionMode: 'acceptEdits',
+    })
+    fireEvent.keyDown(textarea(), { key: 'Tab', shiftKey: true })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setPermissionMode', mode: 'plan' })
+    expect(screen.getByLabelText('Permission mode: Edit automatically')).toBeInTheDocument()
+  })
+
+  it('routes the attach button, mention searches and attachment removal', () => {
+    const postMessage = renderReady()
+    fireEvent.click(screen.getByLabelText('Attach file'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'pickFile' })
+    fireEvent.change(textarea(), { target: { value: '@ap', selectionStart: 3 } })
+    fireEvent.keyUp(textarea(), { key: 'p' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'searchMentions',
+      requestId: 1,
+      query: 'ap',
+    })
+    deliver({
+      type: 'attachmentAdded',
+      attachment: {
+        id: 'a1',
+        name: 'x.png',
+        mediaType: 'image/png',
+        width: 1,
+        height: 1,
+        sizeBytes: 1,
+      },
+    })
+    fireEvent.click(screen.getByLabelText('Remove x.png'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'removeAttachment', id: 'a1' })
+    expect(screen.queryByText('x.png')).toBeNull()
+  })
+})
+
+function openPalette() {
+  fireEvent.click(screen.getByLabelText('Commands'))
+  return screen.getByRole('combobox')
+}
+
+describe('App palette', () => {
+  it('opens from the "/" key, asks for skills once, and closes back to the composer', () => {
+    const postMessage = renderReady()
+    fireEvent.keyDown(textarea(), { key: '/' })
+    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
+    expect(postMessage).toHaveBeenCalledWith({ type: 'listSkills' })
+    deliver({ type: 'skillList', skills: [] })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(textarea())
+    fireEvent.click(screen.getByLabelText('Commands'))
+    expect(postMessage.mock.calls.filter(([m]) => m.type === 'listSkills')).toHaveLength(1)
+  })
+
+  it('routes every palette action to the host or the local state', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    deliver({ type: 'modelList', models })
+    deliver({
+      type: 'skillList',
+      skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'd' }],
+    })
+    const run = (filterText: string) => {
+      const filter = openPalette()
+      fireEvent.change(filter, { target: { value: filterText } })
+      fireEvent.keyDown(filter, { key: 'Enter' })
+    }
+    run('Attach file')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'pickFile' })
+    run('Mention file')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'pickMentionFile' })
+    run('Thinking')
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setThinking', enabled: false })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    run('Effort')
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    run('Permission mode')
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'setPermissionMode',
+      mode: 'acceptEdits',
+    })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    run('Focus view')
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'toggleFocusView' })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    run('Ctrl+Enter')
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'hostAction',
+      action: 'toggleCtrlEnterToSend',
+    })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    run('Open settings')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openSettings' })
+    run('Keyboard shortcuts')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openKeybindings' })
+    run('Output log')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openLog' })
+    run('Sign out')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
+    run('/compact')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'compact' })
+    run('Report an issue')
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'openExternal',
+      url: 'https://github.com/RandyNorthrup/muse-spark-code/issues',
+    })
+    run('/fix-bug')
+    expect(textarea()).toHaveValue('/fix-bug ')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('clears the conversation locally and tells the host', () => {
+    const postMessage = renderReady()
+    fireEvent.change(textarea(), { target: { value: 'hello' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(screen.getByText('hello')).toBeInTheDocument()
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: 'Clear conversation' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'clearConversation' })
+    expect(screen.queryByText('hello')).toBeNull()
+    expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
+  })
+
+  it('switches models from the pill and from the palette, and can go back', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    deliver({ type: 'modelList', models })
+    fireEvent.click(screen.getByLabelText('Model'))
+    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'setModel', modelId: 'muse-spark-1.2' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    deliver({ type: 'agentEvent', event: { type: 'modelChanged', modelId: 'muse-spark-1.2' } })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.2 (128K) High')
+
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: 'Switch model' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    expect(screen.getByRole('listbox', { name: 'Actions' })).toBeInTheDocument()
+  })
+
+  it('shows notices from the host in the transcript', () => {
+    renderReady()
+    deliver({ type: 'notice', level: 'warning', text: 'Reasoning effort could not be applied' })
+    expect(screen.getByRole('status')).toHaveTextContent('Reasoning effort could not be applied')
   })
 })

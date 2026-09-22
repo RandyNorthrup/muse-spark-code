@@ -62,6 +62,9 @@ const schemas = {
   }),
   'session/modelChanged': z.object({ ...sessionScoped, modelId: z.string() }),
   'session/statusChanged': z.object({ ...sessionScoped, status: z.string() }),
+  'session/reasoningEffortChanged': z.object({ ...sessionScoped, reasoningEffort: z.string() }),
+  'session/approvalModeChanged': z.object({ ...sessionScoped, mode: z.string() }),
+  'skill/changed': z.object(sessionScoped),
 } as const
 
 type MappedMethod = keyof typeof schemas
@@ -173,6 +176,19 @@ export function mapNotification(notification: WireNotification): MappedNotificat
     case 'session/statusChanged': {
       const { sessionId, status } = params as z.infer<(typeof schemas)['session/statusChanged']>
       return { sessionId, event: { type: 'sessionStatus', status } }
+    }
+    case 'session/reasoningEffortChanged': {
+      const { sessionId, reasoningEffort } = params as z.infer<
+        (typeof schemas)['session/reasoningEffortChanged']
+      >
+      return { sessionId, event: { type: 'effortChanged', effort: reasoningEffort } }
+    }
+    case 'session/approvalModeChanged': {
+      const { sessionId, mode } = params as z.infer<(typeof schemas)['session/approvalModeChanged']>
+      return { sessionId, event: { type: 'approvalModeChanged', mode } }
+    }
+    case 'skill/changed': {
+      return { sessionId: params.sessionId, event: { type: 'skillsChanged' } }
     }
   }
 }

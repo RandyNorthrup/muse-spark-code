@@ -1,11 +1,32 @@
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
-// Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send), the attach and
-// slash buttons, the model pill, the permission-mode button and Send/Stop.
+// Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
+// permission mode, "/" on an empty draft opens the palette, "@" opens the
+// mention menu), attachment chips, paste/drop of images and editor files,
+// the attach and slash buttons, the model pill, the permission-mode button
+// and Send/Stop.
 
-import { type KeyboardEvent, useEffect, useRef } from 'react'
-import { COMPOSER_MAX_ROWS, PERMISSION_MODE_LABELS, UI_TEXT } from '../../shared/constants'
-import type { SettingsSnapshot } from '../../shared/protocol'
+import {
+  type ClipboardEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+import { COMPOSER_MAX_ROWS, UI_TEXT } from '../../shared/constants'
+import { applyMention, type MentionQuery, mentionQueryAt } from '../../shared/mentions'
+import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
+import { blobToBase64, parseUriList } from '../base64'
+import type { MentionResults } from '../state/uiState'
+import { AttachmentChips } from './AttachmentChips'
 import { CodeIcon, PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
+import { MentionMenu, mentionOptionId } from './MentionMenu'
+
+export interface ImageData {
+  readonly name: string
+  readonly mediaType: string
+  readonly base64: string
+}
 
 export interface ComposerProps {
   readonly draft: string
@@ -14,16 +35,30 @@ export interface ComposerProps {
   readonly canSend: boolean
   readonly isRunning: boolean
   readonly modelLabel: string
+  readonly modeLabel: string
   readonly focusRequests: number
   readonly pendingInsert: string | undefined
+  readonly attachments: readonly AttachmentSummary[]
+  readonly mentionResults: MentionResults | undefined
   readonly onDraftChange: (draft: string) => void
   readonly onInsertApplied: () => void
   readonly onSubmit: () => void
   readonly onStop: () => void
   readonly onFocusChange: (isFocused: boolean) => void
+  readonly onOpenPalette: () => void
+  readonly onOpenModelPicker: () => void
+  readonly onCyclePermissionMode: () => void
+  readonly onPickFile: () => void
+  readonly onRemoveAttachment: (id: string) => void
+  readonly onSearchMentions: (requestId: number, query: string) => void
+  readonly onAttachImage: (image: ImageData) => void
+  readonly onDroppedUris: (uris: readonly string[]) => void
 }
 
 const MIN_ROWS = 1
+const URI_LIST_TYPE = 'text/uri-list'
+const IMAGE_TYPE_PREFIX = 'image/'
+const PASTED_IMAGE_NAME = 'pasted-image'
 
 function rowsFor(draft: string): number {
   const lines = draft.split('\n').length
@@ -42,6 +77,10 @@ export function isSendKey(
   return isCtrlEnterMode ? hasModifier : !hasModifier
 }
 
+function imageFiles(list: FileList | undefined): readonly File[] {
+  return [...(list ?? [])].filter((file) => file.type.startsWith(IMAGE_TYPE_PREFIX))
+}
+
 export function Composer(props: ComposerProps) {
   const {
     draft,
@@ -50,15 +89,38 @@ export function Composer(props: ComposerProps) {
     canSend,
     isRunning,
     modelLabel,
+    modeLabel,
     focusRequests,
     pendingInsert,
+    attachments,
+    mentionResults,
     onDraftChange,
     onInsertApplied,
     onSubmit,
     onStop,
     onFocusChange,
+    onOpenPalette,
+    onOpenModelPicker,
+    onCyclePermissionMode,
+    onPickFile,
+    onRemoveAttachment,
+    onSearchMentions,
+    onAttachImage,
+    onDroppedUris,
   } = props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [caret, setCaret] = useState(0)
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const [dismissedMention, setDismissedMention] = useState<number | undefined>(undefined)
+  const requestCounter = useRef(0)
+  const [activeRequest, setActiveRequest] = useState<number | undefined>(undefined)
+
+  const mention: MentionQuery | undefined = mentionQueryAt(draft, caret)
+  const isMentionOpen = mention !== undefined && dismissedMention !== mention.start
+  const mentionItems: readonly MentionItem[] =
+    isMentionOpen && mentionResults !== undefined && mentionResults.requestId === activeRequest
+      ? mentionResults.items
+      : []
 
   useEffect(() => {
     if (focusRequests === 0) {
@@ -79,14 +141,96 @@ export function Composer(props: ComposerProps) {
     if (textarea === null) {
       return
     }
-    const caret = start + pendingInsert.length
+    const next = start + pendingInsert.length
     // Runs after React commits the new value.
     queueMicrotask(() => {
-      textarea.setSelectionRange(caret, caret)
+      textarea.setSelectionRange(next, next)
+      setCaret(next)
     })
   }, [pendingInsert, draft, onDraftChange, onInsertApplied])
 
+  // Ask the host for matches whenever the mention token changes.
+  const mentionQuery = isMentionOpen ? mention.query : undefined
+  useEffect(() => {
+    if (mentionQuery === undefined) {
+      return
+    }
+    requestCounter.current += 1
+    const requestId = requestCounter.current
+    setActiveRequest(requestId)
+    setMentionIndex(0)
+    onSearchMentions(requestId, mentionQuery)
+  }, [mentionQuery, onSearchMentions])
+
+  const syncCaret = () => {
+    setCaret(textareaRef.current?.selectionStart ?? 0)
+  }
+
+  const selectMention = (item: MentionItem) => {
+    if (mention === undefined) {
+      return
+    }
+    const applied = applyMention(draft, mention, item.path)
+    onDraftChange(applied.text)
+    const textarea = textareaRef.current
+    queueMicrotask(() => {
+      textarea?.setSelectionRange(applied.caret, applied.caret)
+      setCaret(applied.caret)
+    })
+  }
+
+  const didHandleMentionKey = (event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (!isMentionOpen) {
+      return false
+    }
+    switch (event.key) {
+      case 'ArrowDown': {
+        if (mentionItems.length > 0) {
+          setMentionIndex((mentionIndex + 1) % mentionItems.length)
+        }
+        return true
+      }
+      case 'ArrowUp': {
+        if (mentionItems.length > 0) {
+          setMentionIndex((mentionIndex - 1 + mentionItems.length) % mentionItems.length)
+        }
+        return true
+      }
+      case 'Enter':
+      case 'Tab': {
+        const item = mentionItems[mentionIndex]
+        if (item === undefined) {
+          return false
+        }
+        selectMention(item)
+        return true
+      }
+      case 'Escape': {
+        setDismissedMention(mention.start)
+        return true
+      }
+      default: {
+        return false
+      }
+    }
+  }
+
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (didHandleMentionKey(event)) {
+      event.preventDefault()
+      return
+    }
+    if (event.key === 'Tab' && event.shiftKey) {
+      event.preventDefault()
+      onCyclePermissionMode()
+      return
+    }
+    const hasModifier = event.ctrlKey || event.metaKey || event.altKey
+    if (draft === '' && !hasModifier && event.key === '/') {
+      event.preventDefault()
+      onOpenPalette()
+      return
+    }
     if (!isSendKey(event, settings.useCtrlEnterToSend)) {
       return
     }
@@ -96,21 +240,73 @@ export function Composer(props: ComposerProps) {
     }
   }
 
-  const modeLabel = PERMISSION_MODE_LABELS[settings.initialPermissionMode]
+  const attachFiles = (files: readonly File[]) => {
+    for (const file of files) {
+      void blobToBase64(file).then((base64) => {
+        onAttachImage({
+          name: file.name === '' ? PASTED_IMAGE_NAME : file.name,
+          mediaType: file.type,
+          base64,
+        })
+      })
+    }
+  }
+
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const images = imageFiles(event.clipboardData.files)
+    if (images.length === 0) {
+      return
+    }
+    event.preventDefault()
+    attachFiles(images)
+  }
+
+  const handleDrop = (event: DragEvent<HTMLElement>) => {
+    event.preventDefault()
+    attachFiles(imageFiles(event.dataTransfer.files))
+    const uris = parseUriList(event.dataTransfer.getData(URI_LIST_TYPE))
+    if (uris.length > 0) {
+      onDroppedUris(uris)
+    }
+  }
 
   return (
-    <footer className="composer">
+    <footer
+      className="composer"
+      onDragOver={(event) => {
+        event.preventDefault()
+      }}
+      onDrop={handleDrop}
+    >
+      {isMentionOpen ? (
+        <MentionMenu
+          items={mentionItems}
+          activeIndex={mentionIndex}
+          onSelect={selectMention}
+          onHover={setMentionIndex}
+        />
+      ) : null}
+      <AttachmentChips attachments={attachments} onRemove={onRemoveAttachment} />
       <textarea
         ref={textareaRef}
         className="composer-input"
         aria-label={UI_TEXT.composerLabel}
+        aria-autocomplete="list"
+        aria-controls={isMentionOpen ? 'mention-listbox' : undefined}
+        aria-activedescendant={
+          isMentionOpen && mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
+        }
         placeholder={placeholder}
         rows={rowsFor(draft)}
         value={draft}
         onChange={(event) => {
           onDraftChange(event.target.value)
+          setCaret(event.target.selectionStart)
         }}
         onKeyDown={handleKeyDown}
+        onKeyUp={syncCaret}
+        onClick={syncCaret}
+        onPaste={handlePaste}
         onFocus={() => {
           onFocusChange(true)
         }}
@@ -123,22 +319,28 @@ export function Composer(props: ComposerProps) {
           <button
             type="button"
             className="icon-button"
-            title={UI_TEXT.attachDisabledReason}
-            aria-label="Attach"
-            disabled
+            title={UI_TEXT.attachTitle}
+            aria-label={UI_TEXT.attachTitle}
+            onClick={onPickFile}
           >
             <PlusIcon />
           </button>
           <button
             type="button"
             className="icon-button"
-            title={UI_TEXT.commandsDisabledReason}
-            aria-label="Commands"
-            disabled
+            title={UI_TEXT.commandsTitle}
+            aria-label={UI_TEXT.commandsTitle}
+            onClick={onOpenPalette}
           >
             <SlashIcon />
           </button>
-          <button type="button" className="pill" title={modelLabel} aria-label="Model" disabled>
+          <button
+            type="button"
+            className="pill"
+            title={UI_TEXT.modelPillTitle}
+            aria-label="Model"
+            onClick={onOpenModelPicker}
+          >
             {modelLabel}
           </button>
         </div>
@@ -146,9 +348,9 @@ export function Composer(props: ComposerProps) {
           <button
             type="button"
             className="mode-button"
-            title="Permission mode"
+            title={UI_TEXT.permissionModeTitle}
             aria-label={`Permission mode: ${modeLabel}`}
-            disabled
+            onClick={onCyclePermissionMode}
           >
             <CodeIcon />
             <span>{modeLabel}</span>

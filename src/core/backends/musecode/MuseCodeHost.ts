@@ -31,12 +31,43 @@ export interface ModelSummary {
   readonly displayLabel: string
   readonly contextLimit: number | undefined
   readonly isDefault: boolean
+  readonly isActive: boolean
+}
+
+export interface SkillSummary {
+  readonly selector: string
+  readonly displayName: string
+  readonly description: string
+  readonly argumentHint: string | undefined
 }
 
 export interface StartSessionOptions {
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: string
+}
+
+/** One ordered content part of a turn (MSP `TurnInputPart`). */
+export type TurnPart =
+  | { readonly type: 'text'; readonly text: string }
+  | {
+      readonly type: 'image'
+      readonly base64Data: string
+      readonly mediaType: string
+      readonly width: number
+      readonly height: number
+    }
+  | { readonly type: 'skill'; readonly selector: string; readonly arguments?: string }
+
+export interface TurnSubmission {
+  readonly turnId: string
+  /** `started`, `queued` or `steered` (open on the wire). */
+  readonly disposition: string
+}
+
+export interface CompactOutcome {
+  readonly status: string
+  readonly reason: string | undefined
 }
 
 export type SessionEventListener = (event: AgentEvent) => void
@@ -50,7 +81,15 @@ const sessionStartResultSchema = z.object({
   session: z.object({ sessionId: z.string(), modelId: z.nullable(z.string()) }),
 })
 
-const turnStartResultSchema = z.object({ turnId: z.string(), status: z.string() })
+const turnStartResultSchema = z.object({
+  turnId: z.string(),
+  status: z.string(),
+  disposition: z.optional(z.string()),
+})
+
+const turnSteerResultSchema = z.object({ turnId: z.string(), status: z.string() })
+
+const compactResultSchema = z.object({ status: z.string(), reason: z.optional(z.string()) })
 
 const modelListResultSchema = z.object({
   models: z.array(
@@ -59,9 +98,23 @@ const modelListResultSchema = z.object({
       displayLabel: z.string(),
       contextLimit: z.nullable(z.number()),
       isDefault: z.boolean(),
+      isActive: z.optional(z.boolean()),
     }),
   ),
 })
+
+const skillListResultSchema = z.object({
+  skills: z.array(
+    z.object({
+      selector: z.string(),
+      displayName: z.string(),
+      description: z.string(),
+      argumentHint: z.optional(z.string()),
+    }),
+  ),
+})
+
+const DEFAULT_DISPOSITION = 'started'
 
 export class MuseSession {
   private readonly listeners = new Set<SessionEventListener>()
@@ -73,6 +126,16 @@ export class MuseSession {
     private readonly connection: Connection,
     private readonly onDispose: () => void,
   ) {}
+
+  /** One MSP command against this session with a freshly minted commandId. */
+  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
+    const commandId = this.connection.mintCommandId()
+    return await this.connection.command(
+      method,
+      { commandId, sessionId: this.sessionId, ...params },
+      { commandId },
+    )
+  }
 
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
@@ -88,35 +151,62 @@ export class MuseSession {
     }
   }
 
-  /** Submit one user turn; resolves with the host-assigned turn id. */
-  public async sendTurn(text: string): Promise<string> {
-    const commandId = this.connection.mintCommandId()
-    const result = await this.connection.command(
-      'turn/start',
-      { commandId, sessionId: this.sessionId, input: [{ type: 'text', text }] },
-      { commandId },
-    )
-    return turnStartResultSchema.parse(result).turnId
+  /** Submit one user turn; queued behind a running turn by host default. */
+  public async sendTurn(parts: readonly TurnPart[]): Promise<TurnSubmission> {
+    const result = turnStartResultSchema.parse(await this.command('turn/start', { input: parts }))
+    return { turnId: result.turnId, disposition: result.disposition ?? DEFAULT_DISPOSITION }
+  }
+
+  /**
+   * Inject input into the turn believed to be running. The host rejects the
+   * steer when that turn is no longer the running one, so input meant for one
+   * turn never leaks into the next; callers fall back to `sendTurn`.
+   */
+  public async steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<string> {
+    const result = await this.command('turn/steer', { expectedTurnId, input: parts })
+    return turnSteerResultSchema.parse(result).turnId
   }
 
   /** Ask the host to stop the running turn gracefully. */
   public async cancel(): Promise<void> {
-    const commandId = this.connection.mintCommandId()
-    await this.connection.command(
-      'turn/cancel',
-      { commandId, sessionId: this.sessionId },
-      { commandId },
-    )
+    await this.command('turn/cancel', {})
   }
 
   /** Stop the running turn immediately. */
   public async interrupt(): Promise<void> {
-    const commandId = this.connection.mintCommandId()
-    await this.connection.command(
-      'turn/interrupt',
-      { commandId, sessionId: this.sessionId },
-      { commandId },
-    )
+    await this.command('turn/interrupt', {})
+  }
+
+  /** Durable model selection; applies from the next model call. */
+  public async setModel(modelId: string): Promise<void> {
+    await this.command('session/setModel', { model: { modelId } })
+  }
+
+  /** The session's standing reasoning-effort default (wire vocabulary). */
+  public async setReasoningEffort(reasoningEffort: string): Promise<void> {
+    await this.command('session/setReasoningEffort', { reasoningEffort })
+  }
+
+  /** Select one of the host's preconfigured approval modes. */
+  public async setApprovalMode(mode: string): Promise<void> {
+    await this.command('session/setApprovalMode', { mode })
+  }
+
+  /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
+  public async compact(): Promise<CompactOutcome> {
+    const result = compactResultSchema.parse(await this.command('session/compact', {}))
+    return { status: result.status, reason: result.reason }
+  }
+
+  /** The user-invocable skills in this session's workspace and plugins. */
+  public async listSkills(): Promise<readonly SkillSummary[]> {
+    const result = await this.connection.command('skill/list', { sessionId: this.sessionId })
+    return skillListResultSchema.parse(result).skills.map((skill) => ({
+      selector: skill.selector,
+      displayName: skill.displayName,
+      description: skill.description,
+      argumentHint: skill.argumentHint,
+    }))
   }
 
   public dispose(): void {
@@ -176,13 +266,17 @@ export class MuseCodeHost {
     }
   }
 
-  public async listModels(): Promise<readonly ModelSummary[]> {
-    const result = await this.host.connection.command('model/list', {})
+  /** The visible model catalogue; with a session id the active row is flagged. */
+  public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
+    const result = await this.host.connection.command('model/list', {
+      ...(sessionId !== undefined && { sessionId }),
+    })
     return modelListResultSchema.parse(result).models.map((model) => ({
       modelId: model.modelId,
       displayLabel: model.displayLabel,
       contextLimit: model.contextLimit ?? undefined,
       isDefault: model.isDefault,
+      isActive: model.isActive ?? false,
     }))
   }
 

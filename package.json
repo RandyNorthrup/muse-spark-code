@@ -74,6 +74,11 @@
         "command": "museSpark.toggleFocusView",
         "title": "Toggle Focus View",
         "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.toggleThinking",
+        "title": "Toggle Thinking",
+        "category": "Muse Spark"
       }
     ],
     "keybindings": [
@@ -96,6 +101,12 @@
         "command": "museSpark.toggleFocusView",
         "key": "ctrl+alt+f",
         "mac": "ctrl+alt+f"
+      },
+      {
+        "command": "museSpark.toggleThinking",
+        "key": "ctrl+o",
+        "mac": "cmd+o",
+        "when": "museSpark.inputFocused"
       }
     ],
     "menus": {

@@ -95,6 +95,17 @@ describe('mapNotification', () => {
       { sessionId, status: 'running', viewCursor: 'v' },
       { type: 'sessionStatus', status: 'running' },
     ],
+    [
+      'session/reasoningEffortChanged',
+      { sessionId, reasoningEffort: 'xhigh', source: 'user', viewCursor: 'v' },
+      { type: 'effortChanged', effort: 'xhigh' },
+    ],
+    [
+      'session/approvalModeChanged',
+      { sessionId, mode: 'allowAll', source: 'approvalReconfigure', viewCursor: 'v' },
+      { type: 'approvalModeChanged', mode: 'allowAll' },
+    ],
+    ['skill/changed', { sessionId }, { type: 'skillsChanged' }],
   ])('maps %s', (method, params, event) => {
     expect(mapNotification({ method, params })).toEqual({ sessionId, event })
   })

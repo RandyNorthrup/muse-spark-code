@@ -7,3 +7,11 @@ import '@testing-library/jest-dom/vitest'
 afterEach(() => {
   cleanup()
 })
+
+// jsdom does not implement scrollIntoView; the palette calls it on the
+// active row, and the tests only care that the row is marked active.
+if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = () => {
+    // no layout in jsdom
+  }
+}

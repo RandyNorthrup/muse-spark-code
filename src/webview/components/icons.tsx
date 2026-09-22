@@ -95,3 +95,54 @@ export function StopIcon(props: IconProps) {
     </Svg>
   )
 }
+
+export function ImageIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+      <circle cx="6" cy="6.5" r="1" />
+      <path d="m3 12 3.5-3.5 2 2 2-2L13 11" />
+    </Svg>
+  )
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m4 4 8 8M12 4l-8 8" />
+    </Svg>
+  )
+}
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m3 8.5 3 3 7-7" />
+    </Svg>
+  )
+}
+
+export function FolderIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M2.5 4.5h4l1.5 1.5h5.5v6.5h-11v-8Z" />
+    </Svg>
+  )
+}
+
+export function FileIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 2.5h5l3 3v8H4v-11Z" />
+      <path d="M9 2.5v3h3" />
+    </Svg>
+  )
+}
+
+export function BackIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10 3 5 8l5 5" />
+    </Svg>
+  )
+}

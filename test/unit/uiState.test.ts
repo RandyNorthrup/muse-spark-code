@@ -96,12 +96,133 @@ describe('uiReducer: sending', () => {
     expect(state.activeTurnId).toBeUndefined()
   })
 
-  it('only allows sending when signed in, idle, and the draft is not blank', () => {
+  it('allows sending when signed in with a draft or an attachment, even mid-turn', () => {
     const base = reduceAll([host(init), signedIn, { type: 'draftChanged', draft: '  hi ' }])
     expect(canSend(base)).toBe(true)
-    expect(canSend(uiReducer(base, { type: 'draftChanged', draft: ' '.repeat(3) }))).toBe(false)
-    expect(canSend(uiReducer(base, agent({ type: 'turnStarted', turnId: 't1' })))).toBe(false)
+    const blank = uiReducer(base, { type: 'draftChanged', draft: ' '.repeat(3) })
+    expect(canSend(blank)).toBe(false)
+    expect(canSend(uiReducer(blank, host({ type: 'attachmentAdded', attachment })))).toBe(true)
+    expect(canSend(uiReducer(base, agent({ type: 'turnStarted', turnId: 't1' })))).toBe(true)
     expect(canSend(uiReducer(base, host({ type: 'authState', status: 'signedOut' })))).toBe(false)
+  })
+
+  it('clears attachments with the draft on submit', () => {
+    const state = reduceAll([
+      host({ type: 'attachmentAdded', attachment }),
+      { type: 'submitted', localId: 'l1', text: 'see image' },
+    ])
+    expect(state.attachments).toEqual([])
+  })
+})
+
+const attachment = {
+  id: 'att-1',
+  name: 'shot.png',
+  mediaType: 'image/png',
+  width: 686,
+  height: 695,
+  sizeBytes: 24,
+}
+
+describe('uiReducer: composer state', () => {
+  it('seeds the permission mode from settings and then follows the host', () => {
+    const state = reduceAll([
+      host({ ...init, settings: { ...testSettings, initialPermissionMode: 'plan' } }),
+    ])
+    expect(state.permissionMode).toBe('plan')
+    expect(state.effort).toBe('high')
+    expect(state.isThinkingEnabled).toBe(true)
+    const updated = uiReducer(
+      state,
+      host({
+        type: 'composerState',
+        effort: 'max',
+        isThinkingEnabled: false,
+        permissionMode: 'bypassPermissions',
+      }),
+    )
+    expect(updated).toMatchObject({
+      effort: 'max',
+      isThinkingEnabled: false,
+      permissionMode: 'bypassPermissions',
+    })
+  })
+
+  it('stores model and skill lists, and looks context limits up on model changes', () => {
+    const state = reduceAll([
+      host({
+        type: 'modelList',
+        models: [
+          { modelId: 'a', displayLabel: 'A', contextLimit: 100, isDefault: true },
+          { modelId: 'b', displayLabel: 'B', isDefault: false },
+        ],
+      }),
+      host({ type: 'skillList', skills: [{ selector: 's', displayName: 'S', description: '' }] }),
+      host({ type: 'sessionInfo', modelId: 'a', contextLimit: 100 }),
+      agent({ type: 'modelChanged', modelId: 'b' }),
+    ])
+    expect(state.models).toHaveLength(2)
+    expect(state.skills).toHaveLength(1)
+    expect(state.model).toEqual({ modelId: 'b', contextLimit: 100 })
+    expect(uiReducer(state, agent({ type: 'modelChanged', modelId: 'a' })).model).toEqual({
+      modelId: 'a',
+      contextLimit: 100,
+    })
+  })
+
+  it('tracks attachments: add (idempotent), remove, reject, clear', () => {
+    const added = reduceAll([
+      host({ type: 'attachmentAdded', attachment }),
+      host({ type: 'attachmentAdded', attachment }),
+    ])
+    expect(added.attachments).toEqual([attachment])
+    expect(uiReducer(added, { type: 'attachmentRemoved', id: 'att-1' }).attachments).toEqual([])
+    const rejected = uiReducer(
+      added,
+      host({ type: 'attachmentRejected', name: 'x.pdf', reason: 'Only images' }),
+    )
+    expect(rejected.transcript).toEqual([
+      { kind: 'notice', id: 'notice:1', level: 'warning', text: 'x.pdf: Only images' },
+    ])
+    expect(uiReducer(added, host({ type: 'attachmentsCleared' })).attachments).toEqual([])
+  })
+
+  it('keeps the latest mention results and queues inserts and focus requests', () => {
+    const state = reduceAll([
+      host({ type: 'mentionResults', requestId: 1, items: [{ path: 'a.ts', isFolder: false }] }),
+      host({ type: 'mentionResults', requestId: 2, items: [] }),
+      { type: 'insertRequested', text: '/fix-bug ' },
+      { type: 'focusRequested' },
+    ])
+    expect(state.mentionResults).toEqual({ requestId: 2, items: [] })
+    expect(state.pendingInsert).toBe('/fix-bug ')
+    expect(state.focusRequests).toBe(2)
+  })
+
+  it('appends notices and clears the conversation locally', () => {
+    const state = reduceAll([
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent({ type: 'itemStarted', itemId: 'm1', kind: 'agentMessage' }),
+      host({ type: 'notice', level: 'error', text: 'Compaction failed' }),
+      host({ type: 'attachmentAdded', attachment }),
+    ])
+    expect(state.transcript.at(-1)).toEqual({
+      kind: 'notice',
+      id: 'notice:1',
+      level: 'error',
+      text: 'Compaction failed',
+    })
+    const cleared = uiReducer(state, { type: 'conversationCleared' })
+    expect(cleared.transcript).toEqual([])
+    expect(cleared.attachments).toEqual([])
+    expect(cleared.activeTurnId).toBeUndefined()
+  })
+
+  it('leaves the state alone for host-confirmed events', () => {
+    const state = reduceAll([host(init)])
+    expect(uiReducer(state, agent({ type: 'effortChanged', effort: 'low' }))).toBe(state)
+    expect(uiReducer(state, agent({ type: 'approvalModeChanged', mode: 'allowAll' }))).toBe(state)
+    expect(uiReducer(state, agent({ type: 'skillsChanged' }))).toBe(state)
   })
 })
 

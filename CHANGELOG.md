@@ -9,6 +9,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Milestone M3, composer and command palette parity: the "/" palette
+  ("Filter actions…"; Context / Model / Customize / Account & usage / Skills /
+  Slash commands / Support; keyboard-only operation; opens from the "/" key
+  on an empty draft or the slash button), "+" attach (native file dialog;
+  PNG/JPEG/GIF/WebP become `name W×H` chips sent as MSP image parts, other
+  files become `@path` mentions), paste and drop of images, drop of editor
+  resources as mentions, `@` mention autocomplete over a `git ls-files`
+  index (`.gitignore` respected, VS Code file search as the fallback), the
+  model pill + picker (`model/list`, `session/setModel`, context window shown
+  as "1M"), the effort slider (Low … Max → `session/setReasoningEffort`,
+  default High like the CLI) and Thinking toggle (Ctrl+O; off sends `none`),
+  the permission-mode button and Shift+Tab cycle (Manual / Edit automatically
+  / Plan / Auto / Bypass permissions; Bypass asks for confirmation), skills
+  from `skill/list` typed as `/selector args` and sent as skill parts, Enter
+  while a turn runs steering that turn (`turn/steer`) with a fresh-turn
+  fallback, `/clear`, `/compact`, sign-out and host notices in the transcript.
+  Until the approval cards land (M4) every permission mode except Bypass
+  still runs as `denyUnmatched`; the mapping is recorded in PLAN.md D7.
 - Milestone M2, sign-in and the Muse Code backend: locating the CLI per
   platform (Windows `muse-bin-<version>.exe` from `.muse-version`, PowerShell
   launcher fallback, POSIX `~/.local/bin/muse`), a sanitised child environment

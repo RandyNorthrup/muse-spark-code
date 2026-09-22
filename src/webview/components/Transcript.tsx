@@ -49,6 +49,16 @@ function Entry({ entry }: { readonly entry: TranscriptEntry }) {
         </li>
       )
     }
+    case 'notice': {
+      return (
+        <li
+          className={`notice notice-${entry.level}`}
+          role={entry.level === 'error' ? 'alert' : 'status'}
+        >
+          {entry.text}
+        </li>
+      )
+    }
   }
 }
 

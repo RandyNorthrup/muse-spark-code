@@ -17,6 +17,7 @@ interface JsonRpcFrame {
 type RequestHandler = (params: Record<string, unknown>) => Record<string, unknown>
 
 const METHOD_NOT_FOUND = -32_601
+const HANDLER_ERROR = -32_000
 
 class PushIterable implements AsyncIterable<string> {
   private readonly queue: string[] = []
@@ -60,6 +61,27 @@ export class FakeMspServer implements DuplexTransport {
   /** Every response the client sent to a server request. */
   public readonly clientResponses: JsonRpcFrame[] = []
 
+  private respond(
+    id: number | string,
+    handler: RequestHandler | undefined,
+    params: Record<string, unknown> | undefined,
+  ): Record<string, unknown> {
+    if (handler === undefined) {
+      return { jsonrpc: '2.0', id, error: { code: METHOD_NOT_FOUND, message: 'no handler' } }
+    }
+    try {
+      return { jsonrpc: '2.0', id, result: handler(params ?? {}) }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      // The SDK requires a typed `data.kind` on every error response.
+      return {
+        jsonrpc: '2.0',
+        id,
+        error: { code: HANDLER_ERROR, message, data: { kind: 'commandRejected' } },
+      }
+    }
+  }
+
   public handle(method: string, handler: RequestHandler): void {
     this.handlers.set(method, handler)
   }
@@ -79,15 +101,7 @@ export class FakeMspServer implements DuplexTransport {
       if (frame.id === undefined) {
         continue
       }
-      const response =
-        handler === undefined
-          ? {
-              jsonrpc: '2.0',
-              id: frame.id,
-              error: { code: METHOD_NOT_FOUND, message: 'no handler' },
-            }
-          : { jsonrpc: '2.0', id: frame.id, result: handler(frame.params ?? {}) }
-      this.incoming.push(`${JSON.stringify(response)}\n`)
+      this.incoming.push(`${JSON.stringify(this.respond(frame.id, handler, frame.params))}\n`)
     }
     return Promise.resolve()
   }

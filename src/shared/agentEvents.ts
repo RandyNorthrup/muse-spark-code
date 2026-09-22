@@ -52,6 +52,12 @@ const agentEventSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('modelChanged'), modelId: z.string() }),
   z.object({ type: z.literal('sessionStatus'), status: z.string() }),
+  // The session's standing reasoning effort changed (wire vocabulary).
+  z.object({ type: z.literal('effortChanged'), effort: z.string() }),
+  // The session's approval mode changed (wire vocabulary).
+  z.object({ type: z.literal('approvalModeChanged'), mode: z.string() }),
+  // The session's user-invocable skill set changed; re-list.
+  z.object({ type: z.literal('skillsChanged') }),
 ])
 
 export type AgentEvent = z.infer<typeof agentEventSchema>

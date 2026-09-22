@@ -1,28 +1,42 @@
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
+import { execFile } from 'node:child_process'
+import path from 'node:path'
+import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { MentionSource } from './core/mention'
+import { MentionIndex } from './core/mentionIndex'
 import { AuthService } from './host/auth/authService'
 import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { insertMentionReference } from './host/commands/insertMention'
 import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
-import { ConversationController } from './host/conversation/conversationController'
+import {
+  ConversationController,
+  type FileAccess,
+  type PickedFile,
+} from './host/conversation/conversationController'
 import { createLogger } from './host/logger'
+import { pickMentionFile } from './host/mention/mentionQuickPick'
+import { createWorkspaceFileLister } from './host/mention/workspaceFiles'
 import { readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider } from './host/views/ChatViewProvider'
 import { openChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
 import {
+  HAS_APPROVAL_UI,
   CHAT_VIEW_ID,
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
-  M2_APPROVAL_MODE,
+  FIND_FILES_GLOB,
+  GIT_OUTPUT_MAX_BYTES,
+  MENTION_INDEX_LIMIT,
+  MENTION_INDEX_TTL_MS,
   MUSE_LOGIN_TERMINAL_NAME,
   PRODUCT_NAME,
   SETTINGS_SECTION,
@@ -30,10 +44,15 @@ import {
   VSCODE_COMMANDS,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
 } from './shared/constants'
+import type { HostAction } from './shared/protocol'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
 // field we read instead of trusting it.
 const packageManifestSchema = z.object({ version: z.string() })
+
+// `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
+const QUICK_PICK_LIMIT = 50
+const execFileAsync = promisify(execFile)
 
 function activeSelection(): MentionSource | undefined {
   const editor = vscode.window.activeTextEditor
@@ -82,6 +101,34 @@ async function promptForApiKey(): Promise<string | undefined> {
   })
 }
 
+function relativePathInWorkspace(uri: vscode.Uri): string | undefined {
+  return vscode.workspace.getWorkspaceFolder(uri) === undefined
+    ? undefined
+    : vscode.workspace.asRelativePath(uri, false).replaceAll('\\', '/')
+}
+
+async function findWorkspaceFiles(): Promise<readonly string[]> {
+  const uris = await vscode.workspace.findFiles(FIND_FILES_GLOB, undefined, MENTION_INDEX_LIMIT)
+  return uris.map((uri) => vscode.workspace.asRelativePath(uri, false).replaceAll('\\', '/'))
+}
+
+async function runGit(args: readonly string[], cwd: string): Promise<string> {
+  const { stdout } = await execFileAsync('git', [...args], {
+    cwd,
+    maxBuffer: GIT_OUTPUT_MAX_BYTES,
+  })
+  return stdout
+}
+
+async function didConfirmBypass(): Promise<boolean> {
+  const choice = await vscode.window.showWarningMessage(
+    UI_TEXT.bypassConfirm,
+    { modal: true },
+    UI_TEXT.bypassConfirmAction,
+  )
+  return choice === UI_TEXT.bypassConfirmAction
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
@@ -95,6 +142,10 @@ export function activate(context: vscode.ExtensionContext): void {
   let isInputFocused = false
   const currentSettings = () =>
     readSettings(vscode.workspace.getConfiguration(SETTINGS_SECTION), log)
+  const updateSetting = (key: string, value: unknown) =>
+    vscode.workspace
+      .getConfiguration(SETTINGS_SECTION)
+      .update(key, value, vscode.ConfigurationTarget.Global)
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
 
   const credentials = new CredentialStore(context.secrets)
@@ -140,6 +191,71 @@ export function activate(context: vscode.ExtensionContext): void {
     log,
   })
 
+  const mentions = new MentionIndex({
+    listFiles: createWorkspaceFileLister({
+      workspaceRoot: workspaceRoot ?? '',
+      respectGitIgnore: () => currentSettings().respectGitIgnore,
+      runGit,
+      findFiles: findWorkspaceFiles,
+      log,
+    }),
+    now: () => Date.now(),
+    ttlMs: MENTION_INDEX_TTL_MS,
+    limit: MENTION_INDEX_LIMIT,
+    log,
+  })
+
+  const files: FileAccess = {
+    showOpenDialog: async () => {
+      const uris = await vscode.window.showOpenDialog({
+        canSelectMany: true,
+        openLabel: UI_TEXT.attachTitle,
+      })
+      return (uris ?? []).map((uri): PickedFile => ({
+        name: path.basename(uri.fsPath),
+        fsPath: uri.fsPath,
+        relativePath: relativePathInWorkspace(uri),
+      }))
+    },
+    readFile: async (fsPath) => await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)),
+    pickMentionFile: () =>
+      pickMentionFile({
+        createQuickPick: () => vscode.window.createQuickPick(),
+        mentions,
+        limit: QUICK_PICK_LIMIT,
+        placeholder: UI_TEXT.mentionFile,
+      }),
+    toRelativePath: (uri) => relativePathInWorkspace(vscode.Uri.parse(uri)),
+  }
+
+  const runHostAction = async (action: HostAction): Promise<void> => {
+    switch (action) {
+      case 'openSettings': {
+        await vscode.commands.executeCommand(VSCODE_COMMANDS.openSettings, SETTINGS_SECTION)
+        break
+      }
+      case 'openKeybindings': {
+        await vscode.commands.executeCommand(VSCODE_COMMANDS.openKeybindings, SETTINGS_SECTION)
+        break
+      }
+      case 'openLog': {
+        channel.show(true)
+        break
+      }
+      case 'toggleFocusView': {
+        await toggleFocusView({
+          isFocusViewEnabled: () => currentSettings().focusView,
+          setFocusViewEnabled: (isEnabled) => updateSetting('focusView', isEnabled),
+        })
+        break
+      }
+      case 'toggleCtrlEnterToSend': {
+        await updateSetting('useCtrlEnterToSend', !currentSettings().useCtrlEnterToSend)
+        break
+      }
+    }
+  }
+
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -157,10 +273,16 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         workspaceRoot,
         modelId: DEFAULT_MODEL_ID,
-        approvalMode: M2_APPROVAL_MODE,
+        initialPermissionMode: currentSettings().initialPermissionMode,
+        hasApprovalUi: HAS_APPROVAL_UI,
         openExternal: (url) => {
           void vscode.env.openExternal(vscode.Uri.parse(url))
         },
+        mentions: { search: (query, limit) => mentions.search(query, limit) },
+        files,
+        confirmBypass: didConfirmBypass,
+        runHostAction,
+        newAttachmentId: () => crypto.randomUUID(),
         log,
       })
       controllers.set(surface.id, controller)
@@ -204,9 +326,17 @@ export function activate(context: vscode.ExtensionContext): void {
   })
 
   const openSidebar = () => vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
+  const fileWatcher = vscode.workspace.createFileSystemWatcher(FIND_FILES_GLOB, false, true, false)
 
   context.subscriptions.push(
     channel,
+    fileWatcher,
+    fileWatcher.onDidCreate(() => {
+      mentions.invalidate()
+    }),
+    fileWatcher.onDidDelete(() => {
+      mentions.invalidate()
+    }),
     { dispose: () => void backend.dispose() },
     vscode.window.registerWebviewViewProvider(
       CHAT_VIEW_ID,
@@ -241,13 +371,13 @@ export function activate(context: vscode.ExtensionContext): void {
       })
     }),
     vscode.commands.registerCommand(COMMAND_IDS.toggleFocusView, async () => {
-      await toggleFocusView({
-        isFocusViewEnabled: () => currentSettings().focusView,
-        setFocusViewEnabled: (isEnabled) =>
-          vscode.workspace
-            .getConfiguration(SETTINGS_SECTION)
-            .update('focusView', isEnabled, vscode.ConfigurationTarget.Global),
-      })
+      await runHostAction('toggleFocusView')
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.toggleThinking, async () => {
+      const surface = registry.active
+      if (surface !== undefined) {
+        await controllerFor(surface).toggleThinking()
+      }
     }),
   )
 }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Composer, type ComposerProps } from '../../src/webview/components/Composer'
 import { testSettings } from './helpers/fakes'
@@ -11,19 +11,56 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     settings: testSettings,
     canSend: true,
     isRunning: false,
-    modelLabel: 'muse-spark-1.3 (1M)',
+    modelLabel: 'muse-spark-1.3 (1M) High',
+    modeLabel: 'Manual',
     focusRequests: 0,
     pendingInsert: undefined,
+    attachments: [],
+    mentionResults: undefined,
     onDraftChange: vi.fn(),
     onInsertApplied: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
     onFocusChange: vi.fn(),
+    onOpenPalette: vi.fn(),
+    onOpenModelPicker: vi.fn(),
+    onCyclePermissionMode: vi.fn(),
+    onPickFile: vi.fn(),
+    onRemoveAttachment: vi.fn(),
+    onSearchMentions: vi.fn(),
+    onAttachImage: vi.fn(),
+    onDroppedUris: vi.fn(),
     ...overrides,
   }
   const view = render(<Composer {...props} />)
   const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
   return { props, view, textarea }
+}
+
+/**
+ * Simulates the parent applying `text` as the draft and the caret landing at
+ * its end (the composer is controlled, so the draft arrives as a prop).
+ */
+function type(
+  view: ReturnType<typeof render>,
+  props: ComposerProps,
+  text: string,
+  extra: Partial<ComposerProps> = {},
+): HTMLTextAreaElement {
+  view.rerender(<Composer {...props} draft={text} {...extra} />)
+  const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
+  textarea.setSelectionRange(text.length, text.length)
+  fireEvent.keyUp(textarea, { key: 'a' })
+  return textarea
+}
+
+const attachment = {
+  id: 'att-1',
+  name: 'shot.png',
+  mediaType: 'image/png',
+  width: 686,
+  height: 695,
+  sizeBytes: 24,
 }
 
 describe('Composer keyboard semantics', () => {
@@ -63,6 +100,22 @@ describe('Composer keyboard semantics', () => {
     const { props, textarea } = renderComposer()
     expect(fireEvent.keyDown(textarea, { key: 'a' })).toBe(true)
     expect(props.onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('cycles the permission mode on Shift+Tab', () => {
+    const { props, textarea } = renderComposer()
+    expect(fireEvent.keyDown(textarea, { key: 'Tab', shiftKey: true })).toBe(false)
+    expect(props.onCyclePermissionMode).toHaveBeenCalledOnce()
+    expect(fireEvent.keyDown(textarea, { key: 'Tab' })).toBe(true)
+  })
+
+  it('opens the palette on "/" only when the draft is empty', () => {
+    const { props, view, textarea } = renderComposer()
+    expect(fireEvent.keyDown(textarea, { key: '/' })).toBe(false)
+    expect(props.onOpenPalette).toHaveBeenCalledOnce()
+    const typed = type(view, props, 'a')
+    expect(fireEvent.keyDown(typed, { key: '/' })).toBe(true)
+    expect(props.onOpenPalette).toHaveBeenCalledOnce()
   })
 })
 
@@ -104,17 +157,113 @@ describe('Composer focus and insertion', () => {
   })
 })
 
-describe('Composer chrome', () => {
-  it('shows the permission mode label from settings', () => {
-    renderComposer({ settings: { ...testSettings, initialPermissionMode: 'acceptEdits' } })
-    expect(screen.getByLabelText('Permission mode: Edit automatically')).toBeDisabled()
+function withResults(paths: readonly string[], requestId = 1) {
+  return { requestId, items: paths.map((path) => ({ path, isFolder: path.endsWith('/') })) }
+}
+
+describe('Composer mention menu', () => {
+  it('asks the host for matches while typing an @ token and lists them', () => {
+    const { props, view } = renderComposer()
+    type(view, props, 'see @ap')
+    expect(props.onSearchMentions).toHaveBeenLastCalledWith(1, 'ap')
+    type(view, props, 'see @ap', { mentionResults: withResults(['src/app.ts', 'src/']) })
+    const options = screen.getAllByRole('option')
+    expect(options.map((node) => node.textContent)).toEqual(['src/app.ts', 'src/'])
+    expect(options[0]).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('shows the model pill and disabled attach and command buttons', () => {
-    renderComposer()
-    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M)')
-    expect(screen.getByLabelText('Attach')).toBeDisabled()
-    expect(screen.getByLabelText('Commands')).toBeDisabled()
+  it('navigates with the arrows and applies the choice on Enter or Tab', () => {
+    const { props, view } = renderComposer()
+    type(view, props, '@a')
+    const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts', 'b/a.ts']) })
+    expect(fireEvent.keyDown(textarea, { key: 'ArrowDown' })).toBe(false)
+    expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(textarea, { key: 'ArrowUp' })
+    expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-selected', 'true')
+    expect(fireEvent.keyDown(textarea, { key: 'Tab' })).toBe(false)
+    expect(props.onDraftChange).toHaveBeenLastCalledWith('@a.ts ')
+    expect(props.onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('selects a row by click and dismisses on Escape', () => {
+    const { props, view } = renderComposer()
+    type(view, props, '@a')
+    const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts']) })
+    fireEvent.click(screen.getByRole('option'))
+    expect(props.onDraftChange).toHaveBeenLastCalledWith('@a.ts ')
+    expect(fireEvent.keyDown(textarea, { key: 'Escape' })).toBe(false)
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('ignores stale results and shows the empty state for no matches', () => {
+    const { props, view } = renderComposer()
+    type(view, props, '@zz')
+    const textarea = type(view, props, '@zz', { mentionResults: withResults(['old'], 99) })
+    expect(screen.getByText('No matching files')).toBeInTheDocument()
+    expect(fireEvent.keyDown(textarea, { key: 'Enter' })).toBe(false)
+    expect(props.onSubmit).toHaveBeenCalledOnce()
+  })
+})
+
+describe('Composer attachments', () => {
+  it('renders chips with dimensions and removes them', () => {
+    const { props } = renderComposer({ attachments: [attachment] })
+    expect(screen.getByText('shot.png')).toBeInTheDocument()
+    expect(screen.getByText('686×695')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Remove shot.png'))
+    expect(props.onRemoveAttachment).toHaveBeenCalledWith('att-1')
+  })
+
+  it('attaches pasted images and lets text pastes through', async () => {
+    const { props, textarea } = renderComposer()
+    const image = new File([Uint8Array.from([1, 2, 3])], 'clip.png', { type: 'image/png' })
+    const isDefaultAllowed = fireEvent.paste(textarea, { clipboardData: { files: [image] } })
+    expect(isDefaultAllowed).toBe(false)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(props.onAttachImage).toHaveBeenCalledWith({
+      name: 'clip.png',
+      mediaType: 'image/png',
+      base64: 'AQID',
+    })
+    expect(fireEvent.paste(textarea, { clipboardData: { files: [] } })).toBe(true)
+  })
+
+  it('accepts dropped images and editor resources', async () => {
+    const { props } = renderComposer()
+    const footer = screen.getByRole('contentinfo')
+    const image = new File([Uint8Array.from([9])], '', { type: 'image/jpeg' })
+    fireEvent.drop(footer, {
+      dataTransfer: {
+        files: [image],
+        getData: () => 'file:///ws/src/a.ts\r\n# comment\r\n',
+      },
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(props.onAttachImage).toHaveBeenCalledWith({
+      name: 'pasted-image',
+      mediaType: 'image/jpeg',
+      base64: 'CQ==',
+    })
+    expect(props.onDroppedUris).toHaveBeenCalledWith(['file:///ws/src/a.ts'])
+  })
+})
+
+describe('Composer chrome', () => {
+  it('routes the toolbar buttons', () => {
+    const { props } = renderComposer()
+    fireEvent.click(screen.getByLabelText('Attach file'))
+    fireEvent.click(screen.getByLabelText('Commands'))
+    fireEvent.click(screen.getByLabelText('Model'))
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(props.onPickFile).toHaveBeenCalledOnce()
+    expect(props.onOpenPalette).toHaveBeenCalledOnce()
+    expect(props.onOpenModelPicker).toHaveBeenCalledOnce()
+    expect(props.onCyclePermissionMode).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M) High')
   })
 
   it('swaps Send for Stop while a turn is running', () => {

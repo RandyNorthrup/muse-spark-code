@@ -15,16 +15,20 @@ describe('Transcript', () => {
           { kind: 'activity', id: 't1', itemKind: 'toolCall', status: 'inProgress' },
           { kind: 'activity', id: 't2', itemKind: 'toolCall', status: 'completed' },
           { kind: 'error', id: 'e1', text: 'The turn failed.' },
+          { kind: 'notice', id: 'n1', level: 'info', text: 'Nothing to compact.' },
+          { kind: 'notice', id: 'n2', level: 'error', text: 'Could not switch model.' },
         ]}
       />,
     )
     const list = screen.getByRole('list', { name: 'Conversation' })
-    expect(list.querySelectorAll('li')).toHaveLength(7)
+    expect(list.querySelectorAll('li')).toHaveLength(9)
     expect(screen.getByText('hello')).toBeInTheDocument()
     expect(screen.getAllByRole('alert').map((node) => node.textContent)).toEqual([
       'nope',
       'The turn failed.',
+      'Could not switch model.',
     ])
+    expect(screen.getByRole('status')).toHaveTextContent('Nothing to compact.')
     expect(screen.getByText('streaming').closest('li')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText('done').closest('li')).toHaveAttribute('aria-busy', 'false')
     expect(screen.getByText('Working…')).toBeInTheDocument()

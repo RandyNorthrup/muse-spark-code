@@ -7,12 +7,29 @@ describe('parseWebviewToHostMessage', () => {
     ['ready', { type: 'ready' }],
     ['inputFocusChanged', { type: 'inputFocusChanged', focused: true }],
     ['openNewTab', { type: 'openNewTab' }],
-    ['sendMessage', { type: 'sendMessage', localId: 'l1', text: 'hi' }],
+    ['sendMessage', { type: 'sendMessage', localId: 'l1', text: 'hi', attachmentIds: ['a'] }],
     ['cancelTurn', { type: 'cancelTurn' }],
     ['signIn', { type: 'signIn', method: 'browser' }],
     ['signOut', { type: 'signOut' }],
     ['retryBackend', { type: 'retryBackend' }],
     ['openExternal', { type: 'openExternal', url: 'https://dev.meta.ai/' }],
+    ['setModel', { type: 'setModel', modelId: 'muse-spark-1.3' }],
+    ['setEffort', { type: 'setEffort', effort: 'xhigh' }],
+    ['setThinking', { type: 'setThinking', enabled: false }],
+    ['setPermissionMode', { type: 'setPermissionMode', mode: 'plan' }],
+    ['clearConversation', { type: 'clearConversation' }],
+    ['compact', { type: 'compact' }],
+    ['listSkills', { type: 'listSkills' }],
+    ['searchMentions', { type: 'searchMentions', requestId: 3, query: 'app' }],
+    ['pickFile', { type: 'pickFile' }],
+    ['pickMentionFile', { type: 'pickMentionFile' }],
+    [
+      'attachImageData',
+      { type: 'attachImageData', name: 'a.png', mediaType: 'image/png', base64: 'AAAA' },
+    ],
+    ['removeAttachment', { type: 'removeAttachment', id: 'att-1' }],
+    ['droppedUris', { type: 'droppedUris', uris: ['file:///a.ts'] }],
+    ['hostAction', { type: 'hostAction', action: 'openSettings' }],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -24,7 +41,11 @@ describe('parseWebviewToHostMessage', () => {
     ['null', null],
     ['wrong field type', { type: 'inputFocusChanged', focused: 'yes' }],
     ['unknown sign-in method', { type: 'signIn', method: 'telepathy' }],
-    ['sendMessage without localId', { type: 'sendMessage', text: 'hi' }],
+    ['sendMessage without localId', { type: 'sendMessage', text: 'hi', attachmentIds: [] }],
+    ['sendMessage without attachmentIds', { type: 'sendMessage', localId: 'l', text: 'hi' }],
+    ['effort outside the UI tiers', { type: 'setEffort', effort: 'ultra' }],
+    ['unknown permission mode', { type: 'setPermissionMode', mode: 'yolo' }],
+    ['unknown host action', { type: 'hostAction', action: 'formatDisk' }],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)
@@ -48,41 +69,63 @@ describe('parseHostToWebviewMessage', () => {
     ['settingsChanged', { type: 'settingsChanged', settings: testSettings }],
     ['focusInput', { type: 'focusInput' }],
     ['insertText', { type: 'insertText', text: '@a.ts ' }],
-    ['authState', { type: 'authState', status: 'signedOut', detail: 'not logged in' }],
-    ['sessionInfo', { type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 }],
-    ['turnAccepted', { type: 'turnAccepted', localId: 'l1', turnId: 't1' }],
-    ['sendFailed', { type: 'sendFailed', localId: 'l1', reason: 'nope' }],
+    ['authState', { type: 'authState', status: 'signedIn' }],
+    ['sessionInfo', { type: 'sessionInfo', modelId: 'm', contextLimit: 10 }],
+    ['turnAccepted', { type: 'turnAccepted', localId: 'l', turnId: 't' }],
+    ['sendFailed', { type: 'sendFailed', localId: 'l', reason: 'no' }],
+    ['agentEvent', { type: 'agentEvent', event: { type: 'turnStarted', turnId: 't' } }],
     [
-      'agentEvent',
-      { type: 'agentEvent', event: { type: 'textDelta', itemId: 'i', field: 'text', delta: 'x' } },
+      'modelList',
+      {
+        type: 'modelList',
+        models: [{ modelId: 'm', displayLabel: 'M', contextLimit: 1, isDefault: true }],
+      },
     ],
+    [
+      'skillList',
+      {
+        type: 'skillList',
+        skills: [{ selector: 's', displayName: 'S', description: 'd', argumentHint: 'h' }],
+      },
+    ],
+    [
+      'composerState',
+      { type: 'composerState', effort: 'high', isThinkingEnabled: true, permissionMode: 'auto' },
+    ],
+    [
+      'mentionResults',
+      { type: 'mentionResults', requestId: 1, items: [{ path: 'a.ts', isFolder: false }] },
+    ],
+    [
+      'attachmentAdded',
+      {
+        type: 'attachmentAdded',
+        attachment: {
+          id: 'a',
+          name: 'a.png',
+          mediaType: 'image/png',
+          width: 1,
+          height: 2,
+          sizeBytes: 3,
+        },
+      },
+    ],
+    ['attachmentRejected', { type: 'attachmentRejected', name: 'a.pdf', reason: 'no' }],
+    ['attachmentsCleared', { type: 'attachmentsCleared' }],
+    ['notice', { type: 'notice', level: 'warning', text: 'careful' }],
   ])('accepts %s', (_label, message) => {
     expect(parseHostToWebviewMessage(message)).toEqual({ ok: true, message })
   })
 
-  it('rejects an init message with a missing field', () => {
-    const { composerPlaceholder: _dropped, ...incomplete } = init
-    expect(parseHostToWebviewMessage(incomplete).ok).toBe(false)
-  })
-
-  it('rejects an init message with a wrong field type', () => {
-    expect(parseHostToWebviewMessage({ ...init, extensionVersion: 1 }).ok).toBe(false)
-  })
-
-  it('rejects settings with an unknown permission mode', () => {
-    expect(
-      parseHostToWebviewMessage({
-        type: 'settingsChanged',
-        settings: { ...testSettings, initialPermissionMode: 'yolo' },
-      }).ok,
-    ).toBe(false)
-  })
-
-  it('rejects an unknown auth status and a malformed agent event', () => {
-    expect(parseHostToWebviewMessage({ type: 'authState', status: 'maybe' }).ok).toBe(false)
-    expect(
-      parseHostToWebviewMessage({ type: 'agentEvent', event: { type: 'textDelta', itemId: 'i' } })
-        .ok,
-    ).toBe(false)
+  it.each([
+    ['init with an invalid setting', { ...init, settings: { ...testSettings, focusView: 1 } }],
+    ['init missing settings', { type: 'init', extensionVersion: '1' }],
+    ['unknown auth status', { type: 'authState', status: 'maybe' }],
+    ['agentEvent with an unknown event', { type: 'agentEvent', event: { type: 'nope' } }],
+    ['composerState with a bad effort', { type: 'composerState', effort: 'ultra' }],
+    ['notice with an unknown level', { type: 'notice', level: 'panic', text: 'x' }],
+    ['unknown type', { type: 'explode' }],
+  ])('rejects %s', (_label, input) => {
+    expect(parseHostToWebviewMessage(input).ok).toBe(false)
   })
 })

@@ -4,6 +4,11 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMspHost, settle } from './helpers/fakeMsp'
 
+const ack = (params: Record<string, unknown>) => ({
+  status: 'accepted',
+  commandId: params['commandId'],
+})
+
 function setup() {
   const handle = fakeMspHost()
   const log = new FakeLogOutputChannel()
@@ -22,9 +27,26 @@ function setup() {
     disposition: 'started',
     startedNewTurn: true,
   }))
-  handle.server.handle('turn/cancel', () => ({ status: 'accepted' }))
-  handle.server.handle('turn/interrupt', () => ({ status: 'accepted' }))
-  handle.server.handle('model/list', () => ({
+  handle.server.handle('turn/steer', (params) => ({
+    commandId: params['commandId'],
+    turnId: 'turn-1',
+    status: 'accepted',
+  }))
+  handle.server.handle('turn/cancel', ack)
+  handle.server.handle('turn/interrupt', ack)
+  handle.server.handle('session/setModel', ack)
+  handle.server.handle('session/setReasoningEffort', ack)
+  handle.server.handle('session/setApprovalMode', (params) => ({
+    ...ack(params),
+    applyOutcome: 'completed',
+    effectiveMode: { mode: params['mode'], source: 'approvalReconfigure' },
+  }))
+  handle.server.handle('session/compact', (params) => ({
+    ...ack(params),
+    status: 'noop',
+    reason: 'no_compactable_history',
+  }))
+  handle.server.handle('model/list', (params) => ({
     providerId: 'meta',
     profileId: null,
     source: 'providerCatalog',
@@ -34,14 +56,31 @@ function setup() {
         displayLabel: 'muse-spark-1.3',
         contextLimit: 1_007_997,
         isDefault: false,
-        isActive: true,
+        isActive: params['sessionId'] !== undefined,
       },
       {
         modelId: 'muse-spark-1.3-contributor',
         displayLabel: 'muse-spark-1.3-contributor',
         contextLimit: null,
         isDefault: true,
-        isActive: true,
+      },
+    ],
+  }))
+  handle.server.handle('skill/list', () => ({
+    skills: [
+      {
+        selector: 'fix-bug',
+        displayName: 'Fix bug',
+        description: 'Fixes a bug',
+        source: 'project',
+      },
+      {
+        selector: 'acme:deploy',
+        displayName: 'Deploy',
+        description: 'Deploys',
+        argumentHint: '<env>',
+        source: 'plugin',
+        pluginId: 'acme',
       },
     ],
   }))
@@ -83,12 +122,13 @@ describe('MuseCodeHost', () => {
     session.onEvent((event) => {
       events.push(event)
     })
-    const turnId = await session.sendTurn('hi')
-    expect(turnId).toBe('turn-1')
+    const submission = await session.sendTurn([{ type: 'text', text: 'hi' }])
+    expect(submission).toEqual({ turnId: 'turn-1', disposition: 'started' })
     expect(server.requestsFor('turn/start')[0]?.params).toMatchObject({
       sessionId: session.sessionId,
       input: [{ type: 'text', text: 'hi' }],
     })
+    const { turnId } = submission
     server.notify('turn/started', { sessionId: session.sessionId, turnId, viewCursor: 'v' })
     server.notify('item/delta', {
       sessionId: session.sessionId,
@@ -99,6 +139,30 @@ describe('MuseCodeHost', () => {
     server.notify('turn/completed', { sessionId: session.sessionId, turnId, terminal: 'completed' })
     await settle()
     expect(events.map((event) => event.type)).toEqual(['turnStarted', 'textDelta', 'turnCompleted'])
+  })
+
+  it('defaults the disposition when the host omits it and steers a running turn', async () => {
+    const { host, server } = setup()
+    server.handle('turn/start', (params) => ({
+      commandId: params['commandId'],
+      turnId: 'turn-2',
+      status: 'accepted',
+    }))
+    const session = await host.startSession(startOptions)
+    await expect(session.sendTurn([{ type: 'text', text: 'x' }])).resolves.toEqual({
+      turnId: 'turn-2',
+      disposition: 'started',
+    })
+    const parts = [
+      { type: 'text' as const, text: 'more' },
+      { type: 'image' as const, base64Data: 'AAAA', mediaType: 'image/png', width: 1, height: 1 },
+    ]
+    await expect(session.steer('turn-2', parts)).resolves.toBe('turn-1')
+    expect(server.requestsFor('turn/steer')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      expectedTurnId: 'turn-2',
+      input: parts,
+    })
   })
 
   it('warns about events for sessions it does not know and ignores unmapped methods', async () => {
@@ -124,7 +188,63 @@ describe('MuseCodeHost', () => {
     })
   })
 
-  it('lists models with their context limits', async () => {
+  it('sets the model, reasoning effort and approval mode as session commands', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    await session.setModel('muse-spark-1.2')
+    await session.setReasoningEffort('xhigh')
+    await session.setApprovalMode('allowAll')
+    expect(server.requestsFor('session/setModel')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      model: { modelId: 'muse-spark-1.2' },
+    })
+    expect(server.requestsFor('session/setReasoningEffort')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      reasoningEffort: 'xhigh',
+    })
+    expect(server.requestsFor('session/setApprovalMode')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      mode: 'allowAll',
+    })
+    const sessionCommands = server.requests.filter((r) => r.method?.startsWith('session/set'))
+    expect(sessionCommands).toHaveLength(3)
+    for (const request of sessionCommands) {
+      expect(typeof request.params?.['commandId']).toBe('string')
+    }
+  })
+
+  it('compacts and reports a noop with its reason', async () => {
+    const { host } = setup()
+    const session = await host.startSession(startOptions)
+    await expect(session.compact()).resolves.toEqual({
+      status: 'noop',
+      reason: 'no_compactable_history',
+    })
+  })
+
+  it('lists the session’s skills', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    await expect(session.listSkills()).resolves.toEqual([
+      {
+        selector: 'fix-bug',
+        displayName: 'Fix bug',
+        description: 'Fixes a bug',
+        argumentHint: undefined,
+      },
+      {
+        selector: 'acme:deploy',
+        displayName: 'Deploy',
+        description: 'Deploys',
+        argumentHint: '<env>',
+      },
+    ])
+    expect(server.requestsFor('skill/list')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+    })
+  })
+
+  it('lists models with their context limits, flagging the active one for a session', async () => {
     const { host } = setup()
     await expect(host.listModels()).resolves.toEqual([
       {
@@ -132,14 +252,18 @@ describe('MuseCodeHost', () => {
         displayLabel: 'muse-spark-1.3',
         contextLimit: 1_007_997,
         isDefault: false,
+        isActive: false,
       },
       {
         modelId: 'muse-spark-1.3-contributor',
         displayLabel: 'muse-spark-1.3-contributor',
         contextLimit: undefined,
         isDefault: true,
+        isActive: false,
       },
     ])
+    const [active] = await host.listModels('s1')
+    expect(active?.isActive).toBe(true)
   })
 
   it('refuses server requests it cannot serve', async () => {

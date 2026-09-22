@@ -187,6 +187,48 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` fails the build
 over budget. Budgets are recorded here and adjusted only with a CHANGELOG entry.
 
+### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
+
+`muse --help` (1.3.0) names the CLI's own modes `untrusted | on-request |
+never` (default `on-request`, LLM approval judge on); `muse serve` selects
+the mode on the wire (`session/start.approvalMode`, `session/setApprovalMode`),
+closed vocabulary `allowAll | promptUnmatched | onRequest | denyUnmatched`.
+The Claude Code vocabulary is mapped in `src/shared/permissionModes.ts`:
+
+| UI mode            | MSP mode          | Note                                                  |
+| ------------------ | ----------------- | ----------------------------------------------------- |
+| Manual             | `promptUnmatched` | ask for everything no rule allows (`untrusted`)       |
+| Edit automatically | `promptUnmatched` | + the extension auto-answers file-edit approvals (M4) |
+| Plan               | `denyUnmatched`   | read and reason only                                  |
+| Auto               | `onRequest`       | the CLI default: judge-reviewed, prompt only on need  |
+| Bypass permissions | `allowAll`        | confirmed with a modal warning before it is applied   |
+
+`approval/requested` is a notification the host waits on; until M4 renders it,
+any prompting mode would hang the turn, so `HAS_APPROVAL_UI = false` collapses
+Manual / Edit automatically / Auto to `denyUnmatched` (M2 behaviour) and only
+Plan and Bypass differ. Flipping the constant is an M4 change with its own
+live verification of each mode.
+
+### D8 — Attachments live in the host; images are validated by header parsing
+
+Pasted or dropped images cross postMessage once (base64) into an
+`AttachmentStore` owned by the conversation controller; the webview only
+shows chips. Width, height and media type come from the file's own header
+(`src/core/imageDimensions.ts`: PNG, GIF, JPEG SOF scan, WebP VP8/VP8L/VP8X),
+which is what the MSP `image` part needs and what refuses non-images with a
+reason. Limits: 10 MiB per image, 20 per message.
+
+### D9 — Mention index from `git ls-files`, VS Code file search as fallback
+
+`workspace.findFiles` honours `files.exclude` but not `.gitignore`, and the
+`findFiles2` API that does is still proposed. With `museSpark.respectGitIgnore`
+on, the index runs `git ls-files --cached --others --exclude-standard -z` in
+the workspace root (git's own ignore semantics), falls back to `findFiles`
+with a logged warning when git is missing or the folder is not a repository,
+and is capped at 20 000 paths, cached for 15 s and invalidated by a
+create/delete file watcher. Ranking is a deterministic fuzzy scorer
+(`src/core/fuzzy.ts`), file-name matches winning over folder matches.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                        | Default until answered                                            |
@@ -493,6 +535,20 @@ file; the in-panel F5 check is the owner's.
 - **Deferred if Q1 unanswered**: live certification.
 
 ### M3 — Composer and command palette parity
+
+**Status 2026-09-21: complete.** Certification record: `docs/certification/m3.md`.
+Delivered: the "/" palette (seven Claude Code groups from a pure registry in
+`src/shared/palette.ts`, filter box, keyboard-only operation, model list as a
+second view, skills from `skill/list`), "+" attach (native dialog; images
+become host-held attachments with `W×H` chips, other files become `@path`
+mentions; paste and drop of images; drop of editor resources), the `@`
+mention menu over a `git ls-files` index (fuzzy-ranked, `.gitignore`
+respected, VS Code file search as the fallback), model pill + picker
+(`model/list`, `session/setModel`), effort slider and Thinking toggle
+(`session/setReasoningEffort`, Ctrl+O), the permission-mode button and
+Shift+Tab cycle mapped per D7, Enter while a turn runs → `turn/steer` with a
+fresh-turn fallback, `/clear` and `/compact`. Live checks recorded in the
+certification file.
 
 - **Scope**: "/" palette ("Filter actions…", groups Context / Model / Customize
   / Account & usage / Skills / Slash commands / Support) driven by a command

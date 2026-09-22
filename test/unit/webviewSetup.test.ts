@@ -67,7 +67,7 @@ describe('configureWebview', () => {
 
   it('routes conversation messages to the controller with the surface', () => {
     const { webview, context, surface } = setup()
-    const message = { type: 'sendMessage', localId: 'l1', text: 'hello' }
+    const message = { type: 'sendMessage', localId: 'l1', text: 'hello', attachmentIds: [] }
     webview.messages.fire(message)
     webview.messages.fire({ type: 'cancelTurn' })
     expect(context.onConversationMessage).toHaveBeenNthCalledWith(1, surface, message)

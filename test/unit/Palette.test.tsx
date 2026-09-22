@@ -1,0 +1,144 @@
+// @vitest-environment jsdom
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { buildPalette, type PaletteAction, type PaletteContext } from '../../src/shared/palette'
+import { Palette, type PaletteProps } from '../../src/webview/components/Palette'
+
+const context: PaletteContext = {
+  currentModel: { modelId: 'muse-spark-1.3', contextLimit: 1_007_997 },
+  models: [
+    {
+      modelId: 'muse-spark-1.3',
+      displayLabel: 'Muse Spark 1.3',
+      contextLimit: 1_007_997,
+      isDefault: false,
+    },
+    { modelId: 'muse-spark-1.2', displayLabel: 'Muse Spark 1.2', isDefault: false },
+  ],
+  effort: 'high',
+  isThinkingEnabled: true,
+  permissionMode: 'manual',
+  isFocusView: false,
+  useCtrlEnterToSend: false,
+  usage: undefined,
+  skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'Fixes a bug' }],
+}
+
+function renderPalette(overrides: Partial<PaletteProps> = {}) {
+  const props: PaletteProps = {
+    view: 'actions',
+    groups: buildPalette(context),
+    models: context.models,
+    currentModelId: 'muse-spark-1.3',
+    onAction: vi.fn<(action: PaletteAction) => void>(),
+    onSelectModel: vi.fn(),
+    onBack: vi.fn(),
+    onClose: vi.fn(),
+    ...overrides,
+  }
+  render(<Palette {...props} />)
+  const filter = screen.getByRole('combobox')
+  return { props, filter }
+}
+
+function activeOption(): HTMLElement | undefined {
+  return screen.getAllByRole('option').find((node) => node.getAttribute('aria-selected') === 'true')
+}
+
+describe('Palette (actions view)', () => {
+  it('focuses the filter, lists the groups, and activates the first row on Enter', () => {
+    const { props, filter } = renderPalette()
+    expect(document.activeElement).toBe(filter)
+    expect(screen.getByText('Context')).toBeInTheDocument()
+    expect(screen.getByText('Skills')).toBeInTheDocument()
+    expect(activeOption()).toHaveTextContent('Attach file…')
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(props.onAction).toHaveBeenCalledWith({ type: 'attachFile' })
+  })
+
+  it('filters rows by text and reports no matches', () => {
+    const { props, filter } = renderPalette()
+    fireEvent.change(filter, { target: { value: 'fix' } })
+    expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
+      '/fix-bugFixes a bug',
+    ])
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(props.onAction).toHaveBeenCalledWith({ type: 'insertSkill', selector: 'fix-bug' })
+    fireEvent.change(filter, { target: { value: 'nothing here' } })
+    expect(screen.getByText('No matching actions')).toBeInTheDocument()
+  })
+
+  it('moves with the arrow keys, wrapping at both ends', () => {
+    const { filter } = renderPalette()
+    const count = screen.getAllByRole('option').length
+    fireEvent.keyDown(filter, { key: 'ArrowUp' })
+    expect(activeOption()).toBe(screen.getAllByRole('option')[count - 1])
+    fireEvent.keyDown(filter, { key: 'ArrowDown' })
+    expect(activeOption()).toBe(screen.getAllByRole('option')[0])
+    fireEvent.keyDown(filter, { key: 'ArrowDown' })
+    expect(activeOption()).toHaveTextContent('Mention file from this project…')
+  })
+
+  it('steps the effort slider with Left/Right, Enter and the step buttons', () => {
+    const { props, filter } = renderPalette()
+    fireEvent.change(filter, { target: { value: 'effort' } })
+    expect(activeOption()).toHaveTextContent('Effort (High)')
+    fireEvent.keyDown(filter, { key: 'ArrowRight' })
+    expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
+    fireEvent.keyDown(filter, { key: 'ArrowLeft' })
+    expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'medium' })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
+    fireEvent.click(screen.getByLabelText('Max'))
+    expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'max' })
+  })
+
+  it('ignores Left/Right on ordinary rows and activates rows by click', () => {
+    const { props, filter } = renderPalette()
+    fireEvent.keyDown(filter, { key: 'ArrowRight' })
+    expect(props.onAction).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('option', { name: 'Clear conversation' }))
+    expect(props.onAction).toHaveBeenLastCalledWith({ type: 'clearConversation' })
+  })
+
+  it('shows toggles and values, and closes on Escape or blur', () => {
+    const { props, filter } = renderPalette()
+    expect(screen.getAllByRole('switch')).toHaveLength(3)
+    expect(screen.getByText('muse-spark-1.3 (1M context)')).toBeInTheDocument()
+    fireEvent.keyDown(filter, { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledOnce()
+    fireEvent.blur(filter)
+    expect(props.onClose).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves the loading skill note unselectable', () => {
+    renderPalette({ groups: buildPalette({ ...context, skills: undefined }) })
+    expect(screen.getByText('Start a conversation to load skills')).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /load skills/ })).toBeNull()
+  })
+})
+
+describe('Palette (models view)', () => {
+  it('lists models with their context window, marks the current one, and selects', () => {
+    const { props, filter } = renderPalette({ view: 'models' })
+    const options = screen.getAllByRole('option')
+    expect(options.map((node) => node.textContent)).toEqual([
+      'Muse Spark 1.31M contextCurrent',
+      'Muse Spark 1.2',
+    ])
+    expect(screen.getByTitle('Current')).toBeInTheDocument()
+    fireEvent.keyDown(filter, { key: 'ArrowDown' })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(props.onSelectModel).toHaveBeenCalledWith('muse-spark-1.2')
+  })
+
+  it('filters models and goes back on Escape or the back button', () => {
+    const { props, filter } = renderPalette({ view: 'models' })
+    fireEvent.change(filter, { target: { value: '1.2' } })
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    fireEvent.keyDown(filter, { key: 'Escape' })
+    expect(props.onBack).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByLabelText('Back'))
+    expect(props.onBack).toHaveBeenCalledTimes(2)
+  })
+})

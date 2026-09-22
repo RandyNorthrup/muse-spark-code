@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useReducer } from 'react'
-import { UI_TEXT } from '../shared/constants'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { PERMISSION_MODE_LABELS, UI_TEXT } from '../shared/constants'
+import { effortLabel } from '../shared/effort'
+import { nextPermissionMode } from '../shared/permissionModes'
+import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import {
   parseHostToWebviewMessage,
   type SignInMethod,
   type WebviewToHostMessage,
 } from '../shared/protocol'
-import { Composer } from './components/Composer'
+import { Composer, type ImageData } from './components/Composer'
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
+import { Palette, type PaletteView } from './components/Palette'
 import { SignIn } from './components/SignIn'
 import { Transcript } from './components/Transcript'
 import { canSend, initialUiState, type UiState, uiReducer } from './state/uiState'
@@ -19,14 +23,13 @@ export interface AppProps {
 }
 
 const GATED_STATUSES = new Set(['noCli', 'signedOut', 'signingIn', 'error'])
-const TOKENS_PER_MILLION = 1_000_000
-const TOKENS_PER_THOUSAND = 1000
+const THINKING_OFF_LABEL = 'No thinking'
 
 function isGated(state: UiState): boolean {
   return GATED_STATUSES.has(state.auth.status) && state.transcript.length === 0
 }
 
-function modelLabelFor(state: UiState): string {
+export function modelLabelFor(state: UiState): string {
   if (state.auth.status !== 'signedIn') {
     return UI_TEXT.notSignedIn
   }
@@ -34,18 +37,14 @@ function modelLabelFor(state: UiState): string {
     return UI_TEXT.hostStarting
   }
   const { modelId, contextLimit } = state.model
-  if (contextLimit === undefined) {
-    return modelId
-  }
-  const window =
-    contextLimit >= TOKENS_PER_MILLION
-      ? `${String(Math.round(contextLimit / TOKENS_PER_MILLION))}M`
-      : `${String(Math.round(contextLimit / TOKENS_PER_THOUSAND))}K`
-  return `${modelId} (${window})`
+  const window = contextLimit === undefined ? '' : ` (${formatTokenWindow(contextLimit)})`
+  const effort = state.isThinkingEnabled ? effortLabel(state.effort) : THINKING_OFF_LABEL
+  return `${modelId}${window} ${effort}`
 }
 
 export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: AppProps) {
   const [state, dispatch] = useReducer(uiReducer, initialUiState)
+  const [palette, setPalette] = useState<PaletteView | undefined>(undefined)
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
@@ -84,8 +83,9 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
       return
     }
     const localId = newLocalId()
+    const attachmentIds = state.attachments.map((attachment) => attachment.id)
     dispatch({ type: 'submitted', localId, text })
-    postMessage({ type: 'sendMessage', localId, text })
+    postMessage({ type: 'sendMessage', localId, text, attachmentIds })
   }, [state, newLocalId, postMessage])
   const onStop = useCallback(() => {
     postMessage({ type: 'cancelTurn' })
@@ -104,6 +104,165 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
       postMessage({ type: 'openExternal', url })
     },
     [postMessage],
+  )
+  const onCyclePermissionMode = useCallback(() => {
+    postMessage({ type: 'setPermissionMode', mode: nextPermissionMode(state.permissionMode) })
+  }, [postMessage, state.permissionMode])
+  const openPalette = useCallback(
+    (view: PaletteView) => {
+      if (state.skills === undefined) {
+        postMessage({ type: 'listSkills' })
+      }
+      setPalette(view)
+    },
+    [postMessage, state.skills],
+  )
+  const onOpenPalette = useCallback(() => {
+    openPalette('actions')
+  }, [openPalette])
+  const onOpenModelPicker = useCallback(() => {
+    openPalette('models')
+  }, [openPalette])
+  const closePalette = useCallback(() => {
+    setPalette(undefined)
+    dispatch({ type: 'focusRequested' })
+  }, [])
+  const onPaletteBack = useCallback(() => {
+    setPalette('actions')
+  }, [])
+  const onPickFile = useCallback(() => {
+    postMessage({ type: 'pickFile' })
+  }, [postMessage])
+  const onRemoveAttachment = useCallback(
+    (id: string) => {
+      dispatch({ type: 'attachmentRemoved', id })
+      postMessage({ type: 'removeAttachment', id })
+    },
+    [postMessage],
+  )
+  const onSearchMentions = useCallback(
+    (requestId: number, query: string) => {
+      postMessage({ type: 'searchMentions', requestId, query })
+    },
+    [postMessage],
+  )
+  const onAttachImage = useCallback(
+    (image: ImageData) => {
+      postMessage({ type: 'attachImageData', ...image })
+    },
+    [postMessage],
+  )
+  const onDroppedUris = useCallback(
+    (uris: readonly string[]) => {
+      postMessage({ type: 'droppedUris', uris: [...uris] })
+    },
+    [postMessage],
+  )
+  const onSelectModel = useCallback(
+    (modelId: string) => {
+      postMessage({ type: 'setModel', modelId })
+      closePalette()
+    },
+    [postMessage, closePalette],
+  )
+  const onPaletteAction = useCallback(
+    (action: PaletteAction) => {
+      switch (action.type) {
+        case 'attachFile': {
+          postMessage({ type: 'pickFile' })
+          closePalette()
+          break
+        }
+        case 'mentionFile': {
+          postMessage({ type: 'pickMentionFile' })
+          closePalette()
+          break
+        }
+        case 'clearConversation': {
+          dispatch({ type: 'conversationCleared' })
+          postMessage({ type: 'clearConversation' })
+          closePalette()
+          break
+        }
+        case 'openModelPicker': {
+          setPalette('models')
+          break
+        }
+        case 'setEffort': {
+          postMessage({ type: 'setEffort', effort: action.effort })
+          break
+        }
+        case 'toggleThinking': {
+          postMessage({ type: 'setThinking', enabled: !state.isThinkingEnabled })
+          break
+        }
+        case 'cyclePermissionMode': {
+          onCyclePermissionMode()
+          break
+        }
+        case 'toggleFocusView':
+        case 'toggleCtrlEnterToSend': {
+          postMessage({ type: 'hostAction', action: action.type })
+          break
+        }
+        case 'openSettings':
+        case 'openKeybindings':
+        case 'openLog': {
+          postMessage({ type: 'hostAction', action: action.type })
+          closePalette()
+          break
+        }
+        case 'signOut': {
+          postMessage({ type: 'signOut' })
+          closePalette()
+          break
+        }
+        case 'insertSkill': {
+          dispatch({ type: 'insertRequested', text: `/${action.selector} ` })
+          setPalette(undefined)
+          break
+        }
+        case 'compact': {
+          postMessage({ type: 'compact' })
+          closePalette()
+          break
+        }
+        case 'openExternal': {
+          postMessage({ type: 'openExternal', url: action.url })
+          closePalette()
+          break
+        }
+        case 'none': {
+          break
+        }
+      }
+    },
+    [postMessage, closePalette, onCyclePermissionMode, state.isThinkingEnabled],
+  )
+
+  const paletteGroups = useMemo(
+    () =>
+      buildPalette({
+        currentModel: state.model,
+        models: state.models,
+        effort: state.effort,
+        isThinkingEnabled: state.isThinkingEnabled,
+        permissionMode: state.permissionMode,
+        isFocusView: state.settings?.focusView ?? false,
+        useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
+        usage: state.usage,
+        skills: state.skills,
+      }),
+    [
+      state.model,
+      state.models,
+      state.effort,
+      state.isThinkingEnabled,
+      state.permissionMode,
+      state.settings,
+      state.usage,
+      state.skills,
+    ],
   )
 
   if (state.settings === undefined) {
@@ -150,6 +309,19 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
       <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
         {body}
       </main>
+      {palette === undefined ? null : (
+        <Palette
+          key={palette}
+          view={palette}
+          groups={paletteGroups}
+          models={state.models}
+          currentModelId={state.model?.modelId}
+          onAction={onPaletteAction}
+          onSelectModel={onSelectModel}
+          onBack={onPaletteBack}
+          onClose={closePalette}
+        />
+      )}
       <Composer
         draft={state.draft}
         placeholder={state.composerPlaceholder}
@@ -157,13 +329,24 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
         canSend={canSend(state)}
         isRunning={state.activeTurnId !== undefined}
         modelLabel={modelLabelFor(state)}
+        modeLabel={PERMISSION_MODE_LABELS[state.permissionMode]}
         focusRequests={state.focusRequests}
         pendingInsert={state.pendingInsert}
+        attachments={state.attachments}
+        mentionResults={state.mentionResults}
         onDraftChange={onDraftChange}
         onInsertApplied={onInsertApplied}
         onSubmit={onSubmit}
         onStop={onStop}
         onFocusChange={onFocusChange}
+        onOpenPalette={onOpenPalette}
+        onOpenModelPicker={onOpenModelPicker}
+        onCyclePermissionMode={onCyclePermissionMode}
+        onPickFile={onPickFile}
+        onRemoveAttachment={onRemoveAttachment}
+        onSearchMentions={onSearchMentions}
+        onAttachImage={onAttachImage}
+        onDroppedUris={onDroppedUris}
       />
       <span className="version" aria-label="Extension version">
         v{state.extensionVersion}

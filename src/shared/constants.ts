@@ -19,6 +19,7 @@ export const COMMAND_IDS = {
   focusInput: 'museSpark.focusInput',
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',
+  toggleThinking: 'museSpark.toggleThinking',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -30,6 +31,8 @@ export const CONTEXT_KEYS = {
 export const VSCODE_COMMANDS = {
   focusActiveEditorGroup: 'workbench.action.focusActiveEditorGroup',
   setContext: 'setContext',
+  openSettings: 'workbench.action.openSettings',
+  openKeybindings: 'workbench.action.openGlobalKeybindings',
 } as const
 
 // Settings (package.json `contributes.configuration`). Keys are relative to
@@ -85,6 +88,60 @@ export const NONCE_BYTES = 24
 // Composer behaviour.
 export const COMPOSER_MAX_ROWS = 10
 
+// --- Reasoning effort (MSP `ReasoningEffort`, PLAN.md §5.2) ---
+
+// The tiers the UI exposes, lowest first. `none`, `minimal` and `ultra` exist
+// on the wire but are not offered: `none` is what the Thinking toggle sends
+// when it is off, and the other two are outside the Claude Code parity range.
+export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+export type EffortLevel = (typeof EFFORT_LEVELS)[number]
+export const EFFORT_LABELS: Readonly<Record<EffortLevel, string>> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'Extra high',
+  max: 'Max',
+}
+// `muse --help` documents `high` as the CLI's own default (verified 2026-09-21,
+// Muse Code 1.3.0); the extension starts there so the TUI and the panel agree.
+export const DEFAULT_EFFORT: EffortLevel = 'high'
+// Sent as the session default while the Thinking toggle is off.
+export const THINKING_OFF_EFFORT = 'none'
+
+// --- Attachments ---
+
+// Image types the Meta Model API accepts; anything else is refused with a
+// reason rather than sent and rejected by the host.
+export const IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const
+export type ImageMediaType = (typeof IMAGE_MEDIA_TYPES)[number]
+export const IMAGE_EXTENSIONS: Readonly<Record<string, ImageMediaType>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+}
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+export const MAX_ATTACHMENTS_PER_MESSAGE = 20
+
+// --- @-mentions ---
+
+export const MENTION_RESULT_LIMIT = 12
+// Beyond this many paths the index is truncated and a warning is logged; the
+// fuzzy scorer is linear in index size and runs on every keystroke.
+export const MENTION_INDEX_LIMIT = 20_000
+export const MENTION_INDEX_TTL_MS = 15_000
+export const GIT_LS_FILES_ARGS = [
+  'ls-files',
+  '--cached',
+  '--others',
+  '--exclude-standard',
+  '-z',
+] as const
+// `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
+export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
+export const FIND_FILES_GLOB = '**/*'
+
 // --- Muse Code CLI / Muse Session Protocol (PLAN.md D1a, §5.4) ---
 
 // MSP `initialize` rejects clientInfo.name outside ^[a-z0-9_]+$.
@@ -92,12 +149,14 @@ export const MSP_CLIENT_NAME = 'muse_spark_code'
 // The host defaults new sessions to the contributor (training-consent) tier;
 // the extension always passes an explicit model and defaults to Standard.
 export const DEFAULT_MODEL_ID = 'muse-spark-1.3'
-// Until the approval cards ship (M4) the host must never wait on a decision
-// the UI cannot give: unmatched approvals are denied, so the agent can read
-// and answer but reports that it could not edit or run commands.
-export const M2_APPROVAL_MODE = 'denyUnmatched'
+// Approval cards (M4) are what let the host wait on a decision. Until they
+// ship, every permission mode that would prompt collapses to `denyUnmatched`
+// (see shared/permissionModes.ts); flipping this to true is an M4 change.
+export const HAS_APPROVAL_UI = false
 export const MUSE_SERVE_ARGS = ['serve'] as const
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
+export const MUSE_DOCS_URL = 'https://dev.meta.ai/products/muse-code/'
+export const ISSUES_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issues'
 export const MUSE_LOGIN_ARGS = ['login'] as const
 export const MUSE_LOGOUT_ARGS = ['logout'] as const
 export const MUSE_LOGIN_TERMINAL_NAME = 'Muse Code sign-in'
@@ -165,12 +224,61 @@ export const UI_TEXT = {
   hostExited: 'Muse Code stopped unexpectedly.',
   hostStarting: 'Starting Muse Code…',
   working: 'Working…',
-  attachDisabledReason: 'Attachments arrive in a later milestone',
-  commandsDisabledReason: 'Slash commands arrive in a later milestone',
+  attachTitle: 'Attach file',
+  commandsTitle: 'Commands',
+  modelPillTitle: 'Model and effort',
+  permissionModeTitle: 'Permission mode (Shift+Tab to cycle)',
   focusViewBadge: 'Focus view',
   historyTitle: 'Session history',
   newConversationTitle: 'New conversation',
   sendTitle: 'Send',
+  // Command palette ("/" menu).
+  paletteLabel: 'Actions',
+  paletteFilterPlaceholder: 'Filter actions…',
+  paletteNoMatches: 'No matching actions',
+  paletteBack: 'Back',
+  groupContext: 'Context',
+  groupModel: 'Model',
+  groupCustomize: 'Customize',
+  groupAccount: 'Account & usage',
+  groupSkills: 'Skills',
+  groupSlashCommands: 'Slash commands',
+  groupSupport: 'Support',
+  attachFile: 'Attach file…',
+  mentionFile: 'Mention file from this project…',
+  clearConversation: 'Clear conversation',
+  switchModel: 'Switch model…',
+  effortItem: 'Effort',
+  thinkingItem: 'Thinking',
+  permissionModeItem: 'Permission mode',
+  focusViewItem: 'Focus view',
+  ctrlEnterItem: 'Send with Ctrl+Enter',
+  openSettings: 'Open settings…',
+  openKeybindings: 'Keyboard shortcuts…',
+  sessionUsage: 'Session usage',
+  signOutItem: 'Sign out',
+  skillsLoading: 'Start a conversation to load skills',
+  skillsEmpty: 'No skills available in this workspace',
+  compactItem: '/compact',
+  compactDetail: 'Summarise older context to free the window',
+  clearItem: '/clear',
+  logoutItem: '/logout',
+  openLog: 'Open output log',
+  reportIssue: 'Report an issue…',
+  openDocs: 'Muse Code documentation',
+  modelListLabel: 'Models',
+  modelContextSuffix: 'context',
+  // @-mention menu and attachments.
+  mentionMenuLabel: 'Files',
+  mentionNoMatches: 'No matching files',
+  attachmentsLabel: 'Attachments',
+  removeAttachment: 'Remove',
+  attachmentTooLarge: 'Images must be 10 MB or smaller.',
+  attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
+  attachmentLimit: 'At most 20 images per message.',
+  bypassConfirm:
+    'Bypass permissions lets Muse edit files and run commands without asking. Use it only in a sandbox.',
+  bypassConfirmAction: 'Enable',
 } as const
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for

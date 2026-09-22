@@ -5,12 +5,14 @@ inside the editor, modelled on the Claude Code VS Code extension: sidebar or
 editor-tab conversations, a slash-command palette, model and reasoning-effort
 picker, permission modes, streaming markdown, diff review, and session history.
 
-> **Status: milestone M2 (sign-in and first conversations).** You can sign in
-> (Meta account through the Muse Code CLI, or a Model API key), send messages
-> and watch Muse Spark's reply stream in. Replies render as plain text; the
-> agent cannot yet edit files or run commands because approvals arrive in M4
-> and unmatched approvals are denied until then. See [`PLAN.md`](PLAN.md) for
-> the milestone plan and the research behind it.
+> **Status: milestone M3 (composer and command palette).** You can sign in
+> (Meta account through the Muse Code CLI, or a Model API key), hold streaming
+> conversations, use the "/" palette, attach images, `@`-mention files, pick
+> the model, effort and permission mode, and steer a running turn. Replies
+> render as plain text; the agent cannot yet edit files or run commands
+> because approvals arrive in M4 and unmatched approvals are denied until
+> then. See [`PLAN.md`](PLAN.md) for the milestone plan and the research
+> behind it.
 
 This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 "Muse Code" are Meta trademarks. You bring your own credentials.
@@ -68,8 +70,10 @@ set, including the VS Code integration tests, on all three.
 - VS Code 1.134.0 or newer
 - [gitleaks](https://github.com/gitleaks/gitleaks) on `PATH` for the
   pre-commit hook and `npm run security:secrets`
-- Later milestones: the [Muse Code CLI](https://dev.meta.ai/products/muse-code/)
-  and/or a Meta Model API key
+- The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
+  a Meta account, or a Meta Model API key (M7 adds the direct API backend)
+- `git` on `PATH` for `.gitignore`-aware `@` mentions (optional; VS Code's
+  file search is used without it)
 
 ## Installation (development)
 
@@ -94,10 +98,48 @@ offers the **Muse Spark:** commands listed below.
 | Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)             | Move keyboard focus between the editor and the composer                            |
 | Muse Spark: Insert @-Mention for Selection | `Alt+K`                            | Insert `@path#start-end` for the active editor selection into the composer         |
 | Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on) |
+| Muse Spark: Toggle Thinking                | `Ctrl+O` (`Cmd+O`), composer only  | Turn reasoning on or off for this conversation                                     |
 
 In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
 `museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
-Sending is enabled once you are signed in; Stop cancels a running turn.
+Sending is enabled once you are signed in. While a turn is running, Stop
+cancels it and `Enter` steers it: the new text reaches the model at its next
+step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
+
+## The composer
+
+- **"/" palette** — press `/` on an empty draft or click the slash button.
+  Type to filter; `Up`/`Down` move, `Enter` activates, `Left`/`Right` step
+  the effort slider, `Esc` closes (or goes back from the model list). Groups
+  match the Claude Code panel: Context (attach file, mention file, clear
+  conversation), Model (switch model, effort, thinking), Customize
+  (permission mode, Focus view, Ctrl+Enter, settings, keyboard shortcuts),
+  Account & usage (session tokens, sign out), Skills (the session's
+  `skill/list`, inserted as `/selector` and sent as a skill part), Slash
+  commands (`/compact`, `/clear`, `/logout`) and Support (output log, issues,
+  docs).
+- **"+" attach** — a native file dialog. PNG, JPEG, GIF and WebP files become
+  `name W×H` chips and are sent as image parts (10 MB each, 20 per message);
+  any other file is inserted as an `@path` mention. Images can also be pasted
+  or dropped onto the composer, and files dragged from the Explorer become
+  mentions.
+- **`@` mentions** — type `@` and a few letters; the menu lists matching
+  files and folders from the workspace index, ranked fuzzily. `Enter` or
+  `Tab` inserts `@path `, `Esc` dismisses. With `museSpark.respectGitIgnore`
+  on, the index comes from `git ls-files` (so `.gitignore` applies exactly);
+  without git it falls back to VS Code's file search. `Alt+K` still inserts
+  `@path#start-end` for the editor selection.
+- **Model pill** — `model (window) effort`, e.g. `muse-spark-1.3 (1M) High`.
+  Click it for the model list (`model/list`; the choice is applied with
+  `session/setModel`). Effort is Low / Medium / High / Extra high / Max and is
+  sent as the session's reasoning-effort default; the CLI's own default is
+  High. The Thinking toggle (`Ctrl+O`) sends `none` while off.
+- **Permission mode** — the `</>` button or `Shift+Tab` cycles Manual → Edit
+  automatically → Plan → Auto → Bypass permissions (Bypass asks for
+  confirmation). The modes map onto the CLI's approval modes as recorded in
+  `PLAN.md` D7. **Until the approval cards ship (M4), every mode except Bypass
+  runs as `denyUnmatched`**: the agent can read and answer but not edit files
+  or run commands. Bypass permissions maps to `allowAll` and does let it.
 
 ## Settings
 
@@ -145,7 +187,7 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 
 `npm run build` writes `dist/extension.js` (CommonJS, `vscode` external) and
 `dist/webview/main.js` + `main.css`. Budgets: 600 KiB and 900 KiB respectively;
-after M1 the bundles measure about 27 KiB and 244 KiB.
+after M3 the bundles measure about 80 KiB and 274 KiB.
 
 ## Test
 
@@ -179,8 +221,8 @@ The extension stores credentials in VS Code SecretStorage, never in files.
 
 ```
 src/extension.ts            activation: registers the view, panel, commands
-src/host/                   VS Code-facing code (webview wiring, later: auth, editor)
-src/core/                   backend-agnostic agent logic (from M2)
+src/host/                   VS Code-facing code (webview wiring, auth, conversation, mentions)
+src/core/                   backend-agnostic logic (MSP host, launch, attachments, fuzzy index)
 src/shared/                 constants + zod message protocol shared with the webview
 src/webview/                React app (own tsconfig, browser libs)
 test/unit/                  vitest tests, vscode mock, fakes
