@@ -1152,12 +1152,14 @@ owner's key).** Certification record: `docs/certification/m7.md`.
 
 ### M9 — Voice dictation on the operating system's recogniser
 
-**Status 2026-09-22: built; certified on Windows against a synthesised
-recording through the real recogniser, and on the owner's Mac mini for the
-helper's permissions, engine and recognition lifecycle (three defects found
-and fixed there). Pending: recognised text from real speech on each
-platform, which needs a microphone (the owner's PC has none attached at the
-moment; the mini has no input device).** Certification record:
+**Status 2026-09-22: built; certified on Windows through the real
+recogniser twice (a synthesised recording, then a real webcam microphone
+hearing text-to-speech across the room, with text back), and on the
+owner's Mac mini for the helper's permissions, engine, capture (levels
+metered) and recognition lifecycle (three defects found and fixed there).
+Pending: recognised text on macOS, which needs the on-device English model
+that only the System Settings Dictation toggle downloads; a person speaking
+for the accuracy check on each platform.** Certification record:
 `docs/certification/m9.md`.
 
 - **Goal**: Claude Code's microphone ("Tap or hold to record Ctrl+D")

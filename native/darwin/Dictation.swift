@@ -33,6 +33,11 @@ struct NoAudioInputError: LocalizedError {
     var errorDescription: String? { "no audio input device is available (\(detail))" }
 }
 
+/// `--server`: let Apple's servers recognise even where on-device
+/// recognition is supported (diagnostics; on-device is the default so audio
+/// stays on the machine).
+let allowsServerRecognition = CommandLine.arguments.contains("--server")
+
 /// The CoreAudio device with this UID, 0 when there is none.
 func inputDevice(withUID uid: String) -> AudioObjectID {
     var address = AudioObjectPropertyAddress(
@@ -103,6 +108,10 @@ final class Recording {
     private var task: SFSpeechRecognitionTask?
     private var isStopping = false
     private let onFinished: () -> Void
+    /// Level metering for the stderr trace: a silent microphone is the
+    /// commonest reason for "no text", and this names it.
+    private var peak: Float = 0
+    private var bufferCount = 0
 
     init(recognizer: SFSpeechRecognizer, inputDevice: AudioObjectID?, onFinished: @escaping () -> Void) {
         self.recognizer = recognizer
@@ -112,9 +121,11 @@ final class Recording {
 
     func start() throws {
         request.shouldReportPartialResults = false
-        if recognizer.supportsOnDeviceRecognition {
+        if recognizer.supportsOnDeviceRecognition && !allowsServerRecognition {
             request.requiresOnDeviceRecognition = true
         }
+        Output.trace(
+            "recognition \(request.requiresOnDeviceRecognition ? "on device" : "on device or Apple's servers")")
         // A Mac without an input device (a Mac mini with nothing plugged in,
         // seen 2026-09-22): the engine's input node still answers with a
         // nominal output format, but installing a tap on it raises an
@@ -151,8 +162,9 @@ final class Recording {
         Output.trace(
             "tap hardware \(hardware.sampleRate) Hz, \(hardware.channelCount) ch; node output \(cached.sampleRate) Hz, \(cached.channelCount) ch"
         )
-        input.installTap(onBus: 0, bufferSize: 1024, format: hardware) { [request] buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1024, format: hardware) { [weak self, request] buffer, _ in
             request.append(buffer)
+            self?.meter(buffer)
         }
         Output.trace("engine start")
         engine.prepare()
@@ -179,9 +191,23 @@ final class Recording {
         task?.cancel()
     }
 
+    /// Runs on the audio thread: the loudest sample so far and the buffer count.
+    private func meter(_ buffer: AVAudioPCMBuffer) {
+        bufferCount += 1
+        guard let channels = buffer.floatChannelData else { return }
+        let frames = Int(buffer.frameLength)
+        for channel in 0..<Int(buffer.format.channelCount) {
+            let samples = channels[channel]
+            for frame in 0..<frames {
+                peak = max(peak, abs(samples[frame]))
+            }
+        }
+    }
+
     private func handle(result: SFSpeechRecognitionResult?, error: Error?) {
         if let result = result, result.isFinal {
             let text = result.bestTranscription.formattedString
+            Output.trace("final result: \(text.count) characters")
             if !text.isEmpty {
                 Output.send(["type": "text", "text": text])
             }
@@ -193,6 +219,8 @@ final class Recording {
             // that is a normal stop, not a failure.
             let nsError = error as NSError
             let isSilence = nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1110
+            Output.trace(
+                "recognition error \(nsError.domain) \(nsError.code): \(error.localizedDescription)")
             if !isStopping || !isSilence {
                 Output.send([
                     "type": "error",
@@ -208,6 +236,7 @@ final class Recording {
     private func finish() {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        Output.trace("captured \(bufferCount) buffers, peak level \(peak)")
         Output.send(["type": "stopped"])
         onFinished()
     }
