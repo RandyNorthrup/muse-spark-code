@@ -80,6 +80,11 @@ body {
   overflow: auto;
 }
 
+.body-transcript {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -104,6 +109,151 @@ body {
   margin: 0;
   color: var(--vscode-descriptionForeground);
   text-align: center;
+}
+
+/* --- sign-in gate --- */
+
+.gate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-gap);
+  max-width: 420px;
+  text-align: center;
+}
+
+.gate-title {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+.gate-detail {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.gate-diagnostic {
+  margin: 0;
+  padding: var(--ms-gap);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
+  font-size: 0.9em;
+  text-align: left;
+  overflow-wrap: anywhere;
+  background: var(
+    --vscode-inputValidation-warningBackground,
+    var(--vscode-editorWidget-background)
+  );
+}
+
+.gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gate-hint {
+  margin: 0 0 var(--ms-gap);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.button-primary,
+.button-secondary {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button-primary {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.button-secondary {
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+
+/* --- transcript --- */
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-gap);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message {
+  max-width: 92%;
+  padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
+  border-radius: var(--ms-radius);
+  line-height: 1.45;
+}
+
+.message-user {
+  align-self: flex-end;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+}
+
+.message-pending {
+  opacity: 70%;
+}
+
+.message-assistant {
+  align-self: flex-start;
+}
+
+.message-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-error {
+  margin-top: 4px;
+  color: var(--vscode-errorForeground);
+  font-size: 0.85em;
+}
+
+.message-error-card {
+  align-self: stretch;
+  color: var(--vscode-errorForeground);
+  background: var(--vscode-inputValidation-errorBackground, transparent);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--vscode-editorCursor-foreground, currentcolor);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.activity {
+  display: flex;
+  gap: var(--ms-gap);
+  padding: 2px calc(var(--ms-gap) * 1.5);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.activity-kind {
+  font-family: var(--vscode-editor-font-family);
 }
 
 /* --- composer --- */
@@ -146,6 +296,7 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
 }
 
 /* --- controls (base) --- */
@@ -170,10 +321,13 @@ body {
 }
 
 .pill {
+  overflow: hidden;
   padding: 0 8px;
   border-radius: 999px;
   color: var(--vscode-badge-foreground);
   font-size: 0.85em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: var(--vscode-badge-background);
 }
 
@@ -211,6 +365,10 @@ body {
   cursor: default;
 }
 
+.pill:disabled {
+  color: var(--vscode-badge-foreground);
+}
+
 .send-button:disabled {
   cursor: default;
   opacity: 50%;
@@ -219,7 +377,9 @@ body {
 .icon-button:focus-visible,
 .pill:focus-visible,
 .mode-button:focus-visible,
-.send-button:focus-visible {
+.send-button:focus-visible,
+.button-primary:focus-visible,
+.button-secondary:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
@@ -232,6 +392,11 @@ body {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
-.send-button:hover:enabled {
+.send-button:hover:enabled,
+.button-primary:hover:enabled {
   background: var(--vscode-button-hoverBackground);
+}
+
+.button-secondary:hover:enabled {
+  background: var(--vscode-button-secondaryHoverBackground);
 }

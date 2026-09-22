@@ -4,7 +4,7 @@
   // src/host or src/core (those pull in Node and `vscode`).
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "types": ["vscode-webview"]
   },

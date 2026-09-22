@@ -38,8 +38,8 @@ describe('configureWebview', () => {
     expect(nonceOf(first.html)).not.toBe(nonceOf(second.html))
   })
 
-  it('answers ready with an init message carrying the current settings', () => {
-    const { webview } = setup()
+  it('answers ready with init, then reports the surface as ready', () => {
+    const { webview, context, surface } = setup()
     webview.messages.fire({ type: 'ready' })
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: 'init',
@@ -48,6 +48,7 @@ describe('configureWebview', () => {
       composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
       settings: testSettings,
     })
+    expect(context.onSurfaceReady).toHaveBeenCalledWith(surface)
   })
 
   it('reports composer focus changes with the originating surface', () => {
@@ -62,6 +63,18 @@ describe('configureWebview', () => {
     const { webview, context } = setup()
     webview.messages.fire({ type: 'openNewTab' })
     expect(context.onOpenNewTab).toHaveBeenCalledOnce()
+  })
+
+  it('routes conversation messages to the controller with the surface', () => {
+    const { webview, context, surface } = setup()
+    const message = { type: 'sendMessage', localId: 'l1', text: 'hello' }
+    webview.messages.fire(message)
+    webview.messages.fire({ type: 'cancelTurn' })
+    expect(context.onConversationMessage).toHaveBeenNthCalledWith(1, surface, message)
+    expect(context.onConversationMessage).toHaveBeenNthCalledWith(2, surface, {
+      type: 'cancelTurn',
+    })
+    expect(context.onSurfaceReady).not.toHaveBeenCalled()
   })
 
   it('exposes the surface id and reveal callback', () => {
@@ -82,6 +95,7 @@ describe('configureWebview', () => {
     webview.messages.fire({ type: 'inputFocusChanged', focused: 'yes' })
     expect(webview.postMessage).not.toHaveBeenCalled()
     expect(context.onInputFocusChanged).not.toHaveBeenCalled()
+    expect(context.onConversationMessage).not.toHaveBeenCalled()
     expect(context.log.warn).toHaveBeenCalledOnce()
     expect(String(context.log.warn.mock.calls[0]?.[0])).toContain(
       'Dropped malformed webview message',

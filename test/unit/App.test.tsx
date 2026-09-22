@@ -24,7 +24,15 @@ const init = {
   settings: testSettings,
 }
 
-describe('App', () => {
+function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
+  const postMessage = vi.fn()
+  render(<App postMessage={postMessage} newLocalId={() => 'local-1'} />)
+  deliver(init)
+  deliver({ type: 'authState', status })
+  return postMessage
+}
+
+describe('App shell', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -41,33 +49,26 @@ describe('App', () => {
     expect(screen.queryByLabelText('Message Muse')).toBeNull()
   })
 
-  it('renders the shell from init and focuses the composer', () => {
-    render(<App postMessage={vi.fn()} />)
-    deliver(init)
-    expect(screen.queryByRole('status')).toBeNull()
+  it('renders the empty state once signed in and focuses the composer', () => {
+    renderReady()
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
     const textarea = screen.getByLabelText('Message Muse')
     expect(textarea).toHaveAttribute('placeholder', init.composerPlaceholder)
     expect(document.activeElement).toBe(textarea)
     expect(screen.getByLabelText('Extension version')).toHaveTextContent('v9.9.9')
-    expect(screen.getByText('Muse Spark')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Model')).toHaveTextContent('Starting Muse Code')
   })
 
-  it('reports composer focus changes to the host', () => {
-    const postMessage = vi.fn()
-    render(<App postMessage={postMessage} />)
-    deliver(init)
-    const textarea = screen.getByLabelText('Message Muse')
-    fireEvent.blur(textarea)
+  it('reports composer focus changes and new-tab clicks to the host', () => {
+    const postMessage = renderReady()
+    fireEvent.blur(screen.getByLabelText('Message Muse'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'inputFocusChanged', focused: false })
-    fireEvent.focus(textarea)
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'inputFocusChanged', focused: true })
+    fireEvent.click(screen.getByLabelText('New conversation'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'openNewTab' })
   })
 
   it('inserts host-provided text at the caret', () => {
-    render(<App postMessage={vi.fn()} />)
-    deliver(init)
+    renderReady()
     const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
     fireEvent.change(textarea, { target: { value: 'look at ' } })
     textarea.setSelectionRange(8, 8)
@@ -76,19 +77,10 @@ describe('App', () => {
   })
 
   it('shows the Focus view badge when the setting changes', () => {
-    render(<App postMessage={vi.fn()} />)
-    deliver(init)
+    renderReady()
     expect(screen.queryByText('Focus view')).toBeNull()
     deliver({ type: 'settingsChanged', settings: { ...testSettings, focusView: true } })
     expect(screen.getByText('Focus view')).toBeInTheDocument()
-  })
-
-  it('asks the host for a new tab from the header button', () => {
-    const postMessage = vi.fn()
-    render(<App postMessage={postMessage} />)
-    deliver(init)
-    fireEvent.click(screen.getByLabelText('New conversation'))
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'openNewTab' })
   })
 
   it('ignores malformed host messages', () => {
@@ -105,5 +97,95 @@ describe('App', () => {
     const warn = silenceConsoleWarn()
     deliver({ type: 'bogus' })
     expect(warn).not.toHaveBeenCalled()
+  })
+})
+
+describe('App sign-in gate', () => {
+  it('offers both sign-in paths when signed out and forwards the choice', () => {
+    const postMessage = renderReady('signedOut')
+    expect(screen.getByRole('heading', { name: 'Sign in to Muse Spark' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Model')).toHaveTextContent('Not signed in')
+    fireEvent.click(screen.getByText('Sign in with your Meta account'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'signIn', method: 'browser' })
+    fireEvent.click(screen.getByText('Use a Model API key'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'signIn', method: 'apiKey' })
+  })
+
+  it('shows install instructions when the CLI is missing', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'noCli', detail: 'Searched: C:/nowhere' })
+    expect(screen.getByRole('heading', { name: 'Muse Code is not installed' })).toBeInTheDocument()
+    expect(screen.getByText('Searched: C:/nowhere')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Open install instructions'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'openExternal',
+      url: 'https://dev.meta.ai/products/muse-code/',
+    })
+    fireEvent.click(screen.getByText('Check again'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'retryBackend' })
+  })
+
+  it('shows the waiting state while the browser sign-in runs', () => {
+    renderReady('signedOut')
+    deliver({ type: 'authState', status: 'signingIn', detail: 'Waiting for the browser…' })
+    expect(screen.getByText('Waiting for the browser…')).toBeInTheDocument()
+    expect(screen.queryByText('Sign in with your Meta account')).toBeNull()
+  })
+})
+
+describe('App conversation', () => {
+  it('sends the draft, echoes it, and streams the reply', () => {
+    const postMessage = renderReady()
+    const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
+    fireEvent.change(textarea, { target: { value: 'hello muse' } })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'hello muse',
+    })
+    expect(textarea).toHaveValue('')
+    expect(screen.getByText('hello muse')).toBeInTheDocument()
+
+    deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1' })
+    expect(screen.getByLabelText('Stop')).toBeInTheDocument()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'itemStarted', itemId: 'm1', kind: 'agentMessage' },
+    })
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'textDelta', itemId: 'm1', field: 'text', delta: 'hi there' },
+    })
+    expect(screen.getByText('hi there')).toBeInTheDocument()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
+    })
+    expect(screen.getByLabelText('Send')).toBeInTheDocument()
+  })
+
+  it('stops the running turn from the Stop button', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
+    fireEvent.click(screen.getByLabelText('Stop'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'cancelTurn' })
+  })
+
+  it('shows the send failure reason on the echoed message', () => {
+    renderReady()
+    const textarea = screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
+    fireEvent.change(textarea, { target: { value: 'hello' } })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    deliver({ type: 'sendFailed', localId: 'local-1', reason: 'Open a folder first' })
+    expect(screen.getByRole('alert')).toHaveTextContent('Open a folder first')
+  })
+
+  it('labels the model pill with the session model and context window', () => {
+    renderReady()
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M)')
+    deliver({ type: 'sessionInfo', modelId: 'small', contextLimit: 128_000 })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('small (128K)')
   })
 })

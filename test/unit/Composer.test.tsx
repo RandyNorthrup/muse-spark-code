@@ -10,11 +10,14 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     placeholder: 'type here',
     settings: testSettings,
     canSend: true,
+    isRunning: false,
+    modelLabel: 'muse-spark-1.3 (1M)',
     focusRequests: 0,
     pendingInsert: undefined,
     onDraftChange: vi.fn(),
     onInsertApplied: vi.fn(),
     onSubmit: vi.fn(),
+    onStop: vi.fn(),
     onFocusChange: vi.fn(),
     ...overrides,
   }
@@ -107,11 +110,18 @@ describe('Composer chrome', () => {
     expect(screen.getByLabelText('Permission mode: Edit automatically')).toBeDisabled()
   })
 
-  it('shows the not-signed-in pill and disabled attach and command buttons', () => {
+  it('shows the model pill and disabled attach and command buttons', () => {
     renderComposer()
-    expect(screen.getByText('Not signed in')).toBeDisabled()
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 (1M)')
     expect(screen.getByLabelText('Attach')).toBeDisabled()
     expect(screen.getByLabelText('Commands')).toBeDisabled()
+  })
+
+  it('swaps Send for Stop while a turn is running', () => {
+    const { props } = renderComposer({ isRunning: true })
+    expect(screen.queryByLabelText('Send')).toBeNull()
+    fireEvent.click(screen.getByLabelText('Stop'))
+    expect(props.onStop).toHaveBeenCalledOnce()
   })
 
   it('grows with the draft', () => {

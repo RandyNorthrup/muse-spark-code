@@ -30,9 +30,9 @@
   // and is never imported by our code, so knip cannot see its use.
   "ignoreDependencies": ["@vscode/test-electron"],
 
-  // gitleaks is a system binary (winget/brew), not an npm package; the
+  // gitleaks (winget/brew) and semgrep (pip) are system binaries, not npm packages; the
   // pre-commit hook and security:secrets script call it by name.
-  "ignoreBinaries": ["gitleaks"],
+  "ignoreBinaries": ["gitleaks", "semgrep"],
 
   "ignoreExportsUsedInFile": true,
 

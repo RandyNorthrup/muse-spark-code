@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Milestone M2, sign-in and the Muse Code backend: locating the CLI per
+  platform (Windows `muse-bin-<version>.exe` from `.muse-version`, PowerShell
+  launcher fallback, POSIX `~/.local/bin/muse`), a sanitised child environment
+  (Windows `PSModulePath`, optional `META_API_KEY`), `muse serve` spawned
+  through `@muse-code/sdk` with a host wrapper that multiplexes one MSP
+  session per panel; sign-in gate with browser (`muse login` in a terminal +
+  credential-file watch) and API-key (secret storage) paths, sign-out, and the
+  host's `authRequired` verdict overriding the presence check; optimistic
+  message echo with `turnAccepted` / `sendFailed`, streamed replies, Stop,
+  session model in the pill, token and context usage tracking. Unmatched
+  approvals are denied until the approval cards ship (M4).
 - Milestone M1, panel shell: header with Focus-view badge, history (disabled
   until M6) and new-conversation buttons; empty state with the
   "Type /model…" hint; composer with Enter / Shift+Enter / optional

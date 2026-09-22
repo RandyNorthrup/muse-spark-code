@@ -90,6 +90,9 @@ export default tseslint.config(
       // Rejects single-line `/** ... */` TSDoc on members and `/** @type */`
       // JSDoc in .mjs files, which are documentation, not style.
       'unicorn/single-line-block-comment-style': 'off',
+      // zod schemas are declarative trees: z.object({ a: z.optional(z.array(z.string())) })
+      // is four nested calls by design, not a readability problem.
+      'unicorn/max-nested-calls': 'off',
       // React components and VS Code provider classes are PascalCase files;
       // everything else is camelCase or kebab-case.
       'unicorn/filename-case': [

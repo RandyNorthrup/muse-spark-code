@@ -4,6 +4,7 @@
 
 import type * as vscode from 'vscode'
 import { vi } from 'vitest'
+import type { SecretStore } from '../../../src/host/auth/credentialStore'
 import type { SettingsSource } from '../../../src/host/settings'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
 import type { ChatSurface, WebviewHostContext } from '../../../src/host/views/webviewSetup'
@@ -112,6 +113,10 @@ export interface FakeHostContext extends WebviewHostContext {
   readonly log: FakeLogOutputChannel
   readonly onInputFocusChanged: ReturnType<typeof vi.fn<WebviewHostContext['onInputFocusChanged']>>
   readonly onOpenNewTab: ReturnType<typeof vi.fn<() => void>>
+  readonly onSurfaceReady: ReturnType<typeof vi.fn<WebviewHostContext['onSurfaceReady']>>
+  readonly onConversationMessage: ReturnType<
+    typeof vi.fn<WebviewHostContext['onConversationMessage']>
+  >
 }
 
 export function fakeHostContext(settings: SettingsSnapshot = testSettings): FakeHostContext {
@@ -122,6 +127,8 @@ export function fakeHostContext(settings: SettingsSnapshot = testSettings): Fake
     getSettings: () => settings,
     onInputFocusChanged: vi.fn<WebviewHostContext['onInputFocusChanged']>(),
     onOpenNewTab: vi.fn<() => void>(),
+    onSurfaceReady: vi.fn<WebviewHostContext['onSurfaceReady']>(),
+    onConversationMessage: vi.fn<WebviewHostContext['onConversationMessage']>(),
   }
 }
 
@@ -141,6 +148,23 @@ export function fakeSurface(id: string): FakeSurface {
     reveal: vi.fn<() => void>(),
     dispose() {
       // nothing to release in the fake
+    },
+  }
+}
+
+/** A `SecretStore` backed by a Map, exposed for assertions. */
+export function memorySecrets(): SecretStore & { readonly values: Map<string, string> } {
+  const values = new Map<string, string>()
+  return {
+    values,
+    get: (key) => Promise.resolve(values.get(key)),
+    store: (key, value) => {
+      values.set(key, value)
+      return Promise.resolve()
+    },
+    delete: (key) => {
+      values.delete(key)
+      return Promise.resolve()
     },
   }
 }

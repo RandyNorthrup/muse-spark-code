@@ -13,9 +13,16 @@ import {
   type HostToWebviewMessage,
   parseWebviewToHostMessage,
   type SettingsSnapshot,
+  type WebviewToHostMessage,
 } from '../../shared/protocol'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { Logger } from '../logger'
+
+/** Messages about the conversation itself, routed to the surface's controller. */
+export type ConversationMessage = Exclude<
+  WebviewToHostMessage,
+  { type: 'ready' } | { type: 'inputFocusChanged' } | { type: 'openNewTab' }
+>
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
@@ -24,6 +31,9 @@ export interface WebviewHostContext {
   readonly getSettings: () => SettingsSnapshot
   readonly onInputFocusChanged: (surface: ChatSurface, isFocused: boolean) => void
   readonly onOpenNewTab: () => void
+  /** The webview mounted and received `init`; push the conversation state. */
+  readonly onSurfaceReady: (surface: ChatSurface) => void
+  readonly onConversationMessage: (surface: ChatSurface, message: ConversationMessage) => void
 }
 
 /** One chat UI instance (the sidebar view or one editor panel). */
@@ -87,18 +97,23 @@ export function configureWebview(
       context.log.warn(`Dropped malformed webview message: ${parsed.error}`)
       return
     }
-    switch (parsed.message.type) {
+    const { message } = parsed
+    switch (message.type) {
       case 'ready': {
         surface.post(buildInitMessage(context))
+        context.onSurfaceReady(surface)
         break
       }
       case 'inputFocusChanged': {
-        context.onInputFocusChanged(surface, parsed.message.focused)
+        context.onInputFocusChanged(surface, message.focused)
         break
       }
       case 'openNewTab': {
         context.onOpenNewTab()
         break
+      }
+      default: {
+        context.onConversationMessage(surface, message)
       }
     }
   })

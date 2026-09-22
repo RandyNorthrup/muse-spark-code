@@ -7,6 +7,7 @@ import type { ChatSurface } from './webviewSetup'
 
 export class SurfaceRegistry {
   private readonly surfaces = new Map<string, ChatSurface>()
+  private readonly removedListeners = new Set<(surface: ChatSurface) => void>()
   private activeId: string | undefined
 
   /** Registers a surface; the returned disposable unregisters it. */
@@ -19,6 +20,19 @@ export class SurfaceRegistry {
         if (this.activeId === surface.id) {
           this.activeId = this.surfaces.keys().next().value
         }
+        for (const listener of this.removedListeners) {
+          listener(surface)
+        }
+      },
+    }
+  }
+
+  /** Observe surfaces leaving the registry (view closed, panel disposed). */
+  public onRemoved(listener: (surface: ChatSurface) => void): vscode.Disposable {
+    this.removedListeners.add(listener)
+    return {
+      dispose: () => {
+        this.removedListeners.delete(listener)
       },
     }
   }

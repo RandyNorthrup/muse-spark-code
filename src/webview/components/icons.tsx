@@ -87,3 +87,11 @@ export function SendIcon(props: IconProps) {
     </Svg>
   )
 }
+
+export function StopIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}

@@ -29,7 +29,15 @@ export default defineConfig({
       // Source files only: a bare `src/**` also feeds src/webview/tsconfig.json
       // to the coverage remapper, which cannot parse JSON.
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/extension.ts', 'src/webview/main.tsx', 'src/**/*.d.ts'],
+      // Entry points and the process adapter that spawns the real `muse serve`
+      // are exercised by the integration run and the live smoke test
+      // (docs/certification), not by unit tests.
+      exclude: [
+        'src/extension.ts',
+        'src/webview/main.tsx',
+        'src/host/backend/museCodeBackendManager.ts',
+        'src/**/*.d.ts',
+      ],
       thresholds: COVERAGE_THRESHOLDS,
       reporter: ['text', 'lcov'],
     },

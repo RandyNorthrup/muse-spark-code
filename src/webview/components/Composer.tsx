@@ -1,24 +1,25 @@
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send), the attach and
-// slash buttons, the model pill, the permission-mode button and Send.
-// Sending is disabled until a backend exists (M2); the key handling is already
-// final so the tests pin it now.
+// slash buttons, the model pill, the permission-mode button and Send/Stop.
 
 import { type KeyboardEvent, useEffect, useRef } from 'react'
 import { COMPOSER_MAX_ROWS, PERMISSION_MODE_LABELS, UI_TEXT } from '../../shared/constants'
 import type { SettingsSnapshot } from '../../shared/protocol'
-import { CodeIcon, PlusIcon, SendIcon, SlashIcon } from './icons'
+import { CodeIcon, PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
 
 export interface ComposerProps {
   readonly draft: string
   readonly placeholder: string
   readonly settings: SettingsSnapshot
   readonly canSend: boolean
+  readonly isRunning: boolean
+  readonly modelLabel: string
   readonly focusRequests: number
   readonly pendingInsert: string | undefined
   readonly onDraftChange: (draft: string) => void
   readonly onInsertApplied: () => void
   readonly onSubmit: () => void
+  readonly onStop: () => void
   readonly onFocusChange: (isFocused: boolean) => void
 }
 
@@ -47,11 +48,14 @@ export function Composer(props: ComposerProps) {
     placeholder,
     settings,
     canSend,
+    isRunning,
+    modelLabel,
     focusRequests,
     pendingInsert,
     onDraftChange,
     onInsertApplied,
     onSubmit,
+    onStop,
     onFocusChange,
   } = props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -134,8 +138,8 @@ export function Composer(props: ComposerProps) {
           >
             <SlashIcon />
           </button>
-          <button type="button" className="pill" title={UI_TEXT.notSignedIn} disabled>
-            {UI_TEXT.notSignedIn}
+          <button type="button" className="pill" title={modelLabel} aria-label="Model" disabled>
+            {modelLabel}
           </button>
         </div>
         <div className="composer-toolbar-group">
@@ -149,16 +153,28 @@ export function Composer(props: ComposerProps) {
             <CodeIcon />
             <span>{modeLabel}</span>
           </button>
-          <button
-            type="button"
-            className="send-button"
-            title={canSend ? UI_TEXT.sendTitle : UI_TEXT.sendDisabledReason}
-            aria-label={UI_TEXT.sendTitle}
-            disabled={!canSend}
-            onClick={onSubmit}
-          >
-            <SendIcon />
-          </button>
+          {isRunning ? (
+            <button
+              type="button"
+              className="send-button"
+              title={UI_TEXT.stopTitle}
+              aria-label={UI_TEXT.stopTitle}
+              onClick={onStop}
+            >
+              <StopIcon />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="send-button"
+              title={canSend ? UI_TEXT.sendTitle : UI_TEXT.sendDisabledReason}
+              aria-label={UI_TEXT.sendTitle}
+              disabled={!canSend}
+              onClick={onSubmit}
+            >
+              <SendIcon />
+            </button>
+          )}
         </div>
       </div>
     </footer>

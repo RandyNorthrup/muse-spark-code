@@ -5,9 +5,12 @@ inside the editor, modelled on the Claude Code VS Code extension: sidebar or
 editor-tab conversations, a slash-command palette, model and reasoning-effort
 picker, permission modes, streaming markdown, diff review, and session history.
 
-> **Status: scaffold (milestone M0).** The extension activates and renders the
-> empty chat shell. It cannot sign in or talk to Muse Spark yet. See
-> [`PLAN.md`](PLAN.md) for the milestone plan and the research behind it.
+> **Status: milestone M2 (sign-in and first conversations).** You can sign in
+> (Meta account through the Muse Code CLI, or a Model API key), send messages
+> and watch Muse Spark's reply stream in. Replies render as plain text; the
+> agent cannot yet edit files or run commands because approvals arrive in M4
+> and unmatched approvals are denied until then. See [`PLAN.md`](PLAN.md) for
+> the milestone plan and the research behind it.
 
 This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 "Muse Code" are Meta trademarks. You bring your own credentials.
@@ -17,10 +20,31 @@ This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 Meta offers no OAuth flow for third-party apps, so the extension supports the
 two sanctioned paths (see `PLAN.md` §2 D1):
 
-| Backend                                                                      | How you sign in                                                                                                       | Status       |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------ |
-| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`) or `META_API_KEY`; subscriptions work because the CLI makes the requests | Planned (M2) |
-| **Meta Model API** (`https://api.meta.ai/v1`, OpenAI-compatible)             | Paste a key from dev.meta.ai; stored in VS Code SecretStorage                                                         | Planned (M7) |
+| Backend                                                                      | How you sign in                                                                                                       | Status         |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`) or `META_API_KEY`; subscriptions work because the CLI makes the requests | Available (M2) |
+| **Meta Model API** (`https://api.meta.ai/v1`, OpenAI-compatible)             | Paste a key from dev.meta.ai; stored in VS Code SecretStorage                                                         | Planned (M7)   |
+
+## Signing in
+
+The panel shows a sign-in gate until a credential exists:
+
+- **Sign in with your Meta account** opens a terminal running `muse login`
+  (Windows PowerShell on Windows, your default shell elsewhere). Approve the
+  code in your browser; the extension watches for the CLI's credential file
+  (`~/.config/muse/auth.json`, or under `XDG_CONFIG_HOME`) for up to five
+  minutes and then starts the backend.
+- **Use a Model API key** prompts for a key shaped like `LLM|<id>|<secret>`,
+  stores it in VS Code secret storage, and passes it to the CLI as
+  `META_API_KEY` for the child process only.
+- If the CLI is not installed, the gate links to the install instructions;
+  the extension looks for it via `museSpark.museBinaryPath`, then `PATH`,
+  then the platform's default install folder (`%LOCALAPPDATA%\Programs\muse`
+  on Windows, `~/.local/bin` elsewhere).
+
+Each panel is its own Muse session, started on the first message with the
+Standard `muse-spark-1.3` model (never the contributor tier by default). The
+host process is shared and stopped when VS Code unloads the extension.
 
 ## Platforms
 
@@ -36,7 +60,7 @@ set, including the VS Code integration tests, on all three.
 - Validation with `zod/mini` on every host ⇄ webview message
 - Quality: ESLint 10 (`strictTypeChecked` + unicorn + react-hooks), Prettier,
   stylelint, knip, dpdm, jscpd, vitest (v8 coverage thresholds),
-  `@vscode/test-cli` integration tests, gitleaks, npm audit, semgrep (CI)
+  `@vscode/test-cli` integration tests, gitleaks, npm audit, semgrep
 
 ## Requirements
 
@@ -73,7 +97,7 @@ offers the **Muse Spark:** commands listed below.
 
 In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
 `museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
-Sending stays disabled until the first backend lands (M2).
+Sending is enabled once you are signed in; Stop cancels a running turn.
 
 ## Settings
 
@@ -95,26 +119,27 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 
 ## Development commands
 
-| Command                                   | What it does                                                                                   |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps         |
-| `npm run watch`                           | Rebuild extension + webview on change                                                          |
-| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs` |
-| `npm run format` / `npm run format:check` | Prettier write / check                                                                         |
-| `npm run lint`                            | `eslint --max-warnings=0` (type-aware) and `stylelint --max-warnings=0`                        |
-| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                  |
-| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                  |
-| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                            |
-| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                     |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches)               |
-| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it    |
-| `npm run test`                            | Unit then integration                                                                          |
-| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                 |
-| `npm run security:secrets`                | `gitleaks git` over the repository history                                                     |
-| `npm run quality`                         | Every gate above except integration tests; **exits non-zero on any finding**                   |
-| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                 |
-| `npm run package`                         | `vsce package --no-dependencies` → `.vsix`                                                     |
-| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                 |
+| Command                                   | What it does                                                                                              |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                    |
+| `npm run watch`                           | Rebuild extension + webview on change                                                                     |
+| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`            |
+| `npm run format` / `npm run format:check` | Prettier write / check                                                                                    |
+| `npm run lint`                            | `eslint --max-warnings=0` (type-aware) and `stylelint --max-warnings=0`                                   |
+| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                             |
+| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                             |
+| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                       |
+| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                |
+| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches)                          |
+| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it               |
+| `npm run test`                            | Unit then integration                                                                                     |
+| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                            |
+| `npm run security:sast`                   | `semgrep scan --config auto --error` (install: `pip install semgrep`; the Scripts folder must be on PATH) |
+| `npm run security:secrets`                | `gitleaks git` over the repository history                                                                |
+| `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**       |
+| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                            |
+| `npm run package`                         | `vsce package --no-dependencies` → `.vsix`                                                                |
+| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                            |
 
 ## Build
 

@@ -38,7 +38,7 @@
     // is slow and fails on third-party bugs we cannot fix.
     "skipLibCheck": true,
 
-    "target": "ES2023",
+    "target": "ES2024",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,

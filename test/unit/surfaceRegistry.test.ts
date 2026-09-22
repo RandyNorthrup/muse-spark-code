@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
 import { fakeSurface } from './helpers/fakes'
 
@@ -47,6 +47,18 @@ describe('SurfaceRegistry', () => {
     const registration = registry.add(second)
     registration.dispose()
     expect(registry.active).toBe(first)
+  })
+
+  it('notifies removal listeners until they unsubscribe', () => {
+    const registry = new SurfaceRegistry()
+    const listener = vi.fn()
+    const subscription = registry.onRemoved(listener)
+    const surface = fakeSurface('a')
+    registry.add(surface).dispose()
+    expect(listener).toHaveBeenCalledWith(surface)
+    subscription.dispose()
+    registry.add(fakeSurface('b')).dispose()
+    expect(listener).toHaveBeenCalledOnce()
   })
 
   it('broadcasts to every registered surface', () => {

@@ -3,7 +3,7 @@
   // Runs inside VS Code's Node-based extension host; no DOM types here.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2023"],
+    "lib": ["ES2024"],
     "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts", "vitest.config.ts"],
