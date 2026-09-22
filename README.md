@@ -45,7 +45,7 @@ two sanctioned paths (see `PLAN.md` §2 D1):
 ## Installation (development)
 
 ```bash
-git clone https://github.com/randynorthrup/muse-spark-code.git
+git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code
 npm ci
 ```
