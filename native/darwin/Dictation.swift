@@ -33,10 +33,13 @@ struct NoAudioInputError: LocalizedError {
     var errorDescription: String? { "no audio input device is available (\(detail))" }
 }
 
-/// `--server`: let Apple's servers recognise even where on-device
-/// recognition is supported (diagnostics; on-device is the default so audio
-/// stays on the machine).
-let allowsServerRecognition = CommandLine.arguments.contains("--server")
+/// `--on-device`: refuse Apple's servers, even where that means no result.
+/// By default Apple chooses: on-device recognition where the model is
+/// installed (Apple silicon with Dictation on), otherwise its servers at no
+/// charge. Forcing on-device where `supportsOnDeviceRecognition` is true
+/// but the model is absent (an Intel Mac mini, 2026-09-22) yields an empty
+/// final result and no error, which is worse than the server round trip.
+let requiresOnDeviceRecognition = CommandLine.arguments.contains("--on-device")
 
 /// The CoreAudio device with this UID, 0 when there is none.
 func inputDevice(withUID uid: String) -> AudioObjectID {
@@ -121,11 +124,12 @@ final class Recording {
 
     func start() throws {
         request.shouldReportPartialResults = false
-        if recognizer.supportsOnDeviceRecognition && !allowsServerRecognition {
+        request.taskHint = .dictation
+        if requiresOnDeviceRecognition {
             request.requiresOnDeviceRecognition = true
         }
         Output.trace(
-            "recognition \(request.requiresOnDeviceRecognition ? "on device" : "on device or Apple's servers")")
+            "recognition \(request.requiresOnDeviceRecognition ? "on device only" : "on device where installed, otherwise Apple's servers")")
         // A Mac without an input device (a Mac mini with nothing plugged in,
         // seen 2026-09-22): the engine's input node still answers with a
         // nominal output format, but installing a tap on it raises an
@@ -349,7 +353,8 @@ let session = Session(recognizer: recognizer, inputDevice: chosenInput)
 Output.send([
     "type": "ready",
     "language": recognizer.locale.identifier,
-    "recognizer": recognizer.supportsOnDeviceRecognition ? "Apple Speech (on device)" : "Apple Speech",
+    "recognizer": recognizer.supportsOnDeviceRecognition
+        ? "Apple Speech (on-device capable)" : "Apple Speech",
 ])
 
 // Commands are read on a background thread and handled on the main queue,

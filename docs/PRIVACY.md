@@ -30,9 +30,10 @@ security notes for contributors are in `PLAN.md` §9.
 - **Voice dictation** never sends audio to Meta or to this extension's
   author. On Windows, speech is recognised by the recogniser built into
   Windows (`System.Speech`), on your machine, and the audio never leaves
-  it. On macOS, Apple's Speech framework recognises on the device when
-  Apple supports that for your language; otherwise Apple's servers
-  transcribe the audio under Apple's privacy terms. The microphone is only
+  it. On macOS, Apple's Speech framework recognises on the device when its
+  on-device model is installed (Apple silicon with Dictation on);
+  otherwise Apple's servers transcribe the audio under Apple's privacy
+  terms, and Apple decides which applies. The microphone is only
   open while the button is held or on ("Listening…"), and the recognised
   words go into the composer, where you can edit or delete them before
   anything is sent. The words are not logged (the log records only a

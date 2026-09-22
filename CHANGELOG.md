@@ -23,9 +23,10 @@ happened, not what was planned; superseded entries are kept.
   compiled by CI's new `native-darwin` job and shipped by the new `package`
   job's `.vsix` artifact (run on the owner's Mac mini: a Mac without an
   input device gets an error line instead of an AVFAudio crash, the tap
-  follows the hardware input format, start steps are traced on stderr, and
-  `--input-device <UID>` pins the capture device; Dictation or Siri must be
-  on in System Settings). On Linux, and in a `.vsix` built without the
+  follows the hardware input format, start steps, levels and results are
+  traced on stderr, `--input-device <UID>` pins the capture device, Apple
+  chooses on-device or server recognition unless `--on-device` is given;
+  Dictation or Siri must be on in System Settings). On Linux, and in a `.vsix` built without the
   macOS helper, the button is dimmed with the reason as its tooltip. No API
   cost, no third-party code, nothing sent to Meta. Gates: `lint:ps`
   (PSScriptAnalyzer over the helper script, real on Windows).

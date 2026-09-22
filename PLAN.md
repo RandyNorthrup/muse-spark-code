@@ -1157,10 +1157,11 @@ recogniser twice (a synthesised recording, then a real webcam microphone
 hearing text-to-speech across the room, with text back), and on the
 owner's Mac mini for the helper's permissions, engine, capture (levels
 metered) and recognition lifecycle (three defects found and fixed there).
-Pending: recognised text on macOS, which needs the on-device English model
-that only the System Settings Dictation toggle downloads; a person speaking
-for the accuracy check on each platform.** Certification record:
-`docs/certification/m9.md`.
+macOS recognised text arrived once the recognition mode was left to Apple
+(forced on-device gives empty results on an Intel Mac without the model)
+and the mini's speech daemons were restarted after Dictation was enabled.
+Pending: a person speaking for the accuracy check on each platform.**
+Certification record: `docs/certification/m9.md`.
 
 - **Goal**: Claude Code's microphone ("Tap or hold to record Ctrl+D")
   under the owner's constraints of 2026-09-22: no API cost (Meta's Voice
@@ -1196,8 +1197,12 @@ for the accuracy check on each platform.** Certification record:
     a recording instead of the microphone, for the certification run and
     for the user's own diagnosis.
   - **macOS**: `native/darwin/Dictation.swift` on `SFSpeechRecognizer` +
-    `AVAudioEngine`, on-device when the recogniser supports it for the
-    language, otherwise Apple's servers under Apple's terms (no charge).
+    `AVAudioEngine`; Apple chooses on-device recognition where its model is
+    installed and its servers otherwise (no charge). Not forced on-device:
+    on the owner's Intel Mac mini `supportsOnDeviceRecognition` is true
+    while the on-device model is absent (asset purged), and a forced
+    on-device request ends in an empty final result with no error;
+    `--on-device` exists for whoever wants the refusal instead.
     Built by `native/darwin/build.sh` (universal binary, `Info.plist` with
     the two usage descriptions embedded in `__info_plist`, ad-hoc signed)
     in CI's `native-darwin` job; the `package` job ships it in the
