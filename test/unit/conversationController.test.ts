@@ -16,6 +16,8 @@ import {
   type PickedFile,
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
+import type { Dictation, DictationListener } from '../../src/core/voice/dictation'
+import type { DictationSetup } from '../../src/host/voice/dictationHost'
 import type { HostAction, MentionItem } from '../../src/shared/protocol'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
@@ -131,6 +133,8 @@ function setup(
     archivedIds?: readonly string[]
     lastSession?: LastSession
     isRestorable?: boolean
+    /** Voice dictation (M9). */
+    dictation?: DictationSetup
     now?: number
   } = {},
 ) {
@@ -325,6 +329,7 @@ function setup(
     },
     sessions,
     isRestorable: options.isRestorable ?? false,
+    dictation: options.dictation ?? { isAvailable: false, reason: 'no helper in tests' },
     now: () => options.now ?? NOW,
     log,
   }
@@ -373,7 +378,11 @@ describe('ConversationController.surfaceReady', () => {
   it('replays auth and composer state, then models, session, skills and attachments', async () => {
     const t = setup()
     t.controller.surfaceReady()
-    expect(t.surface.posted).toEqual([{ type: 'authState', status: 'signedIn' }, composerState])
+    expect(t.surface.posted).toEqual([
+      { type: 'authState', status: 'signedIn' },
+      composerState,
+      { type: 'dictationState', status: 'unavailable', reason: 'no helper in tests' },
+    ])
     await t.send('l1', 'hi')
     await settle()
     await attachPng(t)
@@ -382,6 +391,7 @@ describe('ConversationController.surfaceReady', () => {
     expect(t.surface.posted).toEqual([
       { type: 'authState', status: 'signedIn' },
       composerState,
+      { type: 'dictationState', status: 'unavailable', reason: 'no helper in tests' },
       modelList,
       sessionInfo,
       skillList,
@@ -1766,5 +1776,77 @@ describe('ConversationController: backends and tiers (M7)', () => {
       localId: 'l1',
       turnId: 'fixed',
     })
+  })
+})
+
+describe('ConversationController: voice dictation (M9)', () => {
+  interface FakeDriver {
+    readonly calls: string[]
+    listener: DictationListener | undefined
+  }
+
+  function fakeDictation(): { setup: DictationSetup; driver: FakeDriver } {
+    const driver: FakeDriver = { calls: [], listener: undefined }
+    const setup: DictationSetup = {
+      isAvailable: true,
+      create: (listener) => {
+        driver.listener = listener
+        driver.calls.push('create')
+        // Only the three methods the controller calls; a structural stand-in.
+        const record = (call: string) => () => {
+          driver.calls.push(call)
+        }
+        return {
+          start: record('start'),
+          stop: record('stop'),
+          dispose: record('dispose'),
+        } as unknown as Dictation
+      },
+    }
+    return { setup, driver }
+  }
+
+  it('tells the webview the microphone is unavailable, with the reason, on ready and on a stray press', async () => {
+    const t = setup()
+    t.controller.surfaceReady()
+    const unavailable = {
+      type: 'dictationState',
+      status: 'unavailable',
+      reason: 'no helper in tests',
+    }
+    expect(t.surface.posted).toContainEqual(unavailable)
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    expect(t.surface.posted).toEqual([unavailable])
+  })
+
+  it('creates the driver on the first press, relays status, inserts phrases with a space, and reports errors', async () => {
+    const { setup: dictation, driver } = fakeDictation()
+    const t = setup({ dictation })
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual({ type: 'dictationState', status: 'idle' })
+    expect(driver.calls).toEqual([])
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    await t.controller.handle({ type: 'dictation', action: 'stop' })
+    expect(driver.calls).toEqual(['create', 'start', 'stop'])
+    t.surface.posted.length = 0
+    driver.listener?.onStatus('listening')
+    driver.listener?.onText('fix the bug')
+    driver.listener?.onError('No microphone is available')
+    expect(t.surface.posted).toEqual([
+      { type: 'dictationState', status: 'listening' },
+      { type: 'insertText', text: 'fix the bug ' },
+      {
+        type: 'notice',
+        level: 'error',
+        text: 'Voice dictation failed: No microphone is available',
+      },
+    ])
+    // A reopened webview learns the current status.
+    t.surface.posted.length = 0
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual({ type: 'dictationState', status: 'listening' })
+    t.controller.dispose()
+    expect(driver.calls.at(-1)).toBe('dispose')
   })
 })

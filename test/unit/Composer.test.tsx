@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { DICTATION_HOLD_MS } from '../../src/shared/constants'
 import { Composer, type ComposerProps } from '../../src/webview/components/Composer'
 import { testSettings } from './helpers/fakes'
 
+/** The composer's clock (the tap/hold threshold reads it). */
+const clock = { now: 1_000_000 }
+
 function renderComposer(overrides: Partial<ComposerProps> = {}) {
+  clock.now = 1_000_000
   const props: ComposerProps = {
     draft: '',
     placeholder: 'type here',
@@ -20,6 +25,9 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     attachments: [],
     mentionResults: undefined,
     editorContextLabel: undefined,
+    dictation: { status: 'idle', reason: undefined },
+    now: () => clock.now,
+    onDictation: vi.fn(),
     onDismissEditorContext: vi.fn(),
     onDraftChange: vi.fn(),
     onInsertApplied: vi.fn(),
@@ -318,5 +326,100 @@ describe('Composer open-file chip (M5)', () => {
   it('renders nothing without a label', () => {
     renderComposer()
     expect(document.querySelector('.editor-chip')).toBeNull()
+  })
+})
+
+const mic = () => screen.getByLabelText('Record voice')
+
+describe('Composer microphone (M9)', () => {
+  it('shows the Claude Code tooltip and starts on a tap', () => {
+    const { props } = renderComposer()
+    expect(mic()).toHaveAttribute('title', 'Tap or hold to record (Ctrl+D)')
+    expect(mic()).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.pointerDown(mic())
+    expect(props.onDictation).toHaveBeenCalledWith('start')
+    // A tap (released within the hold threshold) keeps recording.
+    clock.now += DICTATION_HOLD_MS - 1
+    fireEvent.pointerUp(window)
+    expect(props.onDictation).toHaveBeenCalledTimes(1)
+  })
+
+  it('a hold records while held and stops on release, wherever the pointer went', () => {
+    const { props } = renderComposer()
+    fireEvent.pointerDown(mic())
+    clock.now += DICTATION_HOLD_MS
+    fireEvent.pointerUp(window)
+    expect(vi.mocked(props.onDictation).mock.calls).toEqual([['start'], ['stop']])
+  })
+
+  it('a press while listening stops, and the button reads pressed with the stop title', () => {
+    const { props } = renderComposer({ dictation: { status: 'listening', reason: undefined } })
+    expect(mic()).toHaveAttribute('aria-pressed', 'true')
+    expect(mic()).toHaveAttribute('title', 'Stop recording (Ctrl+D)')
+    expect(screen.getByLabelText('Message Muse')).toHaveAttribute('placeholder', 'Listening…')
+    fireEvent.pointerDown(mic())
+    clock.now += DICTATION_HOLD_MS
+    fireEvent.pointerUp(window)
+    expect(vi.mocked(props.onDictation).mock.calls).toEqual([['stop']])
+  })
+
+  it('shows the starting placeholder and stops from that state too', () => {
+    const { props } = renderComposer({ dictation: { status: 'starting', reason: undefined } })
+    expect(screen.getByLabelText('Message Muse')).toHaveAttribute(
+      'placeholder',
+      'Starting the microphone…',
+    )
+    fireEvent.pointerDown(mic())
+    expect(vi.mocked(props.onDictation).mock.calls).toEqual([['stop']])
+  })
+
+  it('keeps the caret in the textarea: the press is default-prevented', () => {
+    renderComposer()
+    expect(fireEvent.pointerDown(mic())).toBe(false)
+  })
+
+  it('ignores secondary buttons', () => {
+    const { props } = renderComposer()
+    fireEvent.pointerDown(mic(), { button: 2 })
+    expect(props.onDictation).not.toHaveBeenCalled()
+  })
+
+  it('is dimmed with the reason as its tooltip when unavailable, and inert', () => {
+    const { props } = renderComposer({
+      dictation: { status: 'unavailable', reason: 'No recogniser on Linux.' },
+    })
+    expect(mic()).toHaveAttribute('aria-disabled', 'true')
+    expect(mic()).toHaveAttribute('title', 'No recogniser on Linux.')
+    fireEvent.pointerDown(mic())
+    fireEvent.keyDown(screen.getByLabelText('Message Muse'), { key: 'd', ctrlKey: true })
+    expect(props.onDictation).not.toHaveBeenCalled()
+  })
+
+  it('Ctrl+D in the composer taps or holds like the button, ignoring key repeat', () => {
+    const { props, textarea } = renderComposer()
+    expect(fireEvent.keyDown(textarea, { key: 'd', ctrlKey: true })).toBe(false)
+    expect(fireEvent.keyDown(textarea, { key: 'd', ctrlKey: true, repeat: true })).toBe(false)
+    clock.now += DICTATION_HOLD_MS
+    fireEvent.keyUp(textarea, { key: 'd', ctrlKey: true })
+    expect(vi.mocked(props.onDictation).mock.calls).toEqual([['start'], ['stop']])
+    // Cmd+D on a Mac, released via the modifier: a tap this time.
+    fireEvent.keyDown(textarea, { key: 'D', metaKey: true })
+    fireEvent.keyUp(textarea, { key: 'Meta' })
+    expect(vi.mocked(props.onDictation).mock.calls).toEqual([['start'], ['stop'], ['start']])
+    // Alt+D and plain d are typing.
+    expect(fireEvent.keyDown(textarea, { key: 'd', ctrlKey: true, altKey: true })).toBe(true)
+    expect(fireEvent.keyDown(textarea, { key: 'd' })).toBe(true)
+  })
+
+  it('Space or Enter on the focused button presses and releases it', () => {
+    const { props } = renderComposer()
+    expect(fireEvent.keyDown(mic(), { key: ' ' })).toBe(false)
+    fireEvent.keyDown(mic(), { key: ' ', repeat: true })
+    clock.now += DICTATION_HOLD_MS
+    fireEvent.keyUp(mic(), { key: ' ' })
+    expect(vi.mocked(props.onDictation).mock.calls).toEqual([['start'], ['stop']])
+    expect(fireEvent.keyDown(mic(), { key: 'Tab' })).toBe(true)
+    fireEvent.keyUp(mic(), { key: 'Tab' })
+    expect(props.onDictation).toHaveBeenCalledTimes(2)
   })
 })

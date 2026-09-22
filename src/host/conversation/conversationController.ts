@@ -21,11 +21,13 @@ import {
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
+import type { Dictation, DictationStatus } from '../../core/voice/dictation'
 import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
+  type DictationAction,
   type EffortLevel,
   IDE_MCP_SERVER_NAME,
   IMAGE_EXTENSIONS,
@@ -56,6 +58,7 @@ import type { AuthService } from '../auth/authService'
 import type { ReviewNotice } from '../editor/editReview'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
+import type { DictationSetup } from '../voice/dictationHost'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -172,6 +175,8 @@ export interface ConversationDeps {
   readonly sessions: SessionMemory
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
   readonly isRestorable: boolean
+  /** Voice dictation (M9): the platform's helper, or why there is none. */
+  readonly dictation: DictationSetup
   readonly now: () => number
   readonly log: Logger
 }
@@ -225,6 +230,9 @@ export class ConversationController {
   private sessionRecords: Map<string, SessionRecord> | undefined
   private readonly listWatch = new HostWatch()
   private readonly usageWatch = new HostWatch()
+  /** The dictation driver, created on the first press (M9). */
+  private dictation: Dictation | undefined
+  private dictationStatus: DictationStatus = 'idle'
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -1102,9 +1110,57 @@ export class ConversationController {
     })
   }
 
+  // --- Voice dictation (M9) ---
+
+  private postDictationState(): void {
+    const { dictation } = this.deps
+    this.post(
+      dictation.isAvailable
+        ? { type: 'dictationState', status: this.dictationStatus }
+        : { type: 'dictationState', status: 'unavailable', reason: dictation.reason },
+    )
+  }
+
+  private dictationDriver(): Dictation | undefined {
+    const { dictation } = this.deps
+    if (!dictation.isAvailable) {
+      return undefined
+    }
+    this.dictation ??= dictation.create({
+      onStatus: (status) => {
+        this.dictationStatus = status
+        this.postDictationState()
+      },
+      // Phrases land at the caret, each followed by a space so the next one
+      // (or typing) does not run into it.
+      onText: (text) => {
+        this.post({ type: 'insertText', text: `${text} ` })
+      },
+      onError: (reason) => {
+        this.notice('error', `${UI_TEXT.dictationFailed}: ${reason}`)
+      },
+    })
+    return this.dictation
+  }
+
+  private handleDictation(action: DictationAction): void {
+    const driver = this.dictationDriver()
+    if (driver === undefined) {
+      // The button is disabled with the reason; a stray press re-sends it.
+      this.postDictationState()
+      return
+    }
+    if (action === 'start') {
+      driver.start()
+    } else {
+      driver.stop()
+    }
+  }
+
   public surfaceReady(): void {
     this.post(this.deps.auth.toMessage())
     this.postComposerState()
+    this.postDictationState()
     if (this.models !== undefined) {
       this.post({ type: 'modelList', models: [...this.models] })
     }
@@ -1258,6 +1314,10 @@ export class ConversationController {
         await this.renameSession(message.name)
         break
       }
+      case 'dictation': {
+        this.handleDictation(message.action)
+        break
+      }
       case 'readUsage': {
         await this.readUsage()
         break
@@ -1305,5 +1365,7 @@ export class ConversationController {
     this.dropSession()
     this.listWatch.dispose()
     this.usageWatch.dispose()
+    this.dictation?.dispose()
+    this.dictation = undefined
   }
 }

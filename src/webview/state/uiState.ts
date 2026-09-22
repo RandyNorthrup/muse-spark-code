@@ -14,6 +14,7 @@ import type {
 } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
+  type DictationUiStatus,
   type EffortLevel,
   HIDDEN_ITEM_KINDS,
   MILLISECONDS_PER_SECOND,
@@ -51,6 +52,12 @@ export interface UsageReport {
 export interface Announcement {
   readonly text: string
   readonly sequence: number
+}
+
+/** The microphone button (M9). */
+export interface DictationUiState {
+  readonly status: DictationUiStatus
+  readonly reason: string | undefined
 }
 
 export interface PendingApproval {
@@ -225,6 +232,8 @@ export interface UiState {
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
   readonly announcement: Announcement | undefined
+  /** The microphone button (M9): `reason` explains an unavailable one. */
+  readonly dictation: DictationUiState
   readonly todos: readonly TodoItem[]
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
@@ -287,6 +296,7 @@ export const initialUiState: UiState = {
   context: undefined,
   usageReport: undefined,
   announcement: undefined,
+  dictation: { status: 'idle', reason: undefined },
   todos: [],
   outputPages: {},
   localSequence: 0,
@@ -320,6 +330,17 @@ function turnAnnouncement(terminal: string): string | undefined {
     }
   }
 }
+/** "Listening" when recording starts, "Stopped listening" when it ends. */
+function dictationAnnouncement(
+  previous: DictationUiStatus,
+  next: DictationUiStatus,
+): string | undefined {
+  if (next === 'listening' && previous !== 'listening') {
+    return UI_TEXT.announceListening
+  }
+  return next === 'idle' && previous === 'listening' ? UI_TEXT.announceStoppedListening : undefined
+}
+
 const TEXT_FIELD = 'text'
 const IN_PROGRESS = 'inProgress'
 const USER_MESSAGE_KIND = 'userMessage'
@@ -768,6 +789,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         ...state,
         usageReport: { backend: message.backend, subscription: message.subscription },
       }
+    }
+    case 'dictationState': {
+      return announce(
+        { ...state, dictation: { status: message.status, reason: message.reason } },
+        dictationAnnouncement(state.dictation.status, message.status),
+      )
     }
     case 'historyLoaded': {
       return announce(

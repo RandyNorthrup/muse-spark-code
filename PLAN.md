@@ -409,16 +409,16 @@ create/delete file watcher. Ranking is a deterministic fuzzy scorer
 
 ## 3. Open questions (need the owner)
 
-| #   | Question                                                                                                                                                                                                                                                                                                         | Default until answered                                            |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner holds both a Muse Code subscription (CLI signed in by device code) and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment).                              | Closed.                                                           |
-| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                       | Closed.                                                           |
-| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                       | M7 required; see §10.                                             |
-| Q4  | **Resolved 2026-09-22 (M8):** voice dictation is not shipped. The Web Speech API's `SpeechRecognition` fails with a `network` error inside Electron, which VS Code webviews run in (electron/electron#46143); a microphone button would be dead. Revisit when VS Code exposes its speech provider to extensions. | Closed; no mic button.                                            |
-| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                                                            | Decide at M4 with measured bundle sizes.                          |
-| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                                               | Detect and show "use Model API key" on Linux if `muse` is absent. |
-| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                          | Closed.                                                           |
-| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                                                   | Closed; PAT step deferred to M8.                                  |
+| #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                            |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner holds both a Muse Code subscription (CLI signed in by device code) and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment).                                                                                                                                                                                                                                                                                                                 | Closed.                                                           |
+| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                                                                                                                                                                                                                                                                                                          | Closed.                                                           |
+| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                                                                                                                                                                                                                                                                                                          | M7 required; see §10.                                             |
+| Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and a dimmed button with the reason on Linux (no distribution ships a recogniser; the owner may revisit). The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process. | Closed; see M9.                                                   |
+| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Decide at M4 with measured bundle sizes.                          |
+| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Detect and show "use Model API key" on Linux if `muse` is absent. |
+| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                           |
+| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                                                                                                                                                                                                                                                                                                                                      | Closed; PAT step deferred to M8.                                  |
 
 ## 4. Architecture
 
@@ -559,7 +559,9 @@ styles / Hooks / Permissions rules / Memory / Instructions / MCP / Remote
 Control entries (no MSP methods; Muse Code manages these in its own config),
 and the `!` shell prefix (not offered by the Claude Code extension either).
 Deferred, not dropped: the "N agents" pill (`subagent/*`, M4/M6), the
-open-file chip (M5), the microphone (M8, Q4).
+open-file chip (M5), the microphone (M9, Q4; Claude's is "Tap or hold to
+record Ctrl+D", recording in the CLI and transcribing on Anthropic's servers
+at no charge to the user; ours recognises on the machine).
 
 Parity mapping to MSP: model pill → `model/list` + `session/setModel`; effort
 → `session/setReasoningEffort`; permission mode → `session/setApprovalMode`;
@@ -1132,13 +1134,13 @@ owner's key).** Certification record: `docs/certification/m7.md`.
     Meta's mark), `homepage`, `bugs`, `vscode:prepublish` (production
     build), `.vscodeignore` reduced to the two bundles, the stylesheet, the
     icons, `package.json`, README, CHANGELOG, LICENSE and PRIVACY.
-  - Voice dictation (Q4): **not shipped.** VS Code webviews run in Electron,
-    where the Web Speech API's `SpeechRecognition` fails with a `network`
-    error because Chromium's cloud recognizer is not wired up
-    (electron/electron#46143, WebAudio/web-speech-api#80). A microphone
-    button would be dead for every user; there is no extension API for
-    dictation into a webview. Revisit if VS Code exposes its speech provider
-    to extensions.
+  - Voice dictation (Q4): **not shipped in M8** (superseded by M9 the same
+    day). VS Code webviews run in Electron, where the Web Speech API's
+    `SpeechRecognition` fails with a `network` error because Chromium's
+    cloud recognizer is not wired up (electron/electron#46143,
+    WebAudio/web-speech-api#80), and there is no extension API for
+    dictation into a webview. M9 moves recognition out of the webview into
+    a helper process on the OS recogniser.
   - Model API sessions still live for the window only (the "JSON session
     store" from the M7 polish note is deferred past 0.1.0: the owner runs
     the CLI backend, and the notice in the panel says so).
@@ -1147,6 +1149,93 @@ owner's key).** Certification record: `docs/certification/m7.md`.
   first turn, one "pong" turn (4 model attempts in the CLI's trace, login
   credential) was followed by `usage/changed` carrying `tier`, a 300-minute
   window and the weekly block, and `usage/read` then returned the same.
+
+### M9 — Voice dictation on the operating system's recogniser
+
+**Status 2026-09-22: built and certified on Windows against a synthesised
+recording; the owner's microphone check in the dev host and the macOS
+helper's first run are pending.** Certification record:
+`docs/certification/m9.md`.
+
+- **Goal**: Claude Code's microphone ("Tap or hold to record Ctrl+D")
+  under the owner's constraints of 2026-09-22: no API cost (Meta's Voice
+  Transcribe at $0.18/hour was rejected), no third-party packages or
+  engines (sherpa-onnx and friends rejected), no "random system shortcuts"
+  (driving Win+H / Apple Dictation from the button was rejected): the
+  button itself must produce text.
+- **Scope**: composer microphone with tap-to-toggle and hold-to-talk, Ctrl+D
+  (Cmd+D) in the composer, Space/Enter on the focused button; recognised
+  phrases inserted at the caret; "Listening…" / "Starting the microphone…"
+  placeholders, a pulsing red mic, live-region announcements; the button
+  dimmed with a reason where no recogniser exists; the PSScriptAnalyzer
+  gate; the macOS helper build and the CI package job.
+- **Design** (decided with the owner: Windows API, macOS Apple Speech
+  helper, Linux disabled for now):
+  - A resident helper process per conversation speaks one line protocol:
+    `start` / `stop` / `quit` in on stdin; `ready` (language, recogniser),
+    `listening`, `text`, `stopped`, `error` out as JSON lines. It stays
+    warm for `DICTATION_IDLE_EXIT_MS` (5 min) after a recording so the
+    next press listens in milliseconds (the engine takes about a second to
+    load), then quits; `dispose` kills it.
+  - **Windows**: `native/windows/dictate.ps1` under Windows PowerShell 5.1
+    (`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`,
+    `-NoProfile -NonInteractive -ExecutionPolicy Bypass -File`), on the
+    .NET Framework's `System.Speech` (`SpeechRecognitionEngine` +
+    `DictationGrammar`, `SetInputToDefaultAudioDevice`,
+    `RecognizeAsync(Multiple)`; `RecognizeAsyncStop` on "stop" keeps the
+    phrase in flight). The recogniser is picked for the display language,
+    then the locale, then the first installed. Events are polled from the
+    PowerShell event queue (no `-Action` blocks: those cannot run while the
+    pipeline is blocked in a .NET read), and stdin is read through
+    `Stream.ReadAsync` so the loop never blocks. `-InputWav <file>` replays
+    a recording instead of the microphone, for the certification run and
+    for the user's own diagnosis.
+  - **macOS**: `native/darwin/Dictation.swift` on `SFSpeechRecognizer` +
+    `AVAudioEngine`, on-device when the recogniser supports it for the
+    language, otherwise Apple's servers under Apple's terms (no charge).
+    Built by `native/darwin/build.sh` (universal binary, `Info.plist` with
+    the two usage descriptions embedded in `__info_plist`, ad-hoc signed)
+    in CI's `native-darwin` job; the `package` job ships it in the
+    `.vsix`. A package built elsewhere lacks the binary and the panel says
+    so. The binary is git-ignored.
+  - **Linux**: `locateDictationHelper` answers "unavailable" with the
+    reason; the button is dimmed with that as its title (not `disabled`,
+    so the tooltip still shows).
+  - **Host**: `Dictation` (`src/core/voice/dictation.ts`) is the pure
+    driver over an injected spawn (`HelperChild`), with the stop grace
+    (`DICTATION_STOP_GRACE_MS`, the helper is restarted if "stopped" never
+    comes), the idle exit and the unexpected-exit report (last stderr
+    line). `dictationHost.ts` adapts `child_process.spawn` (§8 row). The
+    controller creates one driver on the first press, posts
+    `dictationState` on `surfaceReady` and on every status change, inserts
+    each phrase as `insertText` with a trailing space, and reports helper
+    errors as a notice. The words never reach the log (character count
+    only).
+  - **Webview**: `dictationGesture.ts` holds the press/release maths
+    (`DICTATION_HOLD_MS` = 300: shorter is a tap that toggles, longer is
+    push-to-talk that stops on release); the composer applies it to
+    pointer, Ctrl+D (with key repeat ignored and the modifier's release
+    counting) and Space/Enter, listening for `pointerup` on the window so
+    a hold released off the button still stops. The press is
+    default-prevented so the caret stays in the textarea.
+- **Acceptance**: the sandbox replay of a synthesised WAV through the real
+  Windows recogniser yields `ready` in under a second, `listening`, a
+  `text` line and `stopped`, exit 0 (done: 827 ms, "Although settings file
+  in fix the bug" for "open the settings file and fix the bug", confidence
+  0.46, the classic engine's accuracy as warned to the owner); the owner
+  speaks into the dev host and the words land in the composer (pending);
+  the macOS helper compiles in CI and, on a Mac, prompts for the
+  microphone and speech recognition once and then transcribes (compile:
+  CI; run: pending, no Mac at hand).
+- **Gates added**: `lint:ps` (PSScriptAnalyzer, `PSGallery` settings,
+  exit = finding count; real on Windows, a reported skip elsewhere;
+  installed on the CI Windows runner in a step).
+- **Security**: the helper command line is fixed (§8 row); the script runs
+  with `-ExecutionPolicy Bypass` scoped to its own process, as the VS Code
+  PowerShell extension does; nothing about the audio or the text leaves
+  the machine on Windows; on macOS Apple may process audio on its servers
+  when on-device recognition is unavailable (`docs/PRIVACY.md`); the
+  helper never sees the workspace, a credential or the model.
 
 ## 7. Gates
 
@@ -1165,17 +1254,19 @@ owner's key).** Certification record: `docs/certification/m7.md`.
 | Dependency audit      | `npm audit --audit-level=high`                                                             | M0 ✓                                                                                                                    |
 | Secrets               | `gitleaks git --redact` (history) and `gitleaks protect --staged` (hook)                   | M0 ✓ (staged-scan proof; history scan after first commit)                                                               |
 | SAST                  | `semgrep scan --config auto --error` (`npm run security:sast`)                             | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. |
+| PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)     | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner).         |
 | Lighthouse            | n/a (webview, not a web page); replaced by webview profiler check in M4                    | —                                                                                                                       |
 
 ## 8. Escape hatches register
 
 Every suppression, cast, or ignored error must be listed here with its reason.
 
-| File                                 | Construct                                                          | Reason                                                                                                                                                                                                                     | Added      |
-| ------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                    | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                        | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`   | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host. | 2026-09-22 |
-| `src/core/backends/modelapi/glob.ts` | `nosemgrep` on `new RegExp(source)` (`detect-non-literal-regexp`)  | The expression is assembled from bounded pieces (`[^/]*`, `(?:.*/)?`, escaped literals) out of a glob capped at `GLOB_MAX_LENGTH`, and only ever tested against short relative paths.                                      | 2026-09-22 |
+| File                                 | Construct                                                          | Reason                                                                                                                                                                                                                                            | Added      |
+| ------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                    | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                                               | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`   | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                        | 2026-09-22 |
+| `src/core/backends/modelapi/glob.ts` | `nosemgrep` on `new RegExp(source)` (`detect-non-literal-regexp`)  | The expression is assembled from bounded pieces (`[^/]*`, `(?:.*/)?`, escaped literals) out of a glob capped at `GLOB_MAX_LENGTH`, and only ever tested against short relative paths.                                                             | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`    | `nosemgrep` on `spawn` (`detect-child-process`)                    | The dictation helper's command line is fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with the bundled script, or the bundled macOS binary) and passed as an argument array; no user, model or workspace input reaches it. | 2026-09-22 |
 
 ## 9. Security assumptions and accepted residual risk
 
@@ -1205,7 +1296,10 @@ README, CHANGELOG, PRIVACY current; no rows in §8 without a reason.
 **Status 2026-09-22:** M0–M8 certified (`docs/certification/m0.md` …
 `m8.md`); CI green on ubuntu, windows and macos; `npm run package` builds
 `muse-spark-code-0.1.0.vsix` and it installs into an isolated VS Code
-1.138.0 (`docs/certification/m8.md`). Still manual: `vsce publish` with the
-owner's Marketplace PAT (Q8), and the Model API path's live turn (the owner
-deleted the pay-as-you-go key on 2026-09-22; the fake-server contract tests
-stand).
+1.138.0 (`docs/certification/m8.md`). M9 (voice dictation) added the same
+day: certified on Windows against a synthesised recording
+(`docs/certification/m9.md`); the owner's microphone check in the dev host
+and the macOS helper's first run on a Mac are pending. Still manual: `vsce
+publish` with the owner's Marketplace PAT (Q8), and the Model API path's
+live turn (the owner deleted the pay-as-you-go key on 2026-09-22; the
+fake-server contract tests stand).

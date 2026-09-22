@@ -11,12 +11,15 @@ import {
   type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
   useEffect,
   useRef,
   useState,
 } from 'react'
 import {
   COMPOSER_MAX_ROWS,
+  DICTATION_KEY,
+  type DictationAction,
   PERMISSION_MODE_LABELS,
   type PermissionMode,
   UI_TEXT,
@@ -24,9 +27,10 @@ import {
 import { applyMention, type MentionQuery, mentionQueryAt } from '../../shared/mentions'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
 import { blobToBase64, parseUriList } from '../base64'
-import type { MentionResults } from '../state/uiState'
+import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
+import type { DictationUiState, MentionResults } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
-import { CloseIcon, FileIcon, PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
+import { CloseIcon, FileIcon, MicIcon, PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
 import { MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
 
@@ -53,6 +57,10 @@ export interface ComposerProps {
   readonly mentionResults: MentionResults | undefined
   /** The open-file chip ("PLAN.md L5-10"); undefined hides it (M5). */
   readonly editorContextLabel: string | undefined
+  /** The microphone button (M9). */
+  readonly dictation: DictationUiState
+  readonly now: () => number
+  readonly onDictation: (action: DictationAction) => void
   readonly onDismissEditorContext: () => void
   readonly onDraftChange: (draft: string) => void
   readonly onInsertApplied: () => void
@@ -108,6 +116,51 @@ function imageFiles(list: FileList | undefined): readonly File[] {
   return [...(list ?? [])].filter((file) => file.type.startsWith(IMAGE_TYPE_PREFIX))
 }
 
+/** Ctrl+D (Cmd+D on a Mac): the microphone from the keyboard. */
+function isDictationKey(event: KeyboardEvent<HTMLElement>): boolean {
+  return (
+    (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === DICTATION_KEY
+  )
+}
+
+/** The keys whose release ends a Ctrl+D hold: the letter or the modifier. */
+function isDictationRelease(event: KeyboardEvent<HTMLElement>): boolean {
+  return (
+    event.key.toLowerCase() === DICTATION_KEY || event.key === 'Control' || event.key === 'Meta'
+  )
+}
+
+const ACTIVATION_KEYS: ReadonlySet<string> = new Set([' ', 'Enter'])
+
+function dictationTitle(dictation: DictationUiState): string {
+  switch (dictation.status) {
+    case 'unavailable': {
+      return dictation.reason ?? UI_TEXT.dictationUnavailable
+    }
+    case 'idle': {
+      return UI_TEXT.dictationTitle
+    }
+    case 'starting':
+    case 'listening': {
+      return UI_TEXT.dictationStopTitle
+    }
+  }
+}
+
+function dictationPlaceholder(dictation: DictationUiState): string | undefined {
+  switch (dictation.status) {
+    case 'starting': {
+      return UI_TEXT.dictationStarting
+    }
+    case 'listening': {
+      return UI_TEXT.dictationListening
+    }
+    default: {
+      return undefined
+    }
+  }
+}
+
 export function Composer(props: ComposerProps) {
   const {
     draft,
@@ -124,6 +177,9 @@ export function Composer(props: ComposerProps) {
     attachments,
     mentionResults,
     editorContextLabel,
+    dictation,
+    now,
+    onDictation,
     onDismissEditorContext,
     onDraftChange,
     onInsertApplied,
@@ -146,6 +202,44 @@ export function Composer(props: ComposerProps) {
   const [dismissedMention, setDismissedMention] = useState<number | undefined>(undefined)
   const requestCounter = useRef(0)
   const [activeRequest, setActiveRequest] = useState<number | undefined>(undefined)
+  // The microphone press in progress (pointer, Space/Enter or Ctrl+D), so
+  // its release can tell a tap from a hold.
+  const dictationPress = useRef<DictationPress | undefined>(undefined)
+
+  const pressDictation = () => {
+    const action = pressAction(dictation.status)
+    if (action === undefined) {
+      return
+    }
+    dictationPress.current = { at: now(), action }
+    onDictation(action)
+  }
+  const releaseDictation = () => {
+    const action = releaseAction(dictationPress.current, now())
+    dictationPress.current = undefined
+    if (action !== undefined) {
+      onDictation(action)
+    }
+  }
+  const pressDictationWithPointer = (event: PointerEvent<HTMLButtonElement>) => {
+    // Keep the caret in the textarea: dictated text lands there, and Ctrl+D
+    // keeps working. (jsdom's generic event has no button; that reads as 0.)
+    event.preventDefault()
+    if (event.button > 0) {
+      return
+    }
+    pressDictation()
+  }
+  // A held button is released wherever the pointer went.
+  useEffect(() => {
+    const onPointerUp = () => {
+      releaseDictation()
+    }
+    window.addEventListener('pointerup', onPointerUp)
+    return () => {
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+  })
 
   const mention: MentionQuery | undefined = mentionQueryAt(draft, caret)
   const isMentionOpen = mention !== undefined && dismissedMention !== mention.start
@@ -252,6 +346,13 @@ export function Composer(props: ComposerProps) {
       event.preventDefault()
       return
     }
+    if (isDictationKey(event)) {
+      event.preventDefault()
+      if (!event.repeat) {
+        pressDictation()
+      }
+      return
+    }
     if (event.key === 'Tab' && event.shiftKey) {
       event.preventDefault()
       onCyclePermissionMode()
@@ -269,6 +370,30 @@ export function Composer(props: ComposerProps) {
     event.preventDefault()
     if (canSend) {
       onSubmit()
+    }
+  }
+
+  const handleKeyUp = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    syncCaret()
+    if (isDictationRelease(event)) {
+      releaseDictation()
+    }
+  }
+
+  const handleMicKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!ACTIVATION_KEYS.has(event.key)) {
+      return
+    }
+    // Space/Enter would also click; the press/release pair replaces it.
+    event.preventDefault()
+    if (!event.repeat) {
+      pressDictation()
+    }
+  }
+
+  const handleMicKeyUp = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (ACTIVATION_KEYS.has(event.key)) {
+      releaseDictation()
     }
   }
 
@@ -328,7 +453,10 @@ export function Composer(props: ComposerProps) {
         aria-activedescendant={
           isMentionOpen && mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
         }
-        placeholder={isRunning ? UI_TEXT.composerQueuePlaceholder : placeholder}
+        placeholder={
+          dictationPlaceholder(dictation) ??
+          (isRunning ? UI_TEXT.composerQueuePlaceholder : placeholder)
+        }
         rows={rowsFor(draft)}
         value={draft}
         onChange={(event) => {
@@ -336,7 +464,7 @@ export function Composer(props: ComposerProps) {
           setCaret(event.target.selectionStart)
         }}
         onKeyDown={handleKeyDown}
-        onKeyUp={syncCaret}
+        onKeyUp={handleKeyUp}
         onClick={syncCaret}
         onPaste={handlePaste}
         onFocus={() => {
@@ -411,6 +539,19 @@ export function Composer(props: ComposerProps) {
           >
             {modeIcon(permissionMode)}
             <span>{PERMISSION_MODE_LABELS[permissionMode]}</span>
+          </button>
+          <button
+            type="button"
+            className={`icon-button mic-button mic-${dictation.status}`}
+            title={dictationTitle(dictation)}
+            aria-label={UI_TEXT.dictationLabel}
+            aria-pressed={dictation.status === 'listening' || dictation.status === 'starting'}
+            aria-disabled={dictation.status === 'unavailable' || undefined}
+            onPointerDown={pressDictationWithPointer}
+            onKeyDown={handleMicKeyDown}
+            onKeyUp={handleMicKeyUp}
+          >
+            <MicIcon />
           </button>
           {isRunning ? (
             <button

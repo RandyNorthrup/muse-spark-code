@@ -939,3 +939,27 @@ describe('uiReducer: session history (M6)', () => {
     expect(forkCutBefore(state.transcript, 'm1')).toBeUndefined()
   })
 })
+
+describe('uiReducer: voice dictation (M9)', () => {
+  it('starts idle, follows the host, and announces listening and its end', () => {
+    expect(initialUiState.dictation).toEqual({ status: 'idle', reason: undefined })
+    const starting = reduceAll([host({ type: 'dictationState', status: 'starting' })])
+    expect(starting.dictation).toEqual({ status: 'starting', reason: undefined })
+    expect(starting.announcement).toBeUndefined()
+    const listening = uiReducer(starting, host({ type: 'dictationState', status: 'listening' }))
+    expect(listening.announcement).toEqual({ text: 'Listening', sequence: 1 })
+    const again = uiReducer(listening, host({ type: 'dictationState', status: 'listening' }))
+    expect(again.announcement?.sequence).toBe(1)
+    const stopped = uiReducer(again, host({ type: 'dictationState', status: 'idle' }))
+    expect(stopped.announcement).toEqual({ text: 'Stopped listening', sequence: 2 })
+    const cancelled = uiReducer(starting, host({ type: 'dictationState', status: 'idle' }))
+    expect(cancelled.announcement).toBeUndefined()
+  })
+
+  it('keeps the reason for an unavailable microphone', () => {
+    const state = reduceAll([
+      host({ type: 'dictationState', status: 'unavailable', reason: 'No recogniser on Linux.' }),
+    ])
+    expect(state.dictation).toEqual({ status: 'unavailable', reason: 'No recogniser on Linux.' })
+  })
+})

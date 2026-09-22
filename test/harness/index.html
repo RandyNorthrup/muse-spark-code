@@ -458,6 +458,18 @@
               )
               break
             }
+            // --- Voice dictation (M9): the harness "listens" for a moment, then
+            // hands back a phrase, as the Windows helper would.
+            case 'dictation': {
+              if (message.action === 'start') {
+                send({ type: 'dictationState', status: 'starting' })
+                later(40, () => send({ type: 'dictationState', status: 'listening' }))
+                break
+              }
+              send({ type: 'dictationState', status: 'idle' })
+              later(40, () => send({ type: 'insertText', text: 'open the settings file ' }))
+              break
+            }
             // --- Account & usage (M8) ---
             case 'readUsage': {
               later(40, () =>
@@ -936,6 +948,15 @@
             const filter = document.querySelector('.palette-filter')
             setValue(filter, HTMLInputElement.prototype, 'eff')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+          })
+        },
+        // Voice dictation (M9): a tap on the microphone, caught mid-listen.
+        dictation: () => {
+          textarea().focus()
+          later(300, () => {
+            document
+              .querySelector('button[aria-label="Record voice"]')
+              .dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }))
           })
         },
         usage: () => {

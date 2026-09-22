@@ -19,7 +19,9 @@ picker, permission modes, streaming markdown, diff review, and session history.
 > resume with the full transcript), the sidebar picks its last conversation
 > back up within ten minutes, and a hidden panel shows a dot when Muse needs
 > you. **Account & usage** (`/usage`) shows your subscription's current and
-> weekly windows and this conversation's tokens. On Windows the panel offers
+> weekly windows and this conversation's tokens. The microphone (or
+> `Ctrl+D`) dictates into the composer through the operating system's own
+> recogniser on Windows and macOS, at no cost. On Windows the panel offers
 > Muse Code's one-time shell-sandbox setup itself (one administrator
 > prompt). See [`PLAN.md`](PLAN.md) for the milestone plan and the research
 > behind it, and [`docs/PRIVACY.md`](docs/PRIVACY.md) for what leaves your
@@ -134,6 +136,7 @@ offers the **Muse Spark:** commands listed below.
 | Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on)                                                                        |
 | Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
 | Muse Spark: Set Up Shell Sandbox           | —                                                                  | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
+| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                  | Tap to start or stop voice dictation, hold to record while held (see Voice dictation below)                                                               |
 
 In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
 `museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
@@ -320,13 +323,36 @@ a dialog under the header:
   key at pay-as-you-go rates and counted on the dev.meta.ai dashboard, which
   **Open dev.meta.ai** opens.
 
-Voice dictation is not offered: VS Code webviews run in Electron, where the
-Web Speech API's recognizer fails with a `network` error, so a microphone
-button would never work (PLAN.md Q4).
-
 Screen readers hear the panel's state changes through a polite live region:
 finished, failed and stopped turns, approval cards (with the tool),
 questions, resumes, warnings and errors.
+
+## Voice dictation
+
+The microphone in the composer ("Tap or hold to record (Ctrl+D)") types what
+you say at the caret. A tap starts listening and a second tap stops; holding
+the button (or `Ctrl+D` / `Cmd+D` in the composer, or Space on the focused
+button) records while held and stops on release. The placeholder reads
+"Listening…" and the mic pulses red while recording; each recognised phrase
+lands in the composer followed by a space. Nothing is billed and no
+third-party engine is involved: recognition runs on the operating system's
+own recogniser in a small helper process that the extension keeps warm for
+five minutes after a recording.
+
+| Platform | How                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech` (the desktop recogniser that ships with Windows; English is always installed, other languages come with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing.                                                                                            |
+| macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace `.vsix`. macOS asks once for the microphone and for speech recognition. Recognition is on the device when Apple supports it for your language; otherwise Apple's servers transcribe under Apple's terms, at no charge. A `.vsix` built on Windows or Linux has no helper and the button says so. |
+| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                                                    |
+
+Troubleshooting on Windows: the helper can replay a WAV file instead of the
+microphone, which separates a recogniser problem from a microphone one:
+
+```powershell
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File native\windows\dictate.ps1 -InputWav C:\path\to\speech.wav
+```
+
+Type `start` and press Enter; the phrases print as JSON lines, then `stopped`.
 
 ## Settings
 
@@ -420,7 +446,9 @@ src/webview/                React app (own tsconfig, browser libs)
 test/unit/                  vitest tests, vscode mock, fakes
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    workspace opened by the integration run
-scripts/                    esbuild build, bundle-size gate
+scripts/                    esbuild build, bundle-size gate, PSScriptAnalyzer gate
+native/windows/             dictate.ps1: the Windows dictation helper (System.Speech)
+native/darwin/              Dictation.swift + build.sh: the macOS helper (built in CI)
 docs/certification/         per-milestone gate-fire records
 media/                      activity-bar icon
 ```
@@ -438,7 +466,11 @@ management page) and needs `npx vsce login RandyNorthrup` with a
 Marketplace-manage PAT, then `npx vsce publish --no-dependencies`. CI
 (`.github/workflows/ci.yml`) runs the quality gates on Ubuntu, Windows and
 macOS, integration tests under xvfb on Ubuntu, gitleaks over full history,
-and semgrep.
+semgrep, a `native-darwin` job that compiles the macOS dictation helper,
+and a `package` job that downloads that helper and uploads the complete
+`.vsix` as the `muse-spark-code-vsix` artifact. Publish from that artifact
+(`npx vsce publish --packagePath <file>.vsix`), not from a Windows or Linux
+`npm run package`, or Mac users get a panel without a microphone.
 
 ## Security
 

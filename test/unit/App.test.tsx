@@ -918,3 +918,16 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(sentence.parentElement).toHaveClass('sr-only')
   })
 })
+
+describe('App: voice dictation (M9)', () => {
+  it('posts the microphone press and reflects the host state', () => {
+    const postMessage = renderReady()
+    fireEvent.pointerDown(screen.getByLabelText('Record voice'))
+    expect(postMessage).toHaveBeenCalledWith({ type: 'dictation', action: 'start' })
+    deliver({ type: 'dictationState', status: 'listening' })
+    expect(screen.getByLabelText('Record voice')).toHaveAttribute('aria-pressed', 'true')
+    expect(textarea()).toHaveAttribute('placeholder', 'Listening…')
+    deliver({ type: 'insertText', text: 'fix the bug ' })
+    expect(textarea()).toHaveValue('fix the bug ')
+  })
+})

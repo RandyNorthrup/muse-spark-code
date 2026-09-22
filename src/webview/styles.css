@@ -1593,3 +1593,30 @@ body {
   overflow: hidden;
   white-space: nowrap;
 }
+
+/* --- Voice dictation: the microphone button (M9) --- */
+
+/* The recording states tint the mic; the pulse says "live" without motion
+   heavy enough to distract. Unavailable is dimmed, not disabled, so the
+   title (the reason) still shows on hover. */
+.mic-button.mic-starting,
+.mic-button.mic-listening {
+  color: var(--vscode-charts-red, var(--vscode-errorForeground));
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.mic-button.mic-listening {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.mic-button[aria-disabled='true'] {
+  color: var(--vscode-disabledForeground);
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-button.mic-starting,
+  .mic-button.mic-listening {
+    animation: none;
+  }
+}

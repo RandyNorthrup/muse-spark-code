@@ -200,6 +200,15 @@ export function ImageIcon(props: IconProps) {
   )
 }
 
+export function MicIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5.75" y="1.75" width="4.5" height="8" rx="2.25" />
+      <path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.25M5.75 14.25h4.5" />
+    </Svg>
+  )
+}
+
 export function CloseIcon(props: IconProps) {
   return (
     <Svg {...props}>

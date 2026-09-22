@@ -5,6 +5,8 @@
 !dist/webview/main.css
 !media/icon.svg
 !media/icon.png
+!native/windows/dictate.ps1
+!native/darwin/muse-dictate
 !package.json
 !README.md
 !CHANGELOG.md

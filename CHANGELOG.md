@@ -7,7 +7,24 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Milestone M9, voice dictation: a microphone in the composer ("Tap or
+  hold to record (Ctrl+D)", the Claude Code gesture: tap toggles, hold
+  records while held; `Ctrl+D` / `Cmd+D` in the composer and Space/Enter on
+  the button do the same) that types recognised phrases at the caret, with
+  "Starting the microphone…" / "Listening…" placeholders, a pulsing red
+  mic, live-region announcements and a Getting-started tip. Recognition
+  runs on the operating system's own engine in a helper process the
+  extension keeps warm for five minutes: `native/windows/dictate.ps1`
+  under Windows PowerShell 5.1 on `System.Speech` (verified 2026-09-22
+  against a synthesised recording through the real Windows recogniser), and
+  `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework
+  compiled by CI's new `native-darwin` job and shipped by the new `package`
+  job's `.vsix` artifact. On Linux, and in a `.vsix` built without the
+  macOS helper, the button is dimmed with the reason as its tooltip. No API
+  cost, no third-party code, nothing sent to Meta. Gates: `lint:ps`
+  (PSScriptAnalyzer over the helper script, real on Windows).
 
 ## [0.1.0] - 2026-09-22
 

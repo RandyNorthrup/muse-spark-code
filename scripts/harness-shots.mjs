@@ -43,6 +43,7 @@ const SCENARIOS = [
   'resume',
   'narrow',
   'usage',
+  'dictation',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'

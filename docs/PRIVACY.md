@@ -27,9 +27,21 @@ security notes for contributors are in `PLAN.md` §9.
   conversation before using one, and refuses them entirely when the
   `museSpark.confidentialWorkspace` setting is on.
 
+- **Voice dictation** never sends audio to Meta or to this extension's
+  author. On Windows, speech is recognised by the recogniser built into
+  Windows (`System.Speech`), on your machine, and the audio never leaves
+  it. On macOS, Apple's Speech framework recognises on the device when
+  Apple supports that for your language; otherwise Apple's servers
+  transcribe the audio under Apple's privacy terms. The microphone is only
+  open while the button is held or on ("Listening…"), and the recognised
+  words go into the composer, where you can edit or delete them before
+  anything is sent. The words are not logged (the log records only a
+  character count).
+
 The extension itself has **no telemetry**, no analytics, no crash reporting
-and no server of its own. It never contacts any host other than Meta's, and
-only when you send a message or sign in.
+and no server of its own. It never contacts any host other than Meta's (and,
+on macOS, Apple's for dictation as described above), and only when you send
+a message, sign in or dictate.
 
 ## Credentials
 

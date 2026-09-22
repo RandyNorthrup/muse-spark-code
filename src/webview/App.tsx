@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
 import {
+  type DictationAction,
   type EffortLevel,
   PERMISSION_MODE_DETAILS,
   PERMISSION_MODE_LABELS,
@@ -172,6 +173,12 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
   const onStop = useCallback(() => {
     postMessage({ type: 'cancelTurn' })
   }, [postMessage])
+  const onDictation = useCallback(
+    (action: DictationAction) => {
+      postMessage({ type: 'dictation', action })
+    },
+    [postMessage],
+  )
   const onSignIn = useCallback(
     (method: SignInMethod) => {
       postMessage({ type: 'signIn', method })
@@ -725,6 +732,9 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
           editorContextLabel={
             editorContext === undefined ? undefined : editorContextLabel(editorContext)
           }
+          dictation={state.dictation}
+          now={now}
+          onDictation={onDictation}
           onDismissEditorContext={onDismissEditorContext}
           onDraftChange={onDraftChange}
           onInsertApplied={onInsertApplied}

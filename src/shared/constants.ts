@@ -419,7 +419,33 @@ export const ONBOARDING_TIPS = [
   { shortcut: 'Alt+K', text: 'inserts an @-mention of the editor selection' },
   { shortcut: '@', text: 'mentions a file; drag files or paste images to attach them' },
   { shortcut: 'Ctrl+Shift+Esc', text: 'opens a conversation in a new editor tab' },
+  {
+    shortcut: 'Ctrl+D',
+    text: 'records your voice into the composer (tap to toggle, hold to talk)',
+  },
 ] as const
+// Voice dictation (M9). The composer's microphone drives a resident helper
+// that uses the operating system's own recogniser: Windows PowerShell 5.1 +
+// System.Speech on Windows, a Swift helper on Apple's Speech framework on
+// macOS. Linux has no built-in recogniser, so the button explains itself.
+export const DICTATION_HELPER_DIR = 'native'
+export const DICTATION_WINDOWS_SCRIPT_SEGMENTS = ['windows', 'dictate.ps1'] as const
+export const DICTATION_DARWIN_HELPER_SEGMENTS = ['darwin', 'muse-dictate'] as const
+export const DICTATION_HELPER_COMMANDS = { start: 'start', stop: 'stop', quit: 'quit' } as const
+/** A press shorter than this is a tap (toggle); longer is push-to-talk. */
+export const DICTATION_HOLD_MS = 300
+export const DICTATION_KEY = 'd'
+/** After "stop", the helper has this long to deliver the phrase in flight. */
+export const DICTATION_STOP_GRACE_MS = 4000
+/** How long an unused helper stays warm before it is told to quit. */
+export const DICTATION_IDLE_EXIT_MS = 5 * 60 * 1000
+/** After "quit", the helper has this long to exit before it is killed. */
+export const DICTATION_QUIT_GRACE_MS = 2000
+export const DICTATION_STDERR_TAIL_CHARS = 400
+export const DICTATION_ACTIONS = ['start', 'stop'] as const
+export type DictationAction = (typeof DICTATION_ACTIONS)[number]
+export const DICTATION_UI_STATUSES = ['unavailable', 'idle', 'starting', 'listening'] as const
+export type DictationUiStatus = (typeof DICTATION_UI_STATUSES)[number]
 export const MUSE_LOGIN_ARGS = ['login'] as const
 export const MUSE_LOGOUT_ARGS = ['logout'] as const
 export const MUSE_LOGIN_TERMINAL_NAME = 'Muse Code sign-in'
@@ -702,6 +728,23 @@ export const UI_TEXT = {
   announceApproval: 'Approval needed for',
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
+  // Voice dictation (M9).
+  dictationTitle: 'Tap or hold to record (Ctrl+D)',
+  dictationStopTitle: 'Stop recording (Ctrl+D)',
+  dictationLabel: 'Record voice',
+  dictationStarting: 'Starting the microphone…',
+  dictationListening: 'Listening…',
+  dictationFailed: 'Voice dictation failed',
+  dictationHelperExited: 'The dictation helper exited',
+  dictationUnavailable: 'Voice dictation is not available on this platform.',
+  dictationUnavailableLinux:
+    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine.',
+  dictationUnavailableWindows:
+    'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
+  dictationUnavailableDarwin:
+    'Voice dictation needs the macOS helper (native/darwin/muse-dictate), which this build does not include.',
+  announceListening: 'Listening',
+  announceStoppedListening: 'Stopped listening',
   // Model API backend (M7).
   allowOnce: 'Allow once',
   allowSessionPrefix: 'Always allow in this session:',

@@ -13,7 +13,13 @@ import {
   requirementRefSchema,
   todoItemSchema,
 } from './agentEvents'
-import { EFFORT_LEVELS, PERMISSION_MODES, PREFERRED_LOCATIONS } from './constants'
+import {
+  DICTATION_ACTIONS,
+  DICTATION_UI_STATUSES,
+  EFFORT_LEVELS,
+  PERMISSION_MODES,
+  PREFERRED_LOCATIONS,
+} from './constants'
 import { sessionRowSchema } from './sessions'
 import { subscriptionUsageSchema } from './usage'
 
@@ -213,6 +219,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('renameSession'), name: z.string() }),
   // Account & usage (M8): ask for the subscription window; answered by usageReport.
   z.object({ type: z.literal('readUsage') }),
+  // Voice dictation (M9): the microphone button / Ctrl+D. Recognised text
+  // comes back as `insertText`; the button state as `dictationState`.
+  z.object({ type: z.literal('dictation'), action: z.enum(DICTATION_ACTIONS) }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -274,6 +283,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('usageReport'),
     backend: z.enum(BACKEND_KINDS),
     subscription: z.optional(subscriptionUsageSchema),
+  }),
+  // Voice dictation (M9): sent on surfaceReady and on every change. `reason`
+  // explains an unavailable microphone (no built-in recogniser here).
+  z.object({
+    type: z.literal('dictationState'),
+    status: z.enum(DICTATION_UI_STATUSES),
+    reason: z.optional(z.string()),
   }),
   // The host accepted a sendMessage and the turn is running.
   z.object({ type: z.literal('turnAccepted'), localId: z.string(), turnId: z.string() }),

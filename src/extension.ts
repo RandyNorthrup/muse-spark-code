@@ -38,6 +38,7 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvi
 import { openChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
+import { createDictationSetup } from './host/voice/dictationHost'
 import {
   BACKEND_SETTING,
   HAS_APPROVAL_UI,
@@ -46,6 +47,7 @@ import {
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
+  DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
   GIT_OUTPUT_MAX_BYTES,
   GLOBAL_STATE_KEYS,
@@ -233,6 +235,15 @@ export function activate(context: vscode.ExtensionContext): void {
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
 
   const credentials = new CredentialStore(context.secrets)
+  // Voice dictation (M9): the OS recogniser behind the composer's microphone.
+  const dictation = createDictationSetup(
+    {
+      platform: process.platform,
+      systemRoot: process.env['SystemRoot'],
+      helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+    },
+    log,
+  )
   const backend = new MuseCodeBackendManager({
     log,
     extensionVersion: version,
@@ -544,6 +555,7 @@ export function activate(context: vscode.ExtensionContext): void {
         // Only the sidebar reopens on its last session; a tab is a new
         // conversation by construction (M6).
         isRestorable: surface.id === SIDEBAR_SURFACE_ID,
+        dictation,
         now: () => Date.now(),
         log,
       })
