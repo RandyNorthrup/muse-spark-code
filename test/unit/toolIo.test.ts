@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -64,7 +65,9 @@ describe('createToolIo (real file system and shell)', () => {
     expect(result.isTimedOut).toBe(false)
     const lines = result.stdout.trim().split(/\r?\n/)
     expect(lines[0]).toBe('ok')
-    expect(path.resolve(lines[1] ?? '')).toBe(path.resolve(root))
+    // Canonical on both sides: macOS temp dirs sit behind /private symlinks
+    // and Windows runners hand out 8.3 short names for the temp folder.
+    expect(realpathSync.native(lines[1] ?? '')).toBe(realpathSync.native(root))
     const failing = await io().runShell(
       process.platform === 'win32' ? 'exit 3' : 'exit 3',
       root,
