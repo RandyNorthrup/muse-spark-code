@@ -62,7 +62,6 @@ export interface MentionResults {
 
 export interface UiState {
   readonly phase: 'connecting' | 'ready'
-  readonly extensionVersion: string
   readonly emptyStateHint: string
   readonly composerPlaceholder: string
   readonly settings: SettingsSnapshot | undefined
@@ -102,7 +101,6 @@ export type UiAction =
 
 export const initialUiState: UiState = {
   phase: 'connecting',
-  extensionVersion: '',
   emptyStateHint: '',
   composerPlaceholder: '',
   settings: undefined,
@@ -251,7 +249,6 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage): UiStat
       return {
         ...state,
         phase: 'ready',
-        extensionVersion: message.extensionVersion,
         emptyStateHint: message.emptyStateHint,
         composerPlaceholder: message.composerPlaceholder,
         settings: message.settings,

@@ -12,7 +12,6 @@ import { testSettings } from './helpers/fakes'
 
 const init: HostToWebviewMessage = {
   type: 'init',
-  extensionVersion: '1.0.0',
   emptyStateHint: 'hint',
   composerPlaceholder: 'placeholder',
   settings: testSettings,

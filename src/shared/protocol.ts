@@ -95,8 +95,6 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // The composer gained or lost keyboard focus; drives the
   // `museSpark.inputFocused` context key behind Ctrl+Esc.
   z.object({ type: z.literal('inputFocusChanged'), focused: z.boolean() }),
-  // Header "new conversation" button: open another editor-tab surface.
-  z.object({ type: z.literal('openNewTab') }),
   // The user pressed Send. `localId` lets the host confirm or reject the
   // optimistic echo the webview already rendered; `attachmentIds` name the
   // images the host is holding for this message.
@@ -150,7 +148,6 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
     type: z.literal('init'),
-    extensionVersion: z.string(),
     emptyStateHint: z.string(),
     composerPlaceholder: z.string(),
     settings: settingsSnapshotSchema,

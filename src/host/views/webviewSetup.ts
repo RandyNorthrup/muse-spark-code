@@ -21,16 +21,14 @@ import type { Logger } from '../logger'
 /** Messages about the conversation itself, routed to the surface's controller. */
 export type ConversationMessage = Exclude<
   WebviewToHostMessage,
-  { type: 'ready' } | { type: 'inputFocusChanged' } | { type: 'openNewTab' }
+  { type: 'ready' } | { type: 'inputFocusChanged' }
 >
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
-  readonly extensionVersion: string
   readonly log: Logger
   readonly getSettings: () => SettingsSnapshot
   readonly onInputFocusChanged: (surface: ChatSurface, isFocused: boolean) => void
-  readonly onOpenNewTab: () => void
   /** The webview mounted and received `init`; push the conversation state. */
   readonly onSurfaceReady: (surface: ChatSurface) => void
   readonly onConversationMessage: (surface: ChatSurface, message: ConversationMessage) => void
@@ -52,7 +50,6 @@ export interface SurfaceOptions {
 function buildInitMessage(context: WebviewHostContext): HostToWebviewMessage {
   return {
     type: 'init',
-    extensionVersion: context.extensionVersion,
     emptyStateHint: UI_TEXT.emptyStateHint,
     composerPlaceholder: UI_TEXT.composerPlaceholder,
     settings: context.getSettings(),
@@ -106,10 +103,6 @@ export function configureWebview(
       }
       case 'inputFocusChanged': {
         context.onInputFocusChanged(surface, message.focused)
-        break
-      }
-      case 'openNewTab': {
-        context.onOpenNewTab()
         break
       }
       default: {

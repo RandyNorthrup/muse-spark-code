@@ -21,3 +21,5 @@ Thumbs.db
 
 # Temporary files
 temp/
+# Headless-Chrome screenshots from scripts/harness-shots.mjs
+harness-shots/

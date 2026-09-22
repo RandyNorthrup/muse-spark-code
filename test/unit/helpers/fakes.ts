@@ -112,7 +112,6 @@ export const testSettings: SettingsSnapshot = {
 export interface FakeHostContext extends WebviewHostContext {
   readonly log: FakeLogOutputChannel
   readonly onInputFocusChanged: ReturnType<typeof vi.fn<WebviewHostContext['onInputFocusChanged']>>
-  readonly onOpenNewTab: ReturnType<typeof vi.fn<() => void>>
   readonly onSurfaceReady: ReturnType<typeof vi.fn<WebviewHostContext['onSurfaceReady']>>
   readonly onConversationMessage: ReturnType<
     typeof vi.fn<WebviewHostContext['onConversationMessage']>
@@ -122,11 +121,9 @@ export interface FakeHostContext extends WebviewHostContext {
 export function fakeHostContext(settings: SettingsSnapshot = testSettings): FakeHostContext {
   return {
     extensionUri: Uri.file('/ext'),
-    extensionVersion: '1.2.3',
     log: new FakeLogOutputChannel(),
     getSettings: () => settings,
     onInputFocusChanged: vi.fn<WebviewHostContext['onInputFocusChanged']>(),
-    onOpenNewTab: vi.fn<() => void>(),
     onSurfaceReady: vi.fn<WebviewHostContext['onSurfaceReady']>(),
     onConversationMessage: vi.fn<WebviewHostContext['onConversationMessage']>(),
   }

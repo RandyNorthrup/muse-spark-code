@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Muse Spark webview harness</title>
+    <!--
+      Loads the built webview bundle behind a scripted fake host so the UI can
+      be exercised in an ordinary browser (see scripts/harness-shots.mjs).
+      Served from the repository root; run `npm run build:dev` first.
+      The colour variables approximate VS Code's light theme; the harness
+      verifies layout and behaviour, not theming.
+    -->
+    <link rel="stylesheet" href="../../dist/webview/main.css" />
+    <style>
+      :root {
+        --vscode-foreground: #3b3b3b;
+        --vscode-descriptionForeground: #717171;
+        --vscode-disabledForeground: #a0a0a0;
+        --vscode-errorForeground: #f14c4c;
+        --vscode-font-family: 'Segoe UI', sans-serif;
+        --vscode-font-size: 13px;
+        --vscode-editor-font-family: Consolas, monospace;
+        --vscode-sideBar-background: #f8f8f8;
+        --vscode-panel-border: #e5e5e5;
+        --vscode-badge-foreground: #3b3b3b;
+        --vscode-badge-background: #e8e8e8;
+        --vscode-button-foreground: #ffffff;
+        --vscode-button-background: #005fb8;
+        --vscode-button-hoverBackground: #0258a8;
+        --vscode-button-secondaryForeground: #3b3b3b;
+        --vscode-button-secondaryBackground: #e5e5e5;
+        --vscode-input-foreground: #3b3b3b;
+        --vscode-input-background: #ffffff;
+        --vscode-input-border: #cecece;
+        --vscode-input-placeholderForeground: #767676;
+        --vscode-focusBorder: #005fb8;
+        --vscode-toolbar-hoverBackground: #e8e8e8;
+        --vscode-editorWidget-background: #f8f8f8;
+        --vscode-editorWidget-border: #c8c8c8;
+        --vscode-widget-shadow: rgba(0, 0, 0, 0.16);
+        --vscode-list-activeSelectionBackground: #e8e8e8;
+        --vscode-list-activeSelectionForeground: #000000;
+        --vscode-checkbox-border: #cecece;
+      }
+
+      html,
+      body {
+        width: 690px;
+      }
+    </style>
+    <script>
+      // The fake host: answers the webview the way the extension would.
+      const send = (message) => {
+        window.postMessage(message, '*')
+      }
+      const later = (ms, fn) => setTimeout(fn, ms)
+      const files = [
+        'src/extension.ts',
+        'src/webview/App.tsx',
+        'src/webview/components/Composer.tsx',
+        'src/shared/protocol.ts',
+        'src/host/settings.ts',
+        'README.md',
+        'PLAN.md',
+      ]
+      const settings = {
+        preferredLocation: 'panel',
+        initialPermissionMode: 'manual',
+        autosave: true,
+        attachOpenFile: true,
+        useCtrlEnterToSend: false,
+        hideOnboarding: false,
+        focusView: false,
+        respectGitIgnore: true,
+        confidentialWorkspace: false,
+      }
+      const models = [
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'muse-spark-1.3',
+          contextLimit: 1007997,
+          isDefault: false,
+        },
+        {
+          modelId: 'muse-spark-1.2',
+          displayLabel: 'muse-spark-1.2',
+          contextLimit: 1007997,
+          isDefault: false,
+        },
+      ]
+      const skills = [
+        {
+          selector: 'fix-bug',
+          displayName: 'Fix bug',
+          description: 'Fix the bug described in the prompt',
+        },
+        {
+          selector: 'acme:deploy',
+          displayName: 'Deploy',
+          description: 'Deploy to an environment',
+          argumentHint: '<env>',
+        },
+      ]
+      const attachment = (name, mediaType) => ({
+        id: `att-${String(Date.now())}-${String(Math.random())}`,
+        name,
+        mediaType,
+        width: 686,
+        height: 695,
+        sizeBytes: 12345,
+      })
+      let composer = { effort: 'high', isThinkingEnabled: true, permissionMode: 'manual' }
+      let turn = 0
+      const outbox = []
+      window.harnessOutbox = outbox
+      window.acquireVsCodeApi = () => ({
+        getState: () => undefined,
+        setState: () => undefined,
+        postMessage: (message) => {
+          outbox.push(message)
+          document.title = `harness: ${message.type}`
+          switch (message.type) {
+            case 'ready': {
+              send({
+                type: 'init',
+                extensionVersion: '0.0.0-harness',
+                emptyStateHint: 'Type /model to pick the right tool for the job.',
+                composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
+                settings,
+              })
+              send({ type: 'authState', status: 'signedIn' })
+              send({ type: 'composerState', ...composer })
+              send({ type: 'modelList', models })
+              send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1007997 })
+              break
+            }
+            case 'listSkills': {
+              later(50, () => send({ type: 'skillList', skills }))
+              break
+            }
+            case 'searchMentions': {
+              const query = message.query.toLowerCase()
+              const items = files
+                .filter((file) => file.toLowerCase().includes(query))
+                .map((path) => ({ path, isFolder: false }))
+              later(30, () => send({ type: 'mentionResults', requestId: message.requestId, items }))
+              break
+            }
+            case 'attachImageData': {
+              later(20, () =>
+                send({
+                  type: 'attachmentAdded',
+                  attachment: attachment(message.name, message.mediaType),
+                }),
+              )
+              break
+            }
+            case 'pickFile': {
+              later(20, () =>
+                send({ type: 'attachmentAdded', attachment: attachment('image.png', 'image/png') }),
+              )
+              break
+            }
+            case 'setModel': {
+              send({ type: 'sessionInfo', modelId: message.modelId, contextLimit: 1007997 })
+              break
+            }
+            case 'setEffort': {
+              composer = { ...composer, effort: message.effort }
+              send({ type: 'composerState', ...composer })
+              break
+            }
+            case 'setThinking': {
+              composer = { ...composer, isThinkingEnabled: message.enabled }
+              send({ type: 'composerState', ...composer })
+              break
+            }
+            case 'setPermissionMode': {
+              composer = { ...composer, permissionMode: message.mode }
+              send({ type: 'composerState', ...composer })
+              break
+            }
+            case 'sendMessage': {
+              turn += 1
+              const turnId = `t${String(turn)}`
+              const itemId = `m${String(turn)}`
+              send({ type: 'turnAccepted', localId: message.localId, turnId })
+              send({ type: 'agentEvent', event: { type: 'turnStarted', turnId } })
+              send({
+                type: 'agentEvent',
+                event: { type: 'itemStarted', itemId, kind: 'agentMessage', turnId },
+              })
+              later(300, () =>
+                send({
+                  type: 'agentEvent',
+                  event: {
+                    type: 'textDelta',
+                    itemId,
+                    field: 'text',
+                    delta: `Echo: ${message.text} (${String(message.attachmentIds.length)} image(s))`,
+                  },
+                }),
+              )
+              later(4000, () => {
+                send({
+                  type: 'agentEvent',
+                  event: {
+                    type: 'itemCompleted',
+                    itemId,
+                    kind: 'agentMessage',
+                    status: 'completed',
+                  },
+                })
+                send({
+                  type: 'agentEvent',
+                  event: { type: 'turnCompleted', turnId, terminal: 'completed' },
+                })
+              })
+              break
+            }
+            default: {
+              break
+            }
+          }
+        },
+      })
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="../../dist/webview/main.js"></script>
+    <script>
+      // `?scenario=<name>` drives the UI without a human, for headless shots.
+      const scenario = new URLSearchParams(location.search).get('scenario')
+      const textarea = () => document.querySelector('textarea')
+      const setValue = (element, prototype, text) => {
+        const setter = Object.getOwnPropertyDescriptor(prototype, 'value').set
+        setter.call(element, text)
+        element.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+      const setDraft = (text) => {
+        const element = textarea()
+        setValue(element, HTMLTextAreaElement.prototype, text)
+        element.setSelectionRange(text.length, text.length)
+        element.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }))
+      }
+      const key = (init) =>
+        textarea().dispatchEvent(
+          new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }),
+        )
+      const click = (label) => document.querySelector(`button[aria-label="${label}"]`).click()
+      const steps = {
+        empty: () => {},
+        palette: () => {
+          textarea().focus()
+          key({ key: '/' })
+        },
+        models: () => {
+          click('Model')
+        },
+        'pill-toggle': () => {
+          click('Model')
+          later(200, () => click('Model'))
+        },
+        mention: () => {
+          textarea().focus()
+          setDraft('see @src')
+        },
+        chips: () => {
+          click('Attach file')
+          later(100, () => setDraft('what is this?'))
+        },
+        transcript: () => {
+          setDraft('hello muse')
+          key({ key: 'Enter' })
+          later(600, () => {
+            setDraft('and steer this')
+            key({ key: 'Enter' })
+          })
+        },
+        shifttab: () => {
+          textarea().focus()
+          key({ key: 'Tab', shiftKey: true })
+        },
+        filter: () => {
+          textarea().focus()
+          key({ key: '/' })
+          later(300, () => {
+            const filter = document.querySelector('.palette-filter')
+            setValue(filter, HTMLInputElement.prototype, 'eff')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+          })
+        },
+      }
+      if (scenario !== null && scenario in steps) {
+        later(400, steps[scenario])
+      }
+    </script>
+  </body>
+</html>

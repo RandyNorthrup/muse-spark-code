@@ -19,7 +19,6 @@ function silenceConsoleWarn() {
 
 const init = {
   type: 'init',
-  extensionVersion: '9.9.9',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
   composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
   settings: testSettings,
@@ -74,16 +73,20 @@ describe('App shell', () => {
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
     expect(textarea()).toHaveAttribute('placeholder', init.composerPlaceholder)
     expect(document.activeElement).toBe(textarea())
-    expect(screen.getByLabelText('Extension version')).toHaveTextContent('v9.9.9')
     expect(screen.getByLabelText('Model')).toHaveTextContent('Starting Muse Code')
   })
 
-  it('reports composer focus changes and new-tab clicks to the host', () => {
+  it('reports composer focus changes and starts a new conversation in place', () => {
     const postMessage = renderReady()
     fireEvent.blur(textarea())
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'inputFocusChanged', focused: false })
+    fireEvent.change(textarea(), { target: { value: 'hello' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(screen.getByText('hello')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('New conversation'))
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'openNewTab' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'clearConversation' })
+    expect(screen.queryByText('hello')).toBeNull()
+    expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
   })
 
   it('inserts host-provided text at the caret', () => {
@@ -104,7 +107,7 @@ describe('App shell', () => {
   it('ignores malformed host messages', () => {
     const warn = silenceConsoleWarn()
     render(<App postMessage={vi.fn()} />)
-    deliver({ type: 'init', extensionVersion: 1 })
+    deliver({ type: 'init', settings: 1 })
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(warn).toHaveBeenCalledOnce()
   })
@@ -298,6 +301,23 @@ describe('App palette', () => {
     expect(document.activeElement).toBe(textarea())
     fireEvent.click(screen.getByLabelText('Commands'))
     expect(postMessage.mock.calls.filter(([m]) => m.type === 'listSkills')).toHaveLength(1)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(fireEvent.mouseDown(screen.getByLabelText('Commands'))).toBe(false)
+    fireEvent.click(screen.getByLabelText('Commands'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('toggles the model list from the pill', () => {
+    renderReady()
+    deliver({ type: 'modelList', models })
+    fireEvent.click(screen.getByLabelText('Model'))
+    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Model'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(textarea())
+    fireEvent.click(screen.getByLabelText('Commands'))
+    fireEvent.click(screen.getByLabelText('Model'))
+    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
   })
 
   it('routes every palette action to the host or the local state', () => {

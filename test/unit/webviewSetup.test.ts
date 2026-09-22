@@ -43,7 +43,6 @@ describe('configureWebview', () => {
     webview.messages.fire({ type: 'ready' })
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: 'init',
-      extensionVersion: '1.2.3',
       emptyStateHint: 'Type /model to pick the right tool for the job.',
       composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
       settings: testSettings,
@@ -57,12 +56,6 @@ describe('configureWebview', () => {
     expect(context.onInputFocusChanged).toHaveBeenCalledWith(surface, true)
     webview.messages.fire({ type: 'inputFocusChanged', focused: false })
     expect(context.onInputFocusChanged).toHaveBeenLastCalledWith(surface, false)
-  })
-
-  it('forwards the new-tab request', () => {
-    const { webview, context } = setup()
-    webview.messages.fire({ type: 'openNewTab' })
-    expect(context.onOpenNewTab).toHaveBeenCalledOnce()
   })
 
   it('routes conversation messages to the controller with the surface', () => {

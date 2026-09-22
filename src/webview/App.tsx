@@ -74,8 +74,11 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
     },
     [postMessage],
   )
+  // The header button starts a new conversation in this surface, as in
+  // Claude Code; a new editor tab is Ctrl+Shift+Esc or the view-title `+`.
   const onNewConversation = useCallback(() => {
-    postMessage({ type: 'openNewTab' })
+    dispatch({ type: 'conversationCleared' })
+    postMessage({ type: 'clearConversation' })
   }, [postMessage])
   const onSubmit = useCallback(() => {
     const text = state.draft.trim()
@@ -117,16 +120,27 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
     },
     [postMessage, state.skills],
   )
-  const onOpenPalette = useCallback(() => {
-    openPalette('actions')
-  }, [openPalette])
-  const onOpenModelPicker = useCallback(() => {
-    openPalette('models')
-  }, [openPalette])
   const closePalette = useCallback(() => {
     setPalette(undefined)
     dispatch({ type: 'focusRequested' })
   }, [])
+  // The slash button and the pill toggle their view: a second click closes.
+  const togglePalette = useCallback(
+    (view: PaletteView) => {
+      if (palette === view) {
+        closePalette()
+      } else {
+        openPalette(view)
+      }
+    },
+    [palette, closePalette, openPalette],
+  )
+  const onOpenPalette = useCallback(() => {
+    togglePalette('actions')
+  }, [togglePalette])
+  const onOpenModelPicker = useCallback(() => {
+    togglePalette('models')
+  }, [togglePalette])
   const onPaletteBack = useCallback(() => {
     setPalette('actions')
   }, [])
@@ -309,48 +323,47 @@ export function App({ postMessage, newLocalId = () => crypto.randomUUID() }: App
       <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
         {body}
       </main>
-      {palette === undefined ? null : (
-        <Palette
-          key={palette}
-          view={palette}
-          groups={paletteGroups}
-          models={state.models}
-          currentModelId={state.model?.modelId}
-          onAction={onPaletteAction}
-          onSelectModel={onSelectModel}
-          onBack={onPaletteBack}
-          onClose={closePalette}
+      <div className="composer-area">
+        {palette === undefined ? null : (
+          <Palette
+            key={palette}
+            view={palette}
+            groups={paletteGroups}
+            models={state.models}
+            currentModelId={state.model?.modelId}
+            onAction={onPaletteAction}
+            onSelectModel={onSelectModel}
+            onBack={onPaletteBack}
+            onClose={closePalette}
+          />
+        )}
+        <Composer
+          draft={state.draft}
+          placeholder={state.composerPlaceholder}
+          settings={state.settings}
+          canSend={canSend(state)}
+          isRunning={state.activeTurnId !== undefined}
+          modelLabel={modelLabelFor(state)}
+          modeLabel={PERMISSION_MODE_LABELS[state.permissionMode]}
+          focusRequests={state.focusRequests}
+          pendingInsert={state.pendingInsert}
+          attachments={state.attachments}
+          mentionResults={state.mentionResults}
+          onDraftChange={onDraftChange}
+          onInsertApplied={onInsertApplied}
+          onSubmit={onSubmit}
+          onStop={onStop}
+          onFocusChange={onFocusChange}
+          onOpenPalette={onOpenPalette}
+          onOpenModelPicker={onOpenModelPicker}
+          onCyclePermissionMode={onCyclePermissionMode}
+          onPickFile={onPickFile}
+          onRemoveAttachment={onRemoveAttachment}
+          onSearchMentions={onSearchMentions}
+          onAttachImage={onAttachImage}
+          onDroppedUris={onDroppedUris}
         />
-      )}
-      <Composer
-        draft={state.draft}
-        placeholder={state.composerPlaceholder}
-        settings={state.settings}
-        canSend={canSend(state)}
-        isRunning={state.activeTurnId !== undefined}
-        modelLabel={modelLabelFor(state)}
-        modeLabel={PERMISSION_MODE_LABELS[state.permissionMode]}
-        focusRequests={state.focusRequests}
-        pendingInsert={state.pendingInsert}
-        attachments={state.attachments}
-        mentionResults={state.mentionResults}
-        onDraftChange={onDraftChange}
-        onInsertApplied={onInsertApplied}
-        onSubmit={onSubmit}
-        onStop={onStop}
-        onFocusChange={onFocusChange}
-        onOpenPalette={onOpenPalette}
-        onOpenModelPicker={onOpenModelPicker}
-        onCyclePermissionMode={onCyclePermissionMode}
-        onPickFile={onPickFile}
-        onRemoveAttachment={onRemoveAttachment}
-        onSearchMentions={onSearchMentions}
-        onAttachImage={onAttachImage}
-        onDroppedUris={onDroppedUris}
-      />
-      <span className="version" aria-label="Extension version">
-        v{state.extensionVersion}
-      </span>
+      </div>
     </div>
   )
 }

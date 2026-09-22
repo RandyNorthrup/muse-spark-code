@@ -9,6 +9,7 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type KeyboardEvent,
+  type MouseEvent,
   useEffect,
   useRef,
   useState,
@@ -75,6 +76,15 @@ export function isSendKey(
   }
   const hasModifier = event.ctrlKey || event.metaKey
   return isCtrlEnterMode ? hasModifier : !hasModifier
+}
+
+/**
+ * A mousedown on a toggle button would blur the open palette's filter (which
+ * closes it) before the click could toggle; keeping focus where it is lets the
+ * click decide.
+ */
+function keepPaletteFocus(event: MouseEvent<HTMLButtonElement>): void {
+  event.preventDefault()
 }
 
 function imageFiles(list: FileList | undefined): readonly File[] {
@@ -330,6 +340,7 @@ export function Composer(props: ComposerProps) {
             className="icon-button"
             title={UI_TEXT.commandsTitle}
             aria-label={UI_TEXT.commandsTitle}
+            onMouseDown={keepPaletteFocus}
             onClick={onOpenPalette}
           >
             <SlashIcon />
@@ -339,6 +350,7 @@ export function Composer(props: ComposerProps) {
             className="pill"
             title={UI_TEXT.modelPillTitle}
             aria-label="Model"
+            onMouseDown={keepPaletteFocus}
             onClick={onOpenModelPicker}
           >
             {modelLabel}

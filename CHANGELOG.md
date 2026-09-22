@@ -27,6 +27,15 @@ happened, not what was planned; superseded entries are kept.
   fallback, `/clear`, `/compact`, sign-out and host notices in the transcript.
   Until the approval cards land (M4) every permission mode except Bypass
   still runs as `denyUnmatched`; the mapping is recorded in PLAN.md D7.
+- `npm run harness:shots` (`scripts/harness-shots.mjs` + `test/harness/`):
+  renders the built webview in headless Chrome behind a scripted fake host and
+  writes one screenshot per scenario (palette, model list, pill toggle,
+  mentions, chips, transcript, Shift+Tab, effort filter). The visual check
+  behind the certification records.
+- The header's new-conversation button now starts a new conversation in the
+  same panel (Claude Code behaviour); a new editor tab remains available via
+  `Ctrl+Shift+Esc` and the view-title `+`. The `openNewTab` webview message
+  was removed.
 - Milestone M2, sign-in and the Muse Code backend: locating the CLI per
   platform (Windows `muse-bin-<version>.exe` from `.muse-version`, PowerShell
   launcher fallback, POSIX `~/.local/bin/muse`), a sanitised child environment
@@ -56,6 +65,18 @@ happened, not what was planned; superseded entries are kept.
   `MODEL_API_KEY=` assignments) in front of the output channel; typed
   host ⇄ webview messages (`init`, `settingsChanged`, `focusInput`,
   `insertText`, `ready`, `inputFocusChanged`, `openNewTab`).
+
+### Fixed
+
+- The model pill and the slash button now toggle: a second click closes the
+  list or palette (a mousedown on either no longer blurs the palette shut).
+- The extension version label in the panel's corner overlapped the Send
+  button and carried no information the Extensions view does not; removed,
+  along with the `extensionVersion` field of the `init` message.
+- The "/" palette and the model list were positioned against the whole panel
+  and rendered above the viewport, so `/`, the slash button and the model
+  pill appeared to do nothing in the first M3 F5 check; both now anchor to a
+  wrapper around the composer.
 
 ### Security
 

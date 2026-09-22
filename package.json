@@ -224,6 +224,7 @@
     "build": "node scripts/build.mjs --production && node scripts/check-bundle-size.mjs",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
+    "harness:shots": "node scripts/harness-shots.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "run-s lint:js lint:css",

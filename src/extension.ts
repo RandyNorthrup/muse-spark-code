@@ -292,7 +292,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const hostContext: WebviewHostContext = {
     extensionUri: context.extensionUri,
-    extensionVersion: version,
     log,
     getSettings: () => toSettingsSnapshot(currentSettings()),
     onInputFocusChanged: (surface, isFocused) => {
@@ -305,9 +304,6 @@ export function activate(context: vscode.ExtensionContext): void {
         CONTEXT_KEYS.inputFocused,
         isFocused,
       )
-    },
-    onOpenNewTab: () => {
-      openChatPanel(hostContext, registry)
     },
     onSurfaceReady: (surface) => {
       controllerFor(surface).surfaceReady()

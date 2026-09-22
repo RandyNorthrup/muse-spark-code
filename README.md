@@ -91,14 +91,14 @@ offers the **Muse Spark:** commands listed below.
 
 ## Commands and keybindings
 
-| Command                                    | Default keybinding                 | What it does                                                                       |
-| ------------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------------------- |
-| Muse Spark: Open in Sidebar                | —                                  | Focus the chat view in the activity bar                                            |
-| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`) | Open an independent conversation as an editor tab (also the `+` in the view title) |
-| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)             | Move keyboard focus between the editor and the composer                            |
-| Muse Spark: Insert @-Mention for Selection | `Alt+K`                            | Insert `@path#start-end` for the active editor selection into the composer         |
-| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on) |
-| Muse Spark: Toggle Thinking                | `Ctrl+O` (`Cmd+O`), composer only  | Turn reasoning on or off for this conversation                                     |
+| Command                                    | Default keybinding                 | What it does                                                                                                                                         |
+| ------------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                | —                                  | Focus the chat view in the activity bar                                                                                                              |
+| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`) | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place |
+| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)             | Move keyboard focus between the editor and the composer                                                                                              |
+| Muse Spark: Insert @-Mention for Selection | `Alt+K`                            | Insert `@path#start-end` for the active editor selection into the composer                                                                           |
+| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on)                                                                   |
+| Muse Spark: Toggle Thinking                | `Ctrl+O` (`Cmd+O`), composer only  | Turn reasoning on or off for this conversation                                                                                                       |
 
 In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
 `museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
@@ -161,27 +161,28 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 
 ## Development commands
 
-| Command                                   | What it does                                                                                              |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                    |
-| `npm run watch`                           | Rebuild extension + webview on change                                                                     |
-| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`            |
-| `npm run format` / `npm run format:check` | Prettier write / check                                                                                    |
-| `npm run lint`                            | `eslint --max-warnings=0` (type-aware) and `stylelint --max-warnings=0`                                   |
-| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                             |
-| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                             |
-| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                       |
-| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches)                          |
-| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it               |
-| `npm run test`                            | Unit then integration                                                                                     |
-| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                            |
-| `npm run security:sast`                   | `semgrep scan --config auto --error` (install: `pip install semgrep`; the Scripts folder must be on PATH) |
-| `npm run security:secrets`                | `gitleaks git` over the repository history                                                                |
-| `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**       |
-| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                            |
-| `npm run package`                         | `vsce package --no-dependencies` → `.vsix`                                                                |
-| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                            |
+| Command                                   | What it does                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                           |
+| `npm run watch`                           | Rebuild extension + webview on change                                                                            |
+| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`); needs `build:dev` and Chrome |
+| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                   |
+| `npm run format` / `npm run format:check` | Prettier write / check                                                                                           |
+| `npm run lint`                            | `eslint --max-warnings=0` (type-aware) and `stylelint --max-warnings=0`                                          |
+| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                                    |
+| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                    |
+| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                              |
+| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                       |
+| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches)                                 |
+| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it                      |
+| `npm run test`                            | Unit then integration                                                                                            |
+| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                                   |
+| `npm run security:sast`                   | `semgrep scan --config auto --error` (install: `pip install semgrep`; the Scripts folder must be on PATH)        |
+| `npm run security:secrets`                | `gitleaks git` over the repository history                                                                       |
+| `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**              |
+| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                                   |
+| `npm run package`                         | `vsce package --no-dependencies` → `.vsix`                                                                       |
+| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                   |
 
 ## Build
 

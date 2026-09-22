@@ -258,6 +258,11 @@ body {
 
 /* --- composer --- */
 
+/* Positioning context for the palette, which sits above the composer. */
+.composer-area {
+  position: relative;
+}
+
 .composer {
   position: relative;
   display: flex;
@@ -339,14 +344,6 @@ body {
 .send-button {
   color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
-}
-
-.version {
-  position: absolute;
-  right: var(--ms-gap);
-  bottom: 2px;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.7em;
 }
 
 /* --- states: (0,2,0) first --- */

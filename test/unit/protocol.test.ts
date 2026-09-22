@@ -6,7 +6,6 @@ describe('parseWebviewToHostMessage', () => {
   it.each([
     ['ready', { type: 'ready' }],
     ['inputFocusChanged', { type: 'inputFocusChanged', focused: true }],
-    ['openNewTab', { type: 'openNewTab' }],
     ['sendMessage', { type: 'sendMessage', localId: 'l1', text: 'hi', attachmentIds: ['a'] }],
     ['cancelTurn', { type: 'cancelTurn' }],
     ['signIn', { type: 'signIn', method: 'browser' }],
@@ -58,7 +57,6 @@ describe('parseWebviewToHostMessage', () => {
 describe('parseHostToWebviewMessage', () => {
   const init = {
     type: 'init',
-    extensionVersion: '1.0.0',
     emptyStateHint: 'hint',
     composerPlaceholder: 'placeholder',
     settings: testSettings,
@@ -119,7 +117,7 @@ describe('parseHostToWebviewMessage', () => {
 
   it.each([
     ['init with an invalid setting', { ...init, settings: { ...testSettings, focusView: 1 } }],
-    ['init missing settings', { type: 'init', extensionVersion: '1' }],
+    ['init missing settings', { type: 'init', emptyStateHint: 'h' }],
     ['unknown auth status', { type: 'authState', status: 'maybe' }],
     ['agentEvent with an unknown event', { type: 'agentEvent', event: { type: 'nope' } }],
     ['composerState with a bad effort', { type: 'composerState', effort: 'ultra' }],
