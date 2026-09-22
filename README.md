@@ -5,27 +5,30 @@ inside the editor, modelled on the Claude Code VS Code extension: sidebar or
 editor-tab conversations, a slash-command palette, model and reasoning-effort
 picker, permission modes, streaming markdown, diff review, and session history.
 
-> **Status: milestone M7 (Model API backend).** You can sign in (Meta
-> account through the Muse Code CLI on your subscription, or a Model API key
-> on pay-as-you-go, never mixed), hold streaming
-> conversations with markdown and highlighted code, use the "/" palette,
-> attach images, `@`-mention files, pick the model, effort and permission
-> mode, steer a running turn, and watch the agent read, edit and write files
-> in tool rows with diffs, approve or reject gated commands from cards, and
-> answer its questions. The open file or selection rides along as context,
-> finished edits can be diffed and reverted, code blocks apply into the
-> editor, and Muse can read the Problems panel through an IDE tool. Past
-> conversations of the workspace are one click away in the History dialog
-> (search, archive, resume with the full transcript), the sidebar picks its
-> last conversation back up within ten minutes, and a hidden panel shows a
-> dot when Muse needs you. On Windows the panel offers Muse Code's one-time
-> shell-sandbox setup itself (one administrator prompt). See
-> [`PLAN.md`](PLAN.md) for the milestone plan and the research behind it.
+> **Version 0.1.0.** Sign in with your Meta account through the Muse Code
+> CLI (billed to your Muse subscription) or with a Model API key (pay as you
+> go); the two are never mixed. Hold streaming conversations with markdown
+> and highlighted code, use the "/" palette, attach images, `@`-mention
+> files, pick the model, effort and permission mode, steer a running turn,
+> and watch the agent read, edit and write files in tool rows with diffs,
+> approve or reject gated commands from cards, and answer its questions. The
+> open file or selection rides along as context, finished edits can be
+> diffed and reverted, code blocks apply into the editor, and Muse can read
+> the Problems panel through an IDE tool. Past conversations of the
+> workspace are one click away in the History dialog (search, archive,
+> resume with the full transcript), the sidebar picks its last conversation
+> back up within ten minutes, and a hidden panel shows a dot when Muse needs
+> you. **Account & usage** (`/usage`) shows your subscription's current and
+> weekly windows and this conversation's tokens. On Windows the panel offers
+> Muse Code's one-time shell-sandbox setup itself (one administrator
+> prompt). See [`PLAN.md`](PLAN.md) for the milestone plan and the research
+> behind it, and [`docs/PRIVACY.md`](docs/PRIVACY.md) for what leaves your
+> machine.
 
 This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 "Muse Code" are Meta trademarks. You bring your own credentials.
 
-## How it will talk to Muse Spark
+## How it talks to Muse Spark
 
 Meta offers no OAuth flow for third-party apps, so the extension supports the
 two sanctioned paths (see `PLAN.md` §2 D1):
@@ -91,6 +94,20 @@ set, including the VS Code integration tests, on all three.
   a Meta account (subscription), or a Meta Model API key (pay as you go)
 - `git` on `PATH` for `.gitignore`-aware `@` mentions (optional; VS Code's
   file search is used without it)
+
+## Installation
+
+From the Marketplace once published, or from the `.vsix`:
+
+```bash
+npm run package                      # writes muse-spark-code-0.1.0.vsix
+code --install-extension muse-spark-code-0.1.0.vsix
+```
+
+Then open the **Muse Spark** view from the activity bar and sign in
+(see "Signing in" above). The getting-started tips under the empty state
+list the keybindings; **Hide these tips** turns them off
+(`museSpark.hideOnboarding`).
 
 ## Installation (development)
 
@@ -244,7 +261,7 @@ consult), Bypass runs everything. Approval cards offer Allow once, Always
 allow in this session, and Reject with feedback. `/compact` summarises the
 conversation with one model call. Sessions on this backend live for the
 window: the History dialog lists them, but they are gone after a reload
-(a stored session log is on the M8 list). Skills are not available. A
+(a stored session log is deferred past 0.1.0). Skills are not available. A
 contributor-tier model asks once per conversation before it is used and is
 hidden in a confidential workspace, on either backend.
 
@@ -280,6 +297,36 @@ nothing is lost when the panel closes.
 - **Unread**: when a turn finishes, or the agent asks for an approval or an
   answer, while the sidebar is hidden the Muse Spark view shows a badge, and
   a background editor tab gets a `●` in its title, until you look.
+
+## Account & usage
+
+`/usage`, `/cost`, or the **Account & usage…** row of the `/` palette open
+a dialog under the header:
+
+- **Backend**: which side this window runs on (Muse Code on your
+  subscription, or the Model API on your key).
+- **Plan** and two bars, the current block (Muse Code reports a 300-minute
+  window) and the rolling week, each with "resets in" and the percent used
+  as Meta reports it (over-quota values keep their real number). The
+  numbers are what the CLI last observed ("as of …"); the CLI reports them
+  after the first turn of a conversation (`usage/read`, then live through
+  `usage/changed`), so a fresh window shows "No subscription usage reported
+  yet" until then. Meta's tier field is an opaque id today, so the plan line
+  reads "Muse Code subscription".
+- **This conversation**: input, output and cached tokens and the context
+  used out of the model's window, from `session/tokenUsage` /
+  `session/contextUsage` (or the Model API's `usage` block).
+- A window on the Model API key shows no bars: requests are billed to the
+  key at pay-as-you-go rates and counted on the dev.meta.ai dashboard, which
+  **Open dev.meta.ai** opens.
+
+Voice dictation is not offered: VS Code webviews run in Electron, where the
+Web Speech API's recognizer fails with a `network` error, so a microphone
+button would never work (PLAN.md Q4).
+
+Screen readers hear the panel's state changes through a polite live region:
+finished, failed and stopped turns, approval cards (with the tool),
+questions, resumes, warnings and errors.
 
 ## Settings
 
@@ -380,12 +427,18 @@ media/                      activity-bar icon
 
 ## Deployment
 
-`npm run package` produces `muse-spark-code-<version>.vsix`. Publishing to the
-Marketplace uses publisher `RandyNorthrup` (confirmed on the marketplace
-management page); publishing needs `npx vsce login RandyNorthrup` with a
-Marketplace-manage PAT. CI (`.github/workflows/ci.yml`) runs the
-quality gates on Ubuntu and Windows, integration tests under xvfb on Ubuntu,
-gitleaks over full history, and semgrep.
+`npm run package` runs the production build (`vscode:prepublish`) and
+produces `muse-spark-code-<version>.vsix` containing the two bundles, the
+stylesheet, the icons, this README, the CHANGELOG, the LICENSE and
+`docs/PRIVACY.md` (see `.vscodeignore`). The Marketplace icon is
+`media/icon.png`, rendered from `media/marketplace-icon.svg` by
+`npm run icon` (headless Chrome; the Marketplace rejects SVG icons).
+Publishing uses publisher `RandyNorthrup` (confirmed on the marketplace
+management page) and needs `npx vsce login RandyNorthrup` with a
+Marketplace-manage PAT, then `npx vsce publish --no-dependencies`. CI
+(`.github/workflows/ci.yml`) runs the quality gates on Ubuntu, Windows and
+macOS, integration tests under xvfb on Ubuntu, gitleaks over full history,
+and semgrep.
 
 ## Security
 
@@ -393,11 +446,14 @@ gitleaks over full history, and semgrep.
   remote origins, no inline styles (see `src/host/html.ts`).
 - Every message between host and webview is validated with a zod schema; bad
   messages are logged to the "Muse Spark" output channel and dropped.
-- API keys will live only in SecretStorage and be passed to child processes via
-  environment; they are never written to settings, logs or telemetry.
+- A pasted Model API key lives only in SecretStorage and is sent only to
+  `api.meta.ai`; it is never passed to any child process (the Muse Code CLI
+  runs on its own sign-in), never written to settings, logs or telemetry.
 - No telemetry. Secret scanning in pre-commit and CI.
-- Contributor-tier Muse Spark models (Meta trains on their traffic) will be
-  opt-in only, behind a warning dialog.
+- Contributor-tier Muse Spark models (Meta trains on their traffic) are
+  opt-in only: one modal confirmation per conversation, and refused outright
+  with `museSpark.confidentialWorkspace`.
+- What leaves your machine and where it goes: [`docs/PRIVACY.md`](docs/PRIVACY.md).
 
 ## Troubleshooting
 

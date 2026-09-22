@@ -1,9 +1,12 @@
 **
 !dist/extension.js
 !dist/searchWorker.js
-!dist/webview/**
-!media/**
+!dist/webview/main.js
+!dist/webview/main.css
+!media/icon.svg
+!media/icon.png
 !package.json
 !README.md
 !CHANGELOG.md
 !LICENSE
+!docs/PRIVACY.md

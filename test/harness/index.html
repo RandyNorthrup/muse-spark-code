@@ -458,6 +458,26 @@
               )
               break
             }
+            // --- Account & usage (M8) ---
+            case 'readUsage': {
+              later(40, () =>
+                send({
+                  type: 'usageReport',
+                  backend: 'museCode',
+                  subscription: {
+                    observedAtMs: Date.now() - 4 * 60 * 1000,
+                    tier: 'muse-pro',
+                    window: {
+                      usedPercent: 42,
+                      resetsAtMs: Date.now() + (2 * 60 + 5) * 60 * 1000,
+                      windowDurationMins: 300,
+                    },
+                    weekly: { usedPercent: 17, resetsAtMs: Date.now() + 3 * 24 * 60 * 60 * 1000 },
+                  },
+                }),
+              )
+              break
+            }
             case 'answerQuestion': {
               later(30, () =>
                 send({
@@ -916,6 +936,34 @@
             const filter = document.querySelector('.palette-filter')
             setValue(filter, HTMLInputElement.prototype, 'eff')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+          })
+        },
+        usage: () => {
+          send({
+            type: 'agentEvent',
+            event: {
+              type: 'tokenUsage',
+              inputTokens: 20804,
+              cachedTokens: 10481,
+              outputTokens: 210,
+              reasoningTokens: 120,
+            },
+          })
+          send({
+            type: 'agentEvent',
+            event: {
+              type: 'contextUsage',
+              usedTokens: 21014,
+              windowTokens: 1007997,
+              pressure: 'normal',
+            },
+          })
+          textarea().focus()
+          key({ key: '/' })
+          later(300, () => {
+            const filter = document.querySelector('.palette-filter')
+            setValue(filter, HTMLInputElement.prototype, '/usage')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
         },
       }

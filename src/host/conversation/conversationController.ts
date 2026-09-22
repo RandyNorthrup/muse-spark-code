@@ -51,10 +51,37 @@ import type {
   ModelOption,
   SkillOption,
 } from '../../shared/protocol'
+import type { SubscriptionUsage } from '../../shared/usage'
 import type { AuthService } from '../auth/authService'
 import type { ReviewNotice } from '../editor/editReview'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
+
+/**
+ * One subscription on the current host (list stream, usage stream),
+ * replaced when the controller moves to another host, dropped when the host
+ * dies (its listeners died with it).
+ */
+class HostWatch {
+  private current: { readonly host: AgentHost; readonly unsubscribe: () => void } | undefined
+
+  public ensure(host: AgentHost, subscribe: (host: AgentHost) => () => void): void {
+    if (this.current?.host === host) {
+      return
+    }
+    this.current?.unsubscribe()
+    this.current = { host, unsubscribe: subscribe(host) }
+  }
+
+  public forget(): void {
+    this.current = undefined
+  }
+
+  public dispose(): void {
+    this.current?.unsubscribe()
+    this.current = undefined
+  }
+}
 
 export interface PickedFile {
   readonly name: string
@@ -196,7 +223,8 @@ export class ConversationController {
   private confirmedContributor: string | undefined
   /** The workspace's stored sessions once the dialog asked for them (M6). */
   private sessionRecords: Map<string, SessionRecord> | undefined
-  private listWatch: { readonly host: AgentHost; readonly unsubscribe: () => void } | undefined
+  private readonly listWatch = new HostWatch()
+  private readonly usageWatch = new HostWatch()
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -620,16 +648,11 @@ export class ConversationController {
 
   /** Follow `session/listChanged` / `session/closed` on the current host. */
   private watchList(host: AgentHost): void {
-    if (this.listWatch?.host === host) {
-      return
-    }
-    this.listWatch?.unsubscribe()
-    this.listWatch = {
-      host,
-      unsubscribe: host.onSessionListEvent((event) => {
+    this.listWatch.ensure(host, (watched) =>
+      watched.onSessionListEvent((event) => {
         this.onListEvent(event)
       }),
-    }
+    )
   }
 
   private onListEvent(event: SessionListEvent): void {
@@ -1051,6 +1074,34 @@ export class ConversationController {
   }
 
   /** Called when the webview has mounted: replay the state it needs. */
+  // --- Account & usage (M8) ---
+
+  /**
+   * Answer the dialog with the backend and the subscription window the host
+   * last observed, and keep answering while `usage/changed` arrives.
+   */
+  private async readUsage(): Promise<void> {
+    try {
+      const host = await this.deps.ensureHost()
+      this.usageWatch.ensure(host, (watched) =>
+        watched.onUsageChanged((usage) => {
+          this.postUsage(watched, usage)
+        }),
+      )
+      this.postUsage(host, await host.readUsage())
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+    }
+  }
+
+  private postUsage(host: AgentHost, subscription: SubscriptionUsage | undefined): void {
+    this.post({
+      type: 'usageReport',
+      backend: host.info.kind,
+      ...(subscription !== undefined && { subscription }),
+    })
+  }
+
   public surfaceReady(): void {
     this.post(this.deps.auth.toMessage())
     this.postComposerState()
@@ -1207,6 +1258,10 @@ export class ConversationController {
         await this.renameSession(message.name)
         break
       }
+      case 'readUsage': {
+        await this.readUsage()
+        break
+      }
     }
   }
 
@@ -1241,13 +1296,14 @@ export class ConversationController {
   /** The host process died: forget the session and tell the user. */
   public hostExited(description: string): void {
     this.dropSession()
-    this.listWatch = undefined
+    this.listWatch.forget()
+    this.usageWatch.forget()
     this.deps.auth.markBackendError(`${UI_TEXT.hostExited} (${description})`)
   }
 
   public dispose(): void {
     this.dropSession()
-    this.listWatch?.unsubscribe()
-    this.listWatch = undefined
+    this.listWatch.dispose()
+    this.usageWatch.dispose()
   }
 }

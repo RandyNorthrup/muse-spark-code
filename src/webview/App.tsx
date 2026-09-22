@@ -21,6 +21,7 @@ import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
+import { UsageDialog } from './components/UsageDialog'
 import { AddContextIcon, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteView } from './components/Palette'
@@ -46,7 +47,7 @@ export interface AppProps {
 }
 
 /** What floats above the composer: a palette view, a menu or the History dialog. */
-type Overlay = PaletteView | 'modes' | 'attach' | 'history'
+type Overlay = PaletteView | 'modes' | 'attach' | 'history' | 'usage'
 
 const GATED_STATUSES = new Set(['noCli', 'signedOut', 'signingIn', 'error'])
 const ATTACH_UPLOAD = 'upload'
@@ -165,6 +166,9 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [])
+  const onHideOnboarding = useCallback(() => {
+    postMessage({ type: 'hostAction', action: 'hideOnboarding' })
+  }, [postMessage])
   const onStop = useCallback(() => {
     postMessage({ type: 'cancelTurn' })
   }, [postMessage])
@@ -256,6 +260,8 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       if (view === 'history') {
         // Always re-list: the rows change while the dialog is closed.
         postMessage({ type: 'listSessions' })
+      } else if (view === 'usage') {
+        postMessage({ type: 'readUsage' })
       }
       setOverlay(view)
     },
@@ -419,6 +425,10 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
           openOverlay('history')
           break
         }
+        case 'openUsage': {
+          openOverlay('usage')
+          break
+        }
         case 'openModelPicker': {
           setOverlay('models')
           break
@@ -550,7 +560,13 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       />
     )
   } else if (state.transcript.length === 0) {
-    body = <EmptyState hint={state.emptyStateHint} />
+    body = (
+      <EmptyState
+        hint={state.emptyStateHint}
+        isOnboardingShown={!state.settings.hideOnboarding}
+        onHideOnboarding={onHideOnboarding}
+      />
+    )
   } else {
     body = (
       <Transcript
@@ -636,8 +652,9 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       break
     }
     case 'history':
+    case 'usage':
     case undefined: {
-      // The History dialog hangs from the header, not the composer.
+      // The History and usage dialogs hang from the header, not the composer.
       floating = null
       break
     }
@@ -655,9 +672,25 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
         onClose={closeOverlay}
       />
     ) : null
+  const usageDialog =
+    overlay === 'usage' ? (
+      <UsageDialog
+        report={state.usageReport}
+        usage={state.usage}
+        context={state.context}
+        now={now}
+        onOpenExternal={onOpenExternal}
+        onClose={closeOverlay}
+      />
+    ) : null
 
   return (
     <div className="app">
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {state.announcement === undefined ? null : (
+          <span key={state.announcement.sequence}>{state.announcement.text}</span>
+        )}
+      </div>
       <div className="header-area">
         <Header
           title={title}
@@ -667,6 +700,7 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
           onRename={state.sessionId === undefined ? undefined : onRename}
         />
         {history}
+        {usageDialog}
       </div>
       <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
         {body}

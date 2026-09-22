@@ -409,16 +409,16 @@ create/delete file watcher. Ranking is a deterministic fuzzy scorer
 
 ## 3. Open questions (need the owner)
 
-| #   | Question                                                                                                                                                                                                                                                                            | Default until answered                                            |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner holds both a Muse Code subscription (CLI signed in by device code) and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment). | Closed.                                                           |
-| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                          | Closed.                                                           |
-| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                          | M7 required; see §10.                                             |
-| Q4  | Voice dictation (Web Speech API in webview) — wanted for v1?                                                                                                                                                                                                                        | Deferred to M8 as P2.                                             |
-| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                               | Decide at M4 with measured bundle sizes.                          |
-| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                  | Detect and show "use Model API key" on Linux if `muse` is absent. |
-| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                             | Closed.                                                           |
-| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                      | Closed; PAT step deferred to M8.                                  |
+| #   | Question                                                                                                                                                                                                                                                                                                         | Default until answered                                            |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner holds both a Muse Code subscription (CLI signed in by device code) and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment).                              | Closed.                                                           |
+| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                       | Closed.                                                           |
+| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                       | M7 required; see §10.                                             |
+| Q4  | **Resolved 2026-09-22 (M8):** voice dictation is not shipped. The Web Speech API's `SpeechRecognition` fails with a `network` error inside Electron, which VS Code webviews run in (electron/electron#46143); a microphone button would be dead. Revisit when VS Code exposes its speech provider to extensions. | Closed; no mic button.                                            |
+| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                                                            | Decide at M4 with measured bundle sizes.                          |
+| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                                               | Detect and show "use Model API key" on Linux if `muse` is absent. |
+| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                          | Closed.                                                           |
+| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                                                   | Closed; PAT step deferred to M8.                                  |
 
 ## 4. Architecture
 
@@ -1095,10 +1095,58 @@ owner's key).** Certification record: `docs/certification/m7.md`.
 
 ### M8 — Account & usage, polish, packaging
 
+**Status 2026-09-22: complete.** Certification record:
+`docs/certification/m8.md`.
+
 - **Scope**: Account & usage dialog (`usage/read` subscription bars or token
   totals), `/usage`, `/cost`; onboarding checklist; voice dictation (Q4);
   screen-reader announcements; `vsce package`, marketplace README, privacy
   policy (`docs/PRIVACY.md`), icon; CHANGELOG 0.1.0.
+- **As built**:
+  - `AgentHost.readUsage()` / `onUsageChanged()` on both hosts: the MSP host
+    calls `usage/read` (`{ usage? }`, absent until the CLI has observed a
+    frame) and folds `usage/changed` (host-level, like the list stream);
+    the key backend answers "none". The controller answers `readUsage` with
+    a `usageReport` (backend + window) and re-posts on every change, one
+    subscription per host (`HostWatch`, shared with the list stream).
+  - `src/shared/usage.ts`: the SDK's `SubscriptionUsage` shape as a zod
+    schema, bar clamping (over-quota keeps the real percent in the label),
+    reset countdowns, window length, and the plan label (Meta's tier field
+    is an opaque numeric id live, so the dialog says "Muse Code
+    subscription" unless the tier reads as a name).
+  - `UsageDialog` hangs from the header like History (Esc / close button):
+    Backend row, Plan, current block and weekly bars (`<progress>`, since the
+    CSP forbids inline styles), "as of", this conversation's tokens and
+    context, "Open dev.meta.ai". Opened from the Account & usage row,
+    `/usage` and `/cost`. A Model API window explains pay-as-you-go billing
+    instead of bars.
+  - Onboarding: `ONBOARDING_TIPS` under the empty-state hint until
+    `museSpark.hideOnboarding`; "Hide these tips" is a host action that
+    writes the global setting, and the settings broadcast hides them live.
+  - Screen readers: a visually hidden polite, atomic live region in `App`
+    fed by `UiState.announcement` (text + sequence so repeats are read):
+    finished / failed / stopped turns, approval requests with the tool
+    label, questions, `sendFailed`, resumes, warning and error notices.
+  - Packaging: `icon` (128×128 PNG rendered by `scripts/render-icon.mjs`
+    from `media/marketplace-icon.svg`, a spark on a dark tile rather than
+    Meta's mark), `homepage`, `bugs`, `vscode:prepublish` (production
+    build), `.vscodeignore` reduced to the two bundles, the stylesheet, the
+    icons, `package.json`, README, CHANGELOG, LICENSE and PRIVACY.
+  - Voice dictation (Q4): **not shipped.** VS Code webviews run in Electron,
+    where the Web Speech API's `SpeechRecognition` fails with a `network`
+    error because Chromium's cloud recognizer is not wired up
+    (electron/electron#46143, WebAudio/web-speech-api#80). A microphone
+    button would be dead for every user; there is no extension API for
+    dictation into a webview. Revisit if VS Code exposes its speech provider
+    to extensions.
+  - Model API sessions still live for the window only (the "JSON session
+    store" from the M7 polish note is deferred past 0.1.0: the owner runs
+    the CLI backend, and the notice in the panel says so).
+- **Live** (`scratchpad/live-m8.log`, `docs/certification/m8.md`): with the
+  CLI on the owner's subscription, `usage/read` returned nothing before the
+  first turn, one "pong" turn (4 model attempts in the CLI's trace, login
+  credential) was followed by `usage/changed` carrying `tier`, a 300-minute
+  window and the weekly block, and `usage/read` then returned the same.
 
 ## 7. Gates
 
@@ -1153,3 +1201,11 @@ M0–M8 certified (owner decision 2026-09-22: both backends ship in v0.1.0);
 all gates in §7 passing in CI on ubuntu and windows; `vsce package` produces a
 `.vsix` under budget that installs and signs in on a clean VS Code 1.130+;
 README, CHANGELOG, PRIVACY current; no rows in §8 without a reason.
+
+**Status 2026-09-22:** M0–M8 certified (`docs/certification/m0.md` …
+`m8.md`); CI green on ubuntu, windows and macos; `npm run package` builds
+`muse-spark-code-0.1.0.vsix` and it installs into an isolated VS Code
+1.138.0 (`docs/certification/m8.md`). Still manual: `vsce publish` with the
+owner's Marketplace PAT (Q8), and the Model API path's live turn (the owner
+deleted the pay-as-you-go key on 2026-09-22; the fake-server contract tests
+stand).

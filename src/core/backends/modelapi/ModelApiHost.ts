@@ -35,6 +35,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
+import type { SubscriptionUsage } from '../../../shared/usage'
 import type {
   AgentHost,
   AgentSession,
@@ -1207,6 +1208,15 @@ export class ModelApiHost implements AgentHost {
     return () => {
       this.listListeners.delete(listener)
     }
+  }
+
+  /** A key has no subscription window: the dialog shows token totals instead. */
+  public readUsage(): Promise<SubscriptionUsage | undefined> {
+    return Promise.resolve(undefined)
+  }
+
+  public onUsageChanged(_listener: (usage: SubscriptionUsage) => void): () => void {
+    return NO_UNSUBSCRIBE
   }
 
   public get sessionCount(): number {

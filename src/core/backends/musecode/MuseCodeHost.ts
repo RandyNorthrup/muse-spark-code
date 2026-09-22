@@ -9,6 +9,11 @@
 import type { Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import type { AgentEvent, QuestionAnswer } from '../../../shared/agentEvents'
+import {
+  type SubscriptionUsage,
+  subscriptionUsageSchema,
+  usageReadResultSchema,
+} from '../../../shared/usage'
 import type {
   AgentHost,
   AgentSession,
@@ -57,6 +62,8 @@ export interface MuseHostInfo extends HostInfo {
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
 const SESSION_CLOSED = 'session/closed'
+const USAGE_CHANGED = 'usage/changed'
+const USAGE_READ = 'usage/read'
 const HISTORY_PREFERENCE_INLINE = 'inline'
 
 const initializeResultSchema = z.object({
@@ -283,6 +290,7 @@ export class MuseCodeHost implements AgentHost {
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: string) => void>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
+  private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   public readonly info: MuseHostInfo
 
   public constructor(
@@ -298,7 +306,7 @@ export class MuseCodeHost implements AgentHost {
       grantedCapabilities: parsed.grantedCapabilities ?? [],
     }
     host.connection.onNotification((notification) => {
-      if (this.dispatchListEvent(notification.method, notification.params)) {
+      if (this.dispatchHostEvent(notification.method, notification.params)) {
         return
       }
       const mapped = mapNotification(notification)
@@ -330,23 +338,39 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The list-stream notifications (`sessionListStream` grant) are about
-   * stored sessions, loaded here or not, so they bypass the per-session
-   * routing. True when the method was one of them.
+   * Host-level notifications bypass the per-session routing: the list
+   * stream (`sessionListStream` grant) is about stored sessions, loaded here
+   * or not, and `usage/changed` is about the account. True when the method
+   * was one of them.
    */
-  private dispatchListEvent(method: string, params: unknown): boolean {
+  private dispatchHostEvent(method: string, params: unknown): boolean {
+    if (method === USAGE_CHANGED) {
+      const parsed = subscriptionUsageSchema.safeParse(params)
+      if (parsed.success) {
+        for (const listener of this.usageListeners) {
+          listener(parsed.data)
+        }
+      } else {
+        this.warnShape(method)
+      }
+      return true
+    }
     if (method !== SESSION_LIST_CHANGED && method !== SESSION_CLOSED) {
       return false
     }
     const event = this.parseListEvent(method, params)
     if (event === undefined) {
-      this.log.warn(`MSP ${method} had an unexpected shape; ignored`)
+      this.warnShape(method)
       return true
     }
     for (const listener of this.listListeners) {
       listener(event)
     }
     return true
+  }
+
+  private warnShape(method: string): void {
+    this.log.warn(`MSP ${method} had an unexpected shape; ignored`)
   }
 
   private parseListEvent(method: string, params: unknown): SessionListEvent | undefined {
@@ -409,6 +433,19 @@ export class MuseCodeHost implements AgentHost {
     this.exitListeners.add(listener)
     return () => {
       this.exitListeners.delete(listener)
+    }
+  }
+
+  /** The subscription window the CLI last observed; absent until a turn has run. */
+  public async readUsage(): Promise<SubscriptionUsage | undefined> {
+    const result = await this.host.connection.command(USAGE_READ, {})
+    return usageReadResultSchema.parse(result).usage
+  }
+
+  public onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void {
+    this.usageListeners.add(listener)
+    return () => {
+      this.usageListeners.delete(listener)
     }
   }
 

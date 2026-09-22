@@ -462,6 +462,10 @@ export function activate(context: vscode.ExtensionContext): void {
         await updateSetting('useCtrlEnterToSend', !currentSettings().useCtrlEnterToSend)
         break
       }
+      case 'hideOnboarding': {
+        await updateSetting('hideOnboarding', true)
+        break
+      }
     }
   }
 

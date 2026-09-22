@@ -855,3 +855,66 @@ describe('App session history (M6)', () => {
     expect(renames).toHaveLength(1)
   })
 })
+
+describe('App account & usage, onboarding and announcements (M8)', () => {
+  const subscription = {
+    observedAtMs: Date.now(),
+    tier: 'muse-pro',
+    window: { usedPercent: 42, resetsAtMs: Date.now() + 3_600_000, windowDurationMins: 300 },
+    weekly: { usedPercent: 7, resetsAtMs: Date.now() + 86_400_000 },
+  }
+
+  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', () => {
+    const postMessage = renderReady()
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: '/usage' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'readUsage' })
+    const dialog = screen.getByRole('dialog', { name: 'Account & usage' })
+    expect(dialog.parentElement).toHaveClass('header-area')
+    expect(dialog).toHaveTextContent('Reading usage…')
+    deliver({ type: 'usageReport', backend: 'museCode', subscription })
+    expect(
+      screen.getByRole('progressbar', { name: 'Current window: 42% used' }),
+    ).toBeInTheDocument()
+    expect(dialog).toHaveTextContent('muse-pro')
+    fireEvent.keyDown(screen.getByLabelText('Close'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(textarea())
+  })
+
+  it('opens the dialog from the Account & usage row and from /cost', () => {
+    const postMessage = renderReady()
+    let filter = openPalette()
+    fireEvent.change(filter, { target: { value: 'Account & usage' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Close'))
+    filter = openPalette()
+    fireEvent.change(filter, { target: { value: '/cost' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(postMessage.mock.calls.filter(([m]) => m.type === 'readUsage')).toHaveLength(2)
+  })
+
+  it('shows the getting-started tips until the user hides them', () => {
+    const postMessage = renderReady()
+    expect(screen.getByRole('region', { name: 'Getting started' })).toHaveTextContent('Ctrl+Esc')
+    fireEvent.click(screen.getByText('Hide these tips'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'hideOnboarding' })
+    deliver({ type: 'settingsChanged', settings: { ...testSettings, hideOnboarding: true } })
+    expect(screen.queryByRole('region', { name: 'Getting started' })).toBeNull()
+    expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
+  })
+
+  it('reads turn ends through a polite live region', () => {
+    renderReady()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
+    })
+    const sentence = screen.getByText('Muse finished responding')
+    expect(sentence.parentElement).toHaveAttribute('aria-live', 'polite')
+    expect(sentence.parentElement).toHaveClass('sr-only')
+  })
+})

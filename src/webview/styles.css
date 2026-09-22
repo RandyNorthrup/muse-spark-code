@@ -1434,3 +1434,162 @@ body {
 .message-user:focus-within .fork-button {
   visibility: visible;
 }
+
+/* --- Account & usage dialog (M8) --- */
+
+.usage .palette-header {
+  justify-content: space-between;
+}
+
+.usage-title {
+  font-weight: 600;
+}
+
+.usage-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-gap);
+  padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
+  overflow: auto;
+}
+
+.usage-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px var(--ms-gap);
+  margin: 0;
+}
+
+.usage-facts dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.usage-facts dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-heading {
+  margin: var(--ms-gap) 0 0;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+}
+
+.usage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.usage-row-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ms-gap);
+}
+
+.usage-percent {
+  color: var(--vscode-descriptionForeground);
+}
+
+.usage-row-meta {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.usage-bar {
+  width: 100%;
+  height: 6px;
+  border: none;
+  border-radius: 3px;
+  background: var(--vscode-progressBar-background, var(--vscode-panel-border));
+  accent-color: var(--vscode-progressBar-background, var(--vscode-focusBorder));
+  overflow: hidden;
+}
+
+.usage-bar::-webkit-progress-bar {
+  background: var(--vscode-input-background);
+}
+
+.usage-bar::-webkit-progress-value {
+  border-radius: 3px;
+  background: var(--vscode-progressBar-background, var(--vscode-focusBorder));
+}
+
+.usage-link {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  color: var(--vscode-textLink-foreground);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.usage-link:hover {
+  text-decoration: underline;
+}
+
+.usage-link:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+/* --- Onboarding tips on the empty state (M8) --- */
+
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-gap);
+  max-width: 440px;
+  padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+  text-align: start;
+}
+
+.onboarding-title {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.onboarding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.onboarding-list li {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: baseline;
+}
+
+.onboarding-list kbd {
+  flex-shrink: 0;
+  min-width: 2em;
+  text-align: center;
+}
+
+/* Visually hidden, read by assistive technology (the live announcer). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}

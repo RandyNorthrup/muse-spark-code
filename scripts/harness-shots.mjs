@@ -15,6 +15,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
+import { findChrome } from './lib/chrome.mjs'
 
 const SCENARIOS = [
   'empty',
@@ -41,6 +42,7 @@ const SCENARIOS = [
   'history',
   'resume',
   'narrow',
+  'usage',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'
@@ -55,33 +57,8 @@ const CONTENT_TYPES = {
   '.map': 'application/json',
   '.png': 'image/png',
 }
-const CHROME_CANDIDATES = {
-  win32: [
-    path.join(
-      process.env.ProgramFiles ?? String.raw`C:\Program Files`,
-      'Google/Chrome/Application/chrome.exe',
-    ),
-    path.join(
-      process.env['ProgramFiles(x86)'] ?? String.raw`C:\Program Files (x86)`,
-      'Google/Chrome/Application/chrome.exe',
-    ),
-    path.join(process.env.LOCALAPPDATA ?? '', 'Google/Chrome/Application/chrome.exe'),
-  ],
-  darwin: ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'],
-  linux: ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'],
-}
-
 const execFileAsync = promisify(execFile)
 const repoRoot = process.cwd()
-
-function findChrome() {
-  if (process.env.CHROME_PATH !== undefined) {
-    return process.env.CHROME_PATH
-  }
-  const candidates = CHROME_CANDIDATES[process.platform] ?? []
-  // Bare names are resolved through PATH by execFile; absolute ones must exist.
-  return candidates.find((candidate) => !path.isAbsolute(candidate) || existsSync(candidate))
-}
 
 function serveRepo() {
   const server = createServer(async (request, response) => {

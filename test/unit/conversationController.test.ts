@@ -1352,6 +1352,57 @@ const historyLoaded = {
   todos: [],
 }
 
+describe('ConversationController: account & usage (M8)', () => {
+  const usage = {
+    observedAtMs: 1_800_000_000_000,
+    tier: 'muse-pro',
+    window: { usedPercent: 12, resetsAtMs: 1_800_000_900_000, windowDurationMins: 300 },
+    weekly: { usedPercent: 3, resetsAtMs: 1_800_400_000_000 },
+  }
+
+  it('answers readUsage with the backend and the window, then follows usage/changed', async () => {
+    const t = setup()
+    t.server.handle('usage/read', () => ({}))
+    await t.controller.handle({ type: 'readUsage' })
+    expect(t.surface.posted.at(-1)).toEqual({ type: 'usageReport', backend: 'museCode' })
+    t.server.handle('usage/read', () => ({ usage }))
+    await t.controller.handle({ type: 'readUsage' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'usageReport',
+      backend: 'museCode',
+      subscription: usage,
+    })
+    const changed = { ...usage, window: { ...usage.window, usedPercent: 40 } }
+    t.server.notify('usage/changed', changed)
+    await settle()
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'usageReport',
+      backend: 'museCode',
+      subscription: changed,
+    })
+    // One subscription per host: the second readUsage did not double the stream.
+    const reports = t.surface.posted.filter((message) => message.type === 'usageReport')
+    expect(reports).toHaveLength(3)
+    t.controller.dispose()
+    t.server.notify('usage/changed', usage)
+    await settle()
+    expect(t.surface.posted.filter((message) => message.type === 'usageReport')).toHaveLength(3)
+  })
+
+  it('reports a host failure as a notice', async () => {
+    const t = setup()
+    t.server.handle('usage/read', () => {
+      throw new Error('usage unavailable')
+    })
+    await t.controller.handle({ type: 'readUsage' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'Usage could not be read: usage unavailable',
+    })
+  })
+})
+
 describe('ConversationController: session history (M6)', () => {
   it('lists the workspace sessions page by page and posts rows with the archived ids', async () => {
     const t = withHistory({ archivedIds: ['page2'] })

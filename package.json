@@ -2,13 +2,18 @@
   "name": "muse-spark-code",
   "displayName": "Muse Spark Code (Unofficial)",
   "description": "Unofficial VS Code chat panel for Meta's Muse Spark model, driven through the Muse Code CLI or a Meta Model API key.",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/RandyNorthrup/muse-spark-code.git"
+  },
+  "homepage": "https://github.com/RandyNorthrup/muse-spark-code#readme",
+  "bugs": {
+    "url": "https://github.com/RandyNorthrup/muse-spark-code/issues"
   },
   "engines": {
     "vscode": "^1.134.0",
@@ -307,7 +312,9 @@
     "quality:gates": "run-s format:check lint typecheck deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:integration",
+    "vscode:prepublish": "npm run build",
     "package": "vsce package --no-dependencies",
+    "icon": "node scripts/render-icon.mjs",
     "prepare": "husky",
     "security:sast": "semgrep scan --config auto --error --exclude=dist --exclude=coverage --exclude=node_modules --exclude=.vscode-test"
   },

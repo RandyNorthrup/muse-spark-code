@@ -18,6 +18,8 @@ import {
   HIDDEN_ITEM_KINDS,
   MILLISECONDS_PER_SECOND,
   type PermissionMode,
+  TOOL_LABELS,
+  UI_TEXT,
 } from '../../shared/constants'
 import type {
   AttachmentSummary,
@@ -32,8 +34,24 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import type { SessionRow } from '../../shared/sessions'
+import type { SubscriptionUsage } from '../../shared/usage'
 
 export type NoticeLevel = 'info' | 'warning' | 'error'
+
+/** What the Account & usage dialog shows (M8): the host's last `usageReport`. */
+export interface UsageReport {
+  readonly backend: BackendKind
+  readonly subscription: SubscriptionUsage | undefined
+}
+
+/**
+ * The last sentence for the screen-reader live region (M8). `sequence`
+ * grows on every announcement so the same text twice is still read twice.
+ */
+export interface Announcement {
+  readonly text: string
+  readonly sequence: number
+}
 
 export interface PendingApproval {
   readonly approvalId: string
@@ -204,6 +222,9 @@ export interface UiState {
   readonly activeTurnId: string | undefined
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
+  /** undefined until the host answered `readUsage` for this window. */
+  readonly usageReport: UsageReport | undefined
+  readonly announcement: Announcement | undefined
   readonly todos: readonly TodoItem[]
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
@@ -264,6 +285,8 @@ export const initialUiState: UiState = {
   activeTurnId: undefined,
   usage: undefined,
   context: undefined,
+  usageReport: undefined,
+  announcement: undefined,
   todos: [],
   outputPages: {},
   localSequence: 0,
@@ -273,6 +296,30 @@ export const initialUiState: UiState = {
 
 const SUMMARY_FIELD_PREFIX = 'summary.'
 const OUTPUT_FIELD = 'output'
+
+/** Queue a sentence for the live region; nothing to say leaves the state alone. */
+function announce(state: UiState, text: string | undefined): UiState {
+  return text === undefined
+    ? state
+    : { ...state, announcement: { text, sequence: (state.announcement?.sequence ?? 0) + 1 } }
+}
+
+function turnAnnouncement(terminal: string): string | undefined {
+  switch (terminal) {
+    case 'completed': {
+      return UI_TEXT.announceTurnCompleted
+    }
+    case 'failed': {
+      return UI_TEXT.announceTurnFailed
+    }
+    case 'cancelled': {
+      return UI_TEXT.announceTurnCancelled
+    }
+    default: {
+      return undefined
+    }
+  }
+}
 const TEXT_FIELD = 'text'
 const IN_PROGRESS = 'inProgress'
 const USER_MESSAGE_KIND = 'userMessage'
@@ -508,7 +555,10 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
               },
             ]
           : []
-      return { ...state, activeTurnId: undefined, transcript: [...state.transcript, ...failure] }
+      return announce(
+        { ...state, activeTurnId: undefined, transcript: [...state.transcript, ...failure] },
+        turnAnnouncement(event.terminal),
+      )
     }
     case 'turnRetry': {
       const seconds = Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND)
@@ -564,18 +614,21 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
       }
-      return withToolEntry(
-        state,
-        event.itemId,
-        () =>
-          toolEntry({
-            itemId: event.itemId,
-            kind: 'toolCall',
-            status: IN_PROGRESS,
-            tool: event.toolName,
-            args: event.rawArgs,
-          }),
-        (entry) => (entry.kind === 'tool' ? { ...entry, approval } : entry),
+      return announce(
+        withToolEntry(
+          state,
+          event.itemId,
+          () =>
+            toolEntry({
+              itemId: event.itemId,
+              kind: 'toolCall',
+              status: IN_PROGRESS,
+              tool: event.toolName,
+              args: event.rawArgs,
+            }),
+          (entry) => (entry.kind === 'tool' ? { ...entry, approval } : entry),
+        ),
+        `${UI_TEXT.announceApproval} ${TOOL_LABELS[event.toolName] ?? event.toolName}`,
       )
     }
     case 'approvalUpdated': {
@@ -615,17 +668,20 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         userInputId: event.userInputId,
         questions: event.questions,
       }
-      return withToolEntry(
-        state,
-        event.itemId,
-        () =>
-          toolEntry({
-            itemId: event.itemId,
-            kind: 'toolCall',
-            status: IN_PROGRESS,
-            tool: 'request_user_input',
-          }),
-        (entry) => (entry.kind === 'tool' ? { ...entry, question } : entry),
+      return announce(
+        withToolEntry(
+          state,
+          event.itemId,
+          () =>
+            toolEntry({
+              itemId: event.itemId,
+              kind: 'toolCall',
+              status: IN_PROGRESS,
+              tool: 'request_user_input',
+            }),
+          (entry) => (entry.kind === 'tool' ? { ...entry, question } : entry),
+        ),
+        UI_TEXT.announceQuestion,
       )
     }
     case 'questionSettled': {
@@ -707,18 +763,27 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'sessionList': {
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
     }
-    case 'historyLoaded': {
+    case 'usageReport': {
       return {
         ...state,
-        sessionId: message.sessionId,
-        title: message.name,
-        transcript: replayHistory(message.items, at),
-        todos: message.todos,
-        activeTurnId: undefined,
-        usage: undefined,
-        context: undefined,
-        outputPages: {},
+        usageReport: { backend: message.backend, subscription: message.subscription },
       }
+    }
+    case 'historyLoaded': {
+      return announce(
+        {
+          ...state,
+          sessionId: message.sessionId,
+          title: message.name,
+          transcript: replayHistory(message.items, at),
+          todos: message.todos,
+          activeTurnId: undefined,
+          usage: undefined,
+          context: undefined,
+          outputPages: {},
+        },
+        UI_TEXT.announceResumed,
+      )
     }
     case 'turnAccepted': {
       return {
@@ -730,12 +795,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
     case 'sendFailed': {
-      return {
-        ...state,
-        transcript: updateEntry(state.transcript, message.localId, (entry) =>
-          entry.kind === 'user' ? { ...entry, status: 'failed', reason: message.reason } : entry,
-        ),
-      }
+      return announce(
+        {
+          ...state,
+          transcript: updateEntry(state.transcript, message.localId, (entry) =>
+            entry.kind === 'user' ? { ...entry, status: 'failed', reason: message.reason } : entry,
+          ),
+        },
+        message.reason,
+      )
     }
     case 'agentEvent': {
       return applyAgentEvent(state, message.event, at)
@@ -768,7 +836,11 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, attachments: [] }
     }
     case 'notice': {
-      return withNotice(state, message.level, message.text)
+      // Warnings and errors are read out; informational notices stay visual.
+      return announce(
+        withNotice(state, message.level, message.text),
+        message.level === 'info' ? undefined : message.text,
+      )
     }
     case 'outputPage': {
       const key = outputPageKey(message.itemId, message.outputRef)

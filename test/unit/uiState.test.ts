@@ -668,6 +668,94 @@ describe('uiReducer: agent events', () => {
   })
 })
 
+describe('uiReducer: account & usage and announcements (M8)', () => {
+  const subscription = {
+    observedAtMs: NOW,
+    tier: 'muse-pro',
+    window: { usedPercent: 12, resetsAtMs: NOW + 1, windowDurationMins: 300 },
+    weekly: { usedPercent: 3, resetsAtMs: NOW + 2 },
+  }
+
+  it('keeps the last usage report, with or without a window, across a clear', () => {
+    const withWindow = reduceAll([
+      host(init),
+      host({ type: 'usageReport', backend: 'museCode', subscription }),
+    ])
+    expect(withWindow.usageReport).toEqual({ backend: 'museCode', subscription })
+    const cleared = reduceAll(
+      [host({ type: 'usageReport', backend: 'modelApi' }), { type: 'conversationCleared' }],
+      withWindow,
+    )
+    expect(cleared.usageReport).toEqual({ backend: 'modelApi', subscription: undefined })
+  })
+
+  it('announces turn ends, approvals, questions, failures, resumes and warnings, counting each', () => {
+    const base = reduceAll([host(init), signedIn])
+    const completed = reduceAll(
+      [agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })],
+      base,
+    )
+    expect(completed.announcement).toEqual({ text: 'Muse finished responding', sequence: 1 })
+    const twice = reduceAll(
+      [agent({ type: 'turnCompleted', turnId: 't2', terminal: 'completed' })],
+      completed,
+    )
+    expect(twice.announcement).toEqual({ text: 'Muse finished responding', sequence: 2 })
+    expect(
+      reduceAll([agent({ type: 'turnCompleted', turnId: 't3', terminal: 'cancelled' })], base)
+        .announcement?.text,
+    ).toBe('The turn was stopped')
+    expect(
+      reduceAll([agent({ type: 'turnCompleted', turnId: 't3', terminal: 'failed' })], base)
+        .announcement?.text,
+    ).toBe('The turn failed')
+    expect(
+      reduceAll([agent({ type: 'turnCompleted', turnId: 't3', terminal: 'retracted' })], base)
+        .announcement,
+    ).toBeUndefined()
+    expect(
+      reduceAll(
+        [
+          agent({
+            type: 'approvalRequested',
+            approvalId: 'a1',
+            itemId: 'i1',
+            toolName: 'bash',
+            requirementId: { approvalId: 'a1', sourceIndex: 0 },
+            subject: { kind: 'command', command: 'ls' },
+            rawArgs: '{}',
+            availableChoices: [],
+            isProtectedWrite: false,
+            isJudgeEscalated: false,
+          }),
+        ],
+        base,
+      ).announcement?.text,
+    ).toBe('Approval needed for Bash')
+    expect(
+      reduceAll(
+        [agent({ type: 'questionRequested', userInputId: 'q', itemId: 'i2', questions: [] })],
+        base,
+      ).announcement?.text,
+    ).toBe('Muse asked a question')
+    expect(
+      reduceAll([host({ type: 'sendFailed', localId: 'l', reason: 'offline' })], base).announcement
+        ?.text,
+    ).toBe('offline')
+    expect(
+      reduceAll([host({ type: 'historyLoaded', sessionId: 's', items: [], todos: [] })], base)
+        .announcement?.text,
+    ).toBe('Conversation resumed')
+    expect(
+      reduceAll([host({ type: 'notice', level: 'warning', text: 'careful' })], base).announcement
+        ?.text,
+    ).toBe('careful')
+    expect(
+      reduceAll([host({ type: 'notice', level: 'info', text: 'fyi' })], base).announcement,
+    ).toBeUndefined()
+  })
+})
+
 describe('uiReducer: editor context (M5)', () => {
   const context = { relativePath: 'src/a.ts', startLine: 1, endLine: 1, isEmpty: true }
 

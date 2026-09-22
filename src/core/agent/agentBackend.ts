@@ -11,6 +11,7 @@ import type {
   RequirementRef,
   TodoItem,
 } from '../../shared/agentEvents'
+import type { SubscriptionUsage } from '../../shared/usage'
 
 export type BackendKind = 'museCode' | 'modelApi'
 
@@ -190,6 +191,14 @@ export interface AgentHost {
   ): Promise<LoadedSession>
   forkSession(sessionId: string, modelId: string, lastTurnId?: string): Promise<LoadedSession>
   onSessionListEvent(listener: (event: SessionListEvent) => void): () => void
+  /**
+   * The subscription usage the host last observed (M8); undefined when there
+   * is none: a key-billed backend, or a CLI that has not seen a usage frame
+   * yet (it reports one after a turn).
+   */
+  readUsage(): Promise<SubscriptionUsage | undefined>
+  /** A fresh observation arrived (MSP `usage/changed`). */
+  onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void
   readonly sessionCount: number
   close(): Promise<void>
 }

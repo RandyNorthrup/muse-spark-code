@@ -1,0 +1,75 @@
+# Privacy
+
+Muse Spark Code (Unofficial) is a VS Code extension that sends what you type
+to Meta's Muse Spark model. This page says what leaves your machine, where it
+goes, and what stays local. It is written for the extension's users; the
+security notes for contributors are in `PLAN.md` §9.
+
+## What the extension sends, and to whom
+
+- **Your prompts, attachments and mentioned files.** Everything you type into
+  the panel, every image you paste or drop, the contents of files you
+  `@`-mention, the open file or selection when the "attach open file" setting
+  is on, and the outputs of the tools the agent runs (file contents,
+  command output, Problems-panel diagnostics) are sent to Meta so the model
+  can answer. Nothing is sent until you press Send.
+- **Through the Muse Code CLI** (the default backend), the extension hands
+  your messages to Meta's `muse serve` process on your machine, which talks
+  to Meta with the credential from its own `muse login`. What the CLI sends
+  beyond your messages (its system prompt, its own telemetry, if any) is
+  governed by Meta's Muse Code terms, not by this extension.
+- **Through the Meta Model API** (when you paste a key), the extension calls
+  `https://api.meta.ai/v1` directly with your key. Each turn re-sends the
+  conversation so far, because requests are made with `store: false`; Meta's
+  Model API terms govern retention on their side.
+- **Contributor-tier models.** Meta may use traffic to the models whose id
+  ends in `-contributor` to train its models. The extension asks once per
+  conversation before using one, and refuses them entirely when the
+  `museSpark.confidentialWorkspace` setting is on.
+
+The extension itself has **no telemetry**, no analytics, no crash reporting
+and no server of its own. It never contacts any host other than Meta's, and
+only when you send a message or sign in.
+
+## Credentials
+
+- A Model API key you paste is stored in VS Code's secret storage (the
+  operating system's credential vault), never in settings files, logs or the
+  workspace. It is sent only to `api.meta.ai` as a bearer token, and never
+  passed to the Muse Code CLI or any other process.
+- The Muse Code CLI's own sign-in lives in the CLI's credential file
+  (`~/.config/muse/auth.json`). The extension reads only whether the file
+  exists and its metadata (never its values) to decide which sign-in path to
+  offer.
+- **Sign out** in the panel deletes the pasted key from secret storage;
+  `/logout` also runs `muse logout` for the CLI.
+
+## What stays on your machine
+
+- Conversation history on the Muse Code backend is the CLI's own session
+  store under `~/.local/share/muse` (Meta's format). The extension reads it
+  to show the History dialog and never copies it anywhere.
+- Conversations on the Model API backend live only in the VS Code window
+  that made them.
+- Settings (`museSpark.*`), the archived-session list and the "last session"
+  memory per panel are stored by VS Code's settings and state APIs.
+- The "Muse Spark" output channel logs what the extension does, with keys
+  and tokens redacted. It is not written to disk by the extension.
+
+## Your choices
+
+- `museSpark.confidentialWorkspace` blocks contributor-tier models and hides
+  them from the model list.
+- `museSpark.attachOpenFile` controls whether the active editor rides along
+  with a message.
+- `museSpark.respectGitIgnore` keeps ignored files out of `@`-mention
+  suggestions.
+- Permission modes (Manual, Edit automatically, Plan, Auto, Bypass) decide
+  which tool calls run without a card; the card shows the command or path
+  before anything runs.
+
+## Contact
+
+Questions and reports: <https://github.com/RandyNorthrup/muse-spark-code/issues>.
+This project is not affiliated with Meta. "Muse Spark" and "Muse Code" are
+Meta trademarks.

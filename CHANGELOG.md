@@ -7,8 +7,31 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-09-22
+
+The first release: milestones M0 to M8 of `PLAN.md`, both backends,
+certified per milestone under `docs/certification/`.
+
 ### Added
 
+- Milestone M8, account & usage and packaging: an **Account & usage**
+  dialog (palette row, `/usage`, `/cost`) showing the backend, the Muse Code
+  subscription's current block and weekly window as bars with reset times
+  and the observation age (MSP `usage/read`, live through `usage/changed`;
+  verified live 2026-09-22 with the CLI on the owner's subscription), this
+  conversation's input / output / cached tokens and context, and a link to
+  the dev.meta.ai dashboard; a key-billed window says so instead of showing
+  bars. Getting-started tips on the empty state with **Hide these tips**
+  writing `museSpark.hideOnboarding`. A polite screen-reader live region
+  announcing finished, failed and stopped turns, approval cards (with the
+  tool), questions, resumes, warnings and errors. Packaging: a Marketplace
+  icon (`media/icon.png`, rendered from `media/marketplace-icon.svg` by
+  `npm run icon`; deliberately not Meta's logo), `vscode:prepublish`,
+  `.vscodeignore` trimmed to the shipped files, `docs/PRIVACY.md`, and the
+  Marketplace README. `npm run package` produces the `.vsix`; publishing
+  (`vsce publish` with the owner's PAT) is a manual step.
 - Milestone M7, the Meta Model API backend: with a pasted key the panel
   talks to `api.meta.ai/v1` itself (streamed `POST /responses`, stateless
   reasoning replay with `store: false`, the documented 429 / 500 / 503

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- The Marketplace icon: a spark on a dark tile. Deliberately not Meta's
+       logo (this extension is unofficial); the activity-bar mask in icon.svg
+       stays as it is. Rendered to media/icon.png by scripts/render-icon.mjs. -->
+  <defs>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fb2ff"/>
+      <stop offset="1" stop-color="#3b6cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#16181f"/>
+  <path fill="url(#spark)" d="M64 18c3 20 10 27 30 30-20 3-27 10-30 30-3-20-10-27-30-30 20-3 27-10 30-30z"/>
+  <path fill="#7fb2ff" opacity="0.85" d="M96 74c1.5 8 4.5 11 12.5 12.5-8 1.5-11 4.5-12.5 12.5-1.5-8-4.5-11-12.5-12.5 8-1.5 11-4.5 12.5-12.5z"/>
+  <path fill="#7fb2ff" opacity="0.6" d="M32 82c1 5.5 3 7.5 8.5 8.5-5.5 1-7.5 3-8.5 8.5-1-5.5-3-7.5-8.5-8.5 5.5-1 7.5-3 8.5-8.5z"/>
+</svg>

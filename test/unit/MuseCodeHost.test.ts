@@ -530,3 +530,39 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     expect(events).toHaveLength(2)
   })
 })
+
+describe('MuseCodeHost: subscription usage (M8)', () => {
+  const usage = {
+    observedAtMs: 1_800_000_000_000,
+    tier: 'muse-pro',
+    window: { usedPercent: 12, resetsAtMs: 1_800_000_900_000, windowDurationMins: 300 },
+    weekly: { usedPercent: 3, resetsAtMs: 1_800_400_000_000 },
+  }
+
+  it('reads usage/read, absent before the first observation', async () => {
+    const { host, server } = setup()
+    server.handle('usage/read', () => ({}))
+    await expect(host.readUsage()).resolves.toBeUndefined()
+    server.handle('usage/read', () => ({ usage }))
+    await expect(host.readUsage()).resolves.toEqual(usage)
+    expect(server.requestsFor('usage/read')).toHaveLength(2)
+  })
+
+  it('delivers usage/changed to its listeners without a session, warning on bad shapes', async () => {
+    const { host, server, log } = setup()
+    const seen: unknown[] = []
+    const stop = host.onUsageChanged((next) => {
+      seen.push(next)
+    })
+    server.notify('usage/changed', usage)
+    server.notify('usage/changed', { tier: 'broken' })
+    await settle()
+    expect(seen).toEqual([usage])
+    expect(log.warn).toHaveBeenCalledOnce()
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('usage/changed')
+    stop()
+    server.notify('usage/changed', usage)
+    await settle()
+    expect(seen).toHaveLength(1)
+  })
+})

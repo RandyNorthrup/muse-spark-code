@@ -15,6 +15,7 @@ import {
 } from './agentEvents'
 import { EFFORT_LEVELS, PERMISSION_MODES, PREFERRED_LOCATIONS } from './constants'
 import { sessionRowSchema } from './sessions'
+import { subscriptionUsageSchema } from './usage'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -61,6 +62,8 @@ export const HOST_ACTIONS = [
   'openLog',
   'toggleFocusView',
   'toggleCtrlEnterToSend',
+  /** "Hide these tips" on the empty state: sets museSpark.hideOnboarding (M8). */
+  'hideOnboarding',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -208,6 +211,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   /** Fork the current session through `lastTurnId` (all turns when absent). */
   z.object({ type: z.literal('forkSession'), lastTurnId: z.optional(z.string()) }),
   z.object({ type: z.literal('renameSession'), name: z.string() }),
+  // Account & usage (M8): ask for the subscription window; answered by usageReport.
+  z.object({ type: z.literal('readUsage') }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -261,6 +266,14 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     items: z.array(itemSnapshotSchema),
     name: z.optional(z.string()),
     todos: z.array(todoItemSchema),
+  }),
+  // Account & usage (M8): the backend this window runs on and the
+  // subscription window the CLI last observed (absent on a key, or before
+  // the first turn). Sent for readUsage and again on every usage/changed.
+  z.object({
+    type: z.literal('usageReport'),
+    backend: z.enum(BACKEND_KINDS),
+    subscription: z.optional(subscriptionUsageSchema),
   }),
   // The host accepted a sendMessage and the turn is running.
   z.object({ type: z.literal('turnAccepted'), localId: z.string(), turnId: z.string() }),

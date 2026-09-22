@@ -189,6 +189,18 @@ describe('ModelApiHost: catalogue and sessions', () => {
   })
 })
 
+describe('ModelApiHost: usage (M8)', () => {
+  it('has no subscription window to report and never fires usage changes', async () => {
+    const t = setup()
+    await expect(t.host.readUsage()).resolves.toBeUndefined()
+    const stop = t.host.onUsageChanged(() => {
+      throw new Error('a key has no usage stream')
+    })
+    expect(typeof stop).toBe('function')
+    stop()
+  })
+})
+
 describe('ModelApiSession: turns', () => {
   it('streams a reply with reasoning into the transcript and replays it with usage', async () => {
     const t = setup()

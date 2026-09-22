@@ -157,6 +157,28 @@ describe('buildPalette', () => {
     expect(backendRow(context, undefined)?.widget).toEqual({ kind: 'value', text: '—' })
   })
 
+  it('opens the Account & usage dialog from its row and from /usage and /cost', () => {
+    const groups = buildPalette(context)
+    const account = groups.find((group) => group.id === 'account')
+    expect(account?.items[0]).toMatchObject({
+      label: 'Account & usage…',
+      action: { type: 'openUsage' },
+    })
+    const slash = groups.find((group) => group.id === 'slash')
+    expect(slash?.items.map((item) => item.label)).toEqual([
+      '/compact',
+      '/clear',
+      '/logout',
+      '/usage',
+      '/cost',
+    ])
+    expect(slash?.items.at(-2)?.action).toEqual({ type: 'openUsage' })
+    expect(slash?.items.at(-1)?.action).toEqual({ type: 'openUsage' })
+    expect(filterPalette(groups, '/cost').flatMap((group) => group.items.map((i) => i.id))).toEqual(
+      ['costCommand'],
+    )
+  })
+
   it('routes every enabled row to a real action', () => {
     const rows = flattenPalette(buildPalette(context))
     for (const item of rows) {

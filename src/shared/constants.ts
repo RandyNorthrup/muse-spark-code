@@ -404,6 +404,22 @@ export const MUSE_DISABLE_SANDBOX_ARG = '--disable-sandbox'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_DOCS_URL = 'https://dev.meta.ai/products/muse-code/'
 export const ISSUES_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issues'
+/** The Meta developer dashboard (usage, keys, billing) the usage dialog links to. */
+export const META_DASHBOARD_URL = 'https://dev.meta.ai/'
+
+/**
+ * The getting-started tips on the empty state (M8), in the order shown. The
+ * shortcuts are the default bindings from package.json; Cmd stands in for
+ * Ctrl on macOS as the composer placeholder already assumes.
+ */
+export const ONBOARDING_TIPS = [
+  { shortcut: 'Ctrl+Esc', text: 'focuses or unfocuses Muse from anywhere in VS Code' },
+  { shortcut: '/', text: 'opens the actions palette: model, effort, permission mode, history' },
+  { shortcut: 'Shift+Tab', text: 'cycles the permission mode while the composer has focus' },
+  { shortcut: 'Alt+K', text: 'inserts an @-mention of the editor selection' },
+  { shortcut: '@', text: 'mentions a file; drag files or paste images to attach them' },
+  { shortcut: 'Ctrl+Shift+Esc', text: 'opens a conversation in a new editor tab' },
+] as const
 export const MUSE_LOGIN_ARGS = ['login'] as const
 export const MUSE_LOGOUT_ARGS = ['logout'] as const
 export const MUSE_LOGIN_TERMINAL_NAME = 'Muse Code sign-in'
@@ -647,6 +663,45 @@ export const UI_TEXT = {
   unreadTooltip: 'Muse needs your attention',
   unreadMark: '● ',
   sessionRequired: 'Start a conversation first.',
+  // Account & usage dialog (M8).
+  usageItem: 'Account & usage…',
+  usageItemDetail: 'Subscription usage, this conversation’s tokens, the backend',
+  usageCommand: '/usage',
+  usageCommandDetail: 'Show account usage',
+  costCommand: '/cost',
+  costCommandDetail: 'Show this conversation’s token totals',
+  usageLabel: 'Account & usage',
+  usagePlan: 'Plan',
+  usageBackend: 'Backend',
+  usageWindow: 'Current window',
+  usageWeekly: 'This week',
+  usageUsed: 'used',
+  usageResets: 'resets in',
+  usageAsOf: 'as of',
+  usageNoSubscription:
+    'No subscription usage reported yet. Muse Code reports it after the first turn of a conversation.',
+  usageModelApiNote:
+    'This window runs on your Model API key: requests are billed to the key at pay-as-you-go rates and counted on the dev.meta.ai dashboard.',
+  usageOpenDashboard: 'Open dev.meta.ai',
+  usageSessionTokens: 'This conversation',
+  usageInput: 'Input',
+  usageOutput: 'Output',
+  usageCached: 'Cached',
+  usageContext: 'Context',
+  usageNoSession: 'No tokens counted yet in this conversation.',
+  usageLoading: 'Reading usage…',
+  usageUnavailable: 'Usage could not be read',
+  usageClose: 'Close',
+  // Onboarding tips on the empty state (M8), hidden by museSpark.hideOnboarding.
+  onboardingTitle: 'Getting started',
+  onboardingHide: 'Hide these tips',
+  // Screen-reader announcements (M8): a polite live region reads these.
+  announceTurnCompleted: 'Muse finished responding',
+  announceTurnFailed: 'The turn failed',
+  announceTurnCancelled: 'The turn was stopped',
+  announceApproval: 'Approval needed for',
+  announceQuestion: 'Muse asked a question',
+  announceResumed: 'Conversation resumed',
   // Model API backend (M7).
   allowOnce: 'Allow once',
   allowSessionPrefix: 'Always allow in this session:',

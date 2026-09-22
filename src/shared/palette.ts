@@ -30,6 +30,7 @@ export type PaletteAction =
   | { readonly type: 'mentionFile' }
   | { readonly type: 'clearConversation' }
   | { readonly type: 'openHistory' }
+  | { readonly type: 'openUsage' }
   | { readonly type: 'openModelPicker' }
   | { readonly type: 'setEffort'; readonly effort: EffortLevel }
   | { readonly type: 'toggleThinking' }
@@ -83,7 +84,7 @@ export interface PaletteContext {
   readonly backend: BackendKind | undefined
 }
 
-const BACKEND_LABELS: Readonly<Record<BackendKind, string>> = {
+export const BACKEND_LABELS: Readonly<Record<BackendKind, string>> = {
   museCode: UI_TEXT.backendMuseCode,
   modelApi: UI_TEXT.backendModelApi,
 }
@@ -229,6 +230,12 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       title: UI_TEXT.groupAccount,
       items: [
         {
+          id: 'accountUsage',
+          label: UI_TEXT.usageItem,
+          detail: UI_TEXT.usageItemDetail,
+          action: { type: 'openUsage' },
+        },
+        {
           id: 'usage',
           label: UI_TEXT.sessionUsage,
           widget: { kind: 'value', text: usageValue(context.usage) },
@@ -270,6 +277,18 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: UI_TEXT.logoutItem,
           detail: UI_TEXT.signOutItem,
           action: { type: 'signOut' },
+        },
+        {
+          id: 'usageCommand',
+          label: UI_TEXT.usageCommand,
+          detail: UI_TEXT.usageCommandDetail,
+          action: { type: 'openUsage' },
+        },
+        {
+          id: 'costCommand',
+          label: UI_TEXT.costCommand,
+          detail: UI_TEXT.costCommandDetail,
+          action: { type: 'openUsage' },
         },
       ],
     },
