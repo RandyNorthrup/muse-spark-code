@@ -11,9 +11,9 @@ picker, permission modes, streaming markdown, diff review, and session history.
 > attach images, `@`-mention files, pick the model, effort and permission
 > mode, steer a running turn, and watch the agent read, edit and write files
 > in tool rows with diffs, approve or reject gated commands from cards, and
-> answer its questions. Shell commands need Muse Code's OS sandbox (see
-> Troubleshooting). See [`PLAN.md`](PLAN.md) for the milestone plan and the
-> research behind it.
+> answer its questions. On Windows the panel offers Muse Code's one-time
+> shell-sandbox setup itself (one administrator prompt). See
+> [`PLAN.md`](PLAN.md) for the milestone plan and the research behind it.
 
 This project is not affiliated with or endorsed by Meta. "Muse Spark" and
 "Muse Code" are Meta trademarks. You bring your own credentials.
@@ -100,6 +100,7 @@ offers the **Muse Spark:** commands listed below.
 | Muse Spark: Insert @-Mention for Selection | `Alt+K`                                                            | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
 | Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on)                                                                        |
 | Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
+| Muse Spark: Set Up Shell Sandbox           | —                                                                  | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
 
 In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
 `museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
@@ -312,8 +313,23 @@ gitleaks over full history, and semgrep.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 - **Every shell command fails with `sandbox enforcement unavailable`** — Muse
-  Code runs commands inside an OS sandbox that needs a one-time setup. Check
-  with `muse sandbox windows check`; on Windows run `muse sandbox windows
-setup` from an elevated PowerShell, then start a new conversation. File
-  reads and edits work without it. The panel shows this notice once per
-  conversation when it sees the failure.
+  Code runs commands inside an OS sandbox that needs a one-time administrator
+  setup on Windows (it creates the local sandbox users, their capabilities and
+  a network filter under `C:\ProgramData\muse`). The extension checks
+  `muse sandbox windows check` when a chat opens and offers the setup in a
+  notification ("Set up now" relaunches `muse sandbox windows setup` through
+  the UAC prompt and re-checks; "Don't ask again" is remembered). The same
+  flow is available any time as **Muse Spark: Set Up Shell Sandbox**, and the
+  panel repeats the offer when a shell tool reports the failure. After the
+  setup, start a new conversation. File reads and edits work without it;
+  Linux and macOS need no setup (`muse sandbox` has only the `windows`
+  subcommands).
+- **Shell commands run in `C:\Windows\System32\WindowsPowerShell\v1.0`
+  instead of the project, and the first one takes ages** — Muse Code 1.3.0's
+  Windows sandbox account cannot enter folders under `C:\Users\<you>`, so for
+  a workspace inside your profile it falls back to PowerShell's own folder
+  (about 34 s per command; the very first command can take minutes while the
+  sandbox account logs on). The panel says so once per conversation. File
+  reads and edits are unaffected. A workspace outside the profile (for
+  example `C:\src\project`) runs commands in place in about a second. The
+  same happens in `muse exec`, so it is a CLI limitation, not the extension.

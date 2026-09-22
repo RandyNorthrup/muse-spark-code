@@ -1,16 +1,18 @@
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
-import { execFile } from 'node:child_process'
+import { execFile, type ExecFileException } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import type { CliInvocation } from './core/backends/musecode/sandbox'
 import type { MentionSource } from './core/mention'
 import { MentionIndex } from './core/mentionIndex'
 import { AuthService } from './host/auth/authService'
 import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
+import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
 import { insertMentionReference } from './host/commands/insertMention'
 import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
@@ -30,11 +32,13 @@ import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
 import {
   HAS_APPROVAL_UI,
   CHAT_VIEW_ID,
+  CLI_OUTPUT_MAX_BYTES,
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   FIND_FILES_GLOB,
   GIT_OUTPUT_MAX_BYTES,
+  GLOBAL_STATE_KEYS,
   MENTION_INDEX_LIMIT,
   MENTION_INDEX_TTL_MS,
   MUSE_LOGIN_TERMINAL_NAME,
@@ -120,6 +124,31 @@ async function runGit(args: readonly string[], cwd: string): Promise<string> {
   return stdout
 }
 
+// A failed spawn or a timeout kill has no exit code; report it as negative so
+// the caller can tell "the CLI said no" from "the CLI never ran".
+const NO_EXIT_CODE = -1
+
+function exitCodeOf(error: ExecFileException | null): number {
+  if (error === null) {
+    return 0
+  }
+  return typeof error.code === 'number' ? error.code : NO_EXIT_CODE
+}
+
+/** Runs a short CLI command to completion without a shell; never rejects. */
+function runProcess(invocation: CliInvocation, timeoutMs: number): Promise<ProcessResult> {
+  return new Promise((resolve) => {
+    execFile(
+      invocation.command,
+      [...invocation.args],
+      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES },
+      (error, stdout, stderr) => {
+        resolve({ exitCode: exitCodeOf(error), stdout, stderr })
+      },
+    )
+  })
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
@@ -147,6 +176,23 @@ export function activate(context: vscode.ExtensionContext): void {
     getEnvironmentVariables: () => currentSettings().environmentVariables,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
+  })
+  const sandbox = new SandboxSetup({
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    resolveLaunch: () => backend.resolveLaunch(),
+    run: runProcess,
+    showWarning: async (message, ...choices) =>
+      await vscode.window.showWarningMessage(message, ...choices),
+    showInformation: (message) => {
+      void vscode.window.showInformationMessage(message)
+    },
+    isPromptSuppressed: () =>
+      context.globalState.get<boolean>(GLOBAL_STATE_KEYS.sandboxPromptSuppressed) === true,
+    suppressPrompt: async () => {
+      await context.globalState.update(GLOBAL_STATE_KEYS.sandboxPromptSuppressed, true)
+    },
+    log,
   })
   const auth = new AuthService({
     backend: {
@@ -285,6 +331,11 @@ export function activate(context: vscode.ExtensionContext): void {
             builder.insert(editor.selection.active, text)
           })
         },
+        onSandboxUnavailable: () => {
+          void sandbox.offerIfNeeded('failure')
+        },
+        platform: process.platform,
+        userProfileDir: process.env['USERPROFILE'],
         newAttachmentId: () => crypto.randomUUID(),
         log,
       })
@@ -313,6 +364,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (auth.current.status === 'checking') {
         void auth.refresh()
       }
+      void sandbox.offerIfNeeded('startup')
     },
     onConversationMessage: (surface, message) => {
       void controllerFor(surface).handle(message)
@@ -377,6 +429,9 @@ export function activate(context: vscode.ExtensionContext): void {
       if (surface !== undefined) {
         await controllerFor(surface).toggleThinking()
       }
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.setUpSandbox, async () => {
+      await sandbox.runCommand()
     }),
   )
 }

@@ -79,6 +79,11 @@
         "command": "museSpark.toggleThinking",
         "title": "Toggle Thinking",
         "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.setUpSandbox",
+        "title": "Set Up Shell Sandbox",
+        "category": "Muse Spark"
       }
     ],
     "keybindings": [

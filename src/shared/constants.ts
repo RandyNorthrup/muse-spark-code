@@ -20,6 +20,13 @@ export const COMMAND_IDS = {
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',
   toggleThinking: 'museSpark.toggleThinking',
+  setUpSandbox: 'museSpark.setUpSandbox',
+} as const
+
+// Extension-private `globalState` keys (never machine-wide configuration).
+export const GLOBAL_STATE_KEYS = {
+  /** "Don't ask again" on the Windows sandbox setup prompt. */
+  sandboxPromptSuppressed: 'museSpark.sandboxPromptSuppressed',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -207,6 +214,23 @@ export const MILLISECONDS_PER_SECOND = 1000
 // Muse Code's shell tool reports this when its OS sandbox is not set up
 // (Windows: `muse sandbox windows setup` from an elevated shell).
 export const SANDBOX_FAILURE_MARKER = 'sandbox enforcement unavailable'
+// `muse sandbox windows check` / `setup` (Muse Code 1.3.0; the only platform
+// with a sandbox subcommand, verified 2026-09-22 on Windows and Linux). The
+// check prints `key=value` lines and exits 1 while setup is required.
+export const MUSE_SANDBOX_CHECK_ARGS = ['sandbox', 'windows', 'check'] as const
+export const MUSE_SANDBOX_SETUP_ARGS = ['sandbox', 'windows', 'setup'] as const
+export const SANDBOX_STATUS_READY = 'ready'
+export const SANDBOX_STATUS_SETUP_REQUIRED = 'setup_required'
+// The check is a short local process; the setup waits on the UAC prompt and
+// then runs for about a second, so the budget is the user's, not the CLI's.
+export const SANDBOX_CHECK_TIMEOUT_MS = 30 * 1000
+export const SANDBOX_SETUP_TIMEOUT_MS = 5 * 60 * 1000
+// Output cap for the short CLI commands the extension runs itself.
+export const CLI_OUTPUT_MAX_BYTES = 1024 * 1024
+// Muse Code versions whose Windows sandbox cannot enter C:\Users\<user>, so a
+// workspace under the profile runs shell commands in PowerShell's own folder
+// (verified live 2026-09-22 on 1.3.0 through the panel and `muse exec`).
+export const SANDBOX_PROFILE_LIMITED_MAX_VERSION = '1.3.0'
 // Link schemes the transcript opens; anything else is refused with a notice.
 export const ALLOWED_LINK_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:'])
 // A code block's Copy button reads "Copied" for this long.
@@ -244,6 +268,15 @@ export const WINDOWS_POWERSHELL_ARGS = [
   '-ExecutionPolicy',
   'Bypass',
   '-File',
+] as const
+// Windows PowerShell running one inline script (the UAC relaunch for the
+// sandbox setup); `-NonInteractive` turns any prompt into an error.
+export const WINDOWS_POWERSHELL_COMMAND_ARGS = [
+  '-NoProfile',
+  '-NonInteractive',
+  '-ExecutionPolicy',
+  'Bypass',
+  '-Command',
 ] as const
 // Windows PowerShell 5.1 cannot load its modules when it inherits a pwsh 7
 // PSModulePath, so the child gets exactly these two directories.
@@ -384,7 +417,21 @@ export const UI_TEXT = {
   noEditorForInsert: 'Open a text editor to insert code into it.',
   linkSchemeRefused: 'Only http, https and mailto links can be opened from the transcript.',
   sandboxNotice:
-    'Muse Code cannot run shell commands until its OS sandbox is set up. On Windows run `muse sandbox windows setup` from an elevated PowerShell, then start a new conversation.',
+    'Muse Code cannot run shell commands until its Windows sandbox is set up. Run "Muse Spark: Set Up Shell Sandbox" (one administrator approval), then start a new conversation.',
+  // Windows sandbox setup prompt and its outcomes (OS notifications).
+  sandboxOffer:
+    'Muse Code needs a one-time administrator setup before it can run shell commands on Windows (it creates the sandbox users and network filter it runs commands under). Set it up now?',
+  sandboxSetUpNow: 'Set up now',
+  sandboxNotNow: 'Not now',
+  sandboxDontAskAgain: "Don't ask again",
+  sandboxReady: 'Muse Code sandbox is ready. Start a new conversation to run shell commands in it.',
+  sandboxAlreadyReady: 'Muse Code sandbox is already set up.',
+  sandboxStillRequired: 'Muse Code sandbox is still not ready',
+  sandboxCancelled: 'Muse Code sandbox setup did not complete',
+  sandboxNotNeeded: 'Muse Code needs no sandbox setup on this platform.',
+  sandboxCliMissing: 'Muse Code is not installed, so its sandbox cannot be checked.',
+  sandboxCheckFailed: 'Muse Code sandbox check could not run',
+  sandboxProfileNotice: String.raw`This workspace is under your user profile, which the Windows sandbox of this Muse Code version cannot enter: shell commands will start in the PowerShell folder instead of the project and take about half a minute each. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
 } as const
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for

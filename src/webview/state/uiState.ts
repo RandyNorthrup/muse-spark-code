@@ -39,6 +39,13 @@ export interface PendingApproval {
   readonly availableChoices: readonly ApprovalChoice[]
   readonly isProtectedWrite: boolean
   readonly isJudgeEscalated: boolean
+  /**
+   * The stage the user has already decided, so the card locks until the host
+   * moves to the next stage or resolves. The host may repeat
+   * `approval/updated` for a decided stage (seen live 2026-09-22), so the
+   * update alone cannot unlock it.
+   */
+  readonly decidedSourceIndex?: number
 }
 
 export interface PendingQuestion {
@@ -187,6 +194,12 @@ export type UiAction =
     }
   | { readonly type: 'attachmentRemoved'; readonly id: string }
   | { readonly type: 'conversationCleared' }
+  /** The user chose on an approval card; lock that stage until the host moves on. */
+  | {
+      readonly type: 'approvalDecided'
+      readonly approvalId: string
+      readonly requirementId: RequirementRef
+    }
 
 export const initialUiState: UiState = {
   phase: 'connecting',
@@ -698,6 +711,22 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'attachmentRemoved': {
       return { ...state, attachments: state.attachments.filter((entry) => entry.id !== action.id) }
+    }
+    case 'approvalDecided': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.approval?.approvalId === action.approvalId
+            ? {
+                ...entry,
+                approval: {
+                  ...entry.approval,
+                  decidedSourceIndex: action.requirementId.sourceIndex,
+                },
+              }
+            : entry,
+        ),
+      }
     }
     case 'conversationCleared': {
       return {

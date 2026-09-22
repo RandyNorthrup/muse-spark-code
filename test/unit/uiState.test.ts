@@ -446,8 +446,29 @@ describe('uiReducer: agent events', () => {
       approval: { approvalId: 'a1', requirementId: { sourceIndex: 0 } },
     })
     expect(hasPendingRequest(early)).toBe(true)
+    // The user decides stage 0: the stage is locked until the host moves on,
+    // and a repeated update for the same stage (seen live) keeps the lock.
+    const decided = uiReducer(early, {
+      type: 'approvalDecided',
+      approvalId: 'a1',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+    })
+    expect(decided.transcript[0]).toMatchObject({ approval: { decidedSourceIndex: 0 } })
+    const repeated = uiReducer(
+      decided,
+      agent({
+        type: 'approvalUpdated',
+        approvalId: 'a1',
+        requirementId: { approvalId: 'a1', sourceIndex: 0 },
+        subject: { kind: 'shell', command: 'ls' },
+        availableChoices: requested.availableChoices,
+      }),
+    )
+    expect(repeated.transcript[0]).toMatchObject({
+      approval: { requirementId: { sourceIndex: 0 }, decidedSourceIndex: 0 },
+    })
     const updated = uiReducer(
-      early,
+      repeated,
       agent({
         type: 'approvalUpdated',
         approvalId: 'a1',
@@ -463,8 +484,17 @@ describe('uiReducer: agent events', () => {
         requirementId: { sourceIndex: 1 },
         subject: { command: 'ls; pwd' },
         availableChoices: [{ choiceId: 'abort' }],
+        decidedSourceIndex: 0,
       },
     })
+    // A decision for an approval nobody holds changes nothing.
+    expect(
+      uiReducer(updated, {
+        type: 'approvalDecided',
+        approvalId: 'zz',
+        requirementId: { approvalId: 'zz', sourceIndex: 0 },
+      }),
+    ).toEqual(updated)
     const resolved = uiReducer(
       updated,
       agent({

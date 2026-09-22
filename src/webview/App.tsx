@@ -177,6 +177,11 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
   )
   const onDecide = useCallback(
     (decision: ApprovalDecisionInput) => {
+      dispatch({
+        type: 'approvalDecided',
+        approvalId: decision.approvalId,
+        requirementId: decision.requirementId,
+      })
       postMessage({
         type: 'decideApproval',
         approvalId: decision.approvalId,

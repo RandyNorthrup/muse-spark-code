@@ -72,6 +72,36 @@ describe('ApprovalCard', () => {
     )
   })
 
+  it('locks every control once the current stage has been decided', () => {
+    const onDecide = vi.fn()
+    render(
+      <ApprovalCard
+        approval={{ ...approval, decidedSourceIndex: 1 }}
+        toolName="powershell"
+        onDecide={onDecide}
+      />,
+    )
+    expect(screen.getByRole('group', { name: 'Muse wants to' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    )
+    expect(screen.getByPlaceholderText(/what to do instead/)).toBeDisabled()
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toBeDisabled()
+    }
+    fireEvent.click(screen.getByText('Allow once'))
+    expect(onDecide).not.toHaveBeenCalled()
+    // A decision on an earlier stage does not lock this one.
+    render(
+      <ApprovalCard
+        approval={{ ...approval, decidedSourceIndex: 0 }}
+        toolName="powershell"
+        onDecide={onDecide}
+      />,
+    )
+    expect(screen.getAllByText('Allow once')[1]).toBeEnabled()
+  })
+
   it('falls back to the subject fields and hides the feedback box without such a choice', () => {
     const onDecide = vi.fn()
     render(

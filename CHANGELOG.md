@@ -9,6 +9,32 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Windows shell-sandbox setup from inside the extension (`PLAN.md` D12): when
+  a chat opens, `muse sandbox windows check` runs once per extension host and
+  a `setup_required` result raises a notification with _Set up now_ / _Not
+  now_ / _Don't ask again_; _Set up now_ relaunches `muse sandbox windows
+setup` through the UAC prompt, re-checks, and reports. The new command
+  **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand, and a
+  shell tool failing with `sandbox enforcement unavailable` re-offers it. The
+  transcript notice now names that command instead of a terminal recipe.
+- Approval cards lock the decided stage until the host moves to the next
+  stage or resolves the approval; the host was seen repeating
+  `approval/updated` for an already-decided stage, and a second decision on
+  it is rejected as `already resolved`.
+- A one-time notice on Windows when the workspace is under the user profile
+  and the CLI is 1.3.0 or older: that CLI's sandbox cannot enter
+  `C:\Users\<you>`, so shell commands start in PowerShell's own folder (about
+  34 s each) instead of the project; file tools are unaffected. Verified
+  through the panel's controller and through `muse exec` alike.
+
+### Verified
+
+- Live shell approvals through the panel after the owner's sandbox setup:
+  a two-stage `allow_once` line ran inside the sandbox and an `abort` with
+  feedback was honoured (`docs/certification/m4.md`). `reasoning` items with
+  `summary.N` deltas appeared on those turns, so the reasoning row is
+  live-exercised.
+
 - Milestone M4, transcript rendering: assistant replies as GitHub-flavoured
   markdown (react-markdown 10.1.0 + remark-gfm 4.0.1; raw HTML never
   rendered, images as alt text, links through the host with an

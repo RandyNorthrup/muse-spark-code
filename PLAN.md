@@ -253,8 +253,12 @@ description}` (`bash` elsewhere), `request_user_input {questions}`. Args are
   reports bytes). Edit-family calls add `patchSummary {files, added, removed}`
   and a `patchRef` whose body (`item/readOutput`, `application/json`) is
   `{files: [{path, hunks: [{oldStart, oldLines, newStart, newLines, lines}]}]}`.
-- `reasoning` items never appeared at any effort tier for these prompts; the
-  row is built from the schema (`summary.N` deltas, `text`) and fake-tested.
+- `reasoning` items never appeared at any effort tier for the M3/M4 capture
+  prompts, so the row was built from the schema (`summary.N` deltas, `text`)
+  and fake-tested. They **did** appear in the shell-tool turns of the
+  2026-09-22 live check (`itemStarted reasoning` → `summary.0` / `summary.1`
+  deltas such as "Executing a PowerShell command to read …" →
+  `itemCompleted`), so the row is now live-exercised (m4.md).
 - `promptUnmatched` does **not** prompt for in-workspace file tools; only
   shell commands (and anything else policy leaves unmatched) raise
   `approval/requested`. A write outside the workspace is refused outright
@@ -272,13 +276,64 @@ description}` (`bash` elsewhere), `request_user_input {questions}`. Args are
   Refusing the server request and answering with `userInput/answer` /
   `approval/decide` settles the prompt (`userInput/settled: answered`), so the
   host declines those two quietly.
-- Shell tools need Muse Code's OS sandbox. On this machine `muse sandbox
-windows check` reports `setup_required` (`sandbox users are not ready`) and
-  every `powershell` call fails with `environment failure: sandbox enforcement
-unavailable: windows_elevated setup_required`; the fix is an elevated `muse
-sandbox windows setup`, which the extension explains once per conversation.
-  Live verification of a shell approval through the panel therefore waits on
-  the owner running that setup (recorded as deferred in the M4 certification).
+- Shell tools need Muse Code's OS sandbox. Until the owner ran the elevated
+  `muse sandbox windows setup` (2026-09-22), `muse sandbox windows check`
+  reported `setup_required` (`sandbox users are not ready`) and every
+  `powershell` call failed with `environment failure: sandbox enforcement
+unavailable: windows_elevated setup_required`. The extension now handles
+  this itself (D12).
+- The host can repeat `approval/updated` for a stage the user has already
+  decided (seen live 2026-09-22: decide stage 0 → `approval/updated` stage 1 →
+  decide stage 1 → `session/statusChanged` → `approval/updated` stage 1
+  **again** → `approval/resolved`). A second `approval/decide` for that stage
+  is rejected (`approval … is already resolved`), so the card locks the
+  decided stage (`decidedSourceIndex`) until the requirement index changes or
+  the approval resolves.
+
+### D12 — The extension sets up Muse Code's Windows sandbox itself (2026-09-22)
+
+`muse sandbox` has only `windows check` and `windows setup` (verified on
+Windows and on the Linux VM; Linux and macOS need no setup). `check` prints
+`key=value` lines (`backend`, `status`, `reason`, `runner_path`,
+`sandbox_users_ready`, `capabilities_ready`, `wfp_ready`, `diagnostic=…`) and
+exits 1 while `status=setup_required`. `setup` needs elevation: it creates
+the `MuseSandboxUsers` local accounts, their capabilities and a Windows
+Filtering Platform rule, with credentials under `C:\ProgramData\muse`; on the
+owner's machine it ran non-interactively in about one second and the
+re-check reported `status=ready`.
+
+The owner's decision: future users must not hit the failure by hand, so the
+extension owns the flow (`src/core/backends/musecode/sandbox.ts` pure,
+`src/host/backend/sandboxSetup.ts` orchestration, wired in `extension.ts`):
+
+- When a chat surface opens on Windows, run the check once per extension
+  host; on `setup_required` show a warning notification with **Set up now** /
+  **Not now** / **Don't ask again** (the last is remembered in the
+  extension's own `globalState`, never in machine configuration).
+- **Set up now** relaunches the same CLI the backend spawns through Windows
+  PowerShell `Start-Process -Verb RunAs -Wait -PassThru` (the UAC prompt),
+  then re-runs the check and reports "ready" or the remaining `reason`. A
+  declined prompt surfaces as a non-zero exit with the PowerShell error line.
+  Output cannot cross the elevation boundary, which is why the re-check is
+  the source of truth.
+- A shell tool failing with `sandbox enforcement unavailable` re-offers the
+  setup even after "Not now" (the user is hitting it now); the transcript
+  notice names the command palette entry.
+- **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand and says
+  when nothing is needed (already ready, or not Windows).
+- The extension never runs the setup silently: elevation always goes through
+  the OS prompt, on the user's click.
+
+**Known CLI limitation (1.3.0, verified live 2026-09-22, m4.md "Sandbox
+working directory")**: for a workspace under `C:\Users\<user>` the sandboxed
+shell cannot traverse the profile folder, so commands start in
+`C:\Windows\System32\WindowsPowerShell\v1.0` after a ~34 s wait (about five
+minutes on the sandbox account's first logon); `muse exec` shows the same, so
+it is not the extension's spawn. Workspaces outside the profile (verified
+`C:\muse-live-ws`) run in place in about a second. The controller posts a
+one-time notice on Windows when the workspace is under `%USERPROFILE%` and the
+server version is 1.3.0 or older; file tools are unaffected. To report
+upstream; the extension will not touch profile ACLs.
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 

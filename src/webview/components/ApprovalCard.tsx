@@ -42,8 +42,10 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
     (choice) => choice.acceptsFeedback === true,
   )
   const stage = currentStage(approval)
+  // Decided and waiting for the host: no second decision on the same stage.
+  const isLocked = approval.decidedSourceIndex === approval.requirementId.sourceIndex
   return (
-    <div className="approval" role="group" aria-label={UI_TEXT.approvalTitle}>
+    <div className="approval" role="group" aria-label={UI_TEXT.approvalTitle} aria-busy={isLocked}>
       <div className="approval-title">
         {UI_TEXT.approvalTitle} <code>{subjectText(approval, toolName)}</code>
         {stage !== undefined && stage.totalStages > 1 ? (
@@ -66,6 +68,7 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
           rows={2}
           placeholder={UI_TEXT.approvalFeedbackPlaceholder}
           value={feedback}
+          disabled={isLocked}
           onChange={(event) => {
             setFeedback(event.target.value)
           }}
@@ -80,6 +83,7 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
               choice.decision.startsWith('approved') ? 'button-primary' : 'button-secondary'
             }
             title={choice.rulePreview}
+            disabled={isLocked}
             onClick={() => {
               onDecide({
                 approvalId: approval.approvalId,

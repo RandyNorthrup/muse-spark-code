@@ -419,6 +419,30 @@ describe('App transcript (M4)', () => {
       requirementId: { approvalId: 'a1', sourceIndex: 0 },
       feedback: 'no',
     })
+    // The stage locks on the first decision; a repeated update for the same
+    // stage keeps it locked and the next stage unlocks it.
+    const sentSoFar = postMessage.mock.calls.length
+    expect(screen.getByText('Allow once')).toBeDisabled()
+    fireEvent.click(screen.getByText('Allow once'))
+    expect(postMessage).toHaveBeenCalledTimes(sentSoFar)
+    const stageUpdate = (sourceIndex: number) => {
+      deliver({
+        type: 'agentEvent',
+        event: {
+          type: 'approvalUpdated',
+          approvalId: 'a1',
+          requirementId: { approvalId: 'a1', sourceIndex },
+          subject: { kind: 'shell', command: 'ls; pwd' },
+          availableChoices: [
+            { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+          ],
+        },
+      })
+    }
+    stageUpdate(0)
+    expect(screen.getByText('Allow once')).toBeDisabled()
+    stageUpdate(1)
+    expect(screen.getByText('Allow once')).toBeEnabled()
     deliver({
       type: 'agentEvent',
       event: {

@@ -99,6 +99,8 @@ function setup(
     hasApprovalUi?: boolean
     initialPermissionMode?: ConversationDeps['initialPermissionMode']
     isBypassAllowed?: boolean
+    platform?: NodeJS.Platform
+    userProfileDir?: string
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -173,6 +175,7 @@ function setup(
   const copied: string[] = []
   const inserted: string[] = []
   let hasEditor = true
+  const onSandboxUnavailable = vi.fn<() => void>()
   const controller = new ConversationController({
     surface,
     auth: auth.service,
@@ -212,6 +215,9 @@ function setup(
       inserted.push(text)
       return Promise.resolve(hasEditor)
     },
+    onSandboxUnavailable,
+    platform: options.platform ?? 'linux',
+    userProfileDir: options.userProfileDir,
     newAttachmentId: () => {
       attachmentCount += 1
       return `att-${String(attachmentCount)}`
@@ -245,6 +251,7 @@ function setup(
     },
     copied,
     inserted,
+    onSandboxUnavailable,
     setHasEditor: (isOpen: boolean) => {
       hasEditor = isOpen
     },
@@ -893,10 +900,60 @@ describe('ConversationController: transcript actions (M4)', () => {
     t.server.notify('item/completed', { ...failure, item: { ...failure.item, itemId: 'c2' } })
     await settle()
     const notices = t.surface.posted.filter(
-      (m) => m.type === 'notice' && m.text.includes('muse sandbox windows setup'),
+      (m) => m.type === 'notice' && m.text.includes('Set Up Shell Sandbox'),
     )
     expect(notices).toHaveLength(1)
     expect(notices[0]).toMatchObject({ level: 'warning' })
+    // The host gets one chance to offer the elevated setup for the failure.
+    expect(t.onSandboxUnavailable).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves other tool failures to the transcript', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('item/completed', {
+      sessionId: 's1',
+      item: {
+        itemId: 'c1',
+        kind: 'toolCall',
+        status: 'failed',
+        tool: 'read_file',
+        failureReason: 'no such file',
+      },
+    })
+    await settle()
+    expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
+    expect(t.onSandboxUnavailable).not.toHaveBeenCalled()
+  })
+
+  it('warns once per session on Windows when the workspace is under the user profile', async () => {
+    // The fake server reports 1.3.0-test, an affected version.
+    const t = setup({
+      platform: 'win32',
+      userProfileDir: String.raw`C:\Users\randy`,
+      workspaceRoot: String.raw`c:\users\RANDY\Coding\project`,
+    })
+    await t.send('l1', 'hi')
+    await t.send('l2', 'again')
+    const notices = t.surface.posted.filter(
+      (m) => m.type === 'notice' && m.text.includes('under your user profile'),
+    )
+    expect(notices).toHaveLength(1)
+    expect(notices[0]).toMatchObject({ level: 'info' })
+  })
+
+  it('stays quiet for a workspace outside the profile and off Windows', async () => {
+    const outside = setup({
+      platform: 'win32',
+      userProfileDir: String.raw`C:\Users\randy`,
+      workspaceRoot: String.raw`C:\src\project`,
+    })
+    await outside.send('l1', 'hi')
+    const posix = setup({ platform: 'darwin', workspaceRoot: '/Users/randy/project' })
+    await posix.send('l1', 'hi')
+    for (const t of [outside, posix]) {
+      expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
+    }
   })
 })
 

@@ -7,6 +7,7 @@ import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
 import type { MuseCodeHost, MuseSession, TurnPart } from '../../core/backends/musecode/MuseCodeHost'
+import { isProfileWorkspaceLimited } from '../../core/backends/musecode/sandbox'
 import {
   ALLOWED_LINK_SCHEMES,
   DEFAULT_EFFORT,
@@ -73,6 +74,11 @@ export interface ConversationDeps {
   readonly copyText: (text: string) => Promise<void>
   /** Code block "Insert at cursor"; false when no text editor is active. */
   readonly insertCode: (text: string) => Promise<boolean>
+  /** A shell tool reported the OS sandbox missing: the host offers the setup. */
+  readonly onSandboxUnavailable: () => void
+  readonly platform: NodeJS.Platform
+  /** `%USERPROFILE%`; undefined off Windows (the sandbox notice, D12). */
+  readonly userProfileDir: string | undefined
   readonly newAttachmentId: () => string
   readonly log: Logger
 }
@@ -217,6 +223,7 @@ export class ConversationController {
     }
     this.hasWarnedSandbox = true
     this.notice('warning', UI_TEXT.sandboxNotice)
+    this.deps.onSandboxUnavailable()
   }
 
   private openLink(url: string): void {
@@ -361,6 +368,16 @@ export class ConversationController {
       this.onEvent(event)
     })
     this.postSessionInfo(session.modelId)
+    if (
+      isProfileWorkspaceLimited({
+        platform: this.deps.platform,
+        workspaceRoot,
+        userProfileDir: this.deps.userProfileDir,
+        serverVersion: host.info.serverVersion,
+      })
+    ) {
+      this.notice('info', UI_TEXT.sandboxProfileNotice)
+    }
     await this.applyEffort(session)
     void this.refreshSkills(session)
     return session
