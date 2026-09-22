@@ -279,6 +279,9 @@ body {
   flex-direction: column;
   gap: 4px;
   margin: var(--ms-gap);
+
+  /* The toolbar adapts to the composer's width (a narrow sidebar). */
+  container-type: inline-size;
   padding: var(--ms-gap);
   border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
   border-radius: var(--ms-radius);
@@ -315,6 +318,23 @@ body {
   min-width: 0;
 }
 
+/* In a narrow panel the left group gives way (the pill and the open-file
+   chip ellipsize) and the right group keeps mode and Send whole. */
+.composer-toolbar-group:first-child {
+  flex: 1 1 auto;
+}
+
+.composer-toolbar-group:last-child {
+  flex-shrink: 0;
+}
+
+@container (max-width: 340px) {
+  .context-label,
+  .mode-button > span {
+    display: none;
+  }
+}
+
 /* --- controls (base) --- */
 
 .icon-button,
@@ -336,9 +356,13 @@ body {
   cursor: pointer;
 }
 
-/* The pill hugs its text (Claude Code sizing) instead of the control height. */
+/* The pill hugs its text (Claude Code sizing) instead of the control
+   height. Block layout, not flex: `text-overflow` only clips inline
+   content, and a centred flex row would clip both ends when squeezed. */
 .pill {
-  min-width: 0;
+  display: inline-block;
+  flex: 0 1 auto;
+  min-width: 3em;
   height: auto;
   overflow: hidden;
   padding: 1px 8px;
@@ -346,6 +370,7 @@ body {
   color: var(--vscode-badge-foreground);
   font-size: 0.85em;
   line-height: 1.4;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--vscode-badge-background);
@@ -1272,8 +1297,10 @@ body {
 /* The open-file chip beside the model pill: a pill that hugs its text. */
 .editor-chip {
   display: inline-flex;
+  flex: 0 1 auto;
   gap: 4px;
   align-items: center;
+  min-width: 0;
   max-width: 220px;
   padding: 1px 4px 1px 6px;
   border: 1px solid var(--vscode-panel-border);
@@ -1285,8 +1312,13 @@ body {
 }
 
 .editor-chip-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.editor-chip .chip-remove {
+  flex-shrink: 0;
 }
 
 /* Open diff / Revert under an edit row. */
@@ -1320,6 +1352,18 @@ body {
   font: inherit;
   font-weight: 600;
   background: var(--vscode-input-background);
+}
+
+.header-area {
+  position: relative;
+}
+
+/* The History dialog hangs down from the header. */
+.history {
+  top: 100%;
+  bottom: auto;
+  margin-top: 4px;
+  margin-bottom: 0;
 }
 
 .history .palette-header {

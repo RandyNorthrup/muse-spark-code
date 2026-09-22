@@ -708,6 +708,25 @@
           })
           later(50, () => setDraft('what does this do?'))
         },
+        // A sidebar-narrow panel with everything the toolbar can hold.
+        narrow: () => {
+          document.body.style.maxWidth = '300px'
+          send({
+            type: 'editorContext',
+            context: {
+              relativePath: 'src/ventura-weather-today.md',
+              startLine: 1,
+              endLine: 1,
+              isEmpty: true,
+            },
+          })
+          event({
+            type: 'contextUsage',
+            usedTokens: 20_160,
+            windowTokens: 1_007_997,
+            pressure: 'low',
+          })
+        },
         // --- M4 transcript scenarios: events shaped as the live capture ---
         markdown: () => {
           event({ type: 'turnStarted', turnId: 'tm' })

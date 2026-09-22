@@ -784,6 +784,21 @@ describe('App session history (M6)', () => {
     expect(document.activeElement).toBe(textarea())
   })
 
+  it('toggles the History dialog closed from the same button, hanging from the header', () => {
+    renderReady()
+    const button = screen.getByLabelText('Session history')
+    fireEvent.click(button)
+    const dialog = screen.getByRole('dialog', { name: 'History' })
+    expect(dialog.parentElement).toHaveClass('header-area')
+    expect(dialog.parentElement?.querySelector('.header')).not.toBeNull()
+    // The mousedown is swallowed so the search box keeps focus and the
+    // click toggles instead of blur-closing and reopening.
+    expect(fireEvent.mouseDown(button)).toBe(false)
+    fireEvent.click(button)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(textarea())
+  })
+
   it('opens the History dialog from the palette Resume row', () => {
     const postMessage = renderReady()
     const filter = openPalette()

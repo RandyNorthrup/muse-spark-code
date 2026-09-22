@@ -196,6 +196,17 @@ setup` through the UAC prompt, re-checks, and reports. The new command
   host ⇄ webview messages (`init`, `settingsChanged`, `focusInput`,
   `insertText`, `ready`, `inputFocusChanged`, `openNewTab`).
 
+### Fixed
+
+- The History button toggles the dialog closed as well as open (its click
+  used to blur the search box shut and reopen it), and the dialog hangs
+  from the header rather than rising from the composer.
+- The composer toolbar fits a narrow sidebar: the model pill ellipsizes
+  instead of clipping both ends (it was a centred flex row), the open-file
+  chip shrinks, the right-hand group keeps the mode button and Send whole,
+  and under 340 px the context percentage and the mode label give way to
+  their icons.
+
 ### Changed
 
 - The model pill reads `model effort` (the context window moved to the model

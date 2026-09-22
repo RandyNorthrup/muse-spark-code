@@ -92,6 +92,12 @@ export function Header({
           title={UI_TEXT.historyTitle}
           aria-label={UI_TEXT.historyTitle}
           disabled={onOpenHistory === undefined}
+          onMouseDown={(event) => {
+            // Keep the dialog's search box focused so a second click
+            // toggles the dialog closed instead of blurring it shut and
+            // reopening it.
+            event.preventDefault()
+          }}
           onClick={onOpenHistory}
         >
           <HistoryIcon />

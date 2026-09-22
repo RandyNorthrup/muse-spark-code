@@ -632,36 +632,39 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       )
       break
     }
-    case 'history': {
-      floating = (
-        <HistoryDialog
-          sessions={state.sessions}
-          archivedIds={state.archivedIds}
-          currentSessionId={state.sessionId}
-          archiveAfterDays={state.settings.archiveInactiveSessions}
-          now={now}
-          onResume={onResumeSession}
-          onSetArchived={onSetSessionArchived}
-          onClose={closeOverlay}
-        />
-      )
-      break
-    }
+    case 'history':
     case undefined: {
+      // The History dialog hangs from the header, not the composer.
       floating = null
       break
     }
   }
+  const history =
+    overlay === 'history' ? (
+      <HistoryDialog
+        sessions={state.sessions}
+        archivedIds={state.archivedIds}
+        currentSessionId={state.sessionId}
+        archiveAfterDays={state.settings.archiveInactiveSessions}
+        now={now}
+        onResume={onResumeSession}
+        onSetArchived={onSetSessionArchived}
+        onClose={closeOverlay}
+      />
+    ) : null
 
   return (
     <div className="app">
-      <Header
-        title={title}
-        isFocusView={state.settings.focusView}
-        onNewConversation={onNewConversation}
-        onOpenHistory={onOpenHistory}
-        onRename={state.sessionId === undefined ? undefined : onRename}
-      />
+      <div className="header-area">
+        <Header
+          title={title}
+          isFocusView={state.settings.focusView}
+          onNewConversation={onNewConversation}
+          onOpenHistory={onOpenHistory}
+          onRename={state.sessionId === undefined ? undefined : onRename}
+        />
+        {history}
+      </div>
       <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
         {body}
       </main>
