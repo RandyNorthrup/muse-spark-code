@@ -424,6 +424,13 @@ is the one open item (Q7).
 
 ### M1 — Panel shell, message bus, keybindings, settings
 
+**Status 2026-09-22: complete.** Certification record: `docs/certification/m1.md`.
+Delivered: sidebar + tab surfaces behind a `SurfaceRegistry`, typed message
+bus with a settings snapshot, `museSpark.*` settings with validated reads and
+live broadcast, keybindings Ctrl+Esc / Ctrl+Shift+Esc / Alt+K / Ctrl+Alt+F,
+redacting logger, composer key semantics. Deferred to later milestones as
+planned: mic button (P2), onboarding checklist (M8).
+
 - **Goal**: the chrome of the Claude Code panel without a model behind it.
 - **Scope**: sidebar `WebviewView` + editor `WebviewPanel` ("Open in new tab"),
   header (title, history icon, new-conversation icon), empty state

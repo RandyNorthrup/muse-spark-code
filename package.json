@@ -57,9 +57,156 @@
       {
         "command": "museSpark.openInNewTab",
         "title": "Open in New Tab",
+        "category": "Muse Spark",
+        "icon": "$(add)"
+      },
+      {
+        "command": "museSpark.focusInput",
+        "title": "Toggle Focus",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.insertMentionReference",
+        "title": "Insert @-Mention for Selection",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.toggleFocusView",
+        "title": "Toggle Focus View",
         "category": "Muse Spark"
       }
-    ]
+    ],
+    "keybindings": [
+      {
+        "command": "museSpark.focusInput",
+        "key": "ctrl+escape",
+        "mac": "cmd+escape"
+      },
+      {
+        "command": "museSpark.openInNewTab",
+        "key": "ctrl+shift+escape",
+        "mac": "cmd+shift+escape"
+      },
+      {
+        "command": "museSpark.insertMentionReference",
+        "key": "alt+k",
+        "mac": "alt+k"
+      },
+      {
+        "command": "museSpark.toggleFocusView",
+        "key": "ctrl+alt+f",
+        "mac": "ctrl+alt+f"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "museSpark.openInNewTab",
+          "when": "view == museSpark.chatView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Muse Spark",
+      "properties": {
+        "museSpark.preferredLocation": {
+          "type": "string",
+          "enum": [
+            "sidebar",
+            "panel"
+          ],
+          "enumDescriptions": [
+            "Open new conversations in the Muse Spark sidebar view.",
+            "Open new conversations as editor tabs."
+          ],
+          "default": "panel",
+          "description": "Where new conversations open."
+        },
+        "museSpark.initialPermissionMode": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "acceptEdits",
+            "plan",
+            "auto",
+            "bypassPermissions"
+          ],
+          "enumDescriptions": [
+            "Manual: ask before most actions.",
+            "Edit automatically: auto-approve file edits and common filesystem commands.",
+            "Plan: research only until the plan is approved.",
+            "Auto: the host reviews actions and prompts only when needed.",
+            "Bypass permissions: everything without asking (use only in sandboxes)."
+          ],
+          "default": "manual",
+          "description": "Permission mode for new conversations."
+        },
+        "museSpark.autosave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Save dirty files before Muse reads or writes them."
+        },
+        "museSpark.attachOpenFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Attach the active file to each message. Turn off to attach only the selection."
+        },
+        "museSpark.useCtrlEnterToSend": {
+          "type": "boolean",
+          "default": false,
+          "description": "Send with Ctrl+Enter (Cmd+Enter on macOS) instead of Enter."
+        },
+        "museSpark.hideOnboarding": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hide the onboarding checklist in new conversations."
+        },
+        "museSpark.focusView": {
+          "type": "boolean",
+          "default": false,
+          "description": "Focus view: hide tool calls and reasoning, show only prompts and responses."
+        },
+        "museSpark.respectGitIgnore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Exclude .gitignore patterns from file searches and @-mentions."
+        },
+        "museSpark.confidentialWorkspace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat this workspace as confidential: contributor-tier models (whose traffic Meta may use for training) are blocked."
+        },
+        "museSpark.museBinaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the Muse Code executable. Leave empty to discover it on PATH or in the default install directory."
+        },
+        "museSpark.environmentVariables": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "value"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Variable name."
+              },
+              "value": {
+                "type": "string",
+                "description": "Variable value."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Environment variables set for the Muse Code process. Do not put API keys here; use the Sign in flow, which stores them in secret storage."
+        }
+      }
+    }
   },
   "scripts": {
     "clean": "rimraf dist coverage",

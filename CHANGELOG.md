@@ -7,6 +7,27 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Milestone M1, panel shell: header with Focus-view badge, history (disabled
+  until M6) and new-conversation buttons; empty state with the
+  "Type /model…" hint; composer with Enter / Shift+Enter / optional
+  Ctrl+Enter semantics, auto-growing textarea, attach and slash buttons
+  (disabled until M3), model pill, permission-mode label and Send (disabled
+  until M2).
+- Keybindings mirroring Claude Code: `Ctrl+Esc` toggle focus, `Ctrl+Shift+Esc`
+  new tab, `Alt+K` insert `@path#lines` for the selection, `Ctrl+Alt+F` toggle
+  Focus view; `+` in the sidebar view title opens a new tab.
+- `museSpark.*` settings (`preferredLocation`, `initialPermissionMode`,
+  `autosave`, `attachOpenFile`, `useCtrlEnterToSend`, `hideOnboarding`,
+  `focusView`, `respectGitIgnore`, `confidentialWorkspace`, `museBinaryPath`,
+  `environmentVariables`) validated at read time and pushed live to open
+  panels.
+- Redacting logger (Meta API keys, bearer tokens, `META_API_KEY=` /
+  `MODEL_API_KEY=` assignments) in front of the output channel; typed
+  host ⇄ webview messages (`init`, `settingsChanged`, `focusInput`,
+  `insertText`, `ready`, `inputFocusChanged`, `openNewTab`).
+
 ### Security
 
 - GitHub Actions pinned to full commit SHAs and npm given a minimum release

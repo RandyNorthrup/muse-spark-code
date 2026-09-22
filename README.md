@@ -59,7 +59,39 @@ npm ci
 
 Press **F5** in VS Code to launch the Extension Development Host with a fresh
 build. The "Muse Spark" icon appears in the activity bar; the command palette
-offers **Muse Spark: Open in New Tab** and **Muse Spark: Open in Sidebar**.
+offers the **Muse Spark:** commands listed below.
+
+## Commands and keybindings
+
+| Command                                    | Default keybinding                 | What it does                                                                       |
+| ------------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                | —                                  | Focus the chat view in the activity bar                                            |
+| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`) | Open an independent conversation as an editor tab (also the `+` in the view title) |
+| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)             | Move keyboard focus between the editor and the composer                            |
+| Muse Spark: Insert @-Mention for Selection | `Alt+K`                            | Insert `@path#start-end` for the active editor selection into the composer         |
+| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on) |
+
+In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
+`museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
+Sending stays disabled until the first backend lands (M2).
+
+## Settings
+
+All settings live under `museSpark.*`; changes apply to open panels immediately.
+
+| Setting                 | Default  | Purpose                                                                                    |
+| ----------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `preferredLocation`     | `panel`  | Where new conversations open: `sidebar` or `panel` (editor tab)                            |
+| `initialPermissionMode` | `manual` | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations       |
+| `autosave`              | `true`   | Save dirty files before Muse reads or writes them                                          |
+| `attachOpenFile`        | `true`   | Attach the active file to each message (off: selection only)                               |
+| `useCtrlEnterToSend`    | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                  |
+| `hideOnboarding`        | `false`  | Hide the onboarding checklist                                                              |
+| `focusView`             | `false`  | Show only prompts and responses                                                            |
+| `respectGitIgnore`      | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                          |
+| `confidentialWorkspace` | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace          |
+| `museBinaryPath`        | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir |
+| `environmentVariables`  | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in    |
 
 ## Development commands
 
@@ -88,7 +120,7 @@ offers **Muse Spark: Open in New Tab** and **Muse Spark: Open in Sidebar**.
 
 `npm run build` writes `dist/extension.js` (CommonJS, `vscode` external) and
 `dist/webview/main.js` + `main.css`. Budgets: 600 KiB and 900 KiB respectively;
-the M0 scaffold measures about 20 KiB and 236 KiB.
+after M1 the bundles measure about 27 KiB and 244 KiB.
 
 ## Test
 
@@ -104,8 +136,8 @@ the M0 scaffold measures about 20 KiB and 236 KiB.
 ## Quality gates
 
 Every gate is wired to fail the build, not just print. Each was verified to
-fail on a deliberate break before being trusted; the record is in
-[`docs/certification/m0.md`](docs/certification/m0.md). Escape hatches
+fail on a deliberate break before being trusted; the records are in
+[`docs/certification/`](docs/certification/) (one file per milestone). Escape hatches
 (`eslint-disable`, `@ts-expect-error`, casts) require an inline reason and a
 row in `PLAN.md` §8.
 

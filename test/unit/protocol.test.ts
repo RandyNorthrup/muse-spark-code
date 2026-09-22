@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
+import { testSettings } from './helpers/fakes'
 
 describe('parseWebviewToHostMessage', () => {
-  it('accepts a ready message', () => {
-    expect(parseWebviewToHostMessage({ type: 'ready' })).toEqual({
-      ok: true,
-      message: { type: 'ready' },
-    })
+  it.each([
+    ['ready', { type: 'ready' }],
+    ['inputFocusChanged', { type: 'inputFocusChanged', focused: true }],
+    ['openNewTab', { type: 'openNewTab' }],
+  ])('accepts %s', (_label, message) => {
+    expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
 
   it.each([
@@ -14,6 +16,7 @@ describe('parseWebviewToHostMessage', () => {
     ['missing type', {}],
     ['non-object', 'ready'],
     ['null', null],
+    ['wrong field type', { type: 'inputFocusChanged', focused: 'yes' }],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)
@@ -29,10 +32,16 @@ describe('parseHostToWebviewMessage', () => {
     extensionVersion: '1.0.0',
     emptyStateHint: 'hint',
     composerPlaceholder: 'placeholder',
+    settings: testSettings,
   }
 
-  it('accepts a complete init message', () => {
-    expect(parseHostToWebviewMessage(init)).toEqual({ ok: true, message: init })
+  it.each([
+    ['init', init],
+    ['settingsChanged', { type: 'settingsChanged', settings: testSettings }],
+    ['focusInput', { type: 'focusInput' }],
+    ['insertText', { type: 'insertText', text: '@a.ts ' }],
+  ])('accepts %s', (_label, message) => {
+    expect(parseHostToWebviewMessage(message)).toEqual({ ok: true, message })
   })
 
   it('rejects an init message with a missing field', () => {
@@ -42,5 +51,14 @@ describe('parseHostToWebviewMessage', () => {
 
   it('rejects an init message with a wrong field type', () => {
     expect(parseHostToWebviewMessage({ ...init, extensionVersion: 1 }).ok).toBe(false)
+  })
+
+  it('rejects settings with an unknown permission mode', () => {
+    expect(
+      parseHostToWebviewMessage({
+        type: 'settingsChanged',
+        settings: { ...testSettings, initialPermissionMode: 'yolo' },
+      }).ok,
+    ).toBe(false)
   })
 })

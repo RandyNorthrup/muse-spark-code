@@ -3,18 +3,30 @@
 
 import * as vscode from 'vscode'
 import { CHAT_PANEL_VIEW_TYPE, UI_TEXT } from '../../shared/constants'
+import type { SurfaceRegistry } from './surfaceRegistry'
 import { configureWebview, type WebviewHostContext } from './webviewSetup'
 
-export function openChatPanel(context: WebviewHostContext): vscode.WebviewPanel {
+export function openChatPanel(
+  context: WebviewHostContext,
+  registry: SurfaceRegistry,
+): vscode.WebviewPanel {
   const panel = vscode.window.createWebviewPanel(
     CHAT_PANEL_VIEW_TYPE,
     UI_TEXT.untitledConversation,
     vscode.ViewColumn.Beside,
     { retainContextWhenHidden: true },
   )
-  const messages = configureWebview(panel.webview, context)
+  const surface = configureWebview(panel.webview, context, {
+    id: `panel:${globalThis.crypto.randomUUID()}`,
+    reveal: () => {
+      panel.reveal(undefined, false)
+    },
+  })
+  const registration = registry.add(surface)
+  registry.setActive(surface)
   panel.onDidDispose(() => {
-    messages.dispose()
+    registration.dispose()
+    surface.dispose()
   })
   return panel
 }

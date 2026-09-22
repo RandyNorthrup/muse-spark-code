@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react'
-import { PRODUCT_NAME, UI_TEXT } from '../shared/constants'
-import {
-  type HostToWebviewMessage,
-  parseHostToWebviewMessage,
-  type WebviewToHostMessage,
-} from '../shared/protocol'
+import { useCallback, useEffect, useReducer } from 'react'
+import { UI_TEXT } from '../shared/constants'
+import { parseHostToWebviewMessage, type WebviewToHostMessage } from '../shared/protocol'
+import { Composer } from './components/Composer'
+import { EmptyState } from './components/EmptyState'
+import { Header } from './components/Header'
+import { initialUiState, uiReducer } from './state/uiState'
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
 }
 
 export function App({ postMessage }: AppProps) {
-  const [init, setInit] = useState<HostToWebviewMessage | undefined>()
+  const [state, dispatch] = useReducer(uiReducer, initialUiState)
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
@@ -20,9 +20,7 @@ export function App({ postMessage }: AppProps) {
         console.warn(`Dropped malformed host message: ${parsed.error}`)
         return
       }
-      // `init` is the only host message type today; a `switch` on
-      // `parsed.message.type` replaces this line when a second type lands.
-      setInit(parsed.message)
+      dispatch({ type: 'hostMessage', message: parsed.message })
     }
     window.addEventListener('message', onMessage)
     postMessage({ type: 'ready' })
@@ -31,35 +29,67 @@ export function App({ postMessage }: AppProps) {
     }
   }, [postMessage])
 
-  return (
-    <div className="app">
-      <header className="header">
-        <h1 className="header-title">{UI_TEXT.untitledConversation}</h1>
-        {init === undefined ? null : (
-          <span className="header-version" aria-label="Extension version">
-            v{init.extensionVersion}
-          </span>
-        )}
-      </header>
-      <main className="body">
-        <div className="brand">{PRODUCT_NAME}</div>
-        {init === undefined ? (
+  const onDraftChange = useCallback((draft: string) => {
+    dispatch({ type: 'draftChanged', draft })
+  }, [])
+  const onInsertApplied = useCallback(() => {
+    dispatch({ type: 'insertApplied' })
+  }, [])
+  const onFocusChange = useCallback(
+    (isFocused: boolean) => {
+      postMessage({ type: 'inputFocusChanged', focused: isFocused })
+    },
+    [postMessage],
+  )
+  const onNewConversation = useCallback(() => {
+    postMessage({ type: 'openNewTab' })
+  }, [postMessage])
+  const onSubmit = useCallback(() => {
+    // Sending arrives with the first backend (M2); the button stays disabled.
+  }, [])
+
+  if (state.settings === undefined) {
+    return (
+      <div className="app">
+        <Header
+          title={UI_TEXT.untitledConversation}
+          isFocusView={false}
+          onNewConversation={onNewConversation}
+        />
+        <main className="body">
           <p className="hint" role="status">
             {UI_TEXT.connecting}
           </p>
-        ) : (
-          <p className="hint">{init.emptyStateHint}</p>
-        )}
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="app">
+      <Header
+        title={UI_TEXT.untitledConversation}
+        isFocusView={state.settings.focusView}
+        onNewConversation={onNewConversation}
+      />
+      <main className="body">
+        <EmptyState hint={state.emptyStateHint} />
       </main>
-      <footer className="composer">
-        <textarea
-          className="composer-input"
-          aria-label={UI_TEXT.composerLabel}
-          placeholder={init?.composerPlaceholder}
-          rows={1}
-          disabled
-        />
-      </footer>
+      <Composer
+        draft={state.draft}
+        placeholder={state.composerPlaceholder}
+        settings={state.settings}
+        canSend={false}
+        focusRequests={state.focusRequests}
+        pendingInsert={state.pendingInsert}
+        onDraftChange={onDraftChange}
+        onInsertApplied={onInsertApplied}
+        onSubmit={onSubmit}
+        onFocusChange={onFocusChange}
+      />
+      <span className="version" aria-label="Extension version">
+        v{state.extensionVersion}
+      </span>
     </div>
   )
 }

@@ -1,10 +1,16 @@
 /* Webview shell. Colours and fonts come exclusively from VS Code theme
    variables so the panel follows light, dark and high-contrast themes. Inline
-   style attributes are blocked by the CSP, so every rule lives here. */
+   style attributes are blocked by the CSP, so every rule lives here.
+
+   Ordering rule (stylelint no-descending-specificity): base component rules
+   first, then state rules from lowest to highest specificity
+   (:disabled and :focus-visible before :hover:enabled). */
 
 :root {
   --ms-gap: 8px;
   --ms-radius: 6px;
+  --ms-icon-size: 16px;
+  --ms-control-size: 26px;
 }
 
 html,
@@ -19,10 +25,19 @@ body {
 }
 
 .app {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
 }
+
+.icon {
+  flex-shrink: 0;
+  width: var(--ms-icon-size);
+  height: var(--ms-icon-size);
+}
+
+/* --- header --- */
 
 .header {
   display: flex;
@@ -38,10 +53,21 @@ body {
   font-weight: 600;
 }
 
-.header-version {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
+
+.badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--vscode-badge-foreground);
+  font-size: 0.8em;
+  background: var(--vscode-badge-background);
+}
+
+/* --- body --- */
 
 .body {
   display: flex;
@@ -54,9 +80,24 @@ body {
   overflow: auto;
 }
 
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--ms-gap) * 2);
+}
+
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 1.4em;
   font-weight: 600;
+}
+
+.brand .icon {
+  width: 1.2em;
+  height: 1.2em;
 }
 
 .hint {
@@ -65,20 +106,28 @@ body {
   text-align: center;
 }
 
+/* --- composer --- */
+
 .composer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: var(--ms-gap);
   padding: var(--ms-gap);
-  border-top: 1px solid var(--vscode-panel-border);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: var(--ms-radius);
+  background: var(--vscode-input-background);
 }
 
 .composer-input {
   box-sizing: border-box;
   width: 100%;
-  padding: var(--ms-gap);
-  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
+  padding: 0;
+  border: 0;
   color: var(--vscode-input-foreground);
   font: inherit;
-  background: var(--vscode-input-background);
+  line-height: 1.4;
+  background: transparent;
   resize: none;
 }
 
@@ -86,7 +135,103 @@ body {
   color: var(--vscode-input-placeholderForeground);
 }
 
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ms-gap);
+}
+
+.composer-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* --- controls (base) --- */
+
+.icon-button,
+.pill,
+.mode-button,
+.send-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: var(--ms-control-size);
+  height: var(--ms-control-size);
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius);
+  color: var(--vscode-foreground);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pill {
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--vscode-badge-foreground);
+  font-size: 0.85em;
+  background: var(--vscode-badge-background);
+}
+
+.mode-button {
+  font-size: 0.9em;
+}
+
+.send-button {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.version {
+  position: absolute;
+  right: var(--ms-gap);
+  bottom: 2px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.7em;
+}
+
+/* --- states: (0,2,0) first --- */
+
+.composer:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+
 .composer-input:focus-visible {
+  outline: none;
+}
+
+.icon-button:disabled,
+.pill:disabled,
+.mode-button:disabled {
+  color: var(--vscode-disabledForeground);
+  cursor: default;
+}
+
+.send-button:disabled {
+  cursor: default;
+  opacity: 50%;
+}
+
+.icon-button:focus-visible,
+.pill:focus-visible,
+.mode-button:focus-visible,
+.send-button:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
+}
+
+/* --- states: (0,3,0) last --- */
+
+.icon-button:hover:enabled,
+.pill:hover:enabled,
+.mode-button:hover:enabled {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.send-button:hover:enabled {
+  background: var(--vscode-button-hoverBackground);
 }

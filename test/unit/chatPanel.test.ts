@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openChatPanel } from '../../src/host/views/chatPanel'
-import { FakeWebviewPanel, fakeHostContext } from './helpers/fakes'
+import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
+import { FakeWebviewPanel, fakeHostContext, fakeSurface } from './helpers/fakes'
 // Same module instance the production code receives through the `vscode`
 // alias in vitest.config.ts, imported by path so its mock surface is typed.
 import { window as fakeWindow } from './mocks/vscode'
 
-function openFakePanel(): FakeWebviewPanel {
-  const panel = openChatPanel(fakeHostContext())
+function openFakePanel(registry = new SurfaceRegistry()) {
+  const panel = openChatPanel(fakeHostContext(), registry)
   if (!(panel instanceof FakeWebviewPanel)) {
     throw new TypeError('expected the fake panel')
   }
-  return panel
+  return { panel, registry }
 }
 
 describe('openChatPanel', () => {
@@ -22,7 +23,7 @@ describe('openChatPanel', () => {
   })
 
   it('creates an Untitled panel beside the active editor that keeps its state when hidden', () => {
-    openChatPanel(fakeHostContext())
+    openFakePanel()
     expect(fakeWindow.createWebviewPanel).toHaveBeenCalledWith(
       'museSpark.chatPanel',
       'Untitled',
@@ -31,16 +32,27 @@ describe('openChatPanel', () => {
     )
   })
 
+  it('registers the panel as the active surface with a unique id', () => {
+    const registry = new SurfaceRegistry()
+    registry.add(fakeSurface('sidebar'))
+    const { panel } = openFakePanel(registry)
+    expect(registry.size).toBe(2)
+    expect(registry.active?.id).toMatch(/^panel:[0-9a-f-]{36}$/)
+    registry.active?.reveal()
+    expect(panel.reveal).toHaveBeenCalledWith(undefined, false)
+  })
+
   it('wires the panel webview and answers ready', () => {
-    const panel = openFakePanel()
+    const { panel } = openFakePanel()
     expect(panel.webview.html).toContain('<script nonce=')
     panel.webview.messages.fire({ type: 'ready' })
     expect(panel.webview.postMessage).toHaveBeenCalledOnce()
   })
 
-  it('stops handling messages once the panel is disposed', () => {
-    const panel = openFakePanel()
+  it('unregisters and stops handling messages once the panel is disposed', () => {
+    const { panel, registry } = openFakePanel()
     panel.dispose()
+    expect(registry.size).toBe(0)
     panel.webview.messages.fire({ type: 'ready' })
     expect(panel.webview.postMessage).not.toHaveBeenCalled()
   })

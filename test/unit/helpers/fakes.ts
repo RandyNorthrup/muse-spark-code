@@ -4,6 +4,9 @@
 
 import type * as vscode from 'vscode'
 import { vi } from 'vitest'
+import type { SettingsSource } from '../../../src/host/settings'
+import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
+import type { ChatSurface, WebviewHostContext } from '../../../src/host/views/webviewSetup'
 import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
 
 function acceptMessage(_message: unknown): Thenable<boolean> {
@@ -34,10 +37,9 @@ export class FakeWebviewView implements vscode.WebviewView {
   public readonly onDidDispose = this.disposed.event
   public readonly visibility = new EventEmitter<void>()
   public readonly onDidChangeVisibility = this.visibility.event
-
-  public show(): void {
+  public readonly show = vi.fn((_shouldPreserveFocus?: boolean): void => {
     this.visible = true
-  }
+  })
 }
 
 export class FakeWebviewPanel implements vscode.WebviewPanel {
@@ -52,15 +54,16 @@ export class FakeWebviewPanel implements vscode.WebviewPanel {
   public readonly viewStateChanges =
     new EventEmitter<vscode.WebviewPanelOnDidChangeViewStateEvent>()
   public readonly onDidChangeViewState = this.viewStateChanges.event
+  public readonly reveal = vi.fn(
+    (_viewColumn?: vscode.ViewColumn, _shouldPreserveFocus?: boolean) => {
+      this.visible = true
+    },
+  )
 
   public constructor(
     public readonly viewType: string,
     public title: string,
   ) {}
-
-  public reveal(): void {
-    this.visible = true
-  }
 
   public dispose(): void {
     this.disposed.fire()
@@ -86,10 +89,58 @@ export class FakeLogOutputChannel implements vscode.LogOutputChannel {
   public readonly dispose = vi.fn()
 }
 
-export function fakeHostContext() {
+/** A `SettingsSource` backed by a plain object (absent keys read as undefined). */
+export function fakeSettingsSource(values: Readonly<Record<string, unknown>>): SettingsSource {
+  return {
+    get: (section) => values[section],
+  }
+}
+
+export const testSettings: SettingsSnapshot = {
+  preferredLocation: 'panel',
+  initialPermissionMode: 'manual',
+  autosave: true,
+  attachOpenFile: true,
+  useCtrlEnterToSend: false,
+  hideOnboarding: false,
+  focusView: false,
+  respectGitIgnore: true,
+  confidentialWorkspace: false,
+}
+
+export interface FakeHostContext extends WebviewHostContext {
+  readonly log: FakeLogOutputChannel
+  readonly onInputFocusChanged: ReturnType<typeof vi.fn<WebviewHostContext['onInputFocusChanged']>>
+  readonly onOpenNewTab: ReturnType<typeof vi.fn<() => void>>
+}
+
+export function fakeHostContext(settings: SettingsSnapshot = testSettings): FakeHostContext {
   return {
     extensionUri: Uri.file('/ext'),
     extensionVersion: '1.2.3',
     log: new FakeLogOutputChannel(),
+    getSettings: () => settings,
+    onInputFocusChanged: vi.fn<WebviewHostContext['onInputFocusChanged']>(),
+    onOpenNewTab: vi.fn<() => void>(),
+  }
+}
+
+export interface FakeSurface extends ChatSurface {
+  readonly posted: HostToWebviewMessage[]
+  readonly reveal: ReturnType<typeof vi.fn<() => void>>
+}
+
+export function fakeSurface(id: string): FakeSurface {
+  const posted: HostToWebviewMessage[] = []
+  return {
+    id,
+    posted,
+    post(message) {
+      posted.push(message)
+    },
+    reveal: vi.fn<() => void>(),
+    dispose() {
+      // nothing to release in the fake
+    },
   }
 }

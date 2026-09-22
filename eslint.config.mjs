@@ -137,6 +137,12 @@ export default tseslint.config(
       // The vscode mock reproduces VS Code's own `EventEmitter` API shape;
       // EventTarget would not satisfy `vscode.Event<T>`.
       'unicorn/prefer-event-target': 'off',
+      // `expect(deps.method)` on a vi.fn() is the assertion idiom; the mocks
+      // never depend on `this`.
+      '@typescript-eslint/unbound-method': 'off',
+      // `() => undefined` in a fake spells out "no surface / no editor" and
+      // satisfies the `T | undefined` return type explicitly.
+      'unicorn/no-useless-undefined': 'off',
     },
   },
 

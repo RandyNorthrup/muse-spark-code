@@ -7,6 +7,8 @@ import {
   CHAT_VIEW_ID,
   COMMAND_IDS,
   EXTENSION_QUALIFIED_ID,
+  SETTING_DEFAULTS,
+  SETTINGS_SECTION,
 } from '../../src/shared/constants'
 
 const TAB_WAIT_TIMEOUT_MS = 5000
@@ -19,7 +21,7 @@ async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode
   while (Date.now() < deadline) {
     const tab = vscode.window.tabGroups.all
       .flatMap((group) => group.tabs)
-      .find((tab) => isMatch(tab))
+      .find((candidate) => isMatch(candidate))
     if (tab !== undefined) {
       return tab
     }
@@ -44,6 +46,13 @@ suite('activation', () => {
     assert.ok(commands.includes(`${CHAT_VIEW_ID}.focus`), 'chat view focus command missing')
   })
 
+  test('exposes every setting with its documented default', () => {
+    const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
+    for (const [key, value] of Object.entries(SETTING_DEFAULTS)) {
+      assert.deepEqual(configuration.get(key), value, `default for ${key}`)
+    }
+  })
+
   test('opens an Untitled chat panel in a new tab', async () => {
     await vscode.commands.executeCommand(COMMAND_IDS.openInNewTab)
     const tab = await waitForTab(
@@ -52,5 +61,14 @@ suite('activation', () => {
         candidate.input.viewType.includes(CHAT_PANEL_VIEW_TYPE),
     )
     assert.equal(tab.label, 'Untitled')
+  })
+
+  test('the keybinding commands run and toggleFocusView flips the setting', async () => {
+    await vscode.commands.executeCommand(COMMAND_IDS.focusInput)
+    await vscode.commands.executeCommand(COMMAND_IDS.insertMentionReference)
+    await vscode.commands.executeCommand(COMMAND_IDS.toggleFocusView)
+    const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
+    assert.equal(configuration.get('focusView'), true)
+    await configuration.update('focusView', undefined, vscode.ConfigurationTarget.Global)
   })
 })
