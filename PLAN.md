@@ -1780,5 +1780,7 @@ publish step skipped without `VSCE_PAT`.
 **0.4.0 (2026-09-22, night):** the owner asked for the picker default, the
 Account & Usage modal, subagents with the Agent map, the banner and the
 compact button, in one milestone; D17 records the reading and M14 the
-work. Certified (`docs/certification/m14.md`), tagged `v0.4.0`
-(RELEASE_RUN_PLACEHOLDER).
+work. Certified (`docs/certification/m14.md`), tagged `v0.4.0`; run
+35820788011 went green on the first try: every job, the GitHub Release
+with `muse-spark-code-0.4.0.vsix` (540,169 bytes), the Marketplace publish
+step skipped without `VSCE_PAT`.
