@@ -3,6 +3,7 @@
 // touch a tool.
 
 import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
+import { subdirectoryNames } from './fakeContextIo'
 
 export interface MemoryToolIo extends ToolIo {
   readonly files: Map<string, string>
@@ -53,21 +54,7 @@ export function memoryToolIo(
     },
     listFiles: () =>
       Promise.resolve(Array.from(files.keys(), (absolute) => absolute.slice(root.length + 1))),
-    // The subdirectories of a directory, derived from the file keys beneath it.
-    listDirectory: (absolutePath) => {
-      const prefix = `${absolutePath.replaceAll('\\', '/')}/`
-      const names = new Set<string>()
-      for (const key of files.keys()) {
-        if (!key.startsWith(prefix)) {
-          continue
-        }
-        const rest = key.slice(prefix.length).split('/')
-        if (rest.length > 1 && rest[0] !== undefined) {
-          names.add(rest[0])
-        }
-      }
-      return Promise.resolve([...names])
-    },
+    listDirectory: (absolutePath) => Promise.resolve(subdirectoryNames(files.keys(), absolutePath)),
     // A literal-substring matcher stands in for the worker; `(` is the one
     // pattern it calls invalid, as the real one would.
     searchFiles: (job) => {
@@ -105,13 +92,4 @@ export const noopToolIo: ToolIo = {
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),
   runShell: () =>
     Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }),
-}
-
-/** The `{ io, workspaceRoot, platform }` the context loaders take, over an in-memory tree. */
-export function loaderDeps(
-  files: Record<string, string>,
-  root: string,
-  platform: NodeJS.Platform = 'linux',
-) {
-  return { io: memoryToolIo(files, root), workspaceRoot: root, platform }
 }

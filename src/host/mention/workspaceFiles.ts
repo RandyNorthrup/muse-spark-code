@@ -4,7 +4,8 @@
 // the folder is not a repository it falls back to VS Code's file search
 // (which honours `files.exclude` but not .gitignore). With the setting off,
 // or in Restricted Mode (git would read the untrusted repository's own
-// config, PLAN.md D24), only the file search is used.
+// config, PLAN.md D24), only the file search is used. Both list the first
+// workspace folder only, the root every mention is relative to (D27).
 
 import { GIT_LS_FILES_ARGS } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -18,6 +19,32 @@ export interface WorkspaceFileListerDeps {
   /** Workspace-relative paths (forward slashes) from `workspace.findFiles`. */
   readonly findFiles: () => Promise<readonly string[]>
   readonly log: Logger
+}
+
+export interface RootFileSearch<U> {
+  /**
+   * VS Code's file search below the first folder only (a `RelativePattern`
+   * on it); undefined with no folder open.
+   */
+  readonly search: (() => PromiseLike<readonly U[]>) | undefined
+  /** The path relative to the root; undefined outside it (`rootRelativePath`). */
+  readonly relativePath: (uri: U) => string | undefined
+}
+
+/**
+ * The file search's list: the root's files, relative to it with forward
+ * slashes. A second folder's files are neither searched nor listed, so none
+ * can pass for a path under the root.
+ */
+export async function findRootFiles<U>(files: RootFileSearch<U>): Promise<readonly string[]> {
+  if (files.search === undefined) {
+    return []
+  }
+  const found = await files.search()
+  return found.flatMap((uri) => {
+    const relative = files.relativePath(uri)
+    return relative === undefined ? [] : [relative]
+  })
 }
 
 /** Splits NUL-separated output, dropping the empty trailing entry. */

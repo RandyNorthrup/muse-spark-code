@@ -656,6 +656,10 @@ export const IDE_MCP_TOOL_DIAGNOSTICS = 'getDiagnostics'
 export const MCP_PROTOCOL_VERSION = '2025-06-18'
 // Diagnostics beyond this many are summarised as a count.
 export const DIAGNOSTICS_MAX_ENTRIES = 200
+// One diagnostic's message is cut here (PLAN.md D27): a TypeScript type
+// mismatch can run to thousands of characters, and 200 of those would crowd
+// the model's context. The cut is marked with how much was left out.
+export const DIAGNOSTIC_MESSAGE_MAX_CHARS = 1000
 export const JSON_RPC_ERRORS = {
   parseError: -32_700,
   invalidRequest: -32_600,

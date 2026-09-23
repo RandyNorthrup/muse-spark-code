@@ -57,7 +57,7 @@ import {
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice } from '../../shared/agentEvents'
-import { parseSkillInvocation } from '../../shared/mentions'
+import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type {
   ChatReference,
@@ -1649,7 +1649,7 @@ export class ConversationController {
   }
 
   private insertMention(relativePath: string): void {
-    this.post({ type: 'insertText', text: `@${relativePath} ` })
+    this.post({ type: 'insertText', text: `${formatMention(relativePath)} ` })
   }
 
   private async pickFile(): Promise<void> {
@@ -1675,7 +1675,7 @@ export class ConversationController {
     const mentions = uris
       .map((uri) => this.deps.files.toRelativePath(uri))
       .filter((relativePath) => relativePath !== undefined)
-      .map((relativePath) => `@${relativePath} `)
+      .map((relativePath) => `${formatMention(relativePath)} `)
     if (mentions.length > 0) {
       this.post({ type: 'insertText', text: mentions.join('') })
     }

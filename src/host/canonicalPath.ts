@@ -9,7 +9,8 @@ import path from 'node:path'
 
 const MISSING_CODES: ReadonlySet<string> = new Set(['ENOENT', 'ENOTDIR'])
 
-function isMissing(error: unknown): boolean {
+/** A file system error that means "not there": the file, or a directory on its way. */
+export function isMissingPath(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -32,7 +33,7 @@ export async function canonicalPath(absolutePath: string): Promise<string> {
       const real = await realpath(current)
       return tail.length === 0 ? real : path.join(real, ...tail.toReversed())
     } catch (error: unknown) {
-      if (!isMissing(error)) {
+      if (!isMissingPath(error)) {
         throw error
       }
       const parent = path.dirname(current)

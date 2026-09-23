@@ -6,13 +6,14 @@
 // it, and the skills again when the host says their files changed.
 
 import { RULES_PREAMBLE } from '../../shared/constants'
-import type { ToolIo } from '../backends/modelapi/tools'
+import type { ContextIo } from './contextFiles'
 import { loadMemoryIndex, type MemoryIndex } from './memory'
 import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
 import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
 
 export interface WorkspaceContextDeps {
-  readonly io: ToolIo
+  /** Bytes and directory entries, links included (PLAN.md D27). */
+  readonly io: ContextIo
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /** Muse Code's personal skill root; undefined when the host has no home. */
@@ -58,10 +59,11 @@ export class WorkspaceContext {
       {
         directory: projectSkillsRoot(this.deps.workspaceRoot, this.deps.platform),
         source: 'project',
+        confineTo: this.deps.workspaceRoot,
       },
     ]
     if (this.deps.personalSkillsRoot !== undefined) {
-      roots.push({ directory: this.deps.personalSkillsRoot, source: 'user' })
+      roots.push({ directory: this.deps.personalSkillsRoot, source: 'user', confineTo: undefined })
     }
     return roots
   }

@@ -10,6 +10,7 @@ import {
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
@@ -36,6 +37,8 @@ function setup(
     workspaceRoot: ROOT,
     platform: options.platform ?? 'linux',
     io,
+    // The context loaders read the same files the tools do.
+    contextIo: memoryContextIo(io.files),
     newId: () => {
       ids += 1
       return `id${String(ids)}`
