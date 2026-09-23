@@ -5,6 +5,7 @@
 // leave a patch document shaped like Muse Code's so the transcript rows,
 // Open diff and Revert (M5) work unchanged.
 
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
@@ -18,15 +19,21 @@ import {
   MODEL_API_TOOLS,
   READ_FILE_DEFAULT_LIMIT,
   READ_FILE_MAX_LINE_CHARS,
+  SEARCH_MAX_CANDIDATES,
   SEARCH_MAX_RESULTS,
   SEARCH_PATTERN_MAX_LENGTH,
+  SEARCH_TIMEOUT_MS,
+  PATCH_CONTEXT_LINES,
   SHELL_DEFAULT_TIMEOUT_MS,
   SHELL_MAX_TIMEOUT_MS,
   TOOL_OUTPUT_CLIP_MARKER,
+  TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  UI_TEXT,
 } from '../../../shared/constants'
 import {
   ADD_MARKER,
+  CONTEXT_MARKER,
   type PatchFile,
   type PatchHunk,
   REMOVE_MARKER,
@@ -60,14 +67,31 @@ export interface SearchHit {
 }
 
 export type SearchOutcome =
-  | { readonly ok: true; readonly hits: readonly SearchHit[] }
+  | {
+      readonly ok: true
+      readonly hits: readonly SearchHit[]
+      /** The search ran out of time: these are the hits found before it stopped (D27). */
+      readonly isPartial?: boolean
+    }
   | { readonly ok: false; readonly reason: string }
+
+/** What the search worker posts: each file's hits as they are found, then the end (D27). */
+export type SearchWorkerMessage =
+  | { readonly type: 'hits'; readonly hits: readonly SearchHit[] }
+  | { readonly type: 'done'; readonly outcome: SearchOutcome }
 
 /** What the host lends the tools: files, a matcher it can stop, and a shell. */
 export interface ToolIo {
-  /** undefined when the file does not exist. */
+  /**
+   * The file's text, a UTF-8 BOM kept; undefined when it does not exist.
+   * Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
+   * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
+   */
   readFile(absolutePath: string): Promise<string | undefined>
+  /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(absolutePath: string, content: string): Promise<void>
+  /** Whether an editor holds unsaved changes to the file (D27). */
+  hasUnsavedChanges(absolutePath: string): boolean
   /** Workspace-relative, forward-slash paths of every listed file. */
   listFiles(): Promise<readonly string[]>
   /** The names of the subdirectories of an absolute path; empty when it is missing. */
@@ -95,7 +119,15 @@ export interface ToolContext {
   readonly io: ToolIo
   /** The turn's: aborting it stops a running command (PLAN.md D25). */
   readonly signal?: AbortSignal
+  /**
+   * The session's record of each file as the model last read or wrote it
+   * (absolute path to a fingerprint): `write_file` replaces only what the
+   * model has seen (D27).
+   */
+  readonly seen: Map<string, string>
 }
+
+const FINGERPRINT_HASH = 'sha256'
 
 export interface ToolOutcome {
   /** What the model receives as the function result. */
@@ -444,6 +476,30 @@ function clip(text: string): string {
     : text
 }
 
+const LAST_BMP_CODE_POINT = 0xff_ff
+// A shell result has two streams, each given half of the output budget; a
+// clipped stream keeps half of its share from each end.
+const SHELL_STREAMS = 2
+const HALVES = 2
+
+/** `index` moved back off the middle of a surrogate pair, so no character is split. */
+function codePointBoundary(text: string, index: number): number {
+  // A code point past the Basic Multilingual Plane starts at `index - 1` and
+  // ends after `index`: cutting at `index` would split it.
+  return (text.codePointAt(index - 1) ?? 0) > LAST_BMP_CODE_POINT ? index - 1 : index
+}
+
+/** The text's beginning and end within `max` characters, the elision marked between (D27). */
+function clipMiddle(text: string, max: number): string {
+  if (text.length <= max) {
+    return text
+  }
+  const keep = Math.max(max - TOOL_OUTPUT_ELIDED_MARKER.length, 0)
+  const headEnd = codePointBoundary(text, Math.ceil(keep / HALVES))
+  const tailStart = codePointBoundary(text, text.length - Math.floor(keep / HALVES))
+  return `${text.slice(0, headEnd)}${TOOL_OUTPUT_ELIDED_MARKER}${text.slice(tailStart)}`
+}
+
 function failure(reason: string): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
 }
@@ -453,6 +509,9 @@ function argumentFailure(error: z.core.$ZodError): ToolOutcome {
 }
 
 const LINE_BREAK = /\r?\n/
+const BOM = '\u{FEFF}'
+const CRLF = '\r\n'
+const LF = '\n'
 
 function splitLines(text: string): string[] {
   const lines = text.split(LINE_BREAK)
@@ -462,7 +521,58 @@ function splitLines(text: string): string[] {
   return lines
 }
 
-/** The minimal hunk between two texts: common prefix and suffix trimmed. */
+/** How a file's text is laid out, so an edit writes it back the same way (PLAN.md D27). */
+interface TextShape {
+  readonly hasBom: boolean
+  /** Every line break is CRLF; a file that mixes them is edited as it is. */
+  readonly isCrlf: boolean
+  readonly hasTrailingBreak: boolean
+}
+
+function occurrences(text: string, part: string): number {
+  return text.split(part).length - 1
+}
+
+function shapeOf(raw: string): TextShape {
+  const hasBom = raw.startsWith(BOM)
+  const body = hasBom ? raw.slice(BOM.length) : raw
+  const breaks = occurrences(body, LF)
+  return {
+    hasBom,
+    isCrlf: breaks > 0 && occurrences(body, CRLF) === breaks,
+    hasTrailingBreak: body.endsWith(LF),
+  }
+}
+
+/** Every CRLF as LF. */
+function toLf(text: string): string {
+  return text.split(CRLF).join(LF)
+}
+
+/** The text as the model reads it: no BOM, and LF breaks where the file is all CRLF. */
+function modelText(raw: string, shape: TextShape): string {
+  const body = shape.hasBom ? raw.slice(BOM.length) : raw
+  return shape.isCrlf ? toLf(body) : body
+}
+
+/** The model's text (either break) as the file holds text: its BOM and its line breaks. */
+function fileText(text: string, shape: TextShape): string {
+  const body = shape.isCrlf ? toLf(text).split(LF).join(CRLF) : text
+  return shape.hasBom ? `${BOM}${body}` : body
+}
+
+/** What the model last saw of a file, to know it is not overwriting an unseen change. */
+function fingerprint(raw: string): string {
+  return createHash(FINGERPRINT_HASH).update(raw).digest('hex')
+}
+
+/**
+ * The hunk between two texts: the changed lines (common prefix and suffix
+ * trimmed) with up to PATCH_CONTEXT_LINES unchanged lines on each side, in
+ * unified-diff numbering (PLAN.md D27). An insertion's `oldStart` is the
+ * line it follows (0 at the top), never a marker of a created file; a
+ * Revert checks the context, so it refuses a file that has moved on.
+ */
 function hunkBetween(before: string, after: string): PatchHunk | undefined {
   const old = splitLines(before)
   const updated = splitLines(after)
@@ -481,14 +591,22 @@ function hunkBetween(before: string, after: string): PatchHunk | undefined {
   if (removed.length === 0 && added.length === 0) {
     return undefined
   }
+  const contextStart = Math.max(start - PATCH_CONTEXT_LINES, 0)
+  const leading = old.slice(contextStart, start)
+  const trailing = old.slice(oldEnd, oldEnd + PATCH_CONTEXT_LINES)
+  const oldLines = leading.length + removed.length + trailing.length
+  const newLines = leading.length + added.length + trailing.length
   return {
-    oldStart: removed.length === 0 ? 0 : start + 1,
-    oldLines: removed.length,
-    newStart: start + 1,
-    newLines: added.length,
+    // Unified numbering: a side with no lines starts at the line before it.
+    oldStart: oldLines === 0 ? contextStart : contextStart + 1,
+    oldLines,
+    newStart: newLines === 0 ? contextStart : contextStart + 1,
+    newLines,
     lines: [
+      ...leading.map((line) => `${CONTEXT_MARKER}${line}`),
       ...removed.map((line) => `${REMOVE_MARKER}${line}`),
       ...added.map((line) => `${ADD_MARKER}${line}`),
+      ...trailing.map((line) => `${CONTEXT_MARKER}${line}`),
     ],
   }
 }
@@ -502,9 +620,11 @@ function patchOutcome(
 ): ToolOutcome {
   const hunk = hunkBetween(before ?? '', after)
   const hunks = hunk === undefined ? [] : [hunk]
-  const file: PatchFile = { path: relativePath, hunks }
-  const added = hunk?.newLines ?? 0
-  const removed = hunk?.oldLines ?? 0
+  // Said outright (D27): a Revert trashes only a file this edit created.
+  const file: PatchFile = { path: relativePath, hunks, created: before === undefined }
+  const lines = hunk?.lines ?? []
+  const added = lines.filter((line) => line.startsWith(ADD_MARKER)).length
+  const removed = lines.filter((line) => line.startsWith(REMOVE_MARKER)).length
   const diff =
     hunk === undefined ? '' : `\n--- original\n+++ updated\n@@\n${hunk.lines.join('\n')}\n`
   return {
@@ -529,11 +649,12 @@ async function readFile(
   if (!resolved.ok) {
     return failure(resolved.reason)
   }
-  const text = await context.io.readFile(resolved.absolute)
-  if (text === undefined) {
+  const raw = await context.io.readFile(resolved.absolute)
+  if (raw === undefined) {
     return failure(`file not found: ${resolved.relative}`)
   }
-  const lines = splitLines(text)
+  context.seen.set(resolved.absolute, fingerprint(raw))
+  const lines = splitLines(modelText(raw, shapeOf(raw)))
   const start = Math.max((args.offset ?? 1) - 1, 0)
   const limit = Math.max(args.limit ?? READ_FILE_DEFAULT_LIMIT, 1)
   const shown = lines.slice(start, start + limit).map((line, index) => {
@@ -574,6 +695,17 @@ async function located(
   return { ok: true, relative: resolved.relative, absolute: resolved.absolute, before }
 }
 
+/** Why an edit must not touch this file now, or undefined (D27). */
+function editRefusal(
+  file: { readonly relative: string; readonly absolute: string },
+  context: ToolContext,
+): ToolOutcome | undefined {
+  // Writing under an editor's unsaved changes makes VS Code ask which to keep.
+  return context.io.hasUnsavedChanges(file.absolute)
+    ? failure(`${file.relative} ${UI_TEXT.fileHasUnsavedChanges}`)
+    : undefined
+}
+
 async function writeFile(
   args: z.infer<typeof writeFileArgs>,
   context: ToolContext,
@@ -582,14 +714,42 @@ async function writeFile(
   if (!file.ok) {
     return file.outcome
   }
-  await context.io.writeFile(file.absolute, args.content)
-  const verb = file.before === undefined ? 'created' : 'wrote'
+  const refusal = editRefusal(file, context)
+  if (refusal !== undefined) {
+    return refusal
+  }
+  const { before, relative, absolute } = file
+  if (before === undefined) {
+    await context.io.writeFile(absolute, args.content)
+    context.seen.set(absolute, fingerprint(args.content))
+    return patchOutcome(
+      relative,
+      undefined,
+      args.content,
+      `created ${relative}`,
+      `created ${relative} (${String(args.content.length)} characters)`,
+    )
+  }
+  // Claude Code's rule: a file is replaced only as the model last saw it (D27).
+  if (context.seen.get(absolute) !== fingerprint(before)) {
+    return failure(`${relative} ${UI_TEXT.fileChangedSinceRead}`)
+  }
+  // The file keeps its BOM, its line breaks and its final line break (D27).
+  const shape = shapeOf(before)
+  const normalized = toLf(args.content)
+  const text =
+    normalized !== '' && shape.hasTrailingBreak && !normalized.endsWith(LF)
+      ? `${normalized}${LF}`
+      : normalized
+  const after = fileText(text, shape)
+  await context.io.writeFile(absolute, after)
+  context.seen.set(absolute, fingerprint(after))
   return patchOutcome(
-    file.relative,
-    file.before,
-    args.content,
-    `${verb} ${file.relative}`,
-    `${verb} ${file.relative} (${String(args.content.length)} characters)`,
+    relative,
+    modelText(before, shape),
+    text,
+    `wrote ${relative}`,
+    `wrote ${relative} (${String(args.content.length)} characters)`,
   )
 }
 
@@ -605,19 +765,31 @@ async function editFile(
   if (before === undefined) {
     return failure(`file not found: ${relative}`)
   }
+  const refusal = editRefusal(file, context)
+  if (refusal !== undefined) {
+    return refusal
+  }
   if (args.find === '') {
     return failure('find must not be empty')
   }
-  const first = before.indexOf(args.find)
+  // The model reads LF lines without the BOM: the match runs on that text,
+  // and the file gets its own BOM and line breaks back (D27).
+  const shape = shapeOf(before)
+  const current = modelText(before, shape)
+  const find = shape.isCrlf ? toLf(args.find) : args.find
+  const replace = shape.isCrlf ? toLf(args.replace) : args.replace
+  const first = current.indexOf(find)
   if (first === -1) {
     return failure(`find text not found in ${relative}`)
   }
-  if (before.includes(args.find, first + args.find.length)) {
+  if (current.includes(find, first + find.length)) {
     return failure(`find text occurs more than once in ${relative}; include more context`)
   }
-  const after = `${before.slice(0, first)}${args.replace}${before.slice(first + args.find.length)}`
+  const updated = `${current.slice(0, first)}${replace}${current.slice(first + find.length)}`
+  const after = fileText(updated, shape)
   await context.io.writeFile(absolute, after)
-  return patchOutcome(relative, before, after, 'edited', `edited ${relative}`)
+  context.seen.set(absolute, fingerprint(after))
+  return patchOutcome(relative, current, updated, 'edited', `edited ${relative}`)
 }
 
 async function listMatching(
@@ -667,10 +839,13 @@ async function search(
   } catch (error: unknown) {
     return failure(error instanceof Error ? error.message : String(error))
   }
+  // A workspace too large to search in the budget is searched in part, and
+  // the model is told so rather than handed a silent subset (D27).
+  const searched = candidates.slice(0, SEARCH_MAX_CANDIDATES)
   const outcome = await context.io.searchFiles({
     pattern: args.pattern,
     root: context.workspaceRoot,
-    files: candidates.map((relative) => ({
+    files: searched.map((relative) => ({
       relative,
       absolute: p.join(context.workspaceRoot, ...relative.split('/')),
     })),
@@ -679,7 +854,20 @@ async function search(
     return failure(outcome.reason)
   }
   const results = searchLines(outcome.hits, mode, limit)
-  const body = results.length === 0 ? 'No matches.' : results.join('\n')
+  const notes = [
+    ...(searched.length < candidates.length
+      ? [
+          `[searched the first ${String(searched.length)} of ${String(candidates.length)} files; narrow the search with glob]`,
+        ]
+      : []),
+    ...(outcome.isPartial === true
+      ? [
+          `[the search stopped after ${String(SEARCH_TIMEOUT_MS)} ms; these results are partial, narrow the pattern or the glob]`,
+        ]
+      : []),
+  ]
+  const found = results.length === 0 ? 'No matches.' : results.join('\n')
+  const body = [found, ...notes].join('\n')
   return { output: clip(body), visibleOutput: clip(body) }
 }
 
@@ -712,14 +900,19 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     timeoutMs,
     context.signal,
   )
-  const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()].filter((part) => part !== '')
+  // Each stream keeps its beginning and its end, and the exit line is never
+  // clipped, so a flood of output still says how the command ended (D27).
+  const streamBudget = Math.floor(TOOL_OUTPUT_MAX_CHARS / SHELL_STREAMS)
+  const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()]
+    .filter((part) => part !== '')
+    .map((part) => clipMiddle(part, streamBudget))
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
   if (result.isCancelled) {
     exit = SHELL_STOPPED_BY_USER
   } else if (result.isTimedOut) {
     exit = `stopped after ${String(timeoutMs)} ms`
   }
-  const body = clip(`${parts.join('\n')}\n[${exit}]`.trim())
+  const body = `${parts.join('\n')}\n[${exit}]`.trim()
   return {
     output: body,
     visibleOutput: body,

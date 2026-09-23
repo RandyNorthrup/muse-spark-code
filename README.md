@@ -252,9 +252,19 @@ change, and **Click to expand** opens the diff editor. To undo, use the
 rewind button on any sent message (on hover): **Fork conversation from
 here**, **Rewind code to here** (reverts every edit made after that message,
 the conversation's and its subagents', in the reverse of the order they
-landed; a created file goes to the trash) and **Fork conversation and
-rewind code**. An edit whose file changed since is left alone and says so,
-rather than guess.
+landed; a file the edit created goes to the trash, unless you have added to
+it since, in which case your lines stay) and **Fork conversation and rewind
+code**. An edit whose file changed since is left alone and says so, rather
+than guess. A file's BOM and line breaks survive both.
+
+**Unsaved editors.** Muse reads and edits the files on disk. With
+`museSpark.autosave` on (the default) every message saves your editors
+first; with it off the panel names the files whose unsaved changes Muse will
+not see. On the Model API backend the file tools also refuse a file an
+editor holds unsaved changes to, keep a file's BOM, line breaks and final
+line break, refuse files that are not UTF-8 text rather than rewrite them,
+and replace an existing file with `write_file` only after reading it (as
+Claude Code does).
 
 **History.** The clock icon lists the workspace's conversations by day with
 search, resume (full transcript), archive and **Show archived**. Sessions

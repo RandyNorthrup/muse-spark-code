@@ -46,13 +46,35 @@ function isMatchAt(lines: readonly string[], offset: number, expected: readonly 
   return expected.every((line, index) => lines[offset + index] === line)
 }
 
+/** A single hunk that adds every line of a file that had none: how Muse Code records a new file. */
+function isWholeFileAdd(hunks: readonly PatchHunk[]): boolean {
+  return (
+    hunks.length === 1 &&
+    hunks.every(
+      (hunk) =>
+        hunk.oldStart === 0 &&
+        (hunk.oldLines ?? 0) === 0 &&
+        hunk.lines.every((line) => line.startsWith(ADD_MARKER)),
+    )
+  )
+}
+
 /**
  * Reverse-applies `hunks` (ordered, non-overlapping, as the CLI stores them)
  * to `currentText`. `newStart` is 1-based; a hunk with `newStart` 0 and no
  * "new" side means the file was deleted, which is not an edit this handles.
- * A whole-file add (`oldStart` 0, only `+` lines) marks a created file.
+ *
+ * `isCreated` is the patch's own word that the edit created the file (the
+ * Model API's tools give it); without it a whole-file add stands in (Muse
+ * Code's documents). Either way the file counts as created only when
+ * nothing is left once the edit is taken out (PLAN.md D27): lines the user
+ * added since are written back, never trashed with it.
  */
-export function revertHunks(currentText: string, hunks: readonly PatchHunk[]): RevertResult {
+export function revertHunks(
+  currentText: string,
+  hunks: readonly PatchHunk[],
+  isCreated?: boolean,
+): RevertResult {
   const { lines, hasTrailingBreak } = splitLines(currentText)
   const lineBreak = lineBreakOf(currentText)
   const output: string[] = []
@@ -73,9 +95,7 @@ export function revertHunks(currentText: string, hunks: readonly PatchHunk[]): R
     cursor = start + expected.length
   }
   output.push(...lines.slice(cursor))
-  const isCreatedFile =
-    hunks.length > 0 &&
-    hunks.every((hunk) => hunk.oldStart === 0 && hunk.lines.every((l) => l.startsWith(ADD_MARKER)))
+  const isCreatedFile = (isCreated ?? isWholeFileAdd(hunks)) && output.length === 0
   if (output.length === 0) {
     return { ok: true, content: '', isCreatedFile }
   }

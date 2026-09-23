@@ -20,6 +20,11 @@ export const patchFileSchema = z.object({
   /** Workspace-relative or absolute, as the tool reported it. */
   path: z.string(),
   hunks: z.array(patchHunkSchema),
+  /**
+   * Whether the edit created the file (PLAN.md D27). The Model API's tools
+   * say so; Muse Code's documents do not, and a whole-file add stands in.
+   */
+  created: z.optional(z.boolean()),
 })
 export type PatchFile = z.infer<typeof patchFileSchema>
 
@@ -27,6 +32,7 @@ const patchDocumentSchema = z.object({ files: z.array(patchFileSchema) })
 
 export const ADD_MARKER = '+'
 export const REMOVE_MARKER = '-'
+export const CONTEXT_MARKER = ' '
 
 /** The document's files; undefined when the text is not a patch document. */
 export function parsePatchFiles(json: string): readonly PatchFile[] | undefined {

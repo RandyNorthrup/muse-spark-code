@@ -11,6 +11,12 @@ import {
 } from '../../src/core/backends/modelapi/tools'
 import { parsePatchFiles } from '../../src/shared/patchDocument'
 import { revertHunks } from '../../src/core/patchApply'
+import {
+  SEARCH_MAX_CANDIDATES,
+  TOOL_OUTPUT_ELIDED_MARKER,
+  TOOL_OUTPUT_MAX_CHARS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -23,7 +29,7 @@ function context(files: Record<string, string> = {}, platform: NodeJS.Platform =
     isTimedOut: command.includes('hang'),
     isCancelled: command.includes('stop'),
   }))
-  const ctx: ToolContext = { workspaceRoot: ROOT, platform, io }
+  const ctx: ToolContext = { workspaceRoot: ROOT, platform, io, seen: new Map() }
   return {
     io,
     ctx,
@@ -117,7 +123,7 @@ describe('confineWorkspacePath: links (D24)', () => {
 
   it('makes the file tools refuse a linked escape before touching anything', async () => {
     const files = memoryToolIo({ 'a.txt': 'x' }, ROOT, undefined, { linked: '/etc' })
-    const ctx: ToolContext = { workspaceRoot: ROOT, platform: 'linux', io: files }
+    const ctx: ToolContext = { workspaceRoot: ROOT, platform: 'linux', io: files, seen: new Map() }
     const write = await executeTool(
       'write_file',
       JSON.stringify({ path: 'linked/cron.d/x', content: 'evil' }),
@@ -193,24 +199,32 @@ describe('executeTool: read_file', () => {
 })
 
 describe('executeTool: write_file and edit_file', () => {
-  it('creates a file with an all-added patch and overwrites with a minimal hunk', async () => {
+  it('creates a file with an all-added patch and overwrites with a hunk in context', async () => {
     const { io, run } = context({})
     const created = await run('write_file', { path: 'new.txt', content: 'a\nb\n' })
     expect(io.files.get('/ws/new.txt')).toBe('a\nb\n')
     expect(created.visibleOutput).toContain('created new.txt')
     expect(created.patch?.summary).toEqual({ files: 1, added: 2, removed: 0 })
     const files = parsePatchFiles(created.patch?.document ?? '')
-    expect(files?.[0]).toMatchObject({ path: 'new.txt', hunks: [{ oldStart: 0, newStart: 1 }] })
-    const reverted = revertHunks('a\nb\n', files?.[0]?.hunks ?? [])
+    expect(files?.[0]).toMatchObject({
+      path: 'new.txt',
+      created: true,
+      hunks: [{ oldStart: 0, oldLines: 0, newStart: 1 }],
+    })
+    const reverted = revertHunks('a\nb\n', files?.[0]?.hunks ?? [], files?.[0]?.created)
     expect(reverted).toEqual({ ok: true, content: '', isCreatedFile: true })
 
     const rewritten = await run('write_file', { path: 'new.txt', content: 'a\nB\nc\n' })
     expect(rewritten.patch?.summary).toEqual({ files: 1, added: 2, removed: 1 })
-    const hunks = parsePatchFiles(rewritten.patch?.document ?? '')?.[0]?.hunks ?? []
-    expect(hunks).toEqual([
-      { oldStart: 2, oldLines: 1, newStart: 2, newLines: 2, lines: ['-b', '+B', '+c'] },
-    ])
-    expect(revertHunks('a\nB\nc\n', hunks)).toEqual({
+    const [file] = parsePatchFiles(rewritten.patch?.document ?? '') ?? []
+    expect(file).toEqual({
+      path: 'new.txt',
+      created: false,
+      hunks: [
+        { oldStart: 1, oldLines: 2, newStart: 1, newLines: 3, lines: [' a', '-b', '+B', '+c'] },
+      ],
+    })
+    expect(revertHunks('a\nB\nc\n', file?.hunks ?? [], file?.created)).toEqual({
       ok: true,
       content: 'a\nb\n',
       isCreatedFile: false,
@@ -232,11 +246,12 @@ describe('executeTool: write_file and edit_file', () => {
     })
     expect(io.files.get('/ws/notes.md')).toBe('# Notes\n\nfirst line\nsecond\nthird\n')
     expect(ok.visibleOutput).toBe(
-      'edited\n--- original\n+++ updated\n@@\n-first line?\n+second\n+third\n',
+      'edited\n--- original\n+++ updated\n@@\n # Notes\n \n first line\n-first line?\n+second\n+third\n',
     )
     expect(ok.patch?.summary).toEqual({ files: 1, added: 2, removed: 1 })
     const missing = await run('edit_file', { path: 'nope.md', find: 'a', replace: 'b' })
     expect(missing.failureReason).toBe('file not found: nope.md')
+    // The edit counts as having seen the file, so it may be replaced whole.
     const same = await run('write_file', {
       path: 'notes.md',
       content: io.files.get('/ws/notes.md'),
@@ -366,5 +381,165 @@ describe('toolDefinitions options and read_skill (M10)', () => {
     await expect(context().run('read_skill', { id: 'x' })).resolves.toMatchObject({
       failureReason: 'unknown tool read_skill',
     })
+  })
+})
+
+describe('executeTool: files as they are (D27)', () => {
+  it('matches LF text in a CRLF file and writes CRLF back', async () => {
+    const { io, run } = context({ 'win.txt': 'one\r\ntwo\r\nthree\r\n' })
+    const read = await run('read_file', { path: 'win.txt' })
+    expect(read.output).toBe('Read text file `win.txt`.\n1|one\n2|two\n3|three')
+    const edited = await run('edit_file', {
+      path: 'win.txt',
+      find: 'one\ntwo',
+      replace: 'ONE\nTWO\nand more',
+    })
+    expect(edited.failureReason).toBeUndefined()
+    expect(io.files.get('/ws/win.txt')).toBe('ONE\r\nTWO\r\nand more\r\nthree\r\n')
+    await run('write_file', { path: 'win.txt', content: 'replaced\nwhole' })
+    // Its line breaks and its final one kept.
+    expect(io.files.get('/ws/win.txt')).toBe('replaced\r\nwhole\r\n')
+  })
+
+  it('keeps a UTF-8 BOM out of the model’s view and in the file', async () => {
+    const { io, run } = context({ 'bom.md': '\u{FEFF}# Title\nbody\n' })
+    const read = await run('read_file', { path: 'bom.md' })
+    expect(read.output).toBe('Read text file `bom.md`.\n1|# Title\n2|body')
+    await run('edit_file', { path: 'bom.md', find: '# Title', replace: '# New title' })
+    expect(io.files.get('/ws/bom.md')).toBe('\u{FEFF}# New title\nbody\n')
+    await run('write_file', { path: 'bom.md', content: 'all new\n' })
+    expect(io.files.get('/ws/bom.md')).toBe('\u{FEFF}all new\n')
+  })
+
+  it('replaces a file only as the model last saw it (Claude Code’s rule)', async () => {
+    const { io, run } = context({ 'a.txt': 'original\n' })
+    const unseen = await run('write_file', { path: 'a.txt', content: 'mine\n' })
+    expect(unseen.failureReason).toBe(`a.txt ${UI_TEXT.fileChangedSinceRead}`)
+    expect(io.files.get('/ws/a.txt')).toBe('original\n')
+    await run('read_file', { path: 'a.txt' })
+    io.files.set('/ws/a.txt', 'the user changed it\n')
+    const stale = await run('write_file', { path: 'a.txt', content: 'mine\n' })
+    expect(stale.failureReason).toBe(`a.txt ${UI_TEXT.fileChangedSinceRead}`)
+    await run('read_file', { path: 'a.txt' })
+    const fresh = await run('write_file', { path: 'a.txt', content: 'mine\n' })
+    expect(fresh.failureReason).toBeUndefined()
+    expect(io.files.get('/ws/a.txt')).toBe('mine\n')
+  })
+
+  it('leaves a file alone while an editor holds unsaved changes to it', async () => {
+    const { io, run } = context({ 'open.ts': 'x\n' })
+    io.unsaved.add('/ws/open.ts')
+    await run('read_file', { path: 'open.ts' })
+    for (const outcome of [
+      await run('edit_file', { path: 'open.ts', find: 'x', replace: 'y' }),
+      await run('write_file', { path: 'open.ts', content: 'y\n' }),
+    ]) {
+      expect(outcome.failureReason).toBe(`open.ts ${UI_TEXT.fileHasUnsavedChanges}`)
+    }
+    expect(io.files.get('/ws/open.ts')).toBe('x\n')
+  })
+
+  it('says a file is not text instead of rewriting it', async () => {
+    const { io, run } = context({})
+    io.readFile = () => Promise.reject(new Error(`/ws/a.bin ${UI_TEXT.fileNotText}`))
+    await expect(run('edit_file', { path: 'a.bin', find: 'x', replace: 'y' })).rejects.toThrow(
+      UI_TEXT.fileNotText,
+    )
+  })
+})
+
+/** Lines as a file's text, each ending with a line break. */
+function text(lines: readonly string[]): string {
+  return `${lines.join('\n')}\n`
+}
+
+describe('executeTool: patches a Revert can trust (D27)', () => {
+  const tenLines = Array.from({ length: 10 }, (_, index) => `line ${String(index + 1)}`)
+
+  it('records an insertion at the top as an insertion, not as a new file', async () => {
+    const { io, run } = context({ 'a.ts': text(tenLines) })
+    const edit = await run('edit_file', {
+      path: 'a.ts',
+      find: 'line 1\n',
+      replace: 'import x\nline 1\n',
+    })
+    const [file] = parsePatchFiles(edit.patch?.document ?? '') ?? []
+    expect(file).toMatchObject({ created: false })
+    expect(file?.hunks[0]).toMatchObject({ oldStart: 1, newStart: 1 })
+    const reverted = revertHunks(io.files.get('/ws/a.ts') ?? '', file?.hunks ?? [], file?.created)
+    expect(reverted).toEqual({ ok: true, content: text(tenLines), isCreatedFile: false })
+  })
+
+  it('refuses to put deleted lines back where the file has moved on', async () => {
+    const { io, run } = context({ 'a.ts': text(tenLines) })
+    const edit = await run('edit_file', { path: 'a.ts', find: 'line 5\n', replace: '' })
+    const [file] = parsePatchFiles(edit.patch?.document ?? '') ?? []
+    expect(file?.hunks[0]?.lines).toEqual([
+      ' line 2',
+      ' line 3',
+      ' line 4',
+      '-line 5',
+      ' line 6',
+      ' line 7',
+      ' line 8',
+    ])
+    // The user added a line above the deletion since.
+    const shifted = `added by the user\n${io.files.get('/ws/a.ts') ?? ''}`
+    expect(revertHunks(shifted, file?.hunks ?? [], file?.created)).toMatchObject({ ok: false })
+  })
+})
+
+describe('executeTool: a flood of shell output (D27)', () => {
+  it('keeps each stream’s beginning and end and always the exit line', async () => {
+    const huge = `${'start '.repeat(10)}${'x'.repeat(200_000)} the end`
+    const io = memoryToolIo({}, ROOT, () => ({
+      stdout: huge,
+      stderr: `${'e'.repeat(100_000)} last error`,
+      exitCode: 3,
+      isTimedOut: false,
+      isCancelled: false,
+    }))
+    const outcome = await executeTool(
+      'bash',
+      JSON.stringify({ command: 'flood', description: 'd' }),
+      {
+        workspaceRoot: ROOT,
+        platform: 'linux',
+        io,
+        seen: new Map(),
+      },
+    )
+    expect(outcome.output.startsWith('start start')).toBe(true)
+    expect(outcome.output).toContain(' the end')
+    expect(outcome.output).toContain(' last error')
+    expect(outcome.output.endsWith('[exit code 3]')).toBe(true)
+    expect(outcome.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    expect(outcome.output.length).toBeLessThan(
+      TOOL_OUTPUT_MAX_CHARS + TOOL_OUTPUT_ELIDED_MARKER.length,
+    )
+  })
+})
+
+describe('executeTool: search limits (D27)', () => {
+  it('says when the search stopped early or read only part of the files', async () => {
+    const io = memoryToolIo({ 'a.ts': 'x\n' }, ROOT)
+    io.searchFiles = () =>
+      Promise.resolve({ ok: true, hits: [{ file: 'a.ts', line: 1, text: 'x' }], isPartial: true })
+    const ctx: ToolContext = { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map() }
+    const partial = await executeTool('search', JSON.stringify({ pattern: 'x' }), ctx)
+    expect(partial.output).toContain('a.ts:1: x')
+    expect(partial.output).toContain('these results are partial')
+    io.listFiles = () =>
+      Promise.resolve(Array.from({ length: SEARCH_MAX_CANDIDATES + 1 }, (_, i) => `f${String(i)}`))
+    let searched = 0
+    io.searchFiles = (job) => {
+      searched = job.files.length
+      return Promise.resolve({ ok: true, hits: [] })
+    }
+    const capped = await executeTool('search', JSON.stringify({ pattern: 'x' }), ctx)
+    expect(searched).toBe(SEARCH_MAX_CANDIDATES)
+    expect(capped.output).toContain(
+      `searched the first ${String(SEARCH_MAX_CANDIDATES)} of ${String(SEARCH_MAX_CANDIDATES + 1)} files`,
+    )
   })
 })

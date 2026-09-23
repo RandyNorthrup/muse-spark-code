@@ -5,6 +5,7 @@ import {
   originalUriPath,
   stripExtendedLengthPrefix,
 } from '../../src/host/editor/editReview'
+import { UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 const PATCH =
@@ -17,7 +18,8 @@ function setup(
   files: Record<string, string>,
   options: {
     platform?: NodeJS.Platform
-    workspaceRoot?: string
+    /** Given as undefined: no folder is open (D27). */
+    workspaceRoot?: string | undefined
     /** Canonical forms by path, as the file system would resolve links. */
     realPaths?: Record<string, string>
   } = {},
@@ -29,7 +31,7 @@ function setup(
   const log = new FakeLogOutputChannel()
   const review = new EditReview({
     platform: options.platform ?? 'linux',
-    workspaceRoot: options.workspaceRoot ?? '/ws',
+    workspaceRoot: 'workspaceRoot' in options ? options.workspaceRoot : '/ws',
     readFile: (fsPath) => Promise.resolve(disk.get(fsPath)),
     realPath: (fsPath) => Promise.resolve(options.realPaths?.[fsPath] ?? fsPath),
     writeFile: (fsPath, content) => {
@@ -115,6 +117,43 @@ describe('EditReview.revert', () => {
       { level: 'warning', text: 'notes.md cannot be rebuilt: the file changed since this edit.' },
     ])
     expect(t.writes).toHaveLength(0)
+  })
+
+  it('keeps lines the user added to a created file instead of trashing them (D27)', async () => {
+    const t = setup({ ...pathMap('new.txt', 'hi\nmine too\n') })
+    expect(await t.review.revert('i', CREATED)).toEqual([
+      { level: 'info', text: 'Reverted new.txt.' },
+    ])
+    expect(t.deleted).toHaveLength(0)
+    expect(t.writes[0]?.[1]).toBe('mine too\n')
+  })
+
+  it('never trashes a file the patch says existed, even when it ends up empty (D27)', async () => {
+    const existed = CREATED.replace('"path":"new.txt",', '"path":"new.txt","created":false,')
+    const t = setup({ ...pathMap('new.txt', 'hi\n') })
+    await t.review.revert('i', existed)
+    expect(t.deleted).toHaveLength(0)
+    expect(t.writes[0]?.[1]).toBe('')
+  })
+
+  it('writes a UTF-8 BOM back with the reverted text (D27)', async () => {
+    const t = setup({ ...pathMap('notes.md', '\u{FEFF}# Notes\n\nsecond line\nthird line\n') })
+    await t.review.revert('i', PATCH)
+    expect(t.writes[0]?.[1]).toBe('\u{FEFF}# Notes\n\nfirst line\n')
+  })
+
+  it('reviews nothing without a folder, instead of resolving against the process (D27)', async () => {
+    const t = setup(
+      { ...pathMap('notes.md', '# Notes\n\nsecond line\nthird line\n') },
+      {
+        workspaceRoot: undefined,
+      },
+    )
+    const needsFolder = [{ level: 'warning', text: UI_TEXT.editReviewNeedsFolder }]
+    expect(await t.review.revert('i', PATCH)).toEqual(needsFolder)
+    expect(await t.review.openDiff('i', PATCH)).toEqual(needsFolder)
+    expect(t.writes).toHaveLength(0)
+    expect(t.diffs).toHaveLength(0)
   })
 })
 

@@ -81,11 +81,20 @@ describe('searchOnWorker', () => {
     expect(outcome).toMatchObject({ ok: false, reason: expect.stringContaining('invalid pattern') })
   }, 30_000)
 
-  it('stops a catastrophic pattern at the time budget instead of hanging the host', async () => {
+  it('stops a catastrophic pattern at the time budget, keeping what it found first (D27)', async () => {
     await writeFile(path.join(paths.root, 'long.txt'), `${'a'.repeat(40)}!\n`)
+    await writeFile(path.join(paths.root, 'quick.txt'), 'aaa\n')
     const started = Date.now()
-    const outcome = await searchOnWorker(paths.worker, job('^(a+)+$', ['long.txt']), 500)
-    expect(outcome).toEqual({ ok: false, reason: 'search stopped after 20000 ms' })
+    const outcome = await searchOnWorker(
+      paths.worker,
+      job('^(a+)+$', ['quick.txt', 'long.txt']),
+      500,
+    )
+    expect(outcome).toEqual({
+      ok: true,
+      hits: [{ file: 'quick.txt', line: 1, text: 'aaa' }],
+      isPartial: true,
+    })
     expect(Date.now() - started).toBeLessThan(10_000)
   }, 30_000)
 

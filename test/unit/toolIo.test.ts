@@ -1,8 +1,9 @@
 import { realpathSync } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { UI_TEXT, WINDOWS_POWERSHELL_UTF8_PREAMBLE } from '../../src/shared/constants'
 import {
   BoundedText,
   createToolIo,
@@ -41,7 +42,8 @@ describe('shellInterpreter / shellArguments', () => {
       '-ExecutionPolicy',
       'Bypass',
       '-Command',
-      'Get-Location; echo hi',
+      // Windows PowerShell's output switched to UTF-8 first (D27).
+      `${WINDOWS_POWERSHELL_UTF8_PREAMBLE}Get-Location; echo hi`,
     ])
     expect(shellArguments('linux', 'ls; echo hi')).toEqual(['-lc', 'ls; echo hi'])
   })
@@ -167,6 +169,7 @@ const io = () =>
     env: () => process.env,
     searchWorkerPath: 'unused-here',
     log: () => undefined,
+    hasUnsavedChanges: () => false,
   })
 
 describe('createToolIo (real file system and shell)', () => {
@@ -194,6 +197,48 @@ describe('createToolIo (real file system and shell)', () => {
     await io().writeFile(target, 'nested\n')
     await expect(readFile(target, 'utf8')).resolves.toBe('nested\n')
   })
+
+  it('reads only UTF-8 text, keeping its BOM, and refuses anything else (D27)', async () => {
+    const folder = path.join(root, 'encodings')
+    const bom = path.join(folder, 'bom.txt')
+    await io().writeFile(bom, '\u{FEFF}héllo\n')
+    await expect(io().readFile(bom)).resolves.toBe('\u{FEFF}héllo\n')
+    const refused: Record<string, Uint8Array> = {
+      'latin1.txt': Uint8Array.from([0x63, 0x61, 0x66, 0xe9]),
+      'utf16le.txt': Uint8Array.from([0xff, 0xfe, 0x68, 0x00]),
+      'utf16be.txt': Uint8Array.from([0xfe, 0xff, 0x00, 0x68]),
+      'blob.bin': Uint8Array.from([0x7f, 0x45, 0x4c, 0x46, 0x00, 0x01]),
+    }
+    for (const [name, bytes] of Object.entries(refused)) {
+      const file = path.join(folder, name)
+      await writeFile(file, bytes)
+      await expect(io().readFile(file), name).rejects.toThrow(UI_TEXT.fileNotText)
+    }
+  })
+
+  it('replaces a file in one step and leaves no temporary file behind (D27)', async () => {
+    const folder = path.join(root, 'atomic')
+    const target = path.join(folder, 'c.txt')
+    await io().writeFile(target, 'one\n')
+    await io().writeFile(target, 'two\n')
+    await expect(readFile(target, 'utf8')).resolves.toBe('two\n')
+    expect(await readdir(folder)).toEqual(['c.txt'])
+  })
+
+  it.runIf(process.platform === 'win32')(
+    'gets Windows PowerShell output as UTF-8, native commands included (D27)',
+    async () => {
+      const result = await io().runShell(
+        "Write-Output 'héllo ✓ 日本'; cmd /c echo native-é",
+        root,
+        SHELL_BUDGET_MS,
+      )
+      expect(result.stdout).toContain('héllo ✓ 日本')
+      expect(result.stdout).toContain('native-é')
+      expect(result.stderr).toBe('')
+    },
+    TEST_BUDGET_MS,
+  )
 
   it(
     'runs one command line in the given directory and reports its exit',
@@ -282,6 +327,7 @@ describe('createToolIo (real file system and shell)', () => {
       env: () => process.env,
       searchWorkerPath: 'unused-here',
       log: () => undefined,
+      hasUnsavedChanges: () => false,
     })
     const result = await broken.runShell('echo hi', root, SHELL_BUDGET_MS)
     expect(result.exitCode).toBeNull()

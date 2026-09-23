@@ -7,6 +7,8 @@ import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/
 export interface MemoryToolIo extends ToolIo {
   readonly files: Map<string, string>
   readonly shellCalls: { command: string; cwd: string; timeoutMs: number }[]
+  /** Absolute paths an "editor" holds unsaved changes to (D27). */
+  readonly unsaved: Set<string>
 }
 
 /**
@@ -28,9 +30,12 @@ export function memoryToolIo(
 ): MemoryToolIo {
   const files = new Map(Object.entries(initial).map(([name, text]) => [`${root}/${name}`, text]))
   const shellCalls: MemoryToolIo['shellCalls'] = []
+  const unsaved = new Set<string>()
   return {
     files,
     shellCalls,
+    unsaved,
+    hasUnsavedChanges: (absolutePath) => unsaved.has(absolutePath.replaceAll('\\', '/')),
     realPath: (absolutePath) => {
       const forward = absolutePath.replaceAll('\\', '/')
       for (const [relative, target] of Object.entries(links)) {
@@ -94,6 +99,7 @@ export const noopToolIo: ToolIo = {
   realPath: (absolutePath) => Promise.resolve(absolutePath),
   readFile: () => Promise.resolve(undefined),
   writeFile: () => Promise.resolve(),
+  hasUnsavedChanges: () => false,
   listFiles: () => Promise.resolve([]),
   listDirectory: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),

@@ -8,11 +8,10 @@
 // PLAN.md D26: listing keeps only each session's header, a session is read
 // whole when it is opened, a session idle past the retention period
 // (`museSpark.cleanupPeriodDays`, Claude Code's `cleanupPeriodDays`) is
-// deleted when the list is read, a temporary file a crash left behind is
-// removed, and a rename Windows refuses while another program holds the
-// file is tried again.
+// deleted when the list is read, and a temporary file a crash left behind
+// is removed. The write itself is `writeFileAtomically` (host/fsAtomic.ts).
 
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { readdir, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import {
   headerOf,
@@ -22,11 +21,11 @@ import {
   type StoredSessionHeader,
 } from '../../core/backends/modelapi/sessionStore'
 import {
+  ATOMIC_TEMPORARY_SUFFIX,
   MILLISECONDS_PER_DAY,
-  SESSION_FILE_RENAME_ATTEMPTS,
-  SESSION_FILE_RENAME_DELAY_MS,
   SESSION_FILE_STALE_TEMPORARY_MS,
 } from '../../shared/constants'
+import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
 
 export interface FileSessionStoreDeps {
@@ -43,10 +42,7 @@ export interface FileSessionStoreDeps {
 }
 
 const FILE_EXTENSION = '.json'
-const TEMPORARY_SUFFIX = '.tmp'
 const ENOENT = 'ENOENT'
-// What Windows answers while an indexer or a virus scanner holds the target.
-const RENAME_RETRY_CODES: ReadonlySet<string> = new Set(['EPERM', 'EACCES', 'EBUSY'])
 // A session id names a file; only the UUID alphabet is allowed into a path.
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 
@@ -118,26 +114,6 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     return true
   }
 
-  const renameFile = deps.rename ?? rename
-  const renameIntoPlace = async (from: string, to: string): Promise<void> => {
-    for (let attempt = 1; ; attempt += 1) {
-      try {
-        await renameFile(from, to)
-        return
-      } catch (error: unknown) {
-        const code = errorCode(error)
-        if (
-          code === undefined ||
-          !RENAME_RETRY_CODES.has(code) ||
-          attempt >= SESSION_FILE_RENAME_ATTEMPTS
-        ) {
-          throw error
-        }
-        await deps.sleep(SESSION_FILE_RENAME_DELAY_MS * 2 ** (attempt - 1))
-      }
-    }
-  }
-
   return {
     async list() {
       let names: string[]
@@ -152,7 +128,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       const headers: StoredSessionHeader[] = []
       const sorted = names.toSorted((a, b) => a.localeCompare(b, 'en'))
       for (const name of sorted) {
-        if (name.endsWith(TEMPORARY_SUFFIX)) {
+        if (name.endsWith(ATOMIC_TEMPORARY_SUFFIX)) {
           await removeIfStale(name)
           continue
         }
@@ -172,11 +148,10 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     },
     async save(session) {
       assertSessionId(session.sessionId)
-      await mkdir(deps.directory, { recursive: true })
-      const file = fileFor(session.sessionId)
-      const temporary = `${file}${TEMPORARY_SUFFIX}`
-      await writeFile(temporary, JSON.stringify(session), 'utf8')
-      await renameIntoPlace(temporary, file)
+      await writeFileAtomically(fileFor(session.sessionId), JSON.stringify(session), {
+        sleep: deps.sleep,
+        ...(deps.rename !== undefined && { rename: deps.rename }),
+      })
     },
     async remove(sessionId) {
       assertSessionId(sessionId)

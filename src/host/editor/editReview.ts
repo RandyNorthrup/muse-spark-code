@@ -14,7 +14,8 @@ import type { Logger } from '../logger'
 export interface EditReviewDeps {
   /** Selects Windows or POSIX path rules, so both are unit-tested anywhere. */
   readonly platform: NodeJS.Platform
-  readonly workspaceRoot: string
+  /** Undefined without a folder: nothing is reviewed against the process's own directory (D27). */
+  readonly workspaceRoot: string | undefined
   /** The file's text, or undefined when it does not exist. */
   readonly readFile: (fsPath: string) => Promise<string | undefined>
   /** The canonical form of a path, links resolved through the nearest existing ancestor. */
@@ -55,6 +56,7 @@ function patchFilesOf(patchJson: string): readonly PatchFile[] | undefined {
 // Windows extended-length prefixes. The CLI's patch document names files
 // as `\\?\C:\ws\notes.md` (verified live 2026-09-22), which `path.relative`
 // would treat as a different root from `C:\ws`.
+const BOM = '\u{FEFF}'
 const WIN_SEP = path.win32.sep
 const UNC_PREFIX = `${WIN_SEP}${WIN_SEP}`
 const EXTENDED_PREFIX = `${UNC_PREFIX}?${WIN_SEP}`
@@ -91,8 +93,8 @@ export class EditReview {
    * escapes: by text, then by the canonical forms, so a link inside the
    * workspace that leads outside it is refused (PLAN.md D24).
    */
-  private async resolve(file: PatchFile): Promise<ResolvedFile | undefined> {
-    const root = this.paths.resolve(stripExtendedLengthPrefix(this.deps.workspaceRoot))
+  private async resolve(workspaceRoot: string, file: PatchFile): Promise<ResolvedFile | undefined> {
+    const root = this.paths.resolve(stripExtendedLengthPrefix(workspaceRoot))
     const fsPath = this.paths.resolve(root, stripExtendedLengthPrefix(file.path))
     const relative = this.paths.relative(root, fsPath)
     if (!this.isBelow(relative)) {
@@ -113,12 +115,18 @@ export class EditReview {
     return { file, relativePath: relative.replaceAll('\\', '/'), fsPath }
   }
 
-  /** Rebuilds the pre-edit text; a notice explains why when it cannot. */
+  /**
+   * Rebuilds the pre-edit text; a notice explains why when it cannot. A
+   * UTF-8 BOM is not part of any hunk: it is set aside for the match and
+   * kept on the text written back (PLAN.md D27).
+   */
   private async rebuild(resolved: ResolvedFile): Promise<Rebuilt> {
-    const current = (await this.deps.readFile(resolved.fsPath)) ?? ''
-    const result = revertHunks(current, resolved.file.hunks)
+    const raw = (await this.deps.readFile(resolved.fsPath)) ?? ''
+    const hasBom = raw.startsWith(BOM)
+    const current = hasBom ? raw.slice(BOM.length) : raw
+    const result = revertHunks(current, resolved.file.hunks, resolved.file.created)
     if (result.ok) {
-      return result
+      return { ...result, content: hasBom ? `${BOM}${result.content}` : result.content }
     }
     this.deps.log.warn(`Edit review of ${resolved.relativePath}: ${result.reason}`)
     return {
@@ -135,6 +143,10 @@ export class EditReview {
     ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[]
     notices: ReviewNotice[]
   }> {
+    const { workspaceRoot } = this.deps
+    if (workspaceRoot === undefined) {
+      return { ready: [], notices: [{ level: 'warning', text: UI_TEXT.editReviewNeedsFolder }] }
+    }
     const files = patchFilesOf(patchJson)
     if (files === undefined) {
       return { ready: [], notices: [{ level: 'warning', text: UI_TEXT.editNoPatch }] }
@@ -142,7 +154,7 @@ export class EditReview {
     const ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[] = []
     const notices: ReviewNotice[] = []
     for (const file of files) {
-      const resolved = await this.resolve(file)
+      const resolved = await this.resolve(workspaceRoot, file)
       if (resolved === undefined) {
         notices.push({ level: 'warning', text: `${file.path} ${UI_TEXT.editPathRefused}.` })
         continue

@@ -12,6 +12,7 @@ import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue } from './core/backends/musecode/launch'
 import { selectBackend } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
+import { isSamePath } from './core/paths'
 import { renderSupportReport } from './core/support/report'
 import type { CliInvocation } from './core/backends/musecode/sandbox'
 import { type DiagnosticEntry, type DiagnosticSeverity, diagnosticsTool } from './core/diagnostics'
@@ -106,6 +107,8 @@ const lastSessionSchema = z.object({ sessionId: z.string(), at: z.number() })
 
 // `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
 const QUICK_PICK_LIMIT = 50
+// A document on disk (not an untitled buffer, an output tab or a diff side).
+const FILE_SCHEME = 'file'
 const execFileAsync = promisify(execFile)
 
 function activeSelection(): MentionSource | undefined {
@@ -169,9 +172,12 @@ async function isExistingPath(fsPath: string): Promise<boolean> {
   }
 }
 
+// A UTF-8 BOM stays in the text, so a Revert writes the file back with it (D27).
+const TEXT_KEEPING_BOM = new TextDecoder('utf-8', { ignoreBOM: true })
+
 async function readTextFile(fsPath: string): Promise<string | undefined> {
   try {
-    return new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)))
+    return TEXT_KEEPING_BOM.decode(await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)))
   } catch {
     return undefined
   }
@@ -511,7 +517,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const editReview = new EditReview({
     platform: process.platform,
-    workspaceRoot: workspaceRoot ?? '',
+    workspaceRoot,
     readFile: readTextFile,
     realPath: canonicalPath,
     writeFile: async (fsPath, content) => {
@@ -578,6 +584,14 @@ export function activate(context: vscode.ExtensionContext): void {
       log: (message) => {
         log.warn(message)
       },
+      // An open editor with unsaved changes to the file (PLAN.md D27).
+      hasUnsavedChanges: (absolutePath) =>
+        vscode.workspace.textDocuments.some(
+          (document) =>
+            document.isDirty &&
+            document.uri.scheme === FILE_SCHEME &&
+            isSamePath(document.uri.fsPath, absolutePath, process.platform),
+        ),
     }),
     fetch: globalThis.fetch.bind(globalThis),
     newId: () => crypto.randomUUID(),
@@ -786,6 +800,11 @@ export function activate(context: vscode.ExtensionContext): void {
         saveAll: async () => {
           await vscode.workspace.saveAll(false)
         },
+        // Workspace files open with unsaved changes (PLAN.md D27).
+        unsavedFiles: () =>
+          vscode.workspace.textDocuments
+            .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+            .map((document) => vscode.workspace.asRelativePath(document.uri, false)),
         // Code block "Apply": the block replaces the selection (or lands at
         // the caret); false when no text editor is active.
         applyCode: async (text) => {
