@@ -2029,5 +2029,11 @@ and quote, question cards, outputs in the editor and the usage insights in
 the highlights, the workflow publish in place of the by-hand recipe, the
 live drill's budget, the three upstream issues in Troubleshooting, and
 eleven screenshots rendered from the shipped panel by the harness in place
-of the 0.1.1 captures. Tagged `v0.5.2`; the run is recorded here once it
-finishes.
+of the 0.1.1 captures. The first `v0.5.2` tag (8d464e7) failed CI on
+Windows alone: every test green, then the e2e suite's teardown could not
+unlink the fake CLI's executable (`EPERM`) because the disposed process had
+not yet let go of it; the same tree had passed on the pull request. The
+teardown removes the temporary install with Node's retries on that error,
+and the tag was moved to the fixed commit before anything was released
+(the failed run built no package and no GitHub Release). The run of the
+moved tag is recorded here once it finishes.

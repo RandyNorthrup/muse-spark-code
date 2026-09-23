@@ -134,10 +134,21 @@ afterEach(async () => {
   await Promise.all(managers.splice(0).map((created) => created.dispose()))
 })
 
+// On Windows the fake CLI's executable can still be held for a moment after
+// its manager is disposed, and unlinking it then fails with EPERM (seen once
+// in CI, every test green); Node retries the removal on that error.
+const RM_RETRIES = 20
+const RM_RETRY_DELAY_MS = 250
+
 afterAll(() => {
   delete process.env['XDG_CONFIG_HOME']
   for (const dir of [fake.installDir, workspaceRoot, configHome]) {
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: RM_RETRIES,
+      retryDelay: RM_RETRY_DELAY_MS,
+    })
   }
 })
 

@@ -18,6 +18,9 @@ The first community fix, and the README brought up to date with the panel.
 - The prompt box grows with wrapped lines as well as newlines, up to ten
   rows, and scrolls inside past that; a long single line no longer hides
   behind a one-row box (#4, reported by dhaw97160).
+- The e2e suite's teardown on Windows no longer fails when the fake CLI's
+  executable is still held for a moment after its process is disposed: the
+  temporary install is removed with retries.
 
 ### Changed
 
