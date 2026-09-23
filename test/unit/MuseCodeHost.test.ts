@@ -991,7 +991,7 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
     server.notify('turn/retracted', { sessionId: session.sessionId, turnId: 't3', commandId: 'c' })
     await settle()
     expect(events).toEqual([
-      { type: 'turnCompleted', turnId: 't2', terminal: 'cancelled', reason: UI_TEXT.turnUnqueued },
+      { type: 'turnWithdrawn', turnId: 't2', reason: UI_TEXT.turnUnqueued },
       { type: 'viewGap' },
       {
         type: 'backendNotice',

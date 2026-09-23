@@ -258,6 +258,10 @@ const agentEventSchema = z.discriminatedUnion('type', [
   }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),
+  // A queued message that will never run (D26): the host withdrew it
+  // (`turn/unqueued`) or Stop cleared the queue. Only its message is marked;
+  // the running turn, if any, runs on.
+  z.object({ type: z.literal('turnWithdrawn'), turnId: z.string(), reason: z.string() }),
   // The two below are the controller's, never forwarded (PLAN.md D26): live
   // delivery dropped events, so the transcript is reloaded from the host...
   z.object({ type: z.literal('viewGap') }),

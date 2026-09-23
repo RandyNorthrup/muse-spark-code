@@ -542,7 +542,7 @@ export class ConversationController {
         const host = await this.deps.ensureHost()
         const history = await host.readSession(session.sessionId)
         if (this.session === session) {
-          this.postHistory(session.sessionId, history)
+          this.postHistory(session.sessionId, history, this.activeTurnId)
           this.notice('info', UI_TEXT.viewGapReloaded)
         }
       } catch (error: unknown) {
@@ -589,9 +589,14 @@ export class ConversationController {
         this.activeTurnId = event.turnId
         break
       }
+      case 'turnWithdrawn': {
+        // It will never run: a late acceptance must not make it the running turn.
+        this.finishedTurns.add(event.turnId)
+        break
+      }
       case 'turnCompleted': {
         this.finishedTurns.add(event.turnId)
-        // A queued turn withdrawn (`turn/unqueued`) leaves the running one running.
+        // Another turn completing (a subagent's) leaves this one running.
         if (this.activeTurnId === event.turnId) {
           this.activeTurnId = undefined
         }
@@ -1164,13 +1169,19 @@ export class ConversationController {
   }
 
   /** The webview's transcript replaced by a session's served history. */
-  private postHistory(sessionId: string, history: SessionHistoryOutcome): void {
+  private postHistory(
+    sessionId: string,
+    history: SessionHistoryOutcome,
+    activeTurnId: string | undefined,
+  ): void {
     this.post({
       type: 'historyLoaded',
       sessionId,
       items: [...history.items],
       ...(history.name !== undefined && { name: history.name }),
       todos: [...history.todos],
+      // A turn still running keeps its Stop and its steering (D26).
+      ...(activeTurnId !== undefined && { activeTurnId }),
     })
   }
 
@@ -1204,7 +1215,7 @@ export class ConversationController {
       this.modelId = fallbackId
       this.notice('info', `${UI_TEXT.contributorResumeFallback} ${fallbackId}.`)
     }
-    this.postHistory(loaded.session.sessionId, loaded.history)
+    this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
     this.notice('info', `${notice} ${loaded.history.name ?? toSessionRow(loaded.record).title}`)
     if (loaded.history.mode === HISTORY_MODE_NONE) {
