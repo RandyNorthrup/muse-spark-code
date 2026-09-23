@@ -1255,9 +1255,8 @@ export class ModelApiSession implements AgentSession {
   public cancel(): Promise<void> {
     for (const dropped of this.queuedTurns.splice(0)) {
       this.emit({
-        type: 'turnCompleted',
+        type: 'turnWithdrawn',
         turnId: dropped.turnId,
-        terminal: CANCELLED,
         reason: UI_TEXT.queuedTurnDropped,
       })
     }

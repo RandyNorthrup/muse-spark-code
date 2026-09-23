@@ -432,12 +432,8 @@ describe('mapNotification', () => {
       mapNotification({ method: 'turn/unqueued', params: { sessionId, turnId: 't2' } }),
     ).toEqual({
       sessionId,
-      event: {
-        type: 'turnCompleted',
-        turnId: 't2',
-        terminal: 'cancelled',
-        reason: UI_TEXT.turnUnqueued,
-      },
+      // Not a completion: the foreground turn runs on.
+      event: { type: 'turnWithdrawn', turnId: 't2', reason: UI_TEXT.turnUnqueued },
     })
     expect(
       mapNotification({ method: 'view/gap', params: { sessionId, after: 'v1', next: 'v4' } }),

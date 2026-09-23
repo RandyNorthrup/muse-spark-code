@@ -1275,9 +1275,8 @@ describe('ModelApiSession: protocol semantics (D26)', () => {
       reason: UI_TEXT.compactionStopped,
     })
     expect(events).toContainEqual({
-      type: 'turnCompleted',
+      type: 'turnWithdrawn',
       turnId: queued.turnId,
-      terminal: 'cancelled',
       reason: UI_TEXT.queuedTurnDropped,
     })
     // Nothing was summarised: the conversation replays as it was.

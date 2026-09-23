@@ -1115,6 +1115,18 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       // The host confirms the resulting composer state / skill list itself.
       return state
     }
+    case 'turnWithdrawn': {
+      // Only the message that will never run is marked (D26); the running
+      // turn keeps its rows and its Stop.
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'user' && entry.turnId === event.turnId
+            ? { ...entry, status: 'failed', reason: event.reason }
+            : entry,
+        ),
+      }
+    }
     case 'viewGap':
     case 'backendNotice': {
       // The controller's own (PLAN.md D26): it reloads or posts a notice instead.
@@ -1310,6 +1322,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'historyLoaded': {
       const replayed = replayHistory(message.items, at, state.sequence)
+      // The same session read again (a delivery gap, D26) keeps its usage.
+      const isSameSession = message.sessionId === state.sessionId
       return announce(
         {
           ...state,
@@ -1319,10 +1333,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           transcript: replayed.entries,
           sequence: replayed.sequence,
           todos: message.todos,
-          activeTurnId: undefined,
+          activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
-          usage: undefined,
-          context: undefined,
+          usage: isSameSession ? state.usage : undefined,
+          context: isSameSession ? state.context : undefined,
           outputPages: {},
           childTranscripts: {},
           childOwners: {},

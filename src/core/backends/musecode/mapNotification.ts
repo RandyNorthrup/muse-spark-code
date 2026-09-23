@@ -28,7 +28,6 @@ export const MALFORMED_PARAMS = 'malformed'
 export type MapOutcome = MappedNotification | typeof UNKNOWN_METHOD | typeof MALFORMED_PARAMS
 
 const ALREADY_TERMINAL = 'alreadyTerminal'
-const CANCELLED_TERMINAL = 'cancelled'
 
 export interface WireNotification {
   readonly method: string
@@ -319,14 +318,10 @@ export function mapNotification(notification: WireNotification): MapOutcome {
     }
     case 'turn/unqueued': {
       const { sessionId, turnId } = params as z.infer<(typeof schemas)['turn/unqueued']>
+      // Not a turn completion: the foreground turn, if any, runs on.
       return {
         sessionId,
-        event: {
-          type: 'turnCompleted',
-          turnId,
-          terminal: CANCELLED_TERMINAL,
-          reason: UI_TEXT.turnUnqueued,
-        },
+        event: { type: 'turnWithdrawn', turnId, reason: UI_TEXT.turnUnqueued },
       }
     }
     case 'turn/retracted': {

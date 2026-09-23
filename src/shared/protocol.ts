@@ -377,6 +377,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     items: z.array(itemSnapshotSchema),
     name: z.optional(z.string()),
     todos: z.array(todoItemSchema),
+    // The turn still running in the session (D26): Stop and steering stay.
+    activeTurnId: z.optional(z.string()),
   }),
   // Account & usage (M8): the backend this window runs on and the
   // subscription window the CLI last observed (absent on a key, or before

@@ -2720,9 +2720,11 @@ describe('ConversationController: protocol semantics (D26)', () => {
     expect(reads).toBe(2)
     const reloads = t.surface.posted.filter((message) => message.type === 'historyLoaded')
     expect(reloads).toHaveLength(2)
+    // The turn the send started is still running: the reload keeps it (D26).
     expect(reloads[0]).toMatchObject({
       sessionId: 's1',
       items: [expect.objectContaining({ itemId: 'm1' })],
+      activeTurnId: 't1',
     })
     expect(t.surface.posted).toContainEqual({
       type: 'notice',
@@ -2799,6 +2801,10 @@ describe('ConversationController: protocol semantics (D26)', () => {
     const t = withHistory({}, { status: 'running', activeTurnId: 'tr' })
     await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
     await settle()
+    // The panel already open keeps Stop for the running turn.
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'historyLoaded', sessionId: 'old', activeTurnId: 'tr' }),
+    )
     t.surface.posted.length = 0
     t.controller.surfaceReady()
     expect(t.surface.posted[0]).toEqual({

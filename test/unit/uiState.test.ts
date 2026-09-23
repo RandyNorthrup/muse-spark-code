@@ -1902,4 +1902,57 @@ describe('uiReducer: prompts the host moved on (D26)', () => {
     expect(uiReducer(state, agent({ type: 'viewGap' }))).toBe(state)
     expect(uiReducer(state, agent({ type: 'backendNotice', level: 'info', text: 'x' }))).toBe(state)
   })
+
+  it('marks a withdrawn queued message without ending the running turn', () => {
+    const running = reduceAll([
+      host(init),
+      { type: 'submitted', localId: 'l1', text: 'first', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent(other),
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'queued',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({ type: 'turnAccepted', localId: 'l2', turnId: 't2' }),
+    ])
+    const withdrawn = uiReducer(
+      running,
+      agent({ type: 'turnWithdrawn', turnId: 't2', reason: 'Not sent: withdrawn' }),
+    )
+    expect(withdrawn.transcript.find((entry) => entry.id === 'l2')).toMatchObject({
+      status: 'failed',
+      reason: 'Not sent: withdrawn',
+    })
+    expect(withdrawn.transcript.find((entry) => entry.id === 'l1')).toMatchObject({
+      status: 'sent',
+    })
+    // The running tool row stays running.
+    expect(withdrawn.transcript.find((entry) => entry.id === 'c3')).toMatchObject({
+      status: 'inProgress',
+    })
+  })
+
+  it('keeps the running turn and the usage when the same session is read again', () => {
+    const before = reduceAll([
+      host(init),
+      host({ type: 'sessionInfo', modelId: 'm', sessionId: 's1' }),
+      agent({ type: 'tokenUsage', inputTokens: 10, outputTokens: 2 }),
+    ])
+    const reloaded = uiReducer(
+      before,
+      host({ type: 'historyLoaded', sessionId: 's1', items: [], todos: [], activeTurnId: 't9' }),
+    )
+    expect(reloaded.activeTurnId).toBe('t9')
+    expect(reloaded.usage).toEqual({ inputTokens: 10, outputTokens: 2 })
+    const other = uiReducer(
+      before,
+      host({ type: 'historyLoaded', sessionId: 's2', items: [], todos: [] }),
+    )
+    expect(other.activeTurnId).toBeUndefined()
+    expect(other.usage).toBeUndefined()
+  })
 })
