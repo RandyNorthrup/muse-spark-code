@@ -52,7 +52,7 @@ describe('configureWebview', () => {
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: 'init',
       emptyStateHint: 'Type /model to pick the right tool for the job.',
-      composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
+      composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
       settings: testSettings,
     })
     expect(context.onSurfaceReady).toHaveBeenCalledWith(surface)

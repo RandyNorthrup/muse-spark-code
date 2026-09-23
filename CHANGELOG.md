@@ -48,6 +48,15 @@ other harnesses' bug trackers and the platform documentation, fixed.
 - The log redacts JWTs, basic credentials, token and password fields and
   credentials in URLs; a `muse serve` stderr chunk is capped in the log;
   the diagnostics report writes the home directory as `~`.
+- The release workflow checks the tag (manifest version, on `main`) before
+  building, hands the Marketplace token to one step after an install that
+  runs no package scripts, and keeps no token in checkouts.
+- `npm audit` still blocks releases, with a reviewed, expiring exception
+  list for advisories that have no fix.
+
+### Added
+
+- `THIRD_PARTY_NOTICES.txt` ships in the package.
 
 ### Fixed
 
@@ -61,6 +70,22 @@ other harnesses' bug trackers and the platform documentation, fixed.
 - The Modes menu describes each mode truthfully per backend (Muse Code's
   Manual applies in-workspace edits without asking; the Model API's Auto
   has no safety-check model).
+- On Windows the focus and new-tab shortcuts are `Ctrl+Alt+Esc` and
+  `Ctrl+Shift+Alt+Esc`; Windows takes `Ctrl+Esc` and `Ctrl+Shift+Esc`
+  itself. The walkthrough, the getting-started tips and the composer's
+  placeholder name them.
+- Dictation says why it is unavailable in a remote window; the Windows
+  helper no longer inherits PowerShell 7's module path; a write to a dead
+  helper no longer throws.
+- On macOS, dictation names the app macOS asks, separates speech from
+  microphone refusals, and explains an early exit.
+
+### Changed
+
+- Integration tests run on the latest VS Code and on the 1.125 floor;
+  semgrep and PSScriptAnalyzer are pinned; every CI job has a timeout; four
+  commands are hidden from the Command Palette where they cannot act; the
+  categories are AI and Chat.
 
 ## [0.5.5] - 2026-09-23
 
