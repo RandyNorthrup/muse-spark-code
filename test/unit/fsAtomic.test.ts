@@ -1,9 +1,10 @@
-import { mkdtemp, readdir, readFile, rename, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { writeFileAtomically } from '../../src/host/fsAtomic'
 import { isSamePath } from '../../src/core/paths'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '' }
 
@@ -11,9 +12,7 @@ beforeAll(async () => {
   paths.root = await mkdtemp(path.join(tmpdir(), 'muse-atomic-'))
 })
 
-afterAll(async () => {
-  await rm(paths.root, { recursive: true, force: true })
-})
+afterAll(() => removeFolder(paths.root))
 
 /** A file-system error with its code, as Node raises one. */
 function coded(code: string): Error {

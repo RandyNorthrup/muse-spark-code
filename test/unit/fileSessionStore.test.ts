@@ -1,5 +1,5 @@
 import { mkdtempSync } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, utimes, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -10,12 +10,11 @@ import {
 } from '../../src/host/backend/fileSessionStore'
 import { MILLISECONDS_PER_DAY } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-sessions-'))
 
-afterAll(async () => {
-  await rm(root, { recursive: true, force: true })
-})
+afterAll(() => removeFolder(root))
 
 const LAST_ACTIVITY = '2026-09-22T10:00:00.000Z'
 // The tests' clock: a day after the sessions' last activity.

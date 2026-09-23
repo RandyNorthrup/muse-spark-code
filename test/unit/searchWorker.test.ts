@@ -8,6 +8,7 @@ import path from 'node:path'
 import { buildSync } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { searchOnWorker } from '../../src/host/backend/toolIo'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '', worker: '' }
 
@@ -28,9 +29,7 @@ beforeAll(async () => {
   await writeFile(path.join(root, 'b.bin'), 'alpha\0binary')
 })
 
-afterAll(async () => {
-  await rm(paths.root, { recursive: true, force: true })
-})
+afterAll(() => removeFolder(paths.root))
 
 function job(pattern: string, names: readonly string[] = ['a.txt', 'b.bin', 'missing.txt']) {
   return {
@@ -72,7 +71,7 @@ describe('searchOnWorker', () => {
       })
     } finally {
       await rm(path.join(paths.root, 'elsewhere'), { force: true })
-      await rm(outside, { recursive: true, force: true })
+      await removeFolder(outside)
     }
   }, 30_000)
 

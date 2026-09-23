@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -7,6 +7,7 @@ import {
   readTraceLogs,
   traceLogDirectory,
 } from '../../src/host/usage/traceLogs'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const home = mkdtempSync(path.join(tmpdir(), 'muse-trace-home-'))
 const directory = traceLogDirectory({ homeDir: home })
@@ -15,9 +16,7 @@ mkdirSync(directory, { recursive: true })
 const admission = (at: string, runId: string) =>
   `${at} INFO tbh.local.model x event="model.attempt.lifecycle" run_id="${runId}" attempt_id="a" task_id="t" phase="admission" outcome="accepted"\n`
 
-afterAll(() => {
-  rmSync(home, { recursive: true, force: true })
-})
+afterAll(() => removeFolder(home))
 
 describe('readTraceLogs', () => {
   it('reads the .log files under the CLI data root and ignores other files', async () => {

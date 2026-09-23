@@ -19,6 +19,9 @@ other harnesses' bug trackers and the platform documentation, fixed.
   before writing a file back. Windows alternate data streams (`a.txt:x`),
   device names (`NUL`, `COM1`) and names ending in a dot or a space are
   refused.
+- On the Model API backend, a committed `AGENTS.md`, `CLAUDE.md`, memory
+  index or project skill that is a link leading outside the workspace is
+  skipped, with the reason in the log; its target used to reach the model.
 - Protected writes: on the Model API backend, writing git's hooks and
   config, `.husky`, `.vscode`, `.idea`, `.devcontainer`, CI workflows,
   `.agents`, `AGENTS.md`, `CLAUDE.md`, `.envrc` or `.gitmodules` shows an
@@ -57,6 +60,9 @@ other harnesses' bug trackers and the platform documentation, fixed.
 ### Added
 
 - `THIRD_PARTY_NOTICES.txt` ships in the package.
+- `museSpark.cleanupPeriodDays` (default 30, as Claude Code's
+  `cleanupPeriodDays`): Model API conversations idle longer are deleted
+  when a window lists them; 0 keeps them.
 
 ### Fixed
 
@@ -186,12 +192,23 @@ other harnesses' bug trackers and the platform documentation, fixed.
   will not see.
 - Edit Review without an open folder says to open it, instead of resolving
   paths against the extension's own directory.
-
-### Added
-
-- `museSpark.cleanupPeriodDays` (default 30, as Claude Code's
-  `cleanupPeriodDays`): Model API conversations idle longer are deleted
-  when a window lists them; 0 keeps them.
+- On the Model API backend, rules files (`AGENTS.md`, `CLAUDE.md`), skill
+  files and the memory index saved as UTF-16 (as Windows PowerShell's `>`
+  writes them) load correctly; one that is not text is skipped with a line
+  in the log, and no longer hides the other skills. Skill folders that are
+  symbolic links or junctions load.
+- The Problems-panel tool reports only the workspace's files, by relative
+  path, shortens very long messages, and answers a malformed request with an
+  error.
+- `@` mentions of paths with spaces, `#` or quotes are written in quotes
+  (`@"my notes/a b.md"#5-10`), and the mention menu searches names with
+  spaces.
+- Multi-root workspaces: the first folder is the root for the open-file
+  chip, the mention list and search, drops, diagnostics and file links; a
+  file in another folder is mentioned by its absolute path.
+- Files dropped onto the panel in a remote window (SSH, WSL, containers)
+  are mapped as VS Code's own URI transformer maps them, so they insert
+  mentions; this is unit-tested, not yet tried in a real remote window.
 
 ### Changed
 

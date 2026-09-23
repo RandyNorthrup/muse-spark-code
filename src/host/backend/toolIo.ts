@@ -9,7 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
@@ -276,17 +276,6 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     },
     hasUnsavedChanges: deps.hasUnsavedChanges,
     listFiles: deps.listFiles,
-    async listDirectory(absolutePath) {
-      try {
-        const entries = await readdir(absolutePath, { withFileTypes: true })
-        return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name)
-      } catch (error: unknown) {
-        if (isMissingFile(error)) {
-          return []
-        }
-        throw error
-      }
-    },
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
     runShell(command, cwd, timeoutMs, signal) {

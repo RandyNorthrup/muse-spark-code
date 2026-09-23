@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs'
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,6 +13,7 @@ import {
   terminalPlatform,
   withTerminalOverrides,
 } from '../../src/host/backend/toolIo'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const INSTALLED_SHELLS: ReadonlySet<string> = new Set([
   '/usr/bin/bash',
@@ -177,9 +178,7 @@ describe('createToolIo (real file system and shell)', () => {
   beforeAll(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'muse-toolio-'))
   })
-  afterAll(async () => {
-    await rm(root, { recursive: true, force: true })
-  })
+  afterAll(() => removeFolder(root))
 
   it('reads undefined for a missing file, writes and reads back, lists through the lister', async () => {
     const target = path.join(root, 'a.txt')

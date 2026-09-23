@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '', outside: '' }
 
@@ -20,8 +21,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await rm(path.join(paths.root, 'elsewhere'), { force: true })
-  await rm(paths.root, { recursive: true, force: true })
-  await rm(paths.outside, { recursive: true, force: true })
+  await removeFolder(paths.root)
+  await removeFolder(paths.outside)
 })
 
 describe('canonicalPath', () => {
