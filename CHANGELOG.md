@@ -7,7 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- Dependabot no longer proposes a new major of `@types/node`: the typings
+  follow the Node major the workflows and the manifest's `engines` run on
+  (22); the 26.x proposal broke the type-aware lint's module resolution.
+  The pinned-SHA actions took their weekly bumps (checkout 7.0.1,
+  setup-node 7.0.0, setup-python 7.0.0, upload-artifact 7.0.1,
+  download-artifact 8.0.1, gitleaks-action 3.0.0).
 
 ## [0.5.4] - 2026-09-23
 

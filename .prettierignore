@@ -5,3 +5,6 @@ node_modules/
 package-lock.json
 CHANGELOG.md
 .husky/
+
+# Claude Code session settings (permission rules), written by the tool
+.claude/

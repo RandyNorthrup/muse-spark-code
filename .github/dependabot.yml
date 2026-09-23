@@ -20,6 +20,10 @@ updates:
       # The VS Code typings are pinned to the engine floor by hand (the
       # manifest test enforces `@types/vscode` minor == engines.vscode minor).
       - dependency-name: '@types/vscode'
+      # The Node typings follow the Node major the workflows and the manifest's engines run
+      # on (22); a major ahead breaks the type-aware lint's module resolution.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
