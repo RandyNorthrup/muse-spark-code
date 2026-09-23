@@ -67,10 +67,18 @@ export function isReasoningItem(item: OutputItem): item is ReasoningItem {
   return item.type === 'reasoning' && !('call_id' in item) && !('content' in item)
 }
 
-/** The concatenated `output_text` of a message item. */
+/**
+ * The reply text of a message: its output text, and a refusal's own words
+ * (PLAN.md D26: a refusal used to render as an empty reply).
+ */
 export function messageText(item: MessageItem): string {
   return item.content
-    .flatMap((part) => (part.type === 'output_text' && 'text' in part ? [part.text] : []))
+    .flatMap((part) => {
+      if (part.type === 'output_text' && 'text' in part) {
+        return [part.text]
+      }
+      return part.type === 'refusal' && 'refusal' in part ? [part.refusal] : []
+    })
     .join('')
 }
 

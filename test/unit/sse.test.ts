@@ -54,6 +54,17 @@ describe('parseSse', () => {
     ])
   })
 
+  it('keeps a CRLF split across two chunks one line break (D26)', async () => {
+    // Read as two breaks, the `\n` would end the event after its first line.
+    const events = await Array.fromAsync(
+      parseSse(text('data: one\r', '\ndata: two\r', '\n\r\n', 'data: tail\r')),
+    )
+    expect(events).toEqual([
+      { event: undefined, data: 'one\ntwo' },
+      { event: undefined, data: 'tail' },
+    ])
+  })
+
   it('delivers a final block that has no trailing blank line', async () => {
     expect(await Array.fromAsync(parseSse(text('data: tail')))).toEqual([
       { event: undefined, data: 'tail' },

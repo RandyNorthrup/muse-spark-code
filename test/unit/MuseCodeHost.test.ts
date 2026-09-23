@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import { SessionNotLoadedError } from '../../src/core/agent/agentBackend'
 import {
@@ -6,8 +7,9 @@ import {
   MuseCodeHost,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
+import { MSP_FRAME_LIMIT_BYTES, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeMspHost, settle } from './helpers/fakeMsp'
+import { fakeInitializeResult, fakeMspHost, refusalOf, settle } from './helpers/fakeMsp'
 
 const ack = (params: Record<string, unknown>) => ({
   status: 'accepted',
@@ -99,6 +101,16 @@ const startOptions = {
   approvalMode: 'denyUnmatched',
 }
 
+/** A started session and every event it delivers, in order. */
+async function listeningSession(host: MuseCodeHost) {
+  const session = await host.startSession(startOptions)
+  const events: AgentEvent[] = []
+  session.onEvent((event) => {
+    events.push(event)
+  })
+  return { session, events }
+}
+
 describe('MuseCodeHost', () => {
   it('reads the server identity from the handshake result', () => {
     const { host } = setup()
@@ -108,6 +120,7 @@ describe('MuseCodeHost', () => {
       serverVersion: '1.3.0-test',
       museHome: '/home/test/.local/share/muse',
       grantedCapabilities: [],
+      canEditSessions: true,
     })
   })
 
@@ -124,11 +137,7 @@ describe('MuseCodeHost', () => {
 
   it('sends a text turn and routes that session’s events to its listener in order', async () => {
     const { host, server } = setup()
-    const session = await host.startSession(startOptions)
-    const events: AgentEvent[] = []
-    session.onEvent((event) => {
-      events.push(event)
-    })
+    const { session, events } = await listeningSession(host)
     const submission = await session.sendTurn([{ type: 'text', text: 'hi' }])
     expect(submission).toEqual({ turnId: 'turn-1', disposition: 'started' })
     expect(server.requestsFor('turn/start')[0]?.params).toMatchObject({
@@ -172,11 +181,10 @@ describe('MuseCodeHost', () => {
     })
   })
 
-  it('warns about events for sessions it does not know and ignores unmapped methods', async () => {
+  it('warns about events for sessions it does not know', async () => {
     const { host, server, log } = setup()
     await host.startSession(startOptions)
     server.notify('turn/started', { sessionId: 'ghost', turnId: 't', viewCursor: 'v' })
-    server.notify('view/gap', { sessionId: 'ghost' })
     await settle()
     expect(log.warn).toHaveBeenCalledTimes(1)
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('unknown session ghost')
@@ -273,18 +281,17 @@ describe('MuseCodeHost', () => {
     expect(active?.isActive).toBe(true)
   })
 
-  it('refuses server requests it cannot serve, quietly for the mirrored ones', async () => {
+  it('refuses a mirrored prompt it cannot read, so the host presents it again (D26)', async () => {
     const { server, log } = setup()
     server.serverRequest('userInput/request', { userInputId: 'u1', questions: [] })
     server.serverRequest('approval/request', { approvalId: 'a1' })
-    server.serverRequest('session/somethingNew', {})
     await settle()
-    expect(server.clientResponses).toHaveLength(3)
+    expect(server.clientResponses).toHaveLength(2)
     for (const response of server.clientResponses) {
       expect(response).toMatchObject({ error: expect.anything() })
     }
-    expect(log.info).toHaveBeenCalledTimes(2)
-    expect(log.warn).toHaveBeenCalledOnce()
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('userInput/requested had an'))
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('approval/requested had an'))
   })
 
   it('decides approvals, answers questions and reads output pages on the wire', async () => {
@@ -693,5 +700,397 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     server.notify('usage/changed', usage)
     await settle()
     expect(seen).toHaveLength(1)
+  })
+})
+
+/** The params of an approval as `approval/requested` and `approval/request` carry them. */
+function approvalParams(sessionId: string, sourceIndex = 1): Record<string, unknown> {
+  return {
+    sessionId,
+    approvalId: 'a1',
+    itemId: 'call-1',
+    toolName: 'shell',
+    rawArgs: '{"command":"ls"}',
+    currentRequirementId: { approvalId: 'a1', sourceIndex },
+    subject: { kind: 'command', command: 'ls' },
+    availableChoices: [
+      { choiceId: 'allow_once', decision: 'approved', label: 'Allow', scope: 'once' },
+    ],
+    judgeEscalated: false,
+    protectedWrite: false,
+    turnId: 'turn-1',
+    toolCallId: 'tc-1',
+    taskId: 'task-1',
+    sourceRange: {},
+    viewCursor: 'v1',
+  }
+}
+
+function questionParams(sessionId: string): Record<string, unknown> {
+  return {
+    sessionId,
+    userInputId: 'u1',
+    itemId: 'call-2',
+    questions: [
+      {
+        id: 'colour',
+        header: 'Colour',
+        question: 'Which colour?',
+        options: [{ label: 'Red' }],
+        selection: { mode: 'single' },
+      },
+    ],
+    toolCallId: 'tc-2',
+    toolName: 'request_user_input',
+    turnId: 'turn-1',
+    viewCursor: 'v2',
+  }
+}
+
+function envelope(sessionId: string, extra: Record<string, unknown> = {}) {
+  return {
+    session: {
+      sessionId,
+      createdAt: '2026-09-23T00:00:00Z',
+      updatedAt: '2026-09-23T00:00:00Z',
+      status: 'running',
+      turnCount: 1,
+      activeTurnId: 'turn-9',
+    },
+    history: { mode: 'inline', items: [] },
+    viewCursor: 'v0',
+    pendingRequests: [],
+    ...extra,
+  }
+}
+
+describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
+  it('answers a mirrored prompt with the receipt and shows it once with its notification', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    server.notify('approval/requested', approvalParams(session.sessionId))
+    const approvalRequest = server.serverRequest(
+      'approval/request',
+      approvalParams(session.sessionId),
+    )
+    const questionRequest = server.serverRequest(
+      'userInput/request',
+      questionParams(session.sessionId),
+    )
+    server.notify('userInput/requested', questionParams(session.sessionId))
+    await settle()
+    expect(events.map((event) => event.type)).toEqual(['approvalRequested', 'questionRequested'])
+    expect(server.clientResponses).toEqual([
+      { jsonrpc: '2.0', id: approvalRequest, result: {} },
+      { jsonrpc: '2.0', id: questionRequest, result: {} },
+    ])
+  })
+
+  it('shows the prompts a resume re-issues in the same read as its answer', async () => {
+    const { host, server } = setup()
+    server.handle('session/resume', (params) => envelope(String(params['sessionId'])))
+    server.followWith('session/resume', (params) => [
+      server.serverRequestFrame('approval/request', approvalParams(String(params['sessionId']))),
+      {
+        jsonrpc: '2.0',
+        method: 'item/delta',
+        params: { sessionId: params['sessionId'], itemId: 'i1', delta: 'still ', viewCursor: 'v' },
+      },
+    ])
+    const loaded = await host.resumeSession('s-old', 'muse-spark-1.3')
+    await settle()
+    const events: AgentEvent[] = []
+    loaded.session.onEvent((event) => {
+      events.push(event)
+    })
+    expect(events.map((event) => event.type)).toEqual(['approvalRequested', 'textDelta'])
+    expect(loaded.activeTurnId).toBe('turn-9')
+    expect(server.clientResponses).toEqual([{ jsonrpc: '2.0', id: 1, result: {} }])
+  })
+
+  it('pulls the pending prompts a resume names and shows each once', async () => {
+    const { host, server } = setup()
+    server.handle('session/resume', (params) =>
+      envelope(String(params['sessionId']), {
+        pendingRequests: [
+          { kind: 'approval', approvalId: 'a1', viewCursor: 'v1' },
+          { kind: 'userInput', userInputId: 'u1', viewCursor: 'v2' },
+        ],
+      }),
+    )
+    server.handle('approval/listPending', (params) => ({
+      approvals: [approvalParams(String(params['sessionId']))],
+      userInputs: [questionParams(String(params['sessionId']))],
+    }))
+    const loaded = await host.resumeSession('s-old', 'muse-spark-1.3')
+    server.serverRequest('approval/request', approvalParams('s-old'))
+    await settle()
+    const events: AgentEvent[] = []
+    loaded.session.onEvent((event) => {
+      events.push(event)
+    })
+    expect(server.requestsFor('approval/listPending')[0]?.params).toMatchObject({
+      sessionId: 's-old',
+    })
+    expect(events.map((event) => event.type)).toEqual(['approvalRequested', 'questionRequested'])
+  })
+
+  it('does not pull pending prompts when the resume names none, and survives a failed pull', async () => {
+    const { host, server, log } = setup()
+    server.handle('session/resume', (params) => envelope(String(params['sessionId'])))
+    await host.resumeSession('s-old', 'muse-spark-1.3')
+    expect(server.requestsFor('approval/listPending')).toHaveLength(0)
+    server.handle('session/resume', (params) =>
+      envelope(String(params['sessionId']), {
+        pendingRequests: [{ kind: 'approval', approvalId: 'a1', viewCursor: 'v1' }],
+      }),
+    )
+    await expect(host.resumeSession('s-two', 'muse-spark-1.3')).resolves.toBeDefined()
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('approval/listPending'))
+  })
+
+  it('refuses a server request it cannot present: an unknown method or session', async () => {
+    const { server, log } = setup()
+    const unknownMethod = server.serverRequest('session/somethingNew', {})
+    const ghost = server.serverRequest('approval/request', approvalParams('ghost'))
+    await settle()
+    expect(server.clientResponses).toEqual([
+      expect.objectContaining({
+        id: unknownMethod,
+        error: expect.objectContaining({ code: -32_601 }),
+      }),
+      expect.objectContaining({ id: ghost, error: expect.anything() }),
+    ])
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('session/somethingNew'))
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('unknown session ghost'))
+  })
+
+  it('refreshes the card for a re-issued next stage and ignores the stages after a terminal decide', async () => {
+    const { host, server } = setup()
+    server.handle('approval/decide', (params) => ({
+      ...ack(params),
+      approvalId: params['approvalId'],
+      terminal: true,
+    }))
+    const { session, events } = await listeningSession(host)
+    server.notify('approval/requested', approvalParams(session.sessionId, 1))
+    server.serverRequest('approval/request', approvalParams(session.sessionId, 2))
+    await settle()
+    expect(events.map((event) => event.type)).toEqual(['approvalRequested', 'approvalUpdated'])
+    await session.decideApproval({
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 2 },
+    })
+    const { turnId: _turn, taskId: _task, ...update } = approvalParams(session.sessionId, 3)
+    server.notify('approval/updated', { ...update, change: { kind: 'stageResolved' } })
+    server.notify('approval/resolved', {
+      sessionId: session.sessionId,
+      approvalId: 'a1',
+      itemId: 'call-1',
+      decision: 'approved',
+      resolvedBy: 'user',
+    })
+    await settle()
+    expect(events.map((event) => event.type)).toEqual([
+      'approvalRequested',
+      'approvalUpdated',
+      'approvalResolved',
+    ])
+  })
+
+  it('drops an update for an approval the host says is already terminal', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    server.notify('approval/requested', approvalParams(session.sessionId, 1))
+    server.notify('approval/updated', {
+      ...approvalParams(session.sessionId, 2),
+      change: { kind: 'alreadyTerminal' },
+    })
+    server.notify('approval/updated', {
+      ...approvalParams(session.sessionId, 3),
+      change: { kind: 'stageResolved' },
+    })
+    await settle()
+    expect(events.map((event) => event.type)).toEqual(['approvalRequested'])
+  })
+
+  it('shows a second surface the prompts still open', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    session.onEvent(() => undefined)
+    server.notify('approval/requested', approvalParams(session.sessionId, 1))
+    server.notify('approval/updated', {
+      ...approvalParams(session.sessionId, 2),
+      change: { kind: 'stageResolved' },
+    })
+    server.notify('userInput/requested', questionParams(session.sessionId))
+    server.notify('userInput/settled', {
+      sessionId: session.sessionId,
+      userInputId: 'u1',
+      outcome: 'answered',
+      answers: [],
+    })
+    await settle()
+    const late: AgentEvent[] = []
+    session.onEvent((event) => {
+      late.push(event)
+    })
+    expect(late).toEqual([
+      expect.objectContaining({
+        type: 'approvalRequested',
+        approvalId: 'a1',
+        requirementId: { approvalId: 'a1', sourceIndex: 2 },
+      }),
+    ])
+  })
+
+  it('reports a decision or answer that arrived late as PromptSettledError', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    const decision = {
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 1 },
+    }
+    const cases: readonly (readonly [string, string])[] = [
+      ['approvalAlreadyResolved', 'alreadySettled'],
+      ['approvalRequirementStale', 'movedOn'],
+      ['approvalNotFound', 'gone'],
+    ]
+    for (const [kind, reason] of cases) {
+      server.handle('approval/decide', refusalOf(kind))
+      await expect(session.decideApproval(decision)).rejects.toMatchObject({
+        name: 'PromptSettledError',
+        reason,
+      })
+    }
+    server.handle('userInput/answer', refusalOf('userInputAlreadySettled'))
+    await expect(session.answerQuestions('u1', [])).rejects.toMatchObject({
+      reason: 'alreadySettled',
+    })
+    server.handle('userInput/cancel', refusalOf('userInputNotFound'))
+    await expect(session.cancelQuestions('u1')).rejects.toMatchObject({ reason: 'gone' })
+    server.handle('approval/decide', refusalOf('commandRejected'))
+    await expect(session.decideApproval(decision)).rejects.not.toMatchObject({
+      name: 'PromptSettledError',
+    })
+  })
+
+  it('maps withdrawn turns, delivery gaps and an unserved model route', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    server.notify('turn/unqueued', { sessionId: session.sessionId, turnId: 't2', commandId: 'c' })
+    server.notify('view/gap', { sessionId: session.sessionId, after: 'v1', next: 'v5' })
+    server.notify('session/modelRouteUnserved', {
+      sessionId: session.sessionId,
+      modelId: 'muse-spark-1.3',
+      installedProviderId: 'p',
+      commandId: 'c',
+    })
+    server.notify('turn/retracted', { sessionId: session.sessionId, turnId: 't3', commandId: 'c' })
+    await settle()
+    expect(events).toEqual([
+      { type: 'turnCompleted', turnId: 't2', terminal: 'cancelled', reason: UI_TEXT.turnUnqueued },
+      { type: 'viewGap' },
+      {
+        type: 'backendNotice',
+        level: 'warning',
+        text: `${UI_TEXT.modelRouteUnserved} (muse-spark-1.3)`,
+      },
+      { type: 'backendNotice', level: 'info', text: UI_TEXT.turnRetracted },
+    ])
+  })
+
+  it('logs an unshown or malformed notification once per method', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    server.notify('goal/changed', { sessionId: session.sessionId })
+    server.notify('goal/changed', { sessionId: session.sessionId })
+    server.notify('turn/started', { sessionId: session.sessionId })
+    server.notify('turn/started', { sessionId: session.sessionId })
+    await settle()
+    expect(
+      log.info.mock.calls.filter(([line]) => String(line).includes('goal/changed')),
+    ).toHaveLength(1)
+    expect(
+      log.warn.mock.calls.filter(([line]) => String(line).includes('turn/started')),
+    ).toHaveLength(1)
+  })
+
+  it('logs a protocol error by kind, never its frame', async () => {
+    const { server, log } = setup()
+    server.incoming.push('{"secret": not json}\n')
+    await settle()
+    expect(log.warn).toHaveBeenCalledWith('MSP protocol error: inbound frame is not valid JSON')
+  })
+
+  it('refuses a command too large for the frame cap before sending it', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    const huge = 'x'.repeat(MSP_FRAME_LIMIT_BYTES)
+    await expect(session.sendTurn([{ type: 'text', text: huge }])).rejects.toThrow(
+      UI_TEXT.commandTooLarge,
+    )
+    expect(server.requestsFor('turn/start')).toHaveLength(0)
+  })
+
+  it('clamps a session/list page to the host maximum', async () => {
+    const { host, server } = setup()
+    server.handle('session/list', () => ({ sessions: [], nextCursor: null }))
+    await host.listSessions({ workspaceRoot: '/ws', limit: 500 })
+    expect(server.requestsFor('session/list')[0]?.params).toMatchObject({ limit: 200 })
+  })
+
+  it('decodes a base64 page that is text and refuses one that is binary', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    const serve = (bytes: Buffer) => () => ({
+      content: bytes.toString('base64'),
+      encoding: 'base64',
+      mediaType: 'application/octet-stream',
+      offsetBytes: 0,
+      byteLen: bytes.length,
+      eof: true,
+    })
+    const request = { itemId: 'c', outputRef: 'o', offsetBytes: 0, lengthBytes: 64 }
+    server.handle('item/readOutput', serve(Buffer.from('héllo', 'utf8')))
+    await expect(session.readOutput(request)).resolves.toMatchObject({
+      content: 'héllo',
+      encoding: 'utf8',
+    })
+    server.handle('item/readOutput', serve(Buffer.from([0xff, 0xfe, 0x00])))
+    await expect(session.readOutput(request)).rejects.toThrow(UI_TEXT.outputIsBinary)
+  })
+})
+
+/** A host whose handshake names this platform and version, with ephemeral sessions. */
+function hostOn(platformOs: string, version: string) {
+  const handle = fakeMspHost({
+    ...fakeInitializeResult,
+    platformOs,
+    serverInfo: { name: 'muse', version },
+    sessionDurability: 'ephemeral',
+  })
+  const log = new FakeLogOutputChannel()
+  return { ...handle, log, host: new MuseCodeHost(handle.host, log) }
+}
+
+describe('MuseCodeHost: the handshake facts (D26)', () => {
+  it('offers rename and fork except on Windows up to 1.3.0, and says so before forking', async () => {
+    expect(hostOn('windows', '1.3.0-R3401.1').host.info.canEditSessions).toBe(false)
+    expect(hostOn('windows', '1.4.0').host.info.canEditSessions).toBe(true)
+    expect(hostOn('linux', '1.3.0').host.info.canEditSessions).toBe(true)
+    const { host, server } = hostOn('windows', '1.3.0')
+    await expect(host.forkSession('s1', 'muse-spark-1.3')).rejects.toThrow(
+      UI_TEXT.sessionEditsUnsupported,
+    )
+    expect(server.requestsFor('session/fork')).toHaveLength(0)
+  })
+
+  it('logs the platform, the schema and non-durable sessions', () => {
+    const { log } = hostOn('macos', '1.3.0')
+    expect(log.info).toHaveBeenCalledWith(expect.stringContaining('MSP host on macos'))
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('ephemeral sessions'))
   })
 })

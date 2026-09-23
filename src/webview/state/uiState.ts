@@ -108,6 +108,8 @@ export interface UiState {
   readonly title: string | undefined
   /** The active session (rename and fork are offered with one), M6. */
   readonly sessionId: string | undefined
+  /** False where the host refuses rename and fork (D26: Muse Code 1.3.0 on Windows). */
+  readonly canEditSessions: boolean
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
@@ -242,6 +244,7 @@ export const initialUiState: UiState = {
   settings: undefined,
   title: undefined,
   sessionId: undefined,
+  canEditSessions: true,
   sessions: undefined,
   archivedIds: [],
   draft: '',
@@ -979,7 +982,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         usage: {
           inputTokens: event.inputTokens,
           outputTokens: event.outputTokens,
-          cachedTokens: event.cachedTokens,
+          ...(event.cachedTokens !== undefined && { cachedTokens: event.cachedTokens }),
         },
       }
     }
@@ -1112,6 +1115,11 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       // The host confirms the resulting composer state / skill list itself.
       return state
     }
+    case 'viewGap':
+    case 'backendNotice': {
+      // The controller's own (PLAN.md D26): it reloads or posts a notice instead.
+      return state
+    }
   }
 }
 
@@ -1229,8 +1237,42 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         ...state,
         model: { modelId: message.modelId, contextLimit: message.contextLimit },
         sessionId: message.sessionId,
+        canEditSessions: message.canEditSessions ?? true,
         // A live session replaces the one a restored panel was waiting for.
         restoredSessionId: message.sessionId === undefined ? state.restoredSessionId : undefined,
+      }
+    }
+    case 'approvalReopened': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.approval?.approvalId === message.approvalId
+            ? { ...entry, approval: { ...entry.approval, decidedSourceIndex: undefined } }
+            : entry,
+        ),
+      }
+    }
+    case 'promptDropped': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) => {
+          if (entry.kind !== 'tool') {
+            return entry
+          }
+          const isApproval =
+            message.approvalId !== undefined && entry.approval?.approvalId === message.approvalId
+          const isQuestion =
+            message.userInputId !== undefined && entry.question?.userInputId === message.userInputId
+          // Untouched rows keep their identity, so their memoised render holds (M25).
+          if (!isApproval && !isQuestion) {
+            return entry
+          }
+          return {
+            ...entry,
+            ...(isApproval && { approval: undefined }),
+            ...(isQuestion && { question: undefined }),
+          }
+        }),
       }
     }
     case 'sessionList': {

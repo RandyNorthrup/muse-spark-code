@@ -861,7 +861,7 @@ export function App({
         onOpenEditDiff={onOpenEditDiff}
         onOpenFile={onOpenFile}
         onRefuseLink={onRefuseLink}
-        onFork={state.sessionId === undefined ? undefined : onFork}
+        onFork={state.sessionId === undefined || !state.canEditSessions ? undefined : onFork}
         onRewind={state.sessionId === undefined ? undefined : onRewind}
         onReply={onReply}
         quoteMenuEntryId={quoteMenu?.entryId}
@@ -1014,7 +1014,7 @@ export function App({
           isFocusView={state.settings.focusView}
           onNewConversation={onNewConversation}
           onOpenHistory={onOpenHistory}
-          onRename={state.sessionId === undefined ? undefined : onRename}
+          onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
           agentCount={agents.length}
           runningAgentCount={agents.filter((agent) => agent.status === 'inProgress').length}
           onOpenAgents={onOpenAgents}

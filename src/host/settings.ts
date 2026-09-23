@@ -26,6 +26,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly backend: BackendMode
   /** Ctrl+N for a new conversation (read by the keybinding, kept here for the schema). */
   readonly enableNewConversationShortcut: boolean
+  /** Days an idle Model API conversation is kept; 0 keeps it (PLAN.md D26). */
+  readonly cleanupPeriodDays: number
 }
 
 /**
@@ -48,6 +50,7 @@ const settingSchemas = {
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
   enableNewConversationShortcut: z.boolean(),
+  cleanupPeriodDays: z.int().check(z.nonnegative()),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -90,6 +93,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
     enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),
+    cleanupPeriodDays: readSetting(config, 'cleanupPeriodDays', log),
   }
 }
 

@@ -3,6 +3,12 @@ import { readSettings, toSettingsSnapshot } from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
 
+/** `cleanupPeriodDays` as read from a settings source holding only this value. */
+function retentionOf(value: unknown): number {
+  return readSettings(fakeSettingsSource({ cleanupPeriodDays: value }), new FakeLogOutputChannel())
+    .cleanupPeriodDays
+}
+
 describe('readSettings', () => {
   it('returns the documented defaults when nothing is configured', () => {
     const log = new FakeLogOutputChannel()
@@ -30,6 +36,15 @@ describe('readSettings', () => {
     expect(settings.environmentVariables).toEqual([{ name: 'MUSE_HOME', value: 'D:/muse' }])
     expect(settings.shellSandbox).toBe('off')
     expect(settings.backend).toBe('modelApi')
+  })
+
+  it('reads the retention period as a whole number of days, 0 keeping for ever (D26)', () => {
+    expect(retentionOf(undefined)).toBe(30)
+    expect(retentionOf(0)).toBe(0)
+    expect(retentionOf(90)).toBe(90)
+    expect(retentionOf(-1)).toBe(30)
+    expect(retentionOf(1.5)).toBe(30)
+    expect(retentionOf('7')).toBe(30)
   })
 
   it('logs and falls back to the default for an invalid value', () => {

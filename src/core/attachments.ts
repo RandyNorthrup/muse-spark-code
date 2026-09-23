@@ -61,8 +61,11 @@ export class AttachmentStore {
     return Array.from(this.entries.values(), (entry) => entry.summary)
   }
 
-  /** Build image parts for the given ids (unknown ids are skipped) and drop them. */
-  public take(ids: readonly string[]): readonly TurnPart[] {
+  /**
+   * Image parts for the given ids (unknown ids are skipped). The images stay
+   * until `release`: a message the host refused keeps them for another try.
+   */
+  public partsFor(ids: readonly string[]): readonly TurnPart[] {
     const parts: TurnPart[] = []
     for (const id of ids) {
       const entry = this.entries.get(id)
@@ -76,8 +79,14 @@ export class AttachmentStore {
         width: entry.summary.width,
         height: entry.summary.height,
       })
-      this.entries.delete(id)
     }
     return parts
+  }
+
+  /** The message carrying these images was accepted: they are gone from the composer. */
+  public release(ids: readonly string[]): void {
+    for (const id of ids) {
+      this.entries.delete(id)
+    }
   }
 }

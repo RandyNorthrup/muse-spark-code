@@ -12,11 +12,15 @@ import {
   type BackendKind,
   type HostExit,
   type LoadedSession,
+  PromptSettledError,
+  type PromptSettledReason,
+  type SessionHistoryOutcome,
   type SessionListEvent,
   type SessionMcpHttpServer,
   SessionNotLoadedError,
   type SessionRecord,
   type TurnPart,
+  type TurnSubmission,
 } from '../../core/agent/agentBackend'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
@@ -226,6 +230,7 @@ export const NOT_SIGNED_IN_REASON = 'Sign in before sending a message.'
 export const NOTHING_TO_SEND_REASON = 'Type a message or attach an image first.'
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
+const CANCELLED_STATUS = 'cancelled'
 // `session/compact` rejects with this reason before the first turn has run
 // (verified live 2026-09-21); it is "nothing to do", not a failure.
 const MISSING_RUN_REASON = 'missing_run'
@@ -250,6 +255,14 @@ const ATTENTION_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'approvalRequested',
   'questionRequested',
 ])
+// A decision or answer that arrived after its prompt had moved (PLAN.md D26).
+const PROMPT_SETTLED_TEXT: Readonly<Record<PromptSettledReason, string>> = {
+  alreadySettled: UI_TEXT.promptAlreadySettled,
+  movedOn: UI_TEXT.promptMovedOn,
+  gone: UI_TEXT.promptGone,
+}
+const QUEUED_DISPOSITION = 'queued'
+const STEERED_DISPOSITION = 'steered'
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -298,6 +311,16 @@ export class ConversationController {
   private sessionOpening: Promise<AgentSession> | undefined
   /** The surface closed: nothing started after this is kept. */
   private isDisposed = false
+  /**
+   * Turns this session has seen complete (D26): a submission's ack that
+   * lands after its own turn finished must not mark that turn running again.
+   */
+  private readonly finishedTurns = new Set<string>()
+  /** Whether the attached session's host renames and forks (D26: not Muse Code 1.3.0 on Windows). */
+  private canEditSessions = true
+  /** A transcript reload after a delivery gap, and the gaps heard so far. */
+  private gapReload: Promise<void> | undefined
+  private gapCount = 0
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -337,6 +360,8 @@ export class ConversationController {
       modelId,
       ...(contextLimit !== undefined && { contextLimit }),
       ...(this.session !== undefined && { sessionId: this.session.sessionId }),
+      // Said only where it is so (D26): the panel then offers neither.
+      ...(!this.canEditSessions && { canEditSessions: false }),
     })
   }
 
@@ -407,6 +432,7 @@ export class ConversationController {
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
+    this.finishedTurns.clear()
   }
 
   /**
@@ -499,7 +525,48 @@ export class ConversationController {
     }
   }
 
+  /**
+   * Live delivery dropped events (MSP `view/gap`, D26): the transcript is
+   * re-read whole, once more if another gap arrived during the read.
+   */
+  private async reloadAfterGaps(): Promise<void> {
+    let handled = -1
+    while (handled !== this.gapCount) {
+      handled = this.gapCount
+      // The panel's session now: a gap is only ever heard from the attached one.
+      const { session } = this
+      if (session === undefined) {
+        break
+      }
+      try {
+        const host = await this.deps.ensureHost()
+        const history = await host.readSession(session.sessionId)
+        if (this.session === session) {
+          this.postHistory(session.sessionId, history)
+          this.notice('info', UI_TEXT.viewGapReloaded)
+        }
+      } catch (error: unknown) {
+        this.notice('warning', `${UI_TEXT.viewGapReloadFailed}: ${describe(error)}`)
+      }
+    }
+    this.gapReload = undefined
+  }
+
+  private onViewGap(): void {
+    this.gapCount += 1
+    this.gapReload ??= this.reloadAfterGaps()
+  }
+
   private onEvent(event: AgentEvent): void {
+    // The controller's own events (D26): never forwarded to the webview.
+    if (event.type === 'viewGap') {
+      this.onViewGap()
+      return
+    }
+    if (event.type === 'backendNotice') {
+      this.notice(event.level, event.text)
+      return
+    }
     if (event.type === 'approvalRequested') {
       const choice = this.autoApprovalChoice(event)
       if (choice !== undefined) {
@@ -523,7 +590,11 @@ export class ConversationController {
         break
       }
       case 'turnCompleted': {
-        this.activeTurnId = undefined
+        this.finishedTurns.add(event.turnId)
+        // A queued turn withdrawn (`turn/unqueued`) leaves the running one running.
+        if (this.activeTurnId === event.turnId) {
+          this.activeTurnId = undefined
+        }
         this.noteActivity()
         if (event.terminal === 'failed' && event.errorKind === AUTH_REQUIRED_ERROR_KIND) {
           this.deps.auth.markAuthRequired(event.reason ?? AUTH_REQUIRED_ERROR_KIND)
@@ -625,10 +696,31 @@ export class ConversationController {
         ...(message.feedback !== undefined && { feedback: message.feedback }),
       })
     } catch (error: unknown) {
+      if (error instanceof PromptSettledError) {
+        this.promptSettled(error, { approvalId: message.approvalId })
+        return
+      }
       // Muse Code 1.3.0 on Windows can fail the reply to `approval/decide`
       // on its own ledger write after applying the decision (the tool runs
-      // on); the wording must not claim the decision was refused.
+      // on); the wording must not claim the decision was refused. The card
+      // opens again: if the decision did apply, its resolve still closes it.
       this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`)
+      this.post({ type: 'approvalReopened', approvalId: message.approvalId })
+    }
+  }
+
+  /**
+   * A decision or answer that arrived after its prompt had moved (D26): the
+   * user is told it was not needed, and a prompt the host no longer holds
+   * loses its card (an answered or advanced one follows the host's events).
+   */
+  private promptSettled(
+    error: PromptSettledError,
+    prompt: { readonly approvalId: string } | { readonly userInputId: string },
+  ): void {
+    this.notice('info', PROMPT_SETTLED_TEXT[error.reason])
+    if (error.reason === 'gone') {
+      this.post({ type: 'promptDropped', ...prompt })
     }
   }
 
@@ -640,6 +732,10 @@ export class ConversationController {
     try {
       await this.session.cancelQuestions(userInputId)
     } catch (error: unknown) {
+      if (error instanceof PromptSettledError) {
+        this.promptSettled(error, { userInputId })
+        return
+      }
       this.notice('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`)
     }
   }
@@ -653,6 +749,10 @@ export class ConversationController {
     try {
       await this.session.answerQuestions(message.userInputId, message.answers)
     } catch (error: unknown) {
+      if (error instanceof PromptSettledError) {
+        this.promptSettled(error, { userInputId: message.userInputId })
+        return
+      }
       this.notice('error', `The answer was not accepted: ${describe(error)}`)
     }
   }
@@ -865,6 +965,7 @@ export class ConversationController {
   private async attach(host: AgentHost, session: AgentSession): Promise<void> {
     this.session = session
     this.sessionKind = host.info.kind
+    this.canEditSessions = host.info.canEditSessions
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
     })
@@ -963,6 +1064,7 @@ export class ConversationController {
       loaded.session.dispose()
       throw new Error(UI_TEXT.surfaceClosed)
     }
+    this.activeTurnId = loaded.activeTurnId
     await this.attach(host, loaded.session)
     try {
       await loaded.session.setApprovalMode(
@@ -983,10 +1085,11 @@ export class ConversationController {
       return undefined
     }
     const text = reason ?? NO_WORKSPACE_REASON
+    // A refused message's images were never used: the composer gets them back.
     this.post(
       localId === undefined
         ? { type: 'notice', level: 'warning', text }
-        : { type: 'sendFailed', localId, reason: text },
+        : { type: 'sendFailed', localId, reason: text, attachmentsKept: true },
     )
     return text
   }
@@ -1060,6 +1163,17 @@ export class ConversationController {
     }
   }
 
+  /** The webview's transcript replaced by a session's served history. */
+  private postHistory(sessionId: string, history: SessionHistoryOutcome): void {
+    this.post({
+      type: 'historyLoaded',
+      sessionId,
+      items: [...history.items],
+      ...(history.name !== undefined && { name: history.name }),
+      todos: [...history.todos],
+    })
+  }
+
   /**
    * Make a resumed or forked session this surface's: the transcript is
    * rebuilt from its history, the model comes from the catalogue's active
@@ -1090,13 +1204,7 @@ export class ConversationController {
       this.modelId = fallbackId
       this.notice('info', `${UI_TEXT.contributorResumeFallback} ${fallbackId}.`)
     }
-    this.post({
-      type: 'historyLoaded',
-      sessionId: loaded.session.sessionId,
-      items: [...loaded.history.items],
-      ...(loaded.history.name !== undefined && { name: loaded.history.name }),
-      todos: [...loaded.history.todos],
-    })
+    this.postHistory(loaded.session.sessionId, loaded.history)
     this.setTitle(loaded.history.name)
     this.notice('info', `${notice} ${loaded.history.name ?? toSessionRow(loaded.record).title}`)
     if (loaded.history.mode === HISTORY_MODE_NONE) {
@@ -1106,6 +1214,8 @@ export class ConversationController {
       loaded.session.dispose()
       return
     }
+    // Before attaching: the events held for this surface may end that turn (D26).
+    this.activeTurnId = loaded.activeTurnId
     await this.attach(host, loaded.session)
     const target = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
     try {
@@ -1141,6 +1251,10 @@ export class ConversationController {
     }
     try {
       const host = await this.deps.ensureHost()
+      if (!host.info.canEditSessions) {
+        this.notice('info', UI_TEXT.sessionEditsUnsupported)
+        return
+      }
       const loaded = await host.forkSession(this.session.sessionId, this.modelId, lastTurnId)
       await this.adopt(host, loaded, UI_TEXT.forkedNotice)
     } catch (error: unknown) {
@@ -1150,11 +1264,17 @@ export class ConversationController {
 
   private async renameSession(name: string): Promise<void> {
     const trimmed = name.trim()
-    if (trimmed === '' || this.session === undefined) {
+    const { session } = this
+    if (trimmed === '' || session === undefined) {
       return
     }
     try {
-      const canonical = await this.session.rename(trimmed)
+      const host = await this.deps.ensureHost()
+      if (!host.info.canEditSessions) {
+        this.notice('info', UI_TEXT.sessionEditsUnsupported)
+        return
+      }
+      const canonical = await session.rename(trimmed)
       if (canonical !== undefined) {
         this.setTitle(canonical)
         this.post({ type: 'agentEvent', event: { type: 'sessionNamed', name: canonical } })
@@ -1171,7 +1291,7 @@ export class ConversationController {
   }
 
   private buildParts(text: string, attachmentIds: readonly string[]): readonly TurnPart[] {
-    const images = this.attachments.take(attachmentIds)
+    const images = this.attachments.partsFor(attachmentIds)
     const trimmed = text.trim()
     const skill = parseSkillInvocation(
       trimmed,
@@ -1194,16 +1314,18 @@ export class ConversationController {
     session: AgentSession,
     parts: readonly TurnPart[],
     displayText: string | undefined,
-  ): Promise<string> {
+  ): Promise<TurnSubmission> {
     if (this.activeTurnId !== undefined) {
       try {
-        return await session.steer(this.activeTurnId, parts)
+        return {
+          turnId: await session.steer(this.activeTurnId, parts),
+          disposition: STEERED_DISPOSITION,
+        }
       } catch (error: unknown) {
         this.deps.log.warn(`turn/steer failed (${describe(error)}); submitting as a new turn`)
       }
     }
-    const submission = await session.sendTurn(parts, displayText)
-    return submission.turnId
+    return await session.sendTurn(parts, displayText)
   }
 
   /**
@@ -1253,7 +1375,12 @@ export class ConversationController {
       await this.autosave()
       const typed = this.buildParts(text, attachmentIds)
       if (typed.length === 0) {
-        this.post({ type: 'sendFailed', localId, reason: NOTHING_TO_SEND_REASON })
+        this.post({
+          type: 'sendFailed',
+          localId,
+          reason: NOTHING_TO_SEND_REASON,
+          attachmentsKept: true,
+        })
         return
       }
       // A reply to an output or a quoted passage rides as its own part (M17),
@@ -1271,17 +1398,25 @@ export class ConversationController {
       const parts = [...typed, ...referenced, ...(context === undefined ? [] : [context]), ...note]
       // With extra parts the durable transcript keeps the typed text only.
       const displayText = parts.length === typed.length ? undefined : text
-      const turnId = await this.submitResuming(host, session, parts, displayText)
+      const submission = await this.submitResuming(host, session, parts, displayText)
+      // The images go only once the host has the message (D26).
+      this.attachments.release(attachmentIds)
       if (this.isDisposed) {
         return
       }
-      this.activeTurnId = turnId
+      const { turnId } = submission
+      // A queued turn is not the running one, and an ack that lands after its
+      // own turn completed must not mark it running again (D26).
+      if (submission.disposition !== QUEUED_DISPOSITION && !this.finishedTurns.has(turnId)) {
+        this.activeTurnId = turnId
+      }
       this.post({ type: 'turnAccepted', localId, turnId })
       this.noteActivity()
     } catch (error: unknown) {
       const reason = describe(error)
       this.deps.log.error(`sendMessage failed: ${reason}`)
-      this.post({ type: 'sendFailed', localId, reason })
+      // Nothing was released: the composer gets the images back for another try.
+      this.post({ type: 'sendFailed', localId, reason, attachmentsKept: true })
     }
   }
 
@@ -1294,7 +1429,7 @@ export class ConversationController {
     session: AgentSession,
     parts: readonly TurnPart[],
     displayText: string | undefined,
-  ): Promise<string> {
+  ): Promise<TurnSubmission> {
     try {
       return await this.submit(session, parts, displayText)
     } catch (error: unknown) {
@@ -1431,6 +1566,8 @@ export class ConversationController {
       const outcome = await session.compact()
       if (outcome.status === NOOP_STATUS) {
         this.notice('info', `Nothing to compact (${outcome.reason ?? NOOP_STATUS}).`)
+      } else if (outcome.status === CANCELLED_STATUS) {
+        this.notice('info', UI_TEXT.compactionStoppedNotice)
       }
     } catch (error: unknown) {
       const reason = describe(error)

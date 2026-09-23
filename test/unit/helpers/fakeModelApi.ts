@@ -34,6 +34,8 @@ export interface ScriptedReply {
   readonly garbage?: boolean
   /** Fail the fetch itself (network error) instead of answering. */
   readonly networkError?: string
+  /** A keep-alive with empty data mid-stream and the OpenAI-style `data: [DONE]` at the end. */
+  readonly doneSentinel?: boolean
 }
 
 export interface RecordedRequest {
@@ -168,6 +170,9 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   }
   // An event type this client does not know: skipped, never fatal.
   text += frame({ type: 'response.something_new', detail: 1 })
+  if (reply.doneSentinel === true) {
+    text += 'data:\n\n'
+  }
   if (reply.failed !== undefined) {
     return `${text}${frame({
       type: 'response.failed',
@@ -190,7 +195,7 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
         output_tokens_details: { reasoning_tokens: 1 },
       },
     },
-  })}`
+  })}${reply.doneSentinel === true ? 'data: [DONE]\n\n' : ''}`
 }
 
 function bodyStream(text: string): ReadableStream<Uint8Array> {

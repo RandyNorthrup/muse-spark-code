@@ -9,7 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
@@ -217,6 +217,9 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
     },
     async writeFile(absolutePath, content) {
+      // A new file's folders are created (PLAN.md D26: `write_file` into a
+      // missing folder failed); the caller confined the whole path first.
+      await mkdir(path.dirname(absolutePath), { recursive: true })
       await writeFile(absolutePath, content, 'utf8')
     },
     listFiles: deps.listFiles,

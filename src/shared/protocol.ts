@@ -353,6 +353,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     modelId: z.string(),
     contextLimit: z.optional(z.number()),
     sessionId: z.optional(z.string()),
+    // `false` where the host refuses rename and fork (D26); absent means offered.
+    canEditSessions: z.optional(z.boolean()),
+  }),
+  // A decision the host did not take (D26): the approval card can be answered again.
+  z.object({ type: z.literal('approvalReopened'), approvalId: z.string() }),
+  // The host no longer waits on this prompt (D26): its card goes, with no outcome.
+  z.object({
+    type: z.literal('promptDropped'),
+    approvalId: z.optional(z.string()),
+    userInputId: z.optional(z.string()),
   }),
   // Session history (M6): the workspace's stored sessions for the dialog.
   z.object({

@@ -69,6 +69,7 @@ describe('ModelApiBackendManager', () => {
         await Promise.resolve()
         return []
       },
+      load: () => Promise.resolve(undefined),
       save: () => Promise.resolve(),
       remove: () => Promise.resolve(),
     }
@@ -82,6 +83,7 @@ describe('ModelApiBackendManager', () => {
     let isBroken = true
     const store = {
       list: () => (isBroken ? Promise.reject(new Error('disk gone')) : Promise.resolve([])),
+      load: () => Promise.resolve(undefined),
       save: () => Promise.resolve(),
       remove: () => Promise.resolve(),
     }

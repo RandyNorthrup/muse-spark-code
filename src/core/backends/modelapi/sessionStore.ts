@@ -55,12 +55,43 @@ export interface StoredSession {
   readonly usage: StoredUsage
 }
 
+/**
+ * What the history list needs of a stored session, without its conversation
+ * (PLAN.md D26): a window keeps these in memory and loads a session whole
+ * only when it is resumed, forked or read.
+ */
+export interface StoredSessionHeader {
+  readonly sessionId: string
+  readonly workspaceRoot: string
+  readonly name?: string
+  readonly createdAt: string
+  readonly lastActivityAt: string
+  readonly forkedFrom?: string
+  readonly firstPrompt?: string
+  readonly turnCount: number
+}
+
 /** Where sessions live between windows; the host supplies the files. */
 export interface SessionStore {
-  /** Every readable session; a corrupt file is skipped (and logged), never fatal. */
-  list(): Promise<readonly StoredSession[]>
+  /** Every readable session's header; a corrupt file is skipped (and logged), never fatal. */
+  list(): Promise<readonly StoredSessionHeader[]>
+  /** One session in full; undefined when it is gone or no longer reads. */
+  load(sessionId: string): Promise<StoredSession | undefined>
   save(session: StoredSession): Promise<void>
   remove(sessionId: string): Promise<void>
+}
+
+export function headerOf(stored: StoredSession): StoredSessionHeader {
+  return {
+    sessionId: stored.sessionId,
+    workspaceRoot: stored.workspaceRoot,
+    ...(stored.name !== undefined && { name: stored.name }),
+    createdAt: stored.createdAt,
+    lastActivityAt: stored.lastActivityAt,
+    ...(stored.forkedFrom !== undefined && { forkedFrom: stored.forkedFrom }),
+    ...(stored.firstPrompt !== undefined && { firstPrompt: stored.firstPrompt }),
+    turnCount: stored.turnIds.length,
+  }
 }
 
 const inputTextPartSchema = z.object({ type: z.literal('input_text'), text: z.string() })
@@ -138,7 +169,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
 const IDLE = 'idle'
 
 /** The history-list row of a session that is not loaded in this window. */
-export function recordOf(stored: StoredSession): SessionRecord {
+export function recordOf(stored: StoredSessionHeader): SessionRecord {
   return {
     sessionId: stored.sessionId,
     ...(stored.name !== undefined && { name: stored.name }),
@@ -150,7 +181,7 @@ export function recordOf(stored: StoredSession): SessionRecord {
     updatedAt: stored.lastActivityAt,
     lastActivityAt: stored.lastActivityAt,
     status: IDLE,
-    turnCount: stored.turnIds.length,
+    turnCount: stored.turnCount,
     forkedFrom: stored.forkedFrom === undefined ? null : { sessionId: stored.forkedFrom },
     workspaceRoot: stored.workspaceRoot,
   }

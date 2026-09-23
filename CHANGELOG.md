@@ -137,8 +137,44 @@ other harnesses' bug trackers and the platform documentation, fixed.
   broken OS keyring no longer blocks the Muse Code backend.
 - Model API retries show in the transcript ("Attempt 2/5 failed …"), Stop
   cuts a retry wait short, and a `Retry-After` given as a date is honoured.
-- The IDE tool server restarts if its first start failed; a failing request
-  answers 500.
+- The IDE tool server restarts if its first start failed, and the session
+  that needed it waits for it; a failing request answers 500.
+- **New Conversation** after a crash or a restart starts a new session
+  instead of continuing the old one with its first message.
+- Resuming a conversation that was waiting on an approval or a question
+  shows its card again, and a turn that was running when you resumed can be
+  stopped and steered. Each prompt shows one card, however often Muse Code
+  announces it, and a second panel on the same conversation sees the cards
+  still open.
+- A decision or answer that arrives after the request moved on says so as
+  information instead of an error; a refused decision opens the card again;
+  a request Muse Code no longer holds loses its card. A step already closed
+  by an "always" decision is no longer asked again.
+- Updates Muse Code could not deliver are recovered by reloading the
+  conversation; a queued message Muse Code withdrew reads "Not sent"; a
+  model the account cannot serve, and a message another client withdrew,
+  are notices. Unexpected notifications are logged once each.
+- On the Model API backend, a tool that fails (a missing folder, a disk
+  error) or a call Stop cuts off no longer breaks the rest of the
+  conversation; `write_file` creates the folders it needs; a message typed
+  while the final answer streams gets its own answer; a compaction runs as
+  a turn, so messages sent meanwhile wait and Stop cancels it; Stop ends
+  each queued message with a reason; a refusal shows its words.
+- Account & usage shows the conversation's totals on both backends (Muse
+  Code showed the last request only); the cached rows appear where they can
+  be counted.
+- A message too large for Muse Code (10 MiB, images included) is refused
+  with the reason instead of hanging; its images stay in the composer.
+- Output pages and Revert patches no longer break a character in two; a
+  binary output says so instead of showing base64.
+- The Model API stream tolerates `data: [DONE]`, empty keep-alives and a
+  line break split across two reads.
+
+### Added
+
+- `museSpark.cleanupPeriodDays` (default 30, as Claude Code's
+  `cleanupPeriodDays`): Model API conversations idle longer are deleted
+  when a window lists them; 0 keeps them.
 
 ### Changed
 
@@ -148,7 +184,16 @@ other harnesses' bug trackers and the platform documentation, fixed.
   categories are AI and Chat.
 - `museSpark.museBinaryPath`, `museSpark.environmentVariables` and VS
   Code's `http.proxy` / `http.noProxy` restart Muse Code when changed; the
-  proxy is handed to it when its environment has none.
+  proxy is handed to it when neither its environment nor
+  `museSpark.environmentVariables` sets one, in any case.
+- On Windows with Muse Code 1.3.0, which refuses both, the panel no longer
+  offers Rename and Fork (meta-models/muse-code-sdk#30, #31); "Rewind code
+  to here" stays.
+- The Model API backend keeps only its conversations' list in memory and
+  reads a conversation when it is opened; a file a crash left half-written
+  is removed, and a save Windows briefly refuses is tried again.
+- Muse Code commands no longer stay in memory after they are answered (the
+  SDK kept every one, images included, for the life of the process).
 - The Model API shell tool applies `terminal.integrated.env.*` as VS Code's
   terminal does.
 - On Windows the CLI always starts as `muse-bin-<version>.exe` (the newest

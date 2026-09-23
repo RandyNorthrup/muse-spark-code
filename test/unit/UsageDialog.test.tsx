@@ -76,6 +76,14 @@ describe('UsageDialog', () => {
     expect(props.onOpenExternal).toHaveBeenCalledWith('https://dev.meta.ai/')
   })
 
+  it('leaves out the cached rows where the backend cannot total them (D26)', () => {
+    renderDialog({ usage: { inputTokens: 30_000, outputTokens: 1200 } })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Input30K')
+    expect(dialog).not.toHaveTextContent('Cached')
+    expect(dialog).not.toHaveTextContent('Cache hits')
+  })
+
   it('explains a key-billed window and an unobserved subscription, and shows empty tokens', () => {
     renderDialog({
       report: {

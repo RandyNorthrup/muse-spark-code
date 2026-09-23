@@ -189,6 +189,12 @@ describe('createToolIo (real file system and shell)', () => {
     await expect(io().readFile(root)).rejects.toThrow()
   })
 
+  it('creates the folders a new file goes into (D26)', async () => {
+    const target = path.join(root, 'deep', 'er', 'b.txt')
+    await io().writeFile(target, 'nested\n')
+    await expect(readFile(target, 'utf8')).resolves.toBe('nested\n')
+  })
+
   it(
     'runs one command line in the given directory and reports its exit',
     async () => {

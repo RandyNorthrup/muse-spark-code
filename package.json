@@ -272,6 +272,12 @@
           "default": 14,
           "description": "Hide sessions idle for this many days from the History dialog (they stay on disk; Show archived lists them)."
         },
+        "museSpark.cleanupPeriodDays": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 30,
+          "description": "Delete Meta Model API conversations idle for more than this many days when a window opens them; 0 keeps them for ever. Muse Code CLI sessions are kept by the CLI."
+        },
         "museSpark.backend": {
           "type": "string",
           "enum": [

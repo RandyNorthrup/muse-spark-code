@@ -597,6 +597,12 @@ export function activate(context: vscode.ExtensionContext): void {
         : createFileSessionStore({
             directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
             log,
+            retentionDays: () => currentSettings().cleanupPeriodDays,
+            now: () => Date.now(),
+            sleep: (ms) =>
+              new Promise((resolve) => {
+                setTimeout(resolve, ms)
+              }),
           }),
     describeEnvironment: () =>
       describeEnvironment({

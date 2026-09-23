@@ -6,16 +6,26 @@
 // The process boundary (`MspHost`) is injected so unit tests drive the class
 // through a fake in-memory transport.
 
-import { type CommandOptions, type Connection, MspError } from '@muse-code/sdk'
+import { Buffer } from 'node:buffer'
+import { type Connection, MspError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import type { AgentEvent, QuestionAnswer } from '../../../shared/agentEvents'
 import {
+  JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
+  MSP_COMMAND_ATTEMPTS,
   MSP_COMMAND_TIMEOUT_MS,
+  MSP_FRAME_LIMIT_BYTES,
   MSP_LONG_COMMAND_TIMEOUT_MS,
   MSP_LONG_COMMANDS,
+  MSP_RETRY_BASE_DELAY_MS,
+  MSP_RETRY_MAX_DELAY_MS,
+  MSP_RETRYABLE_REFUSALS,
+  MSP_SESSION_LIST_MAX_LIMIT,
   MUSE_EXIT_MEANINGS,
   type SubagentAction,
+  UI_TEXT,
+  WINDOWS_SESSION_EDITS_LIMITED_MAX_VERSION,
 } from '../../../shared/constants'
 import { withDeadline } from '../../timeouts'
 import {
@@ -45,9 +55,21 @@ import type {
   TurnPart,
   TurnSubmission,
 } from '../../agent/agentBackend'
-import { SessionNotLoadedError } from '../../agent/agentBackend'
+import {
+  PromptSettledError,
+  type PromptSettledReason,
+  SessionNotLoadedError,
+} from '../../agent/agentBackend'
 import type { CoreLogger } from '../../logging'
-import { mapNotification, type WireNotification } from './mapNotification'
+import {
+  MALFORMED_PARAMS,
+  mapNotification,
+  type MappedNotification,
+  UNKNOWN_METHOD,
+  type WireNotification,
+} from './mapNotification'
+import { PromptLedger } from './promptLedger'
+import { isVersionAtMost } from './sandbox'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -81,6 +103,24 @@ const initializeResultSchema = z.object({
   serverInfo: z.object({ name: z.string(), version: z.string() }),
   museHome: z.string(),
   grantedCapabilities: z.optional(z.array(z.string())),
+  // Logged once per start (D26); `platformOs` also gates rename and fork.
+  platformOs: z.optional(z.string()),
+  schema: z.optional(
+    z.object({ version: z.optional(z.number()), fingerprint: z.optional(z.string()) }),
+  ),
+  // Absent reads as `durable` (msp.d.ts InitializeResult.sessionDurability).
+  sessionDurability: z.optional(z.string()),
+})
+
+const WINDOWS_OS = 'windows'
+const DURABLE_SESSIONS = 'durable'
+
+const approvalDecideResultSchema = z.object({ terminal: z.optional(z.boolean()) })
+
+// `approval/listPending`: the payloads of `session/resume`'s pending pointers.
+const listPendingResultSchema = z.object({
+  approvals: z.array(z.record(z.string(), z.unknown())),
+  userInputs: z.array(z.record(z.string(), z.unknown())),
 })
 
 const sessionStartResultSchema = z.object({
@@ -131,17 +171,47 @@ const readOutputResultSchema = z.object({
 
 const DEFAULT_DISPOSITION = 'started'
 
-// The host also mirrors an approval or question as a JSON-RPC server request.
-// The SDK's own facade documents that the notification is the enrolled
-// surface and the decision travels as `approval/decide` / `userInput/answer`
-// (verified live 2026-09-21: the request was refused and the prompt still
-// settled from the command), so these two are declined quietly.
-const MIRRORED_SERVER_REQUESTS: ReadonlySet<string> = new Set([
-  'approval/request',
-  'userInput/request',
+// The host mirrors a live approval or question as a JSON-RPC server request,
+// and re-issues every pending one that way right after `session/resume`
+// (tdd SS5.6). The answer is a presentation receipt (msp.d.ts
+// RequestReceipt): `{}` says a surface shows or will show the prompt, the
+// decision still travels as `approval/decide` / `userInput/answer`, and an
+// error means "could not present", so the host re-issues it on the next
+// subscribe. Each request is shown as the notification it mirrors (D26).
+const PROMPT_SERVER_REQUESTS: ReadonlyMap<string, string> = new Map([
+  ['approval/request', 'approval/requested'],
+  ['userInput/request', 'userInput/requested'],
 ])
+const PRESENTED: Record<string, never> = {}
 
 const SESSION_NOT_LOADED = 'sessionNotLoaded'
+
+// MSP refusals of a decision or answer that arrived after the prompt had
+// moved (D26): nothing is wrong, and the card follows the host's own events.
+const PROMPT_SETTLED_KINDS: ReadonlyMap<string, PromptSettledReason> = new Map([
+  ['approvalAlreadyResolved', 'alreadySettled'],
+  ['userInputAlreadySettled', 'alreadySettled'],
+  ['approvalRequirementStale', 'movedOn'],
+  ['approvalNotFound', 'gone'],
+  ['userInputNotFound', 'gone'],
+])
+
+/** A late decision or answer as a `PromptSettledError`; anything else unchanged. */
+function settledOr(error: unknown): unknown {
+  if (!(error instanceof MspError)) {
+    return error
+  }
+  const reason = PROMPT_SETTLED_KINDS.get(error.kind)
+  return reason === undefined ? error : new PromptSettledError(reason, error.message)
+}
+
+// `item/readOutput` encodings: text media is always utf8, binary media base64.
+const BASE64_ENCODING = 'base64'
+const UTF8_ENCODING = 'utf8'
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true })
+
+// The worst-case JSON-RPC envelope around a command's params, for the size check.
+const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 
 /** How long a command may wait (PLAN.md D25); overridable for tests. */
 export interface CommandTimeouts {
@@ -154,6 +224,60 @@ const DEFAULT_TIMEOUTS: CommandTimeouts = {
   longMs: MSP_LONG_COMMAND_TIMEOUT_MS,
 }
 
+/** An MSP refusal that admitted nothing, so the same command may be sent again. */
+function isRetryableRefusal(error: unknown): boolean {
+  return (
+    error instanceof MspError &&
+    MSP_RETRYABLE_REFUSALS.some(
+      (refusal) => refusal.code === error.code && refusal.kind === error.kind,
+    )
+  )
+}
+
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+/**
+ * `Connection.command` without its memory (PLAN.md D26). The SDK keeps the
+ * canonical payload of every command for the connection's life, an image
+ * turn's base64 included, to check replays across reconnects this
+ * extension never makes, so a long session's memory only grew. The same
+ * contract otherwise: the command id rides in the params, the ack must echo
+ * it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
+ * is retried with the same id after a short, growing, jittered wait.
+ */
+async function sendCommand(
+  connection: Connection,
+  method: string,
+  params: Record<string, unknown>,
+  commandId: string,
+): Promise<Record<string, unknown>> {
+  const commandParams = { ...params, commandId }
+  // The host drops an oversized frame without answering it (D26).
+  const frame = JSON.stringify({ ...FRAME_ENVELOPE, method, params: commandParams })
+  if (Buffer.byteLength(frame) > MSP_FRAME_LIMIT_BYTES) {
+    throw new Error(UI_TEXT.commandTooLarge)
+  }
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const ack = await connection.request(method, commandParams)
+      if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
+        throw new Error(`${method} ack did not echo its commandId ${commandId}`)
+      }
+      return ack
+    } catch (error: unknown) {
+      if (!isRetryableRefusal(error) || attempt >= MSP_COMMAND_ATTEMPTS) {
+        throw error
+      }
+      const ceiling = Math.min(MSP_RETRY_MAX_DELAY_MS, MSP_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1))
+      await pause(Math.floor(Math.random() * (ceiling + 1)))
+    }
+  }
+}
+
 /**
  * One MSP command with a deadline. `sessionNotLoaded` (the host evicted or
  * closed the session) becomes a `SessionNotLoadedError` the controller
@@ -164,12 +288,12 @@ async function commandWithin(
   timeouts: CommandTimeouts,
   method: string,
   params: Record<string, unknown>,
-  options?: CommandOptions,
+  commandId: string = connection.mintCommandId(),
 ): Promise<unknown> {
   const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
   try {
     return await withDeadline(
-      connection.command(method, params, options),
+      sendCommand(connection, method, params, commandId),
       timeoutMs,
       `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
     )
@@ -214,6 +338,15 @@ export function describeExit(
 
 export class MuseSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
+  /** One card per prompt and stage, and the open ones for a late listener (D26). */
+  private readonly prompts = new PromptLedger()
+  /**
+   * What arrived before anyone listened (D26): the events right after
+   * `session/resume` (the re-issued prompts, a running turn's stream) land
+   * before the surface that asked for the session has attached. Held until
+   * the first listener, released with the handle.
+   */
+  private early: AgentEvent[] | undefined = []
   /** The surfaces holding this handle (PLAN.md D25): the last release disposes it. */
   private holders = 1
   private isDisposed = false
@@ -228,14 +361,10 @@ export class MuseSession implements AgentSession {
 
   /** One MSP command against this session with a freshly minted commandId. */
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    const commandId = this.connection.mintCommandId()
-    return await commandWithin(
-      this.connection,
-      this.timeouts,
-      method,
-      { commandId, sessionId: this.sessionId, ...params },
-      { commandId },
-    )
+    return await commandWithin(this.connection, this.timeouts, method, {
+      sessionId: this.sessionId,
+      ...params,
+    })
   }
 
   /** One more surface holds this handle (a second panel resumed the same session). */
@@ -243,17 +372,47 @@ export class MuseSession implements AgentSession {
     this.holders += 1
   }
 
+  /**
+   * The first listener gets what arrived before it; a later one (a second
+   * surface on the same session) gets the prompts still open, which the
+   * host will not announce again.
+   */
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
+    const backlog = this.early ?? this.prompts.open()
+    this.early = undefined
+    for (const event of backlog) {
+      listener(event)
+    }
     return () => {
       this.listeners.delete(listener)
     }
   }
 
   /** @internal Called by the host dispatcher. */
+  public receive(mapped: MappedNotification): void {
+    if ('closedApprovalId' in mapped) {
+      this.prompts.close(mapped.closedApprovalId)
+      return
+    }
+    this.emit(mapped.event)
+  }
+
+  /** @internal An event for this session's listeners, once, in arrival order. */
   public emit(event: AgentEvent): void {
+    if (this.isDisposed) {
+      return
+    }
+    const admitted = this.prompts.admit(event)
+    if (admitted === undefined) {
+      return
+    }
+    if (this.early !== undefined) {
+      this.early.push(admitted)
+      return
+    }
     for (const listener of this.listeners) {
-      listener(event)
+      listener(admitted)
     }
   }
 
@@ -319,12 +478,22 @@ export class MuseSession implements AgentSession {
    * request; a stale one is rejected by the host, never silently applied.
    */
   public async decideApproval(decision: ApprovalDecision): Promise<void> {
-    await this.command('approval/decide', {
-      approvalId: decision.approvalId,
-      choiceId: decision.choiceId,
-      requirementId: decision.requirementId,
-      ...(decision.feedback !== undefined && { feedback: decision.feedback }),
-    })
+    let ack: unknown
+    try {
+      ack = await this.command('approval/decide', {
+        approvalId: decision.approvalId,
+        choiceId: decision.choiceId,
+        requirementId: decision.requirementId,
+        ...(decision.feedback !== undefined && { feedback: decision.feedback }),
+      })
+    } catch (error: unknown) {
+      throw settledOr(error)
+    }
+    // `terminal: true` closed the whole approval; a trailing stage update the
+    // host can still send for it must not reopen the card (the facade's #37538).
+    if (approvalDecideResultSchema.safeParse(ack).data?.terminal === true) {
+      this.prompts.close(decision.approvalId)
+    }
   }
 
   /** Answer every question of a `request_user_input` prompt. */
@@ -332,12 +501,20 @@ export class MuseSession implements AgentSession {
     userInputId: string,
     answers: readonly QuestionAnswer[],
   ): Promise<void> {
-    await this.command('userInput/answer', { userInputId, answers: [...answers] })
+    try {
+      await this.command('userInput/answer', { userInputId, answers: [...answers] })
+    } catch (error: unknown) {
+      throw settledOr(error)
+    }
   }
 
   /** Decline a `request_user_input` prompt (`userInput/cancel`, M16). */
   public async cancelQuestions(userInputId: string): Promise<void> {
-    await this.command('userInput/cancel', { userInputId })
+    try {
+      await this.command('userInput/cancel', { userInputId })
+    } catch (error: unknown) {
+      throw settledOr(error)
+    }
   }
 
   /** `subagent/interrupt`, `stop`, `resume` or `close` on a child (M18). */
@@ -366,7 +543,18 @@ export class MuseSession implements AgentSession {
       offsetBytes: request.offsetBytes,
       lengthBytes: request.lengthBytes,
     })
-    return readOutputResultSchema.parse(result)
+    const page = readOutputResultSchema.parse(result)
+    if (page.encoding !== BASE64_ENCODING) {
+      return page
+    }
+    // Binary media arrives base64 (tdd SS4.7.4): shown only if it is text after all.
+    let text: string
+    try {
+      text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
+    } catch {
+      throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
+    }
+    return { ...page, content: text, encoding: UTF8_ENCODING }
   }
 
   /**
@@ -420,6 +608,17 @@ export class MuseCodeHost implements AgentHost {
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
+  /**
+   * Session starts, resumes and forks in flight (D26). The SDK hands every
+   * frame of one read to the handlers before the awaiting command resumes,
+   * so the prompts re-issued right after a resume answer arrive before the
+   * handle exists. While one is in flight, events for an unknown session
+   * wait here for `track`.
+   */
+  private opening = 0
+  private readonly unclaimed = new Map<string, MappedNotification[]>()
+  /** Methods already logged as unshown or malformed: one line each per host (D26). */
+  private readonly loggedMethods = new Set<string>()
   public readonly info: MuseHostInfo
 
   public constructor(
@@ -428,12 +627,25 @@ export class MuseCodeHost implements AgentHost {
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
   ) {
     const parsed = initializeResultSchema.parse(host.initializeResult)
+    const serverVersion = parsed.serverInfo.version
     this.info = {
       kind: 'museCode',
       serverName: parsed.serverInfo.name,
-      serverVersion: parsed.serverInfo.version,
+      serverVersion,
       museHome: parsed.museHome,
       grantedCapabilities: parsed.grantedCapabilities ?? [],
+      canEditSessions: !(
+        parsed.platformOs === WINDOWS_OS &&
+        isVersionAtMost(serverVersion, WINDOWS_SESSION_EDITS_LIMITED_MAX_VERSION)
+      ),
+    }
+    this.log.info(
+      `MSP host on ${parsed.platformOs ?? 'an unreported OS'}, schema v${String(parsed.schema?.version ?? 'unreported')} ${parsed.schema?.fingerprint ?? ''}, sessions ${parsed.sessionDurability ?? DURABLE_SESSIONS}`,
+    )
+    if (parsed.sessionDurability !== undefined && parsed.sessionDurability !== DURABLE_SESSIONS) {
+      this.log.warn(
+        `This muse serve keeps ${parsed.sessionDurability} sessions: History and resume will not find them after it exits`,
+      )
     }
     // The SDK's connection keeps one handler; a throw inside it would end the
     // read loop and leave the connection deaf without a word (D25).
@@ -444,13 +656,10 @@ export class MuseCodeHost implements AgentHost {
         this.log.error(`MSP ${notification.method} could not be handled: ${String(error)}`)
       }
     })
-    host.connection.onServerRequest((request) => {
-      if (MIRRORED_SERVER_REQUESTS.has(request.method)) {
-        this.log.info(`MSP server request ${request.method} declined; answered by command`)
-      } else {
-        this.log.warn(`Unsupported MSP server request ${request.method}; refusing`)
-      }
-      return Promise.reject(new Error(`unsupported server request: ${request.method}`))
+    host.connection.onServerRequest((request) => this.serverRequest(request))
+    // A dropped or unreadable frame is logged by kind, never with its content.
+    host.connection.onProtocolError((error) => {
+      this.log.warn(`MSP protocol error: ${error.message}`)
     })
     // A connection that ends while the process lives (a framing violation)
     // is as good as dead: the process is closed so the exit is reported.
@@ -479,24 +688,91 @@ export class MuseCodeHost implements AgentHost {
     if (this.dispatchHostEvent(notification.method, notification.params)) {
       return
     }
-    const mapped = mapNotification(notification)
-    if (mapped === undefined) {
-      return
-    }
-    const session = this.sessions.get(mapped.sessionId)
-    if (session === undefined) {
-      this.log.warn(`MSP event ${notification.method} for unknown session ${mapped.sessionId}`)
-      return
-    }
-    session.emit(mapped.event)
+    this.deliver(notification)
   }
 
-  private async command(
+  /** A session's notification to its handle; false when nothing can show it. */
+  private deliver(notification: WireNotification): boolean {
+    const mapped = mapNotification(notification)
+    if (mapped === UNKNOWN_METHOD || mapped === MALFORMED_PARAMS) {
+      this.noteUnmapped(notification.method, mapped)
+      return false
+    }
+    const session = this.sessions.get(mapped.sessionId)
+    if (session !== undefined) {
+      session.receive(mapped)
+      return true
+    }
+    if (this.opening > 0) {
+      const waiting = this.unclaimed.get(mapped.sessionId) ?? []
+      waiting.push(mapped)
+      this.unclaimed.set(mapped.sessionId, waiting)
+      return true
+    }
+    this.log.warn(`MSP event ${notification.method} for unknown session ${mapped.sessionId}`)
+    return false
+  }
+
+  /** Once per method: the extension does not show it, or it failed its schema. */
+  private noteUnmapped(
     method: string,
-    params: Record<string, unknown>,
-    options?: CommandOptions,
-  ): Promise<unknown> {
-    return await commandWithin(this.host.connection, this.timeouts, method, params, options)
+    outcome: typeof UNKNOWN_METHOD | typeof MALFORMED_PARAMS,
+  ): void {
+    if (this.loggedMethods.has(method)) {
+      return
+    }
+    this.loggedMethods.add(method)
+    if (outcome === MALFORMED_PARAMS) {
+      this.log.warn(`MSP ${method} had an unexpected shape and was ignored (logged once)`)
+    } else {
+      this.log.info(`MSP ${method} is not shown by this extension (logged once)`)
+    }
+  }
+
+  /** A server request: a prompt shown as the notification it mirrors, answered with the receipt. */
+  private serverRequest(request: {
+    readonly method: string
+    readonly params?: Record<string, unknown> | undefined
+  }): Promise<Record<string, unknown>> {
+    const mirrored = PROMPT_SERVER_REQUESTS.get(request.method)
+    if (mirrored === undefined) {
+      this.log.warn(`Unsupported MSP server request ${request.method}; refusing`)
+      return Promise.reject(
+        new MspError({
+          code: JSON_RPC_ERRORS.methodNotFound,
+          message: `method not found: ${request.method}`,
+          data: { kind: 'methodNotFound' },
+        }),
+      )
+    }
+    return this.deliver({ method: mirrored, params: request.params })
+      ? Promise.resolve(PRESENTED)
+      : Promise.reject(new Error(`no surface can show ${request.method}`))
+  }
+
+  /**
+   * Runs a session start, resume or fork with early events held for its
+   * handle (D26); whatever no handle claimed by the end is logged and dropped.
+   */
+  private async opened<T>(open: () => Promise<T>): Promise<T> {
+    this.opening += 1
+    try {
+      return await open()
+    } finally {
+      this.opening -= 1
+      if (this.opening === 0) {
+        for (const [sessionId, waiting] of this.unclaimed) {
+          this.log.warn(
+            `${String(waiting.length)} MSP events for session ${sessionId} arrived while it was opening and no handle claimed them`,
+          )
+        }
+        this.unclaimed.clear()
+      }
+    }
+  }
+
+  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
+    return await commandWithin(this.host.connection, this.timeouts, method, params)
   }
 
   /**
@@ -564,6 +840,11 @@ export class MuseCodeHost implements AgentHost {
       this.timeouts,
     )
     this.sessions.set(record.sessionId, handle)
+    const waiting = this.unclaimed.get(record.sessionId) ?? []
+    for (const mapped of waiting) {
+      handle.receive(mapped)
+    }
+    this.unclaimed.delete(record.sessionId)
     return handle
   }
 
@@ -572,6 +853,29 @@ export class MuseCodeHost implements AgentHost {
       session: this.track(envelope.session, modelId),
       record: envelope.session,
       history: historyOutcome(envelope),
+      activeTurnId: envelope.session.activeTurnId ?? undefined,
+    }
+  }
+
+  /**
+   * The pending prompts a resume's pointers name, pulled with
+   * `approval/listPending` (the documented dual of the re-issued requests,
+   * tdd SS5.7), so the cards appear however the re-issue was delivered; the
+   * ledger shows each once (D26).
+   */
+  private async presentPending(sessionId: string): Promise<void> {
+    try {
+      const pending = listPendingResultSchema.parse(
+        await this.command('approval/listPending', { sessionId }),
+      )
+      for (const params of pending.approvals) {
+        this.deliver({ method: 'approval/requested', params })
+      }
+      for (const params of pending.userInputs) {
+        this.deliver({ method: 'userInput/requested', params })
+      }
+    } catch (error: unknown) {
+      this.log.warn(`approval/listPending after resuming ${sessionId} failed: ${String(error)}`)
     }
   }
 
@@ -631,7 +935,7 @@ export class MuseCodeHost implements AgentHost {
   public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
     const result = await this.command('session/list', {
       workspaceRoot: options.workspaceRoot,
-      limit: options.limit,
+      limit: Math.min(options.limit, MSP_SESSION_LIST_MAX_LIMIT),
       ...(options.cursor !== undefined && { cursor: options.cursor }),
     })
     const page = sessionListResultSchema.parse(result)
@@ -649,18 +953,23 @@ export class MuseCodeHost implements AgentHost {
     modelId: string,
     mcpServers?: Readonly<Record<string, SessionMcpHttpServer>>,
   ): Promise<LoadedSession> {
-    const commandId = this.host.connection.mintCommandId()
-    const result = await this.command(
-      'session/resume',
-      {
-        commandId,
-        sessionId,
-        history: HISTORY_PREFERENCE_INLINE,
-        ...this.mcpConfig(mcpServers),
-      },
-      { commandId },
-    )
-    return this.loaded(sessionEnvelopeSchema.parse(result), modelId)
+    const { loaded, hasPending } = await this.opened(async () => {
+      const envelope = sessionEnvelopeSchema.parse(
+        await this.command('session/resume', {
+          sessionId,
+          history: HISTORY_PREFERENCE_INLINE,
+          ...this.mcpConfig(mcpServers),
+        }),
+      )
+      return {
+        loaded: this.loaded(envelope, modelId),
+        hasPending: (envelope.pendingRequests ?? []).length > 0,
+      }
+    })
+    if (hasPending) {
+      await this.presentPending(sessionId)
+    }
+    return loaded
   }
 
   /** A point-in-time read with items, without loading the session. */
@@ -682,17 +991,16 @@ export class MuseCodeHost implements AgentHost {
     modelId: string,
     lastTurnId?: string,
   ): Promise<LoadedSession> {
-    const commandId = this.host.connection.mintCommandId()
-    const result = await this.command(
-      'session/fork',
-      {
-        commandId,
+    if (!this.info.canEditSessions) {
+      throw new Error(UI_TEXT.sessionEditsUnsupported)
+    }
+    return await this.opened(async () => {
+      const result = await this.command('session/fork', {
         sessionId,
         ...(lastTurnId !== undefined && { cutPoint: { lastTurnId } }),
-      },
-      { commandId },
-    )
-    return this.loaded(sessionEnvelopeSchema.parse(result), modelId)
+      })
+      return this.loaded(sessionEnvelopeSchema.parse(result), modelId)
+    })
   }
 
   /** The visible model catalogue; with a session id the active row is flagged. */
@@ -710,20 +1018,16 @@ export class MuseCodeHost implements AgentHost {
   }
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {
-    const commandId = this.host.connection.mintCommandId()
-    const result = await this.command(
-      'session/start',
-      {
-        commandId,
+    return await this.opened(async () => {
+      const result = await this.command('session/start', {
         workspaceRoot: options.workspaceRoot,
         modelId: options.modelId,
         approvalMode: options.approvalMode,
         ...this.mcpConfig(options.mcpServers),
-      },
-      { commandId },
-    )
-    const { session } = sessionStartResultSchema.parse(result)
-    return this.track(session, session.modelId ?? options.modelId)
+      })
+      const { session } = sessionStartResultSchema.parse(result)
+      return this.track(session, session.modelId ?? options.modelId)
+    })
   }
 
   public get sessionCount(): number {

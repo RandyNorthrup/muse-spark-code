@@ -43,6 +43,22 @@ function agent(event: AgentEvent): UiAction {
   return host({ type: 'agentEvent', event })
 }
 
+/** A one-stage shell approval on tool row c1. */
+const SHELL_APPROVAL = {
+  type: 'approvalRequested' as const,
+  approvalId: 'a1',
+  itemId: 'c1',
+  toolName: 'powershell',
+  rawArgs: '{"command":"ls"}',
+  requirementId: { approvalId: 'a1', sourceIndex: 0 },
+  subject: { kind: 'shell', command: 'ls' },
+  availableChoices: [
+    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+  ],
+  isJudgeEscalated: false,
+  isProtectedWrite: false,
+}
+
 const signedIn = host({ type: 'authState', status: 'signedIn' })
 
 describe('uiReducer: shell', () => {
@@ -446,20 +462,7 @@ describe('uiReducer: agent events', () => {
   })
 
   it('attaches approvals to their tool row, follows stage updates, records the outcome', () => {
-    const requested = {
-      type: 'approvalRequested' as const,
-      approvalId: 'a1',
-      itemId: 'c1',
-      toolName: 'powershell',
-      rawArgs: '{"command":"ls"}',
-      requirementId: { approvalId: 'a1', sourceIndex: 0 },
-      subject: { kind: 'shell', command: 'ls' },
-      availableChoices: [
-        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
-      ],
-      isJudgeEscalated: false,
-      isProtectedWrite: false,
-    }
+    const requested = SHELL_APPROVAL
     // Request before the item: a placeholder row is created from the request.
     const early = reduceAll([agent(requested)])
     expect(early.transcript[0]).toMatchObject({
@@ -1842,5 +1845,61 @@ describe('clears, restores and refusals (M25)', () => {
       outputChunk(9, 'zz'),
     ])
     expect(state.outputPages['i:o']).toEqual({ content: 'abcde', isEof: false, nextOffset: 5 })
+  })
+})
+
+describe('uiReducer: prompts the host moved on (D26)', () => {
+  const approval = SHELL_APPROVAL
+  const question = {
+    type: 'questionRequested' as const,
+    userInputId: 'u1',
+    itemId: 'c2',
+    questions: [],
+  }
+  const other = {
+    type: 'itemStarted' as const,
+    item: { itemId: 'c3', kind: 'toolCall', status: 'inProgress', tool: 'read_file' },
+  }
+
+  it('opens a card again after a decision the host did not take', () => {
+    const decided = uiReducer(reduceAll([agent(approval)]), {
+      type: 'approvalDecided',
+      approvalId: 'a1',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+    })
+    const reopened = uiReducer(decided, host({ type: 'approvalReopened', approvalId: 'a1' }))
+    expect(reopened.transcript[0]).toMatchObject({ approval: { approvalId: 'a1' } })
+    expect(reopened.transcript[0]).not.toMatchObject({ approval: { decidedSourceIndex: 0 } })
+  })
+
+  it('drops the card of a prompt the host no longer holds, leaving other rows as they were', () => {
+    const state = reduceAll([agent(approval), agent(question), agent(other)])
+    const withoutApproval = uiReducer(state, host({ type: 'promptDropped', approvalId: 'a1' }))
+    expect(withoutApproval.transcript[0]).toMatchObject({ kind: 'tool', id: 'c1' })
+    expect(withoutApproval.transcript[0]).not.toHaveProperty('approval', expect.anything())
+    expect(withoutApproval.transcript[1]).toBe(state.transcript[1])
+    expect(withoutApproval.transcript[2]).toBe(state.transcript[2])
+    const withoutQuestion = uiReducer(
+      withoutApproval,
+      host({ type: 'promptDropped', userInputId: 'u1' }),
+    )
+    expect(withoutQuestion.transcript[1]).not.toHaveProperty('question', expect.anything())
+    expect(hasPendingRequest(withoutQuestion)).toBe(false)
+  })
+
+  it('follows whether the host offers rename and fork', () => {
+    const refused = uiReducer(
+      initialUiState,
+      host({ type: 'sessionInfo', modelId: 'm', sessionId: 's1', canEditSessions: false }),
+    )
+    expect(refused.canEditSessions).toBe(false)
+    const offered = uiReducer(refused, host({ type: 'sessionInfo', modelId: 'm', sessionId: 's1' }))
+    expect(offered.canEditSessions).toBe(true)
+  })
+
+  it('leaves the controller’s own events alone', () => {
+    const state = reduceAll([agent(approval)])
+    expect(uiReducer(state, agent({ type: 'viewGap' }))).toBe(state)
+    expect(uiReducer(state, agent({ type: 'backendNotice', level: 'info', text: 'x' }))).toBe(state)
   })
 })

@@ -40,12 +40,32 @@ export class SessionNotLoadedError extends Error {
   }
 }
 
+/** Why the host refused a decision or answer that arrived too late (PLAN.md D26). */
+export type PromptSettledReason = 'alreadySettled' | 'movedOn' | 'gone'
+
+/**
+ * The prompt was answered elsewhere, advanced to another stage, or is no
+ * longer pending when this decision or answer arrived. Nothing is wrong: the
+ * card follows the host's own resolve / update events.
+ */
+export class PromptSettledError extends Error {
+  public constructor(
+    public readonly reason: PromptSettledReason,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'PromptSettledError'
+  }
+}
+
 export interface HostInfo {
   readonly kind: BackendKind
   readonly serverName: string
   readonly serverVersion: string
   /** Capabilities the host granted at handshake (`sessionMcp`, …). */
   readonly grantedCapabilities: readonly string[]
+  /** False where the host is known to refuse `rename` and `forkSession` (D26). */
+  readonly canEditSessions: boolean
 }
 
 export interface ModelSummary {
@@ -167,6 +187,8 @@ export interface LoadedSession {
   readonly session: AgentSession
   readonly record: SessionRecord
   readonly history: SessionHistoryOutcome
+  /** The turn running in the session as it was loaded, if any (D26). */
+  readonly activeTurnId: string | undefined
 }
 
 /** A stored session changed (a full row) or was unloaded. */

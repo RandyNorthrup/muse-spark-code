@@ -735,4 +735,18 @@ describe('Transcript replies (M25)', () => {
     fireEvent.blur(item, { relatedTarget: screen.getByLabelText('Fork or rewind') })
     expect(screen.queryByRole('menu')).toBeNull()
   })
+
+  it('offers the rewind alone where the host cannot fork (D26)', () => {
+    const onRewind = vi.fn()
+    renderTranscript(
+      [{ kind: 'user', seq: 1, id: 'u', text: 'hello', status: 'sent', attachments: [] }],
+      { onRewind },
+    )
+    fireEvent.click(screen.getByLabelText('Fork or rewind'))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Rewind code to here',
+    ])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind code to here' }))
+    expect(onRewind).toHaveBeenCalledWith('u')
+  })
 })
