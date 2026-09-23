@@ -174,7 +174,12 @@ writes the same layout; an existing file is opened, never overwritten.
 On the CLI backend Muse Code loads all of this itself (the extension starts
 it with `--trust-workspace`), plus its bundled skills and your user rules.
 On the Model API backend the extension loads the files above and nothing
-else; a file over 64 KB is skipped with a warning in the log. Its system
+else; a file over 64 KB is skipped with a warning in the log. These files
+may be UTF-8 or UTF-16 with a byte-order mark; one that is not text is
+skipped with a line in the log. A skill folder may be a symbolic link or
+junction: in the workspace it must lead to a place inside it or it is
+skipped, while links in the personal root are followed wherever they lead.
+Its system
 prompt also carries the date, the git branch, the number of changed files
 and the latest commit subjects at session start (metadata only), and a
 short set of working rules (read before editing, no commits unless asked,
@@ -208,7 +213,9 @@ thinking), Customize (permission mode, Focus view, settings, keybindings),
 Account & usage, Skills (the session's own), slash commands (`/compact`,
 `/clear`, `/logout`, `/usage`, `/cost`, `/agents`) and Support. The `+`
 button uploads images (PNG, JPEG, GIF, WebP; other files become `@`
-mentions) or starts a mention; images also paste and drop. The model pill
+mentions) or starts a mention; images also paste and drop. A path with a
+space, `#` or `"` is written in quotes, `@"my notes/a b.md"#5-10`, and the
+menu searches what you type after `@"`. The model pill
 reads `model effort` (effort tiers Minimal to Max, each verified per model);
 the mode button opens the Modes menu; the microphone dictates. While a turn
 runs, `Enter` steers it and Stop cancels it. The context indicator is a
@@ -273,7 +280,9 @@ panel shows a dot when Muse finished or needs a decision.
 
 **Diagnostics.** The agent can read the Problems panel through a
 `getDiagnostics` tool the extension serves on a loopback MCP server, bound to
-`127.0.0.1` with a per-window token. Nothing else is exposed.
+`127.0.0.1` with a per-window token. Nothing else is exposed. It reports the
+workspace's files only (the first folder), by relative path, each message
+cut at 1,000 characters.
 
 **Subagents.** When Muse Code spawns native subagents they appear as rows
 and an **N agents** pill in the header opens the **Agent map** (also
@@ -442,8 +451,11 @@ stopped and the next message resumes the same session.
   local window.
 - A trusted workspace for rules, skills, memory and shell commands; in
   Restricted Mode the panel chats and edits under approval, nothing more.
-  The first workspace folder is the root; virtual workspaces are not
-  supported.
+  The first workspace folder is the root: the open-file chip, `@` mentions,
+  drops, the Problems panel the agent reads and relative file links all
+  belong to it (a folder added inside it counts as part of it); a file in
+  another folder is mentioned by its absolute path. Virtual workspaces are
+  not supported.
 
 ## Privacy and security
 

@@ -3,7 +3,6 @@
 // touch a tool.
 
 import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
-import { subdirectoryNames } from './fakeContextIo'
 
 export interface MemoryToolIo extends ToolIo {
   readonly files: Map<string, string>
@@ -54,7 +53,6 @@ export function memoryToolIo(
     },
     listFiles: () =>
       Promise.resolve(Array.from(files.keys(), (absolute) => absolute.slice(root.length + 1))),
-    listDirectory: (absolutePath) => Promise.resolve(subdirectoryNames(files.keys(), absolutePath)),
     // A literal-substring matcher stands in for the worker; `(` is the one
     // pattern it calls invalid, as the real one would.
     searchFiles: (job) => {
@@ -88,7 +86,6 @@ export const noopToolIo: ToolIo = {
   writeFile: () => Promise.resolve(),
   hasUnsavedChanges: () => false,
   listFiles: () => Promise.resolve([]),
-  listDirectory: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),
   runShell: () =>
     Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }),

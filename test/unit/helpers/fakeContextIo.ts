@@ -25,7 +25,7 @@ export const encoded = {
 }
 
 /** The names of the subdirectories of `directory`, derived from the file paths beneath it. */
-export function subdirectoryNames(paths: Iterable<string>, directory: string): readonly string[] {
+function subdirectoryNames(paths: Iterable<string>, directory: string): readonly string[] {
   const prefix = `${forward(directory)}/`
   const names = new Set<string>()
   for (const key of paths) {

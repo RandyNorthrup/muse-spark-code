@@ -78,8 +78,8 @@ when at least one test failed with it in place (`scratchpad/prove-m24.log`:
   UTF-16 file cannot be recovered, and `ToolIo.listDirectory` keeps only
   `Dirent.isDirectory()` entries: a symbolic link, and on Windows a junction
   (probed: `isSymbolicLink()` true, `isDirectory()` false, Node 24.20), is
-  neither. The loaders therefore read through their own `ContextIo`; after
-  this branch `ToolIo.listDirectory` has no caller.
+  neither. The loaders therefore read through their own `ContextIo`, and
+  `ToolIo.listDirectory`, left without a caller, was removed on merging.
 - The rules loader read `AGENTS.md`, `CLAUDE.md` and `MEMORY.md` by their
   textual path: a committed symbolic link named `AGENTS.md` sent whatever it
   pointed at to the model in a trusted workspace. D24 confined the tools and

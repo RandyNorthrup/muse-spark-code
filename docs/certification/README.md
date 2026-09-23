@@ -36,5 +36,7 @@ The PNGs beside the records are that day's harness renders.
 - [M21](m21.md): security and confinement (audit section A, PLAN.md D24)
 - [M22](m22.md): processes and lifecycle (audit section B, PLAN.md D25)
 - [M23](m23.md): protocol and backend semantics (audit section C, PLAN.md D26)
+- [M24](m24.md): editing correctness (audit section D, PLAN.md D27), with
+  the context rows in [m24-context.md](m24-context.md)
 - [M25](m25.md): the audit, webview and UI state (PLAN.md D28)
 - [M26](m26.md): packaging, CI, platform and voice (PLAN.md D29)

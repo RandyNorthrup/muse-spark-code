@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { WorkspaceContext } from '../../src/core/context/workspaceContext'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { encoded } from './helpers/fakeContextIo'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { workspace: '', outside: '', skills: '', personal: '' }
 const links: string[] = []
@@ -52,8 +53,8 @@ afterAll(async () => {
   for (const at of links) {
     await rm(at, { force: true })
   }
-  await rm(paths.workspace, { recursive: true, force: true })
-  await rm(paths.outside, { recursive: true, force: true })
+  await removeFolder(paths.workspace)
+  await removeFolder(paths.outside)
 })
 
 describe('fileContextIo', () => {

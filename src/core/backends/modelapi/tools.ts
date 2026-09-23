@@ -94,8 +94,6 @@ export interface ToolIo {
   hasUnsavedChanges(absolutePath: string): boolean
   /** Workspace-relative, forward-slash paths of every listed file. */
   listFiles(): Promise<readonly string[]>
-  /** The names of the subdirectories of an absolute path; empty when it is missing. */
-  listDirectory(absolutePath: string): Promise<readonly string[]>
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
   searchFiles(job: SearchJob): Promise<SearchOutcome>
   /** A timeout or the signal kills the whole process tree (PLAN.md D25). */
