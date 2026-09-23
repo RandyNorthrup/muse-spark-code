@@ -1335,3 +1335,12 @@ never written anywhere. Extension page:
 https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code.
 Still open: the Model API path's live turn (the owner deleted the
 pay-as-you-go key on 2026-09-22; the fake-server contract tests stand).
+
+**0.1.1 (2026-09-22, later):** the VS Code floor dropped to `^1.125.0`
+after a clean VS Code 1.130.0 refused 0.1.0; the README was rewritten
+around the panel with a banner, screenshots and a social preview image
+(`npm run images`); Marketplace description, keywords and gallery banner
+refreshed; the GitHub About and topics set. The CI package of `d44ec56`
+installed and uninstalled cleanly on that 1.130 machine. Publishing 0.1.1
+and switching the repository to public wait for the owner's confirmation
+(the Marketplace README's images and badges load from the repository).
