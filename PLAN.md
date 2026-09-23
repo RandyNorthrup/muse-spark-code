@@ -1825,5 +1825,7 @@ step skipped without `VSCE_PAT`.
 0.4.0 (D18, M15): the pill that read "Starting Muse Code…" until clicked,
 transcript scrolling with a jump to the newest, chevrons, the response Copy,
 outputs and long diffs opening in the editor, the decision-error wording.
-Certified (`docs/certification/m15.md`), tagged `v0.4.1`
-(RELEASE_RUN_PLACEHOLDER).
+Certified (`docs/certification/m15.md`), tagged `v0.4.1`; run
+35823628224 went green on the first try: every job, the GitHub Release
+with `muse-spark-code-0.4.1.vsix` (542,559 bytes), the Marketplace publish
+step skipped without `VSCE_PAT`.
