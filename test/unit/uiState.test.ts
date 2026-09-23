@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentEvent } from '../../src/shared/agentEvents'
+import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
+import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import {
   canSend,
@@ -985,6 +986,7 @@ describe('uiReducer: session history (M6)', () => {
       {
         kind: 'subagent',
         id: 'sa1',
+        seq: 1,
         role: 'explorer',
         objective: 'Map the workspace',
         status: 'inProgress',
@@ -1363,5 +1365,456 @@ describe('subagent child output routing (M18)', () => {
       },
     })
     expect(state.transcript[0]).toMatchObject({ kind: 'subagent', resultText: 'ALPHA, as asked.' })
+  })
+})
+
+// --- M25 (PLAN.md D28): webview and UI state ---
+
+function sent(localId: string): UiAction {
+  return { type: 'submitted', localId, text: localId, attachments: [], contextLabel: undefined }
+}
+
+function acceptedAs(localId: string, turnId: string): UiAction {
+  return host({ type: 'turnAccepted', localId, turnId })
+}
+
+function editItem(itemId: string, patch: string, turnId?: string) {
+  return {
+    itemId,
+    kind: 'toolCall',
+    status: 'completed',
+    tool: 'edit_file',
+    args: '{}',
+    patchRef: { id: patch, byteLen: 10 },
+    ...(turnId !== undefined && { turnId }),
+  }
+}
+
+const agentRow = {
+  itemId: 'sa1',
+  kind: 'subagent',
+  status: 'inProgress',
+  turnId: 't1',
+  objective: 'edit notes',
+  subagentId: 'sub-1',
+  childSessionId: 'child-1',
+}
+
+function childRead(items: readonly ItemSnapshot[]): UiAction {
+  return host({ type: 'childTranscript', sessionId: 'child-1', items: [...items] })
+}
+
+function runningTool(itemId: string, extra: Partial<ItemSnapshot> = {}): UiAction {
+  return agent({
+    type: 'itemStarted',
+    item: { itemId, kind: 'toolCall', status: 'inProgress', tool: 'powershell', ...extra },
+  })
+}
+
+function toolEnded(status: string): UiAction {
+  return agent({
+    type: 'itemCompleted',
+    item: { itemId: 'sh1', kind: 'toolCall', status, tool: 'powershell' },
+  })
+}
+
+function outputChunk(offsetBytes: number, content: string): UiAction {
+  return host({
+    type: 'outputPage',
+    itemId: 'i',
+    outputRef: 'o',
+    offsetBytes,
+    byteLen: content.length,
+    content,
+    eof: false,
+  })
+}
+
+function entryOf(state: UiState, id: string) {
+  return state.transcript.find((entry) => entry.id === id)
+}
+
+describe("an agent's transcript read from its session (M25)", () => {
+  // The M20 regression: the read gave every row a fresh arrival number, so a
+  // rewind to any later message unwound the agent's edits too.
+  it('places the rows after the agent that made them, not after every message', () => {
+    const state = reduceAll([
+      sent('l1'),
+      acceptedAs('l1', 't1'),
+      agent({ type: 'itemStarted', item: agentRow }),
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+      sent('l2'),
+      acceptedAs('l2', 't2'),
+      agent({ type: 'itemCompleted', item: editItem('e2', 'p2', 't2') }),
+      host({
+        type: 'childTranscript',
+        sessionId: 'child-1',
+        items: [
+          { itemId: 'cu', kind: 'userMessage', status: 'completed', text: 'edit notes' },
+          editItem('c1', 'pc1'),
+          editItem('c2', 'pc2'),
+        ],
+      }),
+    ])
+    expect(editsAfter(state, 'l2')).toEqual([{ itemId: 'e2', outputRef: 'p2' }])
+    expect(editsAfter(state, 'l1').map((edit) => edit.itemId)).toEqual(['e2', 'c2', 'c1'])
+    // The read rows are indexed, so a delta for one of them lands in the agent's transcript.
+    const typed = uiReducer(
+      state,
+      agent({ type: 'textDelta', itemId: 'c1', field: 'output', delta: 'more' }),
+    )
+    expect(typed.childTranscripts['child-1']?.entries[1]).toMatchObject({ output: 'more' })
+  })
+
+  it('keeps the rows it already had live, with their numbers, and adds the rest', () => {
+    const live = reduceAll([
+      sent('l1'),
+      acceptedAs('l1', 't1'),
+      agent({ type: 'itemStarted', item: agentRow }),
+      agent({ type: 'itemCompleted', item: editItem('c1', 'pc1', 'child-1') }),
+    ])
+    const liveSeq = live.childTranscripts['child-1']?.entries[0]
+    const state = reduceAll(
+      [
+        sent('l2'),
+        host({
+          type: 'childTranscript',
+          sessionId: 'child-1',
+          name: 'Notes agent',
+          items: [editItem('c1', 'pc1'), editItem('c3', 'pc3')],
+        }),
+      ],
+      live,
+    )
+    const entries = state.childTranscripts['child-1']?.entries ?? []
+    expect(entries.map((entry) => entry.id)).toEqual(['c1', 'c3'])
+    expect(entries[0]).toBe(liveSeq)
+    expect(state.childTranscripts['child-1']?.name).toBe('Notes agent')
+    expect(editsAfter(state, 'l2')).toEqual([])
+    expect(editsAfter(state, 'l1').map((edit) => edit.itemId)).toEqual(['c3', 'c1'])
+  })
+
+  it('keeps a second read of the same session below the next message', () => {
+    const state = reduceAll([
+      sent('l1'),
+      acceptedAs('l1', 't1'),
+      agent({ type: 'itemStarted', item: agentRow }),
+      childRead([editItem('c1', 'pc1')]),
+      sent('l2'),
+      childRead([editItem('c1', 'pc1'), editItem('c4', 'pc4')]),
+    ])
+    expect(editsAfter(state, 'l2')).toEqual([])
+    expect(editsAfter(state, 'l1').map((edit) => edit.itemId)).toEqual(['c4', 'c1'])
+  })
+
+  it('leaves the rows out of any rewind when no agent row names the session', () => {
+    const state = reduceAll([
+      sent('l1'),
+      host({ type: 'childTranscript', sessionId: 'ghost', items: [editItem('g1', 'pg1')] }),
+    ])
+    expect(state.childTranscripts['ghost']?.entries[0]).toMatchObject({ completedSeq: undefined })
+    expect(editsAfter(state, 'l1')).toEqual([])
+  })
+})
+
+describe('the end of a turn settles what it left running (M25)', () => {
+  const approval = {
+    type: 'approvalRequested' as const,
+    approvalId: 'a1',
+    itemId: 'sh1',
+    toolName: 'powershell',
+    rawArgs: '{}',
+    requirementId: { approvalId: 'a1', sourceIndex: 0 },
+    subject: { kind: 'shell', command: 'ls' },
+    availableChoices: [],
+    isJudgeEscalated: false,
+    isProtectedWrite: false,
+  }
+
+  it('stops the reply and the thought, interrupts the tools and drops the cards', () => {
+    const state = reduceAll([
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      host(
+        {
+          type: 'agentEvent',
+          event: {
+            type: 'itemStarted',
+            item: { itemId: 'r1', kind: 'reasoning', status: 'inProgress' },
+          },
+        },
+        1000,
+      ),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress', text: 'Look' },
+      }),
+      runningTool('sh1'),
+      agent(approval),
+      runningTool('q1', { tool: 'request_user_input' }),
+      agent({ type: 'questionRequested', userInputId: 'u1', itemId: 'q1', questions: [] }),
+      runningTool('bg1', { background: true }),
+      host(
+        {
+          type: 'agentEvent',
+          event: { type: 'turnCompleted', turnId: 't1', terminal: 'cancelled' },
+        },
+        4000,
+      ),
+    ])
+    expect(state.activeTurnId).toBeUndefined()
+    expect(entryOf(state, 'm1')).toMatchObject({ isStreaming: false, text: 'Look' })
+    expect(entryOf(state, 'r1')).toMatchObject({ isStreaming: false, durationMs: 3000 })
+    expect(entryOf(state, 'sh1')).toMatchObject({ status: 'interrupted', approval: undefined })
+    expect(entryOf(state, 'q1')).toMatchObject({ status: 'interrupted', question: undefined })
+    // A backgrounded tool runs on past its turn (M14).
+    expect(entryOf(state, 'bg1')).toMatchObject({ status: 'inProgress', isBackground: true })
+    expect(hasPendingRequest(state)).toBe(false)
+    expect(state.announcement?.text).toBe('The turn was stopped')
+    // The host's own final word on a row still wins.
+    const late = uiReducer(
+      state,
+      agent({
+        type: 'itemCompleted',
+        item: { itemId: 'sh1', kind: 'toolCall', status: 'failed', tool: 'powershell' },
+      }),
+    )
+    expect(entryOf(late, 'sh1')).toMatchObject({ status: 'failed' })
+  })
+
+  it('reads a failed turn out with its reason', () => {
+    const state = reduceAll([
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'failed', reason: 'CLI exited' }),
+    ])
+    expect(state.announcement?.text).toBe('The turn failed: CLI exited')
+    expect(state.transcript).toEqual([{ kind: 'error', id: 'error:t1', text: 'CLI exited' }])
+  })
+
+  it("settles a subagent's own turn in its transcript and leaves the conversation running", () => {
+    const state = reduceAll([
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent({ type: 'itemStarted', item: agentRow }),
+      agent({ type: 'turnStarted', turnId: 'child-1' }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'cm', kind: 'agentMessage', status: 'inProgress', turnId: 'child-1' },
+      }),
+      agent({ type: 'turnCompleted', turnId: 'child-1', terminal: 'completed' }),
+    ])
+    expect(state.activeTurnId).toBe('t1')
+    expect(state.childTranscripts['child-1']?.entries[0]).toMatchObject({ isStreaming: false })
+    expect(state.announcement).toBeUndefined()
+    // An agent whose transcript holds nothing yet has nothing to settle.
+    const empty = reduceAll([
+      agent({
+        type: 'itemStarted',
+        item: { ...agentRow, itemId: 'sa2', childSessionId: 'child-2' },
+      }),
+    ])
+    expect(
+      uiReducer(empty, agent({ type: 'turnCompleted', turnId: 'child-2', terminal: 'completed' })),
+    ).toBe(empty)
+  })
+
+  it('starts nothing when the acceptance of a turn arrives after its end', () => {
+    const state = reduceAll([
+      sent('l1'),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+      acceptedAs('l1', 't1'),
+    ])
+    expect(state.activeTurnId).toBeUndefined()
+    expect(entryOf(state, 'l1')).toMatchObject({ status: 'sent', turnId: 't1' })
+    expect(uiReducer(state, acceptedAs('l1', 't2')).activeTurnId).toBe('t2')
+  })
+
+  it('reads a tool failure out once, as the row shows it', () => {
+    const state = reduceAll([runningTool('sh1'), toolEnded('failed')])
+    expect(state.announcement).toEqual({ text: 'PowerShell: Failed', sequence: 1 })
+    expect(uiReducer(state, toolEnded('failed')).announcement?.sequence).toBe(1)
+    expect(uiReducer(state, toolEnded('rejected')).announcement?.text).toBe('PowerShell: Rejected')
+  })
+})
+
+describe("a subagent's items before the row that names its session (M25)", () => {
+  it('move to its transcript, deltas included, once the row arrives', () => {
+    const state = reduceAll([
+      sent('l1'),
+      acceptedAs('l1', 't1'),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'cm1', kind: 'agentMessage', status: 'inProgress', turnId: 'child-1' },
+      }),
+      agent({ type: 'textDelta', itemId: 'cm1', field: 'text', delta: 'ALPHA' }),
+      agent({ type: 'itemStarted', item: agentRow }),
+      agent({ type: 'textDelta', itemId: 'cm1', field: 'text', delta: '!' }),
+    ])
+    expect(state.transcript.map((entry) => entry.id)).toEqual(['l1', 'sa1'])
+    expect(state.childTranscripts['child-1']).toEqual({
+      name: 'edit notes',
+      entries: [{ kind: 'assistant', id: 'cm1', text: 'ALPHA!', isStreaming: true }],
+    })
+  })
+
+  it("stay in the conversation when their turn turns out to be the conversation's", () => {
+    const state = reduceAll([
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress', turnId: 'resumed' },
+      }),
+      agent({ type: 'turnStarted', turnId: 'resumed' }),
+      agent({ type: 'itemStarted', item: { ...agentRow, childSessionId: 'resumed-child' } }),
+    ])
+    expect(state.transcript.map((entry) => entry.id)).toEqual(['m1', 'sa1'])
+    expect(state.strayItems).toEqual({})
+  })
+})
+
+describe('clears, restores and refusals (M25)', () => {
+  it("spends the echo of the panel's own clear, and clears for a keybinding", () => {
+    const state = reduceAll([sent('l1'), { type: 'conversationCleared' }, sent('l2')])
+    const echoed = uiReducer(state, host({ type: 'conversationCleared' }))
+    expect(echoed.transcript.map((entry) => entry.id)).toEqual(['l2'])
+    expect(echoed.pendingClearEchoes).toBe(0)
+    const keybinding = uiReducer(echoed, host({ type: 'conversationCleared' }))
+    expect(keybinding.transcript).toEqual([])
+  })
+
+  it('keeps a restored session id until a session is live or the user clears', () => {
+    const restored: UiState = { ...initialUiState, restoredSessionId: 'old' }
+    const warm = uiReducer(restored, host({ type: 'sessionInfo', modelId: 'm' }))
+    expect(warm.restoredSessionId).toBe('old')
+    expect(
+      uiReducer(warm, host({ type: 'sessionInfo', modelId: 'm', sessionId: 's' }))
+        .restoredSessionId,
+    ).toBeUndefined()
+    expect(
+      uiReducer(warm, host({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] }))
+        .restoredSessionId,
+    ).toBeUndefined()
+    expect(uiReducer(warm, { type: 'conversationCleared' }).restoredSessionId).toBeUndefined()
+  })
+
+  it('keeps a restored conversation only when the host holds its session live', () => {
+    const restored: UiState = {
+      ...initialUiState,
+      draft: 'half typed',
+      restoredSessionId: 'old',
+      pendingRestore: { sessionId: 's1', isTranscriptOmitted: false },
+      transcript: [
+        { kind: 'assistant', id: 'm1', text: 'Working', isStreaming: true },
+        {
+          kind: 'tool',
+          id: 'sh1',
+          tool: 'powershell',
+          args: '{}',
+          status: 'inProgress',
+          output: '',
+          isBackground: false,
+          approval: {
+            approvalId: 'a1',
+            requirementId: { approvalId: 'a1', sourceIndex: 0 },
+            subject: { kind: 'shell' },
+            rawArgs: '{}',
+            availableChoices: [],
+            isProtectedWrite: false,
+            isJudgeEscalated: false,
+          },
+        },
+      ],
+    }
+    const running = uiReducer(
+      restored,
+      host({ type: 'surfaceState', sessionId: 's1', activeTurnId: 't1' }),
+    )
+    expect(running.pendingRestore).toBeUndefined()
+    expect(running.activeTurnId).toBe('t1')
+    expect(running.transcript).toBe(restored.transcript)
+    expect(hasPendingRequest(running)).toBe(true)
+    const ended = uiReducer(restored, host({ type: 'surfaceState', sessionId: 's1' }))
+    expect(entryOf(ended, 'm1')).toMatchObject({ isStreaming: false })
+    expect(hasPendingRequest(ended)).toBe(false)
+    const other = uiReducer(restored, host({ type: 'surfaceState', sessionId: 's2' }))
+    expect(other.transcript).toEqual([])
+    expect(other.draft).toBe('half typed')
+    expect(other.restoredSessionId).toBe('old')
+    const omitted = uiReducer(
+      { ...initialUiState, pendingRestore: { sessionId: 's1', isTranscriptOmitted: true } },
+      host({ type: 'surfaceState', sessionId: 's1' }),
+    )
+    expect(omitted.transcript).toMatchObject([
+      { kind: 'notice', level: 'info', text: UI_TEXT.snapshotTooLong },
+    ])
+    // Without a restore the host's running turn is simply taken.
+    expect(
+      uiReducer(initialUiState, host({ type: 'surfaceState', sessionId: 's1', activeTurnId: 't9' }))
+        .activeTurnId,
+    ).toBe('t9')
+  })
+
+  it('brings the chips of a refused message back to the composer', () => {
+    const refused = reduceAll([
+      host({ type: 'attachmentAdded', attachment }),
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'see',
+        attachments: [attachment],
+        contextLabel: undefined,
+      },
+      host({ type: 'attachmentAdded', attachment: { ...attachment, id: 'att-2' } }),
+      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first' }),
+    ])
+    expect(refused.attachments.map((chip) => chip.id)).toEqual(['att-1', 'att-2'])
+    expect(refused.unsentAttachments).toEqual({})
+    const accepted = reduceAll(
+      [
+        {
+          type: 'submitted',
+          localId: 'l2',
+          text: 'again',
+          attachments: [attachment],
+          contextLabel: undefined,
+        },
+        acceptedAs('l2', 't2'),
+        host({ type: 'sendFailed', localId: 'l2', reason: 'late' }),
+      ],
+      refused,
+    )
+    expect(accepted.attachments).toEqual([])
+  })
+
+  it('locks a question card once answered or cancelled', () => {
+    const asked = reduceAll([
+      agent({ type: 'questionRequested', userInputId: 'u1', itemId: 'q1', questions: [] }),
+      { type: 'questionSubmitted', userInputId: 'u1' },
+    ])
+    expect(entryOf(asked, 'q1')).toMatchObject({ question: { isSubmitted: true } })
+    expect(uiReducer(asked, { type: 'questionSubmitted', userInputId: 'other' })).toEqual(asked)
+  })
+
+  it('says why an image was refused for its size, and raises local notices', () => {
+    const large = reduceAll([
+      host({ type: 'attachmentRejected', name: 'big.png', reason: UI_TEXT.attachmentTooLarge }),
+    ])
+    expect(large.banner).toBe(`big.png: ${UI_TEXT.attachmentTooLarge}`)
+    const refused = reduceAll([
+      { type: 'attachmentRefused', name: 'many.png', reason: UI_TEXT.attachmentLimit },
+    ])
+    expect(refused.banner).toBe(`many.png: ${UI_TEXT.attachmentLimit}`)
+    expect(refused.announcement?.text).toBe(`many.png: ${UI_TEXT.attachmentLimit}`)
+    const noticed = reduceAll([{ type: 'noticeRaised', level: 'warning', text: 'careful' }])
+    expect(noticed.transcript).toMatchObject([{ kind: 'notice', level: 'warning' }])
+    expect(noticed.announcement?.text).toBe('careful')
+  })
+
+  it('chains output pages by offset and drops a page that does not follow', () => {
+    const state = reduceAll([
+      outputChunk(0, 'abc'),
+      outputChunk(3, 'de'),
+      outputChunk(3, 'de'),
+      outputChunk(9, 'zz'),
+    ])
+    expect(state.outputPages['i:o']).toEqual({ content: 'abcde', isEof: false, nextOffset: 5 })
   })
 })

@@ -1,6 +1,7 @@
 // The permission card under a gated tool call: what Muse wants to do, one
 // button per host-offered choice (Allow once / Always allow … / Reject), and a
-// feedback box for choices that accept it.
+// feedback box for choices that accept it. The row keys the card by stage,
+// so the feedback box starts empty on every stage of a multi-command line (M25).
 
 import { useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
@@ -69,6 +70,7 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
       {hasFeedbackChoice ? (
         <textarea
           className="approval-feedback"
+          dir="auto"
           rows={2}
           placeholder={UI_TEXT.approvalFeedbackPlaceholder}
           value={feedback}

@@ -65,6 +65,12 @@ const SCENARIOS = [
   'agents-details',
   'composer-grow',
   'composer-max',
+  'cancelled',
+  'restored',
+  'rtl',
+  'history-archived',
+  'long-patch',
+  'size-refused',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'

@@ -425,6 +425,8 @@ describe('ConversationController.surfaceReady', () => {
     const t = setup()
     t.controller.surfaceReady()
     expect(t.surface.posted).toEqual([
+      // M25: first, the live session and turn a reloaded webview checks its saved state against.
+      { type: 'surfaceState' },
       { type: 'authState', status: 'signedIn' },
       composerState,
       { type: 'dictationState', status: 'unavailable', reason: 'no helper in tests' },
@@ -435,6 +437,7 @@ describe('ConversationController.surfaceReady', () => {
     t.surface.posted.length = 0
     t.controller.surfaceReady()
     expect(t.surface.posted).toEqual([
+      { type: 'surfaceState', sessionId: 's1', activeTurnId: 't1' },
       { type: 'authState', status: 'signedIn' },
       composerState,
       { type: 'dictationState', status: 'unavailable', reason: 'no helper in tests' },
@@ -796,8 +799,11 @@ describe('ConversationController: composer controls', () => {
       level: 'error',
       text: expect.stringContaining('Compaction failed') as string,
     })
+    t.surface.posted.length = 0
     await t.controller.handle({ type: 'clearConversation' })
     expect(t.host.sessionCount).toBe(0)
+    // M25: the webview drops its transcript too, however the clear came (a keybinding too).
+    expect(t.surface.posted[0]).toEqual({ type: 'conversationCleared' })
     expect(t.surface.posted.at(-1)).toEqual({ type: 'attachmentsCleared' })
     await t.controller.handle({ type: 'compact' })
     expect(t.server.requestsFor('session/start')).toHaveLength(2)

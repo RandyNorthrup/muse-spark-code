@@ -709,6 +709,23 @@ export const WINDOWS_PSMODULEPATH_SEGMENTS = {
   systemRoot: ['System32', 'WindowsPowerShell', 'v1.0', 'Modules'],
 } as const
 
+// --- Webview state (M25, PLAN.md D28) ---
+
+// The panel keeps its conversation in VS Code's webview state so the crash
+// screen's Reload, or a panel moved to another window, comes back with it:
+// saved at most this often while it changes, and at once before a reload.
+export const WEBVIEW_STATE_SAVE_MS = 1000
+// A conversation whose saved form is longer than this (UTF-16 code units, as
+// JSON.stringify counts them) keeps only its session id; History reopens it.
+export const WEBVIEW_STATE_MAX_CHARS = 8 * 1024 * 1024
+// The saved shape's version; a snapshot of any other version is ignored.
+export const WEBVIEW_SNAPSHOT_VERSION = 1
+// Chromium names a key an input method consumes "Process" (keyCode 229): it
+// belongs to the composition, not to the composer.
+export const IME_PROCESS_KEY = 'Process'
+// The status a tool row takes when its turn ended without finishing it.
+export const TOOL_STATUS_INTERRUPTED = 'interrupted'
+
 // User-visible copy. Mirrors the Claude Code panel wording where the parity
 // checklist calls for it.
 export const UI_TEXT = {
@@ -716,6 +733,13 @@ export const UI_TEXT = {
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
   crashReload: 'Reload',
+  // M25 (PLAN.md D28): webview and UI state.
+  toolInterrupted: 'Interrupted',
+  thoughtDone: 'Thought',
+  quoteCopy: 'Copy',
+  snapshotTooLong:
+    'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
+  linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
   // Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start there; M26, D29).
   composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',

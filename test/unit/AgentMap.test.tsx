@@ -13,6 +13,7 @@ import {
 const explorer: SubagentEntry = {
   kind: 'subagent',
   id: 'sa1',
+  seq: 1,
   role: 'explorer',
   objective: 'Map the workspace',
   status: 'completed',

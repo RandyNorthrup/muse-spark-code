@@ -2,6 +2,8 @@
 // the wire (2026-09-21): the stored `tool_patch` JSON document fetched with
 // `item/readOutput` (unified hunks with line numbers), and the edit tool's
 // `visibleOutput`, a headerless unified diff used until the document arrives.
+// A file with Windows line ends keeps them in both; the row text drops the
+// carriage return (M25), so a CRLF file shows no stray blank rows or marks.
 
 import { ADD_MARKER, parsePatchFiles, REMOVE_MARKER } from '../shared/patchDocument'
 
@@ -18,6 +20,8 @@ export interface FileDiff {
 }
 
 const HUNK_SEPARATOR: DiffRow = { kind: 'hunk', oldLine: undefined, newLine: undefined, text: '' }
+const LINE_BREAK = /\r?\n/
+const TRAILING_CR = /\r$/
 const HUNK_HEADER = '@@'
 const OLD_FILE_HEADER = '--- '
 const NEW_FILE_HEADER = '+++ '
@@ -35,7 +39,7 @@ function rowsOfHunk(lines: readonly string[], oldStart: number, newStart: number
   let newLine = newStart
   for (const line of lines) {
     const kind = kindOf(line.charAt(0))
-    const text = line.slice(1)
+    const text = line.slice(1).replace(TRAILING_CR, '')
     rows.push({
       kind,
       oldLine: kind === 'add' ? undefined : oldLine,
@@ -72,7 +76,7 @@ export function parsePatchDocument(json: string): readonly FileDiff[] | undefine
  * on, without line numbers. Undefined when there is no hunk at all.
  */
 export function parseUnifiedText(text: string): readonly DiffRow[] | undefined {
-  const lines = text.split('\n')
+  const lines = text.split(LINE_BREAK)
   const start = lines.findIndex((line) => line.startsWith(HUNK_HEADER))
   if (start === -1) {
     return undefined

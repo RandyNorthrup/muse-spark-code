@@ -71,4 +71,22 @@ describe('MarkdownView', () => {
     fireEvent.click(screen.getByText('Apply'))
     expect(onApply).toHaveBeenCalledWith('print(1)')
   })
+
+  it('gives every block its own text direction (M25)', () => {
+    renderMarkdown(
+      '# عنوان\n\n> שלום\n\n- item\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n## two\n\n### three',
+    )
+    for (const text of ['عنوان', 'item', 'a', '1', 'two', 'three']) {
+      expect(screen.getByText(text)).toHaveAttribute('dir', 'auto')
+    }
+    expect(screen.getByText('שלום').closest('blockquote')).toHaveAttribute('dir', 'auto')
+  })
+
+  it('does nothing for an anchor, and hands a relative link to the host without a file opener (M25)', () => {
+    const { onOpenLink } = renderMarkdown('[top](#top) and [notes](notes.md)')
+    fireEvent.click(screen.getByRole('link', { name: 'top' }))
+    expect(onOpenLink).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('link', { name: 'notes' }))
+    expect(onOpenLink).toHaveBeenCalledWith('notes.md')
+  })
 })

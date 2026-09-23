@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
 import {
   type DictationAction,
@@ -16,13 +24,7 @@ import {
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
-import {
-  type LineRange,
-  parseHostToWebviewMessage,
-  type PersistedState,
-  type SignInMethod,
-  type WebviewToHostMessage,
-} from '../shared/protocol'
+import type { LineRange, SignInMethod, WebviewToHostMessage } from '../shared/protocol'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AgentMap } from './components/AgentMap'
 import { Composer, type ImageData } from './components/Composer'
@@ -38,6 +40,7 @@ import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
 import { TodoPanel } from './components/TodoPanel'
 import { Transcript } from './components/Transcript'
+import { createUiStore, listenToHost, type UiStore } from './state/store'
 import {
   canSend,
   agentsOf,
@@ -47,19 +50,22 @@ import {
   initialUiState,
   referenceLabel,
   type UiState,
-  uiReducer,
   visibleEditorContext,
 } from './state/uiState'
 import type { QuoteIntent } from './components/QuoteMenu'
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
+  /**
+   * The UI store. main.tsx owns one that outlives a crashed tree and keeps
+   * reducing host messages under the crash screen (M25); without one the
+   * app makes its own and listens to the host itself (the tests).
+   */
+  readonly store?: UiStore
   /** Injected so tests get deterministic ids. */
   readonly newLocalId?: () => string
   /** Injected so tests get deterministic timestamps. */
   readonly now?: () => number
-  /** Keeps the shown session in the webview state, for the reload serializer (D15). */
-  readonly persistState?: (state: PersistedState) => void
 }
 
 /** What floats above the composer: a palette view, a menu or the History dialog. */
@@ -120,11 +126,17 @@ const defaultNow = () => Date.now()
 
 export function App({
   postMessage,
+  store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
-  persistState,
 }: AppProps) {
-  const [state, dispatch] = useReducer(uiReducer, initialUiState)
+  // Callbacks read the store's current state when they run instead of
+  // closing over it, so they keep their identity across renders and the
+  // memoised transcript rows skip a keystroke or a delta elsewhere (M25).
+  const [store] = useState(() => externalStore ?? createUiStore(initialUiState))
+  const [isOwnStore] = useState(externalStore === undefined)
+  const state = useSyncExternalStore(store.subscribe, store.getState)
+  const { dispatch } = store
   const [overlay, setOverlay] = useState<Overlay | undefined>(undefined)
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
@@ -135,6 +147,7 @@ export function App({
   // "new below" means it changed since, while they were away from the end.
   const bodyRef = useRef<HTMLElement>(null)
   const [isPinnedToEnd, setIsPinnedToEnd] = useState(true)
+  const isPinnedRef = useRef(isPinnedToEnd)
   const [seenTranscript, setSeenTranscript] = useState(state.transcript)
   const hasNewBelow =
     !isPinnedToEnd && state.transcript !== seenTranscript && state.transcript.length > 0
@@ -144,8 +157,8 @@ export function App({
       body.scrollTop = body.scrollHeight
     }
     setIsPinnedToEnd(true)
-    setSeenTranscript(state.transcript)
-  }, [state.transcript])
+    setSeenTranscript(store.getState().transcript)
+  }, [store])
   const onBodyScroll = useCallback(() => {
     const body = bodyRef.current
     if (body === null) {
@@ -153,9 +166,13 @@ export function App({
     }
     const isAtEnd = body.scrollHeight - body.scrollTop - body.clientHeight <= SCROLL_END_SLACK_PX
     setIsPinnedToEnd(isAtEnd)
-    setSeenTranscript(state.transcript)
-  }, [state.transcript])
+    setSeenTranscript(store.getState().transcript)
+  }, [store])
   useEffect(() => {
+    isPinnedRef.current = isPinnedToEnd
+  }, [isPinnedToEnd])
+  // Before paint, so a new row never shows a frame above the end.
+  useLayoutEffect(() => {
     const body = bodyRef.current
     if (isPinnedToEnd && body !== null) {
       body.scrollTop = body.scrollHeight
@@ -163,31 +180,34 @@ export function App({
   }, [state.transcript, isPinnedToEnd])
 
   useEffect(() => {
-    const onMessage = (event: MessageEvent<unknown>) => {
-      const parsed = parseHostToWebviewMessage(event.data)
-      if (!parsed.ok) {
-        console.warn(`Dropped malformed host message: ${parsed.error}`)
-        return
-      }
-      dispatch({ type: 'hostMessage', message: parsed.message, at: now() })
-    }
-    window.addEventListener('message', onMessage)
+    const stop = isOwnStore ? listenToHost(store, window, now) : undefined
     postMessage({ type: 'ready' })
     return () => {
-      window.removeEventListener('message', onMessage)
+      stop?.()
     }
-  }, [postMessage, now])
+  }, [store, isOwnStore, postMessage, now])
 
+  // Focus anywhere in the panel makes it the surface the keybindings act on
+  // (M25): New Conversation clears the conversation the user was looking at.
   useEffect(() => {
-    persistState?.(state.sessionId === undefined ? {} : { sessionId: state.sessionId })
-  }, [persistState, state.sessionId])
+    const onFocus = () => {
+      postMessage({ type: 'surfaceFocused' })
+    }
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [postMessage])
 
-  const onDraftChange = useCallback((draft: string) => {
-    dispatch({ type: 'draftChanged', draft })
-  }, [])
+  const onDraftChange = useCallback(
+    (draft: string) => {
+      dispatch({ type: 'draftChanged', draft })
+    },
+    [dispatch],
+  )
   const onInsertApplied = useCallback(() => {
     dispatch({ type: 'insertApplied' })
-  }, [])
+  }, [dispatch])
   const onFocusChange = useCallback(
     (isFocused: boolean) => {
       postMessage({ type: 'inputFocusChanged', focused: isFocused })
@@ -196,26 +216,28 @@ export function App({
   )
   // The header button starts a new conversation in this surface, as in
   // Claude Code; a new editor tab is Ctrl+Shift+Esc or the view-title `+`.
+  // The host echoes the clear back; the reducer spends that echo (M25).
   const onNewConversation = useCallback(() => {
     dispatch({ type: 'conversationCleared' })
     postMessage({ type: 'clearConversation' })
-  }, [postMessage])
+  }, [dispatch, postMessage])
   const onSubmit = useCallback(() => {
-    const text = state.draft.trim()
-    if (!canSend(state)) {
+    const current = store.getState()
+    if (!canSend(current)) {
       return
     }
+    const text = current.draft.trim()
     const localId = newLocalId()
-    const attachmentIds = state.attachments.map((attachment) => attachment.id)
+    const attachmentIds = current.attachments.map((attachment) => attachment.id)
     // The open-file chip travels with the message: the host adds the context.
-    const editorContext = visibleEditorContext(state)
+    const editorContext = visibleEditorContext(current)
     dispatch({
       type: 'submitted',
       localId,
       text,
-      attachments: state.attachments,
+      attachments: current.attachments,
       contextLabel: editorContext === undefined ? undefined : editorContextLabel(editorContext),
-      reference: state.reference,
+      reference: current.reference,
     })
     postMessage({
       type: 'sendMessage',
@@ -223,14 +245,14 @@ export function App({
       text,
       attachmentIds,
       includeEditorContext: editorContext !== undefined,
-      ...(state.reference !== undefined && { reference: state.reference }),
+      ...(current.reference !== undefined && { reference: current.reference }),
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [state, newLocalId, postMessage])
+  }, [store, dispatch, newLocalId, postMessage])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
-  }, [])
+  }, [dispatch])
   // Replying to an output and quoting a highlighted passage (M17): both set
   // the composer's reference chip; the message carries it as context.
   const [quoteMenu, setQuoteMenu] = useState<
@@ -238,10 +260,10 @@ export function App({
   >(undefined)
   const onDismissReference = useCallback(() => {
     dispatch({ type: 'referenceCleared' })
-  }, [])
+  }, [dispatch])
   const onReply = useCallback(
     (entryId: string) => {
-      const entry = state.transcript.find((candidate) => candidate.id === entryId)
+      const entry = store.getState().transcript.find((candidate) => candidate.id === entryId)
       if (entry?.kind !== 'assistant') {
         return
       }
@@ -251,7 +273,7 @@ export function App({
       })
       dispatch({ type: 'focusRequested' })
     },
-    [state.transcript],
+    [store, dispatch],
   )
   const onTranscriptContextMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {
     const selection = window.getSelection()
@@ -286,8 +308,16 @@ export function App({
       setQuoteMenu(undefined)
       dispatch({ type: 'focusRequested' })
     },
-    [quoteMenu],
+    [quoteMenu, dispatch],
   )
+  // Our menu replaces the browser's on a selection, so it carries the
+  // browser's Copy too (M25).
+  const onCopyQuote = useCallback(() => {
+    if (quoteMenu !== undefined) {
+      postMessage({ type: 'copyText', text: quoteMenu.text })
+    }
+    setQuoteMenu(undefined)
+  }, [quoteMenu, postMessage])
   const onHideOnboarding = useCallback(() => {
     postMessage({ type: 'hostAction', action: 'hideOnboarding' })
   }, [postMessage])
@@ -363,6 +393,9 @@ export function App({
     },
     [postMessage],
   )
+  const onRefuseLink = useCallback(() => {
+    dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.linkOutsideWorkspace })
+  }, [dispatch])
   const onDecide = useCallback(
     (decision: ApprovalDecisionInput) => {
       dispatch({
@@ -378,29 +411,36 @@ export function App({
         ...(decision.feedback !== undefined && { feedback: decision.feedback }),
       })
     },
-    [postMessage],
+    [dispatch, postMessage],
   )
+  // Both lock the card until the host settles the question (M25).
   const onAnswer = useCallback(
     (userInputId: string, answers: readonly QuestionAnswer[]) => {
+      dispatch({ type: 'questionSubmitted', userInputId })
       postMessage({ type: 'answerQuestion', userInputId, answers: [...answers] })
     },
-    [postMessage],
+    [dispatch, postMessage],
   )
   const onCancelQuestion = useCallback(
     (userInputId: string) => {
+      dispatch({ type: 'questionSubmitted', userInputId })
       postMessage({ type: 'cancelQuestion', userInputId })
     },
-    [postMessage],
+    [dispatch, postMessage],
   )
   const onCyclePermissionMode = useCallback(() => {
+    const current = store.getState()
     postMessage({
       type: 'setPermissionMode',
-      mode: nextPermissionMode(state.permissionMode, canBypass),
+      mode: nextPermissionMode(
+        current.permissionMode,
+        current.settings?.allowDangerouslySkipPermissions ?? false,
+      ),
     })
-  }, [postMessage, state.permissionMode, canBypass])
+  }, [store, postMessage])
   const openOverlay = useCallback(
     (view: Overlay) => {
-      if ((view === 'actions' || view === 'models') && state.skills === undefined) {
+      if ((view === 'actions' || view === 'models') && store.getState().skills === undefined) {
         postMessage({ type: 'listSkills' })
       }
       if (view === 'history') {
@@ -411,12 +451,12 @@ export function App({
       }
       setOverlay(view)
     },
-    [postMessage, state.skills],
+    [store, postMessage],
   )
   const closeOverlay = useCallback(() => {
     setOverlay(undefined)
     dispatch({ type: 'focusRequested' })
-  }, [])
+  }, [dispatch])
   // Every composer button toggles what it opens: a second click closes.
   const toggleOverlay = useCallback(
     (view: Overlay) => {
@@ -476,7 +516,13 @@ export function App({
   }, [postMessage])
   const onDismissBanner = useCallback(() => {
     dispatch({ type: 'bannerDismissed' })
-  }, [])
+  }, [dispatch])
+  const onRefuseFile = useCallback(
+    (name: string, reason: string) => {
+      dispatch({ type: 'attachmentRefused', name, reason })
+    },
+    [dispatch],
+  )
   const onResumeSession = useCallback(
     (sessionId: string) => {
       postMessage({ type: 'resumeSession', sessionId })
@@ -500,7 +546,7 @@ export function App({
   // message there is nothing to keep, so it is a new conversation.
   const onFork = useCallback(
     (entryId: string) => {
-      const cut = forkCutBefore(state.transcript, entryId)
+      const cut = forkCutBefore(store.getState().transcript, entryId)
       if (cut === undefined) {
         return
       }
@@ -510,22 +556,22 @@ export function App({
       }
       postMessage({ type: 'forkSession', lastTurnId: cut.lastTurnId })
     },
-    [state.transcript, onNewConversation, postMessage],
+    [store, onNewConversation, postMessage],
   )
   // "Rewind code to here": the host reverts the edits after that message,
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
     (entryId: string) => {
-      postMessage({ type: 'rewindCode', edits: [...editsAfter(state, entryId)] })
+      postMessage({ type: 'rewindCode', edits: [...editsAfter(store.getState(), entryId)] })
     },
-    [state, postMessage],
+    [store, postMessage],
   )
   const onRemoveAttachment = useCallback(
     (id: string) => {
       dispatch({ type: 'attachmentRemoved', id })
       postMessage({ type: 'removeAttachment', id })
     },
-    [postMessage],
+    [dispatch, postMessage],
   )
   const onSearchMentions = useCallback(
     (requestId: number, query: string) => {
@@ -578,14 +624,15 @@ export function App({
       // "Add context": start an @-mention where the caret is; the mention
       // menu opens as soon as the `@` lands. A mention token must follow
       // whitespace, so one is added after a non-blank draft.
-      const isSpaceNeeded = state.draft !== '' && !WHITESPACE_END.test(state.draft)
+      const { draft } = store.getState()
+      const isSpaceNeeded = draft !== '' && !WHITESPACE_END.test(draft)
       dispatch({
         type: 'insertRequested',
         text: `${isSpaceNeeded ? ' ' : ''}${MENTION_TRIGGER}`,
       })
       setOverlay(undefined)
     },
-    [postMessage, state.draft],
+    [store, dispatch, postMessage],
   )
   const onPaletteAction = useCallback(
     (action: PaletteAction) => {
@@ -601,8 +648,7 @@ export function App({
           break
         }
         case 'clearConversation': {
-          dispatch({ type: 'conversationCleared' })
-          postMessage({ type: 'clearConversation' })
+          onNewConversation()
           closeOverlay()
           break
         }
@@ -628,7 +674,7 @@ export function App({
           break
         }
         case 'toggleThinking': {
-          postMessage({ type: 'setThinking', enabled: !state.isThinkingEnabled })
+          postMessage({ type: 'setThinking', enabled: !store.getState().isThinkingEnabled })
           break
         }
         case 'openPermissionModes': {
@@ -672,7 +718,7 @@ export function App({
         }
       }
     },
-    [postMessage, closeOverlay, openOverlay, state.isThinkingEnabled],
+    [store, dispatch, postMessage, closeOverlay, openOverlay, onNewConversation],
   )
 
   const paletteGroups = useMemo(
@@ -712,6 +758,7 @@ export function App({
       })),
     [canBypass, state.permissionMode, state.auth.backend],
   )
+  const agents = agentsOf(state)
   const effortLevels = effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
@@ -721,9 +768,42 @@ export function App({
     [onSelectEffort, effortLevels, state.effort],
   )
 
+  const isShellReady = state.settings !== undefined && state.pendingRestore === undefined
+  // The first commit of the conversation itself (not the "Connecting…" shell):
+  // a crash after it is not the restored state's doing (M25).
+  useLayoutEffect(() => {
+    if (isShellReady) {
+      store.noteRendered()
+    }
+  }, [store, isShellReady])
+  const isBodyGated = isGated(state)
+  const hasTranscript = state.transcript.length > 0
+  // Height changes that are not new rows keep the pin too (M25): the
+  // composer growing, the task list appearing, a patch page arriving, a row
+  // opening. The body and each of its children are watched.
+  useEffect(() => {
+    const body = bodyRef.current
+    if (body === null || typeof ResizeObserver === 'undefined') {
+      return
+    }
+    const observer = new ResizeObserver(() => {
+      if (isPinnedRef.current) {
+        body.scrollTop = body.scrollHeight
+      }
+    })
+    observer.observe(body)
+    for (const child of body.children) {
+      observer.observe(child)
+    }
+    return () => {
+      observer.disconnect()
+    }
+  }, [isShellReady, isBodyGated, hasTranscript])
+
   const title = state.title ?? UI_TEXT.untitledConversation
 
-  if (state.settings === undefined) {
+  if (state.settings === undefined || state.pendingRestore !== undefined) {
+    // A restored panel waits for the host to confirm its conversation (M25).
     return (
       <div className="app">
         <Header title={title} isFocusView={false} onNewConversation={onNewConversation} />
@@ -738,7 +818,7 @@ export function App({
 
   const isRunning = state.activeTurnId !== undefined
   let body
-  if (isGated(state)) {
+  if (isBodyGated) {
     body = (
       <SignIn
         status={state.auth.status}
@@ -749,15 +829,7 @@ export function App({
         onOpenExternal={onOpenExternal}
       />
     )
-  } else if (state.transcript.length === 0) {
-    body = (
-      <EmptyState
-        hint={state.emptyStateHint}
-        isOnboardingShown={!state.settings.hideOnboarding}
-        onHideOnboarding={onHideOnboarding}
-      />
-    )
-  } else {
+  } else if (hasTranscript) {
     body = (
       <Transcript
         entries={state.transcript}
@@ -775,12 +847,22 @@ export function App({
         onApply={onApply}
         onOpenEditDiff={onOpenEditDiff}
         onOpenFile={onOpenFile}
+        onRefuseLink={onRefuseLink}
         onFork={state.sessionId === undefined ? undefined : onFork}
         onRewind={state.sessionId === undefined ? undefined : onRewind}
         onReply={onReply}
         quoteMenuEntryId={quoteMenu?.entryId}
         onQuote={onQuote}
+        onCopyQuote={onCopyQuote}
         onCloseQuoteMenu={onCloseQuoteMenu}
+      />
+    )
+  } else {
+    body = (
+      <EmptyState
+        hint={state.emptyStateHint}
+        isOnboardingShown={!state.settings.hideOnboarding}
+        onHideOnboarding={onHideOnboarding}
       />
     )
   }
@@ -857,7 +939,6 @@ export function App({
       break
     }
   }
-  const agents = agentsOf(state)
   const agentMap =
     overlay === 'agents' ? (
       <AgentMap
@@ -903,6 +984,9 @@ export function App({
         onClose={closeOverlay}
       />
     ) : null
+  // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
+  // the rest of the panel is inert.
+  const isModalOpen = overlay === 'usage' || overlay === 'agents'
 
   return (
     <div className="app">
@@ -911,7 +995,7 @@ export function App({
           <span key={state.announcement.sequence}>{state.announcement.text}</span>
         )}
       </div>
-      <div className="header-area">
+      <div className="header-area" inert={isModalOpen}>
         <Header
           title={title}
           isFocusView={state.settings.focusView}
@@ -928,7 +1012,8 @@ export function App({
       {agentMap}
       <main
         ref={bodyRef}
-        className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}
+        className={hasTranscript ? 'body body-transcript' : 'body'}
+        inert={isModalOpen}
         onScroll={onBodyScroll}
         onContextMenu={onTranscriptContextMenu}
       >
@@ -945,8 +1030,8 @@ export function App({
           </button>
         ) : null}
       </main>
-      <TodoPanel items={state.todos} />
-      <div className="composer-area">
+      <TodoPanel items={state.todos} isInert={isModalOpen} />
+      <div className="composer-area" inert={isModalOpen}>
         {floating}
         <Composer
           draft={state.draft}
@@ -986,6 +1071,7 @@ export function App({
           onRemoveAttachment={onRemoveAttachment}
           onSearchMentions={onSearchMentions}
           onAttachImage={onAttachImage}
+          onRefuseFile={onRefuseFile}
           onDroppedUris={onDroppedUris}
           onCompact={onCompact}
           banner={state.banner}

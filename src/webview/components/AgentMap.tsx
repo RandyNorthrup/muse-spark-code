@@ -13,6 +13,7 @@ import {
   type SubagentAction,
   UI_TEXT,
 } from '../../shared/constants'
+import type { TokenUsage } from '../../shared/agentEvents'
 import { formatTokenWindow } from '../../shared/palette'
 import type { ChildTranscript, TranscriptEntry } from '../state/uiState'
 import { Modal } from './Modal'
@@ -138,10 +139,15 @@ export function formatDurationMs(durationMs: number): string {
   return minutes === 0 ? `${String(seconds)}s` : `${String(minutes)}m ${String(seconds)}s`
 }
 
+/** The figure the map shows for an agent: its input and output tokens together. */
+function totalTokens(usage: TokenUsage): number {
+  return usage.inputTokens + usage.outputTokens
+}
+
 function agentTokens(agent: SubagentEntry): string | undefined {
   return agent.usage === undefined
     ? undefined
-    : `${formatTokenWindow(agent.usage.inputTokens + agent.usage.outputTokens)} ${UI_TEXT.agentTokens}`
+    : `${formatTokenWindow(totalTokens(agent.usage))} ${UI_TEXT.agentTokens}`
 }
 
 function agentMeta(agent: SubagentEntry): string {

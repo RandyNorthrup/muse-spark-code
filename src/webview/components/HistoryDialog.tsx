@@ -2,9 +2,11 @@
 // Yesterday / Previous 7 days / Older, a search box over titles and
 // branches, Archive / Unarchive per row and a "Show archived" switch.
 // Keyboard-operable like the palette: the search box keeps focus, Up/Down
-// move, Enter resumes the active row, Esc closes.
+// move, Enter resumes the active row, Esc closes. The search box keeps the
+// focus through a "Show archived" toggle too (M25): the switch used to take
+// it, and the arrows, Enter and Esc stopped working until the next click.
 
-import { type KeyboardEvent, useEffect, useMemo, useState } from 'react'
+import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import {
   groupSessions,
@@ -135,6 +137,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
   const [query, setQuery] = useState('')
   const [isShowingArchived, setIsShowingArchived] = useState(false)
   const [storedIndex, setActiveIndex] = useState(0)
+  const search = useRef<HTMLInputElement>(null)
   const nowMs = now()
 
   const options = useMemo(
@@ -246,11 +249,33 @@ export function HistoryDialog(props: HistoryDialogProps) {
     )
   }
 
+  // Anything taking the focus outside the dialog closes it.
+  const onDialogBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      onClose()
+    }
+  }
+  const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // The search box handles its own Escape.
+    if (event.key !== 'Escape' || event.target === search.current) {
+      return
+    }
+    event.preventDefault()
+    onClose()
+  }
+
   return (
-    <div className="palette history" role="dialog" aria-label={UI_TEXT.historyLabel}>
+    <div
+      className="palette history"
+      role="dialog"
+      aria-label={UI_TEXT.historyLabel}
+      onBlur={onDialogBlur}
+      onKeyDown={onDialogKeyDown}
+    >
       <div className="palette-header">
         <HistoryIcon />
         <input
+          ref={search}
           className="palette-filter"
           type="text"
           role="combobox"
@@ -268,20 +293,22 @@ export function HistoryDialog(props: HistoryDialogProps) {
             setActiveIndex(0)
           }}
           onKeyDown={handleKeyDown}
-          onBlur={(event) => {
-            // The archived switch takes focus while toggled; anything else closes.
-            if (!event.currentTarget.parentElement?.parentElement?.contains(event.relatedTarget)) {
-              onClose()
-            }
-          }}
         />
-        <label className="history-toggle">
+        <label
+          className="history-toggle"
+          onMouseDown={(event) => {
+            // A click toggles the switch without taking the focus.
+            event.preventDefault()
+          }}
+        >
           <input
             type="checkbox"
             checked={isShowingArchived}
             onChange={(event) => {
               setIsShowingArchived(event.target.checked)
               setActiveIndex(0)
+              // Toggled from the keyboard: back to the search box and its keys.
+              search.current?.focus()
             }}
           />
           {UI_TEXT.historyShowArchived}

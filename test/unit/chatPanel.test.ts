@@ -22,14 +22,17 @@ function restore(state: unknown, title = 'Untitled') {
 }
 
 describe('restoreChatPanel (M12)', () => {
-  it('wires the rebuilt panel and hands out the stored session id once', () => {
+  it('wires the rebuilt panel and keeps the stored session id until it is resumed (M12, M25)', () => {
     const { registry, panel } = restore({ sessionId: 'old' })
     expect(panel.webview.html).toContain('<script nonce=')
     expect(registry.active?.id).toMatch(/^panel:[0-9a-f-]{36}$/)
     expect(registry.active?.takeRestoredSessionId()).toBe('old')
-    expect(registry.active?.takeRestoredSessionId()).toBeUndefined()
+    // A later ready (the crash screen's Reload) may try the resume again.
+    expect(registry.active?.takeRestoredSessionId()).toBe('old')
     panel.webview.messages.fire({ type: 'ready' })
     expect(panel.webview.postMessage).toHaveBeenCalledOnce()
+    registry.active?.post({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
+    expect(registry.active?.takeRestoredSessionId()).toBeUndefined()
   })
 
   it('restores an empty panel for state that is not ours', () => {
@@ -100,6 +103,24 @@ describe('openChatPanel', () => {
     expect(registry.size).toBe(0)
     panel.webview.messages.fire({ type: 'ready' })
     expect(panel.webview.postMessage).not.toHaveBeenCalled()
+  })
+
+  // M25: New Conversation (Ctrl+N) acted on the surface that last had the
+  // composer focused, which could be a panel other than the one in front.
+  it('becomes the active surface when it turns active or its document takes focus (M25)', () => {
+    const registry = new SurfaceRegistry()
+    const first = openFakePanel(registry)
+    const firstSurface = registry.active
+    const second = openFakePanel(registry)
+    expect(registry.active).not.toBe(firstSurface)
+    first.panel.active = true
+    first.panel.viewStateChanges.fire({ webviewPanel: first.panel })
+    expect(registry.active).toBe(firstSurface)
+    second.panel.webview.messages.fire({ type: 'surfaceFocused' })
+    expect(registry.active).not.toBe(firstSurface)
+    first.panel.active = false
+    first.panel.viewStateChanges.fire({ webviewPanel: first.panel })
+    expect(registry.active).not.toBe(firstSurface)
   })
 
   it('names the tab after the conversation and marks it while inactive', () => {

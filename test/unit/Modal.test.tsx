@@ -27,4 +27,24 @@ describe('Modal', () => {
     fireEvent.mouseDown(dialog)
     expect(onClose).toHaveBeenCalledTimes(3)
   })
+
+  it('keeps Tab inside the dialog, wrapping at both ends (M25)', () => {
+    render(
+      <Modal title="Account" titleId="t" onClose={vi.fn()}>
+        <button type="button">first in body</button>
+        <button type="button">last</button>
+      </Modal>,
+    )
+    const dialog = screen.getByRole('dialog')
+    const close = screen.getByLabelText('Close')
+    const last = screen.getByText('last')
+    last.focus()
+    expect(fireEvent.keyDown(dialog, { key: 'Tab' })).toBe(false)
+    expect(document.activeElement).toBe(close)
+    expect(fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })).toBe(false)
+    expect(document.activeElement).toBe(last)
+    // In the middle, Tab moves as usual.
+    screen.getByText('first in body').focus()
+    expect(fireEvent.keyDown(dialog, { key: 'Tab' })).toBe(true)
+  })
 })

@@ -2,15 +2,22 @@
 // reasoning rows, tool rows (with approval / question cards), generic items,
 // errors and notices, and the status line while a turn runs. Focus view
 // collapses tool and reasoning rows behind one expandable row per run.
+//
+// Every row is memoised and every callback the app passes is stable (M25), so
+// a keystroke in the composer renders no row and a streamed delta renders
+// only the row it changes. The rows carry no alert roles: the app's single
+// live region reads failures and turn ends out once (M25).
 
-import { type ReactNode, useDeferredValue, useState } from 'react'
+import { memo, type ReactNode, useDeferredValue, useRef, useState } from 'react'
 import type { QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
-import { splitForStreaming } from '../streamSplit'
+import { splitForStreaming, splitOpenFence } from '../streamSplit'
+import { useDismiss } from '../useDismiss'
 import type { ApprovalDecisionInput } from './ApprovalCard'
 import { formatDurationMs } from './AgentMap'
 import { useCopiedFlag } from '../useCopiedFlag'
+import { CodeBlock } from './CodeBlock'
 import { CheckIcon, CopyIcon, FileIcon, ImageIcon, MoreIcon, ReplyIcon, RewindIcon } from './icons'
 import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
@@ -36,16 +43,19 @@ export interface TranscriptProps {
   /** Code block Apply and edit review (M5). */
   readonly onApply: (text: string) => void
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
-  /** A tool row's path: the file at its change (M16). */
+  /** A tool row's path, or a reply's relative link: the file (M16, M25). */
   readonly onOpenFile: ToolRowProps['onOpenFile']
+  /** A reply's link to a file outside the workspace (M25). */
+  readonly onRefuseLink?: (() => void) | undefined
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
   /** A reply's actions menu (M17); absent while no session exists. */
   readonly onReply?: ((entryId: string) => void) | undefined
-  /** The row whose highlighted text has the Ask / Comment menu open (M17). */
+  /** The row whose highlighted text has the Copy / Ask / Comment menu open (M17). */
   readonly quoteMenuEntryId?: string | undefined
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
+  readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
 }
 
@@ -90,7 +100,18 @@ export function segment(entries: readonly TranscriptEntry[], isFocusView: boolea
   return segments
 }
 
-function UserCard({
+/** Escape inside an open menu closes it and stays inside the row. */
+function closeOnEscape(isOpen: boolean, close: () => void) {
+  return (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!isOpen || event.key !== 'Escape') {
+      return
+    }
+    event.stopPropagation()
+    close()
+  }
+}
+
+const UserCard = memo(function UserCard({
   entry,
   onFork,
   onRewind,
@@ -106,6 +127,11 @@ function UserCard({
     entry.contextLabel !== undefined ||
     entry.referenceLabel !== undefined
   const [isMenuOpen, setMenuOpen] = useState(false)
+  const menuArea = useRef<HTMLDivElement>(null)
+  const closeMenu = () => {
+    setMenuOpen(false)
+  }
+  const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
   const hasMenu = onFork !== undefined && onRewind !== undefined && entry.status === 'sent'
   const choose = (choice: RewindChoice) => {
     setMenuOpen(false)
@@ -121,13 +147,7 @@ function UserCard({
       className={`message message-user message-${entry.status}`}
       data-entry-id={entry.id}
       data-role="user"
-      onKeyDown={(event) => {
-        if (!isMenuOpen || event.key !== 'Escape') {
-          return
-        }
-        event.stopPropagation()
-        setMenuOpen(false)
-      }}
+      onKeyDown={closeOnEscape(isMenuOpen, closeMenu)}
     >
       {hasChips ? (
         <ul className="chips chips-strip" aria-label={UI_TEXT.attachmentsLabel}>
@@ -140,7 +160,9 @@ function UserCard({
           {entry.referenceLabel === undefined ? null : (
             <li className="chip" title={UI_TEXT.referenceTitle}>
               <ReplyIcon />
-              <span className="chip-name">{entry.referenceLabel}</span>
+              <span className="chip-name" dir="auto">
+                {entry.referenceLabel}
+              </span>
             </li>
           )}
           {entry.attachments.map((attachment) => (
@@ -156,14 +178,12 @@ function UserCard({
           ))}
         </ul>
       ) : null}
-      <div className="message-text">{entry.text}</div>
-      {entry.status === 'failed' ? (
-        <div className="message-error" role="alert">
-          {entry.reason}
-        </div>
-      ) : null}
+      <div className="message-text" dir="auto">
+        {entry.text}
+      </div>
+      {entry.status === 'failed' ? <div className="message-error">{entry.reason}</div> : null}
       {hasMenu ? (
-        <div className="rewind">
+        <div ref={menuArea} className="rewind" onBlur={onMenuBlur}>
           <button
             type="button"
             className="rewind-button"
@@ -199,18 +219,22 @@ function UserCard({
       {quoteMenu}
     </li>
   )
-}
+})
 
 /**
  * Assistant text. While a reply streams it is rendered in two parts: a
  * stable head (memoised, re-rendered only when the split point moves) and a
  * tail that re-parses per delta, so the per-delta cost stays that of one
- * paragraph rather than the whole reply (docs/certification/m4.md). The
- * value is also deferred so React never blocks input on that render.
+ * paragraph rather than the whole reply (docs/certification/m4.md). A code
+ * fence still open at the end of the tail is shown as plain text outside the
+ * markdown and highlighted once it closes (M25). The value is also deferred
+ * so React never blocks input on that render.
  */
 interface AssistantRowProps {
   readonly entry: Extract<TranscriptEntry, { kind: 'assistant' }>
   readonly onOpenLink: (url: string) => void
+  readonly onOpenFile: ToolRowProps['onOpenFile']
+  readonly onRefuseLink: (() => void) | undefined
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
   readonly onApply: (text: string) => void
@@ -220,9 +244,11 @@ interface AssistantRowProps {
   readonly quoteMenu: ReactNode
 }
 
-function AssistantRow({
+const AssistantRow = memo(function AssistantRow({
   entry,
   onOpenLink,
+  onOpenFile,
+  onRefuseLink,
   onCopy,
   onInsert,
   onApply,
@@ -231,31 +257,43 @@ function AssistantRow({
 }: AssistantRowProps) {
   const text = useDeferredValue(entry.text)
   const { head, tail } = entry.isStreaming ? splitForStreaming(text) : { head: '', tail: text }
-  const actions = { onOpenLink, onCopy, onInsert, onApply }
+  const { closed, open } = entry.isStreaming
+    ? splitOpenFence(tail)
+    : { closed: tail, open: undefined }
+  const actions = { onOpenLink, onOpenFile, onRefuseLink, onCopy, onInsert, onApply }
   const [isCopied, markCopied] = useCopiedFlag()
   const [isMenuOpen, setMenuOpen] = useState(false)
+  const menuArea = useRef<HTMLDivElement>(null)
+  const closeMenu = () => {
+    setMenuOpen(false)
+  }
+  const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
   return (
     <li
       className="message message-assistant"
       aria-busy={entry.isStreaming}
       data-entry-id={entry.id}
       data-role="assistant"
-      onKeyDown={(event) => {
-        if (!isMenuOpen || event.key !== 'Escape') {
-          return
-        }
-        event.stopPropagation()
-        setMenuOpen(false)
-      }}
+      onKeyDown={closeOnEscape(isMenuOpen, closeMenu)}
     >
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
       <div className="message-body">
         {head === '' ? null : <MarkdownView text={head} {...actions} />}
-        <MarkdownView text={tail} {...actions} />
+        {closed === '' ? null : <MarkdownView text={closed} {...actions} />}
+        {open === undefined ? null : (
+          <CodeBlock
+            code={open.code}
+            language={open.language}
+            isOpen
+            onCopy={onCopy}
+            onInsert={onInsert}
+            onApply={onApply}
+          />
+        )}
         {entry.isStreaming ? <span className="cursor" aria-hidden="true" /> : null}
       </div>
       {entry.isStreaming ? null : (
-        <div className="response-actions">
+        <div ref={menuArea} className="response-actions" onBlur={onMenuBlur}>
           <button
             type="button"
             className="rewind-button response-copy"
@@ -303,7 +341,7 @@ function AssistantRow({
       {quoteMenu}
     </li>
   )
-}
+})
 
 function StepsGroup({
   group,
@@ -332,7 +370,50 @@ function StepsGroup({
   )
 }
 
-export function Transcript(props: TranscriptProps) {
+function OtherRow({
+  entry,
+}: {
+  readonly entry: Exclude<TranscriptEntry, StepEntry | { kind: 'user' | 'assistant' }>
+}) {
+  switch (entry.kind) {
+    case 'subagent': {
+      return (
+        <li className="activity activity-subagent" data-status={entry.status}>
+          <span className="activity-kind">{UI_TEXT.subagentRowLabel}</span>
+          <span className="activity-status" dir="auto">
+            {[
+              entry.objective ?? entry.role ?? UI_TEXT.agentUntitled,
+              entry.durationMs === undefined ? undefined : formatDurationMs(entry.durationMs),
+              entry.status === 'inProgress'
+                ? UI_TEXT.agentRunning
+                : (entry.controlStatus ?? entry.status),
+            ]
+              .filter((part) => part !== undefined)
+              .join(' · ')}
+          </span>
+        </li>
+      )
+    }
+    case 'item': {
+      return (
+        <li className="activity" data-status={entry.status}>
+          <span className="activity-kind">{entry.itemKind}</span>
+          <span className="activity-status">{entry.text ?? entry.status}</span>
+        </li>
+      )
+    }
+    case 'error': {
+      return <li className="message message-error-card">{entry.text}</li>
+    }
+    case 'notice': {
+      return <li className={`notice notice-${entry.level}`}>{entry.text}</li>
+    }
+  }
+}
+
+const MemoOtherRow = memo(OtherRow)
+
+function TranscriptList(props: TranscriptProps) {
   const {
     entries,
     isRunning,
@@ -349,16 +430,21 @@ export function Transcript(props: TranscriptProps) {
     onApply,
     onOpenEditDiff,
     onOpenFile,
+    onRefuseLink,
     onFork,
     onRewind,
     onReply,
     quoteMenuEntryId,
     onQuote,
+    onCopyQuote,
     onCloseQuoteMenu,
   } = props
   const quoteMenuFor = (entryId: string): ReactNode =>
-    quoteMenuEntryId === entryId && onQuote !== undefined && onCloseQuoteMenu !== undefined ? (
-      <QuoteMenu onChoose={onQuote} onClose={onCloseQuoteMenu} />
+    quoteMenuEntryId === entryId &&
+    onQuote !== undefined &&
+    onCopyQuote !== undefined &&
+    onCloseQuoteMenu !== undefined ? (
+      <QuoteMenu onChoose={onQuote} onCopy={onCopyQuote} onClose={onCloseQuoteMenu} />
     ) : null
   const renderStep = (entry: StepEntry) =>
     entry.kind === 'reasoning' ? (
@@ -401,6 +487,8 @@ export function Transcript(props: TranscriptProps) {
             key={entry.id}
             entry={entry}
             onOpenLink={onOpenLink}
+            onOpenFile={onOpenFile}
+            onRefuseLink={onRefuseLink}
             onCopy={onCopy}
             onInsert={onInsert}
             onApply={onApply}
@@ -413,49 +501,8 @@ export function Transcript(props: TranscriptProps) {
       case 'tool': {
         return renderStep(entry)
       }
-      case 'subagent': {
-        return (
-          <li key={entry.id} className="activity activity-subagent" data-status={entry.status}>
-            <span className="activity-kind">{UI_TEXT.subagentRowLabel}</span>
-            <span className="activity-status">
-              {[
-                entry.objective ?? entry.role ?? UI_TEXT.agentUntitled,
-                entry.durationMs === undefined ? undefined : formatDurationMs(entry.durationMs),
-                entry.status === 'inProgress'
-                  ? UI_TEXT.agentRunning
-                  : (entry.controlStatus ?? entry.status),
-              ]
-                .filter((part) => part !== undefined)
-                .join(' · ')}
-            </span>
-          </li>
-        )
-      }
-      case 'item': {
-        return (
-          <li key={entry.id} className="activity" data-status={entry.status}>
-            <span className="activity-kind">{entry.itemKind}</span>
-            <span className="activity-status">{entry.text ?? entry.status}</span>
-          </li>
-        )
-      }
-      case 'error': {
-        return (
-          <li key={entry.id} className="message message-error-card" role="alert">
-            {entry.text}
-          </li>
-        )
-      }
-      case 'notice': {
-        return (
-          <li
-            key={entry.id}
-            className={`notice notice-${entry.level}`}
-            role={entry.level === 'error' ? 'alert' : 'status'}
-          >
-            {entry.text}
-          </li>
-        )
+      default: {
+        return <MemoOtherRow key={entry.id} entry={entry} />
       }
     }
   }
@@ -472,3 +519,6 @@ export function Transcript(props: TranscriptProps) {
     </ol>
   )
 }
+
+/** Memoised: a render of the app that changes none of its props renders no row (M25). */
+export const Transcript = memo(TranscriptList)

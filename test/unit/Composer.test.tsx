@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { DICTATION_HOLD_MS } from '../../src/shared/constants'
+import {
+  DICTATION_HOLD_MS,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_IMAGE_BYTES,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { Composer, type ComposerProps, rowsFor } from '../../src/webview/components/Composer'
 import { testSettings } from './helpers/fakes'
 
@@ -44,6 +49,7 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     onRemoveAttachment: vi.fn(),
     onSearchMentions: vi.fn(),
     onAttachImage: vi.fn(),
+    onRefuseFile: vi.fn(),
     onDroppedUris: vi.fn(),
     onCompact: vi.fn(),
     banner: undefined,
@@ -277,9 +283,59 @@ describe('Composer attachments', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: '12% context' }))
     expect(props.onCompact).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('alert')).toHaveTextContent('Unsupported file type: audio.node')
+    // Read out by the app's live region, not by an alert of its own (M25).
+    expect(screen.getByText(/Unsupported file type: audio\.node/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
     fireEvent.click(screen.getByLabelText('Dismiss'))
     expect(props.onDismissBanner).toHaveBeenCalledTimes(1)
+  })
+
+  // M25: an image the host would refuse was read and base64-encoded first,
+  // then posted, only to come back refused.
+  it('refuses an image over the size limit, or one too many, before reading it (M25)', async () => {
+    const { props, view, textarea } = renderComposer()
+    const huge = new File([Uint8Array.from([1])], 'huge.png', { type: 'image/png' })
+    Object.defineProperty(huge, 'size', { value: MAX_IMAGE_BYTES + 1 })
+    fireEvent.paste(textarea, { clipboardData: { files: [huge] } })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(props.onRefuseFile).toHaveBeenCalledWith('huge.png', UI_TEXT.attachmentTooLarge)
+    expect(props.onAttachImage).not.toHaveBeenCalled()
+    view.unmount()
+    const full = renderComposer({
+      attachments: Array.from({ length: MAX_ATTACHMENTS_PER_MESSAGE }, (_, index) => ({
+        ...attachment,
+        id: `att-${String(index)}`,
+      })),
+    })
+    const extra = new File([Uint8Array.from([2])], 'extra.png', { type: 'image/png' })
+    fireEvent.paste(full.textarea, { clipboardData: { files: [extra] } })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(full.props.onRefuseFile).toHaveBeenCalledWith('extra.png', UI_TEXT.attachmentLimit)
+    expect(full.props.onAttachImage).not.toHaveBeenCalled()
+  })
+})
+
+describe('Composer input methods (M25)', () => {
+  it('leaves the keys of an IME composition alone: Enter commits the candidate, not the message', () => {
+    const { props, textarea } = renderComposer()
+    expect(fireEvent.keyDown(textarea, { key: 'Enter', isComposing: true })).toBe(true)
+    expect(fireEvent.keyDown(textarea, { key: 'Process' })).toBe(true)
+    expect(props.onSubmit).not.toHaveBeenCalled()
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(props.onSubmit).toHaveBeenCalledOnce()
+  })
+
+  it('does not pick a mention with the Enter that ends a composition', () => {
+    const { props, view } = renderComposer()
+    type(view, props, '@a')
+    const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts']) })
+    expect(fireEvent.keyDown(textarea, { key: 'Enter', isComposing: true })).toBe(true)
+    expect(props.onDraftChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
   })
 })
 

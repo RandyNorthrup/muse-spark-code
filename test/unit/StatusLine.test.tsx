@@ -13,9 +13,12 @@ describe('StatusLine', () => {
     vi.useRealTimers()
   })
 
-  it('cycles through the verbs on its interval and wraps around', () => {
+  it('cycles through the verbs on its interval and wraps around, outside any live region (M25)', () => {
     render(<StatusLine />)
-    const status = screen.getByRole('status')
+    // The verb changes every few seconds; a live region here read each one out.
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(document.querySelector('[aria-live]')).toBeNull()
+    const status = screen.getByRole('listitem')
     expect(status).toHaveTextContent(STATUS_VERBS[0])
     act(() => {
       vi.advanceTimersByTime(STATUS_VERB_INTERVAL_MS)

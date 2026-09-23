@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from '../../src/host/views/ChatViewProvider'
 import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
-import { FakeWebviewView, fakeHostContext } from './helpers/fakes'
+import { FakeWebviewView, fakeHostContext, fakeSurface } from './helpers/fakes'
 
 function resolve() {
   const registry = new SurfaceRegistry()
@@ -44,6 +44,22 @@ describe('ChatViewProvider', () => {
     expect(view.badge).toBeUndefined()
     registry.active?.markUnread()
     expect(view.badge).toBeUndefined()
+  })
+
+  it('becomes the active surface when shown or focused (M25)', () => {
+    const registry = new SurfaceRegistry()
+    const view = new FakeWebviewView()
+    new ChatViewProvider(fakeHostContext(), registry).resolveWebviewView(view)
+    const sidebar = registry.active
+    const other = fakeSurface('panel:other')
+    registry.add(other)
+    registry.setActive(other)
+    view.visible = true
+    view.visibility.fire()
+    expect(registry.active).toBe(sidebar)
+    registry.setActive(other)
+    view.webview.messages.fire({ type: 'surfaceFocused' })
+    expect(registry.active).toBe(sidebar)
   })
 
   it('shows the conversation name as the view description, none for Untitled', () => {

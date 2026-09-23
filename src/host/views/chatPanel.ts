@@ -4,7 +4,8 @@
 // happened behind it (M6). After a window reload VS Code rebuilds the panel
 // through the serializer registered in extension.ts and hands back the
 // state the webview stored (its session id), so the tab resumes its
-// conversation (PLAN.md D15).
+// conversation (PLAN.md D15). A tab becomes the surface the keybindings act
+// on when it turns active or its document takes focus (M25).
 
 import * as vscode from 'vscode'
 import { CHAT_PANEL_VIEW_TYPE, UI_TEXT } from '../../shared/constants'
@@ -43,11 +44,18 @@ function attachChatPanel(
       title = name
       applyTitle()
     },
+    onFocused: (focused) => {
+      registry.setActive(focused)
+    },
   })
   const registration = registry.add(surface)
   registry.setActive(surface)
   panel.onDidChangeViewState((event) => {
-    if (!isUnread || !event.webviewPanel.active) {
+    if (!event.webviewPanel.active) {
+      return
+    }
+    registry.setActive(surface)
+    if (!isUnread) {
       return
     }
     isUnread = false
