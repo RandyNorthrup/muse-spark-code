@@ -1,7 +1,9 @@
 // The "Muse Spark: Diagnostics" report (PLAN.md D14): the facts a bug
 // report needs, as text for the log channel. Pure: the host gathers the
 // facts. Nothing secret is ever in it: credentials appear as booleans,
-// environment variables as a count, and the logger redacts on top.
+// environment variables as a count, the home directory as `~` (PLAN.md
+// D24: the report is meant to be pasted into a public issue), and the
+// logger redacts on top.
 
 import { PRODUCT_NAME } from '../../shared/constants'
 
@@ -31,12 +33,15 @@ export interface SupportFacts {
   readonly hasEnvironmentApiKey: boolean
   readonly dictation:
     { readonly isAvailable: true } | { readonly isAvailable: false; readonly reason: string }
+  /** The user's home directory, shown as `~` wherever a path contains it. */
+  readonly homeDir: string
 }
 
 const YES = 'yes'
 const NO = 'no'
 const NONE = 'none'
 const UNKNOWN = 'unknown'
+const HOME_ABBREVIATION = '~'
 
 function yesNo(isTrue: boolean): string {
   return isTrue ? YES : NO
@@ -49,7 +54,7 @@ export function renderSupportReport(facts: SupportFacts): string {
   const dictation = facts.dictation.isAvailable
     ? 'available'
     : `unavailable: ${facts.dictation.reason}`
-  return [
+  const text = [
     `${PRODUCT_NAME} diagnostics`,
     `extension: ${facts.extensionVersion}`,
     `vscode: ${facts.vscodeVersion} (remote: ${facts.remoteName ?? NONE})`,
@@ -63,4 +68,5 @@ export function renderSupportReport(facts: SupportFacts): string {
     `cli credential file: ${yesNo(facts.hasCliCredentialFile)}; stored model api key: ${yesNo(facts.hasStoredApiKey)}; META_API_KEY in environment: ${yesNo(facts.hasEnvironmentApiKey)}`,
     `voice dictation: ${dictation}`,
   ].join('\n')
+  return facts.homeDir === '' ? text : text.split(facts.homeDir).join(HOME_ABBREVIATION)
 }

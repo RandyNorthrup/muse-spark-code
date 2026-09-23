@@ -15,7 +15,12 @@ const ESCAPING = '{"files":[{"path":"../outside.txt","hunks":[]}]}'
 
 function setup(
   files: Record<string, string>,
-  options: { platform?: NodeJS.Platform; workspaceRoot?: string } = {},
+  options: {
+    platform?: NodeJS.Platform
+    workspaceRoot?: string
+    /** Canonical forms by path, as the file system would resolve links. */
+    realPaths?: Record<string, string>
+  } = {},
 ) {
   const disk = new Map(Object.entries(files))
   const writes: [string, string][] = []
@@ -26,6 +31,7 @@ function setup(
     platform: options.platform ?? 'linux',
     workspaceRoot: options.workspaceRoot ?? '/ws',
     readFile: (fsPath) => Promise.resolve(disk.get(fsPath)),
+    realPath: (fsPath) => Promise.resolve(options.realPaths?.[fsPath] ?? fsPath),
     writeFile: (fsPath, content) => {
       writes.push([fsPath, content])
       return Promise.resolve()
@@ -133,6 +139,25 @@ describe('EditReview on Windows paths', () => {
       { level: 'info', text: 'Reverted notes.md.' },
     ])
     expect(t.writes[0]).toEqual([String.raw`C:\ws\notes.md`, '# Notes\n\nfirst line\n'])
+  })
+
+  it('refuses a path that leaves the workspace through a junction (D24)', async () => {
+    const t = setup(
+      { [String.raw`C:\ws\linked\notes.md`]: '# Notes\n\nsecond line\nthird line\n' },
+      {
+        platform: 'win32',
+        workspaceRoot: String.raw`C:\ws`,
+        realPaths: { [String.raw`C:\ws\linked\notes.md`]: String.raw`D:\elsewhere\notes.md` },
+      },
+    )
+    const linked = PATCH.replace('"path":"notes.md"', '"path":"linked/notes.md"')
+    expect(await t.review.revert('i', linked)).toEqual([
+      {
+        level: 'warning',
+        text: 'linked/notes.md refused: the edited path is outside the workspace.',
+      },
+    ])
+    expect(t.writes).toHaveLength(0)
   })
 
   it('still refuses a file outside the workspace, prefix or not', async () => {

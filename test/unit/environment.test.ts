@@ -25,7 +25,11 @@ describe('describeEnvironment', () => {
       'log --oneline -5': 'abc one\ndef two\n',
     })
     await expect(
-      describeEnvironment({ runGit: fake.runGit, workspaceRoot: '/ws' }),
+      describeEnvironment({
+        runGit: fake.runGit,
+        workspaceRoot: '/ws',
+        isWorkspaceTrusted: () => true,
+      }),
     ).resolves.toEqual({
       git: { branch: 'main', changedFiles: 2, recentCommits: ['abc one', 'def two'] },
     })
@@ -35,12 +39,32 @@ describe('describeEnvironment', () => {
   it('has no git facts without a workspace or outside a repository', async () => {
     const fake = git({ 'rev-parse --abbrev-ref HEAD': new Error('fatal: not a git repository') })
     await expect(
-      describeEnvironment({ runGit: fake.runGit, workspaceRoot: undefined }),
+      describeEnvironment({
+        runGit: fake.runGit,
+        workspaceRoot: undefined,
+        isWorkspaceTrusted: () => true,
+      }),
     ).resolves.toEqual({ git: undefined })
     expect(fake.calls).toEqual([])
     await expect(
-      describeEnvironment({ runGit: fake.runGit, workspaceRoot: '/ws' }),
+      describeEnvironment({
+        runGit: fake.runGit,
+        workspaceRoot: '/ws',
+        isWorkspaceTrusted: () => true,
+      }),
     ).resolves.toEqual({ git: undefined })
+  })
+
+  it('runs no git at all in Restricted Mode (D24)', async () => {
+    const fake = git({ 'rev-parse --abbrev-ref HEAD': 'main\n' })
+    await expect(
+      describeEnvironment({
+        runGit: fake.runGit,
+        workspaceRoot: '/ws',
+        isWorkspaceTrusted: () => false,
+      }),
+    ).resolves.toEqual({ git: undefined })
+    expect(fake.calls).toEqual([])
   })
 
   it('lists no commits for a repository before its first one', async () => {
@@ -52,7 +76,11 @@ describe('describeEnvironment', () => {
       ),
     })
     await expect(
-      describeEnvironment({ runGit: fake.runGit, workspaceRoot: '/ws' }),
+      describeEnvironment({
+        runGit: fake.runGit,
+        workspaceRoot: '/ws',
+        isWorkspaceTrusted: () => true,
+      }),
     ).resolves.toEqual({ git: { branch: 'main', changedFiles: 0, recentCommits: [] } })
   })
 })

@@ -2,9 +2,12 @@
 // expression comes from the model, and a pathological one can hang the
 // thread that evaluates it (ReDoS); a worker can be terminated when it
 // overruns its budget, the extension host cannot. Reads the listed files,
-// skips binary and oversized ones, and reports the matching lines.
+// skips binary and oversized ones and any whose canonical path leaves the
+// workspace (a link to elsewhere, PLAN.md D24), and reports the matching
+// lines.
 
-import { readFile } from 'node:fs/promises'
+import { readFile, realpath, stat } from 'node:fs/promises'
+import path from 'node:path'
 import { parentPort, workerData } from 'node:worker_threads'
 import type { SearchHit, SearchJob, SearchOutcome } from '../../core/backends/modelapi/tools'
 import { SEARCH_MAX_FILE_BYTES, SEARCH_MAX_HITS } from '../../shared/constants'
@@ -29,6 +32,34 @@ function matchesIn(regex: RegExp, file: string, text: string, room: number): Sea
   return hits
 }
 
+function isInside(root: string, target: string): boolean {
+  const relative = path.relative(root, target)
+  return (
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  )
+}
+
+/** The file's text when it is a small, confined, readable text file. */
+async function searchableText(realRoot: string, absolute: string): Promise<string | undefined> {
+  try {
+    if (!isInside(realRoot, await realpath(absolute))) {
+      return undefined
+    }
+    const info = await stat(absolute)
+    if (!info.isFile() || info.size > SEARCH_MAX_FILE_BYTES) {
+      return undefined
+    }
+    const text = await readFile(absolute, 'utf8')
+    return isBinary(text) ? undefined : text
+  } catch {
+    // Vanished or unreadable since it was listed.
+    return undefined
+  }
+}
+
 async function run(job: SearchJob): Promise<SearchOutcome> {
   let regex: RegExp
   try {
@@ -40,21 +71,16 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
       reason: `invalid pattern: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
+  const realRoot = await realpath(job.root)
   const hits: SearchHit[] = []
   for (const file of job.files) {
     if (hits.length >= SEARCH_MAX_HITS) {
       break
     }
-    let text: string
-    try {
-      text = await readFile(file.absolute, 'utf8')
-    } catch {
-      continue
+    const text = await searchableText(realRoot, file.absolute)
+    if (text !== undefined) {
+      hits.push(...matchesIn(regex, file.relative, text, SEARCH_MAX_HITS - hits.length))
     }
-    if (text.length > SEARCH_MAX_FILE_BYTES || isBinary(text)) {
-      continue
-    }
-    hits.push(...matchesIn(regex, file.relative, text, SEARCH_MAX_HITS - hits.length))
   }
   return { ok: true, hits }
 }

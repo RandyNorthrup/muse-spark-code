@@ -4,14 +4,17 @@ import {
   type DictationAction,
   type EffortLevel,
   MUSE_DELEGATION_ENABLED,
-  PERMISSION_MODE_DETAILS,
   PERMISSION_MODE_LABELS,
   type SubagentAction,
   UI_TEXT,
 } from '../shared/constants'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
-import { availablePermissionModes, nextPermissionMode } from '../shared/permissionModes'
+import {
+  availablePermissionModes,
+  nextPermissionMode,
+  permissionModeDetail,
+} from '../shared/permissionModes'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import {
   type LineRange,
@@ -703,11 +706,11 @@ export function App({
       availablePermissionModes(canBypass).map((mode) => ({
         id: mode,
         label: PERMISSION_MODE_LABELS[mode],
-        detail: PERMISSION_MODE_DETAILS[mode],
+        detail: permissionModeDetail(mode, state.auth.backend),
         icon: modeIcon(mode),
         isChecked: mode === state.permissionMode,
       })),
-    [canBypass, state.permissionMode],
+    [canBypass, state.permissionMode, state.auth.backend],
   )
   const effortLevels = effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(

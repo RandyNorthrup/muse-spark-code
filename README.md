@@ -32,7 +32,10 @@ Muse Code CLI, or on a Meta Model API key, and never mixes the two.
   Auto (Bypass behind a setting), switched from the mode button or
   `Shift+Tab`. Gated commands arrive as approval cards with the CLI's own
   choices; questions from the agent arrive as question cards with radios,
-  checkboxes, tabs and an "Other" answer.
+  checkboxes, tabs and an "Other" answer. Writes to files that configure or
+  run code (git's hooks and config, `.vscode`, CI workflows, dev container
+  definitions, `AGENTS.md` and the agent's own skills) always ask, in every
+  mode but Bypass.
 - **Subagents on a map.** When Muse Code delegates, each agent is a row and an
   **N agents** pill opens the Agent map: role, status, tokens, each agent's own
   transcript, and the owner controls Muse Code provides (interrupt, stop, a
@@ -175,7 +178,23 @@ and the latest commit subjects at session start (metadata only), and a
 short set of working rules (read before editing, no commits unless asked,
 `path:line` references). In VS Code's
 **Restricted Mode** (an untrusted folder) neither backend loads rules, skills
-or memory and no shell command runs; trust the workspace to enable them.
+or memory, no shell command runs, and the extension runs no `git` (git reads
+the repository's own config, which can name programs to run): `@` mentions
+come from VS Code's file search and the prompt carries no git facts. Trust
+the workspace to enable them.
+
+**Permission modes in detail.** On the Model API backend Manual asks before
+every edit and every command; Edit automatically approves plain file edits
+and asks before commands; Auto runs edits and asks before commands (there is
+no safety-check model behind it on this backend); Plan refuses edits and
+commands. "Always allow in this session" on a command allows that exact
+command line again, nothing broader. On the Muse Code backend the CLI
+decides what to gate: in Manual it applies edits inside the workspace
+without an approval (verified with Muse Code 1.3.0), so Manual and Edit
+automatically differ only for the file approvals it does raise; it asks
+before commands and runs its own safety check in Auto. On both, a protected write (above) always shows a
+card, and the file tools refuse any path that leaves the workspace,
+including through a symbolic link or junction inside it.
 
 ## The panel
 
@@ -328,7 +347,12 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 The settings that choose what runs and what is billed (`initialPermissionMode`,
 `backend`, `shellSandbox`, `allowDangerouslySkipPermissions`, `museBinaryPath`,
 `environmentVariables`) are machine-scoped: they take effect from your user
-settings only, never from a repository's `.vscode/settings.json`.
+settings only, never from a repository's `.vscode/settings.json`. In a
+remote window (SSH, WSL, a dev container) machine settings live on the
+remote side, where a dev container definition can set them; there the
+extension never starts a conversation in Bypass permissions and asks you
+once before entering it. Turning `allowDangerouslySkipPermissions` off
+moves every open conversation out of Bypass at once.
 
 | Setting                           | Default  | Purpose                                                                                                                                                                                                                                               |
 | --------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -355,7 +379,9 @@ settings only, never from a repository's `.vscode/settings.json`.
 - The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
   a Meta account (subscription), or a Meta Model API key (pay as you go).
 - `git` on `PATH` for `.gitignore`-aware `@` mentions (optional; VS Code's
-  file search is used without it).
+  file search is used without it). The extension runs git only in a trusted
+  workspace and only from an absolute `PATH` entry, never a copy inside the
+  workspace.
 - Voice dictation: Windows, or macOS with Dictation or Siri enabled.
 - A trusted workspace for rules, skills, memory and shell commands; in
   Restricted Mode the panel chats and edits under approval, nothing more.
@@ -384,6 +410,13 @@ settings only, never from a repository's `.vscode/settings.json`.
   trusted workspace; on the Model API backend their text is part of what
   goes to Meta with each request, on the CLI backend Muse Code sends them
   under its own terms.
+- The Model API backend's file tools resolve every path through the file
+  system before touching it: a path that leaves the workspace, directly or
+  through a link, is refused, and Windows names that would be reinterpreted
+  (alternate data streams, device names, trailing dots) are refused too.
+  Its shell tool starts PowerShell or bash by absolute path with the
+  environment VS Code's own terminal would give (the editor's internal
+  variables removed).
 - The webview runs under a strict CSP (`default-src 'none'`, per-load script
   nonce, no remote origins, no inline styles); every message between host and
   webview is validated with a zod schema.

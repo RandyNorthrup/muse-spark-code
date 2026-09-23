@@ -168,6 +168,21 @@ describe('resolveMuseLaunch on POSIX', () => {
     })
   })
 
+  it('never probes an empty or relative PATH entry, which would be the workspace (D24)', () => {
+    const planted = ['muse', 'bin/muse', '/home/randy/.local/bin/muse']
+    expect(
+      resolveMuseLaunch(posixProbe(planted, { pathEntries: ['', '.', 'bin', '/usr/bin'] })),
+    ).toMatchObject({ launch: { command: '/home/randy/.local/bin/muse' } })
+  })
+
+  it('refuses a relative museBinaryPath instead of resolving it against the current directory', () => {
+    expect(resolveMuseLaunch(posixProbe(['muse'], { configuredPath: 'muse' }))).toEqual({
+      ok: false,
+      searched: ['muse'],
+      reason: 'museSpark.museBinaryPath must be an absolute path.',
+    })
+  })
+
   it('reports every candidate when nothing is installed', () => {
     expect(resolveMuseLaunch(posixProbe([], { platform: 'darwin' }))).toEqual({
       ok: false,
@@ -192,6 +207,22 @@ describe('buildChildEnvironment', () => {
       MUSE_HOME: 'D:/muse',
     })
     expect(env).not.toHaveProperty('META_API_KEY')
+  })
+
+  it('replaces an inherited variable whatever its spelling on Windows', () => {
+    const env = buildChildEnvironment({
+      platform: 'win32',
+      baseEnv: { PSMODULEPATH: 'C:/pwsh7/Modules', muse_home: 'old' },
+      extraVariables: [{ name: 'MUSE_HOME', value: 'new' }],
+      systemRoot: String.raw`C:\Windows`,
+      programFiles: String.raw`C:\Program Files`,
+    })
+    // Node would pass the first spelling in sort order; only one is left.
+    expect(Object.keys(env).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'MUSE_HOME',
+      'PSModulePath',
+    ])
+    expect(env['MUSE_HOME']).toBe('new')
   })
 
   it('leaves PSModulePath alone elsewhere and passes an environment key through untouched', () => {

@@ -2,8 +2,9 @@
 // list comes from `git ls-files --cached --others --exclude-standard`, which
 // applies every .gitignore exactly the way git does; when git is missing or
 // the folder is not a repository it falls back to VS Code's file search
-// (which honours `files.exclude` but not .gitignore). With the setting off
-// only the file search is used.
+// (which honours `files.exclude` but not .gitignore). With the setting off,
+// or in Restricted Mode (git would read the untrusted repository's own
+// config, PLAN.md D24), only the file search is used.
 
 import { GIT_LS_FILES_ARGS } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -11,6 +12,7 @@ import type { Logger } from '../logger'
 export interface WorkspaceFileListerDeps {
   readonly workspaceRoot: string
   readonly respectGitIgnore: () => boolean
+  readonly isWorkspaceTrusted: () => boolean
   /** Runs git with `args` in `cwd` and resolves stdout; rejects on any failure. */
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
   /** Workspace-relative paths (forward slashes) from `workspace.findFiles`. */
@@ -27,7 +29,7 @@ export function createWorkspaceFileLister(
   deps: WorkspaceFileListerDeps,
 ): () => Promise<readonly string[]> {
   return async () => {
-    if (!deps.respectGitIgnore()) {
+    if (!deps.respectGitIgnore() || !deps.isWorkspaceTrusted()) {
       return await deps.findFiles()
     }
     try {

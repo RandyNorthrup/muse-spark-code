@@ -31,7 +31,7 @@ import {
   type PatchHunk,
   REMOVE_MARKER,
 } from '../../../shared/patchDocument'
-import { isGlobMatch } from './glob'
+import { compileGlob } from './glob'
 import type { ToolClass } from './permissions'
 import type { FunctionToolDefinition } from './schemas'
 
@@ -45,6 +45,8 @@ export interface ShellResult {
 /** One `search` run: the model's pattern over the files that passed the glob. */
 export interface SearchJob {
   readonly pattern: string
+  /** The workspace root: a file whose canonical path leaves it is skipped (D24). */
+  readonly root: string
   readonly files: readonly { readonly relative: string; readonly absolute: string }[]
 }
 
@@ -71,6 +73,12 @@ export interface ToolIo {
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
   searchFiles(job: SearchJob): Promise<SearchOutcome>
   runShell(command: string, cwd: string, timeoutMs: number): Promise<ShellResult>
+  /**
+   * The canonical form of an absolute path: links, junctions and short
+   * names resolved through the nearest existing ancestor (PLAN.md D24).
+   * Rejects when the file system refuses to say (permissions, link loops).
+   */
+  realPath(absolutePath: string): Promise<string>
 }
 
 export interface ToolContext {
@@ -309,21 +317,112 @@ export function toolDefinitions(
 // --- paths ---
 
 export type PathResolution =
-  | { readonly ok: true; readonly absolute: string; readonly relative: string }
+  | {
+      readonly ok: true
+      readonly absolute: string
+      /** Workspace-relative, forward slashes, as the model named it. */
+      readonly relative: string
+      /**
+       * Workspace-relative, forward slashes, after links are resolved: what
+       * the permission rules judge (a link to `.git/hooks` is `.git/hooks`).
+       */
+      readonly canonical: string
+    }
   | { readonly ok: false; readonly reason: string }
 
-/** Resolves a model-given path inside the workspace, refusing escapes. */
+const PARENT_SEGMENT = '..'
+// Device names Windows resolves in every directory (`NUL`, `CON`, `COM1.txt`):
+// reading one can block on a console, writing one goes nowhere.
+const WINDOWS_RESERVED_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)(?:\..*)?$/i
+const WINDOWS_TRAILING_DOT_OR_SPACE = /[. ]$/
+
+function pathModule(platform: NodeJS.Platform): path.PlatformPath {
+  return platform === 'win32' ? path.win32 : path.posix
+}
+
+/** Whether a `path.relative` result stays below its base. */
+function isBelow(relative: string, p: path.PlatformPath): boolean {
+  return (
+    relative !== '' &&
+    relative !== PARENT_SEGMENT &&
+    !relative.startsWith(`${PARENT_SEGMENT}${p.sep}`) &&
+    !p.isAbsolute(relative)
+  )
+}
+
+/**
+ * Why a Windows path segment is refused, if it is: an alternate data stream
+ * (`a.txt:hidden`), a device name, or a trailing dot or space, which Windows
+ * strips (so `.git.` would be `.git`).
+ */
+function windowsSegmentProblem(segment: string): string | undefined {
+  if (segment.includes(':')) {
+    return 'names an alternate data stream'
+  }
+  if (WINDOWS_RESERVED_NAME.test(segment)) {
+    return 'names a Windows device'
+  }
+  return WINDOWS_TRAILING_DOT_OR_SPACE.test(segment)
+    ? 'ends a name with a dot or a space, which Windows drops'
+    : undefined
+}
+
+/** Resolves a model-given path inside the workspace by its text, refusing escapes. */
 export function resolveWorkspacePath(
   workspaceRoot: string,
   given: string,
   platform: NodeJS.Platform,
 ): PathResolution {
-  const p = platform === 'win32' ? path.win32 : path.posix
+  const p = pathModule(platform)
   const absolute = p.resolve(workspaceRoot, given)
   const relative = p.relative(workspaceRoot, absolute)
-  return relative === '' || relative.startsWith('..') || p.isAbsolute(relative)
-    ? { ok: false, reason: `path ${given} is outside the workspace` }
-    : { ok: true, absolute, relative: relative.split(p.sep).join('/') }
+  if (!isBelow(relative, p)) {
+    return { ok: false, reason: `path ${given} is outside the workspace` }
+  }
+  const segments = relative.split(p.sep)
+  if (platform === 'win32') {
+    for (const segment of segments) {
+      const problem = windowsSegmentProblem(segment)
+      if (problem !== undefined) {
+        return { ok: false, reason: `path ${given} ${problem}` }
+      }
+    }
+  }
+  const forward = segments.join('/')
+  return { ok: true, absolute, relative: forward, canonical: forward }
+}
+
+/**
+ * `resolveWorkspacePath`, then the same check on the canonical forms of the
+ * root and the target: a symbolic link or junction inside the workspace
+ * that leads outside it is refused (PLAN.md D24).
+ */
+export async function confineWorkspacePath(
+  workspaceRoot: string,
+  given: string,
+  platform: NodeJS.Platform,
+  io: Pick<ToolIo, 'realPath'>,
+): Promise<PathResolution> {
+  const textual = resolveWorkspacePath(workspaceRoot, given, platform)
+  if (!textual.ok) {
+    return textual
+  }
+  let realRoot: string
+  let realTarget: string
+  try {
+    ;[realRoot, realTarget] = await Promise.all([
+      io.realPath(workspaceRoot),
+      io.realPath(textual.absolute),
+    ])
+  } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error)
+    return { ok: false, reason: `path ${given} could not be resolved: ${detail}` }
+  }
+  const p = pathModule(platform)
+  const relative = p.relative(realRoot, realTarget)
+  return isBelow(relative, p)
+    ? { ...textual, canonical: relative.split(p.sep).join('/') }
+    : { ok: false, reason: `path ${given} leads outside the workspace through a link` }
 }
 
 // --- helpers ---
@@ -410,7 +509,12 @@ async function readFile(
   args: z.infer<typeof readFileArgs>,
   context: ToolContext,
 ): Promise<ToolOutcome> {
-  const resolved = resolveWorkspacePath(context.workspaceRoot, args.path, context.platform)
+  const resolved = await confineWorkspacePath(
+    context.workspaceRoot,
+    args.path,
+    context.platform,
+    context.io,
+  )
   if (!resolved.ok) {
     return failure(resolved.reason)
   }
@@ -446,7 +550,12 @@ async function located(
     }
   | { readonly ok: false; readonly outcome: ToolOutcome }
 > {
-  const resolved = resolveWorkspacePath(context.workspaceRoot, given, context.platform)
+  const resolved = await confineWorkspacePath(
+    context.workspaceRoot,
+    given,
+    context.platform,
+    context.io,
+  )
   if (!resolved.ok) {
     return { ok: false, outcome: failure(resolved.reason) }
   }
@@ -504,8 +613,13 @@ async function listMatching(
   context: ToolContext,
   glob: string | undefined,
 ): Promise<readonly string[]> {
+  if (glob === undefined) {
+    return await context.io.listFiles()
+  }
+  // Compiled before the listing, so a refused glob costs no file walk.
+  const matches = compileGlob(glob)
   const files = await context.io.listFiles()
-  return glob === undefined ? files : files.filter((file) => isGlobMatch(file, glob))
+  return files.filter((file) => matches(file))
 }
 
 /** The lines a search reports for its mode, capped at `limit`. */
@@ -544,6 +658,7 @@ async function search(
   }
   const outcome = await context.io.searchFiles({
     pattern: args.pattern,
+    root: context.workspaceRoot,
     files: candidates.map((relative) => ({
       relative,
       absolute: p.join(context.workspaceRoot, ...relative.split('/')),

@@ -9,7 +9,11 @@ export interface MemoryToolIo extends ToolIo {
   readonly shellCalls: { command: string; cwd: string; timeoutMs: number }[]
 }
 
-/** Files keyed by `${root}/${name}`; paths are compared with forward slashes. */
+/**
+ * Files keyed by `${root}/${name}`; paths are compared with forward slashes.
+ * `links` maps a workspace-relative directory to the absolute directory it
+ * really is (a symbolic link or junction), which `realPath` resolves.
+ */
 export function memoryToolIo(
   initial: Record<string, string>,
   root: string,
@@ -19,12 +23,23 @@ export function memoryToolIo(
     exitCode: 0,
     isTimedOut: false,
   }),
+  links: Record<string, string> = {},
 ): MemoryToolIo {
   const files = new Map(Object.entries(initial).map(([name, text]) => [`${root}/${name}`, text]))
   const shellCalls: MemoryToolIo['shellCalls'] = []
   return {
     files,
     shellCalls,
+    realPath: (absolutePath) => {
+      const forward = absolutePath.replaceAll('\\', '/')
+      for (const [relative, target] of Object.entries(links)) {
+        const link = `${root}/${relative}`
+        if (forward === link || forward.startsWith(`${link}/`)) {
+          return Promise.resolve(`${target}${forward.slice(link.length)}`)
+        }
+      }
+      return Promise.resolve(forward)
+    },
     readFile: (absolutePath) => Promise.resolve(files.get(absolutePath.replaceAll('\\', '/'))),
     writeFile: (absolutePath, content) => {
       files.set(absolutePath.replaceAll('\\', '/'), content)
@@ -75,6 +90,7 @@ export function memoryToolIo(
 }
 
 export const noopToolIo: ToolIo = {
+  realPath: (absolutePath) => Promise.resolve(absolutePath),
   readFile: () => Promise.resolve(undefined),
   writeFile: () => Promise.resolve(),
   listFiles: () => Promise.resolve([]),

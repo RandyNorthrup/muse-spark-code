@@ -2,7 +2,7 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -40,6 +40,8 @@ import {
   type PickedFile,
   type SessionMemory,
 } from './host/conversation/conversationController'
+import { canonicalPath } from './host/canonicalPath'
+import { createGitRunner } from './host/git'
 import { createLogger } from './host/logger'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister } from './host/mention/workspaceFiles'
@@ -52,6 +54,7 @@ import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup } from './host/voice/dictationHost'
 import {
   BACKEND_SETTING,
+  BYPASS_SETTING,
   HAS_APPROVAL_UI,
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
@@ -64,7 +67,6 @@ import {
   MODEL_API_SESSIONS_DIR,
   PERSONAL_SKILLS_GLOB,
   PROJECT_SKILLS_GLOB,
-  GIT_OUTPUT_MAX_BYTES,
   GLOBAL_STATE_KEYS,
   MENTION_INDEX_LIMIT,
   MENTION_INDEX_TTL_MS,
@@ -237,13 +239,16 @@ async function findWorkspaceFiles(): Promise<readonly string[]> {
   return uris.map((uri) => vscode.workspace.asRelativePath(uri, false).replaceAll('\\', '/'))
 }
 
-async function runGit(args: readonly string[], cwd: string): Promise<string> {
-  const { stdout } = await execFileAsync('git', [...args], {
-    cwd,
-    maxBuffer: GIT_OUTPUT_MAX_BYTES,
-  })
-  return stdout
-}
+// git by absolute path, with a timeout and no optional locks (PLAN.md D24).
+const runGit = createGitRunner({
+  platform: process.platform,
+  env: process.env,
+  fileExists: existsSync,
+  execFile: async (file, args, options) => {
+    const { stdout } = await execFileAsync(file, [...args], { ...options, encoding: 'utf8' })
+    return stdout
+  },
+})
 
 // A failed spawn or a timeout kill has no exit code; report it as negative so
 // the caller can tell "the CLI said no" from "the CLI never ran".
@@ -451,6 +456,7 @@ export function activate(context: vscode.ExtensionContext): void {
     platform: process.platform,
     workspaceRoot: workspaceRoot ?? '',
     readFile: readTextFile,
+    realPath: canonicalPath,
     writeFile: async (fsPath, content) => {
       await vscode.workspace.fs.writeFile(
         vscode.Uri.file(fsPath),
@@ -474,6 +480,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const listWorkspaceFiles = createWorkspaceFileLister({
     workspaceRoot: workspaceRoot ?? '',
     respectGitIgnore: () => currentSettings().respectGitIgnore,
+    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
     runGit,
     findFiles: findWorkspaceFiles,
     log,
@@ -525,7 +532,12 @@ export function activate(context: vscode.ExtensionContext): void {
             directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
             log,
           }),
-    describeEnvironment: () => describeEnvironment({ runGit, workspaceRoot }),
+    describeEnvironment: () =>
+      describeEnvironment({
+        runGit,
+        workspaceRoot,
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+      }),
   })
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
@@ -653,6 +665,13 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         files,
         isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
+        isRemoteWindow: vscode.env.remoteName !== undefined,
+        confirmRemoteBypass: async () =>
+          (await vscode.window.showWarningMessage(
+            UI_TEXT.bypassRemoteTitle,
+            { modal: true, detail: UI_TEXT.bypassRemoteDetail },
+            UI_TEXT.bypassRemoteConfirm,
+          )) === UI_TEXT.bypassRemoteConfirm,
         isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
         // Contributor-tier models let Meta train on the traffic: one explicit
         // yes per conversation before the model switches (PLAN.md §9).
@@ -860,6 +879,15 @@ export function activate(context: vscode.ExtensionContext): void {
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
       }
+      // Turning the Bypass setting off ends Bypass everywhere now (D24).
+      if (
+        event.affectsConfiguration(BYPASS_SETTING) &&
+        !currentSettings().allowDangerouslySkipPermissions
+      ) {
+        for (const controller of controllers.values()) {
+          void controller.revokeBypass()
+        }
+      }
       // A host keeps its sandbox posture for life, and the backend choice
       // is made per host: drop them so the next message spawns afresh.
       const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
@@ -876,6 +904,8 @@ export function activate(context: vscode.ExtensionContext): void {
     // Trust is a host-lifetime posture like the sandbox (PLAN.md D13): the
     // hosts restart so the next message loads the rules and skills.
     vscode.workspace.onDidGrantWorkspaceTrust(() => {
+      // The index was built without git in Restricted Mode (D24).
+      mentions.invalidate()
       void restartBackend()
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
     }),
@@ -990,6 +1020,7 @@ export function activate(context: vscode.ExtensionContext): void {
           dictation: dictation.isAvailable
             ? { isAvailable: true }
             : { isAvailable: false, reason: dictation.reason },
+          homeDir: homedir(),
         }),
       )
       channel.show(true)

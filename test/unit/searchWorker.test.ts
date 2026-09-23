@@ -2,7 +2,7 @@
 // into a temp folder for the test, run through `searchOnWorker` against
 // real files, including the pathological pattern that must be stopped.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { buildSync } from 'esbuild'
@@ -35,6 +35,7 @@ afterAll(async () => {
 function job(pattern: string, names: readonly string[] = ['a.txt', 'b.bin', 'missing.txt']) {
   return {
     pattern,
+    root: paths.root,
     files: names.map((name) => ({ relative: name, absolute: path.join(paths.root, name) })),
   }
 }
@@ -49,6 +50,30 @@ describe('searchOnWorker', () => {
         { file: 'a.txt', line: 3, text: 'alpha three' },
       ],
     })
+  }, 30_000)
+
+  it('skips a file reached through a link that leaves the workspace (D24)', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'muse-search-outside-'))
+    try {
+      await writeFile(path.join(outside, 'secret.txt'), 'alpha secret\n')
+      // A junction needs no privilege on Windows; elsewhere it is a symlink.
+      await symlink(outside, path.join(paths.root, 'elsewhere'), 'junction')
+      const outcome = await searchOnWorker(
+        paths.worker,
+        job('^alpha', ['a.txt', 'elsewhere/secret.txt']),
+        10_000,
+      )
+      expect(outcome).toEqual({
+        ok: true,
+        hits: [
+          { file: 'a.txt', line: 1, text: 'alpha one' },
+          { file: 'a.txt', line: 3, text: 'alpha three' },
+        ],
+      })
+    } finally {
+      await rm(path.join(paths.root, 'elsewhere'), { force: true })
+      await rm(outside, { recursive: true, force: true })
+    }
   }, 30_000)
 
   it('reports an invalid pattern', async () => {

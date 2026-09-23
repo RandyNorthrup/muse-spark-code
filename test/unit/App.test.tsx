@@ -274,8 +274,9 @@ describe('App conversation', () => {
     expect(screen.getByText('Modes')).toBeInTheDocument()
     expect(screen.getByText('⇧ + tab')).toBeInTheDocument()
     expect(screen.getAllByRole('menuitemradio').map((node) => node.textContent)).toEqual([
-      'ManualMuse will ask for approval before making each editCurrent',
-      'Edit automaticallyMuse will edit files without asking and ask for everything else',
+      // Muse Code's wording (D24): its Manual applies in-workspace edits unasked.
+      'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
+      'Edit automaticallyMuse will edit files without asking and ask before running commands',
       'PlanMuse will explore the code and present a plan before editing',
       'AutoMuse will approve actions that pass a safety check and pause for anything risky',
     ])

@@ -471,11 +471,12 @@ describe('ModelApiSession: turns', () => {
     ).rejects.toThrow('unknown output')
   })
 
-  it('remembers "always allow in this session" and refuses in Plan mode', async () => {
+  it('remembers "always allow in this session" per command line and refuses in Plan mode', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
     t.api.script(
       { calls: [{ name: 'bash', arguments: '{"command":"ls","description":"list"}' }] },
+      { calls: [{ name: 'bash', arguments: '{"command":"ls","description":"again"}' }] },
       { calls: [{ name: 'bash', arguments: '{"command":"pwd","description":"where"}' }] },
       { text: 'done' },
     )
@@ -487,14 +488,23 @@ describe('ModelApiSession: turns', () => {
       'allow_session',
       'abort',
     ])
+    expect(request.availableChoices[1]?.label).toBe('Always allow in this session: ls')
     await session.decideApproval({
       approvalId: request.approvalId,
       choiceId: 'allow_session',
       requirementId: request.requirementId,
     })
+    // The same command runs without a card; a different one asks (D24).
+    const next = await approvalRequest(events, 1)
+    expect(next.subject).toEqual({ kind: 'shell', command: 'pwd' })
+    await session.decideApproval({
+      approvalId: next.approvalId,
+      choiceId: 'allow_once',
+      requirementId: next.requirementId,
+    })
     await turnDone()
-    expect(events.filter((event) => event.type === 'approvalRequested')).toHaveLength(1)
-    expect(t.shellCalls.map((call) => call.command)).toEqual(['ls', 'pwd'])
+    expect(events.filter((event) => event.type === 'approvalRequested')).toHaveLength(2)
+    expect(t.shellCalls.map((call) => call.command)).toEqual(['ls', 'ls', 'pwd'])
 
     await session.setApprovalMode('denyUnmatched')
     await expect(session.setApprovalMode('whatever')).rejects.toThrow('unknown approval mode')
@@ -504,7 +514,7 @@ describe('ModelApiSession: turns', () => {
     )
     await session.sendTurn([{ type: 'text', text: 'again' }])
     await turnDone()
-    expect(t.shellCalls).toHaveLength(2)
+    expect(t.shellCalls).toHaveLength(3)
     const refused = events.findLast(
       (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
         event.type === 'itemCompleted' && event.item.kind === 'toolCall',
@@ -512,6 +522,66 @@ describe('ModelApiSession: turns', () => {
     expect(refused?.item).toMatchObject({
       status: 'rejected',
       failureReason: 'bash refused by the permission mode',
+    })
+  })
+
+  it('asks for a protected write even in Auto, and refuses a choice it never offered (D24)', async () => {
+    const t = setup({ files: { 'a.txt': 'alpha\n' } })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script(
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"notes.txt","content":"x"}', callId: 'c1' },
+          {
+            name: 'write_file',
+            arguments: '{"path":".git/hooks/pre-commit","content":"evil"}',
+            callId: 'c2',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    const request = await approvalRequest(events, 0)
+    expect(request).toMatchObject({
+      subject: { kind: 'fileWrite', path: '.git/hooks/pre-commit' },
+      isProtectedWrite: true,
+    })
+    // The ordinary write ran without a card in Auto.
+    expect(t.files.get(`${ROOT}/notes.txt`)).toBe('x')
+    await expect(
+      session.decideApproval({
+        approvalId: request.approvalId,
+        choiceId: 'allow_local_prefix',
+        requirementId: request.requirementId,
+      }),
+    ).rejects.toThrow('unknown choice allow_local_prefix')
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'abort',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(t.files.has(`${ROOT}/.git/hooks/pre-commit`)).toBe(false)
+  })
+
+  it('refuses an edit outside the workspace before any card', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [{ name: 'write_file', arguments: '{"path":"../x","content":"y"}' }] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    await turnDone()
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    const row = events.findLast(
+      (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+        event.type === 'itemCompleted' && event.item.kind === 'toolCall',
+    )
+    expect(row?.item).toMatchObject({
+      status: 'failed',
+      failureReason: 'path ../x is outside the workspace',
     })
   })
 

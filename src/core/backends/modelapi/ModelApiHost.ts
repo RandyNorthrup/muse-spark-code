@@ -64,7 +64,14 @@ import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { MissingApiKeyError, type ModelApiClient, ModelApiError } from './client'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
-import { APPROVAL_CHOICE_IDS, choicesFor, PermissionEngine } from './permissions'
+import {
+  APPROVAL_CHOICE_IDS,
+  choicesFor,
+  isKnownChoice,
+  isProtectedPath,
+  PermissionEngine,
+  type PermissionQuery,
+} from './permissions'
 import { recordOf, type SessionStore, type StoredSession } from './sessionStore'
 import {
   type CreateResponseBody,
@@ -82,10 +89,11 @@ import {
 } from './schemas'
 import {
   classifyTool,
+  confineWorkspacePath,
   executeTool,
   parseQuestions,
+  type PathResolution,
   readSkillArgs,
-  resolveWorkspacePath,
   shellToolFor,
   todoWriteArgs,
   toolDefinitions,
@@ -668,6 +676,7 @@ export class ModelApiSession implements AgentSession {
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    query: PermissionQuery,
   ): Promise<ApprovalOutcome> {
     const approvalId = this.deps.newId()
     this.emit({
@@ -678,9 +687,9 @@ export class ModelApiSession implements AgentSession {
       rawArgs: call.arguments,
       requirementId: { approvalId, sourceIndex: 0 },
       subject: subjectFor(call, this.deps.platform),
-      availableChoices: [...choicesFor(call.name)],
+      availableChoices: [...choicesFor(call.name, query.command)],
       isJudgeEscalated: false,
-      isProtectedWrite: false,
+      isProtectedWrite: query.isProtected === true,
     })
     let decision: ApprovalDecision
     try {
@@ -691,9 +700,12 @@ export class ModelApiSession implements AgentSession {
       this.pendingApprovals.delete(approvalId)
     }
     if (decision.choiceId === APPROVAL_CHOICE_IDS.allowSession) {
-      this.permissions.allowForSession(call.name)
+      this.permissions.allowForSession(call.name, query.command)
     }
-    const isApproved = decision.choiceId !== APPROVAL_CHOICE_IDS.abort
+    // Only the two allow choices this card offered approve; anything else refuses.
+    const isApproved =
+      decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ||
+      decision.choiceId === APPROVAL_CHOICE_IDS.allowSession
     this.emit({
       type: 'approvalResolved',
       approvalId,
@@ -775,13 +787,26 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Where an edit-family call writes, confined (links resolved), or why it cannot. */
+  private async editTarget(call: FunctionCallItem): Promise<PathResolution | undefined> {
+    const given = pick(argumentsOf(call), 'path')
+    return given === undefined
+      ? undefined
+      : await confineWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform, this.deps.io)
+  }
+
   /** A tool that named a path may have entered a directory with its own rules file. */
   private async touchPath(call: FunctionCallItem): Promise<void> {
     const given = pick(argumentsOf(call), 'path')
     if (given === undefined) {
       return
     }
-    const resolved = resolveWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform)
+    const resolved = await confineWorkspacePath(
+      this.deps.workspaceRoot,
+      given,
+      this.deps.platform,
+      this.deps.io,
+    )
     if (resolved.ok) {
       await this.context.touch(resolved.relative)
     }
@@ -829,6 +854,7 @@ export class ModelApiSession implements AgentSession {
     }
     this.emit({ type: 'itemStarted', item: started })
     const toolClass = classifyTool(call.name)
+    const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
     let outcome: ToolOutcome
     let isRejected = false
     if (toolClass === undefined) {
@@ -838,14 +864,23 @@ export class ModelApiSession implements AgentSession {
       // that calls it anyway is refused, never prompted.
       isRejected = true
       outcome = toolFailure(UI_TEXT.shellRestrictedMode)
+    } else if (target?.ok === false) {
+      // A path the tool would refuse anyway is refused before any card.
+      outcome = toolFailure(target.reason)
     } else {
-      const verdict = this.permissions.verdict(call.name, toolClass)
+      const query: PermissionQuery = {
+        toolName: call.name,
+        toolClass,
+        command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
+        isProtected: target?.ok === true && isProtectedPath(target.canonical),
+      }
+      const verdict = this.permissions.verdict(query)
       if (verdict === 'deny') {
         isRejected = true
         const reason = `${call.name} ${UI_TEXT.toolRefusedByMode}`
         outcome = { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
       } else if (verdict === 'ask') {
-        const approval = await this.askApproval(itemId, call, signal)
+        const approval = await this.askApproval(itemId, call, signal, query)
         if (approval.isApproved) {
           outcome = await this.perform(itemId, call, signal)
         } else {
@@ -1126,6 +1161,9 @@ export class ModelApiSession implements AgentSession {
     const pending = this.pendingApprovals.get(decision.approvalId)
     if (pending === undefined) {
       return Promise.reject(new Error(`approval ${decision.approvalId} is not pending`))
+    }
+    if (!isKnownChoice(decision.choiceId)) {
+      return Promise.reject(new Error(`unknown choice ${decision.choiceId}`))
     }
     pending.resolve(decision)
     return Promise.resolve()

@@ -7,7 +7,60 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+The hardening release: the findings of a full audit of the code against
+other harnesses' bug trackers and the platform documentation, fixed.
+
+### Security
+
+- The Model API backend's file tools resolve every path through the file
+  system before using it: a symbolic link or junction inside the workspace
+  that leads outside it is refused, for reads as well as writes, and the
+  search skips such files. Edit Review and the rewind check the same way
+  before writing a file back. Windows alternate data streams (`a.txt:x`),
+  device names (`NUL`, `COM1`) and names ending in a dot or a space are
+  refused.
+- Protected writes: on the Model API backend, writing git's hooks and
+  config, `.husky`, `.vscode`, `.idea`, `.devcontainer`, CI workflows,
+  `.agents`, `AGENTS.md`, `CLAUDE.md`, `.envrc` or `.gitmodules` shows an
+  approval card in every mode but Bypass, whatever the session's "always
+  allow" rules say. Auto used to write them without asking.
+- No `git` in Restricted Mode: a repository's own `.git/config` can name
+  programs git runs, and the `@` mention index and the Model API prompt ran
+  git status and log on the first message in an untrusted folder. git, bash
+  and PowerShell are now started by absolute path from absolute `PATH`
+  entries only (never a copy inside the workspace), and the Muse Code CLI
+  search skips empty and relative `PATH` entries too; a relative
+  `museBinaryPath` is refused. git runs with a 15-second timeout and without
+  taking the index lock (`GIT_OPTIONAL_LOCKS=0`).
+- "Always allow in this session" on a shell command now allows that exact
+  command line, not every later command. An approval choice the card never
+  offered is refused instead of counting as a yes.
+- Bypass permissions ends in every open conversation as soon as
+  `allowDangerouslySkipPermissions` is turned off. In a remote window (where
+  a dev container definition can write machine settings) a conversation
+  never starts in Bypass, and entering it asks once.
+- Resuming a conversation that ran on a contributor-tier model asks as
+  choosing one does, or, in a confidential workspace, moves it to a
+  standard model.
+- The shell tool's environment drops the editor's internal variables
+  (`ELECTRON_RUN_AS_NODE`, `VSCODE_*` IPC handles) exactly as VS Code's own
+  terminal does, and Windows PowerShell gets its own module path.
+- The log redacts JWTs, basic credentials, token and password fields and
+  credentials in URLs; a `muse serve` stderr chunk is capped in the log;
+  the diagnostics report writes the home directory as `~`.
+
+### Fixed
+
+- **Edit automatically** now does what it says: plain file-write approvals
+  are answered for you (the row says "Edit automatically"); protected
+  writes, escalations and commands still show the card. It behaved like
+  Manual before.
+- The `search` and `list_files` glob no longer builds a regular expression:
+  a crafted 37-character pattern held the extension host for 25 seconds.
+  Matching is linear, `[!x]` negates and braces nest.
+- The Modes menu describes each mode truthfully per backend (Muse Code's
+  Manual applies in-workspace edits without asking; the Model API's Auto
+  has no safety-check model).
 
 ## [0.5.5] - 2026-09-23
 
