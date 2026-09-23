@@ -7,12 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- The README badges for the Marketplace version and installs rendered as
+  "retired badge" on the listing: shields.io retired its Visual Studio
+  Marketplace endpoints, so badgen.net serves both badges now.
 
 ## [0.5.0] - 2026-09-23
 
 The verification round and the subagent orchestration it called for
 (PLAN.md D21): every screen rendered and viewed, the live drills run.
+Published to the Marketplace on 2026-09-23 from the release vsix, the first
+Marketplace release since 0.1.1.
 
 ### Added
 
