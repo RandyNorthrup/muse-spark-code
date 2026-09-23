@@ -5,6 +5,9 @@
 // (dev.meta.ai/docs/protocols/responses), so the parser and the client run
 // exactly as they do against the service.
 
+import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
+import type { CoreLogger } from '../../../src/core/logging'
+
 export interface ScriptedCall {
   readonly name: string
   readonly arguments: string
@@ -215,6 +218,19 @@ function urlOf(input: string | URL | Request): URL {
     return new URL(input)
   }
   return input instanceof URL ? input : new URL(input.url)
+}
+
+/** A client on the fake API with no waits and a fixed clock. */
+export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
+  return new ModelApiClient({
+    fetch: api.fetch,
+    baseUrl: 'https://api.example.test/v1',
+    apiKey: () => Promise.resolve('LLM|1|secret'),
+    sleep: () => Promise.resolve(),
+    now: () => 0,
+    random: () => 0,
+    log,
+  })
 }
 
 export function fakeModelApi(): FakeModelApi {

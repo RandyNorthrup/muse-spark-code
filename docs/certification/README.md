@@ -34,5 +34,6 @@ The PNGs beside the records are that day's harness renders.
 - [M19](m19.md): issue #4, the prompt box auto-grows (PLAN.md D22)
 - [M20](m20.md): rewind across subagents (PLAN.md D23)
 - [M21](m21.md): security and confinement (audit section A, PLAN.md D24)
+- [M22](m22.md): processes and lifecycle (audit section B, PLAN.md D25)
 - [M25](m25.md): the audit, webview and UI state (PLAN.md D28)
 - [M26](m26.md): packaging, CI, platform and voice (PLAN.md D29)
