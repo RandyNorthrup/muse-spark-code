@@ -58,5 +58,7 @@ describe('linkHref', () => {
     expect(linkHref('src/a.ts#L3')).toBe('src/a.ts#L3')
     expect(linkHref('https://dev.meta.ai/')).toBe('https://dev.meta.ai/')
     expect(linkHref('javascript:alert(1)')).toBe('')
+    expect(linkHref('javascript:1')).toBe('')
+    expect(linkTarget('javascript:1')).toMatchObject({ kind: 'external' })
   })
 })
