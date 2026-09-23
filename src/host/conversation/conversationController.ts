@@ -21,7 +21,7 @@ import {
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
-import type { Dictation, DictationStatus } from '../../core/voice/dictation'
+import type { DictationHandle, DictationStatus } from '../../core/voice/dictation'
 import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
@@ -47,6 +47,7 @@ import type { AgentEvent } from '../../shared/agentEvents'
 import { parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type {
+  EditRef,
   HostAction,
   HostToWebviewMessage,
   MentionItem,
@@ -54,7 +55,7 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import type { SubscriptionUsage } from '../../shared/usage'
-import type { AuthService } from '../auth/authService'
+import type { AuthPort } from '../auth/authService'
 import type { ReviewNotice } from '../editor/editReview'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
@@ -132,7 +133,7 @@ export interface SessionMemory {
 
 export interface ConversationDeps {
   readonly surface: ChatSurface
-  readonly auth: AuthService
+  readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
   readonly workspaceRoot: string | undefined
   readonly modelId: string
@@ -231,7 +232,7 @@ export class ConversationController {
   private readonly listWatch = new HostWatch()
   private readonly usageWatch = new HostWatch()
   /** The dictation driver, created on the first press (M9). */
-  private dictation: Dictation | undefined
+  private dictation: DictationHandle | undefined
   private dictationStatus: DictationStatus = 'idle'
 
   public constructor(private readonly deps: ConversationDeps) {
@@ -509,6 +510,21 @@ export class ConversationController {
       offsetBytes = chunk.offsetBytes + chunk.byteLen
     }
     throw new Error(`patch document ${outputRef} is larger than expected`)
+  }
+
+  /** "Rewind code to here": the edits after a message, reverted newest first (M13). */
+  private async rewindCode(edits: readonly EditRef[]): Promise<void> {
+    if (edits.length === 0) {
+      this.notice('info', UI_TEXT.rewindNothing)
+      return
+    }
+    for (const edit of edits) {
+      await this.reviewEdit('revert', edit.itemId, edit.outputRef)
+    }
+    this.notice(
+      'info',
+      `${UI_TEXT.rewindDone} (${String(edits.length)} ${edits.length === 1 ? 'edit' : 'edits'})`,
+    )
   }
 
   private async reviewEdit(
@@ -1129,7 +1145,7 @@ export class ConversationController {
     )
   }
 
-  private dictationDriver(): Dictation | undefined {
+  private dictationDriver(): DictationHandle | undefined {
     const { dictation } = this.deps
     if (!dictation.isAvailable) {
       return undefined
@@ -1244,6 +1260,10 @@ export class ConversationController {
       }
       case 'revertEdit': {
         await this.reviewEdit('revert', message.itemId, message.outputRef)
+        break
+      }
+      case 'rewindCode': {
+        await this.rewindCode(message.edits)
         break
       }
       case 'setModel': {

@@ -39,6 +39,19 @@ const models = [
   },
 ]
 
+/** A completed edit item as `historyLoaded` replays it (a rewind candidate). */
+function historyEdit(itemId: string, turnId: string, patch: string) {
+  return {
+    itemId,
+    kind: 'toolCall',
+    status: 'completed',
+    turnId,
+    tool: 'edit_file',
+    args: '{}',
+    patchRef: { id: patch, byteLen: 10 },
+  }
+}
+
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
   const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
   render(<App postMessage={postMessage} newLocalId={() => 'local-1'} />)
@@ -820,7 +833,7 @@ describe('App session history (M6)', () => {
     expect(screen.getByRole('dialog', { name: 'History' })).toBeInTheDocument()
   })
 
-  it('rebuilds the transcript from loaded history and offers Fork from here', () => {
+  it('rebuilds the transcript from loaded history and offers the fork/rewind menu', () => {
     const postMessage = renderReady()
     deliver({
       type: 'historyLoaded',
@@ -836,14 +849,53 @@ describe('App session history (M6)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Resumed one')
     expect(screen.getByText('first')).toBeInTheDocument()
     expect(screen.getByText('reply')).toBeInTheDocument()
-    const forks = screen.getAllByText('Fork from here')
-    expect(forks).toHaveLength(2)
-    fireEvent.click(forks[1]!)
+    const menus = screen.getAllByLabelText('Fork or rewind')
+    expect(menus).toHaveLength(2)
+    fireEvent.click(menus[1]!)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'forkSession', lastTurnId: 't1' })
+    expect(screen.queryByRole('menu')).toBeNull()
     // Before the first message there is nothing to keep: a new conversation.
-    fireEvent.click(forks[0]!)
+    fireEvent.click(menus[0]!)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'clearConversation' })
     expect(screen.queryByText('first')).toBeNull()
+  })
+
+  it('rewinds code to a message, forks after rewinding, and closes the menu on Escape (M13)', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'historyLoaded',
+      sessionId: 'old',
+      name: 'Resumed',
+      todos: [],
+      items: [
+        { itemId: 'u1', kind: 'userMessage', status: 'completed', turnId: 't1', text: 'first' },
+        historyEdit('e1', 't1', 'p1'),
+        { itemId: 'u2', kind: 'userMessage', status: 'completed', turnId: 't2', text: 'second' },
+        historyEdit('e2', 't2', 'p2'),
+      ],
+    })
+    const menus = screen.getAllByLabelText('Fork or rewind')
+    fireEvent.click(menus[0]!)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind code to here' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'rewindCode',
+      edits: [
+        { itemId: 'e2', outputRef: 'p2' },
+        { itemId: 'e1', outputRef: 'p1' },
+      ],
+    })
+    fireEvent.click(menus[1]!)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation and rewind code' }))
+    expect(postMessage.mock.calls.slice(-2).map(([message]) => message)).toEqual([
+      { type: 'rewindCode', edits: [{ itemId: 'e2', outputRef: 'p2' }] },
+      { type: 'forkSession', lastTurnId: 't1' },
+    ])
+    fireEvent.click(menus[0]!)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 
   it('renames from the title once a session exists, and not before', () => {

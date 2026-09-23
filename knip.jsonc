@@ -18,12 +18,14 @@
     "src/host/backend/searchWorker.ts",
     "src/webview/main.tsx",
     "test/unit/**/*.test.{ts,tsx}",
+    "test/e2e/**/*.test.ts",
+    "test/e2e/fake-muse/serve.mjs",
     "test/integration/**/*.test.ts",
     "scripts/**/*.mjs",
     ".vscode-test.mjs"
   ],
 
-  "project": ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}", "scripts/**/*.mjs"],
+  "project": ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}", "test/**/*.mjs", "scripts/**/*.mjs"],
 
   // `vscode` (the extension host module) needs no entry here: knip resolves it
   // through @types/vscode. @vscode/test-electron is required by @vscode/test-cli

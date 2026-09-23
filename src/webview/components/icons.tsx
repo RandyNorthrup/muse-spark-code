@@ -242,6 +242,16 @@ export function FileIcon(props: IconProps) {
   )
 }
 
+/** The rewind arrow on user cards (fork / rewind menu). */
+export function RewindIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.5 8a4.5 4.5 0 1 0 1.3-3.2" />
+      <path d="M3.5 2.5v2.8h2.8" />
+    </Svg>
+  )
+}
+
 export function BackIcon(props: IconProps) {
   return (
     <Svg {...props}>

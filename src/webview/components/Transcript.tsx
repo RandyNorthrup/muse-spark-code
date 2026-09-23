@@ -9,7 +9,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
 import { splitForStreaming } from '../streamSplit'
 import type { ApprovalDecisionInput } from './ApprovalCard'
-import { FileIcon, ImageIcon } from './icons'
+import { FileIcon, ImageIcon, RewindIcon } from './icons'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
@@ -30,9 +30,18 @@ export interface TranscriptProps {
   readonly onApply: (text: string) => void
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   readonly onRevertEdit: (itemId: string, outputRef: string) => void
-  /** "Fork from here" on user cards (M6); absent while no session exists. */
+  /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
+  readonly onRewind?: ((entryId: string) => void) | undefined
 }
+
+/** The rows of the user card's menu, in Claude Code's order. */
+const REWIND_MENU = [
+  { id: 'fork', label: UI_TEXT.forkFromHere },
+  { id: 'rewind', label: UI_TEXT.rewindCodeToHere },
+  { id: 'both', label: UI_TEXT.forkAndRewind },
+] as const
+type RewindChoice = (typeof REWIND_MENU)[number]['id']
 
 type StepEntry = Extract<TranscriptEntry, { kind: 'tool' | 'reasoning' }>
 
@@ -70,13 +79,35 @@ export function segment(entries: readonly TranscriptEntry[], isFocusView: boolea
 function UserCard({
   entry,
   onFork,
+  onRewind,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'user' }>
   readonly onFork: ((entryId: string) => void) | undefined
+  readonly onRewind: ((entryId: string) => void) | undefined
 }) {
   const hasChips = entry.attachments.length > 0 || entry.contextLabel !== undefined
+  const [isMenuOpen, setMenuOpen] = useState(false)
+  const hasMenu = onFork !== undefined && onRewind !== undefined && entry.status === 'sent'
+  const choose = (choice: RewindChoice) => {
+    setMenuOpen(false)
+    if (choice !== 'fork') {
+      onRewind?.(entry.id)
+    }
+    if (choice !== 'rewind') {
+      onFork?.(entry.id)
+    }
+  }
   return (
-    <li className={`message message-user message-${entry.status}`}>
+    <li
+      className={`message message-user message-${entry.status}`}
+      onKeyDown={(event) => {
+        if (!isMenuOpen || event.key !== 'Escape') {
+          return
+        }
+        event.stopPropagation()
+        setMenuOpen(false)
+      }}
+    >
       {hasChips ? (
         <ul className="chips chips-strip" aria-label={UI_TEXT.attachmentsLabel}>
           {entry.contextLabel === undefined ? null : (
@@ -104,18 +135,40 @@ function UserCard({
           {entry.reason}
         </div>
       ) : null}
-      {onFork === undefined || entry.status !== 'sent' ? null : (
-        <button
-          type="button"
-          className="fork-button"
-          title={UI_TEXT.forkTitle}
-          onClick={() => {
-            onFork(entry.id)
-          }}
-        >
-          {UI_TEXT.forkFromHere}
-        </button>
-      )}
+      {hasMenu ? (
+        <div className="rewind">
+          <button
+            type="button"
+            className="rewind-button"
+            title={UI_TEXT.rewindMenuLabel}
+            aria-label={UI_TEXT.rewindMenuLabel}
+            aria-haspopup="menu"
+            aria-expanded={isMenuOpen}
+            onClick={() => {
+              setMenuOpen((isOpen) => !isOpen)
+            }}
+          >
+            <RewindIcon />
+          </button>
+          {isMenuOpen ? (
+            <div className="rewind-menu" role="menu" aria-label={UI_TEXT.rewindMenuLabel}>
+              {REWIND_MENU.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  role="menuitem"
+                  className="rewind-menu-item"
+                  onClick={() => {
+                    choose(row.id)
+                  }}
+                >
+                  {row.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   )
 }
@@ -194,6 +247,7 @@ export function Transcript(props: TranscriptProps) {
     onOpenEditDiff,
     onRevertEdit,
     onFork,
+    onRewind,
   } = props
   const renderStep = (entry: StepEntry) =>
     entry.kind === 'reasoning' ? (
@@ -217,7 +271,7 @@ export function Transcript(props: TranscriptProps) {
   const renderEntry = (entry: TranscriptEntry) => {
     switch (entry.kind) {
       case 'user': {
-        return <UserCard key={entry.id} entry={entry} onFork={onFork} />
+        return <UserCard key={entry.id} entry={entry} onFork={onFork} onRewind={onRewind} />
       }
       case 'assistant': {
         return (

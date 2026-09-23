@@ -108,6 +108,9 @@ interface RunningHelper {
   quitTimer: ReturnType<typeof setTimeout> | undefined
 }
 
+/** What the conversation controller drives: the three calls, nothing else. */
+export type DictationHandle = Pick<Dictation, 'start' | 'stop' | 'dispose'>
+
 export class Dictation {
   private helper: RunningHelper | undefined
   private status: DictationStatus = 'idle'

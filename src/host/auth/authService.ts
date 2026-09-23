@@ -55,6 +55,21 @@ export interface AuthSnapshot {
   readonly methods?: readonly SignInMethod[] | undefined
 }
 
+/**
+ * What a conversation needs from the service: the controller's dependency
+ * type, so a test hands it a plain object with exactly these members.
+ */
+export type AuthPort = Pick<
+  AuthService,
+  | 'current'
+  | 'toMessage'
+  | 'signIn'
+  | 'signOut'
+  | 'refresh'
+  | 'markAuthRequired'
+  | 'markBackendError'
+>
+
 export class AuthService {
   private snapshot: AuthSnapshot = { status: 'checking', detail: undefined }
 

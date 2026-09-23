@@ -3,6 +3,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import {
   canSend,
+  editsAfter,
   forkCutBefore,
   hasPendingRequest,
   initialUiState,
@@ -930,6 +931,52 @@ describe('uiReducer: session history (M6)', () => {
     // A pending card (no turn yet) is not a fork point; a missing id neither.
     expect(forkCutBefore(state.transcript, 'l3')).toBeUndefined()
     expect(forkCutBefore(state.transcript, 'ghost')).toBeUndefined()
+  })
+
+  it('lists the completed edits after a message newest first for a rewind (M13)', () => {
+    const edit = (itemId: string, status: string, patch: string) =>
+      host({
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: {
+            itemId,
+            kind: 'toolCall',
+            status,
+            tool: 'edit_file',
+            args: '{}',
+            patchRef: { id: patch, byteLen: 10 },
+          },
+        },
+      })
+    const state = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'one', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
+      edit('e1', 'completed', 'p1'),
+      edit('e2', 'completed', 'p2'),
+      host({
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: {
+            itemId: 'r1',
+            kind: 'toolCall',
+            status: 'completed',
+            tool: 'read_file',
+            args: '{}',
+          },
+        },
+      }),
+      { type: 'submitted', localId: 'l2', text: 'two', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l2', turnId: 't2' }),
+      edit('e3', 'failed', 'p3'),
+    ])
+    expect(editsAfter(state.transcript, 'l1')).toEqual([
+      { itemId: 'e2', outputRef: 'p2' },
+      { itemId: 'e1', outputRef: 'p1' },
+    ])
+    expect(editsAfter(state.transcript, 'l2')).toEqual([])
+    expect(editsAfter(state.transcript, 'ghost')).toEqual([])
   })
 
   it('cuts a replayed transcript before the chosen message', () => {

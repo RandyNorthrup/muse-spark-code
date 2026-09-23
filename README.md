@@ -76,7 +76,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.3.0.vsix
+   code --install-extension muse-spark-code-0.3.1.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -184,7 +184,11 @@ trash). If the file changed since, both say so rather than guess.
 **History.** The clock icon lists the workspace's conversations by day with
 search, resume (full transcript), archive and **Show archived**. Sessions
 idle for `archiveInactiveSessions` days are hidden, not deleted. A hidden
-panel shows a dot when Muse finished or needs a decision.
+panel shows a dot when Muse finished or needs a decision. Every sent
+message carries a rewind button (on hover) with **Fork conversation from
+here**, **Rewind code to here** (reverts the edits made after that message,
+newest first, through the same review as a single Revert) and **Fork
+conversation and rewind code**.
 
 **Diagnostics.** The agent can read the Problems panel through a
 `getDiagnostics` tool the extension serves on a loopback MCP server, bound to
@@ -322,29 +326,30 @@ webview is React 19 bundled to one IIFE with its stylesheet; `zod/mini`
 validates every host ⇄ webview message; the voice helpers are Windows
 PowerShell and Swift with no dependencies.
 
-| Command                                   | What it does                                                                                                     |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                           |
-| `npm run watch`                           | Rebuild extension + webview on change                                                                            |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`); needs `build:dev` and Chrome |
-| `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)          |
-| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                   |
-| `npm run format` / `npm run format:check` | Prettier write / check                                                                                           |
-| `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, PSScriptAnalyzer over `native/windows`     |
-| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                                    |
-| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                    |
-| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                              |
-| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                       |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches)                                 |
-| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it                      |
-| `npm run test`                            | Unit then integration                                                                                            |
-| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                                   |
-| `npm run security:sast`                   | `semgrep scan --config auto --error`                                                                             |
-| `npm run security:secrets`                | `gitleaks git` over the repository history                                                                       |
-| `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**              |
-| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                                   |
-| `npm run package`                         | `vsce package --no-dependencies` → `.vsix` (without the macOS helper unless built on a Mac)                      |
-| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                   |
+| Command                                   | What it does                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                                                                                                                                                                                                                         |
+| `npm run watch`                           | Rebuild extension + webview on change                                                                                                                                                                                                                                                                          |
+| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`); needs `build:dev` and Chrome                                                                                                                                                                                               |
+| `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                        |
+| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                                                                                                                                                                                                                 |
+| `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                         |
+| `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, PSScriptAnalyzer over `native/windows`                                                                                                                                                                                                   |
+| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                                                                                                                                                                                                                                  |
+| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                  |
+| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                                                                                                                                                                                                                            |
+| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                     |
+| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                 |
+| `npm run test:e2e:live`                   | One real turn on the installed Muse Code CLI, opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (31 model attempts measured for a reply-only turn: one for the answer, thirty for Muse Code's bundled reminder agents; budget 40, counted from the CLI's trace log for the session); never in CI |
+| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it                                                                                                                                                                                                                    |
+| `npm run test`                            | Unit then integration                                                                                                                                                                                                                                                                                          |
+| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                                                                                                                                                                                                                                 |
+| `npm run security:sast`                   | `semgrep scan --config auto --error`                                                                                                                                                                                                                                                                           |
+| `npm run security:secrets`                | `gitleaks git` over the repository history                                                                                                                                                                                                                                                                     |
+| `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**                                                                                                                                                                                                            |
+| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                                                                                                                                                                                                                                 |
+| `npm run package`                         | `vsce package --no-dependencies` → `.vsix` (without the macOS helper unless built on a Mac)                                                                                                                                                                                                                    |
+| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                 |
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes

@@ -1398,29 +1398,77 @@ body {
   visibility: hidden;
 }
 
-/* "Fork from here" shows on hover or focus, under the user card's text. */
-.fork-button {
-  margin-top: 4px;
-  padding: 1px 6px;
+/* The rewind button sits in the user card's top-right corner (the card is
+   positioned, see .message-user) and shows on hover or focus, as Claude Code's
+   user-message menu does; its menu opens beneath. */
+.rewind {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.rewind-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
+  border-radius: 50%;
   color: var(--vscode-descriptionForeground);
-  font: inherit;
-  font-size: 0.85em;
-  background: transparent;
+  background: var(--vscode-editor-background);
   cursor: pointer;
   visibility: hidden;
 }
 
+.rewind-button[aria-expanded='true'] {
+  visibility: visible;
+}
+
+.rewind-menu {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
+  border-radius: var(--ms-radius);
+  background: var(--vscode-menu-background, var(--vscode-editor-background));
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+}
+
+.rewind-menu-item {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--ms-radius);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rewind-menu-item:hover,
+.rewind-menu-item:focus-visible {
+  color: var(--vscode-menu-selectionForeground, inherit);
+  background: var(--vscode-menu-selectionBackground, var(--vscode-toolbar-hoverBackground));
+  outline: none;
+}
+
 .header-title-button:hover,
-.fork-button:hover {
+.rewind-button:hover {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
 .header-title-button:focus-visible,
 .header-title-input:focus-visible,
 .history-archive:focus-visible,
-.fork-button:focus-visible {
+.rewind-button:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
@@ -1430,8 +1478,8 @@ body {
   visibility: visible;
 }
 
-.message-user:hover .fork-button,
-.message-user:focus-within .fork-button {
+.message-user:hover .rewind-button,
+.message-user:focus-within .rewind-button {
   visibility: visible;
 }
 

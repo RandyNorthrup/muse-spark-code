@@ -43,6 +43,10 @@ export const settingsSnapshotShape = {
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)
 
+/** One applied edit the host can revert: the tool item and its patch document. */
+const editRefSchema = z.object({ itemId: z.string(), outputRef: z.string() })
+export type EditRef = z.infer<typeof editRefSchema>
+
 // What the webview keeps in VS Code's webview state (`setState`): the
 // session it shows, so a panel rebuilt after a window reload resumes it
 // (PLAN.md D15). Anything else stored there restores an empty panel.
@@ -219,6 +223,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Edit review (M5): the stored patch of a completed edit-family item.
   z.object({ type: z.literal('openEditDiff'), itemId: z.string(), outputRef: z.string() }),
   z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
+  // Rewind code to a message: revert every edit after it, newest first (M13).
+  z.object({ type: z.literal('rewindCode'), edits: z.array(editRefSchema) }),
   // Session history (M6).
   z.object({ type: z.literal('listSessions') }),
   z.object({ type: z.literal('resumeSession'), sessionId: z.string() }),

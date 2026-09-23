@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs'
 import type { CoreLogger } from '../../core/logging'
 import {
   Dictation,
+  type DictationHandle,
   type DictationListener,
   type HelperChild,
   type HelperInvocation,
@@ -14,7 +15,10 @@ import {
 import { type HelperProbe, locateDictationHelper } from '../../core/voice/helperLocation'
 
 export type DictationSetup =
-  | { readonly isAvailable: true; readonly create: (listener: DictationListener) => Dictation }
+  | {
+      readonly isAvailable: true
+      readonly create: (listener: DictationListener) => DictationHandle
+    }
   | { readonly isAvailable: false; readonly reason: string }
 
 const SIGNAL_EXIT = 'signal'

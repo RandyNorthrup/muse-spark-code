@@ -5,7 +5,7 @@ import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
-import type { AuthService, AuthSnapshot } from '../../src/host/auth/authService'
+import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
 import {
   ConversationController,
   type ConversationDeps,
@@ -16,7 +16,7 @@ import {
   type PickedFile,
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
-import type { Dictation, DictationListener } from '../../src/core/voice/dictation'
+import type { DictationListener } from '../../src/core/voice/dictation'
 import type { DictationSetup } from '../../src/host/voice/dictationHost'
 import type { HostAction, MentionItem } from '../../src/shared/protocol'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
@@ -25,7 +25,7 @@ import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeInitializeResult, fakeMspHost, settle } from './helpers/fakeMsp'
 
 interface FakeAuth {
-  readonly service: AuthService
+  readonly service: AuthPort
   readonly calls: string[]
   snapshot: AuthSnapshot
 }
@@ -35,8 +35,7 @@ function fakeAuth(status: AuthSnapshot['status'] = 'signedIn'): FakeAuth {
   const state: FakeAuth = {
     calls,
     snapshot: { status, detail: undefined },
-    // Only the members the controller touches are implemented; the class type
-    // is satisfied through a structural stand-in.
+    // AuthPort is exactly the member set the controller touches.
     service: {
       get current() {
         return state.snapshot
@@ -64,7 +63,7 @@ function fakeAuth(status: AuthSnapshot['status'] = 'signedIn'): FakeAuth {
         state.snapshot = { status: 'error', detail }
         return state.snapshot
       },
-    } as unknown as AuthService,
+    },
   }
   return state
 }
@@ -1196,6 +1195,33 @@ describe('ConversationController: editor integration (M5)', () => {
     })
   })
 
+  it('rewinds code by reverting the edits after a message newest first, or says there is nothing (M13)', async () => {
+    const t = setup()
+    await t.send('l1', 'edit it')
+    await t.controller.handle({
+      type: 'rewindCode',
+      edits: [
+        { itemId: 'c2', outputRef: 'tool_patch-2' },
+        { itemId: 'c1', outputRef: 'tool_patch-1' },
+      ],
+    })
+    expect(t.reviews).toEqual([
+      ['revert', 'c2', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-2'],
+      ['revert', 'c1', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-1'],
+    ])
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Code rewound to this message (2 edits)',
+    })
+    await t.controller.handle({ type: 'rewindCode', edits: [] })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'No edits after this message to rewind.',
+    })
+  })
+
   it('fetches the stored patch for a review and relays the notices', async () => {
     const t = setup()
     await t.send('l1', 'edit it')
@@ -1810,7 +1836,7 @@ describe('ConversationController: voice dictation (M9)', () => {
       create: (listener) => {
         driver.listener = listener
         driver.calls.push('create')
-        // Only the three methods the controller calls; a structural stand-in.
+        // The three methods of DictationHandle, the calls the controller makes.
         const record = (call: string) => () => {
           driver.calls.push(call)
         }
@@ -1818,7 +1844,7 @@ describe('ConversationController: voice dictation (M9)', () => {
           start: record('start'),
           stop: record('stop'),
           dispose: record('dispose'),
-        } as unknown as Dictation
+        }
       },
     }
     return { setup, driver }

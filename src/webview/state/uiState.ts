@@ -26,6 +26,7 @@ import type {
   AttachmentSummary,
   AuthStatus,
   BackendKind,
+  EditRef,
   EditorContextSummary,
   HostToWebviewMessage,
   MentionItem,
@@ -1003,6 +1004,27 @@ export function forkCutBefore(
   return earlier?.kind === 'user' && earlier.turnId !== undefined
     ? { type: 'afterTurn', lastTurnId: earlier.turnId }
     : { type: 'fresh' }
+}
+
+/**
+ * The edits applied after a user message, newest first: what "Rewind code to
+ * here" reverts. Only completed edit rows carry a patch document.
+ */
+export function editsAfter(
+  transcript: readonly TranscriptEntry[],
+  entryId: string,
+): readonly EditRef[] {
+  const index = transcript.findIndex((entry) => entry.id === entryId)
+  return index === -1
+    ? []
+    : transcript
+        .slice(index + 1)
+        .flatMap((entry) =>
+          entry.kind === 'tool' && entry.status === 'completed' && entry.patchRef !== undefined
+            ? [{ itemId: entry.id, outputRef: entry.patchRef.id }]
+            : [],
+        )
+        .toReversed()
 }
 
 /** Whether any tool row is waiting on the user (approval or question). */

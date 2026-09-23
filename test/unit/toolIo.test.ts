@@ -86,4 +86,30 @@ describe('createToolIo (real file system and shell)', () => {
     const result = await io().runShell(command, root, 500)
     expect(result.isTimedOut).toBe(true)
   }, 60_000)
+
+  it('captures stderr and the exit code of a failing command', async () => {
+    const command =
+      process.platform === 'win32'
+        ? '[Console]::Error.WriteLine("bad news"); exit 7'
+        : 'echo bad news >&2; exit 7'
+    const result = await io().runShell(command, root, SHELL_BUDGET_MS)
+    expect(result.stderr).toContain('bad news')
+    expect(result.exitCode).toBe(7)
+    expect(result.isTimedOut).toBe(false)
+  })
+
+  it('reports an interpreter that cannot start instead of hanging', async () => {
+    // A Windows layout whose PowerShell does not exist, on any host OS.
+    const broken = createToolIo({
+      platform: 'win32',
+      listFiles: () => Promise.resolve([]),
+      systemRoot: path.join(root, 'no-such-windows'),
+      env: process.env,
+      searchWorkerPath: 'unused-here',
+    })
+    const result = await broken.runShell('echo hi', root, SHELL_BUDGET_MS)
+    expect(result.exitCode).toBeNull()
+    expect(result.stderr).toMatch(/ENOENT/)
+    expect(result.isTimedOut).toBe(false)
+  })
 })

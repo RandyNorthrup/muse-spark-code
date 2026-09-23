@@ -33,6 +33,7 @@ import { TodoPanel } from './components/TodoPanel'
 import { Transcript } from './components/Transcript'
 import {
   canSend,
+  editsAfter,
   forkCutBefore,
   initialUiState,
   type UiState,
@@ -354,6 +355,14 @@ export function App({
     },
     [state.transcript, onNewConversation, postMessage],
   )
+  // "Rewind code to here": the host reverts the edits after that message,
+  // newest first, and says so (or that there was nothing to revert).
+  const onRewind = useCallback(
+    (entryId: string) => {
+      postMessage({ type: 'rewindCode', edits: [...editsAfter(state.transcript, entryId)] })
+    },
+    [state.transcript, postMessage],
+  )
   const onRemoveAttachment = useCallback(
     (id: string) => {
       dispatch({ type: 'attachmentRemoved', id })
@@ -603,6 +612,7 @@ export function App({
         onOpenEditDiff={onOpenEditDiff}
         onRevertEdit={onRevertEdit}
         onFork={state.sessionId === undefined ? undefined : onFork}
+        onRewind={state.sessionId === undefined ? undefined : onRewind}
       />
     )
   }

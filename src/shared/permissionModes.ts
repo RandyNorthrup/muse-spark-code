@@ -51,10 +51,13 @@ export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): A
 }
 
 /** The modes the Modes menu lists, in the Claude Code order. */
-export function availablePermissionModes(canBypass: boolean): readonly PermissionMode[] {
+export function availablePermissionModes(
+  canBypass: boolean,
+): readonly [PermissionMode, ...PermissionMode[]] {
+  const [first, ...rest] = PERMISSION_MODES
   return canBypass
     ? PERMISSION_MODES
-    : PERMISSION_MODES.filter((mode) => mode !== 'bypassPermissions')
+    : [first, ...rest.filter((mode) => mode !== 'bypassPermissions')]
 }
 
 /**
@@ -64,11 +67,9 @@ export function availablePermissionModes(canBypass: boolean): readonly Permissio
  */
 export function nextPermissionMode(mode: PermissionMode, canBypass: boolean): PermissionMode {
   const modes = availablePermissionModes(canBypass)
-  const index = modes.indexOf(mode)
-  const next = modes[(index + 1) % modes.length]
-  // The modulo keeps the index in range, but noUncheckedIndexedAccess cannot
-  // see that; the fallback is unreachable and exists for the type only.
-  return next ?? PERMISSION_MODES[0]
+  // Past the last mode, or a mode no longer listed (indexOf -1), the cycle
+  // wraps to the first one; the list is never empty.
+  return modes[modes.indexOf(mode) + 1] ?? modes[0]
 }
 
 export function isPermissionMode(value: string): value is PermissionMode {

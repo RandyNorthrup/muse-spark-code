@@ -9,6 +9,45 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.3.1] - 2026-09-22
+
+The production-readiness verification (PLAN.md D16) and its fixes.
+
+### Added
+
+- A process-level end-to-end suite: a fake Muse Code CLI (an MSP host over
+  stdio, a real executable on Windows) spawned by the real backend manager,
+  covering a full turn, approvals allowed and rejected, refusal by mode,
+  bypass, cancel, history, usage, and the drills (host death mid-turn, a
+  malformed frame, a binary that will not start, no binary). Runs in the
+  unit gate on every platform, no account needed.
+- An opt-in live drill (`MUSE_LIVE_E2E=1 npm run test:e2e:live`): one
+  reply-only turn on the real CLI in an empty workspace, with the model
+  attempt count read from the CLI's trace log for the session and a
+  budget of 40 (measured: 31, one for the answer and thirty for the CLI's
+  bundled reminder agents).
+- The user message's fork/rewind menu, as in Claude Code: one button
+  opening **Fork conversation from here**, **Rewind code to here** (reverts
+  every completed edit after that message, newest first, and reports the
+  count) and **Fork conversation and rewind code**. Replaces the inline
+  "Fork from here" button.
+- Tests for the shell tool's error and stderr paths, the mention menu's
+  mouse handling, the status line's timer and the effort dots.
+
+### Changed
+
+- The backend manager that spawns `muse serve` is covered by the e2e
+  suite and no longer excluded from the coverage gate.
+- The conversation controller depends on `AuthPort` and `DictationHandle`
+  (the members it uses) instead of the classes; the two test casts are gone.
+- `nextPermissionMode` wraps through a non-empty mode list; the type-only
+  unreachable branch is gone.
+
+### Removed
+
+- `scripts/measure-markdown.mjs`, an M4 measurement wired to nothing (its
+  numbers stay in `docs/certification/m4.md`).
+
 ## [0.3.0] - 2026-09-22
 
 Harness parity with the Claude Code extension's preconfigured files
