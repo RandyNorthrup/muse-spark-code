@@ -199,7 +199,7 @@ export interface ConversationDeps {
   /** The subscription window the CLI last reported, kept across sessions (M16). */
   readonly usageCache: UsageCache
   /** The IDE tool server for `session/start`, when it is listening. */
-  readonly ideMcpEndpoint: () => SessionMcpHttpServer | undefined
+  readonly ideMcpEndpoint: () => Promise<SessionMcpHttpServer | undefined>
   readonly newAttachmentId: () => string
   /** Session history (M6). */
   readonly sessions: SessionMemory
@@ -851,14 +851,14 @@ export class ConversationController {
   }
 
   /** The IDE tool server config for a new or resumed session, when granted. */
-  private mcpServersFor(
+  private async mcpServersFor(
     host: AgentHost,
-  ): Readonly<Record<string, SessionMcpHttpServer>> | undefined {
-    const ideEndpoint = this.deps.ideMcpEndpoint()
-    const hasSessionMcp = host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)
-    return ideEndpoint !== undefined && hasSessionMcp
-      ? { [IDE_MCP_SERVER_NAME]: ideEndpoint }
-      : undefined
+  ): Promise<Readonly<Record<string, SessionMcpHttpServer>> | undefined> {
+    if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
+      return undefined
+    }
+    const ideEndpoint = await this.deps.ideMcpEndpoint()
+    return ideEndpoint === undefined ? undefined : { [IDE_MCP_SERVER_NAME]: ideEndpoint }
   }
 
   /** Take a session as this surface's: events, composer state, skills. */
@@ -913,7 +913,7 @@ export class ConversationController {
     if (resumed !== undefined) {
       return resumed
     }
-    const mcpServers = this.mcpServersFor(host)
+    const mcpServers = await this.mcpServersFor(host)
     const session = await host.startSession({
       workspaceRoot,
       modelId: this.modelId,
@@ -950,7 +950,11 @@ export class ConversationController {
     }
     let loaded: LoadedSession
     try {
-      loaded = await host.resumeSession(target.sessionId, this.modelId, this.mcpServersFor(host))
+      loaded = await host.resumeSession(
+        target.sessionId,
+        this.modelId,
+        await this.mcpServersFor(host),
+      )
     } catch (error: unknown) {
       this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`)
       return undefined
@@ -1119,7 +1123,11 @@ export class ConversationController {
       const host = await this.deps.ensureHost()
       await this.ensureModels(host)
       this.watchList(host)
-      const loaded = await host.resumeSession(sessionId, this.modelId, this.mcpServersFor(host))
+      const loaded = await host.resumeSession(
+        sessionId,
+        this.modelId,
+        await this.mcpServersFor(host),
+      )
       await this.adopt(host, loaded, UI_TEXT.resumedNotice)
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`)
@@ -1399,6 +1407,9 @@ export class ConversationController {
 
   private clear(): void {
     this.dropSession()
+    // A new conversation is new: the session a restart or crash left to
+    // resume is not picked up by its first message (D25).
+    this.resumeTarget = undefined
     // The webview drops its transcript too, whoever asked: the panel's own
     // New Conversation (it spends the echo) or a keybinding (M25, D28).
     this.post({ type: 'conversationCleared' })

@@ -130,6 +130,8 @@ function setup(
     /** Files the fake mention index lists (for the selection-text rule). */
     indexed?: readonly string[]
     ideMcpEndpoint?: SessionMcpHttpServer
+    /** How long the IDE tool server takes to answer (a retried start, D25). */
+    ideMcpStartMs?: number
     grantedCapabilities?: readonly string[]
     /** The window a previous session left in the cache (M16). */
     cachedUsage?: SubscriptionUsage
@@ -363,7 +365,13 @@ function setup(
         return Promise.resolve()
       },
     },
-    ideMcpEndpoint: () => options.ideMcpEndpoint,
+    ideMcpEndpoint: () =>
+      new Promise((resolve) => {
+        // A server still (re)starting answers later (D25); the session waits.
+        setTimeout(() => {
+          resolve(options.ideMcpEndpoint)
+        }, options.ideMcpStartMs ?? 0)
+      }),
     newAttachmentId: () => {
       attachmentCount += 1
       return `att-${String(attachmentCount)}`
@@ -1324,6 +1332,19 @@ describe('ConversationController: editor integration (M5)', () => {
     await noServer.send('l1', 'hi')
     expect(noServer.server.requestsFor('session/start')[0]?.params?.['config']).toBeUndefined()
   })
+
+  it('waits for an IDE tool server that is still starting, so the session gets it (D25)', async () => {
+    const endpoint = { url: 'http://127.0.0.1:1/mcp', headers: { Authorization: 'Bearer t' } }
+    const t = setup({
+      ideMcpEndpoint: endpoint,
+      ideMcpStartMs: 20,
+      grantedCapabilities: ['sessionMcp'],
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params?.['config']).toMatchObject({
+      mcpServers: { ide: { url: endpoint.url } },
+    })
+  })
 })
 
 describe('ConversationController: other messages', () => {
@@ -1377,6 +1398,20 @@ describe('ConversationController: other messages', () => {
     expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })
     expect(t.server.requestsFor('session/start')).toHaveLength(1)
     t.controller.dispose()
+  })
+
+  it('starts afresh after a crash when the user asked for a new conversation (D25)', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.controller.hostExited({
+      description: 'Muse Code failed with an unhandled error (exit 1)',
+      isExpected: false,
+      isPersistent: false,
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.send('l2', 'a new topic')
+    expect(t.server.requestsFor('session/resume')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
   })
 
   it('reports a persistent exit through the sign-in gate and ignores its own close', async () => {
