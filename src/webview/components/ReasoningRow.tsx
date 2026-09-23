@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
 import type { TranscriptEntry } from '../state/uiState'
+import { ExpandChevron } from './icons'
 
 type ReasoningEntry = Extract<TranscriptEntry, { kind: 'reasoning' }>
 
@@ -31,6 +32,7 @@ export function ReasoningRow({ entry }: { readonly entry: ReasoningEntry }) {
       >
         <span className="tool-dot tool-dot-muted" aria-hidden="true" />
         <span>{reasoningLabel(entry)}</span>
+        {hasBody ? <ExpandChevron isOpen={isOpen} /> : null}
       </button>
       {isOpen && hasBody ? (
         <div className="reasoning-body">

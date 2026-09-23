@@ -9,6 +9,35 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.4.1] - 2026-09-22
+
+The owner's first F5 round on 0.4.0 (PLAN.md D18).
+
+### Added
+
+- The transcript follows new entries while you are at the end (and after
+  your own send); scrolled up, it holds still and a **New messages** button
+  jumps to the newest.
+- A chevron on every tool and reasoning row that opens; it turns when the
+  row is open. Rows with nothing to show are disabled.
+- **Copy** on each finished reply, shown on hover, copies the reply's
+  markdown.
+- A tool's output (a shell OUT, a read, a generic output) opens in a
+  read-only editor tab on click or Enter, named like Claude Code's
+  ("PowerShell tool output (a1b2c3)"); a stored output is paged in full.
+- Long inline diffs are clipped behind **Click to expand**: with a stored
+  patch it opens the diff editor (the file side is editable), otherwise the
+  rows unfold inline.
+
+### Fixed
+
+- The model pill read "Starting Muse Code…" until the pill was clicked: the
+  host now starts and lists its models as soon as the panel is open, and
+  after a sign-in.
+- An approval decision Muse Code failed to record (its "approval ledger
+  durability fence" error on Windows) was reported as refused although the
+  tool ran; it is now a warning that says the tool may have run anyway.
+
 ## [0.4.0] - 2026-09-22
 
 Subagents, the Agent map, the Account & Usage modal, and the smaller

@@ -10,11 +10,12 @@ import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/u
 import { splitForStreaming } from '../streamSplit'
 import type { ApprovalDecisionInput } from './ApprovalCard'
 import { formatDurationMs } from './AgentMap'
-import { FileIcon, ImageIcon, RewindIcon } from './icons'
+import { useCopiedFlag } from '../useCopiedFlag'
+import { CheckIcon, CopyIcon, FileIcon, ImageIcon, RewindIcon } from './icons'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
-import { ToolRow } from './ToolRow'
+import { ToolRow, type ToolRowProps } from './ToolRow'
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -25,6 +26,8 @@ export interface TranscriptProps {
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
   readonly onReadOutput: (itemId: string, outputRef: string, offsetBytes: number) => void
+  /** A tool output as an editor tab (M15). */
+  readonly onOpenOutput: ToolRowProps['onOpenOutput']
   readonly onDecide: (decision: ApprovalDecisionInput) => void
   readonly onAnswer: (userInputId: string, answers: readonly QuestionAnswer[]) => void
   /** Code block Apply and edit review (M5). */
@@ -193,6 +196,7 @@ function AssistantRow({ entry, onOpenLink, onCopy, onInsert, onApply }: Assistan
   const text = useDeferredValue(entry.text)
   const { head, tail } = entry.isStreaming ? splitForStreaming(text) : { head: '', tail: text }
   const actions = { onOpenLink, onCopy, onInsert, onApply }
+  const [isCopied, markCopied] = useCopiedFlag()
   return (
     <li className="message message-assistant" aria-busy={entry.isStreaming}>
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
@@ -201,6 +205,20 @@ function AssistantRow({ entry, onOpenLink, onCopy, onInsert, onApply }: Assistan
         <MarkdownView text={tail} {...actions} />
         {entry.isStreaming ? <span className="cursor" aria-hidden="true" /> : null}
       </div>
+      {entry.isStreaming ? null : (
+        <button
+          type="button"
+          className="response-copy"
+          aria-label={UI_TEXT.copyResponse}
+          title={isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyResponse}
+          onClick={() => {
+            onCopy(entry.text)
+            markCopied()
+          }}
+        >
+          {isCopied ? <CheckIcon /> : <CopyIcon />}
+        </button>
+      )}
     </li>
   )
 }
@@ -242,6 +260,7 @@ export function Transcript(props: TranscriptProps) {
     onCopy,
     onInsert,
     onReadOutput,
+    onOpenOutput,
     onDecide,
     onAnswer,
     onApply,
@@ -263,6 +282,7 @@ export function Transcript(props: TranscriptProps) {
             : outputPages[outputPageKey(entry.id, entry.patchRef.id)]
         }
         onReadOutput={onReadOutput}
+        onOpenOutput={onOpenOutput}
         onDecide={onDecide}
         onAnswer={onAnswer}
         onOpenEditDiff={onOpenEditDiff}

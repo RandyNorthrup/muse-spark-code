@@ -259,3 +259,23 @@ export function BackIcon(props: IconProps) {
     </Svg>
   )
 }
+
+/** The disclosure mark on a row that opens: pointing right closed, down open (M15). */
+export function ExpandChevron({ isOpen }: { readonly isOpen: boolean }) {
+  return (
+    <span className={isOpen ? 'chevron chevron-open' : 'chevron'} aria-hidden="true">
+      <Svg>
+        <path d="m6 4 4 4-4 4" />
+      </Svg>
+    </span>
+  )
+}
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+      <path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
+    </Svg>
+  )
+}

@@ -48,6 +48,7 @@ function renderTranscript(
     onCopy: vi.fn(),
     onInsert: vi.fn(),
     onReadOutput: vi.fn(),
+    onOpenOutput: vi.fn(),
     onDecide: vi.fn(),
     onAnswer: vi.fn(),
     onApply: vi.fn(),
@@ -333,5 +334,105 @@ describe('Transcript editor integration (M5)', () => {
     ])
     fireEvent.click(screen.getByText('Apply'))
     expect(props.onApply).toHaveBeenCalledWith('let a = 1')
+  })
+})
+
+/** A unified diff with more rows than the preview shows. */
+const LONG_DIFF = [
+  '--- a/x.ts',
+  '+++ b/x.ts',
+  '@@ -1,15 +1,15 @@',
+  ...Array.from({ length: 15 }, (_, index) => ` line ${String(index + 1)}`),
+].join('\n')
+
+function header(index: number): HTMLButtonElement {
+  const found = document.querySelectorAll<HTMLButtonElement>('.tool-header')[index]
+  if (found === undefined) {
+    throw new Error(`no tool header ${String(index)}`)
+  }
+  return found
+}
+
+describe('Transcript rows (M15)', () => {
+  it('marks rows that open with a chevron that turns, and disables rows with nothing to show', () => {
+    renderTranscript([
+      tool({ id: 'sh', tool: 'powershell', args: '{"command":"ls"}', output: 'a\nb' }),
+      tool({ id: 'empty', tool: 'read_file', output: '' }),
+      {
+        kind: 'reasoning',
+        id: 'r',
+        parts: ['because'],
+        isStreaming: false,
+        startedAt: 0,
+        durationMs: 1,
+      },
+    ])
+    expect(header(0).querySelector('.chevron')).not.toBeNull()
+    expect(header(0).querySelector('.chevron-open')).toBeNull()
+    expect(header(0).disabled).toBe(false)
+    fireEvent.click(header(0))
+    expect(header(0).querySelector('.chevron-open')).not.toBeNull()
+    expect(header(1).querySelector('.chevron')).toBeNull()
+    expect(header(1).disabled).toBe(true)
+    const reasoning = screen.getByText('Thought for 1s').closest('button')
+    expect(reasoning?.querySelector('.chevron')).not.toBeNull()
+  })
+
+  it('copies a finished response and offers no copy while it streams', () => {
+    const props = renderTranscript([
+      { kind: 'assistant', id: 'a1', text: 'first **bold**', isStreaming: false },
+      { kind: 'assistant', id: 'a2', text: 'partial', isStreaming: true },
+    ])
+    const copy = screen.getByRole('button', { name: 'Copy response' })
+    expect(copy).toHaveAttribute('title', 'Copy response')
+    fireEvent.click(copy)
+    expect(props.onCopy).toHaveBeenCalledWith('first **bold**')
+    expect(copy).toHaveAttribute('title', 'Copied')
+  })
+
+  it('opens a shell or read output in an editor on click or Enter, with the stored ref when there is one', () => {
+    const props = renderTranscript([
+      tool({
+        id: 'sh',
+        tool: 'powershell',
+        args: '{"command":"ls"}',
+        output: 'out',
+        outputRef: { id: 'ref-1', byteLen: 3 },
+      }),
+      tool({ id: 'rd', tool: 'read_file', args: '{"path":"a.ts"}', output: 'const a = 1' }),
+    ])
+    fireEvent.click(header(0))
+    fireEvent.click(header(1))
+    const [shellOut, readOut] = screen.getAllByTitle('Click to open the output in an editor')
+    expect(shellOut).toBeDefined()
+    expect(readOut).toBeDefined()
+    fireEvent.click(shellOut!)
+    expect(props.onOpenOutput).toHaveBeenLastCalledWith('sh', 'PowerShell', 'out', 'ref-1')
+    fireEvent.keyDown(readOut!, { key: 'Enter' })
+    expect(props.onOpenOutput).toHaveBeenLastCalledWith('rd', 'Read', 'const a = 1', undefined)
+    fireEvent.keyDown(readOut!, { key: 'a' })
+    expect(props.onOpenOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('clips a long diff behind Click to expand: the diff editor for a stored patch, inline otherwise', () => {
+    const props = renderTranscript([
+      tool({
+        id: 'e1',
+        tool: 'edit_file',
+        args: '{"path":"x.ts"}',
+        output: LONG_DIFF,
+        patchRef: { id: 'p1', byteLen: 10 },
+      }),
+      tool({ id: 'e2', tool: 'edit_file', args: '{"path":"y.ts"}', output: LONG_DIFF }),
+    ])
+    fireEvent.click(header(0))
+    fireEvent.click(header(1))
+    expect(document.querySelectorAll('.diff tr')).toHaveLength(24)
+    const [stored, inline] = screen.getAllByText('Click to expand')
+    fireEvent.click(stored!)
+    expect(props.onOpenEditDiff).toHaveBeenCalledWith('e1', 'p1')
+    fireEvent.click(inline!)
+    expect(document.querySelectorAll('.diff tr')).toHaveLength(27)
+    expect(screen.getAllByText('Click to expand')).toHaveLength(1)
   })
 })

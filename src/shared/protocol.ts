@@ -217,6 +217,15 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     outputRef: z.string(),
     offsetBytes: z.number(),
   }),
+  // Tool row: open the whole output in an editor tab (M15). `text` is the
+  // transcript's copy; a stored output (`outputRef`) is paged in full instead.
+  z.object({
+    type: z.literal('openOutput'),
+    itemId: z.string(),
+    label: z.string(),
+    text: z.string(),
+    outputRef: z.optional(z.string()),
+  }),
   // Code block actions.
   z.object({ type: z.literal('copyText'), text: z.string() }),
   z.object({ type: z.literal('insertCode'), text: z.string() }),

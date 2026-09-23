@@ -470,6 +470,13 @@ export const MUSE_EDIT_SCHEME = 'muse-edit'
 // A stored patch document is read whole for review; this many pages of
 // OUTPUT_PAGE_BYTES is far beyond any edit the tools produce.
 export const PATCH_DOCUMENT_MAX_PAGES = 8
+/** Pages of OUTPUT_PAGE_BYTES an "open in editor" fetches at most (16 MiB), M15. */
+export const OUTPUT_DOCUMENT_MAX_PAGES = 64
+/** The item-id tail that names an output editor tab, as Claude Code names its own. */
+export const OUTPUT_TAB_ID_LENGTH = 6
+/** The URI scheme of those read-only output documents, and how many stay readable. */
+export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
+export const OUTPUT_DOCUMENTS_KEPT = 20
 // The IDE tool server `muse serve` reaches over loopback (session MCP), and
 // the `session/listChanged` stream behind the History dialog (M6).
 export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream'] as const
@@ -645,6 +652,16 @@ export const UI_TEXT = {
   signInTimedOut: 'The sign-in did not complete in time. Try again.',
   hostExited: 'Muse Code stopped unexpectedly.',
   hostStarting: 'Starting Muse Code…',
+  hostStartFailed: 'The backend could not start',
+  decisionErrorNotice:
+    'Muse Code reported an error for the decision (the tool may have run anyway)',
+  jumpToLatest: 'New messages',
+  jumpToLatestTitle: 'Jump to the newest message',
+  copyResponse: 'Copy response',
+  openOutputTitle: 'Click to open the output in an editor',
+  toolOutputTitle: 'tool output',
+  clickToExpand: 'Click to expand',
+  openOutputFailed: 'Could not open the output',
   working: 'Working…',
   attachTitle: 'Attach',
   attachMenuLabel: 'Attach',

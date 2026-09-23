@@ -34,7 +34,9 @@ import {
   IMAGE_EXTENSIONS,
   MENTION_RESULT_LIMIT,
   MSP_REQUESTED_CAPABILITIES,
+  OUTPUT_DOCUMENT_MAX_PAGES,
   OUTPUT_PAGE_BYTES,
+  OUTPUT_TAB_ID_LENGTH,
   PATCH_DOCUMENT_MAX_PAGES,
   type PermissionMode,
   SANDBOX_FAILURE_MARKER,
@@ -171,6 +173,8 @@ export interface ConversationDeps {
   /** Code block "Apply": replace the active editor's selection; false without an editor. */
   readonly applyCode: (text: string) => Promise<boolean>
   readonly editReview: EditReviewActions
+  /** A tool output as a read-only editor tab named `title` (M15). */
+  readonly openDocument: (title: string, content: string) => Promise<void>
   /** The IDE tool server for `session/start`, when it is listening. */
   readonly ideMcpEndpoint: () => SessionMcpHttpServer | undefined
   readonly newAttachmentId: () => string
@@ -228,6 +232,7 @@ export class ConversationController {
   private session: AgentSession | undefined
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
+  private modelListing: Promise<void> | undefined
   private skills: readonly SkillOption[] | undefined
   private skillsRefresh: Promise<void> | undefined
   private readonly attachments: AttachmentStore
@@ -445,7 +450,10 @@ export class ConversationController {
         ...(message.feedback !== undefined && { feedback: message.feedback }),
       })
     } catch (error: unknown) {
-      this.notice('error', `The decision was not accepted: ${describe(error)}`)
+      // Muse Code 1.3.0 on Windows can fail the reply to `approval/decide`
+      // on its own ledger write after applying the decision (the tool runs
+      // on); the wording must not claim the decision was refused.
+      this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`)
     }
   }
 
@@ -502,13 +510,34 @@ export class ConversationController {
   }
 
   /** The whole stored patch document (small; paged only in principle). */
-  private async fetchPatch(itemId: string, outputRef: string): Promise<string | undefined> {
+  /** A tool output as an editor tab: the stored output in full, else the transcript's copy (M15). */
+  private async openOutput(
+    message: Extract<ConversationMessage, { type: 'openOutput' }>,
+  ): Promise<void> {
+    const tabId = message.itemId.slice(-OUTPUT_TAB_ID_LENGTH)
+    const title = `${message.label} ${UI_TEXT.toolOutputTitle} (${tabId})`
+    try {
+      const stored =
+        message.outputRef === undefined
+          ? undefined
+          : await this.fetchPatch(message.itemId, message.outputRef, OUTPUT_DOCUMENT_MAX_PAGES)
+      await this.deps.openDocument(title, stored ?? message.text)
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.openOutputFailed}: ${describe(error)}`)
+    }
+  }
+
+  private async fetchPatch(
+    itemId: string,
+    outputRef: string,
+    maxPages = PATCH_DOCUMENT_MAX_PAGES,
+  ): Promise<string | undefined> {
     if (this.session === undefined) {
       return undefined
     }
     let content = ''
     let offsetBytes = 0
-    for (let page = 0; page < PATCH_DOCUMENT_MAX_PAGES; page += 1) {
+    for (let page = 0; page < maxPages; page += 1) {
       const chunk = await this.session.readOutput({
         itemId,
         outputRef,
@@ -521,7 +550,7 @@ export class ConversationController {
       }
       offsetBytes = chunk.offsetBytes + chunk.byteLen
     }
-    throw new Error(`patch document ${outputRef} is larger than expected`)
+    throw new Error(`stored output ${outputRef} is larger than expected`)
   }
 
   /** "Rewind code to here": the edits after a message, reverted newest first (M13). */
@@ -558,10 +587,20 @@ export class ConversationController {
     }
   }
 
+  /** One `model/list` at a time: the warm-up and the first send may overlap (M15). */
   private async ensureModels(host: AgentHost): Promise<void> {
     if (this.models !== undefined) {
       return
     }
+    this.modelListing ??= this.listModels(host)
+    try {
+      await this.modelListing
+    } finally {
+      this.modelListing = undefined
+    }
+  }
+
+  private async listModels(host: AgentHost): Promise<void> {
     const listed = await host.listModels()
     const models = this.deps.isConfidentialWorkspace()
       ? listed.filter((model) => !isContributorModel(model.modelId))
@@ -1221,6 +1260,25 @@ export class ConversationController {
     }
   }
 
+  /**
+   * List the models as soon as the panel is open (M15). Until then only a
+   * send, a resume or the pill's skill listing started the host and listed
+   * the models, so the pill read "Starting Muse Code…" until the first
+   * click. Starting the host and listing its models makes no model call.
+   */
+  private async warmModels(): Promise<void> {
+    if (this.models !== undefined || this.deps.auth.current.status !== 'signedIn') {
+      return
+    }
+    try {
+      const host = await this.deps.ensureHost()
+      await this.ensureModels(host)
+    } catch (error: unknown) {
+      this.deps.log.warn(`model warm-up failed: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
+    }
+  }
+
   public surfaceReady(): void {
     this.post(this.deps.auth.toMessage())
     this.postComposerState()
@@ -1235,6 +1293,7 @@ export class ConversationController {
     for (const attachment of this.attachments.list()) {
       this.post({ type: 'attachmentAdded', attachment })
     }
+    void this.warmModels()
   }
 
   public async handle(message: ConversationMessage): Promise<void> {
@@ -1254,6 +1313,7 @@ export class ConversationController {
       }
       case 'signIn': {
         await this.deps.auth.signIn(message.method)
+        void this.warmModels()
         break
       }
       case 'signOut': {
@@ -1280,6 +1340,10 @@ export class ConversationController {
       }
       case 'readOutput': {
         await this.readOutput(message)
+        break
+      }
+      case 'openOutput': {
+        await this.openOutput(message)
         break
       }
       case 'copyText': {

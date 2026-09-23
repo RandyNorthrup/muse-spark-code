@@ -11,6 +11,15 @@ function deliver(data: unknown) {
   })
 }
 
+/** A reply item starting and streaming one delta, as the host relays them. */
+function streamReply(itemId: string, delta: string) {
+  deliver({
+    type: 'agentEvent',
+    event: { type: 'itemStarted', item: { itemId, kind: 'agentMessage', status: 'inProgress' } },
+  })
+  deliver({ type: 'agentEvent', event: { type: 'textDelta', itemId, field: 'text', delta } })
+}
+
 function silenceConsoleWarn() {
   return vi.spyOn(console, 'warn').mockImplementation(() => {
     // The tests assert on the call, not on the output.
@@ -210,17 +219,7 @@ describe('App conversation', () => {
 
     deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1' })
     expect(screen.getByLabelText('Stop')).toBeInTheDocument()
-    deliver({
-      type: 'agentEvent',
-      event: {
-        type: 'itemStarted',
-        item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress' },
-      },
-    })
-    deliver({
-      type: 'agentEvent',
-      event: { type: 'textDelta', itemId: 'm1', field: 'text', delta: 'hi there' },
-    })
+    streamReply('m1', 'hi there')
     expect(screen.getByText('hi there')).toBeInTheDocument()
     deliver({
       type: 'agentEvent',
@@ -1076,5 +1075,89 @@ describe('App: voice dictation (M9)', () => {
     expect(textarea()).toHaveAttribute('placeholder', 'Listening…')
     deliver({ type: 'insertText', text: 'fix the bug ' })
     expect(textarea()).toHaveValue('fix the bug ')
+  })
+})
+
+describe('transcript scrolling (M15)', () => {
+  it('follows new entries at the end, holds still once scrolled up, and jumps on the button', () => {
+    renderReady()
+    const main = screen.getByRole('main')
+    let top = 0
+    const setTop = vi.fn((value: number) => {
+      top = value
+    })
+    Object.defineProperties(main, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 400 },
+      scrollTop: { configurable: true, get: () => top, set: setTop },
+    })
+
+    // The reader's own send always lands at the end.
+    fireEvent.change(textarea(), { target: { value: 'hello' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(setTop).toHaveBeenLastCalledWith(1000)
+    expect(screen.queryByRole('button', { name: 'New messages' })).toBeNull()
+
+    // Scrolled up: a new reply holds the view and offers the jump.
+    top = 0
+    fireEvent.scroll(main)
+    setTop.mockClear()
+    deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1' })
+    streamReply('m1', 'hi')
+    expect(setTop).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'New messages' }))
+    expect(setTop).toHaveBeenLastCalledWith(1000)
+    expect(screen.queryByRole('button', { name: 'New messages' })).toBeNull()
+
+    // Pinned to the end again: streaming keeps the view at the end, no button.
+    top = 600
+    fireEvent.scroll(main)
+    setTop.mockClear()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'textDelta', itemId: 'm1', field: 'text', delta: ' there' },
+    })
+    expect(setTop).toHaveBeenLastCalledWith(1000)
+    expect(screen.queryByRole('button', { name: 'New messages' })).toBeNull()
+  })
+
+  it('asks the host to open a tool output in an editor', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1' })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemStarted',
+        item: {
+          itemId: 'sh-000001',
+          kind: 'toolCall',
+          status: 'inProgress',
+          tool: 'powershell',
+          args: '{"command":"ls","description":"List files"}',
+        },
+      },
+    })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'sh-000001',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'powershell',
+          args: '{"command":"ls","description":"List files"}',
+          visibleOutput: 'a.ts\nb.ts',
+        },
+      },
+    })
+    fireEvent.click(screen.getByText('List files').closest('button') as HTMLElement)
+    fireEvent.click(screen.getByTitle('Click to open the output in an editor'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'openOutput',
+      itemId: 'sh-000001',
+      label: 'PowerShell',
+      text: 'a.ts\nb.ts',
+    })
   })
 })

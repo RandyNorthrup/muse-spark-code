@@ -243,6 +243,7 @@ function setup(
   const saveAll = vi.fn(() => Promise.resolve())
   const applied: string[] = []
   const reviews: [string, string, string][] = []
+  const opened: [string, string][] = []
   const contributorPrompts: string[] = []
   const memory = {
     archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
@@ -334,6 +335,10 @@ function setup(
         return Promise.resolve([{ level: 'info' as const, text: `reverted ${itemId}` }])
       },
     },
+    openDocument: (title: string, content: string) => {
+      opened.push([title, content])
+      return Promise.resolve()
+    },
     ideMcpEndpoint: () => options.ideMcpEndpoint,
     newAttachmentId: () => {
       attachmentCount += 1
@@ -374,6 +379,7 @@ function setup(
     },
     copied,
     inserted,
+    opened,
     onSandboxUnavailable,
     saveAll,
     applied,
@@ -928,9 +934,11 @@ describe('ConversationController: transcript actions (M4)', () => {
       choiceId: 'allow_once',
       requirementId: { approvalId: 'a1', sourceIndex: 0 },
     })
+    // A refused decision is a warning since M15: the CLI can fail this reply
+    // after applying the decision.
     expect(t.surface.posted.at(-1)).toMatchObject({
       type: 'notice',
-      level: 'error',
+      level: 'warning',
       text: expect.stringContaining('stale requirement') as string,
     })
     t.server.handle('userInput/answer', () => {
@@ -1975,5 +1983,70 @@ describe('ConversationController: reload host action (M11)', () => {
     await t.controller.handle({ type: 'hostAction', action: 'reload' })
     expect(t.surface.reload).toHaveBeenCalledOnce()
     expect(t.hostActions).toEqual([])
+  })
+})
+
+describe('ConversationController (M15)', () => {
+  it('lists the models as soon as the panel is ready, once, without starting a session', async () => {
+    const t = setup()
+    t.controller.surfaceReady()
+    await settle()
+    expect(t.surface.posted).toContainEqual(modelList)
+    expect(t.server.requestsFor('model/list')).toHaveLength(1)
+    expect(t.server.requestsFor('session/start')).toEqual([])
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('model/list')).toHaveLength(1)
+  })
+
+  it('leaves the host alone while signed out and warms the models after a sign-in', async () => {
+    const t = setup({ status: 'signedOut' })
+    t.controller.surfaceReady()
+    await settle()
+    expect(t.server.requestsFor('model/list')).toEqual([])
+    t.auth.snapshot = { status: 'signedIn', detail: undefined }
+    await t.controller.handle({ type: 'signIn', method: 'browser' })
+    await settle()
+    expect(t.server.requestsFor('model/list')).toHaveLength(1)
+  })
+
+  it('opens a tool output in an editor: the stored output paged in full, else the transcript copy', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await t.controller.handle({
+      type: 'openOutput',
+      itemId: 'item-abcdef123456',
+      label: 'PowerShell',
+      text: 'short copy',
+      outputRef: 'ref-1',
+    })
+    await t.controller.handle({
+      type: 'openOutput',
+      itemId: 'item-abcdef123456',
+      label: 'Read',
+      text: 'inline copy',
+    })
+    expect(t.opened).toEqual([
+      ['PowerShell tool output (123456)', '{"files":[{"path":"notes.md","hunks":[]}]}#ref-1'],
+      ['Read tool output (123456)', 'inline copy'],
+    ])
+  })
+
+  it('reports an approval decision the CLI could not record as a warning, not a refusal', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('approval/decide', () => {
+      throw new Error('approval ledger durability fence')
+    })
+    await t.controller.handle({
+      type: 'decideApproval',
+      approvalId: 'ap-1',
+      choiceId: 'allow',
+      requirementId: { approvalId: 'ap-1', sourceIndex: 0 },
+    })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('may have run anyway') as string,
+    })
   })
 })

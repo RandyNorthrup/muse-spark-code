@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
 import {
   type DictationAction,
@@ -26,7 +26,7 @@ import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
 import { UsageDialog } from './components/UsageDialog'
-import { AddContextIcon, UploadIcon } from './components/icons'
+import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteView } from './components/Palette'
 import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
@@ -64,6 +64,8 @@ const ATTACH_CONTEXT = 'context'
 const MENTION_TRIGGER = '@'
 const WHITESPACE_END = /\s$/
 const PERCENT = 100
+/** How far from the end the transcript still counts as "at the end" (M15). */
+const SCROLL_END_SLACK_PX = 24
 
 function isGated(state: UiState): boolean {
   return GATED_STATUSES.has(state.auth.status) && state.transcript.length === 0
@@ -119,6 +121,39 @@ export function App({
   const [overlay, setOverlay] = useState<Overlay | undefined>(undefined)
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
+
+  // The transcript follows new entries while the reader is at its end; once
+  // they scroll up it holds still and offers a jump to the newest (M15).
+  // `seenTranscript` is the transcript as of the reader's last scroll, so
+  // "new below" means it changed since, while they were away from the end.
+  const bodyRef = useRef<HTMLElement>(null)
+  const [isPinnedToEnd, setIsPinnedToEnd] = useState(true)
+  const [seenTranscript, setSeenTranscript] = useState(state.transcript)
+  const hasNewBelow =
+    !isPinnedToEnd && state.transcript !== seenTranscript && state.transcript.length > 0
+  const scrollToEnd = useCallback(() => {
+    const body = bodyRef.current
+    if (body !== null) {
+      body.scrollTop = body.scrollHeight
+    }
+    setIsPinnedToEnd(true)
+    setSeenTranscript(state.transcript)
+  }, [state.transcript])
+  const onBodyScroll = useCallback(() => {
+    const body = bodyRef.current
+    if (body === null) {
+      return
+    }
+    const isAtEnd = body.scrollHeight - body.scrollTop - body.clientHeight <= SCROLL_END_SLACK_PX
+    setIsPinnedToEnd(isAtEnd)
+    setSeenTranscript(state.transcript)
+  }, [state.transcript])
+  useEffect(() => {
+    const body = bodyRef.current
+    if (isPinnedToEnd && body !== null) {
+      body.scrollTop = body.scrollHeight
+    }
+  }, [state.transcript, isPinnedToEnd])
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
@@ -181,6 +216,8 @@ export function App({
       attachmentIds,
       includeEditorContext: editorContext !== undefined,
     })
+    // The reader's own message always lands in view (M15).
+    setIsPinnedToEnd(true)
   }, [state, newLocalId, postMessage])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
@@ -227,6 +264,18 @@ export function App({
   const onReadOutput = useCallback(
     (itemId: string, outputRef: string, offsetBytes: number) => {
       postMessage({ type: 'readOutput', itemId, outputRef, offsetBytes })
+    },
+    [postMessage],
+  )
+  const onOpenOutput = useCallback(
+    (itemId: string, label: string, text: string, outputRef: string | undefined) => {
+      postMessage({
+        type: 'openOutput',
+        itemId,
+        label,
+        text,
+        ...(outputRef !== undefined && { outputRef }),
+      })
     },
     [postMessage],
   )
@@ -635,6 +684,7 @@ export function App({
         onCopy={onCopy}
         onInsert={onInsert}
         onReadOutput={onReadOutput}
+        onOpenOutput={onOpenOutput}
         onDecide={onDecide}
         onAnswer={onAnswer}
         onApply={onApply}
@@ -785,8 +835,23 @@ export function App({
       </div>
       {usageDialog}
       {agentMap}
-      <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
+      <main
+        ref={bodyRef}
+        className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}
+        onScroll={onBodyScroll}
+      >
         {body}
+        {hasNewBelow ? (
+          <button
+            type="button"
+            className="jump-latest"
+            title={UI_TEXT.jumpToLatestTitle}
+            onClick={scrollToEnd}
+          >
+            <ExpandChevron isOpen />
+            {UI_TEXT.jumpToLatest}
+          </button>
+        ) : null}
       </main>
       <TodoPanel items={state.todos} />
       <div className="composer-area">

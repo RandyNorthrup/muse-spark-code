@@ -1,9 +1,9 @@
 // A fenced code block: language tag, highlighted body, Copy, Insert at
 // cursor and Apply (replace the editor selection).
 
-import { useEffect, useState } from 'react'
-import { COPIED_FEEDBACK_MS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { highlight, resolveLanguage } from '../highlight'
+import { useCopiedFlag } from '../useCopiedFlag'
 
 export interface CodeBlockProps {
   readonly code: string
@@ -14,18 +14,7 @@ export interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, language, onCopy, onInsert, onApply }: CodeBlockProps) {
-  const [isCopied, setIsCopied] = useState(false)
-  useEffect(() => {
-    if (!isCopied) {
-      return
-    }
-    const timer = setTimeout(() => {
-      setIsCopied(false)
-    }, COPIED_FEEDBACK_MS)
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [isCopied])
+  const [isCopied, markCopied] = useCopiedFlag()
   const resolved = resolveLanguage(language)
   // highlight.js returns HTML it escaped itself; nothing from the model
   // reaches the DOM unescaped.
@@ -40,7 +29,7 @@ export function CodeBlock({ code, language, onCopy, onInsert, onApply }: CodeBlo
             className="code-block-button"
             onClick={() => {
               onCopy(code)
-              setIsCopied(true)
+              markCopied()
             }}
           >
             {isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyCode}

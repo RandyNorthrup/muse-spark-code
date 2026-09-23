@@ -72,6 +72,8 @@ import {
   MUSE_INIT_ARGS,
   MUSE_INIT_TIMEOUT_MS,
   MUSE_LOGIN_TERMINAL_NAME,
+  OUTPUT_DOCUMENT_SCHEME,
+  OUTPUT_DOCUMENTS_KEPT,
   PRODUCT_NAME,
   SEARCH_WORKER_FILE,
   SETTINGS_SECTION,
@@ -400,6 +402,31 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   }
   void startIdeServer()
+  // Tool outputs open as read-only documents (M15), the tab named through the
+  // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
+  // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
+  const outputDocuments = new Map<string, string>()
+  let outputDocumentCount = 0
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(OUTPUT_DOCUMENT_SCHEME, {
+      provideTextDocumentContent: (uri) => outputDocuments.get(uri.query) ?? '',
+    }),
+  )
+  const openDocument = async (title: string, content: string): Promise<void> => {
+    outputDocumentCount += 1
+    const id = String(outputDocumentCount)
+    outputDocuments.set(id, content)
+    for (const key of outputDocuments.keys()) {
+      if (outputDocuments.size <= OUTPUT_DOCUMENTS_KEPT) {
+        break
+      }
+      outputDocuments.delete(key)
+    }
+    const uri = vscode.Uri.from({ scheme: OUTPUT_DOCUMENT_SCHEME, path: `/${title}`, query: id })
+    const document = await vscode.workspace.openTextDocument(uri)
+    await vscode.window.showTextDocument(document, { preview: true })
+  }
+
   const editReview = new EditReview({
     platform: process.platform,
     workspaceRoot: workspaceRoot ?? '',
@@ -655,6 +682,7 @@ export function activate(context: vscode.ExtensionContext): void {
           return isApplied
         },
         editReview,
+        openDocument,
         ideMcpEndpoint: () => ideServer.current,
         newAttachmentId: () => crypto.randomUUID(),
         sessions,

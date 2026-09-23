@@ -583,6 +583,22 @@ facts). Findings and decisions:
 | Compaction              | `/compact` existed; the context indicator was static. Muse reports usage, window and a pressure level, no auto-compact threshold.                                                                                                                                                                                                                                                                                                                         | The indicator is a button ("click to compact now"), its tooltip carries the pressure level.                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Usage insight heuristic | A trace log is one `muse serve` process. The turn's own run is named by `runtime.run.lifecycle run_kind="turn"`; every other run in the file is a child the CLI started. A reminder agent registers one tool, a subagent the toolset (1 versus 30, measured).                                                                                                                                                                                             | `classifyRun`: turn, reminder (≤ 2 tools), subagent. Labelled approximate in the modal, as Claude labels its own.                                                                                                                                                                                                                                                                                                                                                                           |
 
+### D18 — The owner's first F5 round on 0.4.0 (2026-09-22, night)
+
+The owner drove 0.4.0 under F5 and reported, one screenshot at a time,
+what differed from the Claude Code extension. Findings and decisions:
+
+| Report                                                                                                                                   | Finding                                                                                                                                                                                                                                                                                | Decision                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "The models don't load until you click the pill; it has been this way the entire time."                                                  | Only a send, a resume or the pill's skill listing started the host and listed the models, so the pill read "Starting Muse Code…" until the first click.                                                                                                                                | `surfaceReady` (and a completed sign-in) starts the host and lists the models when signed in; one `model/list` in flight at a time so the first send shares it. No model call is involved.                                                          |
+| "Ctrl+N just creates a new file."                                                                                                        | By D15 the shortcut is opt-in (`museSpark.enableNewConversationShortcut`, default off) because Ctrl+N is VS Code's New File.                                                                                                                                                           | Unchanged; the answer is the setting.                                                                                                                                                                                                               |
+| "There needs to be an indicator when there are new messages, with a button to jump to the newest; at the end the scroll should be auto." | The transcript never scrolled itself.                                                                                                                                                                                                                                                  | The transcript follows new entries while the reader is within 24 px of the end and after their own send or a fresh load; scrolled up, it holds still and shows a "New messages" button that jumps to the end.                                       |
+| A red "The decision was not accepted: approval decide settlement failed: approval ledger durability fence…" after an approval that ran.  | Muse Code 1.3.0 on Windows can fail the reply to `approval/decide` on its own ledger write after applying the decision; the tool ran on. The panel reported the CLI's error as a refusal.                                                                                              | A warning that says the CLI reported an error for the decision and the tool may have run anyway. The CLI-side fault joins the Windows `session/rename` and `session/fork` write failures already recorded.                                          |
+| "There should be a chevron to notify when an item can be expanded."                                                                      | Tool and reasoning rows opened on click with nothing to say so.                                                                                                                                                                                                                        | A chevron at the right of every row that has a body; it turns when open. Rows with nothing to show are disabled.                                                                                                                                    |
+| "We need the hover button to copy the contents of the response."                                                                         | Copy existed on code blocks only.                                                                                                                                                                                                                                                      | A Copy button at the foot of each finished reply, shown on hover or focus, copying the reply's markdown; a "Copied" tick for a moment, through the same hook the code-block Copy uses.                                                              |
+| "These responses in Claude are clickable and open the output in the editor."                                                             | Claude Code opens a tool's output as a read-only tab named "Bash tool output (3g790o)".                                                                                                                                                                                                | A shell OUT, read or generic output block opens in an editor on click, Enter or Space: a `muse-output:` document named "`<label>` tool output (`<id tail>`)"; a stored output is paged in full (up to 16 MiB), else the transcript's copy is shown. |
+| "And the coding ones you can expand inline in chat … it expands into an editor … not just read-only either, you can modify."             | Claude Code clips a long inline diff behind "Click to expand", which opens an embedded, editable editor. Embedding an editor in the webview would need Monaco, a third-party package the owner has not authorised, and the real file is already editable in VS Code's own diff editor. | Inline diffs past the preview length are clipped behind "Click to expand": for an edit with a stored patch it opens the same diff editor as **Open diff** (the file side is editable); an edit without one unfolds inline. No embedded editor.      |
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1650,6 +1666,26 @@ version 0.4.0.
   note is fixed text; a child transcript is read through the same host
   command as History.
 
+### M15 — The first F5 round: model warm-up, transcript scrolling, chevrons, response copy, outputs in the editor (D18)
+
+**Status 2026-09-22: built and certified** (`docs/certification/m15.md`);
+version 0.4.1.
+
+- **Goal**: every D18 row that changed code.
+- **Scope**: the controller (`warmModels`, the single in-flight model
+  listing, `openOutput` over the paged store, the decision warning), the
+  `openOutput` message and the `openDocument` dependency, the extension's
+  `muse-output` content provider; the webview: the transcript scroll
+  state and the jump button in `App`, `ExpandChevron` on tool and
+  reasoning rows, the response Copy with the shared `useCopiedFlag`, the
+  clickable output blocks and the clipped diff with "Click to expand" in
+  `ToolRow`; styles; README, CHANGELOG, this file.
+- **Acceptance**: the unit gate covers each row (proofs A–H in the
+  record); the owner's F5 re-check of each report.
+- **Security**: output documents are read-only virtual documents holding
+  text the transcript already showed or the CLI's stored output; the
+  provider keeps the last twenty; nothing is written to disk.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                    | Status                                                                                                                  |
@@ -1784,3 +1820,10 @@ work. Certified (`docs/certification/m14.md`), tagged `v0.4.0`; run
 35820788011 went green on the first try: every job, the GitHub Release
 with `muse-spark-code-0.4.0.vsix` (540,169 bytes), the Marketplace publish
 step skipped without `VSCE_PAT`.
+
+**0.4.1 (2026-09-22, later that night):** the owner's first F5 round on
+0.4.0 (D18, M15): the pill that read "Starting Muse Code…" until clicked,
+transcript scrolling with a jump to the newest, chevrons, the response Copy,
+outputs and long diffs opening in the editor, the decision-error wording.
+Certified (`docs/certification/m15.md`), tagged `v0.4.1`
+(RELEASE_RUN_PLACEHOLDER).

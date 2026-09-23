@@ -76,7 +76,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.4.0.vsix
+   code --install-extension muse-spark-code-0.4.1.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -172,7 +172,13 @@ absolute path for files outside the workspace.
 
 **Transcript.** Replies render as GitHub-flavoured markdown with highlighted
 code and **Copy**, **Insert at cursor** and **Apply** on every block. Tool
-rows open to show the diff, the command and its output, or the file read.
+rows open to show the diff, the command and its output, or the file read;
+a chevron marks the rows that open. A finished reply carries **Copy** on
+hover. Click a tool's output to open it in a read-only editor tab (a
+stored output in full); long inline diffs sit behind **Click to expand**,
+which opens the diff editor for an edit with a stored patch. The transcript
+follows new entries while you are at the end; scrolled up, it holds still
+and **New messages** jumps to the newest.
 Reasoning folds to `Thought for Ns`. Approval cards carry the CLI's choices
 (allow once, always allow in this workspace, reject with feedback); multi-step
 shell lines are approved one step at a time. The agent's task list pins above
