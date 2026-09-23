@@ -9,6 +9,7 @@ import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import { selectBackend } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
+import { renderSupportReport } from './core/support/report'
 import type { CliInvocation } from './core/backends/musecode/sandbox'
 import { type DiagnosticEntry, type DiagnosticSeverity, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
@@ -19,6 +20,7 @@ import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
+import { createFileSessionStore } from './host/backend/fileSessionStore'
 import { createToolIo } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { EditReview } from './host/editor/editReview'
@@ -51,6 +53,7 @@ import {
   DEFAULT_MODEL_ID,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
+  MODEL_API_SESSIONS_DIR,
   PERSONAL_SKILLS_GLOB,
   PROJECT_SKILLS_GLOB,
   GIT_OUTPUT_MAX_BYTES,
@@ -398,6 +401,15 @@ export function activate(context: vscode.ExtensionContext): void {
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    // Sessions survive the window (PLAN.md D14) in the workspace storage
+    // directory; no folder open, no storage, no persistence.
+    store:
+      context.storageUri === undefined
+        ? undefined
+        : createFileSessionStore({
+            directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+            log,
+          }),
   })
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
@@ -694,6 +706,46 @@ export function activate(context: vscode.ExtensionContext): void {
       openChatPanel(hostContext, registry)
     }),
     vscode.commands.registerCommand(COMMAND_IDS.openInSidebar, openSidebar),
+    vscode.commands.registerCommand(COMMAND_IDS.showLogs, () => {
+      channel.show(true)
+    }),
+    // The support report (PLAN.md D14): facts only, credentials as booleans.
+    vscode.commands.registerCommand(COMMAND_IDS.diagnostics, async () => {
+      const settings = currentSettings()
+      const resolution = backend.resolveLaunch()
+      const posture = backend.shellSandboxPosture()
+      log.info(
+        renderSupportReport({
+          extensionVersion: version,
+          vscodeVersion: vscode.version,
+          nodeVersion: process.versions.node,
+          platform: process.platform,
+          arch: process.arch,
+          remoteName: vscode.env.remoteName,
+          hasWorkspace: workspaceRoot !== undefined,
+          isWorkspaceTrusted: vscode.workspace.isTrusted,
+          backendSetting: settings.backend,
+          shellSandboxSetting: settings.shellSandbox,
+          shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
+          isBinaryPathConfigured: settings.museBinaryPath !== '',
+          environmentVariableCount: settings.environmentVariables.length,
+          cli: resolution.ok
+            ? {
+                ok: true,
+                installDir: resolution.launch.installDir,
+                version: backend.installedVersion(resolution.launch.installDir),
+              }
+            : { ok: false, reason: resolution.reason },
+          hasCliCredentialFile: backend.credentialFileExists(),
+          hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+          hasEnvironmentApiKey: backend.hasEnvironmentKey(),
+          dictation: dictation.isAvailable
+            ? { isAvailable: true }
+            : { isAvailable: false, reason: dictation.reason },
+        }),
+      )
+      channel.show(true)
+    }),
     vscode.commands.registerCommand(COMMAND_IDS.focusInput, async () => {
       await toggleInputFocus({
         isInputFocused: () => isInputFocused,

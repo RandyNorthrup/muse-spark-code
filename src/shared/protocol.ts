@@ -70,6 +70,8 @@ export const HOST_ACTIONS = [
   'toggleCtrlEnterToSend',
   /** "Hide these tips" on the empty state: sets museSpark.hideOnboarding (M8). */
   'hideOnboarding',
+  /** The error boundary asks for a fresh webview document (M11). */
+  'reload',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 

@@ -1,0 +1,26 @@
+name: Feature request
+description: Something the panel should do, or do differently.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do and where the extension gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would like to happen. If the Claude Code extension or Muse Code's TUI does it, say how.
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend it concerns
+      options:
+        - Both
+        - Muse Code CLI (subscription)
+        - Meta Model API (key)

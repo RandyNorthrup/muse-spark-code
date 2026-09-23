@@ -1852,3 +1852,12 @@ describe('ConversationController: voice dictation (M9)', () => {
     expect(driver.calls.at(-1)).toBe('dispose')
   })
 })
+
+describe('ConversationController: reload host action (M11)', () => {
+  it('rebuilds the surface itself instead of delegating', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'hostAction', action: 'reload' })
+    expect(t.surface.reload).toHaveBeenCalledOnce()
+    expect(t.hostActions).toEqual([])
+  })
+})

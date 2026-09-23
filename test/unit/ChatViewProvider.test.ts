@@ -54,3 +54,14 @@ describe('ChatViewProvider', () => {
     expect(view.description).toBe('')
   })
 })
+
+describe('ChatViewProvider: reload (M11)', () => {
+  it('rebuilds the document with a fresh nonce', () => {
+    const { registry, view } = resolve()
+    const before = view.webview.html
+    registry.active?.reload()
+    expect(view.webview.html).not.toBe(before)
+    expect(view.webview.html).toContain('<script nonce=')
+    expect(view.webview.html.length).toBe(before.length)
+  })
+})

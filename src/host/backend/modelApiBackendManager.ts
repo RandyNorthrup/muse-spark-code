@@ -4,6 +4,7 @@
 
 import { ModelApiClient } from '../../core/backends/modelapi/client'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import { MODEL_API_BASE_URL } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -21,6 +22,8 @@ export interface ModelApiBackendManagerDeps {
   /** Muse Code's personal skill root (PLAN.md D13). */
   readonly personalSkillsRoot: string | undefined
   readonly isWorkspaceTrusted: () => boolean
+  /** Sessions between windows (PLAN.md D14); undefined without workspace storage. */
+  readonly store: SessionStore | undefined
 }
 
 export class ModelApiBackendManager {
@@ -28,16 +31,14 @@ export class ModelApiBackendManager {
 
   public constructor(private readonly deps: ModelApiBackendManagerDeps) {}
 
-  /** The host, created on first use. Rejects without a workspace. */
-  public ensureHost(): Promise<ModelApiHost> {
+  /** The host, created on first use with the stored sessions read. Rejects without a workspace. */
+  public async ensureHost(): Promise<ModelApiHost> {
     if (this.host !== undefined) {
-      return Promise.resolve(this.host)
+      return this.host
     }
     const { workspaceRoot } = this.deps
     if (workspaceRoot === undefined) {
-      return Promise.reject(
-        new Error('Open a folder first; the Model API backend works inside a workspace.'),
-      )
+      throw new Error('Open a folder first; the Model API backend works inside a workspace.')
     }
     const client = new ModelApiClient({
       fetch: this.deps.fetch,
@@ -57,9 +58,11 @@ export class ModelApiBackendManager {
       log: this.deps.log,
       personalSkillsRoot: this.deps.personalSkillsRoot,
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
+      store: this.deps.store,
     })
+    await this.host.load()
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')
-    return Promise.resolve(this.host)
+    return this.host
   }
 
   public get isRunning(): boolean {

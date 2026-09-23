@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in the panel, a backend or a tool did the wrong thing.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Run **Muse Spark: Diagnostics** from the Command Palette first; it writes the versions and the configuration facts (no credentials) to the log.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics report
+      description: 'The output of "Muse Spark: Diagnostics" (Muse Spark log channel). Paste it as is.'
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - Muse Code CLI (subscription)
+        - Meta Model API (key)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log excerpt
+      description: Relevant lines from the Muse Spark log channel around the problem. Remove anything you consider private; the log already redacts keys.
+      render: text

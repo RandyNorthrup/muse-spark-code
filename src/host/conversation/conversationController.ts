@@ -1074,6 +1074,11 @@ export class ConversationController {
   }
 
   private async runHostAction(action: HostAction): Promise<void> {
+    if (action === 'reload') {
+      // The webview's error boundary asked for a fresh document (M11).
+      this.deps.surface.reload()
+      return
+    }
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {

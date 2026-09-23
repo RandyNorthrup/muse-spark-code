@@ -71,8 +71,13 @@ a message, sign in or dictate.
 - Conversation history on the Muse Code backend is the CLI's own session
   store under `~/.local/share/muse` (Meta's format). The extension reads it
   to show the History dialog and never copies it anywhere.
-- Conversations on the Model API backend live only in the VS Code window
-  that made them.
+- Conversations on the Model API backend are saved, one JSON file each, in
+  VS Code's per-workspace storage directory for this extension (the
+  `storageUri` VS Code assigns; outside the repository, under your user
+  profile). A file holds the messages, the tool calls and their outputs,
+  the edit patches, the task list, the model and the settings of that
+  conversation; never the API key. Archiving a conversation in the
+  History dialog hides it; deleting the directory removes them all.
 - Settings (`museSpark.*`), the archived-session list and the "last session"
   memory per panel are stored by VS Code's settings and state APIs.
 - The "Muse Spark" output channel logs what the extension does, with keys

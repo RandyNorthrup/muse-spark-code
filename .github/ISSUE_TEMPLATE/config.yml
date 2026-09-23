@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/RandyNorthrup/muse-spark-code/security/advisories/new
+    about: Report a vulnerability privately; never in a public issue.
+  - name: Muse Code CLI itself
+    url: https://dev.meta.ai/products/muse-code/
+    about: Problems inside Meta's CLI (sign-in, sandbox, the model) belong to Meta; this extension only drives it.

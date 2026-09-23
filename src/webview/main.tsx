@@ -3,6 +3,7 @@
 import { createRoot } from 'react-dom/client'
 import { WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import { App } from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './styles.css'
 
 const vscode = acquireVsCodeApi()
@@ -12,9 +13,15 @@ if (rootElement === null) {
 }
 
 createRoot(rootElement).render(
-  <App
-    postMessage={(message) => {
-      vscode.postMessage(message)
+  <ErrorBoundary
+    onReload={() => {
+      vscode.postMessage({ type: 'hostAction', action: 'reload' })
     }}
-  />,
+  >
+    <App
+      postMessage={(message) => {
+        vscode.postMessage(message)
+      }}
+    />
+  </ErrorBoundary>,
 )

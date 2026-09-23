@@ -1,0 +1,31 @@
+# Weekly dependency updates, grouped so one pull request carries the
+# routine bumps; the pinned-SHA actions stay pinned (Dependabot updates
+# the SHA and the version comment together).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # A week between a version appearing on the registry and a bump (a
+    # freshly published package can be malicious or broken).
+    cooldown:
+      default-days: 7
+    groups:
+      dev-dependencies:
+        dependency-type: development
+      production-dependencies:
+        dependency-type: production
+    ignore:
+      # The VS Code typings are pinned to the engine floor by hand (the
+      # manifest test enforces `@types/vscode` minor == engines.vscode minor).
+      - dependency-name: '@types/vscode'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']

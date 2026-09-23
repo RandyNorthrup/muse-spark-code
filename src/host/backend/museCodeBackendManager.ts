@@ -6,6 +6,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
+import path from 'node:path'
 import { spawnMspConnection } from '@muse-code/sdk'
 import { MuseCodeHost, type MspHost } from '../../core/backends/musecode/MuseCodeHost'
 import {
@@ -21,9 +22,10 @@ import {
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
 import {
-  type EnvironmentVariable,
   MSP_CLIENT_NAME,
   MSP_REQUESTED_CAPABILITIES,
+  MUSE_VERSION_FILE,
+  type EnvironmentVariable,
   type ShellSandboxMode,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -161,6 +163,11 @@ export class MuseCodeBackendManager {
       readTextFile: readTextFileOrUndefined,
       serveArgs: serveArguments(this.shellSandboxPosture(), this.deps.isWorkspaceTrusted()),
     })
+  }
+
+  /** The version the installer recorded beside the CLI, for the diagnostics report. */
+  public installedVersion(installDir: string): string | undefined {
+    return readTextFileOrUndefined(path.join(installDir, MUSE_VERSION_FILE))?.trim()
   }
 
   public credentialFileExists(): boolean {

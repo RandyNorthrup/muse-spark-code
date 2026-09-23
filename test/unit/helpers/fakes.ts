@@ -136,6 +136,7 @@ export interface FakeSurface extends ChatSurface {
   readonly reveal: ReturnType<typeof vi.fn<() => void>>
   readonly markUnread: ReturnType<typeof vi.fn<() => void>>
   readonly setTitle: ReturnType<typeof vi.fn<(title: string) => void>>
+  readonly reload: ReturnType<typeof vi.fn<() => void>>
 }
 
 export function fakeSurface(id: string): FakeSurface {
@@ -149,6 +150,7 @@ export function fakeSurface(id: string): FakeSurface {
     reveal: vi.fn<() => void>(),
     markUnread: vi.fn<() => void>(),
     setTitle: vi.fn<(title: string) => void>(),
+    reload: vi.fn<() => void>(),
     dispose() {
       // nothing to release in the fake
     },

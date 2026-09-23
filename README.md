@@ -108,6 +108,13 @@ window runs on. The CLI looks for `muse` through `museSpark.museBinaryPath`,
 then `PATH`, then the platform's install folder (`%LOCALAPPDATA%\Programs\muse`
 on Windows, `~/.local/bin` elsewhere).
 
+Conversations on the Model API backend are saved as they go under VS
+Code's workspace storage for the extension, so the History dialog lists
+them after a reload and a resumed one continues with its transcript and its
+edit patches; the CLI backend keeps its own session store. If the panel
+itself ever fails to render, it shows the error and a **Reload** button
+instead of going blank.
+
 ## Rules, skills and memory
 
 In a trusted workspace the agent follows the same files Muse Code does:
@@ -208,6 +215,8 @@ device is available", and step markers on stderr name where a start failed.
 | Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
 | Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
 | Muse Spark: Set Up Shell Sandbox           | —                                                                  | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
+| Muse Spark: Show Logs                      | —                                                                  | Open the "Muse Spark" log channel (keys redacted)                                                                                                         |
+| Muse Spark: Diagnostics                    | —                                                                  | Write the versions, the backend and CLI facts, credential presence (as yes/no) and the dictation state to the log and open it: what a bug report needs    |
 | (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                  | Tap to start or stop voice dictation, hold to record while held                                                                                           |
 
 ## Settings
@@ -258,6 +267,9 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
   `museSpark.confidentialWorkspace`.
 - Voice audio stays on the machine on Windows; on macOS Apple recognises on
   the device or on its servers under Apple's terms.
+- Model API conversations are stored, per workspace, in VS Code's storage
+  directory for the extension (not in the repository); delete them from
+  the History dialog or by removing that directory.
 - Workspace rules, skill files and the memory index are read only in a
   trusted workspace; on the Model API backend their text is part of what
   goes to Meta with each request, on the CLI backend Muse Code sends them
@@ -275,6 +287,8 @@ npm ci          # also installs the pre-commit hook (lint-staged + gitleaks)
 ```
 
 Press **F5** to launch the Extension Development Host with a fresh build.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
+[SECURITY.md](SECURITY.md) the way to report a vulnerability.
 Node 22 or newer and npm 11 (`.npmrc` enforces `engine-strict`);
 [gitleaks](https://github.com/gitleaks/gitleaks) on `PATH` for the hook and
 `npm run security:secrets`; `pip install semgrep` for `npm run security:sast`.
@@ -401,4 +415,5 @@ panel without a microphone.
 - [CHANGELOG.md](CHANGELOG.md): what shipped, version by version.
 - [PLAN.md](PLAN.md): decisions, research, milestones and their certification.
 - [docs/PRIVACY.md](docs/PRIVACY.md): what leaves your machine.
+- [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).

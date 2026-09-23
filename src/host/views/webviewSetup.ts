@@ -44,6 +44,8 @@ export interface ChatSurface extends vscode.Disposable {
   markUnread(): void
   /** The conversation's name, shown on the tab or beside the view name (M6). */
   setTitle(title: string): void
+  /** Rebuild the document with a fresh nonce (the error boundary's Reload, M11). */
+  reload(): void
 }
 
 export interface SurfaceOptions {
@@ -74,14 +76,19 @@ export function configureWebview(
 ): ChatSurface {
   const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
   webview.options = { enableScripts: true, localResourceRoots: [bundleRoot] }
-  webview.html = buildWebviewHtml({
-    scriptUri: webview
-      .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
-      .toString(),
-    styleUri: webview.asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE)).toString(),
-    cspSource: webview.cspSource,
-    nonce: createNonce(),
-  })
+  const applyHtml = () => {
+    webview.html = buildWebviewHtml({
+      scriptUri: webview
+        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
+        .toString(),
+      styleUri: webview
+        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE))
+        .toString(),
+      cspSource: webview.cspSource,
+      nonce: createNonce(),
+    })
+  }
+  applyHtml()
 
   const surface: ChatSurface = {
     id: options.id,
@@ -91,6 +98,7 @@ export function configureWebview(
     reveal: options.reveal,
     markUnread: options.markUnread,
     setTitle: options.setTitle,
+    reload: applyHtml,
     dispose() {
       subscription.dispose()
     },

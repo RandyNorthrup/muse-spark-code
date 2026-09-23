@@ -1,0 +1,79 @@
+# A version tag (v1.2.3) is a release: the shared build produces the .vsix,
+# the GitHub Release is created with it and the CHANGELOG section as notes,
+# and the Marketplace publish runs when the VSCE_PAT repository secret is
+# set (a Marketplace "Manage" PAT; without it the publish step is skipped
+# and reported, and `npx vsce publish --packagePath` by hand still works).
+# The tag must match the manifest version; a mismatch fails before anything
+# is published.
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
+    # no other secret is passed (least privilege).
+    uses: ./.github/workflows/build.yml
+
+  release:
+    name: GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - name: tag matches the manifest version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match package.json version ${version}" >&2
+            exit 1
+          fi
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: muse-spark-code-vsix
+          path: release
+      - name: release notes from the CHANGELOG
+        run: node scripts/changelog-notes.mjs "${GITHUB_REF_NAME#v}" > release/notes.md
+      - name: create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release/*.vsix \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release/notes.md \
+            --verify-tag
+
+  publish:
+    name: Marketplace publish
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: muse-spark-code-vsix
+          path: release
+      - name: skipped without VSCE_PAT
+        if: env.VSCE_PAT == ''
+        run: echo "VSCE_PAT is not set; the Marketplace publish was skipped. Publish by hand with npx vsce publish --packagePath release/*.vsix" >> "$GITHUB_STEP_SUMMARY"
+      - name: publish to the Marketplace
+        if: env.VSCE_PAT != ''
+        run: |
+          npm ci
+          npx vsce publish --packagePath release/*.vsix

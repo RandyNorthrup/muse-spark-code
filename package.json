@@ -114,6 +114,16 @@
         "command": "museSpark.setUpSandbox",
         "title": "Set Up Shell Sandbox",
         "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.showLogs",
+        "title": "Show Logs",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.diagnostics",
+        "title": "Diagnostics",
+        "category": "Muse Spark"
       }
     ],
     "keybindings": [

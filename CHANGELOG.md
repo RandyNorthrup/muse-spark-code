@@ -35,6 +35,34 @@ happened, not what was planned; superseded entries are kept.
   Granting trust restarts the hosts, with a notice.
 - Harness scenarios and screenshots for the sign-in gate (signed out, no
   CLI, waiting, error), recorded in `docs/certification/m7.md`.
+- Model API conversations survive the window: each session is saved as a
+  JSON file under VS Code's workspace storage for the extension after
+  every change (turn, rename, model, effort, mode, fork), the History
+  dialog lists stored sessions, and resume and fork bring them back with
+  their transcript, replay and edit patches. A corrupt file is skipped
+  with a log line; a failed save is logged and never fails a turn.
+- The panel has an error boundary: a render error shows the message and a
+  **Reload** button that rebuilds the webview document instead of a blank
+  panel.
+- `Muse Spark: Show Logs` opens the log channel; `Muse Spark: Diagnostics`
+  writes a support report (versions, platform, remote, workspace trust,
+  backend and sandbox settings, CLI location and version, credential
+  presence as yes/no, dictation state) to the log and opens it.
+- Repository governance: `SECURITY.md` (private vulnerability reporting
+  is enabled on GitHub), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue
+  and pull request templates, Dependabot (npm and Actions, weekly,
+  grouped) and `CODEOWNERS`.
+- `release.yml`: a `vX.Y.Z` tag runs the shared build, checks the tag
+  against the manifest version, creates the GitHub Release with the
+  `.vsix` and the CHANGELOG section as notes (`scripts/changelog-notes.mjs`),
+  and publishes to the Marketplace when the `VSCE_PAT` repository secret
+  is set (skipped and reported otherwise).
+
+### Changed
+
+- CI is the reusable `build.yml` (quality matrix, integration tests, the
+  macOS helper, the `.vsix`, gitleaks, semgrep), called by `ci.yml` on
+  pushes and pull requests and by `release.yml` on tags.
 
 ## [0.1.1] - 2026-09-22
 

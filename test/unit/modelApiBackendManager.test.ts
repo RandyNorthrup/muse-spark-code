@@ -22,6 +22,7 @@ function manager(workspaceRoot: string | undefined) {
       random: () => 0,
       personalSkillsRoot: undefined,
       isWorkspaceTrusted: () => true,
+      store: undefined,
     }),
   }
 }

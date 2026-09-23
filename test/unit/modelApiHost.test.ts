@@ -4,6 +4,7 @@ import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { ModelApiHost, type ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -14,6 +15,7 @@ function setup(
     files?: Record<string, string>
     personalSkillsRoot?: string
     isTrusted?: boolean
+    store?: ReturnType<typeof memorySessionStore>
   } = {},
 ) {
   const api = fakeModelApi()
@@ -45,6 +47,7 @@ function setup(
     log,
     personalSkillsRoot: options.personalSkillsRoot,
     isWorkspaceTrusted: () => options.isTrusted ?? true,
+    store: options.store,
   })
   return { api, host, log, files: io.files, shellCalls: io.shellCalls }
 }
@@ -86,6 +89,20 @@ async function approvalRequest(
     throw new Error('expected an approval request')
   }
   return request
+}
+
+/** One turn that reads a.txt and answers, with the fake API scripted for it. */
+async function readAlphaTurn(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  turnDone: () => Promise<void>,
+): Promise<void> {
+  t.api.script(
+    { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'call_read' }] },
+    { text: 'It says alpha.' },
+  )
+  await session.sendTurn([{ type: 'text', text: 'what is in a.txt?' }])
+  await turnDone()
 }
 
 const kinds = (events: readonly AgentEvent[]) =>
@@ -301,12 +318,7 @@ describe('ModelApiSession: turns', () => {
   it('runs read-class tools without asking and feeds the results back', async () => {
     const t = setup({ files: { 'a.txt': 'alpha\n' } })
     const { session, events, turnDone } = await startSession(t)
-    t.api.script(
-      { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'call_read' }] },
-      { text: 'It says alpha.' },
-    )
-    await session.sendTurn([{ type: 'text', text: 'what is in a.txt?' }])
-    await turnDone()
+    await readAlphaTurn(t, session, turnDone)
     expect(kinds(events)).toContain('itemStarted:toolCall:inProgress')
     const tool = events.find(
       (event) => event.type === 'itemCompleted' && event.item.kind === 'toolCall',
@@ -850,5 +862,140 @@ describe('ModelApiSession: workspace context (M10)', () => {
     await t.host.refreshSkills()
     expect(events.filter((event) => event.type === 'skillsChanged')).toHaveLength(1)
     await expect(session.listSkills()).resolves.toHaveLength(2)
+  })
+})
+
+describe('ModelApiHost: sessions between windows (M11)', () => {
+  it('saves after every change and lists, resumes and forks stored sessions in a new host', async () => {
+    const store = memorySessionStore()
+    const first = setup({ store, files: { 'a.txt': 'alpha\n' } })
+    const { session, turnDone } = await startSession(first)
+    await readAlphaTurn(first, session, turnDone)
+    await session.rename('Alpha chat')
+    await session.setReasoningEffort('low')
+    await first.host.close()
+    const saved = store.saved.get(session.sessionId)
+    expect(saved).toMatchObject({
+      version: 1,
+      workspaceRoot: ROOT,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+      effort: 'low',
+      name: 'Alpha chat',
+      firstPrompt: 'what is in a.txt?',
+      turnIds: [expect.any(String)],
+    })
+    expect(saved?.replay.map((entry) => entry.item.type)).toEqual([
+      'message',
+      'function_call',
+      'function_call_output',
+      'message',
+    ])
+    expect(saved?.transcript.map((entry) => entry.item.kind)).toEqual([
+      'userMessage',
+      'toolCall',
+      'agentMessage',
+    ])
+
+    const second = setup({ store })
+    await second.host.load()
+    const page = await second.host.listSessions({ workspaceRoot: ROOT, limit: 10 })
+    expect(page.sessions).toEqual([
+      expect.objectContaining({
+        sessionId: session.sessionId,
+        name: 'Alpha chat',
+        title: 'what is in a.txt?',
+        status: 'idle',
+        turnCount: 1,
+        forkedFrom: null,
+      }),
+    ])
+    const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(resumed.history.name).toBe('Alpha chat')
+    expect(
+      resumed.history.items.map((item) => `${item.kind}:${item.text ?? item.tool ?? ''}`),
+    ).toEqual([
+      'userMessage:what is in a.txt?',
+      'toolCall:read_file',
+      'agentMessage:It says alpha.',
+    ])
+    expect(second.host.sessionCount).toBe(1)
+    expect(await second.host.resumeSession(session.sessionId, 'm')).toMatchObject({
+      session: resumed.session,
+    })
+    // A further turn replays the stored conversation before the new message.
+    const events: AgentEvent[] = []
+    const done = Promise.withResolvers<undefined>()
+    resumed.session.onEvent((event) => {
+      events.push(event)
+      if (event.type === 'turnCompleted') {
+        done.resolve(undefined)
+      }
+    })
+    second.api.script({ text: 'still alpha' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'and now?' }])
+    await done.promise
+    const input = second.api.responseBodies()[0]?.['input'] as { type: string }[]
+    expect(input.map((item) => item.type)).toEqual([
+      'message',
+      'function_call',
+      'function_call_output',
+      'message',
+      'message',
+    ])
+    expect(store.saved.get(session.sessionId)?.turnIds).toHaveLength(2)
+
+    const fork = await second.host.forkSession(session.sessionId, 'muse-spark-1.2')
+    expect(fork.record.forkedFrom).toEqual({ sessionId: session.sessionId })
+    expect(fork.history.items).toHaveLength(5)
+    await second.host.flush()
+    expect(store.saved.has(fork.record.sessionId)).toBe(true)
+
+    // Disposing a session keeps it in the list (the store still has it).
+    resumed.session.dispose()
+    const after = await second.host.listSessions({ workspaceRoot: ROOT, limit: 10 })
+    expect(after.sessions.map((record) => record.sessionId)).toContain(session.sessionId)
+    await expect(second.host.resumeSession('ghost', 'm')).rejects.toThrow('not held by this window')
+    await expect(second.host.forkSession('ghost', 'm')).rejects.toThrow('not held by this window')
+  })
+
+  it('ignores other workspaces, survives a failing save, and works without a store', async () => {
+    const store = memorySessionStore()
+    store.saved.set('elsewhere', {
+      ...store.saved.get('elsewhere'),
+      version: 1,
+      sessionId: 'elsewhere',
+      workspaceRoot: '/other',
+      modelId: 'm',
+      approvalMode: 'allowAll',
+      effort: 'high',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      lastActivityAt: '2026-01-01T00:00:00.000Z',
+      turnIds: [],
+      todos: [],
+      replay: [],
+      transcript: [],
+      outputs: {},
+      usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+    })
+    store.failNextSave = true
+    const t = setup({ store })
+    await t.host.load()
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'hi' })
+    await session.sendTurn([{ type: 'text', text: 'hello' }])
+    await turnDone()
+    await t.host.close()
+    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('was not saved: disk full'))
+    expect(store.saved.has(session.sessionId)).toBe(true)
+    const page = await t.host.listSessions({ workspaceRoot: ROOT, limit: 10 })
+    expect(page.sessions.map((record) => record.sessionId)).toEqual([session.sessionId])
+
+    const bare = setup()
+    await bare.host.load()
+    const { session: plain } = await startSession(bare)
+    await plain.rename('x')
+    await bare.host.close()
+    expect(bare.host.sessionCount).toBe(0)
   })
 })

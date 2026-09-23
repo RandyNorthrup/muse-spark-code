@@ -1454,8 +1454,8 @@ against the fake server, seven checks fired on purpose.
 
 ### M11 — Production hardening (D14)
 
-**Status 2026-09-22: planned.** Certification record:
-`docs/certification/m11.md`.
+**Status 2026-09-22: built and certified** (`docs/certification/m11.md`);
+the release workflow is proved by the 0.2.0 tag itself (§10).
 
 - **Goal**: the D14 table, every row either done or deferred with a reason.
 - **Scope**: the webview error boundary and `hostAction: reload`; the Model

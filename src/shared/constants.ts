@@ -21,6 +21,8 @@ export const COMMAND_IDS = {
   toggleFocusView: 'museSpark.toggleFocusView',
   toggleThinking: 'museSpark.toggleThinking',
   setUpSandbox: 'museSpark.setUpSandbox',
+  showLogs: 'museSpark.showLogs',
+  diagnostics: 'museSpark.diagnostics',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -343,6 +345,10 @@ export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
 export const MODEL_API_OUTPUT_ENCODING = 'utf8'
+// Model API sessions persist as one JSON file each under the workspace
+// storage directory (PLAN.md D14); the version guards the shape.
+export const MODEL_API_SESSIONS_DIR = 'modelapi-sessions'
+export const STORED_SESSION_VERSION = 1
 
 // Item kinds the transcript never shows: our own echo and host-internal children.
 export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'reminderChild'])
@@ -531,6 +537,9 @@ export const WINDOWS_PSMODULEPATH_SEGMENTS = {
 // checklist calls for it.
 export const UI_TEXT = {
   untitledConversation: 'Untitled',
+  crashTitle: 'The panel hit an error',
+  crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
+  crashReload: 'Reload',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
   composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
   // Shown while a turn runs: Enter then steers the running turn.

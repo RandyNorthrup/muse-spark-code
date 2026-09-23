@@ -31,6 +31,7 @@ import {
   MODEL_API_TOOLS,
   MODEL_API_VERSION,
   OUTPUT_REF_PREFIX,
+  STORED_SESSION_VERSION,
   THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -63,6 +64,7 @@ import type { CoreLogger } from '../../logging'
 import { MissingApiKeyError, type ModelApiClient, ModelApiError } from './client'
 import { instructionsFor } from './instructions'
 import { APPROVAL_CHOICE_IDS, choicesFor, PermissionEngine } from './permissions'
+import { recordOf, type SessionStore, type StoredSession } from './sessionStore'
 import {
   type CreateResponseBody,
   type FunctionCallItem,
@@ -103,6 +105,8 @@ export interface ModelApiHostDeps {
   readonly personalSkillsRoot: string | undefined
   /** VS Code workspace trust: gates rules, skills, memory and the shell (D13). */
   readonly isWorkspaceTrusted: () => boolean
+  /** Sessions between windows (D14); undefined without workspace storage. */
+  readonly store?: SessionStore | undefined
 }
 
 interface ReplayItem {
@@ -335,7 +339,7 @@ export class ModelApiSession implements AgentSession {
   private isDisposed = false
   public modelId: string
   public name: string | undefined
-  public readonly createdAt: string
+  public createdAt: string
   public lastActivityAt: string
   public turnCount = 0
   public status: string = IDLE
@@ -1020,6 +1024,7 @@ export class ModelApiSession implements AgentSession {
   public setModel(modelId: string): Promise<void> {
     this.modelId = modelId
     this.emit({ type: 'modelChanged', modelId })
+    this.touch()
     return Promise.resolve()
   }
 
@@ -1028,6 +1033,7 @@ export class ModelApiSession implements AgentSession {
       return Promise.reject(new Error('reasoning effort must not be empty'))
     }
     this.effort = reasoningEffort
+    this.touch()
     return Promise.resolve()
   }
 
@@ -1036,6 +1042,7 @@ export class ModelApiSession implements AgentSession {
       return Promise.reject(new Error(`unknown approval mode ${mode}`))
     }
     this.permissions.setMode(mode as ApprovalMode)
+    this.touch()
     return Promise.resolve()
   }
 
@@ -1188,6 +1195,49 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Everything a window needs to bring this session back (D14). */
+  public snapshot(): StoredSession {
+    return {
+      version: STORED_SESSION_VERSION,
+      sessionId: this.sessionId,
+      workspaceRoot: this.deps.workspaceRoot,
+      modelId: this.modelId,
+      approvalMode: this.permissions.currentMode,
+      effort: this.effort,
+      ...(this.name !== undefined && { name: this.name }),
+      createdAt: this.createdAt,
+      lastActivityAt: this.lastActivityAt,
+      turnIds: [...this.turnIds],
+      ...(this.forkedFrom !== undefined && { forkedFrom: this.forkedFrom }),
+      ...(this.firstPrompt !== undefined && { firstPrompt: this.firstPrompt }),
+      todos: [...this.todos],
+      replay: [...this.replay],
+      transcript: [...this.transcript],
+      outputs: Object.fromEntries(this.outputs),
+      usage: { ...this.usage },
+    }
+  }
+
+  /** Fills a fresh session from its stored form; the session is idle afterwards. */
+  public adopt(stored: StoredSession): void {
+    this.replay.push(...stored.replay)
+    this.transcript.push(...stored.transcript)
+    this.turnIds.push(...stored.turnIds)
+    for (const [ref, content] of Object.entries(stored.outputs)) {
+      this.outputs.set(ref, content)
+    }
+    this.effort = stored.effort
+    this.name = stored.name
+    this.todos = [...stored.todos]
+    this.firstPrompt = stored.firstPrompt
+    this.forkedFrom = stored.forkedFrom
+    this.createdAt = stored.createdAt
+    this.lastActivityAt = stored.lastActivityAt
+    this.turnCount = stored.turnIds.length
+    this.usage = { ...stored.usage }
+    this.status = IDLE
+  }
+
   /** Copies the turns through `lastTurnId` (all of them when absent) into `target`. */
   public copyInto(target: ModelApiSession, lastTurnId: string | undefined): void {
     const cut =
@@ -1212,7 +1262,11 @@ export class ModelApiSession implements AgentSession {
 
 export class ModelApiHost implements AgentHost {
   private readonly sessions = new Map<string, ModelApiSession>()
+  /** What the store holds for this workspace, kept current as sessions change. */
+  private readonly stored = new Map<string, StoredSession>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
+  /** Saves run one after another; a failure is logged and never surfaces. */
+  private saving: Promise<void> = Promise.resolve()
   public readonly info: HostInfo = {
     kind: 'modelApi',
     serverName: MODEL_API_SERVER_NAME,
@@ -1228,14 +1282,36 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
-  private create(modelId: string, approvalMode: ApprovalMode): ModelApiSession {
-    const sessionId = this.deps.newId()
+  private persist(session: ModelApiSession): void {
+    const { store } = this.deps
+    if (store === undefined) {
+      return
+    }
+    const snapshot = session.snapshot()
+    this.stored.set(snapshot.sessionId, snapshot)
+    const previous = this.saving
+    this.saving = (async () => {
+      await previous
+      try {
+        await store.save(snapshot)
+      } catch (error: unknown) {
+        this.deps.log.warn(`Session ${snapshot.sessionId} was not saved: ${describe(error)}`)
+      }
+    })()
+  }
+
+  private create(
+    modelId: string,
+    approvalMode: ApprovalMode,
+    sessionId: string = this.deps.newId(),
+  ): ModelApiSession {
     const session = new ModelApiSession(
       sessionId,
       modelId,
       approvalMode,
       this.deps,
       () => {
+        this.persist(session)
         this.announce(session)
       },
       () => {
@@ -1246,8 +1322,42 @@ export class ModelApiHost implements AgentHost {
     return session
   }
 
+  /** The live session, or the stored one brought back into this window. */
+  private revive(sessionId: string): ModelApiSession | undefined {
+    const live = this.sessions.get(sessionId)
+    if (live !== undefined) {
+      return live
+    }
+    const stored = this.stored.get(sessionId)
+    if (stored === undefined) {
+      return undefined
+    }
+    const session = this.create(stored.modelId, stored.approvalMode, sessionId)
+    session.adopt(stored)
+    return session
+  }
+
   private loaded(session: ModelApiSession): LoadedSession {
     return { session, record: session.record(), history: session.history() }
+  }
+
+  /** Reads the store once; this window's sessions then include the stored ones. */
+  public async load(): Promise<void> {
+    const { store } = this.deps
+    if (store === undefined) {
+      return
+    }
+    const sessions = await store.list()
+    for (const stored of sessions) {
+      if (stored.workspaceRoot === this.deps.workspaceRoot) {
+        this.stored.set(stored.sessionId, stored)
+      }
+    }
+  }
+
+  /** Resolves once every queued save has run (tests, and the manager before it forgets the host). */
+  public flush(): Promise<void> {
+    return this.saving
   }
 
   public onExit(_listener: (description: string) => void): () => void {
@@ -1279,7 +1389,13 @@ export class ModelApiHost implements AgentHost {
   }
 
   public listSessions(options: ListSessionsOptions): Promise<SessionPage> {
-    const sessions = Array.from(this.sessions.values(), (session) => session.record())
+    const records = Array.from(this.sessions.values(), (session) => session.record())
+    for (const [sessionId, stored] of this.stored) {
+      if (!this.sessions.has(sessionId)) {
+        records.push(recordOf(stored))
+      }
+    }
+    const sessions = records
       .filter((record) => record.workspaceRoot === options.workspaceRoot)
       .toSorted(
         (a, b) =>
@@ -1290,7 +1406,7 @@ export class ModelApiHost implements AgentHost {
   }
 
   public resumeSession(sessionId: string, _modelId: string): Promise<LoadedSession> {
-    const session = this.sessions.get(sessionId)
+    const session = this.revive(sessionId)
     return session === undefined
       ? Promise.reject(new Error(`session ${sessionId} is not held by this window`))
       : Promise.resolve(this.loaded(session))
@@ -1301,13 +1417,14 @@ export class ModelApiHost implements AgentHost {
     modelId: string,
     lastTurnId?: string,
   ): Promise<LoadedSession> {
-    const source = this.sessions.get(sessionId)
+    const source = this.revive(sessionId)
     if (source === undefined) {
       return Promise.reject(new Error(`session ${sessionId} is not held by this window`))
     }
     const fork = this.create(modelId, source.approvalMode)
     try {
       source.copyInto(fork, lastTurnId)
+      this.persist(fork)
     } catch (error: unknown) {
       fork.dispose()
       return Promise.reject(error instanceof Error ? error : new Error(String(error)))
@@ -1341,11 +1458,11 @@ export class ModelApiHost implements AgentHost {
     await Promise.all(Array.from(this.sessions.values(), (session) => session.refreshSkills()))
   }
 
-  public close(): Promise<void> {
+  public async close(): Promise<void> {
     // Disposing removes the entry; a Map iterator tolerates that.
     for (const session of this.sessions.values()) {
       session.dispose()
     }
-    return Promise.resolve()
+    await this.saving
   }
 }
