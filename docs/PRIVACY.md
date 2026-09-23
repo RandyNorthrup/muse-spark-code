@@ -22,6 +22,15 @@ security notes for contributors are in `PLAN.md` §9.
   `https://api.meta.ai/v1` directly with your key. Each turn re-sends the
   conversation so far, because requests are made with `store: false`; Meta's
   Model API terms govern retention on their side.
+- **Workspace rules, skills and memory.** In a trusted workspace the agent
+  reads `AGENTS.md` (or `CLAUDE.md`), the skills under `.agents/skills` and
+  `~/.config/muse/skills`, and `.agents/memory/MEMORY.md`, as the README
+  describes. On the Model API backend the rules text, the skill catalogue
+  (ids and descriptions) and the memory index go to Meta with every request
+  as part of the instructions, and a skill's full text when it is loaded or
+  invoked. On the Muse Code CLI backend the CLI reads and sends them under
+  Meta's Muse Code terms. Nothing of this is read while VS Code has the
+  folder in Restricted Mode.
 - **Contributor-tier models.** Meta may use traffic to the models whose id
   ends in `-contributor` to train its models. The extension asks once per
   conversation before using one, and refuses them entirely when the

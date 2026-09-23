@@ -20,6 +20,8 @@ function manager(workspaceRoot: string | undefined) {
       now: () => 0,
       sleep: () => Promise.resolve(),
       random: () => 0,
+      personalSkillsRoot: undefined,
+      isWorkspaceTrusted: () => true,
     }),
   }
 }

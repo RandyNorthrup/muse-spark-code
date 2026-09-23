@@ -407,18 +407,134 @@ and is capped at 20 000 paths, cached for 15 s and invalidated by a
 create/delete file watcher. Ranking is a deterministic fuzzy scorer
 (`src/core/fuzzy.ts`), file-name matches winning over folder matches.
 
+### D13 — Workspace context (rules, skills, memory) follows Muse Code's own conventions and VS Code's workspace trust (2026-09-22)
+
+The owner asked whether the agent "will use the skills properly and
+AGENTS.md and memory". The answer had to be established, not assumed, and
+it came out in two halves.
+
+**What Muse Code does (read from the CLI's help, its `skills` command and
+the strings of `muse-bin-1.3.0-R3401.1.exe`; nothing here is guessed):**
+
+- `muse serve --trust-workspace`: "Load each session workspace's skills and
+  rules". Without the flag the host skips both: `muse skills list --source
+project` without `--trust-workspace` returns no rows and the diagnostic
+  `project-skills-untrusted: project skills skipped because workspace is
+untrusted`; with the flag the same workspace lists `.agents/skills/shout`.
+  The rules loader prints the matching warning ("rules file at … exists,
+  but the workspace is untrusted, so it is skipped for this session").
+- Rules: the workspace `AGENTS.md` is the project rules file; `CLAUDE.md`
+  is read only when `AGENTS.md` is absent in that directory ("… is ignored
+  this session because AGENTS.md takes precedence in that directory").
+  Rules files may sit in subdirectories: the preamble the CLI gives the
+  model reads, verbatim, "Muse Code loaded standing rules at session open.
+  Follow higher-priority instructions first. If user and project rules
+  conflict, project rules win. If project rules files conflict, the deeper
+  file wins over the shallower one." Each file has a byte load limit
+  (skipped over it, with a warning to trim or split it) and the whole rules
+  context has a byte limit (truncated over it, with a warning). A user
+  rules file exists in the config root (`/rules import` writes it) but its
+  file name is not printed anywhere reachable (Q9).
+- Skills: project skills live at `.agents/skills/<id>/SKILL.md` (front
+  matter `name`, `description`; `user-invocable` is the one other key the
+  bundled skills use), personal skills in the managed root
+  `$XDG_CONFIG_HOME/muse/skills/<id>` (else `~/.config/muse/skills`),
+  bundled skills in the CLI's plugin cache. `~/.claude/skills`,
+  `~/.codex/skills` and `~/.agents/skills` are import sources for `muse
+skills import`, not load roots (a "personal skills fallback" setting can
+  admit compatible ones). `muse skills list --json` reports a per-skill
+  `context_cost.startup_bytes` of about the description's size: the
+  catalogue (name and description) is in the model's context from the
+  start and the body is loaded on demand through the `read_skill` tool or
+  a typed `/skill` invocation, which the host expands.
+- Memory: project memory is `<repo>/.agents/memory` with `MEMORY.md` as
+  the index ("one line per note, `- [Title](file.md) | hook`"), read at
+  session start as the "startup memory snapshot", with line and byte
+  limits on the index; personal memory is the CLI's own, private store.
+
+**What the extension did:** `serveArguments` produced `serve` or `serve
+--disable-sandbox` and never `--trust-workspace`, so **every CLI session
+the extension started since M1 ran with the workspace's rules and project
+skills skipped**; the `skill/list` rows the palette showed were the bundled
+and personal ones only. The M6 live capture's `reminderChild` items were
+the bundled plugins' reminders, not rules (the trace logs count
+`reminders=6` from `plugin_capability_snapshot.compose`), which is why the
+gap went unnoticed. The Model API backend had a fixed system prompt, no
+skills (a `/skill` went to the model as typed text) and no memory, as M7
+recorded.
+
+**Decision.** VS Code's workspace trust is the one switch, on both
+backends, because it is the contract VS Code already makes with the user
+about what an extension may load and run from a folder:
+
+1. **Trusted workspace**: the CLI is spawned with `--trust-workspace`; the
+   Model API backend loads the same things itself: the rules files (root
+   `AGENTS.md`, else `CLAUDE.md`; a subdirectory's file is loaded the
+   first time a tool touches a path beneath it, and deeper files come later
+   in the prompt so they win), the project skills and the personal Muse
+   skills (catalogue in the instructions, body through a new `read_skill`
+   tool or a `/name arguments` invocation expanded by the host), and the
+   project memory index. The preamble sentence is Muse Code's own.
+2. **Restricted Mode**: neither backend loads rules, skills or memory, and
+   neither runs shell commands (the CLI gets `--disable-shell`; the Model
+   API tool set omits the shell tool). VS Code's rule for Restricted Mode
+   is that an extension must not execute code from the workspace, and a
+   model that has read the workspace composing a command line is exactly
+   that. The manifest declares `capabilities.untrustedWorkspaces.supported:
+"limited"` with `restrictedConfigurations` for `museSpark.museBinaryPath`
+   and `museSpark.environmentVariables` (a workspace's settings must not be
+   able to point the extension at another executable), and
+   `virtualWorkspaces: false` (the CLI and the tools need a real file
+   system). Granting trust restarts the hosts (`onDidGrantWorkspaceTrust`),
+   as a sandbox setting change already does.
+3. **Not loaded on the Model API backend**, each for a reason: the bundled
+   plugin skills (they are the CLI's and instruct the model to run `muse`
+   subcommands and `read_skill` on `bundled:` ids), personal memory (the
+   CLI's private store), the user rules file (Q9), and the foreign-harness
+   skill fallback (Muse classifies each candidate against a compatibility
+   profile and quarantines the rest; reproducing that classifier is out of
+   scope). The README's backend table says so.
+
+Muse Code owns all of this on the CLI backend; the extension only passes
+the trust flag. On the Model API backend the extension is the host, so it
+mirrors the conventions above and no others: no invented file names, no
+`MUSE.md`.
+
+### D14 — Production hardening set for 0.2.0 (2026-09-22)
+
+The owner's brief after D13: "fully enterprise grade and production ready
+… robust and have all of the needed features for a production ready app".
+An audit of the tree against what a VS Code extension that spawns
+processes and edits files needs, and against the repository conventions
+of a maintained open-source project, produced this list; each item is
+either done in M11 or recorded as deferred with its reason.
+
+| Area               | Finding (2026-09-22)                                                                                                              | Action                                                                                                                                                                                                                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace trust    | No `capabilities` block; the agent ran shell commands in Restricted Mode and loaded nothing differently.                          | D13: `untrustedWorkspaces: limited` + `restrictedConfigurations`, `virtualWorkspaces: false`; trust gates rules/skills/memory and the shell on both backends.                                                                                                                                                    |
+| Remote hosts       | No `extensionKind`; VS Code defaults an extension with `main` to the workspace host, but the choice was implicit.                 | Declare `extensionKind: ["workspace"]`: the CLI, the tools and the workspace files are on the remote; the dictation helper then runs there too, which the README's voice section states as the remote limitation.                                                                                                |
+| Webview crash      | A render error in React unmounts the whole panel and leaves it blank, with the cause only in the developer tools.                 | An error boundary around the app that shows the message and a **Reload** button (posts `hostAction: reload`; the host re-creates the webview's HTML).                                                                                                                                                            |
+| Model API sessions | Live for the window only (M7/M8): a reload loses the conversation, the patches behind Open diff / Revert and the history list.    | A JSON session store under `context.storageUri` (per workspace): replay items, transcript, todos, name, model, effort, approval mode, patches; `session/list`, resume and fork read it; the store is a dependency of the host, so the core stays free of `vscode` and `fs`.                                      |
+| Support tooling    | The log channel exists (secrets redacted) but there is no command to open it, and no way to collect the facts a bug report needs. | `Muse Spark: Show Logs` and `Muse Spark: Diagnostics` (writes to the log and opens it: versions, platform, backend, CLI path and version, sign-in and key presence as booleans, sandbox posture, dictation helper, workspace trust). Nothing secret is ever written.                                             |
+| Release pipeline   | Publishing was by hand from a CI artifact with a PAT from the clipboard; no GitHub Release was created until the owner noticed.   | `release.yml` on `v*` tags: the shared build (`build.yml`, `workflow_call`, used by `ci.yml` too) produces the `.vsix`, the release job creates the GitHub Release with the `.vsix` and the CHANGELOG section as notes, and a publish job runs `vsce publish` only when the `VSCE_PAT` repository secret exists. |
+| Repository hygiene | No `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue or pull request templates, `dependabot.yml` or `CODEOWNERS`.     | All added under M11; Dependabot for npm and GitHub Actions weekly, grouped, with the pinned-SHA actions kept pinned.                                                                                                                                                                                             |
+| Telemetry          | None, by design (`docs/PRIVACY.md`).                                                                                              | Unchanged; the Diagnostics command is the support path instead.                                                                                                                                                                                                                                                  |
+| Localisation       | English strings in `UI_TEXT`; no `package.nls.json`.                                                                              | Deferred: no second language is planned; the strings are already in one table.                                                                                                                                                                                                                                   |
+| Multi-root         | The first workspace folder is the root (as the Claude Code extension does).                                                       | Unchanged; documented in the README requirements.                                                                                                                                                                                                                                                                |
+
 ## 3. Open questions (need the owner)
 
-| #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                            |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner holds both a Muse Code subscription (CLI signed in by device code) and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment).                                                                                                                                                                                                                                                                                                                 | Closed.                                                           |
-| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                                                                                                                                                                                                                                                                                                          | Closed.                                                           |
-| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                                                                                                                                                                                                                                                                                                          | M7 required; see §10.                                             |
-| Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and a dimmed button with the reason on Linux (no distribution ships a recogniser; the owner may revisit). The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process. | Closed; see M9.                                                   |
-| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Decide at M4 with measured bundle sizes.                          |
-| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Detect and show "use Model API key" on Linux if `muse` is absent. |
-| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                           |
-| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                                                                                                                                                                                                                                                                                                                                      | Closed; PAT step deferred to M8.                                  |
+| #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner holds both a Muse Code subscription (CLI signed in by device code) and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment).                                                                                                                                                                                                                                                                                                                 | Closed.                                                               |
+| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                                                                                                                                                                                                                                                                                                          | Closed.                                                               |
+| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                                                                                                                                                                                                                                                                                                          | M7 required; see §10.                                                 |
+| Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and a dimmed button with the reason on Linux (no distribution ships a recogniser; the owner may revisit). The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process. | Closed; see M9.                                                       |
+| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Decide at M4 with measured bundle sizes.                              |
+| Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Detect and show "use Model API key" on Linux if `muse` is absent.     |
+| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                               |
+| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                                                                                                                                                                                                                                                                                                                                      | Closed; PAT step deferred to M8.                                      |
+| Q9  | The Muse Code user rules file: `/rules import` writes one into the config root and the model is told "if user and project rules conflict, project rules win", but its file name is not printed by `muse --help`, `muse skills`, the settings skill or the binary's strings. The Model API backend cannot mirror what it cannot name.                                                                                                                                                                                                                                                                | Not loaded on the Model API backend; the CLI backend loads it itself. |
 
 ## 4. Architecture
 
@@ -1262,6 +1378,115 @@ Certification record: `docs/certification/m9.md`.
   when on-device recognition is unavailable (`docs/PRIVACY.md`); the
   helper never sees the workspace, a credential or the model.
 
+### M10 — Workspace context: rules, skills and memory on both backends
+
+**Status 2026-09-22: built and certified** (`docs/certification/m10.md`):
+the CLI path proved live before and after the trust flag (rule ignored,
+skill `skillNotFound` → rule followed, skill ran), the Model API path
+against the fake server, seven checks fired on purpose.
+
+- **Goal**: what D13 decided. On the CLI backend, the workspace's rules and
+  project skills are loaded whenever VS Code trusts the workspace (they
+  never were). On the Model API backend, the model sees the same rules
+  files, skills and project memory index that Muse Code would give it, by
+  the same file conventions, and nothing else.
+- **Scope**:
+  - `serveArguments(posture, trust)`: `--trust-workspace` when trusted,
+    `--disable-shell` when not; the host is restarted when trust is
+    granted (`onDidGrantWorkspaceTrust`), with a notice.
+  - `src/core/context/` (pure, no `vscode`, no `fs`; everything through
+    `ToolIo`, which gains `listDirectory(absolutePath)` for the skill
+    roots): `rules.ts` (root file, `CLAUDE.md` fallback per directory,
+    nested files by first touch, `RULES_FILE_MAX_BYTES` per file and
+    `RULES_CONTEXT_MAX_BYTES` overall with the two warnings Muse prints),
+    `skills.ts` (front matter parse and validation, project root then the
+    personal Muse root, project shadows personal on a duplicate id,
+    `user-invocable: false` hides a skill from the palette but not from
+    `read_skill`, `SKILL_FILE_MAX_BYTES`), `memory.ts` (the index with
+    `MEMORY_INDEX_MAX_LINES` / `MEMORY_INDEX_MAX_BYTES`), and
+    `instructions.ts` composing the system instructions: base text, the
+    rules preamble (Muse's sentence) and files, the skills catalogue with
+    the `read_skill` instruction, the memory index and the convention for
+    writing notes with the file tools.
+  - `ModelApiHost`: a `WorkspaceContext` per session, refreshed before each
+    model call for newly touched directories; `read_skill` (class `read`,
+    never prompts); a `skill` part expanded to the skill body plus the
+    arguments (the transcript shows the typed `/name arguments`);
+    `listSkills` from the catalogue; `refreshSkills()` on the host emits
+    `skillsChanged` (the extension watches `.agents/skills/**` and the
+    personal root); in Restricted Mode the tool definitions omit the shell
+    and `executeTool` refuses it.
+  - Manifest `capabilities` (D13) and the `extensionKind` of D14 (they are
+    one edit).
+  - README backend table and a "Rules, skills and memory" section;
+    `docs/PRIVACY.md` (on the Model API path the rules, the skill bodies
+    the model loads and the memory index travel to Meta with the prompt);
+    CHANGELOG.
+- **Acceptance**:
+  - Live, CLI backend, workspace `C:\muse-live-ws` with an `AGENTS.md`
+    rule ("end every reply with PINEAPPLE") and `.agents/skills/shout`:
+    before the change the extension's own backend code lists no `shout`
+    skill and the reply ignores the rule; after it, `skill/list` carries
+    `shout` (source `project`), the reply ends with PINEAPPLE and a
+    `skill` part `shout good morning` returns `GOOD MORNING!!!`. Two short
+    turns each run, attempts counted from the CLI trace logs.
+  - Model API backend against the fake server: the request body's
+    `instructions` carries the root rules file, the catalogue and the
+    memory index; a `read_file` of `src/a.ts` makes the next request carry
+    `src/AGENTS.md` after the root one; a `read_skill` call returns the
+    body without an approval card; a `skill` part sends the expanded text;
+    an oversize rules file is skipped with the warning in the log; in Restricted Mode no rules, no skills, no memory
+    and no shell tool are sent.
+- **Tests**: `rules.test.ts`, `skills.test.ts`, `memory.test.ts`,
+  `instructions.test.ts` (new), `sandbox.test.ts` (trust arguments),
+  `modelApiHost.test.ts` (the acceptance list above), `fakeToolIo`
+  (`listDirectory`), `modelApiTools.test.ts` (`read_skill` argument
+  validation and the shell refusal).
+- **Gates**: the existing set; `npm run quality` green; every new test
+  broken once on purpose (certification record).
+- **Security**: rules and skill files are workspace content and may carry
+  prompt injection; they already reach the model on the CLI backend by
+  Muse Code's design, and on the Model API backend only in a trusted
+  workspace, under the same permission modes as before. Files are read
+  with the size caps and never executed. `read_skill` resolves only ids
+  from the catalogue (no paths from the model). The personal root is read,
+  never written.
+
+### M11 — Production hardening (D14)
+
+**Status 2026-09-22: planned.** Certification record:
+`docs/certification/m11.md`.
+
+- **Goal**: the D14 table, every row either done or deferred with a reason.
+- **Scope**: the webview error boundary and `hostAction: reload`; the Model
+  API JSON session store (`src/host/backend/sessionStore.ts` behind a
+  `SessionStore` interface in `ModelApiHostDeps`; one file per session
+  under `context.storageUri`, written after each turn and on rename or
+  archive, read at host start; a corrupt file is skipped with a log line,
+  never fatal); `Muse Spark: Show Logs` and `Muse Spark: Diagnostics`;
+  `.github/workflows/build.yml` (`workflow_call`: quality matrix, macOS
+  helper, package) used by `ci.yml` and the new `release.yml` (tag `v*`:
+  build, GitHub Release with the `.vsix` and the CHANGELOG section,
+  Marketplace publish when `VSCE_PAT` is set); `SECURITY.md`,
+  `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/ISSUE_TEMPLATE/`,
+  `PULL_REQUEST_TEMPLATE.md`, `dependabot.yml`, `CODEOWNERS`; README and
+  CHANGELOG; version 0.2.0.
+- **Acceptance**: a thrown render error in the harness shows the boundary
+  with the message and Reload restores the panel; a Model API conversation
+  survives `Developer: Reload Window` with its transcript, patches and
+  name, and appears in history; the Diagnostics output contains no secret
+  (the logger's redaction test covers the key shape, and the command writes
+  booleans for credentials); `release.yml` runs green on the `v0.2.0` tag
+  and the GitHub Release carries the `.vsix`.
+- **Tests**: `ErrorBoundary.test.tsx`, `sessionStore.test.ts` (round trip,
+  corrupt file, missing directory), `modelApiHost.test.ts` (store calls),
+  `diagnostics.test.ts` (the report's shape and redaction).
+- **Gates**: unchanged; the workflows are validated by running them.
+- **Security**: the session store holds conversation text and patches in
+  the workspace storage directory VS Code already uses for extension state
+  (per user, per workspace, outside the repository); the API key is never
+  in it. `SECURITY.md` names the reporting path.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                    | Status                                                                                                                  |
@@ -1346,3 +1571,12 @@ go the repository went public, 0.1.1 was published from the CI artifact
 of `d7274c7` (run 35802578451; the sparkle icon of 0.1.0, Google's mark,
 replaced by a plain "M" tile, and the banner and social image made
 typography only at the owner's direction), tagged `v0.1.1`.
+
+**Towards 0.2.0 (2026-09-22, evening):** the owner asked whether the agent
+uses skills, `AGENTS.md` and memory properly. D13 records the finding
+(the CLI backend never received `--trust-workspace`, so rules and project
+skills were skipped; the Model API backend had none of the three) and the
+decision; D14 the production-hardening audit. M10 and M11 carry the work;
+0.2.0 ships when both are certified, with `release.yml` making the tag,
+the GitHub Release and (with the repository secret) the Marketplace
+publish one operation.

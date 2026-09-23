@@ -38,6 +38,8 @@ export interface BackendManagerDeps {
   readonly getShellSandbox: () => ShellSandboxMode
   /** `%USERPROFILE%`; undefined off Windows. */
   readonly userProfileDir: string | undefined
+  /** `vscode.workspace.isTrusted`; read at each spawn (PLAN.md D13). */
+  readonly isWorkspaceTrusted: () => boolean
 }
 
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -157,7 +159,7 @@ export class MuseCodeBackendManager {
       systemRoot: env['SystemRoot'],
       fileExists: existsSync,
       readTextFile: readTextFileOrUndefined,
-      serveArgs: serveArguments(this.shellSandboxPosture()),
+      serveArgs: serveArguments(this.shellSandboxPosture(), this.deps.isWorkspaceTrusted()),
     })
   }
 

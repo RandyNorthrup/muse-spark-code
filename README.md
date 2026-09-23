@@ -96,10 +96,10 @@ standard `muse-spark-1.3` model (never a contributor-tier model by default).
 
 ## Backends
 
-| Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                       |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
-| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`)                     | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`)      |
-| **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension's own: read, edit, write, search, list, shell, with approvals |
+| Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                                                                                   |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`)                     | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`); its bundled skills, your user rules and its own memory          |
+| **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension's own: read, edit, write, search, list, shell, `read_skill`, with approvals; the workspace rules, skills and memory below |
 
 `museSpark.backend` picks: `auto` (default) uses the CLI when it is installed
 and signed in, otherwise the Model API when a key is stored; `museCode` and
@@ -107,6 +107,30 @@ and signed in, otherwise the Model API when a key is stored; `museCode` and
 window runs on. The CLI looks for `muse` through `museSpark.museBinaryPath`,
 then `PATH`, then the platform's install folder (`%LOCALAPPDATA%\Programs\muse`
 on Windows, `~/.local/bin` elsewhere).
+
+## Rules, skills and memory
+
+In a trusted workspace the agent follows the same files Muse Code does:
+
+- **Rules**: `AGENTS.md` at the workspace root (`CLAUDE.md` where there is no
+  `AGENTS.md`), and the same files in subdirectories, which apply once the
+  agent touches a path beneath them; the deeper file wins.
+- **Skills**: `.agents/skills/<id>/SKILL.md` in the workspace (project scope)
+  and Muse Code's personal root `~/.config/muse/skills`
+  (`$XDG_CONFIG_HOME/muse/skills` when set). The palette's **Skills** group
+  lists them, `/id arguments` invokes one, and the model loads one itself
+  when a task matches its description. `user-invocable: false` in the
+  front matter keeps a skill out of the palette.
+- **Memory**: the project's `.agents/memory/MEMORY.md` index is read at the
+  start of a conversation; the agent reads and updates the notes there with
+  its file tools, under the permission mode.
+
+On the CLI backend Muse Code loads all of this itself (the extension starts
+it with `--trust-workspace`), plus its bundled skills and your user rules.
+On the Model API backend the extension loads the files above and nothing
+else; a file over 64 KB is skipped with a warning in the log. In VS Code's
+**Restricted Mode** (an untrusted folder) neither backend loads rules, skills
+or memory and no shell command runs; trust the workspace to enable them.
 
 ## The panel
 
@@ -216,6 +240,10 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 - `git` on `PATH` for `.gitignore`-aware `@` mentions (optional; VS Code's
   file search is used without it).
 - Voice dictation: Windows, or macOS with Dictation or Siri enabled.
+- A trusted workspace for rules, skills, memory and shell commands; in
+  Restricted Mode the panel chats and edits under approval, nothing more.
+  The first workspace folder is the root; virtual workspaces are not
+  supported.
 
 ## Privacy and security
 
@@ -230,6 +258,10 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
   `museSpark.confidentialWorkspace`.
 - Voice audio stays on the machine on Windows; on macOS Apple recognises on
   the device or on its servers under Apple's terms.
+- Workspace rules, skill files and the memory index are read only in a
+  trusted workspace; on the Model API backend their text is part of what
+  goes to Meta with each request, on the CLI backend Muse Code sends them
+  under its own terms.
 - The webview runs under a strict CSP (`default-src 'none'`, per-load script
   nonce, no remote origins, no inline styles); every message between host and
   webview is validated with a zod schema.

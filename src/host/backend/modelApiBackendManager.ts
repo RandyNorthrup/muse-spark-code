@@ -18,6 +18,9 @@ export interface ModelApiBackendManagerDeps {
   readonly now: () => number
   readonly sleep: (ms: number) => Promise<void>
   readonly random: () => number
+  /** Muse Code's personal skill root (PLAN.md D13). */
+  readonly personalSkillsRoot: string | undefined
+  readonly isWorkspaceTrusted: () => boolean
 }
 
 export class ModelApiBackendManager {
@@ -52,6 +55,8 @@ export class ModelApiBackendManager {
       newId: this.deps.newId,
       now: this.deps.now,
       log: this.deps.log,
+      personalSkillsRoot: this.deps.personalSkillsRoot,
+      isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
     })
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')
     return Promise.resolve(this.host)
@@ -59,6 +64,11 @@ export class ModelApiBackendManager {
 
   public get isRunning(): boolean {
     return this.host !== undefined
+  }
+
+  /** A skill file changed: the running host re-reads its catalogue. */
+  public async refreshSkills(): Promise<void> {
+    await this.host?.refreshSkills()
   }
 
   public async dispose(): Promise<void> {

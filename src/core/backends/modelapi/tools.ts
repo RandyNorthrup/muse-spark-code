@@ -66,6 +66,8 @@ export interface ToolIo {
   writeFile(absolutePath: string, content: string): Promise<void>
   /** Workspace-relative, forward-slash paths of every listed file. */
   listFiles(): Promise<readonly string[]>
+  /** The names of the subdirectories of an absolute path; empty when it is missing. */
+  listDirectory(absolutePath: string): Promise<readonly string[]>
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
   searchFiles(job: SearchJob): Promise<SearchOutcome>
   runShell(command: string, cwd: string, timeoutMs: number): Promise<ShellResult>
@@ -97,6 +99,7 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.powershell]: 'shell',
   [MODEL_API_TOOLS.askUser]: 'interactive',
   [MODEL_API_TOOLS.todoWrite]: 'interactive',
+  [MODEL_API_TOOLS.readSkill]: 'read',
 }
 
 export function classifyTool(name: string): ToolClass | undefined {
@@ -133,12 +136,25 @@ const shellArgs = z.object({
   timeout_ms: z.optional(z.number()),
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
+export const readSkillArgs = z.object({ id: z.string() })
 export const todoWriteArgs = z.object({ items: z.array(todoItemSchema) })
 
 const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 
+export interface ToolDefinitionOptions {
+  /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
+  readonly hasShell: boolean
+  /** True when the workspace context holds at least one skill. */
+  readonly hasSkills: boolean
+}
+
+const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
+
 /** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
-export function toolDefinitions(platform: NodeJS.Platform): readonly FunctionToolDefinition[] {
+export function toolDefinitions(
+  platform: NodeJS.Platform,
+  options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
+): readonly FunctionToolDefinition[] {
   const shell = shellToolFor(platform)
   const define = (
     name: string,
@@ -206,16 +222,33 @@ export function toolDefinitions(platform: NodeJS.Platform): readonly FunctionToo
       { glob: { type: 'string' }, limit: { type: 'integer' } },
       [],
     ),
-    define(
-      shell.name,
-      `Run one ${shell.shellName} command line in the workspace root and return its output.`,
-      {
-        command: { type: 'string' },
-        description: { type: 'string', description: 'One line saying what the command does' },
-        timeout_ms: { type: 'integer', description: 'Milliseconds before the command is stopped' },
-      },
-      ['command', 'description'],
-    ),
+    ...(options.hasShell
+      ? [
+          define(
+            shell.name,
+            `Run one ${shell.shellName} command line in the workspace root and return its output.`,
+            {
+              command: { type: 'string' },
+              description: { type: 'string', description: 'One line saying what the command does' },
+              timeout_ms: {
+                type: 'integer',
+                description: 'Milliseconds before the command is stopped',
+              },
+            },
+            ['command', 'description'],
+          ),
+        ]
+      : []),
+    ...(options.hasSkills
+      ? [
+          define(
+            MODEL_API_TOOLS.readSkill,
+            'Load the full instructions of a skill listed in your instructions, by its id. Call it before starting a task the skill covers.',
+            { id: { type: 'string', description: 'The skill id from the Skills list' } },
+            ['id'],
+          ),
+        ]
+      : []),
     define(
       MODEL_API_TOOLS.askUser,
       'Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.',

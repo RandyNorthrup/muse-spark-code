@@ -2,11 +2,13 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
+import { homedir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import { selectBackend } from './core/backendSelection'
+import { personalSkillsRoot } from './core/context/skills'
 import type { CliInvocation } from './core/backends/musecode/sandbox'
 import { type DiagnosticEntry, type DiagnosticSeverity, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
@@ -49,6 +51,8 @@ import {
   DEFAULT_MODEL_ID,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
+  PERSONAL_SKILLS_GLOB,
+  PROJECT_SKILLS_GLOB,
   GIT_OUTPUT_MAX_BYTES,
   GLOBAL_STATE_KEYS,
   MENTION_INDEX_LIMIT,
@@ -252,6 +256,7 @@ export function activate(context: vscode.ExtensionContext): void {
     workspaceRoot,
     getShellSandbox: () => currentSettings().shellSandbox,
     userProfileDir: process.env['USERPROFILE'],
+    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
   })
   /** Stops both hosts and the conversations on them; the next message respawns. */
   const restartBackend = async (): Promise<void> => {
@@ -364,6 +369,13 @@ export function activate(context: vscode.ExtensionContext): void {
   })
   // The Model API backend (M7): the pasted key, the workspace's files and a
   // shell, all in this process. Its sessions live for this window.
+  // Muse Code's managed personal skill root, watched alongside the workspace's
+  // `.agents/skills` so the palette follows the files (PLAN.md D13).
+  const skillsHome = personalSkillsRoot({
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+  })
   const modelApi = new ModelApiBackendManager({
     log,
     getApiKey: () => credentials.getApiKey(),
@@ -384,6 +396,8 @@ export function activate(context: vscode.ExtensionContext): void {
         setTimeout(resolve, ms)
       }),
     random: () => Math.random(),
+    personalSkillsRoot: skillsHome,
+    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
   })
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
@@ -606,11 +620,26 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const openSidebar = () => vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
   const fileWatcher = vscode.workspace.createFileSystemWatcher(FIND_FILES_GLOB, false, true, false)
+  const onSkillFilesChanged = () => {
+    void modelApi.refreshSkills()
+  }
+  const projectSkillsWatcher = vscode.workspace.createFileSystemWatcher(PROJECT_SKILLS_GLOB)
+  const personalSkillsWatcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(vscode.Uri.file(skillsHome), PERSONAL_SKILLS_GLOB),
+  )
 
   editorContext.update(editorSnapshot())
   context.subscriptions.push(
     channel,
     fileWatcher,
+    projectSkillsWatcher,
+    personalSkillsWatcher,
+    projectSkillsWatcher.onDidChange(onSkillFilesChanged),
+    projectSkillsWatcher.onDidCreate(onSkillFilesChanged),
+    projectSkillsWatcher.onDidDelete(onSkillFilesChanged),
+    personalSkillsWatcher.onDidChange(onSkillFilesChanged),
+    personalSkillsWatcher.onDidCreate(onSkillFilesChanged),
+    personalSkillsWatcher.onDidDelete(onSkillFilesChanged),
     editorContext,
     {
       dispose: () => {
@@ -654,6 +683,12 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       void restartBackend()
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.sandboxRestartNotice })
+    }),
+    // Trust is a host-lifetime posture like the sandbox (PLAN.md D13): the
+    // hosts restart so the next message loads the rules and skills.
+    vscode.workspace.onDidGrantWorkspaceTrust(() => {
+      void restartBackend()
+      registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
     }),
     vscode.commands.registerCommand(COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)

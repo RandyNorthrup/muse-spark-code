@@ -6,7 +6,7 @@
 // workspace root, with a timeout and an output cap.
 
 import { spawn } from 'node:child_process'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import type {
@@ -109,6 +109,17 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       await writeFile(absolutePath, content, 'utf8')
     },
     listFiles: deps.listFiles,
+    async listDirectory(absolutePath) {
+      try {
+        const entries = await readdir(absolutePath, { withFileTypes: true })
+        return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name)
+      } catch (error: unknown) {
+        if (isMissingFile(error)) {
+          return []
+        }
+        throw error
+      }
+    },
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     runShell(command, cwd, timeoutMs) {
       const invocation = shellInvocation(deps.platform, deps.systemRoot, command)

@@ -237,11 +237,25 @@ describe('resolveShellSandbox', () => {
     })
   })
 
-  it('maps the posture onto the serve arguments', () => {
-    expect(serveArguments({ isSandboxed: true, reason: 'default' })).toEqual(['serve'])
-    expect(serveArguments({ isSandboxed: false, reason: 'setting' })).toEqual([
+  it('maps the posture and the workspace trust onto the serve arguments', () => {
+    expect(serveArguments({ isSandboxed: true, reason: 'default' }, true)).toEqual([
+      'serve',
+      '--trust-workspace',
+    ])
+    expect(serveArguments({ isSandboxed: false, reason: 'setting' }, true)).toEqual([
       'serve',
       '--disable-sandbox',
+      '--trust-workspace',
+    ])
+    // Restricted Mode: no rules, no skills, no workspace shell (PLAN.md D13).
+    expect(serveArguments({ isSandboxed: true, reason: 'default' }, false)).toEqual([
+      'serve',
+      '--disable-shell',
+    ])
+    expect(serveArguments({ isSandboxed: false, reason: 'profileWorkspace' }, false)).toEqual([
+      'serve',
+      '--disable-sandbox',
+      '--disable-shell',
     ])
   })
 })

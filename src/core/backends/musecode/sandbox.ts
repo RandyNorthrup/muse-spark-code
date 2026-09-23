@@ -10,9 +10,11 @@
 import path from 'node:path'
 import {
   MUSE_DISABLE_SANDBOX_ARG,
+  MUSE_DISABLE_SHELL_ARG,
   MUSE_SANDBOX_CHECK_ARGS,
   MUSE_SANDBOX_SETUP_ARGS,
   MUSE_SERVE_ARGS,
+  MUSE_TRUST_WORKSPACE_ARG,
   SANDBOX_PROFILE_LIMITED_MAX_VERSION,
   SANDBOX_STATUS_READY,
   SANDBOX_STATUS_SETUP_REQUIRED,
@@ -222,9 +224,21 @@ export function resolveShellSandbox(probe: ShellSandboxProbe): ShellSandboxPostu
     : { isSandboxed: true, reason: 'default' }
 }
 
-/** The `serve` arguments that install `posture` on the host. */
-export function serveArguments(posture: ShellSandboxPosture): readonly string[] {
-  return posture.isSandboxed ? MUSE_SERVE_ARGS : [...MUSE_SERVE_ARGS, MUSE_DISABLE_SANDBOX_ARG]
+/**
+ * The `serve` arguments that install `posture` and the workspace's trust on
+ * the host. A trusted workspace loads its rules and skills (Muse Code's
+ * `--trust-workspace`); an untrusted one gets no rules, no skills and no
+ * workspace shell, VS Code's Restricted Mode contract (PLAN.md D13).
+ */
+export function serveArguments(
+  posture: ShellSandboxPosture,
+  isWorkspaceTrusted: boolean,
+): readonly string[] {
+  return [
+    ...MUSE_SERVE_ARGS,
+    ...(posture.isSandboxed ? [] : [MUSE_DISABLE_SANDBOX_ARG]),
+    isWorkspaceTrusted ? MUSE_TRUST_WORKSPACE_ARG : MUSE_DISABLE_SHELL_ARG,
+  ]
 }
 
 /** A PowerShell single-quoted literal; the only escape is a doubled quote. */

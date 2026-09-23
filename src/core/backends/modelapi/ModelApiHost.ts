@@ -57,6 +57,8 @@ import type {
   TurnPart,
   TurnSubmission,
 } from '../../agent/agentBackend'
+import { type SkillDefinition } from '../../context/skills'
+import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { MissingApiKeyError, type ModelApiClient, ModelApiError } from './client'
 import { instructionsFor } from './instructions'
@@ -79,6 +81,8 @@ import {
   classifyTool,
   executeTool,
   parseQuestions,
+  readSkillArgs,
+  resolveWorkspacePath,
   shellToolFor,
   todoWriteArgs,
   toolDefinitions,
@@ -95,6 +99,10 @@ export interface ModelApiHostDeps {
   /** Epoch milliseconds. */
   readonly now: () => number
   readonly log: CoreLogger
+  /** Muse Code's personal skill root (PLAN.md D13); undefined without a home. */
+  readonly personalSkillsRoot: string | undefined
+  /** VS Code workspace trust: gates rules, skills, memory and the shell (D13). */
+  readonly isWorkspaceTrusted: () => boolean
 }
 
 interface ReplayItem {
@@ -190,7 +198,27 @@ function pressureFor(used: number, window: number): string {
   return fraction >= CONTEXT_PRESSURE_MEDIUM ? PRESSURE_MEDIUM : PRESSURE_LOW
 }
 
-function contentPartsFor(parts: readonly TurnPart[]): InputContentPart[] {
+function toolFailure(reason: string): ToolOutcome {
+  return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+}
+
+/** A typed `/id arguments`, as the transcript shows it. */
+function typedInvocation(selector: string, args: string | undefined): string {
+  return `/${selector}${args === undefined ? '' : ` ${args}`}`
+}
+
+/**
+ * A skill invocation as the model receives it: the host expands the skill's
+ * body with the arguments, as Muse Code does for a `skill` input part.
+ */
+function skillInvocationText(skill: SkillDefinition, args: string | undefined): string {
+  return `${UI_TEXT.skillInvoked} "${skill.id}". ${UI_TEXT.skillArguments} ${args ?? UI_TEXT.skillNoArguments}\n\n${skill.body}`
+}
+
+function contentPartsFor(
+  parts: readonly TurnPart[],
+  resolveSkill: (selector: string) => SkillDefinition | undefined,
+): InputContentPart[] {
   return parts.map((part) => {
     switch (part.type) {
       case 'text': {
@@ -204,10 +232,14 @@ function contentPartsFor(parts: readonly TurnPart[]): InputContentPart[] {
         }
       }
       case 'skill': {
-        // No skills on this backend: the invocation goes to the model as typed.
+        // An unknown selector (the catalogue changed under the palette) goes as typed.
+        const skill = resolveSkill(part.selector)
         return {
           type: 'input_text',
-          text: `/${part.selector}${part.arguments === undefined ? '' : ` ${part.arguments}`}`,
+          text:
+            skill === undefined
+              ? typedInvocation(part.selector, part.arguments)
+              : skillInvocationText(skill, part.arguments),
         }
       }
     }
@@ -222,7 +254,7 @@ function typedText(parts: readonly TurnPart[]): string {
           return [part.text]
         }
         case 'skill': {
-          return [`/${part.selector}${part.arguments === undefined ? '' : ` ${part.arguments}`}`]
+          return [typedInvocation(part.selector, part.arguments)]
         }
         case 'image': {
           return []
@@ -290,6 +322,8 @@ export class ModelApiSession implements AgentSession {
   private readonly turnIds: string[] = []
   private readonly outputs = new Map<string, string>()
   private readonly permissions: PermissionEngine
+  /** The rules, skills and memory of the workspace (PLAN.md D13). */
+  private readonly context: WorkspaceContext
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   private readonly pendingQuestions = new Map<string, Pending<readonly QuestionAnswer[]>>()
   private readonly queuedTurns: QueuedTurn[] = []
@@ -317,6 +351,16 @@ export class ModelApiSession implements AgentSession {
   ) {
     this.modelId = modelId
     this.permissions = new PermissionEngine(approvalMode)
+    this.context = new WorkspaceContext({
+      io: deps.io,
+      workspaceRoot: deps.workspaceRoot,
+      platform: deps.platform,
+      personalSkillsRoot: deps.personalSkillsRoot,
+      isWorkspaceTrusted: deps.isWorkspaceTrusted,
+      warn: (message) => {
+        deps.log.warn(`Workspace context: ${message}`)
+      },
+    })
     this.createdAt = new Date(deps.now()).toISOString()
     this.lastActivityAt = this.createdAt
   }
@@ -334,6 +378,8 @@ export class ModelApiSession implements AgentSession {
 
   private body(): CreateResponseBody {
     const shell = shellToolFor(this.deps.platform)
+    const hasShell = this.deps.isWorkspaceTrusted()
+    const context = this.context.sections()
     return {
       model: this.modelId,
       input: this.replay.map((entry) => entry.item),
@@ -342,8 +388,13 @@ export class ModelApiSession implements AgentSession {
         platform: this.deps.platform,
         shellToolName: shell.name,
         shellName: shell.shellName,
+        hasShell,
+        context,
       }),
-      tools: toolDefinitions(this.deps.platform),
+      tools: toolDefinitions(this.deps.platform, {
+        hasShell,
+        hasSkills: context.skills.length > 0,
+      }),
       tool_choice: 'auto',
       reasoning: {
         effort: this.effort === THINKING_OFF_EFFORT ? MODEL_API_EFFORT_OFF : this.effort,
@@ -368,7 +419,7 @@ export class ModelApiSession implements AgentSession {
   ): void {
     this.replay.push({
       turnId,
-      item: { type: 'message', role: 'user', content: contentPartsFor(parts) },
+      item: { type: 'message', role: 'user', content: this.contentParts(parts) },
     })
     const text = displayText ?? typedText(parts)
     this.firstPrompt ??= text
@@ -672,6 +723,38 @@ export class ModelApiSession implements AgentSession {
     return { output: summary, visibleOutput: summary }
   }
 
+  private contentParts(parts: readonly TurnPart[]): InputContentPart[] {
+    return contentPartsFor(parts, (selector) => this.context.skill(selector))
+  }
+
+  /** `read_skill`: the body of a catalogue skill, by id; never a path. */
+  private readSkill(call: FunctionCallItem): ToolOutcome {
+    const parsed = readSkillArgs.safeParse(argumentsOf(call))
+    if (!parsed.success) {
+      return toolFailure('invalid arguments: id is required')
+    }
+    const skill = this.context.skill(parsed.data.id)
+    if (skill === undefined) {
+      return toolFailure(`${UI_TEXT.skillNotFound} ${parsed.data.id}`)
+    }
+    return {
+      output: `Skill ${skill.id}: ${skill.description}\n\n${skill.body}`,
+      visibleOutput: `Loaded skill ${skill.id} (${skill.source})`,
+    }
+  }
+
+  /** A tool that named a path may have entered a directory with its own rules file. */
+  private async touchPath(call: FunctionCallItem): Promise<void> {
+    const given = pick(argumentsOf(call), 'path')
+    if (given === undefined) {
+      return
+    }
+    const resolved = resolveWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform)
+    if (resolved.ok) {
+      await this.context.touch(resolved.relative)
+    }
+  }
+
   private async perform(
     itemId: string,
     call: FunctionCallItem,
@@ -683,6 +766,9 @@ export class ModelApiSession implements AgentSession {
       }
       case MODEL_API_TOOLS.todoWrite: {
         return this.writeTodos(call)
+      }
+      case MODEL_API_TOOLS.readSkill: {
+        return this.readSkill(call)
       }
       default: {
         return await executeTool(call.name, call.arguments, {
@@ -714,8 +800,12 @@ export class ModelApiSession implements AgentSession {
     let outcome: ToolOutcome
     let isRejected = false
     if (toolClass === undefined) {
-      const reason = `unknown tool ${call.name}`
-      outcome = { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+      outcome = toolFailure(`unknown tool ${call.name}`)
+    } else if (toolClass === 'shell' && !this.deps.isWorkspaceTrusted()) {
+      // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
+      // that calls it anyway is refused, never prompted.
+      isRejected = true
+      outcome = toolFailure(UI_TEXT.shellRestrictedMode)
     } else {
       const verdict = this.permissions.verdict(call.name, toolClass)
       if (verdict === 'deny') {
@@ -740,6 +830,7 @@ export class ModelApiSession implements AgentSession {
         outcome = await this.perform(itemId, call, signal)
       }
     }
+    await this.touchPath(call)
     let status = COMPLETED
     if (outcome.failureReason !== undefined) {
       status = isRejected ? REJECTED : FAILED
@@ -775,7 +866,10 @@ export class ModelApiSession implements AgentSession {
         item: {
           type: 'message',
           role: 'user',
-          content: [{ type: 'input_text', text: UI_TEXT.steeredPrefix }, ...contentPartsFor(parts)],
+          content: [
+            { type: 'input_text', text: UI_TEXT.steeredPrefix },
+            ...this.contentParts(parts),
+          ],
         },
       })
       this.recordTranscript(turn.turnId, {
@@ -809,6 +903,9 @@ export class ModelApiSession implements AgentSession {
     this.turnIds.push(turn.turnId)
     this.emit({ type: 'turnStarted', turnId: turn.turnId })
     this.emit({ type: 'sessionStatus', status: RUNNING })
+    // The context comes first so a skill invocation can be expanded (D13);
+    // it never throws, so the user message always follows.
+    await this.context.load()
     this.appendUserMessage(turn.turnId, queued.parts, queued.displayText)
     this.touch()
     const startedAt = this.deps.now()
@@ -1025,8 +1122,24 @@ export class ModelApiSession implements AgentSession {
     })
   }
 
-  public listSkills(): Promise<readonly SkillSummary[]> {
-    return Promise.resolve([])
+  public async listSkills(): Promise<readonly SkillSummary[]> {
+    await this.context.load()
+    return this.context
+      .sections()
+      .skills.filter((skill) => skill.isUserInvocable)
+      .map((skill) => ({
+        selector: skill.id,
+        displayName: skill.name,
+        description: skill.description,
+        argumentHint: skill.argumentHint,
+      }))
+  }
+
+  /** Re-reads the skill roots after their files changed; `skillsChanged` when the catalogue did. */
+  public async refreshSkills(): Promise<void> {
+    if (await this.context.refreshSkills()) {
+      this.emit({ type: 'skillsChanged' })
+    }
   }
 
   public rename(name: string): Promise<string | undefined> {
@@ -1221,6 +1334,11 @@ export class ModelApiHost implements AgentHost {
 
   public get sessionCount(): number {
     return this.sessions.size
+  }
+
+  /** The skill files changed on disk: every session re-reads its catalogue. */
+  public async refreshSkills(): Promise<void> {
+    await Promise.all(Array.from(this.sessions.values(), (session) => session.refreshSkills()))
   }
 
   public close(): Promise<void> {

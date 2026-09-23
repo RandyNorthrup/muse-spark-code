@@ -272,3 +272,22 @@ describe('parseQuestions', () => {
     expect(parseQuestions('nope')).toBe('arguments are not valid JSON')
   })
 })
+
+const names = (options?: { hasShell: boolean; hasSkills: boolean }) =>
+  toolDefinitions('linux', options).map((tool) => tool.name)
+
+describe('toolDefinitions options and read_skill (M10)', () => {
+  it('omits the shell in Restricted Mode and offers read_skill with a catalogue', async () => {
+    expect(names({ hasShell: true, hasSkills: false })).toEqual(names())
+    expect(names()).toContain('bash')
+    expect(names()).not.toContain('read_skill')
+    const restricted = names({ hasShell: false, hasSkills: true })
+    expect(restricted).not.toContain('bash')
+    expect(restricted).toContain('read_skill')
+    expect(classifyTool('read_skill')).toBe('read')
+    // The session serves read_skill (it needs the catalogue); the harness refuses it.
+    await expect(context().run('read_skill', { id: 'x' })).resolves.toMatchObject({
+      failureReason: 'unknown tool read_skill',
+    })
+  })
+})

@@ -7,7 +7,34 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- The Muse Code CLI is started with `--trust-workspace` when VS Code trusts
+  the workspace, so the workspace's `AGENTS.md` rules and its
+  `.agents/skills` project skills are loaded. They never were: `muse serve`
+  skips both without the flag, and every session the extension had started
+  since M1 ran without them (PLAN.md D13). Verified live on 2026-09-22 with
+  an `AGENTS.md` rule and a project skill in a scratch workspace: before the
+  fix the rule was ignored and the skill was `skillNotFound`; after it the
+  reply ended with the rule's word and the skill ran.
+
+### Added
+
+- Model API backend: the workspace rules (`AGENTS.md`, `CLAUDE.md` where
+  there is none, subdirectory files loaded when a tool first touches a path
+  beneath them), the skills (project `.agents/skills` and the personal Muse
+  root, a `read_skill` tool, `/id arguments` expanded with the skill's body,
+  palette rows that follow the files) and the project memory index
+  (`.agents/memory/MEMORY.md`) in the model's instructions, by Muse Code's
+  conventions and size limits (`src/core/context/`).
+- Workspace trust. The manifest declares `untrustedWorkspaces: limited`
+  (in Restricted Mode no rules, skills or memory are loaded and no shell
+  command runs on either backend; `museSpark.museBinaryPath` and
+  `museSpark.environmentVariables` are not read from workspace settings
+  there), `virtualWorkspaces: false` and `extensionKind: ["workspace"]`.
+  Granting trust restarts the hosts, with a notice.
+- Harness scenarios and screenshots for the sign-in gate (signed out, no
+  CLI, waiting, error), recorded in `docs/certification/m7.md`.
 
 ## [0.1.1] - 2026-09-22
 

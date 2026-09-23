@@ -288,7 +288,37 @@ export const MODEL_API_TOOLS = {
   powershell: 'powershell',
   askUser: 'ask_user',
   todoWrite: 'todo_write',
+  readSkill: 'read_skill',
 } as const
+// Workspace context on the Model API backend (PLAN.md D13): the files Muse
+// Code reads, by its conventions. Rules: `AGENTS.md`, else `CLAUDE.md`, per
+// directory; a file over the load limit is skipped and the whole rules
+// context is truncated over its limit, each with a logged warning.
+export const RULES_FILE_NAMES = ['AGENTS.md', 'CLAUDE.md'] as const
+export const RULES_FILE_MAX_BYTES = 64 * 1024
+export const RULES_CONTEXT_MAX_BYTES = 256 * 1024
+export const RULES_TRUNCATED_MARKER = '[rules truncated]'
+export const RULES_PREAMBLE =
+  'Standing rules were loaded at session open. Follow higher-priority instructions first. If rules files conflict, the deeper file wins over the shallower one.'
+// Skills: `.agents/skills/<id>/SKILL.md` in the workspace (project scope) and
+// `$XDG_CONFIG_HOME/muse/skills/<id>` (else `~/.config/muse/skills`), Muse Code's
+// managed personal root. Front matter: `name`, `description`, and the
+// optional `user-invocable` and `argument-hint`.
+export const PROJECT_SKILLS_DIR_SEGMENTS = ['.agents', 'skills'] as const
+export const PERSONAL_SKILLS_DIR_SEGMENTS = ['muse', 'skills'] as const
+export const SKILL_FILE_NAME = 'SKILL.md'
+export const SKILL_FILE_MAX_BYTES = 64 * 1024
+export const SKILL_ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/
+export const SKILL_SOURCES = ['project', 'user'] as const
+// What the extension watches so the palette follows skill files (D13).
+export const PROJECT_SKILLS_GLOB = '**/.agents/skills/**'
+export const PERSONAL_SKILLS_GLOB = '*/SKILL.md'
+// Memory: the project index `.agents/memory/MEMORY.md`, read at session start.
+export const MEMORY_INDEX_SEGMENTS = ['.agents', 'memory', 'MEMORY.md'] as const
+export const MEMORY_DIR = '.agents/memory'
+export const MEMORY_INDEX_MAX_LINES = 200
+export const MEMORY_INDEX_MAX_BYTES = 32 * 1024
+export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
 export const READ_FILE_DEFAULT_LIMIT = 2000
@@ -401,6 +431,11 @@ export const MUSE_SERVE_ARGS = ['serve'] as const
 // `muse serve --disable-sandbox`: "keep approval, but skip the sandbox"; a
 // host-lifetime posture, so changing it restarts the host (PLAN.md D12).
 export const MUSE_DISABLE_SANDBOX_ARG = '--disable-sandbox'
+// `muse serve --trust-workspace`: "Load each session workspace's skills and
+// rules"; without it the host skips both. `--disable-shell` is the posture
+// for VS Code's Restricted Mode: no workspace shell execution (PLAN.md D13).
+export const MUSE_TRUST_WORKSPACE_ARG = '--trust-workspace'
+export const MUSE_DISABLE_SHELL_ARG = '--disable-shell'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_DOCS_URL = 'https://dev.meta.ai/products/muse-code/'
 export const ISSUES_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issues'
@@ -750,6 +785,12 @@ export const UI_TEXT = {
   allowSessionPrefix: 'Always allow in this session:',
   reject: 'Reject',
   toolRefusedByMode: 'refused by the permission mode',
+  shellRestrictedMode:
+    'shell commands are disabled while the workspace is in Restricted Mode; trust the workspace to enable them',
+  skillNotFound: 'unknown skill',
+  skillInvoked: 'The user invoked the skill',
+  skillArguments: 'Arguments:',
+  skillNoArguments: '(none)',
   toolRejectedByUser: 'rejected by the user',
   toolCancelled: 'cancelled',
   contributorTitle: 'Contributor-tier model',
@@ -779,6 +820,8 @@ export const UI_TEXT = {
   renameFailed: 'Could not rename the conversation',
   sandboxOffProfileNotice:
     "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
+  trustGrantedNotice:
+    'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:
     'The shell sandbox setting changed; Muse Code restarts with it on the next message. Start a new conversation to continue.',
   sandboxProfileNotice: String.raw`This workspace is under your user profile, which the Windows sandbox of this Muse Code version cannot enter: shell commands will start in the PowerShell folder instead of the project and take about half a minute each. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,

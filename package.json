@@ -41,6 +41,23 @@
     "theme": "dark"
   },
   "main": "./dist/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Muse Spark Code needs a real file system: the Muse Code CLI and the built-in tools read and write workspace files directly."
+    },
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In Restricted Mode the agent does not load the workspace's rules (AGENTS.md), skills or memory, and runs no shell commands. Trust the workspace to enable them.",
+      "restrictedConfigurations": [
+        "museSpark.museBinaryPath",
+        "museSpark.environmentVariables"
+      ]
+    }
+  },
   "activationEvents": [],
   "contributes": {
     "viewsContainers": {

@@ -8,7 +8,14 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
 
-function setup(options: { platform?: NodeJS.Platform; files?: Record<string, string> } = {}) {
+function setup(
+  options: {
+    platform?: NodeJS.Platform
+    files?: Record<string, string>
+    personalSkillsRoot?: string
+    isTrusted?: boolean
+  } = {},
+) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo(options.files ?? {}, ROOT)
@@ -36,6 +43,8 @@ function setup(options: { platform?: NodeJS.Platform; files?: Record<string, str
       return clock
     },
     log,
+    personalSkillsRoot: options.personalSkillsRoot,
+    isWorkspaceTrusted: () => options.isTrusted ?? true,
   })
   return { api, host, log, files: io.files, shellCalls: io.shellCalls }
 }
@@ -685,5 +694,161 @@ describe('ModelApiSession: turns', () => {
     session.dispose()
     session.dispose()
     expect(t.host.sessionCount).toBe(0)
+  })
+})
+
+const skillFile = (name: string, description: string, body: string) =>
+  `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`
+
+describe('ModelApiSession: workspace context (M10)', () => {
+  it('sends the rules, the catalogue and the memory index, serves read_skill, and loads deeper rules on touch', async () => {
+    const t = setup({
+      files: {
+        'AGENTS.md': 'End every reply with PINEAPPLE.\n',
+        'src/AGENTS.md': 'Use tabs in src.\n',
+        'src/a.ts': 'export {}\n',
+        '.agents/skills/shout/SKILL.md': skillFile(
+          'shout',
+          'Repeat in caps',
+          '# Shout\n\nUPPER CASE.',
+        ),
+        '.agents/memory/MEMORY.md': '- [Build](build.md) | npm run build\n',
+      },
+    })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [{ name: 'read_skill', arguments: '{"id":"shout"}', callId: 'call_skill' }] },
+      { calls: [{ name: 'read_file', arguments: '{"path":"src/a.ts"}', callId: 'call_read' }] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    const bodies = t.api.responseBodies()
+    const first = bodies[0]?.['instructions'] as string
+    expect(first).toContain('# Workspace rules')
+    expect(first).toContain('## Rules from AGENTS.md\n\nEnd every reply with PINEAPPLE.')
+    expect(first).not.toContain('src/AGENTS.md')
+    expect(first).toContain('- shout: Repeat in caps')
+    expect(first).toContain('- [Build](build.md) | npm run build')
+    expect((bodies[0]?.['tools'] as { name: string }[]).map((tool) => tool.name)).toContain(
+      'read_skill',
+    )
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    const skillRow = events.find(
+      (event) =>
+        event.type === 'itemCompleted' &&
+        event.item.kind === 'toolCall' &&
+        event.item.tool === 'read_skill',
+    )
+    expect(skillRow).toMatchObject({
+      item: { status: 'completed', visibleOutput: 'Loaded skill shout (project)' },
+    })
+    const second = bodies[1]?.['input'] as Record<string, unknown>[]
+    expect(second.at(-1)).toEqual({
+      type: 'function_call_output',
+      call_id: 'call_skill',
+      output: 'Skill shout: Repeat in caps\n\n# Shout\n\nUPPER CASE.',
+    })
+    expect(bodies[1]?.['instructions']).not.toContain('src/AGENTS.md')
+    const third = bodies[2]?.['instructions'] as string
+    expect(third.indexOf('## Rules from src/AGENTS.md\n\nUse tabs in src.')).toBeGreaterThan(
+      third.indexOf('## Rules from AGENTS.md'),
+    )
+    await expect(session.listSkills()).resolves.toEqual([
+      {
+        selector: 'shout',
+        displayName: 'shout',
+        description: 'Repeat in caps',
+        argumentHint: undefined,
+      },
+    ])
+  })
+
+  it('expands a skill invocation with its body and arguments, and refuses bad read_skill calls', async () => {
+    const t = setup({
+      files: {
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
+      },
+    })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_skill', arguments: '{"id":"nope"}', callId: 'c1' },
+          { name: 'read_skill', arguments: 'not json', callId: 'c2' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'skill', selector: 'shout', arguments: 'good morning' }])
+    await turnDone()
+    const input = t.api.responseBodies()[0]?.['input'] as Record<string, unknown>[]
+    expect(input[0]).toEqual({
+      type: 'message',
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: 'The user invoked the skill "shout". Arguments: good morning\n\nUPPER CASE.',
+        },
+      ],
+    })
+    expect(session.history().items[0]).toMatchObject({
+      kind: 'userMessage',
+      text: '/shout good morning',
+    })
+    const failures = events.flatMap((event) =>
+      event.type === 'itemCompleted' && event.item.kind === 'toolCall'
+        ? [event.item.failureReason]
+        : [],
+    )
+    expect(failures).toEqual(['unknown skill nope', 'invalid arguments: id is required'])
+  })
+
+  it('offers no shell, refuses one, and loads no context in Restricted Mode', async () => {
+    const t = setup({
+      isTrusted: false,
+      files: {
+        'AGENTS.md': 'rules\n',
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'd', 'b'),
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [{ name: 'bash', arguments: '{"command":"ls","description":"list"}', callId: 'c1' }],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'run' }])
+    await turnDone()
+    const body = t.api.responseBodies()[0]
+    expect((body?.['tools'] as { name: string }[]).map((tool) => tool.name)).not.toContain('bash')
+    expect(body?.['instructions']).toContain('There is no shell tool')
+    expect(body?.['instructions']).not.toContain('# Workspace rules')
+    expect(t.shellCalls).toEqual([])
+    const row = events.find(
+      (event) => event.type === 'itemCompleted' && event.item.kind === 'toolCall',
+    )
+    expect(row).toMatchObject({
+      item: {
+        status: 'rejected',
+        failureReason:
+          'shell commands are disabled while the workspace is in Restricted Mode; trust the workspace to enable them',
+      },
+    })
+    await expect(session.listSkills()).resolves.toEqual([])
+  })
+
+  it('re-reads the skills on request and announces a changed catalogue', async () => {
+    const t = setup({ files: { '.agents/skills/shout/SKILL.md': skillFile('shout', 'd', 'b') } })
+    const { session, events } = await startSession(t)
+    await session.listSkills()
+    await t.host.refreshSkills()
+    expect(events.filter((event) => event.type === 'skillsChanged')).toHaveLength(0)
+    t.files.set('/ws/.agents/skills/whisper/SKILL.md', skillFile('whisper', 'q', 'b'))
+    await t.host.refreshSkills()
+    expect(events.filter((event) => event.type === 'skillsChanged')).toHaveLength(1)
+    await expect(session.listSkills()).resolves.toHaveLength(2)
   })
 })

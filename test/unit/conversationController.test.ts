@@ -1753,6 +1753,8 @@ describe('ConversationController: backends and tiers (M7)', () => {
       newId: () => 'fixed',
       now: () => 0,
       log: t.log,
+      personalSkillsRoot: undefined,
+      isWorkspaceTrusted: () => true,
     })
     const controller = new ConversationController({
       ...t.deps,
