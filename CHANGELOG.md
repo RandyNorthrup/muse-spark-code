@@ -169,6 +169,23 @@ other harnesses' bug trackers and the platform documentation, fixed.
   binary output says so instead of showing base64.
 - The Model API stream tolerates `data: [DONE]`, empty keep-alives and a
   line break split across two reads.
+- **Revert** and **Rewind code** no longer trash a file after an edit that
+  only added lines to it (such as an import at the top); a created file you
+  have added to since keeps your lines; lines an edit deleted are put back
+  only where the file still matches, never at a line that moved; a file's
+  BOM survives.
+- On the Model API backend, edits keep a file's Windows line breaks, BOM and
+  final line break, and a multi-line change matches a CRLF file; a file
+  that is not UTF-8 text (binary, UTF-16, Latin-1) is refused instead of
+  rewritten; a file with unsaved editor changes is left alone; `write_file`
+  replaces an existing file only after reading it; writes are atomic.
+- A shell command's flood of output keeps its end and its exit line; a
+  search that runs out of time returns what it found; Windows PowerShell
+  output is UTF-8, so accents and symbols no longer come back garbled.
+- With autosave off, the panel names the files whose unsaved changes Muse
+  will not see.
+- Edit Review without an open folder says to open it, instead of resolving
+  paths against the extension's own directory.
 
 ### Added
 

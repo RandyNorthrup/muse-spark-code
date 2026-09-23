@@ -9,7 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
@@ -20,8 +20,10 @@ import {
   windowsPowerShellModulePath,
 } from '../../core/backends/musecode/launch'
 import type {
+  SearchHit,
   SearchJob,
   SearchOutcome,
+  SearchWorkerMessage,
   ShellResult,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
@@ -31,9 +33,12 @@ import {
   SHELL_DRAIN_GRACE_MS,
   SHELL_OUTPUT_MAX_CHARS,
   type TERMINAL_ENV_KEYS,
+  UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
+  WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
 import { canonicalPath } from '../canonicalPath'
+import { writeFileAtomically } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, treeSpawnOptions } from '../processTree'
 
 export interface ToolIoDeps {
@@ -46,11 +51,15 @@ export interface ToolIoDeps {
   readonly searchWorkerPath: string
   /** Where a failed tree kill is reported. */
   readonly log: (message: string) => void
+  /** Whether an editor holds unsaved changes to the file (VS Code's documents, D27). */
+  readonly hasUnsavedChanges: (absolutePath: string) => boolean
 }
 
-const SEARCH_TIMED_OUT = `search stopped after ${String(SEARCH_TIMEOUT_MS)} ms`
-
-/** Runs the matcher on a worker and terminates it when it overruns the budget. */
+/**
+ * Runs the matcher on a worker and terminates it when it overruns the
+ * budget. The worker posts each file's hits as it finds them, so a search
+ * that runs out of time returns what it found, marked partial (D27).
+ */
 export function searchOnWorker(
   workerPath: string,
   job: SearchJob,
@@ -58,6 +67,7 @@ export function searchOnWorker(
 ): Promise<SearchOutcome> {
   return new Promise<SearchOutcome>((resolve) => {
     const worker = new Worker(workerPath, { workerData: job })
+    const hits: SearchHit[] = []
     let isSettled = false
     const settle = (outcome: SearchOutcome) => {
       if (isSettled) {
@@ -69,10 +79,14 @@ export function searchOnWorker(
     }
     const timer = setTimeout(() => {
       void worker.terminate()
-      settle({ ok: false, reason: SEARCH_TIMED_OUT })
+      settle({ ok: true, hits, isPartial: true })
     }, timeoutMs)
-    worker.on('message', (outcome: SearchOutcome) => {
-      settle(outcome)
+    worker.on('message', (message: SearchWorkerMessage) => {
+      if (message.type === 'hits') {
+        hits.push(...message.hits)
+        return
+      }
+      settle(message.outcome.ok ? { ok: true, hits } : message.outcome)
       void worker.terminate()
     })
     worker.on('error', (error) => {
@@ -105,6 +119,30 @@ const HOST_ONLY_VARIABLES: readonly RegExp[] = [
 
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
+}
+
+// PLAN.md D27: a file is text for the tools only when it is valid UTF-8
+// without NULs. A UTF-8 BOM is kept (the edit writes it back); a NUL (binary,
+// or UTF-16 without a BOM) or invalid UTF-8 (a UTF-16 BOM, Latin-1,
+// Shift-JIS…) is refused, since a lossy decode written back corrupts it.
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+const NUL = 0
+
+export function decodeText(bytes: Uint8Array, absolutePath: string): string {
+  if (bytes.includes(NUL)) {
+    throw new Error(`${absolutePath} ${UI_TEXT.fileNotText}`)
+  }
+  try {
+    return STRICT_UTF8.decode(bytes)
+  } catch {
+    throw new Error(`${absolutePath} ${UI_TEXT.fileNotText}`)
+  }
+}
+
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
 const ENV_REFERENCE = /\$\{env:([^}]+)\}/g
@@ -196,10 +234,22 @@ export function shellInterpreter(
   return resolveExecutable(BASH, probe)
 }
 
-/** The argument list for one command line through the platform's interpreter. */
+/**
+ * The argument list for one command line through the platform's
+ * interpreter. Windows PowerShell 5.1 writes a redirected stdout in the OEM
+ * code page, so non-ASCII output arrived garbled; the preamble switches its
+ * output (and what it hands native commands) to UTF-8 first (PLAN.md D27).
+ */
 export function shellArguments(platform: NodeJS.Platform, command: string): readonly string[] {
   return platform === 'win32'
-    ? ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command]
+    ? [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        `${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
+      ]
     : ['-lc', command]
 }
 
@@ -207,21 +257,24 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
   const interpreter = shellInterpreter(deps.platform, deps.systemRoot, deps.env(), existsSync)
   return {
     async readFile(absolutePath) {
+      let bytes: Uint8Array
       try {
-        return await readFile(absolutePath, 'utf8')
+        bytes = await readFile(absolutePath)
       } catch (error: unknown) {
         if (isMissingFile(error)) {
           return
         }
         throw error
       }
+      return decodeText(bytes, absolutePath)
     },
     async writeFile(absolutePath, content) {
       // A new file's folders are created (PLAN.md D26: `write_file` into a
       // missing folder failed); the caller confined the whole path first.
-      await mkdir(path.dirname(absolutePath), { recursive: true })
-      await writeFile(absolutePath, content, 'utf8')
+      // The write is atomic (D27): an interrupted one leaves the old file.
+      await writeFileAtomically(absolutePath, content, { sleep: pause })
     },
+    hasUnsavedChanges: deps.hasUnsavedChanges,
     listFiles: deps.listFiles,
     async listDirectory(absolutePath) {
       try {

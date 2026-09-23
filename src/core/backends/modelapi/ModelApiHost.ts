@@ -381,6 +381,8 @@ export class ModelApiSession implements AgentSession {
   private readonly pendingQuestions = new Map<string, Pending<readonly QuestionAnswer[]>>()
   private readonly queuedTurns: QueuedTurn[] = []
   private active: ActiveTurn | undefined
+  /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
+  private readonly seenFiles = new Map<string, string>()
   /** The compaction in flight (D26): it holds the session like a turn. */
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
@@ -882,6 +884,7 @@ export class ModelApiSession implements AgentSession {
           platform: this.deps.platform,
           io: this.deps.io,
           signal,
+          seen: this.seenFiles,
         })
       }
     }

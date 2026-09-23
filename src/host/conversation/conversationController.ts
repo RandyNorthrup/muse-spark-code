@@ -193,6 +193,8 @@ export interface ConversationDeps {
   /** `museSpark.autosave`: save dirty editors before every turn. */
   readonly isAutosaveEnabled: () => boolean
   readonly saveAll: () => Promise<void>
+  /** Files open with unsaved changes, as the panel names them (PLAN.md D27). */
+  readonly unsavedFiles: () => readonly string[]
   /** Code block "Apply": replace the active editor's selection; false without an editor. */
   readonly applyCode: (text: string) => Promise<boolean>
   readonly editReview: EditReviewActions
@@ -262,6 +264,8 @@ const PROMPT_SETTLED_TEXT: Readonly<Record<PromptSettledReason, string>> = {
   gone: UI_TEXT.promptGone,
 }
 const QUEUED_DISPOSITION = 'queued'
+// The unsaved files a warning names before it counts the rest (D27).
+const UNSAVED_FILES_NAMED = 3
 const STEERED_DISPOSITION = 'steered'
 
 function describe(error: unknown): string {
@@ -318,6 +322,8 @@ export class ConversationController {
   private readonly finishedTurns = new Set<string>()
   /** Whether the attached session's host renames and forks (D26: not Muse Code 1.3.0 on Windows). */
   private canEditSessions = true
+  /** The unsaved files last warned about, so the same set is not repeated (D27). */
+  private unsavedNoticeKey = ''
   /** A transcript reload after a delivery gap, and the gaps heard so far. */
   private gapReload: Promise<void> | undefined
   private gapCount = 0
@@ -1361,14 +1367,36 @@ export class ConversationController {
   }
 
   private async autosave(): Promise<void> {
-    if (!this.deps.isAutosaveEnabled()) {
+    if (this.deps.isAutosaveEnabled()) {
+      try {
+        await this.deps.saveAll()
+      } catch (error: unknown) {
+        this.deps.log.warn(`Autosave before the turn failed: ${describe(error)}`)
+      }
+    }
+    this.noteUnsaved()
+  }
+
+  /**
+   * Muse reads and edits the files on disk, not the editors' unsaved text
+   * (D27): the user is told which files differ, once for each set of them.
+   */
+  private noteUnsaved(): void {
+    const unsaved = this.deps.unsavedFiles()
+    const key = unsaved.toSorted((left, right) => left.localeCompare(right)).join('\n')
+    if (key === this.unsavedNoticeKey) {
       return
     }
-    try {
-      await this.deps.saveAll()
-    } catch (error: unknown) {
-      this.deps.log.warn(`Autosave before the turn failed: ${describe(error)}`)
+    this.unsavedNoticeKey = key
+    if (unsaved.length === 0) {
+      return
     }
+    const shown = unsaved.slice(0, UNSAVED_FILES_NAMED).join(', ')
+    const more =
+      unsaved.length > UNSAVED_FILES_NAMED
+        ? ` (+${String(unsaved.length - UNSAVED_FILES_NAMED)})`
+        : ''
+    this.notice('warning', `${UI_TEXT.unsavedFilesNotice} ${shown}${more}.`)
   }
 
   private async send(

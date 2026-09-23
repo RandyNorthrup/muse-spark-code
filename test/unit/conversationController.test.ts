@@ -251,6 +251,8 @@ function setup(
   let hasEditor = true
   const onSandboxUnavailable = vi.fn<() => void>()
   const saveAll = vi.fn(() => Promise.resolve())
+  // The files an "editor" holds unsaved (D27); tests replace the list.
+  const unsaved = { files: [] as readonly string[] }
   const applied: string[] = []
   const reviews: [string, string, string][] = []
   const opened: [string, string][] = []
@@ -339,6 +341,7 @@ function setup(
     editorContext: () => options.editorContext,
     isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
     saveAll,
+    unsavedFiles: () => unsaved.files,
     applyCode: (text: string) => {
       applied.push(text)
       return Promise.resolve(hasEditor)
@@ -419,6 +422,7 @@ function setup(
     cachedUsage: () => cachedUsage,
     onSandboxUnavailable,
     saveAll,
+    unsaved,
     applied,
     reviews,
     memory,
@@ -2350,6 +2354,22 @@ describe('ConversationController: permission hardening (D24)', () => {
     })
   }
 
+  it('never takes a message typed while a card waits for a decision (Roo #11211)', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    requestApproval(t, 'a1')
+    await settle()
+    await t.send('l2', 'yes')
+    // The text steers the running turn; the card stays pending until a choice is pressed.
+    expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({ expectedTurnId: 't1' })
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'agentEvent',
+      event: expect.objectContaining({ type: 'approvalRequested', approvalId: 'a1' }),
+    })
+  })
+
   it('answers a plain file-write approval itself in Edit automatically, labelled so', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
     t.server.handle('approval/decide', (params) => ({
@@ -2854,5 +2874,42 @@ describe('ConversationController: protocol semantics (D26)', () => {
     await settle()
     await t.send('l3', 'again', ['att-1'])
     expect(input(2).map((part) => part.type)).toEqual(['text', 'text'])
+  })
+})
+
+describe('ConversationController: unsaved editors (D27)', () => {
+  it('names the unsaved files once per set, counting past the first three', async () => {
+    const t = setup()
+    t.unsaved.files = ['a.ts', 'b.ts', 'c.ts', 'd.ts']
+    await t.send('l1', 'hi')
+    const warnings = () =>
+      t.surface.posted.filter((message) => message.type === 'notice' && message.level === 'warning')
+    expect(warnings()).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: `${UI_TEXT.unsavedFilesNotice} a.ts, b.ts, c.ts (+1).`,
+      },
+    ])
+    t.unsaved.files = ['d.ts', 'c.ts', 'b.ts', 'a.ts']
+    await t.send('l2', 'again')
+    expect(warnings()).toHaveLength(1)
+    t.unsaved.files = []
+    await t.send('l3', 'saved now')
+    t.unsaved.files = ['a.ts']
+    await t.send('l4', 'one more')
+    expect(warnings().at(-1)).toMatchObject({ text: `${UI_TEXT.unsavedFilesNotice} a.ts.` })
+  })
+
+  it('says nothing when autosave saved them first', async () => {
+    const t = setup({ isAutosaveEnabled: true })
+    t.saveAll.mockImplementation(() => {
+      t.unsaved.files = []
+      return Promise.resolve()
+    })
+    t.unsaved.files = ['a.ts']
+    await t.send('l1', 'hi')
+    expect(t.saveAll).toHaveBeenCalledOnce()
+    expect(t.surface.posted.some((message) => message.type === 'notice')).toBe(false)
   })
 })

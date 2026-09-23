@@ -9,7 +9,12 @@
 import { readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { parentPort, workerData } from 'node:worker_threads'
-import type { SearchHit, SearchJob, SearchOutcome } from '../../core/backends/modelapi/tools'
+import type {
+  SearchHit,
+  SearchJob,
+  SearchOutcome,
+  SearchWorkerMessage,
+} from '../../core/backends/modelapi/tools'
 import { SEARCH_MAX_FILE_BYTES, SEARCH_MAX_HITS } from '../../shared/constants'
 
 const LINE_BREAK = /\r?\n/
@@ -72,28 +77,40 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     }
   }
   const realRoot = await realpath(job.root)
-  const hits: SearchHit[] = []
+  let found = 0
   for (const file of job.files) {
-    if (hits.length >= SEARCH_MAX_HITS) {
+    if (found >= SEARCH_MAX_HITS) {
       break
     }
     const text = await searchableText(realRoot, file.absolute)
-    if (text !== undefined) {
-      hits.push(...matchesIn(regex, file.relative, text, SEARCH_MAX_HITS - hits.length))
+    if (text === undefined) {
+      continue
     }
+    const hits = matchesIn(regex, file.relative, text, SEARCH_MAX_HITS - found)
+    if (hits.length === 0) {
+      continue
+    }
+    // Posted as found (D27): a search that runs out of time keeps them.
+    post({ type: 'hits', hits })
+    found += hits.length
   }
-  return { ok: true, hits }
+  // The hits went ahead; the end only says the search finished.
+  return { ok: true, hits: [] }
+}
+
+function post(message: SearchWorkerMessage): void {
+  parentPort?.postMessage(message)
 }
 
 const job = workerData as SearchJob
 void run(job)
   .then((outcome) => {
-    parentPort?.postMessage(outcome)
+    post({ type: 'done', outcome })
   })
   .catch((error: unknown) => {
     const outcome: SearchOutcome = {
       ok: false,
       reason: error instanceof Error ? error.message : String(error),
     }
-    parentPort?.postMessage(outcome)
+    post({ type: 'done', outcome })
   })

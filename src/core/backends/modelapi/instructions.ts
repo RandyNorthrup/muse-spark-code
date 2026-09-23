@@ -78,7 +78,7 @@ function environmentText(facts: InstructionFacts): string {
 const WORKING_RULES = [
   '# How to work',
   [
-    '- Read a file before editing it, and prefer edit_file over write_file for a file that exists.',
+    '- Read a file before editing it, and prefer edit_file over write_file for a file that exists. write_file replaces an existing file only after you have read it, and only if it has not changed since.',
     '- Stay within what the user asked for: no extra features, refactors or files.',
     '- Never create commits, branches or pushes unless the user asks for them.',
     '- Refer to code as path:line so the user can open it.',

@@ -404,6 +404,13 @@ export const MEMORY_INDEX_MAX_BYTES = 32 * 1024
 export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
+// PLAN.md D27: a clipped shell stream keeps its beginning and its end, with
+// this between them; the exit line is never clipped.
+export const TOOL_OUTPUT_ELIDED_MARKER = '\n[… output elided …]\n'
+// Unchanged lines kept on each side of an edit in the Model API's patch
+// documents, as unified diffs and Muse Code's own documents carry them: a
+// Revert checks them, so it never re-applies at a line that has moved (D27).
+export const PATCH_CONTEXT_LINES = 3
 export const READ_FILE_DEFAULT_LIMIT = 2000
 export const READ_FILE_MAX_LINE_CHARS = 2000
 export const SEARCH_MAX_RESULTS = 200
@@ -413,6 +420,9 @@ export const SEARCH_MAX_FILE_BYTES = 1024 * 1024
 // stops collecting after this many hits.
 export const SEARCH_TIMEOUT_MS = 20_000
 export const SEARCH_MAX_HITS = 5000
+// The files one search reads at most (PLAN.md D27); the output says when the
+// glob matched more.
+export const SEARCH_MAX_CANDIDATES = 50_000
 export const SEARCH_PATTERN_MAX_LENGTH = 512
 export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // A glob is matched by a table over pattern × path (no regular expression,
@@ -456,13 +466,15 @@ export const MODEL_API_OUTPUT_ENCODING = 'utf8'
 // storage directory (PLAN.md D14); the version guards the shape.
 export const MODEL_API_SESSIONS_DIR = 'modelapi-sessions'
 export const STORED_SESSION_VERSION = 1
-// PLAN.md D26: a `.tmp` this old is a crash's leftover, not a save in flight
-// (another window on the same workspace may be writing one), and a rename
-// Windows refuses while a scanner holds the file is tried this often, the
-// wait doubling from the delay.
+// PLAN.md D26: a session store `.tmp` this old is a crash's leftover, not a
+// save in flight (another window on the same workspace may be writing one).
 export const SESSION_FILE_STALE_TEMPORARY_MS = 60_000
-export const SESSION_FILE_RENAME_ATTEMPTS = 5
-export const SESSION_FILE_RENAME_DELAY_MS = 25
+// Whole-file writes (D26, D27, `host/fsAtomic.ts`): a temporary file with this
+// suffix is renamed over the target; a rename Windows refuses while a scanner
+// holds the file is tried this often, the wait doubling from the delay.
+export const ATOMIC_TEMPORARY_SUFFIX = '.tmp'
+export const ATOMIC_RENAME_ATTEMPTS = 5
+export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
 // Item kinds the transcript never shows: our own echo and host-internal children.
@@ -774,6 +786,12 @@ export const MUSE_BIN_PREFIX = 'muse-bin-'
 export const MUSE_WINDOWS_EXE_SUFFIX = '.exe'
 export const MUSE_CREDENTIAL_FILE_SEGMENTS = ['muse', 'auth.json'] as const
 export const WINDOWS_POWERSHELL_RELATIVE_PATH = String.raw`System32\WindowsPowerShell\v1.0\powershell.exe`
+// Windows PowerShell 5.1 writes a redirected stdout in the OEM code page
+// ("héllo ✓" came back "h�llo ?", probed 2026-09-23 under Node's
+// windowsHide); this runs first and makes its output, and what it pipes to
+// native commands, UTF-8 without a BOM (PLAN.md D27).
+export const WINDOWS_POWERSHELL_UTF8_PREAMBLE =
+  '$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; '
 // Windows PowerShell running one inline script (the UAC relaunch for the
 // sandbox setup); `-NonInteractive` turns any prompt into an error.
 export const WINDOWS_POWERSHELL_COMMAND_ARGS = [
@@ -1172,6 +1190,16 @@ export const UI_TEXT = {
   commandTooLarge:
     'This message is too large for Muse Code, which accepts up to 10 MiB per message (images count at a third more than their file size). Remove an image or shorten the selection and send again.',
   outputIsBinary: 'The stored output is binary and cannot be shown as text',
+  // PLAN.md D27: what the Model API's file tools say when they will not write.
+  fileHasUnsavedChanges:
+    'has unsaved changes in an editor; ask the user to save or revert them, then try again',
+  fileChangedSinceRead:
+    'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',
+  editReviewNeedsFolder: 'Open the folder the edit was made in to review or revert it.',
+  unsavedFilesNotice:
+    'Muse reads and edits the saved files, not unsaved editor changes (turn on museSpark.autosave to save before each message). Unsaved:',
+  fileNotText:
+    'is not UTF-8 text (binary, or another encoding such as UTF-16 or Latin-1), so it cannot be read or edited as text',
   sessionEditsUnsupported:
     'Muse Code 1.3.0 cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).',
   contributorTitle: 'Contributor-tier model',
