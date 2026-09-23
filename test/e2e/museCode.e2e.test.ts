@@ -135,20 +135,26 @@ afterEach(async () => {
 })
 
 // On Windows the fake CLI's executable can still be held for a moment after
-// its manager is disposed, and unlinking it then fails with EPERM (seen once
-// in CI, every test green); Node retries the removal on that error.
-const RM_RETRIES = 20
-const RM_RETRY_DELAY_MS = 250
+// its process has exited (seen in CI and under a full local run, every test
+// green), and removing its folder then fails with EPERM. Node retries the
+// removal; if the folder still cannot go, the suite says so and leaves it
+// to the OS temp cleanup rather than fail on housekeeping.
+const RM_RETRIES = 5
+const RM_RETRY_DELAY_MS = 200
 
 afterAll(() => {
   delete process.env['XDG_CONFIG_HOME']
   for (const dir of [fake.installDir, workspaceRoot, configHome]) {
-    rmSync(dir, {
-      recursive: true,
-      force: true,
-      maxRetries: RM_RETRIES,
-      retryDelay: RM_RETRY_DELAY_MS,
-    })
+    try {
+      rmSync(dir, {
+        recursive: true,
+        force: true,
+        maxRetries: RM_RETRIES,
+        retryDelay: RM_RETRY_DELAY_MS,
+      })
+    } catch (error: unknown) {
+      process.stderr.write(`e2e teardown left ${dir} behind: ${String(error)}\n`)
+    }
   }
 })
 

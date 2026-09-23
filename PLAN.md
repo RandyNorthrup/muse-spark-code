@@ -2032,8 +2032,11 @@ eleven screenshots rendered from the shipped panel by the harness in place
 of the 0.1.1 captures. The first `v0.5.2` tag (8d464e7) failed CI on
 Windows alone: every test green, then the e2e suite's teardown could not
 unlink the fake CLI's executable (`EPERM`) because the disposed process had
-not yet let go of it; the same tree had passed on the pull request. The
-teardown removes the temporary install with Node's retries on that error,
-and the tag was moved to the fixed commit before anything was released
-(the failed run built no package and no GitHub Release). The run of the
-moved tag is recorded here once it finishes.
+not yet let go of it; the same tree had passed on the pull request. A
+first fix (Node's retries alone) still failed under a full local run, so
+its tag's run was cancelled before it built anything; the teardown now
+retries and then reports a folder it cannot remove and leaves it to the OS
+temp cleanup, since housekeeping must not fail a green suite. The tag was
+moved to the fixed commit each time before anything was released (neither
+failed run built a package or a GitHub Release). The run of the final tag
+is recorded here once it finishes.
