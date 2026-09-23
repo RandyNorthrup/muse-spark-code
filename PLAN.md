@@ -2128,5 +2128,9 @@ for this record.
 **0.5.5 (2026-09-23):** rewind across subagents (D23, M20): every edit
 takes an arrival number when it completes and the rewind unwinds the
 conversation's and its agents' edits in the reverse of that order; before,
-a delegated run's edits survived a rewind. Tagged `v0.5.5`; the run is
-recorded here once it finishes.
+a delegated run's edits survived a rewind. Tagged `v0.5.5` (6b39fdc); run 35908838272 went green on every job, the
+GitHub Release carries `muse-spark-code-0.5.5.vsix` (553,376 bytes) and the
+workflow published it ("Published RandyNorthrup.muse-spark-code v0.5.5.").
+The first push under the rulesets: GitHub logged the admin bypass for the
+direct push and the tag, as designed. The tag is the tip of `main` but for
+this record.
