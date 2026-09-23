@@ -395,8 +395,15 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The host accepted a sendMessage and the turn is running.
   z.object({ type: z.literal('turnAccepted'), localId: z.string(), turnId: z.string() }),
-  // The host could not submit a sendMessage; the webview restores the draft.
-  z.object({ type: z.literal('sendFailed'), localId: z.string(), reason: z.string() }),
+  // The host could not submit a sendMessage. `attachmentsKept` (M25): the
+  // host still holds the message's images, so the composer shows them again;
+  // absent, the webview asks the host to drop any it still holds.
+  z.object({
+    type: z.literal('sendFailed'),
+    localId: z.string(),
+    reason: z.string(),
+    attachmentsKept: z.optional(z.boolean()),
+  }),
   // One backend-agnostic conversation event (see agentEvents.ts).
   z.object({ type: z.literal('agentEvent'), event: agentEventSchema }),
   // The host's model catalogue (for the picker and context-limit lookups).

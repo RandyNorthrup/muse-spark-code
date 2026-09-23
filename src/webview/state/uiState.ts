@@ -157,6 +157,12 @@ export interface UiState {
   readonly strayItems: Readonly<Record<string, readonly string[]>>
   /** The chips a pending message took from the composer, by local id (M25). */
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
+  /**
+   * Images of a refused message the host may still hold but the composer no
+   * longer shows (M25): the app asks the host to drop them, so none linger
+   * unseen and come back as chips after a reload.
+   */
+  readonly attachmentsToRelease: readonly string[]
   /** The composer banner (M14): an unsupported upload, until dismissed. */
   readonly banner: string | undefined
   readonly announcement: Announcement | undefined
@@ -226,6 +232,8 @@ export type UiAction =
   | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
+  /** The app asked the host to drop these images (M25). */
+  | { readonly type: 'attachmentsReleased'; readonly ids: readonly string[] }
 
 export const initialUiState: UiState = {
   phase: 'connecting',
@@ -259,6 +267,7 @@ export const initialUiState: UiState = {
   childOwners: {},
   strayItems: {},
   unsentAttachments: {},
+  attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
   dictation: { status: 'idle', reason: undefined },
@@ -605,6 +614,17 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
       return entry
     }
   }
+}
+
+/** Question cards locked on a submission the host refused, open again (M25). */
+function unlockQuestions(entries: readonly TranscriptEntry[]): readonly TranscriptEntry[] {
+  return entries.some((entry) => entry.kind === 'tool' && entry.question?.isSubmitted === true)
+    ? entries.map((entry) =>
+        entry.kind === 'tool' && entry.question?.isSubmitted === true
+          ? { ...entry, question: { ...entry.question, isSubmitted: false } }
+          : entry,
+      )
+    : entries
 }
 
 function settleAll(entries: readonly TranscriptEntry[], at: number): readonly TranscriptEntry[] {
@@ -1103,6 +1123,7 @@ function clearedConversation(state: UiState): UiState {
     childOwners: {},
     strayItems: {},
     unsentAttachments: {},
+    attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
     sessionId: undefined,
@@ -1283,16 +1304,23 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
     case 'sendFailed': {
-      // The host still holds the images of a refused message; the chips come
-      // back so the user can send again or remove them (M25).
+      // A refused message's images (M25): back in the composer when the host
+      // says it still holds them, so a resend carries them; otherwise the
+      // host may have consumed them already, and a chip would name an image
+      // a resend silently leaves out, so the host is asked to drop whatever
+      // it still holds and the chips stay on the failed card only.
       const unsent = own(state.unsentAttachments, message.localId) ?? []
       const others = state.attachments.filter((attachment) =>
         unsent.every((chip) => chip.id !== attachment.id),
       )
+      const isKept = message.attachmentsKept === true
       return announce(
         {
           ...state,
-          attachments: [...unsent, ...others],
+          attachments: isKept ? [...unsent, ...others] : state.attachments,
+          attachmentsToRelease: isKept
+            ? state.attachmentsToRelease
+            : [...state.attachmentsToRelease, ...unsent.map((chip) => chip.id)],
           unsentAttachments: without(state.unsentAttachments, message.localId),
           transcript: updateEntry(state.transcript, message.localId, (entry) =>
             entry.kind === 'user' ? { ...entry, status: 'failed', reason: message.reason } : entry,
@@ -1335,8 +1363,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'notice': {
       // Warnings and errors are read out; informational notices stay visual.
+      // The host reports a refused answer or cancel only with an error notice,
+      // so an error unlocks the question cards waiting on the host (M25): the
+      // user can try again instead of facing a card locked for good.
+      const noticed = withNotice(state, message.level, message.text)
       return announce(
-        withNotice(state, message.level, message.text),
+        message.level === 'error'
+          ? { ...noticed, transcript: unlockQuestions(noticed.transcript) }
+          : noticed,
         message.level === 'info' ? undefined : message.text,
       )
     }
@@ -1456,6 +1490,12 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'attachmentRefused': {
       return withBanner(state, action.name, action.reason)
+    }
+    case 'attachmentsReleased': {
+      return {
+        ...state,
+        attachmentsToRelease: state.attachmentsToRelease.filter((id) => !action.ids.includes(id)),
+      }
     }
     case 'bannerDismissed': {
       return { ...state, banner: undefined }

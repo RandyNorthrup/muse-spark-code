@@ -1358,9 +1358,34 @@ describe('App webview and UI state (M25)', () => {
     fireEvent.click(screen.getByText('Submit'))
     fireEvent.click(screen.getByText('Submit'))
     fireEvent.click(screen.getByText('Cancel'))
-    const posted = postMessage.mock.calls.filter(
-      ([message]) => message.type === 'answerQuestion' || message.type === 'cancelQuestion',
-    )
-    expect(posted).toHaveLength(1)
+    const answers = () =>
+      postMessage.mock.calls.filter(
+        ([message]) => message.type === 'answerQuestion' || message.type === 'cancelQuestion',
+      )
+    expect(answers()).toHaveLength(1)
+    // The host refused the answer: the card opens again for another try.
+    deliver({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' })
+    fireEvent.click(screen.getByText('Submit'))
+    expect(answers()).toHaveLength(2)
+  })
+
+  it("asks the host to drop a refused message's images when it cannot say it kept them", () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'attachmentAdded',
+      attachment: {
+        id: 'a1',
+        name: 'x.png',
+        mediaType: 'image/png',
+        width: 1,
+        height: 1,
+        sizeBytes: 1,
+      },
+    })
+    fireEvent.change(textarea(), { target: { value: 'see' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    deliver({ type: 'sendFailed', localId: 'local-1', reason: 'CLI exited' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'removeAttachment', id: 'a1' })
+    expect(screen.queryByLabelText('Remove x.png')).toBeNull()
   })
 })

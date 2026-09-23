@@ -80,7 +80,7 @@ harness:shots`) against a scripted session, so they match the build exactly.
     <td align="center"><img src="media/readme/question.png" alt="A question card with Colour and Toppings tabs, radio buttons, an Other answer, Submit greyed out and Cancel"><br><sub>A question card: tabs, radios or checkboxes, Other, Submit and Cancel</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="media/readme/quote.png" alt="A highlighted passage of a reply with the Ask about this / Comment on this menu"><br><sub>Highlight, right-click: <b>Ask about this</b> or <b>Comment on this</b></sub></td>
+    <td align="center"><img src="media/readme/quote.png" alt="A highlighted passage of a reply with the Copy / Ask about this / Comment on this menu"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
     <td align="center"><img src="media/readme/rewind.png" alt="A sent message's rewind menu: Fork conversation from here, Rewind code to here, Fork conversation and rewind code"><br><sub>Every sent message: fork, rewind the code, or both</sub></td>
   </tr>
   <tr>
@@ -146,7 +146,8 @@ Code's workspace storage for the extension, so the History dialog lists
 them after a reload and a resumed one continues with its transcript and its
 edit patches; the CLI backend keeps its own session store. If the panel
 itself ever fails to render, it shows the error and a **Reload** button
-instead of going blank.
+instead of going blank; Reload brings the conversation back as it was,
+running turn and waiting cards included.
 
 ## Rules, skills and memory
 
@@ -225,9 +226,11 @@ file with the changed lines selected. Click a tool's output to open it in a
 read-only editor tab (a stored output in full); **Click to expand** on an
 edit diff opens VS Code's diff editor (the file side is editable). Thinking
 rows stream their summary while the model thinks and end as "Thought for
-Ns". A reply's ⋯ menu has **Reply to this output**: the next message carries
-that output to the agent as context, marked as what you are replying to.
-Highlight any text in the chat and right-click it for **Ask about this** or
+Ns" (a resumed conversation's read "Thought"). A relative link in a reply
+(`src/parser.ts#L12`) opens that workspace file at those lines. A reply's ⋯
+menu has **Reply to this output**: the next message carries that output to
+the agent as context, marked as what you are replying to. Highlight any text
+in the chat and right-click it for **Copy**, **Ask about this** or
 **Comment on this**; the passage, its author and your intent travel with
 the message. The composer shows a chip for either; × drops it. The transcript
 follows new entries while you are at the end; scrolled up, it holds still
