@@ -683,6 +683,29 @@
       }
       const steps = {
         empty: () => {},
+        // --- The pre-sign-in gate (M1/M7): what the panel shows before a
+        // credential exists. `ready` above answers signedIn, so each step
+        // pushes the gate state afterwards, as the host does on activation.
+        signin: () => {
+          send({ type: 'authState', status: 'signedOut' })
+        },
+        'signin-nocli': () => {
+          send({
+            type: 'authState',
+            status: 'noCli',
+            detail: 'muse was not found on PATH (searched 12 directories).',
+          })
+        },
+        'signin-waiting': () => {
+          send({ type: 'authState', status: 'signingIn' })
+        },
+        'signin-error': () => {
+          send({
+            type: 'authState',
+            status: 'error',
+            detail: 'The sign-in did not complete in time. Try again.',
+          })
+        },
         palette: () => {
           textarea().focus()
           key({ key: '/' })

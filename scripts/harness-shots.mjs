@@ -19,6 +19,10 @@ import { findChrome } from './lib/chrome.mjs'
 
 const SCENARIOS = [
   'empty',
+  'signin',
+  'signin-nocli',
+  'signin-waiting',
+  'signin-error',
   'palette',
   'models',
   'pill-toggle',
