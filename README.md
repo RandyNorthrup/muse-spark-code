@@ -99,7 +99,9 @@ set, including the VS Code integration tests, on all three.
 
 ## Installation
 
-From the Marketplace once published, or from the `.vsix`:
+From the Marketplace
+([RandyNorthrup.muse-spark-code](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+published 2026-09-22), or from the `.vsix`:
 
 ```bash
 npm run package                      # writes muse-spark-code-0.1.0.vsix

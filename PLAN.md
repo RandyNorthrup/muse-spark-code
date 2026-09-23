@@ -1324,7 +1324,14 @@ README, CHANGELOG, PRIVACY current; no rows in §8 without a reason.
 1.138.0 (`docs/certification/m8.md`). M9 (voice dictation) added the same
 day: certified on Windows against a synthesised recording
 (`docs/certification/m9.md`); the owner's microphone check in the dev host
-and the macOS helper's first run on a Mac are pending. Still manual: `vsce
-publish` with the owner's Marketplace PAT (Q8), and the Model API path's
-live turn (the owner deleted the pay-as-you-go key on 2026-09-22; the
-fake-server contract tests stand).
+and the macOS helper's first run on a Mac were then done the same evening
+(m9.md: real microphones on both, text back). **Published 2026-09-22:**
+`RandyNorthrup.muse-spark-code` v0.1.0 went to the Marketplace from the CI
+`package` artifact of `b7f4f12` (run 35798035328) through `npx vsce publish
+--packagePath`, with a Marketplace (Manage) PAT the owner authorised,
+minted in Azure DevOps (organisation `securecoast`, all accessible
+organisations, 30 days) and taken from the clipboard into `VSCE_PAT`,
+never written anywhere. Extension page:
+https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code.
+Still open: the Model API path's live turn (the owner deleted the
+pay-as-you-go key on 2026-09-22; the fake-server contract tests stand).
