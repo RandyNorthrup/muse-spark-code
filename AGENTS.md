@@ -6,9 +6,10 @@ repository. They are project-local; do not copy them into global settings.
 ## What this project is
 
 A VS Code extension giving a Claude-Code-style chat panel for Meta's Muse Spark
-model. Two backends sit behind one internal `AgentBackend` interface: the Muse
-Code CLI over the Muse Session Protocol (`@muse-code/sdk`, primary) and the
-Meta Model API over HTTPS (bring-your-own key, secondary). Read `PLAN.md`
+model. Two backends sit behind the `AgentHost` and `AgentSession` interfaces
+(`src/core/agent/agentBackend.ts`): the Muse Code CLI over the Muse Session
+Protocol (`@muse-code/sdk`, primary) and the Meta Model API over HTTPS
+(bring-your-own key, secondary). Read `PLAN.md`
 before changing anything: it holds the decisions, the research that justifies
 them, the milestone plan, and the certification checklist.
 
@@ -37,9 +38,10 @@ them, the milestone plan, and the certification checklist.
 7. **Boundaries are validated.** Every message across postMessage, every MSP
    frame, every HTTP response is parsed with a zod schema before use.
 8. **Secrets never leave SecretStorage.** No API keys in settings, logs,
-   telemetry, tests, or fixtures. Child processes get them only via their
-   environment. Log through the `LogOutputChannel`; never `console.log` in the
-   host.
+   telemetry, tests, or fixtures. The pasted Model API key is never passed to
+   any child process: the Muse Code CLI signs in on its own, and the
+   extension only checks that its credential file exists. Log through the
+   `LogOutputChannel`; never `console.log` in the host.
 9. **Dependencies are deliberate.** Before adding one: check peer ranges
    against the pins in `PLAN.md` §2 D3 (`npm info <pkg> peerDependencies`),
    check `npm audit`, pin the exact version (`.npmrc` enforces `save-exact`),
@@ -53,15 +55,25 @@ them, the milestone plan, and the certification checklist.
 ## Layout
 
 ```
-src/extension.ts      activation only
-src/host/**           VS Code adapters (views, editor, auth, settings)
+src/extension.ts      activation: the view, the panel, the commands, the openers
+src/host/**           VS Code adapters (views, conversation, backend managers,
+                      auth, settings, mentions, voice, the diagnostics MCP server)
 src/core/**           backend-agnostic logic; must not import `vscode`
-src/shared/**         constants + protocol shared by host and webview
+                      (MSP host, Model API client, tools, context, usage, dictation)
+src/shared/**         constants + zod protocol shared by host and webview
 src/webview/**        React 19 app (browser project, own tsconfig)
+native/windows/**     dictate.ps1, the Windows dictation helper
+native/darwin/**      Dictation.swift + build.sh, the macOS helper (built in CI)
+resources/            the walkthrough
 test/unit/**          vitest (node + jsdom via docblock); `vscode` is mocked
+test/e2e/**           the fake Muse Code CLI driven through the real backend;
+                      the opt-in live drill
 test/integration/**   @vscode/test-cli, runs inside VS Code
-scripts/**            esbuild build, bundle-size gate
+test/harness/         the webview behind a fake host, for screenshots
+scripts/**            esbuild build, bundle-size gate, PSScriptAnalyzer gate,
+                      harness screenshots, image rendering, changelog notes
 docs/certification/   per-milestone gate-fire records and screenshots
+media/                icons, banner, social preview, README screenshots
 ```
 
 ## Commands

@@ -9,6 +9,29 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.5.4] - 2026-09-23
+
+The documentation cleanup; released because the walkthrough, PRIVACY.md and
+a setting's description ship inside the package.
+
+### Changed
+
+- A documentation cleanup against the code: the walkthrough says dictation
+  is a Windows and macOS feature; PRIVACY.md says the panel lists models
+  when it opens while signed in, that the extension only checks whether
+  the CLI's credential file exists, and that Sign out and `/logout` are
+  one action; SECURITY.md describes the machine-scoped settings and the
+  two backends' shell commands as they are; AGENTS.md, CONTRIBUTING.md,
+  CLAUDE.md, `.env.example`, the knip comment and two script headers no
+  longer describe the key injection removed in 0.1.0, a CI matrix that
+  never existed or an interface that does not; the `autosave` setting's
+  description matches what it does; PLAN.md's architecture diagram, gates
+  table, open questions, budgets and milestone notes are brought up to
+  date, with a register row for the test-only `Selection` casts. The
+  certification folder gains an index, the harness keeps its Chrome
+  profile in a temporary directory, and the Claude Code reference
+  screenshots left the repository.
+
 ## [0.5.3] - 2026-09-23
 
 ### Added

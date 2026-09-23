@@ -100,7 +100,7 @@ harness:shots`) against a scripted session, so they match the build exactly.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.5.3.vsix
+   code --install-extension muse-spark-code-0.5.4.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -417,7 +417,7 @@ PowerShell and Swift with no dependencies.
 | `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                                                                                                                                                                                                                                               |
 | `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                                                       |
 | `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, PSScriptAnalyzer over `native/windows`                                                                                                                                                                                                                                 |
-| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                                                                                                                                                                                                                                                                |
+| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test, e2e-test and integration-test projects                                                                                                                                                                                                                                                      |
 | `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                |
 | `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                                                                                                                                                                                                                                                          |
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                   |

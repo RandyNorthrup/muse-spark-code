@@ -13,7 +13,8 @@ security notes for contributors are in `PLAN.md` §9.
   is on, and the outputs of the tools the agent runs (file contents,
   command output, Problems-panel diagnostics) are sent to Meta so the model
   can answer. Nothing is sent until you press Send.
-- **Through the Muse Code CLI** (the default backend), the extension hands
+- **Through the Muse Code CLI** (what `museSpark.backend` at `auto` picks
+  when the CLI is installed and signed in), the extension hands
   your messages to Meta's `muse serve` process on your machine, which talks
   to Meta with the credential from its own `muse login`. What the CLI sends
   beyond your messages (its system prompt, its own telemetry, if any) is
@@ -51,7 +52,9 @@ security notes for contributors are in `PLAN.md` §9.
 The extension itself has **no telemetry**, no analytics, no crash reporting
 and no server of its own. It never contacts any host other than Meta's (and,
 on macOS, Apple's for dictation as described above), and only when you send
-a message, sign in or dictate.
+a message, sign in, dictate, or open a panel while signed in (it lists the
+models then, so the model pill is filled in; that request carries no
+message).
 
 ## Credentials
 
@@ -60,11 +63,11 @@ a message, sign in or dictate.
   workspace. It is sent only to `api.meta.ai` as a bearer token, and never
   passed to the Muse Code CLI or any other process.
 - The Muse Code CLI's own sign-in lives in the CLI's credential file
-  (`~/.config/muse/auth.json`). The extension reads only whether the file
-  exists and its metadata (never its values) to decide which sign-in path to
-  offer.
-- **Sign out** in the panel deletes the pasted key from secret storage;
-  `/logout` also runs `muse logout` for the CLI.
+  (`~/.config/muse/auth.json`). The extension checks only whether the file
+  exists (never its contents) to decide which sign-in path to offer.
+- **Sign out** in the panel (the same action as `/logout` and **Muse Spark:
+  Sign Out**) deletes the pasted key from secret storage and runs
+  `muse logout` when the CLI is signed in.
 
 ## What stays on your machine
 

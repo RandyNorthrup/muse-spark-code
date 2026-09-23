@@ -25,8 +25,10 @@ sign-in gate explains what is missing.
   ESLint (zero warnings), stylelint, type checks, dead-code and cycle
   detection, duplication, unit tests with coverage thresholds, the
   production build with bundle budgets, `npm audit`, secret scanning and
-  semgrep. CI runs the same set on Linux, Windows and macOS plus the
-  integration tests, so a green local run is a green CI run.
+  semgrep. CI runs the gates on Ubuntu, Windows and macOS, the integration
+  tests on Ubuntu and Windows, and gitleaks and semgrep as jobs of their
+  own; the PowerShell lint runs only where Windows PowerShell exists, so a
+  green run on one platform is not quite the whole set.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.

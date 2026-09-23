@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Bundle-size gate. Budgets are recorded in PLAN.md section 2 (D6) and changed
-// only with a CHANGELOG entry. Exits 1 when any production artifact exceeds
+// Bundle-size gate. The budgets below are the record (PLAN.md section 2, D6,
+// mirrors them) and change only with a CHANGELOG entry. Exits 1 when any production artifact exceeds
 // its budget.
 
 import { statSync } from 'node:fs'

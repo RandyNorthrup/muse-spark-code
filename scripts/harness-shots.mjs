@@ -10,8 +10,9 @@
 
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
@@ -106,7 +107,7 @@ function serveRepo() {
   })
 }
 
-async function shoot(chrome, port, scenario, outDir) {
+async function shoot(chrome, port, scenario, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}`
   await execFileAsync(chrome, [
@@ -114,7 +115,7 @@ async function shoot(chrome, port, scenario, outDir) {
     '--disable-gpu',
     '--hide-scrollbars',
     '--no-first-run',
-    `--user-data-dir=${path.join(outDir, 'profile')}`,
+    `--user-data-dir=${profileDir}`,
     `--window-size=${WINDOW_SIZE}`,
     `--virtual-time-budget=${String(VIRTUAL_TIME_BUDGET_MS)}`,
     `--screenshot=${file}`,
@@ -139,14 +140,18 @@ async function main() {
   const scenarios = requested.length > 0 ? requested : SCENARIOS
   const outDir = path.join(repoRoot, OUT_DIR)
   await mkdir(outDir, { recursive: true })
+  // Chrome's profile lives in a temporary directory for the run, not beside
+  // the screenshots, and goes when the run ends.
+  const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-harness-'))
   const { server, port } = await serveRepo()
   try {
     for (const scenario of scenarios) {
-      const file = await shoot(chrome, port, scenario, outDir)
+      const file = await shoot(chrome, port, scenario, outDir, profileDir)
       console.log(`${scenario}: ${path.relative(repoRoot, file)}`)
     }
   } finally {
     server.close()
+    await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
   }
 }
 

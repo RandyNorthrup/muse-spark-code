@@ -33,14 +33,21 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   Muse Code CLI's own sign-in is never read (only the presence of its
   credential file). The log channel redacts key-shaped strings.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
-  workspace rules, skills or memory, runs no shell commands, and ignores
-  the `museSpark.museBinaryPath` and `museSpark.environmentVariables`
-  workspace settings (a repository cannot point the extension at its own
-  executable).
-- **Shell commands** run as an argument array through PowerShell or bash,
+  workspace rules, skills or memory and runs no shell commands. The settings
+  that choose what runs and what is billed (`museBinaryPath`,
+  `environmentVariables`, `backend`, `shellSandbox`, `initialPermissionMode`,
+  `allowDangerouslySkipPermissions`) are machine-scoped in every workspace,
+  trusted or not: a repository's `.vscode/settings.json` cannot point the
+  extension at its own executable.
+- **Shell commands.** On the Model API backend the extension's own shell
+  tool runs the command as an argument array through PowerShell or bash,
   never as a shell string, in the workspace root, with a timeout and an
-  output cap, and only after the user's approval in the modes that ask.
-  Muse Code's OS sandbox applies on the CLI backend where it is set up.
+  output cap, and only after the user's approval in the modes that ask. On
+  the Muse Code CLI backend the CLI runs the commands inside its OS sandbox
+  where that is set up; `museSpark.shellSandbox` at `auto` starts the CLI
+  without the sandbox for a Windows workspace under the user's profile
+  (where the sandbox cannot enter), and `off` never sandboxes; both leave
+  the approval cards in place.
 - **Files.** Every path the model gives a tool is confined to the workspace
   root; escapes are refused.
 - **Webview.** `default-src 'none'`, a per-load script nonce, no remote

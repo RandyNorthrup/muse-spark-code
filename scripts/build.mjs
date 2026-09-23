@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Bundles the extension host entry, the webview, and (in dev mode) the
-// integration tests with esbuild.
+// Bundles the extension host entry, the search worker, the webview, and (in
+// dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)

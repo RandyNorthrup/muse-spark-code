@@ -162,8 +162,10 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 ### D4 — Security posture
 
 - API keys live only in `vscode.SecretStorage`; never in settings, logs, or
-  telemetry. When the CLI backend is used with a stored key, the key is passed
-  to `muse serve` as `META_API_KEY` in the child environment only.
+  telemetry. (The rest of this row is superseded by the D1 amendment, §9:
+  since M7 the stored key is never passed to `muse serve` or any other child
+  process; the CLI signs in on its own and the extension only checks that its
+  credential file exists.)
 - Webview: strict CSP with per-load nonce, `localResourceRoots` limited to the
   bundled `dist/webview`, no remote scripts, no `eval`. Every inbound message is
   parsed with a zod schema; unknown shapes are logged and dropped.
@@ -176,13 +178,15 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
   wording; off by default; blocked when the workspace setting
   `museSpark.confidentialWorkspace` is true.
 - Secret scanning (gitleaks) in pre-commit and CI; `npm audit --audit-level=high`
-  in `security:audit`; semgrep in CI (deferred locally, see §7).
+  in `security:audit`; semgrep locally in `security:sast` (part of `npm run
+quality`) and as a CI job.
 
 ### D5 — Testing strategy
 
 - **Unit (vitest, node env)**: everything in `src/core/**` (protocol types,
-  backends with fake transports, message bus, settings mapping, path guards).
-  The `vscode` module is aliased to `test/mocks/vscode.ts`.
+  backends with fake transports, the host ⇄ webview protocol, settings
+  mapping, path guards). The `vscode` module is aliased to
+  `test/unit/mocks/vscode.ts`.
 - **Unit (vitest, jsdom env)**: webview components with Testing Library.
 - **Integration (@vscode/test-cli)**: activates the extension in a real VS Code
   (xvfb on CI), asserts commands/views register and the webview posts its
@@ -199,12 +203,14 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 
 | Artifact               | Budget (minified, uncompressed)                                                |
 | ---------------------- | ------------------------------------------------------------------------------ |
-| `dist/extension.js`    | ≤ 600 KB (M0–M6), ≤ 900 KB after M7                                            |
-| `dist/webview/main.js` | ≤ 900 KB including React + markdown renderer; syntax highlighter loaded lazily |
-| `.vsix`                | ≤ 3 MB                                                                         |
+| `dist/extension.js`    | ≤ 600 KiB (the M7 Model API client fit without raising it)                     |
+| `dist/searchWorker.js` | ≤ 50 KiB                                                                       |
+| `dist/webview/main.js` | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle) |
+| `.vsix`                | not gated; 0.5.3 is 552 KB (the GitHub Release asset)                          |
 
-`npm run build` prints sizes; `scripts/check-bundle-size.mjs` fails the build
-over budget. Budgets are recorded here and adjusted only with a CHANGELOG entry.
+`npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
+and fails the build over budget. This table mirrors the script and changes with
+it, with a CHANGELOG entry.
 
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
@@ -665,52 +671,59 @@ behaviour of VS Code's own chat view.
 | Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                                                                                                                                                                                                                                                                                                          | Closed.                                                               |
 | Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                                                                                                                                                                                                                                                                                                          | M7 required; see §10.                                                 |
 | Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and a dimmed button with the reason on Linux (no distribution ships a recogniser; the owner may revisit). The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process. | Closed; see M9.                                                       |
-| Q5  | Syntax highlighter: `shiki` (accurate, ~1 MB+ grammars, lazy-loaded) vs `highlight.js` core (smaller, less accurate).                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Decide at M4 with measured bundle sizes.                              |
+| Q5  | **Resolved (M4):** `highlight.js` 11.12.0 core with a fixed language set, in the webview bundle; `shiki` was not taken (grammar weight).                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Closed.                                                               |
 | Q6  | Linux support for the CLI backend: Meta's product page lists macOS + Windows only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Detect and show "use Model API key" on Linux if `muse` is absent.     |
 | Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                               |
-| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Remaining at packaging time (M8): `npx vsce login RandyNorthrup` with a Marketplace-manage PAT, which the owner mints.                                                                                                                                                                                                                                                                                                                                                                                                      | Closed; PAT step deferred to M8.                                      |
+| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Publishing ran by hand from the CI artifact with a clipboard PAT for 0.1.0–0.5.0; since 2026-09-23 the `VSCE_PAT` repository secret lets `release.yml` publish every `v*` tag.                                                                                                                                                                                                                                                                                                                                              | Closed.                                                               |
 | Q9  | The Muse Code user rules file: `/rules import` writes one into the config root and the model is told "if user and project rules conflict, project rules win", but its file name is not printed by `muse --help`, `muse skills`, the settings skill or the binary's strings. The Model API backend cannot mirror what it cannot name.                                                                                                                                                                                                                                                                | Not loaded on the Model API backend; the CLI backend loads it itself. |
 
 ## 4. Architecture
 
 ```
-┌────────────────────────── VS Code extension host (Node) ──────────────────────────┐
-│ src/extension.ts            activate(): register views, commands, keybindings      │
-│ src/host/                   VS Code-facing adapters                                │
-│   views/ChatViewProvider    WebviewView (sidebar) + WebviewPanel (editor tab)      │
-│   MessageBus                zod-validated postMessage bridge (HostToWebview/       │
-│                             WebviewToHost unions in src/shared/protocol.ts)        │
-│   auth/CredentialStore      SecretStorage wrapper (API key), never logs values     │
-│   auth/SignIn               "muse login" in integrated terminal / key input        │
-│   editor/                   selection + active-file context, @mention search,     │
-│                             diff viewer (virtual docs), insert/apply code          │
-│   settings/                 museSpark.* readers with defaults                      │
-│ src/core/                   backend-agnostic, no `vscode` import                   │
-│   agent/AgentBackend.ts     interface: startSession, sendTurn, cancel, setModel,   │
-│                             setEffort, setApprovalMode, listModels, listSessions, │
-│                             resume, fork, compact, decideApproval, answerQuestion  │
-│   agent/AgentEvent.ts       union: turn.started/text.delta/reasoning.delta/        │
-│                             tool.started/tool.output/tool.completed/edit.proposed/ │
-│                             approval.requested/question.requested/todo.changed/    │
-│                             usage.changed/context.changed/turn.completed/error     │
-│   backends/musecode/        MSP adapter over @muse-code/sdk (spawn muse serve)     │
-│   backends/modelapi/        (M7) fetch + SSE client, tool harness, permission      │
-│                             engine that reproduces the approval-mode semantics    │
-│   sessions/                 titles, history index, rewind/fork bookkeeping         │
-│ src/shared/                 imported by both host and webview (types, constants)  │
-└───────────────────────────────────────────────────────────────────────────────────┘
+VS Code extension host (Node)
+  src/extension.ts             activate(): the view, the panel, the commands, the
+                               output and file openers, the usage cache
+  src/host/                    VS Code-facing adapters
+    views/                     the WebviewView (sidebar) and WebviewPanel (editor
+                               tab); the zod-validated postMessage bridge
+    conversation/              ConversationController: one panel's session, turns,
+                               approvals, questions, edits, rewind, usage, references
+    backend/                   MuseCodeBackendManager (spawns `muse serve`), the
+                               Model API tool harness (toolIo, searchWorker), the
+                               file session store
+    auth/                      SecretStorage for the key; `muse login` in a terminal
+    editor/, mention/          open-file context, @mention search, diff documents
+    commands/, settings.ts     the commands; museSpark.* readers with defaults
+    voice/, usage/, ide/       the dictation helper host; trace-log insights; the
+                               loopback MCP server that serves getDiagnostics
+  src/core/                    backend-agnostic, no `vscode` import
+    agent/agentBackend.ts      AgentHost / AgentSession: startSession, sendTurn,
+                               cancel, setModel, setReasoningEffort, setApprovalMode,
+                               listModels, listSessions, resumeSession, forkSession,
+                               compact, decideApproval, answerQuestions,
+                               cancelQuestions, controlSubagent, messageSubagent
+    backends/musecode/         the MSP adapter over @muse-code/sdk (MuseCodeHost,
+                               launch, notification mapping, session records)
+    backends/modelapi/         fetch + SSE client, the tools, the permission engine
+                               that reproduces the approval-mode semantics
+    context/, usage/, voice/   rules, skills and memory loading; trace-log parsing;
+                               the dictation driver
+  src/shared/                  constants, the zod protocol, agentEvents (turnStarted,
+                               textDelta, reasoningDelta, toolStarted, …), palette,
+                               effort, permission modes, sessions, usage
                                  │ postMessage (zod-validated both ways)
-┌────────────────────────── Webview (browser, React 19) ────────────────────────────┐
-│ src/webview/main.tsx        mount, theme tokens from VS Code CSS variables         │
-│   components/Composer       input, "+" attach, "/" palette, @mention, chips,       │
-│                             model/effort pill, permission-mode button, send/stop  │
-│   components/Transcript     streaming markdown, code blocks (copy/insert/apply),  │
-│                             tool rows, reasoning blocks, approval & question      │
-│                             cards, todo panel, plan approval                       │
-│   components/History        session list with search, rename, archive             │
-│   components/Account        usage bars / token totals                              │
-│   state/                    reducer over AgentEvent stream                         │
-└───────────────────────────────────────────────────────────────────────────────────┘
+Webview (browser, React 19)
+  src/webview/main.tsx         mount, theme tokens from VS Code CSS variables
+    App.tsx                    the panel: transcript scroll, menus, dialogs, wiring
+    components/Composer        input, "+" attach, "/" palette, @mention, chips,
+                               model/effort pill, permission-mode button, send/stop
+    components/Transcript,     streaming markdown, code blocks (copy/insert/apply),
+      ToolRow, ReasoningRow    tool rows with diffs and outputs, thinking rows
+    components/ApprovalCard,   approval and question cards, the reply and quote
+      QuestionCard, QuoteMenu  menus
+    components/HistoryDialog,  history; account & usage; the Agent map with its
+      UsageDialog, AgentMap    owner controls
+    state/uiState.ts           reducer over the AgentEvent stream
 ```
 
 Key parity mapping (Claude Code UI → MSP method) is recorded in §5.
@@ -794,8 +807,8 @@ mode. P1: tool rows, thinking blocks, plan approval, context %, usage panel,
 /compact. P2: rewind/fork, voice, /btw, agent map, session groups.
 
 Second docs pass (2026-09-21, every page under code.claude.com/docs that
-touches the VS Code composer, plus the owner's screenshots in
-`docs/reference/`): the composer bar is `+` (menu: Upload from computer / Add
+touches the VS Code composer, plus the owner's screenshots of Claude Code,
+kept outside the repository since the 2026-09-23 cleanup): the composer bar is `+` (menu: Upload from computer / Add
 context / Browse the web), `/`, a prompt-cache clock ("59m"), an "N agents"
 pill, the model pill `Model Effort` (no context window in the pill), the
 open-file chip (`PLAN.md ×`), the mode button (`⚡ Auto`) that opens a Modes
@@ -1393,9 +1406,8 @@ owner's key).** Certification record: `docs/certification/m7.md`.
     WebAudio/web-speech-api#80), and there is no extension API for
     dictation into a webview. M9 moves recognition out of the webview into
     a helper process on the OS recogniser.
-  - Model API sessions still live for the window only (the "JSON session
-    store" from the M7 polish note is deferred past 0.1.0: the owner runs
-    the CLI backend, and the notice in the panel says so).
+  - Model API sessions lived for the window only at 0.1.0; the JSON session
+    store came in 0.2.0 (M10, `src/host/backend/fileSessionStore.ts`).
 - **Live** (`scratchpad/live-m8.log`, `docs/certification/m8.md`): with the
   CLI on the owner's subscription, `usage/read` returned nothing before the
   first turn, one "pong" turn (4 model attempts in the CLI's trace, login
@@ -1499,11 +1511,11 @@ Certification record: `docs/certification/m9.md`.
   `text` line and `stopped`, exit 0 (done: 827 ms, "Although settings file
   in fix the bug" for "open the settings file and fix the bug", confidence
   0.46, the classic engine's accuracy as warned to the owner); the owner
-  speaks into the dev host and the words land in the composer (pending: no
-  microphone on the PC at the moment); the macOS helper compiles in CI
+  speaks into the dev host and the words land in the composer (done the same
+  evening with a real microphone, §10); the macOS helper compiles in CI
   and, on a Mac, prompts for the microphone and speech recognition once
-  and then transcribes (done on the Mac mini up to `listening` and a clean
-  `stopped`; text from real speech pending an input device).
+  and then transcribes (done on the Mac mini that evening with a real
+  microphone, text back; m9.md).
 - **Gates added**: `lint:ps` (PSScriptAnalyzer, `PSGallery` settings,
   exit = finding count; real on Windows, a reported skip elsewhere;
   installed on the CI Windows runner in a step).
@@ -1718,8 +1730,8 @@ version 0.4.0.
   with readable child sessions and a backgrounded call; the unit gate
   covers the parser against the line shapes of the 2026-09-22 drill log;
   the modal and the map are Testing-Library-tested; the live subagent run
-  waits on the owner (it needs delegation on in their CLI settings and
-  costs a subagent's worth of attempts).
+  came in D21/M18 (delegation switched on through a temporary config, the
+  spawns allowed, two children reporting).
 - **Security**: the settings file and the trace logs are read, never
   written; the insights carry counts and timestamps only; the steering
   note is fixed text; a child transcript is read through the same host
@@ -1830,23 +1842,23 @@ merged through pull request #5 from `fix/composer-autogrow`, shipped in
 
 ## 7. Gates
 
-| Gate                  | Command                                                                                    | Status                                                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Format                | `prettier --check .`                                                                       | M0 ✓                                                                                                                    |
-| Lint (type-aware)     | `eslint . --max-warnings=0`                                                                | M0 ✓                                                                                                                    |
-| CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                | M0 ✓                                                                                                                    |
-| Types                 | `tsc -p tsconfig.json --noEmit` (+ webview project)                                        | M0 ✓                                                                                                                    |
-| Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                    | M0 ✓                                                                                                                    |
-| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 src/extension.ts src/webview/main.tsx` | M0 ✓                                                                                                                    |
-| Duplication           | `jscpd --threshold 1 src` (config `.jscpd.json`)                                           | M0 ✓                                                                                                                    |
-| Unit tests + coverage | `vitest run --coverage`                                                                    | M0 ✓                                                                                                                    |
-| Integration tests     | `vscode-test`                                                                              | M0 ✓ (3 passing locally; CI: ubuntu xvfb + windows)                                                                     |
-| Build + bundle budget | `node scripts/build.mjs --production && node scripts/check-bundle-size.mjs`                | M0 ✓                                                                                                                    |
-| Dependency audit      | `npm audit --audit-level=high`                                                             | M0 ✓                                                                                                                    |
-| Secrets               | `gitleaks git --redact` (history) and `gitleaks protect --staged` (hook)                   | M0 ✓ (staged-scan proof; history scan after first commit)                                                               |
-| SAST                  | `semgrep scan --config auto --error` (`npm run security:sast`)                             | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. |
-| PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)     | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner).         |
-| Lighthouse            | n/a (webview, not a web page); replaced by webview profiler check in M4                    | —                                                                                                                       |
+| Gate                  | Command                                                                                                              | Status                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Format                | `prettier --check .`                                                                                                 | M0 ✓                                                                                                                    |
+| Lint (type-aware)     | `eslint . --max-warnings=0`                                                                                          | M0 ✓                                                                                                                    |
+| CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                                          | M0 ✓                                                                                                                    |
+| Types                 | `tsc --noEmit` over five projects: host, webview, unit, e2e, integration (`npm run typecheck`)                       | M0 ✓                                                                                                                    |
+| Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                                              | M0 ✓                                                                                                                    |
+| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/webview/main.tsx`                        | M0 ✓                                                                                                                    |
+| Duplication           | `jscpd` (config `.jscpd.json`: threshold 0 over `src` and `test`)                                                    | M0 ✓                                                                                                                    |
+| Unit tests + coverage | `vitest run --coverage`                                                                                              | M0 ✓                                                                                                                    |
+| Integration tests     | `vscode-test`                                                                                                        | M0 ✓ (9 passing locally since M18; CI: ubuntu xvfb + windows)                                                           |
+| Build + bundle budget | `node scripts/build.mjs --production && node scripts/check-bundle-size.mjs`                                          | M0 ✓                                                                                                                    |
+| Dependency audit      | `npm audit --audit-level=high`                                                                                       | M0 ✓                                                                                                                    |
+| Secrets               | `gitleaks git --redact` (history, `security:secrets`, also a CI job) and `gitleaks git --pre-commit --staged` (hook) | M0 ✓ (staged-scan proof; the history scan runs locally and in CI)                                                       |
+| SAST                  | `semgrep scan --config auto --error` (`npm run security:sast`)                                                       | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. |
+| PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)                               | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner).         |
+| Lighthouse            | n/a (a webview, not a web page); no profiler gate exists, the harness screenshots are the visual check               | —                                                                                                                       |
 
 ## 8. Escape hatches register
 
@@ -1858,6 +1870,7 @@ Every suppression, cast, or ignored error must be listed here with its reason.
 | `src/host/backend/searchWorker.ts`   | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                        | 2026-09-22 |
 | `src/core/backends/modelapi/glob.ts` | `nosemgrep` on `new RegExp(source)` (`detect-non-literal-regexp`)  | The expression is assembled from bounded pieces (`[^/]*`, `(?:.*/)?`, escaped literals) out of a glob capped at `GLOB_MAX_LENGTH`, and only ever tested against short relative paths.                                                             | 2026-09-22 |
 | `src/host/voice/dictationHost.ts`    | `nosemgrep` on `spawn` (`detect-child-process`)                    | The dictation helper's command line is fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with the bundled script, or the bundled macOS binary) and passed as an argument array; no user, model or workspace input reaches it. | 2026-09-22 |
+| `test/unit/App.test.tsx`             | `as unknown as Selection` (three stubs)                            | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                    | 2026-09-23 |
 
 ## 9. Security assumptions and accepted residual risk
 
@@ -2050,4 +2063,22 @@ link on the Marketplace listing), `.github/FUNDING.yml` (the repository's
 Sponsor button) and a "Support this project" section plus a badge in the
 README. `manifest.test.ts` ties the manifest's link to `FUNDING.yml`
 (broken on purpose by changing the manifest's URL: the test failed, exit
-1; restored). Tagged `v0.5.3`; the run is recorded here once it finishes.
+1; restored). Tagged `v0.5.3` (c1e13cc); run 35897896612 went green on
+every job, the GitHub Release carries `muse-spark-code-0.5.3.vsix`
+(552,200 bytes) and the workflow published it ("Published
+RandyNorthrup.muse-spark-code v0.5.3.").
+
+**Still open since 0.1.0:** a live turn on the Model API backend. The owner
+holds no pay-as-you-go key (deleted 2026-09-22); the fake-server contract
+tests and the e2e suite stand in, and the path is marked as certified
+against fakes only.
+
+**0.5.4 (2026-09-23):** the documentation cleanup. A read-only audit of
+every document against the code found 38 stale or false statements and
+eight organisation points; all fixed (the CHANGELOG lists them by file), the
+worst being three places that still said the pasted key reaches the CLI.
+Released because the walkthrough, `docs/PRIVACY.md` and the `autosave`
+description ship inside the package, so the listing carries them. The
+Claude Code reference screenshots left the repository, the certification
+folder has an index, the harness keeps its Chrome profile in a temporary
+directory. Tagged `v0.5.4`; the run is recorded here once it finishes.
