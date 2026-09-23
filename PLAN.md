@@ -1663,4 +1663,7 @@ extension's preconfigured files hold things this extension should have;
 D15 records the reading and M12 the work (setting scopes, the panel
 serializer, the walkthrough, five commands, keybinding `when` clauses, the
 Model API prompt's environment and working rules). Certified
-(`docs/certification/m12.md`), tagged `v0.3.0` (RELEASE_RUN_PLACEHOLDER).
+(`docs/certification/m12.md`), tagged `v0.3.0` (f54e620). Run 35811829058: every job green, the GitHub
+Release created with `muse-spark-code-0.3.0.vsix` (528,235 bytes; the
+walkthrough images account for the growth over 0.2.0), the Marketplace
+publish step skipped again for want of a `VSCE_PAT` repository secret.
