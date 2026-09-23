@@ -2038,5 +2038,8 @@ its tag's run was cancelled before it built anything; the teardown now
 retries and then reports a folder it cannot remove and leaves it to the OS
 temp cleanup, since housekeeping must not fail a green suite. The tag was
 moved to the fixed commit each time before anything was released (neither
-failed run built a package or a GitHub Release). The run of the final tag
-is recorded here once it finishes.
+failed run built a package or a GitHub Release). The final tag (3e14768):
+run 35896194634 went green on every job, the GitHub Release carries
+`muse-spark-code-0.5.2.vsix` (551,810 bytes) and the workflow's own
+publish reported "Published RandyNorthrup.muse-spark-code v0.5.2.". The tag
+is the tip of `main` but for this record.
