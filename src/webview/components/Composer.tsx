@@ -13,6 +13,7 @@ import {
   type MouseEvent,
   type PointerEvent,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
@@ -103,9 +104,35 @@ const URI_LIST_TYPE = 'text/uri-list'
 const IMAGE_TYPE_PREFIX = 'image/'
 const PASTED_IMAGE_NAME = 'pasted-image'
 
-function rowsFor(draft: string): number {
-  const lines = draft.split('\n').length
+/** How the box was measured: its content height and the height of one row. */
+export interface RowMetrics {
+  readonly scrollHeight: number
+  readonly rowHeight: number
+}
+
+/**
+ * Rows the box needs: the wrapped content's height in rows when the box is
+ * measurable (a browser), else the newline count (jsdom reports 0 for both).
+ * Never below one row, never above COMPOSER_MAX_ROWS: past that the textarea
+ * scrolls inside (issue #4).
+ */
+export function rowsFor(draft: string, metrics?: RowMetrics): number {
+  const isMeasured = metrics !== undefined && metrics.rowHeight > 0
+  const measured = isMeasured ? Math.round(metrics.scrollHeight / metrics.rowHeight) : 0
+  const lines = Math.max(measured, draft.split('\n').length)
   return Math.min(Math.max(lines, MIN_ROWS), COMPOSER_MAX_ROWS)
+}
+
+/**
+ * Sizes the box to its draft. One row first, so a draft that shrank is
+ * measured against its own height rather than the taller box it is leaving.
+ */
+function fitRows(textarea: HTMLTextAreaElement, draft: string): void {
+  textarea.rows = MIN_ROWS
+  textarea.rows = rowsFor(draft, {
+    scrollHeight: textarea.scrollHeight,
+    rowHeight: textarea.clientHeight,
+  })
 }
 
 /** Whether this keydown is the configured "send" gesture. */
@@ -276,6 +303,36 @@ export function Composer(props: ComposerProps) {
     }
     textareaRef.current?.focus()
   }, [focusRequests])
+
+  // The box grows with its wrapped content and shrinks back (issue #4),
+  // measured before paint so a keystroke never shows a one-row box first.
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea === null) {
+      return
+    }
+    fitRows(textarea, draft)
+  }, [draft])
+
+  // A resized sidebar rewraps the same draft: fit again when the width moves.
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea === null || typeof ResizeObserver === 'undefined') {
+      return
+    }
+    let width = textarea.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (textarea.clientWidth === width) {
+        return
+      }
+      width = textarea.clientWidth
+      fitRows(textarea, textarea.value)
+    })
+    observer.observe(textarea)
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
 
   useEffect(() => {
     if (pendingInsert === undefined) {
@@ -493,7 +550,6 @@ export function Composer(props: ComposerProps) {
           dictationPlaceholder(dictation) ??
           (isRunning ? UI_TEXT.composerQueuePlaceholder : placeholder)
         }
-        rows={rowsFor(draft)}
         value={draft}
         onChange={(event) => {
           onDraftChange(event.target.value)

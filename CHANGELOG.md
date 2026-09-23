@@ -7,7 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- The prompt box grows with wrapped lines as well as newlines, up to ten
+  rows, and scrolls inside past that; a long single line no longer hides
+  behind a one-row box (#4, reported by dhaw97160).
 
 ## [0.5.1] - 2026-09-23
 

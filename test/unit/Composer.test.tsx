@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { DICTATION_HOLD_MS } from '../../src/shared/constants'
-import { Composer, type ComposerProps } from '../../src/webview/components/Composer'
+import { Composer, type ComposerProps, rowsFor } from '../../src/webview/components/Composer'
 import { testSettings } from './helpers/fakes'
 
 /** The composer's clock (the tap/hold threshold reads it). */
@@ -325,6 +325,33 @@ describe('Composer chrome', () => {
       draft: Array.from({ length: 40 }, () => 'x').join('\n'),
     })
     expect(textarea).toHaveAttribute('rows', '10')
+  })
+
+  // Issue #4: a long line that wraps counted as one row, so the box stayed a
+  // single line however much it held.
+  it('grows with the wrapped lines it measures, shrinks back, and caps at ten', () => {
+    const { view, props, textarea } = renderComposer({ draft: 'one line' })
+    let contentHeight = 20
+    Object.defineProperties(textarea, {
+      clientHeight: { configurable: true, get: () => 20 },
+      scrollHeight: { configurable: true, get: () => contentHeight },
+    })
+    contentHeight = 60
+    view.rerender(<Composer {...props} draft="a line long enough to wrap three times" />)
+    expect(textarea).toHaveAttribute('rows', '3')
+    contentHeight = 20
+    view.rerender(<Composer {...props} draft="short" />)
+    expect(textarea).toHaveAttribute('rows', '1')
+    contentHeight = 400
+    view.rerender(<Composer {...props} draft="a wall of text" />)
+    expect(textarea).toHaveAttribute('rows', '10')
+  })
+
+  it('counts rows from the measurement when there is one, else from the newlines', () => {
+    expect(rowsFor('a\nb', { scrollHeight: 0, rowHeight: 0 })).toBe(2)
+    expect(rowsFor('x', { scrollHeight: 59, rowHeight: 20 })).toBe(3)
+    expect(rowsFor('a\nb\nc', { scrollHeight: 20, rowHeight: 20 })).toBe(3)
+    expect(rowsFor('')).toBe(1)
   })
 })
 
