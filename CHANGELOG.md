@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.5.1] - 2026-09-23
+
+A docs-only patch, and the first release the workflow published to the
+Marketplace itself (the `VSCE_PAT` repository secret exists since
+2026-09-23).
+
 ### Fixed
 
 - The README badges for the Marketplace version and installs rendered as
