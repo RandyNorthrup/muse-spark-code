@@ -120,6 +120,8 @@ export const approvalSubjectSchema = z.object({
   kind: z.string(),
   command: z.optional(z.string()),
   path: z.optional(z.string()),
+  /** `fileAccess` subjects: what access is asked for (`read` / `write`). */
+  access: z.optional(z.string()),
   host: z.optional(z.string()),
   target: z.optional(z.string()),
   toolName: z.optional(z.string()),

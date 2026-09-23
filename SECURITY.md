@@ -33,12 +33,33 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   Muse Code CLI's own sign-in is never read (only the presence of its
   credential file). The log channel redacts key-shaped strings.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
-  workspace rules, skills or memory and runs no shell commands. The settings
-  that choose what runs and what is billed (`museBinaryPath`,
-  `environmentVariables`, `backend`, `shellSandbox`, `initialPermissionMode`,
+  workspace rules, skills or memory, runs no shell commands, and the
+  extension runs no `git` (a repository's `.git/config` can name programs
+  git runs, such as `core.fsmonitor`). The settings that choose what runs
+  and what is billed (`museBinaryPath`, `environmentVariables`, `backend`,
+  `shellSandbox`, `initialPermissionMode`,
   `allowDangerouslySkipPermissions`) are machine-scoped in every workspace,
   trusted or not: a repository's `.vscode/settings.json` cannot point the
-  extension at its own executable.
+  extension at its own executable. In a remote window a dev container
+  definition can write machine settings, so there Bypass permissions is
+  never the starting mode and needs an explicit confirmation.
+- **Programs the extension starts.** git, PowerShell, bash and the Muse
+  Code CLI are found by absolute path only: an empty or relative `PATH`
+  entry (which means the working directory, the workspace) is never
+  searched, and `museBinaryPath` must be absolute.
+- **Path confinement (Model API backend).** Every path a tool names is
+  resolved through the file system (links, junctions and short names)
+  before it is read or written, and refused when it leaves the workspace;
+  the search worker skips any listed file that does. Edit Review and the
+  rewind apply the same check before writing a file back. Windows names
+  that would be reinterpreted are refused: alternate data streams
+  (`a.txt:x`), device names (`NUL`, `COM1`), trailing dots or spaces.
+- **Protected writes (Model API backend).** Writing `.git/**`, `.husky/**`, `.vscode/**`,
+  `.idea/**`, `.devcontainer/**`, `.github/workflows/**`, `.agents/**`,
+  `AGENTS.md`, `CLAUDE.md`, `.envrc` or `.gitmodules`, at any depth and in
+  any letter case, shows an approval card in every mode but Bypass (Plan
+  refuses it), and no "always allow" rule covers it. Muse Code flags its own
+  protected writes, and "Edit automatically" never answers those for you.
 - **Shell commands.** On the Model API backend the extension's own shell
   tool runs the command as an argument array through PowerShell or bash,
   never as a shell string, in the workspace root, with a timeout and an

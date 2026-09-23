@@ -22,6 +22,7 @@ import {
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
 import {
+  CLI_STDERR_LOG_MAX_CHARS,
   MSP_CLIENT_NAME,
   MSP_REQUESTED_CAPABILITIES,
   MUSE_VERSION_FILE,
@@ -88,7 +89,13 @@ export class MuseCodeBackendManager {
       ...(this.deps.workspaceRoot !== undefined && { cwd: this.deps.workspaceRoot }),
       env,
       onStderr: (chunk) => {
-        this.deps.log.warn(`muse serve stderr: ${chunk.trimEnd()}`)
+        // A chatty or looping CLI must not flood the log (PLAN.md D24).
+        const text = chunk.trimEnd()
+        const shown =
+          text.length > CLI_STDERR_LOG_MAX_CHARS
+            ? `${text.slice(0, CLI_STDERR_LOG_MAX_CHARS)}… [${String(text.length - CLI_STDERR_LOG_MAX_CHARS)} more characters]`
+            : text
+        this.deps.log.warn(`muse serve stderr: ${shown}`)
       },
     })
     const spawned = await handshake.initialize({

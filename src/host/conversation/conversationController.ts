@@ -29,6 +29,7 @@ import {
   AUTH_REQUIRED_ERROR_KIND,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
+  DEFAULT_MODEL_ID,
   type DictationAction,
   type EffortLevel,
   IDE_MCP_SERVER_NAME,
@@ -49,7 +50,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
-import type { AgentEvent } from '../../shared/agentEvents'
+import type { AgentEvent, ApprovalChoice } from '../../shared/agentEvents'
 import { parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type {
@@ -159,6 +160,12 @@ export interface ConversationDeps {
   readonly files: FileAccess
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
+  /**
+   * A remote window (`vscode.env.remoteName`): a dev container's settings can
+   * switch Bypass on there, so it needs one explicit yes (PLAN.md D24).
+   */
+  readonly isRemoteWindow: boolean
+  readonly confirmRemoteBypass: () => Promise<boolean>
   /** `museSpark.confidentialWorkspace`: contributor-tier models are blocked. */
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier model is used (M7). */
@@ -223,6 +230,14 @@ const MISSING_RUN_REASON = 'missing_run'
 const NOTHING_TO_COMPACT = 'Nothing to compact yet.'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const FALLBACK_MODE: PermissionMode = 'manual'
+const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
+// Approval subjects that are a plain file write: the Model API's own, and
+// Muse Code's `fileAccess` with write access (MSP `ApprovalSubject`).
+const FILE_WRITE_SUBJECT = 'fileWrite'
+const FILE_ACCESS_SUBJECT = 'fileAccess'
+const WRITE_ACCESS = 'write'
+const APPROVED_DECISION = 'approved'
+const ONCE_SCOPE = 'once'
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 const HISTORY_MODE_NONE = 'none'
 const NOT_LOADED_STATUS = 'notLoaded'
@@ -265,6 +280,12 @@ export class ConversationController {
   /** The dictation driver, created on the first press (M9). */
   private dictation: DictationHandle | undefined
   private dictationStatus: DictationStatus = 'idle'
+  /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
+  private readonly autoApproved = new Set<string>()
+  /** The remote-window Bypass confirmation, given once per conversation (D24). */
+  private hasConfirmedRemoteBypass = false
+  /** Said once the surface is ready: why the conversation did not start as configured. */
+  private startupNotice: string | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -276,6 +297,11 @@ export class ConversationController {
         'museSpark.initialPermissionMode is bypassPermissions but allowDangerouslySkipPermissions is off; starting in Manual',
       )
       this.permissionMode = FALLBACK_MODE
+    } else if (this.permissionMode === BYPASS_MODE && deps.isRemoteWindow) {
+      // A dev container can set both settings (D24): never start there without approvals.
+      deps.log.warn('Bypass permissions requested in a remote window; starting in Manual')
+      this.permissionMode = FALLBACK_MODE
+      this.startupNotice = UI_TEXT.bypassRemoteStartedManual
     }
     this.attachments = new AttachmentStore(deps.newAttachmentId)
   }
@@ -351,11 +377,81 @@ export class ConversationController {
     this.activeTurnId = undefined
   }
 
-  private onEvent(event: AgentEvent): void {
+  /**
+   * "Edit automatically" (PLAN.md D24): the allow-once choice for a plain
+   * file write, which the controller answers itself; undefined for anything
+   * the user must see (commands, protected writes, escalations, other modes).
+   */
+  private autoApprovalChoice(
+    event: Extract<AgentEvent, { type: 'approvalRequested' }>,
+  ): ApprovalChoice | undefined {
+    if (
+      this.permissionMode !== EDIT_AUTOMATICALLY_MODE ||
+      event.isProtectedWrite ||
+      event.isJudgeEscalated
+    ) {
+      return undefined
+    }
+    const { subject } = event
+    const isFileWrite =
+      subject.kind === FILE_WRITE_SUBJECT ||
+      (subject.kind === FILE_ACCESS_SUBJECT && subject.access === WRITE_ACCESS)
+    return isFileWrite && subject.stages === undefined
+      ? event.availableChoices.find(
+          (choice) => choice.decision === APPROVED_DECISION && choice.scope === ONCE_SCOPE,
+        )
+      : undefined
+  }
+
+  /** Answers an edit approval on the user's behalf; shows the card if the host refuses. */
+  private async autoApprove(
+    event: Extract<AgentEvent, { type: 'approvalRequested' }>,
+    choice: ApprovalChoice,
+  ): Promise<void> {
+    const session = this.session
+    if (session === undefined) {
+      return
+    }
+    this.autoApproved.add(event.approvalId)
+    try {
+      await session.decideApproval({
+        approvalId: event.approvalId,
+        choiceId: choice.choiceId,
+        requirementId: event.requirementId,
+      })
+    } catch (error: unknown) {
+      this.autoApproved.delete(event.approvalId)
+      this.deps.log.warn(`Edit automatically could not approve: ${describe(error)}`)
+      this.forward(event)
+    }
+  }
+
+  /** An event as the webview sees it, plus the unread mark. */
+  private forward(event: AgentEvent): void {
     this.post({ type: 'agentEvent', event })
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
     }
+  }
+
+  private onEvent(event: AgentEvent): void {
+    if (event.type === 'approvalRequested') {
+      const choice = this.autoApprovalChoice(event)
+      if (choice !== undefined) {
+        void this.autoApprove(event, choice)
+        return
+      }
+    }
+    if (event.type === 'approvalResolved' && this.autoApproved.delete(event.approvalId)) {
+      this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
+      return
+    }
+    this.forward(event)
+    this.track(event)
+  }
+
+  /** The controller's own bookkeeping for an event the webview was sent. */
+  private track(event: AgentEvent): void {
     switch (event.type) {
       case 'turnStarted': {
         this.activeTurnId = event.turnId
@@ -833,6 +929,23 @@ export class ConversationController {
     if (active !== undefined) {
       this.modelId = active.modelId
     }
+    // A session saved on a contributor-tier model gets the same yes (or the
+    // confidential-workspace block) as choosing one (D24).
+    if (!(await this.allowsModel(this.modelId))) {
+      const fallback =
+        models.find((model) => model.isDefault && !isContributorModel(model.modelId)) ??
+        models.find((model) => !isContributorModel(model.modelId))
+      const fallbackId = fallback?.modelId ?? DEFAULT_MODEL_ID
+      try {
+        await loaded.session.setModel(fallbackId)
+      } catch (error: unknown) {
+        // Never keep a session on the model the user refused.
+        loaded.session.dispose()
+        throw error
+      }
+      this.modelId = fallbackId
+      this.notice('info', `${UI_TEXT.contributorResumeFallback} ${fallbackId}.`)
+    }
     this.post({
       type: 'historyLoaded',
       sessionId: loaded.session.sessionId,
@@ -1078,9 +1191,21 @@ export class ConversationController {
     this.postComposerState()
   }
 
-  private async setPermissionMode(mode: PermissionMode): Promise<void> {
-    if (mode === BYPASS_MODE && !this.deps.isBypassAllowed()) {
+  /** Whether the user may enter Bypass now: the setting, and in a remote window one yes (D24). */
+  private async mayBypass(): Promise<boolean> {
+    if (!this.deps.isBypassAllowed()) {
       this.notice('warning', UI_TEXT.bypassNotAllowed)
+      return false
+    }
+    if (!this.deps.isRemoteWindow || this.hasConfirmedRemoteBypass) {
+      return true
+    }
+    this.hasConfirmedRemoteBypass = await this.deps.confirmRemoteBypass()
+    return this.hasConfirmedRemoteBypass
+  }
+
+  private async setPermissionMode(mode: PermissionMode): Promise<void> {
+    if (mode === BYPASS_MODE && !(await this.mayBypass())) {
       this.postComposerState()
       return
     }
@@ -1369,6 +1494,15 @@ export class ConversationController {
     }
   }
 
+  /** Why the conversation did not start as configured (D24), said once. */
+  private postStartupNotice(): void {
+    if (this.startupNotice === undefined) {
+      return
+    }
+    this.notice('warning', this.startupNotice)
+    this.startupNotice = undefined
+  }
+
   public surfaceReady(): void {
     this.post(this.deps.auth.toMessage())
     this.postComposerState()
@@ -1384,6 +1518,7 @@ export class ConversationController {
       this.post({ type: 'attachmentAdded', attachment })
     }
     void this.warmModels()
+    this.postStartupNotice()
   }
 
   public async handle(message: ConversationMessage): Promise<void> {
@@ -1600,6 +1735,28 @@ export class ConversationController {
       return
     }
     await this.resumeSession(sessionId)
+  }
+
+  /**
+   * The Bypass setting was turned off (D24): a conversation in Bypass drops
+   * to Manual. If the host refuses the change, the session goes too, so no
+   * turn runs without approvals under a setting that says otherwise.
+   */
+  public async revokeBypass(): Promise<void> {
+    if (this.permissionMode !== BYPASS_MODE) {
+      return
+    }
+    this.permissionMode = FALLBACK_MODE
+    if (this.session !== undefined) {
+      try {
+        await this.session.setApprovalMode(approvalModeFor(FALLBACK_MODE, this.deps.hasApprovalUi))
+      } catch (error: unknown) {
+        this.deps.log.warn(`Bypass revocation: the mode change failed (${describe(error)})`)
+        this.dropSession()
+      }
+    }
+    this.notice('warning', UI_TEXT.bypassRevoked)
+    this.postComposerState()
   }
 
   /** Alt+T: flip the Thinking toggle for this conversation. */

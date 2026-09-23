@@ -32,6 +32,13 @@ security notes for contributors are in `PLAN.md` §9.
   invoked. On the Muse Code CLI backend the CLI reads and sends them under
   Meta's Muse Code terms. Nothing of this is read while VS Code has the
   folder in Restricted Mode.
+- **Environment facts (Model API backend).** The instructions sent with
+  every request name the workspace's absolute path, the operating system
+  and shell, and today's date. In a trusted workspace that is a git
+  repository they also carry the branch name, how many files `git status`
+  lists as changed, and the subjects of the last five commits (never file
+  contents or diffs); in Restricted Mode git is not run and none of this is
+  sent. The Muse Code CLI assembles its own context under Meta's terms.
 - **Contributor-tier models.** Meta may use traffic to the models whose id
   ends in `-contributor` to train its models. The extension asks once per
   conversation before using one, and refuses them entirely when the

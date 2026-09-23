@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   classifyTool,
+  confineWorkspacePath,
   executeTool,
   parseQuestions,
   resolveWorkspacePath,
@@ -35,6 +36,7 @@ describe('resolveWorkspacePath', () => {
       ok: true,
       absolute: '/ws/src/a.ts',
       relative: 'src/a.ts',
+      canonical: 'src/a.ts',
     })
     expect(resolveWorkspacePath('/ws', '/ws/b.ts', 'linux')).toMatchObject({ relative: 'b.ts' })
     expect(resolveWorkspacePath('/ws', '../etc/passwd', 'linux')).toMatchObject({ ok: false })
@@ -44,6 +46,7 @@ describe('resolveWorkspacePath', () => {
       ok: true,
       absolute: String.raw`C:\ws\src\a.ts`,
       relative: 'src/a.ts',
+      canonical: 'src/a.ts',
     })
     expect(resolveWorkspacePath(String.raw`C:\ws`, String.raw`D:\other`, 'win32')).toMatchObject({
       ok: false,
@@ -51,6 +54,79 @@ describe('resolveWorkspacePath', () => {
     expect(resolveWorkspacePath(String.raw`C:\ws`, String.raw`..\x`, 'win32')).toMatchObject({
       ok: false,
     })
+  })
+})
+
+describe('resolveWorkspacePath: names Windows would reinterpret (D24)', () => {
+  it('refuses alternate data streams, device names and trailing dots or spaces', () => {
+    const root = String.raw`C:\ws`
+    for (const given of [
+      'a.txt:hidden',
+      String.raw`C:\ws\a.txt::$DATA`,
+      'NUL',
+      String.raw`src\con.txt`,
+      'COM1',
+      '.git.',
+      String.raw`.git.\hooks\pre-commit`,
+      'notes.md ',
+    ]) {
+      expect(resolveWorkspacePath(root, given, 'win32'), given).toMatchObject({ ok: false })
+    }
+    // The same names are ordinary on POSIX file systems.
+    expect(resolveWorkspacePath('/ws', 'a.txt:hidden', 'linux')).toMatchObject({ ok: true })
+  })
+
+  it('accepts a name that merely starts with two dots', () => {
+    expect(resolveWorkspacePath('/ws', '..env', 'linux')).toMatchObject({
+      ok: true,
+      relative: '..env',
+    })
+    expect(resolveWorkspacePath(String.raw`C:\ws`, '..config', 'win32')).toMatchObject({
+      ok: true,
+    })
+  })
+})
+
+describe('confineWorkspacePath: links (D24)', () => {
+  const io = memoryToolIo({}, ROOT, undefined, { linked: '/etc', inner: '/ws/src' })
+
+  it('refuses a path that leaves the workspace through a link', async () => {
+    expect(await confineWorkspacePath(ROOT, 'linked/passwd', 'linux', io)).toEqual({
+      ok: false,
+      reason: 'path linked/passwd leads outside the workspace through a link',
+    })
+  })
+
+  it('keeps a link that stays inside and judges it by where it leads', async () => {
+    expect(await confineWorkspacePath(ROOT, 'inner/a.ts', 'linux', io)).toEqual({
+      ok: true,
+      absolute: '/ws/inner/a.ts',
+      relative: 'inner/a.ts',
+      canonical: 'src/a.ts',
+    })
+  })
+
+  it('refuses a path the file system cannot resolve', async () => {
+    const failing = { realPath: () => Promise.reject(new Error('ELOOP: too many links')) }
+    expect(await confineWorkspacePath(ROOT, 'a.ts', 'linux', failing)).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('ELOOP') as string,
+    })
+  })
+
+  it('makes the file tools refuse a linked escape before touching anything', async () => {
+    const files = memoryToolIo({ 'a.txt': 'x' }, ROOT, undefined, { linked: '/etc' })
+    const ctx: ToolContext = { workspaceRoot: ROOT, platform: 'linux', io: files }
+    const write = await executeTool(
+      'write_file',
+      JSON.stringify({ path: 'linked/cron.d/x', content: 'evil' }),
+      ctx,
+    )
+    expect(write.failureReason).toContain('through a link')
+    const read = await executeTool('read_file', JSON.stringify({ path: 'linked/shadow' }), ctx)
+    expect(read.failureReason).toContain('through a link')
+    expect(files.files.size).toBe(1)
+    expect(files.files.get('/ws/a.txt')).toBe('x')
   })
 })
 

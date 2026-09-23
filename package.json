@@ -54,7 +54,7 @@
     },
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "In Restricted Mode the agent does not load the workspace's rules (AGENTS.md), skills or memory, and runs no shell commands. Trust the workspace to enable them. The settings that choose what runs and what is billed are machine-scoped, so no workspace can set them."
+      "description": "In Restricted Mode the agent does not load the workspace's rules (AGENTS.md), skills or memory, runs no shell commands, and the extension runs no git. Trust the workspace to enable them. The settings that choose what runs and what is billed are machine-scoped, so a repository's .vscode/settings.json cannot set them; in a remote window, where a dev container definition can, Bypass permissions always asks first."
     }
   },
   "activationEvents": [
@@ -451,7 +451,7 @@
     "package": "vsce package --no-dependencies",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
-    "security:sast": "semgrep scan --config auto --error --exclude=dist --exclude=coverage --exclude=node_modules --exclude=.vscode-test"
+    "security:sast": "semgrep scan --config auto --error --exclude=dist --exclude=coverage --exclude=node_modules --exclude=.vscode-test --exclude=.claude"
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [

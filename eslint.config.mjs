@@ -167,5 +167,16 @@ export default tseslint.config(
 
   // harness-shots/ holds screenshots and a headless-Chrome profile (which
   // Chrome fills with its own extension scripts); nothing there is ours.
-  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.vscode-test/**', 'harness-shots/**'] },
+  // `.claude/` holds Claude Code's session settings and the git worktrees its
+  // agents work in (whole copies of this repository); none of it is ours to lint.
+  {
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      '.vscode-test/**',
+      'harness-shots/**',
+      '.claude/**',
+    ],
+  },
 )

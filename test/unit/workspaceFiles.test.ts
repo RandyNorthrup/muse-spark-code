@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { createWorkspaceFileLister, parseNulSeparated } from '../../src/host/mention/workspaceFiles'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
-function setup(options: { respectGitIgnore?: boolean; gitFails?: boolean } = {}) {
+function setup(
+  options: { respectGitIgnore?: boolean; gitFails?: boolean; isTrusted?: boolean } = {},
+) {
   const log = new FakeLogOutputChannel()
   const runGit = vi.fn((_args: readonly string[], _cwd: string) =>
     options.gitFails === true
@@ -13,6 +15,7 @@ function setup(options: { respectGitIgnore?: boolean; gitFails?: boolean } = {})
   const list = createWorkspaceFileLister({
     workspaceRoot: '/ws',
     respectGitIgnore: () => options.respectGitIgnore ?? true,
+    isWorkspaceTrusted: () => options.isTrusted ?? true,
     runGit,
     findFiles,
     log,
@@ -48,6 +51,13 @@ describe('createWorkspaceFileLister', () => {
   it('skips git entirely when .gitignore is not respected', async () => {
     const { list, runGit, findFiles } = setup({ respectGitIgnore: false })
     await list()
+    expect(runGit).not.toHaveBeenCalled()
+    expect(findFiles).toHaveBeenCalledOnce()
+  })
+
+  it('skips git in Restricted Mode, where the repository config is untrusted (D24)', async () => {
+    const { list, runGit, findFiles } = setup({ isTrusted: false })
+    await expect(list()).resolves.toEqual(['src/a.ts', 'src/b.ts', 'node_modules/x.js'])
     expect(runGit).not.toHaveBeenCalled()
     expect(findFiles).toHaveBeenCalledOnce()
   })

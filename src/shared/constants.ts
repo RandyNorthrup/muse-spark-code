@@ -78,14 +78,22 @@ export const PERMISSION_MODE_LABELS: Readonly<Record<PermissionMode, string>> = 
   bypassPermissions: 'Bypass permissions',
 }
 // One line under each mode in the Modes menu (the Claude Code wording, with
-// Muse in place of Claude and the MSP behaviour behind each mode, PLAN.md D7).
+// Muse in place of Claude and the MSP behaviour behind each mode, PLAN.md
+// D7), per backend where they differ (D24): in Manual Muse Code applies
+// edits inside the workspace without an approval (verified live in M4), and
+// the Model API backend has no safety-check judge behind Auto.
 export const PERMISSION_MODE_DETAILS: Readonly<Record<PermissionMode, string>> = {
-  manual: 'Muse will ask for approval before making each edit',
-  acceptEdits: 'Muse will edit files without asking and ask for everything else',
+  manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
+  acceptEdits: 'Muse will edit files without asking and ask before running commands',
   plan: 'Muse will explore the code and present a plan before editing',
   auto: 'Muse will approve actions that pass a safety check and pause for anything risky',
   bypassPermissions: 'Muse will edit files and run commands without asking',
 }
+export const MODEL_API_PERMISSION_MODE_DETAILS: Readonly<Partial<Record<PermissionMode, string>>> =
+  {
+    manual: 'Muse will ask for approval before each edit and each command',
+    auto: 'Muse will edit files without asking, except protected files, and ask before commands',
+  }
 export const PREFERRED_LOCATIONS = ['sidebar', 'panel'] as const
 export type PreferredLocation = (typeof PREFERRED_LOCATIONS)[number]
 
@@ -101,6 +109,7 @@ export interface EnvironmentVariable {
 export const SHELL_SANDBOX_MODES = ['auto', 'muse', 'off'] as const
 export type ShellSandboxMode = (typeof SHELL_SANDBOX_MODES)[number]
 export const SHELL_SANDBOX_SETTING = 'museSpark.shellSandbox'
+export const BYPASS_SETTING = 'museSpark.allowDangerouslySkipPermissions'
 
 // Which backend hosts conversations (PLAN.md D1, M7): `auto` takes Muse
 // Code when the CLI is installed and the Model API when only a key is
@@ -240,6 +249,9 @@ export const GIT_LS_FILES_ARGS = [
 ] as const
 // `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
 export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
+// A git call that has not answered by then (a hung network drive, a lock)
+// is killed; the callers fall back as if git were absent (PLAN.md D24).
+export const GIT_TIMEOUT_MS = 15_000
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Muse Code CLI / Muse Session Protocol (PLAN.md D1a, §5.4) ---
@@ -383,9 +395,29 @@ export const SEARCH_TIMEOUT_MS = 20_000
 export const SEARCH_MAX_HITS = 5000
 export const SEARCH_PATTERN_MAX_LENGTH = 512
 export const SEARCH_WORKER_FILE = 'searchWorker.js'
-// A glob becomes a regular expression run over short relative paths; the
-// length cap keeps that bounded.
+// A glob is matched by a table over pattern × path (no regular expression,
+// PLAN.md D24); the length cap bounds that table.
 export const GLOB_MAX_LENGTH = 256
+// `{a,b}{c,d}…` multiplies; past this many alternatives the glob is refused.
+export const GLOB_MAX_ALTERNATIVES = 256
+// Protected writes (D24): paths that configure or run code outside the edit
+// itself ask for approval in every mode but Bypass, whatever the session
+// rules say. Lower case; compared case-insensitively, anywhere in the path.
+export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
+  ['.git'],
+  ['.husky'],
+  ['.vscode'],
+  ['.idea'],
+  ['.devcontainer'],
+  ['.github', 'workflows'],
+  ['.agents'],
+]
+export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
+  'agents.md',
+  'claude.md',
+  '.envrc',
+  '.gitmodules',
+])
 export const LIST_FILES_DEFAULT_LIMIT = 500
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 export const SHELL_MAX_TIMEOUT_MS = 600_000
@@ -473,6 +505,8 @@ export const SANDBOX_CHECK_TIMEOUT_MS = 30 * 1000
 export const SANDBOX_SETUP_TIMEOUT_MS = 5 * 60 * 1000
 // Output cap for the short CLI commands the extension runs itself.
 export const CLI_OUTPUT_MAX_BYTES = 1024 * 1024
+// One `muse serve` stderr chunk as the log shows it (PLAN.md D24).
+export const CLI_STDERR_LOG_MAX_CHARS = 4096
 // --- Editor integration (M5, PLAN.md §6 M5) ---
 
 // Active-editor changes are broadcast to the composer after this quiet gap.
@@ -709,6 +743,20 @@ export const UI_TEXT = {
   modesLabel: 'Permission modes',
   bypassNotAllowed:
     'Turn on the "Allow dangerously skip permissions" setting to use Bypass permissions.',
+  // PLAN.md D24: the setting turned off while a conversation is in Bypass.
+  bypassRevoked:
+    'The "Allow dangerously skip permissions" setting was turned off; this conversation is back in Manual.',
+  // D24: in a remote window a dev container's settings can switch Bypass on.
+  bypassRemoteTitle: 'Run without approvals on a remote machine?',
+  bypassRemoteDetail:
+    'This window runs on a remote machine or in a container, where a dev container definition can set museSpark.allowDangerouslySkipPermissions without you. Bypass permissions lets Muse edit files and run commands without asking.',
+  bypassRemoteConfirm: 'Use Bypass permissions',
+  bypassRemoteStartedManual:
+    'museSpark.initialPermissionMode asks for Bypass permissions, but this is a remote window; the conversation starts in Manual. Choose Bypass from the Modes menu to confirm it.',
+  // D24: an edit the "Edit automatically" mode approved on the user's behalf.
+  editAutomaticallyResolver: 'Edit automatically',
+  contributorResumeFallback:
+    'The resumed conversation was on a contributor-tier model; it now uses',
   focusViewBadge: 'Focus view',
   historyTitle: 'Session history',
   newConversationTitle: 'New conversation',
@@ -977,7 +1025,7 @@ export const UI_TEXT = {
   backendModelApi: 'Meta Model API (your key, pay as you go)',
   modelApiUnauthorized: 'The Model API rejected the key. Sign in again with a valid key.',
   modelApiBackendNotice:
-    'This conversation runs on the Meta Model API with the extension’s own tools (read, edit, write, search, list, shell). Sessions live for this window only.',
+    'This conversation runs on the Meta Model API with the extension’s own tools (read, edit, write, search, list, shell). Its sessions are kept in this workspace’s extension storage.',
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',

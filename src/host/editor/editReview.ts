@@ -17,6 +17,8 @@ export interface EditReviewDeps {
   readonly workspaceRoot: string
   /** The file's text, or undefined when it does not exist. */
   readonly readFile: (fsPath: string) => Promise<string | undefined>
+  /** The canonical form of a path, links resolved through the nearest existing ancestor. */
+  readonly realPath: (fsPath: string) => Promise<string>
   readonly writeFile: (fsPath: string, content: string) => Promise<void>
   /** Move to the trash (a file the edit created). */
   readonly deleteFile: (fsPath: string) => Promise<void>
@@ -74,14 +76,41 @@ export class EditReview {
     this.paths = deps.platform === 'win32' ? path.win32 : path.posix
   }
 
-  /** Workspace-confined location of a patch file, or undefined when it escapes. */
-  private resolve(file: PatchFile): ResolvedFile | undefined {
+  /** Whether a `path.relative` result stays below its base. */
+  private isBelow(relative: string): boolean {
+    return (
+      relative !== '' &&
+      relative !== '..' &&
+      !relative.startsWith(`..${this.paths.sep}`) &&
+      !this.paths.isAbsolute(relative)
+    )
+  }
+
+  /**
+   * Workspace-confined location of a patch file, or undefined when it
+   * escapes: by text, then by the canonical forms, so a link inside the
+   * workspace that leads outside it is refused (PLAN.md D24).
+   */
+  private async resolve(file: PatchFile): Promise<ResolvedFile | undefined> {
     const root = this.paths.resolve(stripExtendedLengthPrefix(this.deps.workspaceRoot))
     const fsPath = this.paths.resolve(root, stripExtendedLengthPrefix(file.path))
     const relative = this.paths.relative(root, fsPath)
-    const isInside =
-      relative !== '' && !relative.startsWith('..') && !this.paths.isAbsolute(relative)
-    return isInside ? { file, relativePath: relative.replaceAll('\\', '/'), fsPath } : undefined
+    if (!this.isBelow(relative)) {
+      return undefined
+    }
+    try {
+      const [realRoot, realTarget] = await Promise.all([
+        this.deps.realPath(root),
+        this.deps.realPath(fsPath),
+      ])
+      if (!this.isBelow(this.paths.relative(realRoot, realTarget))) {
+        return undefined
+      }
+    } catch (error: unknown) {
+      this.deps.log.warn(`Edit review could not resolve ${relative}: ${String(error)}`)
+      return undefined
+    }
+    return { file, relativePath: relative.replaceAll('\\', '/'), fsPath }
   }
 
   /** Rebuilds the pre-edit text; a notice explains why when it cannot. */
@@ -113,7 +142,7 @@ export class EditReview {
     const ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[] = []
     const notices: ReviewNotice[] = []
     for (const file of files) {
-      const resolved = this.resolve(file)
+      const resolved = await this.resolve(file)
       if (resolved === undefined) {
         notices.push({ level: 'warning', text: `${file.path} ${UI_TEXT.editPathRefused}.` })
         continue

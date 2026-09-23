@@ -121,6 +121,9 @@ function setup(
     hasApprovalUi?: boolean
     initialPermissionMode?: ConversationDeps['initialPermissionMode']
     isBypassAllowed?: boolean
+    /** A remote window and the answer to its Bypass confirmation (D24). */
+    isRemoteWindow?: boolean
+    confirmsRemoteBypass?: boolean
     platform?: NodeJS.Platform
     userProfileDir?: string
     editorContext?: EditorContext
@@ -250,6 +253,7 @@ function setup(
   const openedFiles: [string, LineRange | undefined][] = []
   let cachedUsage: SubscriptionUsage | undefined = options.cachedUsage
   const contributorPrompts: string[] = []
+  let remoteBypassPrompts = 0
   const memory = {
     archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
     lastSession: options.lastSession,
@@ -302,6 +306,11 @@ function setup(
         uri.startsWith('file:///ws/') ? uri.slice('file:///ws/'.length) : undefined,
     },
     isBypassAllowed: () => isBypassAllowed,
+    isRemoteWindow: options.isRemoteWindow ?? false,
+    confirmRemoteBypass: () => {
+      remoteBypassPrompts += 1
+      return Promise.resolve(options.confirmsRemoteBypass ?? true)
+    },
     isConfidentialWorkspace: () => options.isConfidentialWorkspace ?? false,
     confirmContributor: (modelId: string) => {
       contributorPrompts.push(modelId)
@@ -404,6 +413,7 @@ function setup(
     reviews,
     memory,
     contributorPrompts,
+    remoteBypassPrompts: () => remoteBypassPrompts,
     setHasEditor: (isOpen: boolean) => {
       hasEditor = isOpen
     },
@@ -2224,5 +2234,209 @@ describe('ConversationController subagent controls (M18)', () => {
       isFollowup: false,
     })
     expect(t.server.requestsFor('subagent/stop')).toEqual([])
+  })
+})
+
+/** The agent events a test surface was sent, in order. */
+function agentEvents(t: ReturnType<typeof setup>) {
+  return t.surface.posted.flatMap((message) =>
+    message.type === 'agentEvent' ? [message.event] : [],
+  )
+}
+
+describe('ConversationController: permission hardening (D24)', () => {
+  const choices = [
+    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+  ]
+  function requestApproval(
+    t: ReturnType<typeof setup>,
+    approvalId: string,
+    overrides: Record<string, unknown> = {},
+  ) {
+    t.server.notify('approval/requested', {
+      sessionId: 's1',
+      approvalId,
+      itemId: `item-${approvalId}`,
+      toolName: 'write',
+      rawArgs: '{}',
+      currentRequirementId: { approvalId, sourceIndex: 0 },
+      subject: { kind: 'fileAccess', access: 'write', path: '/ws/a.ts' },
+      availableChoices: choices,
+      judgeEscalated: false,
+      protectedWrite: false,
+      ...overrides,
+    })
+  }
+
+  it('answers a plain file-write approval itself in Edit automatically, labelled so', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
+    t.server.handle('approval/decide', (params) => ({
+      status: 'accepted',
+      commandId: params['commandId'],
+      approvalId: params['approvalId'],
+      terminal: true,
+    }))
+    await t.send('l1', 'hi')
+    requestApproval(t, 'a1')
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
+    })
+    expect(t.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+    })
+    // No card was shown for it.
+    expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(false)
+    t.server.notify('approval/resolved', {
+      sessionId: 's1',
+      approvalId: 'a1',
+      itemId: 'item-a1',
+      decision: 'approved',
+      resolvedBy: 'user',
+    })
+    await vi.waitFor(() => {
+      expect(agentEvents(t).at(-1)?.type).toBe('approvalResolved')
+    })
+    expect(agentEvents(t).at(-1)).toEqual({
+      type: 'approvalResolved',
+      approvalId: 'a1',
+      itemId: 'item-a1',
+      decision: 'approved',
+      resolvedBy: 'Edit automatically',
+    })
+  })
+
+  it('shows the card for protected writes, escalations, commands and the other modes', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
+    await t.send('l1', 'hi')
+    requestApproval(t, 'p', { protectedWrite: true })
+    requestApproval(t, 'j', { judgeEscalated: true })
+    requestApproval(t, 's', { subject: { kind: 'shell', command: 'npm test' } })
+    requestApproval(t, 'r', { subject: { kind: 'fileAccess', access: 'read', path: '/x' } })
+    const manual = setup({ hasApprovalUi: true, initialPermissionMode: 'manual' })
+    await manual.send('l1', 'hi')
+    requestApproval(manual, 'm')
+    await vi.waitFor(() => {
+      expect(agentEvents(manual).map((event) => event.type)).toContain('approvalRequested')
+      expect(agentEvents(t).filter((event) => event.type === 'approvalRequested')).toHaveLength(4)
+    })
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    expect(manual.server.requestsFor('approval/decide')).toHaveLength(0)
+    expect(
+      agentEvents(t).flatMap((event) =>
+        event.type === 'approvalRequested' ? [event.approvalId] : [],
+      ),
+    ).toEqual(['p', 'j', 's', 'r'])
+    expect(agentEvents(manual).map((event) => event.type)).toContain('approvalRequested')
+  })
+
+  it('shows the card after all when the host refuses the automatic answer', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
+    t.server.handle('approval/decide', () => {
+      throw new Error('stale requirement')
+    })
+    await t.send('l1', 'hi')
+    requestApproval(t, 'a1')
+    await vi.waitFor(() => {
+      expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+    })
+    expect(String(t.log.warn.mock.calls.at(-1)?.[0])).toContain('stale requirement')
+  })
+
+  it('drops a conversation out of Bypass when the setting is turned off', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'bypassPermissions' })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'allowAll',
+    })
+    t.setBypassAllowed(false)
+    await t.controller.revokeBypass()
+    expect(t.server.requestsFor('session/setApprovalMode').at(-1)?.params).toMatchObject({
+      mode: 'promptUnmatched',
+    })
+    expect(t.surface.posted.at(-2)).toMatchObject({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('back in Manual') as string,
+    })
+    expect(t.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
+    // Nothing to do outside Bypass.
+    const before = t.surface.posted.length
+    await t.controller.revokeBypass()
+    expect(t.surface.posted).toHaveLength(before)
+  })
+
+  it('ends the session when the host will not leave Bypass', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'bypassPermissions' })
+    await t.send('l1', 'hi')
+    t.server.handle('session/setApprovalMode', () => {
+      throw new Error('locked')
+    })
+    await t.controller.revokeBypass()
+    await t.send('l2', 'again')
+    // A new session, started in Manual.
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
+    expect(t.server.requestsFor('session/start')[1]?.params).toMatchObject({
+      approvalMode: 'promptUnmatched',
+    })
+  })
+
+  it('never starts a remote window in Bypass, and asks once before entering it', async () => {
+    const t = setup({
+      hasApprovalUi: true,
+      initialPermissionMode: 'bypassPermissions',
+      isRemoteWindow: true,
+    })
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual({ ...composerState, permissionMode: 'manual' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('remote window') as string,
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'manual' })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(t.remoteBypassPrompts()).toBe(1)
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toEqual({
+      ...composerState,
+      permissionMode: 'bypassPermissions',
+    })
+    const declined = setup({ isRemoteWindow: true, confirmsRemoteBypass: false })
+    await declined.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(declined.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
+  })
+
+  it('asks before resuming on a contributor-tier model and falls back when declined', async () => {
+    const t = setup({ confirmsContributor: false })
+    t.server.handle('model/list', () => ({
+      providerId: 'meta',
+      profileId: null,
+      source: 'catalog',
+      models: [
+        { modelId: 'muse-spark-1.3', displayLabel: 'x', contextLimit: 1, isDefault: true },
+        {
+          modelId: 'muse-spark-1.3-contributor',
+          displayLabel: 'c',
+          contextLimit: 1,
+          isDefault: false,
+          isActive: true,
+        },
+      ],
+    }))
+    t.server.handle('session/resume', () => envelope(storedSession))
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel').at(-1)?.params).toMatchObject({
+      sessionId: 'old',
+      model: { modelId: 'muse-spark-1.3' },
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: expect.stringContaining('now uses muse-spark-1.3') as string,
+    })
   })
 })

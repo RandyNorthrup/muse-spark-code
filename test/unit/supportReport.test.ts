@@ -25,6 +25,7 @@ const base: SupportFacts = {
   hasStoredApiKey: false,
   hasEnvironmentApiKey: false,
   dictation: { isAvailable: true },
+  homeDir: String.raw`C:\Users\r`,
 }
 
 describe('renderSupportReport', () => {
@@ -39,7 +40,8 @@ describe('renderSupportReport', () => {
         'backend setting: auto',
         'shell sandbox: setting auto, posture sandboxed (default)',
         'muse binary path configured: no; environment variables: 2',
-        String.raw`muse cli: found in C:\Users\r\AppData\Local\Programs\muse (version 1.3.0)`,
+        // The home directory is `~` in a report meant for a public issue (D24).
+        String.raw`muse cli: found in ~\AppData\Local\Programs\muse (version 1.3.0)`,
         'muse subagent delegation: off',
         'cli credential file: yes; stored model api key: no; META_API_KEY in environment: no',
         'voice dictation: available',
