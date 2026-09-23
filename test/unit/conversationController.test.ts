@@ -1352,12 +1352,47 @@ describe('ConversationController: other messages', () => {
     expect(t.openExternal).toHaveBeenCalledWith('https://example.invalid/')
   })
 
-  it('drops the session and reports an error when the host exits', async () => {
+  it('ends the turn on a crash and resumes the same session with the next message (D25)', async () => {
     const t = setup()
     await t.send('l1', 'hi')
-    t.controller.hostExited('code 1, signal null')
+    t.controller.hostExited({
+      description: 'Muse Code failed with an unhandled error (exit 1)',
+      isExpected: false,
+      isPersistent: false,
+    })
     expect(t.host.sessionCount).toBe(0)
-    expect(t.auth.calls.at(-1)).toBe('error:Muse Code stopped unexpectedly. (code 1, signal null)')
+    // The running turn ends in the webview; no error gate for a crash.
+    expect(t.surface.posted).toContainEqual({
+      type: 'agentEvent',
+      event: {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason:
+          'Muse Code stopped unexpectedly (Muse Code failed with an unhandled error (exit 1))',
+      },
+    })
+    expect(t.auth.calls.some((call) => call.startsWith('error:'))).toBe(false)
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    await t.send('l2', 'again')
+    expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    t.controller.dispose()
+  })
+
+  it('reports a persistent exit through the sign-in gate and ignores its own close', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.controller.hostExited({ description: 'closed', isExpected: true, isPersistent: false })
+    expect(t.host.sessionCount).toBe(1)
+    t.controller.hostExited({
+      description: 'Muse Code refused its configuration (exit 3)',
+      isExpected: false,
+      isPersistent: true,
+    })
+    expect(t.auth.calls.at(-1)).toBe(
+      'error:Muse Code stopped unexpectedly (Muse Code refused its configuration (exit 3))',
+    )
     t.controller.dispose()
   })
 
@@ -1899,6 +1934,7 @@ describe('ConversationController: backends and tiers (M7)', () => {
         baseUrl: 'https://api.example.test/v1',
         apiKey: () => Promise.resolve('LLM|1|secret'),
         sleep: () => Promise.resolve(),
+        now: () => 0,
         random: () => 0,
         log: t.log,
       }),
@@ -2444,5 +2480,114 @@ describe('ConversationController: permission hardening (D24)', () => {
       level: 'info',
       text: expect.stringContaining('now uses muse-spark-1.3') as string,
     })
+  })
+})
+
+describe('ConversationController: lifecycle (D25)', () => {
+  it('cancels the running turn before a restart and resumes the session on the next message', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await t.controller.backendStopping(false)
+    expect(t.server.requestsFor('turn/cancel')).toHaveLength(1)
+    expect(agentEvents(t)).toContainEqual({
+      type: 'turnCompleted',
+      turnId: 't1',
+      terminal: 'cancelled',
+      reason: 'Stopped: the backend restarted',
+    })
+    expect(t.host.sessionCount).toBe(0)
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    await t.send('l2', 'again')
+    expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Conversation continued after the restart.',
+    })
+  })
+
+  it('starts afresh after a sign-out, and says so when a resume fails', async () => {
+    const ending = setup()
+    await ending.send('l1', 'hi')
+    ending.finishTurn()
+    await ending.controller.backendStopping(true)
+    await ending.send('l2', 'again')
+    expect(ending.server.requestsFor('session/resume')).toHaveLength(0)
+    expect(ending.server.requestsFor('session/start')).toHaveLength(2)
+    const failing = setup()
+    await failing.send('l1', 'hi')
+    await failing.controller.backendStopping(false)
+    failing.server.handle('session/resume', () => {
+      throw new Error('gone')
+    })
+    await failing.send('l2', 'again')
+    expect(failing.server.requestsFor('session/start')).toHaveLength(2)
+    expect(failing.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('could not be continued') as string,
+    })
+  })
+
+  it('starts one session for two quick messages', async () => {
+    const t = setup()
+    await Promise.all([t.send('l1', 'one'), t.send('l2', 'two')])
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+  })
+
+  it('resumes and retries once when the host no longer holds the session', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    let starts = 0
+    t.server.handle('turn/start', (params) => {
+      starts += 1
+      if (starts === 1) {
+        throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+      }
+      return {
+        turnId: 't2',
+        status: 'accepted',
+        disposition: 'started',
+        startedNewTurn: true,
+        commandId: params['commandId'],
+      }
+    })
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    await t.send('l2', 'again')
+    expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })
+    expect(t.surface.posted).toContainEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't2' })
+  })
+
+  it('hears the host close this session and resumes it on the next message', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('session/closed', { sessionId: 's1', reason: 'idleEviction' })
+    await settle()
+    expect(t.host.sessionCount).toBe(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Muse Code closed this session (idleEviction). The next message resumes it.',
+    })
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    await t.send('l2', 'again')
+    expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+  })
+
+  it('cancels the running turn when the conversation is cleared, and keeps nothing a closed panel started', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'clearConversation' })
+    await settle()
+    expect(t.server.requestsFor('turn/cancel')).toHaveLength(1)
+    const closing = setup()
+    const sending = closing.send('l1', 'hi')
+    closing.controller.dispose()
+    await sending
+    await settle()
+    expect(closing.host.sessionCount).toBe(0)
   })
 })

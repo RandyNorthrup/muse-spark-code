@@ -79,7 +79,6 @@ other harnesses' bug trackers and the platform documentation, fixed.
   helper no longer throws.
 - On macOS, dictation names the app macOS asks, separates speech from
   microphone refusals, and explains an early exit.
-
 - The crash screen's **Reload** brings the conversation back as it was: the
   transcript, a waiting approval or question and the running turn. A state
   that crashes the panel twice is dropped instead of looping.
@@ -113,6 +112,33 @@ other harnesses' bug trackers and the platform documentation, fixed.
 - Tasks with the same text no longer collide; approval feedback starts empty
   on each step; Windows line ends no longer show in diffs; diffs over 256 KB
   keep their line numbers.
+- A shell command that times out or is stopped now ends with everything it
+  started (a process group on macOS and Linux, `taskkill /T` on Windows),
+  and a command that leaves a background process running (`server &`)
+  returns when it exits instead of holding the turn open; Stop reaches a
+  running command. A flood of output keeps its beginning and its end.
+- A restart the extension makes (trust granted, a setting changed, a
+  sign-in) no longer looks like a crash that blocks every panel: the running
+  turn is cancelled, and the next message continues the same conversation.
+  After a real crash the turn ends with the reason and the next message
+  restarts Muse Code and continues; only an exit that restarting cannot fix
+  (a configuration Muse Code refuses, a build without the SDK surface) is
+  shown as an error.
+- Muse Code gets deadlines: 30 seconds to start, 60 per command (three
+  minutes to load, copy or compact a session), so a wedged CLI no longer
+  hangs sign-in, switching or sign-out.
+- When Muse Code closes or evicts a session, the next message resumes it
+  instead of failing; two quick messages start one session; two panels on
+  the same session no longer silence (or, on the Model API backend, cancel)
+  each other when one closes; a panel closed while its session starts keeps
+  nothing running.
+- Signing in with the browser waits for a new sign-in, not a stale
+  credential file, and pressing the button twice opens one terminal; a
+  broken OS keyring no longer blocks the Muse Code backend.
+- Model API retries show in the transcript ("Attempt 2/5 failed …"), Stop
+  cuts a retry wait short, and a `Retry-After` given as a date is honoured.
+- The IDE tool server restarts if its first start failed; a failing request
+  answers 500.
 
 ### Changed
 
@@ -120,6 +146,20 @@ other harnesses' bug trackers and the platform documentation, fixed.
   semgrep and PSScriptAnalyzer are pinned; every CI job has a timeout; four
   commands are hidden from the Command Palette where they cannot act; the
   categories are AI and Chat.
+- `museSpark.museBinaryPath`, `museSpark.environmentVariables` and VS
+  Code's `http.proxy` / `http.noProxy` restart Muse Code when changed; the
+  proxy is handed to it when its environment has none.
+- The Model API shell tool applies `terminal.integrated.env.*` as VS Code's
+  terminal does.
+- On Windows the CLI always starts as `muse-bin-<version>.exe` (the newest
+  one when `.muse-version` is missing), never through its PowerShell
+  launcher, which left the CLI running when closed.
+- The sign-in and TUI terminals use `/bin/sh` off Windows, whatever the
+  default shell.
+- The CLI's credential file, settings file and personal skills are looked
+  up where the CLI itself looks, including an `XDG_CONFIG_HOME` set in
+  `museSpark.environmentVariables`.
+- The extension stops Muse Code in `deactivate`, awaited by VS Code.
 
 ## [0.5.5] - 2026-09-23
 

@@ -54,6 +54,8 @@ class PushIterable implements AsyncIterable<string> {
 
 export class FakeMspServer implements DuplexTransport {
   private readonly handlers = new Map<string, RequestHandler>()
+  /** Methods the host never answers (a wedged CLI, D25). */
+  private readonly silenced = new Set<string>()
   private nextServerRequestId = 1
   public readonly incoming = new PushIterable()
   /** Every request the client sent, in order. */
@@ -73,17 +75,26 @@ export class FakeMspServer implements DuplexTransport {
       return { jsonrpc: '2.0', id, result: handler(params ?? {}) }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
-      // The SDK requires a typed `data.kind` on every error response.
-      return {
-        jsonrpc: '2.0',
-        id,
-        error: { code: HANDLER_ERROR, message, data: { kind: 'commandRejected' } },
-      }
+      // The SDK requires a typed `data.kind` on every error response; a
+      // handler may name one by throwing an error with a `kind`.
+      const kind =
+        typeof error === 'object' &&
+        error !== null &&
+        'kind' in error &&
+        typeof error.kind === 'string'
+          ? error.kind
+          : 'commandRejected'
+      return { jsonrpc: '2.0', id, error: { code: HANDLER_ERROR, message, data: { kind } } }
     }
   }
 
   public handle(method: string, handler: RequestHandler): void {
     this.handlers.set(method, handler)
+  }
+
+  /** From now on requests for `method` get no response at all. */
+  public silence(method: string): void {
+    this.silenced.add(method)
   }
 
   public write(chunk: string): Promise<void> {
@@ -98,7 +109,7 @@ export class FakeMspServer implements DuplexTransport {
       }
       this.requests.push(frame)
       const handler = this.handlers.get(frame.method)
-      if (frame.id === undefined) {
+      if (frame.id === undefined || this.silenced.has(frame.method)) {
         continue
       }
       this.incoming.push(`${JSON.stringify(this.respond(frame.id, handler, frame.params))}\n`)

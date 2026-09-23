@@ -16,6 +16,30 @@ import type { SubscriptionUsage } from '../../shared/usage'
 
 export type BackendKind = 'museCode' | 'modelApi'
 
+/** How a backend process ended, as the conversations need to know it (PLAN.md D25). */
+export interface HostExit {
+  /** For the log and the notice: the code or signal, and what it means. */
+  readonly description: string
+  /** The extension closed it on purpose (a restart, a sign-out): not a crash. */
+  readonly isExpected: boolean
+  /** The process refuses to run as configured (a bad setting, an old build): restarting will not help. */
+  readonly isPersistent: boolean
+}
+
+/**
+ * A command named a session the host no longer holds (MSP `sessionNotLoaded`:
+ * evicted, or closed by the host). The caller resumes it and retries.
+ */
+export class SessionNotLoadedError extends Error {
+  public constructor(
+    public readonly sessionId: string,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'SessionNotLoadedError'
+  }
+}
+
 export interface HostInfo {
   readonly kind: BackendKind
   readonly serverName: string
@@ -187,7 +211,7 @@ export interface AgentSession {
 /** One backend process or connection, multiplexing sessions. */
 export interface AgentHost {
   readonly info: HostInfo
-  onExit(listener: (description: string) => void): () => void
+  onExit(listener: (exit: HostExit) => void): () => void
   listModels(sessionId?: string): Promise<readonly ModelSummary[]>
   startSession(options: StartSessionOptions): Promise<AgentSession>
   listSessions(options: ListSessionsOptions): Promise<SessionPage>

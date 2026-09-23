@@ -3,7 +3,9 @@ import { AuthService, type AuthServiceDeps } from '../../src/host/auth/authServi
 import { CredentialStore } from '../../src/host/auth/credentialStore'
 import type { BackendMode } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
-import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
+import { FakeLogOutputChannel, memorySecrets, unexpectedWarning } from './helpers/fakes'
+
+const CREDENTIAL_MTIME = 5000
 
 interface Harness {
   readonly service: AuthService
@@ -15,7 +17,9 @@ interface Harness {
     envKey: boolean
     backendMode: BackendMode
   }
-  readonly restartBackend: ReturnType<typeof vi.fn<() => Promise<void>>>
+  readonly restartBackend: ReturnType<
+    typeof vi.fn<(isConversationEnding: boolean) => Promise<void>>
+  >
   readonly runInTerminal: ReturnType<
     typeof vi.fn<(cliPath: string, args: readonly string[]) => void>
   >
@@ -29,7 +33,9 @@ function harness(overrides: Partial<AuthServiceDeps> = {}): Harness {
     envKey: false,
     backendMode: 'auto' as BackendMode,
   }
-  const restartBackend = vi.fn<() => Promise<void>>(() => Promise.resolve())
+  const restartBackend = vi.fn<(isConversationEnding: boolean) => Promise<void>>(() =>
+    Promise.resolve(),
+  )
   const runInTerminal = vi.fn<(cliPath: string, args: readonly string[]) => void>()
   let clock = 0
   const deps: AuthServiceDeps = {
@@ -37,11 +43,13 @@ function harness(overrides: Partial<AuthServiceDeps> = {}): Harness {
       resolveCli: () =>
         facts.cliPresent ? { ok: true, cliPath: '/bin/muse' } : { ok: false, reason: 'missing' },
       credentialFileExists: () => facts.credentialFile,
+      // A written file has a new stamp; the harness writes it once.
+      credentialFileModifiedAt: () => (facts.credentialFile ? CREDENTIAL_MTIME : undefined),
       hasEnvironmentKey: () => facts.envKey,
       getBackendMode: () => facts.backendMode,
       restartBackend,
     },
-    credentials: new CredentialStore(memorySecrets()),
+    credentials: new CredentialStore(memorySecrets(), unexpectedWarning),
     runInTerminal,
     promptForApiKey: vi.fn(() => Promise.resolve('LLM|1|secret')),
     broadcast: (message) => {
@@ -179,6 +187,20 @@ describe('AuthService.signIn', () => {
     expect(h.restartBackend).not.toHaveBeenCalled()
   })
 
+  it('opens one login terminal however often the button is pressed (D25)', async () => {
+    const h = harness()
+    h.runInTerminal.mockImplementation(() => {
+      h.facts.credentialFile = true
+    })
+    const first = h.service.signIn('browser')
+    const second = h.service.signIn('browser')
+    await expect(Promise.all([first, second])).resolves.toMatchObject([
+      { status: 'signedIn' },
+      { status: 'signedIn' },
+    ])
+    expect(h.runInTerminal).toHaveBeenCalledOnce()
+  })
+
   it('refuses the browser sign-in when the CLI is missing', async () => {
     const h = harness()
     h.facts.cliPresent = false
@@ -196,6 +218,8 @@ describe('AuthService.signOut and host reports', () => {
     await expect(h.deps.credentials.getApiKey()).resolves.toBeUndefined()
     expect(h.runInTerminal).toHaveBeenLastCalledWith('/bin/muse', ['logout'])
     expect(h.restartBackend).toHaveBeenCalledTimes(2)
+    // A sign-in keeps the conversations; a sign-out ends them (D25).
+    expect(h.restartBackend.mock.calls).toEqual([[false], [true]])
   })
 
   it('does not run muse logout when there is no CLI session to end', async () => {

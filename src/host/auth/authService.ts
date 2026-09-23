@@ -27,11 +27,16 @@ export interface AuthBackendFacts {
     | { readonly ok: true; readonly cliPath: string }
     | { readonly ok: false; readonly reason: string }
   readonly credentialFileExists: () => boolean
+  /** The credential file's modification time (epoch ms); undefined when absent. */
+  readonly credentialFileModifiedAt: () => number | undefined
   readonly hasEnvironmentKey: () => boolean
   /** `museSpark.backend`. */
   readonly getBackendMode: () => BackendMode
-  /** Stop the running hosts so the next turn spawns the right one afresh. */
-  readonly restartBackend: () => Promise<void>
+  /**
+   * Stop the running hosts so the next turn spawns the right one afresh;
+   * with `isConversationEnding` (sign-out) the conversations are not resumed.
+   */
+  readonly restartBackend: (isConversationEnding: boolean) => Promise<void>
 }
 
 export interface AuthServiceDeps {
@@ -72,6 +77,8 @@ export type AuthPort = Pick<
 
 export class AuthService {
   private snapshot: AuthSnapshot = { status: 'checking', detail: undefined }
+  /** The browser sign-in in flight: a second click joins it (PLAN.md D25). */
+  private browserSignIn: Promise<AuthSnapshot> | undefined
 
   public constructor(private readonly deps: AuthServiceDeps) {}
 
@@ -94,6 +101,42 @@ export class AuthService {
         hasStoredKey: (await this.deps.credentials.getApiKey()) !== undefined,
       }),
     }
+  }
+
+  /** One login terminal and one watch, however often the button is pressed (D25). */
+  private async joinBrowserSignIn(): Promise<AuthSnapshot> {
+    if (this.browserSignIn !== undefined) {
+      return await this.browserSignIn
+    }
+    this.browserSignIn = this.signInWithCli()
+    try {
+      return await this.browserSignIn
+    } finally {
+      this.browserSignIn = undefined
+    }
+  }
+
+  private async signInWithCli(): Promise<AuthSnapshot> {
+    const cli = this.deps.backend.resolveCli()
+    if (!cli.ok) {
+      return this.set({ ...this.snapshot, status: 'noCli', detail: cli.reason })
+    }
+    this.set({ ...this.snapshot, status: 'signingIn', detail: UI_TEXT.signInWaiting })
+    const outcome = await signInWithBrowser({
+      runLogin: () => {
+        this.deps.runInTerminal(cli.cliPath, MUSE_LOGIN_ARGS)
+      },
+      credentialFileModifiedAt: () => this.deps.backend.credentialFileModifiedAt(),
+      sleep: this.deps.sleep,
+      now: this.deps.now,
+      pollIntervalMs: CREDENTIAL_POLL_INTERVAL_MS,
+      timeoutMs: CREDENTIAL_POLL_TIMEOUT_MS,
+    })
+    if (outcome === 'timedOut') {
+      return this.set({ ...this.snapshot, status: 'signedOut', detail: UI_TEXT.signInTimedOut })
+    }
+    await this.deps.backend.restartBackend(false)
+    return await this.refresh()
   }
 
   public get current(): AuthSnapshot {
@@ -141,29 +184,10 @@ export class AuthService {
         return this.snapshot
       }
       await this.deps.credentials.setApiKey(key)
-      await this.deps.backend.restartBackend()
+      await this.deps.backend.restartBackend(false)
       return await this.refresh()
     }
-    const cli = this.deps.backend.resolveCli()
-    if (!cli.ok) {
-      return this.set({ ...this.snapshot, status: 'noCli', detail: cli.reason })
-    }
-    this.set({ ...this.snapshot, status: 'signingIn', detail: UI_TEXT.signInWaiting })
-    const outcome = await signInWithBrowser({
-      runLogin: () => {
-        this.deps.runInTerminal(cli.cliPath, MUSE_LOGIN_ARGS)
-      },
-      credentialFileExists: () => Promise.resolve(this.deps.backend.credentialFileExists()),
-      sleep: this.deps.sleep,
-      now: this.deps.now,
-      pollIntervalMs: CREDENTIAL_POLL_INTERVAL_MS,
-      timeoutMs: CREDENTIAL_POLL_TIMEOUT_MS,
-    })
-    if (outcome === 'timedOut') {
-      return this.set({ ...this.snapshot, status: 'signedOut', detail: UI_TEXT.signInTimedOut })
-    }
-    await this.deps.backend.restartBackend()
-    return await this.refresh()
+    return await this.joinBrowserSignIn()
   }
 
   public async signOut(): Promise<AuthSnapshot> {
@@ -172,7 +196,7 @@ export class AuthService {
     if (cli.ok && this.deps.backend.credentialFileExists()) {
       this.deps.runInTerminal(cli.cliPath, MUSE_LOGOUT_ARGS)
     }
-    await this.deps.backend.restartBackend()
+    await this.deps.backend.restartBackend(true)
     return this.set({ ...this.snapshot, status: 'signedOut', detail: undefined })
   }
 

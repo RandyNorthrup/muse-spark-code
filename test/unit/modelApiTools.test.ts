@@ -21,6 +21,7 @@ function context(files: Record<string, string> = {}, platform: NodeJS.Platform =
     stderr: command.includes('warn') ? 'careful\n' : '',
     exitCode: command.includes('fail') ? 1 : 0,
     isTimedOut: command.includes('hang'),
+    isCancelled: command.includes('stop'),
   }))
   const ctx: ToolContext = { workspaceRoot: ROOT, platform, io }
   return {

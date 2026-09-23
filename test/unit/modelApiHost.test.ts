@@ -34,6 +34,7 @@ function setup(
     baseUrl: 'https://api.example.test/v1',
     apiKey: () => Promise.resolve('LLM|1|secret'),
     sleep: () => Promise.resolve(),
+    now: () => 0,
     random: () => 0,
     log,
   })

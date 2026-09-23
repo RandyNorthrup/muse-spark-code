@@ -128,4 +128,15 @@ describe('IdeMcpServer', () => {
     server.close()
     expect(server.current).toBeUndefined()
   })
+
+  it('shares a start in flight and can start again after a close (D25)', async () => {
+    const log = new FakeLogOutputChannel()
+    const server = new IdeMcpServer([tool], log)
+    servers.push(server)
+    const [first, second] = await Promise.all([server.start(), server.start()])
+    expect(second).toBe(first)
+    server.close()
+    const again = await server.start()
+    expect(again.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/)
+  })
 })

@@ -110,6 +110,20 @@ export const SHELL_SANDBOX_MODES = ['auto', 'muse', 'off'] as const
 export type ShellSandboxMode = (typeof SHELL_SANDBOX_MODES)[number]
 export const SHELL_SANDBOX_SETTING = 'museSpark.shellSandbox'
 export const BYPASS_SETTING = 'museSpark.allowDangerouslySkipPermissions'
+// Settings `muse serve` takes at spawn: changing one restarts it (PLAN.md D25).
+export const CLI_PROCESS_SETTINGS = [
+  'museSpark.museBinaryPath',
+  'museSpark.environmentVariables',
+  'http.proxy',
+  'http.noProxy',
+] as const
+// VS Code's proxy settings, handed to `muse serve` when its environment has none.
+export const HTTP_SETTINGS_SECTION = 'http'
+export const HTTP_PROXY_SETTING = 'proxy'
+export const HTTP_NO_PROXY_SETTING = 'noProxy'
+// The terminal environment settings the Model API shell tool applies (D25).
+export const TERMINAL_ENV_SECTION = 'terminal.integrated.env'
+export const TERMINAL_ENV_KEYS = { windows: 'windows', osx: 'osx', linux: 'linux' } as const
 
 // Which backend hosts conversations (PLAN.md D1, M7): `auto` takes Muse
 // Code when the CLI is installed and the Model API when only a key is
@@ -323,6 +337,8 @@ export const MODEL_API_MAX_RETRIES = 4
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
+// The model list and the token count have no turn to stop them (PLAN.md D25).
+export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
 export const HTTP_UNAUTHORIZED = 401
 // The turn error kind both backends report when the credential is refused;
 // the controller turns it into the signed-out gate.
@@ -421,7 +437,13 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 export const LIST_FILES_DEFAULT_LIMIT = 500
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 export const SHELL_MAX_TIMEOUT_MS = 600_000
-export const SHELL_OUTPUT_MAX_BYTES = 4 * 1024 * 1024
+// Per stream: past it the middle of the output is dropped with a count.
+export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
+// After the shell exits, how long its output may keep arriving before the
+// tool returns anyway: a background process it started (`server &`) can
+// hold the pipes open for as long as it runs (PLAN.md D25).
+export const SHELL_DRAIN_GRACE_MS = 250
+export const WINDOWS_TASKKILL_RELATIVE_PATH = String.raw`System32\taskkill.exe`
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
@@ -547,6 +569,40 @@ export const OUTPUT_DOCUMENTS_KEPT = 20
 // The IDE tool server `muse serve` reaches over loopback (session MCP), and
 // the `session/listChanged` stream behind the History dialog (M6).
 export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream'] as const
+// How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
+// timeouts of its own, INV-006): the handshake, an ordinary command, and the
+// commands that load or copy a whole session. Past them the command fails
+// with a message instead of leaving the panel waiting for ever.
+export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
+export const MSP_COMMAND_TIMEOUT_MS = 60_000
+export const MSP_LONG_COMMAND_TIMEOUT_MS = 180_000
+export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
+  'session/resume',
+  'session/fork',
+  'session/read',
+  'session/compact',
+])
+// Muse Code's documented exit codes (SDK `classifyExit`): what each means
+// for the user, and whether restarting can help.
+export const MUSE_EXIT_MEANINGS: Readonly<
+  Record<number, { readonly text: string; readonly isPersistent: boolean }>
+> = {
+  0: { text: 'Muse Code stopped', isPersistent: false },
+  1: { text: 'Muse Code failed with an unhandled error', isPersistent: false },
+  2: { text: 'Muse Code rejected its command line (a usage error)', isPersistent: true },
+  3: {
+    text: 'Muse Code refused its configuration; check its settings.json and museSpark.environmentVariables',
+    isPersistent: true,
+  },
+  4: {
+    text: 'another Muse Code client holds this session; it frees once that client exits',
+    isPersistent: false,
+  },
+  5: {
+    text: 'this Muse Code build does not serve the SDK surface the extension uses; update Muse Code',
+    isPersistent: true,
+  },
+}
 export const IDE_MCP_SERVER_NAME = 'ide'
 export const IDE_MCP_SERVER_INFO = { name: 'muse_spark_ide', version: '1' } as const
 export const IDE_MCP_PATH = '/mcp'
@@ -570,6 +626,7 @@ export const HTTP_STATUS = {
   unauthorized: 401,
   notFound: 404,
   methodNotAllowed: 405,
+  internalServerError: 500,
 } as const
 
 // Muse Code versions whose Windows sandbox cannot enter C:\Users\<user>, so a
@@ -681,18 +738,11 @@ export const MUSE_WINDOWS_INSTALL_SEGMENTS = ['Programs', 'muse'] as const
 export const MUSE_POSIX_INSTALL_SEGMENTS = ['.local', 'bin'] as const
 export const MUSE_CMD_FILE = 'muse.cmd'
 export const MUSE_POSIX_EXECUTABLE = 'muse'
-export const MUSE_LAUNCHER_PS1_FILE = '.muse-launcher.ps1'
 export const MUSE_VERSION_FILE = '.muse-version'
 export const MUSE_BIN_PREFIX = 'muse-bin-'
 export const MUSE_WINDOWS_EXE_SUFFIX = '.exe'
 export const MUSE_CREDENTIAL_FILE_SEGMENTS = ['muse', 'auth.json'] as const
 export const WINDOWS_POWERSHELL_RELATIVE_PATH = String.raw`System32\WindowsPowerShell\v1.0\powershell.exe`
-export const WINDOWS_POWERSHELL_ARGS = [
-  '-NoProfile',
-  '-ExecutionPolicy',
-  'Bypass',
-  '-File',
-] as const
 // Windows PowerShell running one inline script (the UAC relaunch for the
 // sandbox setup); `-NonInteractive` turns any prompt into an error.
 export const WINDOWS_POWERSHELL_COMMAND_ARGS = [
@@ -766,8 +816,17 @@ export const UI_TEXT = {
   apiKeyInvalid: 'A Model API key looks like LLM|<numeric id>|<secret>.',
   signInWaiting: 'Waiting for the browser sign-in to finish…',
   signInTimedOut: 'The sign-in did not complete in time. Try again.',
-  hostExited: 'Muse Code stopped unexpectedly.',
+  hostExited: 'Muse Code stopped unexpectedly',
   hostStarting: 'Starting Muse Code…',
+  // PLAN.md D25: restarts, crashes and closed sessions continue the conversation.
+  hostRestartsOnSend: 'The next message restarts it and continues this conversation.',
+  turnStoppedByRestart: 'Stopped: the backend restarted',
+  sessionClosedByHost: 'Muse Code closed this session',
+  sessionResumesOnSend: 'The next message resumes it.',
+  sessionContinued: 'Conversation continued after the restart.',
+  sessionNotContinued:
+    'The conversation could not be continued after the restart, so this message starts a new one',
+  surfaceClosed: 'The panel was closed',
   hostStartFailed: 'The backend could not start',
   decisionErrorNotice:
     'Muse Code reported an error for the decision (the tool may have run anyway)',
@@ -1170,10 +1229,12 @@ export const UI_TEXT = {
   trustGrantedNotice:
     'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:
-    'The shell sandbox setting changed; Muse Code restarts with it on the next message. Start a new conversation to continue.',
+    'A Muse Code setting changed; Muse Code restarts with it on the next message and continues this conversation.',
   sandboxProfileNotice: String.raw`This workspace is under your user profile, which the Windows sandbox of this Muse Code version cannot enter: shell commands will start in the PowerShell folder instead of the project and take about half a minute each. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
 } as const
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for
 // `createTerminal({ shellPath })` when running `muse login` / `muse logout`.
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
+// The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
+export const POSIX_TERMINAL_SHELL = '/bin/sh'

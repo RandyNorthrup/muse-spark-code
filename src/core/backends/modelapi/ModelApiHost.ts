@@ -43,6 +43,7 @@ import type {
   AgentSession,
   ApprovalDecision,
   CompactOutcome,
+  HostExit,
   HostInfo,
   ListSessionsOptions,
   LoadedSession,
@@ -62,7 +63,7 @@ import type {
 import { type SkillDefinition } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
-import { MissingApiKeyError, type ModelApiClient, ModelApiError } from './client'
+import { MissingApiKeyError, type ModelApiClient, ModelApiError, type RetryNotice } from './client'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
 import {
   APPROVAL_CHOICE_IDS,
@@ -352,6 +353,8 @@ export class ModelApiSession implements AgentSession {
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   private firstPrompt: string | undefined
   private isDisposed = false
+  /** The surfaces holding this session: closing one must not cancel another's turn. */
+  private holders = 1
   public modelId: string
   public name: string | undefined
   public createdAt: string
@@ -631,7 +634,18 @@ export class ModelApiSession implements AgentSession {
   ): Promise<readonly FunctionCallItem[]> {
     const open = new Map<string, OpenItem>()
     let final: ResponseObject | undefined
-    for await (const event of this.deps.client.streamResponse(this.body(), signal)) {
+    // A retried request is announced in the transcript, as Muse Code's are (D25).
+    const onRetry = (notice: RetryNotice) => {
+      this.emit({
+        type: 'turnRetry',
+        turnId,
+        attempt: notice.attempt,
+        maxAttempts: notice.maxAttempts,
+        retryDelayMs: notice.delayMs,
+        reason: notice.reason,
+      })
+    }
+    for await (const event of this.deps.client.streamResponse(this.body(), signal, onRetry)) {
       final = this.applyStreamEvent(event, open, turnId) ?? final
     }
     if (final === undefined) {
@@ -832,6 +846,7 @@ export class ModelApiSession implements AgentSession {
           workspaceRoot: this.deps.workspaceRoot,
           platform: this.deps.platform,
           io: this.deps.io,
+          signal,
         })
       }
     }
@@ -1237,14 +1252,30 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve(name)
   }
 
+  /** One more surface holds this session (a second panel resumed it, PLAN.md D25). */
+  public retain(): void {
+    this.holders += 1
+  }
+
+  /** Releases a surface's hold; the last one stops the turn and forgets the session. */
   public dispose(): void {
     if (this.isDisposed) {
+      return
+    }
+    this.holders -= 1
+    if (this.holders > 0) {
       return
     }
     this.isDisposed = true
     void this.cancel()
     this.listeners.clear()
     this.onDispose()
+  }
+
+  /** The host is closing: the session goes whoever still holds it. */
+  public disposeAll(): void {
+    this.holders = 1
+    this.dispose()
   }
 
   // --- host-side views ---
@@ -1407,6 +1438,7 @@ export class ModelApiHost implements AgentHost {
   private revive(sessionId: string): ModelApiSession | undefined {
     const live = this.sessions.get(sessionId)
     if (live !== undefined) {
+      live.retain()
       return live
     }
     const stored = this.stored.get(sessionId)
@@ -1441,7 +1473,7 @@ export class ModelApiHost implements AgentHost {
     return this.saving
   }
 
-  public onExit(_listener: (description: string) => void): () => void {
+  public onExit(_listener: (exit: HostExit) => void): () => void {
     // No process behind this host: nothing ever exits.
     return NO_UNSUBSCRIBE
   }
@@ -1511,7 +1543,9 @@ export class ModelApiHost implements AgentHost {
     modelId: string,
     lastTurnId?: string,
   ): Promise<LoadedSession> {
-    const source = this.revive(sessionId)
+    // Copying needs no hold on a live source; a stored one is revived only for the copy.
+    const live = this.sessions.get(sessionId)
+    const source = live ?? this.revive(sessionId)
     if (source === undefined) {
       return Promise.reject(new Error(`session ${sessionId} is not held by this window`))
     }
@@ -1522,6 +1556,10 @@ export class ModelApiHost implements AgentHost {
     } catch (error: unknown) {
       fork.dispose()
       return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+    } finally {
+      if (live === undefined) {
+        source.dispose()
+      }
     }
     this.announce(fork)
     return Promise.resolve(this.loaded(fork))
@@ -1555,7 +1593,7 @@ export class ModelApiHost implements AgentHost {
   public async close(): Promise<void> {
     // Disposing removes the entry; a Map iterator tolerates that.
     for (const session of this.sessions.values()) {
-      session.dispose()
+      session.disposeAll()
     }
     await this.saving
   }

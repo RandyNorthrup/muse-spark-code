@@ -40,6 +40,8 @@ export interface ShellResult {
   readonly stderr: string
   readonly exitCode: number | null
   readonly isTimedOut: boolean
+  /** Stopped because the turn was (the Stop button, PLAN.md D25). */
+  readonly isCancelled: boolean
 }
 
 /** One `search` run: the model's pattern over the files that passed the glob. */
@@ -72,7 +74,13 @@ export interface ToolIo {
   listDirectory(absolutePath: string): Promise<readonly string[]>
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
   searchFiles(job: SearchJob): Promise<SearchOutcome>
-  runShell(command: string, cwd: string, timeoutMs: number): Promise<ShellResult>
+  /** A timeout or the signal kills the whole process tree (PLAN.md D25). */
+  runShell(
+    command: string,
+    cwd: string,
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): Promise<ShellResult>
   /**
    * The canonical form of an absolute path: links, junctions and short
    * names resolved through the nearest existing ancestor (PLAN.md D24).
@@ -85,6 +93,8 @@ export interface ToolContext {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
+  /** The turn's: aborting it stops a running command (PLAN.md D25). */
+  readonly signal?: AbortSignal
 }
 
 export interface ToolOutcome {
@@ -148,6 +158,7 @@ export const readSkillArgs = z.object({ id: z.string() })
 export const todoWriteArgs = z.object({ items: z.array(todoItemSchema) })
 
 const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
+const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
@@ -695,16 +706,24 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     Math.max(args.timeout_ms ?? SHELL_DEFAULT_TIMEOUT_MS, 1),
     SHELL_MAX_TIMEOUT_MS,
   )
-  const result = await context.io.runShell(args.command, context.workspaceRoot, timeoutMs)
+  const result = await context.io.runShell(
+    args.command,
+    context.workspaceRoot,
+    timeoutMs,
+    context.signal,
+  )
   const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()].filter((part) => part !== '')
-  const exit = result.isTimedOut
-    ? `stopped after ${String(timeoutMs)} ms`
-    : `exit code ${String(result.exitCode ?? 'unknown')}`
+  let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
+  if (result.isCancelled) {
+    exit = SHELL_STOPPED_BY_USER
+  } else if (result.isTimedOut) {
+    exit = `stopped after ${String(timeoutMs)} ms`
+  }
   const body = clip(`${parts.join('\n')}\n[${exit}]`.trim())
   return {
     output: body,
     visibleOutput: body,
-    ...(result.isTimedOut && { failureReason: exit }),
+    ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
   }
 }
 

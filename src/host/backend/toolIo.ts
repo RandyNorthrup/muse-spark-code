@@ -11,8 +11,10 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
 import {
+  deleteEnvironmentVariable,
   environmentValue,
   setEnvironmentVariable,
   windowsPowerShellModulePath,
@@ -26,18 +28,24 @@ import type {
 import { resolveExecutable } from '../../core/executables'
 import {
   SEARCH_TIMEOUT_MS,
-  SHELL_OUTPUT_MAX_BYTES,
+  SHELL_DRAIN_GRACE_MS,
+  SHELL_OUTPUT_MAX_CHARS,
+  type TERMINAL_ENV_KEYS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
 } from '../../shared/constants'
 import { canonicalPath } from '../canonicalPath'
+import { killTree, type ProcessTreeDeps, treeSpawnOptions } from '../processTree'
 
 export interface ToolIoDeps {
   readonly platform: NodeJS.Platform
   readonly listFiles: () => Promise<readonly string[]>
   readonly systemRoot: string | undefined
-  readonly env: NodeJS.ProcessEnv
+  /** The environment for the next command: read per command, so a changed setting applies. */
+  readonly env: () => NodeJS.ProcessEnv
   /** The bundled `searchWorker.js`. */
   readonly searchWorkerPath: string
+  /** Where a failed tree kill is reported. */
+  readonly log: (message: string) => void
 }
 
 const SEARCH_TIMED_OUT = `search stopped after ${String(SEARCH_TIMEOUT_MS)} ms`
@@ -77,7 +85,6 @@ export function searchOnWorker(
 }
 
 const ENOENT = 'ENOENT'
-const SIGKILL = 'SIGKILL'
 const BASH = 'bash'
 const POWERSHELL = 'powershell'
 const PATH_VARIABLE = 'PATH'
@@ -98,6 +105,48 @@ const HOST_ONLY_VARIABLES: readonly RegExp[] = [
 
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
+}
+
+const ENV_REFERENCE = /\$\{env:([^}]+)\}/g
+const WORKSPACE_FOLDER_REFERENCE = '${workspaceFolder}'
+
+/** The `terminal.integrated.env.*` key for a platform. */
+export function terminalPlatform(
+  platform: NodeJS.Platform = process.platform,
+): keyof typeof TERMINAL_ENV_KEYS {
+  if (platform === 'win32') {
+    return 'windows'
+  }
+  return platform === 'darwin' ? 'osx' : 'linux'
+}
+
+/**
+ * `base` with the user's `terminal.integrated.env.<platform>` applied as VS
+ * Code's terminal applies it (PLAN.md D25; Cline #7793 is the gotcha when a
+ * harness does not): a value replaces the variable, `null` removes it, and
+ * `${env:NAME}` and `${workspaceFolder}` are substituted.
+ */
+export function withTerminalOverrides(
+  base: NodeJS.ProcessEnv,
+  overrides: Readonly<Record<string, string | null>>,
+  platform: NodeJS.Platform,
+  workspaceRoot: string | undefined,
+): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...base }
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === null) {
+      deleteEnvironmentVariable(env, platform, name)
+      continue
+    }
+    const resolved = value
+      .replaceAll(
+        ENV_REFERENCE,
+        (_reference, variable: string) => environmentValue(base, platform, variable) ?? '',
+      )
+      .replaceAll(WORKSPACE_FOLDER_REFERENCE, () => workspaceRoot ?? '')
+    setEnvironmentVariable(env, platform, name, resolved)
+  }
+  return env
 }
 
 /** The shell tool's environment: the user's, without the extension host's own plumbing. */
@@ -155,8 +204,7 @@ export function shellArguments(platform: NodeJS.Platform, command: string): read
 }
 
 export function createToolIo(deps: ToolIoDeps): ToolIo {
-  const env = shellEnvironment(deps.env, deps.platform, deps.systemRoot)
-  const interpreter = shellInterpreter(deps.platform, deps.systemRoot, deps.env, existsSync)
+  const interpreter = shellInterpreter(deps.platform, deps.systemRoot, deps.env(), existsSync)
   return {
     async readFile(absolutePath) {
       try {
@@ -185,7 +233,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     },
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
-    runShell(command, cwd, timeoutMs) {
+    runShell(command, cwd, timeoutMs, signal) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return Promise.resolve({
@@ -193,50 +241,140 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           stderr: `${missing} was not found on the absolute entries of PATH`,
           exitCode: null,
           isTimedOut: false,
+          isCancelled: false,
         })
       }
-      return new Promise<ShellResult>((resolve) => {
-        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
-        const child = spawn(interpreter, [...shellArguments(deps.platform, command)], {
-          cwd,
-          env,
-          windowsHide: true,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        let stdout = ''
-        let stderr = ''
-        let isTimedOut = false
-        let captured = 0
-        const capture = (chunk: Buffer, sink: (text: string) => void) => {
-          if (captured >= SHELL_OUTPUT_MAX_BYTES) {
-            return
-          }
-          captured += chunk.length
-          sink(chunk.toString('utf8'))
-        }
-        child.stdout.on('data', (chunk: Buffer) => {
-          capture(chunk, (text) => {
-            stdout += text
-          })
-        })
-        child.stderr.on('data', (chunk: Buffer) => {
-          capture(chunk, (text) => {
-            stderr += text
-          })
-        })
-        const timer = setTimeout(() => {
-          isTimedOut = true
-          child.kill(SIGKILL)
-        }, timeoutMs)
-        child.on('error', (error) => {
-          clearTimeout(timer)
-          resolve({ stdout, stderr: `${stderr}${error.message}`, exitCode: null, isTimedOut })
-        })
-        child.on('close', (code) => {
-          clearTimeout(timer)
-          resolve({ stdout, stderr, exitCode: code, isTimedOut })
-        })
+      return runCommand({
+        file: interpreter,
+        args: shellArguments(deps.platform, command),
+        cwd,
+        env: shellEnvironment(deps.env(), deps.platform, deps.systemRoot),
+        timeoutMs,
+        signal,
+        tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
       })
     },
   }
+}
+
+/**
+ * One stream's text within a budget: the head and the tail are kept and the
+ * middle dropped with a count, so a flood of output still shows how it
+ * ended (the error is usually last).
+ */
+export class BoundedText {
+  private head = ''
+  private tail = ''
+  private omitted = 0
+  private readonly decoder = new StringDecoder('utf8')
+
+  public constructor(private readonly maxChars: number) {}
+
+  private add(text: string): void {
+    const half = Math.floor(this.maxChars / 2)
+    const room = Math.max(half - this.head.length, 0)
+    this.head += text.slice(0, room)
+    this.tail += text.slice(room)
+    const excess = this.tail.length - half
+    if (excess <= 0) {
+      return
+    }
+    this.omitted += excess
+    this.tail = this.tail.slice(-half)
+  }
+
+  public push(chunk: Buffer): void {
+    this.add(this.decoder.write(chunk))
+  }
+
+  public text(): string {
+    this.add(this.decoder.end())
+    return this.omitted === 0
+      ? `${this.head}${this.tail}`
+      : `${this.head}\n[${String(this.omitted)} characters omitted]\n${this.tail}`
+  }
+}
+
+export interface CommandRun {
+  readonly file: string
+  readonly args: readonly string[]
+  readonly cwd: string
+  readonly env: NodeJS.ProcessEnv
+  readonly timeoutMs: number
+  readonly signal: AbortSignal | undefined
+  readonly tree: ProcessTreeDeps
+}
+
+/**
+ * Runs one process to its exit (PLAN.md D25). A timeout or an abort kills
+ * the whole process tree; the result is settled on exit plus a short drain
+ * of the output, never on the pipes closing, so a background process the
+ * command left running cannot hold the tool call open.
+ */
+export function runCommand(run: CommandRun): Promise<ShellResult> {
+  return new Promise<ShellResult>((resolve) => {
+    if (run.signal?.aborted === true) {
+      resolve({ stdout: '', stderr: '', exitCode: null, isTimedOut: false, isCancelled: true })
+      return
+    }
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
+    const child = spawn(run.file, [...run.args], {
+      cwd: run.cwd,
+      env: run.env,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...treeSpawnOptions(run.tree.platform),
+    })
+    const stdout = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
+    const stderr = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
+    let isTimedOut = false
+    let isCancelled = false
+    let isSettled = false
+    let drain: NodeJS.Timeout | undefined
+    const onAbort = () => {
+      isCancelled = true
+      killTree(child, run.tree)
+    }
+    const timer = setTimeout(() => {
+      isTimedOut = true
+      killTree(child, run.tree)
+    }, run.timeoutMs)
+    const settle = (exitCode: number | null, failure = '') => {
+      if (isSettled) {
+        return
+      }
+      isSettled = true
+      clearTimeout(timer)
+      clearTimeout(drain)
+      run.signal?.removeEventListener('abort', onAbort)
+      // Our ends of the pipes; whatever still writes to them is not waited for.
+      child.stdout.destroy()
+      child.stderr.destroy()
+      resolve({
+        stdout: stdout.text(),
+        stderr: `${stderr.text()}${failure}`,
+        exitCode,
+        isTimedOut,
+        isCancelled,
+      })
+    }
+    run.signal?.addEventListener('abort', onAbort, { once: true })
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout.push(chunk)
+    })
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr.push(chunk)
+    })
+    child.on('error', (error) => {
+      settle(null, error.message)
+    })
+    child.on('exit', (code) => {
+      drain = setTimeout(() => {
+        settle(code)
+      }, SHELL_DRAIN_GRACE_MS)
+    })
+    child.on('close', (code) => {
+      settle(code)
+    })
+  })
 }

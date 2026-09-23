@@ -22,6 +22,7 @@ export function memoryToolIo(
     stderr: '',
     exitCode: 0,
     isTimedOut: false,
+    isCancelled: false,
   }),
   links: Record<string, string> = {},
 ): MemoryToolIo {
@@ -96,7 +97,8 @@ export const noopToolIo: ToolIo = {
   listFiles: () => Promise.resolve([]),
   listDirectory: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),
-  runShell: () => Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false }),
+  runShell: () =>
+    Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }),
 }
 
 /** The `{ io, workspaceRoot, platform }` the context loaders take, over an in-memory tree. */

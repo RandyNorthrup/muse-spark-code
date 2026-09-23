@@ -84,6 +84,7 @@ async function runDrill(): Promise<{ sessionId: string; text: string }> {
     getShellSandbox: () => 'off',
     userProfileDir: process.env['USERPROFILE'],
     isWorkspaceTrusted: () => true,
+    getProxySettings: () => ({ proxy: '', noProxy: [] }),
   })
   const events: AgentEvent[] = []
   try {

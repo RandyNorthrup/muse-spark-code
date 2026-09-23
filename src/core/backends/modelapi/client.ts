@@ -12,6 +12,7 @@ import {
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
   MODEL_API_RETRYABLE_STATUSES,
+  MODEL_API_REQUEST_TIMEOUT_MS,
   MILLISECONDS_PER_SECOND,
 } from '../../../shared/constants'
 import type { CoreLogger } from '../../logging'
@@ -32,6 +33,8 @@ export interface ModelApiClientDeps {
   /** Read per request so a key pasted later applies without a restart. */
   readonly apiKey: () => Promise<string | undefined>
   readonly sleep: (ms: number) => Promise<void>
+  /** Epoch ms, for a `Retry-After` given as a date. */
+  readonly now: () => number
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
   readonly random: () => number
   readonly log: CoreLogger
@@ -92,18 +95,68 @@ async function describeFailure(response: Response): Promise<ModelApiError> {
   )
 }
 
-/** `Retry-After` in milliseconds when the header carries a delay in seconds. */
-function retryAfterMs(response: Response): number | undefined {
-  const header = response.headers.get(RETRY_AFTER_HEADER)
-  if (header === null) {
+/**
+ * `Retry-After` in milliseconds: a delay in seconds, or an HTTP date (RFC
+ * 9110 §10.2.3 allows both; PLAN.md D25), measured from `now`.
+ */
+export function retryAfterMs(header: string | null, now: number): number | undefined {
+  if (header === null || header.trim() === '') {
     return undefined
   }
   const seconds = Number(header)
-  return Number.isFinite(seconds) && seconds >= 0 ? seconds * MILLISECONDS_PER_SECOND : undefined
+  if (Number.isFinite(seconds)) {
+    return seconds >= 0 ? seconds * MILLISECONDS_PER_SECOND : undefined
+  }
+  const at = Date.parse(header)
+  return Number.isNaN(at) ? undefined : Math.max(at - now, 0)
+}
+
+/** One retry the client is about to make, for the transcript's notice. */
+export interface RetryNotice {
+  readonly attempt: number
+  readonly maxAttempts: number
+  readonly delayMs: number
+  readonly reason: string
+}
+
+/** Rejects as soon as `signal` aborts, instead of sleeping the retry delay out. */
+function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; dispose(): void } {
+  let onAbort: (() => void) | undefined
+  const promise = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      reject(new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+  return {
+    promise,
+    dispose: () => {
+      if (onAbort !== undefined) {
+        signal.removeEventListener('abort', onAbort)
+      }
+    },
+  }
 }
 
 export class ModelApiClient {
   public constructor(private readonly deps: ModelApiClientDeps) {}
+
+  /** The retry delay, cut short by the turn's Stop. */
+  private async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
+    if (signal === undefined) {
+      await this.deps.sleep(ms)
+      return
+    }
+    if (signal.aborted) {
+      throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+    }
+    const aborted = whenAborted(signal)
+    try {
+      await Promise.race([this.deps.sleep(ms), aborted.promise])
+    } finally {
+      aborted.dispose()
+    }
+  }
 
   private async headers(): Promise<Record<string, string>> {
     const key = await this.deps.apiKey()
@@ -127,9 +180,19 @@ export class ModelApiClient {
     path: string,
     init: { readonly method: 'GET' | 'POST'; readonly body?: unknown; readonly accept: string },
     signal: AbortSignal | undefined,
+    onRetry?: (notice: RetryNotice) => void,
   ): Promise<Response> {
     const headers = { ...(await this.headers()), Accept: init.accept }
     const url = `${this.deps.baseUrl}${path}`
+    const retry = async (attempt: number, delay: number, reason: string) => {
+      onRetry?.({
+        attempt: attempt + 1,
+        maxAttempts: MODEL_API_MAX_RETRIES + 1,
+        delayMs: delay,
+        reason,
+      })
+      await this.pause(delay, signal)
+    }
     for (let attempt = 0; ; attempt += 1) {
       let response: Response
       try {
@@ -151,8 +214,9 @@ export class ModelApiClient {
               )
         }
         const delay = this.backoffMs(attempt, undefined)
+        const reason = error instanceof Error ? error.message : String(error)
         this.deps.log.warn(`Model API request failed to send; retrying in ${String(delay)} ms`)
-        await this.deps.sleep(delay)
+        await retry(attempt, delay, reason)
         continue
       }
       if (response.ok) {
@@ -162,20 +226,24 @@ export class ModelApiClient {
       if (!MODEL_API_RETRYABLE_STATUSES.has(response.status) || attempt >= MODEL_API_MAX_RETRIES) {
         throw failure
       }
-      const delay = this.backoffMs(attempt, retryAfterMs(response))
+      const delay = this.backoffMs(
+        attempt,
+        retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()),
+      )
       this.deps.log.warn(
         `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
       )
-      await this.deps.sleep(delay)
+      await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
     }
   }
 
   /** The chat model ids the key can use, as the catalogue lists them. */
   public async listModels(): Promise<readonly string[]> {
+    // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
     const response = await this.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
-      undefined,
+      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
     const parsed = modelListSchema.parse(await response.json())
     return parsed.data.map((model) => model.id)
@@ -186,7 +254,7 @@ export class ModelApiClient {
     const response = await this.request(
       '/responses/input_tokens',
       { method: 'POST', body, accept: JSON_MEDIA_TYPE },
-      undefined,
+      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
     return inputTokensSchema.parse(await response.json()).input_tokens
   }
@@ -199,11 +267,13 @@ export class ModelApiClient {
   public async *streamResponse(
     body: CreateResponseBody,
     signal: AbortSignal,
+    onRetry?: (notice: RetryNotice) => void,
   ): AsyncGenerator<StreamEvent> {
     const response = await this.request(
       '/responses',
       { method: 'POST', body, accept: EVENT_STREAM_MEDIA_TYPE },
       signal,
+      onRetry,
     )
     if (response.body === null) {
       throw new ModelApiError('The response had no body', response.status, undefined, undefined)

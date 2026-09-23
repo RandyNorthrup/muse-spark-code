@@ -405,8 +405,15 @@ moves every open conversation out of Bypass at once.
 | `archiveInactiveSessions`         | `14`     | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                             |
 | `backend`                         | `auto`   | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI                                                                                         |
 | `shellSandbox`                    | `auto`   | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Changing it restarts the host |
-| `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir                                                                                                                                                            |
-| `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in                                                                                                                                                               |
+| `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                 |
+| `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process (an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too). Never put API keys here; use Sign in. Changing it restarts the host                                |
+
+Muse Code also gets VS Code's `http.proxy` (and `http.noProxy`) as
+`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` when its environment sets none.
+The Model API backend's shell tool applies `terminal.integrated.env.*` the
+way VS Code's terminal does. A restart of Muse Code, for a setting, trust
+granted, a sign-in or a crash, keeps the conversation: the running turn is
+stopped and the next message resumes the same session.
 
 ## Requirements
 

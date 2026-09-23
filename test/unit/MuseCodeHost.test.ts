@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import { SessionNotLoadedError } from '../../src/core/agent/agentBackend'
+import {
+  type CommandTimeouts,
+  describeExit,
+  MuseCodeHost,
+} from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMspHost, settle } from './helpers/fakeMsp'
@@ -9,7 +14,7 @@ const ack = (params: Record<string, unknown>) => ({
   commandId: params['commandId'],
 })
 
-function setup() {
+function setup(options: { timeouts?: CommandTimeouts } = {}) {
   const handle = fakeMspHost()
   const log = new FakeLogOutputChannel()
   handle.server.handle('session/start', (params) => ({
@@ -84,7 +89,7 @@ function setup() {
       },
     ],
   }))
-  const host = new MuseCodeHost(handle.host, log)
+  const host = new MuseCodeHost(handle.host, log, options.timeouts)
   return { ...handle, log, host }
 }
 
@@ -378,14 +383,110 @@ describe('MuseCodeHost', () => {
     })
   })
 
-  it('reports the host exit to listeners', async () => {
+  it('reports a crash to listeners, with what the exit code means (D25)', async () => {
     const { host, exit, log } = setup()
     const listener = vi.fn()
     host.onExit(listener)
-    exit(1, null)
+    exit(3, null)
     await settle()
-    expect(listener).toHaveBeenCalledWith('code 1, signal null')
-    expect(log.warn).toHaveBeenCalledWith('muse serve exited (code 1, signal null)')
+    expect(listener).toHaveBeenCalledWith({
+      description:
+        'Muse Code refused its configuration; check its settings.json and museSpark.environmentVariables (exit 3)',
+      isExpected: false,
+      isPersistent: true,
+    })
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('muse serve exited (Muse Code refused'),
+    )
+  })
+
+  it('reports its own close as expected, not as a crash (D25)', async () => {
+    const { host, exit } = setup()
+    const listener = vi.fn()
+    host.onExit(listener)
+    await host.close()
+    exit(0, null)
+    await settle()
+    expect(listener).toHaveBeenCalledWith({
+      description: 'Muse Code stopped (exit 0)',
+      isExpected: true,
+      isPersistent: false,
+    })
+  })
+
+  it('keeps listening after a notification handler throws (D25)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    let calls = 0
+    session.onEvent(() => {
+      calls += 1
+      if (calls === 1) {
+        throw new Error('listener bug')
+      }
+    })
+    const { sessionId } = session
+    server.notify('session/statusChanged', { sessionId, status: 'running' })
+    server.notify('session/statusChanged', { sessionId, status: 'idle' })
+    await settle()
+    expect(calls).toBe(2)
+  })
+
+  it('fails a command that never answers instead of waiting for ever (D25)', async () => {
+    const { host, server } = setup({ timeouts: { normalMs: 50, longMs: 100 } })
+    server.silence('model/list')
+    await expect(host.listModels()).rejects.toThrow(
+      'Muse Code did not answer model/list within 0 s',
+    )
+  })
+
+  it('turns sessionNotLoaded into SessionNotLoadedError (D25)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.handle('turn/start', () => {
+      throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+    })
+    const failure = session.sendTurn([{ type: 'text', text: 'hi' }])
+    await expect(failure).rejects.toBeInstanceOf(SessionNotLoadedError)
+    await expect(failure).rejects.toMatchObject({ sessionId: session.sessionId })
+  })
+
+  it('shares one handle between two surfaces on the same session (D25)', async () => {
+    const { host } = setup()
+    const first = await host.startSession(startOptions)
+    const second = await host.startSession(startOptions)
+    expect(second).toBe(first)
+    const listener = vi.fn()
+    second.onEvent(listener)
+    first.dispose()
+    // The other surface still hears its session.
+    expect(host.sessionCount).toBe(1)
+    first.emit({ type: 'sessionStatus', status: 'idle' })
+    expect(listener).toHaveBeenCalledOnce()
+    second.dispose()
+    expect(host.sessionCount).toBe(0)
+  })
+
+  it('describes every documented exit code and a signal', () => {
+    expect(describeExit({ code: null, signal: 'SIGKILL' }, false)).toEqual({
+      description: 'Muse Code was stopped by SIGKILL',
+      isExpected: false,
+      isPersistent: false,
+    })
+    expect(describeExit({ code: 4, signal: null }, false)).toMatchObject({ isPersistent: false })
+    expect(describeExit({ code: 5, signal: null }, false)).toMatchObject({ isPersistent: true })
+    expect(describeExit({ code: 2, signal: null }, false)).toMatchObject({ isPersistent: true })
+    expect(describeExit({ code: 77, signal: null }, true)).toEqual({
+      description: 'Muse Code exited with code 77',
+      isExpected: true,
+      isPersistent: false,
+    })
+  })
+
+  it('closes a host whose connection ended while the process lived (D25)', async () => {
+    const { server, closeCalls } = setup()
+    server.close()
+    await settle()
+    expect(closeCalls()).toBe(1)
   })
 
   it('disposes sessions and closes the process on close', async () => {
