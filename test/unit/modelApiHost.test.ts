@@ -1,5 +1,7 @@
+import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
+import { UI_TEXT } from '../../src/shared/constants'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import {
   ModelApiHost,
@@ -48,7 +50,7 @@ function setup(
     store: options.store,
     describeEnvironment: options.describeEnvironment ?? (() => Promise.resolve({ git: undefined })),
   })
-  return { api, host, log, files: io.files, shellCalls: io.shellCalls }
+  return { api, host, log, io, files: io.files, shellCalls: io.shellCalls }
 }
 
 async function startSession(
@@ -88,6 +90,17 @@ async function approvalRequest(
     throw new Error('expected an approval request')
   }
   return request
+}
+
+/** One plain turn: "first", answered "first reply". */
+async function answerFirst(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  turnDone: () => Promise<void>,
+): Promise<void> {
+  t.api.script({ text: 'first reply' })
+  await session.sendTurn([{ type: 'text', text: 'first' }])
+  await turnDone()
 }
 
 /** One turn that reads a.txt and answers, with the fake API scripted for it. */
@@ -173,6 +186,7 @@ describe('ModelApiHost: catalogue and sessions', () => {
       serverName: 'meta-model-api',
       serverVersion: 'v1',
       grantedCapabilities: [],
+      canEditSessions: true,
     })
     expect(t.host.onExit(() => undefined)).toBeTypeOf('function')
     await expect(
@@ -189,9 +203,7 @@ describe('ModelApiHost: catalogue and sessions', () => {
       )
     })
     const { session, turnDone } = await startSession(t)
-    t.api.script({ text: 'first reply' })
-    await session.sendTurn([{ type: 'text', text: 'first' }])
-    await turnDone()
+    await answerFirst(t, session, turnDone)
     t.api.script({ text: 'second reply' })
     await session.sendTurn([{ type: 'text', text: 'second' }])
     await turnDone()
@@ -722,25 +734,22 @@ describe('ModelApiSession: turns', () => {
       status: 'noop',
       reason: 'no_compactable_history',
     })
-    t.api.script({ text: 'first reply' })
-    await session.sendTurn([{ type: 'text', text: 'first' }])
-    await turnDone()
+    await answerFirst(t, session, turnDone)
     t.api.script({ text: 'THE SUMMARY' })
     t.api.inputTokens = 77
     await expect(session.compact()).resolves.toEqual({ status: 'accepted', reason: undefined })
     const compactionBody = t.api.responseBodies().at(-1)
     expect(compactionBody?.['tools']).toEqual([])
     expect(JSON.stringify(compactionBody?.['input'])).toContain('Summarise this conversation')
-    expect(events.at(-2)).toMatchObject({
-      type: 'itemCompleted',
-      item: { kind: 'compaction', fallbackText: 'Context compacted' },
-    })
-    expect(events.at(-1)).toEqual({
-      type: 'contextUsage',
-      usedTokens: 77,
-      windowTokens: 1_048_576,
-      pressure: 'low',
-    })
+    // The compaction runs like a turn (D26): running, the summary, idle.
+    expect(events.slice(-3)).toEqual([
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({ kind: 'compaction', fallbackText: 'Context compacted' }),
+      }),
+      { type: 'contextUsage', usedTokens: 77, windowTokens: 1_048_576, pressure: 'low' },
+      { type: 'sessionStatus', status: 'idle' },
+    ])
     t.api.script({ text: 'later' })
     await session.sendTurn([{ type: 'text', text: 'next' }])
     await turnDone()
@@ -1159,5 +1168,204 @@ describe('ModelApiSession subagents (M18)', () => {
     await expect(asSession.messageSubagent('sub-1', 'hi', false)).rejects.toThrow(
       'runs no subagents',
     )
+  })
+})
+
+/** The `function_call_output` the replay holds for one call id, from a request body. */
+function outputFor(body: Record<string, unknown> | undefined, callId: string): unknown {
+  const input = (body?.['input'] ?? []) as readonly Record<string, unknown>[]
+  return input.find((item) => item['type'] === 'function_call_output' && item['call_id'] === callId)
+}
+
+describe('ModelApiSession: protocol semantics (D26)', () => {
+  it('answers a tool call that threw, so the conversation stays valid', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.io.writeFile = () => Promise.reject(new Error('disk full'))
+    t.api.script(
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"new.txt","content":"x"}', callId: 'call_w' },
+        ],
+      },
+      { text: 'could not write' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write it' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies()[1], 'call_w')).toMatchObject({
+      output: expect.stringContaining('disk full'),
+    })
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({ tool: 'write_file', status: 'failed' }),
+      }),
+    )
+    expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+  })
+
+  it('records a cancelled output for a call Stop cut off at its card', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({
+      calls: [{ name: 'bash', arguments: '{"command":"ls","description":"d"}', callId: 'call_s' }],
+    })
+    await session.sendTurn([{ type: 'text', text: 'list' }])
+    await approvalRequest(events, 0)
+    await session.cancel()
+    await turnDone()
+    t.api.script({ text: 'fine' })
+    await session.sendTurn([{ type: 'text', text: 'something else' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'call_s')).toEqual({
+      type: 'function_call_output',
+      call_id: 'call_s',
+      output: `Error: ${UI_TEXT.toolCancelledByStop}`,
+    })
+  })
+
+  it('gives a message typed during the final answer its own round', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'first answer' }, { text: 'about the addition' })
+    let turnId = ''
+    let hasSteered = false
+    session.onEvent((event) => {
+      if (hasSteered || event.type !== 'textDelta') {
+        return
+      }
+      hasSteered = true
+      void session.steer(turnId, [{ type: 'text', text: 'and this' }])
+    })
+    const submission = await session.sendTurn([{ type: 'text', text: 'go' }])
+    turnId = submission.turnId
+    await turnDone()
+    const bodies = t.api.responseBodies()
+    expect(bodies).toHaveLength(2)
+    expect(JSON.stringify(bodies[1]?.['input'])).toContain('and this')
+    expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(1)
+  })
+
+  it('queues a message sent during a compaction and runs it after', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    t.api.script({ text: 'THE SUMMARY' }, { text: 'after the summary' })
+    const compacting = session.compact()
+    await expect(session.sendTurn([{ type: 'text', text: 'meanwhile' }])).resolves.toMatchObject({
+      disposition: 'queued',
+    })
+    await expect(compacting).resolves.toEqual({ status: 'accepted', reason: undefined })
+    await turnDone()
+    expect(JSON.stringify(t.api.responseBodies().at(-1)?.['input'])).toContain('THE SUMMARY')
+    expect(events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
+    })
+  })
+
+  it('stops a compaction and ends the messages queued behind it with a reason', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    const compacting = session.compact()
+    const queued = await session.sendTurn([{ type: 'text', text: 'meanwhile' }])
+    await session.cancel()
+    await expect(compacting).resolves.toEqual({
+      status: 'cancelled',
+      reason: UI_TEXT.compactionStopped,
+    })
+    expect(events).toContainEqual({
+      type: 'turnCompleted',
+      turnId: queued.turnId,
+      terminal: 'cancelled',
+      reason: UI_TEXT.queuedTurnDropped,
+    })
+    // Nothing was summarised: the conversation replays as it was.
+    t.api.script({ text: 'still here' })
+    await session.sendTurn([{ type: 'text', text: 'next' }])
+    await turnDone()
+    expect(JSON.stringify(t.api.responseBodies().at(-1)?.['input'])).toContain('first reply')
+  })
+
+  it('keeps a compaction whose new size cannot be counted, and logs why', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    t.api.script({ text: 'THE SUMMARY' })
+    t.api.inputTokens = NaN
+    await expect(session.compact()).resolves.toEqual({ status: 'accepted', reason: undefined })
+    expect(t.log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('The compacted context could not be counted'),
+    )
+  })
+
+  it('pages a stored output on character boundaries', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [{ name: 'write_file', arguments: '{"path":"é.txt","content":"über café"}' }],
+      },
+      { text: 'written' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    await turnDone()
+    const row = events.find(
+      (event) => event.type === 'itemCompleted' && event.item.patchRef !== undefined,
+    )
+    if (row?.type !== 'itemCompleted' || row.item.patchRef === undefined) {
+      throw new Error('expected a patch row')
+    }
+    const request = { itemId: row.item.itemId, outputRef: row.item.patchRef.id }
+    const whole = await session.readOutput({ ...request, offsetBytes: 0, lengthBytes: 1_000_000 })
+    let joined = ''
+    let offsetBytes = 0
+    for (;;) {
+      const page = await session.readOutput({ ...request, offsetBytes, lengthBytes: 1 })
+      expect(page.content).not.toContain('�')
+      joined += page.content
+      if (page.eof) {
+        break
+      }
+      offsetBytes = page.offsetBytes + page.byteLen
+    }
+    expect(joined).toBe(whole.content)
+    // An offset inside a character is served from that character's start.
+    const bytes = Buffer.from(whole.content, 'utf8')
+    const inside = bytes.indexOf(Buffer.from('é', 'utf8')) + 1
+    const served = await session.readOutput({ ...request, offsetBytes: inside, lengthBytes: 8 })
+    expect(served.offsetBytes).toBe(inside - 1)
+    expect(served.content.startsWith('é')).toBe(true)
+  })
+
+  it('reports the running turn to a surface that loads the session mid-turn', async () => {
+    const t = setup()
+    const { session, events } = await startSession(t)
+    t.api.script({ calls: [{ name: 'bash', arguments: '{"command":"ls","description":"d"}' }] })
+    const { turnId } = await session.sendTurn([{ type: 'text', text: 'list' }])
+    await approvalRequest(events, 0)
+    const loaded = await t.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(loaded.activeTurnId).toBe(turnId)
+    await session.cancel()
+  })
+
+  it('reads a stored session from the store only when it is opened', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'hello there' })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    session.dispose()
+    const load = vi.spyOn(store, 'load')
+    const listed = await t.host.listSessions({ workspaceRoot: ROOT, limit: 10 })
+    expect(listed.sessions.map((record) => record.sessionId)).toEqual([session.sessionId])
+    expect(load).not.toHaveBeenCalled()
+    const history = await t.host.readSession(session.sessionId)
+    expect(history.items.map((item) => item.kind)).toContain('agentMessage')
+    const loaded = await t.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(loaded.history.items.length).toBe(history.items.length)
+    await expect(t.host.readSession('never-stored')).rejects.toThrow('not held by this window')
   })
 })

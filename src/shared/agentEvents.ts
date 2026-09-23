@@ -189,12 +189,15 @@ const agentEventSchema = z.discriminatedUnion('type', [
     retryDelayMs: z.number(),
     reason: z.string(),
   }),
+  // The session's totals on both backends (PLAN.md D26): prompt tokens counted
+  // once and output tokens. Cached and reasoning totals only where the
+  // backend can sum them honestly (the Model API: one provider's convention).
   z.object({
     type: z.literal('tokenUsage'),
     inputTokens: z.number(),
     outputTokens: z.number(),
-    cachedTokens: z.number(),
-    reasoningTokens: z.number(),
+    cachedTokens: z.optional(z.number()),
+    reasoningTokens: z.optional(z.number()),
     modelId: z.optional(z.string()),
   }),
   z.object({
@@ -255,6 +258,15 @@ const agentEventSchema = z.discriminatedUnion('type', [
   }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),
+  // The two below are the controller's, never forwarded (PLAN.md D26): live
+  // delivery dropped events, so the transcript is reloaded from the host...
+  z.object({ type: z.literal('viewGap') }),
+  // ...and a fact the user is told as a notice (a model the account cannot serve).
+  z.object({
+    type: z.literal('backendNotice'),
+    level: z.enum(['info', 'warning', 'error']),
+    text: z.string(),
+  }),
 ])
 
 export type AgentEvent = z.infer<typeof agentEventSchema>

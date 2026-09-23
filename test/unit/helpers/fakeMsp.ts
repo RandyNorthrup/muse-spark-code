@@ -56,6 +56,11 @@ export class FakeMspServer implements DuplexTransport {
   private readonly handlers = new Map<string, RequestHandler>()
   /** Methods the host never answers (a wedged CLI, D25). */
   private readonly silenced = new Set<string>()
+  /** Frames the host sends in the same read as a method's answer (D26). */
+  private readonly followers = new Map<
+    string,
+    (params: Record<string, unknown>) => readonly Record<string, unknown>[]
+  >()
   private nextServerRequestId = 1
   public readonly incoming = new PushIterable()
   /** Every request the client sent, in order. */
@@ -97,6 +102,24 @@ export class FakeMspServer implements DuplexTransport {
     this.silenced.add(method)
   }
 
+  /**
+   * The answer to `method` arrives in one chunk with these frames after it,
+   * as `muse serve` writes the prompts it re-issues after a resume (D26).
+   */
+  public followWith(
+    method: string,
+    frames: (params: Record<string, unknown>) => readonly Record<string, unknown>[],
+  ): void {
+    this.followers.set(method, frames)
+  }
+
+  /** A server-request frame with the next id, for `followWith`. */
+  public serverRequestFrame(method: string, params: Record<string, unknown>) {
+    const id = this.nextServerRequestId
+    this.nextServerRequestId += 1
+    return { jsonrpc: '2.0', id, method, params }
+  }
+
   public write(chunk: string): Promise<void> {
     for (const line of chunk.split('\n')) {
       if (line.trim() === '') {
@@ -112,7 +135,11 @@ export class FakeMspServer implements DuplexTransport {
       if (frame.id === undefined || this.silenced.has(frame.method)) {
         continue
       }
-      this.incoming.push(`${JSON.stringify(this.respond(frame.id, handler, frame.params))}\n`)
+      const following = this.followers.get(frame.method)?.(frame.params ?? {}) ?? []
+      const chunk = [this.respond(frame.id, handler, frame.params), ...following]
+        .map((line) => `${JSON.stringify(line)}\n`)
+        .join('')
+      this.incoming.push(chunk)
     }
     return Promise.resolve()
   }
@@ -122,10 +149,9 @@ export class FakeMspServer implements DuplexTransport {
   }
 
   public serverRequest(method: string, params: Record<string, unknown>): number {
-    const id = this.nextServerRequestId
-    this.nextServerRequestId += 1
-    this.incoming.push(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
-    return id
+    const frame = this.serverRequestFrame(method, params)
+    this.incoming.push(`${JSON.stringify(frame)}\n`)
+    return frame.id
   }
 
   public close(): void {
@@ -155,14 +181,14 @@ export interface FakeHostHandle {
   readonly closeCalls: () => number
 }
 
-export function fakeMspHost(): FakeHostHandle {
+export function fakeMspHost(initializeResult: unknown = fakeInitializeResult): FakeHostHandle {
   const server = new FakeMspServer()
   const connection = new Connection(server)
   const exited = Promise.withResolvers<{ code: number | null; signal: string | null }>()
   let closeCount = 0
   const host: MspHost = {
     connection,
-    initializeResult: fakeInitializeResult,
+    initializeResult,
     exited: exited.promise,
     close: () => {
       closeCount += 1
@@ -177,6 +203,13 @@ export function fakeMspHost(): FakeHostHandle {
       exited.resolve({ code, signal })
     },
     closeCalls: () => closeCount,
+  }
+}
+
+/** A request handler that refuses with this MSP error kind (the host's `data.kind`). */
+export function refusalOf(kind: string): () => never {
+  return () => {
+    throw Object.assign(new Error(`refused: ${kind}`), { kind })
   }
 }
 

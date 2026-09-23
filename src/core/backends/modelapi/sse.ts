@@ -11,6 +11,7 @@ export interface SseEvent {
 
 const FIELD_SEPARATOR = ':'
 const LINE_BREAK = /\r\n|\r|\n/
+const CARRIAGE_RETURN = '\r'
 
 interface PendingEvent {
   event: string | undefined
@@ -58,8 +59,11 @@ export async function* parseSse(chunks: AsyncIterable<Uint8Array>): AsyncGenerat
   }
   for await (const chunk of chunks) {
     buffered += decoder.decode(chunk, { stream: true })
-    const lines = buffered.split(LINE_BREAK)
-    buffered = lines.pop() ?? ''
+    // A chunk that ends in `\r` may be half of a `\r\n` (D26): the `\n` in
+    // the next chunk must not read as a second, blank line.
+    const isCarriageReturnHeld = buffered.endsWith(CARRIAGE_RETURN)
+    const lines = (isCarriageReturnHeld ? buffered.slice(0, -1) : buffered).split(LINE_BREAK)
+    buffered = `${lines.pop() ?? ''}${isCarriageReturnHeld ? CARRIAGE_RETURN : ''}`
     for (const line of lines) {
       if (isBlockCompleteAfter(pending, line)) {
         yield flush()

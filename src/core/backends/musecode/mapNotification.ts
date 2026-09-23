@@ -1,8 +1,9 @@
 // Maps Muse Session Protocol notifications onto backend-agnostic AgentEvents.
-// Pure and total: unknown methods and malformed params yield `undefined`, and
-// the caller decides how loudly to log that. Only the fields the UI consumes
-// are validated; the wire carries far more (see the SDK's msp.d.ts). Shapes
-// were verified against live captures on 2026-09-21/22 (docs/certification/m4.md).
+// Pure and total: an unknown method is `UNKNOWN_METHOD` and params that fail
+// their schema are `MALFORMED_PARAMS`, and the caller decides how loudly to
+// log either. Only the fields the UI consumes are validated; the wire carries
+// far more (see the SDK's msp.d.ts). Shapes were verified against live
+// captures on 2026-09-21/22 (docs/certification/m4.md).
 
 import * as z from 'zod/mini'
 import {
@@ -14,12 +15,20 @@ import {
   requirementRefSchema,
   todoItemSchema,
 } from '../../../shared/agentEvents'
+import { UI_TEXT } from '../../../shared/constants'
 import { toSnapshot, wireItemSchema } from './sessionRecords'
 
-export interface MappedNotification {
-  readonly sessionId: string
-  readonly event: AgentEvent
-}
+export type MappedNotification =
+  | { readonly sessionId: string; readonly event: AgentEvent }
+  /** The host already holds this approval's terminal (`change.kind: alreadyTerminal`). */
+  | { readonly sessionId: string; readonly closedApprovalId: string }
+
+export const UNKNOWN_METHOD = 'unknown'
+export const MALFORMED_PARAMS = 'malformed'
+export type MapOutcome = MappedNotification | typeof UNKNOWN_METHOD | typeof MALFORMED_PARAMS
+
+const ALREADY_TERMINAL = 'alreadyTerminal'
+const CANCELLED_TERMINAL = 'cancelled'
 
 export interface WireNotification {
   readonly method: string
@@ -57,15 +66,13 @@ const schemas = {
     retryDelayMs: z.number(),
     reason: z.string(),
   }),
+  // The session's running totals (D26): `cumulative` counts prompt tokens once
+  // under the provider's cache convention; the raw per-completion counters
+  // beside it do not sum across providers, so they are not shown.
   'session/tokenUsage': z.object({
     ...sessionScoped,
     modelId: z.optional(z.nullable(z.string())),
-    usage: z.object({
-      inputTokens: z.number(),
-      outputTokens: z.number(),
-      cachedTokens: z.number(),
-      reasoningTokens: z.number(),
-    }),
+    cumulative: z.object({ promptTokens: z.number(), outputTokens: z.number() }),
   }),
   'session/contextUsage': z.object({
     ...sessionScoped,
@@ -98,6 +105,7 @@ const schemas = {
     currentRequirementId: requirementRefSchema,
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
+    change: z.optional(z.object({ kind: z.string() })),
   }),
   'approval/resolved': z.object({
     ...sessionScoped,
@@ -118,6 +126,14 @@ const schemas = {
     outcome: z.string(),
     answers: z.array(answerSchema),
   }),
+  // A queued submission reclaimed: its turn never runs (tdd SS3.6).
+  'turn/unqueued': z.object({ ...sessionScoped, turnId: z.string() }),
+  // Another client withdrew a submission; the item itself is re-sent as updated.
+  'turn/retracted': z.object({ ...sessionScoped, turnId: z.string() }),
+  // Live delivery dropped events between two cursors (spec 208 SS4.8).
+  'view/gap': z.object({ ...sessionScoped, after: z.string(), next: z.string() }),
+  // The account's provider cannot serve the session's standing model (#25603).
+  'session/modelRouteUnserved': z.object({ ...sessionScoped, modelId: z.string() }),
 } as const
 
 type MappedMethod = keyof typeof schemas
@@ -129,14 +145,14 @@ function isMappedMethod(method: string): method is MappedMethod {
 /** The default delta field when the host omits one. */
 const DEFAULT_DELTA_FIELD = 'text'
 
-export function mapNotification(notification: WireNotification): MappedNotification | undefined {
+export function mapNotification(notification: WireNotification): MapOutcome {
   const { method } = notification
   if (!isMappedMethod(method)) {
-    return undefined
+    return UNKNOWN_METHOD
   }
   const parsed = schemas[method].safeParse(notification.params)
   if (!parsed.success) {
-    return undefined
+    return MALFORMED_PARAMS
   }
   const params = parsed.data
   switch (method) {
@@ -189,17 +205,15 @@ export function mapNotification(notification: WireNotification): MappedNotificat
       }
     }
     case 'session/tokenUsage': {
-      const { sessionId, usage, modelId } = params as z.infer<
+      const { sessionId, cumulative, modelId } = params as z.infer<
         (typeof schemas)['session/tokenUsage']
       >
       return {
         sessionId,
         event: {
           type: 'tokenUsage',
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-          cachedTokens: usage.cachedTokens,
-          reasoningTokens: usage.reasoningTokens,
+          inputTokens: cumulative.promptTokens,
+          outputTokens: cumulative.outputTokens,
           ...(typeof modelId === 'string' && { modelId }),
         },
       }
@@ -267,6 +281,10 @@ export function mapNotification(notification: WireNotification): MappedNotificat
     }
     case 'approval/updated': {
       const p = params as z.infer<(typeof schemas)['approval/updated']>
+      if (p.change?.kind === ALREADY_TERMINAL) {
+        // A decision against it could only bounce: the card waits for its resolve.
+        return { sessionId: p.sessionId, closedApprovalId: p.approvalId }
+      }
       return {
         sessionId: p.sessionId,
         event: {
@@ -298,6 +316,40 @@ export function mapNotification(notification: WireNotification): MappedNotificat
         (typeof schemas)['userInput/settled']
       >
       return { sessionId, event: { type: 'questionSettled', userInputId, outcome, answers } }
+    }
+    case 'turn/unqueued': {
+      const { sessionId, turnId } = params as z.infer<(typeof schemas)['turn/unqueued']>
+      return {
+        sessionId,
+        event: {
+          type: 'turnCompleted',
+          turnId,
+          terminal: CANCELLED_TERMINAL,
+          reason: UI_TEXT.turnUnqueued,
+        },
+      }
+    }
+    case 'turn/retracted': {
+      return {
+        sessionId: params.sessionId,
+        event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnRetracted },
+      }
+    }
+    case 'view/gap': {
+      return { sessionId: params.sessionId, event: { type: 'viewGap' } }
+    }
+    case 'session/modelRouteUnserved': {
+      const { sessionId, modelId } = params as z.infer<
+        (typeof schemas)['session/modelRouteUnserved']
+      >
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'warning',
+          text: `${UI_TEXT.modelRouteUnserved} (${modelId})`,
+        },
+      }
     }
   }
 }

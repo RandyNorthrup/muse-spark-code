@@ -18,6 +18,8 @@ export const sessionRecordSchema = z.object({
   ...sessionActivityFields,
   forkedFrom: z.optional(z.nullable(z.object({ sessionId: z.string() }))),
   workspaceRoot: z.optional(z.nullable(z.string())),
+  /** The running foreground turn; `null` when idle (msp.d.ts Session.activeTurnId, D26). */
+  activeTurnId: z.optional(z.nullable(z.string())),
 })
 
 // The wire item is the snapshot with `turnId` nullable (`null` on userShell)
@@ -68,6 +70,9 @@ export const sessionEnvelopeSchema = z.object({
   session: sessionRecordSchema,
   history: historySchema,
   viewCursor: z.string(),
+  // Late-joiner pointers at unsettled prompts (tdd SS2.5.2); their payloads
+  // follow as re-issued server requests and from `approval/listPending`.
+  pendingRequests: z.optional(z.array(z.object({ kind: z.string() }))),
 })
 export type SessionEnvelope = z.infer<typeof sessionEnvelopeSchema>
 

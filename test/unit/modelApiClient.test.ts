@@ -238,4 +238,11 @@ describe('ModelApiClient', () => {
       message: expect.stringContaining('Malformed stream frame'),
     })
   })
+
+  it('reads past a keep-alive and the [DONE] sentinel (D26)', async () => {
+    const { api, client } = setup()
+    api.script({ text: 'hi', doneSentinel: true })
+    const events = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(events.at(-1)).toMatchObject({ type: 'response.completed' })
+  })
 })

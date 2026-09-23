@@ -139,10 +139,14 @@ function TokensSection({
             <dd>{formatTokenWindow(usage.inputTokens)}</dd>
             <dt>{UI_TEXT.usageOutput}</dt>
             <dd>{formatTokenWindow(usage.outputTokens)}</dd>
-            <dt>{UI_TEXT.usageCached}</dt>
-            <dd>{formatTokenWindow(usage.cachedTokens)}</dd>
-            <dt>{UI_TEXT.usageCacheHits}</dt>
-            <dd>{String(percentOf(usage.cachedTokens, usage.inputTokens))}%</dd>
+            {usage.cachedTokens === undefined ? null : (
+              <>
+                <dt>{UI_TEXT.usageCached}</dt>
+                <dd>{formatTokenWindow(usage.cachedTokens)}</dd>
+                <dt>{UI_TEXT.usageCacheHits}</dt>
+                <dd>{String(percentOf(usage.cachedTokens, usage.inputTokens))}%</dd>
+              </>
+            )}
           </>
         )}
         {contextValue !== undefined && (
@@ -287,9 +291,17 @@ export function UsageDialog({
   onClose,
 }: UsageDialogProps) {
   const nowMs = now()
+  // Priced on the Model API only, whose usage always carries its cached total.
+  const cachedTokens = usage?.cachedTokens
   const costUsd =
-    usage !== undefined && modelId !== undefined && report?.backend === 'modelApi'
-      ? estimateCostUsd(usage, modelId)
+    usage !== undefined &&
+    cachedTokens !== undefined &&
+    modelId !== undefined &&
+    report?.backend === 'modelApi'
+      ? estimateCostUsd(
+          { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens },
+          modelId,
+        )
       : undefined
   let body
   if (report === undefined) {

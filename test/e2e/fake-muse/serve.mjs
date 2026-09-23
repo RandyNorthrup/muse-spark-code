@@ -116,10 +116,16 @@ function completeTurn(session, turnId, terminal, extra = {}) {
   session.record.turnCount += 1
   session.record.status = 'idle'
   session.record.activeTurnId = null
+  // The live 1.3.0 shape: the completion's raw counters, its counted-once
+  // totals, and the session's running totals (captured 2026-09-21).
+  const turns = session.record.turnCount
   notify('session/tokenUsage', {
     sessionId,
     modelId: session.record.modelId,
     usage: { inputTokens: 120, outputTokens: 24, cachedTokens: 0, reasoningTokens: 0 },
+    promptTokens: 120,
+    totalTokens: 144,
+    cumulative: { promptTokens: 120 * turns, outputTokens: 24 * turns, totalTokens: 144 * turns },
   })
   notify('session/contextUsage', {
     sessionId,

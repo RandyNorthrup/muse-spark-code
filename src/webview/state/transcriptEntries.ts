@@ -190,7 +190,8 @@ export type ChildTranscript = z.infer<typeof childTranscriptSchema>
 export const usageSummarySchema = z.object({
   inputTokens: z.number(),
   outputTokens: z.number(),
-  cachedTokens: z.number(),
+  // Absent where the backend cannot total it (Muse Code, PLAN.md D26).
+  cachedTokens: z.optional(z.number()),
 })
 export type UsageSummary = z.infer<typeof usageSummarySchema>
 

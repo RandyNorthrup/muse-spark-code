@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  headerOf,
   parseStoredSession,
   recordOf,
   type StoredSession,
@@ -82,8 +83,18 @@ describe('parseStoredSession', () => {
 })
 
 describe('recordOf', () => {
-  it('shapes the history row of a stored session', () => {
-    expect(recordOf(full)).toEqual({
+  it('shapes the history row of a stored session from its header', () => {
+    expect(headerOf(full)).toEqual({
+      sessionId: 's1',
+      workspaceRoot: '/ws',
+      name: 'Parser fix',
+      createdAt: '2026-09-22T10:00:00.000Z',
+      lastActivityAt: '2026-09-22T10:05:00.000Z',
+      forkedFrom: 's0',
+      firstPrompt: 'fix the parser',
+      turnCount: 1,
+    })
+    expect(recordOf(headerOf(full))).toEqual({
       sessionId: 's1',
       name: 'Parser fix',
       title: 'fix the parser',
@@ -97,8 +108,9 @@ describe('recordOf', () => {
       workspaceRoot: '/ws',
     })
     const { name: _name, firstPrompt: _prompt, forkedFrom: _fork, ...bare } = full
-    expect(recordOf(bare)).toMatchObject({ forkedFrom: null, turnCount: 1 })
-    expect(recordOf(bare)).not.toHaveProperty('name')
-    expect(recordOf(bare)).not.toHaveProperty('title')
+    expect(headerOf(bare)).not.toHaveProperty('name')
+    expect(recordOf(headerOf(bare))).toMatchObject({ forkedFrom: null, turnCount: 1 })
+    expect(recordOf(headerOf(bare))).not.toHaveProperty('name')
+    expect(recordOf(headerOf(bare))).not.toHaveProperty('title')
   })
 })

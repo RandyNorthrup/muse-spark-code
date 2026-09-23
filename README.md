@@ -285,7 +285,8 @@ backend spawns no agents.
 auth method, plan, backend, Muse Code version and model; the subscription's
 current window and week (Muse Code reports them only after a reply; until
 then the modal shows the last window it reported, dated "as of"); this
-conversation's tokens with the cache-hit rate and, on the Model API, a
+conversation's token totals (on Muse Code, prompt tokens as it counts them
+once) and, on the Model API, the cached tokens, the cache-hit rate and a
 dollar estimate from Meta's published per-token prices (standard versus
 contributor tier, read 2026-09-22; the dev.meta.ai dashboard is the bill);
 and what is contributing to your usage over the last day or week, read from
@@ -296,7 +297,8 @@ and from sessions active for 8+ hours. Approximate, this machine only.
 **Prompt caching.** The Model API backend sends a per-session cache key so
 repeated prefixes are billed at the cached rate; the CLI caches on its own.
 Meta does not publish the cache lifetime, so there is no "warm for N
-minutes" countdown; the modal shows the cache-hit rate instead.
+minutes" countdown; on the Model API the modal shows the cache-hit rate
+instead (Muse Code reports no cache total a conversation can add up).
 
 ## Voice dictation
 
@@ -403,13 +405,15 @@ moves every open conversation out of Bypass at once.
 | `confidentialWorkspace`           | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                     |
 | `allowDangerouslySkipPermissions` | `false`  | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)                                                                                                                                                                    |
 | `archiveInactiveSessions`         | `14`     | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                             |
+| `cleanupPeriodDays`               | `30`     | Delete Model API conversations idle for more than this many days when a window lists them (`0` keeps them); Muse Code's own sessions are the CLI's to keep                                                                                            |
 | `backend`                         | `auto`   | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI                                                                                         |
 | `shellSandbox`                    | `auto`   | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Changing it restarts the host |
 | `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                 |
 | `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process (an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too). Never put API keys here; use Sign in. Changing it restarts the host                                |
 
 Muse Code also gets VS Code's `http.proxy` (and `http.noProxy`) as
-`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` when its environment sets none.
+`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` when neither its environment nor
+`environmentVariables` sets one, in either case.
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
 granted, a sign-in or a crash, keeps the conversation: the running turn is
@@ -445,8 +449,10 @@ stopped and the next message resumes the same session.
 - Voice audio stays on the machine on Windows; on macOS Apple recognises on
   the device or on its servers under Apple's terms.
 - Model API conversations are stored, per workspace, in VS Code's storage
-  directory for the extension (not in the repository); delete them from
-  the History dialog or by removing that directory.
+  directory for the extension (not in the repository); ones idle longer
+  than `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and
+  removing that directory deletes them all. The History dialog archives,
+  it does not delete.
 - The usage insights read the Muse Code CLI's trace logs on this machine and
   send nothing anywhere.
 - Workspace rules, skill files and the memory index are read only in a
@@ -578,12 +584,12 @@ would get a panel without a microphone.
   without the sandbox for such workspaces: commands run directly as you, in
   the project, still gated by the approval cards, and the panel says so once
   per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
-- **"Could not rename the conversation … UnsupportedPlatform" / "Could not
-  fork the conversation … WriteFailed"** — Muse Code 1.3.0 refuses
-  `session/rename` and `session/fork` on Windows
+- **No Rename in the header, no Fork in a message's menu (Windows)** —
+  Muse Code 1.3.0 refuses `session/rename` and `session/fork` on Windows
   ([#30](https://github.com/meta-models/muse-code-sdk/issues/30),
-  [#31](https://github.com/meta-models/muse-code-sdk/issues/31)). The panel
-  shows the refusal and leaves the conversation as it was.
+  [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
+  panel does not offer them there; **Rewind code to here** still works. A
+  newer Muse Code gets both back, and the Model API backend has both.
 - **A warning that "Muse Code reported an error for the decision (the tool
   may have run anyway): … approval ledger durability fence …"** — Muse Code
   1.3.0 on Windows sometimes fails its own ledger write after applying your

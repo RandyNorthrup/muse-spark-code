@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
+import {
+  MALFORMED_PARAMS,
+  mapNotification,
+  UNKNOWN_METHOD,
+} from '../../src/core/backends/musecode/mapNotification'
+import { UI_TEXT } from '../../src/shared/constants'
 
 const sessionId = 's1'
 
@@ -226,29 +231,26 @@ describe('mapNotification', () => {
       },
     ],
     [
+      // The session's totals, not the completion's raw counters (D26; live shape).
       'session/tokenUsage',
       {
         sessionId,
         modelId: 'muse-spark-1.3',
         usage: { inputTokens: 10, outputTokens: 5, cachedTokens: 2, reasoningTokens: 1 },
+        promptTokens: 10,
+        totalTokens: 15,
+        cumulative: { promptTokens: 30, outputTokens: 12, totalTokens: 42 },
       },
-      {
-        type: 'tokenUsage',
-        inputTokens: 10,
-        outputTokens: 5,
-        cachedTokens: 2,
-        reasoningTokens: 1,
-        modelId: 'muse-spark-1.3',
-      },
+      { type: 'tokenUsage', inputTokens: 30, outputTokens: 12, modelId: 'muse-spark-1.3' },
     ],
     [
       'session/tokenUsage',
       {
         sessionId,
         modelId: null,
-        usage: { inputTokens: 1, outputTokens: 1, cachedTokens: 0, reasoningTokens: 0 },
+        cumulative: { promptTokens: 1, outputTokens: 1, totalTokens: 2 },
       },
-      { type: 'tokenUsage', inputTokens: 1, outputTokens: 1, cachedTokens: 0, reasoningTokens: 0 },
+      { type: 'tokenUsage', inputTokens: 1, outputTokens: 1 },
     ],
     [
       'session/contextUsage',
@@ -407,18 +409,76 @@ describe('mapNotification', () => {
     expect(mapNotification({ method, params })).toEqual({ sessionId, event })
   })
 
-  it('ignores methods the UI does not consume', () => {
-    expect(mapNotification({ method: 'view/gap', params: { sessionId } })).toBeUndefined()
-    expect(mapNotification({ method: 'initialized' })).toBeUndefined()
+  it('names methods the UI does not consume', () => {
+    expect(mapNotification({ method: 'goal/changed', params: { sessionId } })).toBe(UNKNOWN_METHOD)
+    expect(mapNotification({ method: 'initialized' })).toBe(UNKNOWN_METHOD)
   })
 
-  it('ignores malformed params instead of throwing', () => {
-    expect(
-      mapNotification({ method: 'item/delta', params: { sessionId, itemId: 'i1' } }),
-    ).toBeUndefined()
-    expect(mapNotification({ method: 'turn/started', params: { turnId: 't1' } })).toBeUndefined()
+  it('names malformed params instead of throwing', () => {
+    expect(mapNotification({ method: 'item/delta', params: { sessionId, itemId: 'i1' } })).toBe(
+      MALFORMED_PARAMS,
+    )
+    expect(mapNotification({ method: 'turn/started', params: { turnId: 't1' } })).toBe(
+      MALFORMED_PARAMS,
+    )
     expect(
       mapNotification({ method: 'approval/requested', params: { sessionId, approvalId: 'a' } }),
-    ).toBeUndefined()
+    ).toBe(MALFORMED_PARAMS)
+    expect(mapNotification({ method: 'view/gap', params: { sessionId } })).toBe(MALFORMED_PARAMS)
+  })
+
+  it('maps the D26 additions: withdrawn turns, gaps, unserved routes, terminal approvals', () => {
+    expect(
+      mapNotification({ method: 'turn/unqueued', params: { sessionId, turnId: 't2' } }),
+    ).toEqual({
+      sessionId,
+      event: {
+        type: 'turnCompleted',
+        turnId: 't2',
+        terminal: 'cancelled',
+        reason: UI_TEXT.turnUnqueued,
+      },
+    })
+    expect(
+      mapNotification({ method: 'view/gap', params: { sessionId, after: 'v1', next: 'v4' } }),
+    ).toEqual({ sessionId, event: { type: 'viewGap' } })
+    expect(
+      mapNotification({
+        method: 'session/modelRouteUnserved',
+        params: { sessionId, modelId: 'muse-spark-1.3' },
+      }),
+    ).toEqual({
+      sessionId,
+      event: {
+        type: 'backendNotice',
+        level: 'warning',
+        text: `${UI_TEXT.modelRouteUnserved} (muse-spark-1.3)`,
+      },
+    })
+    expect(
+      mapNotification({ method: 'turn/retracted', params: { sessionId, turnId: 't3' } }),
+    ).toEqual({
+      sessionId,
+      event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnRetracted },
+    })
+    const update = {
+      sessionId,
+      approvalId: 'a1',
+      currentRequirementId: { approvalId: 'a1', sourceIndex: 2 },
+      subject: { kind: 'command', command: 'ls' },
+      availableChoices: choices,
+    }
+    expect(
+      mapNotification({
+        method: 'approval/updated',
+        params: { ...update, change: { kind: 'alreadyTerminal' } },
+      }),
+    ).toEqual({ sessionId, closedApprovalId: 'a1' })
+    expect(
+      mapNotification({
+        method: 'approval/updated',
+        params: { ...update, change: { kind: 'stageResolved' } },
+      }),
+    ).toMatchObject({ sessionId, event: { type: 'approvalUpdated', approvalId: 'a1' } })
   })
 })

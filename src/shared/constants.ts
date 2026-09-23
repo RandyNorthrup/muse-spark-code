@@ -149,6 +149,10 @@ export const SETTING_DEFAULTS = {
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
   // deleted: MSP has no delete, and "Show archived" brings them back.
   archiveInactiveSessions: 14,
+  // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
+  // idle longer than this are deleted when a window reads them; 0 keeps them.
+  // Muse Code's own sessions are the CLI's to keep.
+  cleanupPeriodDays: 30,
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
   shellSandbox: 'auto' as ShellSandboxMode,
@@ -452,6 +456,14 @@ export const MODEL_API_OUTPUT_ENCODING = 'utf8'
 // storage directory (PLAN.md D14); the version guards the shape.
 export const MODEL_API_SESSIONS_DIR = 'modelapi-sessions'
 export const STORED_SESSION_VERSION = 1
+// PLAN.md D26: a `.tmp` this old is a crash's leftover, not a save in flight
+// (another window on the same workspace may be writing one), and a rename
+// Windows refuses while a scanner holds the file is tried this often, the
+// wait doubling from the delay.
+export const SESSION_FILE_STALE_TEMPORARY_MS = 60_000
+export const SESSION_FILE_RENAME_ATTEMPTS = 5
+export const SESSION_FILE_RENAME_DELAY_MS = 25
+export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
 // Item kinds the transcript never shows: our own echo and host-internal children.
 export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'reminderChild'])
@@ -576,12 +588,31 @@ export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream'] as
 export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
 export const MSP_COMMAND_TIMEOUT_MS = 60_000
 export const MSP_LONG_COMMAND_TIMEOUT_MS = 180_000
+// A command the host refused without admitting it (the SDK's own rule, D26):
+// sent again with the same id up to this many times in all.
+export const MSP_COMMAND_ATTEMPTS = 3
+export const MSP_RETRY_BASE_DELAY_MS = 50
+export const MSP_RETRY_MAX_DELAY_MS = 2000
+export const MSP_RETRYABLE_REFUSALS: readonly { readonly code: number; readonly kind: string }[] = [
+  { code: -32_001, kind: 'overloaded' },
+  { code: -32_031, kind: 'backpressured' },
+]
 export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
   'session/resume',
   'session/fork',
   'session/read',
   'session/compact',
 ])
+// The frame cap `muse serve` holds in both directions (the SDK's
+// DEFAULT_FRAME_LIMIT_BYTES): a command larger than this is refused here with
+// a message, where the host would drop the frame and never answer (D26).
+export const MSP_FRAME_LIMIT_BYTES = 10 * 1024 * 1024
+// `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
+export const MSP_SESSION_LIST_MAX_LIMIT = 200
+// Muse Code versions that refuse `session/rename` and `session/fork` on
+// Windows (meta-models/muse-code-sdk#30 and #31, verified live 2026-09-22 on
+// 1.3.0): the panel does not offer either there (D26).
+export const WINDOWS_SESSION_EDITS_LIMITED_MAX_VERSION = '1.3.0'
 // Muse Code's documented exit codes (SDK `classifyExit`): what each means
 // for the user, and whether restarting can help.
 export const MUSE_EXIT_MEANINGS: Readonly<
@@ -1120,6 +1151,29 @@ export const UI_TEXT = {
   skillNoArguments: '(none)',
   toolRejectedByUser: 'rejected by the user',
   toolCancelled: 'cancelled',
+  // PLAN.md D26: what the model and the transcript are told when Stop cuts things short.
+  toolCancelledByStop: 'cancelled: the user stopped the turn',
+  queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
+  compactionStopped: 'the compaction was stopped',
+  compactionStoppedNotice: 'Compaction stopped; the conversation is as it was.',
+  // PLAN.md D26: a decision or answer that arrived after the prompt had moved.
+  promptAlreadySettled: 'That request was already answered, so this choice was not needed.',
+  promptMovedOn:
+    'That request moved on to its next step before this choice arrived; choose again on the updated card.',
+  promptGone: 'That request is no longer waiting for an answer.',
+  turnUnqueued: 'Not sent: the queued message was withdrawn',
+  turnRetracted:
+    'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
+  modelRouteUnserved:
+    'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
+  viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',
+  viewGapReloadFailed:
+    'Some updates from Muse Code were missed and the conversation could not be reloaded',
+  commandTooLarge:
+    'This message is too large for Muse Code, which accepts up to 10 MiB per message (images count at a third more than their file size). Remove an image or shorten the selection and send again.',
+  outputIsBinary: 'The stored output is binary and cannot be shown as text',
+  sessionEditsUnsupported:
+    'Muse Code 1.3.0 cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).',
   contributorTitle: 'Contributor-tier model',
   contributorDetail:
     'Meta may use prompts and completions sent to a contributor-tier model to train its models, in exchange for the lower price. Use it for this conversation?',

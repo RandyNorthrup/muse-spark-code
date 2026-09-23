@@ -132,7 +132,10 @@ const UserCard = memo(function UserCard({
     setMenuOpen(false)
   }
   const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
-  const hasMenu = onFork !== undefined && onRewind !== undefined && entry.status === 'sent'
+  // Without fork (a host that refuses it, D26) the menu offers the rewind alone.
+  const hasMenu = onRewind !== undefined && entry.status === 'sent'
+  const menuRows =
+    onFork === undefined ? REWIND_MENU.filter((row) => row.id === 'rewind') : REWIND_MENU
   const choose = (choice: RewindChoice) => {
     setMenuOpen(false)
     if (choice !== 'fork') {
@@ -199,7 +202,7 @@ const UserCard = memo(function UserCard({
           </button>
           {isMenuOpen ? (
             <div className="rewind-menu" role="menu" aria-label={UI_TEXT.rewindMenuLabel}>
-              {REWIND_MENU.map((row) => (
+              {menuRows.map((row) => (
                 <button
                   key={row.id}
                   type="button"

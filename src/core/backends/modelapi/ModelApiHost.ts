@@ -73,7 +73,13 @@ import {
   PermissionEngine,
   type PermissionQuery,
 } from './permissions'
-import { recordOf, type SessionStore, type StoredSession } from './sessionStore'
+import {
+  headerOf,
+  recordOf,
+  type SessionStore,
+  type StoredSession,
+  type StoredSessionHeader,
+} from './sessionStore'
 import {
   type CreateResponseBody,
   type FunctionCallItem,
@@ -149,6 +155,33 @@ interface ActiveTurn {
 interface Pending<T> {
   resolve(value: T): void
   reject(error: Error): void
+}
+
+// A UTF-8 continuation byte is 0b10xxxxxx: it never starts a character.
+const UTF8_CONTINUATION_FIRST = 0x80
+const UTF8_CONTINUATION_LAST = 0xbf
+
+function isContinuationByte(bytes: Uint8Array, index: number): boolean {
+  const byte = bytes[index]
+  return byte !== undefined && byte >= UTF8_CONTINUATION_FIRST && byte <= UTF8_CONTINUATION_LAST
+}
+
+/** `index` moved back to the first byte of the character it falls in. */
+function characterStart(bytes: Uint8Array, index: number): number {
+  let start = index
+  while (start > 0 && isContinuationByte(bytes, start)) {
+    start -= 1
+  }
+  return start
+}
+
+/** The index just past the character that starts at `index`. */
+function characterEnd(bytes: Uint8Array, index: number): number {
+  let end = index + 1
+  while (end < bytes.length && isContinuationByte(bytes, end)) {
+    end += 1
+  }
+  return end
 }
 
 interface ApprovalOutcome {
@@ -348,6 +381,8 @@ export class ModelApiSession implements AgentSession {
   private readonly pendingQuestions = new Map<string, Pending<readonly QuestionAnswer[]>>()
   private readonly queuedTurns: QueuedTurn[] = []
   private active: ActiveTurn | undefined
+  /** The compaction in flight (D26): it holds the session like a turn. */
+  private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
   private todos: readonly TodoItem[] = []
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
@@ -852,71 +887,71 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  /** Permission check, execution and the transcript row for one tool call. */
-  private async runCall(
-    turnId: string,
+  /** The permission check and, when it allows, the tool itself. May throw (an abort, an I/O error). */
+  private async decideAndRun(
+    itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
-  ): Promise<void> {
-    const itemId = this.deps.newId()
-    const started: ItemSnapshot = {
-      itemId,
-      kind: 'toolCall',
-      status: IN_PROGRESS,
-      turnId,
-      tool: call.name,
-      args: call.arguments,
-    }
-    this.emit({ type: 'itemStarted', item: started })
+  ): Promise<{ readonly outcome: ToolOutcome; readonly isRejected: boolean }> {
     const toolClass = classifyTool(call.name)
-    const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
-    let outcome: ToolOutcome
-    let isRejected = false
     if (toolClass === undefined) {
-      outcome = toolFailure(`unknown tool ${call.name}`)
-    } else if (toolClass === 'shell' && !this.deps.isWorkspaceTrusted()) {
+      return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+    }
+    if (toolClass === 'shell' && !this.deps.isWorkspaceTrusted()) {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
       // that calls it anyway is refused, never prompted.
-      isRejected = true
-      outcome = toolFailure(UI_TEXT.shellRestrictedMode)
-    } else if (target?.ok === false) {
+      return { outcome: toolFailure(UI_TEXT.shellRestrictedMode), isRejected: true }
+    }
+    const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
+    if (target?.ok === false) {
       // A path the tool would refuse anyway is refused before any card.
-      outcome = toolFailure(target.reason)
-    } else {
-      const query: PermissionQuery = {
-        toolName: call.name,
-        toolClass,
-        command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
-        isProtected: target?.ok === true && isProtectedPath(target.canonical),
+      return { outcome: toolFailure(target.reason), isRejected: false }
+    }
+    const query: PermissionQuery = {
+      toolName: call.name,
+      toolClass,
+      command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
+      isProtected: target?.ok === true && isProtectedPath(target.canonical),
+    }
+    const verdict = this.permissions.verdict(query)
+    if (verdict === 'deny') {
+      return {
+        outcome: toolFailure(`${call.name} ${UI_TEXT.toolRefusedByMode}`),
+        isRejected: true,
       }
-      const verdict = this.permissions.verdict(query)
-      if (verdict === 'deny') {
-        isRejected = true
-        const reason = `${call.name} ${UI_TEXT.toolRefusedByMode}`
-        outcome = { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
-      } else if (verdict === 'ask') {
-        const approval = await this.askApproval(itemId, call, signal, query)
-        if (approval.isApproved) {
-          outcome = await this.perform(itemId, call, signal)
-        } else {
-          isRejected = true
-          const reason = `${call.name} ${UI_TEXT.toolRejectedByUser}`
-          const feedback = approval.feedback === undefined ? '' : `\nUser: ${approval.feedback}`
-          outcome = {
+    }
+    if (verdict === 'ask') {
+      const approval = await this.askApproval(itemId, call, signal, query)
+      if (!approval.isApproved) {
+        const reason = `${call.name} ${UI_TEXT.toolRejectedByUser}`
+        const feedback = approval.feedback === undefined ? '' : `\nUser: ${approval.feedback}`
+        return {
+          outcome: {
             output: `Error: ${reason}${feedback}`,
             visibleOutput: reason,
             failureReason: reason,
-          }
+          },
+          isRejected: true,
         }
-      } else {
-        outcome = await this.perform(itemId, call, signal)
       }
     }
-    await this.touchPath(call)
-    let status = COMPLETED
-    if (outcome.failureReason !== undefined) {
-      status = isRejected ? REJECTED : FAILED
-    }
+    return { outcome: await this.perform(itemId, call, signal), isRejected: false }
+  }
+
+  /**
+   * The row and the replay entry of a finished call. Every function call the
+   * model made gets its output here, whatever happened (PLAN.md D26): a call
+   * left without one makes the stored conversation invalid for every later
+   * request, the compaction included.
+   */
+  private finishCall(
+    turnId: string,
+    started: ItemSnapshot,
+    call: FunctionCallItem,
+    outcome: ToolOutcome,
+    status: string,
+  ): void {
+    const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
     if (outputRef !== undefined && outcome.patch !== undefined) {
       this.outputs.set(outputRef, outcome.patch.document)
@@ -938,6 +973,57 @@ export class ModelApiSession implements AgentSession {
       turnId,
       item: { type: 'function_call_output', call_id: call.call_id, output: outcome.output },
     })
+  }
+
+  /** Permission check, execution and the transcript row for one tool call. */
+  private async runCall(
+    turnId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const itemId = this.deps.newId()
+    const started: ItemSnapshot = {
+      itemId,
+      kind: 'toolCall',
+      status: IN_PROGRESS,
+      turnId,
+      tool: call.name,
+      args: call.arguments,
+    }
+    this.emit({ type: 'itemStarted', item: started })
+    let result: { readonly outcome: ToolOutcome; readonly isRejected: boolean }
+    try {
+      result = await this.decideAndRun(itemId, call, signal)
+    } catch (error: unknown) {
+      if (error instanceof AbortedError || signal.aborted) {
+        this.finishCall(turnId, started, call, toolFailure(UI_TEXT.toolCancelledByStop), CANCELLED)
+        throw new AbortedError()
+      }
+      // A tool that threw (a disk error, a directory for a file) is a failed
+      // call the model is told about, not the end of the turn.
+      result = { outcome: toolFailure(describe(error)), isRejected: false }
+    }
+    await this.touchPath(call)
+    const { outcome, isRejected } = result
+    let status = COMPLETED
+    if (outcome.failureReason !== undefined) {
+      status = isRejected ? REJECTED : FAILED
+    }
+    this.finishCall(turnId, started, call, outcome, status)
+  }
+
+  /** The calls of a response the Stop kept from running: each gets its output all the same. */
+  private skipCalls(turnId: string, calls: readonly FunctionCallItem[]): void {
+    for (const call of calls) {
+      this.replay.push({
+        turnId,
+        item: {
+          type: 'function_call_output',
+          call_id: call.call_id,
+          output: `Error: ${UI_TEXT.toolCancelledByStop}`,
+        },
+      })
+    }
   }
 
   private drainSteered(turn: ActiveTurn): void {
@@ -965,14 +1051,29 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
+    const { signal } = turn.abort
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
       this.drainSteered(turn)
-      const calls = await this.streamOnce(turn.turnId, turn.abort.signal)
+      const calls = await this.streamOnce(turn.turnId, signal)
       if (calls.length === 0) {
-        return
+        // A message typed while the final answer streamed gets its own round
+        // instead of being accepted and dropped (D26).
+        if (turn.steered.length === 0) {
+          return
+        }
+        continue
       }
-      for (const call of calls) {
-        await this.runCall(turn.turnId, call, turn.abort.signal)
+      for (const [index, call] of calls.entries()) {
+        if (signal.aborted) {
+          this.skipCalls(turn.turnId, calls.slice(index))
+          throw new AbortedError()
+        }
+        try {
+          await this.runCall(turn.turnId, call, signal)
+        } catch (error: unknown) {
+          this.skipCalls(turn.turnId, calls.slice(index + 1))
+          throw error
+        }
       }
     }
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
@@ -1007,6 +1108,8 @@ export class ModelApiSession implements AgentSession {
         this.deps.log.warn(`Model API turn ${turn.turnId} failed: ${reason}`)
       }
     }
+    // `loop` returns only with nothing steered left (D26), and `steer` is
+    // refused once `active` is cleared, so no input is lost between the two.
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
@@ -1020,6 +1123,14 @@ export class ModelApiSession implements AgentSession {
     })
     this.emit({ type: 'sessionStatus', status: IDLE })
     this.touch()
+    this.startNextQueued()
+  }
+
+  /** The next queued turn, once nothing (a turn, a compaction) is running. */
+  private startNextQueued(): void {
+    if (this.active !== undefined || this.compacting !== undefined) {
+      return
+    }
     const next = this.queuedTurns.shift()
     if (next !== undefined) {
       void this.runTurn(next)
@@ -1062,6 +1173,48 @@ export class ModelApiSession implements AgentSession {
     return text
   }
 
+  /** The summary call of `compact`, and the replay it leaves behind. */
+  private async runCompaction(signal: AbortSignal): Promise<CompactOutcome> {
+    const body: CreateResponseBody = {
+      ...this.body(),
+      input: [
+        ...this.replay.map((entry) => entry.item),
+        {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: UI_TEXT.compactionPrompt }],
+        },
+      ],
+      tools: [],
+    }
+    const summary = await this.collectText(body, signal)
+    this.replay.splice(0, this.replay.length, {
+      turnId: COMPACTION_TURN_ID,
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: `${UI_TEXT.compactionPrefix}\n\n${summary}` }],
+      },
+    })
+    const item: ItemSnapshot = {
+      itemId: this.deps.newId(),
+      kind: 'compaction',
+      status: COMPLETED,
+      fallbackText: UI_TEXT.compactionDone,
+    }
+    this.emit({ type: 'itemCompleted', item })
+    this.recordTranscript(COMPACTION_TURN_ID, item)
+    this.touch()
+    // The new context size is a courtesy: the compaction stands if it cannot be counted.
+    const { stream: _stream, ...countable } = this.body()
+    try {
+      this.noteContext(await this.deps.client.countInputTokens(countable))
+    } catch (error: unknown) {
+      this.deps.log.warn(`The compacted context could not be counted: ${describe(error)}`)
+    }
+    return { status: ACCEPTED, reason: undefined }
+  }
+
   // --- AgentSession ---
 
   public onEvent(listener: SessionEventListener): () => void {
@@ -1078,7 +1231,8 @@ export class ModelApiSession implements AgentSession {
   public sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
     const turnId = this.deps.newId()
     const queued: QueuedTurn = { turnId, parts, displayText }
-    if (this.active === undefined) {
+    // A compaction is a turn too (D26): a message sent during one waits for it.
+    if (this.active === undefined && this.compacting === undefined) {
       void this.runTurn(queued)
       return Promise.resolve({ turnId, disposition: 'started' })
     }
@@ -1094,9 +1248,21 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve(expectedTurnId)
   }
 
+  /**
+   * Stop: the running turn or compaction is aborted, and each queued message
+   * is ended with a reason instead of vanishing (D26).
+   */
   public cancel(): Promise<void> {
-    this.queuedTurns.length = 0
+    for (const dropped of this.queuedTurns.splice(0)) {
+      this.emit({
+        type: 'turnCompleted',
+        turnId: dropped.turnId,
+        terminal: CANCELLED,
+        reason: UI_TEXT.queuedTurnDropped,
+      })
+    }
     this.active?.abort.abort()
+    this.compacting?.abort()
     return Promise.resolve()
   }
 
@@ -1133,43 +1299,27 @@ export class ModelApiSession implements AgentSession {
     if (this.replay.length === 0) {
       return { status: NOOP, reason: NO_COMPACTABLE_HISTORY }
     }
-    if (this.active !== undefined) {
+    if (this.active !== undefined || this.compacting !== undefined) {
       throw new Error(TURN_RUNNING)
     }
+    // Running like a turn (D26): Stop ends it, and messages sent meanwhile queue.
     const abort = new AbortController()
-    const body: CreateResponseBody = {
-      ...this.body(),
-      input: [
-        ...this.replay.map((entry) => entry.item),
-        {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: UI_TEXT.compactionPrompt }],
-        },
-      ],
-      tools: [],
+    this.compacting = abort
+    this.status = RUNNING
+    this.emit({ type: 'sessionStatus', status: RUNNING })
+    try {
+      return await this.runCompaction(abort.signal)
+    } catch (error: unknown) {
+      if (abort.signal.aborted) {
+        return { status: CANCELLED, reason: UI_TEXT.compactionStopped }
+      }
+      throw error
+    } finally {
+      this.compacting = undefined
+      this.status = IDLE
+      this.emit({ type: 'sessionStatus', status: IDLE })
+      this.startNextQueued()
     }
-    const summary = await this.collectText(body, abort.signal)
-    this.replay.splice(0, this.replay.length, {
-      turnId: COMPACTION_TURN_ID,
-      item: {
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text: `${UI_TEXT.compactionPrefix}\n\n${summary}` }],
-      },
-    })
-    const item: ItemSnapshot = {
-      itemId: this.deps.newId(),
-      kind: 'compaction',
-      status: COMPLETED,
-      fallbackText: UI_TEXT.compactionDone,
-    }
-    this.emit({ type: 'itemCompleted', item })
-    this.recordTranscript(COMPACTION_TURN_ID, item)
-    const { stream: _stream, ...countable } = this.body()
-    this.noteContext(await this.deps.client.countInputTokens(countable))
-    this.touch()
-    return { status: ACCEPTED, reason: undefined }
   }
 
   public decideApproval(decision: ApprovalDecision): Promise<void> {
@@ -1213,13 +1363,19 @@ export class ModelApiSession implements AgentSession {
       return Promise.reject(new Error(`unknown output ${request.outputRef}`))
     }
     const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
-    const end = Math.min(request.offsetBytes + request.lengthBytes, bytes.length)
-    const slice = bytes.subarray(request.offsetBytes, end)
+    // Pages start and end on character boundaries, as the CLI serves them (D26):
+    // a character split across two pages would decode as U+FFFD in both.
+    const start = characterStart(bytes, Math.min(request.offsetBytes, bytes.length))
+    let end = characterStart(bytes, Math.min(start + request.lengthBytes, bytes.length))
+    if (end <= start && start < bytes.length) {
+      end = characterEnd(bytes, start)
+    }
+    const slice = bytes.subarray(start, end)
     return Promise.resolve({
       content: slice.toString(MODEL_API_OUTPUT_ENCODING),
       encoding: MODEL_API_OUTPUT_ENCODING,
       mediaType: MODEL_API_OUTPUT_MEDIA_TYPE,
-      offsetBytes: request.offsetBytes,
+      offsetBytes: start,
       byteLen: slice.length,
       eof: end >= bytes.length,
     })
@@ -1279,6 +1435,11 @@ export class ModelApiSession implements AgentSession {
   }
 
   // --- host-side views ---
+
+  /** The turn running now, for a surface that loads this session mid-turn (D26). */
+  public get activeTurnId(): string | undefined {
+    return this.active?.turnId
+  }
 
   public record(): SessionRecord {
     return {
@@ -1375,7 +1536,7 @@ export class ModelApiSession implements AgentSession {
 export class ModelApiHost implements AgentHost {
   private readonly sessions = new Map<string, ModelApiSession>()
   /** What the store holds for this workspace, kept current as sessions change. */
-  private readonly stored = new Map<string, StoredSession>()
+  private readonly stored = new Map<string, StoredSessionHeader>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
   /** Saves run one after another; a failure is logged and never surfaces. */
   private saving: Promise<void> = Promise.resolve()
@@ -1384,6 +1545,7 @@ export class ModelApiHost implements AgentHost {
     serverName: MODEL_API_SERVER_NAME,
     serverVersion: MODEL_API_VERSION,
     grantedCapabilities: [],
+    canEditSessions: true,
   }
 
   public constructor(private readonly deps: ModelApiHostDeps) {}
@@ -1400,7 +1562,7 @@ export class ModelApiHost implements AgentHost {
       return
     }
     const snapshot = session.snapshot()
-    this.stored.set(snapshot.sessionId, snapshot)
+    this.stored.set(snapshot.sessionId, headerOf(snapshot))
     const previous = this.saving
     this.saving = (async () => {
       await previous
@@ -1434,16 +1596,36 @@ export class ModelApiHost implements AgentHost {
     return session
   }
 
+  /**
+   * A stored session read whole (D26: the window keeps only headers). The
+   * saves queued before it run first, so the file holds what this window
+   * last wrote.
+   */
+  private async storedSession(sessionId: string): Promise<StoredSession> {
+    const { store } = this.deps
+    if (store !== undefined && this.stored.has(sessionId)) {
+      await this.saving
+      const stored = await store.load(sessionId)
+      if (stored !== undefined) {
+        return stored
+      }
+    }
+    throw new Error(`session ${sessionId} is not held by this window`)
+  }
+
   /** The live session, or the stored one brought back into this window. */
-  private revive(sessionId: string): ModelApiSession | undefined {
+  private async revive(sessionId: string): Promise<ModelApiSession> {
     const live = this.sessions.get(sessionId)
     if (live !== undefined) {
       live.retain()
       return live
     }
-    const stored = this.stored.get(sessionId)
-    if (stored === undefined) {
-      return undefined
+    const stored = await this.storedSession(sessionId)
+    // Another surface may have brought it back while the file was read.
+    const revived = this.sessions.get(sessionId)
+    if (revived !== undefined) {
+      revived.retain()
+      return revived
     }
     const session = this.create(stored.modelId, stored.approvalMode, sessionId)
     session.adopt(stored)
@@ -1451,7 +1633,12 @@ export class ModelApiHost implements AgentHost {
   }
 
   private loaded(session: ModelApiSession): LoadedSession {
-    return { session, record: session.record(), history: session.history() }
+    return {
+      session,
+      record: session.record(),
+      history: session.history(),
+      activeTurnId: session.activeTurnId,
+    }
   }
 
   /** Reads the store once; this window's sessions then include the stored ones. */
@@ -1519,50 +1706,42 @@ export class ModelApiHost implements AgentHost {
   }
 
   /** The stored transcript; this backend spawns no subagents, so this serves the History dialog's peers only. */
-  public readSession(sessionId: string): Promise<SessionHistoryOutcome> {
-    const stored = this.stored.get(sessionId)
-    return stored === undefined
-      ? Promise.reject(new Error(`session ${sessionId} is not held by this window`))
-      : Promise.resolve({
-          mode: 'inline',
-          items: stored.transcript.map((entry) => entry.item),
-          name: stored.name,
-          todos: stored.todos,
-        })
+  public async readSession(sessionId: string): Promise<SessionHistoryOutcome> {
+    const stored = await this.storedSession(sessionId)
+    return {
+      mode: 'inline',
+      items: stored.transcript.map((entry) => entry.item),
+      name: stored.name,
+      todos: stored.todos,
+    }
   }
 
-  public resumeSession(sessionId: string, _modelId: string): Promise<LoadedSession> {
-    const session = this.revive(sessionId)
-    return session === undefined
-      ? Promise.reject(new Error(`session ${sessionId} is not held by this window`))
-      : Promise.resolve(this.loaded(session))
+  public async resumeSession(sessionId: string, _modelId: string): Promise<LoadedSession> {
+    return this.loaded(await this.revive(sessionId))
   }
 
-  public forkSession(
+  public async forkSession(
     sessionId: string,
     modelId: string,
     lastTurnId?: string,
   ): Promise<LoadedSession> {
     // Copying needs no hold on a live source; a stored one is revived only for the copy.
     const live = this.sessions.get(sessionId)
-    const source = live ?? this.revive(sessionId)
-    if (source === undefined) {
-      return Promise.reject(new Error(`session ${sessionId} is not held by this window`))
-    }
+    const source = live ?? (await this.revive(sessionId))
     const fork = this.create(modelId, source.approvalMode)
     try {
       source.copyInto(fork, lastTurnId)
       this.persist(fork)
     } catch (error: unknown) {
       fork.dispose()
-      return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+      throw error
     } finally {
       if (live === undefined) {
         source.dispose()
       }
     }
     this.announce(fork)
-    return Promise.resolve(this.loaded(fork))
+    return this.loaded(fork)
   }
 
   public onSessionListEvent(listener: (event: SessionListEvent) => void): () => void {

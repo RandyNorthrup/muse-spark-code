@@ -18,13 +18,13 @@ import {
 } from '../../src/host/conversation/conversationController'
 import type { DictationListener } from '../../src/core/voice/dictation'
 import type { DictationSetup } from '../../src/host/voice/dictationHost'
-import { CHOICE_STEERING_NOTE } from '../../src/shared/constants'
+import { CHOICE_STEERING_NOTE, UI_TEXT } from '../../src/shared/constants'
 import type { HostAction, LineRange, MentionItem } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { noopToolIo } from './helpers/fakeToolIo'
-import { fakeInitializeResult, fakeMspHost, settle } from './helpers/fakeMsp'
+import { fakeInitializeResult, fakeMspHost, refusalOf, settle } from './helpers/fakeMsp'
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -148,6 +148,8 @@ function setup(
     /** Voice dictation (M9). */
     dictation?: DictationSetup
     now?: number
+    /** Handshake fields over the fake's (D26: the platform, the version). */
+    handshake?: Record<string, unknown>
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -231,6 +233,7 @@ function setup(
       initializeResult: {
         ...fakeInitializeResult,
         grantedCapabilities: [...(options.grantedCapabilities ?? [])],
+        ...options.handshake,
       },
     },
     log,
@@ -553,20 +556,22 @@ describe('ConversationController.sendMessage', () => {
   it('rejects an empty send, and sends while signed out or without a workspace', async () => {
     const t = setup()
     await t.send('l0', ' '.repeat(3))
+    // Nothing was used, so the composer gets any images back (D26).
     expect(t.surface.posted.at(-1)).toEqual({
       type: 'sendFailed',
       localId: 'l0',
       reason: NOTHING_TO_SEND_REASON,
+      attachmentsKept: true,
     })
     const signedOut = setup({ status: 'signedOut' })
     await signedOut.send('l1', 'hi')
     expect(signedOut.surface.posted).toEqual([
-      { type: 'sendFailed', localId: 'l1', reason: NOT_SIGNED_IN_REASON },
+      { type: 'sendFailed', localId: 'l1', reason: NOT_SIGNED_IN_REASON, attachmentsKept: true },
     ])
     const noWorkspace = setup({ workspaceRoot: undefined })
     await noWorkspace.send('l1', 'hi')
     expect(noWorkspace.surface.posted).toEqual([
-      { type: 'sendFailed', localId: 'l1', reason: NO_WORKSPACE_REASON },
+      { type: 'sendFailed', localId: 'l1', reason: NO_WORKSPACE_REASON, attachmentsKept: true },
     ])
   })
 
@@ -576,7 +581,11 @@ describe('ConversationController.sendMessage', () => {
       throw new Error('boom')
     })
     await t.send('l1', 'hi')
-    expect(t.surface.posted.at(-1)).toMatchObject({ type: 'sendFailed', localId: 'l1' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'sendFailed',
+      localId: 'l1',
+      attachmentsKept: true,
+    })
     expect(t.log.error).toHaveBeenCalledOnce()
   })
 
@@ -976,12 +985,15 @@ describe('ConversationController: transcript actions (M4)', () => {
       requirementId: { approvalId: 'a1', sourceIndex: 0 },
     })
     // A refused decision is a warning since M15: the CLI can fail this reply
-    // after applying the decision.
-    expect(t.surface.posted.at(-1)).toMatchObject({
-      type: 'notice',
-      level: 'warning',
-      text: expect.stringContaining('stale requirement') as string,
-    })
+    // after applying the decision. The card opens again (D26).
+    expect(t.surface.posted.slice(-2)).toEqual([
+      expect.objectContaining({
+        type: 'notice',
+        level: 'warning',
+        text: expect.stringContaining('stale requirement') as string,
+      }),
+      { type: 'approvalReopened', approvalId: 'a1' },
+    ])
     t.server.handle('userInput/answer', () => {
       throw new Error('invalid answer')
     })
@@ -2151,11 +2163,12 @@ describe('ConversationController (M15)', () => {
       choiceId: 'allow',
       requirementId: { approvalId: 'ap-1', sourceIndex: 0 },
     })
-    expect(t.surface.posted.at(-1)).toMatchObject({
+    expect(t.surface.posted.at(-2)).toMatchObject({
       type: 'notice',
       level: 'warning',
       text: expect.stringContaining('may have run anyway') as string,
     })
+    expect(t.surface.posted.at(-1)).toEqual({ type: 'approvalReopened', approvalId: 'ap-1' })
   })
 })
 
@@ -2615,5 +2628,225 @@ describe('ConversationController: lifecycle (D25)', () => {
     await sending
     await settle()
     expect(closing.host.sessionCount).toBe(0)
+  })
+})
+
+describe('ConversationController: protocol semantics (D26)', () => {
+  const refusal = refusalOf
+
+  it('says a late decision, answer or cancel was not needed, as information', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('approval/decide', refusal('approvalRequirementStale'))
+    await t.controller.handle({
+      type: 'decideApproval',
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+    })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.promptMovedOn,
+    })
+    t.server.handle('userInput/answer', refusal('userInputAlreadySettled'))
+    await t.controller.handle({ type: 'answerQuestion', userInputId: 'q1', answers: [] })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.promptAlreadySettled,
+    })
+    t.server.handle('userInput/cancel', refusal('userInputNotFound'))
+    await t.controller.handle({ type: 'cancelQuestion', userInputId: 'q1' })
+    // A prompt the host no longer holds loses its card.
+    expect(t.surface.posted.slice(-2)).toEqual([
+      { type: 'notice', level: 'info', text: UI_TEXT.promptGone },
+      { type: 'promptDropped', userInputId: 'q1' },
+    ])
+    t.server.handle('approval/decide', refusal('approvalNotFound'))
+    await t.controller.handle({
+      type: 'decideApproval',
+      approvalId: 'a2',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a2', sourceIndex: 0 },
+    })
+    expect(t.surface.posted.at(-1)).toEqual({ type: 'promptDropped', approvalId: 'a2' })
+  })
+
+  it('tells the panel where rename and fork are refused', async () => {
+    const t = setup({
+      handshake: { platformOs: 'windows', serverInfo: { name: 'muse', version: '1.3.0' } },
+    })
+    await t.send('l1', 'hi')
+    expect(t.surface.posted).toContainEqual({
+      type: 'sessionInfo',
+      modelId: 'muse-spark-1.3',
+      contextLimit: 1_007_997,
+      sessionId: 's1',
+      canEditSessions: false,
+    })
+  })
+
+  it('reloads the transcript after a delivery gap, once more for a gap during the read', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await settle()
+    let reads = 0
+    t.server.handle('session/read', (params) => {
+      reads += 1
+      if (reads === 1) {
+        t.server.notify('view/gap', { sessionId: 's1', after: 'v2', next: 'v3' })
+      }
+      return {
+        session: {
+          sessionId: params['sessionId'],
+          createdAt: 'c',
+          updatedAt: 'u',
+          status: 'running',
+          turnCount: 1,
+        },
+        history: {
+          mode: 'inline',
+          items: [{ itemId: 'm1', kind: 'agentMessage', status: 'completed', text: 'all of it' }],
+        },
+        viewCursor: 'v9',
+        pendingRequests: [],
+      }
+    })
+    t.surface.posted.length = 0
+    t.server.notify('view/gap', { sessionId: 's1', after: 'v1', next: 'v2' })
+    await settle()
+    await settle()
+    expect(reads).toBe(2)
+    const reloads = t.surface.posted.filter((message) => message.type === 'historyLoaded')
+    expect(reloads).toHaveLength(2)
+    expect(reloads[0]).toMatchObject({
+      sessionId: 's1',
+      items: [expect.objectContaining({ itemId: 'm1' })],
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.viewGapReloaded,
+    })
+    expect(t.surface.posted.some((message) => message.type === 'agentEvent')).toBe(false)
+    t.server.handle('session/read', () => {
+      throw new Error('log locked')
+    })
+    t.server.notify('view/gap', { sessionId: 's1', after: 'v9', next: 'v10' })
+    await settle()
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'warning',
+      text: `${UI_TEXT.viewGapReloadFailed}: log locked`,
+    })
+  })
+
+  it('posts a backend notice as a notice, never as an event', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await settle()
+    t.surface.posted.length = 0
+    t.server.notify('session/modelRouteUnserved', { sessionId: 's1', modelId: 'muse-spark-1.3' })
+    await settle()
+    expect(t.surface.posted).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: `${UI_TEXT.modelRouteUnserved} (muse-spark-1.3)`,
+      },
+    ])
+  })
+
+  it('keeps steering the running turn when a queued one is withdrawn', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    t.server.notify('turn/unqueued', { sessionId: 's1', turnId: 't2', commandId: 'c' })
+    await settle()
+    await t.send('l2', 'more')
+    expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({ expectedTurnId: 't1' })
+  })
+
+  it('does not take a queued turn, or one already finished, for the running one', async () => {
+    const queued = setup()
+    queued.server.handle('turn/start', (params) => ({
+      turnId: 'tq',
+      status: 'accepted',
+      disposition: 'queued',
+      commandId: params['commandId'],
+    }))
+    await queued.send('l1', 'hi')
+    await queued.send('l2', 'again')
+    expect(queued.server.requestsFor('turn/steer')).toHaveLength(0)
+    expect(queued.server.requestsFor('turn/start')).toHaveLength(2)
+    // The turn completes in the same read as the ack that started it.
+    const fast = setup()
+    fast.server.followWith('turn/start', () => [
+      {
+        jsonrpc: '2.0',
+        method: 'turn/completed',
+        params: { sessionId: 's1', turnId: 't1', terminal: 'completed' },
+      },
+    ])
+    await fast.send('l1', 'hi')
+    await settle()
+    await fast.send('l2', 'next')
+    expect(fast.server.requestsFor('turn/steer')).toHaveLength(0)
+  })
+
+  it('carries the running turn of a resumed session into steering and a reload', async () => {
+    const t = withHistory({}, { status: 'running', activeTurnId: 'tr' })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    await settle()
+    t.surface.posted.length = 0
+    t.controller.surfaceReady()
+    expect(t.surface.posted[0]).toEqual({
+      type: 'surfaceState',
+      sessionId: 'old',
+      activeTurnId: 'tr',
+    })
+    await t.send('l1', 'more')
+    expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({ expectedTurnId: 'tr' })
+  })
+
+  it('does not offer rename or fork where Muse Code refuses them', async () => {
+    const t = setup({
+      handshake: { platformOs: 'windows', serverInfo: { name: 'muse', version: '1.3.0' } },
+    })
+    await t.send('l1', 'hi')
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'renameSession', name: 'New name' })
+    await t.controller.handle({ type: 'forkSession', lastTurnId: 't1' })
+    expect(t.server.requestsFor('session/rename')).toHaveLength(0)
+    expect(t.server.requestsFor('session/fork')).toHaveLength(0)
+    expect(t.surface.posted).toEqual([
+      { type: 'notice', level: 'info', text: UI_TEXT.sessionEditsUnsupported },
+      { type: 'notice', level: 'info', text: UI_TEXT.sessionEditsUnsupported },
+    ])
+  })
+
+  it('keeps a refused message’s images for the next try and lets them go once sent', async () => {
+    const t = setup()
+    await attachPng(t)
+    t.server.handle('turn/start', () => {
+      throw new Error('busy')
+    })
+    await t.send('l1', 'look', ['att-1'])
+    expect(t.surface.posted.at(-1)).toMatchObject({ type: 'sendFailed', attachmentsKept: true })
+    t.server.handle('turn/start', (params) => ({
+      turnId: 't1',
+      status: 'accepted',
+      disposition: 'started',
+      commandId: params['commandId'],
+    }))
+    await t.send('l2', 'look', ['att-1'])
+    const input = (index: number) =>
+      t.server.requestsFor('turn/start')[index]?.params?.['input'] as readonly { type: string }[]
+    expect(input(1).map((part) => part.type)).toEqual(['text', 'image', 'text'])
+    t.finishTurn()
+    await settle()
+    await t.send('l3', 'again', ['att-1'])
+    expect(input(2).map((part) => part.type)).toEqual(['text', 'text'])
   })
 })

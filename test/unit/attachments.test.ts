@@ -67,12 +67,15 @@ describe('AttachmentStore', () => {
     })
   })
 
-  it('builds base64 image parts for the requested ids and drops them', () => {
+  it('builds base64 image parts for the requested ids and drops them once released', () => {
     const attachments = store()
     attachments.add('a.png', png(2, 3))
     attachments.add('b.png', png(4, 5))
     attachments.add('c.png', png(6, 7))
-    const parts = attachments.take(['att-3', 'missing', 'att-1'])
+    const parts = attachments.partsFor(['att-3', 'missing', 'att-1'])
+    // Kept until the message is accepted (D26): a refused send tries again with them.
+    expect(attachments.size).toBe(3)
+    attachments.release(['att-3', 'missing', 'att-1'])
     expect(parts).toEqual([
       {
         type: 'image',

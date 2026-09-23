@@ -68,6 +68,7 @@ const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
 const RETRY_AFTER_HEADER = 'retry-after'
 const NETWORK_FAILURE_STATUS = 0
 const FRAME_PREVIEW_CHARS = 80
+const SSE_DONE_SENTINEL = '[DONE]'
 
 /** The documented error envelope, or the status text when the body is not one. */
 async function describeFailure(response: Response): Promise<ModelApiError> {
@@ -279,6 +280,11 @@ export class ModelApiClient {
       throw new ModelApiError('The response had no body', response.status, undefined, undefined)
     }
     for await (const frame of parseSse(response.body)) {
+      // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
+      // data. Neither is an event (D26).
+      if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
+        continue
+      }
       let json: unknown
       try {
         json = JSON.parse(frame.data)
