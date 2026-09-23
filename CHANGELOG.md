@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] - 2026-09-22
+
 ### Fixed
 
 - The Muse Code CLI is started with `--trust-workspace` when VS Code trusts

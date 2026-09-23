@@ -75,7 +75,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.1.1.vsix
+   code --install-extension muse-spark-code-0.2.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press

@@ -1580,3 +1580,9 @@ decision; D14 the production-hardening audit. M10 and M11 carry the work;
 0.2.0 ships when both are certified, with `release.yml` making the tag,
 the GitHub Release and (with the repository secret) the Marketplace
 publish one operation.
+
+**0.2.0 (2026-09-22, night):** M10 and M11 certified
+(`docs/certification/m10.md`, `m11.md`); version bumped, `CHANGELOG.md`
+section promoted, tagged `v0.2.0` and pushed so `release.yml` builds,
+creates the GitHub Release with the `.vsix` and publishes to the
+Marketplace if `VSCE_PAT` is set (RELEASE_RUN_PLACEHOLDER).
