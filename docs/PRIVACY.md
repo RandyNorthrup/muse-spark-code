@@ -54,7 +54,11 @@ security notes for contributors are in `PLAN.md` §9.
   open while the button is held or on ("Listening…"), and the recognised
   words go into the composer, where you can edit or delete them before
   anything is sent. The words are not logged (the log records only a
-  character count).
+  character count). On macOS the microphone and speech-recognition
+  permissions belong to Visual Studio Code, the app that starts the helper:
+  they cover everything VS Code starts and are revoked under System
+  Settings > Privacy & Security > Microphone / Speech Recognition.
+  Dictation is off in remote windows.
 
 The extension itself has **no telemetry**, no analytics, no crash reporting
 and no server of its own. It never contacts any host other than Meta's (and,

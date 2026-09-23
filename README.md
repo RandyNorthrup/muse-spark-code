@@ -107,7 +107,8 @@ harness:shots`) against a scripted session, so they match the build exactly.
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
-   `Ctrl+Shift+Esc` for a conversation in an editor tab).
+   `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS,
+   `Ctrl+Shift+Esc` on Linux for a conversation in an editor tab).
 3. Sign in, one of two ways:
    - **Sign in with your Meta account** opens a terminal running `muse login`
      from the [Muse Code CLI](https://dev.meta.ai/products/muse-code/) and
@@ -303,11 +304,36 @@ lands at the caret followed by a space. Recognition runs in a small helper
 on the operating system's own engine, kept warm for five minutes after a
 recording. Nothing is billed and no third-party engine is involved.
 
-| Platform | How                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech`, the desktop recogniser that ships with Windows (English always; other languages with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing; Windows' Speech Recognition training improves it for your voice.                                              |
-| macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace package. **Dictation (System Settings > Keyboard) or Siri must be on.** macOS asks once for the microphone and for speech recognition. Apple picks on-device recognition when its model is installed, otherwise its servers under Apple's terms at no charge (`--on-device` refuses the servers). |
-| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                                                     |
+Dictation is off in a remote window (SSH, WSL, containers, tunnels,
+Codespaces): the extension runs on the remote machine, which cannot hear
+your microphone.
+
+| Platform | How                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech`, the desktop recogniser that ships with Windows (English always; other languages with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing; Windows' Speech Recognition training improves it for your voice.                    |
+| macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace package. **Dictation (System Settings > Keyboard) or Siri must be on.** Apple picks on-device recognition when its model is installed, otherwise its servers under Apple's terms at no charge (`--on-device` refuses the servers). See the macOS notes below the table. |
+| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                           |
+
+On macOS, two things can stop the helper, and the panel's error says which:
+
+- **A permission.** macOS grants the microphone and speech recognition to
+  Visual Studio Code, the app that starts the helper. VS Code does not
+  declare speech recognition
+  ([microsoft/vscode#307364](https://github.com/microsoft/vscode/issues/307364)),
+  so macOS may refuse it without asking; the panel then says so, and
+  dictation cannot work in VS Code on that Mac until VS Code declares it.
+  When Visual Studio Code is listed under System Settings > Privacy &
+  Security > Speech Recognition or > Microphone, turn it on there and try
+  again.
+- **The helper itself.** The helper is ad-hoc signed, not notarised; VS
+  Code's installer does not quarantine it, so Gatekeeper does not stop it.
+  If the error names no permission step, macOS refused to run the helper:
+  its file carries the quarantine flag, which a copy through a browser
+  download or an archive tool can add. This clears it:
+
+```bash
+xattr -d com.apple.quarantine ~/.vscode/extensions/randynorthrup.muse-spark-code-*/native/darwin/muse-dictate
+```
 
 Diagnosing on Windows: the helper can replay a WAV file instead of the
 microphone, which separates a recogniser problem from a microphone one.
@@ -323,23 +349,29 @@ device is available", and step markers on stderr name where a start failed.
 
 ## Commands and keybindings
 
-| Command                                    | Default keybinding                                                          | What it does                                                                                                                                              |
-| ------------------------------------------ | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Muse Spark: Open in Sidebar                | —                                                                           | Focus the chat view in the activity bar                                                                                                                   |
-| Muse Spark: New Conversation               | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                  |
-| Muse Spark: Sign Out                       | —                                                                           | Forget the stored Model API key and run `muse logout` when the CLI is signed in                                                                           |
-| Muse Spark: Open in Terminal               | —                                                                           | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                             |
-| Muse Spark: Create AGENTS.md               | —                                                                           | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                      |
-| Muse Spark: Open Walkthrough               | —                                                                           | Open the four-step Get Started walkthrough                                                                                                                |
-| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`)                                          | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
-| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)                                                      | Move keyboard focus between the editor and the composer                                                                                                   |
-| Muse Spark: Insert @-Mention for Selection | `Alt+K`, editor focused                                                     | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
-| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`, Muse focused                                                  | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
-| Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only          | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
-| Muse Spark: Set Up Shell Sandbox           | —                                                                           | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
-| Muse Spark: Show Logs                      | —                                                                           | Open the "Muse Spark" log channel (keys redacted)                                                                                                         |
-| Muse Spark: Diagnostics                    | —                                                                           | Write the versions, the backend and CLI facts, credential presence (as yes/no) and the dictation state to the log and open it: what a bug report needs    |
-| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                           | Tap to start or stop voice dictation, hold to record while held                                                                                           |
+| Command                                    | Default keybinding                                                                   | What it does                                                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                | —                                                                                    | Focus the chat view in the activity bar                                                                                                                   |
+| Muse Spark: New Conversation               | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused          | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                  |
+| Muse Spark: Sign Out                       | —                                                                                    | Forget the stored Model API key and run `muse logout` when the CLI is signed in                                                                           |
+| Muse Spark: Open in Terminal               | —                                                                                    | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                             |
+| Muse Spark: Create AGENTS.md               | —                                                                                    | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                      |
+| Muse Spark: Open Walkthrough               | —                                                                                    | Open the four-step Get Started walkthrough                                                                                                                |
+| Muse Spark: Open in New Tab                | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
+| Muse Spark: Toggle Focus                   | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                   | Move keyboard focus between the editor and the composer                                                                                                   |
+| Muse Spark: Insert @-Mention for Selection | `Alt+K`, editor focused                                                              | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
+| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`, Muse focused                                                           | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
+| Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                   | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
+| Muse Spark: Set Up Shell Sandbox           | —                                                                                    | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
+| Muse Spark: Show Logs                      | —                                                                                    | Open the "Muse Spark" log channel (keys redacted)                                                                                                         |
+| Muse Spark: Diagnostics                    | —                                                                                    | Write the versions, the backend and CLI facts, credential presence (as yes/no) and the dictation state to the log and open it: what a bug report needs    |
+| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                           |
+
+Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
+which is why its two shortcuts add `Alt`. Four commands appear in the
+Command Palette only where they can act: Insert @-Mention with an editor
+open, Toggle Thinking with a Muse panel in view, Set Up Shell Sandbox on
+Windows (or in a remote window), Create AGENTS.md with a folder open.
 
 ## Settings
 
@@ -382,7 +414,8 @@ moves every open conversation out of Bypass at once.
   file search is used without it). The extension runs git only in a trusted
   workspace and only from an absolute `PATH` entry, never a copy inside the
   workspace.
-- Voice dictation: Windows, or macOS with Dictation or Siri enabled.
+- Voice dictation: Windows, or macOS with Dictation or Siri enabled, in a
+  local window.
 - A trusted workspace for rules, skills, memory and shell commands; in
   Restricted Mode the panel chats and edits under approval, nothing more.
   The first workspace folder is the root; virtual workspaces are not
@@ -448,7 +481,8 @@ PowerShell and Swift with no dependencies.
 | `npm run watch`                           | Rebuild extension + webview on change                                                                                                                                                                                                                                                                                                        |
 | `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev` and Chrome. The README's screenshots come from here                                                                                                                                              |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                      |
-| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                                                                                                                                                                                                                                               |
+| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages                                                                                                                                  |
+| `npm run notices`                         | Regenerates `THIRD_PARTY_NOTICES.txt` from the production bundles                                                                                                                                                                                                                                                                            |
 | `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                                                       |
 | `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, PSScriptAnalyzer over `native/windows`                                                                                                                                                                                                                                 |
 | `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test, e2e-test and integration-test projects                                                                                                                                                                                                                                                      |
@@ -457,9 +491,9 @@ PowerShell and Swift with no dependencies.
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                   |
 | `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                               |
 | `npm run test:e2e:live`                   | One real turn on the installed Muse Code CLI, opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60, counted from the CLI's trace log); never in CI |
-| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it                                                                                                                                                                                                                                                  |
+| `npm run test:integration`                | Builds, downloads VS Code stable and the `engines.vscode` floor into `.vscode-test/`, runs `test/integration/**` in each; after `npm run build:dev`, `npm run test:integration:run -- --label stable` (or `minimum`) runs one                                                                                                                |
 | `npm run test`                            | Unit then integration                                                                                                                                                                                                                                                                                                                        |
-| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                                                                                                                                                                                                                                                               |
+| `npm run security:audit`                  | `scripts/audit.mjs`: fails on a high or critical advisory without a dated, reviewed entry in `.github/audit-exceptions.json`                                                                                                                                                                                                                 |
 | `npm run security:sast`                   | `semgrep scan --config auto --error`                                                                                                                                                                                                                                                                                                         |
 | `npm run security:secrets`                | `gitleaks git` over the repository history                                                                                                                                                                                                                                                                                                   |
 | `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**                                                                                                                                                                                                                                          |

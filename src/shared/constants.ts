@@ -598,15 +598,23 @@ export const META_DASHBOARD_URL = 'https://dev.meta.ai/'
 /**
  * The getting-started tips on the empty state (M8), in the order shown. The
  * shortcuts are the default bindings from package.json; Cmd stands in for
- * Ctrl on macOS as the composer placeholder already assumes.
+ * Ctrl on macOS as the composer placeholder already assumes. Windows keeps
+ * Ctrl+Esc and Ctrl+Shift+Esc for itself, so its bindings add Alt; the
+ * webview does not know the platform, so both are named (M26, D29).
  */
 export const ONBOARDING_TIPS = [
-  { shortcut: 'Ctrl+Esc', text: 'focuses or unfocuses Muse from anywhere in VS Code' },
+  {
+    shortcut: 'Ctrl+Esc (Ctrl+Alt+Esc on Windows)',
+    text: 'focuses or unfocuses Muse from anywhere in VS Code',
+  },
   { shortcut: '/', text: 'opens the actions palette: model, effort, permission mode, history' },
   { shortcut: 'Shift+Tab', text: 'cycles the permission mode while the composer has focus' },
   { shortcut: 'Alt+K', text: 'inserts an @-mention of the editor selection' },
   { shortcut: '@', text: 'mentions a file; drag files or paste images to attach them' },
-  { shortcut: 'Ctrl+Shift+Esc', text: 'opens a conversation in a new editor tab' },
+  {
+    shortcut: 'Ctrl+Shift+Esc (Ctrl+Shift+Alt+Esc on Windows)',
+    text: 'opens a conversation in a new editor tab',
+  },
   {
     shortcut: 'Ctrl+D',
     text: 'records your voice into the composer (tap to toggle, hold to talk)',
@@ -709,7 +717,8 @@ export const UI_TEXT = {
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
   crashReload: 'Reload',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
-  composerPlaceholder: 'ctrl esc to focus or unfocus Muse',
+  // Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start there; M26, D29).
+  composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   composerLabel: 'Message Muse',

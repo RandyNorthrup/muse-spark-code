@@ -78,5 +78,12 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   design in a trusted workspace; the permission modes and the approval
   cards are the control, and the Diagnostics report and the log show what
   ran.
+- **Release pipeline.** A tag is released only when it names the manifest
+  version and points at a commit on `main`; the Marketplace PAT reaches one
+  step, after an install that runs no package scripts; no checkout keeps a
+  token; every job has a timeout.
+- **The macOS dictation helper** is ad-hoc signed, not notarised (owner
+  decision); VS Code's installer does not quarantine it, so Gatekeeper does
+  not assess it.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.

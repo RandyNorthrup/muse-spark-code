@@ -399,7 +399,7 @@
           {
             "id": "open",
             "title": "Open the panel",
-            "description": "Click the Muse Spark icon in the activity bar, or press Ctrl+Shift+Escape (Cmd+Shift+Escape on macOS) for a conversation in an editor tab.\n[Open Muse Spark](command:museSpark.openInSidebar)",
+            "description": "Click the Muse Spark icon in the activity bar, or press Ctrl+Shift+Alt+Escape on Windows, Cmd+Shift+Escape on macOS or Ctrl+Shift+Escape on Linux for a conversation in an editor tab.\n[Open Muse Spark](command:museSpark.openInSidebar)",
             "media": {
               "markdown": "resources/walkthrough/open.md"
             },
