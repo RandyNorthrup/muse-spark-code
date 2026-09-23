@@ -6,6 +6,7 @@ import {
   MUSE_DELEGATION_ENABLED,
   PERMISSION_MODE_DETAILS,
   PERMISSION_MODE_LABELS,
+  type SubagentAction,
   UI_TEXT,
 } from '../shared/constants'
 import { editorContextLabel } from '../shared/editorContext'
@@ -452,6 +453,18 @@ export function App({
     },
     [postMessage],
   )
+  const onControlAgent = useCallback(
+    (subagentId: string, action: SubagentAction) => {
+      postMessage({ type: 'subagentControl', subagentId, action })
+    },
+    [postMessage],
+  )
+  const onMessageAgent = useCallback(
+    (subagentId: string, body: string, isFollowup: boolean) => {
+      postMessage({ type: 'subagentMessage', subagentId, body, isFollowup })
+    },
+    [postMessage],
+  )
   const onOpenMuseSettings = useCallback(() => {
     postMessage({ type: 'hostAction', action: 'openMuseSettings' })
   }, [postMessage])
@@ -856,6 +869,8 @@ export function App({
         selectedAgentId={selectedAgentId}
         onSelectAgent={setSelectedAgentId}
         onReadChild={onReadChild}
+        onControl={onControlAgent}
+        onMessage={onMessageAgent}
         onOpenMuseSettings={onOpenMuseSettings}
         onClose={closeOverlay}
       />

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   AgentMap,
   type AgentMapProps,
+  controlsFor,
   formatDurationMs,
   type SubagentEntry,
   type ToolEntry,
@@ -22,6 +23,7 @@ const explorer: SubagentEntry = {
   durationMs: 90_000,
   usage: { inputTokens: 70_000, outputTokens: 7600, cachedTokens: 0, reasoningTokens: 0 },
   resultSummary: 'Mapped 12 files',
+  resultText: undefined,
 }
 const reviewer: SubagentEntry = {
   ...explorer,
@@ -67,6 +69,8 @@ function renderMap(overrides: Partial<AgentMapProps> = {}) {
     selectedAgentId: undefined,
     onSelectAgent: vi.fn(),
     onReadChild: vi.fn(),
+    onControl: vi.fn(),
+    onMessage: vi.fn(),
     onOpenMuseSettings: vi.fn(),
     onClose: vi.fn(),
     ...overrides,
@@ -150,5 +154,55 @@ describe('AgentMap', () => {
       isDelegationEnabled: false,
     })
     expect(screen.queryByText('Open the Muse Code settings file')).toBeNull()
+  })
+})
+
+describe('AgentMap owner controls (M18)', () => {
+  it('offers interrupt and stop with a note while an agent runs, close and a follow-up once done, nothing when closed', () => {
+    const running = {
+      ...explorer,
+      id: 'r',
+      subagentId: 'sub-r',
+      status: 'inProgress',
+      controlStatus: 'running',
+    }
+    const done = {
+      ...explorer,
+      id: 'd',
+      subagentId: 'sub-d',
+      status: 'completed',
+      controlStatus: 'resultReady',
+      resultSummary: 'ALPHA',
+      resultText: 'ALPHA, as asked.',
+    }
+    const closed = {
+      ...explorer,
+      id: 'c',
+      subagentId: 'sub-c',
+      status: 'completed',
+      controlStatus: 'closed',
+    }
+    expect(controlsFor(running)).toEqual(['interrupt', 'stop'])
+    expect(controlsFor(done)).toEqual(['close'])
+    expect(controlsFor(closed)).toEqual([])
+    expect(controlsFor({ ...running, controlStatus: 'interrupted' })).toEqual(['resume', 'stop'])
+    const onControl = vi.fn()
+    const onMessage = vi.fn()
+    renderMap({ agents: [running, done], selectedAgentId: 'r', onControl, onMessage })
+    fireEvent.click(screen.getByRole('button', { name: 'Interrupt' }))
+    expect(onControl).toHaveBeenCalledWith('sub-r', 'interrupt')
+    const note = screen.getByLabelText('Send message')
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled()
+    fireEvent.change(note, { target: { value: '  also check tests ' } })
+    fireEvent.keyDown(note, { key: 'Enter' })
+    expect(onMessage).toHaveBeenCalledWith('sub-r', 'also check tests', false)
+    expect(note).toHaveValue('')
+    renderMap({ agents: [done], selectedAgentId: 'd', onControl, onMessage })
+    expect(screen.getByText('ALPHA, as asked.')).toHaveClass('agent-result-text')
+    fireEvent.change(screen.getByLabelText('Follow-up task'), { target: { value: 'now BETA' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Follow-up task' }))
+    expect(onMessage).toHaveBeenCalledWith('sub-d', 'now BETA', true)
+    fireEvent.click(screen.getByRole('button', { name: 'Close agent' }))
+    expect(onControl).toHaveBeenCalledWith('sub-d', 'close')
   })
 })

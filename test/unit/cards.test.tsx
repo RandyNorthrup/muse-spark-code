@@ -149,3 +149,28 @@ describe('TodoPanel', () => {
     expect(screen.queryByRole('region')).toBeNull()
   })
 })
+
+describe('ApprovalCard tool subjects (M18)', () => {
+  it('says "use" before a bare tool name, as for subagent_spawn', () => {
+    render(
+      <ApprovalCard
+        approval={{
+          approvalId: 'a2',
+          requirementId: { approvalId: 'a2', sourceIndex: 0 },
+          subject: { kind: 'tool', toolName: 'subagent_spawn' },
+          rawArgs: '{"objective":"Map the tree","role":"explorer"}',
+          availableChoices: [
+            { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+          ],
+          isProtectedWrite: false,
+          isJudgeEscalated: false,
+        }}
+        toolName="subagent_spawn"
+        onDecide={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('subagent_spawn').closest('.approval-title')).toHaveTextContent(
+      'Muse wants to use subagent_spawn',
+    )
+  })
+})

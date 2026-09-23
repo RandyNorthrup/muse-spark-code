@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
-import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
@@ -300,6 +300,30 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(child.items.map((item) => item.kind)).toEqual(['userMessage', 'agentMessage'])
     expect(child.items[1]?.text).toBe('explorer finished: map the workspace layout')
     expect(t.text()).toBe('delegated: 2 agents')
+    // Owner controls (M18): the CLI answers each and updates the item.
+    const controlled = watch(t.session)
+    const subagentId = first?.subagentId ?? ''
+    await t.session.controlSubagent(subagentId, 'interrupt')
+    await vi.waitFor(() => {
+      expect(
+        controlled.events.some(
+          (event) =>
+            event.type === 'itemUpdated' &&
+            event.item.subagentId === subagentId &&
+            event.item.controlStatus === 'interrupted',
+        ),
+      ).toBe(true)
+    })
+    await t.session.messageSubagent(subagentId, 'one more file', true)
+    await vi.waitFor(() => {
+      expect(
+        controlled.events.some(
+          (event) =>
+            event.type === 'itemUpdated' &&
+            event.item.result?.summary === 'followup: one more file',
+        ),
+      ).toBe(true)
+    })
     const second = watch(t.session)
     await second.start('background: npm test').done()
     expect(

@@ -1171,3 +1171,82 @@ describe('chat references (M17)', () => {
     expect(state.reference).toBeUndefined()
   })
 })
+
+describe('subagent child output routing (M18)', () => {
+  const at = 1000
+  const run = (state: typeof initialUiState, event: AgentEvent) =>
+    uiReducer(state, { type: 'hostMessage', message: { type: 'agentEvent', event }, at })
+
+  it("keeps a child's items and deltas in the agent's transcript, not the conversation", () => {
+    let state = run(initialUiState, {
+      type: 'itemStarted',
+      item: {
+        itemId: 'sa1',
+        kind: 'subagent',
+        status: 'inProgress',
+        turnId: 'parent-turn',
+        role: 'alpha',
+        objective: 'say ALPHA',
+        subagentId: 'subagent-1',
+        childSessionId: 'child-1',
+      },
+    })
+    state = run(state, {
+      type: 'itemStarted',
+      item: {
+        itemId: 'cm1',
+        kind: 'agentMessage',
+        status: 'inProgress',
+        turnId: 'child-1',
+        text: '',
+      },
+    })
+    state = run(state, { type: 'textDelta', itemId: 'cm1', field: 'text', delta: 'ALP' })
+    state = run(state, { type: 'textDelta', itemId: 'cm1', field: 'text', delta: 'HA' })
+    // The deltas reach the child's entry, not the conversation, while it streams.
+    expect(state.childTranscripts['child-1']?.entries[0]).toMatchObject({
+      text: 'ALPHA',
+      isStreaming: true,
+    })
+    expect(state.transcript).toHaveLength(1)
+    state = run(state, {
+      type: 'itemCompleted',
+      item: {
+        itemId: 'cm1',
+        kind: 'agentMessage',
+        status: 'completed',
+        turnId: 'child-1',
+        text: 'ALPHA',
+      },
+    })
+    state = run(state, {
+      type: 'itemCompleted',
+      item: {
+        itemId: 'pm1',
+        kind: 'agentMessage',
+        status: 'completed',
+        turnId: 'parent-turn',
+        text: 'DONE',
+      },
+    })
+    expect(state.transcript.map((entry) => entry.kind)).toEqual(['subagent', 'assistant'])
+    expect(state.childTranscripts['child-1']).toEqual({
+      name: 'say ALPHA',
+      entries: [{ kind: 'assistant', id: 'cm1', text: 'ALPHA', isStreaming: false }],
+    })
+    state = run(state, {
+      type: 'itemCompleted',
+      item: {
+        itemId: 'sa1',
+        kind: 'subagent',
+        status: 'completed',
+        turnId: 'parent-turn',
+        subagentId: 'subagent-1',
+        childSessionId: 'child-1',
+        controlStatus: 'resultReady',
+        result: { summary: 'ALPHA', text: 'ALPHA, as asked.' },
+      },
+    })
+    expect(state.transcript[0]).toMatchObject({ kind: 'subagent', resultText: 'ALPHA, as asked.' })
+  })
+})

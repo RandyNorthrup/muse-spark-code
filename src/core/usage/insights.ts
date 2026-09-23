@@ -29,6 +29,8 @@ export interface TraceRun {
   readonly runId: string
   /** The turn's own run (`runtime.run.lifecycle run_kind="turn"`). */
   readonly isTurn: boolean
+  /** A native subagent's run (`native_subagent.child … child_run_id=`), M18: its own turn in a child session. */
+  readonly isChild: boolean
   /** From `tool.surface.registered`; undefined when the run registered none. */
   readonly registeredTools: number | undefined
 }
@@ -47,6 +49,8 @@ const TIMESTAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)/
 const TURN_RUN = /event="runtime\.run\.lifecycle" run_kind="turn" .*?run_id=([\w-]+)/
 const SURFACE = /event="tool\.surface\.registered" run_id=([\w-]+) .*?registered_tool_count=(\d+)/
 const ADMISSION = /event="model\.attempt\.lifecycle" run_id="([^"]+)".*phase="admission"/
+/** A subagent's child run, seen live 2026-09-23: its run id is the child session's turn. */
+const CHILD_RUN = /event="native_subagent\.child" .*?child_run_id=([\w-]+)/
 const LINE_BREAK = /\r?\n/
 
 function withRun(
@@ -54,7 +58,12 @@ function withRun(
   runId: string,
   change: Partial<Omit<TraceRun, 'runId'>>,
 ): void {
-  const current = runs.get(runId) ?? { runId, isTurn: false, registeredTools: undefined }
+  const current = runs.get(runId) ?? {
+    runId,
+    isTurn: false,
+    isChild: false,
+    registeredTools: undefined,
+  }
   runs.set(runId, { ...current, ...change })
 }
 
@@ -71,6 +80,11 @@ export function parseTraceLog(text: string): TraceLogFacts {
     const atMs = Date.parse(stamp)
     firstMs ??= atMs
     lastMs = atMs
+    const child = CHILD_RUN.exec(line)
+    if (child?.[1] !== undefined) {
+      withRun(runs, child[1], { isChild: true })
+      continue
+    }
     const turn = TURN_RUN.exec(line)
     if (turn?.[1] !== undefined) {
       withRun(runs, turn[1], { isTurn: true })
@@ -89,9 +103,19 @@ export function parseTraceLog(text: string): TraceLogFacts {
   return { firstMs, lastMs, attempts, runs }
 }
 
-/** A run with no surface line is the turn's own; a one-tool child is a reminder. */
+/**
+ * A subagent's child run is named by the CLI (its own `run_kind="turn"` in
+ * the child session, so the turn flag alone cannot tell); a run with no
+ * surface line is the turn's own; a one-tool child is a reminder.
+ */
 export function classifyRun(run: TraceRun | undefined): AttemptClass {
-  if (run === undefined || run.isTurn || run.registeredTools === undefined) {
+  if (run === undefined) {
+    return 'turn'
+  }
+  if (run.isChild) {
+    return 'subagent'
+  }
+  if (run.isTurn || run.registeredTools === undefined) {
     return 'turn'
   }
   return run.registeredTools <= REMINDER_RUN_TOOL_COUNT_MAX ? 'reminder' : 'subagent'

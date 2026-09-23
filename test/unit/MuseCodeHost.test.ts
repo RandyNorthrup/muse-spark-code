@@ -336,6 +336,25 @@ describe('MuseCodeHost', () => {
       sessionId: session.sessionId,
       userInputId: 'q1',
     })
+    server.handle('subagent/interrupt', (params) => ({
+      ...ack(params),
+      subagentId: params['subagentId'],
+    }))
+    server.handle('subagent/sendMessage', (params) => ({
+      ...ack(params),
+      subagentId: params['subagentId'],
+    }))
+    await session.controlSubagent('sub-1', 'interrupt')
+    await session.messageSubagent('sub-1', 'keep going', false)
+    expect(server.requestsFor('subagent/interrupt')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      subagentId: 'sub-1',
+    })
+    expect(server.requestsFor('subagent/sendMessage')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      subagentId: 'sub-1',
+      body: 'keep going',
+    })
     const page = await session.readOutput({
       itemId: 'c1',
       outputRef: 'tool_patch-1',

@@ -9,6 +9,7 @@
 import type { Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import type { AgentEvent, QuestionAnswer } from '../../../shared/agentEvents'
+import type { SubagentAction } from '../../../shared/constants'
 import {
   type SubscriptionUsage,
   subscriptionUsageSchema,
@@ -246,6 +247,23 @@ export class MuseSession implements AgentSession {
   /** Decline a `request_user_input` prompt (`userInput/cancel`, M16). */
   public async cancelQuestions(userInputId: string): Promise<void> {
     await this.command('userInput/cancel', { userInputId })
+  }
+
+  /** `subagent/interrupt`, `stop`, `resume` or `close` on a child (M18). */
+  public async controlSubagent(subagentId: string, action: SubagentAction): Promise<void> {
+    await this.command(`subagent/${action}`, { subagentId })
+  }
+
+  /** `subagent/sendMessage` (a note while it runs) or `subagent/followupTask` (M18). */
+  public async messageSubagent(
+    subagentId: string,
+    body: string,
+    isFollowup: boolean,
+  ): Promise<void> {
+    await this.command(isFollowup ? 'subagent/followupTask' : 'subagent/sendMessage', {
+      subagentId,
+      body,
+    })
   }
 
   /** One page of a stored tool output or patch document (`item/readOutput`). */

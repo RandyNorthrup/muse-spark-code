@@ -271,6 +271,13 @@ export const TOOL_LABELS: Readonly<Record<string, string>> = {
   list_files: 'List',
   ask_user: 'Question',
   todo_write: 'Tasks',
+  // Muse Code's native subagent tools (M14; seen live 2026-09-23).
+  subagent_spawn: 'Spawn agent',
+  subagent_wait: 'Wait for agents',
+  subagent_status: 'Agent status',
+  subagent_send_message: 'Message agent',
+  subagent_read_result: 'Agent result',
+  subagent_cancel: 'Cancel agent',
 }
 export const SHELL_TOOLS: ReadonlySet<string> = new Set(['bash', 'powershell', 'shell', 'cmd'])
 export const FILE_EDIT_TOOLS: ReadonlySet<string> = new Set(['write_file', 'edit_file'])
@@ -402,6 +409,17 @@ export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'r
 // `~/.config/muse/settings.json`) is `auto`; the extension reads it, never
 // writes it.
 export const MUSE_SETTINGS_FILE_SEGMENTS = ['muse', 'settings.json'] as const
+/** The owner commands on a native subagent the Agent map offers (MSP `subagent/<action>`), M18. */
+export const SUBAGENT_ACTIONS = ['interrupt', 'stop', 'resume', 'close'] as const
+export type SubagentAction = (typeof SUBAGENT_ACTIONS)[number]
+/** Control statuses (MSP SubagentControlStatus) that mean the child is still working. */
+export const SUBAGENT_RUNNING_STATUSES: ReadonlySet<string> = new Set([
+  'accepted',
+  'starting',
+  'running',
+])
+export const SUBAGENT_RESULT_READY = 'resultReady'
+export const SUBAGENT_CLOSED = 'closed'
 export const MUSE_DELEGATION_DEFAULT = 'off'
 export const MUSE_DELEGATION_ENABLED = 'auto'
 // The CLI's trace logs, one per `muse serve` process, under its data root.
@@ -759,6 +777,8 @@ export const UI_TEXT = {
   copiedCode: 'Copied',
   insertCode: 'Insert at cursor',
   approvalTitle: 'Muse wants to',
+  /** Before a bare tool name (subject kind "tool", e.g. subagent_spawn), M18. */
+  approvalUseTool: 'use',
   approvalProtectedWrite: 'Protected write',
   approvalJudgeEscalated: 'Escalated by the safety check',
   approvalFeedbackPlaceholder: 'Tell Muse what to do instead (optional)',
@@ -992,6 +1012,18 @@ export const UI_TEXT = {
   agentBack: 'Back to the map',
   agentTranscriptLoading: 'Reading the agent’s transcript…',
   agentTranscriptFailed: 'Could not read the agent’s transcript',
+  /** The Agent map's owner controls (M18). */
+  agentInterrupt: 'Interrupt',
+  agentStop: 'Stop',
+  agentResume: 'Resume',
+  agentClose: 'Close agent',
+  agentSendMessage: 'Send message',
+  agentFollowup: 'Follow-up task',
+  agentMessagePlaceholder: 'A note for this agent, or its next task…',
+  agentControlsLabel: 'Agent controls',
+  agentControlFailed: 'The agent command was refused',
+  agentResultText: 'Result',
+  subagentsUnsupported: 'The Model API backend runs no subagents',
   agentNoTranscript: 'No transcript for this agent.',
   agentTranscriptLabel: 'Agent transcript',
   agentDelegationOff:
@@ -1028,6 +1060,7 @@ export const UI_TEXT = {
   usageInsightLong: 'of model attempts came from sessions active for 8+ hours',
   usageInsightNone: 'No CLI activity recorded in this window.',
   usageInsightUnavailable: 'Not available on this backend: the Model API has no local trace logs.',
+  usageInsightNoLogs: 'No Muse Code trace logs were found on this machine yet.',
   usageInsightAttempts: 'model attempts across',
   usageInsightSession: 'session',
   usageInsightSessions: 'sessions',

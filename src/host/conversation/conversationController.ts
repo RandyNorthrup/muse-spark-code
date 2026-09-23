@@ -45,6 +45,7 @@ import {
   SESSION_LIST_MAX_PAGES,
   CHOICE_STEERING_NOTE,
   SESSION_RESTORE_WINDOW_MS,
+  type SubagentAction,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
@@ -1252,6 +1253,33 @@ export class ConversationController {
     })
   }
 
+  /** An owner command on a subagent from the Agent map (M18); the CLI's item updates carry the outcome. */
+  private async controlSubagent(subagentId: string, action: SubagentAction): Promise<void> {
+    if (this.session === undefined) {
+      return
+    }
+    try {
+      await this.session.controlSubagent(subagentId, action)
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`)
+    }
+  }
+
+  private async messageSubagent(
+    subagentId: string,
+    body: string,
+    isFollowup: boolean,
+  ): Promise<void> {
+    if (this.session === undefined || body.trim() === '') {
+      return
+    }
+    try {
+      await this.session.messageSubagent(subagentId, body.trim(), isFollowup)
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`)
+    }
+  }
+
   /** The Agent map asked for a subagent's own transcript (M14). */
   private async readChildSession(sessionId: string): Promise<void> {
     try {
@@ -1499,6 +1527,14 @@ export class ConversationController {
       }
       case 'readChildSession': {
         await this.readChildSession(message.sessionId)
+        break
+      }
+      case 'subagentControl': {
+        await this.controlSubagent(message.subagentId, message.action)
+        break
+      }
+      case 'subagentMessage': {
+        await this.messageSubagent(message.subagentId, message.body, message.isFollowup)
         break
       }
       case 'resumeSession': {

@@ -5,7 +5,14 @@
 // When Muse Code's delegation is off (its default), the map says so and
 // opens the CLI's settings file on request; the extension never edits it.
 
-import { UI_TEXT } from '../../shared/constants'
+import { useState } from 'react'
+import {
+  SUBAGENT_CLOSED,
+  SUBAGENT_RESULT_READY,
+  SUBAGENT_RUNNING_STATUSES,
+  type SubagentAction,
+  UI_TEXT,
+} from '../../shared/constants'
 import { formatTokenWindow } from '../../shared/palette'
 import type { ChildTranscript, TranscriptEntry } from '../state/uiState'
 import { Modal } from './Modal'
@@ -26,8 +33,97 @@ export interface AgentMapProps {
   readonly selectedAgentId: string | undefined
   readonly onSelectAgent: (agentId: string | undefined) => void
   readonly onReadChild: (childSessionId: string) => void
+  /** Owner controls on an agent (M18): interrupt, stop, resume, close. */
+  readonly onControl: (subagentId: string, action: SubagentAction) => void
+  /** A note to a running agent, or a follow-up task for a finished one (M18). */
+  readonly onMessage: (subagentId: string, body: string, isFollowup: boolean) => void
   readonly onOpenMuseSettings: () => void
   readonly onClose: () => void
+}
+
+/** Which owner controls an agent's state allows (M18); none once it is closed. */
+export function controlsFor(agent: SubagentEntry): readonly SubagentAction[] {
+  if (agent.subagentId === undefined || agent.controlStatus === SUBAGENT_CLOSED) {
+    return []
+  }
+  if (agent.controlStatus === SUBAGENT_RESULT_READY || agent.status !== RUNNING) {
+    return ['close']
+  }
+  const isRunning =
+    agent.controlStatus === undefined || SUBAGENT_RUNNING_STATUSES.has(agent.controlStatus)
+  return [isRunning ? 'interrupt' : 'resume', 'stop']
+}
+
+const CONTROL_LABELS: Readonly<Record<SubagentAction, string>> = {
+  interrupt: UI_TEXT.agentInterrupt,
+  stop: UI_TEXT.agentStop,
+  resume: UI_TEXT.agentResume,
+  close: UI_TEXT.agentClose,
+}
+
+function AgentControls({
+  agent,
+  onControl,
+  onMessage,
+}: {
+  readonly agent: SubagentEntry
+  readonly onControl: AgentMapProps['onControl']
+  readonly onMessage: AgentMapProps['onMessage']
+}) {
+  const [body, setBody] = useState('')
+  const controls = controlsFor(agent)
+  const { subagentId } = agent
+  if (subagentId === undefined || controls.length === 0) {
+    return null
+  }
+  const isFollowup = !controls.includes('interrupt')
+  const send = () => {
+    if (body.trim() === '') {
+      return
+    }
+    onMessage(subagentId, body.trim(), isFollowup)
+    setBody('')
+  }
+  return (
+    <div className="agent-controls" role="group" aria-label={UI_TEXT.agentControlsLabel}>
+      <div className="agent-control-row">
+        {controls.map((action) => (
+          <button
+            key={action}
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onControl(subagentId, action)
+            }}
+          >
+            {CONTROL_LABELS[action]}
+          </button>
+        ))}
+      </div>
+      <div className="agent-message-form">
+        <input
+          className="question-input agent-message-input"
+          type="text"
+          aria-label={isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
+          placeholder={UI_TEXT.agentMessagePlaceholder}
+          value={body}
+          onChange={(event) => {
+            setBody(event.target.value)
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') {
+              return
+            }
+            event.preventDefault()
+            send()
+          }}
+        />
+        <button type="button" className="tool-more" disabled={body.trim() === ''} onClick={send}>
+          {isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 const RUNNING = 'inProgress'
@@ -110,10 +206,14 @@ function AgentDetails({
   agent,
   transcript,
   onBack,
+  onControl,
+  onMessage,
 }: {
   readonly agent: SubagentEntry
   readonly transcript: ChildTranscript | undefined
   readonly onBack: () => void
+  readonly onControl: AgentMapProps['onControl']
+  readonly onMessage: AgentMapProps['onMessage']
 }) {
   let body
   if (agent.childSessionId === undefined) {
@@ -150,8 +250,14 @@ function AgentDetails({
           .filter((part) => part !== undefined)
           .join(' · ')}
       </p>
+      <AgentControls agent={agent} onControl={onControl} onMessage={onMessage} />
       {agent.resultSummary === undefined ? null : (
         <p className="agent-result">{agent.resultSummary}</p>
+      )}
+      {agent.resultText === undefined || agent.resultText === agent.resultSummary ? null : (
+        <pre className="agent-result-text" aria-label={UI_TEXT.agentResultText}>
+          {agent.resultText}
+        </pre>
       )}
       {body}
     </section>
@@ -170,6 +276,8 @@ export function AgentMap({
   selectedAgentId,
   onSelectAgent,
   onReadChild,
+  onControl,
+  onMessage,
   onOpenMuseSettings,
   onClose,
 }: AgentMapProps) {
@@ -263,6 +371,8 @@ export function AgentMap({
           onBack={() => {
             onSelectAgent(undefined)
           }}
+          onControl={onControl}
+          onMessage={onMessage}
         />
       )}
     </Modal>

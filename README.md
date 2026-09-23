@@ -76,7 +76,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.4.3.vsix
+   code --install-extension muse-spark-code-0.5.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -218,7 +218,14 @@ duration and tokens, the background tasks, and each agent's own transcript.
 Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
 `"auto"` in its settings file (`~/.config/muse/settings.json`, or under
 `$XDG_CONFIG_HOME`); the map says so and opens the file for you. The
-extension never edits it. The Model API backend spawns no agents.
+extension never edits it. Muse Code also gates `subagent_spawn` behind an
+approval: in Manual mode the card appears (Allow once / Allow for this
+session); Plan mode refuses it. An agent's own replies and tool calls
+stay in its transcript in the map (they reach the panel with the child
+session's turn id), and the map's details offer the owner controls Muse
+Code provides: Interrupt and Stop while it runs, a note to it, Resume,
+Close, and a follow-up task once its result is ready. The Model API
+backend spawns no agents.
 
 **Account & Usage** (`/usage`, `/cost`) is a modal over the transcript:
 auth method, plan, backend, Muse Code version and model; the subscription's

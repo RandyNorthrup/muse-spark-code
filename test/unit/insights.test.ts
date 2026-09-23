@@ -50,10 +50,16 @@ describe('parseTraceLog', () => {
       'reminder-1',
       'child-1',
     ])
-    expect(facts.runs.get('turn-1')).toEqual({ runId: 'turn-1', isTurn: true, registeredTools: 30 })
+    expect(facts.runs.get('turn-1')).toEqual({
+      runId: 'turn-1',
+      isTurn: true,
+      isChild: false,
+      registeredTools: 30,
+    })
     expect(facts.runs.get('reminder-1')).toEqual({
       runId: 'reminder-1',
       isTurn: false,
+      isChild: false,
       registeredTools: 1,
     })
     expect(classifyRun(facts.runs.get('turn-1'))).toBe('turn')
@@ -129,5 +135,25 @@ describe('cost estimate', () => {
     expect(formatUsd(1.456)).toBe('$1.46')
     expect(percentOf(30, 31)).toBe(97)
     expect(percentOf(0, 0)).toBe(0)
+  })
+})
+
+describe('subagent child runs (M18)', () => {
+  it('classifies a run the CLI names as a native subagent child, whatever its tool count', () => {
+    const at = '2026-09-23T07:14:39.806Z'
+    const lines = [
+      `${at} INFO tbh.local.runtime x event="runtime.run.lifecycle" run_kind="turn" phase="started" command_id=parent run_id=parent outcome="running" cause="none" duration_ms=0`,
+      `${at} INFO tbh.local.task x/diagnostic.rs:33 event="native_subagent.child" task_id=task-1 subagent_id="subagent-1" child_run_id=child-1 lane="native" state="started" reason="none"`,
+      `${at} INFO tbh.local.runtime x event="runtime.run.lifecycle" run_kind="turn" phase="started" command_id=child-1 run_id=child-1 outcome="running" cause="none" duration_ms=0`,
+      `${at} INFO tbh.local.tool x event="tool.surface.registered" run_id=child-1 epoch_ordinal=0 registered_tool_count=27 active_tool_count=16 outcome="registered"`,
+      `${at} INFO tbh.local.tool x event="tool.surface.registered" run_id=parent epoch_ordinal=0 registered_tool_count=30 active_tool_count=29 outcome="registered"`,
+      `${at} INFO tbh.local.model x event="model.attempt.lifecycle" run_id="child-1" attempt_id=a1 phase="admission"`,
+      `${at} INFO tbh.local.model x event="model.attempt.lifecycle" run_id="parent" attempt_id=a2 phase="admission"`,
+    ].join('\n')
+    const facts = parseTraceLog(lines)
+    expect(classifyRun(facts.runs.get('child-1'))).toBe('subagent')
+    expect(classifyRun(facts.runs.get('parent'))).toBe('turn')
+    const summary = summarizeInsights([facts], Date.parse(at) + 1000, 60_000)
+    expect(summary).toMatchObject({ attempts: 2, subagentAttempts: 1 })
   })
 })

@@ -20,6 +20,7 @@ import {
   EFFORT_LEVELS,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
+  SUBAGENT_ACTIONS,
 } from './constants'
 import { sessionRowSchema } from './sessions'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
@@ -271,6 +272,19 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('listSessions') }),
   // The Agent map reads a subagent's own session (M14).
   z.object({ type: z.literal('readChildSession'), sessionId: z.string() }),
+  // The Agent map's owner controls on a subagent (M18): interrupt, stop, resume, close.
+  z.object({
+    type: z.literal('subagentControl'),
+    subagentId: z.string(),
+    action: z.enum(SUBAGENT_ACTIONS),
+  }),
+  // A note to a running subagent, or a follow-up task for a finished one (M18).
+  z.object({
+    type: z.literal('subagentMessage'),
+    subagentId: z.string(),
+    body: z.string(),
+    isFollowup: z.boolean(),
+  }),
   z.object({ type: z.literal('resumeSession'), sessionId: z.string() }),
   z.object({
     type: z.literal('setSessionArchived'),

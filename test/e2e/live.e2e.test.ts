@@ -4,10 +4,12 @@
 // an empty temporary workspace (no rules files). The cost is read from the
 // CLI's own trace log for the session: one log per `muse serve` process,
 // readable once that process has exited. Measured 2026-09-22 (Muse Code
-// 1.3.0): a reply-only turn is 31 model attempts, one for the answer and
-// thirty for the CLI's three bundled reminder agents (goal, skill, verify)
-// that run after it; the budget below is that reality with headroom, so a
-// regression past it fails the drill rather than the owner's plan.
+// 1.3.0): a reply-only turn is 25 to 45 model attempts across three runs on
+// 2026-09-22/23 (31, then 45, then 25 for a turn with two denied spawns): one
+// for the answer and the rest for the CLI's three bundled reminder agents
+// (goal, skill, verify) that run after it, whose loops vary from turn to turn.
+// The budget below is that reality with headroom, so a regression past it
+// fails the drill rather than the owner's plan.
 
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -23,7 +25,7 @@ const TURN_TIMEOUT_MS = 180_000
 const TRACE_DIR = path.join(homedir(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
 /** One line per model attempt admitted; the two fields are not adjacent on the line. */
 const ATTEMPT_LINE = /event="model.attempt.lifecycle".*phase="admission"/g
-const ATTEMPT_BUDGET = 40
+const ATTEMPT_BUDGET = 60
 const LOG_WAIT_MS = 30_000
 const LOG_POLL_MS = 250
 const PROMPT = 'Reply with exactly the word OK and nothing else.'

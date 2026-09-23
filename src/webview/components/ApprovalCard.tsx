@@ -47,7 +47,11 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
   return (
     <div className="approval" role="group" aria-label={UI_TEXT.approvalTitle} aria-busy={isLocked}>
       <div className="approval-title">
-        {UI_TEXT.approvalTitle} <code>{subjectText(approval, toolName)}</code>
+        {UI_TEXT.approvalTitle}
+        {stage === undefined && approval.subject.kind === 'tool'
+          ? ` ${UI_TEXT.approvalUseTool}`
+          : ''}{' '}
+        <code>{subjectText(approval, toolName)}</code>
         {stage !== undefined && stage.totalStages > 1 ? (
           <span className="approval-stage">
             {' '}

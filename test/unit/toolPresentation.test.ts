@@ -83,3 +83,14 @@ describe('writtenContent', () => {
     expect(writtenContent('{"path":"x"}')).toBeUndefined()
   })
 })
+
+describe('subagent tool labels (M18)', () => {
+  it("labels Muse Code's native subagent tools", () => {
+    expect(describeTool('subagent_spawn', '{"objective":"Map the tree"}')).toMatchObject({
+      label: 'Spawn agent',
+      body: 'generic',
+    })
+    expect(describeTool('subagent_wait', '{}').label).toBe('Wait for agents')
+    expect(describeTool('subagent_read_result', '{}').label).toBe('Agent result')
+  })
+})

@@ -182,6 +182,8 @@ export type TranscriptEntry =
       readonly durationMs: number | undefined
       readonly usage: TokenUsage | undefined
       readonly resultSummary: string | undefined
+      /** The result envelope's full text, when the CLI sent one (M18). */
+      readonly resultText: string | undefined
     }
   | {
       /** Kinds the UI does not know (workflow, compaction, …). */
@@ -475,6 +477,7 @@ function subagentEntry(item: ItemSnapshot): SubagentEntry {
     durationMs: item.durationMs,
     usage: item.usage,
     resultSummary: item.result?.summary,
+    resultText: item.result?.text,
   }
 }
 
@@ -561,6 +564,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         durationMs: fresh.durationMs ?? entry.durationMs,
         usage: fresh.usage ?? entry.usage,
         resultSummary: fresh.resultSummary ?? entry.resultSummary,
+        resultText: fresh.resultText ?? entry.resultText,
       }
     }
     case 'item': {
@@ -606,15 +610,91 @@ function replayHistory(items: readonly ItemSnapshot[], at: number): readonly Tra
   return transcript
 }
 
+/**
+ * The subagent whose child session a turn belongs to (M18). Seen live
+ * 2026-09-23: a child's own items (its reply, its tool calls) reach the
+ * parent stream with `turnId` equal to the child session id, so they are
+ * the agent's transcript, not the conversation's.
+ */
+function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry | undefined {
+  return turnId === undefined
+    ? undefined
+    : state.transcript.find(
+        (entry): entry is SubagentEntry =>
+          entry.kind === 'subagent' && entry.childSessionId === turnId,
+      )
+}
+
+function upsertEntry(
+  entries: readonly TranscriptEntry[],
+  item: ItemSnapshot,
+  at: number,
+): readonly TranscriptEntry[] {
+  const isKnown = entries.some((entry) => entry.id === item.itemId)
+  return isKnown
+    ? updateEntry(entries, item.itemId, (entry) => mergeItem(entry, item, at))
+    : [...entries, mergeItem(entryFor(item, at), item, at)]
+}
+
+function applyChildItem(
+  state: UiState,
+  owner: SubagentEntry,
+  item: ItemSnapshot,
+  at: number,
+): UiState {
+  const childId = owner.childSessionId ?? ''
+  const current = state.childTranscripts[childId] ?? {
+    name: owner.objective ?? owner.role,
+    entries: [],
+  }
+  return {
+    ...state,
+    childTranscripts: {
+      ...state.childTranscripts,
+      [childId]: { ...current, entries: upsertEntry(current.entries, item, at) },
+    },
+  }
+}
+
+/** The child transcript holding an item, for a delta that arrives for it (M18). */
+function childTranscriptOwning(state: UiState, itemId: string): string | undefined {
+  return Object.keys(state.childTranscripts).find((childId) =>
+    state.childTranscripts[childId]?.entries.some((entry) => entry.id === itemId),
+  )
+}
+
 function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
   if (HIDDEN_ITEM_KINDS.has(item.kind)) {
     return state
   }
-  const isKnown = state.transcript.some((entry) => entry.id === item.itemId)
-  const transcript = isKnown
-    ? updateEntry(state.transcript, item.itemId, (entry) => mergeItem(entry, item, at))
-    : [...state.transcript, mergeItem(entryFor(item, at), item, at)]
-  return { ...state, transcript }
+  const owner = item.kind === 'subagent' ? undefined : childOwnerOf(state, item.turnId)
+  return owner === undefined
+    ? { ...state, transcript: upsertEntry(state.transcript, item, at) }
+    : applyChildItem(state, owner, item, at)
+}
+
+function applyChildDelta(
+  state: UiState,
+  childId: string,
+  itemId: string,
+  field: string,
+  delta: string,
+): UiState {
+  const current = state.childTranscripts[childId]
+  return current === undefined
+    ? state
+    : {
+        ...state,
+        childTranscripts: {
+          ...state.childTranscripts,
+          [childId]: {
+            ...current,
+            entries: updateEntry(current.entries, itemId, (entry) =>
+              applyDelta(entry, field, delta),
+            ),
+          },
+        },
+      }
 }
 
 function applyDelta(entry: TranscriptEntry, field: string, delta: string): TranscriptEntry {
@@ -661,6 +741,10 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       return applyItem(state, event.item, at)
     }
     case 'textDelta': {
+      const childId = childTranscriptOwning(state, event.itemId)
+      if (childId !== undefined) {
+        return applyChildDelta(state, childId, event.itemId, event.field, event.delta)
+      }
       return {
         ...state,
         transcript: updateEntry(state.transcript, event.itemId, (entry) =>

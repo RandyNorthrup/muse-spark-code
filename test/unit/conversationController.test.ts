@@ -2171,3 +2171,58 @@ describe('ConversationController chat references (M17)', () => {
     expect(second[1]?.text).toContain('intent="question" from="tool"')
   })
 })
+
+describe('ConversationController subagent controls (M18)', () => {
+  it('relays owner controls and notes to the session and reports a refusal', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('subagent/stop', (params) => ({
+      status: 'accepted',
+      subagentId: params['subagentId'],
+    }))
+    t.server.handle('subagent/followupTask', (params) => ({
+      status: 'accepted',
+      subagentId: params['subagentId'],
+    }))
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'stop' })
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: '  now BETA ',
+      isFollowup: true,
+    })
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: ' '.repeat(3),
+      isFollowup: false,
+    })
+    expect(t.server.requestsFor('subagent/stop')[0]?.params).toMatchObject({ subagentId: 'sub-1' })
+    expect(t.server.requestsFor('subagent/followupTask')[0]?.params).toMatchObject({
+      subagentId: 'sub-1',
+      body: 'now BETA',
+    })
+    expect(t.server.requestsFor('subagent/sendMessage')).toEqual([])
+    t.server.handle('subagent/interrupt', () => {
+      throw new Error('child already closed')
+    })
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'interrupt' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringContaining('child already closed') as string,
+    })
+  })
+
+  it('does nothing without a session', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'stop' })
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: 'x',
+      isFollowup: false,
+    })
+    expect(t.server.requestsFor('subagent/stop')).toEqual([])
+  })
+})

@@ -276,6 +276,7 @@ function runSubagents(session, turnId) {
       result: { summary: result, artifactRefs: [], evidenceRefs: [] },
     }
     session.items.push(done)
+    session.subagents.set(done.subagentId, done)
     notify('item/completed', { sessionId, item: done })
   }
   streamReply(session, turnId, `delegated: ${String(spawned.length)} agents`)
@@ -338,6 +339,36 @@ async function runTurn(session, turnId, text) {
   completeTurn(session, turnId, 'completed')
 }
 
+function subagentOf(params) {
+  const agent = sessionFor(params).subagents.get(params.subagentId)
+  if (agent === undefined) {
+    throw new Error(`unknown subagent ${String(params.subagentId)}`)
+  }
+  return agent
+}
+
+function subagentControl(params, controlStatus, status) {
+  const session = sessionFor(params)
+  const agent = subagentOf(params)
+  const updated = { ...agent, controlStatus, ...(status !== undefined && { status }) }
+  session.subagents.set(agent.subagentId, updated)
+  notify('item/updated', { sessionId: session.record.sessionId, item: updated })
+  return { commandId: params.commandId, status: 'accepted', subagentId: params.subagentId }
+}
+
+function subagentNote(params, summary) {
+  const session = sessionFor(params)
+  const agent = subagentOf(params)
+  const updated = {
+    ...agent,
+    controlStatus: 'resultReady',
+    result: { ...agent.result, summary, text: summary },
+  }
+  session.subagents.set(agent.subagentId, updated)
+  notify('item/updated', { sessionId: session.record.sessionId, item: updated })
+  return { commandId: params.commandId, status: 'accepted', subagentId: params.subagentId }
+}
+
 function sessionFor(params) {
   const session = sessions.get(params.sessionId)
   if (session === undefined) {
@@ -385,6 +416,7 @@ const handlers = {
         forkedFrom: null,
       },
       items: [],
+      subagents: new Map(),
       approvalMode: params.approvalMode,
     }
     sessions.set(sessionId, session)
@@ -464,6 +496,19 @@ const handlers = {
   }),
   'session/resume': (params) => ({ commandId: params.commandId, ...envelope(sessionFor(params)) }),
   'session/read': (params) => envelope(sessionFor(params)),
+  // --- Owner commands on a subagent (M18): each answers accepted and updates the item ---
+  'subagent/interrupt': (params) => subagentControl(params, 'interrupted'),
+  'subagent/stop': (params) => subagentControl(params, 'closed', 'completed'),
+  'subagent/resume': (params) => subagentControl(params, 'running', 'inProgress'),
+  'subagent/close': (params) => subagentControl(params, 'closed', 'completed'),
+  'subagent/sendMessage': (params) => subagentNote(params, `note: ${params.body}`),
+  'subagent/followupTask': (params) => subagentNote(params, `followup: ${params.body}`),
+  'subagent/readResult': (params) => ({
+    commandId: params.commandId,
+    status: 'accepted',
+    subagentId: params.subagentId,
+    result: subagentOf(params).result,
+  }),
   'session/fork': (params) => {
     throw new Error(`fork is not supported by the fake (${String(params.sessionId)})`)
   },

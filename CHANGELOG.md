@@ -9,6 +9,35 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.5.0] - 2026-09-23
+
+The verification round and the subagent orchestration it called for
+(PLAN.md D21): every screen rendered and viewed, the live drills run.
+
+### Added
+
+- Subagent tool rows are labelled (Spawn agent, Wait for agents, Agent
+  status, Message agent, Agent result, Cancel agent), and an approval for a
+  tool such as `subagent_spawn` reads "Muse wants to use …". Muse Code gates
+  `subagent_spawn` behind an approval: in Manual mode the card appears and
+  Allow once lets the agent spawn; Plan mode refuses it by policy.
+- **Agent orchestration.** An agent's own replies and tool calls stay in
+  its transcript in the Agent map instead of the conversation (they arrive
+  with the child session's turn id, seen live). The map's details offer
+  Muse Code's owner controls: Interrupt and Stop while an agent runs, a
+  note to it, Resume, Close, and a follow-up task once its result is
+  ready; its full result text is shown. Usage insights count a subagent's
+  run by the CLI's own child marker, not by its tool count.
+- 16 harness scenarios for the screens of 0.3.1–0.5.0.
+
+### Fixed
+
+- The usage modal's "what's contributing" section said the Model API has
+  no trace logs even on the Muse Code backend; it now says no Muse Code
+  trace logs were found on this machine.
+- The live reply-only drill's attempt budget is 60 (three measurements:
+  31, 45, 25); the CLI's reminder agents loop a varying number of times.
+
 ## [0.4.3] - 2026-09-22
 
 Replying to an output and quoting the chat (PLAN.md D20).

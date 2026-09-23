@@ -627,6 +627,22 @@ proper context payload provided to the agent". Findings and decisions:
 | Highlight and right-click               | A webview's context menu is the browser's; a right-click can be intercepted only when there is something to offer. Menus positioned by coordinates would need inline styles the CSP forbids. | Right-click with a non-empty selection inside a transcript row (`data-entry-id` / `data-role` on user, assistant and tool rows) opens a small menu at that row's top-right: "Ask about this" / "Comment on this". Without a selection the browser menu is untouched. The selection text, the row's author and id go into the chip and the payload. |
 | Several chips                           | The editor-context chip, attachments and a reference can all ride together.                                                                                                                  | One reference at a time (a new Reply or quote replaces it); it clears on send or with its ×, and the sent card keeps a "Replying to: …" / "Asking about: …" / "Commenting on: …" chip.                                                                                                                                                             |
 
+### D21 — The verification round: every screen seen, the live drills run (2026-09-23)
+
+The owner: "finish this project, verify everything with the exception of
+the market deploy … and visually verify everything as well." What was done
+and what it found:
+
+| Check                                | How                                                                                                                                                                                                                                                                                                                                                                                                             | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Every screen, M0–M17                 | The headless-Chrome harness (`npm run harness:shots`): the 30 existing scenarios re-rendered, 14 added for M13–M17 (the rewind menu, the agents pill and map, the map with delegation off, both usage modals, the banner, New messages, a thinking row, the question card on its second tab, the reply menu and chip, the quote menu and chip, a tool approval); each PNG viewed.                               | One wrong text: the usage modal said "the Model API has no local trace logs" on the CLI backend too when no logs were found; now "No Muse Code trace logs were found on this machine yet." Everything else rendered as designed.                                                                                                                                                                                                                                                  |
+| Subagents live                       | The drill through the extension's own backend, delegation switched on through a temporary `XDG_CONFIG_HOME` (a settings file plus a copy of the CLI's credential file, deleted after; the owner's config untouched), first in `denyUnmatched`, then in `promptUnmatched` with the spawns allowed.                                                                                                               | **`subagent_spawn` is an approval-gated tool**: the CLI asks (`subject.kind = "tool"`, choices Allow once / Allow for this session / Reject) before spawning; `denyUnmatched` refuses it by policy and the model reports "denied by policy". In the panel's Manual mode the approval card appears and Allow once lets the agent spawn. The card now says "use `subagent_spawn`" and the row is labelled "Spawn agent". Results of the allowed run in `docs/certification/m18.md`. |
+| The reply-only drill                 | `MUSE_LIVE_E2E=1 npm run test:e2e:live` on the 0.4.3 build.                                                                                                                                                                                                                                                                                                                                                     | The reply was "OK" in 79 s at 45 model attempts, over the 40 budget set from the single M13 measurement (31). Three measurements now (31, 45, 25 for a turn with two denied spawns): the CLI's three reminder agents loop a varying number of times per turn; the extension adds one hidden text part. Budget 60, the measurements in the drill's comment.                                                                                                                        |
+| The integration tests                | `npm run test:integration` in a real VS Code 1.138.0.                                                                                                                                                                                                                                                                                                                                                           | 9 passing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| A child's items in the parent stream | The allowed drill, every item logged: a subagent's reply and tool calls reach the parent's stream as ordinary `agentMessage` / `toolCall` items whose `turnId` is the child session id (its own turn), so the panel showed the children's replies as replies of the conversation. `session/read` on a child session answers "not found" once the child is done, so the map's transcript read cannot serve them. | The reducer routes any item whose turn is a subagent's child session into that agent's transcript in the map (deltas included); the map shows the result envelope's full text as well. The trace classifier takes the CLI's own `native_subagent.child … child_run_id` marker (a child run is a `run_kind="turn"` too, so the turn flag alone misfiled it as the conversation's).                                                                                                 |
+| Owner controls                       | MSP offers `subagent/interrupt`, `stop`, `resume`, `close`, `sendMessage` and `followupTask` (the SDK's `SubagentOwnerReasonParams`, `SubagentInputParams`, `SubagentTargetParams`).                                                                                                                                                                                                                            | `AgentSession.controlSubagent` / `messageSubagent` on both hosts (the Model API refuses: no subagents), the `subagentControl` / `subagentMessage` messages, and the map's controls by state: Interrupt and Stop with a note while running; Resume and Stop when paused; Close and a follow-up task once the result is ready; nothing once closed. The fake CLI answers them for the e2e.                                                                                          |
+| The Marketplace                      | Waits on the owner's word to mint the PAT.                                                                                                                                                                                                                                                                                                                                                                      | 0.2.0–0.4.4 unpublished; each tag's GitHub Release carries the vsix.                                                                                                                                                                                                                                                                                                                                                                                                              |
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1759,6 +1775,25 @@ version 0.4.3.
 - **Security**: the payload is text the transcript already shows, clipped;
   nothing outside the conversation is read.
 
+### M18 — The verification round (D21)
+
+**Status 2026-09-23: built and certified** (`docs/certification/m18.md`);
+version 0.4.4.
+
+- **Goal**: every D21 row.
+- **Scope**: 16 harness scenarios (`test/harness/index.html`,
+  `scripts/harness-shots.mjs`), the usage modal's no-logs text, the
+  subagent tool labels and the approval card's wording for a tool subject,
+  the live drill's budget and comment; the child-item routing in the
+  reducer (`childOwnerOf`, `applyChildItem`), `resultText`, the map's
+  `controlsFor` and controls, `controlSubagent` / `messageSubagent` on both
+  hosts, the two messages, the fake CLI's `subagent/*` handlers, the
+  classifier's child marker; README, CHANGELOG, this file.
+- **Acceptance**: every scenario rendered and viewed; the live drills'
+  facts recorded; the gate green.
+- **Security**: the live drills' temporary config copy is deleted on every
+  exit path and never echoed; the harness runs against a fake host only.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                    | Status                                                                                                                  |
@@ -1914,5 +1949,16 @@ skipped without `VSCE_PAT`.
 
 **0.4.3 (2026-09-22, night):** Reply to an output, and Ask about / Comment
 on highlighted chat text, each carrying a `<chat_reference>` context part
-(D20, M17). Certified (`docs/certification/m17.md`), tagged `v0.4.3`
-(RELEASE_RUN_PLACEHOLDER).
+(D20, M17). Certified (`docs/certification/m17.md`), tagged `v0.4.3`; run
+35829514046 went green on the first try: every job, the GitHub Release with
+`muse-spark-code-0.4.3.vsix` (547,147 bytes), the Marketplace publish step
+skipped without `VSCE_PAT`.
+
+**0.5.0 (2026-09-23):** the verification round and the orchestration it
+called for (D21, M18): every screen rendered and viewed through the
+harness, the subagent and reply-only drills run live, a child's items kept
+in its agent's transcript, the map's owner controls (interrupt, stop,
+resume, close, note, follow-up task), the usage classifier's child marker,
+one usage-modal text fixed, subagent tool labels and the tool approval
+wording, the drill budget set from three measurements. Certified
+(`docs/certification/m18.md`), tagged `v0.5.0` (RELEASE_RUN_PLACEHOLDER).

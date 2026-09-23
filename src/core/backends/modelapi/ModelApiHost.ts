@@ -1145,6 +1145,15 @@ export class ModelApiSession implements AgentSession {
     return this.answerQuestions(userInputId, [])
   }
 
+  /** This backend runs no subagents (PLAN.md D17); the map never offers the controls. */
+  public controlSubagent(subagentId: string): Promise<void> {
+    return Promise.reject(new Error(`${UI_TEXT.subagentsUnsupported} (${subagentId})`))
+  }
+
+  public messageSubagent(subagentId: string): Promise<void> {
+    return Promise.reject(new Error(`${UI_TEXT.subagentsUnsupported} (${subagentId})`))
+  }
+
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {
     const content = this.outputs.get(request.outputRef)
     if (content === undefined) {

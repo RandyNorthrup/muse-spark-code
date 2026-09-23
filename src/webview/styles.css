@@ -1621,6 +1621,35 @@ body {
   top: 24px;
 }
 
+/* The Agent map's owner controls and note box (M18). */
+.agent-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.agent-control-row,
+.agent-message-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-message-input {
+  flex: 1 1 200px;
+}
+
+.agent-result-text {
+  margin: 4px 0;
+  padding: 6px 8px;
+  border-radius: var(--ms-radius);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+}
+
 /* The highlighted-text menu sits at a row's top-right (M17). */
 .quote-menu {
   top: 4px;

@@ -48,6 +48,20 @@ const SCENARIOS = [
   'narrow',
   'usage',
   'dictation',
+  'rewind',
+  'agents',
+  'agents-off',
+  'usage-api',
+  'banner',
+  'jump',
+  'thinking',
+  'question-filled',
+  'reply-menu',
+  'reply-chip',
+  'quote-menu',
+  'quote-chip',
+  'approval-tool',
+  'agents-details',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'

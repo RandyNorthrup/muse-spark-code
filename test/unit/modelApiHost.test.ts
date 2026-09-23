@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
+import type { AgentSession } from '../../src/core/agent/agentBackend'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import {
   ModelApiHost,
@@ -1083,5 +1084,18 @@ describe('ModelApiSession question cancel (M16)', () => {
         event.type === 'itemCompleted' && event.item.kind === 'toolCall',
     )
     expect(tool?.item.visibleOutput).toContain('declined to answer')
+  })
+})
+
+describe('ModelApiSession subagents (M18)', () => {
+  it('refuses owner controls and notes: this backend runs no subagents', async () => {
+    const t = setup()
+    const { session } = await startSession(t)
+    // Through the backend interface, as the controller calls it.
+    const asSession: AgentSession = session
+    await expect(asSession.controlSubagent('sub-1', 'stop')).rejects.toThrow('runs no subagents')
+    await expect(asSession.messageSubagent('sub-1', 'hi', false)).rejects.toThrow(
+      'runs no subagents',
+    )
   })
 })

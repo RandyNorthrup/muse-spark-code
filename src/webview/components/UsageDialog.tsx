@@ -313,7 +313,11 @@ export function UsageDialog({
         <TokensSection usage={usage} context={context} costUsd={costUsd} />
         <h3 className="usage-heading">{UI_TEXT.usageContributing}</h3>
         {report.insights === undefined ? (
-          <p className="usage-row-meta">{UI_TEXT.usageInsightUnavailable}</p>
+          <p className="usage-row-meta">
+            {report.backend === 'modelApi'
+              ? UI_TEXT.usageInsightUnavailable
+              : UI_TEXT.usageInsightNoLogs}
+          </p>
         ) : (
           <InsightsSection insights={report.insights} />
         )}

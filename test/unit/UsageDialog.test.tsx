@@ -157,3 +157,31 @@ describe('UsageDialog', () => {
     expect(props.onClose).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('UsageDialog insights fallback (M18)', () => {
+  it('says no logs were found on the CLI backend when the insights are missing', () => {
+    renderDialog({
+      report: {
+        backend: 'museCode',
+        subscription,
+        account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+        insights: undefined,
+      },
+    })
+    expect(
+      screen.getByText('No Muse Code trace logs were found on this machine yet.'),
+    ).toBeInTheDocument()
+  })
+
+  it('says the Model API has no local trace logs at all', () => {
+    renderDialog({
+      report: {
+        backend: 'modelApi',
+        subscription: undefined,
+        account: { signInMethod: 'apiKey' },
+        insights: undefined,
+      },
+    })
+    expect(screen.getByText(/the Model API has no local trace logs/)).toBeInTheDocument()
+  })
+})

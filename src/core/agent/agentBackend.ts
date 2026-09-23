@@ -11,6 +11,7 @@ import type {
   RequirementRef,
   TodoItem,
 } from '../../shared/agentEvents'
+import type { SubagentAction } from '../../shared/constants'
 import type { SubscriptionUsage } from '../../shared/usage'
 
 export type BackendKind = 'museCode' | 'modelApi'
@@ -172,6 +173,10 @@ export interface AgentSession {
   answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void>
   /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
   cancelQuestions(userInputId: string): Promise<void>
+  /** An owner command on a native subagent (M18): MSP `subagent/<action>`. */
+  controlSubagent(subagentId: string, action: SubagentAction): Promise<void>
+  /** A note to a running subagent (`subagent/sendMessage`) or a follow-up task for one that finished (`subagent/followupTask`), M18. */
+  messageSubagent(subagentId: string, body: string, isFollowup: boolean): Promise<void>
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */

@@ -473,20 +473,52 @@
             // --- Account & usage (M8) ---
             case 'readUsage': {
               later(40, () =>
-                send({
-                  type: 'usageReport',
-                  backend: 'museCode',
-                  subscription: {
-                    observedAtMs: Date.now() - 4 * 60 * 1000,
-                    tier: 'muse-pro',
-                    window: {
-                      usedPercent: 42,
-                      resetsAtMs: Date.now() + (2 * 60 + 5) * 60 * 1000,
-                      windowDurationMins: 300,
-                    },
-                    weekly: { usedPercent: 17, resetsAtMs: Date.now() + 3 * 24 * 60 * 60 * 1000 },
-                  },
-                }),
+                send(
+                  window.harnessBackend === 'modelApi'
+                    ? {
+                        type: 'usageReport',
+                        backend: 'modelApi',
+                        account: { signInMethod: 'apiKey' },
+                      }
+                    : {
+                        type: 'usageReport',
+                        backend: 'museCode',
+                        account: {
+                          signInMethod: 'cli',
+                          cliVersion: '1.3.0',
+                          delegationMode: 'off',
+                        },
+                        subscription: {
+                          observedAtMs: Date.now() - 4 * 60 * 1000,
+                          tier: 'muse-pro',
+                          window: {
+                            usedPercent: 42,
+                            resetsAtMs: Date.now() + (2 * 60 + 5) * 60 * 1000,
+                            windowDurationMins: 300,
+                          },
+                          weekly: {
+                            usedPercent: 17,
+                            resetsAtMs: Date.now() + 3 * 24 * 60 * 60 * 1000,
+                          },
+                        },
+                        insights: {
+                          day: {
+                            attempts: 186,
+                            sessions: 6,
+                            reminderAttempts: 150,
+                            subagentAttempts: 24,
+                            longSessionAttempts: 0,
+                          },
+                          week: {
+                            attempts: 1821,
+                            sessions: 41,
+                            reminderAttempts: 1462,
+                            subagentAttempts: 96,
+                            longSessionAttempts: 210,
+                          },
+                        },
+                      },
+                ),
               )
               break
             }
@@ -888,6 +920,13 @@
                 selection: { mode: 'single' },
                 options: [{ label: 'Red' }, { label: 'Blue', description: 'The cool one' }],
               },
+              {
+                id: 'toppings',
+                header: 'Toppings',
+                question: 'Pick up to two toppings.',
+                selection: { mode: 'multiple', minSelections: 1, maxSelections: 2 },
+                options: [{ label: 'Ham' }, { label: 'Olives' }, { label: 'Corn' }],
+              },
             ],
           })
         },
@@ -980,6 +1019,227 @@
             document
               .querySelector('button[aria-label="Record voice"]')
               .dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }))
+          })
+        },
+        // --- M13: the user card's fork / rewind menu (needs a session) ---
+        rewind: () => {
+          send({
+            type: 'sessionInfo',
+            modelId: 'muse-spark-1.3',
+            contextLimit: 1007997,
+            sessionId: 's1',
+          })
+          transcriptFixture({ isDone: true })
+          later(300, () => document.querySelector('.rewind-button').click())
+        },
+        // --- M14: subagents, the agents pill and the Agent map ---
+        agents: () => {
+          transcriptFixture()
+          const spawned = (itemId, role, objective, subagentId, childSessionId) => ({
+            itemId,
+            kind: 'subagent',
+            status: 'inProgress',
+            role,
+            objective,
+            subagentId,
+            childSessionId,
+            depth: 1,
+          })
+          event({
+            type: 'itemStarted',
+            item: spawned('sa1', 'explorer', 'Map the src tree', 'sub-1', 'child-1'),
+          })
+          event({
+            type: 'itemStarted',
+            item: spawned('sa2', 'verifier', 'Run the unit tests', 'sub-2', 'child-2'),
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              ...spawned('sa2', 'verifier', 'Run the unit tests', 'sub-2', 'child-2'),
+              status: 'completed',
+              controlStatus: 'completed',
+              durationMs: 42_000,
+              usage: {
+                inputTokens: 12_000,
+                outputTokens: 800,
+                cachedTokens: 3_000,
+                reasoningTokens: 100,
+              },
+              result: { summary: 'All 12 tests pass.' },
+            },
+          })
+          later(300, () => document.querySelector('.agents-pill').click())
+        },
+        'agents-details': () => {
+          steps.agents()
+          later(600, () => document.querySelector('.agent-node-clickable').click())
+        },
+        'agents-off': () => {
+          send({
+            type: 'usageReport',
+            backend: 'museCode',
+            account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+          })
+          textarea().focus()
+          key({ key: '/' })
+          later(300, () => {
+            const filter = document.querySelector('.palette-filter')
+            setValue(filter, HTMLInputElement.prototype, '/agents')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        // --- M14: the usage modal on the Model API backend (a cost estimate) ---
+        'usage-api': () => {
+          window.harnessBackend = 'modelApi'
+          send({
+            type: 'agentEvent',
+            event: {
+              type: 'tokenUsage',
+              inputTokens: 20_804,
+              cachedTokens: 10_481,
+              outputTokens: 210,
+              reasoningTokens: 120,
+            },
+          })
+          textarea().focus()
+          key({ key: '/' })
+          later(300, () => {
+            const filter = document.querySelector('.palette-filter')
+            setValue(filter, HTMLInputElement.prototype, '/usage')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        // --- M14: the unsupported-upload banner and the compact button's pressure ---
+        banner: () => {
+          send({
+            type: 'attachmentRejected',
+            name: 'report.pdf',
+            reason: 'Only images can be uploaded',
+          })
+          send({
+            type: 'agentEvent',
+            event: {
+              type: 'contextUsage',
+              usedTokens: 812_000,
+              windowTokens: 1_007_997,
+              pressure: 'warning',
+            },
+          })
+        },
+        // --- M15: New messages while scrolled up ---
+        jump: () => {
+          steps.long()
+          later(1500, () => {
+            const main = document.querySelector('main')
+            main.scrollTop = 0
+            main.dispatchEvent(new Event('scroll'))
+            event({
+              type: 'itemStarted',
+              item: { itemId: 'more', kind: 'agentMessage', status: 'inProgress', text: '' },
+            })
+            event({
+              type: 'textDelta',
+              itemId: 'more',
+              field: 'text',
+              delta: 'One more thing: the folder also holds a hidden .git directory.',
+            })
+          })
+        },
+        // --- M16: a reasoning row streaming its summary ---
+        thinking: () => {
+          transcriptFixture()
+          event({
+            type: 'itemStarted',
+            item: { itemId: 'r9', kind: 'reasoning', status: 'inProgress' },
+          })
+          event({
+            type: 'textDelta',
+            itemId: 'r9',
+            field: 'summary.0',
+            delta: 'Comparing the two folders and deciding which file to edit first.',
+          })
+        },
+        // --- M16: the question card filled in, on its second tab ---
+        'question-filled': () => {
+          steps.question()
+          later(300, () => {
+            document.querySelectorAll('input[type="radio"]')[1].click()
+            document.querySelectorAll('[role="tab"]')[1].click()
+            later(100, () => {
+              document.querySelectorAll('input[type="checkbox"]')[0].click()
+              const other = document.querySelector('.question input[type="text"]')
+              setValue(other, HTMLInputElement.prototype, 'Pineapple')
+            })
+          })
+        },
+        // --- M17: a reply's actions menu, and the reference chip it sets ---
+        'reply-menu': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () => document.querySelector('.response-menu-button').click())
+        },
+        'reply-chip': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () => {
+            document.querySelector('.response-menu-button').click()
+            later(100, () => {
+              document.querySelector('.response-actions .rewind-menu-item').click()
+              setDraft('Why two files and not three?')
+            })
+          })
+        },
+        // --- M17: highlight a passage, right-click, ask about it ---
+        'quote-menu': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () => {
+            const passage = document.querySelector('.message-assistant .message-body p')
+            const range = document.createRange()
+            range.selectNodeContents(passage)
+            const selection = window.getSelection()
+            selection.removeAllRanges()
+            selection.addRange(range)
+            passage.dispatchEvent(
+              new MouseEvent('contextmenu', { bubbles: true, cancelable: true }),
+            )
+          })
+        },
+        'quote-chip': () => {
+          steps['quote-menu']()
+          later(600, () => {
+            document.querySelector('.quote-menu .rewind-menu-item').click()
+            setDraft('Are you sure about the count?')
+          })
+        },
+        // --- M14/M18: the CLI gates subagent_spawn behind an approval (live, 2026-09-23) ---
+        'approval-tool': () => {
+          transcriptFixture()
+          event({
+            type: 'approvalRequested',
+            approvalId: 'a2',
+            itemId: 'sp1',
+            toolName: 'subagent_spawn',
+            rawArgs:
+              '{"command_id":"spawn-alpha-001","objective":"Map the src tree and list the entry points","role":"explorer"}',
+            requirementId: { approvalId: 'a2', sourceIndex: 0 },
+            subject: { kind: 'tool', toolName: 'subagent_spawn' },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'allow_session',
+                label: 'Allow for this session',
+                decision: 'approved',
+                scope: 'session',
+              },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
           })
         },
         usage: () => {
