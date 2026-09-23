@@ -1,131 +1,177 @@
-# Muse Spark Code (Unofficial)
+<p align="center">
+  <img src="media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent inside VS Code" width="100%">
+</p>
 
-A VS Code extension that puts Meta's **Muse Spark** model in a chat panel
-inside the editor, modelled on the Claude Code VS Code extension: sidebar or
-editor-tab conversations, a slash-command palette, model and reasoning-effort
-picker, permission modes, streaming markdown, diff review, and session history.
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace version" src="https://img.shields.io/visual-studio-marketplace/v/RandyNorthrup.muse-spark-code?label=Marketplace&color=3b6cf6"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://img.shields.io/visual-studio-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
+  <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="VS Code 1.125 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.125-2b7de9">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
+</p>
 
-> **Version 0.1.0.** Sign in with your Meta account through the Muse Code
-> CLI (billed to your Muse subscription) or with a Model API key (pay as you
-> go); the two are never mixed. Hold streaming conversations with markdown
-> and highlighted code, use the "/" palette, attach images, `@`-mention
-> files, pick the model, effort and permission mode, steer a running turn,
-> and watch the agent read, edit and write files in tool rows with diffs,
-> approve or reject gated commands from cards, and answer its questions. The
-> open file or selection rides along as context, finished edits can be
-> diffed and reverted, code blocks apply into the editor, and Muse can read
-> the Problems panel through an IDE tool. Past conversations of the
-> workspace are one click away in the History dialog (search, archive,
-> resume with the full transcript), the sidebar picks its last conversation
-> back up within ten minutes, and a hidden panel shows a dot when Muse needs
-> you. **Account & usage** (`/usage`) shows your subscription's current and
-> weekly windows and this conversation's tokens. The microphone (or
-> `Ctrl+D`) dictates into the composer through the operating system's own
-> recogniser on Windows and macOS, at no cost. On Windows the panel offers
-> Muse Code's one-time shell-sandbox setup itself (one administrator
-> prompt). See [`PLAN.md`](PLAN.md) for the milestone plan and the research
-> behind it, and [`docs/PRIVACY.md`](docs/PRIVACY.md) for what leaves your
-> machine.
+**Muse Spark Code** puts Meta's Muse Spark model to work inside VS Code as a
+coding agent: a chat panel that streams answers, reads and edits your files
+with reviewable diffs, runs commands behind permission modes, remembers past
+conversations, and takes dictation from your microphone. It runs on your Muse
+subscription through the Muse Code CLI, or on a Meta Model API key, and never
+mixes the two.
 
-This project is not affiliated with or endorsed by Meta. "Muse Spark" and
-"Muse Code" are Meta trademarks. You bring your own credentials.
+> Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
+> Code" are Meta trademarks. You bring your own credentials.
 
-## How it talks to Muse Spark
+## Highlights
 
-Meta offers no OAuth flow for third-party apps, so the extension supports the
-two sanctioned paths (see `PLAN.md` §2 D1):
+- **Streaming chat with tools you can see.** Every read, edit, write and shell
+  command is a row in the transcript: green when done, pulsing while running,
+  red when refused. Edits show `Added 140 lines` with **Open diff** and
+  **Revert**.
+- **Permission modes, like Claude Code.** Manual, Edit automatically, Plan and
+  Auto (Bypass behind a setting), switched from the mode button or
+  `Shift+Tab`. Gated commands arrive as approval cards; questions from the
+  agent arrive as question cards.
+- **Voice dictation at no cost.** Tap or hold the microphone (`Ctrl+D`) and
+  speak; the words land at the caret. Windows and macOS use the recogniser
+  built into the operating system, so no audio ever goes to a paid service.
+- **Two backends, never mixed.** Your Muse subscription through the Muse Code
+  CLI, or a Meta Model API key (pay as you go) with the extension's own
+  tools. The pasted key is never handed to the CLI.
+- **Context the way you work.** `@` mentions with `.gitignore`-aware fuzzy
+  search, the open file or selection as a chip, images pasted or dropped,
+  `Alt+K` to mention the editor selection, and the Problems panel readable by
+  the agent.
+- **History that survives the window.** Every conversation in the workspace,
+  searchable, resumable with its full transcript, archivable; the sidebar
+  picks its last conversation back up within ten minutes.
+- **Account & usage.** Your subscription's current and weekly windows, this
+  conversation's tokens, and a link to the dev.meta.ai dashboard, from
+  `/usage`.
+- **No telemetry, no server of its own.** What leaves your machine and where
+  it goes is written down in [PRIVACY.md](docs/PRIVACY.md).
 
-| Backend                                                                      | How you sign in                                                                                                                      | Status         |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
-| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`); your Muse subscription pays because the CLI makes the requests with its own credential | Available (M2) |
-| **Meta Model API** (`https://api.meta.ai/v1`, OpenAI-compatible)             | Paste a key from dev.meta.ai; stored in VS Code SecretStorage; pay as you go; the extension's own tools                              | Available (M7) |
+## Screenshots
 
-The two are never mixed: the key you paste drives only the Model API
-backend and is never handed to the CLI, so subscription work is never
-billed to the key (until M7 the extension passed it to `muse serve` as
-`META_API_KEY`, which the CLI prefers over its own sign-in). The
-`museSpark.backend` setting picks: `auto` (default) uses the CLI when it is
-installed and signed in, otherwise the Model API when a key is stored;
-`museCode` and `modelApi` force one side. The `/` palette's **Backend** row
-under Account & usage shows which one this window runs on.
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="media/readme/turn-done.png" alt="A finished turn: PowerShell and Read tool rows, a Write row with Added 140 lines, Open diff and Revert, and the reply"><br><sub>A turn with tool rows, a reviewable edit and the reply</sub></td>
+    <td align="center" width="50%"><img src="media/readme/turn-running.png" alt="A running turn: tool rows in progress, the Stop button, 2% context, Auto mode"><br><sub>While it runs: Stop, context use, and steering by typing</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="media/readme/palette.png" alt="The slash palette: Context, Model and Customize groups with effort dots and a thinking toggle"><br><sub>The <code>/</code> palette: context, model, effort, thinking, modes</sub></td>
+    <td align="center"><img src="media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan, Auto, with the effort row"><br><sub>Permission modes, one line each, <code>Shift+Tab</code> to cycle</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="media/readme/history.png" alt="The History dialog: sessions grouped by day, search, Show archived"><br><sub>History: search, resume, archive</sub></td>
+    <td align="center"><img src="media/readme/voice.png" alt="The composer listening: red microphone and the Listening placeholder"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
+  </tr>
+</table>
 
-## Signing in
+<p align="center"><img src="media/readme/empty-state.png" alt="A new conversation: the getting-started tips under the Muse Spark heading" width="60%"><br><sub>A new conversation, with the keyboard tips until you hide them</sub></p>
 
-The panel shows a sign-in gate until a credential exists:
+## Get started
 
-- **Sign in with your Meta account** opens a terminal running `muse login`
-  (Windows PowerShell on Windows, your default shell elsewhere). Approve the
-  code in your browser; the extension watches for the CLI's credential file
-  (`~/.config/muse/auth.json`, or under `XDG_CONFIG_HOME`) for up to five
-  minutes and then starts the backend.
-- **Use a Model API key** prompts for a key shaped like `LLM|<id>|<secret>`
-  and stores it in VS Code secret storage. It works without the CLI and
-  starts the Model API backend; it is never passed to the CLI.
-- If the CLI is not installed, the gate links to the install instructions;
-  the extension looks for it via `museSpark.museBinaryPath`, then `PATH`,
-  then the platform's default install folder (`%LOCALAPPDATA%\Programs\muse`
-  on Windows, `~/.local/bin` elsewhere).
+1. Install **Muse Spark Code** from the
+   [Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
+   (VS Code 1.125 or newer), or from a `.vsix`:
 
-Each panel is its own Muse session, started on the first message with the
-Standard `muse-spark-1.3` model (never the contributor tier by default). The
-host process is shared and stopped when VS Code unloads the extension.
+   ```bash
+   code --install-extension muse-spark-code-0.1.1.vsix
+   ```
 
-## Platforms
+2. Open the **Muse Spark** view from the activity bar (or press
+   `Ctrl+Shift+Esc` for a conversation in an editor tab).
+3. Sign in, one of two ways:
+   - **Sign in with your Meta account** opens a terminal running `muse login`
+     from the [Muse Code CLI](https://dev.meta.ai/products/muse-code/) and
+     waits for the browser sign-in to finish. Work is billed to your Muse
+     subscription.
+   - **Use a Model API key** takes a key shaped like `LLM|<id>|<secret>` from
+     dev.meta.ai, stores it in VS Code's secret storage and runs the Model API
+     backend with the extension's own tools, pay as you go.
+4. Type a message and press `Enter`. `/` opens the palette, `@` mentions a
+   file, the microphone dictates.
 
-Windows, macOS and Linux are all first-class targets. CI runs the complete gate
-set, including the VS Code integration tests, on all three.
+Each panel is its own conversation, started on the first message with the
+standard `muse-spark-1.3` model (never a contributor-tier model by default).
 
-## Stack
+## Backends
 
-- TypeScript 6.0.3 (pinned: `typescript-eslint` does not yet support TS 7),
-  Node ≥ 22, npm 11
-- Extension host bundled with esbuild to CommonJS; webview is React 19 bundled
-  to a single IIFE with its stylesheet
-- Validation with `zod/mini` on every host ⇄ webview message
-- Quality: ESLint 10 (`strictTypeChecked` + unicorn + react-hooks), Prettier,
-  stylelint, knip, dpdm, jscpd, vitest (v8 coverage thresholds),
-  `@vscode/test-cli` integration tests, gitleaks, npm audit, semgrep
+| Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                       |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
+| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`)                     | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`)      |
+| **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension's own: read, edit, write, search, list, shell, with approvals |
 
-## Requirements
+`museSpark.backend` picks: `auto` (default) uses the CLI when it is installed
+and signed in, otherwise the Model API when a key is stored; `museCode` and
+`modelApi` force one. The palette's **Backend** row shows which one this
+window runs on. The CLI looks for `muse` through `museSpark.museBinaryPath`,
+then `PATH`, then the platform's install folder (`%LOCALAPPDATA%\Programs\muse`
+on Windows, `~/.local/bin` elsewhere).
 
-- Node.js 22 or newer and npm 11 (`.npmrc` enforces `engine-strict`)
-- VS Code 1.134.0 or newer
-- [gitleaks](https://github.com/gitleaks/gitleaks) on `PATH` for the
-  pre-commit hook and `npm run security:secrets`
-- The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
-  a Meta account (subscription), or a Meta Model API key (pay as you go)
-- `git` on `PATH` for `.gitignore`-aware `@` mentions (optional; VS Code's
-  file search is used without it)
+## The panel
 
-## Installation
+**Composer.** `Enter` sends, `Shift+Enter` breaks a line (or send with
+`Ctrl+Enter` through a setting). `/` on an empty draft opens the palette:
+Context (attach, mention, clear, resume), Model (switch model, effort,
+thinking), Customize (permission mode, Focus view, settings, keybindings),
+Account & usage, Skills (the session's own), slash commands (`/compact`,
+`/clear`, `/logout`, `/usage`, `/cost`) and Support. The `+` button uploads
+images (PNG, JPEG, GIF, WebP; other files become `@` mentions) or starts a
+mention; images also paste and drop. The model pill reads `model effort`
+(effort tiers Minimal to Max, each verified per model); the mode button opens
+the Modes menu; the microphone dictates. While a turn runs, `Enter` steers it
+and Stop cancels it.
 
-From the Marketplace
-([RandyNorthrup.muse-spark-code](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
-published 2026-09-22), or from the `.vsix`:
+**Transcript.** Replies render as GitHub-flavoured markdown with highlighted
+code and **Copy**, **Insert at cursor** and **Apply** on every block. Tool
+rows open to show the diff, the command and its output, or the file read.
+Reasoning folds to `Thought for Ns`. Approval cards carry the CLI's choices
+(allow once, always allow in this workspace, reject with feedback); multi-step
+shell lines are approved one step at a time. The agent's task list pins above
+the composer, the session name replaces "Untitled" once allocated, and the
+composer shows how much of the context window is used. **Focus view**
+(`Ctrl+Alt+F`) folds tool and reasoning rows behind `Show N steps`.
 
-```bash
-npm run package                      # writes muse-spark-code-0.1.0.vsix
-code --install-extension muse-spark-code-0.1.0.vsix
+**Edit review.** Muse Code applies in-workspace edits as it goes, so review
+comes after: **Open diff** shows the file before and after in VS Code's diff
+editor, **Revert** puts the previous text back (a created file goes to the
+trash). If the file changed since, both say so rather than guess.
+
+**History.** The clock icon lists the workspace's conversations by day with
+search, resume (full transcript), archive and **Show archived**. Sessions
+idle for `archiveInactiveSessions` days are hidden, not deleted. A hidden
+panel shows a dot when Muse finished or needs a decision.
+
+**Diagnostics.** The agent can read the Problems panel through a
+`getDiagnostics` tool the extension serves on a loopback MCP server, bound to
+`127.0.0.1` with a per-window token. Nothing else is exposed.
+
+## Voice dictation
+
+Tap the microphone to start and again to stop; hold it (or `Ctrl+D` /
+`Cmd+D` in the composer, or Space on the focused button) to record while
+held. The placeholder reads "Listening…", the mic pulses red, and each phrase
+lands at the caret followed by a space. Recognition runs in a small helper
+on the operating system's own engine, kept warm for five minutes after a
+recording. Nothing is billed and no third-party engine is involved.
+
+| Platform | How                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech`, the desktop recogniser that ships with Windows (English always; other languages with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing; Windows' Speech Recognition training improves it for your voice.                                              |
+| macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace package. **Dictation (System Settings > Keyboard) or Siri must be on.** macOS asks once for the microphone and for speech recognition. Apple picks on-device recognition when its model is installed, otherwise its servers under Apple's terms at no charge (`--on-device` refuses the servers). |
+| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                                                     |
+
+Diagnosing on Windows: the helper can replay a WAV file instead of the
+microphone, which separates a recogniser problem from a microphone one.
+
+```powershell
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File native\windows\dictate.ps1 -InputWav C:\path\to\speech.wav
 ```
 
-Then open the **Muse Spark** view from the activity bar and sign in
-(see "Signing in" above). The getting-started tips under the empty state
-list the keybindings; **Hide these tips** turns them off
-(`museSpark.hideOnboarding`).
-
-## Installation (development)
-
-```bash
-git clone https://github.com/RandyNorthrup/muse-spark-code.git
-cd muse-spark-code
-npm ci
-```
-
-`npm ci` also installs the husky pre-commit hook (lint-staged + gitleaks).
-
-Press **F5** in VS Code to launch the Extension Development Host with a fresh
-build. The "Muse Spark" icon appears in the activity bar; the command palette
-offers the **Muse Spark:** commands listed below.
+Type `start` and press Enter; phrases print as JSON lines, then `stopped`.
+On macOS the helper takes `--input-device <CoreAudio UID>` to capture from
+one specific device; a Mac without any input device reports "no audio input
+device is available", and step markers on stderr name where a start failed.
 
 ## Commands and keybindings
 
@@ -135,233 +181,10 @@ offers the **Muse Spark:** commands listed below.
 | Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`)                                 | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
 | Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)                                             | Move keyboard focus between the editor and the composer                                                                                                   |
 | Muse Spark: Insert @-Mention for Selection | `Alt+K`                                                            | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
-| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning from M4 on)                                                                        |
+| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
 | Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
 | Muse Spark: Set Up Shell Sandbox           | —                                                                  | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
-| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                  | Tap to start or stop voice dictation, hold to record while held (see Voice dictation below)                                                               |
-
-In the composer, `Enter` sends and `Shift+Enter` inserts a newline; set
-`museSpark.useCtrlEnterToSend` to send with `Ctrl+Enter` / `Cmd+Enter` instead.
-Sending is enabled once you are signed in. While a turn is running, Stop
-cancels it and `Enter` steers it: the new text reaches the model at its next
-step (`turn/steer`; if the turn has just ended it is sent as a fresh turn).
-
-## The composer
-
-- **"/" palette** — press `/` on an empty draft or click the slash button.
-  Type to filter; `Up`/`Down` move, `Enter` activates, `Left`/`Right` step
-  the effort slider, `Esc` closes (or goes back from the model list). Groups
-  match the Claude Code panel: Context (attach file, mention file, clear
-  conversation), Model (switch model, effort, thinking), Customize
-  (permission mode, Focus view, Ctrl+Enter, settings, keyboard shortcuts),
-  Account & usage (session tokens, sign out), Skills (the session's
-  `skill/list`, inserted as `/selector` and sent as a skill part), Slash
-  commands (`/compact`, `/clear`, `/logout`) and Support (output log, issues,
-  docs).
-- **"+" menu** — _Upload from computer_ opens a native file dialog: PNG, JPEG,
-  GIF and WebP files become `name W×H` chips and are sent as image parts
-  (10 MB each, 20 per message); any other file is inserted as an `@path`
-  mention. _Add context_ starts an `@` mention at the caret. Images can also
-  be pasted or dropped onto the composer, and files dragged from the Explorer
-  become mentions. (Claude Code's third entry, _Browse the web_, needs its
-  Chrome extension and has no Muse counterpart.)
-- **`@` mentions** — type `@` and a few letters; the menu lists matching
-  files and folders from the workspace index, ranked fuzzily. `Enter` or
-  `Tab` inserts `@path `, `Esc` dismisses. With `museSpark.respectGitIgnore`
-  on, the index comes from `git ls-files` (so `.gitignore` applies exactly);
-  without git it falls back to VS Code's file search. `Alt+K` still inserts
-  `@path#start-end` for the editor selection.
-- **Open-file chip** — with `museSpark.attachOpenFile` on (the default) the
-  active workspace file rides beside the model pill as `App.tsx`, or
-  `App.tsx L5-10` while lines are selected, exactly as in the Claude Code
-  bar. When you send, the host adds it to the prompt the way Claude Code's
-  IDE reminders do: `<ide_selection>` with the selected text (clipped at
-  64 KiB; a file the workspace index does not list, such as a gitignored one,
-  shares its path only) or `<ide_opened_file>` naming the file. The transcript
-  and the durable session keep only what you typed (`turn/start.displayText`),
-  and the user card shows the same chip. The `×` leaves the file out until
-  another file becomes active.
-- **Autosave** — with `museSpark.autosave` on, every send first saves all
-  dirty editors so the CLI reads what you see.
-- **Model pill** — `model effort`, e.g. `muse-spark-1.3 High`. Click it for
-  the model list (`model/list`, context window shown per row; the choice is
-  applied with `session/setModel`). Effort is Minimal / Low / Medium / High /
-  Extra high / Max, each dot naming its tier on hover, and is sent as the
-  session's reasoning-effort default; the CLI's own default is High. Only the
-  tiers verified for the current model are offered (`PLAN.md` D10). The
-  Thinking toggle (`Ctrl+Alt+T`; `Option+T` on macOS) sends `none` while off.
-- **Permission mode** — the mode button opens the Modes menu (Manual / Edit
-  automatically / Plan / Auto, each with a one-line description, plus the
-  Effort row); `Shift+Tab` cycles them. Bypass permissions appears only while
-  `museSpark.allowDangerouslySkipPermissions` is on. The modes map onto the
-  CLI's approval modes as recorded in `PLAN.md` D7: Manual and Edit
-  automatically prompt for anything no rule allows, Plan denies it, Auto lets
-  the CLI's safety check decide and prompts only when it must, Bypass allows
-  everything. In practice Muse Code allows file reads and edits inside the
-  workspace without asking and gates shell commands, network access and
-  writes outside the workspace.
-- **While a turn runs** the placeholder reads "Queue another message…": Enter
-  steers the running turn, Stop cancels it.
-
-## The transcript
-
-- **Replies** render as GitHub-flavoured markdown (tables, task lists,
-  strikethrough). Raw HTML is never rendered, images show their alt text, and
-  links open in your browser through VS Code (http, https and mailto only).
-  Fenced code is highlighted (TypeScript, JavaScript, JSON, Bash, PowerShell,
-  Python, CSS, HTML, Markdown, diff, YAML, SQL, Go, Rust, Java, C, C++, C#)
-  with **Copy**, **Insert at cursor** and **Apply** buttons; Apply replaces
-  the active editor's selection with the block (or inserts it at the caret).
-- **Tool rows** show what the agent did, one per call: `Read`, `Edit`,
-  `Write`, `PowerShell` / `Bash`, `Question`, or the raw tool name. A green
-  dot means completed, a pulsing one running, red failed or rejected. Under
-  an edit the row says `Added N lines`, `Removed N lines` or `Modified`;
-  click the row for the diff (line-numbered once the stored patch has been
-  fetched), the shell command and its output (`IN` / `OUT`), or the file
-  contents read. Long outputs clip to twelve lines with **Show more**.
-- **Edit review** — Muse Code applies in-workspace edits as it goes (they
-  never prompt, see `PLAN.md` D11), so review happens after the fact: a
-  finished `Edit` or `Write` row offers **Open diff** (VS Code's diff editor,
-  the file before the edit on the left and the file as it is now on the
-  right, rebuilt from the stored patch) and **Revert** (writes the pre-edit
-  text back; a file the edit created goes to the trash). If the file changed
-  since the edit, both say so instead of guessing. Claude Code's
-  review-before-write has no MSP counterpart.
-- **Diagnostics** — Muse can ask VS Code for the errors and warnings in the
-  Problems panel: the extension serves a `getDiagnostics` tool to each
-  session over a loopback MCP server (`sessionMcp`), as Claude Code's IDE
-  server does. Nothing else is exposed, the server binds `127.0.0.1` only and
-  needs a per-window bearer token.
-- **Reasoning** collapses to `Thought for Ns`; click to read the summary
-  parts the model exposed.
-- **Approval cards** appear under a gated tool call with the choices the CLI
-  offers (`Allow once`, `Always allow in this workspace: …`, `Reject` with
-  optional feedback to the model). A shell line with several commands is
-  approved one step at a time (`step 1 of 2`).
-- **Question cards** appear when the agent asks you something: pick an
-  option (or several), or type an answer, then **Submit**.
-- The **task list** the agent keeps is pinned above the composer; the
-  session's name replaces "Untitled" once the CLI allocates one; the
-  composer shows how much of the context window is used; a spinner line with
-  a verb sits under the last row while a turn runs.
-- **Focus view** (`Ctrl+Alt+F` or the setting) folds consecutive tool and
-  reasoning rows behind one `Show N steps` row; a card waiting on you is
-  never hidden.
-
-## The Model API backend
-
-With a pasted key and no signed-in CLI (or `museSpark.backend: modelApi`)
-the panel talks to `https://api.meta.ai/v1` itself: streamed
-`POST /responses` with stateless reasoning replay (`store: false`, the
-encrypted reasoning items are sent back each turn, so nothing is kept on
-Meta's side), the same effort tiers, and the extension's own tools in place
-of the CLI's: Read, Edit (exactly one match), Write, Search (regex + glob),
-List, the platform shell (PowerShell on Windows, bash elsewhere), plus
-questions to you and a task list. Every path is confined to the workspace;
-edits show the same diff rows with **Open diff** / **Revert**. The
-permission modes apply as in Claude Code: Manual asks before edits and
-commands, Edit automatically asks only for commands, Plan refuses both, Auto
-behaves like Edit automatically here (there is no safety classifier to
-consult), Bypass runs everything. Approval cards offer Allow once, Always
-allow in this session, and Reject with feedback. `/compact` summarises the
-conversation with one model call. Sessions on this backend live for the
-window: the History dialog lists them, but they are gone after a reload
-(a stored session log is deferred past 0.1.0). Skills are not available. A
-contributor-tier model asks once per conversation before it is used and is
-hidden in a confidential workspace, on either backend.
-
-## Sessions and history
-
-Every conversation is a Muse Code session stored on disk by the CLI, so
-nothing is lost when the panel closes.
-
-- **History** (the clock in the header, or `/` → **Resume**) lists this
-  workspace's stored sessions grouped Today / Yesterday / Previous 7 days /
-  Older, newest first, each with its name (or first prompt), how long ago it
-  was active, its turn count, git branch and whether it is a fork. Type to
-  search names and branches; `↑` `↓` and `Enter` (or a click) resume one,
-  `Esc` closes. Resuming rebuilds the transcript from the stored history
-  (your messages as cards, the agent's replies, reasoning and tool rows at
-  their final state) and continues the session live; the composer picks up
-  the session's model and your current effort and permission mode.
-- **Archive** (`×` on a row) hides a session from the list without deleting
-  anything (Muse Code has no delete); **Show archived** brings it back and
-  offers **Unarchive**. Sessions idle for longer than
-  `museSpark.archiveInactiveSessions` days (default 14) are hidden the same
-  way.
-- **The sidebar remembers**: reopening it within ten minutes of the last
-  message resumes that conversation, as in Claude Code; later it starts
-  empty and the History dialog has the old one. Editor tabs always start a
-  new conversation.
-- **Rename** by clicking the title in the header (`Enter` saves, `Esc`
-  cancels); the name the CLI settles on is shown. **Fork from here** on any
-  of your messages (hover it) starts a new conversation that keeps the turns
-  before that message, Claude Code's "rewind" without the file checkpoints
-  (use **Revert** on the edit rows for those). Muse Code 1.3.0 refuses both
-  on Windows (see Troubleshooting); the panel says so and nothing changes.
-- **Unread**: when a turn finishes, or the agent asks for an approval or an
-  answer, while the sidebar is hidden the Muse Spark view shows a badge, and
-  a background editor tab gets a `●` in its title, until you look.
-
-## Account & usage
-
-`/usage`, `/cost`, or the **Account & usage…** row of the `/` palette open
-a dialog under the header:
-
-- **Backend**: which side this window runs on (Muse Code on your
-  subscription, or the Model API on your key).
-- **Plan** and two bars, the current block (Muse Code reports a 300-minute
-  window) and the rolling week, each with "resets in" and the percent used
-  as Meta reports it (over-quota values keep their real number). The
-  numbers are what the CLI last observed ("as of …"); the CLI reports them
-  after the first turn of a conversation (`usage/read`, then live through
-  `usage/changed`), so a fresh window shows "No subscription usage reported
-  yet" until then. Meta's tier field is an opaque id today, so the plan line
-  reads "Muse Code subscription".
-- **This conversation**: input, output and cached tokens and the context
-  used out of the model's window, from `session/tokenUsage` /
-  `session/contextUsage` (or the Model API's `usage` block).
-- A window on the Model API key shows no bars: requests are billed to the
-  key at pay-as-you-go rates and counted on the dev.meta.ai dashboard, which
-  **Open dev.meta.ai** opens.
-
-Screen readers hear the panel's state changes through a polite live region:
-finished, failed and stopped turns, approval cards (with the tool),
-questions, resumes, warnings and errors.
-
-## Voice dictation
-
-The microphone in the composer ("Tap or hold to record (Ctrl+D)") types what
-you say at the caret. A tap starts listening and a second tap stops; holding
-the button (or `Ctrl+D` / `Cmd+D` in the composer, or Space on the focused
-button) records while held and stops on release. The placeholder reads
-"Listening…" and the mic pulses red while recording; each recognised phrase
-lands in the composer followed by a space. Nothing is billed and no
-third-party engine is involved: recognition runs on the operating system's
-own recogniser in a small helper process that the extension keeps warm for
-five minutes after a recording.
-
-| Platform | How                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech` (the desktop recogniser that ships with Windows; English is always installed, other languages come with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing.                                                                                                                                                                                                                                                                                                 |
-| macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace `.vsix`. **Dictation (System Settings > Keyboard) or Siri must be on**, or Apple answers "Siri and Dictation are disabled". macOS asks once for the microphone and for speech recognition. Apple picks where recognition runs: on the device when its model is installed (Apple silicon with Dictation on), otherwise its servers under Apple's terms, at no charge; the helper's `--on-device` switch refuses the servers. A `.vsix` built on Windows or Linux has no helper and the button says so. |
-| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-
-Troubleshooting on Windows: the helper can replay a WAV file instead of the
-microphone, which separates a recogniser problem from a microphone one:
-
-```powershell
-& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File native\windows\dictate.ps1 -InputWav C:\path\to\speech.wav
-```
-
-Type `start` and press Enter; the phrases print as JSON lines, then `stopped`.
-
-On macOS the helper takes `--input-device <CoreAudio UID>` to capture from
-one specific device instead of the system default (the test rig feeds it a
-loopback device; a Mac with several microphones can be pinned to one). Run
-it by hand from Terminal the same way (`start`, `stop`, `quit` on stdin); a
-Mac without any input device reports "no audio input device is available",
-and the step markers on stderr name where a start failed.
+| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                  | Tap to start or stop voice dictation, hold to record while held                                                                                           |
 
 ## Settings
 
@@ -374,7 +197,7 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 | `autosave`                        | `true`   | Save all dirty editors before every turn                                                                                                                                                                                                              |
 | `attachOpenFile`                  | `true`   | Show the open-file chip and send the active file / selection with each message                                                                                                                                                                        |
 | `useCtrlEnterToSend`              | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                                                                                                                                                                             |
-| `hideOnboarding`                  | `false`  | Hide the onboarding checklist                                                                                                                                                                                                                         |
+| `hideOnboarding`                  | `false`  | Hide the getting-started tips                                                                                                                                                                                                                         |
 | `focusView`                       | `false`  | Show only prompts and responses                                                                                                                                                                                                                       |
 | `respectGitIgnore`                | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                                                                                                                                                                                     |
 | `confidentialWorkspace`           | `false`  | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                     |
@@ -385,16 +208,60 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 | `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable; empty discovers it on `PATH` or the install dir                                                                                                                                                            |
 | `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process. Never put API keys here; use Sign in                                                                                                                                                               |
 
-## Development commands
+## Requirements
+
+- VS Code 1.125.0 or newer, on Windows, macOS or Linux.
+- The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
+  a Meta account (subscription), or a Meta Model API key (pay as you go).
+- `git` on `PATH` for `.gitignore`-aware `@` mentions (optional; VS Code's
+  file search is used without it).
+- Voice dictation: Windows, or macOS with Dictation or Siri enabled.
+
+## Privacy and security
+
+- Your prompts, attachments, mentioned files and tool output go to Meta, and
+  nowhere else, only when you press Send. The extension has no telemetry and
+  no server of its own. Details: [PRIVACY.md](docs/PRIVACY.md).
+- A pasted Model API key lives only in VS Code's SecretStorage, is sent only
+  to `api.meta.ai`, is never passed to any child process, and never reaches
+  settings, logs or the CLI.
+- Contributor-tier models (Meta may train on their traffic) are opt-in with
+  one confirmation per conversation, and refused outright with
+  `museSpark.confidentialWorkspace`.
+- Voice audio stays on the machine on Windows; on macOS Apple recognises on
+  the device or on its servers under Apple's terms.
+- The webview runs under a strict CSP (`default-src 'none'`, per-load script
+  nonce, no remote origins, no inline styles); every message between host and
+  webview is validated with a zod schema.
+
+## Development
+
+```bash
+git clone https://github.com/RandyNorthrup/muse-spark-code.git
+cd muse-spark-code
+npm ci          # also installs the pre-commit hook (lint-staged + gitleaks)
+```
+
+Press **F5** to launch the Extension Development Host with a fresh build.
+Node 22 or newer and npm 11 (`.npmrc` enforces `engine-strict`);
+[gitleaks](https://github.com/gitleaks/gitleaks) on `PATH` for the hook and
+`npm run security:secrets`; `pip install semgrep` for `npm run security:sast`.
+
+**Stack.** TypeScript 6.0.3 (pinned: `typescript-eslint` does not yet
+support TS 7); the extension host bundled with esbuild to CommonJS; the
+webview is React 19 bundled to one IIFE with its stylesheet; `zod/mini`
+validates every host ⇄ webview message; the voice helpers are Windows
+PowerShell and Swift with no dependencies.
 
 | Command                                   | What it does                                                                                                     |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                           |
 | `npm run watch`                           | Rebuild extension + webview on change                                                                            |
 | `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`); needs `build:dev` and Chrome |
+| `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)          |
 | `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                   |
 | `npm run format` / `npm run format:check` | Prettier write / check                                                                                           |
-| `npm run lint`                            | `eslint --max-warnings=0` (type-aware) and `stylelint --max-warnings=0`                                          |
+| `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, PSScriptAnalyzer over `native/windows`     |
 | `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                                    |
 | `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                    |
 | `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                              |
@@ -403,155 +270,103 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 | `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it                      |
 | `npm run test`                            | Unit then integration                                                                                            |
 | `npm run security:audit`                  | `npm audit --audit-level=high`                                                                                   |
-| `npm run security:sast`                   | `semgrep scan --config auto --error` (install: `pip install semgrep`; the Scripts folder must be on PATH)        |
+| `npm run security:sast`                   | `semgrep scan --config auto --error`                                                                             |
 | `npm run security:secrets`                | `gitleaks git` over the repository history                                                                       |
 | `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**              |
 | `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                                   |
-| `npm run package`                         | `vsce package --no-dependencies` → `.vsix`                                                                       |
+| `npm run package`                         | `vsce package --no-dependencies` → `.vsix` (without the macOS helper unless built on a Mac)                      |
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                   |
 
-## Build
+**Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
+to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes
+in `test/unit/helpers/` implement the full VS Code interfaces. Integration
+tests (`test/integration/**`) run under mocha inside a real VS Code launched
+by `@vscode/test-cli` (on Linux under `xvfb-run -a`).
 
-`npm run build` writes `dist/extension.js` (CommonJS, `vscode` external) and
-`dist/webview/main.js` + `main.css`. Budgets: 600 KiB and 900 KiB respectively;
-after M3 the bundles measure about 80 KiB and 274 KiB.
+**Quality gates.** Every gate fails the build rather than printing, and each
+was seen to fail on a deliberate break before being trusted; the records are
+in [`docs/certification/`](docs/certification/), one file per milestone.
+Escape hatches (`eslint-disable`, `@ts-expect-error`, casts) need an inline
+reason and a row in `PLAN.md` §8. Bundle budgets: 600 KiB for the extension,
+900 KiB for the webview.
 
-## Test
+**Environment variables.** Credentials live in SecretStorage, never in
+files. `.env.example` documents the single variable tooling may read:
+`META_API_KEY`, which the Muse Code CLI inherits untouched if you export it
+yourself (and prefers over its sign-in, as Meta documents). The extension
+never sets it.
 
-- **Unit** (`test/unit/**`): vitest. Extension-host modules run under Node with
-  `vscode` aliased to `test/unit/mocks/vscode.ts`; webview components run under
-  jsdom via a `// @vitest-environment jsdom` docblock. Fakes in
-  `test/unit/helpers/fakes.ts` implement the full VS Code interfaces so no casts
-  are needed.
-- **Integration** (`test/integration/**`): mocha (TDD interface) inside a real
-  VS Code launched by `@vscode/test-cli`; configuration in `.vscode-test.mjs`.
-  On Linux run under `xvfb-run -a`.
-
-## Quality gates
-
-Every gate is wired to fail the build, not just print. Each was verified to
-fail on a deliberate break before being trusted; the records are in
-[`docs/certification/`](docs/certification/) (one file per milestone). Escape hatches
-(`eslint-disable`, `@ts-expect-error`, casts) require an inline reason and a
-row in `PLAN.md` §8.
-
-## Environment variables
-
-The extension stores credentials in VS Code SecretStorage, never in files.
-`.env.example` documents the single variable tooling may read:
-
-| Variable       | Used by                      | Purpose                                                                                                                                                          |
-| -------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `META_API_KEY` | Muse Code CLI (`muse serve`) | If you export it yourself the CLI inherits it untouched (and prefers it over its sign-in, as Meta documents). The extension never sets it. Never commit a value. |
-
-## Project structure
+**Project structure.**
 
 ```
 src/extension.ts            activation: registers the view, panel, commands
-src/host/                   VS Code-facing code (webview wiring, auth, conversation, mentions)
-src/core/                   backend-agnostic logic (MSP host, launch, attachments, fuzzy index)
+src/host/                   VS Code-facing code (webview wiring, auth, conversation, mentions, voice)
+src/core/                   backend-agnostic logic (MSP host, Model API client, tools, dictation driver)
 src/shared/                 constants + zod message protocol shared with the webview
 src/webview/                React app (own tsconfig, browser libs)
-test/unit/                  vitest tests, vscode mock, fakes
-test/integration/           @vscode/test-cli suites
-test/fixtures/workspace/    workspace opened by the integration run
-scripts/                    esbuild build, bundle-size gate, PSScriptAnalyzer gate
 native/windows/             dictate.ps1: the Windows dictation helper (System.Speech)
 native/darwin/              Dictation.swift + build.sh: the macOS helper (built in CI)
+test/unit/                  vitest tests, vscode mock, fakes
+test/integration/           @vscode/test-cli suites
+test/harness/               the webview behind a fake host, for screenshots
+scripts/                    esbuild build, bundle-size gate, PSScriptAnalyzer gate, image rendering
 docs/certification/         per-milestone gate-fire records
-media/                      activity-bar icon
+media/                      icons, banner, social preview, README screenshots
 ```
 
-## Deployment
-
-`npm run package` runs the production build (`vscode:prepublish`) and
-produces `muse-spark-code-<version>.vsix` containing the two bundles, the
-stylesheet, the icons, this README, the CHANGELOG, the LICENSE and
-`docs/PRIVACY.md` (see `.vscodeignore`). The Marketplace icon is
-`media/icon.png`, rendered from `media/marketplace-icon.svg` by
-`npm run icon` (headless Chrome; the Marketplace rejects SVG icons).
-Publishing uses publisher `RandyNorthrup` (confirmed on the marketplace
-management page) and needs `npx vsce login RandyNorthrup` with a
-Marketplace-manage PAT, then `npx vsce publish --no-dependencies`. CI
-(`.github/workflows/ci.yml`) runs the quality gates on Ubuntu, Windows and
-macOS, integration tests under xvfb on Ubuntu, gitleaks over full history,
-semgrep, a `native-darwin` job that compiles the macOS dictation helper,
-and a `package` job that downloads that helper and uploads the complete
-`.vsix` as the `muse-spark-code-vsix` artifact. Publish from that artifact
-(`npx vsce publish --packagePath <file>.vsix`), not from a Windows or Linux
-`npm run package`, or Mac users get a panel without a microphone.
-
-## Security
-
-- Webview CSP: `default-src 'none'`, scripts only with a per-load nonce, no
-  remote origins, no inline styles (see `src/host/html.ts`).
-- Every message between host and webview is validated with a zod schema; bad
-  messages are logged to the "Muse Spark" output channel and dropped.
-- A pasted Model API key lives only in SecretStorage and is sent only to
-  `api.meta.ai`; it is never passed to any child process (the Muse Code CLI
-  runs on its own sign-in), never written to settings, logs or telemetry.
-- No telemetry. Secret scanning in pre-commit and CI.
-- Contributor-tier Muse Spark models (Meta trains on their traffic) are
-  opt-in only: one modal confirmation per conversation, and refused outright
-  with `museSpark.confidentialWorkspace`.
-- What leaves your machine and where it goes: [`docs/PRIVACY.md`](docs/PRIVACY.md).
+**Releases.** CI (`.github/workflows/ci.yml`) runs the quality gates on
+Ubuntu, Windows and macOS, the integration tests, gitleaks over the full
+history, semgrep, a `native-darwin` job that compiles the macOS dictation
+helper, and a `package` job that uploads the complete `.vsix` as the
+`muse-spark-code-vsix` artifact. Releases are published from that artifact
+(`npx vsce publish --packagePath <file>.vsix`, publisher `RandyNorthrup`),
+never from a Windows or Linux `npm run package`, or Mac users would get a
+panel without a microphone.
 
 ## Troubleshooting
 
-- **`npm ci` fails with an engine error** — Node 22+ is required
-  (`node --version`).
+- **Every shell command fails with `sandbox enforcement unavailable`** — Muse
+  Code runs commands inside an OS sandbox that needs a one-time administrator
+  setup on Windows. The panel offers it in a notification ("Set up now"
+  relaunches `muse sandbox windows setup` through the UAC prompt); the same
+  flow is **Muse Spark: Set Up Shell Sandbox**. Start a new conversation
+  afterwards. Linux and macOS need no setup.
+- **Shell commands run in `C:\Windows\System32\WindowsPowerShell\v1.0`
+  instead of the project, and the first one takes ages** — Muse Code 1.3.0's
+  Windows sandbox cannot enter folders under `C:\Users\<you>`
+  ([meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
+  With `museSpark.shellSandbox` at `auto` the extension starts Muse Code
+  without the sandbox for such workspaces: commands run directly as you, in
+  the project, still gated by the approval cards, and the panel says so once
+  per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
+- **"Could not rename the conversation … UnsupportedPlatform" / "Could not
+  fork the conversation … WriteFailed"** — Muse Code 1.3.0 refuses
+  `session/rename` and `session/fork` on Windows. The panel shows the refusal
+  and leaves the conversation as it was.
+- **Model API charges while using the CLI** — the extension never hands your
+  pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
+  output log says which credential it started with). If the CLI itself holds
+  a pay-as-you-go key (`muse auth set`) or `META_API_KEY` is exported in your
+  environment, the CLI uses it, exactly as Meta documents.
+- **The microphone says "Voice dictation failed: No microphone is available"**
+  — Windows sees no recording device from this session (Remote Desktop hides
+  the host's devices unless the client redirects a microphone). On macOS,
+  "Siri and Dictation are disabled" means Dictation must be switched on in
+  System Settings > Keyboard.
+- **`npm ci` fails with an engine error** — Node 22+ is required.
 - **Pre-commit hook says `gitleaks: command not found`** — install gitleaks
   (Windows: `winget install Gitleaks.Gitleaks`).
-- **Type-aware lint rules stop reporting** — check `npm ls typescript`; it must
-  be 6.0.x. TypeScript 7 is outside `typescript-eslint`'s peer range.
+- **Type-aware lint rules stop reporting** — `npm ls typescript` must show
+  6.0.x; TypeScript 7 is outside `typescript-eslint`'s peer range.
 - **`npm run test:integration` cannot download VS Code** — the download goes to
   `.vscode-test/`; on a restricted network set `VSCODE_TEST_VERSION` or
   pre-populate the folder from another machine.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
-- **Every shell command fails with `sandbox enforcement unavailable`** — Muse
-  Code runs commands inside an OS sandbox that needs a one-time administrator
-  setup on Windows (it creates the local sandbox users, their capabilities and
-  a network filter under `C:\ProgramData\muse`). The extension checks
-  `muse sandbox windows check` when a chat opens and offers the setup in a
-  notification ("Set up now" relaunches `muse sandbox windows setup` through
-  the UAC prompt and re-checks; "Don't ask again" is remembered). The same
-  flow is available any time as **Muse Spark: Set Up Shell Sandbox**, and the
-  panel repeats the offer when a shell tool reports the failure. After the
-  setup, start a new conversation. File reads and edits work without it;
-  Linux and macOS need no setup (`muse sandbox` has only the `windows`
-  subcommands).
-- **Model API charges while using the CLI** — up to M6 a key pasted into
-  the panel was passed to `muse serve` as `META_API_KEY`, which the CLI
-  prefers over its own sign-in, so CLI work was billed to the key. M7 stops
-  that: the CLI runs on its own credential only (check the "muse serve
-  credentials" line in the Muse Spark output log). If the CLI itself holds
-  a pay-as-you-go key (`muse auth set`), or `META_API_KEY` is exported in
-  your environment, the CLI still uses it, exactly as Meta documents.
-- **"Could not rename the conversation: … UnsupportedPlatform" / "Could not
-  fork the conversation: invalid fork boundary … WriteFailed"** — Muse Code
-  1.3.0 refuses `session/rename` and `session/fork` on Windows (the same two
-  commands work from the CLI's own TUI on Linux and macOS). The panel offers
-  both, shows the CLI's refusal as a notice and leaves the conversation as
-  it was. Names the CLI allocates itself still show in the header and the
-  History dialog.
-- **Shell commands run in `C:\Windows\System32\WindowsPowerShell\v1.0`
-  instead of the project, and the first one takes ages** — Muse Code 1.3.0's
-  Windows sandbox account cannot enter folders under `C:\Users\<you>`, so for
-  a workspace inside your profile it falls back to PowerShell's own folder
-  (about 34 s per command; the very first command can take minutes while the
-  sandbox account logs on). `muse exec` does the same, so it is a CLI
-  limitation (reported as
-  [meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
-  With `museSpark.shellSandbox` at its default `auto`, the extension starts
-  Muse Code with `--disable-sandbox` for such workspaces: commands then run
-  directly as you, in the project, in about a second, and the approval cards
-  still gate them exactly as before (this is how Claude Code runs commands
-  too). The panel says so once per conversation. Set the setting to `muse`
-  to keep the sandbox regardless (the panel then warns about the wrong
-  folder) or `off` to never sandbox. Muse Code's own docs say that without
-  the sandbox its file tools may also write outside the workspace; in our
-  check over the extension's connection a `write_file` outside the
-  workspace was still refused (`path must resolve within the Active
-Workspace Root`). Keep Manual or Edit-automatically mode and read the
-  approval cards regardless.
+
+## More
+
+- [CHANGELOG.md](CHANGELOG.md): what shipped, version by version.
+- [PLAN.md](PLAN.md): decisions, research, milestones and their certification.
+- [docs/PRIVACY.md](docs/PRIVACY.md): what leaves your machine.
+- [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).

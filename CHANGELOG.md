@@ -9,6 +9,24 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.1.1] - 2026-09-22
+
+### Changed
+
+- The VS Code floor is `^1.125.0` (was `^1.134.0`, with `@types/vscode`
+  pinned to match). A clean VS Code 1.130.0 (the owner's Windows 11 VM)
+  refused to install 0.1.0 from the Marketplace as "not compatible"; the
+  extension uses no API newer than 1.125, which the whole tree typechecks
+  against, and the 1.134 floor had only come from the oldest typings on the
+  registry at the time.
+- README rewritten around the panel: banner, screenshots, highlights,
+  quick start, then the reference sections; `media/readme/` holds the
+  screenshots, `media/banner.svg` and `media/social-preview.svg` the brand
+  art. `npm run images` (formerly `npm run icon`,
+  `scripts/render-images.mjs`) renders the Marketplace icon, the banner and
+  the GitHub social preview. Marketplace description, keywords and a dark
+  gallery banner colour refreshed.
+
 ## [0.1.0] - 2026-09-22
 
 The first release: milestones M0 to M9 of `PLAN.md`, both backends,

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400">
+  <!-- README hero banner. Same spark and tile as the Marketplace icon, no
+       Meta mark (this extension is unofficial). Rendered to
+       media/readme/banner.png by scripts/render-images.mjs. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1117"/>
+      <stop offset="1" stop-color="#1b2033"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.22" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#3b6cf6" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#3b6cf6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fb2ff"/>
+      <stop offset="1" stop-color="#3b6cf6"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7fb2ff"/>
+      <stop offset="1" stop-color="#7fb2ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <rect width="1280" height="400" fill="url(#glow)"/>
+  <!-- faint grid -->
+  <g stroke="#ffffff" stroke-opacity="0.035">
+    <path d="M0 100H1280M0 200H1280M0 300H1280"/>
+    <path d="M160 0V400M320 0V400M480 0V400M640 0V400M800 0V400M960 0V400M1120 0V400"/>
+  </g>
+  <!-- the tile -->
+  <g transform="translate(96 88)">
+    <rect width="224" height="224" rx="52" fill="#16181f" stroke="#2a3148" stroke-width="2"/>
+    <svg viewBox="0 0 128 128" width="224" height="224">
+      <path fill="url(#spark)" d="M64 18c3 20 10 27 30 30-20 3-27 10-30 30-3-20-10-27-30-30 20-3 27-10 30-30z"/>
+      <path fill="#7fb2ff" opacity="0.85" d="M96 74c1.5 8 4.5 11 12.5 12.5-8 1.5-11 4.5-12.5 12.5-1.5-8-4.5-11-12.5-12.5 8-1.5 11-4.5 12.5-12.5z"/>
+      <path fill="#7fb2ff" opacity="0.6" d="M32 82c1 5.5 3 7.5 8.5 8.5-5.5 1-7.5 3-8.5 8.5-1-5.5-3-7.5-8.5-8.5 5.5-1 7.5-3 8.5-8.5z"/>
+    </svg>
+  </g>
+  <!-- copy -->
+  <g font-family="'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif" fill="#f5f7fb">
+    <text x="384" y="150" font-size="66" font-weight="700" letter-spacing="-1">Muse Spark Code</text>
+    <rect x="386" y="170" width="220" height="3" rx="1.5" fill="url(#rule)"/>
+    <text x="384" y="222" font-size="27" fill="#c3cbdc">Meta’s Muse Spark as a coding agent inside VS Code</text>
+    <g font-size="19" font-weight="600" fill="#9fb7ff">
+      <rect x="384" y="256" width="168" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="468" y="282" text-anchor="middle">Muse Code CLI</text>
+      <rect x="564" y="256" width="132" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="630" y="282" text-anchor="middle">Model API</text>
+      <rect x="708" y="256" width="170" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="793" y="282" text-anchor="middle">Voice dictation</text>
+      <rect x="890" y="256" width="236" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="1008" y="282" text-anchor="middle">Windows · macOS · Linux</text>
+    </g>
+    <text x="384" y="338" font-size="17" fill="#7c879d">Streaming chat · tool calls with diffs · permission modes · session history · no telemetry</text>
+    <text x="1232" y="372" font-size="15" fill="#5f6a80" text-anchor="end">Unofficial · not affiliated with Meta · MIT</text>
+  </g>
+</svg>

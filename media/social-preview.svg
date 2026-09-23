@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <!-- GitHub social preview (1280×640, the 2:1 card behind shared links).
+       Same tile and spark as the Marketplace icon, no Meta mark. Rendered to
+       media/social-preview.png by scripts/render-images.mjs. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1117"/>
+      <stop offset="1" stop-color="#1b2033"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.38" r="0.5">
+      <stop offset="0" stop-color="#3b6cf6" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#3b6cf6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fb2ff"/>
+      <stop offset="1" stop-color="#3b6cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+  <g stroke="#ffffff" stroke-opacity="0.035">
+    <path d="M0 160H1280M0 320H1280M0 480H1280"/>
+    <path d="M160 0V640M320 0V640M480 0V640M640 0V640M800 0V640M960 0V640M1120 0V640"/>
+  </g>
+  <g transform="translate(544 72)">
+    <rect width="192" height="192" rx="44" fill="#16181f" stroke="#2a3148" stroke-width="2"/>
+    <svg viewBox="0 0 128 128" width="192" height="192">
+      <path fill="url(#spark)" d="M64 18c3 20 10 27 30 30-20 3-27 10-30 30-3-20-10-27-30-30 20-3 27-10 30-30z"/>
+      <path fill="#7fb2ff" opacity="0.85" d="M96 74c1.5 8 4.5 11 12.5 12.5-8 1.5-11 4.5-12.5 12.5-1.5-8-4.5-11-12.5-12.5 8-1.5 11-4.5 12.5-12.5z"/>
+      <path fill="#7fb2ff" opacity="0.6" d="M32 82c1 5.5 3 7.5 8.5 8.5-5.5 1-7.5 3-8.5 8.5-1-5.5-3-7.5-8.5-8.5 5.5-1 7.5-3 8.5-8.5z"/>
+    </svg>
+  </g>
+  <g font-family="'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif" fill="#f5f7fb" text-anchor="middle">
+    <text x="640" y="362" font-size="72" font-weight="700" letter-spacing="-1">Muse Spark Code</text>
+    <text x="640" y="418" font-size="30" fill="#c3cbdc">Meta’s Muse Spark as a coding agent inside VS Code</text>
+    <g font-size="20" font-weight="600" fill="#9fb7ff">
+      <rect x="252" y="462" width="176" height="44" rx="22" fill="#1c2540" stroke="#33427a"/>
+      <text x="340" y="491">Muse Code CLI</text>
+      <rect x="442" y="462" width="140" height="44" rx="22" fill="#1c2540" stroke="#33427a"/>
+      <text x="512" y="491">Model API</text>
+      <rect x="596" y="462" width="180" height="44" rx="22" fill="#1c2540" stroke="#33427a"/>
+      <text x="686" y="491">Voice dictation</text>
+      <rect x="790" y="462" width="238" height="44" rx="22" fill="#1c2540" stroke="#33427a"/>
+      <text x="909" y="491">Windows · macOS · Linux</text>
+    </g>
+    <text x="640" y="566" font-size="19" fill="#7c879d">VS Code Marketplace · RandyNorthrup.muse-spark-code · unofficial, MIT</text>
+  </g>
+</svg>
