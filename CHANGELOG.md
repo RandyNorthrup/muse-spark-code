@@ -80,6 +80,40 @@ other harnesses' bug trackers and the platform documentation, fixed.
 - On macOS, dictation names the app macOS asks, separates speech from
   microphone refusals, and explains an early exit.
 
+- The crash screen's **Reload** brings the conversation back as it was: the
+  transcript, a waiting approval or question and the running turn. A state
+  that crashes the panel twice is dropped instead of looping.
+- A stopped or failed turn no longer leaves the reply streaming, tools
+  running or cards clickable; a tool it cut off reads "Interrupted".
+- "Rewind code to here" no longer unwinds a subagent's earlier edits after
+  the Agent map has read the agent's transcript.
+- **New Conversation** from its keybinding clears the panel too, and acts on
+  the panel you last used.
+- With an input method (Chinese, Japanese, Korean), Enter commits the
+  candidate instead of sending the message or picking a mention.
+- Typing and streaming no longer re-render the whole transcript; a code
+  block being written is highlighted once, when it is complete.
+- A resumed conversation's thoughts read "Thought", not "Thinking…".
+- The transcript stays at the end when its content grows without a new row.
+- A tab restored after a window reload keeps its conversation until the
+  resume succeeds.
+- A refused message's images no longer linger unseen in the panel's host;
+  they come back to the composer when the host still holds them.
+- A question card posts one answer however often Submit is pressed, and
+  opens again when the answer is refused.
+- Screen readers get one announcement per event.
+- Dialogs keep Tab inside and the chat behind them is inert; message menus
+  close on a click outside; right-click on a selection offers **Copy**.
+- The History dialog's keys keep working after **Show archived**.
+- Images over 10 MB, or past 20, are refused before they are read, and the
+  banner says why.
+- Relative links in a reply open the workspace file at the lines they name.
+- Right-to-left text reads right to left.
+- Reduced motion stops every animation.
+- Tasks with the same text no longer collide; approval feedback starts empty
+  on each step; Windows line ends no longer show in diffs; diffs over 256 KB
+  keep their line numbers.
+
 ### Changed
 
 - Integration tests run on the latest VS Code and on the 1.125 floor;

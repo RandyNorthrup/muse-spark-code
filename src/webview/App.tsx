@@ -187,6 +187,19 @@ export function App({
     }
   }, [store, isOwnStore, postMessage, now])
 
+  // A refused message's images the host may still hold go back to it to be
+  // dropped (M25): the reducer lists them, the app posts and acknowledges.
+  const { attachmentsToRelease } = state
+  useEffect(() => {
+    if (attachmentsToRelease.length === 0) {
+      return
+    }
+    for (const id of attachmentsToRelease) {
+      postMessage({ type: 'removeAttachment', id })
+    }
+    dispatch({ type: 'attachmentsReleased', ids: attachmentsToRelease })
+  }, [attachmentsToRelease, postMessage, dispatch])
+
   // Focus anywhere in the panel makes it the surface the keybindings act on
   // (M25): New Conversation clears the conversation the user was looking at.
   useEffect(() => {

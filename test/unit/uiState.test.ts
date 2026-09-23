@@ -1752,8 +1752,8 @@ describe('clears, restores and refusals (M25)', () => {
     ).toBe('t9')
   })
 
-  it('brings the chips of a refused message back to the composer', () => {
-    const refused = reduceAll([
+  it('brings the chips of a refused message back when the host still holds them', () => {
+    const sent: readonly UiAction[] = [
       host({ type: 'attachmentAdded', attachment }),
       {
         type: 'submitted',
@@ -1763,10 +1763,25 @@ describe('clears, restores and refusals (M25)', () => {
         contextLabel: undefined,
       },
       host({ type: 'attachmentAdded', attachment: { ...attachment, id: 'att-2' } }),
-      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first' }),
+    ]
+    const refused = reduceAll([
+      ...sent,
+      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first', attachmentsKept: true }),
     ])
     expect(refused.attachments.map((chip) => chip.id)).toEqual(['att-1', 'att-2'])
     expect(refused.unsentAttachments).toEqual({})
+    expect(refused.attachmentsToRelease).toEqual([])
+    // Without the host's word the images may be gone already: no chip names
+    // one, and the host is asked to drop whatever it still holds.
+    const unsure = reduceAll([
+      ...sent,
+      host({ type: 'sendFailed', localId: 'l1', reason: 'CLI exited' }),
+    ])
+    expect(unsure.attachments.map((chip) => chip.id)).toEqual(['att-2'])
+    expect(unsure.attachmentsToRelease).toEqual(['att-1'])
+    expect(entryOf(unsure, 'l1')).toMatchObject({ status: 'failed', attachments: [attachment] })
+    const released = uiReducer(unsure, { type: 'attachmentsReleased', ids: ['att-1'] })
+    expect(released.attachmentsToRelease).toEqual([])
     const accepted = reduceAll(
       [
         {
@@ -1791,6 +1806,17 @@ describe('clears, restores and refusals (M25)', () => {
     ])
     expect(entryOf(asked, 'q1')).toMatchObject({ question: { isSubmitted: true } })
     expect(uiReducer(asked, { type: 'questionSubmitted', userInputId: 'other' })).toEqual(asked)
+    // A warning leaves it locked; the error the host posts for a refused
+    // answer or cancel opens it again for another try.
+    const warned = uiReducer(asked, host({ type: 'notice', level: 'warning', text: 'careful' }))
+    expect(entryOf(warned, 'q1')).toMatchObject({ question: { isSubmitted: true } })
+    const refused = uiReducer(
+      asked,
+      host({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' }),
+    )
+    expect(entryOf(refused, 'q1')).toMatchObject({ question: { isSubmitted: false } })
+    const idle = reduceAll([host({ type: 'notice', level: 'error', text: 'x' })])
+    expect(idle.transcript).toHaveLength(1)
   })
 
   it('says why an image was refused for its size, and raises local notices', () => {
