@@ -809,10 +809,11 @@ export function activate(context: vscode.ExtensionContext): void {
             await context.globalState.update(GLOBAL_STATE_KEYS.lastUsage, usage)
           },
         },
-        // A server that failed to start is retried for the next session (D25).
-        ideMcpEndpoint: () => {
+        // A server that failed to start is started again, and the session
+        // that asked waits for it, so it gets the tool too (D25).
+        ideMcpEndpoint: async () => {
           if (ideServer.current === undefined) {
-            void startIdeServer()
+            await startIdeServer()
           }
           return ideServer.current
         },

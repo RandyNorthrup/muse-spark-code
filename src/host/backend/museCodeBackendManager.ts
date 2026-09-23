@@ -73,6 +73,7 @@ const PROXY_VARIABLES = ['HTTPS_PROXY', 'HTTP_PROXY'] as const
 // POSIX tools read the lower-case spellings too; any of them means "configured".
 const PROXY_SPELLINGS = ['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy'] as const
 const NO_PROXY_VARIABLE = 'NO_PROXY'
+const NO_PROXY_SPELLINGS = [NO_PROXY_VARIABLE, 'no_proxy'] as const
 const NO_PROXY_SEPARATOR = ','
 
 function readTextFileOrUndefined(filePath: string): string | undefined {
@@ -102,17 +103,26 @@ export class MuseCodeBackendManager {
   /** `http.proxy` as HTTPS_PROXY / HTTP_PROXY (and `http.noProxy` as NO_PROXY) when unset. */
   private proxyVariables(): readonly EnvironmentVariable[] {
     const { proxy, noProxy } = this.deps.getProxySettings()
-    const hasProxy = PROXY_SPELLINGS.some(
-      (name) => (environmentValue(process.env, process.platform, name) ?? '') !== '',
-    )
-    if (proxy === '' || hasProxy) {
+    if (proxy === '') {
+      return []
+    }
+    // What the CLI would see without VS Code's proxy: the inherited
+    // environment and `museSpark.environmentVariables`, in either case on
+    // POSIX, so a lowercase `https_proxy` set either way is never contradicted.
+    const own = buildChildEnvironment({
+      platform: process.platform,
+      baseEnv: process.env,
+      extraVariables: this.deps.getEnvironmentVariables(),
+      systemRoot: process.env['SystemRoot'],
+      programFiles: process.env['ProgramFiles'],
+    })
+    const isSet = (names: readonly string[]) =>
+      names.some((name) => (environmentValue(own, process.platform, name) ?? '') !== '')
+    if (isSet(PROXY_SPELLINGS)) {
       return []
     }
     const variables: EnvironmentVariable[] = PROXY_VARIABLES.map((name) => ({ name, value: proxy }))
-    if (
-      noProxy.length > 0 &&
-      environmentValue(process.env, process.platform, NO_PROXY_VARIABLE) === undefined
-    ) {
+    if (noProxy.length > 0 && !isSet(NO_PROXY_SPELLINGS)) {
       variables.push({ name: NO_PROXY_VARIABLE, value: noProxy.join(NO_PROXY_SEPARATOR) })
     }
     return variables
