@@ -15,8 +15,9 @@ export type LinkTarget =
   | { readonly kind: 'refused' }
 
 const SCHEME = /^[a-z][\d+.a-z-]*:/i
-// `notes.md:12` reads like a scheme ("notes.md:") but is a file and a line.
-const NAME_WITH_LINES = /^[^/:\\]+:\d+(?:-\d+)?$/
+// `notes.md:12` reads like a scheme ("notes.md:") but is a file and a line;
+// the dot of an extension is required, so `javascript:1` stays a scheme.
+const NAME_WITH_LINES = /^[^./:\\][^/:\\]*\.[^/:\\]+:\d+(?:-\d+)?$/
 const ANCHOR = '#'
 const ROOTED = /^[/\\]/
 const SEPARATORS = /[/\\]/
