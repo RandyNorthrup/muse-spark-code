@@ -1164,3 +1164,81 @@ describe('transcript scrolling (M15)', () => {
     })
   })
 })
+
+/** A finished reply, as the host relays one (M17). */
+function reply(itemId: string, text: string) {
+  deliver({
+    type: 'agentEvent',
+    event: {
+      type: 'itemCompleted',
+      item: { itemId, kind: 'agentMessage', status: 'completed', text },
+    },
+  })
+}
+
+describe('App chat references (M17)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('replies to an output from its actions menu and sends the reference with the message', () => {
+    const postMessage = renderReady()
+    reply('m1', 'Use pnpm.')
+    fireEvent.click(screen.getByRole('button', { name: 'Message actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
+    expect(screen.getByText('Replying to: Use pnpm.')).toBeInTheDocument()
+    fireEvent.change(textarea(), { target: { value: 'why?' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'why?',
+      attachmentIds: [],
+      includeEditorContext: false,
+      reference: { intent: 'reply', role: 'assistant', entryId: 'm1', text: 'Use pnpm.' },
+    })
+    // The composer chip is gone; the sent card carries the label.
+    expect(screen.queryByLabelText('Remove: Replying to: Use pnpm.')).toBeNull()
+    expect(screen.getByText('Replying to: Use pnpm.').closest('.message-user')).not.toBeNull()
+  })
+
+  it('asks about highlighted text from the right-click menu, and the chip can be removed', () => {
+    const postMessage = renderReady()
+    reply('m1', 'Use pnpm because it is fast.')
+    const passage = screen.getByText('Use pnpm because it is fast.')
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => ' it is fast ',
+      anchorNode: passage,
+    } as unknown as Selection)
+    fireEvent.contextMenu(passage)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask about this' }))
+    expect(screen.getByText('Asking about: it is fast')).toBeInTheDocument()
+    fireEvent.change(textarea(), { target: { value: 'how fast?' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        text: 'how fast?',
+        reference: { intent: 'question', role: 'assistant', entryId: 'm1', text: 'it is fast' },
+      }),
+    )
+    fireEvent.contextMenu(passage)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on this' }))
+    fireEvent.click(screen.getByLabelText('Remove: Commenting on: it is fast'))
+    expect(screen.queryByText('Commenting on: it is fast')).toBeNull()
+  })
+
+  it('leaves the browser menu alone without a selection, and Escape closes ours', () => {
+    renderReady()
+    reply('m1', 'plain')
+    const passage = screen.getByText('plain')
+    const empty = vi
+      .spyOn(window, 'getSelection')
+      .mockReturnValue({ toString: () => '', anchorNode: passage } as unknown as Selection)
+    expect(fireEvent.contextMenu(passage)).toBe(true)
+    expect(screen.queryByRole('menu')).toBeNull()
+    empty.mockReturnValue({ toString: () => 'plain', anchorNode: passage } as unknown as Selection)
+    expect(fireEvent.contextMenu(passage)).toBe(false)
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+})

@@ -612,6 +612,21 @@ what differed from the Claude Code extension. Findings and decisions:
 | "Is this a bug? … approval ledger durability fence … (failed=0, pending=3)"                                                                                                                                                          | Yes, in Muse Code 1.3.0 on Windows: the decision applies, then the CLI's own approval-ledger flush fails and its reply to `approval/decide` carries the error. The panel relays it (M15 wording).                                                                                       | No change; recorded as a CLI fault beside `session/rename` and `session/fork`.                                                                                                                                                                                                                                                                                      |
 | "The question needs to be structured: stacked with checkboxes for multiple answers, radio buttons for single answer, tabbed for multiple questions, always an Other option, Submit and Cancel, Submit greyed out until a selection." | The card showed pill buttons in a row, no Other, no Cancel; Muse Code has `userInput/cancel` (the tool resolves with a cancelled result the model sees) and the answer shape carries `freeText`.                                                                                        | The card is rebuilt as described: native radio buttons or checkboxes stacked, an Other row with a text box on every question (typed text becomes `freeText`), one tab per question with a tick once answered, Submit disabled until every question has an answer, Cancel sends `userInput/cancel`; on the Model API the tool returns "the user declined to answer". |
 
+### D20 — Replying to an output and quoting the chat (2026-09-22, night)
+
+The owner asked for two things: a Reply action in the message actions menu
+that "adds the proper context and makes the agent aware that the user is
+replying to its output", and the ability to "highlight anything in the chat
+and right-click on it to ask a question or make a comment about it with the
+proper context payload provided to the agent". Findings and decisions:
+
+| Question                                | Finding                                                                                                                                                                                      | Decision                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| How the agent learns what is referenced | Neither MSP nor the Model API has a "reply to message" field; the M5 mechanism already carries hidden context as a text part (`<ide_selection>`) with the typed text kept as `displayText`.  | A `<chat_reference intent="reply\|question\|comment" from="assistant\|user\|tool">` part rides before the editor context: a lead sentence naming the intent and the author ("written by you, the assistant"), then the passage in a fenced block, clipped at 8,000 characters with a note. The transcript shows the typed text plus a chip.        |
+| Where Reply lives                       | Claude Code's message menu is on user cards (fork / rewind); replies have a hover Copy. The owner wants a reply action on outputs.                                                           | Each finished reply gets a hover actions menu (⋯) beside Copy with "Reply to this output"; it sets the composer's reference chip ("Replying to: …") and focuses the box. The whole reply text is the payload.                                                                                                                                      |
+| Highlight and right-click               | A webview's context menu is the browser's; a right-click can be intercepted only when there is something to offer. Menus positioned by coordinates would need inline styles the CSP forbids. | Right-click with a non-empty selection inside a transcript row (`data-entry-id` / `data-role` on user, assistant and tool rows) opens a small menu at that row's top-right: "Ask about this" / "Comment on this". Without a selection the browser menu is untouched. The selection text, the row's author and id go into the chip and the payload. |
+| Several chips                           | The editor-context chip, attachments and a reference can all ride together.                                                                                                                  | One reference at a time (a new Reply or quote replaces it); it clears on send or with its ×, and the sent card keeps a "Replying to: …" / "Asking about: …" / "Commenting on: …" chip.                                                                                                                                                             |
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1723,6 +1738,27 @@ version 0.4.2.
   tool call, resolved against the workspace when relative; the usage
   cache holds percentages and timestamps only.
 
+### M17 — Reply to an output, ask about or comment on highlighted chat text (D20)
+
+**Status 2026-09-22: built and certified** (`docs/certification/m17.md`);
+version 0.4.3.
+
+- **Goal**: every D20 row.
+- **Scope**: `ChatReference` on `sendMessage` (`protocol.ts`),
+  `src/core/chatReference.ts` (the tagged part), the controller's `send`
+  (the part before the editor context); the webview: `reference` in the
+  state with `referenceSet` / `referenceCleared` and `referenceLabel`,
+  the composer chip, the reply actions menu on `AssistantRow`,
+  `QuoteMenu` rendered by the row that owns the selection, the
+  right-click handler on the transcript, the user card's reference chip,
+  `data-entry-id` / `data-role` on rows; styles; README, CHANGELOG, this
+  file.
+- **Acceptance**: the unit gate covers the part text, the reducer, the
+  menus, the right-click flow and the wire (proofs in the record); the
+  owner's F5 check.
+- **Security**: the payload is text the transcript already shows, clipped;
+  nothing outside the conversation is read.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                    | Status                                                                                                                  |
@@ -1875,3 +1911,8 @@ stored-patch diff, the last usage window "as of". Certified
 the first try: every job, the GitHub Release with
 `muse-spark-code-0.4.2.vsix` (544,515 bytes), the Marketplace publish step
 skipped without `VSCE_PAT`.
+
+**0.4.3 (2026-09-22, night):** Reply to an output, and Ask about / Comment
+on highlighted chat text, each carrying a `<chat_reference>` context part
+(D20, M17). Certified (`docs/certification/m17.md`), tagged `v0.4.3`
+(RELEASE_RUN_PLACEHOLDER).

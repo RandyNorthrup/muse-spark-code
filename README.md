@@ -76,7 +76,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.4.2.vsix
+   code --install-extension muse-spark-code-0.4.3.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -178,7 +178,12 @@ edit or read row opens the file with the changed lines selected. A finished
 reply carries **Copy** on hover. Click a tool's output to open it in a
 read-only editor tab (a stored output in full); **Click to expand** on an
 edit diff opens the diff editor (the file side is editable). Thinking rows
-stream their summary while the model thinks and end as "Thought for Ns". The transcript
+stream their summary while the model thinks and end as "Thought for Ns".
+A reply's ⋯ menu has **Reply to this output**: the next message carries
+that output to the agent as context, marked as what you are replying to.
+Highlight any text in the chat and right-click it for **Ask about this** or
+**Comment on this**; the passage, its author and your intent travel with
+the message. The composer shows a chip for either; × drops it. The transcript
 follows new entries while you are at the end; scrolled up, it holds still
 and **New messages** jumps to the newest.
 Reasoning folds to `Thought for Ns`. Approval cards carry the CLI's choices

@@ -9,6 +9,25 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.4.3] - 2026-09-22
+
+Replying to an output and quoting the chat (PLAN.md D20).
+
+### Added
+
+- **Reply to this output**: a hover actions menu (⋯) on every finished
+  reply, beside Copy. It puts a "Replying to: …" chip on the composer; the
+  message then carries the whole output to the agent as a
+  `<chat_reference intent="reply">` context part that says the user is
+  replying to it.
+- **Ask about this / Comment on this**: highlight any text in the chat (a
+  reply, your own message or a tool output) and right-click it. The chip
+  reads "Asking about: …" or "Commenting on: …"; the message carries the
+  highlighted passage, who wrote it and the intent. Without a selection the
+  browser's own menu is untouched.
+- The sent message keeps the chip, and the chip's × drops the reference
+  before sending.
+
 ## [0.4.2] - 2026-09-22
 
 The owner's second F5 round, on 0.4.1 (PLAN.md D19).

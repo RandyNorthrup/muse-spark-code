@@ -3,7 +3,7 @@
 // errors and notices, and the status line while a turn runs. Focus view
 // collapses tool and reasoning rows behind one expandable row per run.
 
-import { useDeferredValue, useState } from 'react'
+import { type ReactNode, useDeferredValue, useState } from 'react'
 import type { QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
@@ -11,7 +11,8 @@ import { splitForStreaming } from '../streamSplit'
 import type { ApprovalDecisionInput } from './ApprovalCard'
 import { formatDurationMs } from './AgentMap'
 import { useCopiedFlag } from '../useCopiedFlag'
-import { CheckIcon, CopyIcon, FileIcon, ImageIcon, RewindIcon } from './icons'
+import { CheckIcon, CopyIcon, FileIcon, ImageIcon, MoreIcon, ReplyIcon, RewindIcon } from './icons'
+import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
@@ -40,6 +41,12 @@ export interface TranscriptProps {
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
+  /** A reply's actions menu (M17); absent while no session exists. */
+  readonly onReply?: ((entryId: string) => void) | undefined
+  /** The row whose highlighted text has the Ask / Comment menu open (M17). */
+  readonly quoteMenuEntryId?: string | undefined
+  readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
+  readonly onCloseQuoteMenu?: (() => void) | undefined
 }
 
 /** The rows of the user card's menu, in Claude Code's order. */
@@ -87,12 +94,17 @@ function UserCard({
   entry,
   onFork,
   onRewind,
+  quoteMenu,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'user' }>
   readonly onFork: ((entryId: string) => void) | undefined
   readonly onRewind: ((entryId: string) => void) | undefined
+  readonly quoteMenu: ReactNode
 }) {
-  const hasChips = entry.attachments.length > 0 || entry.contextLabel !== undefined
+  const hasChips =
+    entry.attachments.length > 0 ||
+    entry.contextLabel !== undefined ||
+    entry.referenceLabel !== undefined
   const [isMenuOpen, setMenuOpen] = useState(false)
   const hasMenu = onFork !== undefined && onRewind !== undefined && entry.status === 'sent'
   const choose = (choice: RewindChoice) => {
@@ -107,6 +119,8 @@ function UserCard({
   return (
     <li
       className={`message message-user message-${entry.status}`}
+      data-entry-id={entry.id}
+      data-role="user"
       onKeyDown={(event) => {
         if (!isMenuOpen || event.key !== 'Escape') {
           return
@@ -121,6 +135,12 @@ function UserCard({
             <li className="chip" title={UI_TEXT.editorContextLabel}>
               <FileIcon />
               <span className="chip-name">{entry.contextLabel}</span>
+            </li>
+          )}
+          {entry.referenceLabel === undefined ? null : (
+            <li className="chip" title={UI_TEXT.referenceTitle}>
+              <ReplyIcon />
+              <span className="chip-name">{entry.referenceLabel}</span>
             </li>
           )}
           {entry.attachments.map((attachment) => (
@@ -176,6 +196,7 @@ function UserCard({
           ) : null}
         </div>
       ) : null}
+      {quoteMenu}
     </li>
   )
 }
@@ -193,15 +214,40 @@ interface AssistantRowProps {
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
   readonly onApply: (text: string) => void
+  /** The actions menu's "Reply to this output" (M17); absent while no session exists. */
+  readonly onReply: ((entryId: string) => void) | undefined
+  /** The highlighted-text menu when it belongs to this row (M17). */
+  readonly quoteMenu: ReactNode
 }
 
-function AssistantRow({ entry, onOpenLink, onCopy, onInsert, onApply }: AssistantRowProps) {
+function AssistantRow({
+  entry,
+  onOpenLink,
+  onCopy,
+  onInsert,
+  onApply,
+  onReply,
+  quoteMenu,
+}: AssistantRowProps) {
   const text = useDeferredValue(entry.text)
   const { head, tail } = entry.isStreaming ? splitForStreaming(text) : { head: '', tail: text }
   const actions = { onOpenLink, onCopy, onInsert, onApply }
   const [isCopied, markCopied] = useCopiedFlag()
+  const [isMenuOpen, setMenuOpen] = useState(false)
   return (
-    <li className="message message-assistant" aria-busy={entry.isStreaming}>
+    <li
+      className="message message-assistant"
+      aria-busy={entry.isStreaming}
+      data-entry-id={entry.id}
+      data-role="assistant"
+      onKeyDown={(event) => {
+        if (!isMenuOpen || event.key !== 'Escape') {
+          return
+        }
+        event.stopPropagation()
+        setMenuOpen(false)
+      }}
+    >
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
       <div className="message-body">
         {head === '' ? null : <MarkdownView text={head} {...actions} />}
@@ -209,19 +255,52 @@ function AssistantRow({ entry, onOpenLink, onCopy, onInsert, onApply }: Assistan
         {entry.isStreaming ? <span className="cursor" aria-hidden="true" /> : null}
       </div>
       {entry.isStreaming ? null : (
-        <button
-          type="button"
-          className="response-copy"
-          aria-label={UI_TEXT.copyResponse}
-          title={isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyResponse}
-          onClick={() => {
-            onCopy(entry.text)
-            markCopied()
-          }}
-        >
-          {isCopied ? <CheckIcon /> : <CopyIcon />}
-        </button>
+        <div className="response-actions">
+          <button
+            type="button"
+            className="rewind-button response-copy"
+            aria-label={UI_TEXT.copyResponse}
+            title={isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyResponse}
+            onClick={() => {
+              onCopy(entry.text)
+              markCopied()
+            }}
+          >
+            {isCopied ? <CheckIcon /> : <CopyIcon />}
+          </button>
+          {onReply === undefined ? null : (
+            <button
+              type="button"
+              className="rewind-button response-menu-button"
+              aria-label={UI_TEXT.messageActions}
+              title={UI_TEXT.messageActions}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              onClick={() => {
+                setMenuOpen((isOpen) => !isOpen)
+              }}
+            >
+              <MoreIcon />
+            </button>
+          )}
+          {isMenuOpen ? (
+            <div className="rewind-menu" role="menu" aria-label={UI_TEXT.messageActions}>
+              <button
+                type="button"
+                role="menuitem"
+                className="rewind-menu-item"
+                onClick={() => {
+                  setMenuOpen(false)
+                  onReply?.(entry.id)
+                }}
+              >
+                {UI_TEXT.replyToOutput}
+              </button>
+            </div>
+          ) : null}
+        </div>
       )}
+      {quoteMenu}
     </li>
   )
 }
@@ -272,7 +351,15 @@ export function Transcript(props: TranscriptProps) {
     onOpenFile,
     onFork,
     onRewind,
+    onReply,
+    quoteMenuEntryId,
+    onQuote,
+    onCloseQuoteMenu,
   } = props
+  const quoteMenuFor = (entryId: string): ReactNode =>
+    quoteMenuEntryId === entryId && onQuote !== undefined && onCloseQuoteMenu !== undefined ? (
+      <QuoteMenu onChoose={onQuote} onClose={onCloseQuoteMenu} />
+    ) : null
   const renderStep = (entry: StepEntry) =>
     entry.kind === 'reasoning' ? (
       <ReasoningRow key={entry.id} entry={entry} />
@@ -292,12 +379,21 @@ export function Transcript(props: TranscriptProps) {
         onCancelQuestion={onCancelQuestion}
         onOpenEditDiff={onOpenEditDiff}
         onOpenFile={onOpenFile}
+        quoteMenu={quoteMenuFor(entry.id)}
       />
     )
   const renderEntry = (entry: TranscriptEntry) => {
     switch (entry.kind) {
       case 'user': {
-        return <UserCard key={entry.id} entry={entry} onFork={onFork} onRewind={onRewind} />
+        return (
+          <UserCard
+            key={entry.id}
+            entry={entry}
+            onFork={onFork}
+            onRewind={onRewind}
+            quoteMenu={quoteMenuFor(entry.id)}
+          />
+        )
       }
       case 'assistant': {
         return (
@@ -308,6 +404,8 @@ export function Transcript(props: TranscriptProps) {
             onCopy={onCopy}
             onInsert={onInsert}
             onApply={onApply}
+            onReply={onReply}
+            quoteMenu={quoteMenuFor(entry.id)}
           />
         )
       }

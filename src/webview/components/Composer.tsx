@@ -30,7 +30,16 @@ import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
 import type { DictationUiState, MentionResults } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
-import { CloseIcon, FileIcon, MicIcon, PlusIcon, SendIcon, SlashIcon, StopIcon } from './icons'
+import {
+  CloseIcon,
+  FileIcon,
+  MicIcon,
+  PlusIcon,
+  ReplyIcon,
+  SendIcon,
+  SlashIcon,
+  StopIcon,
+} from './icons'
 import { MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
 
@@ -57,6 +66,9 @@ export interface ComposerProps {
   readonly mentionResults: MentionResults | undefined
   /** The open-file chip ("PLAN.md L5-10"); undefined hides it (M5). */
   readonly editorContextLabel: string | undefined
+  /** "Replying to: …" / "Asking about: …" (M17); undefined hides the chip. */
+  readonly referenceLabel: string | undefined
+  readonly onDismissReference: () => void
   /** The microphone button (M9). */
   readonly dictation: DictationUiState
   readonly now: () => number
@@ -182,6 +194,8 @@ export function Composer(props: ComposerProps) {
     attachments,
     mentionResults,
     editorContextLabel,
+    referenceLabel,
+    onDismissReference,
     dictation,
     now,
     onDictation,
@@ -539,6 +553,22 @@ export function Composer(props: ComposerProps) {
                 aria-label={`${UI_TEXT.editorContextRemove}: ${editorContextLabel}`}
                 onMouseDown={keepMenuFocus}
                 onClick={onDismissEditorContext}
+              >
+                <CloseIcon />
+              </button>
+            </span>
+          )}
+          {referenceLabel === undefined ? null : (
+            <span className="editor-chip reference-chip" title={UI_TEXT.referenceTitle}>
+              <ReplyIcon />
+              <span className="editor-chip-label">{referenceLabel}</span>
+              <button
+                type="button"
+                className="chip-remove"
+                title={UI_TEXT.referenceRemove}
+                aria-label={`${UI_TEXT.referenceRemove}: ${referenceLabel}`}
+                onMouseDown={keepMenuFocus}
+                onClick={onDismissReference}
               >
                 <CloseIcon />
               </button>

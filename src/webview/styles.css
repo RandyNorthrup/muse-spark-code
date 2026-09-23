@@ -1600,8 +1600,34 @@ body {
 .message-user:hover .rewind-button,
 .message-user:focus-within .rewind-button,
 .message-assistant:hover .response-copy,
-.message-assistant:focus-within .response-copy {
+.message-assistant:focus-within .response-copy,
+.message-assistant:hover .response-menu-button,
+.message-assistant:focus-within .response-menu-button,
+.response-menu-button[aria-expanded='true'] {
   visibility: visible;
+}
+
+/* Copy and the actions menu sit at the foot of a reply (M15, M17); the
+   menu opens beneath the button like the user card's. */
+.response-actions {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  display: flex;
+  gap: 2px;
+}
+
+.response-actions .rewind-menu {
+  top: 24px;
+}
+
+/* The highlighted-text menu sits at a row's top-right (M17). */
+.quote-menu {
+  top: 4px;
+}
+
+.tool {
+  position: relative;
 }
 
 /* --- Account & usage dialog (M8) --- */

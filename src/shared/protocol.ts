@@ -14,6 +14,7 @@ import {
   todoItemSchema,
 } from './agentEvents'
 import {
+  CHAT_REFERENCE_INTENTS,
   DICTATION_ACTIONS,
   DICTATION_UI_STATUSES,
   EFFORT_LEVELS,
@@ -77,6 +78,19 @@ export const BACKEND_KINDS = ['museCode', 'modelApi'] as const
 export type BackendKind = (typeof BACKEND_KINDS)[number]
 
 // Things the webview asks the host to do outside the conversation itself.
+/**
+ * What a message replies to or quotes from the chat (M17): `reply` from an
+ * output's actions menu, `question` or `comment` from a highlighted passage.
+ * `role` names who wrote the passage (assistant, user, tool).
+ */
+const chatReferenceSchema = z.object({
+  intent: z.enum(CHAT_REFERENCE_INTENTS),
+  role: z.string(),
+  entryId: z.optional(z.string()),
+  text: z.string(),
+})
+export type ChatReference = z.infer<typeof chatReferenceSchema>
+
 /** Lines (1-based, inclusive) a tool row asks the editor to select (M16). */
 export interface LineRange {
   readonly startLine: number
@@ -165,6 +179,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     attachmentIds: z.array(z.string()),
     /** The editor-context chip was on: the host adds the active file / selection. */
     includeEditorContext: z.optional(z.boolean()),
+    /** The message replies to an output or quotes a passage (M17). */
+    reference: z.optional(chatReferenceSchema),
   }),
   // The user pressed Stop.
   z.object({ type: z.literal('cancelTurn') }),

@@ -2139,3 +2139,35 @@ describe('ConversationController question cancel (M16)', () => {
     expect(t.server.requestsFor('userInput/cancel')).toEqual([])
   })
 })
+
+describe('ConversationController chat references (M17)', () => {
+  it('sends a reply or a quoted passage as its own context part and keeps the typed text as displayText', async () => {
+    const t = setup()
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l1',
+      text: 'why pnpm?',
+      attachmentIds: [],
+      reference: { intent: 'reply', role: 'assistant', entryId: 'a1', text: 'Use pnpm.' },
+    })
+    const params = t.server.requestsFor('turn/start')[0]?.params
+    const input = params?.['input'] as readonly { type: string; text?: string }[]
+    expect(input[0]).toEqual({ type: 'text', text: 'why pnpm?' })
+    expect(input[1]?.text).toContain('<chat_reference intent="reply" from="assistant">')
+    expect(input[1]?.text).toContain('Use pnpm.')
+    expect(params?.['displayText']).toBe('why pnpm?')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l2',
+      text: 'is this right?',
+      attachmentIds: [],
+      reference: { intent: 'question', role: 'tool', text: 'exit code 1' },
+    })
+    const second = t.server.requestsFor('turn/start')[1]?.params?.['input'] as readonly {
+      text?: string
+    }[]
+    expect(second[1]?.text).toContain('intent="question" from="tool"')
+  })
+})

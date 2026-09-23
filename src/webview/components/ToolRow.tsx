@@ -32,6 +32,8 @@ export interface ToolRowProps {
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   /** The row's path: the file at its change (M16). */
   readonly onOpenFile: (path: string, range: LineRange | undefined) => void
+  /** The highlighted-text menu when it belongs to this row (M17). */
+  readonly quoteMenu: ReactNode
 }
 
 /** The lines an edit changed, from its diff rows: the added lines, else the first line shown. */
@@ -239,6 +241,7 @@ export function ToolRow({
   onCancelQuestion,
   onOpenEditDiff,
   onOpenFile,
+  quoteMenu,
 }: ToolRowProps) {
   const presentation = describeTool(entry.tool, entry.args)
   const isWaiting = entry.approval !== undefined || entry.question !== undefined
@@ -321,7 +324,12 @@ export function ToolRow({
   }
   const hasBody = body !== null
   return (
-    <li className={isWaiting ? 'tool tool-waiting' : 'tool'} data-status={entry.status}>
+    <li
+      className={isWaiting ? 'tool tool-waiting' : 'tool'}
+      data-status={entry.status}
+      data-entry-id={entry.id}
+      data-role="tool"
+    >
       <div className="tool-header">
         <button
           type="button"
@@ -394,6 +402,7 @@ export function ToolRow({
                 .join('; ')}`}
         </div>
       )}
+      {quoteMenu}
     </li>
   )
 }

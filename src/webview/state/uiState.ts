@@ -14,6 +14,7 @@ import type {
   TokenUsage,
 } from '../../shared/agentEvents'
 import {
+  CHAT_REFERENCE_LABEL_CHARS,
   DEFAULT_EFFORT,
   type DictationUiStatus,
   type EffortLevel,
@@ -27,6 +28,7 @@ import type {
   AttachmentSummary,
   AuthStatus,
   BackendKind,
+  ChatReference,
   EditRef,
   EditorContextSummary,
   HostToWebviewMessage,
@@ -124,6 +126,8 @@ export type TranscriptEntry =
       readonly attachments: readonly UserAttachment[]
       /** The open-file chip that went with the message (M5). */
       readonly contextLabel?: string
+      /** "Replying to: …" / "Asking about: …" as the message was sent (M17). */
+      readonly referenceLabel?: string
       /** The turn the message started, once known (fork cut points, M6). */
       readonly turnId?: string
     }
@@ -259,6 +263,8 @@ export interface UiState {
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /** What the next message replies to or quotes (M17); the composer chip. */
+  readonly reference: ChatReference | undefined
   /** Subagent transcripts by child session id (M14). */
   readonly childTranscripts: Readonly<Record<string, ChildTranscript>>
   /** The composer banner (M14): an unsupported upload, until dismissed. */
@@ -289,7 +295,12 @@ export type UiAction =
       readonly text: string
       readonly attachments: readonly AttachmentSummary[]
       readonly contextLabel: string | undefined
+      /** What the message replies to or quotes (M17); absent for a plain send. */
+      readonly reference?: ChatReference | undefined
     }
+  /** The composer now replies to an output or quotes a passage (M17). */
+  | { readonly type: 'referenceSet'; readonly reference: ChatReference }
+  | { readonly type: 'referenceCleared' }
   | { readonly type: 'attachmentRemoved'; readonly id: string }
   | { readonly type: 'conversationCleared' }
   /** The × on the composer banner (M14). */
@@ -329,6 +340,7 @@ export const initialUiState: UiState = {
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  reference: undefined,
   childTranscripts: {},
   banner: undefined,
   announcement: undefined,
@@ -380,6 +392,21 @@ function dictationAnnouncement(
 const TEXT_FIELD = 'text'
 const IN_PROGRESS = 'inProgress'
 const USER_MESSAGE_KIND = 'userMessage'
+
+/** The composer chip and the user card's line for a reference: "Replying to: …" (M17). */
+export function referenceLabel(reference: ChatReference): string {
+  const heads: Readonly<Record<ChatReference['intent'], string>> = {
+    reply: UI_TEXT.referenceReply,
+    question: UI_TEXT.referenceQuestion,
+    comment: UI_TEXT.referenceComment,
+  }
+  const excerpt = reference.text.replaceAll(/\s+/g, ' ').trim()
+  const shown =
+    excerpt.length > CHAT_REFERENCE_LABEL_CHARS
+      ? `${excerpt.slice(0, CHAT_REFERENCE_LABEL_CHARS)}…`
+      : excerpt
+  return `${heads[reference.intent]}: ${shown}`
+}
 
 export function outputPageKey(itemId: string, outputRef: string): string {
   return `${itemId}:${outputRef}`
@@ -1010,6 +1037,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ...state,
         draft: '',
         attachments: [],
+        reference: undefined,
         transcript: [
           ...state.transcript,
           {
@@ -1019,12 +1047,21 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
             status: 'pending',
             attachments: action.attachments,
             ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
+            ...(action.reference !== undefined && {
+              referenceLabel: referenceLabel(action.reference),
+            }),
           },
         ],
       }
     }
     case 'editorContextDismissed': {
       return { ...state, dismissedEditorPath: state.editorContext?.relativePath }
+    }
+    case 'referenceSet': {
+      return { ...state, reference: action.reference }
+    }
+    case 'referenceCleared': {
+      return { ...state, reference: undefined }
     }
     case 'attachmentRemoved': {
       return { ...state, attachments: state.attachments.filter((entry) => entry.id !== action.id) }
@@ -1057,6 +1094,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         sessionId: undefined,
         transcript: [],
         attachments: [],
+        reference: undefined,
         activeTurnId: undefined,
         usage: undefined,
         context: undefined,

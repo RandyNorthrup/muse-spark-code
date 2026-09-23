@@ -460,3 +460,53 @@ describe('Transcript rows (M15, M16)', () => {
     expect(screen.getAllByText('Click to expand')).toHaveLength(1)
   })
 })
+
+describe('Transcript chat references (M17)', () => {
+  it("offers Reply to this output in a reply's actions menu", () => {
+    const onReply = vi.fn()
+    renderTranscript([{ kind: 'assistant', id: 'a1', text: 'done', isStreaming: false }], {
+      onReply,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Message actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
+    expect(onReply).toHaveBeenCalledWith('a1')
+    expect(screen.queryByRole('menuitem')).toBeNull()
+  })
+
+  it('shows the highlighted-text menu on the row that owns it and relays the choice', () => {
+    const onQuote = vi.fn()
+    const onCloseQuoteMenu = vi.fn()
+    renderTranscript(
+      [
+        { kind: 'assistant', id: 'a1', text: 'done', isStreaming: false },
+        { kind: 'user', id: 'u1', text: 'hello', status: 'sent', attachments: [] },
+        tool({ id: 't1', tool: 'powershell', args: '{"command":"ls"}', output: 'x' }),
+      ],
+      { quoteMenuEntryId: 'u1', onQuote, onCloseQuoteMenu },
+    )
+    const menu = screen.getByRole('menu', { name: 'Highlighted text' })
+    expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-entry-id', 'u1')
+    expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-role', 'user')
+    expect(document.querySelector('[data-entry-id="t1"]')).toHaveAttribute('data-role', 'tool')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask about this' }))
+    expect(onQuote).toHaveBeenCalledWith('question')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on this' }))
+    expect(onQuote).toHaveBeenCalledWith('comment')
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(onCloseQuoteMenu).toHaveBeenCalledOnce()
+  })
+
+  it('labels a sent message with what it replied to', () => {
+    renderTranscript([
+      {
+        kind: 'user',
+        id: 'u',
+        text: 'why',
+        status: 'sent',
+        attachments: [],
+        referenceLabel: 'Replying to: Use pnpm.',
+      },
+    ])
+    expect(screen.getByText('Replying to: Use pnpm.')).toBeInTheDocument()
+  })
+})

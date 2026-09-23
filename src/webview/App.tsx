@@ -41,10 +41,12 @@ import {
   editsAfter,
   forkCutBefore,
   initialUiState,
+  referenceLabel,
   type UiState,
   uiReducer,
   visibleEditorContext,
 } from './state/uiState'
+import type { QuoteIntent } from './components/QuoteMenu'
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -209,6 +211,7 @@ export function App({
       text,
       attachments: state.attachments,
       contextLabel: editorContext === undefined ? undefined : editorContextLabel(editorContext),
+      reference: state.reference,
     })
     postMessage({
       type: 'sendMessage',
@@ -216,6 +219,7 @@ export function App({
       text,
       attachmentIds,
       includeEditorContext: editorContext !== undefined,
+      ...(state.reference !== undefined && { reference: state.reference }),
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
@@ -223,6 +227,63 @@ export function App({
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [])
+  // Replying to an output and quoting a highlighted passage (M17): both set
+  // the composer's reference chip; the message carries it as context.
+  const [quoteMenu, setQuoteMenu] = useState<
+    { readonly entryId: string; readonly role: string; readonly text: string } | undefined
+  >(undefined)
+  const onDismissReference = useCallback(() => {
+    dispatch({ type: 'referenceCleared' })
+  }, [])
+  const onReply = useCallback(
+    (entryId: string) => {
+      const entry = state.transcript.find((candidate) => candidate.id === entryId)
+      if (entry?.kind !== 'assistant') {
+        return
+      }
+      dispatch({
+        type: 'referenceSet',
+        reference: { intent: 'reply', role: 'assistant', entryId, text: entry.text },
+      })
+      dispatch({ type: 'focusRequested' })
+    },
+    [state.transcript],
+  )
+  const onTranscriptContextMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    const selection = window.getSelection()
+    const text = selection?.toString().trim() ?? ''
+    const anchor = selection?.anchorNode ?? null
+    const element = anchor instanceof Element ? anchor : anchor?.parentElement
+    const row = element?.closest<HTMLElement>('[data-entry-id]') ?? null
+    const entryId = row?.dataset['entryId']
+    if (text === '' || row === null || entryId === undefined) {
+      return
+    }
+    event.preventDefault()
+    setQuoteMenu({ entryId, role: row.dataset['role'] ?? 'assistant', text })
+  }, [])
+  const onCloseQuoteMenu = useCallback(() => {
+    setQuoteMenu(undefined)
+  }, [])
+  const onQuote = useCallback(
+    (intent: QuoteIntent) => {
+      if (quoteMenu === undefined) {
+        return
+      }
+      dispatch({
+        type: 'referenceSet',
+        reference: {
+          intent,
+          role: quoteMenu.role,
+          entryId: quoteMenu.entryId,
+          text: quoteMenu.text,
+        },
+      })
+      setQuoteMenu(undefined)
+      dispatch({ type: 'focusRequested' })
+    },
+    [quoteMenu],
+  )
   const onHideOnboarding = useCallback(() => {
     postMessage({ type: 'hostAction', action: 'hideOnboarding' })
   }, [postMessage])
@@ -700,6 +761,10 @@ export function App({
         onOpenFile={onOpenFile}
         onFork={state.sessionId === undefined ? undefined : onFork}
         onRewind={state.sessionId === undefined ? undefined : onRewind}
+        onReply={onReply}
+        quoteMenuEntryId={quoteMenu?.entryId}
+        onQuote={onQuote}
+        onCloseQuoteMenu={onCloseQuoteMenu}
       />
     )
   }
@@ -847,6 +912,7 @@ export function App({
         ref={bodyRef}
         className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}
         onScroll={onBodyScroll}
+        onContextMenu={onTranscriptContextMenu}
       >
         {body}
         {hasNewBelow ? (
@@ -883,6 +949,10 @@ export function App({
           }
           dictation={state.dictation}
           now={now}
+          referenceLabel={
+            state.reference === undefined ? undefined : referenceLabel(state.reference)
+          }
+          onDismissReference={onDismissReference}
           onDictation={onDictation}
           onDismissEditorContext={onDismissEditorContext}
           onDraftChange={onDraftChange}

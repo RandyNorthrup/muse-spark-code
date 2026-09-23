@@ -25,6 +25,8 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     attachments: [],
     mentionResults: undefined,
     editorContextLabel: undefined,
+    referenceLabel: undefined,
+    onDismissReference: vi.fn(),
     dictation: { status: 'idle', reason: undefined },
     now: () => clock.now,
     onDictation: vi.fn(),
@@ -437,5 +439,16 @@ describe('Composer microphone (M9)', () => {
     expect(fireEvent.keyDown(mic(), { key: 'Tab' })).toBe(true)
     fireEvent.keyUp(mic(), { key: 'Tab' })
     expect(props.onDictation).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('Composer reference chip (M17)', () => {
+  it('shows what the next message replies to or quotes, and its × drops it', () => {
+    const onDismissReference = vi.fn()
+    renderComposer({ referenceLabel: 'Replying to: Use pnpm.', onDismissReference })
+    const chip = screen.getByText('Replying to: Use pnpm.').closest('.reference-chip')
+    expect(chip).toHaveAttribute('title', 'Goes to the agent with your message as context')
+    fireEvent.click(screen.getByLabelText('Remove: Replying to: Use pnpm.'))
+    expect(onDismissReference).toHaveBeenCalledOnce()
   })
 })

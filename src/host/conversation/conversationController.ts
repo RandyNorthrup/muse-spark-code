@@ -21,6 +21,7 @@ import {
   isProfileWorkspaceLimited,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
+import { chatReferenceText } from '../../core/chatReference'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import type { DictationHandle, DictationStatus } from '../../core/voice/dictation'
 import {
@@ -51,6 +52,7 @@ import type { AgentEvent } from '../../shared/agentEvents'
 import { parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type {
+  ChatReference,
   EditRef,
   HostAction,
   HostToWebviewMessage,
@@ -975,6 +977,7 @@ export class ConversationController {
     text: string,
     attachmentIds: readonly string[],
     isEditorContextIncluded: boolean,
+    reference: ChatReference | undefined,
   ): Promise<void> {
     try {
       const session = await this.sessionForAction(localId)
@@ -987,6 +990,10 @@ export class ConversationController {
         this.post({ type: 'sendFailed', localId, reason: NOTHING_TO_SEND_REASON })
         return
       }
+      // A reply to an output or a quoted passage rides as its own part (M17),
+      // before the editor context, like the ide_selection part of M5.
+      const referenced: readonly TurnPart[] =
+        reference === undefined ? [] : [{ type: 'text', text: chatReferenceText(reference) }]
       const context = await this.contextPart(
         isEditorContextIncluded ? this.deps.editorContext() : undefined,
       )
@@ -995,7 +1002,7 @@ export class ConversationController {
       const host = await this.deps.ensureHost()
       const note: readonly TurnPart[] =
         host.info.kind === 'museCode' ? [{ type: 'text', text: CHOICE_STEERING_NOTE }] : []
-      const parts = [...typed, ...(context === undefined ? [] : [context]), ...note]
+      const parts = [...typed, ...referenced, ...(context === undefined ? [] : [context]), ...note]
       // With extra parts the durable transcript keeps the typed text only.
       const displayText = parts.length === typed.length ? undefined : text
       const turnId = await this.submit(session, parts, displayText)
@@ -1359,6 +1366,7 @@ export class ConversationController {
           message.text,
           message.attachmentIds,
           message.includeEditorContext === true,
+          message.reference,
         )
         break
       }

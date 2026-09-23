@@ -279,3 +279,22 @@ export function CopyIcon(props: IconProps) {
     </Svg>
   )
 }
+
+export function ReplyIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.5 4.5 3 8l3.5 3.5" />
+      <path d="M3 8h6a4 4 0 0 1 4 4v1" />
+    </Svg>
+  )
+}
+
+export function MoreIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="4" cy="8" r="0.9" />
+      <circle cx="8" cy="8" r="0.9" />
+      <circle cx="12" cy="8" r="0.9" />
+    </Svg>
+  )
+}

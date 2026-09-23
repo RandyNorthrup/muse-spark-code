@@ -463,6 +463,19 @@ export const EDITOR_CONTEXT_DEBOUNCE_MS = 150
 // are clipped with a marker rather than dropped.
 export const SELECTION_TEXT_MAX_CHARS = 64 * 1024
 // The wording Claude Code uses for editor context (its system reminders).
+// A message replying to an output or quoting a highlighted passage (M17):
+// the tag the context part uses, how much of the passage travels, and how
+// the passage's author is named to the model.
+export const CHAT_REFERENCE_TAG = 'chat_reference'
+export const CHAT_REFERENCE_MAX_CHARS = 8000
+export const CHAT_REFERENCE_INTENTS = ['reply', 'question', 'comment'] as const
+export const CHAT_REFERENCE_AUTHORS: Readonly<Record<string, string>> = {
+  assistant: 'you, the assistant',
+  user: 'the user',
+  tool: 'a tool the assistant ran',
+}
+/** How much of the referenced passage the composer chip and the user card show. */
+export const CHAT_REFERENCE_LABEL_CHARS = 60
 export const IDE_CONTEXT_TAGS = {
   selection: 'ide_selection',
   openedFile: 'ide_opened_file',
@@ -760,6 +773,25 @@ export const UI_TEXT = {
   questionAnswered: 'Answered',
   questionCancelled: 'Cancelled',
   questionCancelFailed: 'The question could not be cancelled',
+  /** Replying to an output and quoting a highlighted passage (M17). */
+  messageActions: 'Message actions',
+  replyToOutput: 'Reply to this output',
+  quoteMenuLabel: 'Highlighted text',
+  askAboutThis: 'Ask about this',
+  commentOnThis: 'Comment on this',
+  referenceReply: 'Replying to',
+  referenceQuestion: 'Asking about',
+  referenceComment: 'Commenting on',
+  referenceRemove: 'Remove',
+  referenceTitle: 'Goes to the agent with your message as context',
+  replyContextLead:
+    'The user is replying to this earlier output in the chat; treat their message as a direct response to it. It was written by',
+  questionContextLead:
+    'The user highlighted this passage of the conversation and is asking a question about it. It was written by',
+  commentContextLead:
+    'The user highlighted this passage of the conversation and is commenting on it. It was written by',
+  referenceTruncated: '[… truncated to',
+  referenceCharacters: 'characters]',
   todoTitle: 'Tasks',
   focusHiddenOne: 'step hidden by Focus view',
   focusHiddenMany: 'steps hidden by Focus view',

@@ -13,6 +13,7 @@ import {
   type UiAction,
   type UiState,
   visibleEditorContext,
+  referenceLabel,
 } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
 
@@ -1127,5 +1128,46 @@ describe('uiReducer: voice dictation (M9)', () => {
       host({ type: 'dictationState', status: 'unavailable', reason: 'No recogniser on Linux.' }),
     ])
     expect(state.dictation).toEqual({ status: 'unavailable', reason: 'No recogniser on Linux.' })
+  })
+})
+
+describe('chat references (M17)', () => {
+  it('holds the composer reference, labels the sent message with it, and clears it', () => {
+    const reference = {
+      intent: 'reply' as const,
+      role: 'assistant',
+      entryId: 'a1',
+      text: 'Use   pnpm because it is fast and saves disk space on every install.',
+    }
+    let state = uiReducer(initialUiState, { type: 'referenceSet', reference })
+    expect(state.reference).toEqual(reference)
+    expect(referenceLabel(reference)).toBe(
+      'Replying to: Use pnpm because it is fast and saves disk space on every in…',
+    )
+    state = uiReducer(state, {
+      type: 'submitted',
+      localId: 'l1',
+      text: 'why?',
+      attachments: [],
+      contextLabel: undefined,
+      reference,
+    })
+    expect(state.transcript.at(-1)).toMatchObject({
+      kind: 'user',
+      referenceLabel: 'Replying to: Use pnpm because it is fast and saves disk space on every in…',
+    })
+    state = uiReducer(state, {
+      type: 'referenceSet',
+      reference: { ...reference, intent: 'comment' },
+    })
+    expect(referenceLabel({ ...reference, intent: 'comment', text: 'short' })).toBe(
+      'Commenting on: short',
+    )
+    state = uiReducer(state, { type: 'referenceCleared' })
+    expect(state.reference).toBeUndefined()
+    state = uiReducer(uiReducer(state, { type: 'referenceSet', reference }), {
+      type: 'conversationCleared',
+    })
+    expect(state.reference).toBeUndefined()
   })
 })
