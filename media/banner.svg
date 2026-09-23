@@ -1,17 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400">
-  <!-- README hero banner: typography only, no logo. Rendered to
+  <!-- README hero banner: centred typography only, no logo. Rendered to
        media/readme/banner.png by scripts/render-images.mjs. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0f1117"/>
       <stop offset="1" stop-color="#1b2033"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.18" cy="0.4" r="0.6">
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.55">
       <stop offset="0" stop-color="#3b6cf6" stop-opacity="0.32"/>
       <stop offset="1" stop-color="#3b6cf6" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#7fb2ff"/>
+      <stop offset="0" stop-color="#7fb2ff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#7fb2ff"/>
       <stop offset="1" stop-color="#7fb2ff" stop-opacity="0"/>
     </linearGradient>
   </defs>
@@ -21,21 +22,21 @@
     <path d="M0 100H1280M0 200H1280M0 300H1280"/>
     <path d="M160 0V400M320 0V400M480 0V400M640 0V400M800 0V400M960 0V400M1120 0V400"/>
   </g>
-  <g font-family="'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif" fill="#f5f7fb">
-    <text x="96" y="152" font-size="74" font-weight="700" letter-spacing="-1">Muse Spark Code</text>
-    <rect x="98" y="174" width="260" height="3" rx="1.5" fill="url(#rule)"/>
-    <text x="96" y="228" font-size="29" fill="#c3cbdc">Meta’s Muse Spark as a coding agent inside VS Code</text>
+  <g font-family="'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif" fill="#f5f7fb" text-anchor="middle">
+    <text x="640" y="140" font-size="74" font-weight="700" letter-spacing="-1">Muse Spark Code</text>
+    <rect x="510" y="162" width="260" height="3" rx="1.5" fill="url(#rule)"/>
+    <text x="640" y="214" font-size="29" fill="#c3cbdc">Meta’s Muse Spark as a coding agent inside VS Code</text>
     <g font-size="19" font-weight="600" fill="#9fb7ff">
-      <rect x="96" y="262" width="168" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
-      <text x="180" y="288" text-anchor="middle">Muse Code CLI</text>
-      <rect x="276" y="262" width="132" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
-      <text x="342" y="288" text-anchor="middle">Model API</text>
-      <rect x="420" y="262" width="170" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
-      <text x="505" y="288" text-anchor="middle">Voice dictation</text>
-      <rect x="602" y="262" width="236" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
-      <text x="720" y="288" text-anchor="middle">Windows · macOS · Linux</text>
+      <rect x="269" y="248" width="168" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="353" y="274">Muse Code CLI</text>
+      <rect x="449" y="248" width="132" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="515" y="274">Model API</text>
+      <rect x="593" y="248" width="170" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="678" y="274">Voice dictation</text>
+      <rect x="775" y="248" width="236" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
+      <text x="893" y="274">Windows · macOS · Linux</text>
     </g>
-    <text x="96" y="344" font-size="17" fill="#7c879d">Streaming chat · tool calls with diffs · permission modes · session history · no telemetry</text>
-    <text x="1232" y="372" font-size="15" fill="#5f6a80" text-anchor="end">Unofficial · not affiliated with Meta · MIT</text>
+    <text x="640" y="330" font-size="17" fill="#7c879d">Streaming chat · tool calls with diffs · permission modes · session history · no telemetry</text>
+    <text x="640" y="368" font-size="15" fill="#5f6a80">Unofficial · not affiliated with Meta · MIT</text>
   </g>
 </svg>
