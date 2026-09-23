@@ -58,6 +58,7 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('museBinaryPath')
     expect(snapshot).not.toHaveProperty('environmentVariables')
     expect(snapshot).not.toHaveProperty('shellSandbox')
+    expect(snapshot).not.toHaveProperty('enableNewConversationShortcut')
     expect(snapshot).not.toHaveProperty('backend')
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
   })

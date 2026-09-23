@@ -1,0 +1,6 @@
+{
+  "//": "test/integration/extension.test.ts: the machine-scoped settings (PLAN.md D15) must be ignored here, the window-scoped one applied.",
+  "museSpark.allowDangerouslySkipPermissions": true,
+  "museSpark.museBinaryPath": "C:/not/a/real/muse.exe",
+  "museSpark.hideOnboarding": true
+}

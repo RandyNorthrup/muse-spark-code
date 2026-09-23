@@ -986,6 +986,9 @@ export class ConversationController {
     this.dropSession()
     this.attachments.clear()
     this.setTitle(undefined)
+    // No session any more: the webview forgets the id it keeps for the
+    // reload serializer (D15).
+    this.postSessionInfo(this.modelId)
     void this.deps.sessions.setLastSession(undefined)
     this.post({ type: 'attachmentsCleared' })
   }
@@ -1351,6 +1354,21 @@ export class ConversationController {
       return
     }
     await this.resumeSession(last.sessionId)
+  }
+
+  /**
+   * A panel VS Code rebuilt after a window reload held this session (D15):
+   * resume it once the surface is signed in, unless a session is live.
+   */
+  public async restoreSession(sessionId: string): Promise<void> {
+    if (
+      this.session !== undefined ||
+      this.deps.workspaceRoot === undefined ||
+      this.deps.auth.current.status !== 'signedIn'
+    ) {
+      return
+    }
+    await this.resumeSession(sessionId)
   }
 
   /** Alt+T: flip the Thinking toggle for this conversation. */

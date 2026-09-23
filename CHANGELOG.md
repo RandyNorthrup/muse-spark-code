@@ -9,6 +9,44 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.3.0] - 2026-09-22
+
+Harness parity with the Claude Code extension's preconfigured files
+(PLAN.md D15).
+
+### Added
+
+- A four-step **Get started** walkthrough (what the agent is, open the
+  panel, sign in, chat and sessions) that VS Code opens on install, and
+  **Muse Spark: Open Walkthrough**.
+- Commands: **New Conversation** (with an opt-in `Ctrl+N` / `Cmd+N`
+  behind `museSpark.enableNewConversationShortcut`), **Sign Out**, **Open
+  in Terminal** (the Muse Code CLI's own interface at the workspace root),
+  **Create AGENTS.md** (`muse init` when the CLI is present and the
+  workspace trusted, else the same template; an existing file is opened).
+- Editor-tab conversations come back on their session after a window
+  reload: the webview keeps its session id in VS Code's webview state and
+  a panel serializer resumes it once signed in.
+- Model API backend: the system prompt carries an environment section
+  (today's date; git branch, changed-file count and latest commit subjects
+  at session start) and working rules (read before editing, edits over
+  rewrites, no commits or pushes unless asked, `path:line` references,
+  short answers).
+
+### Changed
+
+- The settings that choose what runs and what is billed
+  (`initialPermissionMode`, `backend`, `shellSandbox`,
+  `allowDangerouslySkipPermissions`, `museBinaryPath`,
+  `environmentVariables`) are machine-scoped: a repository's
+  `.vscode/settings.json` can no longer set them. The Restricted Mode
+  `restrictedConfigurations` list is gone with it (nothing left to
+  restrict).
+- Keybindings: `Alt+K` fires only with an editor focused, `Ctrl+Alt+F` only
+  while a Muse panel or the chat view is focused.
+- Starting a new conversation from the panel now tells the webview the
+  session is gone (the model pill was already reset).
+
 ## [0.2.0] - 2026-09-22
 
 ### Fixed

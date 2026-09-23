@@ -22,6 +22,7 @@ import {
   HTTP_UNAUTHORIZED,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
+  ISO_DATE_LENGTH,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MODEL_PREFIX,
@@ -62,7 +63,7 @@ import { type SkillDefinition } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { MissingApiKeyError, type ModelApiClient, ModelApiError } from './client'
-import { instructionsFor } from './instructions'
+import { type EnvironmentFacts, instructionsFor } from './instructions'
 import { APPROVAL_CHOICE_IDS, choicesFor, PermissionEngine } from './permissions'
 import { recordOf, type SessionStore, type StoredSession } from './sessionStore'
 import {
@@ -107,7 +108,11 @@ export interface ModelApiHostDeps {
   readonly isWorkspaceTrusted: () => boolean
   /** Sessions between windows (D14); undefined without workspace storage. */
   readonly store?: SessionStore | undefined
+  /** The git facts for the prompt's environment section (D15), read once per session. */
+  readonly describeEnvironment: () => Promise<EnvironmentFacts>
 }
+
+const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
 
 interface ReplayItem {
   readonly turnId: string
@@ -328,6 +333,8 @@ export class ModelApiSession implements AgentSession {
   private readonly permissions: PermissionEngine
   /** The rules, skills and memory of the workspace (PLAN.md D13). */
   private readonly context: WorkspaceContext
+  /** The git facts of the prompt's environment section (D15), read on the first turn. */
+  private environment: EnvironmentFacts | undefined
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   private readonly pendingQuestions = new Map<string, Pending<readonly QuestionAnswer[]>>()
   private readonly queuedTurns: QueuedTurn[] = []
@@ -380,6 +387,16 @@ export class ModelApiSession implements AgentSession {
     this.onChanged()
   }
 
+  /** Never throws: a describer that fails leaves the section at "no git". */
+  private async loadEnvironment(): Promise<EnvironmentFacts> {
+    try {
+      return await this.deps.describeEnvironment()
+    } catch (error: unknown) {
+      this.deps.log.warn(`The environment could not be described: ${describe(error)}`)
+      return NO_ENVIRONMENT
+    }
+  }
+
   private body(): CreateResponseBody {
     const shell = shellToolFor(this.deps.platform)
     const hasShell = this.deps.isWorkspaceTrusted()
@@ -393,6 +410,8 @@ export class ModelApiSession implements AgentSession {
         shellToolName: shell.name,
         shellName: shell.shellName,
         hasShell,
+        today: new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH),
+        environment: this.environment ?? NO_ENVIRONMENT,
         context,
       }),
       tools: toolDefinitions(this.deps.platform, {
@@ -910,6 +929,7 @@ export class ModelApiSession implements AgentSession {
     // The context comes first so a skill invocation can be expanded (D13);
     // it never throws, so the user message always follows.
     await this.context.load()
+    this.environment ??= await this.loadEnvironment()
     this.appendUserMessage(turn.turnId, queued.parts, queued.displayText)
     this.touch()
     const startedAt = this.deps.now()

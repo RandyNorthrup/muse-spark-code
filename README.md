@@ -42,7 +42,8 @@ mixes the two.
   the agent.
 - **History that survives the window.** Every conversation in the workspace,
   searchable, resumable with its full transcript, archivable; the sidebar
-  picks its last conversation back up within ten minutes.
+  picks its last conversation back up within ten minutes, and an editor-tab
+  conversation comes back on its session after a window reload.
 - **Account & usage.** Your subscription's current and weekly windows, this
   conversation's tokens, and a link to the dev.meta.ai dashboard, from
   `/usage`.
@@ -75,7 +76,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.2.0.vsix
+   code --install-extension muse-spark-code-0.3.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -90,6 +91,9 @@ mixes the two.
      backend with the extension's own tools, pay as you go.
 4. Type a message and press `Enter`. `/` opens the palette, `@` mentions a
    file, the microphone dictates.
+
+VS Code opens the extension's four-step walkthrough on install; **Muse
+Spark: Open Walkthrough** brings it back.
 
 Each panel is its own conversation, started on the first message with the
 standard `muse-spark-1.3` model (never a contributor-tier model by default).
@@ -132,10 +136,19 @@ In a trusted workspace the agent follows the same files Muse Code does:
   start of a conversation; the agent reads and updates the notes there with
   its file tools, under the permission mode.
 
+**Muse Spark: Create AGENTS.md** starts the rules file for a workspace that
+has none: `muse init` writes it when the CLI is installed and the workspace
+is trusted (the CLI's own scaffold, no model call), otherwise the extension
+writes the same layout; an existing file is opened, never overwritten.
+
 On the CLI backend Muse Code loads all of this itself (the extension starts
 it with `--trust-workspace`), plus its bundled skills and your user rules.
 On the Model API backend the extension loads the files above and nothing
-else; a file over 64 KB is skipped with a warning in the log. In VS Code's
+else; a file over 64 KB is skipped with a warning in the log. Its system
+prompt also carries the date, the git branch, the number of changed files
+and the latest commit subjects at session start (metadata only), and a
+short set of working rules (read before editing, no commits unless asked,
+`path:line` references). In VS Code's
 **Restricted Mode** (an untrusted folder) neither backend loads rules, skills
 or memory and no shell command runs; trust the workspace to enable them.
 
@@ -206,22 +219,31 @@ device is available", and step markers on stderr name where a start failed.
 
 ## Commands and keybindings
 
-| Command                                    | Default keybinding                                                 | What it does                                                                                                                                              |
-| ------------------------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Muse Spark: Open in Sidebar                | —                                                                  | Focus the chat view in the activity bar                                                                                                                   |
-| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`)                                 | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
-| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)                                             | Move keyboard focus between the editor and the composer                                                                                                   |
-| Muse Spark: Insert @-Mention for Selection | `Alt+K`                                                            | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
-| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
-| Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
-| Muse Spark: Set Up Shell Sandbox           | —                                                                  | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
-| Muse Spark: Show Logs                      | —                                                                  | Open the "Muse Spark" log channel (keys redacted)                                                                                                         |
-| Muse Spark: Diagnostics                    | —                                                                  | Write the versions, the backend and CLI facts, credential presence (as yes/no) and the dictation state to the log and open it: what a bug report needs    |
-| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                  | Tap to start or stop voice dictation, hold to record while held                                                                                           |
+| Command                                    | Default keybinding                                                          | What it does                                                                                                                                              |
+| ------------------------------------------ | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                | —                                                                           | Focus the chat view in the activity bar                                                                                                                   |
+| Muse Spark: New Conversation               | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                  |
+| Muse Spark: Sign Out                       | —                                                                           | Forget the stored Model API key and run `muse logout` when the CLI is signed in                                                                           |
+| Muse Spark: Open in Terminal               | —                                                                           | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                             |
+| Muse Spark: Create AGENTS.md               | —                                                                           | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                      |
+| Muse Spark: Open Walkthrough               | —                                                                           | Open the four-step Get Started walkthrough                                                                                                                |
+| Muse Spark: Open in New Tab                | `Ctrl+Shift+Esc` (`Cmd+Shift+Esc`)                                          | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
+| Muse Spark: Toggle Focus                   | `Ctrl+Esc` (`Cmd+Esc`)                                                      | Move keyboard focus between the editor and the composer                                                                                                   |
+| Muse Spark: Insert @-Mention for Selection | `Alt+K`, editor focused                                                     | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
+| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`, Muse focused                                                  | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
+| Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only          | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
+| Muse Spark: Set Up Shell Sandbox           | —                                                                           | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
+| Muse Spark: Show Logs                      | —                                                                           | Open the "Muse Spark" log channel (keys redacted)                                                                                                         |
+| Muse Spark: Diagnostics                    | —                                                                           | Write the versions, the backend and CLI facts, credential presence (as yes/no) and the dictation state to the log and open it: what a bug report needs    |
+| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                           | Tap to start or stop voice dictation, hold to record while held                                                                                           |
 
 ## Settings
 
 All settings live under `museSpark.*`; changes apply to open panels immediately.
+The settings that choose what runs and what is billed (`initialPermissionMode`,
+`backend`, `shellSandbox`, `allowDangerouslySkipPermissions`, `museBinaryPath`,
+`environmentVariables`) are machine-scoped: they take effect from your user
+settings only, never from a repository's `.vscode/settings.json`.
 
 | Setting                           | Default  | Purpose                                                                                                                                                                                                                                               |
 | --------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -230,6 +252,7 @@ All settings live under `museSpark.*`; changes apply to open panels immediately.
 | `autosave`                        | `true`   | Save all dirty editors before every turn                                                                                                                                                                                                              |
 | `attachOpenFile`                  | `true`   | Show the open-file chip and send the active file / selection with each message                                                                                                                                                                        |
 | `useCtrlEnterToSend`              | `false`  | Send with Ctrl/Cmd+Enter instead of Enter                                                                                                                                                                                                             |
+| `enableNewConversationShortcut`   | `false`  | `Ctrl+N` / `Cmd+N` starts a new conversation while a Muse panel is focused                                                                                                                                                                            |
 | `hideOnboarding`                  | `false`  | Hide the getting-started tips                                                                                                                                                                                                                         |
 | `focusView`                       | `false`  | Show only prompts and responses                                                                                                                                                                                                                       |
 | `respectGitIgnore`                | `true`   | Exclude `.gitignore` patterns from file searches and `@`-mentions                                                                                                                                                                                     |

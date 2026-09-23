@@ -7,7 +7,10 @@ const base = {
   platform: 'linux' as const,
   shellToolName: 'bash',
   shellName: 'bash',
+  today: '2026-09-22',
+  environment: { git: undefined },
 }
+const noContext = { rules: undefined, skills: [], memory: undefined }
 
 const shout: SkillDefinition = {
   id: 'shout',
@@ -69,5 +72,40 @@ describe('instructionsFor', () => {
     expect(text).toContain('- shout: Repeat in caps')
     expect(text).toContain('the index (.agents/memory/MEMORY.md) is below')
     expect(text.endsWith('- [A](a.md) | hook')).toBe(true)
+    expect(text.indexOf('# How to work')).toBeLessThan(rulesAt)
+  })
+
+  it('states the date, the git facts and the working rules (M12)', () => {
+    const text = instructionsFor({
+      ...base,
+      hasShell: true,
+      context: noContext,
+      environment: {
+        git: { branch: 'main', changedFiles: 3, recentCommits: ['abc fix', 'def add'] },
+      },
+    })
+    expect(text).toContain(
+      "# Environment\n\n- Today's date: 2026-09-22\n- Git branch: main\n- Working tree at session start: 3 changed entries in git status.\n- Recent commits:\n  - abc fix\n  - def add",
+    )
+    expect(text).toContain('# How to work\n\n- Read a file before editing it')
+    expect(text).toContain(
+      '- Never create commits, branches or pushes unless the user asks for them.',
+    )
+    expect(text.indexOf('# Environment')).toBeLessThan(text.indexOf('# How to work'))
+  })
+
+  it('says so without a repository, and clean without changes or commits', () => {
+    const none = instructionsFor({ ...base, hasShell: true, context: noContext })
+    expect(none).toContain(
+      "- Today's date: 2026-09-22\n- Git: not a repository, or git could not answer.",
+    )
+    const clean = instructionsFor({
+      ...base,
+      hasShell: true,
+      context: noContext,
+      environment: { git: { branch: 'main', changedFiles: 0, recentCommits: [] } },
+    })
+    expect(clean).toContain('- Git branch: main\n- Working tree at session start: clean.')
+    expect(clean).not.toContain('Recent commits')
   })
 })

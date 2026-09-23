@@ -13,7 +13,13 @@ function setup(context = fakeHostContext()) {
   const reveal = vi.fn<() => void>()
   const markUnread = vi.fn<() => void>()
   const setTitle = vi.fn<(title: string) => void>()
-  const surface = configureWebview(webview, context, { id: 'test', reveal, markUnread, setTitle })
+  const surface = configureWebview(webview, context, {
+    id: 'test',
+    restoredSessionId: undefined,
+    reveal,
+    markUnread,
+    setTitle,
+  })
   return { webview, context, surface, reveal, markUnread, setTitle }
 }
 

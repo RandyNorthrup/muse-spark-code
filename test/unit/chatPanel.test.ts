@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { openChatPanel } from '../../src/host/views/chatPanel'
+import { openChatPanel, restoreChatPanel } from '../../src/host/views/chatPanel'
 import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
 import { FakeWebviewPanel, fakeHostContext, fakeSurface } from './helpers/fakes'
 // Same module instance the production code receives through the `vscode`
@@ -13,6 +13,46 @@ function openFakePanel(registry = new SurfaceRegistry()) {
   }
   return { panel, registry }
 }
+
+function restore(state: unknown, title = 'Untitled') {
+  const registry = new SurfaceRegistry()
+  const panel = new FakeWebviewPanel('museSpark.chatPanel', title)
+  restoreChatPanel(panel, state, fakeHostContext(), registry)
+  return { registry, panel }
+}
+
+describe('restoreChatPanel (M12)', () => {
+  it('wires the rebuilt panel and hands out the stored session id once', () => {
+    const { registry, panel } = restore({ sessionId: 'old' })
+    expect(panel.webview.html).toContain('<script nonce=')
+    expect(registry.active?.id).toMatch(/^panel:[0-9a-f-]{36}$/)
+    expect(registry.active?.takeRestoredSessionId()).toBe('old')
+    expect(registry.active?.takeRestoredSessionId()).toBeUndefined()
+    panel.webview.messages.fire({ type: 'ready' })
+    expect(panel.webview.postMessage).toHaveBeenCalledOnce()
+  })
+
+  it('restores an empty panel for state that is not ours', () => {
+    const cases: unknown[] = [undefined, null, 'old', { sessionId: 7 }, {}]
+    for (const [index, state] of cases.entries()) {
+      expect(
+        restore(state).registry.active?.takeRestoredSessionId(),
+        `case ${String(index)}`,
+      ).toBeUndefined()
+    }
+  })
+
+  it('keeps the saved title and does not double the unread mark', () => {
+    const { registry, panel } = restore({}, '● Parser fix')
+    expect(panel.title).toBe('● Parser fix')
+    panel.active = false
+    registry.active?.markUnread()
+    expect(panel.title).toBe('● Parser fix')
+    panel.active = true
+    panel.viewStateChanges.fire({ webviewPanel: panel })
+    expect(panel.title).toBe('Parser fix')
+  })
+})
 
 describe('openChatPanel', () => {
   beforeEach(() => {
@@ -40,6 +80,11 @@ describe('openChatPanel', () => {
     expect(registry.active?.id).toMatch(/^panel:[0-9a-f-]{36}$/)
     registry.active?.reveal()
     expect(panel.reveal).toHaveBeenCalledWith(undefined, false)
+  })
+
+  it('hands out no restored session id (M12)', () => {
+    const { registry } = openFakePanel()
+    expect(registry.active?.takeRestoredSessionId()).toBeUndefined()
   })
 
   it('wires the panel webview and answers ready', () => {

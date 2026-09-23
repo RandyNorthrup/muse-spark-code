@@ -5,13 +5,19 @@ import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
 import {
   ARCHIVE_DAY_CHOICES,
+  CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
+  CONTEXT_KEYS,
   EXTENSION_NAME,
   EXTENSION_PUBLISHER,
+  MACHINE_SCOPED_SETTINGS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
+  WALKTHROUGH_ID,
 } from '../../src/shared/constants'
+
+const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
 describe('package.json manifest', () => {
   it('identifies the extension the way constants.ts expects', () => {
@@ -76,6 +82,51 @@ describe('package.json manifest', () => {
   it('offers the Claude Code archive periods for archiveInactiveSessions', () => {
     const properties = manifest.contributes.configuration.properties
     expect(properties['museSpark.archiveInactiveSessions'].enum).toEqual([...ARCHIVE_DAY_CHOICES])
+  })
+
+  it('activates for restored chat panels only (D15)', () => {
+    expect(manifest.activationEvents).toEqual([`onWebviewPanel:${CHAT_PANEL_VIEW_TYPE}`])
+  })
+
+  it('machine-scopes the settings that choose what runs and what is billed (D15)', () => {
+    const properties = manifest.contributes.configuration.properties as Record<
+      string,
+      { scope?: string }
+    >
+    for (const key of Object.keys(SETTING_DEFAULTS)) {
+      const expected = (MACHINE_SCOPED_SETTINGS as readonly string[]).includes(key)
+        ? 'machine'
+        : undefined
+      expect(properties[`${SETTINGS_SECTION}.${key}`]?.scope, key).toBe(expected)
+    }
+    expect(manifest.capabilities.untrustedWorkspaces.supported).toBe('limited')
+    expect(manifest.capabilities.untrustedWorkspaces).not.toHaveProperty('restrictedConfigurations')
+  })
+
+  it('gates the chords that would otherwise fire anywhere (D15)', () => {
+    const bindings = new Map(
+      manifest.contributes.keybindings.map((binding) => [binding.command, binding]),
+    )
+    expect(bindings.get(COMMAND_IDS.insertMentionReference)?.when).toBe('editorTextFocus')
+    expect(bindings.get(COMMAND_IDS.toggleFocusView)?.when).toBe(SURFACE_ACTIVE)
+    expect(bindings.get(COMMAND_IDS.newConversation)).toMatchObject({
+      key: 'ctrl+n',
+      mac: 'cmd+n',
+      when: `config.${SETTINGS_SECTION}.enableNewConversationShortcut && (${SURFACE_ACTIVE})`,
+    })
+    expect(bindings.get(COMMAND_IDS.focusInput)?.when).toBeUndefined()
+    expect(bindings.get(COMMAND_IDS.openInNewTab)?.when).toBeUndefined()
+  })
+
+  it('contributes the walkthrough the command opens, completed by our own events (D15)', () => {
+    const [walkthrough] = manifest.contributes.walkthroughs
+    expect(walkthrough?.id).toBe(WALKTHROUGH_ID)
+    expect(walkthrough?.steps.map((step) => step.id)).toEqual(['welcome', 'open', 'signIn', 'chat'])
+    const events = walkthrough?.steps.flatMap((step) => step.completionEvents ?? []) ?? []
+    expect(events).toContain(`onView:${CHAT_VIEW_ID}`)
+    expect(events).toContain(`onCommand:${COMMAND_IDS.openInNewTab}`)
+    expect(events).toContain(`onContext:${CONTEXT_KEYS.signedIn}`)
+    expect(events).toContain(`onCommand:${COMMAND_IDS.createRulesFile}`)
   })
 
   it('pins @types/vscode to the engines.vscode minimum', () => {

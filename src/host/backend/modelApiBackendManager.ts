@@ -3,6 +3,7 @@
 // files. Nothing is spawned; disposing it forgets the window's sessions.
 
 import { ModelApiClient } from '../../core/backends/modelapi/client'
+import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
@@ -24,6 +25,8 @@ export interface ModelApiBackendManagerDeps {
   readonly isWorkspaceTrusted: () => boolean
   /** Sessions between windows (PLAN.md D14); undefined without workspace storage. */
   readonly store: SessionStore | undefined
+  /** The git facts for the prompt's environment section (D15). */
+  readonly describeEnvironment: () => Promise<EnvironmentFacts>
 }
 
 export class ModelApiBackendManager {
@@ -59,6 +62,7 @@ export class ModelApiBackendManager {
       personalSkillsRoot: this.deps.personalSkillsRoot,
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
       store: this.deps.store,
+      describeEnvironment: this.deps.describeEnvironment,
     })
     await this.host.load()
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')

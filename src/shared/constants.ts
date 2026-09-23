@@ -13,6 +13,9 @@ export const EXTENSION_QUALIFIED_ID = `${EXTENSION_PUBLISHER}.${EXTENSION_NAME}`
 // Contribution point ids (package.json `contributes`).
 export const CHAT_VIEW_ID = 'museSpark.chatView'
 export const CHAT_PANEL_VIEW_TYPE = 'museSpark.chatPanel'
+// `contributes.walkthroughs[0].id`, opened as `<publisher>.<name>#<id>`.
+export const WALKTHROUGH_ID = 'museSpark.gettingStarted'
+export const WALKTHROUGH_QUALIFIED_ID = `${EXTENSION_QUALIFIED_ID}#${WALKTHROUGH_ID}`
 export const COMMAND_IDS = {
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
@@ -23,6 +26,11 @@ export const COMMAND_IDS = {
   setUpSandbox: 'museSpark.setUpSandbox',
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',
+  newConversation: 'museSpark.newConversation',
+  signOut: 'museSpark.signOut',
+  openInTerminal: 'museSpark.openInTerminal',
+  createRulesFile: 'museSpark.createRulesFile',
+  openWalkthrough: 'museSpark.openWalkthrough',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -34,6 +42,8 @@ export const GLOBAL_STATE_KEYS = {
 // VS Code `when`-clause context keys the extension maintains.
 export const CONTEXT_KEYS = {
   inputFocused: 'museSpark.inputFocused',
+  /** True while a credential for the selected backend is present (the walkthrough's sign-in step). */
+  signedIn: 'museSpark.signedIn',
 } as const
 
 // Built-in VS Code commands the extension invokes.
@@ -43,6 +53,7 @@ export const VSCODE_COMMANDS = {
   openSettings: 'workbench.action.openSettings',
   openKeybindings: 'workbench.action.openGlobalKeybindings',
   diff: 'vscode.diff',
+  openWalkthrough: 'workbench.action.openWalkthrough',
 } as const
 
 // Settings (package.json `contributes.configuration`). Keys are relative to
@@ -117,8 +128,23 @@ export const SETTING_DEFAULTS = {
   environmentVariables: [] as readonly EnvironmentVariable[],
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
+  // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
+  // conversation while a Muse surface is focused. Read only by the
+  // keybinding's `when` clause (`config.museSpark.…`), off by default.
+  enableNewConversationShortcut: false,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
+// Settings a repository's `.vscode/settings.json` must never set (PLAN.md
+// D15): they choose what executes, what is billed and how much is approved,
+// so the manifest declares them `scope: machine` (user settings only).
+export const MACHINE_SCOPED_SETTINGS = [
+  'initialPermissionMode',
+  'backend',
+  'shellSandbox',
+  'allowDangerouslySkipPermissions',
+  'museBinaryPath',
+  'environmentVariables',
+] as const
 
 // --- Sessions (M6, PLAN.md §6 M6) ---
 
@@ -297,6 +323,11 @@ export const MODEL_API_TOOLS = {
 // directory; a file over the load limit is skipped and the whole rules
 // context is truncated over its limit, each with a logged warning.
 export const RULES_FILE_NAMES = ['AGENTS.md', 'CLAUDE.md'] as const
+// The prompt's environment section (PLAN.md D15): how many `git log
+// --oneline` subjects the Model API backend lists at session start.
+export const ENVIRONMENT_RECENT_COMMITS = 5
+// `YYYY-MM-DD` is the first ten characters of an ISO timestamp.
+export const ISO_DATE_LENGTH = 10
 export const RULES_FILE_MAX_BYTES = 64 * 1024
 export const RULES_CONTEXT_MAX_BYTES = 256 * 1024
 export const RULES_TRUNCATED_MARKER = '[rules truncated]'
@@ -490,6 +521,11 @@ export type DictationUiStatus = (typeof DICTATION_UI_STATUSES)[number]
 export const MUSE_LOGIN_ARGS = ['login'] as const
 export const MUSE_LOGOUT_ARGS = ['logout'] as const
 export const MUSE_LOGIN_TERMINAL_NAME = 'Muse Code sign-in'
+// `Muse Spark: Open in Terminal` runs the CLI with no arguments (its TUI).
+export const MUSE_TERMINAL_NAME = 'Muse Code'
+// `Muse Spark: Create AGENTS.md` runs the CLI's own scaffold (no model call).
+export const MUSE_INIT_ARGS = ['init'] as const
+export const MUSE_INIT_TIMEOUT_MS = 30 * 1000
 // How long the browser sign-in may take before the extension stops watching
 // for the credential file, and how often it looks.
 export const CREDENTIAL_POLL_INTERVAL_MS = 2000
@@ -829,6 +865,11 @@ export const UI_TEXT = {
   renameFailed: 'Could not rename the conversation',
   sandboxOffProfileNotice:
     "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
+  rulesFileNoWorkspace: 'Open a folder first; AGENTS.md lives in the workspace root.',
+  rulesFileExists: 'AGENTS.md already exists in this workspace; opening it.',
+  rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',
+  terminalCliMissing: 'The Muse Code CLI is not installed, so there is no terminal to open.',
+  signedOutNotice: 'Signed out of Muse Spark.',
   trustGrantedNotice:
     'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:

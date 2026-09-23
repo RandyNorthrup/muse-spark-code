@@ -89,6 +89,18 @@ describe('App shell', () => {
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
   })
 
+  it('keeps the shown session in the webview state for the reload serializer (M12)', () => {
+    const persistState = vi.fn()
+    render(<App postMessage={vi.fn()} persistState={persistState} />)
+    expect(persistState).toHaveBeenLastCalledWith({})
+    deliver(init)
+    deliver({ type: 'authState', status: 'signedIn' })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    expect(persistState).toHaveBeenLastCalledWith({ sessionId: 's1' })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3' })
+    expect(persistState).toHaveBeenLastCalledWith({})
+  })
+
   it('inserts host-provided text at the caret', () => {
     renderReady()
     fireEvent.change(textarea(), { target: { value: 'look at ' } })

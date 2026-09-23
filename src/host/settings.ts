@@ -24,6 +24,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
   readonly backend: BackendMode
+  /** Ctrl+N for a new conversation (read by the keybinding, kept here for the schema). */
+  readonly enableNewConversationShortcut: boolean
 }
 
 /**
@@ -45,6 +47,7 @@ const settingSchemas = {
   environmentVariables: z.array(environmentVariableSchema),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
+  enableNewConversationShortcut: z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -86,6 +89,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     environmentVariables: readSetting(config, 'environmentVariables', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
+    enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),
   }
 }
 

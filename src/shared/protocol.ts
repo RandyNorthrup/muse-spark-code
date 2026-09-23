@@ -43,6 +43,17 @@ export const settingsSnapshotShape = {
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)
 
+// What the webview keeps in VS Code's webview state (`setState`): the
+// session it shows, so a panel rebuilt after a window reload resumes it
+// (PLAN.md D15). Anything else stored there restores an empty panel.
+const persistedStateSchema = z.object({ sessionId: z.optional(z.string()) })
+export type PersistedState = z.infer<typeof persistedStateSchema>
+
+export function parsePersistedState(raw: unknown): PersistedState {
+  const parsed = persistedStateSchema.safeParse(raw)
+  return parsed.success ? parsed.data : {}
+}
+
 export type SettingsSnapshot = z.infer<typeof settingsSnapshotSchema>
 
 export const AUTH_STATUSES = [

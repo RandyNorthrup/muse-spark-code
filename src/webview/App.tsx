@@ -13,6 +13,7 @@ import { availablePermissionModes, nextPermissionMode } from '../shared/permissi
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import {
   parseHostToWebviewMessage,
+  type PersistedState,
   type SignInMethod,
   type WebviewToHostMessage,
 } from '../shared/protocol'
@@ -45,6 +46,8 @@ export interface AppProps {
   readonly newLocalId?: () => string
   /** Injected so tests get deterministic timestamps. */
   readonly now?: () => number
+  /** Keeps the shown session in the webview state, for the reload serializer (D15). */
+  readonly persistState?: (state: PersistedState) => void
 }
 
 /** What floats above the composer: a palette view, a menu or the History dialog. */
@@ -101,7 +104,12 @@ const ATTACH_ENTRIES: readonly MenuEntry[] = [
 const defaultLocalId = () => crypto.randomUUID()
 const defaultNow = () => Date.now()
 
-export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow }: AppProps) {
+export function App({
+  postMessage,
+  newLocalId = defaultLocalId,
+  now = defaultNow,
+  persistState,
+}: AppProps) {
   const [state, dispatch] = useReducer(uiReducer, initialUiState)
   const [overlay, setOverlay] = useState<Overlay | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
@@ -121,6 +129,10 @@ export function App({ postMessage, newLocalId = defaultLocalId, now = defaultNow
       window.removeEventListener('message', onMessage)
     }
   }, [postMessage, now])
+
+  useEffect(() => {
+    persistState?.(state.sessionId === undefined ? {} : { sessionId: state.sessionId })
+  }, [persistState, state.sessionId])
 
   const onDraftChange = useCallback((draft: string) => {
     dispatch({ type: 'draftChanged', draft })

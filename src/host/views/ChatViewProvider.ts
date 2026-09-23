@@ -19,6 +19,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   public resolveWebviewView(view: vscode.WebviewView): void {
     const surface = configureWebview(view.webview, this.context, {
       id: SIDEBAR_SURFACE_ID,
+      restoredSessionId: undefined,
       reveal: () => {
         view.show(false)
       },

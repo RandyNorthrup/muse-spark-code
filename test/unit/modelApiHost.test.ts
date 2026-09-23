@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
-import { ModelApiHost, type ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelApiHost,
+  type ModelApiHostDeps,
+  type ModelApiSession,
+} from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { memorySessionStore } from './helpers/fakeSessionStore'
@@ -16,6 +20,7 @@ function setup(
     personalSkillsRoot?: string
     isTrusted?: boolean
     store?: ReturnType<typeof memorySessionStore>
+    describeEnvironment?: ModelApiHostDeps['describeEnvironment']
   } = {},
 ) {
   const api = fakeModelApi()
@@ -48,6 +53,7 @@ function setup(
     personalSkillsRoot: options.personalSkillsRoot,
     isWorkspaceTrusted: () => options.isTrusted ?? true,
     store: options.store,
+    describeEnvironment: options.describeEnvironment ?? (() => Promise.resolve({ git: undefined })),
   })
   return { api, host, log, files: io.files, shellCalls: io.shellCalls }
 }
@@ -862,6 +868,49 @@ describe('ModelApiSession: workspace context (M10)', () => {
     await t.host.refreshSkills()
     expect(events.filter((event) => event.type === 'skillsChanged')).toHaveLength(1)
     await expect(session.listSkills()).resolves.toHaveLength(2)
+  })
+})
+
+describe('ModelApiSession: environment (M12)', () => {
+  it('describes the environment once per session and puts the date and git facts in the prompt', async () => {
+    let calls = 0
+    const t = setup({
+      describeEnvironment: () => {
+        calls += 1
+        return Promise.resolve({
+          git: { branch: 'main', changedFiles: 2, recentCommits: ['abc first'] },
+        })
+      },
+    })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'one' })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    t.api.script({ text: 'two' })
+    await session.sendTurn([{ type: 'text', text: 'again' }])
+    await turnDone()
+    expect(calls).toBe(1)
+    const bodies = t.api.responseBodies()
+    const first = bodies[0]?.['instructions'] as string
+    expect(first).toContain("- Today's date: 1970-01-01")
+    expect(first).toContain(
+      '- Git branch: main\n- Working tree at session start: 2 changed entries',
+    )
+    expect(first).toContain('- Recent commits:\n  - abc first')
+    expect(first).toContain('# How to work')
+    expect(bodies.at(-1)?.['instructions']).toContain('- Git branch: main')
+  })
+
+  it('keeps the turn going when the describer fails', async () => {
+    const t = setup({ describeEnvironment: () => Promise.reject(new Error('no git')) })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    expect(t.api.responseBodies()[0]?.['instructions']).toContain(
+      '- Git: not a repository, or git could not answer.',
+    )
+    expect(t.log.warn).toHaveBeenCalledWith('The environment could not be described: no git')
   })
 })
 

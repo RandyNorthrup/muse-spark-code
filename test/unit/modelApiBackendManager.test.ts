@@ -23,6 +23,7 @@ function manager(workspaceRoot: string | undefined) {
       personalSkillsRoot: undefined,
       isWorkspaceTrusted: () => true,
       store: undefined,
+      describeEnvironment: () => Promise.resolve({ git: undefined }),
     }),
   }
 }

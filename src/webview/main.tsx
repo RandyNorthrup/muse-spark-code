@@ -22,6 +22,9 @@ createRoot(rootElement).render(
       postMessage={(message) => {
         vscode.postMessage(message)
       }}
+      persistState={(state) => {
+        vscode.setState(state)
+      }}
     />
   </ErrorBoundary>,
 )

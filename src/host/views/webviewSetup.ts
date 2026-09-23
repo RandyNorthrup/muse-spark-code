@@ -46,10 +46,18 @@ export interface ChatSurface extends vscode.Disposable {
   setTitle(title: string): void
   /** Rebuild the document with a fresh nonce (the error boundary's Reload, M11). */
   reload(): void
+  /**
+   * The session a panel held before the window reloaded (D15), handed out
+   * once: the first `ready` resumes it, a later one (the boundary's Reload)
+   * must not bring back a conversation the user has since cleared.
+   */
+  takeRestoredSessionId(): string | undefined
 }
 
 export interface SurfaceOptions {
   readonly id: string
+  /** The session id a deserialized panel stored; undefined for a new surface. */
+  readonly restoredSessionId: string | undefined
   readonly reveal: () => void
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
@@ -90,6 +98,7 @@ export function configureWebview(
   }
   applyHtml()
 
+  let restoredSessionId = options.restoredSessionId
   const surface: ChatSurface = {
     id: options.id,
     post(message) {
@@ -99,6 +108,11 @@ export function configureWebview(
     markUnread: options.markUnread,
     setTitle: options.setTitle,
     reload: applyHtml,
+    takeRestoredSessionId() {
+      const sessionId = restoredSessionId
+      restoredSessionId = undefined
+      return sessionId
+    },
     dispose() {
       subscription.dispose()
     },

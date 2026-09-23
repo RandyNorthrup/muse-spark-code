@@ -20,12 +20,15 @@ import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
+import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
 import { createToolIo } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { EditReview } from './host/editor/editReview'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
+import { createRulesFile } from './host/commands/createRulesFile'
 import { insertMentionReference } from './host/commands/insertMention'
+import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
 import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
 import {
@@ -39,13 +42,14 @@ import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister } from './host/mention/workspaceFiles'
 import { readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
-import { openChatPanel } from './host/views/chatPanel'
+import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
 import { createDictationSetup } from './host/voice/dictationHost'
 import {
   BACKEND_SETTING,
   HAS_APPROVAL_UI,
+  CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   CLI_OUTPUT_MAX_BYTES,
   COMMAND_IDS,
@@ -61,6 +65,8 @@ import {
   MENTION_INDEX_LIMIT,
   MENTION_INDEX_TTL_MS,
   MUSE_EDIT_SCHEME,
+  MUSE_INIT_ARGS,
+  MUSE_INIT_TIMEOUT_MS,
   MUSE_LOGIN_TERMINAL_NAME,
   PRODUCT_NAME,
   SEARCH_WORKER_FILE,
@@ -68,6 +74,7 @@ import {
   SHELL_SANDBOX_SETTING,
   UI_TEXT,
   VSCODE_COMMANDS,
+  WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
@@ -136,6 +143,15 @@ function collectDiagnostics(): readonly DiagnosticEntry[] {
   )
 }
 
+async function isExistingPath(fsPath: string): Promise<boolean> {
+  try {
+    await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function readTextFile(fsPath: string): Promise<string | undefined> {
   try {
     return new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)))
@@ -153,11 +169,16 @@ function quoteForShell(value: string): string {
  * terminal is pinned to Windows PowerShell (the CLI's own shim shell) so the
  * call syntax is known; elsewhere the user's default shell runs the launcher.
  */
-function runInTerminal(cliPath: string, args: readonly string[]): void {
+function runInTerminal(
+  cliPath: string,
+  args: readonly string[],
+  options: TerminalLaunchOptions,
+): void {
   const isWindows = process.platform === 'win32'
   const systemRoot = process.env['SystemRoot']
   const terminal = vscode.window.createTerminal({
-    name: MUSE_LOGIN_TERMINAL_NAME,
+    name: options.name,
+    ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(isWindows &&
       systemRoot !== undefined && {
         shellPath: `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`,
@@ -209,12 +230,16 @@ function exitCodeOf(error: ExecFileException | null): number {
 }
 
 /** Runs a short CLI command to completion without a shell; never rejects. */
-function runProcess(invocation: CliInvocation, timeoutMs: number): Promise<ProcessResult> {
+function runProcess(
+  invocation: CliInvocation,
+  timeoutMs: number,
+  cwd?: string,
+): Promise<ProcessResult> {
   return new Promise((resolve) => {
     execFile(
       invocation.command,
       [...invocation.args],
-      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES },
+      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES, cwd },
       (error, stdout, stderr) => {
         resolve({ exitCode: exitCodeOf(error), stdout, stderr })
       },
@@ -302,10 +327,20 @@ export function activate(context: vscode.ExtensionContext): void {
       restartBackend,
     },
     credentials,
-    runInTerminal,
+    runInTerminal: (cliPath, args) => {
+      runInTerminal(cliPath, args, { name: MUSE_LOGIN_TERMINAL_NAME, cwd: undefined })
+    },
     promptForApiKey,
     broadcast: (message) => {
       registry.broadcast(message)
+      // The walkthrough's sign-in step completes on this context key.
+      if (message.type === 'authState') {
+        void vscode.commands.executeCommand(
+          VSCODE_COMMANDS.setContext,
+          CONTEXT_KEYS.signedIn,
+          message.status === 'signedIn',
+        )
+      }
     },
     sleep: (ms) =>
       new Promise((resolve) => {
@@ -410,6 +445,7 @@ export function activate(context: vscode.ExtensionContext): void {
             directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
             log,
           }),
+    describeEnvironment: () => describeEnvironment({ runGit, workspaceRoot }),
   })
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
@@ -609,10 +645,17 @@ export function activate(context: vscode.ExtensionContext): void {
       const controller = controllerFor(surface)
       controller.surfaceReady()
       surface.post({ type: 'editorContext', context: editorContext.summary })
+      // A rebuilt panel resumes the session it held (D15); the sidebar
+      // follows the ten-minute rule (M6).
+      const restoredSessionId = surface.takeRestoredSessionId()
+      const restore = () =>
+        restoredSessionId === undefined
+          ? controller.restoreRecentSession()
+          : controller.restoreSession(restoredSessionId)
       if (auth.current.status === 'checking') {
-        void auth.refresh().then(() => controller.restoreRecentSession())
+        void auth.refresh().then(restore)
       } else {
-        void controller.restoreRecentSession()
+        void restore()
       }
       // No setup offer where this window will not use the sandbox anyway.
       if (!backend.shellSandboxPosture().isSandboxed) {
@@ -631,6 +674,20 @@ export function activate(context: vscode.ExtensionContext): void {
   })
 
   const openSidebar = () => vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
+  /** A conversation where the setting says new ones open. */
+  const openConversation = async (): Promise<void> => {
+    if (currentSettings().preferredLocation === 'sidebar') {
+      await openSidebar()
+      return
+    }
+    openChatPanel(hostContext, registry)
+  }
+  const resolveCli = () => {
+    const resolution = backend.resolveLaunch()
+    return resolution.ok
+      ? { ok: true as const, cliPath: resolution.launch.cliPath }
+      : { ok: false as const, reason: resolution.reason }
+  }
   const fileWatcher = vscode.workspace.createFileSystemWatcher(FIND_FILES_GLOB, false, true, false)
   const onSkillFilesChanged = () => {
     void modelApi.refreshSkills()
@@ -702,8 +759,78 @@ export function activate(context: vscode.ExtensionContext): void {
       void restartBackend()
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
     }),
+    // Editor-tab conversations come back after a window reload (D15).
+    vscode.window.registerWebviewPanelSerializer(CHAT_PANEL_VIEW_TYPE, {
+      deserializeWebviewPanel: (panel, state: unknown) => {
+        restoreChatPanel(panel, state, hostContext, registry)
+        return Promise.resolve()
+      },
+    }),
     vscode.commands.registerCommand(COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.newConversation, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      await controllerFor(surface).handle({ type: 'clearConversation' })
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.signOut, async () => {
+      await auth.signOut()
+      void vscode.window.showInformationMessage(UI_TEXT.signedOutNotice)
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.openInTerminal, () => {
+      openMuseTerminal({
+        resolveCli,
+        runInTerminal,
+        workspaceRoot,
+        showWarning: (message) => {
+          void vscode.window.showWarningMessage(message)
+        },
+      })
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.createRulesFile, async () => {
+      await createRulesFile({
+        workspaceRoot,
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        fileExists: isExistingPath,
+        writeFile: async (fsPath, content) => {
+          await vscode.workspace.fs.writeFile(
+            vscode.Uri.file(fsPath),
+            new TextEncoder().encode(content),
+          )
+        },
+        openFile: async (fsPath) => {
+          await vscode.window.showTextDocument(vscode.Uri.file(fsPath))
+        },
+        runInit: () => {
+          const resolution = backend.resolveLaunch()
+          return workspaceRoot !== undefined && resolution.ok
+            ? runProcess(
+                { command: resolution.launch.command, args: MUSE_INIT_ARGS },
+                MUSE_INIT_TIMEOUT_MS,
+                workspaceRoot,
+              )
+            : undefined
+        },
+        showInformation: (message) => {
+          void vscode.window.showInformationMessage(message)
+        },
+        showWarning: (message) => {
+          void vscode.window.showWarningMessage(message)
+        },
+        log,
+      })
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.openWalkthrough, async () => {
+      await vscode.commands.executeCommand(
+        VSCODE_COMMANDS.openWalkthrough,
+        WALKTHROUGH_QUALIFIED_ID,
+        false,
+      )
     }),
     vscode.commands.registerCommand(COMMAND_IDS.openInSidebar, openSidebar),
     vscode.commands.registerCommand(COMMAND_IDS.showLogs, () => {

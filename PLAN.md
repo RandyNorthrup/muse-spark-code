@@ -522,6 +522,26 @@ either done in M11 or recorded as deferred with its reason.
 | Localisation       | English strings in `UI_TEXT`; no `package.nls.json`.                                                                              | Deferred: no second language is planned; the strings are already in one table.                                                                                                                                                                                                                                   |
 | Multi-root         | The first workspace folder is the root (as the Claude Code extension does).                                                       | Unchanged; documented in the README requirements.                                                                                                                                                                                                                                                                |
 
+### D15 — Harness parity: what the Claude Code extension preconfigures that we did not (2026-09-22)
+
+The owner asked whether the files the Claude Code extension ships
+preconfigured hold things this extension should have. The installed
+extension (`anthropic.claude-code` 2.1.278: its manifest, walkthrough,
+settings schema and README) and `muse init --dry-run` (the CLI's own
+scaffold, no model call) were read against our manifest. Findings and the
+decision for each; everything marked "M12" ships in 0.3.0.
+
+| Area                       | Claude Code                                                                                                                                                                                                                                                                                                         | Muse Spark Code before M12                                                                                                                                                             | Decision                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Setting scopes             | `scope: machine` on `environmentVariables`, `allowDangerouslySkipPermissions`, `initialPermissionMode`, `claudeProcessWrapper`: a repository's `.vscode/settings.json` can never set them.                                                                                                                          | No scope on any setting; `restrictedConfigurations` only kept two keys out of Restricted Mode, so a trusted clone could enable Bypass or point `museBinaryPath` at its own executable. | M12: `scope: machine` on `museBinaryPath`, `environmentVariables`, `allowDangerouslySkipPermissions`, `initialPermissionMode`, `shellSandbox` and `backend` (a repository must not choose what runs or what is billed). `restrictedConfigurations` is dropped: a machine-scoped setting has no workspace value to restrict. `untrustedWorkspaces` stays `limited` (owner's call; Muse Code's own Restricted Mode model). |
+| Editor tabs after a reload | `onWebviewPanel:` activation and a `WebviewPanelSerializer`; the tab comes back on its conversation.                                                                                                                                                                                                                | `activationEvents: []`, no serializer: every editor-tab conversation vanished on Reload Window; only the sidebar's ten-minute rule existed.                                            | M12: the webview stores its session id with `setState`; `onWebviewPanel:museSpark.chatPanel` plus a serializer rebuild the tab and resume that session once signed in. No new setting: Claude's `continueAfterReload` continues an interrupted step, which MSP cannot do for a host that is gone.                                                                                                                        |
+| Walkthrough                | A four-step "Get started" walkthrough with images, opened by VS Code on install.                                                                                                                                                                                                                                    | None (the empty state's onboarding tips only).                                                                                                                                         | M12: `contributes.walkthroughs` with four steps (what it is, open the panel, sign in, chat and sessions) and `Muse Spark: Open Walkthrough`; the sign-in step completes on a `museSpark.signedIn` context key the auth service maintains.                                                                                                                                                                                |
+| Commands                   | New Conversation (optional Ctrl+N), Reopen Closed Session, Logout, Open in Terminal, Open Walkthrough, Show Logs, Focus/Blur, Update.                                                                                                                                                                               | No New Conversation, Sign Out, Open in Terminal or walkthrough command; sign-out only in the panel's menu.                                                                             | M12: `museSpark.newConversation` (Ctrl+N behind `enableNewConversationShortcut`, off by default as in Claude Code), `museSpark.signOut`, `museSpark.openInTerminal` (the `muse` TUI in a VS Code terminal at the workspace root), `museSpark.openWalkthrough`, and `museSpark.createRulesFile` (below). Reopen Closed Session and Update have no counterpart (no closed-tab register; VS Code updates the extension).    |
+| Keybinding hygiene         | Every chord carries a `when` clause (`editorTextFocus`, the panel id, a sidebar context key).                                                                                                                                                                                                                       | Four of five chords global; `Ctrl+Alt+F` fired in any editor.                                                                                                                          | M12: `Alt+K` only with `editorTextFocus`; `Ctrl+Alt+F` and `Ctrl+N` only while a Muse surface is active (`activeWebviewPanelId == 'museSpark.chatPanel'                                                                                                                                                                                                                                                                  |     | focusedView == 'museSpark.chatView'`, VS Code's own context keys, no custom one). `Ctrl+Esc`stays global (it toggles both ways) and`Ctrl+Shift+Esc` stays global as in Claude Code. |
+| Rules file scaffold        | (Claude Code: `/init` writes CLAUDE.md through the model.)                                                                                                                                                                                                                                                          | Nothing; the README explains the files.                                                                                                                                                | M12: `Muse Spark: Create AGENTS.md`: opens the file when it exists; otherwise runs `muse init` (the CLI's own scaffold, no model call, in a trusted workspace with the CLI present) or writes the same template itself (Model API only, or Restricted Mode), then opens it.                                                                                                                                              |
+| Model API system prompt    | (Claude's harness: an environment block with the date, cwd, platform and git state, and behaviour rules.)                                                                                                                                                                                                           | Tool descriptions, the D13 context; no date, no git state, no working rules.                                                                                                           | M12: a `# Environment` section (today's date, git branch, change count, recent commits, gathered once per session by the host with `git`, absent without a repository) and a `# How to work` section (read before editing, edits over rewrites, no commits or pushes unless asked, short answers with `path:line` references, stay within the ask). The CLI backend keeps Muse Code's own prompt.                        |
+| Not adopted                | Proposed-diff accept/reject in the editor (Muse applies edits, review is after, D11), worktrees (no MSP method), plugin install, terminal mode, the settings-schema `jsonValidation` (Muse publishes no settings schema), `disableLoginPrompt`, `lockEditorGroups`, `scrollToBottomOnSend`, `usePythonEnvironment`. | —                                                                                                                                                                                      | Recorded here so the next audit does not repeat the reading.                                                                                                                                                                                                                                                                                                                                                             |
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1487,6 +1507,51 @@ the release workflow is proved by the 0.2.0 tag itself (§10).
   (per user, per workspace, outside the repository); the API key is never
   in it. `SECURITY.md` names the reporting path.
 
+### M12 — Harness parity (D15)
+
+**Status 2026-09-22: built and certified** (`docs/certification/m12.md`);
+version 0.3.0.
+
+- **Goal**: the D15 table, every "M12" row built and certified; version
+  0.3.0.
+- **Scope**: `package.json` (setting scopes, `activationEvents`, the
+  walkthrough, five commands, the keybinding `when` clauses, the
+  `enableNewConversationShortcut` setting); `resources/walkthrough/`
+  (four Markdown steps and their images, packaged); the panel serializer
+  (`chatPanel.ts` `restoreChatPanel`, the webview's `setState` with the
+  session id, `ConversationController.restoreSession`); the commands in
+  `src/host/commands/` (`createRulesFile.ts`, `openInTerminal.ts`) with
+  the template in `src/core/context/rulesTemplate.ts`; the Model API
+  prompt's environment and working-rules sections (`instructions.ts`, the
+  host's `describeEnvironment` dependency); the `museSpark.signedIn`
+  context key; README, CHANGELOG, this file.
+- **Acceptance**: a repository's `.vscode/settings.json` cannot set the six
+  machine-scoped settings (VS Code ignores them and says so in the Settings
+  editor); an editor-tab conversation comes back on its session after
+  Developer: Reload Window; the walkthrough opens from the command and
+  from the Welcome page and its images render; New Conversation clears the
+  active surface (or opens one), Sign Out signs out, Open in Terminal starts
+  the `muse` TUI in the workspace root (or explains the missing CLI),
+  Create AGENTS.md produces the `muse init` file and opens it; the Model
+  API request carries the date, the git facts and the working rules.
+- **Tests**: `manifest.test.ts` (scopes, activation, walkthrough files,
+  keybinding clauses), `walkthrough.test.ts` (every image a step
+  references exists and is packaged), `chatPanel.test.ts` (restore with a
+  stored session id, with none, with garbage state),
+  `conversationController.test.ts` (`restoreSession`: resumes, ignores
+  when a session is live or signed out), `App.test.tsx` (the state the
+  webview stores follows the session id), `createRulesFile.test.ts`,
+  `openInTerminal.test.ts`, `rulesTemplate.test.ts`, `instructions.test.ts`
+  and `modelApiHost.test.ts` (environment section, once per session, a
+  failing describer), `settings.test.ts`.
+- **Gates**: unchanged.
+- **Security**: the six machine-scoped settings are the ones that choose
+  what executes, what is billed and how much is approved; the walkthrough
+  and the template contain no user data; `muse init` runs only in a
+  trusted workspace and never with the pasted key; the environment section
+  carries git metadata only (branch, counts, subjects), never file
+  contents.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                    | Status                                                                                                                  |
@@ -1592,3 +1657,10 @@ semgrep), the GitHub Release created with `muse-spark-code-0.2.0.vsix`
 `VSCE_PAT` repository secret exists, so 0.2.0 reaches the Marketplace by the
 clipboard-PAT flow or once the owner adds the secret and the publish job is
 rerun.
+
+**0.3.0 (2026-09-22, late):** the owner asked whether the Claude Code
+extension's preconfigured files hold things this extension should have;
+D15 records the reading and M12 the work (setting scopes, the panel
+serializer, the walkthrough, five commands, keybinding `when` clauses, the
+Model API prompt's environment and working rules). Certified
+(`docs/certification/m12.md`), tagged `v0.3.0` (RELEASE_RUN_PLACEHOLDER).

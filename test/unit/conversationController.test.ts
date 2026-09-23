@@ -1647,6 +1647,21 @@ describe('ConversationController: session history (M6)', () => {
     expect(signedOut.server.requestsFor('session/resume')).toHaveLength(0)
   })
 
+  it('restores a rebuilt panel on its stored session, never over a live one or signed out (M12)', async () => {
+    const tab = withHistory({ isRestorable: false })
+    await tab.controller.restoreSession('old')
+    expect(tab.server.requestsFor('session/resume')).toHaveLength(1)
+    expect(tab.surface.posted).toContainEqual(historyLoaded)
+    await tab.controller.restoreSession('other')
+    expect(tab.server.requestsFor('session/resume')).toHaveLength(1)
+    const signedOut = withHistory({ status: 'signedOut' })
+    await signedOut.controller.restoreSession('old')
+    expect(signedOut.server.requestsFor('session/resume')).toHaveLength(0)
+    const noWorkspace = withHistory({ workspaceRoot: undefined })
+    await noWorkspace.controller.restoreSession('old')
+    expect(noWorkspace.server.requestsFor('session/resume')).toHaveLength(0)
+  })
+
   it('remembers activity on sends and completed turns, and forgets it on clear', async () => {
     const t = withHistory({ now: NOW })
     await t.send('l1', 'hi')
@@ -1755,6 +1770,7 @@ describe('ConversationController: backends and tiers (M7)', () => {
       log: t.log,
       personalSkillsRoot: undefined,
       isWorkspaceTrusted: () => true,
+      describeEnvironment: () => Promise.resolve({ git: undefined }),
     })
     const controller = new ConversationController({
       ...t.deps,

@@ -12,6 +12,10 @@ import {
 } from '../../src/shared/constants'
 
 const TAB_WAIT_TIMEOUT_MS = 5000
+// test/fixtures/workspace/.vscode/settings.json sets this window-scoped key
+// and two machine-scoped ones (PLAN.md D15).
+const FIXTURE_OVERRIDE = 'hideOnboarding'
+const RULES_HEADER = 'Muse Code reads this file as project rules when it runs in this directory.'
 const TAB_POLL_INTERVAL_MS = 50
 
 // Tab groups update asynchronously after a webview panel is created, so a
@@ -27,7 +31,10 @@ async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode
     }
     await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
   }
-  throw new Error(`no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms`)
+  const labels = vscode.window.tabGroups.all.flatMap((group) => group.tabs.map((tab) => tab.label))
+  throw new Error(
+    `no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms; open: ${labels.join(', ')}`,
+  )
 }
 
 suite('activation', () => {
@@ -48,7 +55,9 @@ suite('activation', () => {
 
   test('exposes every setting with its documented default', () => {
     const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
-    for (const [key, value] of Object.entries(SETTING_DEFAULTS)) {
+    // The fixture workspace overrides one window-scoped setting (next test).
+    const defaults = Object.entries(SETTING_DEFAULTS).filter(([key]) => key !== FIXTURE_OVERRIDE)
+    for (const [key, value] of defaults) {
       assert.deepEqual(configuration.get(key), value, `default for ${key}`)
     }
   })
@@ -70,5 +79,48 @@ suite('activation', () => {
     const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
     assert.equal(configuration.get('focusView'), true)
     await configuration.update('focusView', undefined, vscode.ConfigurationTarget.Global)
+  })
+
+  test('a workspace cannot set the machine-scoped settings but sets the others (D15)', () => {
+    const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
+    assert.equal(configuration.get('allowDangerouslySkipPermissions'), false)
+    assert.equal(configuration.get('museBinaryPath'), '')
+    assert.equal(configuration.inspect(FIXTURE_OVERRIDE)?.workspaceValue, true)
+    assert.equal(configuration.get(FIXTURE_OVERRIDE), true)
+  })
+
+  test('creates AGENTS.md in the workspace root and opens it (D15)', async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0]
+    assert.ok(folder, 'no workspace folder')
+    const target = vscode.Uri.joinPath(folder.uri, 'AGENTS.md')
+    try {
+      await vscode.commands.executeCommand(COMMAND_IDS.createRulesFile)
+      const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(target))
+      assert.ok(text.startsWith('# AGENTS.md'), text.slice(0, 40))
+      assert.ok(text.includes(RULES_HEADER), 'header line missing')
+      assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await vscode.workspace.fs.delete(target)
+    }
+  })
+
+  test('New Conversation clears the active surface in place (D15)', async () => {
+    const webviewTabs = () =>
+      vscode.window.tabGroups.all
+        .flatMap((group) => group.tabs)
+        .filter((tab) => tab.input instanceof vscode.TabInputWebview).length
+    const before = webviewTabs()
+    assert.ok(before > 0, 'a chat panel from the earlier test is open')
+    await vscode.commands.executeCommand(COMMAND_IDS.newConversation)
+    assert.equal(webviewTabs(), before)
+  })
+
+  test('opens the walkthrough (D15)', async () => {
+    await vscode.commands.executeCommand(COMMAND_IDS.openWalkthrough)
+    // The walkthrough opens in VS Code's Welcome editor.
+    await waitForTab(
+      (candidate) => candidate.label === 'Welcome' || candidate.label.includes('Muse Spark'),
+    )
   })
 })
