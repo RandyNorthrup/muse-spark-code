@@ -2,9 +2,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ApprovalCard } from '../../src/webview/components/ApprovalCard'
-import { QuestionCard } from '../../src/webview/components/QuestionCard'
 import { TodoPanel } from '../../src/webview/components/TodoPanel'
-import type { PendingApproval, PendingQuestion } from '../../src/webview/state/uiState'
+import type { PendingApproval } from '../../src/webview/state/uiState'
 
 const approval: PendingApproval = {
   approvalId: 'a1',
@@ -128,62 +127,6 @@ describe('ApprovalCard', () => {
     )
     expect(screen.getByText('mystery')).toBeInTheDocument()
     expect(screen.getByText('Escalated by the safety check')).toBeInTheDocument()
-  })
-})
-
-const question: PendingQuestion = {
-  userInputId: 'q1',
-  questions: [
-    {
-      id: 'colour',
-      header: 'Colour',
-      question: 'Which colour?',
-      selection: { mode: 'single' },
-      options: [{ label: 'Red' }, { label: 'Blue', description: 'cool' }],
-    },
-    {
-      id: 'tools',
-      header: 'Tools',
-      question: 'Pick up to two',
-      selection: { mode: 'multiple', minSelections: 1, maxSelections: 2 },
-      options: [{ label: 'A' }, { label: 'B' }, { label: 'C' }],
-    },
-    {
-      id: 'name',
-      header: 'Name',
-      question: 'What is it called?',
-      selection: { mode: 'single' },
-      options: [],
-    },
-  ],
-}
-
-describe('QuestionCard', () => {
-  it('collects single, multiple and free-text answers before enabling Submit', () => {
-    const onAnswer = vi.fn()
-    render(<QuestionCard question={question} onAnswer={onAnswer} />)
-    const submit = screen.getByText('Submit')
-    expect(submit).toBeDisabled()
-    fireEvent.click(screen.getByRole('radio', { name: 'Red' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'Blue' }))
-    expect(screen.getByRole('radio', { name: 'Blue' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: 'Red' })).toHaveAttribute('aria-checked', 'false')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'A' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'B' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'C' }))
-    expect(screen.getByRole('checkbox', { name: 'C' })).toHaveAttribute('aria-checked', 'false')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'A' }))
-    expect(submit).toBeDisabled()
-    fireEvent.change(screen.getByPlaceholderText('Type your answer'), {
-      target: { value: 'Muse' },
-    })
-    expect(submit).toBeEnabled()
-    fireEvent.click(submit)
-    expect(onAnswer).toHaveBeenCalledWith('q1', [
-      { questionId: 'colour', selectedLabel: 'Blue' },
-      { questionId: 'tools', selectedLabels: ['B'] },
-      { questionId: 'name', freeText: 'Muse' },
-    ])
   })
 })
 

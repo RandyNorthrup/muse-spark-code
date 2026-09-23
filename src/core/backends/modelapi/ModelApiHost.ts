@@ -723,8 +723,17 @@ export class ModelApiSession implements AgentSession {
     } finally {
       this.pendingQuestions.delete(userInputId)
     }
-    this.emit({ type: 'questionSettled', userInputId, outcome: ANSWERED, answers: [...answers] })
-    const text = `${UI_TEXT.answersPrefix}\n${JSON.stringify(answers)}`
+    // No answers at all is the card's Cancel (M16); a submitted card answers every question.
+    const isCancelled = answers.length === 0
+    this.emit({
+      type: 'questionSettled',
+      userInputId,
+      outcome: isCancelled ? CANCELLED : ANSWERED,
+      answers: [...answers],
+    })
+    const text = isCancelled
+      ? UI_TEXT.questionCancelledOutput
+      : `${UI_TEXT.answersPrefix}\n${JSON.stringify(answers)}`
     return { output: text, visibleOutput: text }
   }
 
@@ -1129,6 +1138,11 @@ export class ModelApiSession implements AgentSession {
     }
     pending.resolve(answers)
     return Promise.resolve()
+  }
+
+  /** Decline the prompt (M16): the tool resolves with no answers and tells the model so. */
+  public cancelQuestions(userInputId: string): Promise<void> {
+    return this.answerQuestions(userInputId, [])
   }
 
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {

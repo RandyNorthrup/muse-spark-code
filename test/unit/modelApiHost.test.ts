@@ -118,6 +118,34 @@ const kinds = (events: readonly AgentEvent[]) =>
       : event.type,
   )
 
+/** An `ask_user` call with one single-choice question, shared by the M7 and M16 cases. */
+const ASK_USER_CALL = {
+  name: 'ask_user',
+  arguments: JSON.stringify({
+    questions: [
+      {
+        id: 'q',
+        header: 'Colour',
+        question: 'Which?',
+        selection: { mode: 'single' },
+        options: [{ label: 'Red' }],
+      },
+    ],
+  }),
+}
+
+/** The prompt the tool raised, once it arrives. */
+async function awaitQuestion(events: readonly AgentEvent[]) {
+  await vi.waitFor(() => {
+    expect(events.some((event) => event.type === 'questionRequested')).toBe(true)
+  })
+  const question = events.find((event) => event.type === 'questionRequested')
+  if (question?.type !== 'questionRequested') {
+    throw new Error('expected a question')
+  }
+  return question
+}
+
 describe('ModelApiHost: catalogue and sessions', () => {
   it('lists the chat models with the window, default and active flags', async () => {
     const t = setup()
@@ -493,20 +521,7 @@ describe('ModelApiSession: turns', () => {
       {
         calls: [
           { name: 'todo_write', arguments: '{"items":[{"text":"do it","status":"inProgress"}]}' },
-          {
-            name: 'ask_user',
-            arguments: JSON.stringify({
-              questions: [
-                {
-                  id: 'q',
-                  header: 'Colour',
-                  question: 'Which?',
-                  selection: { mode: 'single' },
-                  options: [{ label: 'Red' }],
-                },
-              ],
-            }),
-          },
+          ASK_USER_CALL,
           { name: 'ask_user', arguments: '{"questions":"bad"}' },
           { name: 'todo_write', arguments: '{"items":"bad"}' },
           { name: 'teleport', arguments: '{}' },
@@ -515,17 +530,11 @@ describe('ModelApiSession: turns', () => {
       { text: 'ok' },
     )
     await session.sendTurn([{ type: 'text', text: 'go' }])
-    await vi.waitFor(() => {
-      expect(events.some((event) => event.type === 'questionRequested')).toBe(true)
-    })
+    const question = await awaitQuestion(events)
     expect(events.find((event) => event.type === 'todoChanged')).toEqual({
       type: 'todoChanged',
       items: [{ text: 'do it', status: 'inProgress' }],
     })
-    const question = events.find((event) => event.type === 'questionRequested')
-    if (question?.type !== 'questionRequested') {
-      throw new Error('expected a question')
-    }
     await expect(session.answerQuestions('ghost', [])).rejects.toThrow('not pending')
     await session.answerQuestions(question.userInputId, [{ questionId: 'q', selectedLabel: 'Red' }])
     await turnDone()
@@ -1046,5 +1055,33 @@ describe('ModelApiHost: sessions between windows (M11)', () => {
     await plain.rename('x')
     await bare.host.close()
     expect(bare.host.sessionCount).toBe(0)
+  })
+})
+
+describe('ModelApiSession question cancel (M16)', () => {
+  it('settles a cancelled prompt with no answers and tells the model the user declined', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [ASK_USER_CALL],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    const question = await awaitQuestion(events)
+    await session.cancelQuestions(question.userInputId)
+    await turnDone()
+    expect(events.find((event) => event.type === 'questionSettled')).toEqual({
+      type: 'questionSettled',
+      userInputId: question.userInputId,
+      outcome: 'cancelled',
+      answers: [],
+    })
+    const tool = events.findLast(
+      (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+        event.type === 'itemCompleted' && event.item.kind === 'toolCall',
+    )
+    expect(tool?.item.visibleOutput).toContain('declined to answer')
   })
 })

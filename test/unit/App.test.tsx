@@ -748,19 +748,23 @@ describe('App editor integration (M5)', () => {
           status: 'completed',
           tool: 'edit_file',
           args: '{"find":"a","path":"notes.md","replace":"b"}',
+          visibleOutput: '--- a/notes.md\n+++ b/notes.md\n@@ -1,1 +1,1 @@\n-a\n+b',
           patchRef: { id: 'tool_patch-1', byteLen: 300 },
         },
       },
     })
-    fireEvent.click(screen.getByText('Open diff'))
-    expect(postMessage).toHaveBeenLastCalledWith({
-      type: 'openEditDiff',
+    // The edit row opens from the start and fetches its patch; its path opens the file (M16).
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'readOutput',
       itemId: 'ed',
       outputRef: 'tool_patch-1',
+      offsetBytes: 0,
     })
-    fireEvent.click(screen.getByText('Revert'))
+    fireEvent.click(screen.getByRole('button', { name: 'notes.md' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'openFile', path: 'notes.md' })
+    fireEvent.click(screen.getByText('Click to expand'))
     expect(postMessage).toHaveBeenLastCalledWith({
-      type: 'revertEdit',
+      type: 'openEditDiff',
       itemId: 'ed',
       outputRef: 'tool_patch-1',
     })
@@ -1151,7 +1155,6 @@ describe('transcript scrolling (M15)', () => {
         },
       },
     })
-    fireEvent.click(screen.getByText('List files').closest('button') as HTMLElement)
     fireEvent.click(screen.getByTitle('Click to open the output in an editor'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'openOutput',

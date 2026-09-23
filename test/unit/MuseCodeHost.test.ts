@@ -293,6 +293,10 @@ describe('MuseCodeHost', () => {
       ...ack(params),
       userInputId: params['userInputId'],
     }))
+    server.handle('userInput/cancel', (params) => ({
+      ...ack(params),
+      userInputId: params['userInputId'],
+    }))
     server.handle('item/readOutput', (params) => ({
       content: '{"files":[]}',
       encoding: 'utf8',
@@ -326,6 +330,11 @@ describe('MuseCodeHost', () => {
       sessionId: session.sessionId,
       userInputId: 'q1',
       answers: [{ questionId: 'colour', selectedLabel: 'Red' }],
+    })
+    await session.cancelQuestions('q1')
+    expect(server.requestsFor('userInput/cancel')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      userInputId: 'q1',
     })
     const page = await session.readOutput({
       itemId: 'c1',

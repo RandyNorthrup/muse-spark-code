@@ -9,6 +9,39 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.4.2] - 2026-09-22
+
+The owner's second F5 round, on 0.4.1 (PLAN.md D19).
+
+### Added
+
+- The path of an edit or read row is a link: it opens the file with the
+  changed lines selected and revealed.
+- **Click to expand** on every edit diff with a stored patch, opening the
+  diff editor (the file side is editable). Shell and edit rows show their
+  body from the start; read and generic rows open on click.
+- Account & Usage shows the last window Muse Code reported, dated "as of",
+  until the CLI reports a fresh one (it only does so after a reply).
+- The question card is structured like Claude Code's: radio buttons or
+  checkboxes stacked, an **Other** row with a text box, one tab per question,
+  **Submit** disabled until every question is answered, and **Cancel**, which
+  declines the prompt (Muse Code's `userInput/cancel`).
+
+### Changed
+
+- Thinking rows stream their summary while the model thinks and end as a
+  plain "Thought for Ns" line, as in Claude Code; nothing to expand after.
+- The **Open diff** and **Revert** buttons under edit rows are gone: the
+  diff editor is behind Click to expand, revert is in the message's rewind
+  menu.
+- No outline on hover over a clickable output block.
+
+### Fixed
+
+- The model pill still read "Starting Muse Code…" until clicked: the pill
+  reads the session's model, so the warm-up now posts the model the first
+  send will use.
+
 ## [0.4.1] - 2026-09-22
 
 The owner's first F5 round on 0.4.0 (PLAN.md D18).

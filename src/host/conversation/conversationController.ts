@@ -54,6 +54,7 @@ import type {
   EditRef,
   HostAction,
   HostToWebviewMessage,
+  LineRange,
   MentionItem,
   ModelOption,
   SkillOption,
@@ -135,6 +136,12 @@ export interface SessionMemory {
   setLastSession(last: LastSession | undefined): Promise<void>
 }
 
+/** Where the last subscription window lives between sessions (extension global state). */
+export interface UsageCache {
+  read(): SubscriptionUsage | undefined
+  write(usage: SubscriptionUsage): Promise<void>
+}
+
 export interface ConversationDeps {
   readonly surface: ChatSurface
   readonly auth: AuthPort
@@ -175,6 +182,10 @@ export interface ConversationDeps {
   readonly editReview: EditReviewActions
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
+  /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
+  readonly openFile: (path: string, range: LineRange | undefined) => Promise<void>
+  /** The subscription window the CLI last reported, kept across sessions (M16). */
+  readonly usageCache: UsageCache
   /** The IDE tool server for `session/start`, when it is listening. */
   readonly ideMcpEndpoint: () => SessionMcpHttpServer | undefined
   readonly newAttachmentId: () => string
@@ -457,6 +468,18 @@ export class ConversationController {
     }
   }
 
+  /** The question card's Cancel: the prompt is declined and the model told (M16). */
+  private async cancelQuestion(userInputId: string): Promise<void> {
+    if (this.session === undefined) {
+      return
+    }
+    try {
+      await this.session.cancelQuestions(userInputId)
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`)
+    }
+  }
+
   private async answerQuestion(
     message: Extract<ConversationMessage, { type: 'answerQuestion' }>,
   ): Promise<void> {
@@ -510,6 +533,22 @@ export class ConversationController {
   }
 
   /** The whole stored patch document (small; paged only in principle). */
+  /** A tool row's path: the file in an editor, the changed lines selected when known (M16). */
+  private async openFile(
+    message: Extract<ConversationMessage, { type: 'openFile' }>,
+  ): Promise<void> {
+    try {
+      await this.deps.openFile(
+        message.path,
+        message.startLine === undefined || message.endLine === undefined
+          ? undefined
+          : { startLine: message.startLine, endLine: message.endLine },
+      )
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.openFileFailed}: ${describe(error)}`)
+    }
+  }
+
   /** A tool output as an editor tab: the stored output in full, else the transcript's copy (M15). */
   private async openOutput(
     message: Extract<ConversationMessage, { type: 'openOutput' }>,
@@ -1188,11 +1227,20 @@ export class ConversationController {
   ): Promise<void> {
     const account = await this.deps.accountFacts(host.info.kind)
     const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
+    // The CLI reports a window only after it has seen a reply (M8, re-probed
+    // 2026-09-22: `usage/read` is empty after a host and even a session
+    // start). Until then the dialog shows the last window it ever reported,
+    // dated by its own `observedAtMs` (M16).
+    if (subscription !== undefined) {
+      await this.deps.usageCache.write(subscription)
+    }
+    const shown =
+      subscription ?? (host.info.kind === 'museCode' ? this.deps.usageCache.read() : undefined)
     this.post({
       type: 'usageReport',
       backend: host.info.kind,
       account,
-      ...(subscription !== undefined && { subscription }),
+      ...(shown !== undefined && { subscription: shown }),
       ...(insights !== undefined && { insights }),
     })
   }
@@ -1267,12 +1315,19 @@ export class ConversationController {
    * click. Starting the host and listing its models makes no model call.
    */
   private async warmModels(): Promise<void> {
-    if (this.models !== undefined || this.deps.auth.current.status !== 'signedIn') {
+    if (this.deps.auth.current.status !== 'signedIn') {
       return
     }
     try {
-      const host = await this.deps.ensureHost()
-      await this.ensureModels(host)
+      if (this.models === undefined) {
+        const host = await this.deps.ensureHost()
+        await this.ensureModels(host)
+      }
+      // The pill reads the session's model; before any session it reads the
+      // one the first send will use (M16).
+      if (this.session === undefined) {
+        this.postSessionInfo(this.modelId)
+      }
     } catch (error: unknown) {
       this.deps.log.warn(`model warm-up failed: ${describe(error)}`)
       this.notice('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
@@ -1338,6 +1393,10 @@ export class ConversationController {
         await this.answerQuestion(message)
         break
       }
+      case 'cancelQuestion': {
+        await this.cancelQuestion(message.userInputId)
+        break
+      }
       case 'readOutput': {
         await this.readOutput(message)
         break
@@ -1362,8 +1421,8 @@ export class ConversationController {
         await this.reviewEdit('openDiff', message.itemId, message.outputRef)
         break
       }
-      case 'revertEdit': {
-        await this.reviewEdit('revert', message.itemId, message.outputRef)
+      case 'openFile': {
+        await this.openFile(message)
         break
       }
       case 'rewindCode': {

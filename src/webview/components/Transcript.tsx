@@ -30,10 +30,13 @@ export interface TranscriptProps {
   readonly onOpenOutput: ToolRowProps['onOpenOutput']
   readonly onDecide: (decision: ApprovalDecisionInput) => void
   readonly onAnswer: (userInputId: string, answers: readonly QuestionAnswer[]) => void
+  /** The question card's Cancel (M16). */
+  readonly onCancelQuestion: (userInputId: string) => void
   /** Code block Apply and edit review (M5). */
   readonly onApply: (text: string) => void
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
-  readonly onRevertEdit: (itemId: string, outputRef: string) => void
+  /** A tool row's path: the file at its change (M16). */
+  readonly onOpenFile: ToolRowProps['onOpenFile']
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
@@ -263,9 +266,10 @@ export function Transcript(props: TranscriptProps) {
     onOpenOutput,
     onDecide,
     onAnswer,
+    onCancelQuestion,
     onApply,
     onOpenEditDiff,
-    onRevertEdit,
+    onOpenFile,
     onFork,
     onRewind,
   } = props
@@ -285,8 +289,9 @@ export function Transcript(props: TranscriptProps) {
         onOpenOutput={onOpenOutput}
         onDecide={onDecide}
         onAnswer={onAnswer}
+        onCancelQuestion={onCancelQuestion}
         onOpenEditDiff={onOpenEditDiff}
-        onRevertEdit={onRevertEdit}
+        onOpenFile={onOpenFile}
       />
     )
   const renderEntry = (entry: TranscriptEntry) => {

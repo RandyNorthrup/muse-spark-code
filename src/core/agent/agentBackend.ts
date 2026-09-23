@@ -170,6 +170,8 @@ export interface AgentSession {
   compact(): Promise<CompactOutcome>
   decideApproval(decision: ApprovalDecision): Promise<void>
   answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void>
+  /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
+  cancelQuestions(userInputId: string): Promise<void>
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */

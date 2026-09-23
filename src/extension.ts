@@ -85,7 +85,7 @@ import {
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
 import type { HostAction } from './shared/protocol'
-import type { AccountFacts } from './shared/usage'
+import { type AccountFacts, subscriptionUsageSchema } from './shared/usage'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
 // field we read instead of trusting it.
@@ -427,6 +427,26 @@ export function activate(context: vscode.ExtensionContext): void {
     await vscode.window.showTextDocument(document, { preview: true })
   }
 
+  // A tool row's path opens the file with the changed lines selected and
+  // revealed (M16), as Claude Code's file links do.
+  const openFile = async (
+    filePath: string,
+    range: { readonly startLine: number; readonly endLine: number } | undefined,
+  ): Promise<void> => {
+    const fsPath = path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot ?? '', filePath)
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath))
+    const editor = await vscode.window.showTextDocument(document, { preview: true })
+    if (range === undefined) {
+      return
+    }
+    const lastLine = document.lineCount - 1
+    const start = new vscode.Position(Math.min(Math.max(range.startLine - 1, 0), lastLine), 0)
+    const endLine = Math.min(Math.max(range.endLine - 1, 0), lastLine)
+    const end = document.lineAt(endLine).range.end
+    editor.selection = new vscode.Selection(start, end)
+    editor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter)
+  }
+
   const editReview = new EditReview({
     platform: process.platform,
     workspaceRoot: workspaceRoot ?? '',
@@ -683,6 +703,18 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         editReview,
         openDocument,
+        openFile,
+        usageCache: {
+          read: () => {
+            const parsed = subscriptionUsageSchema.safeParse(
+              context.globalState.get(GLOBAL_STATE_KEYS.lastUsage),
+            )
+            return parsed.success ? parsed.data : undefined
+          },
+          write: async (usage) => {
+            await context.globalState.update(GLOBAL_STATE_KEYS.lastUsage, usage)
+          },
+        },
         ideMcpEndpoint: () => ideServer.current,
         newAttachmentId: () => crypto.randomUUID(),
         sessions,

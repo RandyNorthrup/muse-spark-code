@@ -77,6 +77,12 @@ export const BACKEND_KINDS = ['museCode', 'modelApi'] as const
 export type BackendKind = (typeof BACKEND_KINDS)[number]
 
 // Things the webview asks the host to do outside the conversation itself.
+/** Lines (1-based, inclusive) a tool row asks the editor to select (M16). */
+export interface LineRange {
+  readonly startLine: number
+  readonly endLine: number
+}
+
 export const HOST_ACTIONS = [
   'openSettings',
   'openKeybindings',
@@ -204,6 +210,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     requirementId: requirementRefSchema,
     feedback: z.optional(z.string()),
   }),
+  // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
+  z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
   // Question card: one answer per question.
   z.object({
     type: z.literal('answerQuestion'),
@@ -231,9 +239,16 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('insertCode'), text: z.string() }),
   // Replace the active editor's selection with the block (M5).
   z.object({ type: z.literal('applyCode'), text: z.string() }),
-  // Edit review (M5): the stored patch of a completed edit-family item.
+  // Edit review (M5): the stored patch of a completed edit-family item in the
+  // diff editor (the inline diff's "Click to expand" since M15).
   z.object({ type: z.literal('openEditDiff'), itemId: z.string(), outputRef: z.string() }),
-  z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
+  // A tool row's path: open the file, selecting the changed lines when known (M16, `LineRange`).
+  z.object({
+    type: z.literal('openFile'),
+    path: z.string(),
+    startLine: z.optional(z.number()),
+    endLine: z.optional(z.number()),
+  }),
   // Rewind code to a message: revert every edit after it, newest first (M13).
   z.object({ type: z.literal('rewindCode'), edits: z.array(editRefSchema) }),
   // Session history (M6).

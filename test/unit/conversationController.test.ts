@@ -20,7 +20,8 @@ import {
 import type { DictationListener } from '../../src/core/voice/dictation'
 import type { DictationSetup } from '../../src/host/voice/dictationHost'
 import { CHOICE_STEERING_NOTE } from '../../src/shared/constants'
-import type { HostAction, MentionItem } from '../../src/shared/protocol'
+import type { HostAction, LineRange, MentionItem } from '../../src/shared/protocol'
+import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { noopToolIo } from './helpers/fakeToolIo'
@@ -128,6 +129,8 @@ function setup(
     indexed?: readonly string[]
     ideMcpEndpoint?: SessionMcpHttpServer
     grantedCapabilities?: readonly string[]
+    /** The window a previous session left in the cache (M16). */
+    cachedUsage?: SubscriptionUsage
     shellSandbox?: ShellSandboxPosture
     /** Contributor-tier guard (M7). */
     isConfidentialWorkspace?: boolean
@@ -244,6 +247,8 @@ function setup(
   const applied: string[] = []
   const reviews: [string, string, string][] = []
   const opened: [string, string][] = []
+  const openedFiles: [string, LineRange | undefined][] = []
+  let cachedUsage: SubscriptionUsage | undefined = options.cachedUsage
   const contributorPrompts: string[] = []
   const memory = {
     archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
@@ -339,6 +344,17 @@ function setup(
       opened.push([title, content])
       return Promise.resolve()
     },
+    openFile: (filePath: string, range: LineRange | undefined) => {
+      openedFiles.push([filePath, range])
+      return Promise.resolve()
+    },
+    usageCache: {
+      read: () => cachedUsage,
+      write: (usage) => {
+        cachedUsage = usage
+        return Promise.resolve()
+      },
+    },
     ideMcpEndpoint: () => options.ideMcpEndpoint,
     newAttachmentId: () => {
       attachmentCount += 1
@@ -380,6 +396,8 @@ function setup(
     copied,
     inserted,
     opened,
+    openedFiles,
+    cachedUsage: () => cachedUsage,
     onSandboxUnavailable,
     saveAll,
     applied,
@@ -1250,20 +1268,18 @@ describe('ConversationController: editor integration (M5)', () => {
     const t = setup()
     await t.send('l1', 'edit it')
     await t.controller.handle({ type: 'openEditDiff', itemId: 'c1', outputRef: 'tool_patch-1' })
-    await t.controller.handle({ type: 'revertEdit', itemId: 'c1', outputRef: 'tool_patch-1' })
     expect(t.reviews).toEqual([
       ['openDiff', 'c1', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-1'],
-      ['revert', 'c1', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-1'],
     ])
     const reads = t.server.requestsFor('item/readOutput')
-    expect(reads).toHaveLength(2)
+    expect(reads).toHaveLength(1)
     expect(reads[0]?.params).toMatchObject({
       itemId: 'c1',
       outputRef: 'tool_patch-1',
       offsetBytes: 0,
     })
     const notices = t.surface.posted.flatMap((m) => (m.type === 'notice' ? [m.text] : []))
-    expect(notices).toEqual(['opened c1', 'reverted c1'])
+    expect(notices).toEqual(['opened c1'])
   })
 
   it('does nothing for a review without a session', async () => {
@@ -1992,10 +2008,24 @@ describe('ConversationController (M15)', () => {
     t.controller.surfaceReady()
     await settle()
     expect(t.surface.posted).toContainEqual(modelList)
+    // The pill needs the model the first send will use, not only the list (M16).
+    const info = t.surface.posted.find((message) => message.type === 'sessionInfo')
+    expect(info).toMatchObject({ modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    expect(info).not.toHaveProperty('sessionId')
     expect(t.server.requestsFor('model/list')).toHaveLength(1)
     expect(t.server.requestsFor('session/start')).toEqual([])
     await t.send('l1', 'hi')
     expect(t.server.requestsFor('model/list')).toHaveLength(1)
+  })
+
+  it("opens a tool row's file at its change through the host (M16)", async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'openFile', path: 'src/a.ts', startLine: 4, endLine: 5 })
+    await t.controller.handle({ type: 'openFile', path: String.raw`C:\abs\b.ts` })
+    expect(t.openedFiles).toEqual([
+      ['src/a.ts', { startLine: 4, endLine: 5 }],
+      [String.raw`C:\abs\b.ts`, undefined],
+    ])
   })
 
   it('leaves the host alone while signed out and warms the models after a sign-in', async () => {
@@ -2048,5 +2078,64 @@ describe('ConversationController (M15)', () => {
       level: 'warning',
       text: expect.stringContaining('may have run anyway') as string,
     })
+  })
+})
+
+describe('ConversationController usage cache (M16)', () => {
+  const stale: SubscriptionUsage = {
+    observedAtMs: 1000,
+    tier: 'tier-1',
+    window: { usedPercent: 10, resetsAtMs: 5000, windowDurationMins: 300 },
+    weekly: { usedPercent: 5, resetsAtMs: 9000 },
+  }
+
+  it('shows the last reported window while the CLI has none yet, then refreshes the cache', async () => {
+    const t = setup({ cachedUsage: stale })
+    expect(await firstUsageReport(t)).toMatchObject({
+      type: 'usageReport',
+      backend: 'museCode',
+      subscription: stale,
+    })
+    const fresh = { ...stale, observedAtMs: 2000 }
+    t.server.handle('usage/read', () => ({ usage: fresh }))
+    await t.controller.handle({ type: 'readUsage' })
+    expect(t.surface.posted.at(-1)).toMatchObject({ subscription: fresh })
+    expect(t.cachedUsage()).toEqual(fresh)
+  })
+
+  it('reports no window at all when nothing was ever cached', async () => {
+    const t = setup()
+    expect(await firstUsageReport(t)).not.toHaveProperty('subscription')
+    expect(t.cachedUsage()).toBeUndefined()
+  })
+})
+
+describe('ConversationController question cancel (M16)', () => {
+  it('declines a prompt through userInput/cancel and reports a refusal', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('userInput/cancel', (params) => ({
+      status: 'accepted',
+      userInputId: params['userInputId'],
+    }))
+    await t.controller.handle({ type: 'cancelQuestion', userInputId: 'q1' })
+    expect(t.server.requestsFor('userInput/cancel')[0]?.params).toMatchObject({
+      userInputId: 'q1',
+    })
+    t.server.handle('userInput/cancel', () => {
+      throw new Error('already settled')
+    })
+    await t.controller.handle({ type: 'cancelQuestion', userInputId: 'q2' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringContaining('already settled') as string,
+    })
+  })
+
+  it('does nothing without a session', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'cancelQuestion', userInputId: 'q1' })
+    expect(t.server.requestsFor('userInput/cancel')).toEqual([])
   })
 })

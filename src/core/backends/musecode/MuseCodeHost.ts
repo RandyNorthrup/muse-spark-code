@@ -243,6 +243,11 @@ export class MuseSession implements AgentSession {
     await this.command('userInput/answer', { userInputId, answers: [...answers] })
   }
 
+  /** Decline a `request_user_input` prompt (`userInput/cancel`, M16). */
+  public async cancelQuestions(userInputId: string): Promise<void> {
+    await this.command('userInput/cancel', { userInputId })
+  }
+
   /** One page of a stored tool output or patch document (`item/readOutput`). */
   public async readOutput(request: OutputPageRequest): Promise<OutputPage> {
     const result = await this.connection.command('item/readOutput', {

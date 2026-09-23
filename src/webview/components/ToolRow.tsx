@@ -2,8 +2,9 @@
 // collapsible body (shell IN/OUT, edit diff, read output, or generic
 // args/output), plus the approval or question card when the host is waiting.
 
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { OUTPUT_PREVIEW_LINES, UI_TEXT } from '../../shared/constants'
+import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, parsePatchDocument, parseUnifiedText } from '../diff'
 import type { OutputPage, TranscriptEntry } from '../state/uiState'
 import { changeSummary, describeTool, writtenContent } from '../toolPresentation'
@@ -26,9 +27,33 @@ export interface ToolRowProps {
   ) => void
   readonly onDecide: ApprovalCardProps['onDecide']
   readonly onAnswer: QuestionCardProps['onAnswer']
-  /** Edit review (M5): the stored patch of a completed edit-family item. */
+  readonly onCancelQuestion: QuestionCardProps['onCancel']
+  /** Edit review (M5): the stored patch of a completed edit-family item in the diff editor. */
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
-  readonly onRevertEdit: (itemId: string, outputRef: string) => void
+  /** The row's path: the file at its change (M16). */
+  readonly onOpenFile: (path: string, range: LineRange | undefined) => void
+}
+
+/** The lines an edit changed, from its diff rows: the added lines, else the first line shown. */
+function changedRange(rows: readonly DiffRow[] | undefined): LineRange | undefined {
+  if (rows === undefined) {
+    return undefined
+  }
+  const added = rows.filter((row) => row.kind === 'add' && row.newLine !== undefined)
+  const first = added[0]?.newLine ?? rows.find((row) => row.newLine !== undefined)?.newLine
+  const last = added.at(-1)?.newLine ?? first
+  return first === undefined || last === undefined ? undefined : { startLine: first, endLine: last }
+}
+
+/** The rows of an edit: the fetched patch (the file the row names) or the visible diff. */
+function editRows(
+  entry: ToolEntry,
+  patchPage: OutputPage | undefined,
+  filePath: string,
+): readonly DiffRow[] | undefined {
+  const files = patchPage === undefined ? undefined : parsePatchDocument(patchPage.content)
+  const file = files?.find((candidate) => candidate.path === filePath) ?? files?.[0]
+  return file?.rows ?? parseUnifiedText(entry.output)
 }
 
 function statusClass(entry: ToolEntry): string {
@@ -127,7 +152,7 @@ function DiffTable({
           ))}
         </tbody>
       </table>
-      {isLong && !isExpanded ? (
+      {onExpand !== undefined || (isLong && !isExpanded) ? (
         <button
           type="button"
           className="tool-expand"
@@ -211,24 +236,46 @@ export function ToolRow({
   onOpenOutput,
   onDecide,
   onAnswer,
+  onCancelQuestion,
   onOpenEditDiff,
-  onRevertEdit,
+  onOpenFile,
 }: ToolRowProps) {
   const presentation = describeTool(entry.tool, entry.args)
   const isWaiting = entry.approval !== undefined || entry.question !== undefined
-  const [isOpen, setIsOpen] = useState(false)
+  // Shell and edit rows show their body from the start, as Claude Code's do;
+  // read and generic rows open on click (M16).
+  const [isOpen, setIsOpen] = useState(
+    presentation.body === 'shell' || presentation.body === 'edit',
+  )
   const change = changeSummary(entry.patchSummary)
   const isFailed = entry.status !== 'inProgress' && entry.status !== 'completed'
   // A finished edit with a stored patch can be reviewed in the editor.
   const reviewRef =
     presentation.body === 'edit' && entry.status === 'completed' ? entry.patchRef : undefined
-  const toggle = () => {
-    const isOpening = !isOpen
-    setIsOpen(isOpening)
-    // The stored patch is fetched the first time the row opens.
-    if (isOpening && patchPage === undefined && entry.patchRef !== undefined) {
-      onReadOutput(entry.id, entry.patchRef.id, 0)
+  // The stored patch is fetched once, the first time the row is open.
+  const patchRequestRef = useRef(false)
+  const patchRefId = entry.patchRef?.id
+  useEffect(() => {
+    if (!isOpen || patchPage !== undefined || patchRefId === undefined || patchRequestRef.current) {
+      return
     }
+    patchRequestRef.current = true
+    onReadOutput(entry.id, patchRefId, 0)
+  }, [isOpen, patchPage, patchRefId, entry.id, onReadOutput])
+  const toggle = () => {
+    setIsOpen(!isOpen)
+  }
+  const filePath =
+    presentation.summary !== '' && (presentation.body === 'edit' || presentation.body === 'read')
+      ? presentation.summary
+      : undefined
+  const openFile = () => {
+    if (filePath === undefined) {
+      return
+    }
+    const range =
+      presentation.body === 'edit' ? changedRange(editRows(entry, patchPage, filePath)) : undefined
+    onOpenFile(filePath, range)
   }
   const openOutput = () => {
     onOpenOutput(entry.id, presentation.label, entry.output, entry.outputRef?.id)
@@ -275,44 +322,44 @@ export function ToolRow({
   const hasBody = body !== null
   return (
     <li className={isWaiting ? 'tool tool-waiting' : 'tool'} data-status={entry.status}>
-      <button
-        type="button"
-        className="tool-header"
-        aria-expanded={isOpen}
-        disabled={!hasBody}
-        onClick={toggle}
-      >
-        <span className={statusClass(entry)} aria-hidden="true" />
-        <span className="tool-label">{presentation.label}</span>
-        {entry.isBackground ? <span className="badge">{UI_TEXT.backgroundBadge}</span> : null}
-        {presentation.summary === '' ? null : (
-          <span className="tool-summary">{presentation.summary}</span>
+      <div className="tool-header">
+        <button
+          type="button"
+          className="tool-toggle"
+          aria-expanded={isOpen}
+          disabled={!hasBody}
+          onClick={toggle}
+        >
+          <span className={statusClass(entry)} aria-hidden="true" />
+          <span className="tool-label">{presentation.label}</span>
+          {entry.isBackground ? <span className="badge">{UI_TEXT.backgroundBadge}</span> : null}
+          {filePath !== undefined || presentation.summary === '' ? null : (
+            <span className="tool-summary">{presentation.summary}</span>
+          )}
+        </button>
+        {filePath === undefined ? null : (
+          <button
+            type="button"
+            className="tool-path"
+            title={UI_TEXT.openFileTitle}
+            onClick={openFile}
+          >
+            {filePath}
+          </button>
         )}
-        {hasBody ? <ExpandChevron isOpen={isOpen} /> : null}
-      </button>
+        {hasBody ? (
+          <button
+            type="button"
+            className="tool-chevron"
+            aria-label={UI_TEXT.toggleDetails}
+            aria-expanded={isOpen}
+            onClick={toggle}
+          >
+            <ExpandChevron isOpen={isOpen} />
+          </button>
+        ) : null}
+      </div>
       {change === undefined ? null : <div className="tool-change">{change}</div>}
-      {reviewRef === undefined ? null : (
-        <div className="tool-actions">
-          <button
-            type="button"
-            className="tool-more"
-            onClick={() => {
-              onOpenEditDiff(entry.id, reviewRef.id)
-            }}
-          >
-            {UI_TEXT.openDiff}
-          </button>
-          <button
-            type="button"
-            className="tool-more"
-            onClick={() => {
-              onRevertEdit(entry.id, reviewRef.id)
-            }}
-          >
-            {UI_TEXT.revertEdit}
-          </button>
-        </div>
-      )}
       {isFailed ? (
         <div className="tool-failure" role="alert">
           {entry.status === 'rejected' ? UI_TEXT.toolRejected : UI_TEXT.toolFailed}
@@ -330,17 +377,21 @@ export function ToolRow({
         </div>
       )}
       {entry.question === undefined ? null : (
-        <QuestionCard question={entry.question} onAnswer={onAnswer} />
+        <QuestionCard question={entry.question} onAnswer={onAnswer} onCancel={onCancelQuestion} />
       )}
       {entry.questionOutcome === undefined ? null : (
         <div className="tool-outcome">
-          {UI_TEXT.questionAnswered}:{' '}
-          {entry.questionOutcome.answers
-            .map(
-              (answer) =>
-                answer.selectedLabel ?? answer.selectedLabels?.join(', ') ?? answer.freeText ?? '',
-            )
-            .join('; ')}
+          {entry.questionOutcome.answers.length === 0
+            ? UI_TEXT.questionCancelled
+            : `${UI_TEXT.questionAnswered}: ${entry.questionOutcome.answers
+                .map(
+                  (answer) =>
+                    answer.selectedLabel ??
+                    answer.selectedLabels?.join(', ') ??
+                    answer.freeText ??
+                    '',
+                )
+                .join('; ')}`}
         </div>
       )}
     </li>

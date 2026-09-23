@@ -13,6 +13,7 @@ import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/e
 import { availablePermissionModes, nextPermissionMode } from '../shared/permissionModes'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import {
+  type LineRange,
   parseHostToWebviewMessage,
   type PersistedState,
   type SignInMethod,
@@ -291,9 +292,9 @@ export function App({
     },
     [postMessage],
   )
-  const onRevertEdit = useCallback(
-    (itemId: string, outputRef: string) => {
-      postMessage({ type: 'revertEdit', itemId, outputRef })
+  const onOpenFile = useCallback(
+    (filePath: string, range: LineRange | undefined) => {
+      postMessage({ type: 'openFile', path: filePath, ...range })
     },
     [postMessage],
   )
@@ -317,6 +318,12 @@ export function App({
   const onAnswer = useCallback(
     (userInputId: string, answers: readonly QuestionAnswer[]) => {
       postMessage({ type: 'answerQuestion', userInputId, answers: [...answers] })
+    },
+    [postMessage],
+  )
+  const onCancelQuestion = useCallback(
+    (userInputId: string) => {
+      postMessage({ type: 'cancelQuestion', userInputId })
     },
     [postMessage],
   )
@@ -687,9 +694,10 @@ export function App({
         onOpenOutput={onOpenOutput}
         onDecide={onDecide}
         onAnswer={onAnswer}
+        onCancelQuestion={onCancelQuestion}
         onApply={onApply}
         onOpenEditDiff={onOpenEditDiff}
-        onRevertEdit={onRevertEdit}
+        onOpenFile={onOpenFile}
         onFork={state.sessionId === undefined ? undefined : onFork}
         onRewind={state.sessionId === undefined ? undefined : onRewind}
       />

@@ -76,7 +76,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.4.1.vsix
+   code --install-extension muse-spark-code-0.4.2.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -172,11 +172,13 @@ absolute path for files outside the workspace.
 
 **Transcript.** Replies render as GitHub-flavoured markdown with highlighted
 code and **Copy**, **Insert at cursor** and **Apply** on every block. Tool
-rows open to show the diff, the command and its output, or the file read;
-a chevron marks the rows that open. A finished reply carries **Copy** on
-hover. Click a tool's output to open it in a read-only editor tab (a
-stored output in full); long inline diffs sit behind **Click to expand**,
-which opens the diff editor for an edit with a stored patch. The transcript
+rows show the diff or the command and its output from the start; read
+rows open on click, and a chevron marks the rows that open. The path of an
+edit or read row opens the file with the changed lines selected. A finished
+reply carries **Copy** on hover. Click a tool's output to open it in a
+read-only editor tab (a stored output in full); **Click to expand** on an
+edit diff opens the diff editor (the file side is editable). Thinking rows
+stream their summary while the model thinks and end as "Thought for Ns". The transcript
 follows new entries while you are at the end; scrolled up, it holds still
 and **New messages** jumps to the newest.
 Reasoning folds to `Thought for Ns`. Approval cards carry the CLI's choices
@@ -219,7 +221,8 @@ current window and week; this conversation's tokens with the cache-hit rate
 and, on the Model API, a dollar estimate from Meta's published per-token
 prices (standard versus contributor tier, read 2026-09-22; the dev.meta.ai
 dashboard is the bill); and what is contributing to your usage over the
-last day or week, read from the Muse Code CLI's trace logs on this machine:
+last day or week (Muse Code reports its window only after a reply; until
+then the dialog shows the last window it reported, dated "as of"), read from the Muse Code CLI's trace logs on this machine:
 the share of model attempts from Muse's reminder agents (which run after
 every reply), from subagents, and from sessions active for 8+ hours.
 Approximate, this machine only.

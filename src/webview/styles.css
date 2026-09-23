@@ -449,6 +449,12 @@ body {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
+/* The question card's Submit is greyed out until every question has an answer (M16). */
+.button-primary:disabled {
+  opacity: 50%;
+  cursor: default;
+}
+
 .send-button:hover:enabled,
 .button-primary:hover:enabled {
   background: var(--vscode-button-hoverBackground);
@@ -855,32 +861,48 @@ body {
   padding-left: 4px;
 }
 
+/* A tool row's header (M16): the toggle (dot + label), the path or summary,
+   and the chevron, side by side; the reasoning header is a plain line. */
 .tool-header,
-.reasoning-header,
-.steps-toggle {
+.reasoning-header {
   display: flex;
   gap: var(--ms-gap);
   align-items: center;
   width: 100%;
+  min-width: 0;
   padding: 2px 0;
-  border: 0;
   color: var(--vscode-foreground);
+}
+
+.tool-toggle,
+.tool-chevron,
+.tool-path,
+.steps-toggle {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  padding: 0;
+  border: 0;
+  color: inherit;
   font: inherit;
   text-align: left;
   background: transparent;
   cursor: pointer;
 }
 
-.reasoning-header:disabled,
-.tool-header:disabled {
+.tool-toggle:disabled {
   cursor: default;
+}
+
+.tool-chevron {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* The disclosure chevron on a row that opens (M15). */
 .chevron {
   display: inline-flex;
   flex-shrink: 0;
-  margin-left: auto;
   color: var(--vscode-descriptionForeground);
   transition: transform 120ms ease;
 }
@@ -914,23 +936,29 @@ body {
   cursor: pointer;
 }
 
-.tool-open:hover,
-.tool-open:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
-}
-
 .tool-label {
   font-weight: 600;
 }
 
-.tool-summary {
+.tool-summary,
+.tool-path {
   overflow: hidden;
   color: var(--vscode-descriptionForeground);
   font-family: var(--vscode-editor-font-family);
   font-size: 0.9em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The path of an edit or read row opens the file at its change (M16). */
+.tool-path {
+  display: block;
+  min-width: 0;
+}
+
+.tool-path:hover {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: underline;
 }
 
 .tool-change,
@@ -1072,6 +1100,8 @@ body {
 
 /* Focus view: consecutive steps fold into one row. */
 .steps-toggle {
+  width: 100%;
+  padding: 2px 0;
   color: var(--vscode-descriptionForeground);
 }
 
@@ -1151,20 +1181,49 @@ body {
   font-weight: 600;
 }
 
-.question-option {
+/* The options stack as native radio buttons or checkboxes (M16). */
+.question-options {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.question-choice {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  cursor: pointer;
+}
+
+.question-choice input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.question-choice-detail {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+}
+
+/* One tab per question when the prompt carries several (M16). */
+.question-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.question-tab {
   padding: 4px 10px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 999px;
-  color: var(--vscode-foreground);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--vscode-descriptionForeground);
   font: inherit;
   background: transparent;
   cursor: pointer;
 }
 
-.question-option-on {
-  border-color: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
+.question-tab[aria-selected='true'] {
+  border-bottom-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
 }
 
 /* --- todo panel --- */
@@ -1340,8 +1399,9 @@ body {
 
 /* --- states for the additions: (0,2,0) --- */
 
-.tool-header:focus-visible,
-.reasoning-header:focus-visible,
+.tool-toggle:focus-visible,
+.tool-path:focus-visible,
+.tool-chevron:focus-visible,
 .steps-toggle:focus-visible,
 .tool-more:focus-visible,
 .code-block-button:focus-visible,
@@ -1384,13 +1444,6 @@ body {
 
 .editor-chip .chip-remove {
   flex-shrink: 0;
-}
-
-/* Open diff / Revert under an edit row. */
-.tool-actions {
-  display: flex;
-  gap: 2px;
-  padding-left: calc(var(--ms-gap) + 2px);
 }
 
 /* --- session history (M6) --- */

@@ -37,6 +37,8 @@ export const COMMAND_IDS = {
 export const GLOBAL_STATE_KEYS = {
   /** "Don't ask again" on the Windows sandbox setup prompt. */
   sandboxPromptSuppressed: 'museSpark.sandboxPromptSuppressed',
+  /** The subscription window the CLI last reported, shown "as of" until a fresh one (M16). */
+  lastUsage: 'museSpark.lastUsage',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -751,8 +753,13 @@ export const UI_TEXT = {
   approvalStep: 'step',
   approvalOf: 'of',
   questionSubmit: 'Submit',
+  questionCancel: 'Cancel',
   questionFreeTextPlaceholder: 'Type your answer',
+  questionOther: 'Other',
+  questionOtherPlaceholder: 'Type your own answer…',
   questionAnswered: 'Answered',
+  questionCancelled: 'Cancelled',
+  questionCancelFailed: 'The question could not be cancelled',
   todoTitle: 'Tasks',
   focusHiddenOne: 'step hidden by Focus view',
   focusHiddenMany: 'steps hidden by Focus view',
@@ -782,8 +789,9 @@ export const UI_TEXT = {
   editorContextRemove: 'Leave the open file out',
   editorContextLabel: 'Open file',
   linePrefix: 'L',
-  openDiff: 'Open diff',
-  revertEdit: 'Revert',
+  openFileTitle: 'Open the file at this change',
+  openFileFailed: 'Could not open the file',
+  toggleDetails: 'Show or hide the details',
   applyCode: 'Apply',
   noEditorForApply: 'Open a text editor to apply code into it.',
   diffTitleSuffix: 'Muse edit',
@@ -926,6 +934,7 @@ export const UI_TEXT = {
   compactionPrefix: 'Summary of the conversation so far (the earlier messages were compacted):',
   steeredPrefix: '[The user added while you were working]',
   answersPrefix: 'The user answered:',
+  questionCancelledOutput: 'The user declined to answer. Proceed with your best judgement.',
   resumeFailed: 'Could not resume the conversation',
   forkFailed: 'Could not fork the conversation',
   renameFailed: 'Could not rename the conversation',
