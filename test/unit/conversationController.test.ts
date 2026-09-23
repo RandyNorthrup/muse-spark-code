@@ -23,6 +23,7 @@ import type { HostAction, LineRange, MentionItem } from '../../src/shared/protoc
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeInitializeResult, fakeMspHost, refusalOf, settle } from './helpers/fakeMsp'
 
@@ -861,6 +862,8 @@ describe('ConversationController: context', () => {
       { name: 'shot.png', fsPath: '/tmp/shot.png', relativePath: undefined },
       { name: 'notes.md', fsPath: '/ws/docs/notes.md', relativePath: 'docs/notes.md' },
       { name: 'out.txt', fsPath: String.raw`D:\out.txt`, relativePath: undefined },
+      { name: 'a b.md', fsPath: String.raw`D:\My Files\a b.md`, relativePath: undefined },
+      { name: 'x#1.md', fsPath: '/ws/my docs/x#1.md', relativePath: 'my docs/x#1.md' },
     ])
     await t.controller.handle({ type: 'pickFile' })
     expect(t.surface.posted).toEqual([
@@ -877,6 +880,9 @@ describe('ConversationController: context', () => {
       },
       { type: 'insertText', text: '@docs/notes.md ' },
       { type: 'insertText', text: '@D:/out.txt ' },
+      // Quoted so the path reads back whole (D27).
+      { type: 'insertText', text: '@"D:/My Files/a b.md" ' },
+      { type: 'insertText', text: '@"my docs/x#1.md" ' },
     ])
   })
 
@@ -917,9 +923,11 @@ describe('ConversationController: context', () => {
       uris: ['file:///ws/a.ts', 'file:///elsewhere/b.ts', 'file:///ws/c.ts'],
     })
     await t.controller.handle({ type: 'droppedUris', uris: ['file:///elsewhere/b.ts'] })
+    await t.controller.handle({ type: 'droppedUris', uris: ['file:///ws/my notes.md'] })
     expect(t.surface.posted).toEqual([
       { type: 'insertText', text: '@src/app.ts ' },
       { type: 'insertText', text: '@a.ts @c.ts ' },
+      { type: 'insertText', text: '@"my notes.md" ' },
     ])
   })
 
@@ -1983,6 +1991,7 @@ describe('ConversationController: backends and tiers (M7)', () => {
       workspaceRoot: String.raw`C:\Users\r\ws`,
       platform: 'win32',
       io: noopToolIo,
+      contextIo: memoryContextIo(new Map()),
       newId: () => 'fixed',
       now: () => 0,
       log: t.log,

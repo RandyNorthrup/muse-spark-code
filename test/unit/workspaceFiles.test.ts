@@ -1,6 +1,37 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createWorkspaceFileLister, parseNulSeparated } from '../../src/host/mention/workspaceFiles'
+import {
+  createWorkspaceFileLister,
+  findRootFiles,
+  parseNulSeparated,
+} from '../../src/host/mention/workspaceFiles'
+import { rootRelativePath } from '../../src/core/workspaceRoot'
+import { fakeFolders } from './helpers/fakeFolders'
 import { FakeLogOutputChannel } from './helpers/fakes'
+
+describe('findRootFiles (D27)', () => {
+  const lookup = fakeFolders(['file:///ws', 'file:///second'])
+  const relativePath = (uri: string) => rootRelativePath(uri, lookup)
+
+  it('lists the first folder files relative to it and nothing of a second folder', async () => {
+    const search = vi.fn(() =>
+      Promise.resolve([
+        'file:///ws/src/a.ts',
+        'file:///ws/packages/nested/b.ts',
+        // A search that strayed (it cannot, with a RelativePattern) still lists nothing outside.
+        'file:///second/c.ts',
+      ]),
+    )
+    await expect(findRootFiles({ search, relativePath })).resolves.toEqual([
+      'src/a.ts',
+      'packages/nested/b.ts',
+    ])
+    expect(search).toHaveBeenCalledOnce()
+  })
+
+  it('lists nothing without a folder', async () => {
+    await expect(findRootFiles({ search: undefined, relativePath })).resolves.toEqual([])
+  })
+})
 
 function setup(
   options: { respectGitIgnore?: boolean; gitFails?: boolean; isTrusted?: boolean } = {},

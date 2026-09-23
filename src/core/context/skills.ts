@@ -6,6 +6,13 @@
 // project skill shadows a personal one with the same id. The catalogue
 // (id and description) goes into the instructions; the body is loaded on
 // demand by `read_skill` or a typed `/id arguments` invocation.
+//
+// A skill directory may be a symbolic link or a junction (D27): a personal
+// one is followed wherever it leads, since the user made it in their own
+// config root (a dotfiles checkout is the usual target), while a project one
+// is a file the repository ships and is confined to the workspace like every
+// other workspace read (D24): a link that leads outside it is skipped with a
+// warning, as the file tools refuse it, and the other skills still load.
 
 import path from 'node:path'
 import {
@@ -16,7 +23,7 @@ import {
   SKILL_ID_PATTERN,
   type SKILL_SOURCES,
 } from '../../shared/constants'
-import type { ToolIo } from '../backends/modelapi/tools'
+import { type ContextIo, type ContextText, readContextText } from './contextFiles'
 
 export type SkillSource = (typeof SKILL_SOURCES)[number]
 
@@ -36,6 +43,11 @@ export interface SkillRoot {
   /** Absolute directory holding `<id>/SKILL.md` entries. */
   readonly directory: string
   readonly source: SkillSource
+  /**
+   * The workspace root for project skills: a skill file whose canonical
+   * path leaves it is skipped. Undefined for the personal root.
+   */
+  readonly confineTo: string | undefined
 }
 
 export interface SkillsLoad {
@@ -142,8 +154,25 @@ export function personalSkillsRoot(input: PersonalSkillsRootInput): string {
 }
 
 export interface SkillsLoaderDeps {
-  readonly io: ToolIo
+  readonly io: ContextIo
   readonly platform: NodeJS.Platform
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** One skill file; a read that throws (a link loop, permissions) is a refusal of that skill only. */
+async function readSkillFile(
+  deps: SkillsLoaderDeps,
+  file: string,
+  confineTo: string | undefined,
+): Promise<ContextText | undefined> {
+  try {
+    return await readContextText(deps, file, confineTo)
+  } catch (error: unknown) {
+    return { ok: false, reason: `could not be read: ${describe(error)}` }
+  }
 }
 
 async function loadRoot(
@@ -168,11 +197,16 @@ async function loadRoot(
       continue
     }
     const file = p.join(root.directory, id, SKILL_FILE_NAME)
-    const text = await deps.io.readFile(file)
-    if (text === undefined) {
+    const read = await readSkillFile(deps, file, root.confineTo)
+    if (read === undefined) {
       warnings.push(`${label} skipped: ${SKILL_FILE_NAME} is missing`)
       continue
     }
+    if (!read.ok) {
+      warnings.push(`${label} skipped: ${SKILL_FILE_NAME} ${read.reason}`)
+      continue
+    }
+    const { text } = read
     const bytes = Buffer.byteLength(text)
     if (bytes > SKILL_FILE_MAX_BYTES) {
       warnings.push(

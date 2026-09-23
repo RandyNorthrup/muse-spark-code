@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { WorkspaceContext } from '../../src/core/context/workspaceContext'
 import { RULES_FILE_MAX_BYTES } from '../../src/shared/constants'
-import { memoryToolIo } from './helpers/fakeToolIo'
+import { loaderDeps, memoryContextIo, memoryTree } from './helpers/fakeContextIo'
 
 const ROOT = '/ws'
 const USER_ROOT = '/ws/.home/.config/muse/skills'
@@ -9,8 +9,9 @@ const USER_ROOT = '/ws/.home/.config/muse/skills'
 const skillFile = (name: string, description: string) =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\nBody of ${name}\n`
 
-function setup(files: Record<string, string>, isTrusted = true) {
-  const io = memoryToolIo(files, ROOT)
+function setup(initial: Record<string, string>, isTrusted = true) {
+  const files = memoryTree(initial, ROOT)
+  const io = memoryContextIo(files)
   const warnings: string[] = []
   const context = new WorkspaceContext({
     io,
@@ -22,7 +23,7 @@ function setup(files: Record<string, string>, isTrusted = true) {
       warnings.push(message)
     },
   })
-  return { io, context, warnings }
+  return { files, context, warnings }
 }
 
 describe('WorkspaceContext', () => {
@@ -82,10 +83,10 @@ describe('WorkspaceContext', () => {
     const t = setup({ '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps') })
     await t.context.load()
     await expect(t.context.refreshSkills()).resolves.toBe(false)
-    t.io.files.set(`${ROOT}/.agents/skills/whisper/SKILL.md`, skillFile('whisper', 'Quiet'))
+    t.files.set(`${ROOT}/.agents/skills/whisper/SKILL.md`, skillFile('whisper', 'Quiet'))
     await expect(t.context.refreshSkills()).resolves.toBe(true)
     expect(t.context.sections().skills.map((skill) => skill.id)).toEqual(['shout', 'whisper'])
-    t.io.files.delete(`${ROOT}/.agents/skills/whisper/SKILL.md`)
+    t.files.delete(`${ROOT}/.agents/skills/whisper/SKILL.md`)
     await expect(t.context.refreshSkills()).resolves.toBe(true)
   })
 
@@ -109,7 +110,7 @@ describe('WorkspaceContext', () => {
 describe('WorkspaceContext: failing reads', () => {
   it('turns a throwing read into warnings and keeps the turn alive', async () => {
     const warnings: string[] = []
-    const io = memoryToolIo({ 'AGENTS.md': 'root\n' }, ROOT)
+    const { io } = loaderDeps({ 'AGENTS.md': 'root\n' })
     const failing = {
       ...io,
       readFile: () => Promise.reject(new Error('EACCES: permission denied')),

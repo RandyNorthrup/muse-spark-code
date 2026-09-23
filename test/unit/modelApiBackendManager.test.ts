@@ -3,6 +3,7 @@ import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
+import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 
 /** A manager on the fake API with no waits, over the given root and store. */
@@ -20,6 +21,7 @@ function managerOn(
       getApiKey: () => Promise.resolve('LLM|1|secret'),
       workspaceRoot,
       io: noopToolIo,
+      contextIo: memoryContextIo(new Map()),
       fetch: api.fetch,
       newId: () => 'id',
       now: () => 0,

@@ -60,6 +60,7 @@ import type {
   TurnPart,
   TurnSubmission,
 } from '../../agent/agentBackend'
+import type { ContextIo } from '../../context/contextFiles'
 import { type SkillDefinition } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
@@ -113,6 +114,8 @@ export interface ModelApiHostDeps {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
+  /** What the rules, skills and memory loaders read through (PLAN.md D27). */
+  readonly contextIo: ContextIo
   readonly newId: () => string
   /** Epoch milliseconds. */
   readonly now: () => number
@@ -411,7 +414,7 @@ export class ModelApiSession implements AgentSession {
     this.modelId = modelId
     this.permissions = new PermissionEngine(approvalMode)
     this.context = new WorkspaceContext({
-      io: deps.io,
+      io: deps.contextIo,
       workspaceRoot: deps.workspaceRoot,
       platform: deps.platform,
       personalSkillsRoot: deps.personalSkillsRoot,

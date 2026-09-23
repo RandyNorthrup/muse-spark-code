@@ -219,6 +219,15 @@ describe('Composer mention menu', () => {
     expect(screen.queryByRole('listbox')).toBeNull()
   })
 
+  it('searches a quoted name with its space and inserts a spaced path quoted (D27)', () => {
+    const { props, view } = renderComposer()
+    type(view, props, 'see @"my no')
+    expect(props.onSearchMentions).toHaveBeenLastCalledWith(1, 'my no')
+    type(view, props, 'see @"my no', { mentionResults: withResults(['my notes/a b.md']) })
+    fireEvent.click(screen.getByRole('option'))
+    expect(props.onDraftChange).toHaveBeenLastCalledWith('see @"my notes/a b.md" ')
+  })
+
   it('ignores stale results and shows the empty state for no matches', () => {
     const { props, view } = renderComposer()
     type(view, props, '@zz')

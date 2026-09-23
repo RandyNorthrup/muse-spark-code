@@ -25,6 +25,25 @@ describe('formatMentionReference', () => {
     ).toBe('@app.ts')
   })
 
+  it('quotes a path with a space or # so the reference reads back whole (D27)', () => {
+    expect(
+      formatMentionReference({
+        relativePath: 'my app/main#2.ts',
+        startLine: 5,
+        endLine: 10,
+        isEmpty: false,
+      }),
+    ).toBe('@"my app/main#2.ts"#5-10')
+    expect(
+      formatMentionReference({
+        relativePath: String.raw`C:\Other Folder\x.ts`,
+        startLine: 1,
+        endLine: 1,
+        isEmpty: true,
+      }),
+    ).toBe('@"C:/Other Folder/x.ts"')
+  })
+
   it('normalises Windows separators', () => {
     expect(
       formatMentionReference({

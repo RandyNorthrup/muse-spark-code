@@ -4,8 +4,9 @@
 // root file is loaded at session start and a subdirectory's file the first
 // time a tool touches a path beneath it; deeper files come later so they
 // win. A file over `RULES_FILE_MAX_BYTES` is skipped and the whole context
-// is cut at `RULES_CONTEXT_MAX_BYTES`, each with the warning Muse prints.
-// Pure: every read goes through `ToolIo`.
+// is cut at `RULES_CONTEXT_MAX_BYTES`, each with the warning Muse prints. A
+// file that is not text, or leads outside the workspace through a link, is
+// skipped with the reason (D27). Pure: every read goes through `ContextIo`.
 
 import path from 'node:path'
 import {
@@ -14,7 +15,7 @@ import {
   RULES_FILE_NAMES,
   RULES_TRUNCATED_MARKER,
 } from '../../shared/constants'
-import type { ToolIo } from '../backends/modelapi/tools'
+import { type ContextIo, readContextText } from './contextFiles'
 
 export interface RuleFile {
   /** Workspace-relative, forward slashes (`AGENTS.md`, `src/CLAUDE.md`). */
@@ -30,7 +31,7 @@ export interface RuleFileLoad {
 }
 
 export interface RulesLoaderDeps {
-  readonly io: ToolIo
+  readonly io: ContextIo
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
 }
@@ -53,7 +54,10 @@ export function ruleDirectoriesFor(relativePath: string): readonly string[] {
 
 /**
  * The rules file of one directory: `AGENTS.md`, else `CLAUDE.md`, else none.
- * Over the size limit the file is skipped with Muse Code's warning.
+ * Over the size limit the file is skipped with Muse Code's warning; a file
+ * that cannot be read as text, or leads outside the workspace, is skipped
+ * with the reason. Either way the other name is not tried: the first one
+ * present governs the directory.
  */
 export async function loadRuleFile(
   deps: RulesLoaderDeps,
@@ -63,10 +67,17 @@ export async function loadRuleFile(
   for (const name of RULES_FILE_NAMES) {
     const relative = directory === '' ? name : `${directory}${SEPARATOR}${name}`
     const absolute = p.join(deps.workspaceRoot, ...relative.split(SEPARATOR))
-    const text = await deps.io.readFile(absolute)
-    if (text === undefined) {
+    const read = await readContextText(deps, absolute, deps.workspaceRoot)
+    if (read === undefined) {
       continue
     }
+    if (!read.ok) {
+      return {
+        file: undefined,
+        warning: `rules file at ${relative} ${read.reason}; it is skipped for this session`,
+      }
+    }
+    const { text } = read
     const bytes = Buffer.byteLength(text)
     if (bytes > RULES_FILE_MAX_BYTES) {
       return {

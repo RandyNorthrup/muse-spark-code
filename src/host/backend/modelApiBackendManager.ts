@@ -7,6 +7,7 @@ import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
+import type { ContextIo } from '../../core/context/contextFiles'
 import { MODEL_API_BASE_URL } from '../../shared/constants'
 import type { Logger } from '../logger'
 
@@ -15,6 +16,8 @@ export interface ModelApiBackendManagerDeps {
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
+  /** The rules, skills and memory loaders' file access (PLAN.md D27). */
+  readonly contextIo: ContextIo
   readonly fetch: typeof fetch
   readonly newId: () => string
   readonly now: () => number
@@ -81,6 +84,7 @@ export class ModelApiBackendManager {
       workspaceRoot,
       platform: process.platform,
       io: this.deps.io,
+      contextIo: this.deps.contextIo,
       newId: this.deps.newId,
       now: this.deps.now,
       log: this.deps.log,

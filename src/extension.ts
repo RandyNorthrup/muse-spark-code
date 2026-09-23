@@ -19,11 +19,18 @@ import { type DiagnosticEntry, type DiagnosticSeverity, diagnosticsTool } from '
 import type { EditorContext } from './core/editorContext'
 import type { MentionSource } from './core/mention'
 import { MentionIndex } from './core/mentionIndex'
+import {
+  type FolderLookup,
+  hostSideUri,
+  resolveAgainstRoot,
+  rootRelativePath,
+} from './core/workspaceRoot'
 import { AuthService } from './host/auth/authService'
 import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
+import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
 import { museSettingsPath, readDelegationMode } from './host/backend/museSettings'
@@ -46,7 +53,7 @@ import { canonicalPath } from './host/canonicalPath'
 import { createGitRunner } from './host/git'
 import { createLogger } from './host/logger'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
-import { createWorkspaceFileLister } from './host/mention/workspaceFiles'
+import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
 import { readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
@@ -117,7 +124,8 @@ function activeSelection(): MentionSource | undefined {
     return undefined
   }
   return {
-    relativePath: vscode.workspace.asRelativePath(editor.document.uri, false),
+    // A file outside the first folder is named by its absolute path (D27).
+    relativePath: relativePathInWorkspace(editor.document.uri) ?? editor.document.uri.fsPath,
     startLine: editor.selection.start.line + 1,
     endLine: editor.selection.end.line + 1,
     isEmpty: editor.selection.isEmpty,
@@ -149,11 +157,11 @@ const DIAGNOSTIC_SEVERITIES: readonly DiagnosticSeverity[] = [
   'hint',
 ]
 
-/** Every diagnostic VS Code holds, as plain entries for the IDE tool. */
+/** Every diagnostic VS Code holds, by root-relative path; the tool reports the root's only (D27). */
 function collectDiagnostics(): readonly DiagnosticEntry[] {
   return vscode.languages.getDiagnostics().flatMap(([uri, diagnostics]) =>
     diagnostics.map((diagnostic): DiagnosticEntry => ({
-      path: relativePathInWorkspace(uri) ?? uri.fsPath,
+      path: relativePathInWorkspace(uri),
       severity: DIAGNOSTIC_SEVERITIES[diagnostic.severity] ?? 'error',
       line: diagnostic.range.start.line + 1,
       column: diagnostic.range.start.character + 1,
@@ -253,15 +261,39 @@ async function promptForApiKey(): Promise<string | undefined> {
   })
 }
 
-function relativePathInWorkspace(uri: vscode.Uri): string | undefined {
-  return vscode.workspace.getWorkspaceFolder(uri) === undefined
-    ? undefined
-    : vscode.workspace.asRelativePath(uri, false).replaceAll('\\', '/')
+/** The root every workspace-relative path is relative to: the first folder (PLAN.md D27). */
+function firstFolderPath(): string | undefined {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
 }
 
-async function findWorkspaceFiles(): Promise<readonly string[]> {
-  const uris = await vscode.workspace.findFiles(FIND_FILES_GLOB, undefined, MENTION_INDEX_LIMIT)
-  return uris.map((uri) => vscode.workspace.asRelativePath(uri, false).replaceAll('\\', '/'))
+// VS Code's own attribution of a resource to a folder (PLAN.md D27).
+const folderLookup: FolderLookup<vscode.Uri> = {
+  folderOf: (uri) => vscode.workspace.getWorkspaceFolder(uri),
+  relativePath: (uri) => vscode.workspace.asRelativePath(uri, false),
+  parentOf: (uri) => vscode.Uri.joinPath(uri, '..'),
+  isSame: (a, b) => a.toString() === b.toString(),
+}
+
+/** Relative to the first folder; undefined for a file anywhere else, a second folder included. */
+function relativePathInWorkspace(uri: vscode.Uri): string | undefined {
+  return rootRelativePath(uri, folderLookup)
+}
+
+/** VS Code's file search, the first folder's files only (D27). */
+function findWorkspaceFiles(): Promise<readonly string[]> {
+  const root = vscode.workspace.workspaceFolders?.[0]
+  return findRootFiles({
+    search:
+      root === undefined
+        ? undefined
+        : () =>
+            vscode.workspace.findFiles(
+              new vscode.RelativePattern(root, FIND_FILES_GLOB),
+              undefined,
+              MENTION_INDEX_LIMIT,
+            ),
+    relativePath: relativePathInWorkspace,
+  })
 }
 
 // git by absolute path, with a timeout and no optional locks (PLAN.md D24).
@@ -334,7 +366,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .update(key, value, vscode.ConfigurationTarget.Global)
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+  const workspaceRoot = firstFolderPath()
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
   const credentials = new CredentialStore(context.secrets, (message) => {
@@ -459,7 +491,14 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   })
   const ideServer = new IdeMcpServer(
-    [diagnosticsTool({ getDiagnostics: collectDiagnostics, workspaceRoot })],
+    [
+      diagnosticsTool({
+        getDiagnostics: collectDiagnostics,
+        workspaceRoot,
+        platform: process.platform,
+        relativeInRoot: (absolutePath) => relativePathInWorkspace(vscode.Uri.file(absolutePath)),
+      }),
+    ],
     log,
   )
   const startIdeServer = async (): Promise<void> => {
@@ -501,7 +540,7 @@ export function activate(context: vscode.ExtensionContext): void {
     filePath: string,
     range: { readonly startLine: number; readonly endLine: number } | undefined,
   ): Promise<void> => {
-    const fsPath = path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot ?? '', filePath)
+    const fsPath = resolveAgainstRoot(filePath, workspaceRoot, process.platform)
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath))
     const editor = await vscode.window.showTextDocument(document, { preview: true })
     if (range === undefined) {
@@ -593,6 +632,7 @@ export function activate(context: vscode.ExtensionContext): void {
             isSamePath(document.uri.fsPath, absolutePath, process.platform),
         ),
     }),
+    contextIo: fileContextIo,
     fetch: globalThis.fetch.bind(globalThis),
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
@@ -694,7 +734,12 @@ export function activate(context: vscode.ExtensionContext): void {
         limit: QUICK_PICK_LIMIT,
         placeholder: UI_TEXT.mentionFile,
       }),
-    toRelativePath: (uri) => relativePathInWorkspace(vscode.Uri.parse(uri)),
+    // A dropped URI is the UI side's name for the file; in a remote window it
+    // is mapped to this (remote) side's as VS Code maps URIs itself (D27).
+    toRelativePath: (uri) =>
+      relativePathInWorkspace(
+        vscode.Uri.from(hostSideUri(vscode.Uri.parse(uri), vscode.env.remoteName)),
+      ),
   }
 
   const runHostAction = async (action: HostAction): Promise<void> => {

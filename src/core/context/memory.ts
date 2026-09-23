@@ -3,7 +3,8 @@
 // (one line per note) and reads the index at session start. The model
 // gets that index in its instructions and reads or writes the notes with
 // the ordinary file tools under the permission mode. Over the limits the
-// index is cut with Muse Code's own marker.
+// index is cut with Muse Code's own marker; an index that is not text, or
+// leads outside the workspace through a link, is refused (D27).
 
 import path from 'node:path'
 import {
@@ -12,7 +13,7 @@ import {
   MEMORY_INDEX_SEGMENTS,
   MEMORY_TRUNCATED_MARKER,
 } from '../../shared/constants'
-import type { ToolIo } from '../backends/modelapi/tools'
+import { type ContextIo, readContextText } from './contextFiles'
 
 export interface MemoryIndex {
   /** Workspace-relative path of the index, forward slashes. */
@@ -22,21 +23,29 @@ export interface MemoryIndex {
 }
 
 export interface MemoryLoaderDeps {
-  readonly io: ToolIo
+  readonly io: ContextIo
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
 }
 
 const LINE_BREAK = /\r?\n/
 
-/** The memory index, or undefined when the workspace keeps none. */
+/**
+ * The memory index, or undefined when the workspace keeps none. Throws with
+ * the reason when the index cannot be read as text.
+ */
 export async function loadMemoryIndex(deps: MemoryLoaderDeps): Promise<MemoryIndex | undefined> {
   const p = deps.platform === 'win32' ? path.win32 : path.posix
   const relative = MEMORY_INDEX_SEGMENTS.join('/')
-  const text = await deps.io.readFile(p.join(deps.workspaceRoot, ...MEMORY_INDEX_SEGMENTS))
-  if (text === undefined) {
+  const absolute = p.join(deps.workspaceRoot, ...MEMORY_INDEX_SEGMENTS)
+  const read = await readContextText(deps, absolute, deps.workspaceRoot)
+  if (read === undefined) {
     return undefined
   }
+  if (!read.ok) {
+    throw new Error(`${relative} ${read.reason}`)
+  }
+  const { text } = read
   const lines = text.split(LINE_BREAK)
   const bytes = Buffer.byteLength(text)
   if (lines.length <= MEMORY_INDEX_MAX_LINES && bytes <= MEMORY_INDEX_MAX_BYTES) {
