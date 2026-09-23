@@ -29,16 +29,40 @@ export interface ModelApiBackendManagerDeps {
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
 }
 
+const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'
+
 export class ModelApiBackendManager {
   private host: ModelApiHost | undefined
+  /**
+   * The host being built (PLAN.md D25): every caller waits for the stored
+   * sessions to be read, and a failed build is forgotten so the next call
+   * tries again instead of reusing half a host.
+   */
+  private building: Promise<ModelApiHost> | undefined
+  /** Bumped by every dispose: a build that finishes after one is closed, not kept. */
+  private generation = 0
 
   public constructor(private readonly deps: ModelApiBackendManagerDeps) {}
 
-  /** The host, created on first use with the stored sessions read. Rejects without a workspace. */
-  public async ensureHost(): Promise<ModelApiHost> {
-    if (this.host !== undefined) {
-      return this.host
+  /** One build, owned by the generation it was started in. */
+  private async buildOnce(generation: number): Promise<ModelApiHost> {
+    let host: ModelApiHost
+    try {
+      host = await this.build()
+    } finally {
+      if (this.generation === generation) {
+        this.building = undefined
+      }
     }
+    if (this.generation !== generation) {
+      await host.close()
+      throw new Error(MANAGER_DISPOSED)
+    }
+    this.host = host
+    return host
+  }
+
+  private async build(): Promise<ModelApiHost> {
     const { workspaceRoot } = this.deps
     if (workspaceRoot === undefined) {
       throw new Error('Open a folder first; the Model API backend works inside a workspace.')
@@ -48,10 +72,11 @@ export class ModelApiBackendManager {
       baseUrl: MODEL_API_BASE_URL,
       apiKey: this.deps.getApiKey,
       sleep: this.deps.sleep,
+      now: this.deps.now,
       random: this.deps.random,
       log: this.deps.log,
     })
-    this.host = new ModelApiHost({
+    const host = new ModelApiHost({
       client,
       workspaceRoot,
       platform: process.platform,
@@ -64,13 +89,22 @@ export class ModelApiBackendManager {
       store: this.deps.store,
       describeEnvironment: this.deps.describeEnvironment,
     })
-    await this.host.load()
+    await host.load()
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')
-    return this.host
+    return host
+  }
+
+  /** The host, created on first use with the stored sessions read. Rejects without a workspace. */
+  public ensureHost(): Promise<ModelApiHost> {
+    if (this.host !== undefined) {
+      return Promise.resolve(this.host)
+    }
+    this.building ??= this.buildOnce(this.generation)
+    return this.building
   }
 
   public get isRunning(): boolean {
-    return this.host !== undefined
+    return this.host !== undefined || this.building !== undefined
   }
 
   /** A skill file changed: the running host re-reads its catalogue. */
@@ -78,9 +112,12 @@ export class ModelApiBackendManager {
     await this.host?.refreshSkills()
   }
 
+  /** Closes the host; one still being built closes itself when it is ready. */
   public async dispose(): Promise<void> {
-    const host = this.host
+    this.generation += 1
+    const { host } = this
     this.host = undefined
+    this.building = undefined
     await host?.close()
   }
 }

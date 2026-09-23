@@ -6,15 +6,17 @@
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
-import type {
-  AgentHost,
-  AgentSession,
-  LoadedSession,
-  SessionListEvent,
-  SessionMcpHttpServer,
-  SessionRecord,
-  TurnPart,
-  BackendKind,
+import {
+  type AgentHost,
+  type AgentSession,
+  type BackendKind,
+  type HostExit,
+  type LoadedSession,
+  type SessionListEvent,
+  type SessionMcpHttpServer,
+  SessionNotLoadedError,
+  type SessionRecord,
+  type TurnPart,
 } from '../../core/agent/agentBackend'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
@@ -286,6 +288,16 @@ export class ConversationController {
   private hasConfirmedRemoteBypass = false
   /** Said once the surface is ready: why the conversation did not start as configured. */
   private startupNotice: string | undefined
+  /** The backend kind of the attached session (a resume only goes to the same kind). */
+  private sessionKind: BackendKind | undefined
+  /** Stops listening for the host closing this session. */
+  private closedWatch: (() => void) | undefined
+  /** The session the next message resumes after a restart or a crash (PLAN.md D25). */
+  private resumeTarget: { readonly sessionId: string; readonly kind: BackendKind } | undefined
+  /** A session start in flight, shared by concurrent callers. */
+  private sessionOpening: Promise<AgentSession> | undefined
+  /** The surface closed: nothing started after this is kept. */
+  private isDisposed = false
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -369,12 +381,65 @@ export class ConversationController {
     }
   }
 
-  private dropSession(): void {
+  /** `turn/cancel` for a session being left: a refusal is only worth a log line. */
+  private async cancelQuietly(session: AgentSession): Promise<void> {
+    try {
+      await session.cancel()
+    } catch (error: unknown) {
+      this.deps.log.warn(`turn/cancel before leaving the session failed: ${describe(error)}`)
+    }
+  }
+
+  /**
+   * Lets go of the session. A turn still running is cancelled first unless
+   * the caller says the host is already gone or has been told (PLAN.md D25):
+   * a dropped turn would otherwise run on, unwatched and billed.
+   */
+  private dropSession(isTurnCancelled = true): void {
+    const { session } = this
+    if (isTurnCancelled && session !== undefined && this.activeTurnId !== undefined) {
+      void this.cancelQuietly(session)
+    }
     this.unsubscribe?.()
     this.unsubscribe = undefined
-    this.session?.dispose()
+    this.closedWatch?.()
+    this.closedWatch = undefined
+    session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
+  }
+
+  /**
+   * Ends the running turn in the webview when the host cannot say so any
+   * more (it stopped, restarted or closed the session, D25): the reply stops
+   * streaming and its cards go, as for a turn the host completed.
+   */
+  private endTurnLocally(terminal: 'cancelled' | 'failed', reason: string): void {
+    const turnId = this.activeTurnId
+    if (turnId === undefined) {
+      return
+    }
+    this.activeTurnId = undefined
+    this.forward({ type: 'turnCompleted', turnId, terminal, reason })
+  }
+
+  /** The session to pick up on the next message, on a host of the same kind. */
+  private rememberForResume(session: AgentSession | undefined): void {
+    this.resumeTarget =
+      session === undefined || this.sessionKind === undefined
+        ? undefined
+        : { sessionId: session.sessionId, kind: this.sessionKind }
+  }
+
+  /** The host closed this panel's session (idle eviction, a lease lost): resume on the next message. */
+  private sessionClosedByHost(reason: string): void {
+    this.rememberForResume(this.session)
+    this.endTurnLocally('failed', `${UI_TEXT.sessionClosedByHost} (${reason})`)
+    this.dropSession(false)
+    this.notice(
+      'info',
+      `${UI_TEXT.sessionClosedByHost} (${reason}). ${UI_TEXT.sessionResumesOnSend}`,
+    )
   }
 
   /**
@@ -797,10 +862,21 @@ export class ConversationController {
   }
 
   /** Take a session as this surface's: events, composer state, skills. */
-  private async attach(session: AgentSession): Promise<void> {
+  private async attach(host: AgentHost, session: AgentSession): Promise<void> {
     this.session = session
+    this.sessionKind = host.info.kind
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
+    })
+    // The host closing this very session is heard here (D25), not only in History.
+    this.closedWatch = host.onSessionListEvent((event) => {
+      if (
+        event.type === 'closed' &&
+        event.sessionId === session.sessionId &&
+        this.session === session
+      ) {
+        this.sessionClosedByHost(event.reason)
+      }
     })
     this.postSessionInfo(this.modelId)
     this.noteActivity()
@@ -808,12 +884,35 @@ export class ConversationController {
     void this.refreshSkills(session)
   }
 
-  private async ensureSession(workspaceRoot: string): Promise<AgentSession> {
+  /**
+   * The session for the next message. Concurrent callers (two quick sends, a
+   * send racing a restore) share one start, so no second session is created
+   * and left listening (D25).
+   */
+  private ensureSession(workspaceRoot: string): Promise<AgentSession> {
     if (this.session !== undefined) {
-      return this.session
+      return Promise.resolve(this.session)
     }
+    this.sessionOpening ??= this.openSessionOnce(workspaceRoot)
+    return this.sessionOpening
+  }
+
+  /** `openSession`, forgetting the shared start once it settles. */
+  private async openSessionOnce(workspaceRoot: string): Promise<AgentSession> {
+    try {
+      return await this.openSession(workspaceRoot)
+    } finally {
+      this.sessionOpening = undefined
+    }
+  }
+
+  private async openSession(workspaceRoot: string): Promise<AgentSession> {
     const host = await this.deps.ensureHost()
     await this.ensureModels(host)
+    const resumed = await this.resumeAfterRestart(host)
+    if (resumed !== undefined) {
+      return resumed
+    }
     const mcpServers = this.mcpServersFor(host)
     const session = await host.startSession({
       workspaceRoot,
@@ -821,14 +920,55 @@ export class ConversationController {
       approvalMode: approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       ...(mcpServers !== undefined && { mcpServers }),
     })
+    if (this.isDisposed) {
+      // The surface closed while the session was starting: nobody would listen.
+      session.dispose()
+      throw new Error(UI_TEXT.surfaceClosed)
+    }
     this.modelId = session.modelId
-    await this.attach(session)
+    await this.attach(host, session)
     if (host.info.kind === 'modelApi') {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else {
       this.noteShellSandbox(workspaceRoot, host.info.serverVersion)
     }
     return session
+  }
+
+  /**
+   * After a restart, a crash or the host closing the session, the next
+   * message continues the same conversation (D25) rather than starting one
+   * with no context. The webview kept its transcript, so nothing is
+   * replayed. If the session cannot be resumed the user is told and a new
+   * one starts.
+   */
+  private async resumeAfterRestart(host: AgentHost): Promise<AgentSession | undefined> {
+    const target = this.resumeTarget
+    this.resumeTarget = undefined
+    if (target?.kind !== host.info.kind) {
+      return undefined
+    }
+    let loaded: LoadedSession
+    try {
+      loaded = await host.resumeSession(target.sessionId, this.modelId, this.mcpServersFor(host))
+    } catch (error: unknown) {
+      this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`)
+      return undefined
+    }
+    if (this.isDisposed) {
+      loaded.session.dispose()
+      throw new Error(UI_TEXT.surfaceClosed)
+    }
+    await this.attach(host, loaded.session)
+    try {
+      await loaded.session.setApprovalMode(
+        approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+      )
+    } catch (error: unknown) {
+      this.notice('warning', `Could not apply the permission mode: ${describe(error)}`)
+    }
+    this.notice('info', UI_TEXT.sessionContinued)
+    return loaded.session
   }
 
   /** Why a user action cannot run now (signed out / no folder), posted as asked. */
@@ -958,7 +1098,11 @@ export class ConversationController {
     if (loaded.history.mode === HISTORY_MODE_NONE) {
       this.notice('warning', UI_TEXT.historyNotServed)
     }
-    await this.attach(loaded.session)
+    if (this.isDisposed) {
+      loaded.session.dispose()
+      return
+    }
+    await this.attach(host, loaded.session)
     const target = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
     try {
       await loaded.session.setApprovalMode(target)
@@ -1119,7 +1263,10 @@ export class ConversationController {
       const parts = [...typed, ...referenced, ...(context === undefined ? [] : [context]), ...note]
       // With extra parts the durable transcript keeps the typed text only.
       const displayText = parts.length === typed.length ? undefined : text
-      const turnId = await this.submit(session, parts, displayText)
+      const turnId = await this.submitResuming(host, session, parts, displayText)
+      if (this.isDisposed) {
+        return
+      }
       this.activeTurnId = turnId
       this.post({ type: 'turnAccepted', localId, turnId })
       this.noteActivity()
@@ -1127,6 +1274,30 @@ export class ConversationController {
       const reason = describe(error)
       this.deps.log.error(`sendMessage failed: ${reason}`)
       this.post({ type: 'sendFailed', localId, reason })
+    }
+  }
+
+  /**
+   * `submit`, once more on the resumed session when the host says it no
+   * longer holds this one (MSP `sessionNotLoaded`: evicted or closed, D25).
+   */
+  private async submitResuming(
+    host: AgentHost,
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    displayText: string | undefined,
+  ): Promise<string> {
+    try {
+      return await this.submit(session, parts, displayText)
+    } catch (error: unknown) {
+      if (!(error instanceof SessionNotLoadedError) || this.deps.workspaceRoot === undefined) {
+        throw error
+      }
+      this.deps.log.info(`Session ${error.sessionId} was not loaded; resuming it`)
+      this.resumeTarget = { sessionId: error.sessionId, kind: host.info.kind }
+      this.dropSession(false)
+      const resumed = await this.ensureSession(this.deps.workspaceRoot)
+      return await this.submit(resumed, parts, displayText)
     }
   }
 
@@ -1774,15 +1945,55 @@ export class ConversationController {
     await this.updateEffort(this.effort, !this.isThinkingEnabled)
   }
 
-  /** The host process died: forget the session and tell the user. */
-  public hostExited(description: string): void {
-    this.dropSession()
+  /**
+   * The extension is about to stop the hosts (a restart for a setting, trust
+   * granted, a sign-in or sign-out; PLAN.md D25). A running turn is
+   * cancelled and ended in the webview; unless the conversations end (sign
+   * out, shutdown), the session is resumed by the next message.
+   */
+  public async backendStopping(isConversationEnding: boolean): Promise<void> {
+    const { session } = this
+    if (session !== undefined && this.activeTurnId !== undefined) {
+      try {
+        await session.cancel()
+      } catch (error: unknown) {
+        this.deps.log.warn(`turn/cancel before the restart failed: ${describe(error)}`)
+      }
+      this.endTurnLocally('cancelled', UI_TEXT.turnStoppedByRestart)
+    }
+    this.rememberForResume(isConversationEnding ? undefined : session)
+    this.dropSession(false)
     this.listWatch.forget()
     this.usageWatch.forget()
-    this.deps.auth.markBackendError(`${UI_TEXT.hostExited} (${description})`)
+  }
+
+  /**
+   * The host process ended. The extension's own close is not news; a crash
+   * ends the running turn and is resumed by the next message, unless the
+   * process refuses to run as configured, which the sign-in gate reports.
+   */
+  public hostExited(exit: HostExit): void {
+    if (exit.isExpected) {
+      return
+    }
+    const didHaveSession = this.session !== undefined
+    this.rememberForResume(this.session)
+    this.endTurnLocally('failed', `${UI_TEXT.hostExited} (${exit.description})`)
+    this.dropSession(false)
+    this.listWatch.forget()
+    this.usageWatch.forget()
+    if (exit.isPersistent) {
+      this.deps.auth.markBackendError(`${UI_TEXT.hostExited} (${exit.description})`)
+    } else if (didHaveSession) {
+      this.notice(
+        'warning',
+        `${UI_TEXT.hostExited} (${exit.description}). ${UI_TEXT.hostRestartsOnSend}`,
+      )
+    }
   }
 
   public dispose(): void {
+    this.isDisposed = true
     this.dropSession()
     this.listWatch.dispose()
     this.usageWatch.dispose()

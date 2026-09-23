@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buildChildEnvironment,
@@ -13,12 +14,15 @@ function windowsProbe(files: Record<string, string | true>, overrides: Partial<L
     pathEntries: [String.raw`C:\Windows\System32`],
     homeDir: String.raw`C:\Users\randy`,
     localAppData: String.raw`C:\Users\randy\AppData\Local`,
-    systemRoot: String.raw`C:\Windows`,
     fileExists: (filePath) => Object.hasOwn(files, filePath),
     readTextFile: (filePath) => {
       const content = files[filePath]
       return typeof content === 'string' ? content : undefined
     },
+    listDirectory: (directory) =>
+      Object.keys(files)
+        .filter((filePath) => path.win32.dirname(filePath) === directory)
+        .map((filePath) => path.win32.basename(filePath)),
     serveArgs: ['serve'],
     ...overrides,
   }
@@ -32,9 +36,9 @@ function posixProbe(existing: string[], overrides: Partial<LaunchProbe> = {}): L
     pathEntries: ['/usr/bin', '/opt/tools/bin'],
     homeDir: '/home/randy',
     localAppData: undefined,
-    systemRoot: undefined,
     fileExists: (filePath) => existing.includes(filePath),
     readTextFile: () => undefined,
+    listDirectory: () => [],
     serveArgs: ['serve'],
     ...overrides,
   }
@@ -105,24 +109,26 @@ describe('resolveMuseLaunch on Windows', () => {
     expect(result.ok && result.launch.command).toBe(String.raw`${dir}\muse-bin-1.0.0-R1.exe`)
   })
 
-  it('falls back to the PowerShell launcher when the version file is missing', () => {
+  it('takes the newest muse-bin exe when the version file is missing, never the launcher (D25)', () => {
     const result = resolveMuseLaunch(
-      windowsProbe({ [String.raw`${winDir}\.muse-launcher.ps1`]: true }),
+      windowsProbe({
+        [String.raw`${winDir}\.muse-launcher.ps1`]: true,
+        [String.raw`${winDir}\muse-bin-1.9.0-R1.exe`]: true,
+        [String.raw`${winDir}\muse-bin-1.10.0-R1.exe`]: true,
+        [String.raw`${winDir}\muse.cmd`]: true,
+      }),
     )
     expect(result.ok && result.launch).toEqual({
-      command: String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
-      args: [
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        String.raw`${winDir}\.muse-launcher.ps1`,
-        'serve',
-      ],
+      command: String.raw`${winDir}\muse-bin-1.10.0-R1.exe`,
+      args: ['serve'],
       serveArgs: ['serve'],
       installDir: winDir,
       cliPath: String.raw`${winDir}\muse.cmd`,
     })
+    // A folder with only the launcher has nothing to run.
+    expect(
+      resolveMuseLaunch(windowsProbe({ [String.raw`${winDir}\.muse-launcher.ps1`]: true })),
+    ).toMatchObject({ ok: false })
   })
 
   it('reports every searched location when nothing is installed', () => {

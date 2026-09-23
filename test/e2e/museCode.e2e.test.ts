@@ -13,7 +13,7 @@ import path from 'node:path'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import type { AgentSession } from '../../src/core/agent/agentBackend'
+import type { AgentSession, HostExit } from '../../src/core/agent/agentBackend'
 import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import { DEFAULT_MODEL_ID, MSP_CLIENT_NAME } from '../../src/shared/constants'
@@ -52,7 +52,9 @@ async function until(isMet: () => boolean): Promise<void> {
   }
 }
 
-function manager(options: { binaryPath?: string; start?: string } = {}) {
+function manager(
+  options: { binaryPath?: string; start?: string; handshakeTimeoutMs?: number } = {},
+) {
   const log = new FakeLogOutputChannel()
   const created = new MuseCodeBackendManager({
     log,
@@ -69,6 +71,10 @@ function manager(options: { binaryPath?: string; start?: string } = {}) {
     getShellSandbox: () => 'off',
     userProfileDir: undefined,
     isWorkspaceTrusted: () => true,
+    getProxySettings: () => ({ proxy: '', noProxy: [] }),
+    ...(options.handshakeTimeoutMs !== undefined && {
+      handshakeTimeoutMs: options.handshakeTimeoutMs,
+    }),
   })
   managers.push(created)
   return { manager: created, log }
@@ -365,14 +371,19 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
   it('reports a host that dies mid-turn and spawns a fresh one afterwards (drill)', async () => {
     const { manager: backend, log } = manager()
     const host = await backend.ensureHost()
-    const exits: string[] = []
-    host.onExit((description) => {
-      exits.push(description)
+    const exits: HostExit[] = []
+    host.onExit((exit) => {
+      exits.push(exit)
     })
     const t = await openSession(host)
     await t.start('die').submission
     await until(() => exits.length > 0)
-    expect(exits[0]).toBe('code 1, signal null')
+    // A crash, not the extension's own close; restarting can help (D25).
+    expect(exits[0]).toEqual({
+      description: 'Muse Code failed with an unhandled error (exit 1)',
+      isExpected: false,
+      isPersistent: false,
+    })
     expect(backend.isRunning).toBe(false)
     expect(log.warn).toHaveBeenCalledWith('muse serve stderr: fake muse: dying on purpose')
     const next = await backend.ensureHost()
@@ -387,6 +398,18 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(crashing.log.warn).toHaveBeenCalledWith(
       'muse serve stderr: fake muse: refusing to start',
     )
+  })
+
+  it('gives up on a host that never answers the handshake, and ends it (drill, D25)', async () => {
+    const wedged = manager({ start: 'silent', handshakeTimeoutMs: 500 })
+    const started = Date.now()
+    await expect(wedged.manager.ensureHost()).rejects.toThrow(
+      'Muse Code did not finish starting within 1 s',
+    )
+    expect(wedged.manager.isRunning).toBe(false)
+    expect(Date.now() - started).toBeLessThan(TURN_TIMEOUT_MS)
+    // The next call spawns afresh instead of reusing the dead attempt.
+    await expect(wedged.manager.ensureHost()).rejects.toThrow('did not finish starting')
   })
 
   it('rejects when there is no binary anywhere (drill)', async () => {

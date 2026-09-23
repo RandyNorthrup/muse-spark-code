@@ -160,6 +160,11 @@ export function fakeSurface(id: string): FakeSurface {
 }
 
 /** A `SecretStore` backed by a Map, exposed for assertions. */
+/** A `CredentialStore` warning sink for tests that expect none: one fails the test. */
+export function unexpectedWarning(message: string): never {
+  throw new Error(`unexpected warning: ${message}`)
+}
+
 export function memorySecrets(): SecretStore & { readonly values: Map<string, string> } {
   const values = new Map<string, string>()
   return {

@@ -57,6 +57,8 @@ export class IdeMcpServer {
   private readonly token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
   private server: Server | undefined
   private endpoint: IdeMcpEndpoint | undefined
+  /** A start in flight: concurrent callers share it instead of opening two ports. */
+  private starting: Promise<IdeMcpEndpoint> | undefined
 
   public constructor(
     private readonly tools: readonly McpTool[],
@@ -101,17 +103,32 @@ export class IdeMcpServer {
   }
 
   /** The endpoint once `start` has resolved; undefined before or after `close`. */
-  public get current(): IdeMcpEndpoint | undefined {
-    return this.endpoint
+  /** `handle`, with a failure answered 500 instead of left as an unhandled rejection (D25). */
+  private async respond(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    try {
+      await this.handle(request, response)
+    } catch (error: unknown) {
+      this.log.error(`IDE tool server request failed: ${String(error)}`)
+      if (response.headersSent) {
+        response.end()
+      } else {
+        response.writeHead(HTTP_STATUS.internalServerError).end()
+      }
+    }
   }
 
-  /** Listens on an ephemeral loopback port; idempotent. */
-  public async start(): Promise<IdeMcpEndpoint> {
-    if (this.endpoint !== undefined) {
-      return this.endpoint
+  /** `listen`, forgetting the shared start once it settles. */
+  private async listenOnce(): Promise<IdeMcpEndpoint> {
+    try {
+      return await this.listen()
+    } finally {
+      this.starting = undefined
     }
+  }
+
+  private async listen(): Promise<IdeMcpEndpoint> {
     const server = createServer((request, response) => {
-      void this.handle(request, response)
+      void this.respond(request, response)
     })
     this.server = server
     await new Promise<void>((resolve, reject) => {
@@ -120,6 +137,10 @@ export class IdeMcpServer {
         server.off('error', reject)
         resolve()
       })
+    })
+    // Errors after the listen (a socket fault) are logged, never thrown at the host.
+    server.on('error', (error) => {
+      this.log.error(`IDE tool server error: ${error.message}`)
     })
     const address = server.address()
     if (address === null || typeof address === 'string') {
@@ -131,6 +152,23 @@ export class IdeMcpServer {
     }
     this.log.info(`IDE tool server listening on ${this.endpoint.url}`)
     return this.endpoint
+  }
+
+  public get current(): IdeMcpEndpoint | undefined {
+    return this.endpoint
+  }
+
+  /**
+   * Listens on an ephemeral loopback port; idempotent, and callable again
+   * after a failed start (PLAN.md D25: a first failure no longer leaves the
+   * diagnostics tool off for the window's life).
+   */
+  public start(): Promise<IdeMcpEndpoint> {
+    if (this.endpoint !== undefined) {
+      return Promise.resolve(this.endpoint)
+    }
+    this.starting ??= this.listenOnce()
+    return this.starting
   }
 
   public close(): void {

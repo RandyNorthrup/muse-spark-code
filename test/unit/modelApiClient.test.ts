@@ -3,6 +3,8 @@ import {
   MissingApiKeyError,
   ModelApiClient,
   ModelApiError,
+  type RetryNotice,
+  retryAfterMs,
 } from '../../src/core/backends/modelapi/client'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -22,6 +24,8 @@ const body: CreateResponseBody = {
   prompt_cache_key: 's1',
 }
 
+const NOW = Date.parse('2026-09-23T12:00:00Z')
+
 /** `null` means no key is stored. */
 function setup(key: string | null = 'LLM|1|secret') {
   const api = fakeModelApi()
@@ -35,6 +39,7 @@ function setup(key: string | null = 'LLM|1|secret') {
       sleeps.push(ms)
       return Promise.resolve()
     },
+    now: () => NOW,
     random: () => 0.5,
     log,
   })
@@ -131,6 +136,47 @@ describe('ModelApiClient', () => {
       status: 503,
     })
     expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(4 + 5)
+  })
+
+  it('announces each retry and stops waiting when the turn is stopped (D25)', async () => {
+    const { api, client } = setup()
+    api.script({ httpError: { status: 503 } }, { text: 'finally' })
+    const notices: RetryNotice[] = []
+    await collect(
+      client.streamResponse(body, new AbortController().signal, (notice) => {
+        notices.push(notice)
+      }),
+    )
+    expect(notices).toEqual([
+      { attempt: 1, maxAttempts: 5, delayMs: 1500, reason: 'HTTP 503: status 503' },
+    ])
+    // A retry delay that never ends on its own still ends with the Stop.
+    const stuck = new ModelApiClient({
+      fetch: api.fetch,
+      baseUrl: 'https://api.example.test/v1',
+      apiKey: () => Promise.resolve('LLM|1|secret'),
+      sleep: () => new Promise(() => undefined),
+      now: () => NOW,
+      random: () => 0,
+      log: new FakeLogOutputChannel(),
+    })
+    api.script({ httpError: { status: 503 } })
+    const stop = new AbortController()
+    const pending = collect(stuck.streamResponse(body, stop.signal))
+    setTimeout(() => {
+      stop.abort()
+    }, 20)
+    await expect(pending).rejects.toMatchObject({ message: 'cancelled' })
+  })
+
+  it('reads Retry-After as seconds or as an HTTP date (D25)', () => {
+    expect(retryAfterMs('3', NOW)).toBe(3000)
+    expect(retryAfterMs(new Date(NOW + 5000).toUTCString(), NOW)).toBe(5000)
+    expect(retryAfterMs(new Date(NOW - 5000).toUTCString(), NOW)).toBe(0)
+    expect(retryAfterMs('-1', NOW)).toBeUndefined()
+    expect(retryAfterMs('soon', NOW)).toBeUndefined()
+    expect(retryAfterMs('', NOW)).toBeUndefined()
+    expect(retryAfterMs(null, NOW)).toBeUndefined()
   })
 
   it('does not retry 400 / 401 and reports the envelope', async () => {

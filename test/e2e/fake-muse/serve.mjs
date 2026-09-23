@@ -19,8 +19,9 @@
 //
 // Environment: MUSE_FAKE_FINGERPRINT (the SDK's pinned schema fingerprint,
 // so the handshake raises no warning), MUSE_FAKE_START=crash (exit 3 before
-// the handshake, the spawn-failure drill). Node built-ins only: the file is
-// copied beside the executable the resolver spawns.
+// the handshake, the spawn-failure drill) or =silent (read the handshake and
+// never answer it, the wedged-CLI drill of PLAN.md D25). Node built-ins
+// only: the file is copied beside the executable the resolver spawns.
 
 import { argv, env, exit, stderr, stdin, stdout } from 'node:process'
 import { createInterface } from 'node:readline'
@@ -539,9 +540,12 @@ const handlers = {
   },
 }
 
+const isSilent = env['MUSE_FAKE_START'] === 'silent'
+
 function handle(frame) {
-  if (frame.id === undefined) {
-    // `initialized` and any other client notification need no answer.
+  if (isSilent || frame.id === undefined) {
+    // `initialized` and any other client notification need no answer; a
+    // silent host answers nothing at all.
     return
   }
   const handler = handlers[frame.method]

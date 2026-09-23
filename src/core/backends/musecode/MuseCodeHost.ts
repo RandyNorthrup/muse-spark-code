@@ -6,10 +6,18 @@
 // The process boundary (`MspHost`) is injected so unit tests drive the class
 // through a fake in-memory transport.
 
-import type { Connection } from '@muse-code/sdk'
+import { type CommandOptions, type Connection, MspError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import type { AgentEvent, QuestionAnswer } from '../../../shared/agentEvents'
-import type { SubagentAction } from '../../../shared/constants'
+import {
+  MILLISECONDS_PER_SECOND,
+  MSP_COMMAND_TIMEOUT_MS,
+  MSP_LONG_COMMAND_TIMEOUT_MS,
+  MSP_LONG_COMMANDS,
+  MUSE_EXIT_MEANINGS,
+  type SubagentAction,
+} from '../../../shared/constants'
+import { withDeadline } from '../../timeouts'
 import {
   type SubscriptionUsage,
   subscriptionUsageSchema,
@@ -20,6 +28,7 @@ import type {
   AgentSession,
   ApprovalDecision,
   CompactOutcome,
+  HostExit,
   HostInfo,
   ListSessionsOptions,
   LoadedSession,
@@ -36,8 +45,9 @@ import type {
   TurnPart,
   TurnSubmission,
 } from '../../agent/agentBackend'
+import { SessionNotLoadedError } from '../../agent/agentBackend'
 import type { CoreLogger } from '../../logging'
-import { mapNotification } from './mapNotification'
+import { mapNotification, type WireNotification } from './mapNotification'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -131,8 +141,81 @@ const MIRRORED_SERVER_REQUESTS: ReadonlySet<string> = new Set([
   'userInput/request',
 ])
 
+const SESSION_NOT_LOADED = 'sessionNotLoaded'
+
+/** How long a command may wait (PLAN.md D25); overridable for tests. */
+export interface CommandTimeouts {
+  readonly normalMs: number
+  readonly longMs: number
+}
+
+const DEFAULT_TIMEOUTS: CommandTimeouts = {
+  normalMs: MSP_COMMAND_TIMEOUT_MS,
+  longMs: MSP_LONG_COMMAND_TIMEOUT_MS,
+}
+
+/**
+ * One MSP command with a deadline. `sessionNotLoaded` (the host evicted or
+ * closed the session) becomes a `SessionNotLoadedError` the controller
+ * answers by resuming the session.
+ */
+async function commandWithin(
+  connection: Connection,
+  timeouts: CommandTimeouts,
+  method: string,
+  params: Record<string, unknown>,
+  options?: CommandOptions,
+): Promise<unknown> {
+  const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
+  try {
+    return await withDeadline(
+      connection.command(method, params, options),
+      timeoutMs,
+      `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
+    )
+  } catch (error: unknown) {
+    const sessionId = params['sessionId']
+    if (
+      typeof sessionId === 'string' &&
+      error instanceof MspError &&
+      error.kind === SESSION_NOT_LOADED
+    ) {
+      throw new SessionNotLoadedError(sessionId, error.message)
+    }
+    throw error
+  }
+}
+
+/** A process exit as the conversations see it (D25). */
+export function describeExit(
+  exit: { readonly code: number | null; readonly signal: string | null },
+  isExpected: boolean,
+): HostExit {
+  if (exit.code === null) {
+    return {
+      description: `Muse Code was stopped by ${exit.signal ?? 'an unknown signal'}`,
+      isExpected,
+      isPersistent: false,
+    }
+  }
+  const meaning = MUSE_EXIT_MEANINGS[exit.code]
+  return meaning === undefined
+    ? {
+        description: `Muse Code exited with code ${String(exit.code)}`,
+        isExpected,
+        isPersistent: false,
+      }
+    : {
+        description: `${meaning.text} (exit ${String(exit.code)})`,
+        isExpected,
+        isPersistent: meaning.isPersistent,
+      }
+}
+
 export class MuseSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
+  /** The surfaces holding this handle (PLAN.md D25): the last release disposes it. */
+  private holders = 1
   private isDisposed = false
 
   public constructor(
@@ -140,16 +223,24 @@ export class MuseSession implements AgentSession {
     public readonly modelId: string,
     private readonly connection: Connection,
     private readonly onDispose: () => void,
+    private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
   ) {}
 
   /** One MSP command against this session with a freshly minted commandId. */
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
     const commandId = this.connection.mintCommandId()
-    return await this.connection.command(
+    return await commandWithin(
+      this.connection,
+      this.timeouts,
       method,
       { commandId, sessionId: this.sessionId, ...params },
       { commandId },
     )
+  }
+
+  /** One more surface holds this handle (a second panel resumed the same session). */
+  public retain(): void {
+    this.holders += 1
   }
 
   public onEvent(listener: SessionEventListener): () => void {
@@ -268,7 +359,7 @@ export class MuseSession implements AgentSession {
 
   /** One page of a stored tool output or patch document (`item/readOutput`). */
   public async readOutput(request: OutputPageRequest): Promise<OutputPage> {
-    const result = await this.connection.command('item/readOutput', {
+    const result = await commandWithin(this.connection, this.timeouts, 'item/readOutput', {
       sessionId: this.sessionId,
       itemId: request.itemId,
       outputRef: request.outputRef,
@@ -290,7 +381,9 @@ export class MuseSession implements AgentSession {
 
   /** The user-invocable skills in this session's workspace and plugins. */
   public async listSkills(): Promise<readonly SkillSummary[]> {
-    const result = await this.connection.command('skill/list', { sessionId: this.sessionId })
+    const result = await commandWithin(this.connection, this.timeouts, 'skill/list', {
+      sessionId: this.sessionId,
+    })
     return skillListResultSchema.parse(result).skills.map((skill) => ({
       selector: skill.selector,
       displayName: skill.displayName,
@@ -299,26 +392,40 @@ export class MuseSession implements AgentSession {
     }))
   }
 
+  /** Releases this surface's hold; the last one forgets the session (D25). */
   public dispose(): void {
     if (this.isDisposed) {
+      return
+    }
+    this.holders -= 1
+    if (this.holders > 0) {
       return
     }
     this.isDisposed = true
     this.listeners.clear()
     this.onDispose()
   }
+
+  /** The host is closing: the handle goes whoever still holds it. */
+  public disposeAll(): void {
+    this.holders = 1
+    this.dispose()
+  }
 }
 
 export class MuseCodeHost implements AgentHost {
   private readonly sessions = new Map<string, MuseSession>()
-  private readonly exitListeners = new Set<(exit: string) => void>()
+  private readonly exitListeners = new Set<(exit: HostExit) => void>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
+  /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
+  private isClosing = false
   public readonly info: MuseHostInfo
 
   public constructor(
     private readonly host: MspHost,
     private readonly log: CoreLogger,
+    private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
   ) {
     const parsed = initializeResultSchema.parse(host.initializeResult)
     this.info = {
@@ -328,20 +435,14 @@ export class MuseCodeHost implements AgentHost {
       museHome: parsed.museHome,
       grantedCapabilities: parsed.grantedCapabilities ?? [],
     }
+    // The SDK's connection keeps one handler; a throw inside it would end the
+    // read loop and leave the connection deaf without a word (D25).
     host.connection.onNotification((notification) => {
-      if (this.dispatchHostEvent(notification.method, notification.params)) {
-        return
+      try {
+        this.dispatch(notification)
+      } catch (error: unknown) {
+        this.log.error(`MSP ${notification.method} could not be handled: ${String(error)}`)
       }
-      const mapped = mapNotification(notification)
-      if (mapped === undefined) {
-        return
-      }
-      const session = this.sessions.get(mapped.sessionId)
-      if (session === undefined) {
-        this.log.warn(`MSP event ${notification.method} for unknown session ${mapped.sessionId}`)
-        return
-      }
-      session.emit(mapped.event)
     })
     host.connection.onServerRequest((request) => {
       if (MIRRORED_SERVER_REQUESTS.has(request.method)) {
@@ -351,13 +452,51 @@ export class MuseCodeHost implements AgentHost {
       }
       return Promise.reject(new Error(`unsupported server request: ${request.method}`))
     })
+    // A connection that ends while the process lives (a framing violation)
+    // is as good as dead: the process is closed so the exit is reported.
+    void host.connection.closed.then(() => {
+      if (this.isClosing) {
+        return
+      }
+      this.log.warn('The MSP connection closed while muse serve was running; closing it')
+      void this.host.close()
+    })
     void host.exited.then((exit) => {
-      const description = `code ${String(exit.code)}, signal ${String(exit.signal)}`
-      this.log.warn(`muse serve exited (${description})`)
+      const described = describeExit(exit, this.isClosing)
+      if (described.isExpected) {
+        this.log.info(`muse serve exited as asked (${described.description})`)
+      } else {
+        this.log.warn(`muse serve exited (${described.description})`)
+      }
       for (const listener of this.exitListeners) {
-        listener(description)
+        listener(described)
       }
     })
+  }
+
+  /** One notification: a host-level event, or a session's. */
+  private dispatch(notification: WireNotification): void {
+    if (this.dispatchHostEvent(notification.method, notification.params)) {
+      return
+    }
+    const mapped = mapNotification(notification)
+    if (mapped === undefined) {
+      return
+    }
+    const session = this.sessions.get(mapped.sessionId)
+    if (session === undefined) {
+      this.log.warn(`MSP event ${notification.method} for unknown session ${mapped.sessionId}`)
+      return
+    }
+    session.emit(mapped.event)
+  }
+
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    options?: CommandOptions,
+  ): Promise<unknown> {
+    return await commandWithin(this.host.connection, this.timeouts, method, params, options)
   }
 
   /**
@@ -411,11 +550,19 @@ export class MuseCodeHost implements AgentHost {
   private track(record: { readonly sessionId: string }, modelId: string): MuseSession {
     const existing = this.sessions.get(record.sessionId)
     if (existing !== undefined) {
+      // A second surface on the same session: closing one must not deafen the other.
+      existing.retain()
       return existing
     }
-    const handle = new MuseSession(record.sessionId, modelId, this.host.connection, () => {
-      this.sessions.delete(record.sessionId)
-    })
+    const handle = new MuseSession(
+      record.sessionId,
+      modelId,
+      this.host.connection,
+      () => {
+        this.sessions.delete(record.sessionId)
+      },
+      this.timeouts,
+    )
     this.sessions.set(record.sessionId, handle)
     return handle
   }
@@ -452,7 +599,7 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  public onExit(listener: (description: string) => void): () => void {
+  public onExit(listener: (exit: HostExit) => void): () => void {
     this.exitListeners.add(listener)
     return () => {
       this.exitListeners.delete(listener)
@@ -461,7 +608,7 @@ export class MuseCodeHost implements AgentHost {
 
   /** The subscription window the CLI last observed; absent until a turn has run. */
   public async readUsage(): Promise<SubscriptionUsage | undefined> {
-    const result = await this.host.connection.command(USAGE_READ, {})
+    const result = await this.command(USAGE_READ, {})
     return usageReadResultSchema.parse(result).usage
   }
 
@@ -482,7 +629,7 @@ export class MuseCodeHost implements AgentHost {
 
   /** One page of this workspace's stored sessions, newest activity first. */
   public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
-    const result = await this.host.connection.command('session/list', {
+    const result = await this.command('session/list', {
       workspaceRoot: options.workspaceRoot,
       limit: options.limit,
       ...(options.cursor !== undefined && { cursor: options.cursor }),
@@ -503,7 +650,7 @@ export class MuseCodeHost implements AgentHost {
     mcpServers?: Readonly<Record<string, SessionMcpHttpServer>>,
   ): Promise<LoadedSession> {
     const commandId = this.host.connection.mintCommandId()
-    const result = await this.host.connection.command(
+    const result = await this.command(
       'session/resume',
       {
         commandId,
@@ -518,7 +665,7 @@ export class MuseCodeHost implements AgentHost {
 
   /** A point-in-time read with items, without loading the session. */
   public async readSession(sessionId: string): Promise<SessionHistoryOutcome> {
-    const result = await this.host.connection.command('session/read', {
+    const result = await this.command('session/read', {
       sessionId,
       excludeItems: false,
     })
@@ -536,7 +683,7 @@ export class MuseCodeHost implements AgentHost {
     lastTurnId?: string,
   ): Promise<LoadedSession> {
     const commandId = this.host.connection.mintCommandId()
-    const result = await this.host.connection.command(
+    const result = await this.command(
       'session/fork',
       {
         commandId,
@@ -550,7 +697,7 @@ export class MuseCodeHost implements AgentHost {
 
   /** The visible model catalogue; with a session id the active row is flagged. */
   public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
-    const result = await this.host.connection.command('model/list', {
+    const result = await this.command('model/list', {
       ...(sessionId !== undefined && { sessionId }),
     })
     return modelListResultSchema.parse(result).models.map((model) => ({
@@ -564,7 +711,7 @@ export class MuseCodeHost implements AgentHost {
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {
     const commandId = this.host.connection.mintCommandId()
-    const result = await this.host.connection.command(
+    const result = await this.command(
       'session/start',
       {
         commandId,
@@ -584,11 +731,13 @@ export class MuseCodeHost implements AgentHost {
   }
 
   public async close(): Promise<void> {
+    // The exit that follows is the extension's own (D25).
+    this.isClosing = true
     // Close the process first: the host emits session/statusChanged for every
     // loaded session on the way down, and those must still find their session.
     await this.host.close()
     for (const session of this.sessions.values()) {
-      session.dispose()
+      session.disposeAll()
     }
   }
 }

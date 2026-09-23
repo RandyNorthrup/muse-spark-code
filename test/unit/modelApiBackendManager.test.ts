@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
@@ -51,4 +52,55 @@ describe('ModelApiBackendManager', () => {
   it('refuses to start without a workspace', async () => {
     await expect(manager(undefined).manager.ensureHost()).rejects.toThrow('Open a folder first')
   })
+
+  it('builds one host for concurrent callers, after the stored sessions are read (D25)', async () => {
+    let lists = 0
+    const store = {
+      list: async () => {
+        lists += 1
+        await Promise.resolve()
+        return []
+      },
+      save: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
+    }
+    const m = managerWith({ store })
+    const [first, second] = await Promise.all([m.ensureHost(), m.ensureHost()])
+    expect(second).toBe(first)
+    expect(lists).toBe(1)
+  })
+
+  it('forgets a failed build so the next call tries again (D25)', async () => {
+    let isBroken = true
+    const store = {
+      list: () => (isBroken ? Promise.reject(new Error('disk gone')) : Promise.resolve([])),
+      save: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
+    }
+    const m = managerWith({ store })
+    await expect(m.ensureHost()).rejects.toThrow('disk gone')
+    expect(m.isRunning).toBe(false)
+    isBroken = false
+    await expect(m.ensureHost()).resolves.toBeDefined()
+  })
 })
+
+/** A manager over a given session store, for the build-once cases. */
+function managerWith(overrides: { store: SessionStore }) {
+  const api = fakeModelApi()
+  return new ModelApiBackendManager({
+    log: new FakeLogOutputChannel(),
+    getApiKey: () => Promise.resolve('LLM|1|secret'),
+    workspaceRoot: '/ws',
+    io: noopToolIo,
+    fetch: api.fetch,
+    newId: () => 'id',
+    now: () => 0,
+    sleep: () => Promise.resolve(),
+    random: () => 0,
+    personalSkillsRoot: undefined,
+    isWorkspaceTrusted: () => true,
+    store: overrides.store,
+    describeEnvironment: () => Promise.resolve({ git: undefined }),
+  })
+}

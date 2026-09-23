@@ -8,8 +8,10 @@
 //   POSIX    ~/.local/bin/                   muse (bash launcher),
 //            .muse-version, muse-bin-<version>
 // Node refuses to spawn a .cmd without a shell, and a shell string is banned,
-// so on Windows the resolver targets muse-bin-<version>.exe directly, with the
-// PowerShell launcher as the fallback when the version file is missing.
+// so on Windows the resolver targets muse-bin-<version>.exe directly: the one
+// `.muse-version` names, else the newest `muse-bin-*.exe` in the folder. The
+// PowerShell launcher is never the command (PLAN.md D25): Windows can only
+// end the direct child, so closing a launcher left muse-bin running.
 
 import path from 'node:path'
 import type { EnvironmentVariable } from '../../../shared/constants'
@@ -17,14 +19,11 @@ import {
   MUSE_BIN_PREFIX,
   MUSE_CMD_FILE,
   MUSE_CREDENTIAL_FILE_SEGMENTS,
-  MUSE_LAUNCHER_PS1_FILE,
   MUSE_POSIX_EXECUTABLE,
   MUSE_POSIX_INSTALL_SEGMENTS,
   MUSE_VERSION_FILE,
   MUSE_WINDOWS_EXE_SUFFIX,
   MUSE_WINDOWS_INSTALL_SEGMENTS,
-  WINDOWS_POWERSHELL_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_SEGMENTS,
 } from '../../../shared/constants'
 
@@ -37,11 +36,11 @@ export interface LaunchProbe {
   readonly homeDir: string
   /** `%LOCALAPPDATA%` on Windows; undefined elsewhere. */
   readonly localAppData: string | undefined
-  /** `%SystemRoot%` on Windows; undefined elsewhere. */
-  readonly systemRoot: string | undefined
   readonly fileExists: (filePath: string) => boolean
   /** Returns undefined when the file cannot be read. */
   readonly readTextFile: (filePath: string) => string | undefined
+  /** The file names in a directory; empty when it cannot be read. */
+  readonly listDirectory: (directory: string) => readonly string[]
   /** `serve` plus the host-posture flags (`serveArguments`, sandbox.ts). */
   readonly serveArgs: readonly string[]
 }
@@ -110,30 +109,13 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
   }
   for (const dir of windowsCandidateDirs(probe, p)) {
     searched.push(dir)
-    const versionFile = p.join(dir, MUSE_VERSION_FILE)
-    const version = probe.readTextFile(versionFile)?.trim()
-    if (version !== undefined && version !== '') {
-      const exe = p.join(dir, `${MUSE_BIN_PREFIX}${version}${MUSE_WINDOWS_EXE_SUFFIX}`)
-      if (probe.fileExists(exe)) {
-        return {
-          ok: true,
-          launch: {
-            command: exe,
-            args: probe.serveArgs,
-            serveArgs: probe.serveArgs,
-            installDir: dir,
-            cliPath: p.join(dir, MUSE_CMD_FILE),
-          },
-        }
-      }
-    }
-    const launcher = p.join(dir, MUSE_LAUNCHER_PS1_FILE)
-    if (probe.fileExists(launcher) && probe.systemRoot !== undefined) {
+    const exe = windowsExecutableIn(probe, p, dir)
+    if (exe !== undefined) {
       return {
         ok: true,
         launch: {
-          command: p.join(probe.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
-          args: [...WINDOWS_POWERSHELL_ARGS, launcher, ...probe.serveArgs],
+          command: exe,
+          args: probe.serveArgs,
           serveArgs: probe.serveArgs,
           installDir: dir,
           cliPath: p.join(dir, MUSE_CMD_FILE),
@@ -142,6 +124,34 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
     }
   }
   return { ok: false, searched, reason: 'Muse Code is not installed in any known location.' }
+}
+
+/**
+ * The `muse-bin-<version>.exe` of an install folder: the version
+ * `.muse-version` names, else the newest one present (version order, so
+ * 1.10 beats 1.9); undefined when there is none.
+ */
+function windowsExecutableIn(
+  probe: LaunchProbe,
+  p: path.PlatformPath,
+  dir: string,
+): string | undefined {
+  const version = probe.readTextFile(p.join(dir, MUSE_VERSION_FILE))?.trim()
+  if (version !== undefined && version !== '') {
+    const named = p.join(dir, `${MUSE_BIN_PREFIX}${version}${MUSE_WINDOWS_EXE_SUFFIX}`)
+    if (probe.fileExists(named)) {
+      return named
+    }
+  }
+  const newest = probe
+    .listDirectory(dir)
+    .filter((name) => {
+      const lower = name.toLowerCase()
+      return lower.startsWith(MUSE_BIN_PREFIX) && lower.endsWith(MUSE_WINDOWS_EXE_SUFFIX)
+    })
+    .toSorted((a, b) => b.localeCompare(a, 'en', { numeric: true }))
+    .at(0)
+  return newest === undefined ? undefined : p.join(dir, newest)
 }
 
 function resolvePosix(probe: LaunchProbe): LaunchResolution {
@@ -216,6 +226,20 @@ export function setEnvironmentVariable(
     }
   }
   env[name] = value
+}
+
+/** Removes `name` (every spelling of it on Windows) from a copied environment. */
+export function deleteEnvironmentVariable(
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+  name: string,
+): void {
+  const lower = name.toLowerCase()
+  for (const key of Object.keys(env)) {
+    if (key === name || (platform === 'win32' && key.toLowerCase() === lower)) {
+      Reflect.deleteProperty(env, key)
+    }
+  }
 }
 
 /** Reads `name` from a copied environment, ignoring case on Windows. */

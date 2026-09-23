@@ -2,13 +2,14 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
-import type { BackendKind } from './core/agent/agentBackend'
+import type { AgentHost, BackendKind } from './core/agent/agentBackend'
+import { environmentValue } from './core/backends/musecode/launch'
 import { selectBackend } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { renderSupportReport } from './core/support/report'
@@ -25,7 +26,7 @@ import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
 import { museSettingsPath, readDelegationMode } from './host/backend/museSettings'
-import { createToolIo } from './host/backend/toolIo'
+import { createToolIo, terminalPlatform, withTerminalOverrides } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { EditReview } from './host/editor/editReview'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
@@ -55,6 +56,13 @@ import { createDictationSetup } from './host/voice/dictationHost'
 import {
   BACKEND_SETTING,
   BYPASS_SETTING,
+  CLI_PROCESS_SETTINGS,
+  HTTP_NO_PROXY_SETTING,
+  HTTP_PROXY_SETTING,
+  HTTP_SETTINGS_SECTION,
+  POSIX_TERMINAL_SHELL,
+  TERMINAL_ENV_KEYS,
+  TERMINAL_ENV_SECTION,
   HAS_APPROVAL_UI,
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
@@ -189,14 +197,25 @@ function readTextFileSync(fsPath: string): string | undefined {
   }
 }
 
+/** A file's modification time in epoch ms; undefined when it does not exist. */
+function modifiedAt(fsPath: string): number | undefined {
+  try {
+    return statSync(fsPath).mtimeMs
+  } catch {
+    return undefined
+  }
+}
+
 function quoteForShell(value: string): string {
   return `"${value.replaceAll('"', String.raw`\"`)}"`
 }
 
 /**
- * Runs the CLI where the user can see and interact with it. On Windows the
- * terminal is pinned to Windows PowerShell (the CLI's own shim shell) so the
- * call syntax is known; elsewhere the user's default shell runs the launcher.
+ * Runs the CLI where the user can see and interact with it. The terminal's
+ * shell is pinned so the call syntax is known (PLAN.md D25): Windows
+ * PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
+ * default shell of pwsh or nushell would not run `"path" login` as a
+ * command).
  */
 function runInTerminal(
   cliPath: string,
@@ -205,13 +224,13 @@ function runInTerminal(
 ): void {
   const isWindows = process.platform === 'win32'
   const systemRoot = process.env['SystemRoot']
+  const windowsShell =
+    systemRoot === undefined ? undefined : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
+  const shellPath = isWindows ? windowsShell : POSIX_TERMINAL_SHELL
   const terminal = vscode.window.createTerminal({
     name: options.name,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
-    ...(isWindows &&
-      systemRoot !== undefined && {
-        shellPath: `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`,
-      }),
+    ...(shellPath !== undefined && { shellPath }),
   })
   terminal.show(true)
   const invocation = `${quoteForShell(cliPath)} ${args.join(' ')}`
@@ -279,6 +298,19 @@ function runProcess(
   })
 }
 
+/** Set by `activate`: stops the hosts, their turns and their processes. */
+const lifecycle: { shutdown: (() => Promise<void>) | undefined } = { shutdown: undefined }
+
+/**
+ * VS Code awaits this before the extension host exits (PLAN.md D25): running
+ * turns are cancelled and `muse serve` is closed rather than left to the
+ * process teardown, while the log channel is still open to say so.
+ */
+export async function deactivate(): Promise<void> {
+  await lifecycle.shutdown?.()
+  lifecycle.shutdown = undefined
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
@@ -297,16 +329,11 @@ export function activate(context: vscode.ExtensionContext): void {
       .getConfiguration(SETTINGS_SECTION)
       .update(key, value, vscode.ConfigurationTarget.Global)
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-  // Muse Code's own settings and trace logs (M14): read, never written.
-  const museConfig = {
-    platform: process.platform,
-    homeDir: homedir(),
-    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
-  }
-  const delegationMode = () => readDelegationMode({ ...museConfig, readTextFile: readTextFileSync })
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
-  const credentials = new CredentialStore(context.secrets)
+  const credentials = new CredentialStore(context.secrets, (message) => {
+    log.warn(message)
+  })
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
   const dictation = createDictationSetup(
     {
@@ -325,14 +352,41 @@ export function activate(context: vscode.ExtensionContext): void {
     getShellSandbox: () => currentSettings().shellSandbox,
     userProfileDir: process.env['USERPROFILE'],
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    getProxySettings: () => {
+      const http = vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)
+      return {
+        proxy: http.get<string>(HTTP_PROXY_SETTING) ?? '',
+        noProxy: http.get<readonly string[]>(HTTP_NO_PROXY_SETTING) ?? [],
+      }
+    },
   })
-  /** Stops both hosts and the conversations on them; the next message respawns. */
-  const restartBackend = async (): Promise<void> => {
-    for (const controller of controllers.values()) {
-      controller.dispose()
-    }
+  // Muse Code's own settings and trace logs (M14): read, never written; the
+  // config root as the CLI sees it, `museSpark.environmentVariables` included.
+  const museConfig = () => ({
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: environmentValue(
+      backend.childEnvironment(),
+      process.platform,
+      'XDG_CONFIG_HOME',
+    ),
+  })
+  const delegationMode = () =>
+    readDelegationMode({ ...museConfig(), readTextFile: readTextFileSync })
+  /**
+   * Stops both hosts (PLAN.md D25). The conversations hear it first: a
+   * running turn is cancelled, and unless they end (sign-out, shutdown) the
+   * next message resumes the same session on the new host.
+   */
+  const restartBackend = async (isConversationEnding = false): Promise<void> => {
+    await Promise.all(
+      Array.from(controllers.values(), (controller) =>
+        controller.backendStopping(isConversationEnding),
+      ),
+    )
     await Promise.all([backend.dispose(), modelApi.dispose()])
   }
+  lifecycle.shutdown = () => restartBackend(true)
   const sandbox = new SandboxSetup({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
@@ -353,6 +407,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const auth = new AuthService({
     backend: {
       resolveCli: () => {
+        // The sign-in gate's check is an explicit re-look: an install is noticed at once.
+        backend.invalidateLaunch()
         const resolution = backend.resolveLaunch()
         return resolution.ok
           ? { ok: true, cliPath: resolution.launch.cliPath }
@@ -362,6 +418,7 @@ export function activate(context: vscode.ExtensionContext): void {
             }
       },
       credentialFileExists: () => backend.credentialFileExists(),
+      credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
       hasEnvironmentKey: () => backend.hasEnvironmentKey(),
       getBackendMode: () => currentSettings().backend,
       restartBackend,
@@ -496,11 +553,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // shell, all in this process. Its sessions live for this window.
   // Muse Code's managed personal skill root, watched alongside the workspace's
   // `.agents/skills` so the palette follows the files (PLAN.md D13).
-  const skillsHome = personalSkillsRoot({
-    platform: process.platform,
-    homeDir: homedir(),
-    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
-  })
+  const skillsHome = personalSkillsRoot(museConfig())
   const modelApi = new ModelApiBackendManager({
     log,
     getApiKey: () => credentials.getApiKey(),
@@ -509,9 +562,22 @@ export function activate(context: vscode.ExtensionContext): void {
       platform: process.platform,
       listFiles: listWorkspaceFiles,
       systemRoot: process.env['SystemRoot'],
-      env: process.env,
+      // The user's terminal environment settings apply to the shell tool as
+      // they do to VS Code's terminal (PLAN.md D25).
+      env: () =>
+        withTerminalOverrides(
+          process.env,
+          vscode.workspace
+            .getConfiguration(TERMINAL_ENV_SECTION)
+            .get<Record<string, string | null>>(TERMINAL_ENV_KEYS[terminalPlatform()]) ?? {},
+          process.platform,
+          workspaceRoot,
+        ),
       searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE)
         .fsPath,
+      log: (message) => {
+        log.warn(message)
+      },
     }),
     fetch: globalThis.fetch.bind(globalThis),
     newId: () => crypto.randomUUID(),
@@ -539,6 +605,7 @@ export function activate(context: vscode.ExtensionContext): void {
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
       }),
   })
+  const watchedHosts = new WeakSet<AgentHost>()
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
     const choice = selectBackend({
@@ -551,21 +618,29 @@ export function activate(context: vscode.ExtensionContext): void {
       return await modelApi.ensureHost()
     }
     const host = await backend.ensureHost()
-    host.onExit((description) => {
-      for (const active of controllers.values()) {
-        active.hostExited(description)
-      }
-    })
+    // One exit listener per host, however many messages ask for it (D25).
+    if (!watchedHosts.has(host)) {
+      watchedHosts.add(host)
+      host.onExit((exit) => {
+        for (const active of controllers.values()) {
+          active.hostExited(exit)
+        }
+      })
+    }
     return host
   }
 
   // Session history memory (M6): archived ids and the last session, per
   // workspace, in the extension's own `workspaceState`.
   const sessions: SessionMemory = {
-    archivedIds: () =>
-      archivedIdsSchema.parse(
+    // A value an earlier version (or a hand edit) stored that does not
+    // validate reads as "none archived" instead of throwing (PLAN.md D25).
+    archivedIds: () => {
+      const parsed = archivedIdsSchema.safeParse(
         context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.archivedSessions) ?? [],
-      ),
+      )
+      return parsed.success ? parsed.data : []
+    },
     setArchivedIds: async (ids) => {
       await context.workspaceState.update(WORKSPACE_STATE_KEYS.archivedSessions, [...ids])
     },
@@ -632,7 +707,7 @@ export function activate(context: vscode.ExtensionContext): void {
         break
       }
       case 'openMuseSettings': {
-        const settingsPath = museSettingsPath(museConfig)
+        const settingsPath = museSettingsPath(museConfig())
         if (await isExistingPath(settingsPath)) {
           await vscode.window.showTextDocument(vscode.Uri.file(settingsPath))
         } else {
@@ -734,7 +809,13 @@ export function activate(context: vscode.ExtensionContext): void {
             await context.globalState.update(GLOBAL_STATE_KEYS.lastUsage, usage)
           },
         },
-        ideMcpEndpoint: () => ideServer.current,
+        // A server that failed to start is retried for the next session (D25).
+        ideMcpEndpoint: () => {
+          if (ideServer.current === undefined) {
+            void startIdeServer()
+          }
+          return ideServer.current
+        },
         newAttachmentId: () => crypto.randomUUID(),
         sessions,
         // The usage modal's Account section and insights (M14).
@@ -869,7 +950,6 @@ export function activate(context: vscode.ExtensionContext): void {
     fileWatcher.onDidDelete(() => {
       mentions.invalidate()
     }),
-    { dispose: () => void restartBackend() },
     vscode.window.registerWebviewViewProvider(
       CHAT_VIEW_ID,
       new ChatViewProvider(hostContext, registry),
@@ -888,14 +968,20 @@ export function activate(context: vscode.ExtensionContext): void {
           void controller.revokeBypass()
         }
       }
-      // A host keeps its sandbox posture for life, and the backend choice
-      // is made per host: drop them so the next message spawns afresh.
+      // A host keeps its sandbox posture, its environment and its binary for
+      // life, and the backend choice is made per host: drop them so the next
+      // message spawns afresh (and resumes the conversation, D25).
       const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
       if (isBackendSetting) {
         void restartBackend().then(() => auth.refresh())
         return
       }
-      if (!event.affectsConfiguration(SHELL_SANDBOX_SETTING) || !backend.isRunning) {
+      const isCliSetting = CLI_PROCESS_SETTINGS.some((key) => event.affectsConfiguration(key))
+      if (isCliSetting) {
+        backend.invalidateLaunch()
+      }
+      const isHostSetting = isCliSetting || event.affectsConfiguration(SHELL_SANDBOX_SETTING)
+      if (!isHostSetting || !backend.isRunning) {
         return
       }
       void restartBackend()

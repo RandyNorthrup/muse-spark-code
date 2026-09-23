@@ -15,10 +15,32 @@ export function isValidModelApiKey(candidate: string): boolean {
 }
 
 export class CredentialStore {
-  public constructor(private readonly secrets: SecretStore) {}
+  private hasReportedFailure = false
 
+  public constructor(
+    private readonly secrets: SecretStore,
+    /** Where an unreadable secret store is reported, once. */
+    private readonly warn: (message: string) => void,
+  ) {}
+
+  /**
+   * The stored key; undefined when there is none or the store cannot be
+   * read (PLAN.md D25): on Linux without a keyring VS Code's secret storage
+   * throws, and that must not block the Muse Code backend, which needs no key.
+   */
   public async getApiKey(): Promise<string | undefined> {
-    const stored = await this.secrets.get(SECRET_KEYS.modelApiKey)
+    let stored: string | undefined
+    try {
+      stored = await this.secrets.get(SECRET_KEYS.modelApiKey)
+    } catch (error: unknown) {
+      if (!this.hasReportedFailure) {
+        this.hasReportedFailure = true
+        this.warn(
+          `VS Code's secret storage could not be read, so no Model API key is available: ${String(error)}`,
+        )
+      }
+      return undefined
+    }
     return stored === undefined || stored === '' ? undefined : stored
   }
 
