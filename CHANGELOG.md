@@ -7,11 +7,30 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.5.2] - 2026-09-23
+
+The first community fix, and the README brought up to date with the panel.
+
 ### Fixed
 
 - The prompt box grows with wrapped lines as well as newlines, up to ten
   rows, and scrolls inside past that; a long single line no longer hides
   behind a one-row box (#4, reported by dhaw97160).
+
+### Changed
+
+- The README describes the panel as it is at 0.5.x: the Open diff and
+  Revert buttons it still promised are gone since 0.4.2 (the diff editor is
+  behind Click to expand, revert is the rewind menu), subagents and the
+  Agent map, reply and quote with context, question cards, outputs opening
+  in the editor and the usage insights are in the highlights, the release
+  workflow's own Marketplace publish replaces the by-hand recipe, the live
+  drill's budget and measurements are current, and the three upstream Muse
+  Code issues are linked from Troubleshooting. Its eleven screenshots are
+  rendered from the shipped panel by the UI harness (`npm run
+  harness:shots`) and say so; the 0.1.1 captures are gone.
 
 ## [0.5.1] - 2026-09-23
 

@@ -12,10 +12,10 @@
 
 **Muse Spark Code** puts Meta's Muse Spark model to work inside VS Code as a
 coding agent: a chat panel that streams answers, reads and edits your files
-with reviewable diffs, runs commands behind permission modes, remembers past
-conversations, and takes dictation from your microphone. It runs on your Muse
-subscription through the Muse Code CLI, or on a Meta Model API key, and never
-mixes the two.
+with reviewable diffs, runs commands behind permission modes, delegates to
+subagents you can watch and steer, remembers past conversations, and takes
+dictation from your microphone. It runs on your Muse subscription through the
+Muse Code CLI, or on a Meta Model API key, and never mixes the two.
 
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
@@ -24,12 +24,22 @@ mixes the two.
 
 - **Streaming chat with tools you can see.** Every read, edit, write and shell
   command is a row in the transcript: green when done, pulsing while running,
-  red when refused. Edits show `Added 140 lines` with **Open diff** and
-  **Revert**.
+  red when refused. Edit rows show the diff, the path opens the file with the
+  changed lines selected, **Click to expand** opens VS Code's diff editor, and
+  any output opens in an editor tab with a click.
 - **Permission modes, like Claude Code.** Manual, Edit automatically, Plan and
   Auto (Bypass behind a setting), switched from the mode button or
-  `Shift+Tab`. Gated commands arrive as approval cards; questions from the
-  agent arrive as question cards.
+  `Shift+Tab`. Gated commands arrive as approval cards with the CLI's own
+  choices; questions from the agent arrive as question cards with radios,
+  checkboxes, tabs and an "Other" answer.
+- **Subagents on a map.** When Muse Code delegates, each agent is a row and an
+  **N agents** pill opens the Agent map: role, status, tokens, each agent's own
+  transcript, and the owner controls Muse Code provides (interrupt, stop, a
+  note, resume, close, a follow-up task).
+- **Reply and quote with context.** A reply's ⋯ menu has **Reply to this
+  output**; highlight anything in the chat and right-click for **Ask about
+  this** or **Comment on this**. The passage, its author and your intent
+  travel with the message, so the agent knows what you mean.
 - **Voice dictation at no cost.** Tap or hold the microphone (`Ctrl+D`) and
   speak; the words land at the caret. Windows and macOS use the recogniser
   built into the operating system, so no audio ever goes to a paid service.
@@ -41,21 +51,33 @@ mixes the two.
   `Alt+K` to mention the editor selection, and the Problems panel readable by
   the agent.
 - **History that survives the window.** Every conversation in the workspace,
-  searchable, resumable with its full transcript, archivable; the sidebar
-  picks its last conversation back up within ten minutes, and an editor-tab
-  conversation comes back on its session after a window reload.
+  searchable, resumable with its full transcript, archivable, with fork and
+  rewind on every sent message; the sidebar picks its last conversation back
+  up within ten minutes, and an editor-tab conversation comes back on its
+  session after a window reload.
 - **Account & usage.** Your subscription's current and weekly windows, this
-  conversation's tokens, and a link to the dev.meta.ai dashboard, from
-  `/usage`.
+  conversation's tokens and cache hits, and what has been eating your usage
+  (reminder agents, subagents, long sessions), from `/usage`.
 - **No telemetry, no server of its own.** What leaves your machine and where
   it goes is written down in [PRIVACY.md](docs/PRIVACY.md).
 
 ## Screenshots
 
+Rendered from the shipped panel by its own UI harness (`npm run
+harness:shots`) against a scripted session, so they match the build exactly.
+
 <table>
   <tr>
-    <td align="center" width="50%"><img src="media/readme/turn-done.png" alt="A finished turn: PowerShell and Read tool rows, a Write row with Added 140 lines, Open diff and Revert, and the reply"><br><sub>A turn with tool rows, a reviewable edit and the reply</sub></td>
-    <td align="center" width="50%"><img src="media/readme/turn-running.png" alt="A running turn: tool rows in progress, the Stop button, 2% context, Auto mode"><br><sub>While it runs: Stop, context use, and steering by typing</sub></td>
+    <td align="center" width="50%"><img src="media/readme/turn.png" alt="A turn: Thought for 1s, Read, an Edit row with its diff and Click to expand, a Write row, a PowerShell row with its input and output, the reply, and Working…"><br><sub>A turn: thinking, read, edit with its diff, write, shell, and the reply</sub></td>
+    <td align="center" width="50%"><img src="media/readme/agents.png" alt="The Agent map over a transcript: the 2 agents pill, this conversation, two agents with their status, duration and tokens"><br><sub>Subagents: the <b>2 agents</b> pill and the Agent map</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="media/readme/approval.png" alt="An approval card: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject"><br><sub>An approval card with the CLI's own choices</sub></td>
+    <td align="center"><img src="media/readme/question.png" alt="A question card with Colour and Toppings tabs, radio buttons, an Other answer, Submit greyed out and Cancel"><br><sub>A question card: tabs, radios or checkboxes, Other, Submit and Cancel</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="media/readme/quote.png" alt="A highlighted passage of a reply with the Ask about this / Comment on this menu"><br><sub>Highlight, right-click: <b>Ask about this</b> or <b>Comment on this</b></sub></td>
+    <td align="center"><img src="media/readme/rewind.png" alt="A sent message's rewind menu: Fork conversation from here, Rewind code to here, Fork conversation and rewind code"><br><sub>Every sent message: fork, rewind the code, or both</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="media/readme/palette.png" alt="The slash palette: Context, Model and Customize groups with effort dots and a thinking toggle"><br><sub>The <code>/</code> palette: context, model, effort, thinking, modes</sub></td>
@@ -63,20 +85,21 @@ mixes the two.
   </tr>
   <tr>
     <td align="center"><img src="media/readme/history.png" alt="The History dialog: sessions grouped by day, search, Show archived"><br><sub>History: search, resume, archive</sub></td>
-    <td align="center"><img src="media/readme/voice.png" alt="The composer listening: red microphone and the Listening placeholder"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
+    <td align="center"><img src="media/readme/usage.png" alt="The Account & usage modal: auth method, plan, backend, the current window and week bars, this conversation's tokens and cache hits, what is contributing to usage"><br><sub>Account & usage: windows, tokens, cache hits, and what is eating the usage</sub></td>
   </tr>
 </table>
 
-<p align="center"><img src="media/readme/empty-state.png" alt="A new conversation: the getting-started tips under the Muse Spark heading" width="60%"><br><sub>A new conversation, with the keyboard tips until you hide them</sub></p>
+<p align="center"><img src="media/readme/voice.png" alt="The composer listening: the red microphone and the Listening placeholder over a new conversation" width="60%"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code>; a new conversation shows the keyboard tips until you hide them</sub></p>
 
 ## Get started
 
 1. Install **Muse Spark Code** from the
    [Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
-   (VS Code 1.125 or newer), or from a `.vsix`:
+   (VS Code 1.125 or newer), or from a `.vsix` attached to a
+   [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.5.1.vsix
+   code --install-extension muse-spark-code-0.5.2.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -97,12 +120,13 @@ Spark: Open Walkthrough** brings it back.
 
 Each panel is its own conversation, started on the first message with the
 standard `muse-spark-1.3` model (never a contributor-tier model by default).
+The model pill shows the model as soon as the panel opens.
 
 ## Backends
 
 | Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                                                                                   |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`)                     | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`); its bundled skills, your user rules and its own memory          |
+| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`)                     | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`); its bundled skills, your user rules, its own memory, subagents  |
 | **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension's own: read, edit, write, search, list, shell, `read_skill`, with approvals; the workspace rules, skills and memory below |
 
 `museSpark.backend` picks: `auto` (default) uses the CLI when it is installed
@@ -155,57 +179,62 @@ or memory and no shell command runs; trust the workspace to enable them.
 ## The panel
 
 **Composer.** `Enter` sends, `Shift+Enter` breaks a line (or send with
-`Ctrl+Enter` through a setting). `/` on an empty draft opens the palette:
+`Ctrl+Enter` through a setting); the box grows with your draft up to ten
+rows and scrolls inside past that. `/` on an empty draft opens the palette:
 Context (attach, mention, clear, resume), Model (switch model, effort,
 thinking), Customize (permission mode, Focus view, settings, keybindings),
 Account & usage, Skills (the session's own), slash commands (`/compact`,
-`/clear`, `/logout`, `/usage`, `/cost`) and Support. The `+` button uploads
-images (PNG, JPEG, GIF, WebP; other files become `@` mentions) or starts a
-mention; images also paste and drop. The model pill reads `model effort`
-(effort tiers Minimal to Max, each verified per model); the mode button opens
-the Modes menu; the microphone dictates. While a turn runs, `Enter` steers it
-and Stop cancels it. The context indicator is a button: click it to compact
-now; its tooltip carries the pressure level Muse reports. An upload the
-panel cannot take (only PNG, JPEG, GIF and WebP images are uploads) shows a
-dismissible banner above the box: other files go in as `@` mentions, or by
-absolute path for files outside the workspace.
+`/clear`, `/logout`, `/usage`, `/cost`, `/agents`) and Support. The `+`
+button uploads images (PNG, JPEG, GIF, WebP; other files become `@`
+mentions) or starts a mention; images also paste and drop. The model pill
+reads `model effort` (effort tiers Minimal to Max, each verified per model);
+the mode button opens the Modes menu; the microphone dictates. While a turn
+runs, `Enter` steers it and Stop cancels it. The context indicator is a
+button: click it to compact now; its tooltip carries the pressure level Muse
+reports. An upload the panel cannot take (only PNG, JPEG, GIF and WebP images
+are uploads) shows a dismissible banner above the box: other files go in as
+`@` mentions, or by absolute path for files outside the workspace.
 
 **Transcript.** Replies render as GitHub-flavoured markdown with highlighted
-code and **Copy**, **Insert at cursor** and **Apply** on every block. Tool
-rows show the diff or the command and its output from the start; read
-rows open on click, and a chevron marks the rows that open. The path of an
-edit or read row opens the file with the changed lines selected. A finished
-reply carries **Copy** on hover. Click a tool's output to open it in a
+code and **Copy**, **Insert at cursor** and **Apply** on every block; a
+finished reply carries **Copy** on hover. Tool rows show the diff or the
+command and its output from the start; read rows open on click, and a
+chevron marks the rows that open. The path of an edit or read row opens the
+file with the changed lines selected. Click a tool's output to open it in a
 read-only editor tab (a stored output in full); **Click to expand** on an
-edit diff opens the diff editor (the file side is editable). Thinking rows
-stream their summary while the model thinks and end as "Thought for Ns".
-A reply's ⋯ menu has **Reply to this output**: the next message carries
+edit diff opens VS Code's diff editor (the file side is editable). Thinking
+rows stream their summary while the model thinks and end as "Thought for
+Ns". A reply's ⋯ menu has **Reply to this output**: the next message carries
 that output to the agent as context, marked as what you are replying to.
 Highlight any text in the chat and right-click it for **Ask about this** or
 **Comment on this**; the passage, its author and your intent travel with
 the message. The composer shows a chip for either; × drops it. The transcript
 follows new entries while you are at the end; scrolled up, it holds still
-and **New messages** jumps to the newest.
-Reasoning folds to `Thought for Ns`. Approval cards carry the CLI's choices
-(allow once, always allow in this workspace, reject with feedback); multi-step
-shell lines are approved one step at a time. The agent's task list pins above
-the composer, the session name replaces "Untitled" once allocated, and the
-composer shows how much of the context window is used. **Focus view**
-(`Ctrl+Alt+F`) folds tool and reasoning rows behind `Show N steps`.
+and **New messages** jumps to the newest. Approval cards carry the CLI's own
+choices (Allow once, Always allow in this workspace or Allow for this
+session, Reject, with optional feedback); multi-step shell lines are
+approved one step at a time. Question cards stack radio buttons for one
+answer and checkboxes for several, put multiple questions on tabs, always
+offer **Other** for your own words, and keep **Submit** greyed until every
+question has an answer; **Cancel** declines the prompt. The agent's task
+list pins above the composer, the session name replaces "Untitled" once
+allocated, and the composer shows how much of the context window is used.
+**Focus view** (`Ctrl+Alt+F`) folds tool and reasoning rows behind `Show N
+steps`.
 
-**Edit review.** Muse Code applies in-workspace edits as it goes, so review
-comes after: **Open diff** shows the file before and after in VS Code's diff
-editor, **Revert** puts the previous text back (a created file goes to the
-trash). If the file changed since, both say so rather than guess.
+**Edits and rewind.** Muse applies in-workspace edits as it goes, so review
+comes after: the edit row shows the diff, its path opens the file at the
+change, and **Click to expand** opens the diff editor. To undo, use the
+rewind button on any sent message (on hover): **Fork conversation from
+here**, **Rewind code to here** (reverts the edits made after that message,
+newest first; a created file goes to the trash) and **Fork conversation and
+rewind code**. An edit whose file changed since is left alone and says so,
+rather than guess.
 
 **History.** The clock icon lists the workspace's conversations by day with
 search, resume (full transcript), archive and **Show archived**. Sessions
 idle for `archiveInactiveSessions` days are hidden, not deleted. A hidden
-panel shows a dot when Muse finished or needs a decision. Every sent
-message carries a rewind button (on hover) with **Fork conversation from
-here**, **Rewind code to here** (reverts the edits made after that message,
-newest first, through the same review as a single Revert) and **Fork
-conversation and rewind code**.
+panel shows a dot when Muse finished or needs a decision.
 
 **Diagnostics.** The agent can read the Problems panel through a
 `getDiagnostics` tool the extension serves on a loopback MCP server, bound to
@@ -227,17 +256,17 @@ Code provides: Interrupt and Stop while it runs, a note to it, Resume,
 Close, and a follow-up task once its result is ready. The Model API
 backend spawns no agents.
 
-**Account & Usage** (`/usage`, `/cost`) is a modal over the transcript:
+**Account & usage** (`/usage`, `/cost`) is a modal over the transcript:
 auth method, plan, backend, Muse Code version and model; the subscription's
-current window and week; this conversation's tokens with the cache-hit rate
-and, on the Model API, a dollar estimate from Meta's published per-token
-prices (standard versus contributor tier, read 2026-09-22; the dev.meta.ai
-dashboard is the bill); and what is contributing to your usage over the
-last day or week (Muse Code reports its window only after a reply; until
-then the dialog shows the last window it reported, dated "as of"), read from the Muse Code CLI's trace logs on this machine:
-the share of model attempts from Muse's reminder agents (which run after
-every reply), from subagents, and from sessions active for 8+ hours.
-Approximate, this machine only.
+current window and week (Muse Code reports them only after a reply; until
+then the modal shows the last window it reported, dated "as of"); this
+conversation's tokens with the cache-hit rate and, on the Model API, a
+dollar estimate from Meta's published per-token prices (standard versus
+contributor tier, read 2026-09-22; the dev.meta.ai dashboard is the bill);
+and what is contributing to your usage over the last day or week, read from
+the Muse Code CLI's trace logs on this machine: the share of model attempts
+from Muse's reminder agents (which run after every reply), from subagents,
+and from sessions active for 8+ hours. Approximate, this machine only.
 
 **Prompt caching.** The Model API backend sends a per-session cache key so
 repeated prefixes are billed at the cached rate; the CLI caches on its own.
@@ -347,6 +376,8 @@ settings only, never from a repository's `.vscode/settings.json`.
 - Model API conversations are stored, per workspace, in VS Code's storage
   directory for the extension (not in the repository); delete them from
   the History dialog or by removing that directory.
+- The usage insights read the Muse Code CLI's trace logs on this machine and
+  send nothing anywhere.
 - Workspace rules, skill files and the memory index are read only in a
   trusted workspace; on the Model API backend their text is part of what
   goes to Meta with each request, on the CLI backend Muse Code sends them
@@ -366,7 +397,7 @@ npm ci          # also installs the pre-commit hook (lint-staged + gitleaks)
 Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
-Node 22 or newer and npm 11 (`.npmrc` enforces `engine-strict`);
+Node 22 or newer (`.npmrc` enforces `engine-strict`);
 [gitleaks](https://github.com/gitleaks/gitleaks) on `PATH` for the hook and
 `npm run security:secrets`; `pip install semgrep` for `npm run security:sast`.
 
@@ -376,36 +407,38 @@ webview is React 19 bundled to one IIFE with its stylesheet; `zod/mini`
 validates every host ⇄ webview message; the voice helpers are Windows
 PowerShell and Swift with no dependencies.
 
-| Command                                   | What it does                                                                                                                                                                                                                                                                                                   |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                                                                                                                                                                                                                         |
-| `npm run watch`                           | Rebuild extension + webview on change                                                                                                                                                                                                                                                                          |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`); needs `build:dev` and Chrome                                                                                                                                                                                               |
-| `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                        |
-| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                                                                                                                                                                                                                 |
-| `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                         |
-| `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, PSScriptAnalyzer over `native/windows`                                                                                                                                                                                                   |
-| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                                                                                                                                                                                                                                  |
-| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                  |
-| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                                                                                                                                                                                                                            |
-| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                     |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                 |
-| `npm run test:e2e:live`                   | One real turn on the installed Muse Code CLI, opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (31 model attempts measured for a reply-only turn: one for the answer, thirty for Muse Code's bundled reminder agents; budget 40, counted from the CLI's trace log for the session); never in CI |
-| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it                                                                                                                                                                                                                    |
-| `npm run test`                            | Unit then integration                                                                                                                                                                                                                                                                                          |
-| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                                                                                                                                                                                                                                 |
-| `npm run security:sast`                   | `semgrep scan --config auto --error`                                                                                                                                                                                                                                                                           |
-| `npm run security:secrets`                | `gitleaks git` over the repository history                                                                                                                                                                                                                                                                     |
-| `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**                                                                                                                                                                                                            |
-| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                                                                                                                                                                                                                                 |
-| `npm run package`                         | `vsce package --no-dependencies` → `.vsix` (without the macOS helper unless built on a Mac)                                                                                                                                                                                                                    |
-| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                 |
+| Command                                   | What it does                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                       |
+| `npm run watch`                           | Rebuild extension + webview on change                                                                                                                                                                                                                                                                                                        |
+| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev` and Chrome. The README's screenshots come from here                                                                                                                                              |
+| `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                      |
+| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`                                                                                                                                                                                                                                               |
+| `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                                                       |
+| `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, PSScriptAnalyzer over `native/windows`                                                                                                                                                                                                                                 |
+| `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test and integration-test projects                                                                                                                                                                                                                                                                |
+| `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                |
+| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                                                                                                                                                                                                                                                          |
+| `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                   |
+| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                               |
+| `npm run test:e2e:live`                   | One real turn on the installed Muse Code CLI, opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60, counted from the CLI's trace log); never in CI |
+| `npm run test:integration`                | Builds, downloads VS Code stable into `.vscode-test/`, runs `test/integration/**` inside it                                                                                                                                                                                                                                                  |
+| `npm run test`                            | Unit then integration                                                                                                                                                                                                                                                                                                                        |
+| `npm run security:audit`                  | `npm audit --audit-level=high`                                                                                                                                                                                                                                                                                                               |
+| `npm run security:sast`                   | `semgrep scan --config auto --error`                                                                                                                                                                                                                                                                                                         |
+| `npm run security:secrets`                | `gitleaks git` over the repository history                                                                                                                                                                                                                                                                                                   |
+| `npm run quality`                         | Every gate above except integration tests, plus secrets and SAST; **exits non-zero on any finding**                                                                                                                                                                                                                                          |
+| `npm run quality:ci`                      | What CI runs: all gates plus integration tests                                                                                                                                                                                                                                                                                               |
+| `npm run package`                         | `vsce package --no-dependencies` → `.vsix` (without the macOS helper unless built on a Mac)                                                                                                                                                                                                                                                  |
+| `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                               |
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes
-in `test/unit/helpers/` implement the full VS Code interfaces. Integration
-tests (`test/integration/**`) run under mocha inside a real VS Code launched
-by `@vscode/test-cli` (on Linux under `xvfb-run -a`).
+in `test/unit/helpers/` implement the full VS Code interfaces. The e2e tests
+(`test/e2e/**`) drive the real backend manager against a fake Muse Code CLI
+that answers the Muse Session Protocol, including approvals, questions and
+subagents. Integration tests (`test/integration/**`) run under mocha inside
+a real VS Code launched by `@vscode/test-cli` (on Linux under `xvfb-run -a`).
 
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are
@@ -423,17 +456,18 @@ never sets it.
 **Project structure.**
 
 ```
-src/extension.ts            activation: registers the view, panel, commands
-src/host/                   VS Code-facing code (webview wiring, auth, conversation, mentions, voice)
-src/core/                   backend-agnostic logic (MSP host, Model API client, tools, dictation driver)
+src/extension.ts            activation: registers the view, panel, commands, the output and file openers
+src/host/                   VS Code-facing code (webview wiring, auth, conversation, mentions, voice, the diagnostics MCP server)
+src/core/                   backend-agnostic logic (MSP host, Model API client, tools, usage insights, dictation driver)
 src/shared/                 constants + zod message protocol shared with the webview
 src/webview/                React app (own tsconfig, browser libs)
 native/windows/             dictate.ps1: the Windows dictation helper (System.Speech)
 native/darwin/              Dictation.swift + build.sh: the macOS helper (built in CI)
 test/unit/                  vitest tests, vscode mock, fakes
+test/e2e/                   the fake Muse Code CLI and the tests that drive the real backend through it; the opt-in live drill
 test/integration/           @vscode/test-cli suites
 test/harness/               the webview behind a fake host, for screenshots
-scripts/                    esbuild build, bundle-size gate, PSScriptAnalyzer gate, image rendering
+scripts/                    esbuild build, bundle-size gate, PSScriptAnalyzer gate, harness screenshots, image rendering
 docs/certification/         per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
 ```
@@ -442,10 +476,12 @@ media/                      icons, banner, social preview, README screenshots
 Ubuntu, Windows and macOS, the integration tests, gitleaks over the full
 history, semgrep, a `native-darwin` job that compiles the macOS dictation
 helper, and a `package` job that uploads the complete `.vsix` as the
-`muse-spark-code-vsix` artifact. Releases are published from that artifact
-(`npx vsce publish --packagePath <file>.vsix`, publisher `RandyNorthrup`),
-never from a Windows or Linux `npm run package`, or Mac users would get a
-panel without a microphone.
+`muse-spark-code-vsix` artifact. A version tag (`v1.2.3`, matching the
+manifest) runs `.github/workflows/release.yml`: the same build, a GitHub
+Release with the `.vsix` and the CHANGELOG section as its notes, and the
+Marketplace publish from that `.vsix` (publisher `RandyNorthrup`). The
+package is never built on Windows or Linux for publishing, or Mac users
+would get a panel without a microphone.
 
 ## Troubleshooting
 
@@ -465,13 +501,23 @@ panel without a microphone.
   per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
 - **"Could not rename the conversation … UnsupportedPlatform" / "Could not
   fork the conversation … WriteFailed"** — Muse Code 1.3.0 refuses
-  `session/rename` and `session/fork` on Windows. The panel shows the refusal
-  and leaves the conversation as it was.
+  `session/rename` and `session/fork` on Windows
+  ([#30](https://github.com/meta-models/muse-code-sdk/issues/30),
+  [#31](https://github.com/meta-models/muse-code-sdk/issues/31)). The panel
+  shows the refusal and leaves the conversation as it was.
+- **A warning that "Muse Code reported an error for the decision (the tool
+  may have run anyway): … approval ledger durability fence …"** — Muse Code
+  1.3.0 on Windows sometimes fails its own ledger write after applying your
+  decision ([#29](https://github.com/meta-models/muse-code-sdk/issues/29)).
+  The tool row shows what happened; nothing needs redoing.
 - **Model API charges while using the CLI** — the extension never hands your
   pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
   output log says which credential it started with). If the CLI itself holds
   a pay-as-you-go key (`muse auth set`) or `META_API_KEY` is exported in your
   environment, the CLI uses it, exactly as Meta documents.
+- **The Agent map says delegation is off** — Muse Code hides its subagent
+  tools until `run.subagent_delegation_mode` is `"auto"` in its own settings
+  file; the map's button opens that file. The extension never edits it.
 - **The microphone says "Voice dictation failed: No microphone is available"**
   — Windows sees no recording device from this session (Remote Desktop hides
   the host's devices unless the client redirects a microphone). On macOS,

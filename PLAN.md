@@ -1812,8 +1812,8 @@ version 0.5.0.
 ### M19 — Issue #4: the prompt box auto-grows (D22)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m19.md`);
-merged through a pull request from `fix/composer-autogrow`, ships in the
-next release.
+merged through pull request #5 from `fix/composer-autogrow`, shipped in
+0.5.2.
 
 - **Goal**: the D22 rows.
 - **Scope**: `rowsFor(draft, metrics)` and `fitRows` with their layout and
@@ -2020,3 +2020,14 @@ Marketplace publish job's own `vsce publish` ("Published
 RandyNorthrup.muse-spark-code v0.5.1."), the first release the workflow
 published itself. From here a release is a version bump, a CHANGELOG
 section and a `v*` tag.
+
+**0.5.2 (2026-09-23):** the first community fix, issue #4 (D22, M19),
+merged from `fix/composer-autogrow` through pull request #5 with its CI
+green, and the README brought up to date: the Open diff and Revert buttons
+it still promised (gone since 0.4.2), subagents and the Agent map, reply
+and quote, question cards, outputs in the editor and the usage insights in
+the highlights, the workflow publish in place of the by-hand recipe, the
+live drill's budget, the three upstream issues in Troubleshooting, and
+eleven screenshots rendered from the shipped panel by the harness in place
+of the 0.1.1 captures. Tagged `v0.5.2`; the run is recorded here once it
+finishes.
