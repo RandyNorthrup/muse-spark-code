@@ -8,8 +8,13 @@
 //
 // The extension host bundle is CommonJS because VS Code loads `main` with
 // require(). `vscode` is provided by the host and must stay external.
+//
+// A production build also writes each shipped bundle's esbuild metafile to
+// dist/meta/ (M26, PLAN.md D29): the list of every source file that went in,
+// from which scripts/third-party-notices.mjs derives the packages whose
+// licences travel with the .vsix. The folder is not packaged.
 
-import { readdirSync, statSync } from 'node:fs'
+import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 
@@ -28,12 +33,14 @@ const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 const NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
 const BYTES_PER_KIB = 1024
+const METAFILE_DIR = 'dist/meta'
 
 /** @type {import('esbuild').BuildOptions} */
 const common = {
   bundle: true,
   minify: isProduction,
   sourcemap: !isProduction && 'linked',
+  metafile: isProduction,
   logLevel: 'info',
   define: { 'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development') },
 }
@@ -102,15 +109,23 @@ if (isWatch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
-  const builds = [
-    esbuild.build(hostOptions),
-    esbuild.build(searchWorkerOptions),
-    esbuild.build(webviewOptions),
-  ]
+  const shipped = {
+    extension: esbuild.build(hostOptions),
+    searchWorker: esbuild.build(searchWorkerOptions),
+    webview: esbuild.build(webviewOptions),
+  }
+  const builds = Object.values(shipped)
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
   await Promise.all(builds)
+  if (isProduction) {
+    mkdirSync(METAFILE_DIR, { recursive: true })
+    for (const [name, build] of Object.entries(shipped)) {
+      const { metafile } = await build
+      writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+    }
+  }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)

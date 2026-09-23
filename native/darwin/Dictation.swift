@@ -297,32 +297,61 @@ final class Session {
     }
 }
 
-func requestAuthorization() -> Bool {
+/// The app macOS asks on this helper's behalf. macOS charges a helper's
+/// privacy requests to the app responsible for it, the one that started it:
+/// Visual Studio Code when the panel starts it (the extension passes VS
+/// Code's own name with `--app-name`), Terminal when it is run by hand, and
+/// an SSH session, which macOS never prompts, over SSH (tccd logged
+/// "responsible=... sshd-keygen-wrapper, requesting=...dictate" and "Policy
+/// disallows prompt" for the M26 check on the owner's Mac mini).
+let appName: String = {
+    let arguments = CommandLine.arguments
+    if let flag = arguments.firstIndex(of: "--app-name"), flag + 1 < arguments.count {
+        return arguments[flag + 1]
+    }
+    return "the app that started this helper"
+}()
+
+/// Asks for speech recognition, then the microphone; nil when both are
+/// allowed, otherwise the refusal the user reads. Each request is announced
+/// on stderr first, so a helper that macOS ends at a request (rather than
+/// answering it) names the request in the host's report.
+func authorizationFailure() -> String? {
     let semaphore = DispatchSemaphore(value: 0)
     var speechStatus = SFSpeechRecognizerAuthorizationStatus.notDetermined
+    Output.trace("asking macOS for speech recognition for \(appName)")
     SFSpeechRecognizer.requestAuthorization { status in
         speechStatus = status
         semaphore.signal()
     }
     semaphore.wait()
-    guard speechStatus == .authorized else {
-        return false
+    switch speechStatus {
+    case .authorized:
+        break
+    case .restricted:
+        return "Speech recognition is restricted on this Mac (by a device-management profile or Screen Time), so dictation cannot run."
+    default:
+        // Visual Studio Code declares a microphone purpose but no speech
+        // recognition purpose in its Info.plist, and macOS then refuses the
+        // request without asking (microsoft/vscode#307364): there is no
+        // switch to turn on in that case, and the text says so.
+        return "macOS did not allow speech recognition for \(appName), the app that started the dictation helper. If \(appName) is listed in System Settings > Privacy & Security > Speech Recognition, turn it on and try again. If it is not listed, macOS refused without asking, which it does for Visual Studio Code because Visual Studio Code does not declare speech recognition (microsoft/vscode#307364); dictation cannot work there until it does."
     }
     var isMicrophoneAllowed = false
+    Output.trace("asking macOS for the microphone for \(appName)")
     AVCaptureDevice.requestAccess(for: .audio) { granted in
         isMicrophoneAllowed = granted
         semaphore.signal()
     }
     semaphore.wait()
-    return isMicrophoneAllowed
+    guard isMicrophoneAllowed else {
+        return "macOS did not allow the microphone for \(appName), the app that started the dictation helper. Turn it on in System Settings > Privacy & Security > Microphone and try again."
+    }
+    return nil
 }
 
-guard requestAuthorization() else {
-    // macOS attributes the request to the app that launched the helper:
-    // Visual Studio Code in the panel, Terminal when run by hand, and no
-    // one at all over SSH (denied without a prompt).
-    Output.fail(
-        "Speech recognition or the microphone is not allowed for the app that launched this helper (Visual Studio Code). Allow both in System Settings > Privacy & Security.")
+if let refusal = authorizationFailure() {
+    Output.fail(refusal)
 }
 
 guard let recognizer = SFSpeechRecognizer(locale: Locale.current) ?? SFSpeechRecognizer() else {

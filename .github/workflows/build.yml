@@ -3,6 +3,10 @@
 # `muse-spark-code-vsix` artifact. Called by ci.yml (pushes and pull
 # requests) and release.yml (version tags), so a release is built exactly
 # the way CI builds every commit.
+#
+# Every job has a timeout (about three times its usual run; GitHub's default
+# is six hours) and every checkout leaves no token in the git config
+# (`persist-credentials: false`): no job here pushes (M26, PLAN.md D29).
 name: Build
 
 on:
@@ -15,27 +19,48 @@ jobs:
   quality:
     name: quality (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       # lint:ps (PSScriptAnalyzer over native/windows) is real on this runner
-      # and a reported skip elsewhere.
-      - name: PSScriptAnalyzer (windows)
+      # and a reported skip elsewhere. The version is the one lint-ps.mjs
+      # pins, so the gate does not change under an unchanged tree.
+      - name: PSScriptAnalyzer (windows, pinned)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -AcceptLicense
+        run: |
+          $version = node scripts/lint-ps.mjs --print-version
+          Install-Module PSScriptAnalyzer -RequiredVersion $version -Force -Scope CurrentUser -AcceptLicense
       # All gates except secrets (separate job) and integration tests (below):
       # format, lint, typecheck, dead code, cycles, duplication, unit tests with
-      # coverage thresholds, production build with bundle budget, npm audit.
+      # coverage thresholds, production build with bundle budget, host-global
+      # and third-party-notice checks, the dependency audit.
       - run: npm run quality:gates
+      # The integration tests run twice (.vscode-test.mjs): on the latest
+      # stable VS Code and on the manifest's floor (engines.vscode). The two
+      # downloads are cached under a key naming both versions.
+      - name: VS Code versions for the integration tests
+        id: vscode
+        if: runner.os != 'macOS'
+        shell: bash
+        run: node scripts/vscode-versions.mjs >> "$GITHUB_OUTPUT"
+      - name: VS Code download cache
+        if: runner.os != 'macOS'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .vscode-test/vscode-*
+          key: vscode-test-${{ runner.os }}-${{ steps.vscode.outputs.minimum }}-${{ steps.vscode.outputs.stable }}
       - name: integration tests (linux, xvfb)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:integration
@@ -45,12 +70,16 @@ jobs:
 
   # The macOS dictation helper (M9): Apple's Speech framework behind the
   # microphone button. Compiled here because only a Mac can; the package job
-  # below ships it in the .vsix.
+  # below ships it in the .vsix. build.sh embeds package.json's version and
+  # fails when the finished binary carries another.
   native-darwin:
     name: dictation helper (macos)
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - run: bash native/darwin/build.sh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -63,8 +92,11 @@ jobs:
     name: package (.vsix)
     needs: [quality, native-darwin]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
@@ -76,6 +108,20 @@ jobs:
       - run: chmod +x native/darwin/muse-dictate
       - run: npm ci
       - run: npm run package
+      # What must be inside the package: the licence, the third-party
+      # notices, both dictation helpers and the three bundles.
+      - name: the .vsix carries the notices, the helpers and the bundles
+        run: |
+          listing="$(unzip -Z1 ./*.vsix)"
+          for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt \
+            extension/native/windows/dictate.ps1 extension/native/darwin/muse-dictate \
+            extension/dist/extension.js extension/dist/searchWorker.js extension/dist/webview/main.js; do
+            if ! grep -qx "$entry" <<< "$listing"; then
+              echo "::error::$entry is missing from the .vsix" >&2
+              exit 1
+            fi
+          done
+          echo "the .vsix holds $(wc -l <<< "$listing") entries, the required ones included"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-vsix
@@ -85,10 +131,12 @@ jobs:
   secrets:
     name: gitleaks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,10 +144,17 @@ jobs:
   sast:
     name: semgrep
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - run: pip install semgrep
+      # The semgrep CLI is pinned in the requirements file (Dependabot's pip
+      # entry proposes the bumps). `--config auto` still fetches the
+      # registry's current rule set at scan time: new rules can find new
+      # issues in an unchanged tree, which is the point of the job.
+      - run: pip install -r .github/semgrep/requirements.txt
       - run: semgrep scan --config auto --error --exclude=dist --exclude=coverage --exclude=node_modules

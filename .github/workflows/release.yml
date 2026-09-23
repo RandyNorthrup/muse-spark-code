@@ -3,8 +3,12 @@
 # and the Marketplace publish runs when the VSCE_PAT repository secret is
 # set (a Marketplace "Manage" PAT; without it the publish step is skipped
 # and reported, and `npx vsce publish --packagePath` by hand still works).
-# The tag must match the manifest version; a mismatch fails before anything
-# is published.
+#
+# Before anything is built, the tag must name the manifest's version and
+# point at a commit on main. The PAT reaches one step only, after an
+# `npm ci --ignore-scripts`, so no dependency's install script or the husky
+# `prepare` hook ever runs beside it; no checkout keeps a token in its git
+# config (M26, PLAN.md D29).
 name: Release
 
 on:
@@ -15,29 +19,51 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    name: tag checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The whole history and every branch, for the ancestry check.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: tag matches the manifest version
+        run: |
+          version="$(jq -r .version package.json)"
+          if [ "v$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ${version}" >&2
+            exit 1
+          fi
+      - name: the tagged commit is on main
+        run: |
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::tag ${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main" >&2
+            exit 1
+          fi
+
   build:
+    needs: verify
     # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
-    # no other secret is passed (least privilege).
+    # no other secret is passed (least privilege). A job that calls a
+    # reusable workflow takes no timeout-minutes; build.yml's jobs set theirs.
     uses: ./.github/workflows/build.yml
 
   release:
     name: GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - name: tag matches the manifest version
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          if [ "v$version" != "${GITHUB_REF_NAME}" ]; then
-            echo "tag ${GITHUB_REF_NAME} does not match package.json version ${version}" >&2
-            exit 1
-          fi
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: muse-spark-code-vsix
@@ -57,23 +83,37 @@ jobs:
     name: Marketplace publish
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
-      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      # Whether the secret is set, never the secret itself: a step's `if:`
+      # cannot read `secrets` ("Secrets cannot be directly referenced in if:
+      # conditionals", GitHub's secrets guide), and the value goes to the
+      # publish step alone.
+      HAS_VSCE_PAT: ${{ secrets.VSCE_PAT != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No npm cache in the job that holds the PAT: the lockfile's integrity
+      # hashes are checked either way, and a restored cache is one input less.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          cache: npm
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: muse-spark-code-vsix
           path: release
       - name: skipped without VSCE_PAT
-        if: env.VSCE_PAT == ''
+        if: env.HAS_VSCE_PAT != 'true'
         run: echo "VSCE_PAT is not set; the Marketplace publish was skipped. Publish by hand with npx vsce publish --packagePath release/*.vsix" >> "$GITHUB_STEP_SUMMARY"
+      # The locked vsce, with no install script of any package run (vsce
+      # needs none to publish an unsigned package: @vscode/vsce-sign's
+      # binary is used only for --signTool or a signature manifest).
+      - name: install the locked tools without install scripts
+        if: env.HAS_VSCE_PAT == 'true'
+        run: npm ci --ignore-scripts --no-audit
       - name: publish to the Marketplace
-        if: env.VSCE_PAT != ''
-        run: |
-          npm ci
-          npx vsce publish --packagePath release/*.vsix
+        if: env.HAS_VSCE_PAT == 'true'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: ./node_modules/.bin/vsce publish --packagePath release/*.vsix

@@ -11,6 +11,14 @@ import manifest from '../../package.json'
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const IMAGE_LINK = /!\[[^\]]*\]\(([^)]+)\)/g
 
+/** A manifest key as the walkthrough spells it: `ctrl+alt+escape` → `Ctrl+Alt+Escape`. */
+function spelled(key: string): string {
+  return key
+    .split('+')
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join('+')
+}
+
 describe('walkthrough resources', () => {
   const [walkthrough] = manifest.contributes.walkthroughs
   const steps = walkthrough?.steps ?? []
@@ -26,6 +34,18 @@ describe('walkthrough resources', () => {
       expect(images.length, step.id).toBeGreaterThan(0)
       for (const image of images) {
         expect(existsSync(path.join(path.dirname(file), image)), `${step.id}: ${image}`).toBe(true)
+      }
+    }
+  })
+
+  it('names the shortcuts the manifest binds, per platform (M26)', () => {
+    const open = readFileSync(path.join(root, 'resources', 'walkthrough', 'open.md'), 'utf8')
+    const shown = new Set(Array.from(open.matchAll(/`([^`]+)`/g), (match) => match[1]))
+    for (const command of ['museSpark.focusInput', 'museSpark.openInNewTab']) {
+      const binding = manifest.contributes.keybindings.find((entry) => entry.command === command)
+      for (const key of [binding?.key, binding?.mac, binding?.win]) {
+        expect(key, command).toBeDefined()
+        expect(shown, `${command}: ${String(key)}`).toContain(spelled(key ?? ''))
       }
     }
   })

@@ -1,0 +1,5 @@
+# The semgrep CLI the CI `sast` job installs (build.yml). Pinned so the
+# scanner itself changes only in a reviewed pull request; Dependabot's pip
+# entry proposes each new release (PLAN.md D29). The rules come from
+# `--config auto`, fetched from the Semgrep registry at scan time.
+semgrep==1.177.0

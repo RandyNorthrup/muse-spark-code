@@ -47,7 +47,7 @@ class FakeChild implements HelperChild {
 
 const invocation: HelperInvocation = { command: 'helper', args: ['--x'] }
 
-function setup() {
+function setup(helper: HelperInvocation = invocation) {
   const children: FakeChild[] = []
   const statuses: DictationStatus[] = []
   const texts: string[] = []
@@ -76,9 +76,9 @@ function setup() {
     },
   }
   const dictation = new Dictation({
-    invocation,
+    invocation: helper,
     spawn: (spawned) => {
-      expect(spawned).toBe(invocation)
+      expect(spawned).toBe(helper)
       const child = new FakeChild()
       children.push(child)
       return child
@@ -229,6 +229,22 @@ describe('Dictation driver', () => {
     t.child().exit('exit code 1')
     expect(t.statuses).toEqual(['starting', 'listening', 'idle'])
     expect(t.errors).toEqual(['exit code 1: Access denied'])
+  })
+
+  it('adds the platform hint to an exit before "ready", and only then (M26)', () => {
+    const hinted: HelperInvocation = { ...invocation, earlyExitHint: 'macOS ended it.' }
+    const early = setup(hinted)
+    early.dictation.start()
+    early.child().stderr.emit('data', 'step: asking macOS for speech recognition\n')
+    early.child().exit('signal SIGKILL')
+    expect(early.errors).toEqual([
+      'signal SIGKILL: step: asking macOS for speech recognition. macOS ended it.',
+    ])
+    const late = setup(hinted)
+    late.dictation.start()
+    late.child().emitLine({ type: 'ready', language: 'en_US' })
+    late.child().exit('exit code 1')
+    expect(late.errors).toEqual(['exit code 1'])
   })
 
   it('an unexpected exit without stderr reports the exit alone', () => {

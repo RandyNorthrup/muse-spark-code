@@ -45,17 +45,21 @@ async function render(chrome, work, name, asset) {
   )
   const target = path.resolve(asset.target)
   await mkdir(path.dirname(target), { recursive: true })
-  await execFileAsync(chrome, [
-    '--headless=new',
-    '--disable-gpu',
-    '--hide-scrollbars',
-    '--no-first-run',
-    '--default-background-color=00000000',
-    `--user-data-dir=${path.join(work, `profile-${name}`)}`,
-    `--window-size=${String(asset.width)},${String(asset.height)}`,
-    `--screenshot=${target}`,
-    `file://${page}`,
-  ])
+  await execFileAsync(
+    chrome,
+    [
+      '--headless=new',
+      '--disable-gpu',
+      '--hide-scrollbars',
+      '--no-first-run',
+      '--default-background-color=00000000',
+      `--user-data-dir=${path.join(work, `profile-${name}`)}`,
+      `--window-size=${String(asset.width)},${String(asset.height)}`,
+      `--screenshot=${target}`,
+      `file://${page}`,
+    ],
+    { windowsHide: true },
+  )
   console.log(`rendered ${asset.source} -> ${asset.target}`)
 }
 

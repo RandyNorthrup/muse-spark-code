@@ -20,6 +20,11 @@ import {
   WALKTHROUGH_ID,
 } from '../../src/shared/constants'
 
+/** How many times a pattern (with the `g` flag) occurs in a text. */
+function count(text: string, pattern: RegExp): number {
+  return text.match(pattern)?.length ?? 0
+}
+
 const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
 describe('package.json manifest', () => {
@@ -54,13 +59,17 @@ describe('package.json manifest', () => {
     const bindings = new Map(
       manifest.contributes.keybindings.map((binding) => [binding.command, binding]),
     )
+    // Windows opens Start on Ctrl+Esc and Task Manager on Ctrl+Shift+Esc
+    // before VS Code sees either, so Windows adds Alt (M26, D29).
     expect(bindings.get(COMMAND_IDS.focusInput)).toMatchObject({
       key: 'ctrl+escape',
       mac: 'cmd+escape',
+      win: 'ctrl+alt+escape',
     })
     expect(bindings.get(COMMAND_IDS.openInNewTab)).toMatchObject({
       key: 'ctrl+shift+escape',
       mac: 'cmd+shift+escape',
+      win: 'ctrl+shift+alt+escape',
     })
     expect(bindings.get(COMMAND_IDS.insertMentionReference)).toMatchObject({ key: 'alt+k' })
     expect(bindings.get(COMMAND_IDS.toggleFocusView)).toMatchObject({ key: 'ctrl+alt+f' })
@@ -139,10 +148,116 @@ describe('package.json manifest', () => {
     expect(events).toContain(`onCommand:${COMMAND_IDS.createRulesFile}`)
   })
 
+  it('binds nothing on Windows that Windows itself takes first (M26)', () => {
+    // support.microsoft.com "Keyboard shortcuts in Windows": Ctrl+Esc opens
+    // Start, Ctrl+Shift+Esc Task Manager, Alt+Esc cycles windows, Alt+Tab
+    // switches apps, Alt+F4 closes the window; Ctrl+Alt+Del is the secure
+    // attention sequence.
+    const reservedOnWindows = new Set([
+      'ctrl+escape',
+      'ctrl+shift+escape',
+      'alt+escape',
+      'alt+tab',
+      'alt+f4',
+      'ctrl+alt+delete',
+    ])
+    for (const binding of manifest.contributes.keybindings) {
+      const onWindows = 'win' in binding ? binding.win : binding.key
+      expect(reservedOnWindows.has(onWindows), `${binding.command}: ${onWindows}`).toBe(false)
+    }
+  })
+
+  it('lists a command in the Command Palette only where it can act (M26)', () => {
+    const palette = new Map(
+      manifest.contributes.menus.commandPalette.map((entry) => [entry.command, entry.when]),
+    )
+    expect(Object.fromEntries(palette)).toEqual({
+      // Needs an editor selection to mention.
+      [COMMAND_IDS.insertMentionReference]: 'editorIsOpen',
+      // Acts on the conversation in front of the user.
+      [COMMAND_IDS.toggleThinking]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // The Windows sandbox; a remote window may run on Windows whatever this machine is.
+      [COMMAND_IDS.setUpSandbox]: 'isWindows || remoteName',
+      // Writes AGENTS.md into the workspace folder.
+      [COMMAND_IDS.createRulesFile]: 'workspaceFolderCount > 0',
+    })
+    const registered: readonly string[] = Object.values(COMMAND_IDS)
+    for (const command of palette.keys()) {
+      expect(registered).toContain(command)
+    }
+  })
+
+  it('lists the extension under the AI and Chat categories only (M26)', () => {
+    expect(manifest.categories).toEqual(['AI', 'Chat'])
+  })
+
   it('pins @types/vscode to the engines.vscode minimum', () => {
     const engine = /^\^(\d+\.\d+)\.\d+$/.exec(manifest.engines.vscode)?.[1]
     const types = /^(\d+\.\d+)\.\d+$/.exec(manifest.devDependencies['@types/vscode'])?.[1]
     expect(engine).toBeDefined()
     expect(types).toBe(engine)
+  })
+})
+
+describe('packaging (M26)', () => {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+  const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), 'utf8')
+
+  it('ships the licence, the third-party notices and both dictation helpers', () => {
+    const shipped = read('.vscodeignore')
+      .split('\n')
+      .filter((line) => line.startsWith('!'))
+      .map((line) => line.slice(1).trim())
+    expect(shipped).toEqual(
+      expect.arrayContaining([
+        'LICENSE',
+        'THIRD_PARTY_NOTICES.txt',
+        'native/windows/dictate.ps1',
+        'native/darwin/muse-dictate',
+      ]),
+    )
+    // The notices name every bundled runtime dependency (the build's check
+    // keeps the whole list current; this pins the obvious ones).
+    const notices = read('THIRD_PARTY_NOTICES.txt')
+    expect(notices.startsWith('THIRD-PARTY SOFTWARE NOTICES\n')).toBe(true)
+    for (const name of [...Object.keys(manifest.dependencies), 'react', 'zod', '@muse-code/sdk']) {
+      expect(notices, name).toContain(`\n${name} (`)
+    }
+  })
+
+  it('bounds every CI job, keeps tokens out of checkouts and the PAT in one step (M26)', () => {
+    for (const file of ['build.yml', 'ci.yml', 'release.yml']) {
+      const workflow = read('.github', 'workflows', file)
+      // A job that calls a reusable workflow (`uses:` at job level) takes no
+      // timeout; every job that runs on a runner has one.
+      expect(count(workflow, /^ {4}timeout-minutes: \d+$/gm), file).toBe(
+        count(workflow, /^ {4}runs-on: /gm),
+      )
+      expect(count(workflow, /^ {6}- uses: actions\/checkout@/gm), file).toBe(
+        count(workflow, /^ {10}persist-credentials: false$/gm),
+      )
+      if (file !== 'release.yml') {
+        expect(workflow, file).not.toContain('VSCE_PAT')
+      }
+    }
+    const release = read('.github', 'workflows', 'release.yml')
+    // The flag (whether it is set) and the one step that receives it.
+    expect(release.match(/\$\{\{ secrets\.VSCE_PAT[^}]*\}\}/g)).toEqual([
+      "${{ secrets.VSCE_PAT != '' }}",
+      '${{ secrets.VSCE_PAT }}',
+    ])
+    expect(release).toMatch(
+      /run: npm ci --ignore-scripts --no-audit\n.*\n.*\n.*\n {10}VSCE_PAT: \$\{\{ secrets\.VSCE_PAT \}\}\n {8}run: \.\/node_modules\/\.bin\/vsce publish/,
+    )
+    expect(release).toContain('git merge-base --is-ancestor "${GITHUB_SHA}" origin/main')
+  })
+
+  it('takes the macOS helper’s version from package.json when it is built, never by hand', () => {
+    expect(read('native', 'darwin', 'Info.plist')).not.toContain('CFBundleShortVersionString')
+    const build = read('native', 'darwin', 'build.sh')
+    expect(build).toContain('MANIFEST=../../package.json')
+    expect(build).toContain('VERSION="$(plutil -extract version raw -o - "$MANIFEST")"')
+    expect(build).toContain('plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"')
+    expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
   })
 })

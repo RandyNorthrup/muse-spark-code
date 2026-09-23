@@ -49,6 +49,17 @@ export function parseHelperLine(line: string): HelperLine | undefined {
 export interface HelperInvocation {
   readonly command: string
   readonly args: readonly string[]
+  /**
+   * Variables set for the helper on top of the extension host's environment,
+   * replacing an inherited variable of the same name (`helperEnvironment`).
+   */
+  readonly environment?: Readonly<Record<string, string>>
+  /**
+   * Said after the exit report when the helper ends before its "ready" line
+   * without being asked to: the operating system refused to run it or
+   * stopped it at a permission check (M26, PLAN.md D29).
+   */
+  readonly earlyExitHint?: string
 }
 
 interface ChunkSource {
@@ -243,8 +254,9 @@ export class Dictation {
     // Died on its own: the button goes idle and the user learns why.
     this.setStatus('idle')
     const detail = helper.stderrTail.trim()
+    const hint = helper.isReady ? undefined : this.deps.invocation.earlyExitHint
     this.deps.listener.onError(
-      `${description}${detail === '' ? '' : `: ${detail.split('\n').at(-1) ?? detail}`}`,
+      `${description}${detail === '' ? '' : `: ${detail.split('\n').at(-1) ?? detail}`}${hint === undefined ? '' : `. ${hint}`}`,
     )
   }
 

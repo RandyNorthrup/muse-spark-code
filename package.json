@@ -24,8 +24,7 @@
   },
   "categories": [
     "AI",
-    "Chat",
-    "Programming Languages"
+    "Chat"
   ],
   "keywords": [
     "muse spark",
@@ -156,12 +155,14 @@
       {
         "command": "museSpark.focusInput",
         "key": "ctrl+escape",
-        "mac": "cmd+escape"
+        "mac": "cmd+escape",
+        "win": "ctrl+alt+escape"
       },
       {
         "command": "museSpark.openInNewTab",
         "key": "ctrl+shift+escape",
-        "mac": "cmd+shift+escape"
+        "mac": "cmd+shift+escape",
+        "win": "ctrl+shift+alt+escape"
       },
       {
         "command": "museSpark.insertMentionReference",
@@ -190,6 +191,24 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "museSpark.insertMentionReference",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "museSpark.toggleThinking",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.setUpSandbox",
+          "when": "isWindows || remoteName"
+        },
+        {
+          "command": "museSpark.createRulesFile",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
       "view/title": [
         {
           "command": "museSpark.openInNewTab",
@@ -418,7 +437,8 @@
   },
   "scripts": {
     "clean": "rimraf dist coverage",
-    "build": "node scripts/build.mjs --production && node scripts/check-bundle-size.mjs",
+    "build": "node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs",
+    "notices": "node scripts/build.mjs --production && node scripts/third-party-notices.mjs --write",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
     "harness:shots": "node scripts/harness-shots.mjs",
@@ -442,7 +462,7 @@
     "test:e2e:live": "vitest run test/e2e/live.e2e.test.ts",
     "test:integration": "run-s build:dev test:integration:run",
     "test:integration:run": "vscode-test",
-    "security:audit": "npm audit --audit-level=high",
+    "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
     "quality:gates": "run-s format:check lint typecheck deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates security:secrets security:sast",
