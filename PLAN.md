@@ -643,6 +643,20 @@ and what it found:
 | Owner controls                       | MSP offers `subagent/interrupt`, `stop`, `resume`, `close`, `sendMessage` and `followupTask` (the SDK's `SubagentOwnerReasonParams`, `SubagentInputParams`, `SubagentTargetParams`).                                                                                                                                                                                                                            | `AgentSession.controlSubagent` / `messageSubagent` on both hosts (the Model API refuses: no subagents), the `subagentControl` / `subagentMessage` messages, and the map's controls by state: Interrupt and Stop with a note while running; Resume and Stop when paused; Close and a follow-up task once the result is ready; nothing once closed. The fake CLI answers them for the e2e.                                                                                          |
 | The Marketplace                      | Published by hand on 2026-09-23 from the v0.5.0 release vsix (`npx vsce publish --packagePath`, the PAT from the clipboard, never stored); the `VSCE_PAT` repository secret was set the same day (the auto-mode classifier refused `gh secret set` and the browser route; the owner switched permission modes and the same command ran), so the release workflow publishes every later tag itself, 0.5.1 first. | 0.5.0 on the Marketplace; 0.2.0–0.4.3 were never published, each tag's GitHub Release carries its vsix. The three Windows CLI faults went upstream the same day: meta-models/muse-code-sdk#29 (approval ledger fence), #30 (`session/rename`), #31 (`session/fork`).                                                                                                                                                                                                              |
 
+### D22 — Issue #4: the prompt box grows with wrapped lines (2026-09-23)
+
+The first community issue, RandyNorthrup/muse-spark-code#4 (dhaw97160):
+"The chat input box only displays a single line. When the input gets a bit
+longer, only one line remains visible, which makes editing and reviewing
+very awkward." Asked for: one row for short input, growth as lines wrap or
+newlines are added, a sensible maximum, internal scrolling past it, the
+behaviour of VS Code's own chat view.
+
+| Report                                                                    | Finding                                                                                                                                                                       | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Only a single line … when the input gets a bit longer, only one remains" | The textarea's `rows` came from `rowsFor(draft)`, the newline count, so a long line that wrapped stayed one row (M1); newlines grew it, which is why the F5 rounds missed it. | `rowsFor(draft, metrics)` takes the content height in rows when the box can be measured (a browser: `scrollHeight` over the one-row `clientHeight`), else the newline count (jsdom reports 0 for both, which keeps the existing tests meaningful); `fitRows` sets one row, measures and sets the rows, from a layout effect on the draft (before paint) and from a `ResizeObserver` when the width changes (a resized sidebar rewraps). The cap stays `COMPOSER_MAX_ROWS` (ten); past it the textarea scrolls inside. |
+| "Match the VS Code built-in chat view"                                    | VS Code's chat input grows to a maximum and scrolls; so does Claude Code's.                                                                                                   | Same shape: one row, growth, ten rows, internal scroll. Verified in the harness: `composer-grow` (a two-line wrapped draft) and `composer-max` (fourteen lines, ten shown).                                                                                                                                                                                                                                                                                                                                           |
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1779,7 +1793,7 @@ version 0.4.3.
 ### M18 — The verification round (D21)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m18.md`);
-version 0.4.4.
+version 0.5.0.
 
 - **Goal**: every D21 row.
 - **Scope**: 16 harness scenarios (`test/harness/index.html`,
@@ -1794,6 +1808,25 @@ version 0.4.4.
   facts recorded; the gate green.
 - **Security**: the live drills' temporary config copy is deleted on every
   exit path and never echoed; the harness runs against a fake host only.
+
+### M19 — Issue #4: the prompt box auto-grows (D22)
+
+**Status 2026-09-23: built and certified** (`docs/certification/m19.md`);
+merged through a pull request from `fix/composer-autogrow`, ships in the
+next release.
+
+- **Goal**: the D22 rows.
+- **Scope**: `rowsFor(draft, metrics)` and `fitRows` with their layout and
+  resize effects in `src/webview/components/Composer.tsx` (the `rows`
+  attribute is set on the element, not through a prop, so no state changes
+  in an effect); two tests in `test/unit/Composer.test.tsx` (the measured
+  growth, shrink and cap with stubbed heights; the pure row count); the
+  `composer-grow` and `composer-max` harness scenarios; CHANGELOG, this
+  file.
+- **Acceptance**: the measured test fails when the measurement is ignored
+  (the pre-fix behaviour); both scenarios rendered and viewed; the gate
+  green; the pull request's CI green before the merge.
+- **Security**: none new; the box reads its own metrics only.
 
 ## 7. Gates
 
@@ -1981,4 +2014,9 @@ the workflow publish: the README's Marketplace version and installs badges
 moved from shields.io (which retired its Visual Studio Marketplace
 endpoints and rendered "retired badge" on the listing page) to badgen.net,
 the install line names the new vsix, and the records above. Tagged
-`v0.5.1`; the run is recorded here once it finishes.
+`v0.5.1`; run 35892611160 went green on the first try: every job, the
+GitHub Release with `muse-spark-code-0.5.1.vsix` (549,903 bytes), and the
+Marketplace publish job's own `vsce publish` ("Published
+RandyNorthrup.muse-spark-code v0.5.1."), the first release the workflow
+published itself. From here a release is a version bump, a CHANGELOG
+section and a `v*` tag.

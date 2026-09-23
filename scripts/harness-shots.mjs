@@ -62,6 +62,8 @@ const SCENARIOS = [
   'quote-chip',
   'approval-tool',
   'agents-details',
+  'composer-grow',
+  'composer-max',
 ]
 const OUT_DIR = 'harness-shots'
 const HARNESS_PATH = 'test/harness/index.html'

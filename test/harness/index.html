@@ -1188,6 +1188,21 @@
             })
           })
         },
+        // --- Issue #4: the box grows with wrapped lines, capped at ten rows ---
+        'composer-grow': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () =>
+            setDraft(
+              'Refactor the settings loader so the machine-scoped keys read from the user settings first, then the workspace, and say in the reply which file each value came from.',
+            ),
+          )
+        },
+        'composer-max': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () =>
+            setDraft(Array.from({ length: 14 }, (_, index) => `line ${index + 1}`).join('\n')),
+          )
+        },
         // --- M17: highlight a passage, right-click, ask about it ---
         'quote-menu': () => {
           transcriptFixture({ isDone: true })
