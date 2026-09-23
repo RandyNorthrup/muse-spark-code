@@ -1,14 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
-import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import {
   ModelApiHost,
   type ModelApiHostDeps,
   type ModelApiSession,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi } from './helpers/fakeModelApi'
+import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
@@ -29,15 +28,7 @@ function setup(
   const io = memoryToolIo(options.files ?? {}, ROOT)
   let ids = 0
   let clock = 1_000_000
-  const client = new ModelApiClient({
-    fetch: api.fetch,
-    baseUrl: 'https://api.example.test/v1',
-    apiKey: () => Promise.resolve('LLM|1|secret'),
-    sleep: () => Promise.resolve(),
-    now: () => 0,
-    random: () => 0,
-    log,
-  })
+  const client = fakeModelApiClient(api, log)
   const host = new ModelApiHost({
     client,
     workspaceRoot: ROOT,

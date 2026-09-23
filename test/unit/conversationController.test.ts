@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
-import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
@@ -23,7 +22,7 @@ import { CHOICE_STEERING_NOTE } from '../../src/shared/constants'
 import type { HostAction, LineRange, MentionItem } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
-import { fakeModelApi } from './helpers/fakeModelApi'
+import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeInitializeResult, fakeMspHost, settle } from './helpers/fakeMsp'
 
@@ -1929,15 +1928,7 @@ describe('ConversationController: backends and tiers (M7)', () => {
     })
     const api = fakeModelApi()
     const modelApiHost = new ModelApiHost({
-      client: new ModelApiClient({
-        fetch: api.fetch,
-        baseUrl: 'https://api.example.test/v1',
-        apiKey: () => Promise.resolve('LLM|1|secret'),
-        sleep: () => Promise.resolve(),
-        now: () => 0,
-        random: () => 0,
-        log: t.log,
-      }),
+      client: fakeModelApiClient(api, t.log),
       workspaceRoot: String.raw`C:\Users\r\ws`,
       platform: 'win32',
       io: noopToolIo,

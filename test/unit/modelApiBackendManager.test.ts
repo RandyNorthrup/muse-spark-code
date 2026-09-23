@@ -5,9 +5,13 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { noopToolIo } from './helpers/fakeToolIo'
 
-function manager(workspaceRoot: string | undefined) {
+/** A manager on the fake API with no waits, over the given root and store. */
+function managerOn(
+  workspaceRoot: string | undefined,
+  store: SessionStore | undefined,
+  log = new FakeLogOutputChannel(),
+) {
   const api = fakeModelApi()
-  const log = new FakeLogOutputChannel()
   return {
     api,
     log,
@@ -23,10 +27,14 @@ function manager(workspaceRoot: string | undefined) {
       random: () => 0,
       personalSkillsRoot: undefined,
       isWorkspaceTrusted: () => true,
-      store: undefined,
+      store,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
     }),
   }
+}
+
+function manager(workspaceRoot: string | undefined) {
+  return managerOn(workspaceRoot, undefined)
 }
 
 describe('ModelApiBackendManager', () => {
@@ -87,20 +95,5 @@ describe('ModelApiBackendManager', () => {
 
 /** A manager over a given session store, for the build-once cases. */
 function managerWith(overrides: { store: SessionStore }) {
-  const api = fakeModelApi()
-  return new ModelApiBackendManager({
-    log: new FakeLogOutputChannel(),
-    getApiKey: () => Promise.resolve('LLM|1|secret'),
-    workspaceRoot: '/ws',
-    io: noopToolIo,
-    fetch: api.fetch,
-    newId: () => 'id',
-    now: () => 0,
-    sleep: () => Promise.resolve(),
-    random: () => 0,
-    personalSkillsRoot: undefined,
-    isWorkspaceTrusted: () => true,
-    store: overrides.store,
-    describeEnvironment: () => Promise.resolve({ git: undefined }),
-  })
+  return managerOn('/ws', overrides.store).manager
 }
