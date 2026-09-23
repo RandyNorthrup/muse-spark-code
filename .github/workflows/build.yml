@@ -109,13 +109,15 @@ jobs:
       - run: npm ci
       - run: npm run package
       # What must be inside the package: the licence, the third-party
-      # notices, both dictation helpers and the three bundles.
+      # notices, both dictation helpers and the four bundles (the webview
+      # loads main.css beside main.js).
       - name: the .vsix carries the notices, the helpers and the bundles
         run: |
           listing="$(unzip -Z1 ./*.vsix)"
           for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt \
             extension/native/windows/dictate.ps1 extension/native/darwin/muse-dictate \
-            extension/dist/extension.js extension/dist/searchWorker.js extension/dist/webview/main.js; do
+            extension/dist/extension.js extension/dist/searchWorker.js \
+            extension/dist/webview/main.js extension/dist/webview/main.css; do
             if ! grep -qx "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
               exit 1
