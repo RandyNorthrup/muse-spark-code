@@ -1585,4 +1585,10 @@ publish one operation.
 (`docs/certification/m10.md`, `m11.md`); version bumped, `CHANGELOG.md`
 section promoted, tagged `v0.2.0` and pushed so `release.yml` builds,
 creates the GitHub Release with the `.vsix` and publishes to the
-Marketplace if `VSCE_PAT` is set (RELEASE_RUN_PLACEHOLDER).
+Marketplace if `VSCE_PAT` is set. Run 35808358781: every job green (quality on
+three platforms, integration tests, the macOS helper, the `.vsix`, gitleaks,
+semgrep), the GitHub Release created with `muse-spark-code-0.2.0.vsix`
+(370,790 bytes); the Marketplace publish step skipped as designed because no
+`VSCE_PAT` repository secret exists, so 0.2.0 reaches the Marketplace by the
+clipboard-PAT flow or once the owner adds the secret and the publish job is
+rerun.
