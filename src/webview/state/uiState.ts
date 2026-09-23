@@ -120,6 +120,8 @@ export type TranscriptEntry =
   | {
       readonly kind: 'user'
       readonly id: string
+      /** Where the message falls in the arrival order (M20): the rewind boundary. */
+      readonly seq: number
       readonly text: string
       readonly status: 'pending' | 'sent' | 'failed'
       readonly reason?: string
@@ -158,6 +160,11 @@ export type TranscriptEntry =
       readonly patchSummary: PatchSummary | undefined
       readonly patchRef: OutputRef | undefined
       readonly outputRef: OutputRef | undefined
+      /**
+       * The arrival-order number the row took when it completed (M20): the
+       * order its edit landed on disk, across the conversation and its agents.
+       */
+      readonly completedSeq: number | undefined
       /** Durably backgrounded (M14): the turn went on without waiting for it. */
       readonly isBackground: boolean
       readonly backgroundInitiator: string | undefined
@@ -279,6 +286,12 @@ export interface UiState {
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
+  /**
+   * Monotonic arrival counter over every item the reducer takes in (M20):
+   * user messages take it as `seq`, tool rows as `completedSeq` when they
+   * complete, so the rewind can order edits across agents.
+   */
+  readonly sequence: number
   /** The active editor as the host last reported it (M5). */
   readonly editorContext: EditorContextSummary | undefined
   /** The file whose chip the user closed; forgotten when another file is active. */
@@ -350,6 +363,7 @@ export const initialUiState: UiState = {
   todos: [],
   outputPages: {},
   localSequence: 0,
+  sequence: 0,
   editorContext: undefined,
   dismissedEditorPath: undefined,
 }
@@ -454,6 +468,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     patchSummary: item.patchSummary,
     patchRef: item.patchRef,
     outputRef: item.outputRef,
+    completedSeq: undefined,
     isBackground: item.background === true,
     backgroundInitiator: item.backgroundInitiator,
     approval: undefined,
@@ -577,10 +592,11 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
 }
 
 /** A user card rebuilt from a stored `userMessage` item (M6 replay). */
-function replayedUserEntry(item: ItemSnapshot): TranscriptEntry {
+function replayedUserEntry(item: ItemSnapshot, seq: number): TranscriptEntry {
   return {
     kind: 'user',
     id: item.itemId,
+    seq,
     text: item.text ?? '',
     status: 'sent',
     attachments: (item.attachments ?? []).map((attachment, index) => ({
@@ -598,16 +614,34 @@ function replayedUserEntry(item: ItemSnapshot): TranscriptEntry {
  * user messages become cards (the live path hides them, its own echo being
  * the card), everything else takes the live rows at their final state.
  */
-function replayHistory(items: readonly ItemSnapshot[], at: number): readonly TranscriptEntry[] {
-  const transcript: TranscriptEntry[] = []
+function replayHistory(
+  items: readonly ItemSnapshot[],
+  at: number,
+  sequence: number,
+): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
+  const entries: TranscriptEntry[] = []
+  let next = sequence
   for (const item of items) {
     if (item.kind === USER_MESSAGE_KIND) {
-      transcript.push(replayedUserEntry(item))
+      next += 1
+      entries.push(replayedUserEntry(item, next))
     } else if (!HIDDEN_ITEM_KINDS.has(item.kind)) {
-      transcript.push(entryFor(item, at))
+      next += 1
+      entries.push(stampCompletion(entryFor(item, at), next))
     }
   }
-  return transcript
+  return { entries, sequence: next }
+}
+
+/**
+ * A tool row that has completed takes the arrival number it completed at
+ * (M20): the order its edit landed on disk. Stamped once; a later snapshot
+ * of the same row keeps it.
+ */
+function stampCompletion(entry: TranscriptEntry, seq: number): TranscriptEntry {
+  return entry.kind === 'tool' && entry.status === 'completed' && entry.completedSeq === undefined
+    ? { ...entry, completedSeq: seq }
+    : entry
 }
 
 /**
@@ -629,11 +663,12 @@ function upsertEntry(
   entries: readonly TranscriptEntry[],
   item: ItemSnapshot,
   at: number,
+  seq: number,
 ): readonly TranscriptEntry[] {
   const isKnown = entries.some((entry) => entry.id === item.itemId)
   return isKnown
-    ? updateEntry(entries, item.itemId, (entry) => mergeItem(entry, item, at))
-    : [...entries, mergeItem(entryFor(item, at), item, at)]
+    ? updateEntry(entries, item.itemId, (entry) => stampCompletion(mergeItem(entry, item, at), seq))
+    : [...entries, stampCompletion(mergeItem(entryFor(item, at), item, at), seq)]
 }
 
 function applyChildItem(
@@ -647,11 +682,13 @@ function applyChildItem(
     name: owner.objective ?? owner.role,
     entries: [],
   }
+  const sequence = state.sequence + 1
   return {
     ...state,
+    sequence,
     childTranscripts: {
       ...state.childTranscripts,
-      [childId]: { ...current, entries: upsertEntry(current.entries, item, at) },
+      [childId]: { ...current, entries: upsertEntry(current.entries, item, at, sequence) },
     },
   }
 }
@@ -668,9 +705,11 @@ function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
     return state
   }
   const owner = item.kind === 'subagent' ? undefined : childOwnerOf(state, item.turnId)
-  return owner === undefined
-    ? { ...state, transcript: upsertEntry(state.transcript, item, at) }
-    : applyChildItem(state, owner, item, at)
+  if (owner !== undefined) {
+    return applyChildItem(state, owner, item, at)
+  }
+  const sequence = state.sequence + 1
+  return { ...state, sequence, transcript: upsertEntry(state.transcript, item, at, sequence) }
 }
 
 function applyChildDelta(
@@ -972,11 +1011,13 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
     }
     case 'childTranscript': {
+      const replayed = replayHistory(message.items, at, state.sequence)
       return {
         ...state,
+        sequence: replayed.sequence,
         childTranscripts: {
           ...state.childTranscripts,
-          [message.sessionId]: { name: message.name, entries: replayHistory(message.items, at) },
+          [message.sessionId]: { name: message.name, entries: replayed.entries },
         },
       }
     }
@@ -998,12 +1039,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       )
     }
     case 'historyLoaded': {
+      const replayed = replayHistory(message.items, at, state.sequence)
       return announce(
         {
           ...state,
           sessionId: message.sessionId,
           title: message.name,
-          transcript: replayHistory(message.items, at),
+          transcript: replayed.entries,
+          sequence: replayed.sequence,
           todos: message.todos,
           activeTurnId: undefined,
           usage: undefined,
@@ -1122,11 +1165,13 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         draft: '',
         attachments: [],
         reference: undefined,
+        sequence: state.sequence + 1,
         transcript: [
           ...state.transcript,
           {
             kind: 'user',
             id: action.localId,
+            seq: state.sequence + 1,
             text: action.text,
             status: 'pending',
             attachments: action.attachments,
@@ -1232,24 +1277,39 @@ export function forkCutBefore(
 }
 
 /**
- * The edits applied after a user message, newest first: what "Rewind code to
- * here" reverts. Only completed edit rows carry a patch document.
+ * The edits that landed after a user message, newest first: what "Rewind
+ * code to here" reverts. The conversation's own edits and every subagent's
+ * (their rows live in the child transcripts, M18), ordered by the arrival
+ * number their completion took (M20), so edits that overlap unwind in the
+ * reverse of the order they were applied. Only completed edit rows carry a
+ * patch document.
  */
-export function editsAfter(
-  transcript: readonly TranscriptEntry[],
-  entryId: string,
-): readonly EditRef[] {
-  const index = transcript.findIndex((entry) => entry.id === entryId)
-  return index === -1
-    ? []
-    : transcript
-        .slice(index + 1)
-        .flatMap((entry) =>
-          entry.kind === 'tool' && entry.status === 'completed' && entry.patchRef !== undefined
-            ? [{ itemId: entry.id, outputRef: entry.patchRef.id }]
-            : [],
-        )
-        .toReversed()
+export function editsAfter(state: UiState, entryId: string): readonly EditRef[] {
+  const message = state.transcript.find((entry) => entry.id === entryId)
+  if (message?.kind !== 'user') {
+    return []
+  }
+  const pools = [
+    state.transcript,
+    ...Object.values(state.childTranscripts).map((child) => child.entries),
+  ]
+  return pools
+    .flat()
+    .filter(
+      (
+        entry,
+      ): entry is ToolEntry & {
+        readonly completedSeq: number
+        readonly patchRef: OutputRef
+      } =>
+        entry.kind === 'tool' &&
+        entry.status === 'completed' &&
+        entry.patchRef !== undefined &&
+        entry.completedSeq !== undefined &&
+        entry.completedSeq > message.seq,
+    )
+    .toSorted((a, b) => b.completedSeq - a.completedSeq)
+    .map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
 }
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>

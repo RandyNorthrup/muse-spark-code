@@ -32,3 +32,4 @@ The PNGs beside the records are that day's harness renders.
 - [M17](m17.md): reply to an output, ask about or comment on highlighted chat text (PLAN.md D20)
 - [M18](m18.md): the verification round and the subagent orchestration it called for (PLAN.md D21)
 - [M19](m19.md): issue #4, the prompt box auto-grows (PLAN.md D22)
+- [M20](m20.md): rewind across subagents (PLAN.md D23)

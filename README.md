@@ -100,7 +100,7 @@ harness:shots`) against a scripted session, so they match the build exactly.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.5.4.vsix
+   code --install-extension muse-spark-code-0.5.5.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -227,8 +227,9 @@ steps`.
 comes after: the edit row shows the diff, its path opens the file at the
 change, and **Click to expand** opens the diff editor. To undo, use the
 rewind button on any sent message (on hover): **Fork conversation from
-here**, **Rewind code to here** (reverts the edits made after that message,
-newest first; a created file goes to the trash) and **Fork conversation and
+here**, **Rewind code to here** (reverts every edit made after that message,
+the conversation's and its subagents', in the reverse of the order they
+landed; a created file goes to the trash) and **Fork conversation and
 rewind code**. An edit whose file changed since is left alone and says so,
 rather than guess.
 

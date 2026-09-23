@@ -31,6 +31,7 @@ function tool(overrides: Partial<Extract<TranscriptEntry, { kind: 'tool' }>>) {
     approvalOutcome: undefined,
     question: undefined,
     questionOutcome: undefined,
+    completedSeq: undefined,
     ...overrides,
   }
 }
@@ -66,8 +67,16 @@ const longOutput = Array.from({ length: 20 }, (_, index) => `line ${String(index
 describe('Transcript', () => {
   it('renders every entry kind', () => {
     renderTranscript([
-      { kind: 'user', id: 'u1', text: 'hello', status: 'sent', attachments: [attachment] },
-      { kind: 'user', id: 'u2', text: 'lost', status: 'failed', reason: 'nope', attachments: [] },
+      { kind: 'user', seq: 0, id: 'u1', text: 'hello', status: 'sent', attachments: [attachment] },
+      {
+        kind: 'user',
+        seq: 0,
+        id: 'u2',
+        text: 'lost',
+        status: 'failed',
+        reason: 'nope',
+        attachments: [],
+      },
       { kind: 'assistant', id: 'a1', text: '**bold** streaming', isStreaming: true },
       { kind: 'assistant', id: 'a2', text: 'done', isStreaming: false },
       {
@@ -293,13 +302,14 @@ describe('Transcript editor integration (M5)', () => {
     renderTranscript([
       {
         kind: 'user',
+        seq: 0,
         id: 'u1',
         text: 'explain',
         status: 'sent',
         attachments: [],
         contextLabel: 'App.tsx L5-10',
       },
-      { kind: 'user', id: 'u2', text: 'bare', status: 'sent', attachments: [] },
+      { kind: 'user', seq: 0, id: 'u2', text: 'bare', status: 'sent', attachments: [] },
     ])
     expect(screen.getByText('App.tsx L5-10')).toBeInTheDocument()
     expect(screen.getAllByRole('list', { name: 'Attachments' })).toHaveLength(1)
@@ -479,7 +489,7 @@ describe('Transcript chat references (M17)', () => {
     renderTranscript(
       [
         { kind: 'assistant', id: 'a1', text: 'done', isStreaming: false },
-        { kind: 'user', id: 'u1', text: 'hello', status: 'sent', attachments: [] },
+        { kind: 'user', seq: 0, id: 'u1', text: 'hello', status: 'sent', attachments: [] },
         tool({ id: 't1', tool: 'powershell', args: '{"command":"ls"}', output: 'x' }),
       ],
       { quoteMenuEntryId: 'u1', onQuote, onCloseQuoteMenu },
@@ -500,6 +510,7 @@ describe('Transcript chat references (M17)', () => {
     renderTranscript([
       {
         kind: 'user',
+        seq: 0,
         id: 'u',
         text: 'why',
         status: 'sent',

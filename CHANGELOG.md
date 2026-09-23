@@ -7,8 +7,28 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.5.5] - 2026-09-23
+
+Rewind across subagents, and the repository protected.
+
+### Fixed
+
+- **Rewind code to here** reverts a subagent's edits too. Since 0.5.0 an
+  agent's rows live in its own transcript in the Agent map, and the rewind
+  only looked at the conversation, so a delegated run's edits stayed on
+  disk. Every edit now takes an arrival number when it completes, across
+  the conversation and its agents, and the rewind unwinds all of them in
+  the reverse of that order, so edits that overlap unwind cleanly. Found
+  through a reader's question about overlapping subagent edits.
+
 ### Changed
 
+- The repository is protected by GitHub rulesets: `main` cannot be deleted
+  or force-pushed and takes changes through pull requests with the CI
+  checks green; `v*` tags cannot be deleted or moved; the admin bypasses
+  both for direct pushes and releases, logged.
 - Dependabot no longer proposes a new major of `@types/node`: the typings
   follow the Node major the workflows and the manifest's `engines` run on
   (22); the 26.x proposal broke the type-aware lint's module resolution.

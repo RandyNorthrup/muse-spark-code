@@ -40,6 +40,9 @@ sign-in gate explains what is missing.
   reason and a row in PLAN.md §8.
 - Keep secrets out: the pre-commit hook runs gitleaks, and nothing in the
   repository may contain a real credential.
+- `main` is protected: changes land through a pull request with the CI
+  checks green, it cannot be force-pushed or deleted, and release tags
+  (`v*`) cannot be moved or deleted.
 
 ## Style
 

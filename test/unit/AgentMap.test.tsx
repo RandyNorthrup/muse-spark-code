@@ -54,6 +54,7 @@ const task: ToolEntry = {
   approvalOutcome: undefined,
   question: undefined,
   questionOutcome: undefined,
+  completedSeq: undefined,
 }
 
 function renderMap(overrides: Partial<AgentMapProps> = {}) {
@@ -116,7 +117,14 @@ describe('AgentMap', () => {
         'child-1': {
           name: 'Explorer',
           entries: [
-            { kind: 'user', id: 'u', text: 'Map the workspace', status: 'sent', attachments: [] },
+            {
+              kind: 'user',
+              seq: 0,
+              id: 'u',
+              text: 'Map the workspace',
+              status: 'sent',
+              attachments: [],
+            },
             { kind: 'assistant', id: 'a', text: 'Mapped 12 files', isStreaming: false },
           ],
         },

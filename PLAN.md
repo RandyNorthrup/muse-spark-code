@@ -663,6 +663,19 @@ behaviour of VS Code's own chat view.
 | "Only a single line … when the input gets a bit longer, only one remains" | The textarea's `rows` came from `rowsFor(draft)`, the newline count, so a long line that wrapped stayed one row (M1); newlines grew it, which is why the F5 rounds missed it. | `rowsFor(draft, metrics)` takes the content height in rows when the box can be measured (a browser: `scrollHeight` over the one-row `clientHeight`), else the newline count (jsdom reports 0 for both, which keeps the existing tests meaningful); `fitRows` sets one row, measures and sets the rows, from a layout effect on the draft (before paint) and from a `ResizeObserver` when the width changes (a resized sidebar rewraps). The cap stays `COMPOSER_MAX_ROWS` (ten); past it the textarea scrolls inside. |
 | "Match the VS Code built-in chat view"                                    | VS Code's chat input grows to a maximum and scrolls; so does Claude Code's.                                                                                                   | Same shape: one row, growth, ten rows, internal scroll. Verified in the harness: `composer-grow` (a two-line wrapped draft) and `composer-max` (fourteen lines, ten shown).                                                                                                                                                                                                                                                                                                                                           |
 
+### D23 — Rewind across subagents (2026-09-23)
+
+A reader on Facebook asked how the rewind handles state when several
+subagents touched overlapping files in one run: per-step diffs, or git
+checkpoints rolling the tree back? The code answered the first half (per-edit
+patches, unwound newest first, each hunk checked against the file, no git)
+and exposed a gap in the second.
+
+| Report                                                                     | Finding                                                                                                                                                                                                                                                                                                                                                                                                      | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Does it track diffs per subagent step or roll back the tree?"             | Per edit: every edit row carries the CLI's patch document; `editsAfter` collected the completed edit rows after the message from the conversation transcript and the host reverted them newest first, each hunk matched against the file first (`revertHunks`). Since M18 a subagent's rows live in `childTranscripts`, so `editsAfter` never saw them: a delegated run's edits survived a rewind, silently. | `UiState.sequence`, a monotonic arrival counter; user cards take it as `seq`, tool rows as `completedSeq` when they complete (live, in a child transcript, or replayed from history). `editsAfter(state, messageId)` gathers the completed edit rows of the conversation and of every child transcript whose `completedSeq` is past the message's `seq` and sorts them by it, newest first, so overlapping edits from any agent unwind in the reverse of the order they landed on disk. |
+| "Stepping back one agent's change gets messy once later edits build on it" | True, and the design never offered it: the rewind undoes everything after a point (the per-edit Revert button went in M16), and `revertHunks` refuses a file that no longer matches, with a notice, instead of guessing.                                                                                                                                                                                     | No change; the README says so in as many words.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1840,6 +1853,24 @@ merged through pull request #5 from `fix/composer-autogrow`, shipped in
   green; the pull request's CI green before the merge.
 - **Security**: none new; the box reads its own metrics only.
 
+### M20 — Rewind across subagents (D23)
+
+**Status 2026-09-23: built and certified** (`docs/certification/m20.md`);
+shipped in 0.5.5.
+
+- **Goal**: the D23 rows.
+- **Scope**: `sequence` on the state, `seq` on user cards, `completedSeq` on
+  tool rows, `stampCompletion`, `replayHistory` returning its counter,
+  `editsAfter(state, id)` over the conversation and the child transcripts
+  (`src/webview/state/uiState.ts`); the call in `App.tsx`; two reducer
+  tests (interleaved parent and child edits unwound by completion, the
+  stamp kept across snapshots); README, CHANGELOG, this file.
+- **Acceptance**: the interleaving test fails when the child transcripts
+  are left out (the pre-fix behaviour) and when the stamp is never applied;
+  the gate green.
+- **Security**: none new; the host still confines every reverted path to
+  the workspace and matches every hunk before touching a file.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                                              | Status                                                                                                                  |
@@ -1889,6 +1920,13 @@ Every suppression, cast, or ignored error must be listed here with its reason.
   never billed to the key, and the key never reaches another process.
 - Contributor-tier models send content Meta may train on; guarded by opt-in
   dialog and `confidentialWorkspace` setting.
+- Repository protection (GitHub rulesets, 2026-09-23): `main` cannot be
+  deleted or force-pushed and takes changes through pull requests with the
+  seven CI checks green (the three quality jobs, gitleaks, semgrep, the
+  macOS helper, the package); `v*` tags cannot be deleted or moved. The
+  repository admin bypasses both for direct pushes and releases, and every
+  bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
+  deliberate bypass rather than a habit.
 
 ## 10. Definition of done (v0.1.0)
 
@@ -2086,3 +2124,9 @@ job, the GitHub Release carries `muse-spark-code-0.5.4.vsix` (552,723
 bytes) and the workflow published it ("Published
 RandyNorthrup.muse-spark-code v0.5.4."). The tag is the tip of `main` but
 for this record.
+
+**0.5.5 (2026-09-23):** rewind across subagents (D23, M20): every edit
+takes an arrival number when it completes and the rewind unwinds the
+conversation's and its agents' edits in the reverse of that order; before,
+a delegated run's edits survived a rewind. Tagged `v0.5.5`; the run is
+recorded here once it finishes.

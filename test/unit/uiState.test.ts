@@ -95,7 +95,7 @@ describe('uiReducer: sending', () => {
     ])
     expect(state.draft).toBe('')
     expect(state.transcript).toEqual([
-      { kind: 'user', id: 'l1', text: 'hello', status: 'pending', attachments: [] },
+      { kind: 'user', seq: 1, id: 'l1', text: 'hello', status: 'pending', attachments: [] },
     ])
   })
 
@@ -895,6 +895,7 @@ describe('uiReducer: session history (M6)', () => {
     ])
     expect(state.transcript[0]).toEqual({
       kind: 'user',
+      seq: 2,
       id: 'u1',
       text: 'what does this do?',
       status: 'sent',
@@ -922,6 +923,7 @@ describe('uiReducer: session history (M6)', () => {
     ])
     expect(state.transcript[0]).toEqual({
       kind: 'user',
+      seq: 1,
       id: 'u',
       text: '',
       status: 'sent',
@@ -1091,12 +1093,125 @@ describe('uiReducer: session history (M6)', () => {
       host({ type: 'turnAccepted', localId: 'l2', turnId: 't2' }),
       edit('e3', 'failed', 'p3'),
     ])
-    expect(editsAfter(state.transcript, 'l1')).toEqual([
+    expect(editsAfter(state, 'l1')).toEqual([
       { itemId: 'e2', outputRef: 'p2' },
       { itemId: 'e1', outputRef: 'p1' },
     ])
-    expect(editsAfter(state.transcript, 'l2')).toEqual([])
-    expect(editsAfter(state.transcript, 'ghost')).toEqual([])
+    expect(editsAfter(state, 'l2')).toEqual([])
+    expect(editsAfter(state, 'ghost')).toEqual([])
+  })
+
+  // M20: a subagent's edits live in its own transcript (M18), and before this
+  // the rewind never saw them; edits from the conversation and its agents
+  // now unwind in the reverse of the order they completed, wherever they
+  // live, and only those completed after the message.
+  it("rewinds a subagent's edits with the conversation's, newest completion first (M20)", () => {
+    const edit = (itemId: string, turnId: string, patch: string) =>
+      host({
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: {
+            itemId,
+            kind: 'toolCall',
+            status: 'completed',
+            turnId,
+            tool: 'edit_file',
+            args: '{}',
+            patchRef: { id: patch, byteLen: 10 },
+          },
+        },
+      })
+    const state = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l0',
+        text: 'before',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({ type: 'turnAccepted', localId: 'l0', turnId: 't0' }),
+      edit('e0', 't0', 'p0'),
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'delegate',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
+      edit('e1', 't1', 'p1'),
+      host({
+        type: 'agentEvent',
+        event: {
+          type: 'itemStarted',
+          item: {
+            itemId: 'sa1',
+            kind: 'subagent',
+            status: 'inProgress',
+            turnId: 't1',
+            role: 'alpha',
+            objective: 'edit notes',
+            subagentId: 'subagent-1',
+            childSessionId: 'child-1',
+          },
+        },
+      }),
+      edit('c1', 'child-1', 'pc1'),
+      edit('e2', 't1', 'p2'),
+      edit('c2', 'child-1', 'pc2'),
+    ])
+    // The child's rows stayed out of the conversation…
+    expect(state.transcript.map((entry) => entry.id)).toEqual(['l0', 'e0', 'l1', 'e1', 'sa1', 'e2'])
+    expect(state.childTranscripts['child-1']?.entries.map((entry) => entry.id)).toEqual([
+      'c1',
+      'c2',
+    ])
+    // …and the rewind still unwinds them, interleaved by completion order.
+    expect(editsAfter(state, 'l1')).toEqual([
+      { itemId: 'c2', outputRef: 'pc2' },
+      { itemId: 'e2', outputRef: 'p2' },
+      { itemId: 'c1', outputRef: 'pc1' },
+      { itemId: 'e1', outputRef: 'p1' },
+    ])
+    // The edit before the message is not in it; the earlier message sees all five.
+    expect(editsAfter(state, 'l0').map((edit) => edit.itemId)).toEqual([
+      'c2',
+      'e2',
+      'c1',
+      'e1',
+      'e0',
+    ])
+  })
+
+  it('keeps the completion number a row took when a later snapshot of it arrives (M20)', () => {
+    const snapshot = (status: string) =>
+      host({
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: {
+            itemId: 'e1',
+            kind: 'toolCall',
+            status,
+            tool: 'edit_file',
+            args: '{}',
+            patchRef: { id: 'p1', byteLen: 10 },
+          },
+        },
+      })
+    const first = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'go', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
+      snapshot('inProgress'),
+    ])
+    expect(first.transcript[1]).toMatchObject({ kind: 'tool', completedSeq: undefined })
+    const done = reduceAll([snapshot('completed')], first)
+    const stamped = done.transcript[1]
+    expect(stamped).toMatchObject({ kind: 'tool', completedSeq: done.sequence })
+    const again = reduceAll([snapshot('completed')], done)
+    expect(again.transcript[1]).toMatchObject({ kind: 'tool', completedSeq: done.sequence })
+    expect(again.sequence).toBe(done.sequence + 1)
   })
 
   it('cuts a replayed transcript before the chosen message', () => {

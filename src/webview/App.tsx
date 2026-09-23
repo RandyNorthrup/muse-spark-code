@@ -513,9 +513,9 @@ export function App({
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
     (entryId: string) => {
-      postMessage({ type: 'rewindCode', edits: [...editsAfter(state.transcript, entryId)] })
+      postMessage({ type: 'rewindCode', edits: [...editsAfter(state, entryId)] })
     },
-    [state.transcript, postMessage],
+    [state, postMessage],
   )
   const onRemoveAttachment = useCallback(
     (id: string) => {
