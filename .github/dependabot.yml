@@ -24,6 +24,13 @@ updates:
       # on (22); a major ahead breaks the type-aware lint's module resolution.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+  # The semgrep CLI the CI `sast` job pins (.github/semgrep/requirements.txt).
+  - package-ecosystem: pip
+    directory: /.github/semgrep
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     directory: /
     schedule:

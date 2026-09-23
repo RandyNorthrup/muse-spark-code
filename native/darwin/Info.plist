@@ -6,8 +6,6 @@
 	<string>dev.randynorthrup.muse-spark-code.dictate</string>
 	<key>CFBundleName</key>
 	<string>muse-dictate</string>
-	<key>CFBundleShortVersionString</key>
-	<string>0.5.5</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Muse Spark Code records your voice while the microphone button is held or on, to type what you say into the composer.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

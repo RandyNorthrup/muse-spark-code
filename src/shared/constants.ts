@@ -634,6 +634,22 @@ export const DICTATION_ACTIONS = ['start', 'stop'] as const
 export type DictationAction = (typeof DICTATION_ACTIONS)[number]
 export const DICTATION_UI_STATUSES = ['unavailable', 'idle', 'starting', 'listening'] as const
 export type DictationUiStatus = (typeof DICTATION_UI_STATUSES)[number]
+// M26 (PLAN.md D29): dictation in a remote window, and the environment the
+// Windows helper starts with.
+/** The button's reason in a window whose extension host runs on a remote machine. */
+export const DICTATION_UNAVAILABLE_REMOTE =
+  'Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.'
+/** Windows PowerShell's module search path, reset for the Windows helper. */
+export const WINDOWS_PSMODULEPATH_VARIABLE = 'PSModulePath'
+/**
+ * The macOS helper's flag naming the app macOS asks on its behalf (VS Code's
+ * `env.appName`): macOS charges a helper's privacy requests to the app that
+ * started it, so the helper's refusal text names that app.
+ */
+export const DICTATION_DARWIN_APP_NAME_FLAG = '--app-name'
+/** Appended when the macOS helper ends before it said "ready" (not a requested quit). */
+export const DICTATION_DARWIN_EARLY_EXIT_HINT =
+  'macOS ended the dictation helper before it was ready. After a permission step, macOS refused that permission to the app that started the helper; with no step at all, macOS refused to run the helper itself, which is not notarised. The README’s Voice dictation section explains both.'
 export const MUSE_LOGIN_ARGS = ['login'] as const
 export const MUSE_LOGOUT_ARGS = ['logout'] as const
 export const MUSE_LOGIN_TERMINAL_NAME = 'Muse Code sign-in'
