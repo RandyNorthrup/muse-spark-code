@@ -11,6 +11,7 @@ import type {
   QuestionAnswer,
   RequirementRef,
   TodoItem,
+  TokenUsage,
 } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
@@ -36,14 +37,22 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import type { SessionRow } from '../../shared/sessions'
-import type { SubscriptionUsage } from '../../shared/usage'
+import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 
 export type NoticeLevel = 'info' | 'warning' | 'error'
 
-/** What the Account & usage dialog shows (M8): the host's last `usageReport`. */
+/** What the Account & usage dialog shows (M8, M14): the host's last `usageReport`. */
 export interface UsageReport {
   readonly backend: BackendKind
   readonly subscription: SubscriptionUsage | undefined
+  readonly account: AccountFacts | undefined
+  readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
+}
+
+/** A subagent's own transcript, read for the Agent map (M14). */
+export interface ChildTranscript {
+  readonly name: string | undefined
+  readonly entries: readonly TranscriptEntry[]
 }
 
 /**
@@ -145,6 +154,9 @@ export type TranscriptEntry =
       readonly patchSummary: PatchSummary | undefined
       readonly patchRef: OutputRef | undefined
       readonly outputRef: OutputRef | undefined
+      /** Durably backgrounded (M14): the turn went on without waiting for it. */
+      readonly isBackground: boolean
+      readonly backgroundInitiator: string | undefined
       readonly approval: PendingApproval | undefined
       readonly approvalOutcome:
         { readonly decision: string; readonly resolvedBy: string } | undefined
@@ -153,7 +165,22 @@ export type TranscriptEntry =
         { readonly outcome: string; readonly answers: readonly QuestionAnswer[] } | undefined
     }
   | {
-      /** Kinds the UI does not know (subagent, workflow, compaction, …). */
+      /** A native subagent the CLI spawned for this turn (M14). */
+      readonly kind: 'subagent'
+      readonly id: string
+      readonly role: string | undefined
+      readonly objective: string | undefined
+      readonly status: string
+      readonly controlStatus: string | undefined
+      readonly subagentId: string | undefined
+      readonly childSessionId: string | undefined
+      readonly depth: number | undefined
+      readonly durationMs: number | undefined
+      readonly usage: TokenUsage | undefined
+      readonly resultSummary: string | undefined
+    }
+  | {
+      /** Kinds the UI does not know (workflow, compaction, …). */
       readonly kind: 'item'
       readonly id: string
       readonly itemKind: string
@@ -232,6 +259,10 @@ export interface UiState {
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /** Subagent transcripts by child session id (M14). */
+  readonly childTranscripts: Readonly<Record<string, ChildTranscript>>
+  /** The composer banner (M14): an unsupported upload, until dismissed. */
+  readonly banner: string | undefined
   readonly announcement: Announcement | undefined
   /** The microphone button (M9): `reason` explains an unavailable one. */
   readonly dictation: DictationUiState
@@ -261,6 +292,8 @@ export type UiAction =
     }
   | { readonly type: 'attachmentRemoved'; readonly id: string }
   | { readonly type: 'conversationCleared' }
+  /** The × on the composer banner (M14). */
+  | { readonly type: 'bannerDismissed' }
   /** The × on the open-file chip. */
   | { readonly type: 'editorContextDismissed' }
   /** The user chose on an approval card; lock that stage until the host moves on. */
@@ -296,6 +329,8 @@ export const initialUiState: UiState = {
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  childTranscripts: {},
+  banner: undefined,
   announcement: undefined,
   dictation: { status: 'idle', reason: undefined },
   todos: [],
@@ -390,10 +425,29 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     patchSummary: item.patchSummary,
     patchRef: item.patchRef,
     outputRef: item.outputRef,
+    isBackground: item.background === true,
+    backgroundInitiator: item.backgroundInitiator,
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,
     questionOutcome: undefined,
+  }
+}
+
+function subagentEntry(item: ItemSnapshot): SubagentEntry {
+  return {
+    kind: 'subagent',
+    id: item.itemId,
+    role: item.role,
+    objective: item.objective,
+    status: item.status,
+    controlStatus: item.controlStatus,
+    subagentId: item.subagentId,
+    childSessionId: item.childSessionId,
+    depth: item.depth,
+    durationMs: item.durationMs,
+    usage: item.usage,
+    resultSummary: item.result?.summary,
   }
 }
 
@@ -420,6 +474,9 @@ function entryFor(item: ItemSnapshot, at: number): TranscriptEntry {
     }
     case 'toolCall': {
       return toolEntry(item)
+    }
+    case 'subagent': {
+      return subagentEntry(item)
     }
     default: {
       return {
@@ -459,6 +516,24 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         patchSummary: item.patchSummary ?? entry.patchSummary,
         patchRef: item.patchRef ?? entry.patchRef,
         outputRef: item.outputRef ?? entry.outputRef,
+        isBackground: item.background ?? entry.isBackground,
+        backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
+      }
+    }
+    case 'subagent': {
+      const fresh = subagentEntry(item)
+      return {
+        ...entry,
+        role: fresh.role ?? entry.role,
+        objective: fresh.objective ?? entry.objective,
+        status: fresh.status,
+        controlStatus: fresh.controlStatus ?? entry.controlStatus,
+        subagentId: fresh.subagentId ?? entry.subagentId,
+        childSessionId: fresh.childSessionId ?? entry.childSessionId,
+        depth: fresh.depth ?? entry.depth,
+        durationMs: fresh.durationMs ?? entry.durationMs,
+        usage: fresh.usage ?? entry.usage,
+        resultSummary: fresh.resultSummary ?? entry.resultSummary,
       }
     }
     case 'item': {
@@ -785,10 +860,24 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'sessionList': {
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
     }
+    case 'childTranscript': {
+      return {
+        ...state,
+        childTranscripts: {
+          ...state.childTranscripts,
+          [message.sessionId]: { name: message.name, entries: replayHistory(message.items, at) },
+        },
+      }
+    }
     case 'usageReport': {
       return {
         ...state,
-        usageReport: { backend: message.backend, subscription: message.subscription },
+        usageReport: {
+          backend: message.backend,
+          subscription: message.subscription,
+          account: message.account,
+          insights: message.insights,
+        },
       }
     }
     case 'dictationState': {
@@ -809,6 +898,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           usage: undefined,
           context: undefined,
           outputPages: {},
+          childTranscripts: {},
         },
         UI_TEXT.announceResumed,
       )
@@ -858,7 +948,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, attachments: [...others, message.attachment] }
     }
     case 'attachmentRejected': {
-      return withNotice(state, 'warning', `${message.name}: ${message.reason}`)
+      // The composer banner (M14), as Claude Code shows it; the reason the
+      // host gave stays in the log.
+      return announce(
+        {
+          ...state,
+          banner: `${UI_TEXT.unsupportedFileTitle} ${message.name}. ${UI_TEXT.unsupportedFileDetail}`,
+        },
+        `${message.name}: ${message.reason}`,
+      )
     }
     case 'attachmentsCleared': {
       return { ...state, attachments: [] }
@@ -947,9 +1045,14 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ),
       }
     }
+    case 'bannerDismissed': {
+      return { ...state, banner: undefined }
+    }
     case 'conversationCleared': {
       return {
         ...state,
+        childTranscripts: {},
+        banner: undefined,
         title: undefined,
         sessionId: undefined,
         transcript: [],
@@ -1025,6 +1128,21 @@ export function editsAfter(
             : [],
         )
         .toReversed()
+}
+
+export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
+export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
+
+/** The subagents of this conversation, in transcript order (M14). */
+export function agentsOf(state: UiState): readonly SubagentEntry[] {
+  return state.transcript.filter((entry): entry is SubagentEntry => entry.kind === 'subagent')
+}
+
+/** The tool calls the CLI put in the background (M14). */
+export function backgroundTasksOf(state: UiState): readonly ToolEntry[] {
+  return state.transcript.filter(
+    (entry): entry is ToolEntry => entry.kind === 'tool' && entry.isBackground,
+  )
 }
 
 /** Whether any tool row is waiting on the user (approval or question). */

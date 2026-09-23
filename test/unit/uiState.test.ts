@@ -3,6 +3,8 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import {
   canSend,
+  agentsOf,
+  backgroundTasksOf,
   editsAfter,
   forkCutBefore,
   hasPendingRequest,
@@ -206,9 +208,9 @@ describe('uiReducer: composer state', () => {
       added,
       host({ type: 'attachmentRejected', name: 'x.pdf', reason: 'Only images' }),
     )
-    expect(rejected.transcript).toEqual([
-      { kind: 'notice', id: 'notice:1', level: 'warning', text: 'x.pdf: Only images' },
-    ])
+    // A rejection is the composer banner now (M14), not a transcript notice.
+    expect(rejected.transcript).toEqual([])
+    expect(rejected.banner).toContain('Unsupported file type: x.pdf.')
     expect(uiReducer(added, host({ type: 'attachmentsCleared' })).attachments).toEqual([])
   })
 
@@ -297,11 +299,11 @@ describe('uiReducer: agent events', () => {
       }),
       agent({
         type: 'itemStarted',
-        item: { itemId: 's', kind: 'subagent', status: 'inProgress', fallbackText: 'Explorer' },
+        item: { itemId: 's', kind: 'workflow', status: 'inProgress', fallbackText: 'Explorer' },
       }),
       agent({
         type: 'itemCompleted',
-        item: { itemId: 's', kind: 'subagent', status: 'completed' },
+        item: { itemId: 's', kind: 'workflow', status: 'completed' },
       }),
       agent({
         type: 'itemCompleted',
@@ -309,7 +311,7 @@ describe('uiReducer: agent events', () => {
       }),
     ])
     expect(state.transcript).toEqual([
-      { kind: 'item', id: 's', itemKind: 'subagent', status: 'completed', text: 'Explorer' },
+      { kind: 'item', id: 's', itemKind: 'workflow', status: 'completed', text: 'Explorer' },
       { kind: 'item', id: 'c', itemKind: 'compaction', status: 'completed', text: undefined },
     ])
   })
@@ -682,12 +684,22 @@ describe('uiReducer: account & usage and announcements (M8)', () => {
       host(init),
       host({ type: 'usageReport', backend: 'museCode', subscription }),
     ])
-    expect(withWindow.usageReport).toEqual({ backend: 'museCode', subscription })
+    expect(withWindow.usageReport).toEqual({
+      backend: 'museCode',
+      subscription,
+      account: undefined,
+      insights: undefined,
+    })
     const cleared = reduceAll(
       [host({ type: 'usageReport', backend: 'modelApi' }), { type: 'conversationCleared' }],
       withWindow,
     )
-    expect(cleared.usageReport).toEqual({ backend: 'modelApi', subscription: undefined })
+    expect(cleared.usageReport).toEqual({
+      backend: 'modelApi',
+      subscription: undefined,
+      account: undefined,
+      insights: undefined,
+    })
   })
 
   it('announces turn ends, approvals, questions, failures, resumes and warnings, counting each', () => {
@@ -931,6 +943,113 @@ describe('uiReducer: session history (M6)', () => {
     // A pending card (no turn yet) is not a fork point; a missing id neither.
     expect(forkCutBefore(state.transcript, 'l3')).toBeUndefined()
     expect(forkCutBefore(state.transcript, 'ghost')).toBeUndefined()
+  })
+
+  it('tracks a subagent through its lifecycle and a backgrounded tool call (M14)', () => {
+    const spawned = {
+      itemId: 'sa1',
+      kind: 'subagent',
+      status: 'inProgress',
+      turnId: 't1',
+      role: 'explorer',
+      objective: 'Map the workspace',
+      subagentId: 'sub-1',
+      childSessionId: 'child-1',
+      depth: 1,
+      controlStatus: 'running',
+    }
+    const usage = { inputTokens: 1000, outputTokens: 200, cachedTokens: 0, reasoningTokens: 0 }
+    const call = {
+      itemId: 'c1',
+      kind: 'toolCall',
+      status: 'inProgress',
+      tool: 'powershell',
+      args: '{}',
+    }
+    const state = reduceAll([
+      host({ type: 'agentEvent', event: { type: 'itemStarted', item: spawned } }),
+      host({ type: 'agentEvent', event: { type: 'itemUpdated', item: { ...spawned, usage } } }),
+      host({ type: 'agentEvent', event: { type: 'itemStarted', item: call } }),
+      host({
+        type: 'agentEvent',
+        event: {
+          type: 'itemUpdated',
+          item: { ...call, background: true, backgroundInitiator: 'user' },
+        },
+      }),
+    ])
+    expect(agentsOf(state)).toEqual([
+      {
+        kind: 'subagent',
+        id: 'sa1',
+        role: 'explorer',
+        objective: 'Map the workspace',
+        status: 'inProgress',
+        controlStatus: 'running',
+        subagentId: 'sub-1',
+        childSessionId: 'child-1',
+        depth: 1,
+        durationMs: undefined,
+        usage,
+        resultSummary: undefined,
+      },
+    ])
+    expect(backgroundTasksOf(state).map((task) => [task.id, task.backgroundInitiator])).toEqual([
+      ['c1', 'user'],
+    ])
+    const done = reduceAll(
+      [
+        host({
+          type: 'agentEvent',
+          event: {
+            type: 'itemCompleted',
+            item: {
+              ...spawned,
+              status: 'completed',
+              controlStatus: 'closed',
+              durationMs: 1500,
+              result: { summary: 'Mapped 12 files' },
+            },
+          },
+        }),
+        host({
+          type: 'childTranscript',
+          sessionId: 'child-1',
+          name: 'Explorer',
+          items: [
+            { itemId: 'u', kind: 'userMessage', status: 'completed', text: 'Map the workspace' },
+            { itemId: 'a', kind: 'agentMessage', status: 'completed', text: 'Mapped 12 files' },
+          ],
+        }),
+      ],
+      state,
+    )
+    expect(agentsOf(done)[0]).toMatchObject({
+      status: 'completed',
+      controlStatus: 'closed',
+      durationMs: 1500,
+      usage,
+      resultSummary: 'Mapped 12 files',
+    })
+    expect(done.childTranscripts['child-1']?.name).toBe('Explorer')
+    expect(done.childTranscripts['child-1']?.entries.map((entry) => entry.kind)).toEqual([
+      'user',
+      'assistant',
+    ])
+    const cleared = reduceAll([{ type: 'conversationCleared' }], done)
+    expect(cleared.childTranscripts).toEqual({})
+  })
+
+  it('turns a rejected upload into the composer banner until dismissed (M14)', () => {
+    const rejected = reduceAll([
+      host({ type: 'attachmentRejected', name: 'audio.node', reason: 'not an image' }),
+    ])
+    expect(rejected.banner).toBe(
+      'Unsupported file type: audio.node. Supported as uploads: images (PNG, JPEG, GIF, WebP). Other files go in as @ mentions inside the workspace, or by absolute path in the prompt for files outside it.',
+    )
+    expect(rejected.announcement?.text).toBe('audio.node: not an image')
+    expect(rejected.transcript).toEqual([])
+    expect(reduceAll([{ type: 'bannerDismissed' }], rejected).banner).toBeUndefined()
   })
 
   it('lists the completed edits after a message newest first for a rewind (M13)', () => {

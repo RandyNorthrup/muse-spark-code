@@ -9,6 +9,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
 import { splitForStreaming } from '../streamSplit'
 import type { ApprovalDecisionInput } from './ApprovalCard'
+import { formatDurationMs } from './AgentMap'
 import { FileIcon, ImageIcon, RewindIcon } from './icons'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
@@ -288,6 +289,24 @@ export function Transcript(props: TranscriptProps) {
       case 'reasoning':
       case 'tool': {
         return renderStep(entry)
+      }
+      case 'subagent': {
+        return (
+          <li key={entry.id} className="activity activity-subagent" data-status={entry.status}>
+            <span className="activity-kind">{UI_TEXT.subagentRowLabel}</span>
+            <span className="activity-status">
+              {[
+                entry.objective ?? entry.role ?? UI_TEXT.agentUntitled,
+                entry.durationMs === undefined ? undefined : formatDurationMs(entry.durationMs),
+                entry.status === 'inProgress'
+                  ? UI_TEXT.agentRunning
+                  : (entry.controlStatus ?? entry.status),
+              ]
+                .filter((part) => part !== undefined)
+                .join(' · ')}
+            </span>
+          </li>
+        )
       }
       case 'item': {
         return (

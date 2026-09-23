@@ -12,6 +12,9 @@
 //   slow              a turn that waits for `turn/cancel`
 //   die               exit 1 after `turn/started` (host-death drill)
 //   malformed         an `item/delta` without its itemId, then a reply
+//   subagents         two native subagents (running, then done) with child
+//                     sessions readable through `session/read`
+//   background: <cmd> a `powershell` call the host backgrounds (item/updated)
 //   anything else     "echo: <text>" streamed in two deltas
 //
 // Environment: MUSE_FAKE_FINGERPRINT (the SDK's pinned schema fingerprint,
@@ -29,6 +32,11 @@ const CRASH_EXIT_CODE = 3
 const DIE_EXIT_CODE = 1
 const ECHO_PREFIX = 'echo: '
 const TOOL_PREFIX = 'tool:'
+const BACKGROUND_PREFIX = 'background:'
+const SUBAGENTS = [
+  { role: 'explorer', objective: 'Map the workspace layout' },
+  { role: 'reviewer', objective: 'Review the change for dead code' },
+]
 const TOOL_NAME = 'powershell'
 const MODEL_ID = 'muse-spark-1.3'
 const CONTEXT_WINDOW = 1_007_997
@@ -196,6 +204,110 @@ async function runTool(session, turnId, command) {
   streamReply(session, turnId, decision === 'approved' ? `ran: ${command}` : `skipped: ${command}`)
 }
 
+/** A child session the Agent map can read: the objective asked, the result given. */
+function childSession(parent, spec, result) {
+  const sessionId = id('child')
+  const record = {
+    sessionId,
+    status: 'idle',
+    activeTurnId: null,
+    createdAt: now(),
+    updatedAt: now(),
+    lastActivityAt: now(),
+    workspaceRoot: null,
+    modelId: parent.record.modelId,
+    turnCount: 1,
+    forkedFrom: null,
+    title: spec.objective,
+  }
+  const items = [
+    {
+      itemId: id('item'),
+      kind: 'userMessage',
+      status: 'completed',
+      turnId: 'child-turn',
+      text: spec.objective,
+    },
+    {
+      itemId: id('item'),
+      kind: 'agentMessage',
+      status: 'completed',
+      turnId: 'child-turn',
+      text: result,
+    },
+  ]
+  sessions.set(sessionId, { record, items, approvalMode: parent.approvalMode })
+  return sessionId
+}
+
+function runSubagents(session, turnId) {
+  const sessionId = session.record.sessionId
+  const spawned = SUBAGENTS.map((spec, index) => {
+    const result = `${spec.role} finished: ${spec.objective.toLowerCase()}`
+    const entry = {
+      itemId: id('item'),
+      kind: 'subagent',
+      status: 'inProgress',
+      turnId,
+      role: spec.role,
+      objective: spec.objective,
+      subagentId: id('subagent'),
+      childSessionId: childSession(session, spec, result),
+      depth: 1,
+      controlStatus: 'running',
+    }
+    notify('item/started', { sessionId, item: entry })
+    return { entry, result, index }
+  })
+  for (const { entry, result, index } of spawned) {
+    const usage = {
+      inputTokens: 1000 * (index + 1),
+      outputTokens: 200,
+      cachedTokens: 0,
+      reasoningTokens: 0,
+    }
+    notify('item/updated', { sessionId, item: { ...entry, usage } })
+    const done = {
+      ...entry,
+      status: 'completed',
+      controlStatus: 'closed',
+      durationMs: 1500 * (index + 1),
+      usage,
+      result: { summary: result, artifactRefs: [], evidenceRefs: [] },
+    }
+    session.items.push(done)
+    notify('item/completed', { sessionId, item: done })
+  }
+  streamReply(session, turnId, `delegated: ${String(spawned.length)} agents`)
+}
+
+function runBackground(session, turnId, command) {
+  const sessionId = session.record.sessionId
+  const call = {
+    itemId: id('item'),
+    kind: 'toolCall',
+    status: 'inProgress',
+    turnId,
+    tool: TOOL_NAME,
+    args: JSON.stringify({ command }),
+  }
+  notify('item/started', { sessionId, item: call })
+  notify('item/updated', {
+    sessionId,
+    item: { ...call, background: true, backgroundInitiator: 'user' },
+  })
+  const done = {
+    ...call,
+    background: true,
+    backgroundInitiator: 'user',
+    status: 'completed',
+    visibleOutput: `ran ${command} in the background\n`,
+  }
+  session.items.push(done)
+  notify('item/completed', { sessionId, item: done })
+  streamReply(session, turnId, `backgrounded: ${command}`)
+}
+
 async function runTurn(session, turnId, text) {
   const sessionId = session.record.sessionId
   notify('turn/started', { sessionId, turnId })
@@ -216,6 +328,10 @@ async function runTurn(session, turnId, text) {
   }
   if (text.startsWith(TOOL_PREFIX)) {
     await runTool(session, turnId, text.slice(TOOL_PREFIX.length).trim())
+  } else if (text.startsWith(BACKGROUND_PREFIX)) {
+    runBackground(session, turnId, text.slice(BACKGROUND_PREFIX.length).trim())
+  } else if (text === 'subagents') {
+    runSubagents(session, turnId)
   } else {
     streamReply(session, turnId, `${ECHO_PREFIX}${text}`)
   }

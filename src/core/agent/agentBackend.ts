@@ -184,6 +184,8 @@ export interface AgentHost {
   listModels(sessionId?: string): Promise<readonly ModelSummary[]>
   startSession(options: StartSessionOptions): Promise<AgentSession>
   listSessions(options: ListSessionsOptions): Promise<SessionPage>
+  /** A session's transcript without loading it (a subagent's child session, M14). */
+  readSession(sessionId: string): Promise<SessionHistoryOutcome>
   resumeSession(
     sessionId: string,
     modelId: string,

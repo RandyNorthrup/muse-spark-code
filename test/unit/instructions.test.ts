@@ -31,6 +31,7 @@ describe('instructionsFor', () => {
     })
     expect(text).toContain('The workspace root is /ws on linux.')
     expect(text).toContain('The shell tool (bash) runs one bash command line')
+    expect(text).toContain('ask through ask_user instead of listing the options in prose')
     expect(text).not.toContain('# Workspace rules')
     expect(text).not.toContain('# Skills')
     expect(text).not.toContain('# Project memory')

@@ -1425,6 +1425,19 @@ export class ModelApiHost implements AgentHost {
     return Promise.resolve({ sessions, nextCursor: undefined })
   }
 
+  /** The stored transcript; this backend spawns no subagents, so this serves the History dialog's peers only. */
+  public readSession(sessionId: string): Promise<SessionHistoryOutcome> {
+    const stored = this.stored.get(sessionId)
+    return stored === undefined
+      ? Promise.reject(new Error(`session ${sessionId} is not held by this window`))
+      : Promise.resolve({
+          mode: 'inline',
+          items: stored.transcript.map((entry) => entry.item),
+          name: stored.name,
+          todos: stored.todos,
+        })
+  }
+
   public resumeSession(sessionId: string, _modelId: string): Promise<LoadedSession> {
     const session = this.revive(sessionId)
     return session === undefined

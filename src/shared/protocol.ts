@@ -21,7 +21,7 @@ import {
   PREFERRED_LOCATIONS,
 } from './constants'
 import { sessionRowSchema } from './sessions'
-import { subscriptionUsageSchema } from './usage'
+import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -87,6 +87,8 @@ export const HOST_ACTIONS = [
   'hideOnboarding',
   /** The error boundary asks for a fresh webview document (M11). */
   'reload',
+  /** The Agent map's "open the Muse Code settings file" (M14). */
+  'openMuseSettings',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -227,6 +229,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('rewindCode'), edits: z.array(editRefSchema) }),
   // Session history (M6).
   z.object({ type: z.literal('listSessions') }),
+  // The Agent map reads a subagent's own session (M14).
+  z.object({ type: z.literal('readChildSession'), sessionId: z.string() }),
   z.object({ type: z.literal('resumeSession'), sessionId: z.string() }),
   z.object({
     type: z.literal('setSessionArchived'),
@@ -302,6 +306,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('usageReport'),
     backend: z.enum(BACKEND_KINDS),
     subscription: z.optional(subscriptionUsageSchema),
+    account: z.optional(accountFactsSchema),
+    /** From the CLI's trace logs on this machine (M14); absent on the Model API. */
+    insights: z.optional(z.object({ day: usageInsightsSchema, week: usageInsightsSchema })),
+  }),
+  // A subagent's own transcript for the Agent map (M14).
+  z.object({
+    type: z.literal('childTranscript'),
+    sessionId: z.string(),
+    name: z.optional(z.string()),
+    items: z.array(itemSnapshotSchema),
   }),
   // Voice dictation (M9): sent on surfaceReady and on every change. `reason`
   // explains an unavailable microphone (no built-in recogniser here).

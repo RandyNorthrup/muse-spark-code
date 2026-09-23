@@ -43,6 +43,9 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     onSearchMentions: vi.fn(),
     onAttachImage: vi.fn(),
     onDroppedUris: vi.fn(),
+    onCompact: vi.fn(),
+    banner: undefined,
+    onDismissBanner: vi.fn(),
     ...overrides,
   }
   const view = render(<Composer {...props} />)
@@ -262,6 +265,19 @@ describe('Composer attachments', () => {
       base64: 'CQ==',
     })
     expect(props.onDroppedUris).toHaveBeenCalledWith(['file:///ws/src/a.ts'])
+  })
+
+  it('compacts from the context indicator and shows a dismissible banner (M14)', () => {
+    const { props } = renderComposer({
+      contextLabel: '12% context',
+      contextTitle: '120K of 1M tokens · pressure normal · Click to compact now',
+      banner: 'Unsupported file type: audio.node. Supported as uploads: images.',
+    })
+    fireEvent.click(screen.getByRole('button', { name: '12% context' }))
+    expect(props.onCompact).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('alert')).toHaveTextContent('Unsupported file type: audio.node')
+    fireEvent.click(screen.getByLabelText('Dismiss'))
+    expect(props.onDismissBanner).toHaveBeenCalledTimes(1)
   })
 })
 

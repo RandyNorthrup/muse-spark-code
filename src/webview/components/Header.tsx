@@ -13,6 +13,10 @@ export interface HeaderProps {
   readonly onOpenHistory?: (() => void) | undefined
   /** Present once a session exists: the title becomes editable. */
   readonly onRename?: ((name: string) => void) | undefined
+  /** The agents pill (M14): shown once a subagent exists in this conversation. */
+  readonly agentCount?: number
+  readonly runningAgentCount?: number
+  readonly onOpenAgents?: (() => void) | undefined
 }
 
 function TitleEditor({
@@ -76,6 +80,9 @@ export function Header({
   onNewConversation,
   onOpenHistory,
   onRename,
+  agentCount = 0,
+  runningAgentCount = 0,
+  onOpenAgents,
 }: HeaderProps) {
   return (
     <header className="header">
@@ -86,6 +93,22 @@ export function Header({
       )}
       <div className="header-actions">
         {isFocusView ? <span className="badge">{UI_TEXT.focusViewBadge}</span> : null}
+        {onOpenAgents !== undefined && agentCount > 0 ? (
+          <button
+            type="button"
+            className="agents-pill"
+            title={UI_TEXT.agentsPillTitle}
+            onClick={onOpenAgents}
+          >
+            <span
+              className={
+                runningAgentCount > 0 ? 'agent-dot agent-dot-running' : 'agent-dot agent-dot-done'
+              }
+              aria-hidden="true"
+            />
+            {String(agentCount)} {agentCount === 1 ? UI_TEXT.agentSingular : UI_TEXT.agentPlural}
+          </button>
+        ) : null}
         <button
           type="button"
           className="icon-button"

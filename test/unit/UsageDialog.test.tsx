@@ -16,9 +16,30 @@ const subscription = {
 
 function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
   const props: UsageDialogProps = {
-    report: { backend: 'museCode', subscription },
+    report: {
+      backend: 'museCode',
+      subscription,
+      account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+      insights: {
+        day: {
+          attempts: 40,
+          sessions: 2,
+          reminderAttempts: 30,
+          subagentAttempts: 4,
+          longSessionAttempts: 0,
+        },
+        week: {
+          attempts: 0,
+          sessions: 0,
+          reminderAttempts: 0,
+          subagentAttempts: 0,
+          longSessionAttempts: 0,
+        },
+      },
+    },
     usage: { inputTokens: 12_345, outputTokens: 678, cachedTokens: 10_000 },
     context: { usedTokens: 21_014, windowTokens: 1_007_997, pressure: 'normal' },
+    modelId: 'muse-spark-1.3',
     now: () => NOW,
     onOpenExternal: vi.fn(),
     onClose: vi.fn(),
@@ -57,18 +78,31 @@ describe('UsageDialog', () => {
 
   it('explains a key-billed window and an unobserved subscription, and shows empty tokens', () => {
     renderDialog({
-      report: { backend: 'modelApi', subscription: undefined },
+      report: {
+        backend: 'modelApi',
+        subscription: undefined,
+        account: { signInMethod: 'apiKey' },
+        insights: undefined,
+      },
       usage: undefined,
       context: undefined,
     })
     expect(screen.getByRole('dialog')).toHaveTextContent('billed to the key at pay-as-you-go rates')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Auth methodModel API key')
+    expect(screen.getByRole('dialog')).toHaveTextContent('PlanPay as you go')
+    expect(screen.getByRole('dialog')).toHaveTextContent('no local trace logs')
     expect(screen.getByRole('dialog')).toHaveTextContent('No tokens counted yet')
     expect(screen.queryByRole('progressbar')).toBeNull()
   })
 
   it('reports a CLI that has not observed usage yet, and a context without a window', () => {
     renderDialog({
-      report: { backend: 'museCode', subscription: undefined },
+      report: {
+        backend: 'museCode',
+        subscription: undefined,
+        account: { signInMethod: 'cli' },
+        insights: undefined,
+      },
       usage: undefined,
       context: { usedTokens: 500, windowTokens: undefined, pressure: 'normal' },
     })
@@ -79,7 +113,38 @@ describe('UsageDialog', () => {
   it('says it is loading before the host answers', () => {
     renderDialog({ report: undefined })
     expect(screen.getByRole('dialog')).toHaveTextContent('Reading usage…')
-    expect(screen.getByRole('dialog')).toHaveTextContent('Backend—')
+    expect(screen.queryByText('Account')).toBeNull()
+  })
+
+  it('shows the account facts, the cache-hit rate and the insights with a Day/Week toggle (M14)', () => {
+    renderDialog()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Auth methodMeta account (Muse Code CLI)')
+    expect(dialog).toHaveTextContent('Muse Code1.3.0')
+    expect(dialog).toHaveTextContent('Modelmuse-spark-1.3')
+    expect(dialog).toHaveTextContent('Cache hits81%')
+    expect(screen.queryByText('Estimated cost')).toBeNull()
+    expect(dialog).toHaveTextContent('75% of model attempts came from Muse Code’s reminder agents')
+    expect(dialog).toHaveTextContent('10% of model attempts came from subagents')
+    expect(dialog).toHaveTextContent('40 model attempts across 2 sessions')
+    fireEvent.click(screen.getByRole('radio', { name: 'Week' }))
+    expect(dialog).toHaveTextContent('No CLI activity recorded in this window.')
+  })
+
+  it('estimates the dollar cost on the Model API from the published prices (M14)', () => {
+    renderDialog({
+      report: {
+        backend: 'modelApi',
+        subscription: undefined,
+        account: { signInMethod: 'apiKey' },
+        insights: undefined,
+      },
+      usage: { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 },
+      modelId: 'muse-spark-1.3',
+    })
+    // 800K fresh input at $1.25, 200K cached at $0.15, 100K output at $4.25.
+    expect(screen.getByRole('dialog')).toHaveTextContent('Estimated cost$1.46')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Prices read on 2026-09-22')
   })
 
   it('focuses the close button, closes on it and on Escape', () => {

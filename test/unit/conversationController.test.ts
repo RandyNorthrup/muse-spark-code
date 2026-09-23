@@ -6,6 +6,7 @@ import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
 import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
+import type { UsageInsights } from '../../src/shared/usage'
 import {
   ConversationController,
   type ConversationDeps,
@@ -18,6 +19,7 @@ import {
 } from '../../src/host/conversation/conversationController'
 import type { DictationListener } from '../../src/core/voice/dictation'
 import type { DictationSetup } from '../../src/host/voice/dictationHost'
+import { CHOICE_STEERING_NOTE } from '../../src/shared/constants'
 import type { HostAction, MentionItem } from '../../src/shared/protocol'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
@@ -74,6 +76,8 @@ const PNG = Uint8Array.from([
 ])
 
 const NOW = Date.parse('2026-09-22T12:00:00Z')
+/** The choice-steering note every CLI turn carries (M14), hidden by displayText. */
+const NOTE = { type: 'text', text: CHOICE_STEERING_NOTE }
 
 const composerState = {
   type: 'composerState',
@@ -132,6 +136,8 @@ function setup(
     archivedIds?: readonly string[]
     lastSession?: LastSession
     isRestorable?: boolean
+    /** The usage modal's insights (M14). */
+    usageInsights?: { day: UsageInsights; week: UsageInsights }
     /** Voice dictation (M9). */
     dictation?: DictationSetup
     now?: number
@@ -257,6 +263,13 @@ function setup(
   const deps: ConversationDeps = {
     surface,
     auth: auth.service,
+    accountFacts: (backend) =>
+      Promise.resolve(
+        backend === 'museCode'
+          ? { signInMethod: 'cli' as const, cliVersion: '1.3.0', delegationMode: 'off' }
+          : { signInMethod: 'apiKey' as const },
+      ),
+    usageInsights: () => Promise.resolve(options.usageInsights),
     ensureHost: () => Promise.resolve(host),
     workspaceRoot: 'workspaceRoot' in options ? options.workspaceRoot : '/ws',
     modelId: 'muse-spark-1.3',
@@ -424,7 +437,7 @@ describe('ConversationController.sendMessage', () => {
       reasoningEffort: 'high',
     })
     expect(t.server.requestsFor('turn/start')[0]?.params).toMatchObject({
-      input: [{ type: 'text', text: 'hi' }],
+      input: [{ type: 'text', text: 'hi' }, NOTE],
     })
     expect(t.surface.posted).toEqual([
       modelList,
@@ -445,7 +458,7 @@ describe('ConversationController.sendMessage', () => {
     await t.send('l2', 'also this')
     expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({
       expectedTurnId: 't1',
-      input: [{ type: 'text', text: 'also this' }],
+      input: [{ type: 'text', text: 'also this' }, NOTE],
     })
     expect(t.surface.posted.at(-1)).toEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't1' })
     t.server.handle('turn/steer', () => {
@@ -478,17 +491,18 @@ describe('ConversationController.sendMessage', () => {
           height: 3,
           base64Data: Buffer.from(PNG).toString('base64'),
         },
+        NOTE,
       ],
     })
     await t.send('l2', '/fix-bug the parser')
     expect(t.server.requestsFor('turn/start')[1]?.params).toMatchObject({
-      input: [{ type: 'skill', selector: 'fix-bug', arguments: 'the parser' }],
+      input: [{ type: 'skill', selector: 'fix-bug', arguments: 'the parser' }, NOTE],
     })
     t.finishTurn()
     await settle()
     await t.send('l3', '/unknown-skill')
     expect(t.server.requestsFor('turn/start')[2]?.params).toMatchObject({
-      input: [{ type: 'text', text: '/unknown-skill' }],
+      input: [{ type: 'text', text: '/unknown-skill' }, NOTE],
     })
   })
 
@@ -829,7 +843,7 @@ describe('ConversationController: context', () => {
     await t.controller.handle({ type: 'removeAttachment', id: 'att-1' })
     await t.send('l1', 'text only', ['att-1'])
     expect(t.server.requestsFor('turn/start')[0]?.params).toMatchObject({
-      input: [{ type: 'text', text: 'text only' }],
+      input: [{ type: 'text', text: 'text only' }, NOTE],
     })
   })
 
@@ -1138,6 +1152,7 @@ describe('ConversationController: editor integration (M5)', () => {
         type: 'text',
         text: '<ide_selection>The user selected the lines 5 to 6 from src/a.ts:\nconst a = 1\n</ide_selection>',
       },
+      NOTE,
     ])
     expect(params['displayText']).toBe('explain')
   })
@@ -1160,8 +1175,9 @@ describe('ConversationController: editor integration (M5)', () => {
     )
     const off = setup({ editorContext: selection })
     await off.send('l1', 'explain')
-    expect(turnStartParams(off)['input']).toEqual([{ type: 'text', text: 'explain' }])
-    expect(turnStartParams(off)['displayText']).toBeUndefined()
+    expect(turnStartParams(off)['input']).toEqual([{ type: 'text', text: 'explain' }, NOTE])
+    // The note rides along, so the durable transcript keeps the typed text (M14).
+    expect(turnStartParams(off)['displayText']).toBe('explain')
   })
 
   it('saves every editor before the turn when autosave is on, and never otherwise', async () => {
@@ -1353,6 +1369,13 @@ function envelope(session: Record<string, unknown>, mode = 'inline') {
   }
 }
 
+/** The first readUsage answer of a host that has observed no window yet. */
+async function firstUsageReport(t: ReturnType<typeof setup>) {
+  t.server.handle('usage/read', () => ({}))
+  await t.controller.handle({ type: 'readUsage' })
+  return t.surface.posted.at(-1)
+}
+
 function withHistory(
   options: Parameters<typeof setup>[0] = {},
   sessionOverrides: Record<string, unknown> = {},
@@ -1396,16 +1419,43 @@ describe('ConversationController: account & usage (M8)', () => {
     weekly: { usedPercent: 3, resetsAtMs: 1_800_400_000_000 },
   }
 
+  const account = { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' }
+
+  it('carries the insights when the host has them (M14)', async () => {
+    const insights = {
+      day: {
+        attempts: 31,
+        sessions: 1,
+        reminderAttempts: 30,
+        subagentAttempts: 0,
+        longSessionAttempts: 0,
+      },
+      week: {
+        attempts: 31,
+        sessions: 1,
+        reminderAttempts: 30,
+        subagentAttempts: 0,
+        longSessionAttempts: 0,
+      },
+    }
+    const t = setup({ usageInsights: insights })
+    expect(await firstUsageReport(t)).toEqual({
+      type: 'usageReport',
+      backend: 'museCode',
+      account,
+      insights,
+    })
+  })
+
   it('answers readUsage with the backend and the window, then follows usage/changed', async () => {
     const t = setup()
-    t.server.handle('usage/read', () => ({}))
-    await t.controller.handle({ type: 'readUsage' })
-    expect(t.surface.posted.at(-1)).toEqual({ type: 'usageReport', backend: 'museCode' })
+    expect(await firstUsageReport(t)).toEqual({ type: 'usageReport', backend: 'museCode', account })
     t.server.handle('usage/read', () => ({ usage }))
     await t.controller.handle({ type: 'readUsage' })
     expect(t.surface.posted.at(-1)).toEqual({
       type: 'usageReport',
       backend: 'museCode',
+      account,
       subscription: usage,
     })
     const changed = { ...usage, window: { ...usage.window, usedPercent: 40 } }
@@ -1414,6 +1464,7 @@ describe('ConversationController: account & usage (M8)', () => {
     expect(t.surface.posted.at(-1)).toEqual({
       type: 'usageReport',
       backend: 'museCode',
+      account,
       subscription: changed,
     })
     // One subscription per host: the second readUsage did not double the stream.
@@ -1686,6 +1737,29 @@ describe('ConversationController: session history (M6)', () => {
     const noWorkspace = withHistory({ workspaceRoot: undefined })
     await noWorkspace.controller.restoreSession('old')
     expect(noWorkspace.server.requestsFor('session/resume')).toHaveLength(0)
+  })
+
+  it('reads a subagent’s child session for the Agent map and reports a failure (M14)', async () => {
+    const t = withHistory()
+    t.server.handle('session/read', (params) =>
+      envelope({ ...storedSession, sessionId: params['sessionId'], name: 'Explorer' }),
+    )
+    await t.controller.handle({ type: 'readChildSession', sessionId: 'child-1' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'childTranscript',
+      sessionId: 'child-1',
+      name: 'Explorer',
+      items: storedItems,
+    })
+    t.server.handle('session/read', () => {
+      throw new Error('unknown session')
+    })
+    await t.controller.handle({ type: 'readChildSession', sessionId: 'ghost' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'warning',
+      text: 'Could not read the agent’s transcript: unknown session',
+    })
   })
 
   it('remembers activity on sends and completed turns, and forgets it on clear', async () => {

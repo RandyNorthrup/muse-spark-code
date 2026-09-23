@@ -9,6 +9,43 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.4.0] - 2026-09-22
+
+Subagents, the Agent map, the Account & Usage modal, and the smaller
+parity gaps the owner spotted (PLAN.md D17).
+
+### Added
+
+- **Subagents.** Muse Code's native subagents appear as rows (role,
+  objective, status, duration), an "N agents" pill in the header opens the
+  **Agent map**: this conversation, its agents with their tokens, the
+  background tasks, and an agent's own transcript read from its child
+  session. `/agents` opens it too. When Muse Code's delegation is off (its
+  default, `run.subagent_delegation_mode`), the map says so and opens the
+  CLI's settings file; the extension never edits it.
+- **Background tasks.** A tool call the CLI put in the background carries a
+  badge on its row and a line in the Agent map.
+- **Account & Usage** is a centred modal with the chat dimmed behind it:
+  auth method, plan, backend, Muse Code version and model; the
+  subscription bars; this conversation's tokens with the cache-hit rate and,
+  on the Model API, a dollar estimate from Meta's published prices; and
+  "what's contributing to your usage" for the day or the week, read from
+  the CLI's trace logs on this machine (reminder agents, subagents, long
+  sessions).
+- **Choices as pickers.** Every CLI turn carries a hidden note asking Muse
+  to offer choices through `request_user_input` so the panel can show a
+  picker; the Model API prompt says the same about `ask_user`.
+- **Unsupported uploads** show a dismissible banner above the composer with
+  the supported types and the @-mention / absolute-path hint, instead of a
+  transcript notice.
+- **Compact now**: the context indicator is a button; its tooltip carries
+  the pressure level Muse reports.
+- Diagnostics reports the CLI's subagent delegation mode.
+
+### Changed
+
+- The fake CLI of the e2e suite scripts subagents and backgrounded calls.
+
 ## [0.3.1] - 2026-09-22
 
 The production-readiness verification (PLAN.md D16) and its fixes.

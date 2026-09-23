@@ -14,6 +14,7 @@ import type {
   SessionMcpHttpServer,
   SessionRecord,
   TurnPart,
+  BackendKind,
 } from '../../core/agent/agentBackend'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
@@ -39,6 +40,7 @@ import {
   SANDBOX_FAILURE_MARKER,
   SESSION_LIST_LIMIT,
   SESSION_LIST_MAX_PAGES,
+  CHOICE_STEERING_NOTE,
   SESSION_RESTORE_WINDOW_MS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -54,7 +56,7 @@ import type {
   ModelOption,
   SkillOption,
 } from '../../shared/protocol'
-import type { SubscriptionUsage } from '../../shared/usage'
+import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import type { AuthPort } from '../auth/authService'
 import type { ReviewNotice } from '../editor/editReview'
 import type { Logger } from '../logger'
@@ -174,12 +176,22 @@ export interface ConversationDeps {
   readonly newAttachmentId: () => string
   /** Session history (M6). */
   readonly sessions: SessionMemory
+  /** The usage modal's Account section (M14). */
+  readonly accountFacts: (backend: BackendKind) => Promise<AccountFacts>
+  /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
+  readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
   readonly isRestorable: boolean
   /** Voice dictation (M9): the platform's helper, or why there is none. */
   readonly dictation: DictationSetup
   readonly now: () => number
   readonly log: Logger
+}
+
+/** The day and the week windows of the usage insights (M14). */
+export interface UsageInsightsReport {
+  readonly day: UsageInsights
+  readonly week: UsageInsights
 }
 
 export const NO_WORKSPACE_REASON = 'Open a folder first; Muse works inside a workspace.'
@@ -900,9 +912,14 @@ export class ConversationController {
       const context = await this.contextPart(
         isEditorContextIncluded ? this.deps.editorContext() : undefined,
       )
-      const parts = context === undefined ? typed : [...typed, context]
-      // With extra context the durable transcript keeps the typed text only.
-      const displayText = context === undefined ? undefined : text
+      // The CLI backend also gets the choice-steering note (M14); the Model
+      // API backend carries it in its system prompt.
+      const host = await this.deps.ensureHost()
+      const note: readonly TurnPart[] =
+        host.info.kind === 'museCode' ? [{ type: 'text', text: CHOICE_STEERING_NOTE }] : []
+      const parts = [...typed, ...(context === undefined ? [] : [context]), ...note]
+      // With extra parts the durable transcript keeps the typed text only.
+      const displayText = parts.length === typed.length ? undefined : text
       const turnId = await this.submit(session, parts, displayText)
       this.activeTurnId = turnId
       this.post({ type: 'turnAccepted', localId, turnId })
@@ -1117,21 +1134,44 @@ export class ConversationController {
       const host = await this.deps.ensureHost()
       this.usageWatch.ensure(host, (watched) =>
         watched.onUsageChanged((usage) => {
-          this.postUsage(watched, usage)
+          void this.postUsage(watched, usage)
         }),
       )
-      this.postUsage(host, await host.readUsage())
+      await this.postUsage(host, await host.readUsage())
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
     }
   }
 
-  private postUsage(host: AgentHost, subscription: SubscriptionUsage | undefined): void {
+  private async postUsage(
+    host: AgentHost,
+    subscription: SubscriptionUsage | undefined,
+  ): Promise<void> {
+    const account = await this.deps.accountFacts(host.info.kind)
+    const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
     this.post({
       type: 'usageReport',
       backend: host.info.kind,
+      account,
       ...(subscription !== undefined && { subscription }),
+      ...(insights !== undefined && { insights }),
     })
+  }
+
+  /** The Agent map asked for a subagent's own transcript (M14). */
+  private async readChildSession(sessionId: string): Promise<void> {
+    try {
+      const host = await this.deps.ensureHost()
+      const history = await host.readSession(sessionId)
+      this.post({
+        type: 'childTranscript',
+        sessionId,
+        ...(history.name !== undefined && { name: history.name }),
+        items: [...history.items],
+      })
+    } catch (error: unknown) {
+      this.notice('warning', `${UI_TEXT.agentTranscriptFailed}: ${describe(error)}`)
+    }
   }
 
   // --- Voice dictation (M9) ---
@@ -1324,6 +1364,10 @@ export class ConversationController {
       }
       case 'listSessions': {
         await this.listSessions()
+        break
+      }
+      case 'readChildSession': {
+        await this.readChildSession(message.sessionId)
         break
       }
       case 'resumeSession': {

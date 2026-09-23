@@ -25,6 +25,8 @@ function tool(overrides: Partial<Extract<TranscriptEntry, { kind: 'tool' }>>) {
     patchSummary: undefined,
     patchRef: undefined,
     outputRef: undefined,
+    isBackground: false,
+    backgroundInitiator: undefined,
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,

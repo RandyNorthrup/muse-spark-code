@@ -282,6 +282,15 @@ export const MODEL_API_VERSION = 'v1'
 // segmentation models.
 export const MODEL_API_MODEL_PREFIX = 'muse-spark-'
 export const CONTRIBUTOR_MODEL_SUFFIX = '-contributor'
+// Meta's published Model API prices per million tokens (dev.meta.ai/docs/
+// pricing-rate-limits, read 2026-09-22): the standard tier for every plain
+// model, the contributor tier for the `-contributor` models.
+export const MODEL_API_PRICES_PER_MILLION = {
+  standard: { input: 1.25, cachedInput: 0.15, output: 4.25 },
+  contributor: { input: 0.1, cachedInput: 0.002, output: 0.2 },
+} as const
+export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-22'
+export const TOKENS_PER_MILLION = 1_000_000
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
@@ -383,6 +392,39 @@ export const STORED_SESSION_VERSION = 1
 
 // Item kinds the transcript never shows: our own echo and host-internal children.
 export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'reminderChild'])
+
+// --- Subagents, background tasks and usage insights (M14, PLAN.md D17) ---
+
+// Muse Code hides its subagent tools unless this setting in its own
+// settings file (`$XDG_CONFIG_HOME/muse/settings.json`, else
+// `~/.config/muse/settings.json`) is `auto`; the extension reads it, never
+// writes it.
+export const MUSE_SETTINGS_FILE_SEGMENTS = ['muse', 'settings.json'] as const
+export const MUSE_DELEGATION_DEFAULT = 'off'
+export const MUSE_DELEGATION_ENABLED = 'auto'
+// The CLI's trace logs, one per `muse serve` process, under its data root.
+export const MUSE_TRACE_LOG_SEGMENTS = [
+  '.local',
+  'share',
+  'muse',
+  'local-tracing',
+  'bootstrap',
+] as const
+export const TRACE_LOG_FILE_SUFFIX = '.log'
+export const TRACE_LOG_MAX_BYTES = 8 * 1024 * 1024
+export const TRACE_LOG_MAX_FILES = 200
+// A reminder agent's run registers one tool (its decision); a subagent's run
+// registers the toolset (verified 2026-09-22: 1 versus 30).
+export const REMINDER_RUN_TOOL_COUNT_MAX = 2
+export const USAGE_WINDOW_DAY_MS = 24 * 60 * 60 * 1000
+export const USAGE_WINDOW_WEEK_MS = 7 * USAGE_WINDOW_DAY_MS
+export const LONG_SESSION_MS = 8 * 60 * 60 * 1000
+export const USAGE_INSIGHTS_TTL_MS = 30 * 1000
+// Sent with every turn on the CLI backend, hidden from the transcript like
+// the editor context: Muse otherwise answers a choice in prose where the
+// panel could show a picker (the request_user_input tool).
+export const CHOICE_STEERING_NOTE =
+  '<harness_note>When you offer the user a choice between options, ask through the request_user_input tool instead of listing the options in prose, so the panel can show a picker.</harness_note>'
 // Collapsed tool bodies show this many lines before "Show more".
 export const OUTPUT_PREVIEW_LINES = 12
 // `item/readOutput` page size (the host serves at most 6 MiB per call).
@@ -777,6 +819,8 @@ export const UI_TEXT = {
   // Account & usage dialog (M8).
   usageItem: 'Account & usage…',
   usageItemDetail: 'Subscription usage, this conversation’s tokens, the backend',
+  agentsCommand: '/agents',
+  agentsCommandDetail: 'Show the agent map',
   usageCommand: '/usage',
   usageCommandDetail: 'Show account usage',
   costCommand: '/cost',
@@ -875,6 +919,66 @@ export const UI_TEXT = {
   rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',
   terminalCliMissing: 'The Muse Code CLI is not installed, so there is no terminal to open.',
   signedOutNotice: 'Signed out of Muse Spark.',
+  // The Agent map, the usage modal, the banner and the compact button (M14).
+  agentsPillTitle: 'Show the agent map',
+  agentSingular: 'agent',
+  agentPlural: 'agents',
+  agentMapTitle: 'Agent map',
+  agentMapHint: 'click an agent for details',
+  agentMapEmpty: 'No subagents in this conversation.',
+  agentRunning: 'running',
+  agentTokens: 'tokens',
+  agentContextTokens: 'tokens in context',
+  agentUntitled: 'Agent',
+  agentRole: 'Role:',
+  agentBack: 'Back to the map',
+  agentTranscriptLoading: 'Reading the agent’s transcript…',
+  agentTranscriptFailed: 'Could not read the agent’s transcript',
+  agentNoTranscript: 'No transcript for this agent.',
+  agentTranscriptLabel: 'Agent transcript',
+  agentDelegationOff:
+    'Muse Code’s subagent delegation is off (its default), so the model has no agent tools in this conversation. Set run.subagent_delegation_mode to "auto" in the Muse Code settings file to enable it; the extension never edits that file.',
+  agentOpenMuseSettings: 'Open the Muse Code settings file',
+  museSettingsMissing: 'Muse Code has not written a settings file yet. It would be at',
+  backgroundTaskSingular: 'background task',
+  backgroundTaskPlural: 'background tasks',
+  backgroundTasksLabel: 'Background tasks',
+  backgroundBadge: 'background',
+  subagentRowLabel: 'Agent',
+  usageAccount: 'Account',
+  usageAuthMethod: 'Auth method',
+  usageAuthCli: 'Meta account (Muse Code CLI)',
+  usageAuthKey: 'Model API key',
+  usageAuthNone: 'Not signed in',
+  usagePlanPayAsYouGo: 'Pay as you go',
+  usagePlanUnknown: 'Not reported yet',
+  usageCliVersion: 'Muse Code',
+  usageModel: 'Model',
+  usageHeading: 'Usage',
+  usageCost: 'Estimated cost',
+  usageCacheHits: 'Cache hits',
+  usageCostNote:
+    'Estimate from Meta’s published per-token prices for this model’s tier; the dev.meta.ai dashboard is the bill. Prices read on',
+  usageContributing: 'What’s contributing to your usage?',
+  usageDay: 'Day',
+  usageWeek: 'Week',
+  usageContributingNote:
+    'Approximate, from the Muse Code CLI’s trace logs on this machine; other devices are not included.',
+  usageInsightReminders:
+    'of model attempts came from Muse Code’s reminder agents, which run after every reply',
+  usageInsightSubagents: 'of model attempts came from subagents',
+  usageInsightLong: 'of model attempts came from sessions active for 8+ hours',
+  usageInsightNone: 'No CLI activity recorded in this window.',
+  usageInsightUnavailable: 'Not available on this backend: the Model API has no local trace logs.',
+  usageInsightAttempts: 'model attempts across',
+  usageInsightSession: 'session',
+  usageInsightSessions: 'sessions',
+  contextCompactTitle: 'Click to compact now',
+  contextPressure: 'pressure',
+  unsupportedFileTitle: 'Unsupported file type:',
+  unsupportedFileDetail:
+    'Supported as uploads: images (PNG, JPEG, GIF, WebP). Other files go in as @ mentions inside the workspace, or by absolute path in the prompt for files outside it.',
+  bannerDismiss: 'Dismiss',
   trustGrantedNotice:
     'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:

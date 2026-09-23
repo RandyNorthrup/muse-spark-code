@@ -183,6 +183,7 @@ export function ToolRow({
       <button type="button" className="tool-header" aria-expanded={isOpen} onClick={toggle}>
         <span className={statusClass(entry)} aria-hidden="true" />
         <span className="tool-label">{presentation.label}</span>
+        {entry.isBackground ? <span className="badge">{UI_TEXT.backgroundBadge}</span> : null}
         {presentation.summary === '' ? null : (
           <span className="tool-summary">{presentation.summary}</span>
         )}

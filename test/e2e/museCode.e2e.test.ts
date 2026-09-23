@@ -280,6 +280,38 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(await turn.done()).toMatchObject({ type: 'turnCompleted', terminal: 'cancelled' })
   })
 
+  it('reports subagents with their child sessions and a backgrounded tool call (M14)', async () => {
+    const { manager: backend } = manager()
+    const host = await backend.ensureHost()
+    const t = await openSession(host)
+    await t.start('subagents').done()
+    const agents = t
+      .completedItems()
+      .filter((item) => item.kind === 'subagent')
+      .map((item) => [item.role, item.objective, item.controlStatus, item.usage?.inputTokens])
+    expect(agents).toEqual([
+      ['explorer', 'Map the workspace layout', 'closed', 1000],
+      ['reviewer', 'Review the change for dead code', 'closed', 2000],
+    ])
+    const first = t.completedItems().find((item) => item.kind === 'subagent')
+    expect(first?.result?.summary).toBe('explorer finished: map the workspace layout')
+    expect(first?.childSessionId).toBeDefined()
+    const child = await host.readSession(first?.childSessionId ?? '')
+    expect(child.items.map((item) => item.kind)).toEqual(['userMessage', 'agentMessage'])
+    expect(child.items[1]?.text).toBe('explorer finished: map the workspace layout')
+    expect(t.text()).toBe('delegated: 2 agents')
+    const second = watch(t.session)
+    await second.start('background: npm test').done()
+    expect(
+      second.events.some((event) => event.type === 'itemUpdated' && event.item.background === true),
+    ).toBe(true)
+    expect(second.completedItems().find((item) => item.kind === 'toolCall')).toMatchObject({
+      background: true,
+      backgroundInitiator: 'user',
+      status: 'completed',
+    })
+  })
+
   it('survives a malformed frame', async () => {
     const { manager: backend, log } = manager()
     const host = await backend.ensureHost()

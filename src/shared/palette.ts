@@ -31,6 +31,7 @@ export type PaletteAction =
   | { readonly type: 'clearConversation' }
   | { readonly type: 'openHistory' }
   | { readonly type: 'openUsage' }
+  | { readonly type: 'openAgents' }
   | { readonly type: 'openModelPicker' }
   | { readonly type: 'setEffort'; readonly effort: EffortLevel }
   | { readonly type: 'toggleThinking' }
@@ -260,6 +261,12 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       id: 'slash',
       title: UI_TEXT.groupSlashCommands,
       items: [
+        {
+          id: 'agents',
+          label: UI_TEXT.agentsCommand,
+          detail: UI_TEXT.agentsCommandDetail,
+          action: { type: 'openAgents' },
+        },
         {
           id: 'compact',
           label: UI_TEXT.compactItem,

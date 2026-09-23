@@ -2,11 +2,13 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import type { BackendKind } from './core/agent/agentBackend'
 import { selectBackend } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { renderSupportReport } from './core/support/report'
@@ -22,6 +24,7 @@ import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
+import { museSettingsPath, readDelegationMode } from './host/backend/museSettings'
 import { createToolIo } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { EditReview } from './host/editor/editReview'
@@ -45,6 +48,7 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvi
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
+import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup } from './host/voice/dictationHost'
 import {
   BACKEND_SETTING,
@@ -79,6 +83,7 @@ import {
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
 import type { HostAction } from './shared/protocol'
+import type { AccountFacts } from './shared/usage'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
 // field we read instead of trusting it.
@@ -155,6 +160,26 @@ async function isExistingPath(fsPath: string): Promise<boolean> {
 async function readTextFile(fsPath: string): Promise<string | undefined> {
   try {
     return new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)))
+  } catch {
+    return undefined
+  }
+}
+
+/** The usage modal's "Auth method" for the backend in use (M14). */
+function signInMethodFor(
+  kind: BackendKind,
+  hasCliSession: boolean,
+  hasKey: boolean,
+): AccountFacts['signInMethod'] {
+  if (kind === 'museCode') {
+    return hasCliSession ? 'cli' : 'none'
+  }
+  return hasKey ? 'apiKey' : 'none'
+}
+
+function readTextFileSync(fsPath: string): string | undefined {
+  try {
+    return readFileSync(fsPath, 'utf8')
   } catch {
     return undefined
   }
@@ -265,6 +290,14 @@ export function activate(context: vscode.ExtensionContext): void {
       .getConfiguration(SETTINGS_SECTION)
       .update(key, value, vscode.ConfigurationTarget.Global)
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+  // Muse Code's own settings and trace logs (M14): read, never written.
+  const museConfig = {
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+  }
+  const delegationMode = () => readDelegationMode({ ...museConfig, readTextFile: readTextFileSync })
+  const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
   const credentials = new CredentialStore(context.secrets)
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
@@ -539,6 +572,17 @@ export function activate(context: vscode.ExtensionContext): void {
         await updateSetting('hideOnboarding', true)
         break
       }
+      case 'openMuseSettings': {
+        const settingsPath = museSettingsPath(museConfig)
+        if (await isExistingPath(settingsPath)) {
+          await vscode.window.showTextDocument(vscode.Uri.file(settingsPath))
+        } else {
+          void vscode.window.showInformationMessage(
+            `${UI_TEXT.museSettingsMissing} ${settingsPath}`,
+          )
+        }
+        break
+      }
     }
   }
 
@@ -614,6 +658,22 @@ export function activate(context: vscode.ExtensionContext): void {
         ideMcpEndpoint: () => ideServer.current,
         newAttachmentId: () => crypto.randomUUID(),
         sessions,
+        // The usage modal's Account section and insights (M14).
+        accountFacts: async (kind) => {
+          const resolution = backend.resolveLaunch()
+          const hasCliSession = backend.credentialFileExists() || backend.hasEnvironmentKey()
+          const hasKey = (await credentials.getApiKey()) !== undefined
+          const signInMethod = signInMethodFor(kind, hasCliSession, hasKey)
+          const cliVersion = resolution.ok
+            ? backend.installedVersion(resolution.launch.installDir)
+            : undefined
+          return {
+            signInMethod,
+            ...(cliVersion !== undefined && { cliVersion }),
+            ...(kind === 'museCode' && { delegationMode: delegationMode() }),
+          }
+        },
+        usageInsights: () => insights.read(),
         // Only the sidebar reopens on its last session; a tab is a new
         // conversation by construction (M6).
         isRestorable: surface.id === SIDEBAR_SURFACE_ID,
@@ -864,6 +924,7 @@ export function activate(context: vscode.ExtensionContext): void {
               }
             : { ok: false, reason: resolution.reason },
           hasCliCredentialFile: backend.credentialFileExists(),
+          delegationMode: delegationMode(),
           hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
           hasEnvironmentApiKey: backend.hasEnvironmentKey(),
           dictation: dictation.isAvailable

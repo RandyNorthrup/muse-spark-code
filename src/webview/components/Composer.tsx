@@ -79,6 +79,11 @@ export interface ComposerProps {
   readonly onSearchMentions: (requestId: number, query: string) => void
   readonly onAttachImage: (image: ImageData) => void
   readonly onDroppedUris: (uris: readonly string[]) => void
+  /** The context indicator is a button: compact now (M14). */
+  readonly onCompact: () => void
+  /** The banner above the box (M14): an unsupported upload, until dismissed. */
+  readonly banner: string | undefined
+  readonly onDismissBanner: () => void
 }
 
 const MIN_ROWS = 1
@@ -195,6 +200,9 @@ export function Composer(props: ComposerProps) {
     onSearchMentions,
     onAttachImage,
     onDroppedUris,
+    onCompact,
+    banner,
+    onDismissBanner,
   } = props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [caret, setCaret] = useState(0)
@@ -435,6 +443,20 @@ export function Composer(props: ComposerProps) {
       }}
       onDrop={handleDrop}
     >
+      {banner === undefined ? null : (
+        <div className="composer-banner" role="alert">
+          <span>{banner}</span>
+          <button
+            type="button"
+            className="icon-button"
+            title={UI_TEXT.bannerDismiss}
+            aria-label={UI_TEXT.bannerDismiss}
+            onClick={onDismissBanner}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+      )}
       {isMentionOpen ? (
         <MentionMenu
           items={mentionItems}
@@ -525,9 +547,14 @@ export function Composer(props: ComposerProps) {
         </div>
         <div className="composer-toolbar-group">
           {contextLabel === undefined ? null : (
-            <span className="context-label" title={contextTitle}>
+            <button
+              type="button"
+              className="context-label context-label-button"
+              title={contextTitle}
+              onClick={onCompact}
+            >
               {contextLabel}
-            </span>
+            </button>
           )}
           <button
             type="button"

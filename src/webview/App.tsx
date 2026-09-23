@@ -3,6 +3,7 @@ import type { QuestionAnswer } from '../shared/agentEvents'
 import {
   type DictationAction,
   type EffortLevel,
+  MUSE_DELEGATION_ENABLED,
   PERMISSION_MODE_DETAILS,
   PERMISSION_MODE_LABELS,
   UI_TEXT,
@@ -18,6 +19,7 @@ import {
   type WebviewToHostMessage,
 } from '../shared/protocol'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
+import { AgentMap } from './components/AgentMap'
 import { Composer, type ImageData } from './components/Composer'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
@@ -33,6 +35,8 @@ import { TodoPanel } from './components/TodoPanel'
 import { Transcript } from './components/Transcript'
 import {
   canSend,
+  agentsOf,
+  backgroundTasksOf,
   editsAfter,
   forkCutBefore,
   initialUiState,
@@ -52,7 +56,7 @@ export interface AppProps {
 }
 
 /** What floats above the composer: a palette view, a menu or the History dialog. */
-type Overlay = PaletteView | 'modes' | 'attach' | 'history' | 'usage'
+type Overlay = PaletteView | 'modes' | 'attach' | 'history' | 'usage' | 'agents'
 
 const GATED_STATUSES = new Set(['noCli', 'signedOut', 'signingIn', 'error'])
 const ATTACH_UPLOAD = 'upload'
@@ -87,12 +91,12 @@ export function contextLabelFor(state: UiState): string | undefined {
   return `${String(percent)}% ${UI_TEXT.contextLabel}`
 }
 
-/** Tooltip detail for the context indicator. */
+/** Tooltip detail for the context indicator, which compacts on click (M14). */
 function contextTitleFor(state: UiState): string | undefined {
   const { context } = state
   return context?.windowTokens === undefined
     ? undefined
-    : `${formatTokenWindow(context.usedTokens)} of ${formatTokenWindow(context.windowTokens)} tokens (${context.pressure})`
+    : `${formatTokenWindow(context.usedTokens)} of ${formatTokenWindow(context.windowTokens)} tokens · ${UI_TEXT.contextPressure} ${context.pressure} · ${UI_TEXT.contextCompactTitle}`
 }
 
 const ATTACH_ENTRIES: readonly MenuEntry[] = [
@@ -113,6 +117,7 @@ export function App({
 }: AppProps) {
   const [state, dispatch] = useReducer(uiReducer, initialUiState)
   const [overlay, setOverlay] = useState<Overlay | undefined>(undefined)
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
 
   useEffect(() => {
@@ -320,6 +325,25 @@ export function App({
   const onOpenHistory = useCallback(() => {
     toggleOverlay('history')
   }, [toggleOverlay])
+  const onOpenAgents = useCallback(() => {
+    setSelectedAgentId(undefined)
+    toggleOverlay('agents')
+  }, [toggleOverlay])
+  const onReadChild = useCallback(
+    (sessionId: string) => {
+      postMessage({ type: 'readChildSession', sessionId })
+    },
+    [postMessage],
+  )
+  const onOpenMuseSettings = useCallback(() => {
+    postMessage({ type: 'hostAction', action: 'openMuseSettings' })
+  }, [postMessage])
+  const onCompact = useCallback(() => {
+    postMessage({ type: 'compact' })
+  }, [postMessage])
+  const onDismissBanner = useCallback(() => {
+    dispatch({ type: 'bannerDismissed' })
+  }, [])
   const onResumeSession = useCallback(
     (sessionId: string) => {
       postMessage({ type: 'resumeSession', sessionId })
@@ -455,6 +479,11 @@ export function App({
         }
         case 'openUsage': {
           openOverlay('usage')
+          break
+        }
+        case 'openAgents': {
+          setSelectedAgentId(undefined)
+          openOverlay('agents')
           break
         }
         case 'openModelPicker': {
@@ -682,12 +711,32 @@ export function App({
     }
     case 'history':
     case 'usage':
+    case 'agents':
     case undefined: {
-      // The History and usage dialogs hang from the header, not the composer.
+      // History hangs from the header; usage and the Agent map are modals.
       floating = null
       break
     }
   }
+  const agents = agentsOf(state)
+  const agentMap =
+    overlay === 'agents' ? (
+      <AgentMap
+        title={title}
+        modelId={state.model?.modelId}
+        contextUsedTokens={state.context?.usedTokens}
+        agents={agents}
+        backgroundTasks={backgroundTasksOf(state)}
+        delegationMode={state.usageReport?.account?.delegationMode}
+        isDelegationEnabled={state.usageReport?.account?.delegationMode === MUSE_DELEGATION_ENABLED}
+        childTranscripts={state.childTranscripts}
+        selectedAgentId={selectedAgentId}
+        onSelectAgent={setSelectedAgentId}
+        onReadChild={onReadChild}
+        onOpenMuseSettings={onOpenMuseSettings}
+        onClose={closeOverlay}
+      />
+    ) : null
   const history =
     overlay === 'history' ? (
       <HistoryDialog
@@ -707,6 +756,7 @@ export function App({
         report={state.usageReport}
         usage={state.usage}
         context={state.context}
+        modelId={state.model?.modelId}
         now={now}
         onOpenExternal={onOpenExternal}
         onClose={closeOverlay}
@@ -727,10 +777,14 @@ export function App({
           onNewConversation={onNewConversation}
           onOpenHistory={onOpenHistory}
           onRename={state.sessionId === undefined ? undefined : onRename}
+          agentCount={agents.length}
+          runningAgentCount={agents.filter((agent) => agent.status === 'inProgress').length}
+          onOpenAgents={onOpenAgents}
         />
         {history}
-        {usageDialog}
       </div>
+      {usageDialog}
+      {agentMap}
       <main className={state.transcript.length === 0 ? 'body' : 'body body-transcript'}>
         {body}
       </main>
@@ -772,6 +826,9 @@ export function App({
           onSearchMentions={onSearchMentions}
           onAttachImage={onAttachImage}
           onDroppedUris={onDroppedUris}
+          onCompact={onCompact}
+          banner={state.banner}
+          onDismissBanner={onDismissBanner}
         />
       </div>
     </div>

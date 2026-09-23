@@ -37,9 +37,10 @@ body {
   height: var(--ms-icon-size);
 }
 
-/* --- header --- */
+/* --- header (the panel's, and a modal's) --- */
 
-.header {
+.header,
+.modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1493,7 +1494,8 @@ body {
   font-weight: 600;
 }
 
-.usage-body {
+.usage-body,
+.modal-body {
   display: flex;
   flex-direction: column;
   gap: var(--ms-gap);
@@ -1667,4 +1669,269 @@ body {
   .mic-button.mic-listening {
     animation: none;
   }
+}
+
+/* --- Modals, the Agent map, the agents pill, the banner (M14) --- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ms-gap);
+  background: color-mix(in srgb, var(--vscode-editor-background) 55%, transparent);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 440px);
+  max-height: 90vh;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  border-radius: var(--ms-radius);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  box-shadow: 0 4px 16px var(--vscode-widget-shadow);
+}
+
+.modal-wide {
+  width: min(100%, 720px);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.usage-toggle {
+  display: inline-flex;
+  width: max-content;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  overflow: hidden;
+}
+
+.usage-toggle button {
+  padding: 2px 10px;
+  border: 0;
+  color: var(--vscode-foreground);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.usage-toggle .usage-toggle-on {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.usage-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usage-insight-share {
+  font-weight: 600;
+}
+
+.agent-tree {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  overflow: auto;
+}
+
+.agent-children {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: var(--ms-gap);
+  border-left: 1px solid var(--vscode-panel-border);
+}
+
+.agent-node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  padding: 6px 10px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: var(--vscode-editor-background);
+}
+
+.agent-node-clickable {
+  cursor: pointer;
+}
+
+.agent-node-clickable:hover,
+.agent-node-clickable:focus-visible {
+  background: var(--vscode-list-hoverBackground);
+  outline: none;
+}
+
+.agent-node-main {
+  flex-shrink: 0;
+}
+
+.agent-node-title {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.agent-node-meta {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.agent-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground);
+}
+
+.agent-dot-running {
+  background: var(--vscode-testing-iconPassed, #3fb950);
+  animation: agent-pulse 1.2s ease-in-out infinite;
+}
+
+.agent-dot-done {
+  background: var(--vscode-testing-iconPassed, #3fb950);
+}
+
+.agent-dot-failed {
+  background: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+@keyframes agent-pulse {
+  50% {
+    opacity: 40%;
+  }
+}
+
+.agent-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--ms-gap);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-descriptionForeground);
+}
+
+.agent-notice p {
+  margin: 0;
+}
+
+.agent-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-details-title {
+  margin: 0;
+  font-size: 1em;
+}
+
+.agent-result {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 2px solid var(--vscode-panel-border);
+}
+
+.agent-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-transcript-row {
+  display: grid;
+  grid-template-columns: 6em 1fr;
+  gap: var(--ms-gap);
+  font-size: 0.9em;
+}
+
+.agent-transcript-kind {
+  color: var(--vscode-descriptionForeground);
+}
+
+.agent-transcript-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agents-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 0.85em;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agents-pill:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.activity-subagent .activity-status {
+  color: var(--vscode-foreground);
+}
+
+.composer-banner {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  border-radius: var(--ms-radius);
+  color: var(--vscode-foreground);
+  font-size: 0.9em;
+  background: var(--vscode-inputValidation-errorBackground, transparent);
+}
+
+.context-label-button {
+  border: 0;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.context-label-button:hover {
+  text-decoration: underline;
 }

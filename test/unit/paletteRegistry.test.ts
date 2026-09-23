@@ -166,6 +166,7 @@ describe('buildPalette', () => {
     })
     const slash = groups.find((group) => group.id === 'slash')
     expect(slash?.items.map((item) => item.label)).toEqual([
+      '/agents',
       '/compact',
       '/clear',
       '/logout',

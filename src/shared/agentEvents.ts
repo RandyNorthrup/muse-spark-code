@@ -32,6 +32,22 @@ export type PatchSummary = z.infer<typeof patchSummarySchema>
  * `agentMessage`, `toolCall`, `userMessage`, `reminderChild`). Exported as a
  * shape so the MSP mapper can widen `turnId` to nullable.
  */
+/** Provider-reported tokens (`session/tokenUsage`, a subagent's transitive usage). */
+export const tokenUsageSchema = z.object({
+  inputTokens: z.number(),
+  outputTokens: z.number(),
+  cachedTokens: z.number(),
+  reasoningTokens: z.number(),
+})
+export type TokenUsage = z.infer<typeof tokenUsageSchema>
+
+/** A subagent's result envelope, the parts the map shows. */
+const subagentResultSchema = z.object({
+  summary: z.string(),
+  text: z.optional(z.string()),
+  errorKind: z.optional(z.string()),
+})
+
 export const itemSnapshotFields = {
   itemId: z.string(),
   kind: z.string(),
@@ -54,6 +70,19 @@ export const itemSnapshotFields = {
   fallbackText: z.optional(z.string()),
   /** `userMessage`: image attachment metadata (no bytes), for replayed history (M6). */
   attachments: z.optional(z.array(messageAttachmentSchema)),
+  /** `subagent`: the child as spawned, its control state and transitive usage (M14). */
+  role: z.optional(z.string()),
+  objective: z.optional(z.string()),
+  subagentId: z.optional(z.string()),
+  childSessionId: z.optional(z.string()),
+  depth: z.optional(z.number()),
+  durationMs: z.optional(z.number()),
+  controlStatus: z.optional(z.string()),
+  usage: z.optional(tokenUsageSchema),
+  result: z.optional(subagentResultSchema),
+  /** `toolCall`: durably backgrounded, and by whom (M14). */
+  background: z.optional(z.boolean()),
+  backgroundInitiator: z.optional(z.string()),
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)

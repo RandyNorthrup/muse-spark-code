@@ -76,7 +76,7 @@ mixes the two.
    (VS Code 1.125 or newer), or from a `.vsix`:
 
    ```bash
-   code --install-extension muse-spark-code-0.3.1.vsix
+   code --install-extension muse-spark-code-0.4.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -164,7 +164,11 @@ images (PNG, JPEG, GIF, WebP; other files become `@` mentions) or starts a
 mention; images also paste and drop. The model pill reads `model effort`
 (effort tiers Minimal to Max, each verified per model); the mode button opens
 the Modes menu; the microphone dictates. While a turn runs, `Enter` steers it
-and Stop cancels it.
+and Stop cancels it. The context indicator is a button: click it to compact
+now; its tooltip carries the pressure level Muse reports. An upload the
+panel cannot take (only PNG, JPEG, GIF and WebP images are uploads) shows a
+dismissible banner above the box: other files go in as `@` mentions, or by
+absolute path for files outside the workspace.
 
 **Transcript.** Replies render as GitHub-flavoured markdown with highlighted
 code and **Copy**, **Insert at cursor** and **Apply** on every block. Tool
@@ -193,6 +197,31 @@ conversation and rewind code**.
 **Diagnostics.** The agent can read the Problems panel through a
 `getDiagnostics` tool the extension serves on a loopback MCP server, bound to
 `127.0.0.1` with a per-window token. Nothing else is exposed.
+
+**Subagents.** When Muse Code spawns native subagents they appear as rows
+and an **N agents** pill in the header opens the **Agent map** (also
+`/agents`): this conversation, its agents with role, objective, status,
+duration and tokens, the background tasks, and each agent's own transcript.
+Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
+`"auto"` in its settings file (`~/.config/muse/settings.json`, or under
+`$XDG_CONFIG_HOME`); the map says so and opens the file for you. The
+extension never edits it. The Model API backend spawns no agents.
+
+**Account & Usage** (`/usage`, `/cost`) is a modal over the transcript:
+auth method, plan, backend, Muse Code version and model; the subscription's
+current window and week; this conversation's tokens with the cache-hit rate
+and, on the Model API, a dollar estimate from Meta's published per-token
+prices (standard versus contributor tier, read 2026-09-22; the dev.meta.ai
+dashboard is the bill); and what is contributing to your usage over the
+last day or week, read from the Muse Code CLI's trace logs on this machine:
+the share of model attempts from Muse's reminder agents (which run after
+every reply), from subagents, and from sessions active for 8+ hours.
+Approximate, this machine only.
+
+**Prompt caching.** The Model API backend sends a per-session cache key so
+repeated prefixes are billed at the cached rate; the CLI caches on its own.
+Meta does not publish the cache lifetime, so there is no "warm for N
+minutes" countdown; the modal shows the cache-hit rate instead.
 
 ## Voice dictation
 

@@ -555,7 +555,10 @@ describe('App transcript (M4)', () => {
         pressure: 'normal',
       },
     })
-    expect(screen.getByText('12% context')).toHaveAttribute('title', '120K of 1M tokens (normal)')
+    expect(screen.getByText('12% context')).toHaveAttribute(
+      'title',
+      '120K of 1M tokens · pressure normal · Click to compact now',
+    )
     deliver({
       type: 'agentEvent',
       event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
@@ -898,6 +901,86 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+  it('shows the agents pill once a subagent runs and opens the Agent map from it (M14)', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    deliver({
+      type: 'usageReport',
+      backend: 'museCode',
+      account: { signInMethod: 'cli', delegationMode: 'auto' },
+    })
+    expect(screen.queryByTitle('Show the agent map')).toBeNull()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemStarted',
+        item: {
+          itemId: 'sa1',
+          kind: 'subagent',
+          status: 'inProgress',
+          role: 'explorer',
+          objective: 'Map the workspace',
+          childSessionId: 'child-1',
+        },
+      },
+    })
+    const pill = screen.getByTitle('Show the agent map')
+    expect(pill).toHaveTextContent('1 agent')
+    fireEvent.click(pill)
+    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    expect(map).toHaveTextContent('1 agent · click an agent for details')
+    fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'readChildSession', sessionId: 'child-1' })
+    expect(map).toHaveTextContent('Reading the agent’s transcript…')
+    deliver({
+      type: 'childTranscript',
+      sessionId: 'child-1',
+      items: [{ itemId: 'a', kind: 'agentMessage', status: 'completed', text: 'Mapped 12 files' }],
+    })
+    expect(screen.getByRole('list', { name: 'Agent transcript' })).toHaveTextContent(
+      'Mapped 12 files',
+    )
+    fireEvent.click(screen.getByText('Back to the map'))
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Agent map' }), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('explains delegation being off in the Agent map and opens the Muse settings file (M14)', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'usageReport',
+      backend: 'museCode',
+      account: { signInMethod: 'cli', delegationMode: 'off' },
+    })
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: '/agents' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    expect(map).toHaveTextContent('No subagents in this conversation.')
+    expect(map).toHaveTextContent('subagent delegation is off')
+    fireEvent.click(screen.getByText('Open the Muse Code settings file'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'openMuseSettings' })
+  })
+
+  it('compacts from the context indicator and shows the unsupported-file banner (M14)', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'contextUsage',
+        usedTokens: 120_000,
+        windowTokens: 1_000_000,
+        pressure: 'normal',
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '12% context' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'compact' })
+    deliver({ type: 'attachmentRejected', name: 'audio.node', reason: 'not an image' })
+    expect(screen.getByRole('alert')).toHaveTextContent('Unsupported file type: audio.node')
+    fireEvent.click(screen.getByLabelText('Dismiss'))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('renames from the title once a session exists, and not before', () => {
     const postMessage = renderReady()
     expect(screen.queryByTitle('Rename this conversation')).toBeNull()
@@ -935,7 +1018,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readUsage' })
     const dialog = screen.getByRole('dialog', { name: 'Account & usage' })
-    expect(dialog.parentElement).toHaveClass('header-area')
+    expect(dialog.parentElement).toHaveClass('modal-backdrop')
     expect(dialog).toHaveTextContent('Reading usage…')
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
     expect(

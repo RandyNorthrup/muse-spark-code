@@ -29,6 +29,27 @@ export type SubscriptionUsage = z.infer<typeof subscriptionUsageSchema>
 /** `usage/read` result: `{ usage? }`, the member absent when nothing was observed. */
 export const usageReadResultSchema = z.object({ usage: z.optional(subscriptionUsageSchema) })
 
+/** What drove the account's usage over a window (M14): model attempts by origin. */
+export const usageInsightsSchema = z.object({
+  attempts: z.number(),
+  sessions: z.number(),
+  reminderAttempts: z.number(),
+  subagentAttempts: z.number(),
+  longSessionAttempts: z.number(),
+})
+export type UsageInsights = z.infer<typeof usageInsightsSchema>
+
+export const SIGN_IN_METHOD_FACTS = ['cli', 'apiKey', 'none'] as const
+
+/** The Account section of the usage modal (M14). */
+export const accountFactsSchema = z.object({
+  signInMethod: z.enum(SIGN_IN_METHOD_FACTS),
+  cliVersion: z.optional(z.string()),
+  /** Muse Code's `run.subagent_delegation_mode`; absent on the Model API backend. */
+  delegationMode: z.optional(z.string()),
+})
+export type AccountFacts = z.infer<typeof accountFactsSchema>
+
 export const FULL_PERCENT = 100
 const MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
