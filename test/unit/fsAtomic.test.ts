@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rename } from 'node:fs/promises'
+import { chmod, lstat, mkdtemp, readdir, readFile, rename, stat, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -13,6 +13,8 @@ beforeAll(async () => {
 })
 
 afterAll(() => removeFolder(paths.root))
+
+const noWait = () => Promise.resolve()
 
 /** A file-system error with its code, as Node raises one. */
 function coded(code: string): Error {
@@ -55,6 +57,57 @@ describe('writeFileAtomically (D27)', () => {
     // The old content stands and the temporary file is gone.
     await expect(readFile(target, 'utf8')).resolves.toBe('ok')
     expect(await readdir(path.dirname(target))).toEqual(['b.txt'])
+  })
+
+  it('replaces the file a link leads to, never the link', async () => {
+    // A stand-in link: Windows makes a file symbolic link only with a privilege.
+    const folder = path.join(paths.root, 'linked')
+    const real = path.join(folder, 'real.txt')
+    const link = path.join(folder, 'link.txt')
+    await writeFileAtomically(real, 'old', { sleep: noWait })
+    await writeFileAtomically(link, 'new', {
+      sleep: noWait,
+      realPath: (target) => Promise.resolve(target === link ? real : target),
+    })
+    await expect(readFile(real, 'utf8')).resolves.toBe('new')
+    expect(await readdir(folder)).toEqual(['real.txt'])
+  })
+
+  it.runIf(process.platform !== 'win32')(
+    'keeps a real symbolic link and the permission bits of the file it replaces',
+    async () => {
+      const folder = path.join(paths.root, 'posix')
+      const script = path.join(folder, 'run.sh')
+      const link = path.join(folder, 'run-link.sh')
+      await writeFileAtomically(script, 'echo old\n', { sleep: noWait })
+      await chmod(script, 0o755)
+      await symlink(script, link)
+      await writeFileAtomically(link, 'echo new\n', { sleep: noWait })
+      await expect(readFile(script, 'utf8')).resolves.toBe('echo new\n')
+      const linkInfo = await lstat(link)
+      const scriptInfo = await stat(script)
+      expect(linkInfo.isSymbolicLink()).toBe(true)
+      expect(scriptInfo.mode & 0o777).toBe(0o755)
+    },
+  )
+
+  it('refuses a read-only file at once, leaving it as it was', async () => {
+    const folder = path.join(paths.root, 'locked')
+    const target = path.join(folder, 'c.txt')
+    const sleep = vi.fn(() => Promise.resolve())
+    await writeFileAtomically(target, 'kept', { sleep })
+    await chmod(target, 0o444)
+    try {
+      await expect(writeFileAtomically(target, 'lost', { sleep })).rejects.toMatchObject({
+        code: expect.stringMatching(/^(EACCES|EPERM)$/),
+      })
+      // Not a busy target: nothing is tried again.
+      expect(sleep).not.toHaveBeenCalled()
+      await expect(readFile(target, 'utf8')).resolves.toBe('kept')
+      expect(await readdir(folder)).toEqual(['c.txt'])
+    } finally {
+      await chmod(target, 0o644)
+    }
   })
 })
 

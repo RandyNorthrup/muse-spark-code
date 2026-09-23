@@ -184,7 +184,9 @@ other harnesses' bug trackers and the platform documentation, fixed.
   final line break, and a multi-line change matches a CRLF file; a file
   that is not UTF-8 text (binary, UTF-16, Latin-1) is refused instead of
   rewritten; a file with unsaved editor changes is left alone; `write_file`
-  replaces an existing file only after reading it; writes are atomic.
+  replaces an existing file only after reading it; writes are atomic, go
+  through a symbolic link to the file it leads to, keep a script's
+  permissions and refuse a read-only file.
 - A shell command's flood of output keeps its end and its exit line; a
   search that runs out of time returns what it found; Windows PowerShell
   output is UTF-8, so accents and symbols no longer come back garbled.
