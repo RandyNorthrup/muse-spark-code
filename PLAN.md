@@ -1130,7 +1130,7 @@ owner's key).** Certification record: `docs/certification/m7.md`.
     finished / failed / stopped turns, approval requests with the tool
     label, questions, `sendFailed`, resumes, warning and error notices.
   - Packaging: `icon` (128×128 PNG rendered by `scripts/render-icon.mjs`, since 0.1.1 `scripts/render-images.mjs` (`npm run images`, which also renders the README banner and the social preview)
-    from `media/marketplace-icon.svg`, a spark on a dark tile rather than
+    from `media/marketplace-icon.svg`, in 0.1.0 a spark on a dark tile (dropped in 0.1.1, the sparkle being Google's mark: the icon is now a plain "M" on the tile and the banner and social image carry no logo) rather than
     Meta's mark), `homepage`, `bugs`, `vscode:prepublish` (production
     build), `.vscodeignore` reduced to the two bundles, the stylesheet, the
     icons, `package.json`, README, CHANGELOG, LICENSE and PRIVACY.

@@ -26,6 +26,9 @@ Nothing yet.
   `scripts/render-images.mjs`) renders the Marketplace icon, the banner and
   the GitHub social preview. Marketplace description, keywords and a dark
   gallery banner colour refreshed.
+- No logo. The four-point sparkle of 0.1.0 is gone (it is Google's mark);
+  the banner and the social image are typography only, and the Marketplace
+  icon the listing requires is a plain "M" on the dark tile.
 
 ## [0.1.0] - 2026-09-22
 
