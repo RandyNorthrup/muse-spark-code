@@ -1871,4 +1871,7 @@ step skipped without `VSCE_PAT`.
 the pill's model at panel open, thinking rows as Claude Code shows them,
 path links that open the file at the change, Click to expand on every
 stored-patch diff, the last usage window "as of". Certified
-(`docs/certification/m16.md`), tagged `v0.4.2` (RELEASE_RUN_PLACEHOLDER).
+(`docs/certification/m16.md`), tagged `v0.4.2`; run 35827249477 went green on
+the first try: every job, the GitHub Release with
+`muse-spark-code-0.4.2.vsix` (544,515 bytes), the Marketplace publish step
+skipped without `VSCE_PAT`.
