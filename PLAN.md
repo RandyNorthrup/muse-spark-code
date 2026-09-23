@@ -2043,3 +2043,11 @@ run 35896194634 went green on every job, the GitHub Release carries
 `muse-spark-code-0.5.2.vsix` (551,810 bytes) and the workflow's own
 publish reported "Published RandyNorthrup.muse-spark-code v0.5.2.". The tag
 is the tip of `main` but for this record.
+
+**0.5.3 (2026-09-23):** the owner's donate link, the same PayPal button
+his other repositories carry: the manifest's `sponsor.url` (the Sponsor
+link on the Marketplace listing), `.github/FUNDING.yml` (the repository's
+Sponsor button) and a "Support this project" section plus a badge in the
+README. `manifest.test.ts` ties the manifest's link to `FUNDING.yml`
+(broken on purpose by changing the manifest's URL: the test failed, exit
+1; restored). Tagged `v0.5.3`; the run is recorded here once it finishes.

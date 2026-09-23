@@ -1,6 +1,9 @@
 // Guards against drift between package.json contribution points and the ids
 // and defaults the code is built around.
 
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
 import {
@@ -24,6 +27,13 @@ describe('package.json manifest', () => {
     expect(manifest.name).toBe(EXTENSION_NAME)
     expect(manifest.publisher).toBe(EXTENSION_PUBLISHER)
     expect(manifest.main).toBe('./dist/extension.js')
+  })
+
+  it('points the Marketplace Sponsor button at the same link as the repository', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const funding = readFileSync(path.join(here, '..', '..', '.github', 'FUNDING.yml'), 'utf8')
+    expect(manifest.sponsor.url).toMatch(/^https:\/\/www\.paypal\.com\/donate\//)
+    expect(funding).toContain(manifest.sponsor.url)
   })
 
   it('contributes the chat view the provider registers', () => {

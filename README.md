@@ -8,6 +8,7 @@
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="VS Code 1.125 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.125-2b7de9">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
+  <a href="https://www.paypal.com/donate/?hosted_button_id=Q9VC7B42R7K82"><img alt="Donate via PayPal" src="https://img.shields.io/badge/donate-PayPal-0070ba"></a>
 </p>
 
 **Muse Spark Code** puts Meta's Muse Spark model to work inside VS Code as a
@@ -99,7 +100,7 @@ harness:shots`) against a scripted session, so they match the build exactly.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.5.2.vsix
+   code --install-extension muse-spark-code-0.5.3.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -533,6 +534,12 @@ would get a panel without a microphone.
   pre-populate the folder from another machine.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
+
+## Support this project
+
+If Muse Spark Code saves you time, you can
+[buy me a coffee](https://www.paypal.com/donate/?hosted_button_id=Q9VC7B42R7K82)
+via PayPal. Thank you!
 
 ## More
 

@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 Nothing yet.
 
+## [0.5.3] - 2026-09-23
+
+### Added
+
+- A way to support the project: the manifest's `sponsor` link puts a
+  Sponsor button on the Marketplace listing, `.github/FUNDING.yml` puts one
+  on the repository, and the README ends with the same PayPal link the
+  author's other projects use.
+
 ## [0.5.2] - 2026-09-23
 
 The first community fix, and the README brought up to date with the panel.

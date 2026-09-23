@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "Muse Spark Code (Unofficial)",
   "description": "Meta's Muse Spark as a coding agent inside VS Code: streaming chat, tool calls with diffs, permission modes, session history and voice dictation, on your Muse subscription (Muse Code CLI) or a Model API key. Unofficial.",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -14,6 +14,9 @@
   "homepage": "https://github.com/RandyNorthrup/muse-spark-code#readme",
   "bugs": {
     "url": "https://github.com/RandyNorthrup/muse-spark-code/issues"
+  },
+  "sponsor": {
+    "url": "https://www.paypal.com/donate/?hosted_button_id=Q9VC7B42R7K82"
   },
   "engines": {
     "vscode": "^1.125.0",
