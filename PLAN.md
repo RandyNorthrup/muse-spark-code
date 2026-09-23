@@ -2081,4 +2081,8 @@ Released because the walkthrough, `docs/PRIVACY.md` and the `autosave`
 description ship inside the package, so the listing carries them. The
 Claude Code reference screenshots left the repository, the certification
 folder has an index, the harness keeps its Chrome profile in a temporary
-directory. Tagged `v0.5.4`; the run is recorded here once it finishes.
+directory. Tagged `v0.5.4` (af9cac0); run 35899149702 went green on every
+job, the GitHub Release carries `muse-spark-code-0.5.4.vsix` (552,723
+bytes) and the workflow published it ("Published
+RandyNorthrup.muse-spark-code v0.5.4."). The tag is the tip of `main` but
+for this record.
