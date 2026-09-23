@@ -1961,4 +1961,7 @@ in its agent's transcript, the map's owner controls (interrupt, stop,
 resume, close, note, follow-up task), the usage classifier's child marker,
 one usage-modal text fixed, subagent tool labels and the tool approval
 wording, the drill budget set from three measurements. Certified
-(`docs/certification/m18.md`), tagged `v0.5.0` (RELEASE_RUN_PLACEHOLDER).
+(`docs/certification/m18.md`), tagged `v0.5.0`; run 35832423906 went green on
+the first try: every job, the GitHub Release with
+`muse-spark-code-0.5.0.vsix` (549,724 bytes), the Marketplace publish step
+skipped without `VSCE_PAT`.
