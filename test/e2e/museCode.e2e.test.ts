@@ -84,12 +84,24 @@ function watch(session: AgentSession) {
       completed += 1
     }
   })
-  return {
-    events,
-    turnDone: async () => {
-      const seen = completed
+  /**
+   * A wait for the next terminal event, with its baseline taken now: taken
+   * later, a completion that lands in the same stdio chunk as the command's
+   * response would already be counted and the wait would never end.
+   */
+  const nextCompletion = () => {
+    const seen = completed
+    return async () => {
       await until(() => completed > seen)
       return events.findLast((event) => event.type === 'turnCompleted')
+    }
+  }
+  return {
+    events,
+    /** Sends a text turn; `done` resolves on that turn's terminal event. */
+    start: (text: string) => {
+      const done = nextCompletion()
+      return { submission: session.sendTurn([{ type: 'text', text }]), done }
     },
     kinds: () => events.map((event) => event.type),
     text: () =>
@@ -158,9 +170,10 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
         isActive: true,
       },
     ])
-    const submission = await t.session.sendTurn([{ type: 'text', text: 'hello there' }])
+    const turn = t.start('hello there')
+    const submission = await turn.submission
     expect(submission.disposition).toBe('started')
-    expect(await t.turnDone()).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    expect(await turn.done()).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
     expect(t.kinds()).toEqual([
       'turnStarted',
       'sessionStatus',
@@ -196,7 +209,8 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     const { manager: backend } = manager()
     const host = await backend.ensureHost()
     const t = await openSession(host)
-    await t.session.sendTurn([{ type: 'text', text: 'tool: Get-ChildItem' }])
+    const first = t.start('tool: Get-ChildItem')
+    await first.submission
     const request = await approvalOf(t)
     expect(request).toMatchObject({
       toolName: 'powershell',
@@ -208,7 +222,7 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
       choiceId: ALLOW,
       requirementId: request.requirementId,
     })
-    await t.turnDone()
+    await first.done()
     expect(t.events.find((event) => event.type === 'approvalResolved')).toMatchObject({
       decision: 'approved',
     })
@@ -219,7 +233,8 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(t.text()).toBe('ran: Get-ChildItem')
 
     const second = watch(t.session)
-    await t.session.sendTurn([{ type: 'text', text: 'tool: Remove-Item x' }])
+    const turn = second.start('tool: Remove-Item x')
+    await turn.submission
     const rejection = await approvalOf(second)
     await t.session.decideApproval({
       approvalId: rejection.approvalId,
@@ -227,7 +242,7 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
       requirementId: rejection.requirementId,
       feedback: 'not that one',
     })
-    await second.turnDone()
+    await turn.done()
     expect(second.completedItems().find((item) => item.kind === 'toolCall')).toMatchObject({
       status: 'failed',
       failureReason: 'rejected by the user',
@@ -239,16 +254,14 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     const { manager: backend } = manager()
     const host = await backend.ensureHost()
     const plan = await openSession(host, 'denyUnmatched')
-    await plan.session.sendTurn([{ type: 'text', text: 'tool: npm test' }])
-    await plan.turnDone()
+    await plan.start('tool: npm test').done()
     expect(plan.approval()).toBeUndefined()
     expect(plan.completedItems().find((item) => item.kind === 'toolCall')).toMatchObject({
       status: 'failed',
       failureReason: 'denied by policy',
     })
     const bypass = await openSession(host, 'allowAll')
-    await bypass.session.sendTurn([{ type: 'text', text: 'tool: npm test' }])
-    await bypass.turnDone()
+    await bypass.start('tool: npm test').done()
     expect(bypass.approval()).toBeUndefined()
     expect(bypass.text()).toBe('ran: npm test')
     await plan.session.setApprovalMode('allowAll')
@@ -260,18 +273,18 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     const { manager: backend } = manager()
     const host = await backend.ensureHost()
     const t = await openSession(host)
-    await t.session.sendTurn([{ type: 'text', text: 'slow' }])
+    const turn = t.start('slow')
+    await turn.submission
     await until(() => t.events.some((event) => event.type === 'turnStarted'))
     await t.session.cancel()
-    expect(await t.turnDone()).toMatchObject({ type: 'turnCompleted', terminal: 'cancelled' })
+    expect(await turn.done()).toMatchObject({ type: 'turnCompleted', terminal: 'cancelled' })
   })
 
   it('survives a malformed frame', async () => {
     const { manager: backend, log } = manager()
     const host = await backend.ensureHost()
     const t = await openSession(host)
-    await t.session.sendTurn([{ type: 'text', text: 'malformed' }])
-    await t.turnDone()
+    await t.start('malformed').done()
     expect(t.text()).toBe('echo: malformed')
     expect(log.error).not.toHaveBeenCalled()
   })
@@ -284,7 +297,7 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
       exits.push(description)
     })
     const t = await openSession(host)
-    await t.session.sendTurn([{ type: 'text', text: 'die' }])
+    await t.start('die').submission
     await until(() => exits.length > 0)
     expect(exits[0]).toBe('code 1, signal null')
     expect(backend.isRunning).toBe(false)
