@@ -1,18 +1,10 @@
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
+// The transcript row shapes live in transcriptEntries.ts as zod schemas, so a
+// conversation saved across a reload is validated before it comes back (M25).
 
-import type {
-  AgentEvent,
-  ApprovalChoice,
-  ApprovalSubject,
-  ItemSnapshot,
-  Question,
-  QuestionAnswer,
-  RequirementRef,
-  TodoItem,
-  TokenUsage,
-} from '../../shared/agentEvents'
+import type { AgentEvent, ItemSnapshot, RequirementRef, TodoItem } from '../../shared/agentEvents'
 import {
   CHAT_REFERENCE_LABEL_CHARS,
   DEFAULT_EFFORT,
@@ -22,6 +14,7 @@ import {
   MILLISECONDS_PER_SECOND,
   type PermissionMode,
   TOOL_LABELS,
+  TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
 } from '../../shared/constants'
 import type {
@@ -40,8 +33,26 @@ import type {
 } from '../../shared/protocol'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import type {
+  ChildTranscript,
+  ContextSummary,
+  NoticeLevel,
+  OutputRef,
+  PendingApproval,
+  PendingQuestion,
+  TranscriptEntry,
+  UsageSummary,
+} from './transcriptEntries'
 
-export type NoticeLevel = 'info' | 'warning' | 'error'
+export type {
+  ChildTranscript,
+  ContextSummary,
+  PatchSummary,
+  PendingApproval,
+  PendingQuestion,
+  TranscriptEntry,
+  UsageSummary,
+} from './transcriptEntries'
 
 /** What the Account & usage dialog shows (M8, M14): the host's last `usageReport`. */
 export interface UsageReport {
@@ -49,12 +60,6 @@ export interface UsageReport {
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
-}
-
-/** A subagent's own transcript, read for the Agent map (M14). */
-export interface ChildTranscript {
-  readonly name: string | undefined
-  readonly entries: readonly TranscriptEntry[]
 }
 
 /**
@@ -72,154 +77,6 @@ export interface DictationUiState {
   readonly reason: string | undefined
 }
 
-export interface PendingApproval {
-  readonly approvalId: string
-  readonly requirementId: RequirementRef
-  readonly subject: ApprovalSubject
-  readonly rawArgs: string
-  readonly availableChoices: readonly ApprovalChoice[]
-  readonly isProtectedWrite: boolean
-  readonly isJudgeEscalated: boolean
-  /**
-   * The stage the user has already decided, so the card locks until the host
-   * moves to the next stage or resolves. The host may repeat
-   * `approval/updated` for a decided stage (seen live 2026-09-22), so the
-   * update alone cannot unlock it.
-   */
-  readonly decidedSourceIndex?: number
-}
-
-export interface PendingQuestion {
-  readonly userInputId: string
-  readonly questions: readonly Question[]
-}
-
-export interface OutputRef {
-  readonly id: string
-  readonly byteLen: number
-}
-
-export interface PatchSummary {
-  readonly files: number
-  readonly added: number
-  readonly removed: number
-}
-
-/**
- * An image chip on a user card: what was attached now, or what the durable
- * log echoes for a replayed message (media type and pixel size only, M6).
- */
-export interface UserAttachment {
-  readonly id: string
-  readonly name: string
-  readonly width?: number
-  readonly height?: number
-}
-
-export type TranscriptEntry =
-  | {
-      readonly kind: 'user'
-      readonly id: string
-      /** Where the message falls in the arrival order (M20): the rewind boundary. */
-      readonly seq: number
-      readonly text: string
-      readonly status: 'pending' | 'sent' | 'failed'
-      readonly reason?: string
-      readonly attachments: readonly UserAttachment[]
-      /** The open-file chip that went with the message (M5). */
-      readonly contextLabel?: string
-      /** "Replying to: …" / "Asking about: …" as the message was sent (M17). */
-      readonly referenceLabel?: string
-      /** The turn the message started, once known (fork cut points, M6). */
-      readonly turnId?: string
-    }
-  | {
-      readonly kind: 'assistant'
-      readonly id: string
-      readonly text: string
-      readonly isStreaming: boolean
-    }
-  | {
-      readonly kind: 'reasoning'
-      readonly id: string
-      /** Summary parts (`summary.N` deltas), or the raw text as one part. */
-      readonly parts: readonly string[]
-      readonly isStreaming: boolean
-      readonly startedAt: number
-      readonly durationMs: number | undefined
-    }
-  | {
-      readonly kind: 'tool'
-      readonly id: string
-      readonly tool: string
-      readonly args: string
-      readonly status: string
-      /** Transcript-visible output (`output` deltas / `visibleOutput`). */
-      readonly output: string
-      readonly failureReason: string | undefined
-      readonly patchSummary: PatchSummary | undefined
-      readonly patchRef: OutputRef | undefined
-      readonly outputRef: OutputRef | undefined
-      /**
-       * The arrival-order number the row took when it completed (M20): the
-       * order its edit landed on disk, across the conversation and its agents.
-       */
-      readonly completedSeq: number | undefined
-      /** Durably backgrounded (M14): the turn went on without waiting for it. */
-      readonly isBackground: boolean
-      readonly backgroundInitiator: string | undefined
-      readonly approval: PendingApproval | undefined
-      readonly approvalOutcome:
-        { readonly decision: string; readonly resolvedBy: string } | undefined
-      readonly question: PendingQuestion | undefined
-      readonly questionOutcome:
-        { readonly outcome: string; readonly answers: readonly QuestionAnswer[] } | undefined
-    }
-  | {
-      /** A native subagent the CLI spawned for this turn (M14). */
-      readonly kind: 'subagent'
-      readonly id: string
-      readonly role: string | undefined
-      readonly objective: string | undefined
-      readonly status: string
-      readonly controlStatus: string | undefined
-      readonly subagentId: string | undefined
-      readonly childSessionId: string | undefined
-      readonly depth: number | undefined
-      readonly durationMs: number | undefined
-      readonly usage: TokenUsage | undefined
-      readonly resultSummary: string | undefined
-      /** The result envelope's full text, when the CLI sent one (M18). */
-      readonly resultText: string | undefined
-    }
-  | {
-      /** Kinds the UI does not know (workflow, compaction, …). */
-      readonly kind: 'item'
-      readonly id: string
-      readonly itemKind: string
-      readonly status: string
-      readonly text: string | undefined
-    }
-  | { readonly kind: 'error'; readonly id: string; readonly text: string }
-  | {
-      readonly kind: 'notice'
-      readonly id: string
-      readonly level: NoticeLevel
-      readonly text: string
-    }
-
-export interface UsageSummary {
-  readonly inputTokens: number
-  readonly outputTokens: number
-  readonly cachedTokens: number
-}
-
-export interface ContextSummary {
-  readonly usedTokens: number
-  readonly windowTokens: number | undefined
-  readonly pressure: string
-}
-
 export interface MentionResults {
   readonly requestId: number
   readonly items: readonly MentionItem[]
@@ -229,6 +86,17 @@ export interface OutputPage {
   readonly content: string
   readonly isEof: boolean
   readonly nextOffset: number
+}
+
+/**
+ * A conversation the panel brought back from its saved state (M25), waiting
+ * for the host to say which session is live: kept when it is the same one,
+ * dropped otherwise (a window reload restarts every host).
+ */
+export interface PendingRestore {
+  readonly sessionId: string | undefined
+  /** The transcript was too long to save; only a notice can come back. */
+  readonly isTranscriptOmitted: boolean
 }
 
 export interface UiState {
@@ -268,6 +136,8 @@ export interface UiState {
   readonly mentionResults: MentionResults | undefined
   readonly transcript: readonly TranscriptEntry[]
   readonly activeTurnId: string | undefined
+  /** The last turn the host reported finished (M25): a late `turnAccepted` for it starts nothing. */
+  readonly lastCompletedTurnId: string | undefined
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
@@ -276,6 +146,17 @@ export interface UiState {
   readonly reference: ChatReference | undefined
   /** Subagent transcripts by child session id (M14). */
   readonly childTranscripts: Readonly<Record<string, ChildTranscript>>
+  /** Which child transcript holds an item (M25), so a delta finds it without a scan. */
+  readonly childOwners: Readonly<Record<string, string>>
+  /**
+   * Conversation rows that arrived for a turn the conversation was not known
+   * to run, by turn (M25): a subagent's items can reach the parent stream
+   * before the row that names its child session, and move to its transcript
+   * once that row arrives.
+   */
+  readonly strayItems: Readonly<Record<string, readonly string[]>>
+  /** The chips a pending message took from the composer, by local id (M25). */
+  readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
   /** The composer banner (M14): an unsupported upload, until dismissed. */
   readonly banner: string | undefined
   readonly announcement: Announcement | undefined
@@ -296,6 +177,16 @@ export interface UiState {
   readonly editorContext: EditorContextSummary | undefined
   /** The file whose chip the user closed; forgotten when another file is active. */
   readonly dismissedEditorPath: string | undefined
+  /**
+   * The session a restored panel stored (D15), kept in the webview state
+   * until a session is live here or the user clears (M25), so a failed
+   * resume can be tried again on the next reload.
+   */
+  readonly restoredSessionId: string | undefined
+  /** A restored conversation waiting for the host's `surfaceState` (M25). */
+  readonly pendingRestore: PendingRestore | undefined
+  /** Clears this panel made whose host echo has not come back yet (M25). */
+  readonly pendingClearEchoes: number
 }
 
 export type UiAction =
@@ -317,6 +208,7 @@ export type UiAction =
   | { readonly type: 'referenceSet'; readonly reference: ChatReference }
   | { readonly type: 'referenceCleared' }
   | { readonly type: 'attachmentRemoved'; readonly id: string }
+  /** The panel's own New Conversation; the host echoes it back (M25). */
   | { readonly type: 'conversationCleared' }
   /** The × on the composer banner (M14). */
   | { readonly type: 'bannerDismissed' }
@@ -328,6 +220,12 @@ export type UiAction =
       readonly approvalId: string
       readonly requirementId: RequirementRef
     }
+  /** The user answered or cancelled a question card; lock it until the host settles it (M25). */
+  | { readonly type: 'questionSubmitted'; readonly userInputId: string }
+  /** A line for the transcript the webview itself has to say (M25). */
+  | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
+  /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
+  | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
 
 export const initialUiState: UiState = {
   phase: 'connecting',
@@ -352,11 +250,15 @@ export const initialUiState: UiState = {
   mentionResults: undefined,
   transcript: [],
   activeTurnId: undefined,
+  lastCompletedTurnId: undefined,
   usage: undefined,
   context: undefined,
   usageReport: undefined,
   reference: undefined,
   childTranscripts: {},
+  childOwners: {},
+  strayItems: {},
+  unsentAttachments: {},
   banner: undefined,
   announcement: undefined,
   dictation: { status: 'idle', reason: undefined },
@@ -366,10 +268,37 @@ export const initialUiState: UiState = {
   sequence: 0,
   editorContext: undefined,
   dismissedEditorPath: undefined,
+  restoredSessionId: undefined,
+  pendingRestore: undefined,
+  pendingClearEchoes: 0,
 }
 
 const SUMMARY_FIELD_PREFIX = 'summary.'
 const OUTPUT_FIELD = 'output'
+const TEXT_FIELD = 'text'
+const IN_PROGRESS = 'inProgress'
+const COMPLETED = 'completed'
+const REJECTED = 'rejected'
+const USER_MESSAGE_KIND = 'userMessage'
+const SUBAGENT_KIND = 'subagent'
+// A host refusal that is about the image's size or count, not its type (M25):
+// the banner says so instead of "Unsupported file type".
+const SIZE_REFUSALS: ReadonlySet<string> = new Set([
+  UI_TEXT.attachmentTooLarge,
+  UI_TEXT.attachmentLimit,
+])
+
+/** A record's own value for `key`; never one of `Object.prototype`'s members. */
+function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.hasOwn(record, key) ? record[key] : undefined
+}
+
+/** The record without `key`. */
+function without<T>(record: Readonly<Record<string, T>>, key: string): Readonly<Record<string, T>> {
+  return Object.hasOwn(record, key)
+    ? Object.fromEntries(Object.entries(record).filter(([name]) => name !== key))
+    : record
+}
 
 /** Queue a sentence for the live region; nothing to say leaves the state alone. */
 function announce(state: UiState, text: string | undefined): UiState {
@@ -378,13 +307,20 @@ function announce(state: UiState, text: string | undefined): UiState {
     : { ...state, announcement: { text, sequence: (state.announcement?.sequence ?? 0) + 1 } }
 }
 
-function turnAnnouncement(terminal: string): string | undefined {
+/**
+ * What the live region says when a turn ends. It is the only live region
+ * (M25): the rows themselves carry no alert roles, so a failure's reason is
+ * read out here.
+ */
+function turnAnnouncement(terminal: string, reason: string | undefined): string | undefined {
   switch (terminal) {
-    case 'completed': {
+    case COMPLETED: {
       return UI_TEXT.announceTurnCompleted
     }
     case 'failed': {
-      return UI_TEXT.announceTurnFailed
+      return reason === undefined
+        ? UI_TEXT.announceTurnFailed
+        : `${UI_TEXT.announceTurnFailed}: ${reason}`
     }
     case 'cancelled': {
       return UI_TEXT.announceTurnCancelled
@@ -394,6 +330,7 @@ function turnAnnouncement(terminal: string): string | undefined {
     }
   }
 }
+
 /** "Listening" when recording starts, "Stopped listening" when it ends. */
 function dictationAnnouncement(
   previous: DictationUiStatus,
@@ -405,9 +342,25 @@ function dictationAnnouncement(
   return next === 'idle' && previous === 'listening' ? UI_TEXT.announceStoppedListening : undefined
 }
 
-const TEXT_FIELD = 'text'
-const IN_PROGRESS = 'inProgress'
-const USER_MESSAGE_KIND = 'userMessage'
+/** Whether a tool status is an outcome the row shows as a failure (not running, done or cut off). */
+export function isFailedStatus(status: string): boolean {
+  return status !== IN_PROGRESS && status !== COMPLETED && status !== TOOL_STATUS_INTERRUPTED
+}
+
+/** "PowerShell: Failed" when a row turns failed or rejected (M25); nothing otherwise. */
+function toolFailureAnnouncement(
+  previous: TranscriptEntry | undefined,
+  next: TranscriptEntry | undefined,
+): string | undefined {
+  if (next?.kind !== 'tool' || !isFailedStatus(next.status)) {
+    return undefined
+  }
+  if (previous?.kind === 'tool' && previous.status === next.status) {
+    return undefined
+  }
+  const outcome = next.status === REJECTED ? UI_TEXT.toolRejected : UI_TEXT.toolFailed
+  return `${TOOL_LABELS[next.tool] ?? next.tool}: ${outcome}`
+}
 
 /** The composer chip and the user card's line for a reference: "Replying to: …" (M17). */
 export function referenceLabel(reference: ChatReference): string {
@@ -428,12 +381,30 @@ export function outputPageKey(itemId: string, outputRef: string): string {
   return `${itemId}:${outputRef}`
 }
 
+/**
+ * Replace one entry. Rows that change are almost always the newest (a
+ * streaming reply, a running tool), so the search runs from the end (M25);
+ * an unchanged entry leaves the array as it was.
+ */
 function updateEntry(
   transcript: readonly TranscriptEntry[],
   id: string,
   update: (entry: TranscriptEntry) => TranscriptEntry,
 ): readonly TranscriptEntry[] {
-  return transcript.map((entry) => (entry.id === id ? update(entry) : entry))
+  const index = transcript.findLastIndex((entry) => entry.id === id)
+  const entry = transcript[index]
+  if (entry === undefined) {
+    return transcript
+  }
+  const next = update(entry)
+  return next === entry ? transcript : transcript.with(index, next)
+}
+
+function findEntry(
+  transcript: readonly TranscriptEntry[],
+  id: string,
+): TranscriptEntry | undefined {
+  return transcript.findLast((entry) => entry.id === id)
 }
 
 function withInsert(state: UiState, text: string): UiState {
@@ -454,6 +425,14 @@ function withNotice(state: UiState, level: NoticeLevel, text: string): UiState {
       { kind: 'notice', id: `notice:${String(localSequence)}`, level, text },
     ],
   }
+}
+
+/** The composer banner for a refused upload (M14); a size or count refusal says why (M25). */
+function withBanner(state: UiState, name: string, reason: string): UiState {
+  const banner = SIZE_REFUSALS.has(reason)
+    ? `${name}: ${reason}`
+    : `${UI_TEXT.unsupportedFileTitle} ${name}. ${UI_TEXT.unsupportedFileDetail}`
+  return announce({ ...state, banner }, `${name}: ${reason}`)
 }
 
 function toolEntry(item: ItemSnapshot): TranscriptEntry {
@@ -478,10 +457,11 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
   }
 }
 
-function subagentEntry(item: ItemSnapshot): SubagentEntry {
+function subagentEntry(item: ItemSnapshot, seq: number): SubagentEntry {
   return {
     kind: 'subagent',
     id: item.itemId,
+    seq,
     role: item.role,
     objective: item.objective,
     status: item.status,
@@ -496,7 +476,8 @@ function subagentEntry(item: ItemSnapshot): SubagentEntry {
   }
 }
 
-function entryFor(item: ItemSnapshot, at: number): TranscriptEntry {
+/** A new row for an item; `seq` is its arrival number (a subagent keeps it, M25). */
+function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry {
   switch (item.kind) {
     case 'agentMessage': {
       return {
@@ -520,8 +501,8 @@ function entryFor(item: ItemSnapshot, at: number): TranscriptEntry {
     case 'toolCall': {
       return toolEntry(item)
     }
-    case 'subagent': {
-      return subagentEntry(item)
+    case SUBAGENT_KIND: {
+      return subagentEntry(item, seq)
     }
     default: {
       return {
@@ -566,7 +547,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       }
     }
     case 'subagent': {
-      const fresh = subagentEntry(item)
+      const fresh = subagentEntry(item, entry.seq)
       return {
         ...entry,
         role: fresh.role ?? entry.role,
@@ -589,6 +570,46 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       return entry
     }
   }
+}
+
+/**
+ * A row whose turn ended (M25): a reply stops streaming, a thought stops
+ * the clock, and a tool still running is marked interrupted with its card
+ * gone, since nothing can answer it any more. A backgrounded tool runs on
+ * past its turn (M14) and keeps its status. A later item update from the
+ * host still overrides all of this.
+ */
+function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
+  switch (entry.kind) {
+    case 'assistant': {
+      return entry.isStreaming ? { ...entry, isStreaming: false } : entry
+    }
+    case 'reasoning': {
+      return entry.isStreaming
+        ? { ...entry, isStreaming: false, durationMs: at - entry.startedAt }
+        : entry
+    }
+    case 'tool': {
+      const isCutOff = entry.status === IN_PROGRESS && !entry.isBackground
+      if (!isCutOff && entry.approval === undefined && entry.question === undefined) {
+        return entry
+      }
+      return {
+        ...entry,
+        status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
+        approval: undefined,
+        question: undefined,
+      }
+    }
+    default: {
+      return entry
+    }
+  }
+}
+
+function settleAll(entries: readonly TranscriptEntry[], at: number): readonly TranscriptEntry[] {
+  const settled = entries.map((entry) => settleEntry(entry, at))
+  return settled.every((entry, index) => entry === entries[index]) ? entries : settled
 }
 
 /** A user card rebuilt from a stored `userMessage` item (M6 replay). */
@@ -627,10 +648,58 @@ function replayHistory(
       entries.push(replayedUserEntry(item, next))
     } else if (!HIDDEN_ITEM_KINDS.has(item.kind)) {
       next += 1
-      entries.push(stampCompletion(entryFor(item, at), next))
+      entries.push(stampCompletion(entryFor(item, at, next), next))
     }
   }
   return { entries, sequence: next }
+}
+
+/**
+ * A subagent's transcript read from its own session (M25, fixing M20's
+ * replay): nothing in the read says when a row landed, so a row the panel
+ * never saw arrive takes a number just after the last thing known to come
+ * before it: the agent's own row (`anchor`), or a row of this transcript the
+ * panel did see complete earlier in the session's order. That keeps it after
+ * the messages sent before the agent started and before the next one. Rows
+ * the panel already had live keep their own numbers and state; live rows the
+ * read did not include yet stay at the end. Without an anchor (no agent row
+ * names this session) the read rows take no completion number and stay out
+ * of any rewind.
+ */
+function replayChild(
+  items: readonly ItemSnapshot[],
+  at: number,
+  anchor: number | undefined,
+  live: readonly TranscriptEntry[],
+): readonly TranscriptEntry[] {
+  const known = new Map(live.map((entry) => [entry.id, entry]))
+  const shown = items.filter(
+    (item) => item.kind === USER_MESSAGE_KIND || !HIDDEN_ITEM_KINDS.has(item.kind),
+  )
+  const slots = shown.length + 1
+  let floor = anchor
+  const read = shown.map((item, index) => {
+    const knownEntry = known.get(item.itemId)
+    if (knownEntry !== undefined) {
+      if (knownEntry.kind === 'tool' && knownEntry.completedSeq !== undefined) {
+        floor = Math.max(floor ?? knownEntry.completedSeq, knownEntry.completedSeq)
+      }
+      return knownEntry
+    }
+    // Strictly between `floor` and the next whole arrival number (the next
+    // thing that really arrived), in read order.
+    const seq =
+      floor === undefined
+        ? undefined
+        : floor + ((Math.floor(floor) + 1 - floor) * (index + 1)) / slots
+    if (item.kind === USER_MESSAGE_KIND) {
+      return replayedUserEntry(item, seq ?? 0)
+    }
+    const entry = entryFor(item, at, seq ?? 0)
+    return seq === undefined ? entry : stampCompletion(entry, seq)
+  })
+  const readIds = new Set(shown.map((item) => item.itemId))
+  return [...read, ...live.filter((entry) => !readIds.has(entry.id))]
 }
 
 /**
@@ -639,7 +708,7 @@ function replayHistory(
  * of the same row keeps it.
  */
 function stampCompletion(entry: TranscriptEntry, seq: number): TranscriptEntry {
-  return entry.kind === 'tool' && entry.status === 'completed' && entry.completedSeq === undefined
+  return entry.kind === 'tool' && entry.status === COMPLETED && entry.completedSeq === undefined
     ? { ...entry, completedSeq: seq }
     : entry
 }
@@ -655,7 +724,7 @@ function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry
     ? undefined
     : state.transcript.find(
         (entry): entry is SubagentEntry =>
-          entry.kind === 'subagent' && entry.childSessionId === turnId,
+          entry.kind === SUBAGENT_KIND && entry.childSessionId === turnId,
       )
 }
 
@@ -668,7 +737,11 @@ function upsertEntry(
   const isKnown = entries.some((entry) => entry.id === item.itemId)
   return isKnown
     ? updateEntry(entries, item.itemId, (entry) => stampCompletion(mergeItem(entry, item, at), seq))
-    : [...entries, stampCompletion(mergeItem(entryFor(item, at), item, at), seq)]
+    : [...entries, stampCompletion(mergeItem(entryFor(item, at, seq), item, at), seq)]
+}
+
+function ownersOf(childId: string, entries: readonly TranscriptEntry[]): Record<string, string> {
+  return Object.fromEntries(entries.map((entry) => [entry.id, childId]))
 }
 
 function applyChildItem(
@@ -678,7 +751,7 @@ function applyChildItem(
   at: number,
 ): UiState {
   const childId = owner.childSessionId ?? ''
-  const current = state.childTranscripts[childId] ?? {
+  const current = own(state.childTranscripts, childId) ?? {
     name: owner.objective ?? owner.role,
     entries: [],
   }
@@ -690,49 +763,90 @@ function applyChildItem(
       ...state.childTranscripts,
       [childId]: { ...current, entries: upsertEntry(current.entries, item, at, sequence) },
     },
+    childOwners: { ...state.childOwners, [item.itemId]: childId },
   }
 }
 
-/** The child transcript holding an item, for a delta that arrives for it (M18). */
-function childTranscriptOwning(state: UiState, itemId: string): string | undefined {
-  return Object.keys(state.childTranscripts).find((childId) =>
-    state.childTranscripts[childId]?.entries.some((entry) => entry.id === itemId),
-  )
+/**
+ * Remember a conversation row whose turn is neither the running one nor the
+ * last finished one (M25): it may be a subagent's, arrived before the row
+ * naming its child session.
+ */
+function noteStray(state: UiState, item: ItemSnapshot): UiState['strayItems'] {
+  const { turnId } = item
+  if (
+    turnId === undefined ||
+    item.kind === SUBAGENT_KIND ||
+    turnId === state.activeTurnId ||
+    turnId === state.lastCompletedTurnId
+  ) {
+    return state.strayItems
+  }
+  const listed = own(state.strayItems, turnId) ?? []
+  return listed.includes(item.itemId)
+    ? state.strayItems
+    : { ...state.strayItems, [turnId]: [...listed, item.itemId] }
+}
+
+/** Move the rows that came before their subagent's row into its transcript (M25). */
+function claimStrays(state: UiState, childId: string): UiState {
+  const ids = own(state.strayItems, childId)
+  const owner = childOwnerOf(state, childId)
+  if (ids === undefined || owner === undefined) {
+    return state
+  }
+  const moving = new Set(ids)
+  const moved = state.transcript.filter((entry) => moving.has(entry.id))
+  const current = own(state.childTranscripts, childId)
+  return {
+    ...state,
+    strayItems: without(state.strayItems, childId),
+    transcript: state.transcript.filter((entry) => !moving.has(entry.id)),
+    childTranscripts: {
+      ...state.childTranscripts,
+      [childId]: {
+        name: current?.name ?? owner.objective ?? owner.role,
+        entries: [...moved, ...(current?.entries ?? [])],
+      },
+    },
+    childOwners: { ...state.childOwners, ...ownersOf(childId, moved) },
+  }
 }
 
 function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
   if (HIDDEN_ITEM_KINDS.has(item.kind)) {
     return state
   }
-  const owner = item.kind === 'subagent' ? undefined : childOwnerOf(state, item.turnId)
+  const owner = item.kind === SUBAGENT_KIND ? undefined : childOwnerOf(state, item.turnId)
   if (owner !== undefined) {
     return applyChildItem(state, owner, item, at)
   }
   const sequence = state.sequence + 1
-  return { ...state, sequence, transcript: upsertEntry(state.transcript, item, at, sequence) }
+  const previous = findEntry(state.transcript, item.itemId)
+  const transcript = upsertEntry(state.transcript, item, at, sequence)
+  const placed: UiState = { ...state, sequence, transcript, strayItems: noteStray(state, item) }
+  const claimed =
+    item.kind === SUBAGENT_KIND && item.childSessionId !== undefined
+      ? claimStrays(placed, item.childSessionId)
+      : placed
+  return announce(claimed, toolFailureAnnouncement(previous, findEntry(transcript, item.itemId)))
 }
 
-function applyChildDelta(
+function mapChildEntries(
   state: UiState,
   childId: string,
-  itemId: string,
-  field: string,
-  delta: string,
+  update: (entries: readonly TranscriptEntry[]) => readonly TranscriptEntry[],
 ): UiState {
-  const current = state.childTranscripts[childId]
-  return current === undefined
+  const current = own(state.childTranscripts, childId)
+  if (current === undefined) {
+    return state
+  }
+  const entries = update(current.entries)
+  return entries === current.entries
     ? state
     : {
         ...state,
-        childTranscripts: {
-          ...state.childTranscripts,
-          [childId]: {
-            ...current,
-            entries: updateEntry(current.entries, itemId, (entry) =>
-              applyDelta(entry, field, delta),
-            ),
-          },
-        },
+        childTranscripts: { ...state.childTranscripts, [childId]: { ...current, entries } },
       }
 }
 
@@ -769,10 +883,49 @@ function withToolEntry(
   return { ...state, transcript }
 }
 
+/** A turn of the conversation ended (M25 settles the rows it left behind). */
+function completeTurn(
+  state: UiState,
+  event: Extract<AgentEvent, { type: 'turnCompleted' }>,
+  at: number,
+): UiState {
+  const child = childOwnerOf(state, event.turnId)
+  if (child?.childSessionId !== undefined) {
+    // A subagent's own turn ended: its transcript settles, the conversation runs on.
+    return mapChildEntries(state, child.childSessionId, (entries) => settleAll(entries, at))
+  }
+  const failure: readonly TranscriptEntry[] =
+    event.terminal === 'failed'
+      ? [
+          {
+            kind: 'error',
+            id: `error:${event.turnId}`,
+            text: event.reason ?? event.errorKind ?? 'The turn failed.',
+          },
+        ]
+      : []
+  return announce(
+    {
+      ...state,
+      activeTurnId: undefined,
+      lastCompletedTurnId: event.turnId,
+      strayItems: without(state.strayItems, event.turnId),
+      transcript: [...settleAll(state.transcript, at), ...failure],
+    },
+    turnAnnouncement(event.terminal, event.reason),
+  )
+}
+
 function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState {
   switch (event.type) {
     case 'turnStarted': {
-      return { ...state, activeTurnId: event.turnId }
+      return childOwnerOf(state, event.turnId) === undefined
+        ? {
+            ...state,
+            activeTurnId: event.turnId,
+            strayItems: without(state.strayItems, event.turnId),
+          }
+        : state
     }
     case 'itemStarted':
     case 'itemUpdated':
@@ -780,32 +933,17 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       return applyItem(state, event.item, at)
     }
     case 'textDelta': {
-      const childId = childTranscriptOwning(state, event.itemId)
+      const childId = own(state.childOwners, event.itemId)
+      const apply = (entries: readonly TranscriptEntry[]) =>
+        updateEntry(entries, event.itemId, (entry) => applyDelta(entry, event.field, event.delta))
       if (childId !== undefined) {
-        return applyChildDelta(state, childId, event.itemId, event.field, event.delta)
+        return mapChildEntries(state, childId, apply)
       }
-      return {
-        ...state,
-        transcript: updateEntry(state.transcript, event.itemId, (entry) =>
-          applyDelta(entry, event.field, event.delta),
-        ),
-      }
+      const transcript = apply(state.transcript)
+      return transcript === state.transcript ? state : { ...state, transcript }
     }
     case 'turnCompleted': {
-      const failure: readonly TranscriptEntry[] =
-        event.terminal === 'failed'
-          ? [
-              {
-                kind: 'error',
-                id: `error:${event.turnId}`,
-                text: event.reason ?? event.errorKind ?? 'The turn failed.',
-              },
-            ]
-          : []
-      return announce(
-        { ...state, activeTurnId: undefined, transcript: [...state.transcript, ...failure] },
-        turnAnnouncement(event.terminal),
-      )
+      return completeTurn(state, event, at)
     }
     case 'turnRetry': {
       const seconds = Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND)
@@ -957,6 +1095,61 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
   }
 }
 
+/** The conversation dropped: New Conversation here, from a keybinding, or a stale restore. */
+function clearedConversation(state: UiState): UiState {
+  return {
+    ...state,
+    childTranscripts: {},
+    childOwners: {},
+    strayItems: {},
+    unsentAttachments: {},
+    banner: undefined,
+    title: undefined,
+    sessionId: undefined,
+    restoredSessionId: undefined,
+    transcript: [],
+    attachments: [],
+    reference: undefined,
+    activeTurnId: undefined,
+    lastCompletedTurnId: undefined,
+    usage: undefined,
+    context: undefined,
+    todos: [],
+    outputPages: {},
+  }
+}
+
+/**
+ * The host's word on this surface after a (re)load (M25). A restored
+ * conversation stays only when its session is the one the host holds live;
+ * the host's running turn (or none) replaces whatever the saved state said,
+ * and rows left running by a turn that ended while the panel was away settle.
+ */
+function reconcile(
+  state: UiState,
+  message: Extract<HostToWebviewMessage, { type: 'surfaceState' }>,
+  at: number,
+): UiState {
+  const restore = state.pendingRestore
+  const live: UiState = { ...state, pendingRestore: undefined, activeTurnId: message.activeTurnId }
+  if (restore === undefined) {
+    return live
+  }
+  if (message.sessionId === undefined || restore.sessionId !== message.sessionId) {
+    return {
+      ...clearedConversation(live),
+      activeTurnId: message.activeTurnId,
+      restoredSessionId: state.restoredSessionId,
+    }
+  }
+  if (restore.isTranscriptOmitted) {
+    return withNotice(live, 'info', UI_TEXT.snapshotTooLong)
+  }
+  return message.activeTurnId === undefined
+    ? { ...live, transcript: settleAll(live.transcript, at) }
+    : live
+}
+
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {
   switch (message.type) {
     case 'init': {
@@ -976,6 +1169,16 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'focusInput': {
       return { ...state, focusRequests: state.focusRequests + 1 }
+    }
+    case 'conversationCleared': {
+      // The echo of a clear this panel already made is spent, not applied
+      // again: a message sent right after it must survive (M25).
+      return state.pendingClearEchoes > 0
+        ? { ...state, pendingClearEchoes: state.pendingClearEchoes - 1 }
+        : clearedConversation(state)
+    }
+    case 'surfaceState': {
+      return reconcile(state, message, at)
     }
     case 'insertText': {
       return withInsert(state, message.text)
@@ -1005,20 +1208,24 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         ...state,
         model: { modelId: message.modelId, contextLimit: message.contextLimit },
         sessionId: message.sessionId,
+        // A live session replaces the one a restored panel was waiting for.
+        restoredSessionId: message.sessionId === undefined ? state.restoredSessionId : undefined,
       }
     }
     case 'sessionList': {
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
     }
     case 'childTranscript': {
-      const replayed = replayHistory(message.items, at, state.sequence)
+      const owner = childOwnerOf(state, message.sessionId)
+      const live = own(state.childTranscripts, message.sessionId)
+      const entries = replayChild(message.items, at, owner?.seq, live?.entries ?? [])
       return {
         ...state,
-        sequence: replayed.sequence,
         childTranscripts: {
           ...state.childTranscripts,
-          [message.sessionId]: { name: message.name, entries: replayed.entries },
+          [message.sessionId]: { name: message.name ?? live?.name, entries },
         },
+        childOwners: { ...state.childOwners, ...ownersOf(message.sessionId, entries) },
       }
     }
     case 'usageReport': {
@@ -1044,32 +1251,49 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         {
           ...state,
           sessionId: message.sessionId,
+          restoredSessionId: undefined,
           title: message.name,
           transcript: replayed.entries,
           sequence: replayed.sequence,
           todos: message.todos,
           activeTurnId: undefined,
+          lastCompletedTurnId: undefined,
           usage: undefined,
           context: undefined,
           outputPages: {},
           childTranscripts: {},
+          childOwners: {},
+          strayItems: {},
         },
         UI_TEXT.announceResumed,
       )
     }
     case 'turnAccepted': {
+      // A fast turn can finish before its acceptance arrives (M25); the
+      // acceptance then marks the card sent and starts nothing.
+      const isFinished = message.turnId === state.lastCompletedTurnId
       return {
         ...state,
-        activeTurnId: message.turnId,
+        activeTurnId: isFinished ? state.activeTurnId : message.turnId,
+        strayItems: without(state.strayItems, message.turnId),
+        unsentAttachments: without(state.unsentAttachments, message.localId),
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
           entry.kind === 'user' ? { ...entry, status: 'sent', turnId: message.turnId } : entry,
         ),
       }
     }
     case 'sendFailed': {
+      // The host still holds the images of a refused message; the chips come
+      // back so the user can send again or remove them (M25).
+      const unsent = own(state.unsentAttachments, message.localId) ?? []
+      const others = state.attachments.filter((attachment) =>
+        unsent.every((chip) => chip.id !== attachment.id),
+      )
       return announce(
         {
           ...state,
+          attachments: [...unsent, ...others],
+          unsentAttachments: without(state.unsentAttachments, message.localId),
           transcript: updateEntry(state.transcript, message.localId, (entry) =>
             entry.kind === 'user' ? { ...entry, status: 'failed', reason: message.reason } : entry,
           ),
@@ -1103,14 +1327,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'attachmentRejected': {
       // The composer banner (M14), as Claude Code shows it; the reason the
-      // host gave stays in the log.
-      return announce(
-        {
-          ...state,
-          banner: `${UI_TEXT.unsupportedFileTitle} ${message.name}. ${UI_TEXT.unsupportedFileDetail}`,
-        },
-        `${message.name}: ${message.reason}`,
-      )
+      // host gave is read out.
+      return withBanner(state, message.name, message.reason)
     }
     case 'attachmentsCleared': {
       return { ...state, attachments: [] }
@@ -1124,7 +1342,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'outputPage': {
       const key = outputPageKey(message.itemId, message.outputRef)
-      const previous = state.outputPages[key]
+      const previous = own(state.outputPages, key)
+      // Pages chain by offset (M25): a repeated or out-of-order page is dropped
+      // rather than spliced in twice.
+      if (message.offsetBytes !== 0 && previous?.nextOffset !== message.offsetBytes) {
+        return state
+      }
       const content =
         message.offsetBytes === 0 ? message.content : (previous?.content ?? '') + message.content
       return {
@@ -1164,6 +1387,10 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ...state,
         draft: '',
         attachments: [],
+        unsentAttachments:
+          action.attachments.length === 0
+            ? state.unsentAttachments
+            : { ...state.unsentAttachments, [action.localId]: action.attachments },
         reference: undefined,
         sequence: state.sequence + 1,
         transcript: [
@@ -1211,24 +1438,32 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ),
       }
     }
+    case 'questionSubmitted': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.question?.userInputId === action.userInputId
+            ? { ...entry, question: { ...entry.question, isSubmitted: true } }
+            : entry,
+        ),
+      }
+    }
+    case 'noticeRaised': {
+      return announce(
+        withNotice(state, action.level, action.text),
+        action.level === 'info' ? undefined : action.text,
+      )
+    }
+    case 'attachmentRefused': {
+      return withBanner(state, action.name, action.reason)
+    }
     case 'bannerDismissed': {
       return { ...state, banner: undefined }
     }
     case 'conversationCleared': {
       return {
-        ...state,
-        childTranscripts: {},
-        banner: undefined,
-        title: undefined,
-        sessionId: undefined,
-        transcript: [],
-        attachments: [],
-        reference: undefined,
-        activeTurnId: undefined,
-        usage: undefined,
-        context: undefined,
-        todos: [],
-        outputPages: {},
+        ...clearedConversation(state),
+        pendingClearEchoes: state.pendingClearEchoes + 1,
       }
     }
   }
@@ -1303,7 +1538,7 @@ export function editsAfter(state: UiState, entryId: string): readonly EditRef[] 
         readonly patchRef: OutputRef
       } =>
         entry.kind === 'tool' &&
-        entry.status === 'completed' &&
+        entry.status === COMPLETED &&
         entry.patchRef !== undefined &&
         entry.completedSeq !== undefined &&
         entry.completedSeq > message.seq,
@@ -1317,7 +1552,7 @@ export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
 /** The subagents of this conversation, in transcript order (M14). */
 export function agentsOf(state: UiState): readonly SubagentEntry[] {
-  return state.transcript.filter((entry): entry is SubagentEntry => entry.kind === 'subagent')
+  return state.transcript.filter((entry): entry is SubagentEntry => entry.kind === SUBAGENT_KIND)
 }
 
 /** The tool calls the CLI put in the background (M14). */

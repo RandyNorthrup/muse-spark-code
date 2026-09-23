@@ -1228,6 +1228,9 @@ export class ConversationController {
 
   private clear(): void {
     this.dropSession()
+    // The webview drops its transcript too, whoever asked: the panel's own
+    // New Conversation (it spends the echo) or a keybinding (M25, D28).
+    this.post({ type: 'conversationCleared' })
     this.attachments.clear()
     this.setTitle(undefined)
     // No session any more: the webview forgets the id it keeps for the
@@ -1504,6 +1507,13 @@ export class ConversationController {
   }
 
   public surfaceReady(): void {
+    // First, so a reloaded webview keeps the conversation it saved only when
+    // that session is still the live one here, with its running turn (M25, D28).
+    this.post({
+      type: 'surfaceState',
+      ...(this.session !== undefined && { sessionId: this.session.sessionId }),
+      ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
+    })
     this.post(this.deps.auth.toMessage())
     this.postComposerState()
     this.postDictationState()

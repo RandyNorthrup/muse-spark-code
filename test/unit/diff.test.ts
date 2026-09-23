@@ -69,3 +69,22 @@ describe('parseUnifiedText', () => {
     expect(parseUnifiedText('wrote 3 bytes')).toBeUndefined()
   })
 })
+
+describe('Windows line ends (M25)', () => {
+  it('drops the carriage return from visible-output rows and patch lines alike', () => {
+    const rows = parseUnifiedText('--- a\r\n+++ b\r\n@@\r\n a\r\n-b\r\n+c\r\n')
+    expect(rows?.map((row) => `${row.kind}:${row.text}`)).toEqual([
+      'context:a',
+      'remove:b',
+      'add:c',
+    ])
+    const files = parsePatchDocument(
+      JSON.stringify({
+        files: [
+          { path: 'w.txt', hunks: [{ oldStart: 1, newStart: 1, lines: ['-old\r', '+new\r'] }] },
+        ],
+      }),
+    )
+    expect(files?.[0]?.rows.map((row) => row.text)).toEqual(['old', 'new'])
+  })
+})

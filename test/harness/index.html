@@ -247,8 +247,80 @@
       let turn = 0
       const outbox = []
       window.harnessOutbox = outbox
+      const scenarioName = new URLSearchParams(location.search).get('scenario')
+      // M25: the conversation a panel saved in VS Code's webview state before
+      // the crash screen's Reload, as the webview's own snapshot writes it.
+      const restoredState = {
+        sessionId: 'restored-1',
+        snapshot: {
+          version: 1,
+          sessionId: 'restored-1',
+          title: 'Fix the parser',
+          sequence: 6,
+          localSequence: 0,
+          draft: 'and add a test for it',
+          todos: [],
+          childTranscripts: {},
+          transcript: [
+            {
+              kind: 'user',
+              id: 'u1',
+              seq: 1,
+              text: 'Fix the parser so `a ?? b` binds tighter than `||`.',
+              status: 'sent',
+              attachments: [],
+              turnId: 't7',
+            },
+            {
+              kind: 'reasoning',
+              id: 'r1',
+              parts: ['Look at the precedence table first.'],
+              isStreaming: false,
+              startedAt: 0,
+              durationMs: 6000,
+            },
+            {
+              kind: 'tool',
+              id: 'rd1',
+              tool: 'read_file',
+              args: '{"path":"src/parser.ts"}',
+              status: 'completed',
+              output: 'Read text file `src/parser.ts`.',
+              isBackground: false,
+              completedSeq: 3,
+            },
+            {
+              kind: 'assistant',
+              id: 'm1',
+              text: 'The precedence table lists `??` below `||`. Before I swap the rows:',
+              isStreaming: false,
+            },
+            {
+              kind: 'tool',
+              id: 'q1',
+              tool: 'request_user_input',
+              args: '{}',
+              status: 'inProgress',
+              output: '',
+              isBackground: false,
+              question: {
+                userInputId: 'ui1',
+                questions: [
+                  {
+                    id: 'scope',
+                    header: 'Scope',
+                    question: 'Fix only `??`, or every operator the table gets wrong?',
+                    selection: { mode: 'single' },
+                    options: [{ label: 'Only ??' }, { label: 'Every operator' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }
       window.acquireVsCodeApi = () => ({
-        getState: () => undefined,
+        getState: () => (scenarioName === 'restored' ? restoredState : undefined),
         setState: () => undefined,
         postMessage: (message) => {
           outbox.push(message)
@@ -262,10 +334,22 @@
                 composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
                 settings,
               })
+              // M25: first, the session and turn the host holds for this surface.
+              const isRestored = scenarioName === 'restored'
+              send(
+                isRestored
+                  ? { type: 'surfaceState', sessionId: 'restored-1', activeTurnId: 't7' }
+                  : { type: 'surfaceState' },
+              )
               send({ type: 'authState', status: 'signedIn' })
               send({ type: 'composerState', ...composer })
               send({ type: 'modelList', models })
-              send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1007997 })
+              send({
+                type: 'sessionInfo',
+                modelId: 'muse-spark-1.3',
+                contextLimit: 1007997,
+                ...(isRestored && { sessionId: 'restored-1' }),
+              })
               break
             }
             case 'listSkills': {
@@ -358,6 +442,24 @@
               break
             }
             case 'readOutput': {
+              if (window.harnessPagedPatch !== undefined) {
+                // M25: a patch document longer than one page, served in two.
+                const whole = window.harnessPagedPatch
+                const half = Math.floor(whole.length / 2)
+                const isFirst = message.offsetBytes === 0
+                later(30, () =>
+                  send({
+                    type: 'outputPage',
+                    itemId: message.itemId,
+                    outputRef: message.outputRef,
+                    offsetBytes: message.offsetBytes,
+                    byteLen: isFirst ? half : whole.length - half,
+                    eof: !isFirst,
+                    content: isFirst ? whole.slice(0, half) : whole.slice(half),
+                  }),
+                )
+                break
+              }
               later(30, () =>
                 send({
                   type: 'outputPage',
@@ -1255,6 +1357,127 @@
             ],
             isJudgeEscalated: false,
             isProtectedWrite: false,
+          })
+        },
+        // --- M25: a turn stopped mid-flight settles what it left running ---
+        cancelled: () => {
+          transcriptFixture({ isShellPending: true })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'a9',
+            itemId: 'sh1',
+            toolName: 'powershell',
+            rawArgs: '{"command":"Get-ChildItem -Force"}',
+            requirementId: { approvalId: 'a9', sourceIndex: 0 },
+            subject: { kind: 'shell', command: 'Get-ChildItem -Force' },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
+          })
+          event({
+            type: 'itemStarted',
+            item: { itemId: 'am2', kind: 'agentMessage', status: 'inProgress', text: '' },
+          })
+          event({
+            type: 'textDelta',
+            itemId: 'am2',
+            field: 'text',
+            delta: 'I will list the folder once the command is approved, then',
+          })
+          later(200, () => event({ type: 'turnCompleted', turnId: 't1', terminal: 'cancelled' }))
+        },
+        // --- M25: the crash screen's Reload brought the saved conversation back ---
+        restored: () => {},
+        // --- M25: right-to-left text reads right to left ---
+        rtl: () => {
+          window.harnessSilent = true
+          setDraft('مرحبا، هل يمكنك شرح هذا الملف؟')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'rtl1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'بالتأكيد. هذا الملف يعرّف **المحلل** ويقرأ `parser.ts` سطرا سطرا.\n\nשלום! כל שורה מקבלת את הכיוון שלה.\n\nThis line starts in English and stays left to right.',
+            },
+          })
+        },
+        // --- M25: the keyboard stays in the search box through Show archived ---
+        'history-archived': () => {
+          click('Session history')
+          later(300, () => {
+            const toggle = document.querySelector('.history-toggle input')
+            toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+            toggle.click()
+            later(100, () => {
+              document.activeElement.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+              )
+            })
+          })
+        },
+        // --- M25: a patch past one page is fetched whole and numbered ---
+        'long-patch': () => {
+          window.harnessPagedPatch = JSON.stringify({
+            files: [
+              {
+                path: 'src/parser.ts',
+                hunks: [
+                  {
+                    oldStart: 140,
+                    newStart: 140,
+                    lines: [
+                      '   const PRECEDENCE = [',
+                      "-    ['||', 4],",
+                      "-    ['??', 5],",
+                      "+    ['??', 4],",
+                      "+    ['||', 5],",
+                      '   ]',
+                    ],
+                  },
+                ],
+              },
+            ],
+          })
+          window.harnessSilent = true
+          setDraft('Swap the precedence rows')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'ed9',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'edit_file',
+              args: '{"find":"x","path":"src/parser.ts","replace":"y"}',
+              visibleOutput: "edited\n@@\n-    ['||', 4],\n+    ['??', 4],\n",
+              patchSummary: { files: 1, added: 2, removed: 2 },
+              patchRef: { id: 'tool_patch-ed9', byteLen: 400_000 },
+            },
+          })
+        },
+        // --- M25: a refused image says why, and a link out of the workspace is refused ---
+        'size-refused': () => {
+          send({
+            type: 'attachmentRejected',
+            name: 'screenshot.png',
+            reason: 'Images must be 10 MB or smaller.',
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'lk1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'The parser lives in [parser.ts](src/parser.ts#L140); your key is at [id_rsa](../../.ssh/id_rsa).',
+            },
+          })
+          later(200, () => {
+            document.querySelectorAll('.message-assistant a')[1].click()
           })
         },
         usage: () => {

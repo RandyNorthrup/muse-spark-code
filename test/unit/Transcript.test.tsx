@@ -36,11 +36,11 @@ function tool(overrides: Partial<Extract<TranscriptEntry, { kind: 'tool' }>>) {
   }
 }
 
-function renderTranscript(
+function transcriptProps(
   entries: readonly TranscriptEntry[],
-  overrides: Partial<TranscriptProps> = {},
-) {
-  const props: TranscriptProps = {
+  overrides: Partial<TranscriptProps>,
+): TranscriptProps {
+  return {
     entries,
     isRunning: false,
     isFocusView: false,
@@ -58,8 +58,30 @@ function renderTranscript(
     onOpenFile: vi.fn(),
     ...overrides,
   }
+}
+
+function renderTranscript(
+  entries: readonly TranscriptEntry[],
+  overrides: Partial<TranscriptProps> = {},
+) {
+  const props = transcriptProps(entries, overrides)
   render(<Transcript {...props} />)
   return props
+}
+
+/** A transcript that can be rendered again with changed props, as the app does. */
+function mountTranscript(
+  entries: readonly TranscriptEntry[],
+  overrides: Partial<TranscriptProps> = {},
+) {
+  const props = transcriptProps(entries, overrides)
+  const view = render(<Transcript {...props} />)
+  return {
+    props,
+    rerender: (changes: Partial<TranscriptProps>) => {
+      view.rerender(<Transcript {...props} {...changes} />)
+    },
+  }
 }
 
 const longOutput = Array.from({ length: 20 }, (_, index) => `line ${String(index + 1)}`).join('\n')
@@ -98,11 +120,12 @@ describe('Transcript', () => {
     expect(screen.getByText('shot.png')).toBeInTheDocument()
     expect(screen.getByText('695×1032')).toBeInTheDocument()
     expect(screen.getByText('bold').tagName).toBe('STRONG')
-    expect(screen.getAllByRole('alert').map((node) => node.textContent)).toEqual([
-      'nope',
-      'The turn failed.',
-      'Could not switch model.',
-    ])
+    // Shown, but not alerts: the app's one live region reads them out (M25).
+    expect(screen.queryAllByRole('alert')).toEqual([])
+    expect(screen.queryAllByRole('status')).toEqual([])
+    for (const text of ['nope', 'The turn failed.', 'Could not switch model.']) {
+      expect(screen.getByText(text)).toBeInTheDocument()
+    }
     expect(screen.getByText('Thought for 14s')).toBeInTheDocument()
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(screen.getByText('Explorer done')).toBeInTheDocument()
@@ -113,7 +136,7 @@ describe('Transcript', () => {
     renderTranscript([{ kind: 'assistant', id: 'a', text: 'x', isStreaming: true }], {
       isRunning: true,
     })
-    expect(screen.getByRole('status')).toHaveTextContent('Thinking…')
+    expect(screen.getByText('Thinking…').closest('.status-line')).not.toBeNull()
   })
 
   it('streams the summary while thinking and leaves a plain "Thought for" line after (M16)', () => {
@@ -485,6 +508,7 @@ describe('Transcript chat references (M17)', () => {
 
   it('shows the highlighted-text menu on the row that owns it and relays the choice', () => {
     const onQuote = vi.fn()
+    const onCopyQuote = vi.fn()
     const onCloseQuoteMenu = vi.fn()
     renderTranscript(
       [
@@ -492,9 +516,14 @@ describe('Transcript chat references (M17)', () => {
         { kind: 'user', seq: 0, id: 'u1', text: 'hello', status: 'sent', attachments: [] },
         tool({ id: 't1', tool: 'powershell', args: '{"command":"ls"}', output: 'x' }),
       ],
-      { quoteMenuEntryId: 'u1', onQuote, onCloseQuoteMenu },
+      { quoteMenuEntryId: 'u1', onQuote, onCopyQuote, onCloseQuoteMenu },
     )
     const menu = screen.getByRole('menu', { name: 'Highlighted text' })
+    // Our menu replaces the browser's, so Copy comes first and has the focus (M25).
+    const copy = screen.getByRole('menuitem', { name: 'Copy' })
+    expect(document.activeElement).toBe(copy)
+    fireEvent.click(copy)
+    expect(onCopyQuote).toHaveBeenCalledOnce()
     expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-entry-id', 'u1')
     expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-role', 'user')
     expect(document.querySelector('[data-entry-id="t1"]')).toHaveAttribute('data-role', 'tool')
@@ -502,6 +531,8 @@ describe('Transcript chat references (M17)', () => {
     expect(onQuote).toHaveBeenCalledWith('question')
     fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on this' }))
     expect(onQuote).toHaveBeenCalledWith('comment')
+    fireEvent.keyDown(menu, { key: 'a' })
+    expect(onCloseQuoteMenu).not.toHaveBeenCalled()
     fireEvent.keyDown(menu, { key: 'Escape' })
     expect(onCloseQuoteMenu).toHaveBeenCalledOnce()
   })
@@ -519,5 +550,189 @@ describe('Transcript chat references (M17)', () => {
       },
     ])
     expect(screen.getByText('Replying to: Use pnpm.')).toBeInTheDocument()
+  })
+})
+
+/** One page (or the whole) of the `ed` row's patch document. */
+function pages(content: string, isEof: boolean, nextOffset: number) {
+  return { outputPages: { 'ed:p': { content, isEof, nextOffset } } }
+}
+
+/** A stage of a two-command approval whose Reject takes feedback. */
+function stage(sourceIndex: number) {
+  return {
+    approvalId: 'a1',
+    requirementId: { approvalId: 'a1', sourceIndex },
+    subject: { kind: 'shell', command: 'a; b' },
+    rawArgs: '{}',
+    availableChoices: [
+      {
+        choiceId: 'abort',
+        label: 'Reject',
+        decision: 'abort',
+        scope: 'once',
+        acceptsFeedback: true,
+      },
+    ],
+    isProtectedWrite: false,
+    isJudgeEscalated: false,
+  }
+}
+
+function stagedRow(sourceIndex: number) {
+  return tool({ id: 'sh', tool: 'powershell', status: 'inProgress', approval: stage(sourceIndex) })
+}
+
+function box() {
+  return screen.getByPlaceholderText(/what to do instead/)
+}
+
+describe('Transcript rows (M25)', () => {
+  it('marks a row its turn cut off as interrupted, without an alert', () => {
+    renderTranscript([tool({ id: 'sh', tool: 'powershell', status: 'interrupted' })])
+    expect(screen.getByText('Interrupted')).toHaveClass('tool-failure')
+    expect(document.querySelector('.tool-dot-muted')).not.toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('reads "Thought" for a replayed thought with no measured time, never "Thinking…"', () => {
+    renderTranscript([
+      { kind: 'reasoning', id: 'r', parts: ['why'], isStreaming: false, startedAt: 0 },
+    ])
+    expect(screen.getByText('Thought')).toBeInTheDocument()
+    expect(screen.queryByText('Thinking…')).toBeNull()
+  })
+
+  it('fetches a patch past one page in full, then numbers it; within the page budget', () => {
+    const edit = tool({
+      id: 'ed',
+      tool: 'edit_file',
+      args: '{"path":"notes.md"}',
+      output: '@@\n-old\n+new',
+      patchRef: { id: 'p', byteLen: 600_000 },
+    })
+    const document_ = JSON.stringify({
+      files: [{ path: 'notes.md', hunks: [{ oldStart: 7, newStart: 7, lines: ['-old', '+new'] }] }],
+    })
+    const view = mountTranscript([edit])
+    expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 0)
+    view.rerender(pages(document_.slice(0, 10), false, 262_144))
+    expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 262_144)
+    // A partial document is not parsed: the visible diff shows meanwhile.
+    expect(document.querySelector('.diff-gutter')?.textContent).toBe('')
+    view.rerender(pages(document_, true, 600_000))
+    expect(document.querySelector('.diff-gutter')?.textContent).toBe('7')
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops fetching a document that never ends at the host page budget', () => {
+    const view = mountTranscript([
+      tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),
+    ])
+    for (let offset = 1; offset < 20; offset += 1) {
+      view.rerender({ outputPages: { 'ed:p': { content: 'x', isEof: false, nextOffset: offset } } })
+    }
+    const offsets = vi.mocked(view.props.onReadOutput).mock.calls.map((call) => call[2])
+    expect(offsets).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+  })
+
+  it('starts the feedback box empty on every stage of a multi-command approval', () => {
+    const view = mountTranscript([stagedRow(0)])
+    fireEvent.change(box(), { target: { value: 'not the first one' } })
+    view.rerender({ entries: [stagedRow(0)] })
+    expect(box()).toHaveValue('not the first one')
+    view.rerender({ entries: [stagedRow(1)] })
+    expect(box()).toHaveValue('')
+  })
+
+  it('locks a question card once it was answered or cancelled', () => {
+    renderTranscript([
+      tool({
+        id: 'q',
+        tool: 'request_user_input',
+        status: 'inProgress',
+        question: {
+          userInputId: 'u1',
+          isSubmitted: true,
+          questions: [
+            {
+              id: 'c',
+              header: 'Colour',
+              question: 'Which?',
+              selection: { mode: 'single' },
+              options: [{ label: 'Red' }],
+            },
+          ],
+        },
+      }),
+    ])
+    expect(screen.getByRole('radio', { name: 'Red' })).toBeDisabled()
+    expect(screen.getByText('Submit')).toBeDisabled()
+    expect(screen.getByText('Cancel')).toBeDisabled()
+  })
+})
+
+describe('Transcript replies (M25)', () => {
+  it('shows a fence still streaming as plain text, and highlights it once closed', () => {
+    const streaming = '```ts\nconst a = 1'
+    const view = mountTranscript([
+      { kind: 'assistant', id: 'a', text: streaming, isStreaming: true },
+    ])
+    expect(screen.getByText('const a = 1')).toBeInTheDocument()
+    expect(screen.getByText('typescript')).toBeInTheDocument()
+    expect(document.querySelector('.hljs-keyword')).toBeNull()
+    view.rerender({
+      entries: [{ kind: 'assistant', id: 'a', text: `${streaming}\n\`\`\``, isStreaming: false }],
+    })
+    expect(document.querySelector('.hljs-keyword')).not.toBeNull()
+  })
+
+  it('opens a relative link as a workspace file and refuses one outside it', () => {
+    const onRefuseLink = vi.fn()
+    const props = renderTranscript(
+      [
+        {
+          kind: 'assistant',
+          id: 'a',
+          text: 'See [the parser](src/parser.ts#L12) and [this](../x.txt).',
+          isStreaming: false,
+        },
+      ],
+      { onRefuseLink },
+    )
+    fireEvent.click(screen.getByRole('link', { name: 'the parser' }))
+    expect(props.onOpenFile).toHaveBeenCalledWith('src/parser.ts', { startLine: 12, endLine: 12 })
+    fireEvent.click(screen.getByRole('link', { name: 'this' }))
+    expect(onRefuseLink).toHaveBeenCalledOnce()
+    expect(props.onOpenLink).not.toHaveBeenCalled()
+  })
+
+  it('takes the text direction from the text itself', () => {
+    renderTranscript([
+      { kind: 'user', seq: 1, id: 'u', text: 'مرحبا', status: 'sent', attachments: [] },
+      { kind: 'assistant', id: 'a', text: 'שלום', isStreaming: false },
+    ])
+    expect(screen.getByText('مرحبا')).toHaveAttribute('dir', 'auto')
+    expect(screen.getByText('שלום')).toHaveAttribute('dir', 'auto')
+  })
+
+  it('closes the message menus on a press outside them or when the focus leaves', () => {
+    renderTranscript(
+      [
+        { kind: 'user', seq: 1, id: 'u', text: 'hello', status: 'sent', attachments: [] },
+        { kind: 'assistant', id: 'a', text: 'done', isStreaming: false },
+      ],
+      { onFork: vi.fn(), onRewind: vi.fn(), onReply: vi.fn() },
+    )
+    fireEvent.click(screen.getByLabelText('Fork or rewind'))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Message actions' }))
+    const item = screen.getByRole('menuitem', { name: 'Reply to this output' })
+    fireEvent.pointerDown(item)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.blur(item, { relatedTarget: screen.getByLabelText('Fork or rewind') })
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 })

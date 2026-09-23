@@ -2,11 +2,16 @@
 // collapsible body (shell IN/OUT, edit diff, read output, or generic
 // args/output), plus the approval or question card when the host is waiting.
 
-import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { OUTPUT_PREVIEW_LINES, UI_TEXT } from '../../shared/constants'
+import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  OUTPUT_PREVIEW_LINES,
+  PATCH_DOCUMENT_MAX_PAGES,
+  TOOL_STATUS_INTERRUPTED,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { LineRange } from '../../shared/protocol'
-import { type DiffRow, parsePatchDocument, parseUnifiedText } from '../diff'
-import type { OutputPage, TranscriptEntry } from '../state/uiState'
+import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
+import { isFailedStatus, type OutputPage, type TranscriptEntry } from '../state/uiState'
 import { changeSummary, describeTool, writtenContent } from '../toolPresentation'
 import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 import { ExpandChevron } from './icons'
@@ -50,10 +55,9 @@ function changedRange(rows: readonly DiffRow[] | undefined): LineRange | undefin
 /** The rows of an edit: the fetched patch (the file the row names) or the visible diff. */
 function editRows(
   entry: ToolEntry,
-  patchPage: OutputPage | undefined,
+  files: readonly FileDiff[] | undefined,
   filePath: string,
 ): readonly DiffRow[] | undefined {
-  const files = patchPage === undefined ? undefined : parsePatchDocument(patchPage.content)
   const file = files?.find((candidate) => candidate.path === filePath) ?? files?.[0]
   return file?.rows ?? parseUnifiedText(entry.output)
 }
@@ -61,6 +65,9 @@ function editRows(
 function statusClass(entry: ToolEntry): string {
   if (entry.status === 'inProgress') {
     return 'tool-dot tool-dot-running'
+  }
+  if (entry.status === TOOL_STATUS_INTERRUPTED) {
+    return 'tool-dot tool-dot-muted'
   }
   return entry.status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
 }
@@ -174,14 +181,13 @@ function DiffTable({
 
 function EditBody({
   entry,
-  patchPage,
+  files,
   onExpand,
 }: {
   readonly entry: ToolEntry
-  readonly patchPage: OutputPage | undefined
+  readonly files: readonly FileDiff[] | undefined
   readonly onExpand: (() => void) | undefined
 }) {
-  const files = patchPage === undefined ? undefined : parsePatchDocument(patchPage.content)
   if (files !== undefined && files.length > 0) {
     return (
       <>
@@ -231,7 +237,54 @@ function ShellBody({
   )
 }
 
-export function ToolRow({
+/** "Rejected", "Interrupted" or "Failed" under a row that did not complete. */
+function outcomeText(status: string): string {
+  if (status === 'rejected') {
+    return UI_TEXT.toolRejected
+  }
+  return status === TOOL_STATUS_INTERRUPTED ? UI_TEXT.toolInterrupted : UI_TEXT.toolFailed
+}
+
+/**
+ * Fetch the stored patch while the row is open: the first page once, then
+ * each next page until the document is whole (M25; a patch past one page of
+ * OUTPUT_PAGE_BYTES used to stop at a partial document and fall back to the
+ * unnumbered diff), within the host's own page budget.
+ */
+function usePatchPages(
+  entry: ToolEntry,
+  isOpen: boolean,
+  patchPage: OutputPage | undefined,
+  onReadOutput: ToolRowProps['onReadOutput'],
+): void {
+  const requested = useRef(new Set<number>())
+  const hadPage = useRef(false)
+  const patchRefId = entry.patchRef?.id
+  const hasPage = patchPage !== undefined
+  const nextOffset = patchPage === undefined ? 0 : patchPage.nextOffset
+  const isWhole = patchPage?.isEof === true
+  useEffect(() => {
+    const pages = requested.current
+    // Pages the reducer dropped (a resumed or forked history) are fetched again.
+    if (!hasPage && hadPage.current) {
+      pages.clear()
+    }
+    hadPage.current = hasPage
+    if (
+      !isOpen ||
+      isWhole ||
+      patchRefId === undefined ||
+      pages.has(nextOffset) ||
+      pages.size >= PATCH_DOCUMENT_MAX_PAGES
+    ) {
+      return
+    }
+    pages.add(nextOffset)
+    onReadOutput(entry.id, patchRefId, nextOffset)
+  }, [isOpen, isWhole, hasPage, nextOffset, patchRefId, entry.id, onReadOutput])
+}
+
+function ToolRowView({
   entry,
   patchPage,
   onReadOutput,
@@ -243,7 +296,7 @@ export function ToolRow({
   onOpenFile,
   quoteMenu,
 }: ToolRowProps) {
-  const presentation = describeTool(entry.tool, entry.args)
+  const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
   const isWaiting = entry.approval !== undefined || entry.question !== undefined
   // Shell and edit rows show their body from the start, as Claude Code's do;
   // read and generic rows open on click (M16).
@@ -251,20 +304,17 @@ export function ToolRow({
     presentation.body === 'shell' || presentation.body === 'edit',
   )
   const change = changeSummary(entry.patchSummary)
-  const isFailed = entry.status !== 'inProgress' && entry.status !== 'completed'
+  const isFailed = isFailedStatus(entry.status) || entry.status === TOOL_STATUS_INTERRUPTED
   // A finished edit with a stored patch can be reviewed in the editor.
   const reviewRef =
     presentation.body === 'edit' && entry.status === 'completed' ? entry.patchRef : undefined
-  // The stored patch is fetched once, the first time the row is open.
-  const patchRequestRef = useRef(false)
-  const patchRefId = entry.patchRef?.id
-  useEffect(() => {
-    if (!isOpen || patchPage !== undefined || patchRefId === undefined || patchRequestRef.current) {
-      return
-    }
-    patchRequestRef.current = true
-    onReadOutput(entry.id, patchRefId, 0)
-  }, [isOpen, patchPage, patchRefId, entry.id, onReadOutput])
+  usePatchPages(entry, isOpen, patchPage, onReadOutput)
+  // Parsed once per page, not per render (M25); a partial document parses to nothing.
+  const patchContent = patchPage?.isEof === true ? patchPage.content : undefined
+  const files = useMemo(
+    () => (patchContent === undefined ? undefined : parsePatchDocument(patchContent)),
+    [patchContent],
+  )
   const toggle = () => {
     setIsOpen(!isOpen)
   }
@@ -277,7 +327,7 @@ export function ToolRow({
       return
     }
     const range =
-      presentation.body === 'edit' ? changedRange(editRows(entry, patchPage, filePath)) : undefined
+      presentation.body === 'edit' ? changedRange(editRows(entry, files, filePath)) : undefined
     onOpenFile(filePath, range)
   }
   const openOutput = () => {
@@ -296,7 +346,7 @@ export function ToolRow({
       break
     }
     case 'edit': {
-      body = <EditBody entry={entry} patchPage={patchPage} onExpand={openReview} />
+      body = <EditBody entry={entry} files={files} onExpand={openReview} />
       break
     }
     case 'read': {
@@ -369,14 +419,20 @@ export function ToolRow({
       </div>
       {change === undefined ? null : <div className="tool-change">{change}</div>}
       {isFailed ? (
-        <div className="tool-failure" role="alert">
-          {entry.status === 'rejected' ? UI_TEXT.toolRejected : UI_TEXT.toolFailed}
+        <div className="tool-failure">
+          {outcomeText(entry.status)}
           {entry.failureReason === undefined ? '' : `: ${entry.failureReason}`}
         </div>
       ) : null}
       {isOpen ? <div className="tool-body">{body}</div> : null}
       {entry.approval === undefined ? null : (
-        <ApprovalCard approval={entry.approval} toolName={entry.tool} onDecide={onDecide} />
+        // Keyed by stage so feedback typed for one stage never rides on the next (M25).
+        <ApprovalCard
+          key={`${entry.approval.approvalId}:${String(entry.approval.requirementId.sourceIndex)}`}
+          approval={entry.approval}
+          toolName={entry.tool}
+          onDecide={onDecide}
+        />
       )}
       {entry.approvalOutcome === undefined ? null : (
         <div className="tool-outcome">
@@ -406,3 +462,6 @@ export function ToolRow({
     </li>
   )
 }
+
+/** Memoised (M25): a row renders only when its entry, its patch page or its menu changes. */
+export const ToolRow = memo(ToolRowView)

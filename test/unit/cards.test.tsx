@@ -148,6 +148,25 @@ describe('TodoPanel', () => {
     rerender(<TodoPanel items={[]} />)
     expect(screen.queryByRole('region')).toBeNull()
   })
+
+  // M25: rows were keyed by their text, so two tasks with the same text collided.
+  it('keeps two tasks with the same text apart', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+      // A key collision is reported here; the test asserts there is none.
+    })
+    const { rerender } = render(
+      <TodoPanel
+        items={[
+          { text: 'Run the tests', status: 'completed' },
+          { text: 'Run the tests', status: 'pending' },
+        ]}
+      />,
+    )
+    rerender(<TodoPanel items={[{ text: 'Run the tests', status: 'pending' }]} />)
+    expect(screen.getAllByText('Run the tests')).toHaveLength(1)
+    expect(consoleError).not.toHaveBeenCalled()
+    consoleError.mockRestore()
+  })
 })
 
 describe('ApprovalCard tool subjects (M18)', () => {

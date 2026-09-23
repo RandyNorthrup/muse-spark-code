@@ -4,7 +4,10 @@
 // mention menu), attachment chips, paste/drop of images and editor files,
 // the attach ("+") and slash buttons, the model pill, the permission-mode
 // button and Send/Stop. The "+" button and the mode button open menus the
-// parent renders above the composer.
+// parent renders above the composer. Keys an input method is composing with
+// (CJK) belong to the composition: Enter commits the candidate, it never
+// sends or picks a mention (M25). An image over the host's limits is refused
+// before it is read, not encoded and posted to be refused (M25).
 
 import {
   type ClipboardEvent,
@@ -21,6 +24,9 @@ import {
   COMPOSER_MAX_ROWS,
   DICTATION_KEY,
   type DictationAction,
+  IME_PROCESS_KEY,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_IMAGE_BYTES,
   PERMISSION_MODE_LABELS,
   type PermissionMode,
   UI_TEXT,
@@ -91,6 +97,8 @@ export interface ComposerProps {
   readonly onRemoveAttachment: (id: string) => void
   readonly onSearchMentions: (requestId: number, query: string) => void
   readonly onAttachImage: (image: ImageData) => void
+  /** An image refused before it was read (too large, or one too many), M25. */
+  readonly onRefuseFile: (name: string, reason: string) => void
   readonly onDroppedUris: (uris: readonly string[]) => void
   /** The context indicator is a button: compact now (M14). */
   readonly onCompact: () => void
@@ -133,6 +141,14 @@ function fitRows(textarea: HTMLTextAreaElement, draft: string): void {
     scrollHeight: textarea.scrollHeight,
     rowHeight: textarea.clientHeight,
   })
+}
+
+/**
+ * Whether the key belongs to an input method's composition (M25): Chromium
+ * flags it `isComposing` and names the key "Process" (keyCode 229).
+ */
+function isComposing(event: KeyboardEvent<HTMLElement>): boolean {
+  return event.nativeEvent.isComposing || event.key === IME_PROCESS_KEY
 }
 
 /** Whether this keydown is the configured "send" gesture. */
@@ -240,6 +256,7 @@ export function Composer(props: ComposerProps) {
     onRemoveAttachment,
     onSearchMentions,
     onAttachImage,
+    onRefuseFile,
     onDroppedUris,
     onCompact,
     banner,
@@ -421,6 +438,9 @@ export function Composer(props: ComposerProps) {
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isComposing(event)) {
+      return
+    }
     if (didHandleMentionKey(event)) {
       event.preventDefault()
       return
@@ -477,13 +497,20 @@ export function Composer(props: ComposerProps) {
   }
 
   const attachFiles = (files: readonly File[]) => {
+    let count = attachments.length
     for (const file of files) {
+      const name = file.name === '' ? PASTED_IMAGE_NAME : file.name
+      if (file.size > MAX_IMAGE_BYTES) {
+        onRefuseFile(name, UI_TEXT.attachmentTooLarge)
+        continue
+      }
+      if (count >= MAX_ATTACHMENTS_PER_MESSAGE) {
+        onRefuseFile(name, UI_TEXT.attachmentLimit)
+        continue
+      }
+      count += 1
       void blobToBase64(file).then((base64) => {
-        onAttachImage({
-          name: file.name === '' ? PASTED_IMAGE_NAME : file.name,
-          mediaType: file.type,
-          base64,
-        })
+        onAttachImage({ name, mediaType: file.type, base64 })
       })
     }
   }
@@ -515,7 +542,7 @@ export function Composer(props: ComposerProps) {
       onDrop={handleDrop}
     >
       {banner === undefined ? null : (
-        <div className="composer-banner" role="alert">
+        <div className="composer-banner">
           <span>{banner}</span>
           <button
             type="button"
@@ -540,6 +567,7 @@ export function Composer(props: ComposerProps) {
       <textarea
         ref={textareaRef}
         className="composer-input"
+        dir="auto"
         aria-label={UI_TEXT.composerLabel}
         aria-autocomplete="list"
         aria-controls={isMentionOpen ? 'mention-listbox' : undefined}

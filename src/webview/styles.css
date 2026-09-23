@@ -308,6 +308,13 @@ body {
   background: var(--vscode-input-background);
 }
 
+/* Each line of a message or of the prompt box takes the direction of its
+   own text (M25). */
+.message-text,
+.composer-input {
+  unicode-bidi: plaintext;
+}
+
 .composer-input {
   box-sizing: border-box;
   width: 100%;
@@ -1839,13 +1846,6 @@ body {
   cursor: default;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .mic-button.mic-starting,
-  .mic-button.mic-listening {
-    animation: none;
-  }
-}
-
 /* --- Modals, the Agent map, the agents pill, the banner (M14) --- */
 
 .modal-backdrop {
@@ -2109,4 +2109,22 @@ body {
 
 .context-label-button:hover {
   text-decoration: underline;
+}
+
+/* Reduced motion (M25): every animation and transition in the panel stops,
+   not only the microphone's pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .cursor,
+  .tool-dot-running,
+  .status-spark,
+  .mic-button.mic-starting,
+  .mic-button.mic-listening,
+  .agent-dot-running {
+    animation: none;
+  }
+
+  .toggle-knob,
+  .chevron {
+    transition: none;
+  }
 }

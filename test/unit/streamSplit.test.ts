@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { splitForStreaming } from '../../src/webview/streamSplit'
+import { splitForStreaming, splitOpenFence } from '../../src/webview/streamSplit'
 
 const paragraph = 'A paragraph of prose that is long enough to matter for the split.\n\n'
 const fence = '```ts\nconst a = 1\n\nconst b = 2\n```\n\n'
@@ -31,5 +31,33 @@ describe('splitForStreaming', () => {
   it('gives up and returns all tail when every blank line is inside a fence', () => {
     const text = '```\n' + 'line\n\n'.repeat(400)
     expect(splitForStreaming(text)).toEqual({ head: '', tail: text })
+  })
+})
+
+describe('fences (M25)', () => {
+  it('reads tilde fences and longer runs as CommonMark does', () => {
+    // A tilde fence holds a blank line and a backtick line; the cut stays out of it.
+    const text =
+      paragraph.repeat(30) + '~~~~\nkeep\n\n```\nstill inside\n~~~~\n\n' + 'x'.repeat(1600)
+    const { head, tail } = splitForStreaming(text)
+    expect(head + tail).toBe(text)
+    expect(head.endsWith('~~~~')).toBe(true)
+    expect(splitOpenFence(head).open).toBeUndefined()
+  })
+
+  it('splits a fence left open at the end off the text, with its language', () => {
+    expect(splitOpenFence('Intro\n\n```ts title=a.ts\nconst a = 1\nconst b')).toEqual({
+      closed: 'Intro\n\n',
+      open: { language: 'ts', code: 'const a = 1\nconst b' },
+    })
+    expect(splitOpenFence('```')).toEqual({ closed: '', open: { language: undefined, code: '' } })
+    expect(splitOpenFence('done\n```js\nx\n```')).toEqual({
+      closed: 'done\n```js\nx\n```',
+      open: undefined,
+    })
+    // A backtick "fence" whose info holds a backtick is inline code, not a fence.
+    expect(splitOpenFence('``` a`b\nrest').open).toBeUndefined()
+    // A shorter or different run does not close a fence.
+    expect(splitOpenFence('````\ncode\n```\n~~~~').open).toMatchObject({ code: 'code\n```\n~~~~' })
   })
 })

@@ -49,9 +49,10 @@ const settingsSnapshotSchema = z.object(settingsSnapshotShape)
 const editRefSchema = z.object({ itemId: z.string(), outputRef: z.string() })
 export type EditRef = z.infer<typeof editRefSchema>
 
-// What the webview keeps in VS Code's webview state (`setState`): the
-// session it shows, so a panel rebuilt after a window reload resumes it
-// (PLAN.md D15). Anything else stored there restores an empty panel.
+// What the host reads from VS Code's webview state (`setState`): the
+// session the panel shows, so a panel rebuilt after a window reload resumes
+// it (PLAN.md D15). The webview keeps its own conversation snapshot beside
+// it (M25, src/webview/state/snapshot.ts); the host never reads that part.
 const persistedStateSchema = z.object({ sessionId: z.optional(z.string()) })
 export type PersistedState = z.infer<typeof persistedStateSchema>
 
@@ -84,7 +85,7 @@ export type BackendKind = (typeof BACKEND_KINDS)[number]
  * output's actions menu, `question` or `comment` from a highlighted passage.
  * `role` names who wrote the passage (assistant, user, tool).
  */
-const chatReferenceSchema = z.object({
+export const chatReferenceSchema = z.object({
   intent: z.enum(CHAT_REFERENCE_INTENTS),
   role: z.string(),
   entryId: z.optional(z.string()),
@@ -170,6 +171,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // The composer gained or lost keyboard focus; drives the
   // `museSpark.inputFocused` context key behind Ctrl+Esc.
   z.object({ type: z.literal('inputFocusChanged'), focused: z.boolean() }),
+  // The panel's document gained focus (M25): it becomes the surface the
+  // keybindings (New Conversation, Alt+T) act on.
+  z.object({ type: z.literal('surfaceFocused') }),
   // The user pressed Send. `localId` lets the host confirm or reject the
   // optimistic echo the webview already rendered; `attachmentIds` name the
   // images the host is holding for this message.
@@ -315,6 +319,17 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('settingsChanged'), settings: settingsSnapshotSchema }),
   // Move keyboard focus into the composer (Ctrl+Esc).
   z.object({ type: z.literal('focusInput') }),
+  // The host dropped this surface's conversation (M25): New Conversation
+  // from a keybinding, or the echo of the webview's own clear.
+  z.object({ type: z.literal('conversationCleared') }),
+  // Sent first on every `ready` (M25): the session and turn the host holds
+  // for this surface, so a reloaded webview keeps the transcript it saved
+  // only when that conversation is still the live one.
+  z.object({
+    type: z.literal('surfaceState'),
+    sessionId: z.optional(z.string()),
+    activeTurnId: z.optional(z.string()),
+  }),
   // Insert text at the composer caret (Alt+K mention reference).
   z.object({ type: z.literal('insertText'), text: z.string() }),
   // The active editor changed (M5); undefined when no text file is active.

@@ -2,7 +2,9 @@
 // (M16): one tab per question when there are several, the options stacked
 // as radio buttons (single choice) or checkboxes (multiple choice), always
 // an "Other" row with a free-text box, and Submit (disabled until every
-// question has an answer) beside Cancel (which declines the prompt).
+// question has an answer) beside Cancel (which declines the prompt). Either
+// locks the card until the host settles the question, as an approval card
+// locks on a decision (M25): a second click cannot post a second answer.
 
 import { useState } from 'react'
 import type { Question, QuestionAnswer } from '../../shared/agentEvents'
@@ -64,6 +66,7 @@ function Choice({
   label,
   detail,
   isChecked,
+  isLocked,
   onChange,
 }: {
   readonly type: 'radio' | 'checkbox'
@@ -71,19 +74,27 @@ function Choice({
   readonly label: string
   readonly detail: string | undefined
   readonly isChecked: boolean
+  readonly isLocked: boolean
   readonly onChange: () => void
 }) {
   return (
     <label className="question-choice">
-      <input type={type} name={name} checked={isChecked} onChange={onChange} />
-      <span className="question-choice-label">{label}</span>
-      {detail === undefined ? null : <span className="question-choice-detail">{detail}</span>}
+      <input type={type} name={name} checked={isChecked} disabled={isLocked} onChange={onChange} />
+      <span className="question-choice-label" dir="auto">
+        {label}
+      </span>
+      {detail === undefined ? null : (
+        <span className="question-choice-detail" dir="auto">
+          {detail}
+        </span>
+      )}
     </label>
   )
 }
 
 export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps) {
   const [draft, setDraft] = useState<Draft>({})
+  const isLocked = question.isSubmitted === true
   const [activeIndex, setActiveIndex] = useState(0)
   const draftFor = (id: string) => draft[id] ?? EMPTY_DRAFT
   const update = (id: string, change: Partial<QuestionDraft>) => {
@@ -128,8 +139,12 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
     const type = isMultiple(entry) ? 'checkbox' : 'radio'
     return (
       <div key={entry.id} className="question-block">
-        <div className="question-header">{entry.header}</div>
-        <div className="question-text">{entry.question}</div>
+        <div className="question-header" dir="auto">
+          {entry.header}
+        </div>
+        <div className="question-text" dir="auto">
+          {entry.question}
+        </div>
         {entry.options.length === 0 ? null : (
           <div className="question-options" role={isMultiple(entry) ? 'group' : 'radiogroup'}>
             {entry.options.map((option) => (
@@ -140,6 +155,7 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
                 label={option.label}
                 detail={option.description}
                 isChecked={current.chosen.includes(option.label)}
+                isLocked={isLocked}
                 onChange={() => {
                   choose(entry, option.label)
                 }}
@@ -151,6 +167,7 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
               label={UI_TEXT.questionOther}
               detail={undefined}
               isChecked={current.isOther}
+              isLocked={isLocked}
               onChange={() => {
                 chooseOther(entry)
               }}
@@ -160,6 +177,8 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
         <input
           className="question-input"
           type="text"
+          dir="auto"
+          disabled={isLocked}
           aria-label={`${UI_TEXT.questionOther}: ${entry.header}`}
           placeholder={
             entry.options.length === 0
@@ -175,7 +194,12 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
     )
   }
   return (
-    <div className="question" role="group" aria-label={question.questions[0]?.header ?? ''}>
+    <div
+      className="question"
+      role="group"
+      aria-label={question.questions[0]?.header ?? ''}
+      aria-busy={isLocked}
+    >
       {question.questions.length > 1 ? (
         <div className="question-tabs" role="tablist">
           {question.questions.map((entry, index) => (
@@ -200,7 +224,7 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
         <button
           type="button"
           className="button-primary"
-          disabled={!isReady}
+          disabled={!isReady || isLocked}
           onClick={() => {
             onAnswer(
               question.userInputId,
@@ -213,6 +237,7 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
         <button
           type="button"
           className="button-secondary"
+          disabled={isLocked}
           onClick={() => {
             onCancel(question.userInputId)
           }}

@@ -134,4 +134,30 @@ describe('HistoryDialog', () => {
     renderDialog({ sessions: [] })
     expect(screen.getByText('No sessions in this workspace yet.')).toBeInTheDocument()
   })
+
+  // M25: the switch took the focus, and the arrows, Enter and Escape stopped
+  // working until the next click in the search box.
+  it('keeps the keyboard in the search box through a Show archived toggle', () => {
+    const { props, search } = renderDialog()
+    const toggle = screen.getByLabelText('Show archived')
+    expect(fireEvent.mouseDown(toggle)).toBe(false)
+    fireEvent.click(toggle)
+    expect(document.activeElement).toBe(search)
+    fireEvent.keyDown(search, { key: 'ArrowDown' })
+    fireEvent.keyDown(search, { key: 'Enter' })
+    expect(props.onResume).toHaveBeenCalledWith('archived')
+    // Toggled from the keyboard, the focus goes back to the search box too.
+    toggle.focus()
+    fireEvent.click(toggle)
+    expect(document.activeElement).toBe(search)
+    // Escape on the switch closes like Escape in the box.
+    toggle.focus()
+    fireEvent.keyDown(toggle, { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledOnce()
+    // Focus inside the dialog keeps it open; focus leaving it closes it.
+    fireEvent.blur(search, { relatedTarget: toggle })
+    expect(props.onClose).toHaveBeenCalledOnce()
+    fireEvent.blur(toggle, { relatedTarget: document.body })
+    expect(props.onClose).toHaveBeenCalledTimes(2)
+  })
 })

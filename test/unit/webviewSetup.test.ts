@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { configureWebview } from '../../src/host/views/webviewSetup'
+import { type ChatSurface, configureWebview } from '../../src/host/views/webviewSetup'
 import { FakeWebview, fakeHostContext, testSettings } from './helpers/fakes'
 
 const NONCE_PATTERN = /script-src 'nonce-([^']+)'/
@@ -8,19 +8,21 @@ function nonceOf(html: string): string | undefined {
   return NONCE_PATTERN.exec(html)?.[1]
 }
 
-function setup(context = fakeHostContext()) {
+function setup(context = fakeHostContext(), restoredSessionId?: string) {
   const webview = new FakeWebview()
   const reveal = vi.fn<() => void>()
   const markUnread = vi.fn<() => void>()
   const setTitle = vi.fn<(title: string) => void>()
+  const onFocused = vi.fn<(surface: ChatSurface) => void>()
   const surface = configureWebview(webview, context, {
     id: 'test',
-    restoredSessionId: undefined,
+    restoredSessionId,
     reveal,
     markUnread,
     setTitle,
+    onFocused,
   })
-  return { webview, context, surface, reveal, markUnread, setTitle }
+  return { webview, context, surface, reveal, markUnread, setTitle, onFocused }
 }
 
 describe('configureWebview', () => {
@@ -105,6 +107,31 @@ describe('configureWebview', () => {
     expect(String(context.log.warn.mock.calls[0]?.[0])).toContain(
       'Dropped malformed webview message',
     )
+  })
+
+  it('reports its document taking focus, and keeps that out of the conversation (M25)', () => {
+    const { webview, context, surface, onFocused } = setup()
+    webview.messages.fire({ type: 'surfaceFocused' })
+    expect(onFocused).toHaveBeenCalledWith(surface)
+    expect(context.onConversationMessage).not.toHaveBeenCalled()
+  })
+
+  // M25: a restored panel handed its session out once, so a resume that
+  // failed (not signed in yet, a CLI hiccup) lost the conversation for good.
+  it('keeps the restored session until one is live or the conversation is cleared (M25)', () => {
+    const live = setup(fakeHostContext(), 'old').surface
+    expect(live.takeRestoredSessionId()).toBe('old')
+    expect(live.takeRestoredSessionId()).toBe('old')
+    live.post({ type: 'sessionInfo', modelId: 'muse-spark-1.3' })
+    expect(live.takeRestoredSessionId()).toBe('old')
+    live.post({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 'new' })
+    expect(live.takeRestoredSessionId()).toBeUndefined()
+    const resumed = setup(fakeHostContext(), 'old').surface
+    resumed.post({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
+    expect(resumed.takeRestoredSessionId()).toBeUndefined()
+    const cleared = setup(fakeHostContext(), 'old').surface
+    cleared.post({ type: 'conversationCleared' })
+    expect(cleared.takeRestoredSessionId()).toBeUndefined()
   })
 
   it('stops handling messages once disposed', () => {

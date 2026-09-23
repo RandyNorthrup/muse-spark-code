@@ -37,7 +37,9 @@ function TitleEditor({
           setDraft(title === UI_TEXT.untitledConversation ? '' : title)
         }}
       >
-        <h1 className="header-title">{title}</h1>
+        <h1 className="header-title" dir="auto">
+          {title}
+        </h1>
       </button>
     )
   }
@@ -87,7 +89,9 @@ export function Header({
   return (
     <header className="header">
       {onRename === undefined ? (
-        <h1 className="header-title">{title}</h1>
+        <h1 className="header-title" dir="auto">
+          {title}
+        </h1>
       ) : (
         <TitleEditor title={title} onRename={onRename} />
       )}

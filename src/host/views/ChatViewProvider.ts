@@ -1,6 +1,7 @@
 // Sidebar surface: the `museSpark.chatView` WebviewView contributed in
 // package.json. The editor-tab surface lives in chatPanel.ts; both share
-// configureWebview.
+// configureWebview. The view becomes the surface the keybindings act on when
+// it is shown or its document takes focus (M25).
 
 import type * as vscode from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
@@ -33,12 +34,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       setTitle: (title) => {
         view.description = title === UI_TEXT.untitledConversation ? '' : title
       },
+      onFocused: (focused) => {
+        this.registry.setActive(focused)
+      },
     })
     const registration = this.registry.add(surface)
     view.onDidChangeVisibility(() => {
-      if (view.visible) {
-        view.badge = undefined
+      if (!view.visible) {
+        return
       }
+      view.badge = undefined
+      this.registry.setActive(surface)
     })
     view.onDidDispose(() => {
       registration.dispose()

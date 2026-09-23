@@ -21,7 +21,7 @@ import type { Logger } from '../logger'
 /** Messages about the conversation itself, routed to the surface's controller. */
 export type ConversationMessage = Exclude<
   WebviewToHostMessage,
-  { type: 'ready' } | { type: 'inputFocusChanged' }
+  { type: 'ready' } | { type: 'inputFocusChanged' } | { type: 'surfaceFocused' }
 >
 
 export interface WebviewHostContext {
@@ -47,9 +47,10 @@ export interface ChatSurface extends vscode.Disposable {
   /** Rebuild the document with a fresh nonce (the error boundary's Reload, M11). */
   reload(): void
   /**
-   * The session a panel held before the window reloaded (D15), handed out
-   * once: the first `ready` resumes it, a later one (the boundary's Reload)
-   * must not bring back a conversation the user has since cleared.
+   * The session a panel held before the window reloaded (D15), until it is
+   * live here (its history went to the webview, or another session started)
+   * or the user clears the conversation (M25): every `ready` until then may
+   * try the resume again, so a failed one is not the end of the conversation.
    */
   takeRestoredSessionId(): string | undefined
 }
@@ -61,6 +62,21 @@ export interface SurfaceOptions {
   readonly reveal: () => void
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
+  /** The document gained focus (M25): the surface the keybindings act on. */
+  readonly onFocused: (surface: ChatSurface) => void
+}
+
+/**
+ * Whether a message ends the restore a panel is owed (M25): a session is
+ * live on the surface (its history went out, or a new one started), or the
+ * conversation was cleared (from the panel or a keybinding).
+ */
+function isRestoreEnding(message: HostToWebviewMessage): boolean {
+  return (
+    message.type === 'historyLoaded' ||
+    message.type === 'conversationCleared' ||
+    (message.type === 'sessionInfo' && message.sessionId !== undefined)
+  )
 }
 
 function buildInitMessage(context: WebviewHostContext): HostToWebviewMessage {
@@ -102,6 +118,9 @@ export function configureWebview(
   const surface: ChatSurface = {
     id: options.id,
     post(message) {
+      if (isRestoreEnding(message)) {
+        restoredSessionId = undefined
+      }
       void webview.postMessage(message)
     },
     reveal: options.reveal,
@@ -109,9 +128,7 @@ export function configureWebview(
     setTitle: options.setTitle,
     reload: applyHtml,
     takeRestoredSessionId() {
-      const sessionId = restoredSessionId
-      restoredSessionId = undefined
-      return sessionId
+      return restoredSessionId
     },
     dispose() {
       subscription.dispose()
@@ -133,6 +150,10 @@ export function configureWebview(
       }
       case 'inputFocusChanged': {
         context.onInputFocusChanged(surface, message.focused)
+        break
+      }
+      case 'surfaceFocused': {
+        options.onFocused(surface)
         break
       }
       default: {

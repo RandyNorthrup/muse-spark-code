@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import type { WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { testSettings } from './helpers/fakes'
@@ -61,6 +62,28 @@ function historyEdit(itemId: string, turnId: string, patch: string) {
   }
 }
 
+/** The agent asks one single-choice question and the user picks Red. */
+function askColour() {
+  deliver({
+    type: 'agentEvent',
+    event: {
+      type: 'questionRequested',
+      userInputId: 'q1',
+      itemId: 'c2',
+      questions: [
+        {
+          id: 'colour',
+          header: 'Colour',
+          question: 'Which?',
+          selection: { mode: 'single' },
+          options: [{ label: 'Red' }],
+        },
+      ],
+    },
+  })
+  fireEvent.click(screen.getByRole('radio', { name: 'Red' }))
+}
+
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
   const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
   render(<App postMessage={postMessage} newLocalId={() => 'local-1'} />)
@@ -109,18 +132,6 @@ describe('App shell', () => {
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'clearConversation' })
     expect(screen.queryByText('hello')).toBeNull()
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
-  })
-
-  it('keeps the shown session in the webview state for the reload serializer (M12)', () => {
-    const persistState = vi.fn()
-    render(<App postMessage={vi.fn()} persistState={persistState} />)
-    expect(persistState).toHaveBeenLastCalledWith({})
-    deliver(init)
-    deliver({ type: 'authState', status: 'signedIn' })
-    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
-    expect(persistState).toHaveBeenLastCalledWith({ sessionId: 's1' })
-    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3' })
-    expect(persistState).toHaveBeenLastCalledWith({})
   })
 
   it('inserts host-provided text at the caret', () => {
@@ -249,7 +260,10 @@ describe('App conversation', () => {
     fireEvent.change(textarea(), { target: { value: 'hello' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     deliver({ type: 'sendFailed', localId: 'local-1', reason: 'Open a folder first' })
-    expect(screen.getByRole('alert')).toHaveTextContent('Open a folder first')
+    expect(document.querySelector('.message-error')).toHaveTextContent('Open a folder first')
+    // Read out once, by the live region, not by an alert on the card (M25).
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(document.querySelector('[aria-live]')).toHaveTextContent('Open a folder first')
   })
 
   it('labels the model pill with model and effort, like the Claude Code pill', () => {
@@ -470,24 +484,8 @@ describe('App transcript (M4)', () => {
     expect(screen.getByText('Allow once')).toBeDisabled()
     stageUpdate(1)
     expect(screen.getByText('Allow once')).toBeEnabled()
-    deliver({
-      type: 'agentEvent',
-      event: {
-        type: 'questionRequested',
-        userInputId: 'q1',
-        itemId: 'c2',
-        questions: [
-          {
-            id: 'colour',
-            header: 'Colour',
-            question: 'Which?',
-            selection: { mode: 'single' },
-            options: [{ label: 'Red' }],
-          },
-        ],
-      },
-    })
-    fireEvent.click(screen.getByRole('radio', { name: 'Red' }))
+    askColour()
+
     fireEvent.click(screen.getByText('Submit'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'answerQuestion',
@@ -692,7 +690,9 @@ describe('App palette', () => {
   it('shows notices from the host in the transcript', () => {
     renderReady()
     deliver({ type: 'notice', level: 'warning', text: 'Reasoning effort could not be applied' })
-    expect(screen.getByRole('status')).toHaveTextContent('Reasoning effort could not be applied')
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent(
+      'Reasoning effort could not be applied',
+    )
   })
 })
 
@@ -980,9 +980,9 @@ describe('App session history (M6)', () => {
     fireEvent.click(screen.getByRole('button', { name: '12% context' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'compact' })
     deliver({ type: 'attachmentRejected', name: 'audio.node', reason: 'not an image' })
-    expect(screen.getByRole('alert')).toHaveTextContent('Unsupported file type: audio.node')
+    expect(screen.getByText(/Unsupported file type: audio\.node/)).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Dismiss'))
-    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(/Unsupported file type/)).toBeNull()
   })
 
   it('renames from the title once a session exists, and not before', () => {
@@ -1241,5 +1241,126 @@ describe('App chat references (M17)', () => {
     expect(fireEvent.contextMenu(passage)).toBe(false)
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+})
+
+describe('App webview and UI state (M25)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('clears for a keybinding, but a message sent right after its own clear survives the echo', () => {
+    const postMessage = renderReady()
+    fireEvent.change(textarea(), { target: { value: 'first' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    fireEvent.click(screen.getByLabelText('New conversation'))
+    fireEvent.change(textarea(), { target: { value: 'second' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'clearConversation' })
+    deliver({ type: 'conversationCleared' })
+    expect(screen.getByText('second')).toBeInTheDocument()
+    // Ctrl+N from VS Code: only the host's clear arrives.
+    deliver({ type: 'conversationCleared' })
+    expect(screen.queryByText('second')).toBeNull()
+    expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
+  })
+
+  it('tells the host it has the focus, so the keybindings act on this panel', () => {
+    const postMessage = renderReady()
+    act(() => {
+      window.dispatchEvent(new FocusEvent('focus'))
+    })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'surfaceFocused' })
+  })
+
+  it("offers the browser's Copy in the highlighted-text menu", () => {
+    const postMessage = renderReady()
+    reply('m1', 'Use pnpm because it is fast.')
+    const passage = screen.getByText('Use pnpm because it is fast.')
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'it is fast',
+      anchorNode: passage,
+    } as unknown as Selection)
+    fireEvent.contextMenu(passage)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'it is fast' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('makes everything behind a modal inert', () => {
+    renderReady()
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: '/usage' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    expect(document.querySelector('.composer-area')).toHaveAttribute('inert')
+    expect(document.querySelector('.header-area')).toHaveAttribute('inert')
+    fireEvent.click(screen.getByLabelText('Close'))
+    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+  })
+
+  it('keeps the end in view when the content grows without a new row', () => {
+    const observed: { callback: (() => void) | undefined } = { callback: undefined }
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        public constructor(callback: () => void) {
+          observed.callback = callback
+        }
+        public observe(): void {
+          // The test calls the callback itself.
+        }
+        public disconnect(): void {
+          observed.callback = undefined
+        }
+      },
+    )
+    renderReady()
+    reply('m1', 'hello')
+    const main = screen.getByRole('main')
+    let top = 0
+    const setTop = vi.fn((value: number) => {
+      top = value
+    })
+    let height = 1000
+    Object.defineProperties(main, {
+      scrollHeight: { configurable: true, get: () => height },
+      clientHeight: { configurable: true, get: () => 400 },
+      scrollTop: { configurable: true, get: () => top, set: setTop },
+    })
+    height = 1500
+    observed.callback?.()
+    expect(setTop).toHaveBeenLastCalledWith(1500)
+    // Scrolled up, a growing row leaves the view alone.
+    top = 0
+    fireEvent.scroll(main)
+    setTop.mockClear()
+    height = 1800
+    observed.callback?.()
+    expect(setTop).not.toHaveBeenCalled()
+  })
+
+  it('says so when a reply links to a file outside the workspace', () => {
+    const postMessage = renderReady()
+    reply('m1', 'See [the key](../../.ssh/id_rsa).')
+    fireEvent.click(screen.getByRole('link', { name: 'the key' }))
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent(
+      UI_TEXT.linkOutsideWorkspace,
+    )
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'openFile' }))
+  })
+
+  it('posts a question answer once, however often Submit is pressed', () => {
+    const postMessage = renderReady()
+    askColour()
+
+    fireEvent.click(screen.getByText('Submit'))
+    fireEvent.click(screen.getByText('Submit'))
+    fireEvent.click(screen.getByText('Cancel'))
+    const posted = postMessage.mock.calls.filter(
+      ([message]) => message.type === 'answerQuestion' || message.type === 'cancelQuestion',
+    )
+    expect(posted).toHaveLength(1)
   })
 })
