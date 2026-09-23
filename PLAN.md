@@ -1341,6 +1341,8 @@ after a clean VS Code 1.130.0 refused 0.1.0; the README was rewritten
 around the panel with a banner, screenshots and a social preview image
 (`npm run images`); Marketplace description, keywords and gallery banner
 refreshed; the GitHub About and topics set. The CI package of `d44ec56`
-installed and uninstalled cleanly on that 1.130 machine. Publishing 0.1.1
-and switching the repository to public wait for the owner's confirmation
-(the Marketplace README's images and badges load from the repository).
+installed and uninstalled cleanly on that 1.130 machine. On the owner's
+go the repository went public, 0.1.1 was published from the CI artifact
+of `d7274c7` (run 35802578451; the sparkle icon of 0.1.0, Google's mark,
+replaced by a plain "M" tile, and the banner and social image made
+typography only at the owner's direction), tagged `v0.1.1`.
