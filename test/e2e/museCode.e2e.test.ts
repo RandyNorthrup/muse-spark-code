@@ -21,6 +21,7 @@ import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 import { installFakeCredential, installFakeMuse } from './fakeMuse'
 
 const TURN_TIMEOUT_MS = 10_000
+const TEST_TIMEOUT_MS = 30_000
 const POLL_MS = 10
 const ALLOW = 'allow_once'
 const REJECT = 'abort'
@@ -128,7 +129,8 @@ afterAll(() => {
   }
 })
 
-describe('Muse Code backend against a real child process', () => {
+// Each case spawns a process; CI runners are slower than a workstation.
+describe('Muse Code backend against a real child process', { timeout: TEST_TIMEOUT_MS }, () => {
   it('spawns the configured binary with the serve flags, shakes hands as the extension, and sees the credential file', async () => {
     const { manager: backend, log } = manager()
     expect(backend.credentialFileExists()).toBe(true)
