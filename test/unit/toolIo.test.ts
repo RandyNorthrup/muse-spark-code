@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -14,6 +14,7 @@ import {
   terminalPlatform,
   withTerminalOverrides,
 } from '../../src/host/backend/toolIo'
+import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import type { RunProgram } from '../../src/host/processTree'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -166,6 +167,20 @@ const BACKGROUND_BOUND_MS = 20_000
 // Longer than the output drain, so an answer that did not wait would come first.
 const SWEEP_DELAY_MS = 1000
 
+// On Windows the commands run in job objects, as the extension runs them
+// (M27): the helper is compiled once, into a folder of this file's own.
+const jobStorage = mkdtempSync(path.join(tmpdir(), 'muse-toolio-jobs-'))
+const jobAssembly =
+  process.platform === 'win32'
+    ? shellJobAssembly({
+        storageDir: jobStorage,
+        systemRoot: String(process.env['SystemRoot']),
+        log: () => undefined,
+      })
+    : undefined
+
+afterAll(() => removeFolder(jobStorage))
+
 const io = () =>
   createToolIo({
     platform: process.platform,
@@ -175,6 +190,7 @@ const io = () =>
     searchWorkerPath: 'unused-here',
     log: () => undefined,
     hasUnsavedChanges: () => false,
+    shellJobAssembly: jobAssembly,
   })
 
 describe('createToolIo (real file system and shell)', () => {

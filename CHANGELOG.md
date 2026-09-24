@@ -123,10 +123,13 @@ other harnesses' bug trackers and the platform documentation, fixed.
   and a command that leaves a background process running (`server &`)
   returns when it exits instead of holding the turn open; Stop reaches a
   running command. A flood of output keeps its beginning and its end. On
-  Windows a program the command was starting at the moment of the kill,
-  which `taskkill` misses, is found once the shell has exited and ended too
-  (it used to run on, and once stayed suspended for good); the tool call
-  waits for that.
+  Windows each command runs in a job object of its own, so Stop and a
+  timeout end everything it started at once, including a program it was
+  starting at that moment and one a launcher left behind (`taskkill` missed
+  those: they ran on, and one stayed suspended for good); a command that
+  ends normally still leaves its background processes running. Where
+  Windows policy forbids the job helper, the log says so and a sweep of the
+  process table stands in.
 - A restart the extension makes (trust granted, a setting changed, a
   sign-in) no longer looks like a crash that blocks every panel: the running
   turn is cancelled, and the next message continues the same conversation.
