@@ -2545,6 +2545,15 @@ and the cross-harness rows of section G within them. The release gate
 itself found one more: on Windows `taskkill /T` missed a child started
 during the kill, now closed with a job object per command (D25, M27, #12).
 Every milestone went through a pull request with the CI checks green on the
-three platforms and its Codex review threads answered. The release goes
-through pull request #13 from `release/0.6.0`; the tag and the run are
-recorded here once they finish.
+three platforms and its Codex review threads answered. The release went
+through pull request #13 from `release/0.6.0`. Its first Windows runs
+failed twice before any product code was at fault: the PowerShell Gallery
+answered the PSScriptAnalyzer install with "No match was found" (now tried
+three times), and a test timed the tree kill's orphan sweep instead of the
+pipes closing (now timed to the close, and fired). Tagged `v0.6.0`
+(06e90a0) through the pull request, with no bypass; run 35944253997 went
+green on every job, the GitHub Release carries
+`muse-spark-code-0.6.0.vsix` (595,704 bytes) and the workflow published it
+("Published RandyNorthrup.muse-spark-code v0.6.0."); the Marketplace listed
+0.6.0 at 01:55:42 UTC, six minutes later (`vsce show`). The tag is the tip of
+`main` but for this record, which follows through its own pull request.
