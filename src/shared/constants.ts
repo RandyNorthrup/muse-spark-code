@@ -1076,6 +1076,8 @@ export const UI_TEXT = {
   mcpRestart: 'Restart Muse Code to load changes',
   mcpRestartDetail:
     'A reply that is running stops; the conversation continues on your next message',
+  mcpInvalidUrl: 'an invalid URL',
+  mcpNoCommand: 'no command',
   mcpRestarted: 'Muse Code restarted; your next message loads the settings as they are now.',
   mcpDocs: 'MCP servers in Muse Code (documentation)',
   mcpSignIn: 'Sign in',
