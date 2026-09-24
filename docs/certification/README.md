@@ -41,3 +41,7 @@ The PNGs beside the records are that day's harness renders.
 - [M25](m25.md): the audit, webview and UI state (PLAN.md D28)
 - [M26](m26.md): packaging, CI, platform and voice (PLAN.md D29)
 - [M27](m27.md): the tree kill's orphans (PLAN.md D25)
+- [M28](m28.md): macOS dictation asks under its own name; the release
+  token's environment (PLAN.md D29)
+- [M29](m29.md): `.muse/` is a protected path (PLAN.md D30)
+- [M30](m30.md): skills, imports and export (PLAN.md D30)

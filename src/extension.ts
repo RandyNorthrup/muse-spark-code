@@ -51,6 +51,7 @@ import {
   type SessionMemory,
 } from './host/conversation/conversationController'
 import { canonicalPath } from './host/canonicalPath'
+import { createCliFeatures } from './host/cliFeatures'
 import { createGitRunner } from './host/git'
 import { createLogger, type Logger } from './host/logger'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
@@ -319,17 +320,22 @@ function exitCodeOf(error: ExecFileException | null): number {
   return typeof error.code === 'number' ? error.code : NO_EXIT_CODE
 }
 
-/** Runs a short CLI command to completion without a shell; never rejects. */
+/**
+ * Runs a short CLI command to completion without a shell; never rejects.
+ * `env` replaces the inherited environment (`muse serve`'s, so the CLI reads
+ * the same config root, M30).
+ */
 function runProcess(
   invocation: CliInvocation,
   timeoutMs: number,
   cwd?: string,
+  env?: NodeJS.ProcessEnv,
 ): Promise<ProcessResult> {
   return new Promise((resolve) => {
     execFile(
       invocation.command,
       [...invocation.args],
-      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES, cwd },
+      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES, cwd, env },
       (error, stdout, stderr) => {
         resolve({ exitCode: exitCodeOf(error), stdout, stderr })
       },
@@ -443,6 +449,24 @@ export function activate(context: vscode.ExtensionContext): void {
     await Promise.all([backend.dispose(), modelApi.dispose()])
   }
   lifecycle.shutdown = () => restartBackend(true)
+  // Skills, imports and export (M30): the CLI by absolute path, in the
+  // environment `muse serve` gets, from the workspace root.
+  const cliFeatures = createCliFeatures({
+    runCli: (args, timeoutMs) => {
+      const resolution = backend.resolveLaunch()
+      return resolution.ok
+        ? runProcess(
+            { command: resolution.launch.command, args },
+            timeoutMs,
+            workspaceRoot,
+            backend.childEnvironment(),
+          )
+        : undefined
+    },
+    workspaceRoot,
+    restartBackend: () => restartBackend(),
+    log,
+  })
   const sandbox = new SandboxSetup({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
@@ -803,6 +827,14 @@ export function activate(context: vscode.ExtensionContext): void {
         }
         break
       }
+      case 'manageSkills': {
+        await cliFeatures.manageSkills()
+        break
+      }
+      case 'importSkills': {
+        await cliFeatures.importSkills()
+        break
+      }
     }
   }
 
@@ -930,6 +962,7 @@ export function activate(context: vscode.ExtensionContext): void {
         // conversation by construction (M6).
         isRestorable: surface.id === SIDEBAR_SURFACE_ID,
         dictation,
+        exports: cliFeatures.exports,
         now: () => Date.now(),
         log,
       })
@@ -1232,6 +1265,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand(COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
+    vscode.commands.registerCommand(COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
+    vscode.commands.registerCommand(COMMAND_IDS.exportConversation, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        void vscode.window.showInformationMessage(UI_TEXT.exportNothing)
+        return
+      }
+      await controllerFor(surface).handle({ type: 'exportConversation', format: 'markdown' })
     }),
   )
 }

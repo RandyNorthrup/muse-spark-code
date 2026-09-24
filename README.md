@@ -34,8 +34,8 @@ Muse Code CLI, or on a Meta Model API key, and never mixes the two.
   choices; questions from the agent arrive as question cards with radios,
   checkboxes, tabs and an "Other" answer. Writes to files that configure or
   run code (git's hooks and config, `.vscode`, CI workflows, dev container
-  definitions, `AGENTS.md` and the agent's own skills) always ask, in every
-  mode but Bypass.
+  definitions, `AGENTS.md`, the agent's own skills and Muse Code's `.muse`
+  folder with its hooks) always ask, in every mode but Bypass.
 - **Subagents on a map.** When Muse Code delegates, each agent is a row and an
   **N agents** pill opens the Agent map: role, status, tokens, each agent's own
   transcript, and the owner controls Muse Code provides (interrupt, stop, a
@@ -161,7 +161,14 @@ In a trusted workspace the agent follows the same files Muse Code does:
   (`$XDG_CONFIG_HOME/muse/skills` when set). The palette's **Skills** group
   lists them, `/id arguments` invokes one, and the model loads one itself
   when a task matches its description. `user-invocable: false` in the
-  front matter keeps a skill out of the palette.
+  front matter keeps a skill out of the palette. On the CLI backend the
+  Skills group also has **Manage skills…**, a checklist of every skill Muse
+  Code knows (built-in, yours, this project's, plugins) where unchecking one
+  turns it off (`muse skills disable`), and **Import skills…**, which shows
+  what `muse skills import` would copy from Claude Code or Codex into your
+  Muse skills folder and imports it once you confirm. Muse Code reads skill
+  changes when it starts, so both end by offering to restart it; the
+  conversation continues on your next message.
 - **Memory**: the project's `.agents/memory/MEMORY.md` index is read at the
   start of a conversation; the agent reads and updates the notes there with
   its file tools, under the permission mode.
@@ -208,10 +215,17 @@ including through a symbolic link or junction inside it.
 **Composer.** `Enter` sends, `Shift+Enter` breaks a line (or send with
 `Ctrl+Enter` through a setting); the box grows with your draft up to ten
 rows and scrolls inside past that. `/` on an empty draft opens the palette:
-Context (attach, mention, clear, resume), Model (switch model, effort,
+Context (attach, mention, clear, resume, and on the CLI backend "Continue
+a Claude Code session" and "Continue a Codex session", Muse Code's own
+`resume-claude` and `resume-codex` skills), Model (switch model, effort,
 thinking), Customize (permission mode, Focus view, settings, keybindings),
-Account & usage, Skills (the session's own), slash commands (`/compact`,
-`/clear`, `/logout`, `/usage`, `/cost`, `/agents`) and Support. The `+`
+Account & usage, Skills (the session's own, plus Manage and Import on the
+CLI backend), slash commands (`/compact`, `/export`, `/clear`, `/logout`,
+`/usage`, `/cost`, `/agents`) and Support. `/export` saves the
+conversation as Markdown where you choose (messages, thinking, tool calls
+with their arguments and visible output); on the CLI backend **Export
+session log…** also saves Muse Code's own JSON record of the session
+(`muse export`), which includes everything, stored outputs too. The `+`
 button uploads images (PNG, JPEG, GIF, WebP; other files become `@`
 mentions) or starts a mention; images also paste and drop. A path with a
 space, `#` or `"` is written in quotes, `@"my notes/a b.md"#5-10`, and the
@@ -378,29 +392,33 @@ device is available", and step markers on stderr name where a start failed.
 
 ## Commands and keybindings
 
-| Command                                    | Default keybinding                                                                   | What it does                                                                                                                                              |
-| ------------------------------------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Muse Spark: Open in Sidebar                | —                                                                                    | Focus the chat view in the activity bar                                                                                                                   |
-| Muse Spark: New Conversation               | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused          | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                  |
-| Muse Spark: Sign Out                       | —                                                                                    | Forget the stored Model API key and run `muse logout` when the CLI is signed in                                                                           |
-| Muse Spark: Open in Terminal               | —                                                                                    | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                             |
-| Muse Spark: Create AGENTS.md               | —                                                                                    | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                      |
-| Muse Spark: Open Walkthrough               | —                                                                                    | Open the four-step Get Started walkthrough                                                                                                                |
-| Muse Spark: Open in New Tab                | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
-| Muse Spark: Toggle Focus                   | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                   | Move keyboard focus between the editor and the composer                                                                                                   |
-| Muse Spark: Insert @-Mention for Selection | `Alt+K`, editor focused                                                              | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
-| Muse Spark: Toggle Focus View              | `Ctrl+Alt+F`, Muse focused                                                           | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
-| Muse Spark: Toggle Thinking                | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                   | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
-| Muse Spark: Set Up Shell Sandbox           | —                                                                                    | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
-| Muse Spark: Show Logs                      | —                                                                                    | Open the "Muse Spark" log channel (keys redacted)                                                                                                         |
-| Muse Spark: Diagnostics                    | —                                                                                    | Write the versions, the backend and CLI facts, credential presence (as yes/no) and the dictation state to the log and open it: what a bug report needs    |
-| (composer) Record voice                    | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                           |
+| Command                                             | Default keybinding                                                                   | What it does                                                                                                                                              |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                         | —                                                                                    | Focus the chat view in the activity bar                                                                                                                   |
+| Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused          | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                  |
+| Muse Spark: Sign Out                                | —                                                                                    | Forget the stored Model API key and run `muse logout` when the CLI is signed in                                                                           |
+| Muse Spark: Open in Terminal                        | —                                                                                    | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                             |
+| Muse Spark: Create AGENTS.md                        | —                                                                                    | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                      |
+| Muse Spark: Open Walkthrough                        | —                                                                                    | Open the four-step Get Started walkthrough                                                                                                                |
+| Muse Spark: Open in New Tab                         | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place      |
+| Muse Spark: Toggle Focus                            | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                   | Move keyboard focus between the editor and the composer                                                                                                   |
+| Muse Spark: Insert @-Mention for Selection          | `Alt+K`, editor focused                                                              | Insert `@path#start-end` for the active editor selection into the composer                                                                                |
+| Muse Spark: Toggle Focus View                       | `Ctrl+Alt+F`, Muse focused                                                           | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                   |
+| Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                   | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal |
+| Muse Spark: Set Up Shell Sandbox                    | —                                                                                    | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed      |
+| Muse Spark: Show Logs                               | —                                                                                    | Open the "Muse Spark" log channel (keys redacted)                                                                                                         |
+| Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential presence (as yes/no) and the dictation state to the log and open it: what a bug report needs    |
+| Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                   |
+| Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                     |
+| Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                           |
+| (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                           |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Four commands appear in the
+which is why its two shortcuts add `Alt`. Five commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
-open, Toggle Thinking with a Muse panel in view, Set Up Shell Sandbox on
-Windows (or in a remote window), Create AGENTS.md with a folder open.
+open, Toggle Thinking and Export Conversation with a Muse panel in view,
+Set Up Shell Sandbox on Windows (or in a remote window), Create AGENTS.md
+with a folder open.
 
 ## Settings
 

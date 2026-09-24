@@ -180,6 +180,8 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.setUpSandbox]: 'isWindows || remoteName',
       // Writes AGENTS.md into the workspace folder.
       [COMMAND_IDS.createRulesFile]: 'workspaceFolderCount > 0',
+      // Exports the conversation in front of the user (M30).
+      [COMMAND_IDS.exportConversation]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {

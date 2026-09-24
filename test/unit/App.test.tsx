@@ -643,6 +643,16 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')
     expect(postMessage).toHaveBeenCalledWith({ type: 'compact' })
+    run('/export')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
+    // The CLI's own rows (M30) need the Muse Code backend.
+    deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
+    run('Export session log')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'sessionLog' })
+    run('Manage skills')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'manageSkills' })
+    run('Import skills')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'importSkills' })
     run('Report an issue')
     expect(postMessage).toHaveBeenCalledWith({
       type: 'openExternal',

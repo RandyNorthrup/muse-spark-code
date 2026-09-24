@@ -31,6 +31,9 @@ export const COMMAND_IDS = {
   openInTerminal: 'museSpark.openInTerminal',
   createRulesFile: 'museSpark.createRulesFile',
   openWalkthrough: 'museSpark.openWalkthrough',
+  manageSkills: 'museSpark.manageSkills',
+  importSkills: 'museSpark.importSkills',
+  exportConversation: 'museSpark.exportConversation',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -433,6 +436,8 @@ export const GLOB_MAX_ALTERNATIVES = 256
 // Protected writes (D24): paths that configure or run code outside the edit
 // itself ask for approval in every mode but Bypass, whatever the session
 // rules say. Lower case; compared case-insensitively, anywhere in the path.
+// `.muse` holds `hooks.json`, whose commands Muse Code runs outside its
+// sandbox and approval (M29, D30).
 export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
   ['.git'],
   ['.husky'],
@@ -441,6 +446,7 @@ export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
   ['.devcontainer'],
   ['.github', 'workflows'],
   ['.agents'],
+  ['.muse'],
 ]
 export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
   'agents.md',
@@ -785,6 +791,27 @@ export const MUSE_TERMINAL_NAME = 'Muse Code'
 // `Muse Spark: Create AGENTS.md` runs the CLI's own scaffold (no model call).
 export const MUSE_INIT_ARGS = ['init'] as const
 export const MUSE_INIT_TIMEOUT_MS = 30 * 1000
+// The CLI's skill commands (M30, D30): local files only, no model call.
+export const MUSE_SKILLS_TIMEOUT_MS = 30 * 1000
+/** Where `muse skills import --from` can read skills (Claude Code, Codex). */
+export const SKILL_IMPORT_SOURCES = ['claude', 'codex'] as const
+export type SkillImportSource = (typeof SKILL_IMPORT_SOURCES)[number]
+/** Muse Code's bundled skills that continue another agent's session (M30). */
+export const RESUME_SKILL_SELECTORS: Readonly<Record<SkillImportSource, string>> = {
+  claude: 'resume-claude',
+  codex: 'resume-codex',
+}
+// `muse export --session <id> --out <file>` reads the local session log only.
+export const MUSE_EXPORT_TIMEOUT_MS = 60 * 1000
+/** "Export conversation…": readable Markdown, or Muse Code's JSON session log (M30). */
+export const EXPORT_FORMATS = ['markdown', 'sessionLog'] as const
+export type ExportFormat = (typeof EXPORT_FORMATS)[number]
+export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
+  markdown: 'md',
+  sessionLog: 'json',
+}
+// An unnamed conversation's export takes its title from the first prompt, cut here.
+export const EXPORT_TITLE_MAX_CHARS = 60
 // How long the browser sign-in may take before the extension stops watching
 // for the credential file, and how often it looks.
 export const CREDENTIAL_POLL_INTERVAL_MS = 2000
@@ -964,6 +991,52 @@ export const UI_TEXT = {
   signOutItem: 'Sign out',
   skillsLoading: 'Start a conversation to load skills',
   skillsEmpty: 'No skills available in this workspace',
+  // Skills, imports and export (M30, D30).
+  manageSkillsItem: 'Manage skills…',
+  manageSkillsDetail: 'Turn Muse Code’s skills on or off',
+  importSkillsItem: 'Import skills…',
+  importSkillsDetail: 'Copy your Claude Code or Codex skills into Muse Code',
+  continueClaudeItem: 'Continue a Claude Code session',
+  continueCodexItem: 'Continue a Codex session',
+  continueDetail: 'Pick up unfinished work in this conversation',
+  exportItem: '/export',
+  exportDetail: 'Save this conversation as a Markdown file',
+  exportLogItem: 'Export session log…',
+  exportLogDetail: 'Muse Code’s full JSON record of this conversation',
+  skillsCliMissing: 'Managing skills needs the Muse Code CLI, which is not installed.',
+  skillsListFailed: 'Muse Code could not list its skills',
+  skillsPickTitle: 'Muse Code skills',
+  skillsPickPlaceholder: 'Checked skills are on; uncheck one to turn it off',
+  skillsUnchanged: 'No skills changed.',
+  skillsChanged: 'Skills updated',
+  skillsChangeFailed: 'Muse Code could not change',
+  skillsRestartPrompt:
+    'Muse Code loads skill changes when it starts. Restart it now? A reply that is running stops.',
+  restartNow: 'Restart now',
+  restartLater: 'Later',
+  restartedNotice:
+    'Muse Code restarted with the new skills; your next message continues the conversation.',
+  importSourceTitle: 'Import skills from',
+  importSourceClaude: 'Claude Code',
+  importSourceCodex: 'Codex',
+  importNothing: 'No skills to import from',
+  importConfirm: 'Import these skills into your Muse Code skills?',
+  importConfirmAction: 'Import',
+  importInvalid: 'not valid, will be skipped',
+  importFailed: 'Muse Code could not import skills',
+  importDone: 'Imported',
+  importSkipped: 'skipped',
+  importQuarantined: 'quarantined',
+  importFailedCount: 'failed',
+  exportNothing: 'There is no conversation to export yet.',
+  exportFailed: 'The conversation could not be exported',
+  exportSaved: 'Conversation exported to',
+  exportLogUnavailable:
+    'The session log comes from the Muse Code CLI, which this conversation does not use.',
+  exportLogLocalOnly: 'Muse Code writes the session log itself, so pick a folder on this machine.',
+  exportCliMissing: 'Exporting the session log needs the Muse Code CLI, which is not installed.',
+  exportOpen: 'Open',
+  exportDefaultTitle: 'Muse conversation',
   compactItem: '/compact',
   compactDetail: 'Summarise older context to free the window',
   clearItem: '/clear',

@@ -6,10 +6,14 @@
 
 import {
   type EffortLevel,
+  type ExportFormat,
   ISSUES_URL,
   MUSE_DOCS_URL,
   PERMISSION_MODE_LABELS,
   type PermissionMode,
+  RESUME_SKILL_SELECTORS,
+  SKILL_IMPORT_SOURCES,
+  type SkillImportSource,
   UI_TEXT,
 } from './constants'
 import { effortLabel, effortLevelsFor } from './effort'
@@ -43,6 +47,9 @@ export type PaletteAction =
   | { readonly type: 'signOut' }
   | { readonly type: 'insertSkill'; readonly selector: string }
   | { readonly type: 'compact' }
+  | { readonly type: 'manageSkills' }
+  | { readonly type: 'importSkills' }
+  | { readonly type: 'exportConversation'; readonly format: ExportFormat }
   | { readonly type: 'openLog' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'none' }
@@ -122,6 +129,69 @@ function usageValue(usage: UsageTotals | undefined): string {
     : `${formatTokenWindow(usage.inputTokens)} in · ${formatTokenWindow(usage.outputTokens)} out`
 }
 
+const CONTINUE_LABELS: Readonly<Record<SkillImportSource, string>> = {
+  claude: UI_TEXT.continueClaudeItem,
+  codex: UI_TEXT.continueCodexItem,
+}
+
+/** Muse Code's bundled `resume-claude` / `resume-codex`, where the session lists them (M30). */
+function continueItems(skills: readonly SkillOption[] | undefined): readonly PaletteItem[] {
+  return SKILL_IMPORT_SOURCES.flatMap((source) => {
+    const selector = RESUME_SKILL_SELECTORS[source]
+    return skills?.some((skill) => skill.selector === selector) === true
+      ? [
+          {
+            id: `continue:${source}`,
+            label: CONTINUE_LABELS[source],
+            detail: UI_TEXT.continueDetail,
+            action: { type: 'insertSkill', selector } as const,
+          },
+        ]
+      : []
+  })
+}
+
+/** The CLI's skill commands (M30); the Model API backend reads skill files itself (M10). */
+function skillManagementItems(backend: BackendKind | undefined): readonly PaletteItem[] {
+  return backend === 'museCode'
+    ? [
+        {
+          id: 'manageSkills',
+          label: UI_TEXT.manageSkillsItem,
+          detail: UI_TEXT.manageSkillsDetail,
+          action: { type: 'manageSkills' },
+        },
+        {
+          id: 'importSkills',
+          label: UI_TEXT.importSkillsItem,
+          detail: UI_TEXT.importSkillsDetail,
+          action: { type: 'importSkills' },
+        },
+      ]
+    : []
+}
+
+/** "/export" on both backends; Muse Code's own JSON log where it runs (M30). */
+function exportItems(backend: BackendKind | undefined): readonly PaletteItem[] {
+  const markdown: PaletteItem = {
+    id: 'export',
+    label: UI_TEXT.exportItem,
+    detail: UI_TEXT.exportDetail,
+    action: { type: 'exportConversation', format: 'markdown' },
+  }
+  return backend === 'museCode'
+    ? [
+        markdown,
+        {
+          id: 'exportLog',
+          label: UI_TEXT.exportLogItem,
+          detail: UI_TEXT.exportLogDetail,
+          action: { type: 'exportConversation', format: 'sessionLog' },
+        },
+      ]
+    : [markdown]
+}
+
 function skillItems(skills: readonly SkillOption[] | undefined): readonly PaletteItem[] {
   if (skills === undefined) {
     return [
@@ -169,6 +239,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           detail: UI_TEXT.resumeDetail,
           action: { type: 'openHistory' },
         },
+        ...continueItems(context.skills),
       ],
     },
     {
@@ -256,7 +327,11 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         { id: 'signOut', label: UI_TEXT.signOutItem, action: { type: 'signOut' } },
       ],
     },
-    { id: 'skills', title: UI_TEXT.groupSkills, items: skillItems(context.skills) },
+    {
+      id: 'skills',
+      title: UI_TEXT.groupSkills,
+      items: [...skillManagementItems(context.backend), ...skillItems(context.skills)],
+    },
     {
       id: 'slash',
       title: UI_TEXT.groupSlashCommands,
@@ -273,6 +348,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           detail: UI_TEXT.compactDetail,
           action: { type: 'compact' },
         },
+        ...exportItems(context.backend),
         {
           id: 'clearCommand',
           label: UI_TEXT.clearItem,

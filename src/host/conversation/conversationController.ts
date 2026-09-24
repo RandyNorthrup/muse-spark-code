@@ -38,6 +38,7 @@ import {
   DEFAULT_MODEL_ID,
   type DictationAction,
   type EffortLevel,
+  type ExportFormat,
   IDE_MCP_SERVER_NAME,
   IMAGE_EXTENSIONS,
   MENTION_RESULT_LIMIT,
@@ -75,6 +76,7 @@ import type { ReviewNotice } from '../editor/editReview'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
 import type { DictationSetup } from '../voice/dictationHost'
+import { type ConversationExports, exportConversation } from './exportConversation'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -217,6 +219,8 @@ export interface ConversationDeps {
   readonly isRestorable: boolean
   /** Voice dictation (M9): the platform's helper, or why there is none. */
   readonly dictation: DictationSetup
+  /** "Export conversation…" (M30): the save dialog, the write, Muse Code's own log. */
+  readonly exports: ConversationExports
   readonly now: () => number
   readonly log: Logger
 }
@@ -1766,6 +1770,30 @@ export class ConversationController {
     }
   }
 
+  /** "Export conversation…" (M30): nothing to export before the first message. */
+  private async exportConversation(format: ExportFormat): Promise<void> {
+    const { session } = this
+    if (session === undefined) {
+      this.notice('info', UI_TEXT.exportNothing)
+      return
+    }
+    try {
+      const host = await this.deps.ensureHost()
+      const outcome = await exportConversation(
+        host,
+        session,
+        format,
+        new Date(this.deps.now()),
+        this.deps.exports,
+      )
+      if (outcome === 'logUnavailable') {
+        this.notice('warning', UI_TEXT.exportLogUnavailable)
+      }
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`)
+    }
+  }
+
   /** The Agent map asked for a subagent's own transcript (M14). */
   private async readChildSession(sessionId: string): Promise<void> {
     try {
@@ -1990,6 +2018,10 @@ export class ConversationController {
       }
       case 'compact': {
         await this.compact()
+        break
+      }
+      case 'exportConversation': {
+        await this.exportConversation(message.format)
         break
       }
       case 'listSkills': {

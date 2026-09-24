@@ -854,6 +854,74 @@ for each row: `docs/certification/m26.md`.
 | `VSCE_PAT` scope                           | Job-level env beside install scripts                                               | `verify` job, flag only, one step after `--ignore-scripts`                                                                                                                        |
 | PS 5.1 `PSModulePath`; stdin EPIPE         | Both true                                                                          | Shared reset helpers; error listener and no writes after exit                                                                                                                     |
 
+### D30 — What we can build now, and Remote Control (2026-09-24)
+
+The owner asked whether Muse's connectors could give Claude Code's Remote
+Control (continue a local session from the web or a phone). Research,
+recorded privately in `temp/roadmap-2026-09-24.md` and
+`temp/meta-pipeline-report-2026-09-24.md`: Muse Code 1.3.0 has no remote
+surface (`muse serve --listen` answers "the unix-socket and websocket
+transports are deferred post-v1"), and Muse's connectors run on Meta's cloud
+VM against a public HTTPS endpoint, driven by the Muse agent rather than the
+user. **Owner rulings:** remote use must happen inside Meta's own apps, with
+no phone or web app of ours, so Remote Control waits for Meta
+(meta-models/muse-code-sdk#36, filed 2026-09-24 with the owner's go-ahead);
+then "fix the bugs you found and implement the able to do now stuff". The
+rows below are that list; each is a milestone in §6.
+
+**Owner ruling on paid features (2026-09-24):** "for the api extrase we
+could use the muse speach to text as well but any thing that costs needs to
+be opt in and loud so the user never inadvertently uses token spend without
+knowing". This supersedes the M9 rule of no API cost for speech-to-text, but
+only for a paid engine the user turns on; the free OS recognisers stay the
+default. The owner then answered two questions:
+
+- **Where:** paid voice is offered on the Model API backend only, so the
+  key is only ever spent on the key backend (D1 amendment, the billing
+  ruling).
+  - **The owner's reason:** "i dont think you can do api key and
+    subscription at the same time on the same account".
+  - **What Meta's Subscriptions page says (2026-09-24):** both can exist on
+    one account, but the subscription "applies to the Muse Code API key
+    that is automatically connected in the Muse Code CLI onboarding … for
+    use with Muse Code only. Any additional API keys you create … will be
+    billed through pay-as-you-go."
+  - **So the ruling stands on either reading:** the subscription can never
+    pay for Muse Voice, and any key the extension used would be
+    pay-as-you-go.
+  - **For later:** the subscription plans include voice mode and web search
+    inside Muse Code itself, the free path for the Muse Code backend if
+    Meta exposes them over MSP (watch item W4).
+- **Bypass:** paid calls ask even in Bypass, which skips file and command
+  prompts only, never a paid call.
+
+Every paid feature (M33, M34, M35) must therefore be:
+
+1. **Off by default**, with the price in its setting's description.
+2. **Confirmed when turned on**: one modal naming the price, whether it is
+   turned on from the panel or in settings (a declined confirmation turns
+   the setting back off).
+3. **Visibly on**: a badge in the composer footer names every paid feature
+   that is on, with its price in the tooltip.
+4. **Announced per use**: a paid call shows in the transcript as its own
+   row marked paid. Image generation asks before each image, in every mode.
+5. **Tallied**: the Account & usage dialog shows this window's count of each
+   paid call and its estimated cost at the published prices.
+
+| Item                                      | Finding                                                                                                                                                                                                                                                                                                                                       | Change                                                                                                                                                                                                                                                            |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.muse/` unprotected (M29, security)      | The Model API backend's protected writes (D24) cover `.git`, `.vscode`, `.agents` and others but not `.muse`; `.muse/hooks.json` binds commands Muse Code runs outside its sandbox and approval, so an agent on the key could plant a hook without asking                                                                                     | `.muse` joins the protected segments; tested in every mode                                                                                                                                                                                                        |
+| Skills on and off, imports (M30)          | `muse skills list --json` reports each skill's id, scope and activation; `enable` and `disable` take `--scope`; `muse skills import --from claude\|codex` has a `--dry-run --json` preview. MSP has none of these                                                                                                                             | "Manage skills…" (a checkbox list over the CLI) and "Import skills from Claude Code / Codex…" (preview, confirm, import), Muse Code backend                                                                                                                       |
+| Continuing Claude Code / Codex work (M30) | Muse Code bundles `resume-claude` and `resume-codex`                                                                                                                                                                                                                                                                                          | Palette rows that insert them, shown only when the session lists them                                                                                                                                                                                             |
+| Export (M30)                              | `muse export` writes the session's JSON trajectory, not a readable transcript; Claude Code's `/export` writes the conversation as text                                                                                                                                                                                                        | "Export conversation…" writes Markdown from the session's own history on both backends; on Muse Code, "Export session log (JSON)…" runs `muse export --session <id> --out <file>`                                                                                 |
+| MCP servers and hooks (M31)               | MSP has no MCP or hooks methods; settings live in `~/.config/muse/settings.json` (docs: `mcp_servers` with `transport`; the 1.3.0 binary's migrate skill: `mcpServers` with `type`, `mcp_servers` legacy, both keys at once or `required` beside `mode` drop every server). Hooks: `.muse/hooks.json`, a settings block, `managed_hooks_path` | Read-only views, in keeping with D17 (the extension never writes the CLI's settings): servers listed from either key with Sign in / Sign out (`muse mcp login\|logout` in a terminal) and Open settings; hook sources listed and opened, with the sandbox warning |
+| Worktrees (M32)                           | The CLI's `--worktree` is not on MSP                                                                                                                                                                                                                                                                                                          | "New worktree…" (`git worktree add` beside the repository, then open it in a new window) and "Remove worktree…"                                                                                                                                                   |
+| Web search (M33)                          | The Model API's Responses endpoint, which the key backend already uses, takes a `web_search` tool: $2.50 per 1,000 searches on top of tokens                                                                                                                                                                                                  | Opt-in and loud (the five rules above); searches shown as paid tool rows, cited sources as links                                                                                                                                                                  |
+| Image generation (M34)                    | `muse-image-1.0` at $0.01 per image through the Images API                                                                                                                                                                                                                                                                                    | A `generate_image` tool on the key backend, opt-in and loud, asking before each image in every mode (Bypass included) and writing the image into the workspace                                                                                                    |
+| Paid dictation (M35)                      | Muse Voice Transcribe at $0.18 per audio hour, streaming or file; the panel's helpers capture audio on the host machine today                                                                                                                                                                                                                 | An opt-in "Muse Voice" dictation engine on the Model API backend only, loud like the rest: the microphone shows it is paid while it is the engine, and each recording is tallied                                                                                  |
+| Session messaging (not built)             | `muse session-message list --json` answers `session_messaging_unavailable` on Windows; the docs exclude headless sessions, and every panel session is a `muse serve` session                                                                                                                                                                  | Not built: the panel's sessions can neither send nor receive. Revisit if Meta extends it to headless hosts                                                                                                                                                        |
+| Remote Control (waits on Meta)            | See above                                                                                                                                                                                                                                                                                                                                     | #36 upstream; nothing built here                                                                                                                                                                                                                                  |
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -2279,6 +2347,177 @@ asking.
   no signing change; the grants cover the helper alone, not VS Code or
   anything else it starts. The ad-hoc signature ties a grant to one build,
   so an update that changes the helper asks again.
+
+### M29 — `.muse/` is a protected path (D30)
+
+**Status 2026-09-24: built and certified** (`docs/certification/m29.md`);
+pull request from `features/m29-m30-skills-export`.
+
+- **Goal**: a write under `.muse/` on the Model API backend asks in every
+  mode but Bypass, like the other paths that configure code outside the
+  edit.
+- **Scope**: `PROTECTED_PATH_SEGMENTS` in `src/shared/constants.ts`; the
+  permissions tests; README (the protected list), CHANGELOG, this file.
+- **Acceptance**: a write to `.muse/hooks.json` and to `.muse/settings.json`
+  asks under Edit automatically and Auto, and a write to `muse/notes.md`
+  (no dot) does not; the test fails with the entry removed (proof); the
+  gate green. The Muse Code backend is the CLI's own policy: one short live
+  turn checks whether it asks before writing `.muse/hooks.json`, and an
+  upstream issue follows if it does not.
+- **Security**: tightens only.
+
+### M30 — Skills, imports and export (D30)
+
+**Status 2026-09-24: built and certified** (`docs/certification/m30.md`);
+pull request from `features/m29-m30-skills-export`.
+
+- **Goal**: manage Muse Code's skills and import Claude Code's or Codex's
+  from the panel, continue work from either agent, and export a
+  conversation.
+- **Scope**: a skills manager over `muse skills list|enable|disable --json`
+  (QuickPick with checkboxes, per-skill scope); an importer over
+  `muse skills import --from claude|codex` (dry run, confirmation with the
+  candidates, import, report); palette rows for `resume-claude` and
+  `resume-codex` when listed; a Markdown exporter from the session history
+  (both backends) and the JSON session log through `muse export`; commands,
+  palette rows, the protocol, constants, tests; README, CHANGELOG, this
+  file.
+- **Acceptance**: the CLI's JSON parsed with zod (an unexpected shape is an
+  error the user sees, not an empty list); enable/disable issued only for
+  changed rows, with the right scope; the import confirms before writing and
+  reports installed, skipped and failed candidates; the exported Markdown
+  holds every message, tool call and result in order; the Muse Code rows
+  hidden on the Model API backend and when the CLI is missing; unit tests
+  over fake CLI output; test-fire proofs; the gate green.
+- **Security**: the CLI is run by absolute path with an argument array and
+  no shell (D24), with `--workspace` and `--trust-workspace` only when VS
+  Code trusts the folder. Imports copy skills into the user's own skills
+  folder only after the user confirms the list. The export is written only
+  where the user chose in a save dialog.
+
+### M31 — MCP servers and hooks, read-only (D30)
+
+**Status 2026-09-24: planned.**
+
+- **Goal**: see which MCP servers and hooks Muse Code will load, sign in to
+  an OAuth server, and open the files that define them, without the
+  extension editing them (D17).
+- **Scope**: a tolerant reader for the settings file (`mcpServers` and
+  legacy `mcp_servers`, `type` or `transport`, url host or command name,
+  `mode`, `enabled`; a note when both keys are present, since Muse then
+  loads none); `muse mcp login|logout <name>` in a terminal; hook sources:
+  `.muse/hooks.json`, the settings `hooks` block, `managed_hooks_path`;
+  palette rows and commands; tests; README, CHANGELOG, this file.
+- **Acceptance**: every documented and legacy shape read; unreadable or
+  malformed files reported, never shown as "no servers"; the conflict note
+  when both keys exist; login and logout run in a terminal with the server
+  name quoted; unit tests; test-fire proofs; the gate green.
+- **Security**: read-only; secrets in `env` and `headers` are never shown
+  (names only), and URLs are reduced to scheme and host.
+
+### M32 — Worktrees (D30)
+
+**Status 2026-09-24: planned.**
+
+- **Goal**: start work on a separate branch without touching the current
+  checkout, as the CLI's `--worktree` does.
+- **Scope**: "New worktree…" (branch name, base ref, `git worktree add` into
+  `<repository>.worktrees/<name>` beside the repository, open in a new
+  window) and "Remove worktree…" (`git worktree list --porcelain`, the main
+  checkout excluded, `git worktree remove`, `--force` only after a second
+  confirmation naming the uncommitted changes); commands, palette rows,
+  tests; README, CHANGELOG, this file.
+- **Acceptance**: branch names validated with `git check-ref-format`; an
+  existing folder refused; git's own error shown when it fails; unit tests
+  over the git runner; an integration run against a real temporary
+  repository; test-fire proofs; the gate green.
+- **Security**: git by absolute path (D24), never in Restricted Mode;
+  paths passed as arguments.
+
+### M33 — Web search on the Model API backend (D30)
+
+**Status 2026-09-24: planned.**
+
+- **Goal**: let the key backend search the web, as Claude Code's WebSearch
+  tool does, at a cost the user has agreed to, loudly (D30's five rules).
+- **Scope**:
+  - `museSpark.modelApiWebSearch`, off by default, with the price in its
+    description.
+  - The shared paid-feature machinery M34 and M35 reuse: the confirmation
+    when the feature is turned on, the composer's paid badge, the Account &
+    usage tally, and a palette toggle.
+  - The `web_search` tool in the Responses request, and
+    `web_search_call.results` requested so the row can list its sources.
+  - `web_search_call` output items as paid tool rows, and `url_citation`
+    annotations as the reply's source links. The replayed text stays
+    unchanged.
+  - Tests; README, CHANGELOG, this file.
+- **Acceptance**:
+  - Off by default and absent from every request; on, exactly one tool
+    entry, and only on the Model API backend.
+  - Turning it on without the confirmation leaves it off.
+  - The badge and the tally follow the setting and the searches made.
+  - Rows and citations rendered from recorded SSE.
+  - Unit tests, test-fire proofs, the gate green.
+- **Security**: nothing new executes locally; the searches run at Meta.
+
+### M34 — Image generation on the Model API backend (D30)
+
+**Status 2026-09-24: planned.**
+
+- **Goal**: let the key backend create an image file when asked (icons,
+  mockups, diagrams), at $0.01 an image.
+- **Scope**:
+  - `museSpark.modelApiImageGeneration`, off by default, with the price in
+    its description, loud through M33's machinery.
+  - A `generate_image` tool (prompt, workspace path, size) calling
+    `POST /v1/images/generations` with `muse-image-1.0` and
+    `output_format: png`.
+  - An approval card before each call that names the price, in every mode,
+    Bypass included (owner ruling, D30).
+  - The image written through the confined write path.
+  - Tests; README, CHANGELOG, this file.
+- **Acceptance**:
+  - Off by default and absent from the tool list.
+  - Asked before every image in every mode.
+  - The path confined like any write, protected paths included.
+  - The response parsed with zod.
+  - The tally counts each image.
+  - Unit tests over a fake Images API, test-fire proofs, the gate green.
+- **Security**: the write goes through the same confinement as
+  `write_file`, and the call is billed to the user's key only after an
+  approval that names the cost.
+
+### M35 — Muse Voice dictation, paid and opt-in (D30)
+
+**Status 2026-09-24: planned.**
+
+- **Goal**: an optional dictation engine with Meta's own recogniser (Muse
+  Voice Transcribe, $0.18 per audio hour) on the Model API backend, loudly
+  opt-in. The free OS recognisers stay the default everywhere, and are the
+  only engine on the Muse Code backend (owner ruling, D30).
+- **Scope**:
+  - `museSpark.modelApiVoice`, off by default, with the price.
+  - Audio capture on the host machine without third-party code:
+    - **Windows:** the waveIn API through a compiled-once C# helper, as M27
+      compiles its job helper.
+    - **macOS:** AVAudioEngine in the existing Swift helper.
+    - **Linux:** `arecord` or `parec` when the system has one.
+  - Audio streamed to the realtime transcription endpoint with the key.
+  - The microphone shows the paid engine (label and tooltip with the
+    price), and each recording's length is tallied.
+  - Tests; README, PRIVACY, CHANGELOG, this file.
+- **Acceptance**:
+  - Off by default.
+  - Never used on the Muse Code backend.
+  - The OS engine is used whenever the paid one is off.
+  - Capture stops with the recording and the stream closes.
+  - The tally matches the seconds sent.
+  - Unit tests over a fake transcription endpoint; one short live check,
+    with its cost stated first.
+  - Test-fire proofs, the gate green.
+- **Security**: audio leaves the machine only while the paid engine records,
+  and only to Meta's endpoint with the user's key. PRIVACY.md says so.
 
 ## 7. Gates
 

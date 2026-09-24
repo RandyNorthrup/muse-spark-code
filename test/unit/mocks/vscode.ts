@@ -79,6 +79,17 @@ export const ViewColumn = {
 
 export const window = {
   createWebviewPanel: vi.fn<typeof vscode.window.createWebviewPanel>(),
+  // The pickers, dialogs and editors behind the CLI features (M30).
+  showQuickPick: vi.fn<typeof vscode.window.showQuickPick>(),
+  showInformationMessage: vi.fn<typeof vscode.window.showInformationMessage>(),
+  showErrorMessage: vi.fn<typeof vscode.window.showErrorMessage>(),
+  showSaveDialog: vi.fn<typeof vscode.window.showSaveDialog>(),
+  showTextDocument: vi.fn<typeof vscode.window.showTextDocument>(),
+}
+
+export const workspace = {
+  isTrusted: true,
+  fs: { writeFile: vi.fn<typeof vscode.workspace.fs.writeFile>() },
 }
 
 export const version = '0.0.0-test'

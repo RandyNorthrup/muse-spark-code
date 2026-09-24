@@ -721,6 +721,17 @@ export function App({
           closeOverlay()
           break
         }
+        case 'manageSkills':
+        case 'importSkills': {
+          postMessage({ type: 'hostAction', action: action.type })
+          closeOverlay()
+          break
+        }
+        case 'exportConversation': {
+          postMessage({ type: 'exportConversation', format: action.format })
+          closeOverlay()
+          break
+        }
         case 'openExternal': {
           postMessage({ type: 'openExternal', url: action.url })
           closeOverlay()

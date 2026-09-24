@@ -18,6 +18,7 @@ import {
   DICTATION_ACTIONS,
   DICTATION_UI_STATUSES,
   EFFORT_LEVELS,
+  EXPORT_FORMATS,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
   SUBAGENT_ACTIONS,
@@ -111,6 +112,9 @@ export const HOST_ACTIONS = [
   'reload',
   /** The Agent map's "open the Muse Code settings file" (M14). */
   'openMuseSettings',
+  /** The palette's "Manage skills…" and "Import skills…" (M30). */
+  'manageSkills',
+  'importSkills',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -203,6 +207,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('clearConversation') }),
   // "/compact": ask the host to summarise older context.
   z.object({ type: z.literal('compact') }),
+  // "/export" and "Export session log…" (M30): Markdown, or Muse Code's JSON log.
+  z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
   // The palette opened: (re)load the session's skills.
   z.object({ type: z.literal('listSkills') }),
   // @-mention menu: `requestId` lets the webview drop stale answers.

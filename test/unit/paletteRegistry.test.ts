@@ -37,6 +37,21 @@ describe('formatTokenWindow', () => {
   })
 })
 
+/** The Skills group's row ids on a backend (M30). */
+function skillIdsOn(backend: PaletteContext['backend']) {
+  return buildPalette({ ...context, backend })
+    .find((group) => group.id === 'skills')
+    ?.items.map((item) => item.id)
+}
+
+/** The export actions the slash group offers on a backend (M30). */
+function exportActionsOn(backend: PaletteContext['backend']) {
+  return buildPalette({ ...context, backend })
+    .find((group) => group.id === 'slash')
+    ?.items.filter((item) => item.action.type === 'exportConversation')
+    .map((item) => item.action)
+}
+
 function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
   return buildPalette({ ...base, backend })
     .find((group) => group.id === 'account')
@@ -97,6 +112,18 @@ describe('buildPalette', () => {
     const skills = buildPalette(context).find((group) => group.id === 'skills')
     expect(skills?.items).toEqual([
       {
+        id: 'manageSkills',
+        label: 'Manage skills…',
+        detail: 'Turn Muse Code’s skills on or off',
+        action: { type: 'manageSkills' },
+      },
+      {
+        id: 'importSkills',
+        label: 'Import skills…',
+        detail: 'Copy your Claude Code or Codex skills into Muse Code',
+        action: { type: 'importSkills' },
+      },
+      {
         id: 'skill:fix-bug',
         label: '/fix-bug',
         detail: 'Fixes a bug',
@@ -113,9 +140,9 @@ describe('buildPalette', () => {
 
   it('explains an unloaded or empty skill list with a disabled row', () => {
     const loading = buildPalette({ ...context, skills: undefined }).find((g) => g.id === 'skills')
-    expect(loading?.items[0]).toMatchObject({ isDisabled: true, action: { type: 'none' } })
+    expect(loading?.items.at(-1)).toMatchObject({ isDisabled: true, action: { type: 'none' } })
     const empty = buildPalette({ ...context, skills: [] }).find((g) => g.id === 'skills')
-    expect(empty?.items[0]).toMatchObject({
+    expect(empty?.items.at(-1)).toMatchObject({
       label: 'No skills available in this workspace',
       isDisabled: true,
     })
@@ -168,6 +195,8 @@ describe('buildPalette', () => {
     expect(slash?.items.map((item) => item.label)).toEqual([
       '/agents',
       '/compact',
+      '/export',
+      'Export session log…',
       '/clear',
       '/logout',
       '/usage',
@@ -178,6 +207,50 @@ describe('buildPalette', () => {
     expect(filterPalette(groups, '/cost').flatMap((group) => group.items.map((i) => i.id))).toEqual(
       ['costCommand'],
     )
+  })
+
+  it('offers skill management on Muse Code only, where the CLI owns skills (M30)', () => {
+    expect(skillIdsOn('museCode')?.slice(0, 2)).toEqual(['manageSkills', 'importSkills'])
+    expect(skillIdsOn('modelApi')).toEqual(['skill:fix-bug', 'skill:acme:deploy'])
+    expect(skillIdsOn(undefined)).toEqual(['skill:fix-bug', 'skill:acme:deploy'])
+  })
+
+  it('offers to continue Claude Code or Codex work where the session lists the skill (M30)', () => {
+    const contextRows = (skills: PaletteContext['skills']) =>
+      buildPalette({ ...context, skills })
+        .find((group) => group.id === 'context')
+        ?.items.filter((item) => item.id.startsWith('continue:'))
+    expect(contextRows(context.skills)).toEqual([])
+    expect(contextRows(undefined)).toEqual([])
+    const both = [
+      { selector: 'resume-codex', displayName: 'resume-codex', description: 'c' },
+      { selector: 'resume-claude', displayName: 'resume-claude', description: 'c' },
+    ]
+    expect(contextRows(both)).toEqual([
+      {
+        id: 'continue:claude',
+        label: 'Continue a Claude Code session',
+        detail: 'Pick up unfinished work in this conversation',
+        action: { type: 'insertSkill', selector: 'resume-claude' },
+      },
+      {
+        id: 'continue:codex',
+        label: 'Continue a Codex session',
+        detail: 'Pick up unfinished work in this conversation',
+        action: { type: 'insertSkill', selector: 'resume-codex' },
+      },
+    ])
+    expect(contextRows([both[0]!])?.map((item) => item.id)).toEqual(['continue:codex'])
+  })
+
+  it('exports Markdown on both backends and Muse Code’s session log on Muse Code (M30)', () => {
+    expect(exportActionsOn('museCode')).toEqual([
+      { type: 'exportConversation', format: 'markdown' },
+      { type: 'exportConversation', format: 'sessionLog' },
+    ])
+    expect(exportActionsOn('modelApi')).toEqual([
+      { type: 'exportConversation', format: 'markdown' },
+    ])
   })
 
   it('routes every enabled row to a real action', () => {
