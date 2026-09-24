@@ -19,7 +19,6 @@
     "--vscode-disabledForeground": "#7f7f7f",
     "--vscode-editor-background": "#ffffff",
     "--vscode-editorCursor-foreground": "#0f4a85",
-    "--vscode-editorLineNumber-foreground": "#292929",
     "--vscode-editorWidget-background": "#ffffff",
     "--vscode-editorWidget-border": "#0f4a85",
     "--vscode-editorWidget-foreground": "#292929",

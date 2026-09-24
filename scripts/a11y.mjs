@@ -31,6 +31,12 @@ const MAX_WORKERS = 6
 const OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 const RESULT = /<pre id="axe-result" hidden="">([\s\S]*?)<\/pre>/
 const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }
+// axe's reasons (messageKey) for a contrast it could not decide: the text is
+// covered, or it could not see the background behind it; or the content is
+// glyphs, not text.
+const CONTRAST_RULE = 'color-contrast'
+const UNSEEN_REASONS = new Set(['elmPartiallyObscured', 'elmPartiallyObscuring', 'bgOverlap'])
+const GLYPH_ONLY_REASON = 'nonBmp'
 const execFileAsync = promisify(execFile)
 const repoRoot = process.cwd()
 
@@ -63,6 +69,66 @@ async function scan(chrome, port, page, profileDir) {
   } catch (error) {
     return { error: String(error.message ?? error) }
   }
+}
+
+function elementCount(findings) {
+  return findings.reduce((sum, finding) => sum + finding.nodes.length, 0)
+}
+
+/**
+ * axe's undecided ("incomplete") results, sorted (the review of PR #18).
+ * Two kinds of contrast result are counted, not failed, because no tool
+ * decides them here: text axe could not see where it looked (covered by a
+ * menu or dialog the user opened, or scrolled out of the transcript's
+ * view; the same rows are checked where a scenario shows them), and
+ * glyph-only content. Everything else axe could not decide fails, as a
+ * violation does.
+ */
+function sortIncomplete(findings) {
+  const undecided = []
+  let unseen = 0
+  let glyphOnly = 0
+  for (const finding of findings) {
+    const nodes = finding.nodes.filter((node) => {
+      const isContrast = finding.id === CONTRAST_RULE && node.reasons.length > 0
+      if (isContrast && node.reasons.every((reason) => UNSEEN_REASONS.has(reason))) {
+        unseen += 1
+        return false
+      }
+      if (isContrast && node.reasons.every((reason) => reason === GLYPH_ONLY_REASON)) {
+        glyphOnly += 1
+        return false
+      }
+      return true
+    })
+    if (nodes.length > 0) {
+      undecided.push({ ...finding, nodes })
+    }
+  }
+  return { undecided, unseen, glyphOnly }
+}
+
+/** One of axe's result lists over every page, each finding with its page. */
+function findingsIn(results, list) {
+  return results.flatMap((result) =>
+    (result[list] ?? []).map((finding) => ({ ...finding, at: result })),
+  )
+}
+
+/** Prints findings grouped by rule, each element with its page; returns the groups. */
+function printByRule(prefix, findings) {
+  const byRule = Map.groupBy(findings, (finding) => finding.id)
+  for (const [rule, found] of byRule) {
+    const [first] = found
+    console.log(`\n${prefix}${rule} (${first.impact}): ${first.help}`)
+    for (const finding of found) {
+      for (const node of finding.nodes) {
+        console.log(`  ${finding.at.theme}/${finding.at.scenario}: ${node.target}`)
+        console.log(`    ${node.summary.replaceAll('\n', '\n    ')}`)
+      }
+    }
+  }
+  return byRule
 }
 
 async function main() {
@@ -107,20 +173,12 @@ async function main() {
     )
   }
   const failed = results.filter((result) => result.error !== undefined)
-  const findings = results.flatMap((result) =>
-    (result.violations ?? []).map((violation) => ({ ...violation, at: result })),
-  )
-  const byRule = Map.groupBy(findings, (finding) => finding.id)
-  for (const [rule, found] of byRule) {
-    const [first] = found
-    console.log(`\n${rule} (${first.impact}): ${first.help}`)
-    for (const finding of found) {
-      for (const node of finding.nodes) {
-        console.log(`  ${finding.at.theme}/${finding.at.scenario}: ${node.target}`)
-        console.log(`    ${node.summary.replaceAll('\n', '\n    ')}`)
-      }
-    }
-  }
+  const findings = findingsIn(results, 'violations')
+  const byRule = printByRule('', findings)
+  // What axe could not decide by itself fails too, except the contrast of
+  // text it could not see where it looked and of glyph-only content.
+  const { undecided, unseen, glyphOnly } = sortIncomplete(findingsIn(results, 'incomplete'))
+  const undecidedByRule = printByRule('undecided: ', undecided)
   for (const result of failed) {
     console.log(`\n${result.theme}/${result.scenario}: no result: ${result.error}`)
   }
@@ -136,11 +194,14 @@ async function main() {
       console.log(`  ${entry.at.theme}/${entry.at.scenario}: ${entry.target}`)
     }
   }
-  const nodes = findings.reduce((sum, finding) => sum + finding.nodes.length, 0)
   console.log(
-    `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
+    `\nNot measured, as axe cannot: the contrast of ${String(unseen)} elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of ${String(glyphOnly)} glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).`,
   )
-  if (byRule.size > 0 || failed.length > 0) {
+  const nodes = elementCount(findings)
+  console.log(
+    `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
+  )
+  if (byRule.size > 0 || undecidedByRule.size > 0 || failed.length > 0) {
     process.exitCode = 1
   }
 }

@@ -73,7 +73,7 @@ happened, not what was planned; superseded entries are kept.
     effort row is set with Left and Right, and History rows archive with
     Delete; the dots and the × remain for the mouse.
   - Question answers have 24 px rows, so each radio or checkbox is easy to
-    hit.
+    hit, and each effort dot in the Modes menu is a 24 px target.
 - **Rewind code to here** no longer skips an edit just because you added or
   removed lines above it since. The edit's own lines, matched exactly, are
   found where they moved to when they appear in exactly one place. An edit

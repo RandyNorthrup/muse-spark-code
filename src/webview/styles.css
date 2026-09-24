@@ -783,6 +783,20 @@ body {
   background: var(--vscode-button-background);
 }
 
+/* The Modes menu's dots are buttons: each is a 24 px target around the
+   same 12 px dot (WCAG 2.5.8; found by the accessibility gate once it read
+   axe's undecided results, the review of PR #18). */
+.effort-row .palette-slider {
+  gap: 0;
+}
+
+.effort-row .slider-step {
+  width: 24px;
+  height: 24px;
+  padding: 6px;
+  background-clip: content-box;
+}
+
 /* --- notices --- */
 
 .notice {

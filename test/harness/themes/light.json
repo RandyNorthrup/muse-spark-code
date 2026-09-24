@@ -22,7 +22,6 @@
     "--vscode-disabledForeground": "rgba(97, 97, 97, 0.5)",
     "--vscode-editor-background": "#ffffff",
     "--vscode-editorCursor-foreground": "#000000",
-    "--vscode-editorLineNumber-foreground": "#6e7681",
     "--vscode-editorWidget-background": "#f8f8f8",
     "--vscode-editorWidget-border": "rgba(59, 59, 59, 0.2)",
     "--vscode-editorWidget-foreground": "#3b3b3b",
