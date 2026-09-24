@@ -3,6 +3,13 @@
 // and are taken out, removed lines are put back). The match is exact; when the
 // file no longer carries the hunks' "new" side the caller is told so rather
 // than handed a guess. Pure; the host reads and writes the files.
+//
+// A hunk's lines are looked for where the edit left them first. When lines
+// were added or removed above them since (a hand edit, say), the same lines,
+// matched character for character, are looked for anywhere after the
+// previous hunk, and taken only where they occur exactly once (M36, PLAN.md
+// D31): `git apply`'s offset rule without its fuzz. Where they occur nowhere,
+// or in more than one place, the edit is refused with the reason.
 
 import { ADD_MARKER, type PatchHunk, REMOVE_MARKER } from '../shared/patchDocument'
 
@@ -46,6 +53,43 @@ function isMatchAt(lines: readonly string[], offset: number, expected: readonly 
   return expected.every((line, index) => lines[offset + index] === line)
 }
 
+type HunkPlace =
+  { readonly ok: true; readonly start: number } | { readonly ok: false; readonly reason: string }
+
+/**
+ * Where the hunk's "new" side is in `lines`, `predicted` being at or after
+ * `cursor`: at `predicted` when it is there, else at its one exact
+ * occurrence at or after `cursor`. A side with no lines (a deletion with no
+ * context) matches at `predicted` by definition, so it is never searched for.
+ */
+function placeOf(
+  lines: readonly string[],
+  expected: readonly string[],
+  predicted: number,
+  cursor: number,
+  hunkNumber: number,
+): HunkPlace {
+  if (isMatchAt(lines, predicted, expected)) {
+    return { ok: true, start: predicted }
+  }
+  const label = `hunk ${String(hunkNumber)}`
+  const found: number[] = []
+  for (let offset = cursor; offset + expected.length <= lines.length; offset += 1) {
+    if (isMatchAt(lines, offset, expected)) {
+      found.push(offset)
+    }
+  }
+  const [only] = found
+  if (only !== undefined && found.length === 1) {
+    return { ok: true, start: only }
+  }
+  const reason =
+    found.length === 0
+      ? `no longer matches the file at line ${String(predicted + 1)}, or anywhere else`
+      : `matches ${String(found.length)} places in the file, so which one is not certain`
+  return { ok: false, reason: `${label} ${reason}` }
+}
+
 /** A single hunk that adds every line of a file that had none: how Muse Code records a new file. */
 function isWholeFileAdd(hunks: readonly PatchHunk[]): boolean {
   return (
@@ -79,20 +123,24 @@ export function revertHunks(
   const lineBreak = lineBreakOf(currentText)
   const output: string[] = []
   let cursor = 0
+  // How far the file has moved since the edit, as the last hunk found showed:
+  // the next hunk is looked for that much further on first.
+  let shift = 0
   for (const [index, hunk] of hunks.entries()) {
     const expected = newSide(hunk)
-    const start = Math.max(hunk.newStart - 1, 0)
-    if (start < cursor) {
+    const recorded = Math.max(hunk.newStart - 1, 0)
+    // Hunks are stored in order and never overlap, so in a sound patch the
+    // next one cannot be expected before the previous one ends.
+    if (recorded + shift < cursor) {
       return { ok: false, reason: `hunk ${String(index + 1)} overlaps the previous one` }
     }
-    if (!isMatchAt(lines, start, expected)) {
-      return {
-        ok: false,
-        reason: `hunk ${String(index + 1)} no longer matches the file at line ${String(start + 1)}`,
-      }
+    const place = placeOf(lines, expected, recorded + shift, cursor, index + 1)
+    if (!place.ok) {
+      return place
     }
-    output.push(...lines.slice(cursor, start), ...oldSide(hunk))
-    cursor = start + expected.length
+    output.push(...lines.slice(cursor, place.start), ...oldSide(hunk))
+    cursor = place.start + expected.length
+    shift = place.start - recorded
   }
   output.push(...lines.slice(cursor))
   const isCreatedFile = (isCreated ?? isWholeFileAdd(hunks)) && output.length === 0

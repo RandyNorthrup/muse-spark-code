@@ -32,6 +32,12 @@ describe('createGitRunner (D24)', () => {
     })
   })
 
+  it('gives a call that does real work its own timeout (M32)', async () => {
+    const { run, calls } = runner({ PATH: '/usr/bin' }, new Set(['/usr/bin/git']))
+    await run(['worktree', 'add', '-b', 'x', '/w/x', 'HEAD'], '/ws', 300_000)
+    expect(calls[0]?.options.timeout).toBe(300_000)
+  })
+
   it('rejects without running anything when git is only reachable relatively', async () => {
     const { run, calls } = runner({ PATH: '.:bin' }, new Set(['bin/git', 'git']))
     await expect(run(['status'], '/ws')).rejects.toThrow(/not found/)

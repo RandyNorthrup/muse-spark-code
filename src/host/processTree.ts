@@ -23,6 +23,7 @@ import {
   setEnvironmentVariable,
   windowsPowerShellModulePath,
 } from '../core/backends/musecode/launch'
+import { powerShellQuoted } from '../core/shellQuote'
 import {
   ORPHAN_SWEEP_ROUNDS,
   PROCESS_TABLE_TIMEOUT_MS,
@@ -77,11 +78,6 @@ export function treeSpawnOptions(platform: NodeJS.Platform): { readonly detached
   // A new process group (and session) on POSIX; on Windows `detached` would
   // give the command a console of its own instead, so it stays attached.
   return { detached: platform !== 'win32' }
-}
-
-/** A PowerShell single-quoted string: nothing inside it is expanded. */
-export function powerShellQuoted(text: string): string {
-  return `'${text.replaceAll("'", "''")}'`
 }
 
 export const runProgram: RunProgram = (file, args, env) =>

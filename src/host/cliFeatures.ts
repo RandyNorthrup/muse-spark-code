@@ -1,19 +1,24 @@
-// The VS Code side of the CLI-backed features (M30, PLAN.md D30): the
-// pickers, dialogs and file writes behind "Manage skills…", "Import
-// skills…" and "Export conversation…". The flows themselves live in
-// commands/skillsCommands.ts and conversation/exportConversation.ts.
+// The VS Code side of the CLI-backed features (M30, M31, PLAN.md D30): the
+// pickers, dialogs, terminals and file writes behind "Manage skills…",
+// "Import skills…", "Export conversation…", "MCP servers…" and "Hooks…".
+// The flows themselves live in commands/skillsCommands.ts,
+// commands/museConfigCommands.ts and conversation/exportConversation.ts.
 
+import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import {
   EXPORT_FILE_EXTENSIONS,
   MUSE_EXPORT_TIMEOUT_MS,
+  MUSE_EXTENDING_DOCS_URL,
   MUSE_SKILLS_TIMEOUT_MS,
+  PROJECT_HOOKS_SEGMENTS,
   type SkillImportSource,
   UI_TEXT,
 } from '../shared/constants'
 import type { ProcessResult } from './backend/sandboxSetup'
+import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
 import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
 import type { ConversationExports } from './conversation/exportConversation'
 import type { Logger } from './logger'
@@ -24,8 +29,12 @@ export interface CliFeatureDeps {
     args: readonly string[],
     timeoutMs: number,
   ) => Promise<ProcessResult> | undefined
+  /** The CLI in a VS Code terminal the user watches; false when it is not installed. */
+  readonly runCliInTerminal: (args: readonly string[], terminalName: string) => boolean
+  /** Muse Code's settings file where `muse serve` reads it (`XDG_CONFIG_HOME` honoured). */
+  readonly museSettingsPath: () => string
   readonly workspaceRoot: string | undefined
-  /** Stops the hosts; the next message starts them with the new skills (D25). */
+  /** Stops the hosts; the next message starts them with the new settings (D25). */
   readonly restartBackend: () => Promise<void>
   readonly log: Logger
 }
@@ -33,7 +42,23 @@ export interface CliFeatureDeps {
 export interface CliFeatures {
   manageSkills(): Promise<void>
   importSkills(): Promise<void>
+  showMcpServers(): Promise<void>
+  showHooks(): Promise<void>
   readonly exports: ConversationExports
+}
+
+const NOT_FOUND = 'ENOENT'
+
+/** The file's text; undefined when there is none; throws on any other failure. */
+function readTextIfPresent(fsPath: string): string | undefined {
+  try {
+    return readFileSync(fsPath, 'utf8')
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === NOT_FOUND) {
+      return undefined
+    }
+    throw error
+  }
 }
 
 interface SourceChoice extends vscode.QuickPickItem {
@@ -78,12 +103,49 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
     restart: deps.restartBackend,
     log: deps.log,
   })
+  const configDeps = (): MuseConfigDeps => {
+    const settingsPath = deps.museSettingsPath()
+    return {
+      settingsPath,
+      readSettings: () => readTextIfPresent(settingsPath),
+      projectHooksPath:
+        deps.workspaceRoot === undefined
+          ? undefined
+          : path.join(deps.workspaceRoot, ...PROJECT_HOOKS_SEGMENTS),
+      fileExists: existsSync,
+      isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+      pick: async (items, title, placeholder) => {
+        const choice = await vscode.window.showQuickPick(
+          items.map((item) => ({ ...item })),
+          { title, placeHolder: placeholder, matchOnDescription: true, matchOnDetail: true },
+        )
+        return choice?.id
+      },
+      openFile: async (fsPath) => {
+        await vscode.window.showTextDocument(vscode.Uri.file(fsPath), { preview: false })
+      },
+      openDocs: () => {
+        void vscode.env.openExternal(vscode.Uri.parse(MUSE_EXTENDING_DOCS_URL))
+      },
+      runMcpCommand: (action, server) =>
+        deps.runCliInTerminal(['mcp', action, server], UI_TEXT.mcpTerminalName),
+      restart: deps.restartBackend,
+      showInformation: (message) => {
+        void vscode.window.showInformationMessage(message)
+      },
+      showWarning: (message) => {
+        void vscode.window.showWarningMessage(message)
+      },
+    }
+  }
   const saveTarget = (fileName: string, filterName: string, extension: string) =>
     vscode.window.showSaveDialog({
       defaultUri: vscode.Uri.file(path.join(deps.workspaceRoot ?? homedir(), fileName)),
       filters: { [filterName]: [extension] },
     })
   return {
+    showMcpServers: () => showMcpServers(configDeps()),
+    showHooks: () => showHooks(configDeps()),
     manageSkills: () =>
       manageSkills({
         ...skillsDeps(),

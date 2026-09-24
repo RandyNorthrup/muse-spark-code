@@ -5,7 +5,9 @@
 // and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never takes the
 // index lock out from under the user's own git.
 
-import type { ExecFileOptions } from 'node:child_process'
+import { type ExecFileOptions, execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { promisify } from 'node:util'
 import { resolveExecutable } from '../core/executables'
 import { environmentValue } from '../core/backends/musecode/launch'
 import { GIT_OUTPUT_MAX_BYTES, GIT_TIMEOUT_MS } from '../shared/constants'
@@ -25,10 +27,13 @@ export interface GitRunnerDeps {
   ) => Promise<string>
 }
 
-/** A git runner; rejects when git is not on the absolute PATH. */
+/**
+ * A git runner; rejects when git is not on the absolute PATH. A call that
+ * does real work (a worktree's checkout, M32) passes its own timeout.
+ */
 export function createGitRunner(
   deps: GitRunnerDeps,
-): (args: readonly string[], cwd: string) => Promise<string> {
+): (args: readonly string[], cwd: string, timeoutMs?: number) => Promise<string> {
   const env: NodeJS.ProcessEnv = {
     ...deps.env,
     GIT_OPTIONAL_LOCKS: '0',
@@ -49,7 +54,7 @@ export function createGitRunner(
     }
     return cache?.git
   }
-  return async (args, cwd) => {
+  return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS) => {
     const git = gitPath()
     if (git === undefined) {
       throw new Error('git was not found on the absolute entries of PATH')
@@ -58,8 +63,30 @@ export function createGitRunner(
       cwd,
       env,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
-      timeout: GIT_TIMEOUT_MS,
+      timeout: timeoutMs,
       windowsHide: true,
     })
   }
+}
+
+const execFileAsync = promisify(execFile)
+
+/**
+ * The runner over this process's own environment and Node's `execFile`: the
+ * one the extension uses, and the one tests use to drive real git (M32).
+ */
+export function processGitRunner(): (
+  args: readonly string[],
+  cwd: string,
+  timeoutMs?: number,
+) => Promise<string> {
+  return createGitRunner({
+    platform: process.platform,
+    env: process.env,
+    fileExists: existsSync,
+    execFile: async (file, args, options) => {
+      const { stdout } = await execFileAsync(file, [...args], { ...options, encoding: 'utf8' })
+      return stdout
+    },
+  })
 }

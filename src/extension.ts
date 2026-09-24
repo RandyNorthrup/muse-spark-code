@@ -2,10 +2,9 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
@@ -13,6 +12,7 @@ import { environmentValue } from './core/backends/musecode/launch'
 import { selectBackend } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { isSamePath } from './core/paths'
+import { terminalArgument } from './core/shellQuote'
 import { renderSupportReport } from './core/support/report'
 import type { CliInvocation } from './core/backends/musecode/sandbox'
 import { type DiagnosticEntry, type DiagnosticSeverity, diagnosticsTool } from './core/diagnostics'
@@ -52,7 +52,8 @@ import {
 } from './host/conversation/conversationController'
 import { canonicalPath } from './host/canonicalPath'
 import { createCliFeatures } from './host/cliFeatures'
-import { createGitRunner } from './host/git'
+import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { processGitRunner } from './host/git'
 import { createLogger, type Logger } from './host/logger'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
@@ -118,7 +119,6 @@ const lastSessionSchema = z.object({ sessionId: z.string(), at: z.number() })
 const QUICK_PICK_LIMIT = 50
 // A document on disk (not an untitled buffer, an output tab or a diff side).
 const FILE_SCHEME = 'file'
-const execFileAsync = promisify(execFile)
 
 function activeSelection(): MentionSource | undefined {
   const editor = vscode.window.activeTextEditor
@@ -222,10 +222,6 @@ function modifiedAt(fsPath: string): number | undefined {
   }
 }
 
-function quoteForShell(value: string): string {
-  return `"${value.replaceAll('"', String.raw`\"`)}"`
-}
-
 /**
  * Runs the CLI where the user can see and interact with it. The terminal's
  * shell is pinned so the call syntax is known (PLAN.md D25): Windows
@@ -249,7 +245,12 @@ function runInTerminal(
     ...(shellPath !== undefined && { shellPath }),
   })
   terminal.show(true)
-  const invocation = `${quoteForShell(cliPath)} ${args.join(' ')}`
+  // The path and each argument single-quoted for the pinned shell (M31):
+  // nothing in them is expanded, and an MCP server's name, which comes
+  // from the user's settings, stays one argument whatever it holds.
+  const invocation = [cliPath, ...args]
+    .map((part) => terminalArgument(part, process.platform))
+    .join(' ')
   terminal.sendText(isWindows ? `& ${invocation}` : invocation)
 }
 
@@ -299,15 +300,7 @@ function findWorkspaceFiles(): Promise<readonly string[]> {
 }
 
 // git by absolute path, with a timeout and no optional locks (PLAN.md D24).
-const runGit = createGitRunner({
-  platform: process.platform,
-  env: process.env,
-  fileExists: existsSync,
-  execFile: async (file, args, options) => {
-    const { stdout } = await execFileAsync(file, [...args], { ...options, encoding: 'utf8' })
-    return stdout
-  },
-})
+const runGit = processGitRunner()
 
 // A failed spawn or a timeout kill has no exit code; report it as negative so
 // the caller can tell "the CLI said no" from "the CLI never ran".
@@ -463,10 +456,22 @@ export function activate(context: vscode.ExtensionContext): void {
           )
         : undefined
     },
+    // `muse mcp login|logout` (M31): the CLI's own launcher in a terminal,
+    // where its browser sign-in and prompts are seen.
+    runCliInTerminal: (args, terminalName) => {
+      const resolution = backend.resolveLaunch()
+      if (!resolution.ok) {
+        return false
+      }
+      runInTerminal(resolution.launch.cliPath, args, { name: terminalName, cwd: workspaceRoot })
+      return true
+    },
+    museSettingsPath: () => museSettingsPath(museConfig()),
     workspaceRoot,
     restartBackend: () => restartBackend(),
     log,
   })
+  const worktrees = createWorktreeFeatures({ workspaceRoot, runGit, log })
   const sandbox = new SandboxSetup({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
@@ -833,6 +838,22 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       case 'importSkills': {
         await cliFeatures.importSkills()
+        break
+      }
+      case 'showMcpServers': {
+        await cliFeatures.showMcpServers()
+        break
+      }
+      case 'showHooks': {
+        await cliFeatures.showHooks()
+        break
+      }
+      case 'newWorktree': {
+        await worktrees.newWorktree()
+        break
+      }
+      case 'removeWorktree': {
+        await worktrees.removeWorktree()
         break
       }
     }
@@ -1268,6 +1289,10 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand(COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
     vscode.commands.registerCommand(COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
+    vscode.commands.registerCommand(COMMAND_IDS.mcpServers, () => cliFeatures.showMcpServers()),
+    vscode.commands.registerCommand(COMMAND_IDS.hooks, () => cliFeatures.showHooks()),
+    vscode.commands.registerCommand(COMMAND_IDS.newWorktree, () => worktrees.newWorktree()),
+    vscode.commands.registerCommand(COMMAND_IDS.removeWorktree, () => worktrees.removeWorktree()),
     vscode.commands.registerCommand(COMMAND_IDS.exportConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {

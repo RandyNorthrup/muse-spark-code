@@ -197,6 +197,46 @@ the repository's own config, which can name programs to run): `@` mentions
 come from VS Code's file search and the prompt carries no git facts. Trust
 the workspace to enable them.
 
+**MCP servers and hooks (CLI backend).** Muse Code reads both from its own
+settings file (`~/.config/muse/settings.json`, or under `XDG_CONFIG_HOME`),
+and project hooks from `.muse/hooks.json`. The extension shows them and
+never edits them:
+
+- **MCP servers…** lists each server:
+  - Its transport, where it points (a URL is cut to its scheme and host),
+    and whether Muse Code stops when it fails ("required") or skips it.
+  - The _names_ of its environment variables and headers. The values stay
+    in the file.
+  - A remote server can be signed in to or out of. That runs
+    `muse mcp login` or `muse mcp logout` in a terminal, with the server's
+    name quoted.
+- **Loud warnings** for the two settings mistakes that make Muse Code load
+  no server at all: both `mcpServers` and the older `mcp_servers` in one
+  file, or `required` beside `mode` on a server.
+- **Hooks…** lists the project's, yours and your administrator's hooks, and
+  opens the file behind each. A hook runs through your shell outside Muse
+  Code's sandbox and approvals, so read a repository's hooks before you
+  trust its folder.
+- **Restart Muse Code to load changes** is there because Muse Code reads
+  these files when it starts.
+
+**Worktrees.** **New worktree…** starts a branch in a folder of its own and
+opens it in a new window, so a conversation there leaves your checkout
+alone:
+
+- **Where it goes:** `<repository>.worktrees/<branch>`, beside the
+  repository, so the second copy never lands inside your workspace.
+- **Naming:** git checks the branch name, and a branch that already exists
+  is refused.
+- **Base:** you pick the commit it starts from, the current one or any
+  local branch.
+
+**Remove a worktree…** lists the others (never the main checkout or the
+window you are in) and deletes the chosen folder. Its branch stays. A
+worktree with uncommitted changes is removed only after a second
+confirmation that says the changes will be lost. Both commands need a
+trusted workspace, since git does not run in Restricted Mode.
+
 **Permission modes in detail.** On the Model API backend Manual asks before
 every edit and every command; Edit automatically approves plain file edits
 and asks before commands; Auto runs edits and asks before commands (there is
@@ -215,10 +255,11 @@ including through a symbolic link or junction inside it.
 **Composer.** `Enter` sends, `Shift+Enter` breaks a line (or send with
 `Ctrl+Enter` through a setting); the box grows with your draft up to ten
 rows and scrolls inside past that. `/` on an empty draft opens the palette:
-Context (attach, mention, clear, resume, and on the CLI backend "Continue
-a Claude Code session" and "Continue a Codex session", Muse Code's own
-`resume-claude` and `resume-codex` skills), Model (switch model, effort,
-thinking), Customize (permission mode, Focus view, settings, keybindings),
+Context (attach, mention, clear, resume, new and remove worktree, and on
+the CLI backend "Continue a Claude Code session" and "Continue a Codex
+session", Muse Code's own `resume-claude` and `resume-codex` skills), Model
+(switch model, effort, thinking), Customize (permission mode, Focus view,
+MCP servers and hooks on the CLI backend, settings, keybindings),
 Account & usage, Skills (the session's own, plus Manage and Import on the
 CLI backend), slash commands (`/compact`, `/export`, `/clear`, `/logout`,
 `/usage`, `/cost`, `/agents`) and Support. `/export` saves the
@@ -275,8 +316,13 @@ here**, **Rewind code to here** (reverts every edit made after that message,
 the conversation's and its subagents', in the reverse of the order they
 landed; a file the edit created goes to the trash, unless you have added to
 it since, in which case your lines stay) and **Fork conversation and rewind
-code**. An edit whose file changed since is left alone and says so, rather
-than guess. A file's BOM and line breaks survive both.
+code**. Each edit is undone only where its own lines (the changed lines and
+the few around them) are still exactly as the edit left them. If you added
+or removed lines above them since, they are found where they moved to, as
+long as they appear in exactly one place. An edit whose lines you changed,
+or that could match more than one place, is left alone and says why,
+rather than guessed at; your other changes to the file are kept. A file's
+BOM and line breaks survive both.
 
 **Unsaved editors.** Muse reads and edits the files on disk. With
 `museSpark.autosave` on (the default) every message saves your editors
@@ -411,14 +457,18 @@ device is available", and step markers on stderr name where a start failed.
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                   |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                     |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                           |
+| Muse Spark: MCP Servers                             | —                                                                                    | Show the MCP servers Muse Code will load, sign in to or out of a remote one, open the settings file                                                       |
+| Muse Spark: Hooks                                   | —                                                                                    | Show where Muse Code's hooks come from (project, yours, managed) and open each file                                                                       |
+| Muse Spark: New Worktree…                           | —                                                                                    | Start a branch in its own folder beside the repository and open it in a new window                                                                        |
+| Muse Spark: Remove Worktree…                        | —                                                                                    | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                   |
 | (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                           |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Five commands appear in the
+which is why its two shortcuts add `Alt`. Seven commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
 open, Toggle Thinking and Export Conversation with a Muse panel in view,
 Set Up Shell Sandbox on Windows (or in a remote window), Create AGENTS.md
-with a folder open.
+and the two worktree commands with a folder open.
 
 ## Settings
 

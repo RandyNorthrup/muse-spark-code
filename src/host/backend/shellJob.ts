@@ -22,13 +22,8 @@ import {
   SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
-import {
-  powerShellQuoted,
-  type RunProgram,
-  runProgram,
-  type ShellJob,
-  windowsPowerShell,
-} from '../processTree'
+import { powerShellQuoted } from '../../core/shellQuote'
+import { type RunProgram, runProgram, type ShellJob, windowsPowerShell } from '../processTree'
 
 // C# 5, which Windows PowerShell 5.1's `Add-Type` compiles. The shell keeps
 // its handle for its whole life: a job's name lasts as long as a handle to

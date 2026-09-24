@@ -49,6 +49,10 @@ export type PaletteAction =
   | { readonly type: 'compact' }
   | { readonly type: 'manageSkills' }
   | { readonly type: 'importSkills' }
+  | { readonly type: 'showMcpServers' }
+  | { readonly type: 'showHooks' }
+  | { readonly type: 'newWorktree' }
+  | { readonly type: 'removeWorktree' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
   | { readonly type: 'openLog' }
   | { readonly type: 'openExternal'; readonly url: string }
@@ -171,6 +175,26 @@ function skillManagementItems(backend: BackendKind | undefined): readonly Palett
     : []
 }
 
+/** What Muse Code loads from its own settings (M31); the Model API backend loads neither. */
+function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem[] {
+  return backend === 'museCode'
+    ? [
+        {
+          id: 'mcpServers',
+          label: UI_TEXT.mcpItem,
+          detail: UI_TEXT.mcpItemDetail,
+          action: { type: 'showMcpServers' },
+        },
+        {
+          id: 'hooks',
+          label: UI_TEXT.hooksItem,
+          detail: UI_TEXT.hooksItemDetail,
+          action: { type: 'showHooks' },
+        },
+      ]
+    : []
+}
+
 /** "/export" on both backends; Muse Code's own JSON log where it runs (M30). */
 function exportItems(backend: BackendKind | undefined): readonly PaletteItem[] {
   const markdown: PaletteItem = {
@@ -240,6 +264,19 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'openHistory' },
         },
         ...continueItems(context.skills),
+        // git worktrees (M32): the same on both backends.
+        {
+          id: 'newWorktree',
+          label: UI_TEXT.newWorktreeItem,
+          detail: UI_TEXT.newWorktreeDetail,
+          action: { type: 'newWorktree' },
+        },
+        {
+          id: 'removeWorktree',
+          label: UI_TEXT.removeWorktreeItem,
+          detail: UI_TEXT.removeWorktreeDetail,
+          action: { type: 'removeWorktree' },
+        },
       ],
     },
     {
@@ -293,6 +330,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           widget: { kind: 'toggle', isOn: context.useCtrlEnterToSend },
           action: { type: 'toggleCtrlEnterToSend' },
         },
+        ...museConfigItems(context.backend),
         { id: 'settings', label: UI_TEXT.openSettings, action: { type: 'openSettings' } },
         { id: 'keybindings', label: UI_TEXT.openKeybindings, action: { type: 'openKeybindings' } },
       ],
