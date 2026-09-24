@@ -40,3 +40,4 @@ The PNGs beside the records are that day's harness renders.
   the context rows in [m24-context.md](m24-context.md)
 - [M25](m25.md): the audit, webview and UI state (PLAN.md D28)
 - [M26](m26.md): packaging, CI, platform and voice (PLAN.md D29)
+- [M27](m27.md): the tree kill's orphans (PLAN.md D25)

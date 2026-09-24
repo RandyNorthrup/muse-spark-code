@@ -1,8 +1,8 @@
-// Removing a test's temporary folder. On Windows a file there can stay held
-// for a moment after the test is done with it (seen as EBUSY once under a
-// full coverage run, every test green; a probe of the tree kill found no
-// process escaping), so Node retries the removal. A folder still held after
-// the retries, as one a leaked process sits in would be, fails the suite.
+// Removing a test's temporary folder. On Windows a scanner or an indexer
+// can hold a file there for a moment after the test is done with it, so
+// Node retries the removal. A folder still held after the retries fails the
+// suite: that is how a process a test leaves behind shows (the tree kill's
+// orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
 import { rm } from 'node:fs/promises'
 

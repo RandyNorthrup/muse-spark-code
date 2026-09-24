@@ -352,9 +352,10 @@ export interface CommandRun {
 
 /**
  * Runs one process to its exit (PLAN.md D25). A timeout or an abort kills
- * the whole process tree; the result is settled on exit plus a short drain
- * of the output, never on the pipes closing, so a background process the
- * command left running cannot hold the tool call open.
+ * the whole process tree, and the result waits for that kill to finish
+ * (M27); otherwise it is settled on exit plus a short drain of the output,
+ * never on the pipes closing, so a background process the command left
+ * running cannot hold the tool call open.
  */
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
@@ -362,6 +363,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       resolve({ stdout: '', stderr: '', exitCode: null, isTimedOut: false, isCancelled: true })
       return
     }
+    const startedAt = Date.now()
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
     const child = spawn(run.file, [...run.args], {
       cwd: run.cwd,
@@ -376,13 +378,17 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     let isCancelled = false
     let isSettled = false
     let drain: NodeJS.Timeout | undefined
+    let kill: Promise<void> | undefined
+    const stop = () => {
+      kill ??= killTree(child, run.tree, startedAt)
+    }
     const onAbort = () => {
       isCancelled = true
-      killTree(child, run.tree)
+      stop()
     }
     const timer = setTimeout(() => {
       isTimedOut = true
-      killTree(child, run.tree)
+      stop()
     }, run.timeoutMs)
     const settle = (exitCode: number | null, failure = '') => {
       if (isSettled) {
@@ -395,12 +401,16 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       // Our ends of the pipes; whatever still writes to them is not waited for.
       child.stdout.destroy()
       child.stderr.destroy()
-      resolve({
+      const result = {
         stdout: stdout.text(),
         stderr: `${stderr.text()}${failure}`,
         exitCode,
         isTimedOut,
         isCancelled,
+      }
+      // killTree never rejects: what it cannot do, it logs.
+      void (kill ?? Promise.resolve()).then(() => {
+        resolve(result)
       })
     }
     run.signal?.addEventListener('abort', onAbort, { once: true })

@@ -458,6 +458,13 @@ export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
 // hold the pipes open for as long as it runs (PLAN.md D25).
 export const SHELL_DRAIN_GRACE_MS = 250
 export const WINDOWS_TASKKILL_RELATIVE_PATH = String.raw`System32\taskkill.exe`
+// A child the shell starts while `taskkill /T` enumerates its tree outlives
+// the kill (PLAN.md D25, M27). Once the shell has exited (given this long),
+// its orphans are looked up by their dead parent's id and killed, in this
+// many rounds at most, each lookup and each kill given this long.
+export const TREE_EXIT_WAIT_MS = 10_000
+export const ORPHAN_SWEEP_ROUNDS = 3
+export const PROCESS_TABLE_TIMEOUT_MS = 20_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
