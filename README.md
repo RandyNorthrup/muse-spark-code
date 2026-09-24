@@ -84,7 +84,7 @@ harness:shots`) against a scripted session, so they match the build exactly.
     <td align="center"><img src="media/readme/rewind.png" alt="A sent message's rewind menu: Fork conversation from here, Rewind code to here, Fork conversation and rewind code"><br><sub>Every sent message: fork, rewind the code, or both</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="media/readme/palette.png" alt="The slash palette: Context, Model and Customize groups with effort dots and a thinking toggle"><br><sub>The <code>/</code> palette: context, model, effort, thinking, modes</sub></td>
+    <td align="center"><img src="media/readme/palette.png" alt="A slash typed in the prompt and the palette above it: Context, Model and Customize groups with effort dots and a thinking toggle"><br><sub>Type <code>/</code>: the palette; a letter more narrows to slash commands</sub></td>
     <td align="center"><img src="media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan, Auto, with the effort row"><br><sub>Permission modes, one line each, <code>Shift+Tab</code> to cycle</sub></td>
   </tr>
   <tr>
@@ -254,7 +254,8 @@ including through a symbolic link or junction inside it.
 
 **Composer.** `Enter` sends, `Shift+Enter` breaks a line (or send with
 `Ctrl+Enter` through a setting); the box grows with your draft up to ten
-rows and scrolls inside past that. `/` on an empty draft opens the palette:
+rows and scrolls inside past that. `/` on an empty draft shows the palette
+above the box (the `/` button opens it with a filter box of its own):
 Context (attach, mention, clear, resume, new and remove worktree, and on
 the CLI backend "Continue a Claude Code session" and "Continue a Codex
 session", Muse Code's own `resume-claude` and `resume-codex` skills), Model
@@ -262,8 +263,13 @@ session", Muse Code's own `resume-claude` and `resume-codex` skills), Model
 MCP servers and hooks on the CLI backend, settings, keybindings),
 Account & usage, Skills (the session's own, plus Manage and Import on the
 CLI backend), slash commands (`/compact`, `/export`, `/clear`, `/logout`,
-`/usage`, `/cost`, `/agents`) and Support. `/export` saves the
-conversation as Markdown where you choose (messages, thinking, tool calls
+`/usage`, `/cost`, `/agents`) and Support. Type a letter after the `/` and
+the palette gives way to a list of slash commands narrowed as you type:
+those, `/model`, `/resume`, `/permissions`, `/config`, `/mcp` and `/hooks`
+(CLI backend) and the session's skills, names that start with what you
+typed first. Up and Down move, `Enter` runs a command (a skill is completed
+so you can add its arguments), `Tab` completes the name and `Esc` closes
+the list. `/export` saves the conversation as Markdown where you choose (messages, thinking, tool calls
 with their arguments and visible output); on the CLI backend **Export
 session log…** also saves Muse Code's own JSON record of the session
 (`muse export`), which includes everything, stored outputs too. The `+`

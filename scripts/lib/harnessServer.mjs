@@ -62,6 +62,8 @@ export const SCENARIOS = [
   'history-archived',
   'long-patch',
   'size-refused',
+  'slash-palette',
+  'slash-commands',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

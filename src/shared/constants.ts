@@ -1155,6 +1155,7 @@ export const UI_TEXT = {
   // @-mention menu and attachments.
   mentionMenuLabel: 'Files',
   mentionNoMatches: 'No matching files',
+  slashNoMatches: 'No matching commands; Enter sends the text as it is',
   attachmentsLabel: 'Attachments',
   removeAttachment: 'Remove',
   attachmentTooLarge: 'Images must be 10 MB or smaller.',

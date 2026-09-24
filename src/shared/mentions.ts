@@ -145,8 +145,9 @@ export function applyMention(
 }
 
 /**
- * The slash command a draft is typing, when the whole draft is one `/token`;
- * used to open the palette pre-filtered. `/compact args` is a command with
+ * The slash command a draft is typing, when the whole draft is one `/token`:
+ * `''` for a bare `/` (the composer shows the palette), else the name so far
+ * (the composer's "/" list, M38). `/compact args` is a command with
  * arguments, not a filter, so it returns undefined.
  */
 export function slashFilterOf(text: string): string | undefined {

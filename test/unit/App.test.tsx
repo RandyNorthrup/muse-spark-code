@@ -571,9 +571,9 @@ function openPalette() {
 }
 
 describe('App palette', () => {
-  it('opens from the "/" key, asks for skills once, and closes back to the composer', () => {
+  it('opens from the Commands button, asks for skills once, and closes back to the composer', () => {
     const postMessage = renderReady()
-    fireEvent.keyDown(textarea(), { key: '/' })
+    fireEvent.click(screen.getByLabelText('Commands'))
     expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
     expect(postMessage).toHaveBeenCalledWith({ type: 'listSkills' })
     deliver({ type: 'skillList', skills: [] })
@@ -586,6 +586,57 @@ describe('App palette', () => {
     expect(fireEvent.mouseDown(screen.getByLabelText('Commands'))).toBe(false)
     fireEvent.click(screen.getByLabelText('Commands'))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  // M38: `/` alone shows the palette attached to the prompt; a character
+  // more, the slash commands. The prompt keeps the focus and the text.
+  it('shows the palette for a typed "/" and the slash commands after a character more', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'modelList', models })
+    const box = textarea()
+    box.focus()
+    fireEvent.change(box, { target: { value: '/' } })
+    const palette = screen.getByRole('dialog', { name: 'Actions' })
+    expect(within(palette).queryByRole('combobox')).toBeNull()
+    expect(document.activeElement).toBe(box)
+    expect(postMessage).toHaveBeenCalledWith({ type: 'listSkills' })
+    deliver({
+      type: 'skillList',
+      skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'Fixes a bug' }],
+    })
+    // The prompt's arrows move the palette's rows.
+    const first = box.getAttribute('aria-activedescendant')
+    expect(first).toMatch(/^palette-row-/)
+    fireEvent.keyDown(box, { key: 'ArrowDown' })
+    expect(box.getAttribute('aria-activedescendant')).not.toBe(first)
+    // A row that changes a value in place keeps the `/` and the palette.
+    fireEvent.click(screen.getByRole('option', { name: /Thinking/ }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setThinking', enabled: false })
+    expect(box.value).toBe('/')
+    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
+    // Escape closes it and keeps the text.
+    fireEvent.keyDown(box, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(box.value).toBe('/')
+    // A character more: the slash commands, the skill among them.
+    fireEvent.change(box, { target: { value: '/fi' } })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/fix-bug')
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(box.value).toBe('/fix-bug ')
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+    // A command runs, and the prompt is left empty.
+    fireEvent.change(box, { target: { value: '/compact' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'compact' })
+    expect(box.value).toBe('')
+    // A row that opens something else takes the `/` with it.
+    fireEvent.change(box, { target: { value: '/' } })
+    fireEvent.click(screen.getByRole('option', { name: /Switch model/ }))
+    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(box.value).toBe('')
+    expect(postMessage.mock.calls.filter(([m]) => m.type === 'listSkills')).toHaveLength(1)
   })
 
   it('toggles the model list from the pill', () => {

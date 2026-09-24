@@ -2668,32 +2668,65 @@ pull request from `features/m37-accessibility`, stacked on M31, M32 and M36.
     for a missing bundle; the gate green.
 - **Security**: none new. axe-core is a dev dependency and never bundled.
 
-### M38 — "/" autocompletes in the prompt (planned)
+### M38 — "/" in the prompt: the palette, then slash commands
 
-**Status 2026-09-24: planned.** Owner (2026-09-24): "when the user types a
-slash to begin a slash command it should be adaptive autocomplete, not the
-slash opening the command menu."
+**Status 2026-09-24: built and certified** (`docs/certification/m38.md`);
+pull request from `features/m38-slash-autocomplete`, stacked on M37.
 
-- **Goal**: typing `/` at the start of the prompt types it, and a list of
-  matching commands opens above the composer and narrows as you type, as
-  `@` does for files. The palette stays on the `/` button.
+The owner asked for this on 2026-09-24: "when the user types a slash to
+begin a slash command it should be adaptive autocomplete, not the slash
+opening the command menu". Then, with screenshots of Claude Code: "the
+slash should still open the pallet but after you type a character it should
+change to the slash commands menu".
+
+- **Goal**: `/` behaves as in Claude Code. The `/` stays in the prompt and
+  the palette shows above it. One character more and the palette gives way
+  to a flat list of slash commands that narrows as the name is typed.
 - **Behaviour**:
-  - The list is open while the draft is a single `/word` with the caret at
-    its end (`slashFilterOf`, today used only by its tests). A space, or
-    Escape, closes it; Escape keeps the text.
-  - The entries are the palette's slash commands (`/agents`, `/compact`,
-    `/export`, `/clear`, `/usage`, …) and the session's skills
-    (`/selector`, with the argument hint).
-  - Ranked by match: the name's start first, then a word's start inside
-    it, then anywhere in the name, then the description.
-  - Up and Down move. Tab completes the name. Enter runs a command that
-    takes no text; on a skill it completes `/selector ` for its arguments,
-    and the next Enter sends.
-  - The same combobox and listbox semantics as the `@` list, so the
-    accessibility gate covers it through a new harness scenario.
-- **Scope**: `Composer.tsx`, a `SlashMenu` beside `MentionMenu.tsx`, a pure
-  ranking module in `src/shared`, `App.tsx` (running a command from the
-  composer), tests, a harness scenario, README, CHANGELOG, this file.
+  - **The palette** shows while the prompt is exactly `/`, the caret is at
+    its end, and the focus is in the composer.
+    - It is attached above the box with no filter box of its own. The box
+      keeps the focus and hands the palette its keys (Up, Down, Left,
+      Right on the effort row, Enter, Escape), and its
+      `aria-activedescendant` follows the palette's active row.
+    - A row that changes a value in place (effort, thinking, Focus view,
+      Ctrl+Enter) keeps the `/` and the palette. Any other row takes the
+      `/` with it; a skill row leaves `/selector ` for its arguments.
+  - **The list** shows while the prompt is one `/word` (`slashFilterOf`)
+    with the caret at its end. A space closes it.
+    - The entries are the palette's rows named `/…` (`/agents`,
+      `/compact`, `/export`, `/clear`, `/logout`, `/usage`, `/cost`), rows
+      given Claude Code's names (`/model`, `/resume`, `/permissions`,
+      `/config`, and `/mcp` and `/hooks` on the CLI backend), and the
+      session's skills. Each name appears once; a disabled row never.
+    - Ranked: names that start with the text, then names with a word that
+      does (`engineering:standup` for `st`), then names holding it, then
+      descriptions holding it. Alphabetical within each.
+    - Up and Down move. Enter runs a command and empties the prompt; on a
+      skill it completes `/selector ` for the arguments. Tab completes the
+      name. With nothing matching, Enter sends the text as it is.
+  - **Both**:
+    - Escape closes the menu and keeps the text. The dismissal holds for
+      that draft only, so a later `/` opens the menu again.
+    - Neither opens while another menu or dialog is open, or with the
+      focus outside the composer.
+    - Shift+Enter still breaks the line and Shift+Tab still cycles the
+      mode.
+  - The `/` button still opens the palette with its own filter box.
+- **Scope**:
+  - New: `src/shared/slashCommands.ts` (the list and its ranking),
+    `SlashMenu.tsx`, and `MenuOption.tsx`, the row it shares with the `@`
+    list.
+  - `PaletteItem.slashName`.
+  - `Palette.tsx`: the attached mode, `PaletteKeys` through `keys`, and
+    `onActiveRowChange`.
+  - `Composer.tsx`, `App.tsx`, `styles.css`.
+  - The harness scenarios `slash-palette` and `slash-commands`, which the
+    accessibility gate now covers, and `palette` (now the `/` button).
+  - Tests, README (and its palette screenshot), CHANGELOG, this file.
+- **Acceptance**: both menus in the harness in all four themes with no
+  accessibility violation; the component and App tests; test-fire proofs;
+  the gate green.
 
 ### M39 — Logging and performance you can see (planned)
 

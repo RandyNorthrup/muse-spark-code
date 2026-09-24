@@ -1,20 +1,28 @@
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
-// permission mode, "/" on an empty draft opens the palette, "@" opens the
-// mention menu), attachment chips, paste/drop of images and editor files,
+// permission mode, "@" opens the mention menu), attachment chips, paste/drop of images and editor files,
 // the attach ("+") and slash buttons, the model pill, the permission-mode
 // button and Send/Stop. The "+" button and the mode button open menus the
 // parent renders above the composer. Keys an input method is composing with
 // (CJK) belong to the composition: Enter commits the candidate, it never
 // sends or picks a mention (M25). An image over the host's limits is refused
 // before it is read, not encoded and posted to be refused (M25).
+//
+// "/" (M38): a prompt that is just `/` shows the palette above the box; one
+// character more turns it into the slash-command list, narrowed as the name
+// is typed. The box keeps the focus and the keys throughout: Up and Down
+// move, Enter runs (a skill is completed for its arguments), Tab completes
+// the name, Escape closes the list and keeps the text.
 
 import {
   type ClipboardEvent,
   type DragEvent,
+  type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type ReactNode,
+  type RefObject,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -31,10 +39,17 @@ import {
   type PermissionMode,
   UI_TEXT,
 } from '../../shared/constants'
-import { applyMention, type MentionQuery, mentionQueryAt } from '../../shared/mentions'
+import {
+  applyMention,
+  type MentionQuery,
+  mentionQueryAt,
+  slashFilterOf,
+} from '../../shared/mentions'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
+import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands'
 import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
+import { wrapIndex } from '../listNavigation'
 import type { DictationUiState, MentionResults } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
 import {
@@ -49,11 +64,19 @@ import {
 } from './icons'
 import { MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
+import { PALETTE_LISTBOX_ID, type PaletteKeys } from './Palette'
+import { SLASH_LISTBOX_ID, SlashMenu, slashOptionId } from './SlashMenu'
 
 export interface ImageData {
   readonly name: string
   readonly mediaType: string
   readonly base64: string
+}
+
+/** What the composer hands the attached palette it asks the parent to render (M38). */
+export interface SlashPaletteSlot {
+  readonly onClose: () => void
+  readonly onActiveRowChange: (elementId: string | undefined) => void
 }
 
 export interface ComposerProps {
@@ -105,6 +128,18 @@ export interface ComposerProps {
   /** The banner above the box (M14): an unsupported upload, until dismissed. */
   readonly banner: string | undefined
   readonly onDismissBanner: () => void
+  /** The prompt's "/" list (M38): the palette's slash commands and skills. */
+  readonly slashCommands: readonly SlashCommand[]
+  /** Another menu or dialog is open: the "/" menus stay closed. */
+  readonly isMenuOpen: boolean
+  /** The palette, attached above the box, for a prompt that is just `/`. */
+  readonly renderSlashPalette: (slot: SlashPaletteSlot) => ReactNode
+  /** That palette's keyboard: the box hands it its keys while it shows. */
+  readonly slashPaletteKeys: RefObject<PaletteKeys | null>
+  /** A command chosen from the "/" list; the parent clears the `/` and runs it. */
+  readonly onSlashCommand: (command: SlashCommand) => void
+  /** A "/" menu has opened (the parent loads the skills). */
+  readonly onSlashMenuOpen: () => void
 }
 
 const MIN_ROWS = 1
@@ -221,6 +256,15 @@ function dictationPlaceholder(dictation: DictationUiState): string | undefined {
   }
 }
 
+/** What a prompt that is one `/token` shows (M38): the palette for `/` alone, the list after. */
+function slashMenuOf(draft: string, caret: number): 'palette' | 'commands' | undefined {
+  const query = slashFilterOf(draft)
+  if (query === undefined || caret !== draft.length) {
+    return undefined
+  }
+  return query === '' ? 'palette' : 'commands'
+}
+
 export function Composer(props: ComposerProps) {
   const {
     draft,
@@ -261,6 +305,12 @@ export function Composer(props: ComposerProps) {
     onCompact,
     banner,
     onDismissBanner,
+    slashCommands,
+    isMenuOpen,
+    renderSlashPalette,
+    slashPaletteKeys,
+    onSlashCommand,
+    onSlashMenuOpen,
   } = props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [caret, setCaret] = useState(0)
@@ -268,6 +318,12 @@ export function Composer(props: ComposerProps) {
   const [dismissedMention, setDismissedMention] = useState<number | undefined>(undefined)
   const requestCounter = useRef(0)
   const [activeRequest, setActiveRequest] = useState<number | undefined>(undefined)
+  // The "/" menus (M38): open while the focus is in the composer, closed for
+  // the draft they were dismissed at.
+  const [isFocusWithin, setIsFocusWithin] = useState(false)
+  const [dismissedSlash, setDismissedSlash] = useState<string | undefined>(undefined)
+  const [slashIndex, setSlashIndex] = useState(0)
+  const [paletteRowId, setPaletteRowId] = useState<string | undefined>(undefined)
   // The microphone press in progress (pointer, Space/Enter or Ctrl+D), so
   // its release can tell a tap from a hold.
   const dictationPress = useRef<DictationPress | undefined>(undefined)
@@ -313,6 +369,30 @@ export function Composer(props: ComposerProps) {
     isMentionOpen && mentionResults !== undefined && mentionResults.requestId === activeRequest
       ? mentionResults.items
       : []
+  // A dismissal holds for the draft it was made at, not for a later `/`: once
+  // the draft moves on it is forgotten (adjusted while rendering, as React
+  // documents for state derived from a prop).
+  if (dismissedSlash !== undefined && dismissedSlash !== draft) {
+    setDismissedSlash(undefined)
+  }
+  const slashMenu =
+    isFocusWithin && !isMenuOpen && dismissedSlash !== draft ? slashMenuOf(draft, caret) : undefined
+  const slashItems =
+    slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
+  const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
+  const isSlashMenuOpen = slashMenu !== undefined
+  // Escape in the palette's own list (a Tab stop) brings the focus back to
+  // the box, where it always is otherwise.
+  useEffect(() => {
+    if (dismissedSlash !== undefined) {
+      textareaRef.current?.focus()
+    }
+  }, [dismissedSlash])
+  useEffect(() => {
+    if (isSlashMenuOpen) {
+      onSlashMenuOpen()
+    }
+  }, [isSlashMenuOpen, onSlashMenuOpen])
 
   useEffect(() => {
     if (focusRequests === 0) {
@@ -437,12 +517,78 @@ export function Composer(props: ComposerProps) {
     }
   }
 
+  /** The draft set to `text`, the caret at its end. */
+  const replaceDraft = (text: string) => {
+    onDraftChange(text)
+    const textarea = textareaRef.current
+    queueMicrotask(() => {
+      textarea?.setSelectionRange(text.length, text.length)
+      setCaret(text.length)
+    })
+  }
+
+  const dismissSlash = () => {
+    setDismissedSlash(draft)
+  }
+
+  /** Enter runs a command; a skill, or Tab, completes the name instead. */
+  const chooseSlash = (command: SlashCommand, isCompleting: boolean) => {
+    const { action } = command
+    if (action.type === 'insertSkill') {
+      replaceDraft(`/${action.selector} `)
+    } else if (isCompleting) {
+      replaceDraft(`/${command.name}`)
+    } else {
+      onSlashCommand(command)
+    }
+  }
+
+  const didHandleSlashKey = (event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    // Shift+Enter is still a new line, and Shift+Tab still cycles the mode.
+    const isShifted = event.shiftKey && (event.key === 'Enter' || event.key === 'Tab')
+    if (slashMenu === undefined || isShifted) {
+      return false
+    }
+    if (slashMenu === 'palette') {
+      return slashPaletteKeys.current?.didHandleKey(event) === true
+    }
+    const active = slashItems[activeSlash]
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        const delta = event.key === 'ArrowDown' ? 1 : -1
+        setSlashIndex(wrapIndex(activeSlash, delta, slashItems.length))
+        break
+      }
+      case 'Enter':
+      case 'Tab': {
+        if (active === undefined) {
+          return false
+        }
+        chooseSlash(active, event.key === 'Tab')
+        break
+      }
+      case 'Escape': {
+        dismissSlash()
+        break
+      }
+      default: {
+        return false
+      }
+    }
+    event.preventDefault()
+    return true
+  }
+
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (isComposing(event)) {
       return
     }
     if (didHandleMentionKey(event)) {
       event.preventDefault()
+      return
+    }
+    if (didHandleSlashKey(event)) {
       return
     }
     if (isDictationKey(event)) {
@@ -455,12 +601,6 @@ export function Composer(props: ComposerProps) {
     if (event.key === 'Tab' && event.shiftKey) {
       event.preventDefault()
       onCyclePermissionMode()
-      return
-    }
-    const hasModifier = event.ctrlKey || event.metaKey || event.altKey
-    if (draft === '' && !hasModifier && event.key === '/') {
-      event.preventDefault()
-      onOpenPalette()
       return
     }
     if (!isSendKey(event, settings.useCtrlEnterToSend)) {
@@ -494,6 +634,24 @@ export function Composer(props: ComposerProps) {
     if (ACTIVATION_KEYS.has(event.key)) {
       releaseDictation()
     }
+  }
+
+  function popupAria(): {
+    readonly controls: string | undefined
+    readonly activeDescendant: string | undefined
+  } {
+    if (isMentionOpen) {
+      const active = mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
+      return { controls: 'mention-listbox', activeDescendant: active }
+    }
+    if (slashMenu === 'palette') {
+      return { controls: PALETTE_LISTBOX_ID, activeDescendant: paletteRowId }
+    }
+    if (slashMenu === 'commands') {
+      const active = slashItems.length > 0 ? slashOptionId(activeSlash) : undefined
+      return { controls: SLASH_LISTBOX_ID, activeDescendant: active }
+    }
+    return { controls: undefined, activeDescendant: undefined }
   }
 
   const attachFiles = (files: readonly File[]) => {
@@ -533,9 +691,20 @@ export function Composer(props: ComposerProps) {
     }
   }
 
+  // What the box's aria-controls and aria-activedescendant point at.
+  const popup = popupAria()
+
   return (
     <footer
       className="composer"
+      onFocus={() => {
+        setIsFocusWithin(true)
+      }}
+      onBlur={(event: FocusEvent<HTMLElement>) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsFocusWithin(false)
+        }
+      }}
       onDragOver={(event) => {
         event.preventDefault()
       }}
@@ -555,6 +724,22 @@ export function Composer(props: ComposerProps) {
           </button>
         </div>
       )}
+      {slashMenu === 'palette'
+        ? renderSlashPalette({
+            onClose: dismissSlash,
+            onActiveRowChange: setPaletteRowId,
+          })
+        : null}
+      {slashMenu === 'commands' ? (
+        <SlashMenu
+          items={slashItems}
+          activeIndex={activeSlash}
+          onSelect={(command) => {
+            chooseSlash(command, false)
+          }}
+          onHover={setSlashIndex}
+        />
+      ) : null}
       {isMentionOpen ? (
         <MentionMenu
           items={mentionItems}
@@ -570,10 +755,8 @@ export function Composer(props: ComposerProps) {
         dir="auto"
         aria-label={UI_TEXT.composerLabel}
         aria-autocomplete="list"
-        aria-controls={isMentionOpen ? 'mention-listbox' : undefined}
-        aria-activedescendant={
-          isMentionOpen && mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
-        }
+        aria-controls={popup.controls}
+        aria-activedescendant={popup.activeDescendant}
         placeholder={
           dictationPlaceholder(dictation) ??
           (isRunning ? UI_TEXT.composerQueuePlaceholder : placeholder)
@@ -582,6 +765,7 @@ export function Composer(props: ComposerProps) {
         onChange={(event) => {
           onDraftChange(event.target.value)
           setCaret(event.target.selectionStart)
+          setSlashIndex(0)
         }}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}

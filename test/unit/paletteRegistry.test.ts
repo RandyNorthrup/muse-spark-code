@@ -6,6 +6,11 @@ import {
   formatTokenWindow,
   type PaletteContext,
 } from '../../src/shared/palette'
+import {
+  rankSlashCommands,
+  type SlashCommand,
+  slashCommandsOf,
+} from '../../src/shared/slashCommands'
 
 const context: PaletteContext = {
   currentModel: { modelId: 'muse-spark-1.3', contextLimit: 1_007_997 },
@@ -301,5 +306,77 @@ describe('filterPalette', () => {
     expect(filterPalette(groups, 'free the window').map((g) => g.id)).toEqual(['slash'])
     expect(filterPalette(groups, 'zzz')).toEqual([])
     expect(filterPalette(groups, '  ')).toBe(groups)
+  })
+})
+
+// M38: the prompt's "/" list.
+describe('slashCommandsOf', () => {
+  it('lists the rows with a slash name and the skills, each name once, never a disabled row', () => {
+    const commands = slashCommandsOf(buildPalette(context))
+    const names = commands.map((command) => command.name)
+    expect(names).toEqual([
+      'resume',
+      'model',
+      'permissions',
+      'mcp',
+      'hooks',
+      'config',
+      'fix-bug',
+      'acme:deploy',
+      'agents',
+      'compact',
+      'export',
+      'clear',
+      'logout',
+      'usage',
+      'cost',
+    ])
+    // A row named for the prompt describes itself by its label.
+    expect(commands.find((command) => command.name === 'model')).toMatchObject({
+      detail: 'Switch model…',
+      action: { type: 'openModelPicker' },
+    })
+    expect(commands.find((command) => command.name === 'compact')?.detail).toBe(
+      'Summarise older context to free the window',
+    )
+    expect(commands.find((command) => command.name === 'acme:deploy')?.action).toEqual({
+      type: 'insertSkill',
+      selector: 'acme:deploy',
+    })
+    // Before the session lists skills, the disabled note is no command.
+    const loading = slashCommandsOf(buildPalette({ ...context, skills: undefined }))
+    expect(loading.map((command) => command.name)).not.toContain(
+      'Start a conversation to load skills',
+    )
+    expect(loading.every((command) => command.action.type !== 'none')).toBe(true)
+  })
+})
+
+function slashCommand(name: string, detail?: string): SlashCommand {
+  return { name, detail, action: { type: 'compact' } }
+}
+
+describe('rankSlashCommands', () => {
+  const commands = [
+    slashCommand('usage', 'Show account usage'),
+    slashCommand('compact', 'Summarise older context'),
+    slashCommand('engineering:standup'),
+    slashCommand('code-review'),
+    slashCommand('clear', 'Clear conversation'),
+    slashCommand('describe-this'),
+  ]
+  const rank = (query: string) => rankSlashCommands(commands, query).map((entry) => entry.name)
+
+  it('puts name prefixes first, then word starts, then anywhere in the name, then the description', () => {
+    // "account" and "conversation" hold it: description matches come last.
+    expect(rank('co')).toEqual(['code-review', 'compact', 'clear', 'usage'])
+    expect(rank('st')).toEqual(['engineering:standup'])
+    expect(rank('s')).toEqual(['engineering:standup', 'describe-this', 'usage', 'clear', 'compact'])
+    expect(rank('this')).toEqual(['describe-this'])
+  })
+
+  it('ignores case and leaves out what matches nothing', () => {
+    expect(rank('CL')).toEqual(['clear'])
+    expect(rank('zzz')).toEqual([])
   })
 })

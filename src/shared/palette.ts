@@ -64,6 +64,12 @@ export interface PaletteItem {
   readonly detail?: string
   readonly widget?: PaletteWidget
   readonly action: PaletteAction
+  /**
+   * The row's name in the prompt's "/" list (M38), without the slash, for a
+   * row whose label is not already `/name`: Claude Code's names where it has
+   * one.
+   */
+  readonly slashName?: string
   /** Slider rows step their value on Left/Right instead of activating. */
   readonly isSlider?: boolean
   readonly isDisabled?: boolean
@@ -182,12 +188,14 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
         {
           id: 'mcpServers',
           label: UI_TEXT.mcpItem,
+          slashName: 'mcp',
           detail: UI_TEXT.mcpItemDetail,
           action: { type: 'showMcpServers' },
         },
         {
           id: 'hooks',
           label: UI_TEXT.hooksItem,
+          slashName: 'hooks',
           detail: UI_TEXT.hooksItemDetail,
           action: { type: 'showHooks' },
         },
@@ -260,6 +268,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'resume',
           label: UI_TEXT.resumeItem,
+          slashName: 'resume',
           detail: UI_TEXT.resumeDetail,
           action: { type: 'openHistory' },
         },
@@ -286,6 +295,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'switchModel',
           label: UI_TEXT.switchModel,
+          slashName: 'model',
           widget: { kind: 'value', text: modelValue(context) },
           action: { type: 'openModelPicker' },
         },
@@ -315,6 +325,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'permissionMode',
           label: UI_TEXT.permissionModeItem,
+          slashName: 'permissions',
           widget: { kind: 'value', text: PERMISSION_MODE_LABELS[context.permissionMode] },
           action: { type: 'openPermissionModes' },
         },
@@ -331,7 +342,12 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'toggleCtrlEnterToSend' },
         },
         ...museConfigItems(context.backend),
-        { id: 'settings', label: UI_TEXT.openSettings, action: { type: 'openSettings' } },
+        {
+          id: 'settings',
+          label: UI_TEXT.openSettings,
+          slashName: 'config',
+          action: { type: 'openSettings' },
+        },
         { id: 'keybindings', label: UI_TEXT.openKeybindings, action: { type: 'openKeybindings' } },
       ],
     },

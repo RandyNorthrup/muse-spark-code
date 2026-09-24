@@ -841,9 +841,20 @@
             detail: 'The sign-in did not complete in time. Try again.',
           })
         },
+        // The Commands button: the palette with its own filter box.
         palette: () => {
+          click('Commands')
+        },
+        // A "/" typed on an empty prompt (M38): the palette above the box,
+        // which keeps the focus and the text.
+        'slash-palette': () => {
           textarea().focus()
-          key({ key: '/' })
+          setDraft('/')
+        },
+        // A character more: the slash commands, narrowed by the name.
+        'slash-commands': () => {
+          textarea().focus()
+          setDraft('/co')
         },
         models: () => {
           click('Model')
