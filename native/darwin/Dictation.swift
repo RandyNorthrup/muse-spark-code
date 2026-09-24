@@ -56,8 +56,63 @@ typealias SetDisclaim = @convention(c) (UnsafeMutablePointer<posix_spawnattr_t?>
 /// True in the copy that disclaimed its parent's responsibility.
 let isDisclaimed = ProcessInfo.processInfo.environment[disclaimedMarker] != nil
 
+/// The host's signals, caught from before the copy exists until this
+/// process exits: a signal that arrives while the copy starts is held and
+/// sent on to it once its id is known, so the host never ends the parent
+/// alone and leaves the copy holding the pipes. The sources run on a queue
+/// of their own, so a signal is caught the moment it is delivered, whatever
+/// the main thread is doing.
+final class SignalRelay {
+    private let queue = DispatchQueue(label: "muse-dictate.signal-relay")
+    private var sources: [DispatchSourceSignal] = []
+    private var target: pid_t = 0
+    private var caught: Int32 = 0
+
+    init() {
+        for number in forwardedSignals {
+            // The source first: the kernel records a signal for it even while
+            // it is ignored, and ignoring it is what stops it ending us.
+            let source = DispatchSource.makeSignalSource(signal: number, queue: queue)
+            source.setEventHandler { [unowned self] in
+                if target > 0 {
+                    kill(target, number)
+                } else {
+                    caught = number
+                }
+            }
+            source.resume()
+            sources.append(source)
+            signal(number, SIG_IGN)
+        }
+    }
+
+    /// From now on signals go to `copy`, the one caught meanwhile first.
+    func forward(to copy: pid_t) {
+        queue.sync {
+            target = copy
+            if caught != 0 {
+                kill(copy, caught)
+            }
+        }
+    }
+
+    /// No copy after all: the dispositions are restored, and a signal caught
+    /// meanwhile ends this process as it would have.
+    func release() {
+        let pending: Int32 = queue.sync {
+            sources.forEach { $0.cancel() }
+            return caught
+        }
+        forwardedSignals.forEach { signal($0, SIG_DFL) }
+        if pending != 0 {
+            raise(pending)
+        }
+    }
+}
+
 /// The copy's process id, or nil when the helper could not start it and
-/// runs itself instead (the reason written on stderr).
+/// runs itself instead (the reason written on stderr). The copy starts with
+/// the default action for the relayed signals, which the relay ignores here.
 func startDisclaimedCopy() -> pid_t? {
     guard let symbol = dlsym(everyLoadedImage, "responsibility_spawnattrs_setdisclaim") else {
         FileHandle.standardError.write(
@@ -76,6 +131,12 @@ func startDisclaimedCopy() -> pid_t? {
         FileHandle.standardError.write(Data("disclaiming responsibility failed; asking as the app that started the helper\n".utf8))
         return nil
     }
+    // An ignored signal stays ignored across exec: reset the relayed ones.
+    var defaults = sigset_t()
+    sigemptyset(&defaults)
+    forwardedSignals.forEach { sigaddset(&defaults, $0) }
+    posix_spawnattr_setsigdefault(&attributes, &defaults)
+    posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_SETSIGDEF))
     var environment = ProcessInfo.processInfo.environment
     environment[disclaimedMarker] = "1"
     let argv = [executable] + CommandLine.arguments.dropFirst()
@@ -96,17 +157,10 @@ func startDisclaimedCopy() -> pid_t? {
     return pid
 }
 
-/// Stands in for the copy until it exits: the host's signals reach it, and
-/// its exit status becomes this process's.
-func relayUntilExit(of copy: pid_t) -> Never {
-    var sources: [DispatchSourceSignal] = []
-    for number in forwardedSignals {
-        signal(number, SIG_IGN)
-        let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
-        source.setEventHandler { kill(copy, number) }
-        source.resume()
-        sources.append(source)
-    }
+/// Stands in for the copy until it exits: the relay sends it the host's
+/// signals, and its exit status becomes this process's.
+func relayUntilExit(of copy: pid_t, with relay: SignalRelay) -> Never {
+    relay.forward(to: copy)
     let exit = DispatchSource.makeProcessSource(identifier: copy, eventMask: .exit, queue: .main)
     exit.setEventHandler {
         var status: Int32 = 0
@@ -116,11 +170,15 @@ func relayUntilExit(of copy: pid_t) -> Never {
         Foundation.exit(signalled == 0 ? (status >> 8) & 0xff : signalExitBase + signalled)
     }
     exit.resume()
-    withExtendedLifetime((sources, exit)) { dispatchMain() }
+    withExtendedLifetime((relay, exit)) { dispatchMain() }
 }
 
-if !isDisclaimed, let copy = startDisclaimedCopy() {
-    relayUntilExit(of: copy)
+if !isDisclaimed {
+    let relay = SignalRelay()
+    if let copy = startDisclaimedCopy() {
+        relayUntilExit(of: copy, with: relay)
+    }
+    relay.release()
 }
 
 /// No usable input device: none is the system default, or the default
