@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.6.0] - 2026-09-23
+
 The hardening release: the findings of a full audit of the code against
 other harnesses' bug trackers and the platform documentation, fixed.
 

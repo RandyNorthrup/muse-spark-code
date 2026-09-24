@@ -103,7 +103,7 @@ harness:shots`) against a scripted session, so they match the build exactly.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.5.5.vsix
+   code --install-extension muse-spark-code-0.6.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press

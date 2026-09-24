@@ -2052,7 +2052,8 @@ shipped in 0.5.5.
 ### M21 — The audit: security and confinement (D24)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m21.md`);
-merged through its pull request from `hardening/m21-security`.
+merged through pull request #6 from `hardening/m21-security`, shipped in
+0.6.0.
 
 - **Goal**: every section-A row of the audit (D24) except the release
   workflow's secret scope, which M26 owns.
@@ -2080,7 +2081,8 @@ merged through its pull request from `hardening/m21-security`.
 ### M22 — The audit: processes and lifecycle (D25)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m22.md`);
-pull request from `hardening/m22-lifecycle`.
+merged through pull request #9 from `hardening/m22-lifecycle`, shipped in
+0.6.0.
 
 - **Goal**: the D25 rows.
 - **Scope**: `src/host/processTree.ts`, `src/core/timeouts.ts` (new);
@@ -2106,7 +2108,8 @@ pull request from `hardening/m22-lifecycle`.
 ### M23 — The audit: protocol and backend semantics (D26)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m23.md`);
-pull request from `hardening/m23-protocol`.
+merged through pull request #10 from `hardening/m23-protocol`, shipped in
+0.6.0.
 
 - **Goal**: the D26 rows.
 - **Scope**: `promptLedger.ts` (new); the receipts, early events, handshake
@@ -2136,8 +2139,8 @@ pull request from `hardening/m23-protocol`.
 ### M24 — The audit: editing correctness (D27)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m24.md`,
-the context rows in `docs/certification/m24-context.md`); pull request from
-`hardening/m24-editing`.
+the context rows in `docs/certification/m24-context.md`); merged through
+pull request #11 from `hardening/m24-editing`, shipped in 0.6.0.
 
 - **Goal**: the D27 rows.
 - **Scope**: the Model API's hunks, text shapes, fingerprints, unsaved-file
@@ -2165,7 +2168,8 @@ the context rows in `docs/certification/m24-context.md`); pull request from
 ### M25 — The audit: webview and UI state (D28)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m25.md`);
-pull request #8 from `hardening/m25-webview`.
+merged through pull request #8 from `hardening/m25-webview`, shipped in
+0.6.0.
 
 - **Goal**: every section-E row of the audit (D28).
 - **Scope**: `src/webview/state/store.ts`, `snapshot.ts`,
@@ -2192,7 +2196,8 @@ pull request #8 from `hardening/m25-webview`.
 ### M26 — The audit: packaging, CI, platform and voice (D29)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m26.md`);
-pull request #7 from `hardening/m26-platform`.
+merged through pull request #7 from `hardening/m26-platform`, shipped in
+0.6.0.
 
 - **Goal**: the D29 rows.
 - **Scope**: the workflows, `.vscode-test.mjs`, the new scripts, the
@@ -2208,7 +2213,8 @@ pull request #7 from `hardening/m26-platform`.
 ### M27 — The tree kill's orphans (D25)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m27.md`);
-pull request #12 from `hardening/m27-orphans`.
+merged through pull request #12 from `hardening/m27-orphans`, shipped in
+0.6.0.
 
 Found at the 0.6.0 release gate: three full runs in a row failed in
 `toolIo.test.ts`'s teardown (`EBUSY` on its folder, every test green). A
@@ -2527,3 +2533,18 @@ workflow published it ("Published RandyNorthrup.muse-spark-code v0.5.5.").
 The first push under the rulesets: GitHub logged the admin bypass for the
 direct push and the tag, as designed. The tag is the tip of `main` but for
 this record.
+
+**0.6.0 (2026-09-23):** the hardening release. A deep-scan audit of the
+code against other harnesses' bug trackers and the platform documentation
+(D24) found rows in seven sections; all fixed, each with a test fired
+against a deliberate break: security and confinement (D24, M21, pull
+request #6), processes and lifecycle (D25, M22, #9), protocol and backend
+semantics (D26, M23, #10), editing correctness (D27, M24, #11), webview and
+UI state (D28, M25, #8), packaging, CI, platform and voice (D29, M26, #7),
+and the cross-harness rows of section G within them. The release gate
+itself found one more: on Windows `taskkill /T` missed a child started
+during the kill, now closed with a job object per command (D25, M27, #12).
+Every milestone went through a pull request with the CI checks green on the
+three platforms and its Codex review threads answered. The release goes
+through pull request #13 from `release/0.6.0`; the tag and the run are
+recorded here once they finish.
