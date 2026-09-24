@@ -21,9 +21,17 @@ export interface ConversationExports {
   readonly saveSessionLog: (sessionId: string, fileName: string) => Promise<void>
 }
 
-export type ExportOutcome = 'exported' | 'logUnavailable'
+/**
+ * `historyUnavailable`: Muse Code answered with history mode `none` (a
+ * conversation past its replay budget), so a Markdown export would hold
+ * nothing but its header; the session log still has everything. `empty`:
+ * nothing has been said yet.
+ */
+export type ExportOutcome = 'exported' | 'logUnavailable' | 'historyUnavailable' | 'empty'
 
 const USER_MESSAGE = 'userMessage'
+// MSP `session/read` history mode when it returns no items (a budget, D26).
+const HISTORY_MODE_NONE = 'none'
 const LINE_BREAK = /\r?\n/
 
 /** The session's name, else its first prompt's first line, else a generic title. */
@@ -53,6 +61,13 @@ export async function exportConversation(
   if (format === 'sessionLog') {
     await exports.saveSessionLog(session.sessionId, fileName)
     return 'exported'
+  }
+  // Never a header-only file that reads as a successful export.
+  if (history.mode === HISTORY_MODE_NONE) {
+    return 'historyUnavailable'
+  }
+  if (history.items.length === 0) {
+    return 'empty'
   }
   await exports.saveMarkdown(
     fileName,

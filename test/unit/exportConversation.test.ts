@@ -64,9 +64,35 @@ describe('exportConversation', () => {
     expect(fileName).toBe('muse-refactor-auth-2026-09-24.md')
     expect(content).toContain('# Refactor auth')
     expect(content).toContain('- Backend: Meta Model API (your key, pay as you go)')
-    const blank = fakes('museCode', {})
-    await exportConversation(blank.host, blank.session, 'markdown', NOW, blank.exports)
-    expect(blank.markdown[0]?.[0]).toBe('muse-muse-conversation-2026-09-24.md')
-    expect(blank.markdown[0]?.[1]).toContain('- Backend: Muse Code (your Muse subscription)')
+    const untitled = fakes('museCode', {
+      items: [{ itemId: 'm', kind: 'agentMessage', status: 'completed', text: 'Hello' }],
+    })
+    await exportConversation(untitled.host, untitled.session, 'markdown', NOW, untitled.exports)
+    expect(untitled.markdown[0]?.[0]).toBe('muse-muse-conversation-2026-09-24.md')
+    expect(untitled.markdown[0]?.[1]).toContain('- Backend: Muse Code (your Muse subscription)')
+  })
+
+  it('writes no header-only file: history Muse Code withheld, or nothing said yet', async () => {
+    const withheld = fakes('museCode', { mode: 'none' })
+    expect(
+      await exportConversation(withheld.host, withheld.session, 'markdown', NOW, withheld.exports),
+    ).toBe('historyUnavailable')
+    expect(withheld.markdown).toEqual([])
+    // The session log still has the whole record.
+    expect(
+      await exportConversation(
+        withheld.host,
+        withheld.session,
+        'sessionLog',
+        NOW,
+        withheld.exports,
+      ),
+    ).toBe('exported')
+    expect(withheld.logs).toEqual([['s1', 'muse-muse-conversation-2026-09-24.json']])
+    const empty = fakes('modelApi', {})
+    expect(
+      await exportConversation(empty.host, empty.session, 'markdown', NOW, empty.exports),
+    ).toBe('empty')
+    expect(empty.markdown).toEqual([])
   })
 })
