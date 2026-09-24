@@ -722,7 +722,11 @@ export function App({
           break
         }
         case 'manageSkills':
-        case 'importSkills': {
+        case 'importSkills':
+        case 'showMcpServers':
+        case 'showHooks':
+        case 'newWorktree':
+        case 'removeWorktree': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break

@@ -1,9 +1,15 @@
+import { mkdtempSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import type * as vscode from 'vscode'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Uri, window, workspace } from 'vscode'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { env, Uri, window, workspace } from 'vscode'
 import type { ProcessResult } from '../../src/host/backend/sandboxSetup'
 import { createCliFeatures } from '../../src/host/cliFeatures'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { inform, pickMany, pickOne } from './helpers/vscodeViews'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const CATALOG = JSON.stringify({
   skills: [
@@ -20,22 +26,6 @@ const REPORT = JSON.stringify({
   failed: [],
 })
 
-// The overloads the code under test calls: assigning the overloaded mock to
-// one of its own signatures is checked by the compiler, and `vi.mocked` then
-// types the fake against that signature instead of the last overload.
-type PickMany = (
-  items: readonly vscode.QuickPickItem[],
-  options: vscode.QuickPickOptions & { canPickMany: true },
-) => Thenable<vscode.QuickPickItem[] | undefined>
-type PickOne = (
-  items: readonly vscode.QuickPickItem[],
-  options?: vscode.QuickPickOptions,
-) => Thenable<vscode.QuickPickItem | undefined>
-type Inform = (message: string, ...items: string[]) => Thenable<string | undefined>
-const pickMany: PickMany = window.showQuickPick
-const pickOne: PickOne = window.showQuickPick
-const inform: Inform = window.showInformationMessage
-
 /** A URI on a file system the CLI cannot write to. */
 const REMOTE_URI: vscode.Uri = {
   scheme: 'vscode-remote',
@@ -49,8 +39,12 @@ const REMOTE_URI: vscode.Uri = {
   toJSON: () => ({}),
 }
 
-function setup(cli?: (args: readonly string[], timeoutMs: number) => ProcessResult) {
+function setup(
+  cli?: (args: readonly string[], timeoutMs: number) => ProcessResult,
+  config: { readonly settingsPath?: string; readonly workspaceRoot?: string } = {},
+) {
   const runs: [readonly string[], number][] = []
+  const terminals: [readonly string[], string][] = []
   let restarts = 0
   const features = createCliFeatures({
     runCli: (args, timeoutMs) => {
@@ -60,15 +54,26 @@ function setup(cli?: (args: readonly string[], timeoutMs: number) => ProcessResu
       runs.push([args, timeoutMs])
       return Promise.resolve(cli(args, timeoutMs))
     },
-    workspaceRoot: '/ws',
+    runCliInTerminal: (args, terminalName) => {
+      terminals.push([args, terminalName])
+      return cli !== undefined
+    },
+    museSettingsPath: () => config.settingsPath ?? '/nowhere/settings.json',
+    workspaceRoot: config.workspaceRoot ?? '/ws',
     restartBackend: () => {
       restarts += 1
       return Promise.resolve()
     },
     log: new FakeLogOutputChannel(),
   })
-  return { features, runs, restarts: () => restarts }
+  return { features, runs, terminals, restarts: () => restarts }
 }
+
+const folder = mkdtempSync(path.join(tmpdir(), 'muse-cli-features-'))
+
+afterAll(async () => {
+  await removeFolder(folder)
+})
 
 beforeEach(() => {
   vi.mocked(window.showQuickPick).mockReset()
@@ -76,7 +81,67 @@ beforeEach(() => {
   vi.mocked(window.showErrorMessage).mockReset()
   vi.mocked(window.showSaveDialog).mockReset()
   vi.mocked(window.showTextDocument).mockReset()
+  vi.mocked(window.showWarningMessage).mockReset()
   vi.mocked(workspace.fs.writeFile).mockReset()
+  vi.mocked(env.openExternal).mockReset()
+})
+
+describe('createCliFeatures: MCP servers and hooks (M31)', () => {
+  it('reads the settings file, signs in through the CLI’s terminal and opens the docs', async () => {
+    const settingsPath = path.join(folder, 'settings.json')
+    await writeFile(
+      settingsPath,
+      JSON.stringify({
+        mcpServers: { docs: { type: 'streamable-http', url: 'https://d.example' } },
+      }),
+    )
+    const t = setup(() => ({ exitCode: 0, stdout: '', stderr: '' }), { settingsPath })
+    vi.mocked(pickOne).mockImplementation((items) =>
+      Promise.resolve(items.find((item) => item.label === 'docs' || item.label === 'Sign in')),
+    )
+    await t.features.showMcpServers()
+    const [items, options] = vi.mocked(pickOne).mock.calls[0]!
+    expect(items[0]).toMatchObject({
+      label: 'docs',
+      description: 'streamable-http · https://d.example',
+    })
+    expect(options).toMatchObject({ title: 'Muse Code MCP servers' })
+    expect(t.terminals).toEqual([[['mcp', 'login', 'docs'], 'Muse Code MCP sign-in']])
+    vi.mocked(pickOne).mockImplementation((choices) =>
+      Promise.resolve(choices.find((item) => item.label.includes('documentation'))),
+    )
+    await t.features.showMcpServers()
+    expect(env.openExternal).toHaveBeenCalledWith(
+      Uri.parse('https://dev.meta.ai/docs/muse-code/extending'),
+    )
+  })
+
+  it('treats a missing file as no servers and a directory as unreadable', async () => {
+    vi.mocked(pickOne).mockResolvedValue(undefined)
+    await setup(undefined, {
+      settingsPath: path.join(folder, 'absent.json'),
+    }).features.showMcpServers()
+    expect(vi.mocked(pickOne).mock.calls[0]?.[1]?.placeHolder).toMatch(
+      /^Muse Code has no settings file yet/,
+    )
+    await setup(undefined, { settingsPath: folder }).features.showMcpServers()
+    expect(vi.mocked(pickOne).mock.calls[1]?.[1]?.placeHolder).toMatch(
+      /^Muse Code’s settings file could not be read: /,
+    )
+  })
+
+  it('opens the project’s hooks file from the hooks view', async () => {
+    const workspaceRoot = path.join(folder, 'ws')
+    await mkdir(path.join(workspaceRoot, '.muse'), { recursive: true })
+    await writeFile(path.join(workspaceRoot, '.muse', 'hooks.json'), '{"hooks":[]}')
+    const t = setup(undefined, { workspaceRoot, settingsPath: path.join(folder, 'absent.json') })
+    vi.mocked(pickOne).mockImplementation((items) => Promise.resolve(items[0]))
+    await t.features.showHooks()
+    expect(window.showTextDocument).toHaveBeenCalledWith(
+      Uri.file(path.join(workspaceRoot, '.muse', 'hooks.json')),
+      { preview: false },
+    )
+  })
 })
 
 describe('createCliFeatures', () => {

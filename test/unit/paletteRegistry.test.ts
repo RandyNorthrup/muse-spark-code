@@ -37,6 +37,13 @@ describe('formatTokenWindow', () => {
   })
 })
 
+/** The Customize group's row ids on a backend (M31). */
+function customizeIds(backend: PaletteContext['backend']) {
+  return buildPalette({ ...context, backend })
+    .find((group) => group.id === 'customize')
+    ?.items.map((item) => item.id)
+}
+
 /** The Skills group's row ids on a backend (M30). */
 function skillIdsOn(backend: PaletteContext['backend']) {
   return buildPalette({ ...context, backend })
@@ -209,6 +216,30 @@ describe('buildPalette', () => {
     )
   })
 
+  it('offers worktrees in the Context group on both backends (M32)', () => {
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      const rows = buildPalette({ ...context, backend })
+        .find((group) => group.id === 'context')
+        ?.items.filter((item) => item.id.endsWith('Worktree'))
+        .map((item) => item.action)
+      expect(rows, String(backend)).toEqual([{ type: 'newWorktree' }, { type: 'removeWorktree' }])
+    }
+  })
+
+  it('offers the MCP and hooks views on Muse Code only, beside the settings (M31)', () => {
+    expect(customizeIds('museCode')).toEqual([
+      'permissionMode',
+      'focusView',
+      'ctrlEnter',
+      'mcpServers',
+      'hooks',
+      'settings',
+      'keybindings',
+    ])
+    expect(customizeIds('modelApi')).not.toContain('mcpServers')
+    expect(customizeIds(undefined)).not.toContain('hooks')
+  })
+
   it('offers skill management on Muse Code only, where the CLI owns skills (M30)', () => {
     expect(skillIdsOn('museCode')?.slice(0, 2)).toEqual(['manageSkills', 'importSkills'])
     expect(skillIdsOn('modelApi')).toEqual(['skill:fix-bug', 'skill:acme:deploy'])
@@ -267,7 +298,7 @@ describe('filterPalette', () => {
     const filtered = filterPalette(groups, 'DEPLOY')
     expect(filtered.map((group) => group.id)).toEqual(['skills'])
     expect(filtered[0]?.items.map((item) => item.id)).toEqual(['skill:acme:deploy'])
-    expect(filterPalette(groups, 'window').map((g) => g.id)).toEqual(['slash'])
+    expect(filterPalette(groups, 'free the window').map((g) => g.id)).toEqual(['slash'])
     expect(filterPalette(groups, 'zzz')).toEqual([])
     expect(filterPalette(groups, '  ')).toBe(groups)
   })

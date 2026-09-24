@@ -34,6 +34,10 @@ export const Uri = {
   file(path: string): vscode.Uri {
     return new FakeUri(path)
   },
+  /** Enough for the external links the host opens: the whole string as the path. */
+  parse(value: string): vscode.Uri {
+    return new FakeUri(value)
+  },
   joinPath(base: vscode.Uri, ...segments: string[]): vscode.Uri {
     return new FakeUri([base.path, ...segments].join('/'))
   },
@@ -83,6 +87,8 @@ export const window = {
   showQuickPick: vi.fn<typeof vscode.window.showQuickPick>(),
   showInformationMessage: vi.fn<typeof vscode.window.showInformationMessage>(),
   showErrorMessage: vi.fn<typeof vscode.window.showErrorMessage>(),
+  showWarningMessage: vi.fn<typeof vscode.window.showWarningMessage>(),
+  showInputBox: vi.fn<typeof vscode.window.showInputBox>(),
   showSaveDialog: vi.fn<typeof vscode.window.showSaveDialog>(),
   showTextDocument: vi.fn<typeof vscode.window.showTextDocument>(),
 }
@@ -90,6 +96,14 @@ export const window = {
 export const workspace = {
   isTrusted: true,
   fs: { writeFile: vi.fn<typeof vscode.workspace.fs.writeFile>() },
+}
+
+export const env = {
+  openExternal: vi.fn<typeof vscode.env.openExternal>(),
+}
+
+export const commands = {
+  executeCommand: vi.fn<typeof vscode.commands.executeCommand>(),
 }
 
 export const version = '0.0.0-test'

@@ -164,6 +164,26 @@
         "command": "museSpark.exportConversation",
         "title": "Export Conversation",
         "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.mcpServers",
+        "title": "MCP Servers",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.hooks",
+        "title": "Hooks",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.newWorktree",
+        "title": "New Worktree…",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.removeWorktree",
+        "title": "Remove Worktree…",
+        "category": "Muse Spark"
       }
     ],
     "keybindings": [
@@ -226,6 +246,14 @@
         {
           "command": "museSpark.exportConversation",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.newWorktree",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "museSpark.removeWorktree",
+          "when": "workspaceFolderCount > 0"
         }
       ],
       "view/title": [

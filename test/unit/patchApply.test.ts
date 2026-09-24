@@ -44,7 +44,66 @@ describe('revertHunks', () => {
     const result = revertHunks('# Notes\n\nsecond line\nsomething else\n', hunks)
     expect(result).toEqual({
       ok: false,
-      reason: 'hunk 1 no longer matches the file at line 1',
+      reason: 'hunk 1 no longer matches the file at line 1, or anywhere else',
+    })
+  })
+
+  describe('a hunk that only moved (M36)', () => {
+    // The agent turned `old` into `new` between two context lines at line 3.
+    const edit = [{ oldStart: 2, newStart: 2, lines: [' before', '-old', '+new', ' after'] }]
+    const edited = 'top\nbefore\nnew\nafter\nend\n'
+    // Two edits: `a` → `A` at line 1, `e` → `E` after `d` at line 4.
+    const two = [
+      { oldStart: 1, newStart: 1, lines: ['-a', '+A', ' b'] },
+      { oldStart: 4, newStart: 4, lines: [' d', '-e', '+E'] },
+    ]
+
+    it('finds it below where it was when lines were added above, keeping them', () => {
+      expect(revertHunks(`mine 1\nmine 2\n${edited}`, edit)).toEqual({
+        ok: true,
+        content: 'mine 1\nmine 2\ntop\nbefore\nold\nafter\nend\n',
+        isCreatedFile: false,
+      })
+    })
+
+    it('finds it above where it was when lines were removed above', () => {
+      expect(revertHunks('before\nnew\nafter\nend\n', edit)).toEqual({
+        ok: true,
+        content: 'before\nold\nafter\nend\n',
+        isCreatedFile: false,
+      })
+    })
+
+    it('carries the move to the next hunk and keeps lines added between them', () => {
+      expect(revertHunks('mine\nA\nb\nc\nmine too\nd\nE\n', two)).toEqual({
+        ok: true,
+        content: 'mine\na\nb\nc\nmine too\nd\ne\n',
+        isCreatedFile: false,
+      })
+    })
+
+    it('places a repeated block by the move the previous hunk showed', () => {
+      // `d` / `E` occurs twice; the first hunk moved one line down, so the
+      // second is looked for one line down first, where it is.
+      expect(revertHunks('mine\nA\nb\nc\nd\nE\nd\nE\n', two)).toEqual({
+        ok: true,
+        content: 'mine\na\nb\nc\nd\ne\nd\nE\n',
+        isCreatedFile: false,
+      })
+    })
+
+    it('refuses when the same lines occur in more than one place', () => {
+      expect(revertHunks(`x\n${edited}${edited}`, edit)).toEqual({
+        ok: false,
+        reason: 'hunk 1 matches 2 places in the file, so which one is not certain',
+      })
+    })
+
+    it('still refuses when the hunk’s own lines were changed, moved or not', () => {
+      expect(revertHunks('mine\ntop\nbefore\nnew, edited\nafter\nend\n', edit)).toEqual({
+        ok: false,
+        reason: 'hunk 1 no longer matches the file at line 2, or anywhere else',
+      })
     })
   })
 

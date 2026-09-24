@@ -774,7 +774,7 @@ and "multi-root" are the context rows; the rest are the editing rows.
 | Report                                                                               | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                        | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | An insertion reverts as "delete the file" (Cline #9555)                              | The Model API's hunks gave every insertion `oldStart: 0`, which Revert and Rewind read as a file the edit created: adding an import line and reverting it trashed the file.                                                                                                                                                                                                                                                                    | Hunks use unified numbering (an insertion's `oldStart` is the line it follows) and carry three lines of context each side; the patch file says `created` outright. A file counts as created only when nothing is left once the edit is taken out, so lines the user added since are written back, never trashed. Muse Code's documents (no `created`) keep the whole-file-add rule under the same check.                                                                                                                                                                            |
-| Deleted lines put back at a line that moved                                          | A deletion-only hunk had nothing to match against.                                                                                                                                                                                                                                                                                                                                                                                             | The context lines are matched: a file that has moved on is refused with the reason, not guessed at.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Deleted lines put back at a line that moved                                          | A deletion-only hunk had nothing to match against.                                                                                                                                                                                                                                                                                                                                                                                             | The context lines are matched: a file that has moved on is refused with the reason, not guessed at. Refined in D31: intact lines that only moved are found where they moved to, if they occur once.                                                                                                                                                                                                                                                                                                                                                                                 |
 | CRLF files (Roo #8020, Codex #25048, Claude Code #88114)                             | `read_file` showed LF lines, so a multi-line `find` never matched a CRLF file; a replacement wrote LF into it; `write_file` dropped the final line break.                                                                                                                                                                                                                                                                                      | The model sees LF text without the BOM; `edit_file` matches that text and writes the file back in its own line breaks and BOM; `write_file` keeps an existing file's BOM, line breaks and final line break. A file that mixes breaks is edited as it is.                                                                                                                                                                                                                                                                                                                            |
 | Non-UTF-8 files (Claude Code #96263, #92328)                                         | Latin-1, Shift-JIS or UTF-16 files were decoded lossily and written back whole.                                                                                                                                                                                                                                                                                                                                                                | `readFile` is strict: invalid UTF-8 or a NUL refuses the file ("is not UTF-8 text …"), so nothing is rewritten; a UTF-8 BOM is kept.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | Edits under unsaved editors; stale overwrites                                        | The tools wrote files an editor held unsaved changes to (VS Code then asks which to keep); `write_file` could replace a file the model had not seen, or one the user changed since.                                                                                                                                                                                                                                                            | The tools refuse a file with unsaved changes; `write_file` replaces an existing file only as the model last read or wrote it (Claude Code's rule, a per-session fingerprint), and the prompt says so. Before each message the panel names the unsaved files (once per set) when autosave is off, since Muse edits the saved files.                                                                                                                                                                                                                                                  |
@@ -921,6 +921,31 @@ Every paid feature (M33, M34, M35) must therefore be:
 | Paid dictation (M35)                      | Muse Voice Transcribe at $0.18 per audio hour, streaming or file; the panel's helpers capture audio on the host machine today                                                                                                                                                                                                                 | An opt-in "Muse Voice" dictation engine on the Model API backend only, loud like the rest: the microphone shows it is paid while it is the engine, and each recording is tallied                                                                                  |
 | Session messaging (not built)             | `muse session-message list --json` answers `session_messaging_unavailable` on Windows; the docs exclude headless sessions, and every panel session is a `muse serve` session                                                                                                                                                                  | Not built: the panel's sessions can neither send nor receive. Revisit if Meta extends it to headless hosts                                                                                                                                                        |
 | Remote Control (waits on Meta)            | See above                                                                                                                                                                                                                                                                                                                                     | #36 upstream; nothing built here                                                                                                                                                                                                                                  |
+
+### D31 — Rewind finds a hunk that only moved (2026-09-24)
+
+A reader of our Bluesky thread asked whether a hand edit in the same lines
+trips the rewind's skip, or whether the patch gets a fuzzy apply first. The
+code's answer was: the same skip, no fuzzy apply. `revertHunks` matched each
+hunk's lines exactly, but only at the line the edit recorded. So lines the
+user merely added _above_ an edit, which leave its text intact, made the
+rewind skip it too. That case was stricter than it needed to be, and D27's
+row "a file that has moved on is refused" had pinned it.
+
+**Owner's go-ahead (2026-09-24):** "yes fix it". The change refines D27 and
+keeps its rule that nothing is guessed:
+
+- **First look:** the hunk's lines (context plus the edit's own) are looked
+  for where the edit left them, shifted by however far the previous hunk
+  moved.
+- **Then a search:** if they are not there, they are looked for anywhere
+  after the previous hunk. They are taken only where they occur exactly
+  once, matched character for character. This is `git apply`'s offset
+  rule without its fuzz factor.
+- **Refused, with the reason:** no occurrence (the user changed those
+  lines), or more than one (ambiguous).
+- **Unchanged:** out-of-order hunks are refused as overlapping, as before,
+  and a deletion with no context lines is placed only where recorded.
 
 ## 3. Open questions (need the owner)
 
@@ -2397,7 +2422,12 @@ pull request from `features/m29-m30-skills-export`.
 
 ### M31 — MCP servers and hooks, read-only (D30)
 
-**Status 2026-09-24: planned.**
+**Status 2026-09-24: built and certified** (`docs/certification/m31.md`);
+pull request from `features/m31-m32-mcp-hooks-worktrees`. Found on the way
+and fixed with it: PowerShell reads the typographic quotes U+2018 to U+201B
+as quote characters, which the job helper's quoting (M27) did not escape;
+quoting moved to `src/core/shellQuote.ts`, which the terminals the
+extension opens now use for the CLI's path and every argument.
 
 - **Goal**: see which MCP servers and hooks Muse Code will load, sign in to
   an OAuth server, and open the files that define them, without the
@@ -2417,7 +2447,8 @@ pull request from `features/m29-m30-skills-export`.
 
 ### M32 — Worktrees (D30)
 
-**Status 2026-09-24: planned.**
+**Status 2026-09-24: built and certified** (`docs/certification/m32.md`);
+pull request from `features/m31-m32-mcp-hooks-worktrees`.
 
 - **Goal**: start work on a separate branch without touching the current
   checkout, as the CLI's `--worktree` does.
@@ -2518,6 +2549,29 @@ pull request from `features/m29-m30-skills-export`.
   - Test-fire proofs, the gate green.
 - **Security**: audio leaves the machine only while the paid engine records,
   and only to Meta's endpoint with the user's key. PRIVACY.md says so.
+
+### M36 — Rewind finds a hunk that only moved (D31)
+
+**Status 2026-09-24: built and certified** (`docs/certification/m36.md`);
+pull request from `features/m31-m32-mcp-hooks-worktrees`, stacked with M31
+and M32 so the gate runs once.
+
+- **Goal**: an edit whose lines are intact is undone even when lines were
+  added or removed above it; nothing is ever applied that does not match
+  exactly and uniquely.
+- **Scope**: `src/core/patchApply.ts` (`placeOf`, the carried shift);
+  `patchApply.test.ts`, the D27 test in `modelApiTools.test.ts`; README,
+  CHANGELOG, this file.
+- **Acceptance**:
+  - Moved down and moved up are both found.
+  - Two hunks with the move carried, and lines added between them kept.
+  - A repeated block placed by the carried move.
+  - Refused when ambiguous, and refused when the lines themselves changed.
+  - The overlap refusal unchanged.
+  - Test-fire proofs, the gate green.
+- **Security**: the one relaxation of D27 is bounded: a hunk is applied
+  only where its whole text matches exactly and only once; a partial or
+  repeated match is refused.
 
 ## 7. Gates
 

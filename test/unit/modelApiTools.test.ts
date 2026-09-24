@@ -470,7 +470,7 @@ describe('executeTool: patches a Revert can trust (D27)', () => {
     expect(reverted).toEqual({ ok: true, content: text(tenLines), isCreatedFile: false })
   })
 
-  it('refuses to put deleted lines back where the file has moved on', async () => {
+  it('puts deleted lines back between their own context, wherever it moved to (M36)', async () => {
     const { io, run } = context({ 'a.ts': text(tenLines) })
     const edit = await run('edit_file', { path: 'a.ts', find: 'line 5\n', replace: '' })
     const [file] = parsePatchFiles(edit.patch?.document ?? '') ?? []
@@ -483,9 +483,17 @@ describe('executeTool: patches a Revert can trust (D27)', () => {
       ' line 7',
       ' line 8',
     ])
-    // The user added a line above the deletion since.
+    // The user added a line above the deletion since: the context moved down
+    // one line, intact, so line 5 goes back between lines 4 and 6.
     const shifted = `added by the user\n${io.files.get('/ws/a.ts') ?? ''}`
-    expect(revertHunks(shifted, file?.hunks ?? [], file?.created)).toMatchObject({ ok: false })
+    expect(revertHunks(shifted, file?.hunks ?? [], file?.created)).toEqual({
+      ok: true,
+      content: `added by the user\n${text(tenLines)}`,
+      isCreatedFile: false,
+    })
+    // A file whose context itself changed is refused, not guessed at (D27).
+    const changed = (io.files.get('/ws/a.ts') ?? '').replace('line 3', 'line three')
+    expect(revertHunks(changed, file?.hunks ?? [], file?.created)).toMatchObject({ ok: false })
   })
 })
 

@@ -34,6 +34,10 @@ export const COMMAND_IDS = {
   manageSkills: 'museSpark.manageSkills',
   importSkills: 'museSpark.importSkills',
   exportConversation: 'museSpark.exportConversation',
+  mcpServers: 'museSpark.mcpServers',
+  hooks: 'museSpark.hooks',
+  newWorktree: 'museSpark.newWorktree',
+  removeWorktree: 'museSpark.removeWorktree',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -59,6 +63,8 @@ export const VSCODE_COMMANDS = {
   openKeybindings: 'workbench.action.openGlobalKeybindings',
   diff: 'vscode.diff',
   openWalkthrough: 'workbench.action.openWalkthrough',
+  // A folder in a window of its own (M32's new worktree).
+  openFolder: 'vscode.openFolder',
 } as const
 
 // Settings (package.json `contributes.configuration`). Keys are relative to
@@ -273,6 +279,8 @@ export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 // A git call that has not answered by then (a hung network drive, a lock)
 // is killed; the callers fall back as if git were absent (PLAN.md D24).
 export const GIT_TIMEOUT_MS = 15_000
+// `git worktree add` checks a whole tree out, and `remove` deletes one (M32).
+export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Muse Code CLI / Muse Session Protocol (PLAN.md D1a, §5.4) ---
@@ -714,6 +722,10 @@ export const MUSE_TRUST_WORKSPACE_ARG = '--trust-workspace'
 export const MUSE_DISABLE_SHELL_ARG = '--disable-shell'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_DOCS_URL = 'https://dev.meta.ai/products/muse-code/'
+// Muse Code's own page on MCP servers and hooks (M31).
+export const MUSE_EXTENDING_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/extending'
+// `.muse/hooks.json` under the workspace root, Muse Code's project hooks (M31).
+export const PROJECT_HOOKS_SEGMENTS = ['.muse', 'hooks.json'] as const
 export const ISSUES_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issues'
 /** The Meta developer dashboard (usage, keys, billing) the usage dialog links to. */
 export const META_DASHBOARD_URL = 'https://dev.meta.ai/'
@@ -1040,6 +1052,94 @@ export const UI_TEXT = {
   exportCliMissing: 'Exporting the session log needs the Muse Code CLI, which is not installed.',
   exportOpen: 'Open',
   exportDefaultTitle: 'Muse conversation',
+  // MCP servers and hooks, read-only (M31, D30).
+  mcpItem: 'MCP servers…',
+  mcpItemDetail: 'What Muse Code connects to; sign in to a server',
+  hooksItem: 'Hooks…',
+  hooksItemDetail: 'Where Muse Code’s hooks come from',
+  mcpTitle: 'Muse Code MCP servers',
+  mcpNoSettings: 'Muse Code has no settings file yet, so no MCP servers. It would be at',
+  mcpUnreadable: 'Muse Code’s settings file could not be read:',
+  mcpNone: 'No MCP servers are configured in',
+  mcpCount: 'MCP servers in',
+  mcpOptional: 'optional',
+  mcpRequired: 'required (Muse Code stops if it fails)',
+  mcpDisabled: 'turned off',
+  mcpEnv: 'environment:',
+  mcpHeaders: 'headers:',
+  mcpModeConflict: '“required” and “mode” are both set',
+  mcpKeyConflict:
+    'Muse Code’s settings hold both “mcpServers” and “mcp_servers”, so it loads no MCP server from either. Keep one key.',
+  mcpModeConflictWarning:
+    'Muse Code loads no MCP server while a server sets both “required” and “mode”. Keep only “mode” on:',
+  mcpOpenSettings: 'Open the settings file',
+  mcpRestart: 'Restart Muse Code to load changes',
+  mcpRestartDetail:
+    'A reply that is running stops; the conversation continues on your next message',
+  mcpRestarted: 'Muse Code restarted; your next message loads the settings as they are now.',
+  mcpDocs: 'MCP servers in Muse Code (documentation)',
+  mcpSignIn: 'Sign in',
+  mcpSignInDetail: 'Runs muse mcp login in a terminal (OAuth in the browser)',
+  mcpSignOut: 'Sign out',
+  mcpRemotePlaceholder: 'A remote server: sign in or out, or edit its entry',
+  mcpStdioPlaceholder: 'A local server needs no sign-in; edit its entry in the settings file',
+  mcpCliMissing: 'Signing in to an MCP server needs the Muse Code CLI, which is not installed.',
+  mcpTerminalName: 'Muse Code MCP sign-in',
+  hooksTitle: 'Muse Code hooks',
+  hooksWarning: 'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
+  hooksProject: 'Project hooks',
+  hooksProjectFile: '.muse/hooks.json',
+  hooksProjectNone: 'This workspace has no .muse/hooks.json.',
+  hooksProjectTrusted: 'Runs in this workspace',
+  hooksProjectUntrusted: 'Runs only once you trust this workspace',
+  hooksUser: 'Your hooks',
+  hooksUserBlock: 'settings.json › hooks',
+  hooksUserNone: 'None in your settings',
+  hooksUserCount: 'in your settings',
+  hooksManaged: 'Managed hooks',
+  hooksManagedKey: 'managed_hooks_path',
+  hooksManagedNotSet: 'Not set: no administrator hooks',
+  hooksManagedSet: 'Set by your settings; whoever controls this file controls what runs',
+  hooksManagedMissing: 'Your settings name this file, but it does not exist.',
+  hooksDocs: 'Hooks in Muse Code (documentation)',
+  // Worktrees (M32, D30).
+  newWorktreeItem: 'New worktree…',
+  newWorktreeDetail: 'A new branch in its own folder and window; this checkout is untouched',
+  removeWorktreeItem: 'Remove a worktree…',
+  removeWorktreeDetail: 'Delete a worktree folder; its branch stays',
+  worktreeNoWorkspace: 'Open a folder in a git repository first.',
+  worktreeUntrusted:
+    'Worktrees need git, which does not run in Restricted Mode (a repository’s config can name programs for git to run). Trust this workspace first.',
+  worktreeNotRepository: 'This workspace is not in a git repository',
+  worktreeBranchPrompt: 'Name the new branch',
+  worktreeBranchPlaceholder: 'feature/login-form',
+  worktreeBranchEmpty: 'Type a branch name.',
+  worktreeBranchInvalid: 'git does not accept that as a branch name.',
+  worktreeBranchExists: 'A branch with that name already exists.',
+  worktreeBaseTitle: 'Start the branch from',
+  worktreeBasePlaceholder: 'The commit the new branch starts at',
+  worktreeCurrent: 'current branch:',
+  worktreeDetachedHead: 'the commit checked out now',
+  worktreeFolderExists: 'That folder already exists:',
+  worktreeAddFailed: 'git could not create the worktree',
+  worktreeCreated: 'Worktree ready at',
+  worktreeOpen: 'Open in New Window',
+  worktreeListFailed: 'git could not list the worktrees',
+  worktreeNoneToRemove:
+    'There is no other worktree to remove (the main checkout and this window’s own are kept).',
+  worktreeRemoveTitle: 'Remove a worktree',
+  worktreeRemovePlaceholder: 'The folder is deleted; its branch stays',
+  worktreeDetached: '(detached HEAD)',
+  worktreeLocked: 'locked',
+  worktreePrunable: 'its folder is gone',
+  worktreeRemoveConfirm: 'Remove this worktree? Its folder is deleted.',
+  worktreeBranchKept: 'The branch stays:',
+  worktreeRemoveAction: 'Remove',
+  worktreeDirtyConfirm:
+    'This worktree has uncommitted changes. Removing it discards them for good. Remove it anyway?',
+  worktreeDiscardAction: 'Remove and discard changes',
+  worktreeRemoveFailed: 'git could not remove the worktree',
+  worktreeRemoved: 'Removed the worktree at',
   compactItem: '/compact',
   compactDetail: 'Summarise older context to free the window',
   clearItem: '/clear',

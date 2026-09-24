@@ -115,6 +115,12 @@ export const HOST_ACTIONS = [
   /** The palette's "Manage skills…" and "Import skills…" (M30). */
   'manageSkills',
   'importSkills',
+  /** The palette's "MCP servers…" and "Hooks…" (M31). */
+  'showMcpServers',
+  'showHooks',
+  /** The palette's "New worktree…" and "Remove a worktree…" (M32). */
+  'newWorktree',
+  'removeWorktree',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 

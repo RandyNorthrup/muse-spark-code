@@ -45,3 +45,6 @@ The PNGs beside the records are that day's harness renders.
   token's environment (PLAN.md D29)
 - [M29](m29.md): `.muse/` is a protected path (PLAN.md D30)
 - [M30](m30.md): skills, imports and export (PLAN.md D30)
+- [M31](m31.md): MCP servers and hooks, read-only; PowerShell quoting (PLAN.md D30)
+- [M32](m32.md): worktrees (PLAN.md D30)
+- [M36](m36.md): rewind finds a hunk that only moved (PLAN.md D31)

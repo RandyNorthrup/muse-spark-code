@@ -9,6 +9,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **MCP servers…** and **Hooks…** (palette and Command Palette, CLI
+  backend):
+  - The MCP view lists what Muse Code will load from its settings: each
+    server's transport, where it points, whether it is required, and the
+    names (never the values) of its environment variables and headers.
+  - A remote server can be signed in to or out of through `muse mcp login`
+    or `logout` in a terminal.
+  - It warns out loud about the two settings mistakes that make Muse Code
+    load no server at all.
+  - The hooks view shows the project's, your own and managed hooks and
+    opens each file.
+  - Both views are read-only; the extension never edits Muse Code's
+    settings.
+- **New worktree…** starts a branch in a folder beside the repository and
+  opens it in a new window. **Remove a worktree…** deletes another
+  worktree's folder (the branch stays), and asks a second time before
+  discarding uncommitted changes.
+
 - **Manage skills…** (palette and Command Palette, CLI backend): a
   checklist of every skill Muse Code knows, built-in, yours, the project's
   and plugins'; unchecking one turns it off through `muse skills disable`.
@@ -38,6 +56,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Rewind code to here** no longer skips an edit just because you added or
+  removed lines above it since. The edit's own lines, matched exactly, are
+  found where they moved to when they appear in exactly one place. An edit
+  whose lines you changed, or whose lines appear more than once, is still
+  refused with the reason, never guessed at.
+- A path with a typographic apostrophe, such as `C:\Users\O’Brien`, no
+  longer breaks the Windows job helper's PowerShell scripts. PowerShell
+  reads ‘ ’ ‚ ‛ as quote characters, and only the plain `'` was being
+  escaped.
+- The terminals the extension opens (sign-in, Open in Terminal, MCP
+  sign-in) single-quote the CLI's path and every argument for the shell
+  they run, so nothing in them is expanded.
 - On macOS, dictation from the panel asks for speech recognition and the
   microphone as the helper itself (muse-dictate, with its own usage
   descriptions) instead of as Visual Studio Code, which declares no

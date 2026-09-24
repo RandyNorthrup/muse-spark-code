@@ -653,6 +653,14 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'manageSkills' })
     run('Import skills')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'importSkills' })
+    run('MCP servers')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showMcpServers' })
+    run('Hooks…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showHooks' })
+    run('New worktree')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'newWorktree' })
+    run('Remove a worktree')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'removeWorktree' })
     run('Report an issue')
     expect(postMessage).toHaveBeenCalledWith({
       type: 'openExternal',
