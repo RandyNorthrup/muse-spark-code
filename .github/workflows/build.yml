@@ -59,6 +59,14 @@ jobs:
       # coverage thresholds, production build with bundle budget, host-global
       # and third-party-notice checks, the dependency audit.
       - run: npm run quality:gates
+      # The accessibility gate (M37, PLAN.md D32) checks the production bundle
+      # quality:gates just built. It runs on Linux and Windows only: the
+      # macOS runner's headless Chrome had not finished its 208 pages after
+      # 28 minutes (PR #18's first run), where Linux took 3 minutes 20 and
+      # Windows 4 minutes 33. The page is the same web content everywhere.
+      - name: accessibility (WCAG 2.2 AA)
+        if: runner.os != 'macOS'
+        run: npm run test:a11y
       # The integration tests run twice (.vscode-test.mjs): on the latest
       # stable VS Code and on the manifest's floor (engines.vscode). The two
       # downloads are cached under a key naming both versions.
