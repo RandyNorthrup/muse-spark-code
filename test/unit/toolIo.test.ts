@@ -7,12 +7,14 @@ import { UI_TEXT, WINDOWS_POWERSHELL_UTF8_PREAMBLE } from '../../src/shared/cons
 import {
   BoundedText,
   createToolIo,
+  runCommand,
   shellArguments,
   shellEnvironment,
   shellInterpreter,
   terminalPlatform,
   withTerminalOverrides,
 } from '../../src/host/backend/toolIo'
+import type { RunProgram } from '../../src/host/processTree'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const INSTALLED_SHELLS: ReadonlySet<string> = new Set([
@@ -161,6 +163,8 @@ const SHELL_BUDGET_MS = 120_000
 const TEST_BUDGET_MS = 3 * SHELL_BUDGET_MS
 // Well under the 30 s the background child lives; a cold Windows PowerShell start is slow.
 const BACKGROUND_BOUND_MS = 20_000
+// Longer than the output drain, so an answer that did not wait would come first.
+const SWEEP_DELAY_MS = 1000
 
 const io = () =>
   createToolIo({
@@ -315,6 +319,35 @@ describe('createToolIo (real file system and shell)', () => {
     await expect(
       io().runShell(command, root, SHELL_BUDGET_MS, alreadyStopped.signal),
     ).resolves.toMatchObject({ isCancelled: true, exitCode: null })
+  }, 60_000)
+
+  it('answers a killed command only once the sweep for its orphans is done (M27)', async () => {
+    // Windows' kill path on any OS: a stand-in taskkill ends the process, a
+    // stand-in process table answers late and says when.
+    let isSwept = false
+    const run: RunProgram = (file, args) => {
+      if (path.win32.basename(file) === 'taskkill.exe') {
+        process.kill(Number(args[1]))
+        return Promise.resolve('')
+      }
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          isSwept = true
+          resolve('')
+        }, SWEEP_DELAY_MS)
+      })
+    }
+    const result = await runCommand({
+      file: process.execPath,
+      args: ['-e', 'setTimeout(() => {}, 30000)'],
+      cwd: root,
+      env: process.env,
+      timeoutMs: 300,
+      signal: undefined,
+      tree: { platform: 'win32', systemRoot: String.raw`C:\Windows`, log: () => undefined, run },
+    })
+    expect(result.isTimedOut).toBe(true)
+    expect(isSwept).toBe(true)
   }, 60_000)
 
   it('reports an interpreter that cannot start instead of hanging', async () => {
