@@ -226,7 +226,8 @@ other harnesses' bug trackers and the platform documentation, fixed.
 ### Changed
 
 - Integration tests run on the latest VS Code and on the 1.125 floor;
-  semgrep and PSScriptAnalyzer are pinned; every CI job has a timeout; four
+  semgrep and PSScriptAnalyzer are pinned (its install from the PowerShell
+  Gallery tried three times); every CI job has a timeout; four
   commands are hidden from the Command Palette where they cannot act; the
   categories are AI and Chat.
 - `museSpark.museBinaryPath`, `museSpark.environmentVariables` and VS

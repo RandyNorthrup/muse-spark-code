@@ -35,13 +35,25 @@ jobs:
       - run: npm ci
       # lint:ps (PSScriptAnalyzer over native/windows) is real on this runner
       # and a reported skip elsewhere. The version is the one lint-ps.mjs
-      # pins, so the gate does not change under an unchanged tree.
+      # pins, so the gate does not change under an unchanged tree. The
+      # PowerShell Gallery now and then answers a lookup with "No match was
+      # found" (the 0.6.0 release PR's first run); three tries, ten seconds
+      # apart, each failure named, the third one failing the job.
       - name: PSScriptAnalyzer (windows, pinned)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $version = node scripts/lint-ps.mjs --print-version
-          Install-Module PSScriptAnalyzer -RequiredVersion $version -Force -Scope CurrentUser -AcceptLicense
+          for ($attempt = 1; ; $attempt++) {
+            try {
+              Install-Module PSScriptAnalyzer -RequiredVersion $version -Force -Scope CurrentUser -AcceptLicense -ErrorAction Stop
+              break
+            } catch {
+              if ($attempt -ge 3) { throw }
+              Write-Warning "PSScriptAnalyzer install attempt $attempt failed: $_"
+              Start-Sleep -Seconds 10
+            }
+          }
       # All gates except secrets (separate job) and integration tests (below):
       # format, lint, typecheck, dead code, cycles, duplication, unit tests with
       # coverage thresholds, production build with bundle budget, host-global
