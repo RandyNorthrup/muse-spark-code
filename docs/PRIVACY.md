@@ -55,9 +55,12 @@ security notes for contributors are in `PLAN.md` §9.
   words go into the composer, where you can edit or delete them before
   anything is sent. The words are not logged (the log records only a
   character count). On macOS the microphone and speech-recognition
-  permissions belong to Visual Studio Code, the app that starts the helper:
-  they cover everything VS Code starts and are revoked under System
-  Settings > Privacy & Security > Microphone / Speech Recognition.
+  permissions belong to the helper, listed as muse-dictate: macOS asks for
+  them the first time you dictate, they cover the helper alone (not
+  Visual Studio Code or anything else it starts), and they are revoked
+  under System Settings > Privacy & Security > Microphone / Speech
+  Recognition. Where macOS offers no way for the helper to ask under its
+  own name, it asks as Visual Studio Code, the app that starts it.
   Dictation is off in remote windows.
 
 The extension itself has **no telemetry**, no analytics, no crash reporting

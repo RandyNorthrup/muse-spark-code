@@ -26,6 +26,103 @@ import Speech
 
 let exitCodeUnavailable: Int32 = 2
 
+// MARK: - Responsibility
+
+/// macOS charges a process's privacy requests to the app responsible for it,
+/// which for a helper is the app that started it: Visual Studio Code for the
+/// panel. VS Code declares no speech-recognition purpose, so macOS refuses
+/// that request without asking (microsoft/vscode#307364), and dictation
+/// cannot start from the panel at all. So the helper starts itself once
+/// more, disclaiming that responsibility, and the copy answers for its own
+/// requests: macOS asks for "muse-dictate" with the usage descriptions in
+/// its own embedded Info.plist, and System Settings lists it under that name
+/// (PLAN.md M28).
+///
+/// `responsibility_spawnattrs_setdisclaim` is a private libsystem call,
+/// the one Chromium, Qt and Electron's `disclaim` spawn option use. It is
+/// looked up at run time: where it is missing, or the spawn fails, the
+/// helper runs as it always did and says so on stderr. The first process
+/// stays as a thin parent, so the host's process handle, its signals and
+/// the exit code mean what they did; stdin, stdout and stderr are inherited.
+let disclaimedMarker = "MUSE_DICTATE_DISCLAIMED"
+/// `RTLD_DEFAULT` on Darwin: search every image loaded into the process.
+let everyLoadedImage = UnsafeMutableRawPointer(bitPattern: -2)
+/// A process ended by a signal exits, by shell convention, with 128 + the signal.
+let signalExitBase: Int32 = 128
+let forwardedSignals: [Int32] = [SIGTERM, SIGINT, SIGHUP]
+
+typealias SetDisclaim = @convention(c) (UnsafeMutablePointer<posix_spawnattr_t?>, Int32) -> Int32
+
+/// True in the copy that disclaimed its parent's responsibility.
+let isDisclaimed = ProcessInfo.processInfo.environment[disclaimedMarker] != nil
+
+/// The copy's process id, or nil when the helper could not start it and
+/// runs itself instead (the reason written on stderr).
+func startDisclaimedCopy() -> pid_t? {
+    guard let symbol = dlsym(everyLoadedImage, "responsibility_spawnattrs_setdisclaim") else {
+        FileHandle.standardError.write(
+            Data("responsibility_spawnattrs_setdisclaim is not available; asking as the app that started the helper\n".utf8))
+        return nil
+    }
+    guard let executable = Bundle.main.executablePath else {
+        FileHandle.standardError.write(Data("the helper's own path is unknown; asking as the app that started it\n".utf8))
+        return nil
+    }
+    let setDisclaim = unsafeBitCast(symbol, to: SetDisclaim.self)
+    var attributes: posix_spawnattr_t? = nil
+    posix_spawnattr_init(&attributes)
+    defer { posix_spawnattr_destroy(&attributes) }
+    guard setDisclaim(&attributes, 1) == 0 else {
+        FileHandle.standardError.write(Data("disclaiming responsibility failed; asking as the app that started the helper\n".utf8))
+        return nil
+    }
+    var environment = ProcessInfo.processInfo.environment
+    environment[disclaimedMarker] = "1"
+    let argv = [executable] + CommandLine.arguments.dropFirst()
+    let envp = environment.map { "\($0.key)=\($0.value)" }
+    var cArgv = argv.map { strdup($0) } + [nil]
+    var cEnvp = envp.map { strdup($0) } + [nil]
+    defer {
+        cArgv.forEach { free($0) }
+        cEnvp.forEach { free($0) }
+    }
+    var pid: pid_t = 0
+    let status = posix_spawn(&pid, executable, nil, &attributes, &cArgv, &cEnvp)
+    guard status == 0 else {
+        FileHandle.standardError.write(
+            Data("starting the helper disclaimed failed (\(String(cString: strerror(status)))); asking as the app that started it\n".utf8))
+        return nil
+    }
+    return pid
+}
+
+/// Stands in for the copy until it exits: the host's signals reach it, and
+/// its exit status becomes this process's.
+func relayUntilExit(of copy: pid_t) -> Never {
+    var sources: [DispatchSourceSignal] = []
+    for number in forwardedSignals {
+        signal(number, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+        source.setEventHandler { kill(copy, number) }
+        source.resume()
+        sources.append(source)
+    }
+    let exit = DispatchSource.makeProcessSource(identifier: copy, eventMask: .exit, queue: .main)
+    exit.setEventHandler {
+        var status: Int32 = 0
+        waitpid(copy, &status, 0)
+        // WIFEXITED / WEXITSTATUS / WTERMSIG, which Swift does not import.
+        let signalled = status & 0x7f
+        Foundation.exit(signalled == 0 ? (status >> 8) & 0xff : signalExitBase + signalled)
+    }
+    exit.resume()
+    withExtendedLifetime((sources, exit)) { dispatchMain() }
+}
+
+if !isDisclaimed, let copy = startDisclaimedCopy() {
+    relayUntilExit(of: copy)
+}
+
 /// No usable input device: none is the system default, or the default
 /// carries no input channels.
 struct NoAudioInputError: LocalizedError {
@@ -297,14 +394,21 @@ final class Session {
     }
 }
 
-/// The app macOS asks on this helper's behalf. macOS charges a helper's
-/// privacy requests to the app responsible for it, the one that started it:
-/// Visual Studio Code when the panel starts it (the extension passes VS
-/// Code's own name with `--app-name`), Terminal when it is run by hand, and
-/// an SSH session, which macOS never prompts, over SSH (tccd logged
-/// "responsible=... sshd-keygen-wrapper, requesting=...dictate" and "Policy
-/// disallows prompt" for the M26 check on the owner's Mac mini).
+/// The name macOS asks under, and System Settings lists: the helper's own
+/// (its embedded CFBundleName) once it has disclaimed responsibility.
+let helperName = "muse-dictate"
+
+/// The app macOS asks on this helper's behalf. Disclaimed, that is the
+/// helper itself. Otherwise macOS charges the requests to the app that
+/// started it: Visual Studio Code when the panel starts it (the extension
+/// passes VS Code's own name with `--app-name`), Terminal when it is run by
+/// hand, and an SSH session, which macOS never prompts, over SSH (tccd
+/// logged "responsible=... sshd-keygen-wrapper, requesting=...dictate" and
+/// "Policy disallows prompt" for the M26 check on the owner's Mac mini).
 let appName: String = {
+    if isDisclaimed {
+        return helperName
+    }
     let arguments = CommandLine.arguments
     if let flag = arguments.firstIndex(of: "--app-name"), flag + 1 < arguments.count {
         return arguments[flag + 1]
@@ -330,6 +434,8 @@ func authorizationFailure() -> String? {
         break
     case .restricted:
         return "Speech recognition is restricted on this Mac (by a device-management profile or Screen Time), so dictation cannot run."
+    case _ where isDisclaimed:
+        return "macOS did not allow speech recognition for \(helperName), Muse Spark Code's dictation helper. Turn it on in System Settings > Privacy & Security > Speech Recognition and try again."
     default:
         // Visual Studio Code declares a microphone purpose but no speech
         // recognition purpose in its Info.plist, and macOS then refuses the
