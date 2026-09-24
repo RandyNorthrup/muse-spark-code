@@ -15,6 +15,7 @@
 // Pure: the host reads the file and shows the view.
 
 import path from 'node:path'
+import { UI_TEXT } from '../../../shared/constants'
 
 const CAMEL_KEY = 'mcpServers'
 const LEGACY_KEY = 'mcp_servers'
@@ -91,14 +92,14 @@ function urlTarget(url: string): string {
     const parsed = new URL(url)
     return `${parsed.protocol}//${parsed.host}`
   } catch {
-    return 'an invalid URL'
+    return UI_TEXT.mcpInvalidUrl
   }
 }
 
 function commandTarget(command: unknown): string {
   const first: unknown = Array.isArray(command) ? command[0] : command
   if (typeof first !== 'string' || first === '') {
-    return 'no command'
+    return UI_TEXT.mcpNoCommand
   }
   // A Windows path's separators are read on every platform.
   return path.win32.basename(path.posix.basename(first))

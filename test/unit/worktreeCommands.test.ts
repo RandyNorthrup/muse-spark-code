@@ -20,7 +20,9 @@ const realGit = processGitRunner()
 const REAL_GIT_TIMEOUT_MS = 60_000
 
 // realpath: macOS's tmpdir is a symlink, and git reports resolved paths.
-const base = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-worktrees-')))
+// The native one also expands 8.3 short names (the Windows runner's temp
+// folder is C:\Users\RUNNER~1\…), so expected paths read as git prints them.
+const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-worktrees-')))
 const repo = path.join(base, 'app')
 
 function git(args: readonly string[], cwd = repo): string {
@@ -236,6 +238,14 @@ describe('removeWorktree against a real repository', { timeout: REAL_GIT_TIMEOUT
     const inside = harness({ workspaceRoot: folder, picks: [undefined] })
     await removeWorktree(inside.deps)
     expect(inside.shownPicks[0]?.map((item) => item.label)).not.toContain('here')
+    // A window on a subfolder of that worktree is still in it (PR #17 review).
+    const subfolder = path.join(folder, 'src')
+    await mkdir(subfolder)
+    const deeper = harness({ workspaceRoot: subfolder, picks: [undefined] })
+    await removeWorktree(deeper.deps)
+    const offered = deeper.shownPicks[0]?.map((item) => item.label)
+    expect(offered).not.toContain('here')
+    expect(offered).toContain('feature/login')
     const onlyMain = await mkdtemp(path.join(tmpdir(), 'muse-lonely-'))
     try {
       git(['init', '-q', '-b', 'main'], onlyMain)

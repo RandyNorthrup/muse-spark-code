@@ -230,13 +230,14 @@ export async function removeWorktree(deps: WorktreeDeps): Promise<void> {
     deps.showError(`${UI_TEXT.worktreeListFailed}: ${gitMessage(error)}`)
     return
   }
-  // The main checkout is first; the one open in this window stays too.
+  // The main checkout is first; the one open in this window stays too. That
+  // one is git's own top level for the workspace, not the workspace path: a
+  // window on a subfolder, or on a path spelled another way (an 8.3 short
+  // name on Windows), is still in that worktree.
+  const current = nativePath(root, deps.platform)
   const removable = entries
     .slice(1)
-    .filter(
-      (entry) =>
-        !entry.isBare && !isSameFolder(entry.path, deps.workspaceRoot ?? root, deps.platform),
-    )
+    .filter((entry) => !entry.isBare && !isSameFolder(entry.path, current, deps.platform))
   if (removable.length === 0) {
     deps.showInformation(UI_TEXT.worktreeNoneToRemove)
     return
