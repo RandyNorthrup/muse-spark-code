@@ -95,6 +95,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **`/` in the prompt** works as in Claude Code. A `/` on an empty prompt
+  stays in the box and shows the palette above it, and the box keeps the
+  keyboard: Up and Down, `Enter` and `Esc` work the palette. Type a letter
+  more and the palette gives way to a list of slash commands narrowed as you
+  type, names that start with your letters first. `Enter` runs a command,
+  or completes a skill so you can add its arguments; `Tab` completes the
+  name. New names in that list: `/model`, `/resume`, `/permissions`,
+  `/config`, and `/mcp` and `/hooks` on the CLI backend. The `/` button
+  still opens the palette with its own filter box.
+- The Agent map and the header's agents pill show running and finished
+  agents in the panel's blue, as a running tool's dot is, instead of green.
 - The Marketplace publish runs in a `marketplace` environment that only
   version tags can use, holding the publishing token; no other workflow
   run can read it.

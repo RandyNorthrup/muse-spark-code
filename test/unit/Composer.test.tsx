@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   DICTATION_HOLD_MS,
@@ -7,8 +7,53 @@ import {
   MAX_IMAGE_BYTES,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { Composer, type ComposerProps, rowsFor } from '../../src/webview/components/Composer'
+import type { SlashCommand } from '../../src/shared/slashCommands'
+import type { PaletteKeys } from '../../src/webview/components/Palette'
+import {
+  Composer,
+  type ComposerProps,
+  rowsFor,
+  type SlashPaletteSlot,
+} from '../../src/webview/components/Composer'
 import { testSettings } from './helpers/fakes'
+
+/** The "/" list's commands (M38): two commands and a skill. */
+const slashCommands: readonly SlashCommand[] = [
+  { name: 'compact', detail: 'Summarise older context', action: { type: 'compact' } },
+  { name: 'clear', detail: 'Clear conversation', action: { type: 'clearConversation' } },
+  {
+    name: 'code-review',
+    detail: 'Reviews the diff',
+    action: { type: 'insertSkill', selector: 'code-review' },
+  },
+]
+
+const PALETTE_KEYS: ReadonlySet<string> = new Set(['ArrowDown', 'ArrowUp', 'Enter', 'Escape'])
+// Where the composer finds the stand-in palette's keyboard.
+const slashKeys: { current: PaletteKeys | null } = { current: null }
+
+/**
+ * A stand-in for the attached palette (M38): it takes the keys the real one
+ * takes, records them, and closes on Escape.
+ */
+function slashPalette(seen: string[]) {
+  return (slot: SlashPaletteSlot) => {
+    slashKeys.current = {
+      didHandleKey: (event) => {
+        if (!PALETTE_KEYS.has(event.key)) {
+          return false
+        }
+        seen.push(event.key)
+        if (event.key === 'Escape') {
+          slot.onClose()
+        }
+        event.preventDefault()
+        return true
+      },
+    }
+    return <div role="dialog" aria-label="Actions" />
+  }
+}
 
 /** The composer's clock (the tap/hold threshold reads it). */
 const clock = { now: 1_000_000 }
@@ -54,6 +99,12 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     onCompact: vi.fn(),
     banner: undefined,
     onDismissBanner: vi.fn(),
+    slashCommands,
+    isMenuOpen: false,
+    renderSlashPalette: slashPalette([]),
+    slashPaletteKeys: slashKeys,
+    onSlashCommand: vi.fn(),
+    onSlashMenuOpen: vi.fn(),
     ...overrides,
   }
   const view = render(<Composer {...props} />)
@@ -131,15 +182,6 @@ describe('Composer keyboard semantics', () => {
     expect(fireEvent.keyDown(textarea, { key: 'Tab', shiftKey: true })).toBe(false)
     expect(props.onCyclePermissionMode).toHaveBeenCalledOnce()
     expect(fireEvent.keyDown(textarea, { key: 'Tab' })).toBe(true)
-  })
-
-  it('opens the palette on "/" only when the draft is empty', () => {
-    const { props, view, textarea } = renderComposer()
-    expect(fireEvent.keyDown(textarea, { key: '/' })).toBe(false)
-    expect(props.onOpenPalette).toHaveBeenCalledOnce()
-    const typed = type(view, props, 'a')
-    expect(fireEvent.keyDown(typed, { key: '/' })).toBe(true)
-    expect(props.onOpenPalette).toHaveBeenCalledOnce()
   })
 })
 
@@ -542,5 +584,133 @@ describe('Composer reference chip (M17)', () => {
     expect(chip).toHaveAttribute('title', 'Goes to the agent with your message as context')
     fireEvent.click(screen.getByLabelText('Remove: Replying to: Use pnpm.'))
     expect(onDismissReference).toHaveBeenCalledOnce()
+  })
+})
+
+/** The "/" list's command names, in order. */
+function slashNames(): readonly (string | undefined)[] {
+  const list = screen.getByRole('listbox', { name: 'Slash commands' })
+  return within(list)
+    .getAllByRole('option')
+    .map((option) => option.querySelector('.palette-item-label')?.textContent)
+}
+
+// M38: "/" alone shows the palette; a character more, the slash commands.
+describe('Composer "/" menus (M38)', () => {
+  it('types the "/" and shows the palette above the box while the prompt is just "/"', () => {
+    const seen: string[] = []
+    const { props, view, textarea } = renderComposer({ renderSlashPalette: slashPalette(seen) })
+    textarea.focus()
+    expect(fireEvent.keyDown(textarea, { key: '/' })).toBe(true)
+    expect(props.onOpenPalette).not.toHaveBeenCalled()
+    const typed = type(view, props, '/')
+    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
+    expect(props.onSlashMenuOpen).toHaveBeenCalledOnce()
+    expect(typed).toHaveAttribute('aria-controls', 'palette-listbox')
+    // The box keeps the focus and hands the palette its keys.
+    expect(fireEvent.keyDown(typed, { key: 'ArrowDown' })).toBe(false)
+    expect(fireEvent.keyDown(typed, { key: 'Enter' })).toBe(false)
+    expect(props.onSubmit).not.toHaveBeenCalled()
+    expect(fireEvent.keyDown(typed, { key: 'Enter', shiftKey: true })).toBe(true)
+    expect(fireEvent.keyDown(typed, { key: 'b' })).toBe(true)
+    expect(seen).toEqual(['ArrowDown', 'Enter'])
+    // Escape closes it and keeps the text; the box has the focus.
+    fireEvent.keyDown(typed, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(props.onDraftChange).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(typed)
+  })
+
+  it('turns into the command list once a character follows, ranked as the name is typed', () => {
+    const { props, view, textarea } = renderComposer()
+    textarea.focus()
+    const typed = type(view, props, '/co')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // Name matches first; "Clear conversation" holds "co" in its description.
+    expect(slashNames()).toEqual(['/code-review', '/compact', '/clear'])
+    expect(typed).toHaveAttribute('aria-controls', 'slash-listbox')
+    expect(typed).toHaveAttribute('aria-activedescendant', 'slash-option-0')
+    type(view, props, '/com')
+    expect(slashNames()).toEqual(['/compact'])
+    type(view, props, '/cl')
+    expect(slashNames()).toEqual(['/clear'])
+  })
+
+  it('runs a command with Enter, completes a skill for its arguments, and completes a name with Tab', () => {
+    const { props, view, textarea } = renderComposer()
+    textarea.focus()
+    const typed = type(view, props, '/co')
+    // Enter on a skill completes it; nothing runs and nothing is sent.
+    expect(fireEvent.keyDown(typed, { key: 'Enter' })).toBe(false)
+    expect(props.onDraftChange).toHaveBeenLastCalledWith('/code-review ')
+    expect(props.onSlashCommand).not.toHaveBeenCalled()
+    // Down to /compact: Tab completes the name, Enter runs it.
+    fireEvent.keyDown(typed, { key: 'ArrowDown' })
+    expect(typed).toHaveAttribute('aria-activedescendant', 'slash-option-1')
+    expect(fireEvent.keyDown(typed, { key: 'Tab' })).toBe(false)
+    expect(props.onDraftChange).toHaveBeenLastCalledWith('/compact')
+    fireEvent.keyDown(typed, { key: 'Enter' })
+    expect(props.onSlashCommand).toHaveBeenCalledWith(slashCommands[0])
+    // Up wraps to the last row; a click runs it.
+    fireEvent.keyDown(typed, { key: 'ArrowUp' })
+    fireEvent.keyDown(typed, { key: 'ArrowUp' })
+    expect(typed).toHaveAttribute('aria-activedescendant', 'slash-option-2')
+    const clear = screen.getByRole('option', { name: /clear/ })
+    expect(fireEvent.mouseDown(clear)).toBe(false)
+    fireEvent.click(clear)
+    expect(props.onSlashCommand).toHaveBeenLastCalledWith(slashCommands[1])
+    expect(props.onSubmit).not.toHaveBeenCalled()
+    // Shift+Tab still cycles the permission mode.
+    fireEvent.keyDown(typed, { key: 'Tab', shiftKey: true })
+    expect(props.onCyclePermissionMode).toHaveBeenCalledOnce()
+  })
+
+  it('closes on Escape keeping the text, and with no match Enter sends the text', () => {
+    const { props, view, textarea } = renderComposer()
+    textarea.focus()
+    let typed = type(view, props, '/co')
+    fireEvent.keyDown(typed, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(props.onDraftChange).not.toHaveBeenCalled()
+    fireEvent.keyDown(typed, { key: 'Enter' })
+    expect(props.onSubmit).toHaveBeenCalledOnce()
+    // Typing on brings it back.
+    type(view, props, '/com')
+    expect(slashNames()).toEqual(['/compact'])
+    // A dismissal holds for its draft only: the same "/com" later opens again.
+    fireEvent.keyDown(typed, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    type(view, props, '')
+    type(view, props, '/com')
+    expect(slashNames()).toEqual(['/compact'])
+    typed = type(view, props, '/zzz')
+    expect(
+      screen.getByText('No matching commands; Enter sends the text as it is'),
+    ).toBeInTheDocument()
+    expect(fireEvent.keyDown(typed, { key: 'Tab' })).toBe(true)
+    fireEvent.keyDown(typed, { key: 'Enter' })
+    expect(props.onSubmit).toHaveBeenCalledTimes(2)
+  })
+
+  it('stays closed without the focus, under another menu, with the caret inside, or with text after the name', () => {
+    const { props, view, textarea } = renderComposer()
+    type(view, props, '/co')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    textarea.focus()
+    type(view, props, '/co', { isMenuOpen: true })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    const typed = type(view, props, '/co')
+    typed.setSelectionRange(1, 1)
+    fireEvent.keyUp(typed, { key: 'ArrowLeft' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    type(view, props, '/compact now')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    type(view, props, '/co')
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    fireEvent.blur(typed, { relatedTarget: document.body })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    // Each opening says so (the list opened twice above); App asks for the
+    // skills only while it has none.
+    expect(props.onSlashMenuOpen).toHaveBeenCalledTimes(2)
   })
 })

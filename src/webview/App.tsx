@@ -24,10 +24,11 @@ import {
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
+import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { LineRange, SignInMethod, WebviewToHostMessage } from '../shared/protocol'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AgentMap } from './components/AgentMap'
-import { Composer, type ImageData } from './components/Composer'
+import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
@@ -35,7 +36,7 @@ import { HistoryDialog } from './components/HistoryDialog'
 import { UsageDialog } from './components/UsageDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
-import { Palette, type PaletteView } from './components/Palette'
+import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
 import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
 import { TodoPanel } from './components/TodoPanel'
@@ -70,6 +71,16 @@ export interface AppProps {
 
 /** What floats above the composer: a palette view, a menu or the History dialog. */
 type Overlay = PaletteView | 'modes' | 'attach' | 'history' | 'usage' | 'agents'
+
+// The palette rows that leave it open (a value changes in place); run from
+// the prompt's "/" palette they keep the `/` too, so it stays (M38).
+const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
+  'setEffort',
+  'toggleThinking',
+  'toggleFocusView',
+  'toggleCtrlEnterToSend',
+  'none',
+])
 
 const GATED_STATUSES = new Set(['noCli', 'signedOut', 'signingIn', 'error'])
 const ATTACH_UPLOAD = 'upload'
@@ -775,6 +786,54 @@ export function App({
       state.auth.backend,
     ],
   )
+  // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
+  // unless it leaves the palette open; a skill becomes `/selector ` for its
+  // arguments.
+  const slashCommands = useMemo(() => slashCommandsOf(paletteGroups), [paletteGroups])
+  const slashPaletteKeys = useRef<PaletteKeys>(null)
+  const onPromptAction = useCallback(
+    (action: PaletteAction) => {
+      if (action.type === 'insertSkill') {
+        dispatch({ type: 'draftChanged', draft: `/${action.selector} ` })
+        dispatch({ type: 'focusRequested' })
+        return
+      }
+      if (!KEEPS_PALETTE_OPEN.has(action.type)) {
+        dispatch({ type: 'draftChanged', draft: '' })
+      }
+      onPaletteAction(action)
+    },
+    [dispatch, onPaletteAction],
+  )
+  const onSlashCommand = useCallback(
+    (command: SlashCommand) => {
+      onPromptAction(command.action)
+    },
+    [onPromptAction],
+  )
+  const onSlashMenuOpen = useCallback(() => {
+    if (store.getState().skills === undefined) {
+      postMessage({ type: 'listSkills' })
+    }
+  }, [store, postMessage])
+  const renderSlashPalette = useCallback(
+    (slot: SlashPaletteSlot) => (
+      <Palette
+        view="actions"
+        groups={paletteGroups}
+        models={state.models}
+        currentModelId={state.model?.modelId}
+        onAction={onPromptAction}
+        onSelectModel={onSelectModel}
+        onBack={onPaletteBack}
+        onClose={slot.onClose}
+        isAttached
+        keys={slashPaletteKeys}
+        onActiveRowChange={slot.onActiveRowChange}
+      />
+    ),
+    [paletteGroups, state.models, state.model, onPromptAction, onSelectModel, onPaletteBack],
+  )
   const modeEntries = useMemo(
     (): readonly MenuEntry[] =>
       availablePermissionModes(canBypass).map((mode) => ({
@@ -1104,6 +1163,12 @@ export function App({
           onCompact={onCompact}
           banner={state.banner}
           onDismissBanner={onDismissBanner}
+          slashCommands={slashCommands}
+          isMenuOpen={overlay !== undefined}
+          renderSlashPalette={renderSlashPalette}
+          slashPaletteKeys={slashPaletteKeys}
+          onSlashCommand={onSlashCommand}
+          onSlashMenuOpen={onSlashMenuOpen}
         />
       </div>
     </div>

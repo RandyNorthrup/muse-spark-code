@@ -4,6 +4,7 @@
 import { UI_TEXT } from '../../shared/constants'
 import type { MentionItem } from '../../shared/protocol'
 import { FileIcon, FolderIcon } from './icons'
+import { MenuOption } from './MenuOption'
 
 export interface MentionMenuProps {
   readonly items: readonly MentionItem[]
@@ -24,26 +25,20 @@ export function MentionMenu({ items, activeIndex, onSelect, onHover }: MentionMe
       ) : (
         <ul id="mention-listbox" role="listbox" aria-label={UI_TEXT.mentionMenuLabel}>
           {items.map((item, index) => (
-            <li
+            <MenuOption
               key={item.path}
               id={mentionOptionId(index)}
-              role="option"
-              aria-selected={index === activeIndex}
-              className={index === activeIndex ? 'menu-item menu-item-active' : 'menu-item'}
-              onMouseEnter={() => {
+              isActive={index === activeIndex}
+              onHover={() => {
                 onHover(index)
               }}
-              onMouseDown={(event) => {
-                // Keep the textarea focused; the click still selects.
-                event.preventDefault()
-              }}
-              onClick={() => {
+              onSelect={() => {
                 onSelect(item)
               }}
             >
               {item.isFolder ? <FolderIcon /> : <FileIcon />}
               <span className="menu-item-label">{item.path}</span>
-            </li>
+            </MenuOption>
           ))}
         </ul>
       )}

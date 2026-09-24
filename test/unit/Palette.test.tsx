@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
+import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { buildPalette, type PaletteAction, type PaletteContext } from '../../src/shared/palette'
-import { Palette, type PaletteProps } from '../../src/webview/components/Palette'
+import { Palette, type PaletteKeys, type PaletteProps } from '../../src/webview/components/Palette'
 
 const context: PaletteContext = {
   currentModel: { modelId: 'muse-spark-1.3', contextLimit: 1_007_997 },
@@ -25,8 +26,8 @@ const context: PaletteContext = {
   backend: 'museCode',
 }
 
-function renderPalette(overrides: Partial<PaletteProps> = {}) {
-  const props: PaletteProps = {
+function paletteProps(overrides: Partial<PaletteProps> = {}): PaletteProps {
+  return {
     view: 'actions',
     groups: buildPalette(context),
     models: context.models,
@@ -37,6 +38,10 @@ function renderPalette(overrides: Partial<PaletteProps> = {}) {
     onClose: vi.fn(),
     ...overrides,
   }
+}
+
+function renderPalette(overrides: Partial<PaletteProps> = {}) {
+  const props = paletteProps(overrides)
   render(<Palette {...props} />)
   const filter = screen.getByRole('combobox')
   return { props, filter }
@@ -184,5 +189,42 @@ describe('Palette (models view)', () => {
     fireEvent.keyDown(list, { key: 'Escape' })
     expect(props.onBack).toHaveBeenCalledTimes(3)
     expect(props.onClose).not.toHaveBeenCalled()
+  })
+})
+
+// M38: shown by a "/" in the prompt, which keeps the focus and the keys.
+describe('Palette (attached to the prompt)', () => {
+  it('has no filter box, takes the prompt’s keys through its handle, and reports the active row', () => {
+    const keys = createRef<PaletteKeys>()
+    const onActiveRowChange = vi.fn<(elementId: string | undefined) => void>()
+    const props = paletteProps({ isAttached: true, keys, onActiveRowChange })
+    render(
+      <>
+        <input
+          aria-label="prompt"
+          onKeyDown={(event) => {
+            keys.current?.didHandleKey(event)
+          }}
+        />
+        <Palette {...props} />
+      </>,
+    )
+    const prompt = screen.getByLabelText('prompt')
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Actions' })).toHaveClass('palette-attached')
+    expect(onActiveRowChange).toHaveBeenLastCalledWith('palette-row-attachFile')
+    // Its keys are taken and their defaults prevented; others pass through.
+    expect(fireEvent.keyDown(prompt, { key: 'ArrowDown' })).toBe(false)
+    expect(onActiveRowChange).toHaveBeenLastCalledWith('palette-row-mentionFile')
+    expect(fireEvent.keyDown(prompt, { key: 'ArrowLeft' })).toBe(true)
+    expect(fireEvent.keyDown(prompt, { key: 'x' })).toBe(true)
+    fireEvent.keyDown(prompt, { key: 'Enter' })
+    expect(props.onAction).toHaveBeenCalledWith({ type: 'mentionFile' })
+    // The focus is the prompt's: leaving the list does not close it here.
+    const list = document.querySelector<HTMLElement>('.palette-body')!
+    fireEvent.blur(list, { relatedTarget: prompt })
+    expect(props.onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(prompt, { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledOnce()
   })
 })

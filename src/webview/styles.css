@@ -661,6 +661,13 @@ body {
   margin-bottom: 0;
 }
 
+/* Shown by a "/" in the prompt (M38): as wide as the box, as the @ list is. */
+.palette-attached {
+  right: 0;
+  left: 0;
+  margin-bottom: 4px;
+}
+
 .palette-header {
   display: flex;
   gap: 4px;
@@ -711,6 +718,18 @@ body {
   font-size: 0.85em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The prompt's "/" list (M38): one line a command, the name and then its
+   description, so more of them fit. */
+.slash-menu .palette-item-text {
+  flex-direction: row;
+  gap: var(--ms-gap);
+  align-items: baseline;
+}
+
+.slash-menu .palette-item-label {
+  flex-shrink: 0;
 }
 
 /* On the selection the grey detail falls below 4.5:1 (Dark Modern: 4.41,
@@ -2015,13 +2034,15 @@ body {
   background: var(--vscode-descriptionForeground);
 }
 
+/* The panel's own blue, as on a running tool's dot; green read as a
+   different kind of status (owner, 2026-09-24). */
 .agent-dot-running {
-  background: var(--vscode-testing-iconPassed, #3fb950);
+  background: var(--vscode-progressBar-background, var(--vscode-button-background));
   animation: agent-pulse 1.2s ease-in-out infinite;
 }
 
 .agent-dot-done {
-  background: var(--vscode-testing-iconPassed, #3fb950);
+  background: var(--vscode-progressBar-background, var(--vscode-button-background));
 }
 
 .agent-dot-failed {

@@ -2,8 +2,22 @@
 // value, a toggle or the effort slider, plus the model list as a second view.
 // Fully keyboard-operable: the filter input keeps focus, Up/Down move,
 // Enter activates, Left/Right step the slider, Esc goes back or closes.
+//
+// Attached (M38): a "/" typed on an empty prompt shows the palette above the
+// composer with no filter box of its own. The prompt keeps the focus and
+// hands its keys over through `keys`; its `aria-activedescendant` follows
+// `onActiveRowChange`.
 
-import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import {
@@ -31,6 +45,18 @@ export interface PaletteProps {
   readonly onSelectModel: (modelId: string) => void
   readonly onBack: () => void
   readonly onClose: () => void
+  /** Shown by a "/" in the prompt, which keeps the focus and the keys (M38). */
+  readonly isAttached?: boolean
+  /** Where the prompt sends its keys while the palette is attached. */
+  readonly keys?: Ref<PaletteKeys>
+  /** The active row's element id, for the prompt's aria-activedescendant. */
+  readonly onActiveRowChange?: (elementId: string | undefined) => void
+}
+
+/** The palette's keyboard, for a prompt that keeps the focus (M38). */
+export interface PaletteKeys {
+  /** True when the key was the palette's (its default is then prevented). */
+  readonly didHandleKey: (event: KeyboardEvent<HTMLElement>) => boolean
 }
 
 /** One selectable row, in display order. */
@@ -52,6 +78,7 @@ export type PaletteEntry =
   | { readonly kind: 'row'; readonly key: string; readonly index: number }
 
 const ROW_ID_PREFIX = 'palette-row-'
+export const PALETTE_LISTBOX_ID = 'palette-listbox'
 
 function rowFor(item: PaletteItem, onAction: (action: PaletteAction) => void): PaletteRow {
   const { action, widget } = item
@@ -213,6 +240,7 @@ function RowView({
 
 export function Palette(props: PaletteProps) {
   const { view, groups, models, currentModelId, onAction, onSelectModel, onBack, onClose } = props
+  const { isAttached = false, keys, onActiveRowChange } = props
   const [filter, setFilter] = useState('')
   const filterBox = useRef<HTMLInputElement>(null)
   const [storedIndex, setActiveIndex] = useState(0)
@@ -244,35 +272,31 @@ export function Palette(props: PaletteProps) {
     setActiveIndex(wrapIndex(activeIndex, delta, rows.length))
   }
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const didHandleKey = (event: KeyboardEvent<HTMLElement>): boolean => {
     const active = rows[activeIndex]
     switch (event.key) {
       case 'ArrowDown': {
-        event.preventDefault()
         move(1)
         break
       }
       case 'ArrowUp': {
-        event.preventDefault()
         move(-1)
         break
       }
       case 'ArrowRight':
       case 'ArrowLeft': {
-        if (active?.step !== undefined && active.widget?.kind === 'slider') {
-          event.preventDefault()
-          const { levels, current } = active.widget
-          active.step(effortIndex(levels, current) + (event.key === 'ArrowRight' ? 1 : -1))
+        if (active?.step === undefined || active.widget?.kind !== 'slider') {
+          return false
         }
+        const { levels, current } = active.widget
+        active.step(effortIndex(levels, current) + (event.key === 'ArrowRight' ? 1 : -1))
         break
       }
       case 'Enter': {
-        event.preventDefault()
         active?.activate()
         break
       }
       case 'Escape': {
-        event.preventDefault()
         if (view === 'models') {
           onBack()
         } else {
@@ -281,10 +305,13 @@ export function Palette(props: PaletteProps) {
         break
       }
       default: {
-        break
+        return false
       }
     }
+    event.preventDefault()
+    return true
   }
+  useImperativeHandle(keys, () => ({ didHandleKey }))
 
   const renderRow = (index: number) => {
     const row = rows[index]
@@ -306,7 +333,7 @@ export function Palette(props: PaletteProps) {
   } else if (view === 'models') {
     body = (
       <ul
-        id="palette-listbox"
+        id={PALETTE_LISTBOX_ID}
         role="listbox"
         aria-label={UI_TEXT.modelListLabel}
         className="palette-list"
@@ -317,7 +344,7 @@ export function Palette(props: PaletteProps) {
   } else {
     body = (
       <ul
-        id="palette-listbox"
+        id={PALETTE_LISTBOX_ID}
         role="listbox"
         aria-label={UI_TEXT.paletteLabel}
         className="palette-list"
@@ -357,9 +384,17 @@ export function Palette(props: PaletteProps) {
   }
 
   const activeRow = rows[activeIndex]
+  const activeRowId = activeRow === undefined ? undefined : `${ROW_ID_PREFIX}${activeRow.id}`
+  useEffect(() => {
+    onActiveRowChange?.(activeRowId)
+  }, [onActiveRowChange, activeRowId])
   // Anything taking the focus outside the palette closes it; Tab into the
-  // list keeps it open (M37).
+  // list keeps it open (M37). Attached, the focus is the prompt's, which
+  // closes it itself.
   const onPaletteBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (isAttached) {
+      return
+    }
     if (!event.currentTarget.contains(event.relatedTarget)) {
       onClose()
     }
@@ -378,48 +413,50 @@ export function Palette(props: PaletteProps) {
   }
   return (
     <div
-      className="palette"
+      className={isAttached ? 'palette palette-attached' : 'palette'}
       role="dialog"
       aria-label={UI_TEXT.paletteLabel}
       onBlur={onPaletteBlur}
       onKeyDown={onPaletteKeyDown}
     >
-      <div className="palette-header">
-        {view === 'models' ? (
-          <button
-            type="button"
-            className="icon-button"
-            title={UI_TEXT.paletteBack}
-            aria-label={UI_TEXT.paletteBack}
-            onMouseDown={(event) => {
-              event.preventDefault()
+      {isAttached ? null : (
+        <div className="palette-header">
+          {view === 'models' ? (
+            <button
+              type="button"
+              className="icon-button"
+              title={UI_TEXT.paletteBack}
+              aria-label={UI_TEXT.paletteBack}
+              onMouseDown={(event) => {
+                event.preventDefault()
+              }}
+              onClick={onBack}
+            >
+              <BackIcon />
+            </button>
+          ) : null}
+          <input
+            ref={filterBox}
+            className="palette-filter"
+            type="text"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={PALETTE_LISTBOX_ID}
+            aria-autocomplete="list"
+            aria-activedescendant={activeRowId}
+            placeholder={UI_TEXT.paletteFilterPlaceholder}
+            value={filter}
+            autoFocus
+            onChange={(event) => {
+              setFilter(event.target.value)
+              setActiveIndex(0)
             }}
-            onClick={onBack}
-          >
-            <BackIcon />
-          </button>
-        ) : null}
-        <input
-          ref={filterBox}
-          className="palette-filter"
-          type="text"
-          role="combobox"
-          aria-expanded="true"
-          aria-controls="palette-listbox"
-          aria-autocomplete="list"
-          aria-activedescendant={
-            activeRow === undefined ? undefined : `${ROW_ID_PREFIX}${activeRow.id}`
-          }
-          placeholder={UI_TEXT.paletteFilterPlaceholder}
-          value={filter}
-          autoFocus
-          onChange={(event) => {
-            setFilter(event.target.value)
-            setActiveIndex(0)
-          }}
-          onKeyDown={handleKeyDown}
-        />
-      </div>
+            onKeyDown={(event) => {
+              didHandleKey(event)
+            }}
+          />
+        </div>
+      )}
       <ListBody>{body}</ListBody>
     </div>
   )
