@@ -7,8 +7,9 @@
       Loads the built webview bundle behind a scripted fake host so the UI can
       be exercised in an ordinary browser (see scripts/harness-shots.mjs).
       Served from the repository root; run `npm run build:dev` first.
-      The colour variables approximate VS Code's light theme; the harness
-      verifies layout and behaviour, not theming.
+      The colour variables below approximate VS Code's light theme for the
+      screenshots; `?theme=` applies a theme captured from VS Code itself,
+      as the accessibility gate does (scripts/a11y.mjs).
     -->
     <link rel="stylesheet" href="../../dist/webview/main.css" />
     <style>
@@ -1511,6 +1512,113 @@
       }
       if (scenario !== null && scenario in steps) {
         later(400, steps[scenario])
+      }
+
+      // `?theme=<kind>` applies the colours VS Code gives a webview in one of
+      // its default themes (test/harness/themes, captured from VS Code by
+      // scripts/capture-themes.mjs). A colour the theme leaves unset is made
+      // invalid, so the stylesheet's own fallback applies, as in VS Code.
+      // `?axe=1` then runs axe-core (WCAG 2.0, 2.1 and 2.2, levels A and AA)
+      // once the scenario has played, and writes what it found into a
+      // hidden <pre id="axe-result"> for scripts/a11y.mjs (M37, PLAN.md D32).
+      const params = new URLSearchParams(location.search)
+      const FONT_VARIABLE = /font/
+      const applyTheme = async (kind) => {
+        const response = await fetch(`themes/${kind}.json`)
+        const theme = await response.json()
+        const root = document.documentElement.style
+        for (const [name, value] of Object.entries(theme.variables)) {
+          root.setProperty(name, value)
+        }
+        // The fonts are the webview host's, not the theme's: they stay.
+        for (const name of theme.unset.filter((unset) => !FONT_VARIABLE.test(unset))) {
+          root.setProperty(name, 'initial')
+        }
+        document.body.classList.add(...theme.bodyClass.split(' '))
+      }
+      const AXE_AFTER_MS = 5000
+      const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
+      const writeAxeResult = (value) => {
+        const result = document.createElement('pre')
+        result.id = 'axe-result'
+        result.hidden = true
+        result.textContent = JSON.stringify(value)
+        document.body.append(result)
+      }
+      const loadAxe = () =>
+        new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = '../../node_modules/axe-core/axe.min.js'
+          script.addEventListener('load', resolve)
+          script.addEventListener('error', () => {
+            reject(new Error('axe-core did not load'))
+          })
+          document.head.append(script)
+        })
+      // WCAG 2.5.8 "does not apply to targets while they are obscured by
+      // content displayed as a result of a user interaction" (W3C,
+      // Understanding 2.5.8), such as a menu the user opened. axe measures
+      // the covered area anyway, so a target-size finding whose crowding or
+      // covering elements all belong to an open menu or dialog is counted
+      // as exempt and reported, not dropped silently.
+      const OPENED_CONTENT = '.popover, [role="menu"], [role="dialog"]'
+      const isInsideOpenedContent = (related) =>
+        document.querySelector(related.target.join(' '))?.closest(OPENED_CONTENT) != null
+      const isObscuredByOpenedContent = (node) => {
+        const related = [...node.any, ...node.all, ...node.none].flatMap(
+          (check) => check.relatedNodes,
+        )
+        return related.length > 0 && related.every(isInsideOpenedContent)
+      }
+      const runAxe = async () => {
+        await loadAxe()
+        const results = await window.axe.run(document, {
+          runOnly: { type: 'tag', values: AXE_TAGS },
+          resultTypes: ['violations'],
+        })
+        const exempt = []
+        const violations = results.violations.flatMap((violation) => {
+          const nodes = violation.nodes.filter((node) => {
+            if (violation.id === 'target-size' && isObscuredByOpenedContent(node)) {
+              exempt.push({ rule: violation.id, target: node.target.join(' ') })
+              return false
+            }
+            return true
+          })
+          return nodes.length === 0
+            ? []
+            : [
+                {
+                  id: violation.id,
+                  impact: violation.impact,
+                  help: violation.help,
+                  nodes: nodes.map((node) => ({
+                    target: node.target.join(' '),
+                    summary: node.failureSummary,
+                  })),
+                },
+              ]
+        })
+        return { violations, exempt }
+      }
+      const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
+      if (params.get('axe') === '1') {
+        themed
+          .then(
+            () =>
+              new Promise((resolve) => {
+                later(AXE_AFTER_MS, resolve)
+              }),
+          )
+          .then(runAxe)
+          .then(
+            (result) => {
+              writeAxeResult(result)
+            },
+            (error) => {
+              writeAxeResult({ error: String(error) })
+            },
+          )
       }
     </script>
   </body>

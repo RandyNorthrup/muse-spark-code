@@ -713,6 +713,13 @@ body {
   white-space: nowrap;
 }
 
+/* On the selection the grey detail falls below 4.5:1 (Dark Modern: 4.41,
+   M37); it takes the selection's own text colour, a size smaller. */
+.menu-item-active .palette-item-detail,
+.palette-item-active .palette-item-detail {
+  color: inherit;
+}
+
 .palette-item-disabled {
   color: var(--vscode-disabledForeground);
   cursor: default;
@@ -901,8 +908,12 @@ body {
   cursor: default;
 }
 
+/* A 24 px target around the 16 px chevron (WCAG 2.5.8, M37). */
 .tool-chevron {
   flex-shrink: 0;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
   margin-left: auto;
 }
 
@@ -975,9 +986,14 @@ body {
   font-size: 0.85em;
 }
 
+/* The reason in the text colour, the error colour on the bar beside it:
+   Light Modern's error colour is 3.15:1 on the sidebar, enough for a mark
+   (WCAG 1.4.11) but not for text (1.4.3, M37). */
 .tool-failure {
   margin: 2px 0 2px calc(8px + var(--ms-gap));
-  color: var(--vscode-errorForeground);
+  padding-left: 6px;
+  border-left: 2px solid var(--vscode-errorForeground);
+  color: var(--vscode-foreground);
   font-size: 0.85em;
   white-space: pre-wrap;
 }
@@ -1070,9 +1086,12 @@ body {
   vertical-align: top;
 }
 
+/* Line numbers are text in the text colour: the editor's line-number and
+   description colours fall below 4.5:1 on the diff's tinted backgrounds
+   (WCAG 1.4.3; M37 measured 3.0 to 4.48 in the Modern themes). */
 .diff-gutter {
   width: 2.5em;
-  color: var(--vscode-editorLineNumber-foreground, var(--vscode-descriptionForeground));
+  color: var(--vscode-foreground);
   text-align: right;
   user-select: none;
 }
@@ -1194,10 +1213,13 @@ body {
   gap: 4px;
 }
 
+/* Each option at least 24 px tall, so its radio or checkbox has a 24 px
+   target's room (WCAG 2.5.8, M37). */
 .question-choice {
   display: flex;
   gap: 6px;
-  align-items: baseline;
+  align-items: center;
+  min-height: 24px;
   cursor: pointer;
 }
 

@@ -334,9 +334,10 @@ and replace an existing file with `write_file` only after reading it (as
 Claude Code does).
 
 **History.** The clock icon lists the workspace's conversations by day with
-search, resume (full transcript), archive and **Show archived**. Sessions
-idle for `archiveInactiveSessions` days are hidden, not deleted. A hidden
-panel shows a dot when Muse finished or needs a decision.
+search, resume (full transcript), archive (the row's × or **Delete** on the
+highlighted row) and **Show archived**. Sessions idle for
+`archiveInactiveSessions` days are hidden, not deleted. A hidden panel shows
+a dot when Muse finished or needs a decision.
 
 **Diagnostics.** The agent can read the Problems panel through a
 `getDiagnostics` tool the extension serves on a loopback MCP server, bound to
@@ -595,6 +596,7 @@ PowerShell and Swift with no dependencies.
 | `npm run build:dev`                       | Dev bundles for the extension, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                       |
 | `npm run watch`                           | Rebuild extension + webview on change                                                                                                                                                                                                                                                                                                        |
 | `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev` and Chrome. The README's screenshots come from here                                                                                                                                              |
+| `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation; needs a build and Chrome. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code                                                                                  |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                      |
 | `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages                                                                                                                                  |
 | `npm run notices`                         | Regenerates `THIRD_PARTY_NOTICES.txt` from the production bundles                                                                                                                                                                                                                                                                            |
@@ -627,9 +629,11 @@ a real VS Code launched by `@vscode/test-cli` (on Linux under `xvfb-run -a`).
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are
 in [`docs/certification/`](docs/certification/), one file per milestone.
-Escape hatches (`eslint-disable`, `@ts-expect-error`, casts) need an inline
-reason and a row in `PLAN.md` §8. Bundle budgets: 600 KiB for the extension,
-900 KiB for the webview.
+Accessibility is a gate too: every screen the harness shows passes axe-core's
+WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
+(PLAN.md D32). Escape hatches (`eslint-disable`, `@ts-expect-error`, casts)
+need an inline reason and a row in `PLAN.md` §8. Bundle budgets: 600 KiB for
+the extension, 900 KiB for the webview.
 
 **Environment variables.** Credentials live in SecretStorage, never in
 files. `.env.example` documents the single variable tooling may read:

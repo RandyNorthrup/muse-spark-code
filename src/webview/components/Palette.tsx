@@ -3,7 +3,7 @@
 // Fully keyboard-operable: the filter input keeps focus, Up/Down move,
 // Enter activates, Left/Right step the slider, Esc goes back or closes.
 
-import { type KeyboardEvent, useEffect, useMemo, useState } from 'react'
+import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import {
@@ -18,6 +18,7 @@ import type { ModelOption } from '../../shared/protocol'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
+import { ListBody } from './ListBody'
 
 export type PaletteView = 'actions' | 'models'
 
@@ -156,6 +157,7 @@ function Widget({
         <EffortSlider
           levels={widget.levels}
           current={widget.current}
+          isInsideOption
           onSelect={
             onStep === undefined
               ? undefined
@@ -212,6 +214,7 @@ function RowView({
 export function Palette(props: PaletteProps) {
   const { view, groups, models, currentModelId, onAction, onSelectModel, onBack, onClose } = props
   const [filter, setFilter] = useState('')
+  const filterBox = useRef<HTMLInputElement>(null)
   const [storedIndex, setActiveIndex] = useState(0)
 
   const layout = useMemo(() => {
@@ -354,8 +357,33 @@ export function Palette(props: PaletteProps) {
   }
 
   const activeRow = rows[activeIndex]
+  // Anything taking the focus outside the palette closes it; Tab into the
+  // list keeps it open (M37).
+  const onPaletteBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      onClose()
+    }
+  }
+  // Escape from the list; the filter box handles its own.
+  const onPaletteKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Escape' || event.target === filterBox.current) {
+      return
+    }
+    event.preventDefault()
+    if (view === 'models') {
+      onBack()
+    } else {
+      onClose()
+    }
+  }
   return (
-    <div className="palette" role="dialog" aria-label={UI_TEXT.paletteLabel}>
+    <div
+      className="palette"
+      role="dialog"
+      aria-label={UI_TEXT.paletteLabel}
+      onBlur={onPaletteBlur}
+      onKeyDown={onPaletteKeyDown}
+    >
       <div className="palette-header">
         {view === 'models' ? (
           <button
@@ -372,6 +400,7 @@ export function Palette(props: PaletteProps) {
           </button>
         ) : null}
         <input
+          ref={filterBox}
           className="palette-filter"
           type="text"
           role="combobox"
@@ -389,10 +418,9 @@ export function Palette(props: PaletteProps) {
             setActiveIndex(0)
           }}
           onKeyDown={handleKeyDown}
-          onBlur={onClose}
         />
       </div>
-      <div className="palette-body">{body}</div>
+      <ListBody>{body}</ListBody>
     </div>
   )
 }

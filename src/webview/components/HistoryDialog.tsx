@@ -17,6 +17,7 @@ import {
 } from '../../shared/sessions'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { CloseIcon, HistoryIcon } from './icons'
+import { ListBody } from './ListBody'
 
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
@@ -31,6 +32,8 @@ export interface HistoryDialogProps {
 }
 
 const ROW_ID_PREFIX = 'history-row-'
+// Archives or restores the highlighted row from the search box (M37).
+const ARCHIVE_KEY = 'Delete'
 
 /** What the list renders: group titles and numbered rows, in order. */
 export type HistoryEntry =
@@ -93,6 +96,9 @@ function RowView({
       id={`${ROW_ID_PREFIX}${row.sessionId}`}
       role="option"
       aria-selected={isActive}
+      // The row is the control: Delete (un)archives it from the search box.
+      aria-keyshortcuts={ARCHIVE_KEY}
+      aria-description={archiveLabel}
       className={
         isActive ? 'palette-item history-row palette-item-active' : 'palette-item history-row'
       }
@@ -112,11 +118,12 @@ function RowView({
         </span>
         <span className="palette-item-detail">{meta}</span>
       </span>
-      <button
-        type="button"
+      {/* For the mouse only: a button inside an option is still reachable by
+          assistive technology (WCAG 4.1.2, M37); the keyboard uses Delete. */}
+      <span
         className="icon-button history-archive"
-        title={archiveLabel}
-        aria-label={`${archiveLabel}: ${row.title}`}
+        title={`${archiveLabel} (${ARCHIVE_KEY})`}
+        aria-hidden="true"
         onMouseDown={(event) => {
           event.preventDefault()
         }}
@@ -126,7 +133,7 @@ function RowView({
         }}
       >
         <CloseIcon />
-      </button>
+      </span>
     </li>
   )
 }
@@ -189,6 +196,14 @@ export function HistoryDialog(props: HistoryDialogProps) {
         event.preventDefault()
         if (activeRow !== undefined) {
           onResume(activeRow.sessionId)
+        }
+        break
+      }
+      case ARCHIVE_KEY: {
+        // Only on the highlighted row; with text selected, Delete edits it.
+        if (activeRow !== undefined && event.currentTarget.value === '') {
+          event.preventDefault()
+          onSetArchived(activeRow.sessionId, !archivedIds.includes(activeRow.sessionId))
         }
         break
       }
@@ -314,7 +329,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
           {UI_TEXT.historyShowArchived}
         </label>
       </div>
-      <div className="palette-body">{body}</div>
+      <ListBody>{body}</ListBody>
     </div>
   )
 }

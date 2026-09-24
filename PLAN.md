@@ -155,6 +155,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `jscpd`                                                                 | 5.3.1                             | Copy-paste detection.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm-run-all2`                                                          | 9.0.3                             | Runs gate scripts in sequence/parallel.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `rimraf`                                                                | 6.1.3                             | Cross-platform clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `axe-core`                                                              | 4.13.0                            | The accessibility gate (M37, D32): WCAG 2.0 to 2.2, levels A and AA, run inside the harness page. MPL-2.0; a dev dependency, never bundled.                                                                                                                                                                                                                                                                                                                                                          |
 
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
@@ -946,6 +947,57 @@ keeps its rule that nothing is guessed:
   lines), or more than one (ambiguous).
 - **Unchanged:** out-of-order hunks are refused as overlapping, as before,
   and a deletion with no context lines is placed only where recorded.
+
+### D32 — An accessibility gate: WCAG 2.2 AA with axe-core, in VS Code's own themes (2026-09-24)
+
+The owner asked whether Lighthouse and WCAG scans make sense for what is,
+in effect, a web app. **Lighthouse: no.** Its Performance and SEO
+categories measure a page loaded over a network, and Best Practices is
+mostly about HTTPS and browser APIs; the webview is a local bundle inside
+VS Code. Its Accessibility category is axe-core, so the gate runs axe-core
+itself. **Owner's go-ahead (2026-09-24):** "sure", for axe-core 4.13.0
+(MPL-2.0) as a dev dependency and a gate of its own.
+
+- **What is checked:** every harness scenario (`test/harness/`, the
+  webview behind a fake host, 52 today) in each of VS Code's four default
+  themes, against axe's WCAG 2.0, 2.1 and 2.2 rules at levels A and AA
+  (tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`), colour
+  contrast included. Any violation, or a page that reports no result,
+  fails the gate.
+- **Real colours, not a guess:** `scripts/capture-themes.mjs` starts the
+  VS Code build the integration tests use (1.139.0) once per theme
+  (Default Light Modern, Dark Modern, High Contrast, High Contrast Light)
+  and reads the workbench's `--vscode-*` values over the DevTools
+  Protocol. Only the variables the webview uses are kept, in
+  `test/harness/themes/<kind>.json`. A colour a theme leaves unset is
+  unset in the harness too, so the stylesheet's own fallback is what gets
+  measured, as in a real webview. Rerun it when VS Code's themes change.
+- **One exemption, said out loud:** a `target-size` finding whose
+  neighbouring targets all sit inside a menu, popover or dialog the user
+  opened. WCAG's Understanding document for 2.5.8 puts targets obscured by
+  content the user displayed out of scope. Every run prints each exempt
+  element and counts it (8 today, all in the `rewind` scenario, where an open
+  menu covers two chevrons).
+- **How the violations were fixed:**
+  - A control inside an ARIA option is not a control of its own (4.1.2).
+    The effort dots in the palette row and the History row's archive mark
+    are for the mouse only and hidden from assistive technology. The row
+    carries the value and the keys: Left and Right step the effort, and
+    Delete archives or restores the highlighted History row.
+  - The palette and History lists are Tab stops, so they scroll from the
+    keyboard (2.1.1). Focus moving into the list keeps the dialog open;
+    leaving the dialog closes it, and Escape works from the list too.
+  - Text below 4.5:1 takes the text colour: diff line numbers, a failed
+    tool's reason (the error colour stays, as a bar beside it, which needs
+    only 3:1), and the grey detail on a selected row.
+  - Radio and checkbox answers in a question card get a 24 px row (2.5.8).
+- **Limits:** automated rules find only part of what WCAG asks. Screen
+  reader output, reflow at 400 % zoom and focus order inside the real VS
+  Code window are not covered by this gate. Keyboard behaviour is covered
+  by the component tests.
+- **Cost:** about 2.5 minutes locally (six headless Chrome workers over
+  208 pages). It runs in `quality:gates` after the production build, so on
+  all three CI platforms.
 
 ## 3. Open questions (need the owner)
 
@@ -2573,27 +2625,179 @@ and M32 so the gate runs once.
   only where its whole text matches exactly and only once; a partial or
   repeated match is refused.
 
+### M37 — The accessibility gate (D32)
+
+**Status 2026-09-24: built and certified** (`docs/certification/m37.md`);
+pull request from `features/m37-accessibility`, stacked on M31, M32 and M36.
+
+- **Goal**: every screen the harness can show passes WCAG 2.2 AA's
+  automated checks in all four default themes, and the gate keeps it so.
+- **Scope**: `scripts/a11y.mjs`, `scripts/capture-themes.mjs`,
+  `scripts/lib/harnessServer.mjs` (shared with `harness-shots.mjs`),
+  `test/harness/index.html` (`?theme=`, `?axe=1`),
+  `test/harness/themes/*.json`; `EffortSlider.tsx`, `Palette.tsx`,
+  `HistoryDialog.tsx`, `ListBody.tsx`, `styles.css`; the component tests; `package.json`
+  (`test:a11y`, in `quality:gates`); README, CHANGELOG, this file.
+- **Acceptance**:
+  - 208 pages (52 scenarios × 4 themes), 0 violations, the exemptions
+    printed.
+  - Delete archives and restores from the History search box, only with
+    the box empty.
+  - Focus in the palette or History list keeps the dialog open; leaving it
+    closes it; Escape works from the list.
+  - Test-fire proofs for each rule fixed, for a page with no result and
+    for a missing bundle; the gate green.
+- **Security**: none new. axe-core is a dev dependency and never bundled.
+
+### M38 — "/" autocompletes in the prompt (planned)
+
+**Status 2026-09-24: planned.** Owner (2026-09-24): "when the user types a
+slash to begin a slash command it should be adaptive autocomplete, not the
+slash opening the command menu."
+
+- **Goal**: typing `/` at the start of the prompt types it, and a list of
+  matching commands opens above the composer and narrows as you type, as
+  `@` does for files. The palette stays on the `/` button.
+- **Behaviour**:
+  - The list is open while the draft is a single `/word` with the caret at
+    its end (`slashFilterOf`, today used only by its tests). A space, or
+    Escape, closes it; Escape keeps the text.
+  - The entries are the palette's slash commands (`/agents`, `/compact`,
+    `/export`, `/clear`, `/usage`, …) and the session's skills
+    (`/selector`, with the argument hint).
+  - Ranked by match: the name's start first, then a word's start inside
+    it, then anywhere in the name, then the description.
+  - Up and Down move. Tab completes the name. Enter runs a command that
+    takes no text; on a skill it completes `/selector ` for its arguments,
+    and the next Enter sends.
+  - The same combobox and listbox semantics as the `@` list, so the
+    accessibility gate covers it through a new harness scenario.
+- **Scope**: `Composer.tsx`, a `SlashMenu` beside `MentionMenu.tsx`, a pure
+  ranking module in `src/shared`, `App.tsx` (running a command from the
+  composer), tests, a harness scenario, README, CHANGELOG, this file.
+
+### M39 — Logging and performance you can see (planned)
+
+**Status 2026-09-24: planned.** Owner (2026-09-24): "as far as o11y for
+errors etc we are good? … really i mean logging and performance
+everywhere". An audit of the code that day answered: not yet. The CLI
+process layer is well logged, and every line is redacted. The conversation
+layer reports failures to the panel but not to the log, webview errors
+never reach the host, and nothing measures time at runtime.
+
+- **Goal**:
+  - Every failure the user sees is also in the log, and no promise rejects
+    unseen.
+  - A webview error reaches the log.
+  - The log tells a session's story, with ids, results and durations, and
+    never its content.
+  - Two unbounded resources get bounds.
+- **Logging**:
+  - `ConversationController.handle` catches, logs and shows a notice.
+    Today a failed compact, skill list, copy, insert, file pick,
+    sign-in, archive or usage post reaches only VS Code's Extension Host
+    log (`extension.ts` calls it with `void`).
+  - `notice()` at warning and error level writes the same line to the log;
+    so do the worktree and skills commands' error popups.
+  - A `webviewError` message carries the text and stack (redacted, rate
+    limited, no user content) from:
+    - the error boundary, which today only writes to the webview console;
+    - `window` `error` and `unhandledrejection`;
+    - a guarded reducer: a throw in the message listener is outside React's
+      boundary and loses the host message silently;
+    - a failed image read.
+  - Lifecycle lines at info level, each with the session and turn id so
+    they match the CLI's trace logs:
+    - sign-in method and outcome, and the backend chosen;
+    - session start, resume and fork;
+    - turn start and end, with the result and duration;
+    - approval decisions (the tool and the answer, not its input);
+    - a restart and its reason, and a retried MSP command.
+  - Less noise:
+    - an invalid setting warns once per value, not on every read (about 7
+      per send);
+    - an ignored stream event type is logged once, not every frame.
+  - No content in the log:
+    - an unparsed dictation-helper line is logged by length, not verbatim;
+    - the skills CLI's stderr is capped;
+    - a malformed model frame's preview stays out of the failure reason.
+  - Swallows that hide a cause say it: a permission error is not "file
+    absent" or "CLI not found", and a git timeout is not "not a
+    repository".
+  - Trace level: MSP method names and latencies, and Model API request
+    timings, at `trace`. Raising the Muse Spark output channel's level then
+    shows more; the default stays quiet.
+- **Performance**:
+  - Measured and logged:
+    - activation time;
+    - CLI spawn to handshake;
+    - time to first token and turn duration, on both backends;
+    - the first Model API turn's git calls (up to three sequential 15 s
+      calls today), which also run in parallel.
+  - Bounds:
+    - an idle timeout on the Model API stream, which today waits on Stop
+      alone, ending the turn with a retryable error;
+    - a size limit on `read_file` and `edit_file`, which today load a whole
+      file of any size.
+  - Webview:
+    - streamed deltas batched per animation frame; today each is one post,
+      one dispatch and a pass over every row;
+    - the once-a-second snapshot save held while a reply streams.
+  - Smaller:
+    - the selection read after the debounce, not before;
+    - opened output documents bounded in host memory;
+    - output previews clipped by characters as well as lines;
+    - the IDE tool server started on first use.
+- **Tests**: each item has one, and a drill breaks it once. The render-cost
+  test gains the batching case.
+- **Privacy**: the log gains ids, counts, results and durations only.
+  Never prompt text, file contents, dictated words or model output.
+
+### M40 — The panel in VS Code's display languages (planned)
+
+**Status 2026-09-24: planned.** Owner (2026-09-24): "yes" to the languages
+VS Code itself ships.
+
+- **Goal**: the panel, the Command Palette entries and the settings read in
+  the user's VS Code display language: Simplified and Traditional Chinese,
+  Japanese, Korean, German, French, Spanish, Brazilian Portuguese, Russian,
+  Italian, Turkish, Polish, Czech and Hungarian, with English as the base.
+- **Approach**:
+  - The manifest's strings move to `package.nls.json` and
+    `package.nls.<language>.json`.
+  - `UI_TEXT` becomes the English table; the host picks the table for
+    `vscode.env.language` and hands it to the webview when it starts.
+  - Counts use `Intl.PluralRules`, and dates and numbers use `Intl`
+    formatting in that language.
+- **Gate**: every language has every key; placeholders and Markdown match
+  the English; nothing is left untranslated except an allowlist of names
+  (Muse, MCP, …).
+- **Honesty**: the translations are machine-made. The README says so and
+  asks for corrections.
+- **Order**: after M38 and M39, so their new text is translated with the
+  rest.
+
 ## 7. Gates
 
-| Gate                  | Command                                                                                                                                         | Status                                                                                                                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Format                | `prettier --check .`                                                                                                                            | M0 ✓                                                                                                                                                                                                       |
-| Lint (type-aware)     | `eslint . --max-warnings=0`                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
-| CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                                                                     | M0 ✓                                                                                                                                                                                                       |
-| Types                 | `tsc --noEmit` over five projects: host, webview, unit, e2e, integration (`npm run typecheck`)                                                  | M0 ✓                                                                                                                                                                                                       |
-| Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                                                                         | M0 ✓                                                                                                                                                                                                       |
-| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/webview/main.tsx`                                                   | M0 ✓                                                                                                                                                                                                       |
-| Duplication           | `jscpd` (config `.jscpd.json`: threshold 0 over `src` and `test`)                                                                               | M0 ✓                                                                                                                                                                                                       |
-| Unit tests + coverage | `vitest run --coverage`                                                                                                                         | M0 ✓                                                                                                                                                                                                       |
-| Integration tests     | `vscode-test` (two configurations: `stable` and `minimum`, the `engines.vscode` floor)                                                          | M0 ✓ (9 passing locally since M18; CI: ubuntu xvfb + windows); M26 ✓ on 1.139.0 and 1.125.0, downloads cached in CI                                                                                        |
-| Build + bundle budget | `node scripts/build.mjs --production && node scripts/check-bundle-size.mjs`                                                                     | M0 ✓                                                                                                                                                                                                       |
-| Host globals          | `node scripts/check-host-globals.mjs` (part of `npm run build`): no `navigator` in the host bundles                                             | M26 ✓ (proof R)                                                                                                                                                                                            |
-| Third-party notices   | `node scripts/third-party-notices.mjs` (part of `npm run build`; `npm run notices` regenerates)                                                 | M26 ✓ (proofs P, Q; CI's package job requires the file in the .vsix)                                                                                                                                       |
-| Dependency audit      | `node scripts/audit.mjs` (`npm audit --json`, high and critical block; reviewed exceptions in `.github/audit-exceptions.json`, 90 days at most) | M0 ✓; M26 ✓ (proofs S–W)                                                                                                                                                                                   |
-| Secrets               | `gitleaks git --redact` (history, `security:secrets`, also a CI job) and `gitleaks git --pre-commit --staged` (hook)                            | M0 ✓ (staged-scan proof; the history scan runs locally and in CI)                                                                                                                                          |
-| SAST                  | `semgrep scan --config auto --error` (`npm run security:sast`)                                                                                  | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. M26: CI pins semgrep 1.177.0 (`.github/semgrep/requirements.txt`, Dependabot pip). |
-| PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)                                                          | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner). M26: pinned to 1.25.0 (`-RequiredVersion`), the version CI installs.                       |
-| Lighthouse            | n/a (a webview, not a web page); no profiler gate exists, the harness screenshots are the visual check                                          | —                                                                                                                                                                                                          |
+| Gate                  | Command                                                                                                                                                         | Status                                                                                                                                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format                | `prettier --check .`                                                                                                                                            | M0 ✓                                                                                                                                                                                                       |
+| Lint (type-aware)     | `eslint . --max-warnings=0`                                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
+| CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
+| Types                 | `tsc --noEmit` over five projects: host, webview, unit, e2e, integration (`npm run typecheck`)                                                                  | M0 ✓                                                                                                                                                                                                       |
+| Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                                                                                         | M0 ✓                                                                                                                                                                                                       |
+| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/webview/main.tsx`                                                                   | M0 ✓                                                                                                                                                                                                       |
+| Duplication           | `jscpd` (config `.jscpd.json`: threshold 0 over `src` and `test`)                                                                                               | M0 ✓                                                                                                                                                                                                       |
+| Unit tests + coverage | `vitest run --coverage`                                                                                                                                         | M0 ✓                                                                                                                                                                                                       |
+| Integration tests     | `vscode-test` (two configurations: `stable` and `minimum`, the `engines.vscode` floor)                                                                          | M0 ✓ (9 passing locally since M18; CI: ubuntu xvfb + windows); M26 ✓ on 1.139.0 and 1.125.0, downloads cached in CI                                                                                        |
+| Build + bundle budget | `node scripts/build.mjs --production && node scripts/check-bundle-size.mjs`                                                                                     | M0 ✓                                                                                                                                                                                                       |
+| Host globals          | `node scripts/check-host-globals.mjs` (part of `npm run build`): no `navigator` in the host bundles                                                             | M26 ✓ (proof R)                                                                                                                                                                                            |
+| Third-party notices   | `node scripts/third-party-notices.mjs` (part of `npm run build`; `npm run notices` regenerates)                                                                 | M26 ✓ (proofs P, Q; CI's package job requires the file in the .vsix)                                                                                                                                       |
+| Dependency audit      | `node scripts/audit.mjs` (`npm audit --json`, high and critical block; reviewed exceptions in `.github/audit-exceptions.json`, 90 days at most)                 | M0 ✓; M26 ✓ (proofs S–W)                                                                                                                                                                                   |
+| Secrets               | `gitleaks git --redact` (history, `security:secrets`, also a CI job) and `gitleaks git --pre-commit --staged` (hook)                                            | M0 ✓ (staged-scan proof; the history scan runs locally and in CI)                                                                                                                                          |
+| SAST                  | `semgrep scan --config auto --error` (`npm run security:sast`)                                                                                                  | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. M26: CI pins semgrep 1.177.0 (`.github/semgrep/requirements.txt`, Dependabot pip). |
+| PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)                                                                          | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner). M26: pinned to 1.25.0 (`-RequiredVersion`), the version CI installs.                       |
+| Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality:gates` after the build): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA | M37 ✓ (proofs A–G); Lighthouse itself is not run (D32)                                                                                                                                                     |
 
 ## 8. Escape hatches register
 
@@ -2607,6 +2811,7 @@ Every suppression, cast, or ignored error must be listed here with its reason.
 | `native/darwin/Dictation.swift`    | `unsafeBitCast(symbol, to: SetDisclaim.self)`                      | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14. |
 | `src/host/backend/shellJob.ts`     | `catch { }` in the join statement each Windows command starts with | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                            |
 | `test/unit/App.test.tsx`           | `as unknown as Selection` (four stubs)                             | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                          | 2026-09-23 |
+| `scripts/capture-themes.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                    | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                               | 2026-09-24 |
 
 ## 9. Security assumptions and accepted residual risk
 

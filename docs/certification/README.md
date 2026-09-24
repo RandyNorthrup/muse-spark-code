@@ -48,3 +48,4 @@ The PNGs beside the records are that day's harness renders.
 - [M31](m31.md): MCP servers and hooks, read-only; PowerShell quoting (PLAN.md D30)
 - [M32](m32.md): worktrees (PLAN.md D30)
 - [M36](m36.md): rewind finds a hunk that only moved (PLAN.md D31)
+- [M37](m37.md): the accessibility gate, WCAG 2.2 AA in four themes (PLAN.md D32)
