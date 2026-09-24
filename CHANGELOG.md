@@ -7,7 +7,20 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- On macOS, dictation from the panel asks for speech recognition and the
+  microphone as the helper itself (muse-dictate, with its own usage
+  descriptions) instead of as Visual Studio Code, which declares no
+  speech-recognition purpose and so was refused without being asked
+  (microsoft/vscode#307364). The grants cover the helper alone; an update
+  that changes the helper asks again.
+
+### Changed
+
+- The Marketplace publish runs in a `marketplace` environment that only
+  version tags can use, holding the publishing token; no other workflow
+  run can read it.
 
 ## [0.6.0] - 2026-09-23
 

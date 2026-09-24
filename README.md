@@ -340,15 +340,20 @@ your microphone.
 
 On macOS, two things can stop the helper, and the panel's error says which:
 
-- **A permission.** macOS grants the microphone and speech recognition to
-  Visual Studio Code, the app that starts the helper. VS Code does not
-  declare speech recognition
+- **A permission.** The first time you dictate, macOS asks for speech
+  recognition and the microphone on behalf of the helper itself,
+  **muse-dictate**, with its own usage descriptions, rather than for
+  Visual Studio Code; the grants are managed under System Settings >
+  Privacy & Security > Speech Recognition and > Microphone. The helper
+  asks under its own name because Visual Studio Code, which starts it,
+  declares no speech-recognition purpose
   ([microsoft/vscode#307364](https://github.com/microsoft/vscode/issues/307364)),
-  so macOS may refuse it without asking; the panel then says so, and
-  dictation cannot work in VS Code on that Mac until VS Code declares it.
-  When Visual Studio Code is listed under System Settings > Privacy &
-  Security > Speech Recognition or > Microphone, turn it on there and try
-  again.
+  and macOS would refuse VS Code without asking; to do so it disclaims VS
+  Code's responsibility with a private macOS call (the one Chromium, Qt and
+  Electron use), and where that call is missing it asks as VS Code and the
+  panel's error explains the refusal. The helper is ad-hoc signed, so macOS
+  ties the grant to the build: after an update that changes the helper,
+  macOS asks again.
 - **The helper itself.** The helper is ad-hoc signed, not notarised; VS
   Code's installer does not quarantine it, so Gatekeeper does not stop it.
   If the error names no permission step, macOS refused to run the helper:

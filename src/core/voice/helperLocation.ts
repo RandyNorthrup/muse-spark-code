@@ -36,7 +36,8 @@ export interface HelperProbe {
   readonly remoteName: string | undefined
   /**
    * The editor's own name (`vscode.env.appName`, "Visual Studio Code"): the
-   * app macOS asks for the helper's microphone and speech permissions.
+   * app macOS would ask for the helper's microphone and speech permissions
+   * where the helper cannot disclaim it and ask under its own name (M28).
    */
   readonly appName: string
   /** The extension's `native/` folder. */

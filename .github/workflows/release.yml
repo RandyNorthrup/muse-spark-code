@@ -1,8 +1,9 @@
 # A version tag (v1.2.3) is a release: the shared build produces the .vsix,
 # the GitHub Release is created with it and the CHANGELOG section as notes,
-# and the Marketplace publish runs when the VSCE_PAT repository secret is
-# set (a Marketplace "Manage" PAT; without it the publish step is skipped
-# and reported, and `npx vsce publish --packagePath` by hand still works).
+# and the Marketplace publish runs when the VSCE_PAT secret of the
+# `marketplace` environment is set (a Marketplace "Manage" PAT scoped to the
+# publisher's organisation; without it the publish step is skipped and
+# reported, and `npx vsce publish --packagePath` by hand still works).
 #
 # Before anything is built, the tag must name the manifest's version and
 # point at a commit on main. The PAT reaches one step only, after an
@@ -84,6 +85,10 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The token lives in this environment, which only version tags may
+    # deploy to (a `v*` tag policy): no branch run, and no other job, can
+    # read it (M28).
+    environment: marketplace
     env:
       # Whether the secret is set, never the secret itself: a step's `if:`
       # cannot read `secrets` ("Secrets cannot be directly referenced in if:

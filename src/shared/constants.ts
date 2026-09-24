@@ -767,14 +767,16 @@ export const DICTATION_UNAVAILABLE_REMOTE =
 /** Windows PowerShell's module search path, reset for the Windows helper. */
 export const WINDOWS_PSMODULEPATH_VARIABLE = 'PSModulePath'
 /**
- * The macOS helper's flag naming the app macOS asks on its behalf (VS Code's
- * `env.appName`): macOS charges a helper's privacy requests to the app that
- * started it, so the helper's refusal text names that app.
+ * The macOS helper's flag naming the app that started it (VS Code's
+ * `env.appName`). The helper disclaims that app's responsibility and asks
+ * macOS under its own name (PLAN.md M28); where it cannot, macOS charges its
+ * privacy requests to the app that started it, and its refusal text names
+ * that app.
  */
 export const DICTATION_DARWIN_APP_NAME_FLAG = '--app-name'
 /** Appended when the macOS helper ends before it said "ready" (not a requested quit). */
 export const DICTATION_DARWIN_EARLY_EXIT_HINT =
-  'macOS ended the dictation helper before it was ready. After a permission step, macOS refused that permission to the app that started the helper; with no step at all, macOS refused to run the helper itself, which is not notarised. The README’s Voice dictation section explains both.'
+  'macOS ended the dictation helper before it was ready. After a permission step, macOS refused that permission (to muse-dictate, or to the app that started it where the helper could not ask under its own name); with no step at all, macOS refused to run the helper itself, which is not notarised. The README’s Voice dictation section explains both.'
 export const MUSE_LOGIN_ARGS = ['login'] as const
 export const MUSE_LOGOUT_ARGS = ['logout'] as const
 export const MUSE_LOGIN_TERMINAL_NAME = 'Muse Code sign-in'

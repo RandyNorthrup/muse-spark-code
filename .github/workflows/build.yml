@@ -93,6 +93,10 @@ jobs:
         with:
           persist-credentials: false
       - run: bash native/darwin/build.sh
+      # The helper asks macOS under its own name, from a copy of itself that
+      # disclaims the responsibility of the app that started it, and a
+      # SIGTERM to the first process ends the copy (M28).
+      - run: bash native/darwin/check-disclaim.sh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-dictate-darwin
