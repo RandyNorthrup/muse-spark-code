@@ -1942,6 +1942,28 @@ describe('ConversationController: session history (M6)', () => {
       level: 'error',
       text: 'The conversation could not be exported: log locked',
     })
+    t.server.handle('session/read', (params) =>
+      envelope({ ...storedSession, sessionId: params['sessionId'] }, 'none'),
+    )
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringMatching(/^Muse Code did not return this conversation’s history/),
+    })
+    expect(t.exported.markdown).toHaveLength(1)
+  })
+
+  it('asks to wait while a reply runs, so an export never misses part of it (M30)', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Export once the reply has finished, so the file holds all of it.',
+    })
+    expect(t.exported.markdown).toEqual([])
   })
 
   it('remembers activity on sends and completed turns, and forgets it on clear', async () => {

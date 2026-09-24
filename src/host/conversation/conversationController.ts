@@ -76,7 +76,11 @@ import type { ReviewNotice } from '../editor/editReview'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
 import type { DictationSetup } from '../voice/dictationHost'
-import { type ConversationExports, exportConversation } from './exportConversation'
+import {
+  type ConversationExports,
+  exportConversation,
+  type ExportOutcome,
+} from './exportConversation'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -266,6 +270,14 @@ const PROMPT_SETTLED_TEXT: Readonly<Record<PromptSettledReason, string>> = {
   alreadySettled: UI_TEXT.promptAlreadySettled,
   movedOn: UI_TEXT.promptMovedOn,
   gone: UI_TEXT.promptGone,
+}
+// What an export that wrote nothing tells the user (M30); `exported` says nothing.
+const EXPORT_NOTICES: Readonly<
+  Partial<Record<ExportOutcome, { readonly level: 'info' | 'warning'; readonly text: string }>>
+> = {
+  logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
+  historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
+  empty: { level: 'info', text: UI_TEXT.exportNothing },
 }
 const QUEUED_DISPOSITION = 'queued'
 // The unsaved files a warning names before it counts the rest (D27).
@@ -1777,6 +1789,13 @@ export class ConversationController {
       this.notice('info', UI_TEXT.exportNothing)
       return
     }
+    // A running reply is only partly stored (the Model API backend saves
+    // when the turn settles), so an export now would miss what the panel
+    // already shows.
+    if (this.activeTurnId !== undefined) {
+      this.notice('info', UI_TEXT.exportWaitForTurn)
+      return
+    }
     try {
       const host = await this.deps.ensureHost()
       const outcome = await exportConversation(
@@ -1786,8 +1805,9 @@ export class ConversationController {
         new Date(this.deps.now()),
         this.deps.exports,
       )
-      if (outcome === 'logUnavailable') {
-        this.notice('warning', UI_TEXT.exportLogUnavailable)
+      const notice = EXPORT_NOTICES[outcome]
+      if (notice !== undefined) {
+        this.notice(notice.level, notice.text)
       }
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`)

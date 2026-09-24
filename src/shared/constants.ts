@@ -1034,6 +1034,9 @@ export const UI_TEXT = {
   exportLogUnavailable:
     'The session log comes from the Muse Code CLI, which this conversation does not use.',
   exportLogLocalOnly: 'Muse Code writes the session log itself, so pick a folder on this machine.',
+  exportWaitForTurn: 'Export once the reply has finished, so the file holds all of it.',
+  exportHistoryUnavailable:
+    'Muse Code did not return this conversation’s history (it is too long to replay), so there is nothing to write as Markdown. Export session log… saves the whole record.',
   exportCliMissing: 'Exporting the session log needs the Muse Code CLI, which is not installed.',
   exportOpen: 'Open',
   exportDefaultTitle: 'Muse conversation',

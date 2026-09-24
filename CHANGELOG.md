@@ -24,7 +24,9 @@ happened, not what was planned; superseded entries are kept.
   Markdown (messages, thinking, tool calls with their arguments and visible
   output) where you choose, on both backends; on the CLI backend **Export
   session log…** saves Muse Code's own JSON record of the session through
-  `muse export`.
+  `muse export`. An export waits for a running reply to finish, and a
+  conversation too long for Muse Code to replay is pointed to the session
+  log instead of being written as an empty file.
 
 ### Security
 
