@@ -46,6 +46,12 @@ happened, not what was planned; superseded entries are kept.
   conversation too long for Muse Code to replay is pointed to the session
   log instead of being written as an empty file.
 
+- **Delete** in the History dialog archives the highlighted conversation, or
+  restores an archived one, while the search box is empty.
+- An accessibility gate: every screen of the panel's test harness is checked
+  with axe-core against WCAG 2.2 AA in VS Code's four default themes, with
+  colours read from a real VS Code, and any violation fails the build.
+
 ### Security
 
 - On the Model API backend a write under `.muse/` asks in every mode but
@@ -56,6 +62,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Accessibility (WCAG 2.2 AA):
+  - Diff line numbers, a failed tool's reason and the detail line of a
+    selected menu row now meet 4.5:1 contrast in every default theme. A
+    failure keeps its red as a bar beside the reason.
+  - The palette's and History's lists can be scrolled from the keyboard:
+    each is a Tab stop, the dialog stays open while the focus is in it,
+    and Escape works from there.
+  - Screen readers no longer meet buttons nested inside list rows. The
+    effort row is set with Left and Right, and History rows archive with
+    Delete; the dots and the × remain for the mouse.
+  - Question answers have 24 px rows, so each radio or checkbox is easy to
+    hit.
 - **Rewind code to here** no longer skips an edit just because you added or
   removed lines above it since. The edit's own lines, matched exactly, are
   found where they moved to when they appear in exactly one place. An edit

@@ -156,7 +156,14 @@ export default tseslint.config(
     files: ['**/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: {
-      globals: { console: 'readonly', process: 'readonly', URL: 'readonly' },
+      // fetch and WebSocket are Node 22 globals (scripts/capture-themes.mjs).
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+        fetch: 'readonly',
+        WebSocket: 'readonly',
+      },
     },
     rules: {
       '@typescript-eslint/no-magic-numbers': 'off',

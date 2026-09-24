@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { WebviewToHostMessage } from '../../src/shared/protocol'
@@ -822,7 +822,9 @@ describe('App session history (M6)', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'listSessions' })
     expect(screen.getByText('Loading…')).toBeInTheDocument()
     deliver({ type: 'sessionList', sessions: [sessionRow], archivedIds: [] })
-    fireEvent.click(screen.getByLabelText('Archive: Old prompt'))
+    fireEvent.click(
+      within(screen.getByRole('option', { name: /Old prompt/ })).getByTitle('Archive (Delete)'),
+    )
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'setSessionArchived',
       sessionId: 'old',

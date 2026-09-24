@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionRow } from '../../src/shared/sessions'
 import {
@@ -59,6 +59,11 @@ function optionTitles(): string[] {
     .map((option) => option.querySelector('.palette-item-label')?.textContent ?? '')
 }
 
+/** The mouse-only archive mark on a row, found by its tooltip (M37). */
+function archiveMark(title: string, tooltip: string): HTMLElement {
+  return within(screen.getByRole('option', { name: new RegExp(title) })).getByTitle(tooltip)
+}
+
 describe('layoutHistory', () => {
   it('numbers rows across groups', () => {
     const entries = layoutHistory([
@@ -90,10 +95,10 @@ describe('HistoryDialog', () => {
     const { props } = renderDialog()
     fireEvent.click(screen.getByLabelText('Show archived'))
     expect(optionTitles()).toEqual(['Fix the parsercurrent', 'Put away', 'Write docs', 'Old idea'])
-    fireEvent.click(screen.getByLabelText('Unarchive: Put away'))
+    fireEvent.click(archiveMark('Put away', 'Unarchive (Delete)'))
     expect(props.onSetArchived).toHaveBeenCalledWith('archived', false)
     // A row hidden by age is not in the archived set: it still offers Archive.
-    fireEvent.click(screen.getByLabelText('Archive: Old idea'))
+    fireEvent.click(archiveMark('Old idea', 'Archive (Delete)'))
     expect(props.onSetArchived).toHaveBeenCalledWith('stale', true)
     expect(props.onResume).not.toHaveBeenCalled()
   })
@@ -159,5 +164,44 @@ describe('HistoryDialog', () => {
     expect(props.onClose).toHaveBeenCalledOnce()
     fireEvent.blur(toggle, { relatedTarget: document.body })
     expect(props.onClose).toHaveBeenCalledTimes(2)
+  })
+
+  // M37: the archive mark is hidden from assistive technology (a button
+  // inside an option); the row carries the action as a key instead.
+  it('archives and unarchives the highlighted row with Delete, and only with an empty search', () => {
+    const { props, search } = renderDialog()
+    expect(screen.queryAllByRole('button')).toEqual([])
+    const first = screen.getByRole('option', { name: /Fix the parser/ })
+    expect(first).toHaveAttribute('aria-keyshortcuts', 'Delete')
+    expect(first).toHaveAttribute('aria-description', 'Archive')
+    expect(fireEvent.keyDown(search, { key: 'Delete' })).toBe(false)
+    expect(props.onSetArchived).toHaveBeenLastCalledWith('now', true)
+    // With a search typed, Delete edits the text and archives nothing.
+    fireEvent.change(search, { target: { value: 'docs' } })
+    expect(fireEvent.keyDown(search, { key: 'Delete' })).toBe(true)
+    expect(props.onSetArchived).toHaveBeenCalledOnce()
+    // An archived row restores.
+    fireEvent.change(search, { target: { value: '' } })
+    fireEvent.click(screen.getByLabelText('Show archived'))
+    fireEvent.keyDown(search, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: /Put away/ })).toHaveAttribute(
+      'aria-description',
+      'Unarchive',
+    )
+    fireEvent.keyDown(search, { key: 'Delete' })
+    expect(props.onSetArchived).toHaveBeenLastCalledWith('archived', false)
+  })
+
+  it('makes the list a Tab stop that keeps the dialog open and closes on Escape', () => {
+    const { props, search } = renderDialog()
+    const list = document.querySelector<HTMLElement>('.palette-body')!
+    expect(list).toHaveAttribute('tabindex', '0')
+    // A click on the list keeps the focus in the search box.
+    expect(fireEvent.mouseDown(list)).toBe(false)
+    fireEvent.blur(search, { relatedTarget: list })
+    expect(props.onClose).not.toHaveBeenCalled()
+    list.focus()
+    fireEvent.keyDown(list, { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledOnce()
   })
 })

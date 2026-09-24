@@ -43,6 +43,7 @@ function renderPalette(overrides: Partial<PaletteProps> = {}) {
 }
 
 const TIER_NAME = /^(Minimal|Low|Medium|High|Extra high|Max)$/
+const sliderDots = () => document.querySelectorAll('.palette-slider .slider-step')
 
 function activeOption(): HTMLElement | undefined {
   return screen.getAllByRole('option').find((node) => node.getAttribute('aria-selected') === 'true')
@@ -92,12 +93,15 @@ describe('Palette (actions view)', () => {
     expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'medium' })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
-    fireEvent.click(screen.getByLabelText('Max'))
+    fireEvent.click(screen.getByTitle('Max'))
     expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'max' })
     // Every dot names its tier on hover, and only the model's tiers are offered.
-    expect(screen.getAllByRole('button', { name: TIER_NAME })).toHaveLength(6)
-    expect(screen.getByTitle('Extra high')).toBeInTheDocument()
-    expect(screen.getByTitle('High')).toHaveAttribute('aria-pressed', 'true')
+    expect(sliderDots()).toHaveLength(6)
+    expect(screen.getByTitle('High')).toHaveClass('slider-step-on')
+    expect(screen.getByTitle('Extra high')).not.toHaveClass('slider-step-on')
+    // Inside the row the dots are no controls of their own (M37): the row is.
+    expect(screen.queryAllByRole('button', { name: TIER_NAME })).toEqual([])
+    expect(document.querySelector('.palette-slider')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('offers only the tiers the current model serves', () => {
@@ -107,7 +111,7 @@ describe('Palette (actions view)', () => {
         currentModel: { modelId: 'muse-spark-1.2', contextLimit: undefined },
       }),
     })
-    expect(screen.getAllByRole('button', { name: TIER_NAME })).toHaveLength(5)
+    expect(sliderDots()).toHaveLength(5)
     expect(screen.queryByTitle('Max')).toBeNull()
   })
 
@@ -126,6 +130,22 @@ describe('Palette (actions view)', () => {
     fireEvent.keyDown(filter, { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalledOnce()
     fireEvent.blur(filter)
+    expect(props.onClose).toHaveBeenCalledTimes(2)
+  })
+
+  // M37: the list is a Tab stop so it scrolls from the keyboard; moving the
+  // focus there must not close the palette the way leaving it does.
+  it('stays open while the focus moves into the list, and closes on Escape from there', () => {
+    const { props, filter } = renderPalette()
+    const list = document.querySelector<HTMLElement>('.palette-body')!
+    expect(list).toHaveAttribute('tabindex', '0')
+    expect(fireEvent.mouseDown(list)).toBe(false)
+    fireEvent.blur(filter, { relatedTarget: list })
+    expect(props.onClose).not.toHaveBeenCalled()
+    list.focus()
+    fireEvent.keyDown(list, { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledOnce()
+    fireEvent.blur(list, { relatedTarget: document.body })
     expect(props.onClose).toHaveBeenCalledTimes(2)
   })
 
@@ -158,5 +178,11 @@ describe('Palette (models view)', () => {
     expect(props.onBack).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByLabelText('Back'))
     expect(props.onBack).toHaveBeenCalledTimes(2)
+    // Escape from the list goes back too, not straight out.
+    const list = document.querySelector<HTMLElement>('.palette-body')!
+    list.focus()
+    fireEvent.keyDown(list, { key: 'Escape' })
+    expect(props.onBack).toHaveBeenCalledTimes(3)
+    expect(props.onClose).not.toHaveBeenCalled()
   })
 })
