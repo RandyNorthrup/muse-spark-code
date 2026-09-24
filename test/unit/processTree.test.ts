@@ -117,10 +117,13 @@ describe('killTree', () => {
     })
     await pause(500)
     const started = Date.now()
-    await killTree(child, deps, startedAt)
+    const kill = killTree(child, deps, startedAt)
     await closed
     // Killing only the shell would leave the pipes open for the child's 30 s.
+    // Timed to the pipes closing: on Windows without a job the orphan sweep
+    // runs after that, and a cold runner's first process-table read is slow.
     expect(Date.now() - started).toBeLessThan(15_000)
+    await kill
   }, 60_000)
 
   it.runIf(IS_WINDOWS)(
