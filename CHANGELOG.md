@@ -7,6 +7,33 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Manage skills…** (palette and Command Palette, CLI backend): a
+  checklist of every skill Muse Code knows, built-in, yours, the project's
+  and plugins'; unchecking one turns it off through `muse skills disable`.
+  Muse Code reads skill changes when it starts, so the change ends with an
+  offer to restart it, and the conversation continues on the next message.
+- **Import skills…**: shows what `muse skills import` would copy from
+  Claude Code or Codex into your Muse skills folder, imports it once you
+  confirm, and reports what was imported, skipped or failed.
+- "Continue a Claude Code session" and "Continue a Codex session" in the
+  palette's Context group, where the session offers Muse Code's
+  `resume-claude` and `resume-codex` skills.
+- `/export` and **Muse Spark: Export Conversation** save the conversation as
+  Markdown (messages, thinking, tool calls with their arguments and visible
+  output) where you choose, on both backends; on the CLI backend **Export
+  session log…** saves Muse Code's own JSON record of the session through
+  `muse export`.
+
+### Security
+
+- On the Model API backend a write under `.muse/` asks in every mode but
+  Bypass, like `.git` and `.vscode`: `.muse/hooks.json` names commands Muse
+  Code runs outside its sandbox and approvals, so an agent on the key could
+  otherwise have planted one without asking. Muse Code itself already asks
+  before writing it (checked live with 1.3.0).
+
 ### Fixed
 
 - On macOS, dictation from the panel asks for speech recognition and the

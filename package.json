@@ -149,6 +149,21 @@
         "command": "museSpark.openWalkthrough",
         "title": "Open Walkthrough",
         "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.manageSkills",
+        "title": "Manage Skills",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.importSkills",
+        "title": "Import Skills from Claude Code or Codex",
+        "category": "Muse Spark"
+      },
+      {
+        "command": "museSpark.exportConversation",
+        "title": "Export Conversation",
+        "category": "Muse Spark"
       }
     ],
     "keybindings": [
@@ -207,6 +222,10 @@
         {
           "command": "museSpark.createRulesFile",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "museSpark.exportConversation",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         }
       ],
       "view/title": [

@@ -54,6 +54,9 @@ describe('isProtectedPath', () => {
       '.devcontainer/devcontainer.json',
       '.github/workflows/ci.yml',
       '.agents/skills/x/SKILL.md',
+      '.muse/hooks.json',
+      '.muse/settings.json',
+      'packages/app/.MUSE/hooks.json',
       'AGENTS.md',
       'src/CLAUDE.md',
       '.envrc',
@@ -72,6 +75,9 @@ describe('isProtectedPath', () => {
       'my.git/x',
       'agents.md.bak',
       'workflows/.github',
+      'muse/notes.md',
+      'docs/.muse.md',
+      'my.muse/hooks.json',
     ]) {
       expect(isProtectedPath(path), path).toBe(false)
     }

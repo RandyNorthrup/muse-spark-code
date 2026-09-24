@@ -261,6 +261,11 @@ function setup(
   let cachedUsage: SubscriptionUsage | undefined = options.cachedUsage
   const contributorPrompts: string[] = []
   let remoteBypassPrompts = 0
+  // What "Export conversation…" handed the save dialog (M30).
+  const exported = {
+    markdown: [] as [string, string][],
+    sessionLogs: [] as [string, string][],
+  }
   const memory = {
     archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
     lastSession: options.lastSession,
@@ -386,6 +391,16 @@ function setup(
     sessions,
     isRestorable: options.isRestorable ?? false,
     dictation: options.dictation ?? { isAvailable: false, reason: 'no helper in tests' },
+    exports: {
+      saveMarkdown: (fileName: string, content: string) => {
+        exported.markdown.push([fileName, content])
+        return Promise.resolve()
+      },
+      saveSessionLog: (sessionId: string, fileName: string) => {
+        exported.sessionLogs.push([sessionId, fileName])
+        return Promise.resolve()
+      },
+    },
     now: () => options.now ?? NOW,
     log,
   }
@@ -428,6 +443,7 @@ function setup(
     reviews,
     memory,
     contributorPrompts,
+    exported,
     remoteBypassPrompts: () => remoteBypassPrompts,
     setHasEditor: (isOpen: boolean) => {
       hasEditor = isOpen
@@ -1892,6 +1908,39 @@ describe('ConversationController: session history (M6)', () => {
       type: 'notice',
       level: 'warning',
       text: 'Could not read the agent’s transcript: unknown session',
+    })
+  })
+
+  it('exports the conversation as Markdown or Muse Code’s session log (M30)', async () => {
+    const t = withHistory()
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'There is no conversation to export yet.',
+    })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    t.server.handle('session/read', (params) =>
+      envelope({ ...storedSession, sessionId: params['sessionId'], name: 'Fix the tests' }),
+    )
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.exported.markdown).toHaveLength(1)
+    const [fileName, content] = t.exported.markdown[0]!
+    expect(fileName).toBe('muse-fix-the-tests-2026-09-22.md')
+    expect(content).toContain('# Fix the tests')
+    expect(content).toContain('- Session: `old`')
+    expect(content).toContain('## You\n\nOld prompt')
+    expect(content).toContain('## Muse\n\nReply')
+    await t.controller.handle({ type: 'exportConversation', format: 'sessionLog' })
+    expect(t.exported.sessionLogs).toEqual([['old', 'muse-fix-the-tests-2026-09-22.json']])
+    t.server.handle('session/read', () => {
+      throw new Error('log locked')
+    })
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'The conversation could not be exported: log locked',
     })
   })
 
