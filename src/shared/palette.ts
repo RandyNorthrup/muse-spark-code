@@ -13,6 +13,7 @@ import {
   type PermissionMode,
   RESUME_SKILL_SELECTORS,
   SKILL_IMPORT_SOURCES,
+  SLASH_COMMAND_NAMES,
   type SkillImportSource,
   UI_TEXT,
 } from './constants'
@@ -188,14 +189,14 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
         {
           id: 'mcpServers',
           label: UI_TEXT.mcpItem,
-          slashName: 'mcp',
+          slashName: SLASH_COMMAND_NAMES.mcp,
           detail: UI_TEXT.mcpItemDetail,
           action: { type: 'showMcpServers' },
         },
         {
           id: 'hooks',
           label: UI_TEXT.hooksItem,
-          slashName: 'hooks',
+          slashName: SLASH_COMMAND_NAMES.hooks,
           detail: UI_TEXT.hooksItemDetail,
           action: { type: 'showHooks' },
         },
@@ -268,7 +269,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'resume',
           label: UI_TEXT.resumeItem,
-          slashName: 'resume',
+          slashName: SLASH_COMMAND_NAMES.resume,
           detail: UI_TEXT.resumeDetail,
           action: { type: 'openHistory' },
         },
@@ -295,7 +296,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'switchModel',
           label: UI_TEXT.switchModel,
-          slashName: 'model',
+          slashName: SLASH_COMMAND_NAMES.model,
           widget: { kind: 'value', text: modelValue(context) },
           action: { type: 'openModelPicker' },
         },
@@ -325,7 +326,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'permissionMode',
           label: UI_TEXT.permissionModeItem,
-          slashName: 'permissions',
+          slashName: SLASH_COMMAND_NAMES.permissions,
           widget: { kind: 'value', text: PERMISSION_MODE_LABELS[context.permissionMode] },
           action: { type: 'openPermissionModes' },
         },
@@ -345,7 +346,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'settings',
           label: UI_TEXT.openSettings,
-          slashName: 'config',
+          slashName: SLASH_COMMAND_NAMES.config,
           action: { type: 'openSettings' },
         },
         { id: 'keybindings', label: UI_TEXT.openKeybindings, action: { type: 'openKeybindings' } },
