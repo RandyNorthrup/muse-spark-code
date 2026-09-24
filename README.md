@@ -487,7 +487,11 @@ stopped and the next message resumes the same session.
   (alternate data streams, device names, trailing dots) are refused too.
   Its shell tool starts PowerShell or bash by absolute path with the
   environment VS Code's own terminal would give (the editor's internal
-  variables removed).
+  variables removed). Stop and a timeout end everything a command started:
+  its process group on macOS and Linux; on Windows the job object each
+  command runs in, through a small helper the extension compiles once
+  into its own storage with PowerShell's `Add-Type` (where policy forbids
+  that, the log says so and a sweep of the process table stands in).
 - The webview runs under a strict CSP (`default-src 'none'`, per-load script
   nonce, no remote origins, no inline styles); every message between host and
   webview is validated with a zod schema.

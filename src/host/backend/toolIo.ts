@@ -39,7 +39,8 @@ import {
 } from '../../shared/constants'
 import { canonicalPath } from '../canonicalPath'
 import { writeFileAtomically } from '../fsAtomic'
-import { killTree, type ProcessTreeDeps, treeSpawnOptions } from '../processTree'
+import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
+import { joinStatement, newShellJob } from './shellJob'
 
 export interface ToolIoDeps {
   readonly platform: NodeJS.Platform
@@ -53,6 +54,8 @@ export interface ToolIoDeps {
   readonly log: (message: string) => void
   /** Whether an editor holds unsaved changes to the file (VS Code's documents, D27). */
   readonly hasUnsavedChanges: (absolutePath: string) => boolean
+  /** Windows: the job helper's assembly, undefined where jobs are unavailable (M27). */
+  readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
 }
 
 /**
@@ -240,7 +243,12 @@ export function shellInterpreter(
  * code page, so non-ASCII output arrived garbled; the preamble switches its
  * output (and what it hands native commands) to UTF-8 first (PLAN.md D27).
  */
-export function shellArguments(platform: NodeJS.Platform, command: string): readonly string[] {
+/** The interpreter's arguments; on Windows the command first joins `job`, when it has one (M27). */
+export function shellArguments(
+  platform: NodeJS.Platform,
+  command: string,
+  job?: ShellJob,
+): readonly string[] {
   return platform === 'win32'
     ? [
         '-NoProfile',
@@ -248,7 +256,7 @@ export function shellArguments(platform: NodeJS.Platform, command: string): read
         '-ExecutionPolicy',
         'Bypass',
         '-Command',
-        `${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
+        `${job === undefined ? '' : joinStatement(job)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
       ]
     : ['-lc', command]
 }
@@ -278,25 +286,28 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     listFiles: deps.listFiles,
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
-    runShell(command, cwd, timeoutMs, signal) {
+    async runShell(command, cwd, timeoutMs, signal) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
-        return Promise.resolve({
+        return {
           stdout: '',
           stderr: `${missing} was not found on the absolute entries of PATH`,
           exitCode: null,
           isTimedOut: false,
           isCancelled: false,
-        })
+        }
       }
-      return runCommand({
+      const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+      const job = assembly === undefined ? undefined : newShellJob(assembly)
+      return await runCommand({
         file: interpreter,
-        args: shellArguments(deps.platform, command),
+        args: shellArguments(deps.platform, command, job),
         cwd,
         env: shellEnvironment(deps.env(), deps.platform, deps.systemRoot),
         timeoutMs,
         signal,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
+        job,
       })
     },
   }
@@ -348,6 +359,8 @@ export interface CommandRun {
   readonly timeoutMs: number
   readonly signal: AbortSignal | undefined
   readonly tree: ProcessTreeDeps
+  /** The job object the command joins (Windows, M27). */
+  readonly job?: ShellJob | undefined
 }
 
 /**
@@ -380,7 +393,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     let drain: NodeJS.Timeout | undefined
     let kill: Promise<void> | undefined
     const stop = () => {
-      kill ??= killTree(child, run.tree, startedAt)
+      kill ??= killTree(child, run.tree, startedAt, run.job)
     }
     const onAbort = () => {
       isCancelled = true

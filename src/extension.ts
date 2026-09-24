@@ -34,6 +34,7 @@ import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
 import { museSettingsPath, readDelegationMode } from './host/backend/museSettings'
+import { shellJobAssembly } from './host/backend/shellJob'
 import { createToolIo, terminalPlatform, withTerminalOverrides } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { EditReview } from './host/editor/editReview'
@@ -51,7 +52,7 @@ import {
 } from './host/conversation/conversationController'
 import { canonicalPath } from './host/canonicalPath'
 import { createGitRunner } from './host/git'
-import { createLogger } from './host/logger'
+import { createLogger, type Logger } from './host/logger'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
 import { readSettings, toSettingsSnapshot } from './host/settings'
@@ -334,6 +335,23 @@ function runProcess(
       },
     )
   })
+}
+
+/** The shell tool's job helper on Windows (PLAN.md M27); nothing elsewhere. */
+function windowsShellJobs(
+  storageDir: string,
+  log: Logger,
+): (() => Promise<string | undefined>) | undefined {
+  const systemRoot = process.env['SystemRoot']
+  return systemRoot !== undefined && process.platform === 'win32'
+    ? shellJobAssembly({
+        storageDir,
+        systemRoot,
+        log: (message) => {
+          log.warn(message)
+        },
+      })
+    : undefined
 }
 
 /** Set by `activate`: stops the hosts, their turns and their processes. */
@@ -623,6 +641,9 @@ export function activate(context: vscode.ExtensionContext): void {
       log: (message) => {
         log.warn(message)
       },
+      // Each Windows command in a job object of its own, so a Stop ends
+      // everything it started (PLAN.md M27).
+      shellJobAssembly: windowsShellJobs(context.globalStorageUri.fsPath, log),
       // An open editor with unsaved changes to the file (PLAN.md D27).
       hasUnsavedChanges: (absolutePath) =>
         vscode.workspace.textDocuments.some(

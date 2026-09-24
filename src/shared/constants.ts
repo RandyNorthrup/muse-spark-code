@@ -459,11 +459,17 @@ export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
 export const SHELL_DRAIN_GRACE_MS = 250
 export const WINDOWS_TASKKILL_RELATIVE_PATH = String.raw`System32\taskkill.exe`
 // A child the shell starts while `taskkill /T` enumerates its tree outlives
-// the kill (PLAN.md D25, M27). Once the shell has exited (given this long),
-// its orphans are looked up by their dead parent's id and killed, in this
-// many rounds at most, each lookup and each kill given this long.
+// the kill (PLAN.md D25, M27). On Windows each command therefore runs in a
+// job object of its own, named so a Stop can end it whole; the helper type
+// is compiled once into the extension's storage. Where no job is possible,
+// the shell is given this long to exit after taskkill, and then its orphans
+// are looked up by their dead parent's id and killed, one generation per
+// round, in this many rounds at most; each helper run is given this long.
+export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
+export const SHELL_JOB_FOLDER = 'shell-job'
+export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
 export const TREE_EXIT_WAIT_MS = 10_000
-export const ORPHAN_SWEEP_ROUNDS = 3
+export const ORPHAN_SWEEP_ROUNDS = 5
 export const PROCESS_TABLE_TIMEOUT_MS = 20_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
