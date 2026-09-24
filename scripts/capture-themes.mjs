@@ -22,27 +22,37 @@ import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { downloadAndUnzipVSCode } from '@vscode/test-electron'
+import * as z from 'zod/mini'
 
-// `workbenchClass` is the class VS Code puts on `.monaco-workbench` for the
-// theme's type; `bodyClass` what it puts on a webview's body.
+// `workbenchClass` is the class VS Code puts on `.monaco-workbench` once
+// that theme is applied, named after the theme's file. The theme's type
+// class (`vs-dark`) is not enough: a first capture read Dark Modern, a
+// second one the fallback dark colours VS Code paints before the theme's own
+// load, which had held still for the settle time. `bodyClass` is what VS
+// Code puts on a webview's body.
 const THEMES = [
-  { kind: 'light', name: 'Default Light Modern', workbenchClass: 'vs', bodyClass: 'vscode-light' },
+  {
+    kind: 'light',
+    name: 'Default Light Modern',
+    workbenchClass: 'vscode-theme-defaults-themes-light_modern-json',
+    bodyClass: 'vscode-light',
+  },
   {
     kind: 'dark',
     name: 'Default Dark Modern',
-    workbenchClass: 'vs-dark',
+    workbenchClass: 'vscode-theme-defaults-themes-dark_modern-json',
     bodyClass: 'vscode-dark',
   },
   {
     kind: 'hc-dark',
     name: 'Default High Contrast',
-    workbenchClass: 'hc-black',
+    workbenchClass: 'vscode-theme-defaults-themes-hc_black-json',
     bodyClass: 'vscode-high-contrast',
   },
   {
     kind: 'hc-light',
     name: 'Default High Contrast Light',
-    workbenchClass: 'hc-light',
+    workbenchClass: 'vscode-theme-defaults-themes-hc_light-json',
     bodyClass: 'vscode-high-contrast vscode-high-contrast-light',
   },
 ]
@@ -56,6 +66,33 @@ const START_TIMEOUT_MS = 90_000
 const EVALUATE_ATTEMPTS = 20
 const CONTEXT_GONE = /Execution context was destroyed|Cannot find context/
 const execFileAsync = promisify(execFile)
+// What VS Code and its DevTools endpoint send is checked before use
+// (AGENTS.md rule 7): a changed build fails here, by name, not later.
+const packageSchema = z.object({ version: z.string() })
+const targetsSchema = z.array(
+  z.object({
+    type: z.string(),
+    url: z.string(),
+    webSocketDebuggerUrl: z.optional(z.string()),
+  }),
+)
+// A reply carries the request's id; an event (none are asked for) has none.
+const evaluateReplySchema = z.object({
+  id: z.optional(z.number()),
+  error: z.optional(z.unknown()),
+  result: z.optional(
+    z.object({
+      result: z.optional(z.object({ value: z.optional(z.unknown()) })),
+      exceptionDetails: z.optional(
+        z.object({
+          text: z.string(),
+          exception: z.optional(z.object({ description: z.optional(z.string()) })),
+        }),
+      ),
+    }),
+  ),
+})
+const variablesSchema = z.record(z.string(), z.string())
 // Started from inside VS Code (a terminal, a task), this process inherits
 // ELECTRON_RUN_AS_NODE=1, which turns Code.exe into plain Node.js.
 const { ELECTRON_RUN_AS_NODE: _runAsNode, ...ELECTRON_ENV } = process.env
@@ -130,7 +167,7 @@ async function versionOf(executable) {
   if (found === undefined) {
     throw new Error(`no package.json beside ${executable}`)
   }
-  return JSON.parse(await readFile(found, 'utf8')).version
+  return packageSchema.parse(JSON.parse(await readFile(found, 'utf8'))).version
 }
 
 /** A loopback port nothing listens on right now. */
@@ -147,21 +184,31 @@ function freePort() {
   })
 }
 
+/** DevTools' target list as sent, or undefined while nothing listens yet. */
+async function devToolsTargets(port) {
+  try {
+    const response = await fetch(`http://${LOOPBACK}:${String(port)}/json/list`)
+    return await response.json()
+  } catch {
+    // Not listening yet.
+    return
+  }
+}
+
 /** The workbench page's DevTools socket, once it exists. */
 async function workbenchSocket(port) {
   const started = Date.now()
   while (Date.now() - started < START_TIMEOUT_MS) {
-    try {
-      const response = await fetch(`http://${LOOPBACK}:${String(port)}/json/list`)
-      const targets = await response.json()
-      const page = targets.find(
-        (target) => target.type === 'page' && target.url.includes('workbench'),
-      )
-      if (page !== undefined) {
-        return page.webSocketDebuggerUrl
-      }
-    } catch {
-      // Not listening yet.
+    const targets = await devToolsTargets(port)
+    // A list of another shape is an error now, not a timeout later.
+    const page =
+      targets === undefined
+        ? undefined
+        : targetsSchema
+            .parse(targets)
+            .find((target) => target.type === 'page' && target.url.includes('workbench'))
+    if (page?.webSocketDebuggerUrl !== undefined) {
+      return page.webSocketDebuggerUrl
     }
     await delay(POLL_MS)
   }
@@ -182,7 +229,14 @@ function evaluate(webSocketUrl, expression) {
       )
     })
     socket.addEventListener('message', (event) => {
-      const message = JSON.parse(String(event.data))
+      let message
+      try {
+        message = evaluateReplySchema.parse(JSON.parse(String(event.data)))
+      } catch (error) {
+        socket.close()
+        reject(new Error(`DevTools sent a message of another shape: ${String(error)}`))
+        return
+      }
       if (message.id !== 1) {
         return
       }
@@ -191,9 +245,9 @@ function evaluate(webSocketUrl, expression) {
         reject(new Error(`DevTools refused Runtime.evaluate: ${JSON.stringify(message.error)}`))
         return
       }
-      const details = message.result.exceptionDetails
+      const details = message.result?.exceptionDetails
       if (details === undefined) {
-        resolve(message.result.result.value)
+        resolve(message.result?.result?.value)
       } else {
         reject(new Error(details.exception?.description ?? details.text))
       }
@@ -284,7 +338,7 @@ async function main() {
   const used = await usedVariables()
   await mkdir(OUT_DIR, { recursive: true })
   for (const theme of THEMES) {
-    const all = await capture(executable, theme)
+    const all = variablesSchema.parse(await capture(executable, theme))
     // A colour the theme leaves unset is absent, as it is in a real
     // webview, so the stylesheet's own fallback applies.
     const variables = Object.fromEntries(

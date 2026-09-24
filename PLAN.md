@@ -972,12 +972,22 @@ itself. **Owner's go-ahead (2026-09-24):** "sure", for axe-core 4.13.0
   `test/harness/themes/<kind>.json`. A colour a theme leaves unset is
   unset in the harness too, so the stylesheet's own fallback is what gets
   measured, as in a real webview. Rerun it when VS Code's themes change.
-- **One exemption, said out loud:** a `target-size` finding whose
-  neighbouring targets all sit inside a menu, popover or dialog the user
-  opened. WCAG's Understanding document for 2.5.8 puts targets obscured by
-  content the user displayed out of scope. Every run prints each exempt
-  element and counts it (8 today, all in the `rewind` scenario, where an open
-  menu covers two chevrons).
+- **One exemption, said out loud:** a `target-size` finding whose related
+  elements all sit in a menu, popover or dialog the user opened, which does
+  not hold the target and overlaps it on screen. WCAG's Understanding
+  document for 2.5.8 puts targets obscured by content the user displayed
+  out of scope. Every run prints each exempt element and counts it (8
+  today, all in the `rewind` scenario, where an open menu covers two
+  chevrons). A target crowded by its own neighbours inside a menu is not
+  exempt (the review of PR #18).
+- **What axe cannot decide fails too** (the review of PR #18). axe files
+  what it cannot settle under "incomplete"; the gate fails on it like a
+  violation, with two exceptions. Contrast on text axe could not see where
+  it looked (covered by an opened menu or dialog, or scrolled out of the
+  transcript's view) and on glyph-only content is counted and printed, not
+  failed: about 2,430 (a few either way between runs) and 60 elements today. The rows scrolled out of view in the
+  long transcripts are the same kinds of row that other scenarios show and
+  check.
 - **How the violations were fixed:**
   - A control inside an ARIA option is not a control of its own (4.1.2).
     The effort dots in the palette row and the History row's archive mark
@@ -991,6 +1001,8 @@ itself. **Owner's go-ahead (2026-09-24):** "sure", for axe-core 4.13.0
     tool's reason (the error colour stays, as a bar beside it, which needs
     only 3:1), and the grey detail on a selected row.
   - Radio and checkbox answers in a question card get a 24 px row (2.5.8).
+  - The Modes menu's effort dots are 24 px targets around the same 12 px
+    dot (2.5.8; axe had left them undecided).
 - **Limits:** automated rules find only part of what WCAG asks. Screen
   reader output, reflow at 400 % zoom and focus order inside the real VS
   Code window are not covered by this gate. Keyboard behaviour is covered
@@ -2804,7 +2816,7 @@ VS Code itself ships.
 | Secrets               | `gitleaks git --redact` (history, `security:secrets`, also a CI job) and `gitleaks git --pre-commit --staged` (hook)                                                                  | M0 ✓ (staged-scan proof; the history scan runs locally and in CI)                                                                                                                                          |
 | SAST                  | `semgrep scan --config auto --error` (`npm run security:sast`)                                                                                                                        | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. M26: CI pins semgrep 1.177.0 (`.github/semgrep/requirements.txt`, Dependabot pip). |
 | PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)                                                                                                | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner). M26: pinned to 1.25.0 (`-RequiredVersion`), the version CI installs.                       |
-| Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA | M37 ✓ (proofs A–G); Lighthouse itself is not run (D32)                                                                                                                                                     |
+| Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
 
 ## 8. Escape hatches register
 

@@ -1523,9 +1523,30 @@
       // hidden <pre id="axe-result"> for scripts/a11y.mjs (M37, PLAN.md D32).
       const params = new URLSearchParams(location.search)
       const FONT_VARIABLE = /font/
+      const isString = (value) => typeof value === 'string'
+      // The capture is checked before use: a file of another shape fails the
+      // page by name instead of colouring it wrongly.
+      const themeOf = (kind, value) => {
+        const isTheme =
+          typeof value === 'object' &&
+          value !== null &&
+          isString(value.bodyClass) &&
+          typeof value.variables === 'object' &&
+          value.variables !== null &&
+          Object.values(value.variables).every(isString) &&
+          Array.isArray(value.unset) &&
+          value.unset.every(isString)
+        if (!isTheme) {
+          throw new Error(`themes/${kind}.json is not a theme capture`)
+        }
+        return value
+      }
       const applyTheme = async (kind) => {
         const response = await fetch(`themes/${kind}.json`)
-        const theme = await response.json()
+        if (!response.ok) {
+          throw new Error(`themes/${kind}.json: HTTP ${String(response.status)}`)
+        }
+        const theme = themeOf(kind, await response.json())
         const root = document.documentElement.style
         for (const [name, value] of Object.entries(theme.variables)) {
           root.setProperty(name, value)
@@ -1558,29 +1579,38 @@
       // WCAG 2.5.8 "does not apply to targets while they are obscured by
       // content displayed as a result of a user interaction" (W3C,
       // Understanding 2.5.8), such as a menu the user opened. axe measures
-      // the covered area anyway, so a target-size finding whose crowding or
-      // covering elements all belong to an open menu or dialog is counted
-      // as exempt and reported, not dropped silently.
+      // the covered area anyway. A target-size finding is exempt, and
+      // reported, only when every element axe relates to it sits in an
+      // opened menu or dialog that does not hold the target itself and that
+      // overlaps it on screen: covered by a separate overlay, not crowded by
+      // its own neighbours (the review of PR #18).
       const OPENED_CONTENT = '.popover, [role="menu"], [role="dialog"]'
-      const isInsideOpenedContent = (related) =>
-        document.querySelector(related.target.join(' '))?.closest(OPENED_CONTENT) != null
+      const elementAt = (target) => document.querySelector(target.join(' '))
+      const overlaps = (cover, element) => {
+        const a = cover.getBoundingClientRect()
+        const b = element.getBoundingClientRect()
+        return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+      }
       const isObscuredByOpenedContent = (node) => {
+        const target = elementAt(node.target)
         const related = [...node.any, ...node.all, ...node.none].flatMap(
           (check) => check.relatedNodes,
         )
-        return related.length > 0 && related.every(isInsideOpenedContent)
+        return (
+          target !== null &&
+          related.length > 0 &&
+          related.every((entry) => {
+            const cover = elementAt(entry.target)?.closest(OPENED_CONTENT)
+            return cover != null && !cover.contains(target) && overlaps(cover, target)
+          })
+        )
       }
-      const runAxe = async () => {
-        await loadAxe()
-        const results = await window.axe.run(document, {
-          runOnly: { type: 'tag', values: AXE_TAGS },
-          resultTypes: ['violations'],
-        })
-        const exempt = []
-        const violations = results.violations.flatMap((violation) => {
-          const nodes = violation.nodes.filter((node) => {
-            if (violation.id === 'target-size' && isObscuredByOpenedContent(node)) {
-              exempt.push({ rule: violation.id, target: node.target.join(' ') })
+      // One of axe's result lists, the exempt elements taken out and noted.
+      const findingsOf = (list, exempt) =>
+        list.flatMap((finding) => {
+          const nodes = finding.nodes.filter((node) => {
+            if (finding.id === 'target-size' && isObscuredByOpenedContent(node)) {
+              exempt.push({ rule: finding.id, target: node.target.join(' ') })
               return false
             }
             return true
@@ -1589,17 +1619,35 @@
             ? []
             : [
                 {
-                  id: violation.id,
-                  impact: violation.impact,
-                  help: violation.help,
+                  id: finding.id,
+                  impact: finding.impact,
+                  help: finding.help,
                   nodes: nodes.map((node) => ({
                     target: node.target.join(' '),
                     summary: node.failureSummary,
+                    // Why axe could not decide, as keys (bgOverlap, …).
+                    reasons: [...node.any, ...node.all, ...node.none].flatMap((check) =>
+                      check.data?.messageKey === undefined ? [] : [check.data.messageKey],
+                    ),
                   })),
                 },
               ]
         })
-        return { violations, exempt }
+      const runAxe = async () => {
+        await loadAxe()
+        // "incomplete" is what axe could not decide on its own: a size it
+        // could not measure, a background it could not see. It is returned
+        // as well, never dropped (the review of PR #18).
+        const results = await window.axe.run(document, {
+          runOnly: { type: 'tag', values: AXE_TAGS },
+          resultTypes: ['violations', 'incomplete'],
+        })
+        const exempt = []
+        return {
+          violations: findingsOf(results.violations, exempt),
+          incomplete: findingsOf(results.incomplete, exempt),
+          exempt,
+        }
       }
       const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
       if (params.get('axe') === '1') {
