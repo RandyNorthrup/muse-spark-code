@@ -525,7 +525,7 @@
     "package": "vsce package --no-dependencies",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
-    "security:sast": "semgrep scan --config auto --error --exclude=dist --exclude=coverage --exclude=node_modules --exclude=.vscode-test --exclude=.claude"
+    "security:sast": "node scripts/sast.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [
