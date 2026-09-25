@@ -71,7 +71,13 @@ import type { ContextIo } from '../../context/contextFiles'
 import { type SkillDefinition } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
-import { MissingApiKeyError, type ModelApiClient, ModelApiError, type RetryNotice } from './client'
+import {
+  MissingApiKeyError,
+  type ModelApiClient,
+  ModelApiError,
+  type RetryBudget,
+  type RetryNotice,
+} from './client'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
 import { generateImageArgs, imagePathProblem, runImageGeneration } from './imageGeneration'
 import {
@@ -850,9 +856,9 @@ export class ModelApiSession implements AgentSession {
 
   /**
    * What a stream cut short left open, settled before the request is sent
-   * again: a reply or a thought keeps what it showed, a search row is marked
-   * interrupted (not counted: it did not finish). The replay takes nothing
-   * from it; the retried response is the one kept.
+   * again or the turn fails: a reply or a thought keeps what it showed, a
+   * search row is marked interrupted (not counted: it did not finish). The
+   * replay takes nothing from it; the retried response is the one kept.
    */
   private settleCutShort(open: Map<string, OpenItem>, turnId: string): void {
     for (const entry of open.values()) {
@@ -902,24 +908,36 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  /** One model call: streams the reply into the transcript, returns the calls to run. */
+  /**
+   * One model call: streams the reply into the transcript, returns the calls
+   * to run. The HTTP retries inside each attempt and the whole-stream
+   * retries share one budget (the review of PR #28), so a call never sends
+   * more requests than its retry notices announce.
+   */
   private async streamOnce(
     turnId: string,
     signal: AbortSignal,
   ): Promise<readonly FunctionCallItem[]> {
-    for (let attempt = 0; ; attempt += 1) {
+    const budget: RetryBudget = { retriesUsed: 0 }
+    for (;;) {
       const open = new Map<string, OpenItem>()
       try {
-        return await this.streamAttempt(turnId, signal, open)
+        return await this.streamAttempt(turnId, signal, open, budget)
       } catch (error: unknown) {
+        // What a failed attempt showed stays in the history, the last one's
+        // too (the review of PR #28); a Stop is the turn's own business.
+        if (!signal.aborted) {
+          this.settleCutShort(open, turnId)
+        }
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
-          attempt >= MODEL_API_MAX_RETRIES
+          budget.retriesUsed >= MODEL_API_MAX_RETRIES
         ) {
           throw error
         }
-        this.settleCutShort(open, turnId)
+        const attempt = budget.retriesUsed
+        budget.retriesUsed += 1
         const delayMs = this.deps.client.retryDelayMs(attempt)
         this.emit({
           type: 'turnRetry',
@@ -942,6 +960,7 @@ export class ModelApiSession implements AgentSession {
     turnId: string,
     signal: AbortSignal,
     open: Map<string, OpenItem>,
+    budget: RetryBudget,
   ): Promise<readonly FunctionCallItem[]> {
     let final: ResponseObject | undefined
     // A retried request is announced in the transcript, as Muse Code's are (D25).
@@ -955,7 +974,12 @@ export class ModelApiSession implements AgentSession {
         reason: notice.reason,
       })
     }
-    for await (const event of this.deps.client.streamResponse(this.body(), signal, onRetry)) {
+    for await (const event of this.deps.client.streamResponse(
+      this.body(),
+      signal,
+      onRetry,
+      budget,
+    )) {
       final = this.applyStreamEvent(event, open, turnId) ?? final
     }
     if (final === undefined) {

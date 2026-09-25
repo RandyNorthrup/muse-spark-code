@@ -136,6 +136,15 @@ export interface RetryNotice {
   readonly reason: string
 }
 
+/**
+ * The retries one model call has used (the review of PR #28): a stream sent
+ * again whole and the HTTP retries inside each of its requests draw on the
+ * same MODEL_API_MAX_RETRIES.
+ */
+export interface RetryBudget {
+  retriesUsed: number
+}
+
 /** Rejects as soon as `signal` aborts, instead of sleeping the retry delay out. */
 function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; dispose(): void } {
   let onAbort: (() => void) | undefined
@@ -212,11 +221,15 @@ export class ModelApiClient {
     },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
+    budget?: RetryBudget,
   ): Promise<Response> {
     const isRateLimitOnly = init.retries === 'rateLimitOnly'
     const headers = { ...(await this.headers()), Accept: init.accept }
     const url = `${this.deps.baseUrl}${path}`
     const retry = async (attempt: number, delay: number, reason: string) => {
+      if (budget !== undefined) {
+        budget.retriesUsed = attempt + 1
+      }
       onRetry?.({
         attempt: attempt + 1,
         maxAttempts: MODEL_API_MAX_RETRIES + 1,
@@ -227,7 +240,7 @@ export class ModelApiClient {
     }
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
-    for (let attempt = 0; ; attempt += 1) {
+    for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
       let response: Response
       try {
         response = await this.deps.fetch(url, {
@@ -332,6 +345,7 @@ export class ModelApiClient {
     body: CreateResponseBody,
     signal: AbortSignal,
     onRetry?: (notice: RetryNotice) => void,
+    budget?: RetryBudget,
   ): AsyncGenerator<StreamEvent> {
     // Nothing from the server for this long, headers or a frame, ends the
     // turn (M39); the request is aborted too, which frees the connection.
@@ -357,6 +371,7 @@ export class ModelApiClient {
         { method: 'POST', body, accept: EVENT_STREAM_MEDIA_TYPE },
         AbortSignal.any([signal, stall.signal]),
         onRetry,
+        budget,
       ),
     )
     if (response.body === null) {
