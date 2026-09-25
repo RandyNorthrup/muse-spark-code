@@ -32,6 +32,11 @@ sign-in gate explains what is missing.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.
+- Build what Muse Code or the Model API sends from a captured frame, not a
+  guess (AGENTS.md rule 13). A capture runs a few short turns in an empty
+  folder on a contributor model, writes every notification to a file, and
+  counts the model attempts in the CLI's trace log afterwards;
+  `docs/certification/m43.md` shows one.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
   the machine.
@@ -78,7 +83,10 @@ table stands out.
 because the gate fails a language that lacks it. A plural entry needs the
 forms that language uses: Russian, Polish and Czech need `few` and `many`;
 French, Spanish, Italian and Brazilian Portuguese need `many`; Chinese,
-Japanese and Korean need `other` only.
+Japanese and Korean need `other` only. Every form keeps `{count}`, the
+English `one` included ("Ran {count} time", not "Ran once"): Russian's `one`
+also covers 21, 31 and 101, so a form without the number would be wrong
+there, and the gate compares each form's slots with the English.
 
 **Correcting a translation.** The translations are machine-made. Edit the
 line in `l10n/ui.<language>.json` or `package.nls.<language>.json`, keeping

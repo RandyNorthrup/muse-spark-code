@@ -437,6 +437,12 @@ export function App({
     },
     [postMessage],
   )
+  const onReadImage = useCallback(
+    (itemId: string, path: string) => {
+      postMessage({ type: 'readToolImage', itemId, path })
+    },
+    [postMessage],
+  )
   const onOpenOutput = useCallback(
     (itemId: string, label: string, text: string, outputRef: string | undefined) => {
       postMessage({
@@ -983,6 +989,8 @@ export function App({
         isRunning={isRunning}
         isFocusView={state.settings.focusView}
         outputPages={state.outputPages}
+        toolImages={state.toolImages}
+        onReadImage={onReadImage}
         onOpenLink={onOpenExternal}
         onCopy={onCopy}
         onInsert={onInsert}

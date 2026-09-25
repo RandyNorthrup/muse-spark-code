@@ -1193,6 +1193,60 @@ turn's retry notice; what the cut-short stream showed stays in the
 transcript (a search row cut short reads "interrupted" and is not counted),
 and only the retried response is replayed.
 
+### D36 — Everything Muse Code and the Model API offer, on both backends (2026-09-25)
+
+The owner (2026-09-25): "we need to make sure we are covering all of the
+provided functionality with feature rich robust enterprise grade production
+ready access and not omitting or missing any", then "i want everything fixed
+everything properly implemented and this app to be fully realized feature
+rich and production ready", and "web search and images are pretty important
+to be able to use on each i want the api and cli to be as close to feature
+parity as we can get them". Live checks no longer need his go-ahead; they
+use the contributor models and are counted and reported (2026-09-25).
+
+Two read-only inventories (2026-09-25, no model or paid call; saved in the
+session scratchpad as `inventory-muse-code.md` and `inventory-model-api.md`)
+listed every capability: Muse Code 1.3.0 from `muse schema` (47 MSP methods,
+33 notifications), every `--help`, the binary's tool list and settings keys,
+all eleven Muse Code docs pages and ten cookbook recipes, the owner's trace
+and session logs (tool names only), an isolated echo run and a live `muse
+serve` probe (logged out, so no model call); the Model API from every page
+of its documentation. What reaches the panel today, what does not, and the
+milestone that closes each gap:
+
+| Capability                        | Muse Code (subscription)                                                                                                                                                                                  | Model API (key)                                                                         | Milestone  |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------- |
+| Replay Meta accepts               | the CLI's own                                                                                                                                                                                             | fixed: commentary phase, reasoning summary, reasoning-only turns, stream retries        | M42        |
+| Tool rows for every tool          | memory, goal, cron, workflow, web, work, input and reminder tools render as raw names; tool-result images unseen                                                                                          | the extension's own tools render                                                        | M43        |
+| Web search                        | Muse Code's own `web_search`, covered by the subscription (ran in `muse serve`, 2026-09-22)                                                                                                               | paid, opt in (M33)                                                                      | M43 (rows) |
+| Images                            | Muse Code's `image_generation` is gated off (no switch found)                                                                                                                                             | paid, opt in (M34); edits missing                                                       | M44        |
+| Web fetch (read a page)           | Muse Code's `web_fetch` is gated off                                                                                                                                                                      | none                                                                                    | M44        |
+| Goals                             | MSP `goal/*`, `session/goalChanged`: not wired                                                                                                                                                            | none                                                                                    | M45        |
+| Background work, stop             | MSP `task/background`, `task/stop`, `task/stopAll`: not wired                                                                                                                                             | shell commands cannot run in the background                                             | M46        |
+| `!` user shell                    | MSP `session/userShell`: not wired                                                                                                                                                                        | none                                                                                    | M46        |
+| Workflows                         | items render generically; `workflow/cancel`, `workflow/childControl` not wired                                                                                                                            | none (Muse Code's own engine)                                                           | M47        |
+| Subagents                         | map and controls (M14, M18); `reopen` and `readResult` not wired                                                                                                                                          | none (D17)                                                                              | M48        |
+| Memory                            | Muse Code's memory tools; no view                                                                                                                                                                         | the index is read (M10); no tools                                                       | M49        |
+| MCP servers                       | loaded by Muse Code; read-only view (M31)                                                                                                                                                                 | none                                                                                    | M50        |
+| Hooks                             | run by Muse Code; read-only view (M31)                                                                                                                                                                    | none                                                                                    | M51        |
+| Scheduled prompts (`/loop`, cron) | the agent's `cron_*` tools only; no list or cancel                                                                                                                                                        | none                                                                                    | M52        |
+| Rewind a conversation, side chat  | TUI only; the panel has fork and code rewind                                                                                                                                                              | fork and code rewind                                                                    | M53        |
+| PDFs and files as input           | MSP takes text, images and skills only                                                                                                                                                                    | images only                                                                             | M54        |
+| Questions: clarify                | `userInput/clarify` not wired                                                                                                                                                                             | n/a                                                                                     | M46        |
+| Sign-in in the panel, install     | experimental `account/*` not used; install links out                                                                                                                                                      | key pasted                                                                              | M55 (M41)  |
+| Network posture, enterprise       | `--sandbox-network`, `--no-session-log` not offered; `muse config status` not shown                                                                                                                       | proxy and certificates unverified for fetch and the voice socket; cache key per session | M56        |
+| Voice                             | the OS recogniser (free); Muse Code's own voice is TUI-only and not on Windows                                                                                                                            | the OS recogniser, or Muse Voice (paid, M35)                                            | —          |
+| Everything else already at parity | sessions, history, fork, rename, compaction, export, steering, queue, approvals with stages and scopes, questions, todos, usage, model, effort, modes, skills, rules, worktrees, attachments, diagnostics | the same, through the extension's own harness                                           | —          |
+
+Rulings carried: the subscription never pays for a Model API call, and the
+key is never handed to `muse serve` (D1); a paid call is opt in and loud
+(D30). Images on the Muse Code backend therefore run through the extension's
+own session MCP server (the `ide` server Muse Code already loads, M5) with
+the key, billed and announced exactly as on the Model API backend (M44).
+What Muse Code keeps to its TUI and cannot be reached over MSP (its theme,
+keymap, vim mode, HUD, deep research, feedback upload, voice) is listed and
+not imitated, except where the panel has its own equivalent.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -3098,9 +3152,58 @@ the shared table, helpers and checks):
 - **Acceptance**: each rule has a test from the documented shape and a red
   drill; the gate green.
 
-### M41 — Install Muse Code from the panel (proposed)
+### M43–M56 — Parity with everything Muse Code and the Model API offer (D36)
 
-**Status 2026-09-25: proposed; waits for the owner's go-ahead.** The owner
+**Status 2026-09-25: the program the owner asked for.** One pull request per
+milestone, each with its tests, red drills, documents and fourteen
+translations. The order is D36's table:
+
+| Milestone | What reaches the panel                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| M43       | A row for every tool Muse Code runs (memory, goals, schedules, workflows, web, background work, reminders, input), tool-result images |
+| M44       | Images on the Muse Code backend through the `ide` session server with the key (paid, loud); web fetch; image edits                    |
+| M45       | Goals: set, see, pause, clear                                                                                                         |
+| M46       | Background work and stop; the `!` user shell; clarifying questions                                                                    |
+| M47       | Workflows: the run, its children, cancel and child control                                                                            |
+| M48       | Subagents on the Model API backend; reopen and read a result on Muse Code                                                             |
+| M49       | Memory: see and edit; memory tools on the Model API backend                                                                           |
+| M50       | MCP servers on the Model API backend                                                                                                  |
+| M51       | Hooks on the Model API backend                                                                                                        |
+| M52       | Scheduled prompts (`/loop`): list and cancel                                                                                          |
+| M53       | Rewind a conversation; a side chat                                                                                                    |
+| M54       | PDFs and other files as input                                                                                                         |
+| M55       | Sign in and install Muse Code from the panel (M41 folded in)                                                                          |
+| M56       | Enterprise network: proxy and certificates, the sandbox network switch, no session log, the CLI's config status                       |
+
+### M43 — A row for every tool Muse Code runs (D36)
+
+**Status 2026-09-25: built and certified** (`docs/certification/m43.md`).
+
+- **Goal**: every tool Muse Code can run has a named row, and the ones that
+  answer in JSON read as what they mean; nothing is dropped that the wire
+  may add later.
+- **Research first**: a live capture of six turns in an empty folder on the
+  contributor model (38 model attempts, counted from the trace log) gave
+  the exact arguments and results of the memory, goal, schedule, web search
+  and background-work tools, and showed that a backgrounded shell call has
+  no `background` flag and that an image read carries no
+  `modelVisibleContent` on the live stream.
+- **Scope**: labels for the CLI's whole tool list and MCP tools; row bodies
+  for memory, goals, scheduled prompts and search results; background runs
+  recognised from their result (they no longer read "Interrupted" when the
+  turn ends); pictures a tool read or made, loaded by the host from the
+  workspace under the D24 link check; the Model API's search rows in Muse
+  Code's result shape; generic JSON indented; 52 strings in fourteen
+  languages; AGENTS.md rule 13 (wire shapes come from a capture).
+- **Acceptance**: tests from the captured shapes, drills T1–T12, harness
+  scenarios `muse-tools` and `muse-web` seen and in the accessibility gate,
+  the gate green.
+- **Left for later milestones**: goal controls and `session/goalChanged`
+  (M45); stopping background work from the panel (M46); workflow runs (M47).
+
+### M41 — Install Muse Code from the panel (folded into M55)
+
+**Status 2026-09-25: folded into M55 (D36).** The owner
 asked whether the install could be automated rather than linking to Meta's
 site. Meta publishes one-line installers (`irm https://dev.meta.ai/install.ps1
 | iex` on Windows, `curl -fsSL https://dev.meta.ai/install.sh | sh`

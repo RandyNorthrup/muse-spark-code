@@ -72,6 +72,12 @@ them, the milestone plan, and the certification checklist.
     (`paid` on the item), counted in `PaidUsage` for Account & usage, and
     offered on the Model API backend only. One that can ask first does, in
     every mode, Bypass included. The subscription never pays for one.
+13. **Wire shapes come from a live capture.** A row, parser or schema for
+    something Muse Code or the Model API sends is written from a captured
+    frame (the certification record names the capture, its workspace and its
+    counted model attempts), never from a guess; the tests use that shape.
+    Anything the wire may add later (a goal status, an MSP field) is shown
+    as it came rather than dropped (PLAN.md D36, M43).
 
 ## Layout
 

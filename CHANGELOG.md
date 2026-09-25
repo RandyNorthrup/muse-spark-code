@@ -12,6 +12,15 @@ while they are (PLAN.md D30, D34).
 
 ### Added
 
+- **A row for every tool Muse Code runs** (M43, PLAN.md D36). Memory rows
+  show the note and where it lives, and an edit as the text replaced; goal
+  rows show the objective, its status, a progress bar, what is being done
+  now and next, and the tokens spent; scheduled prompts show their
+  schedule, next run and how often they ran; web search shows its results
+  as links with snippets, on both backends; a picture the agent read, or
+  the Model API backend made, shows in its row. Every other tool in Muse
+  Code's list has a name, an MCP tool reads "tool (server)", and any other
+  result is indented JSON. All built from a live capture of Muse Code 1.3.0.
 - **Web search** (M33). With `museSpark.modelApiWebSearch` on, the model can
   search the web on the Model API backend ($2.50 per 1,000 searches). Each
   search is a row marked paid with its query and results, and a reply lists
@@ -39,6 +48,9 @@ while they are (PLAN.md D30, D34).
 
 ### Fixed
 
+- **A command Muse Code moved to the background read "Interrupted"** when
+  its turn ended (M43). It now shows what it printed, says it is still
+  running, and is listed among the background tasks.
 - **Model API conversations that narrate before a tool** (M42, PLAN.md D35).
   Text the model writes before a tool call is replayed as commentary, as
   Meta requires; replayed as an answer, it made the next request fail with

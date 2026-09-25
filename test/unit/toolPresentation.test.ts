@@ -142,3 +142,106 @@ describe('subagent tool labels (M18)', () => {
     expect(describeTool('subagent_read_result', '{}').label).toBe('Agent result')
   })
 })
+
+describe("Muse Code's own tools (M43)", () => {
+  // The CLI's canonical tool list (Muse Code 1.3.0 binary, PLAN.md D36) and
+  // the extra names seen in its sessions: every one has a row label.
+  const MUSE_CODE_TOOLS = [
+    'read_file',
+    'edit_file',
+    'write_file',
+    'apply_patch',
+    'search',
+    'bash',
+    'bash_input',
+    'powershell',
+    'powershell_input',
+    'shell',
+    'work_stop',
+    'work_status',
+    'monitor',
+    'artifact',
+    'image_generation',
+    'read_memory',
+    'add_memory',
+    'edit_memory',
+    'create_goal',
+    'update_goal',
+    'get_goal',
+    'report_progress',
+    'cron_create',
+    'cron_delete',
+    'cron_list',
+    'workflow',
+    'code_exec',
+    'code_wait',
+    'web_search',
+    'web_fetch',
+    'tool_search',
+    'read_skill',
+    'send_session_message',
+    'list_peer_sessions',
+    'request_user_input',
+    'subagent_spawn',
+    'subagent_status',
+    'subagent_send_message',
+    'subagent_wait',
+    'subagent_read_result',
+    'subagent_cancel',
+    'update_plan',
+    'TodoWrite',
+    'write_todos',
+    'snooze_reminder',
+    'submit_reminder_decision',
+    'submit_result',
+  ]
+
+  it('labels every tool Muse Code can run', () => {
+    expect(MUSE_CODE_TOOLS.filter((name) => toolLabel(name) === undefined)).toEqual([])
+  })
+
+  it('picks each family’s body and summary from the captured arguments', () => {
+    expect(
+      describeTool('add_memory', '{"content":"x","path":"palette.md","scope":"personal_project"}'),
+    ).toMatchObject({ label: 'Save memory', summary: 'palette.md', body: 'memory' })
+    expect(describeTool('create_goal', '{"objective":"Ship it"}')).toMatchObject({
+      summary: 'Ship it',
+      body: 'goal',
+    })
+    expect(describeTool('get_goal', '{}')).toMatchObject({ summary: '', body: 'goal' })
+    expect(describeTool('report_progress', '{"current_work":"Testing"}')).toMatchObject({
+      summary: 'Testing',
+    })
+    expect(describeTool('cron_delete', '{"id":"2ef46218"}')).toMatchObject({
+      summary: '2ef46218',
+      body: 'schedule',
+    })
+    expect(describeTool('web_search', '{"query":"vite"}')).toMatchObject({
+      summary: 'vite',
+      body: 'web',
+    })
+    expect(describeTool('workflow', '{"prompt":"Review the diff"}')).toMatchObject({
+      label: 'Workflow',
+      summary: 'Review the diff',
+      body: 'generic',
+    })
+    expect(describeTool('apply_patch', '{"path":"a.ts","patch":"@@"}')).toMatchObject({
+      label: 'Patch',
+      body: 'edit',
+    })
+  })
+
+  it('names the picture a read or a generated image shows, and no other', () => {
+    expect(describeTool('read_file', '{"path":"media/Dot.PNG"}').imagePath).toBe('media/Dot.PNG')
+    expect(describeTool('generate_image', '{"path":"a.webp"}').imagePath).toBe('a.webp')
+    expect(describeTool('read_file', '{"path":"notes.md"}').imagePath).toBeUndefined()
+    expect(describeTool('write_file', '{"path":"a.png"}').imagePath).toBeUndefined()
+    expect(describeTool('read_file', '{"path":"archive.png.md"}').imagePath).toBeUndefined()
+  })
+
+  it('names an MCP tool the table does not know by tool and server', () => {
+    expect(describeTool('mcp__github__create_issue', '{}').label).toBe('create_issue (github)')
+    expect(describeTool('mcp__my__server__do', '{}').label).toBe('server__do (my)')
+    expect(describeTool('mcp__ide__getDiagnostics', '{}').label).toBe('Diagnostics')
+  })
+})

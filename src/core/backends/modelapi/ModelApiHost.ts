@@ -243,15 +243,17 @@ function searchPresentation(item: WebSearchCallItem): {
   } else if (typeof action?.url === 'string') {
     args = { url: action.url, ...(action.pattern !== undefined && { pattern: action.pattern }) }
   }
-  const results = item.results ?? []
-  const lines =
-    results.length > 0
-      ? results.map((result) => {
-          const title = result.title ?? ''
-          return title === '' ? result.url : `${title}\n${result.url}`
-        })
-      : (action?.sources ?? []).map((source) => source.url)
-  return { args: JSON.stringify(args), output: lines.join('\n\n') }
+  // The row's result has Muse Code's own `web_search` shape (captured live
+  // 2026-09-25), so both backends' searches render as the same list (M43).
+  const found = item.results ?? []
+  const results =
+    found.length > 0
+      ? found.map((result) => ({
+          url: result.url,
+          ...(result.title !== undefined && result.title !== '' && { title: result.title }),
+        }))
+      : (action?.sources ?? []).map((source) => ({ url: source.url }))
+  return { args: JSON.stringify(args), output: JSON.stringify({ results }) }
 }
 
 /**

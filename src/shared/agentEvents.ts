@@ -90,6 +90,14 @@ export const itemSnapshotFields = {
   backgroundInitiator: z.optional(z.string()),
   /** `toolCall`: a call billed on top of tokens (M33, PLAN.md D30), marked paid in its row. */
   paid: z.optional(z.enum(PAID_FEATURES)),
+  /**
+   * `toolCall`: what the model saw beyond text (MSP `ModelVisibleContent`,
+   * metadata only). Muse Code 1.3.0 did not send it on the live stream
+   * (captured 2026-09-25); it is read when it comes (M43).
+   */
+  modelVisibleContent: z.optional(
+    z.array(z.object({ type: z.string(), path: z.string(), mediaType: z.string() })),
+  ),
   /** `agentMessage`: the sources the reply cites (`url_citation`, M33), each once. */
   citations: z.optional(z.array(citationSchema)),
 } as const

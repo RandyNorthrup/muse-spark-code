@@ -28,7 +28,8 @@
       "onboardingShortcuts.mentionSelection",
       "onboardingShortcuts.mentionFile",
       "onboardingShortcuts.dictation",
-      "paidVoiceName"
+      "paidVoiceName",
+      "mcpToolLabel"
     ],
     "cs": [
       "groupModel",
@@ -39,7 +40,8 @@
       "subagentRowLabel",
       "exportSubagentNoRole",
       "agentRole",
-      "agentsCount.one"
+      "agentsCount.one",
+      "toolLabels.shell"
     ],
     "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
     "pl": [
@@ -66,10 +68,13 @@
       "permissionModes.auto",
       "effortLevels.minimal",
       "exportBackendLine",
-      "exportSubagentHeading"
+      "exportSubagentHeading",
+      "toolLabels.shell",
+      "toolLabels.workflow",
+      "toolLabels.read_skill"
     ],
-    "es": ["usagePlan", "agentTokens", "permissionModes.manual"],
-    "pt-br": ["agentTokens", "permissionModes.manual"],
+    "es": ["usagePlan", "agentTokens", "permissionModes.manual", "toolLabels.shell", "goalTokens"],
+    "pt-br": ["agentTokens", "permissionModes.manual", "toolLabels.shell", "goalTokens"],
     "fr": [
       "modesTitle",
       "paletteLabel",
@@ -81,9 +86,14 @@
       "toolLabels.ask_user",
       "exportSubagentNoRole",
       "toolLabels.generate_image",
-      "citationsHeading"
+      "citationsHeading",
+      "toolLabels.shell",
+      "toolLabels.image_generation"
     ],
-    "it": ["usageAccount", "exportOutputLabel"]
+    "it": ["usageAccount", "exportOutputLabel", "toolLabels.shell"],
+    "zh-cn": ["toolLabels.shell"],
+    "zh-tw": ["toolLabels.shell"],
+    "hu": ["toolLabels.shell"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

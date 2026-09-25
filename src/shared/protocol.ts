@@ -272,6 +272,12 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     outputRef: z.string(),
     offsetBytes: z.number(),
   }),
+  // Tool row: the picture a tool read or made, by the path it named (M43).
+  z.object({
+    type: z.literal('readToolImage'),
+    itemId: z.string(),
+    path: z.string(),
+  }),
   // Tool row: open the whole output in an editor tab (M15). `text` is the
   // transcript's copy; a stored output (`outputRef`) is paged in full instead.
   z.object({
@@ -483,6 +489,15 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     byteLen: z.number(),
     content: z.string(),
     eof: z.boolean(),
+  }),
+  // The picture a tool row asked for (answer to readToolImage, M43): a data
+  // URI of the file, or why it could not be shown.
+  z.object({
+    type: z.literal('toolImage'),
+    itemId: z.string(),
+    path: z.string(),
+    dataUri: z.optional(z.string()),
+    error: z.optional(z.string()),
   }),
 ])
 

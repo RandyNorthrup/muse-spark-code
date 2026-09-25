@@ -275,6 +275,29 @@ git facts. Trust the workspace to enable them.
 
 These use the Muse Code CLI, except worktrees, which work on both backends.
 
+**What its tools show.** Every tool Muse Code runs has a named row, and
+the ones that answer in JSON are shown as what they mean:
+
+- **Memory** (Read memory, Save memory, Edit memory): the note saved or read
+  back, where it lives (your memory for this project, the project's shared
+  memory, or your memory for every project), and an edit as the text
+  replaced beside its replacement.
+- **Goals** (Set goal, Check goal, Update goal, Goal progress): the
+  objective, its status, a progress bar, what the agent is doing now and
+  next, and the tokens spent against any budget.
+- **Scheduled prompts** (`/loop` and cron): each prompt with its schedule,
+  whether it repeats, its next run and how often it has run.
+- **Web search**: the results as links that open in your browser, with
+  their snippets. Search rows on the Model API backend look the same.
+- **Background work**: a command Muse Code moved to the background shows
+  what it printed and that it is still running, and it stays running after
+  the turn ends instead of reading "Interrupted".
+- **Pictures**: when the agent reads an image, or the Model API backend
+  generates one, the row shows it; click it to open the file. Only images
+  inside the workspace are shown.
+- **MCP tools** read "tool (server)", and any tool the panel has no special
+  view for shows its arguments and result as indented JSON.
+
 **Skills.** The palette's Skills group has two more rows on the CLI backend:
 
 - **Manage skills…** is a checklist of every skill Muse Code knows

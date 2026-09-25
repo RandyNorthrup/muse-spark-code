@@ -514,6 +514,33 @@
               })
               break
             }
+            case 'readToolImage': {
+              // M43: a picture drawn here, as the host would read it from the workspace.
+              const canvas = document.createElement('canvas')
+              canvas.width = 320
+              canvas.height = 180
+              const pen = canvas.getContext('2d')
+              const sky = pen.createLinearGradient(0, 0, 0, 180)
+              sky.addColorStop(0, '#1b3a6b')
+              sky.addColorStop(1, '#4f8fd6')
+              pen.fillStyle = sky
+              pen.fillRect(0, 0, 320, 180)
+              pen.fillStyle = '#0d1f3a'
+              pen.fillRect(0, 140, 320, 40)
+              pen.fillStyle = '#f2f2f2'
+              pen.fillRect(150, 60, 20, 80)
+              pen.fillStyle = '#e8b04a'
+              pen.fillRect(146, 48, 28, 14)
+              later(30, () =>
+                send({
+                  type: 'toolImage',
+                  itemId: message.itemId,
+                  path: message.path,
+                  dataUri: canvas.toDataURL('image/png'),
+                }),
+              )
+              break
+            }
             case 'readOutput': {
               if (window.harnessPagedPatch !== undefined) {
                 // M25: a patch document longer than one page, served in two.
@@ -1719,6 +1746,136 @@
               patchSummary: { files: 1, added: 2, removed: 2 },
               patchRef: { id: 'tool_patch-ed9', byteLen: 400_000 },
             },
+          })
+        },
+        // --- M43: Muse Code's own tools: memory, a goal, scheduled prompts ---
+        'muse-tools': () => {
+          window.harnessSilent = true
+          setDraft('Remember my colour, track the goal, and remind me at midnight')
+          key({ key: 'Enter' })
+          const tool = (itemId, name, args, visibleOutput, status = 'completed') =>
+            event({
+              type: 'itemCompleted',
+              item: { itemId, kind: 'toolCall', status, tool: name, args, visibleOutput },
+            })
+          tool(
+            'mem1',
+            'edit_memory',
+            '{"new_str":"The favourite colour is navy.","old_str":"The favourite colour is teal.","path":"palette.md","scope":"personal_project"}',
+            '{"success":true,"scope":"personal_project","path":"palette.md","operation":"edit","message":"memory note edited"}',
+          )
+          tool(
+            'goal1',
+            'report_progress',
+            '{"current_work":"Writing the parser tests","next_work":"Fix the precedence bug","percent_complete":60}',
+            JSON.stringify({
+              goal: {
+                objective: 'Make the parser handle ?? and || precedence',
+                status: 'active',
+                percent_complete: 60,
+                current_work: 'Writing the parser tests',
+                next_work: 'Fix the precedence bug',
+                token_budget: 200000,
+                tokens_used: 48898,
+              },
+            }),
+          )
+          tool(
+            'cron1',
+            'cron_list',
+            '{}',
+            JSON.stringify({
+              jobs: [
+                {
+                  id: '2ef46218',
+                  cron: '0 0 * * *',
+                  prompt: 'Summarise what changed in the repository today',
+                  recurring: true,
+                  next_fire_at_ms: Date.UTC(2026, 8, 26, 7),
+                  fire_count: 2,
+                },
+                {
+                  id: '9a01c3d2',
+                  cron: '59 23 31 12 *',
+                  prompt: 'say hi',
+                  recurring: false,
+                  next_fire_at_ms: Date.UTC(2027, 0, 1, 7, 59),
+                  fire_count: 0,
+                },
+              ],
+            }),
+          )
+          tool(
+            'mcp1',
+            'mcp__github__create_issue',
+            '{"title":"Parser precedence"}',
+            '{"number":42}',
+          )
+          later(150, () => {
+            for (const toggle of document.querySelectorAll('.tool-toggle[aria-expanded="false"]')) {
+              toggle.click()
+            }
+          })
+        },
+        // --- M43: a search's results, background work, and a picture a tool read ---
+        'muse-web': () => {
+          window.harnessSilent = true
+          setDraft('Find the Keep a Changelog spec, start the watcher, and look at the logo')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'web1',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'web_search',
+              args: '{"query":"Keep a Changelog 1.1.0"}',
+              visibleOutput: JSON.stringify({
+                query: 'Keep a Changelog 1.1.0',
+                results: [
+                  {
+                    url: 'https://keepachangelog.com/en/1.1.0/',
+                    title: 'Keep a Changelog',
+                    snippet: 'Don’t let your friends dump git logs into changelogs.',
+                  },
+                  {
+                    url: 'https://semver.org/',
+                    title: 'Semantic Versioning 2.0.0',
+                    snippet: 'Given a version number MAJOR.MINOR.PATCH, increment the…',
+                  },
+                ],
+              }),
+            },
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'bg1',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'powershell',
+              args: '{"command":"npm run watch","description":"Start the watcher"}',
+              visibleOutput: JSON.stringify({
+                execution_state: 'background_running',
+                work_id: 'work.v1.managed_bash.sha256.d48e',
+                output: '[watch] build started',
+              }),
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'img1',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'read_file',
+              args: '{"path":"media/logo.png"}',
+              visibleOutput:
+                'Read image file `media/logo.png` as model-visible image output.\nmedia_type: image/png',
+            },
+          })
+          later(150, () => {
+            document.querySelector('[data-entry-id="web1"] .tool-toggle')?.click()
           })
         },
         // --- M25: a refused image says why, and a link out of the workspace is refused ---

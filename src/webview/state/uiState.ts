@@ -36,6 +36,7 @@ import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { toolLabel } from '../toolPresentation'
+import { backgroundRun } from '../toolDetails'
 import type {
   ChildTranscript,
   ContextSummary,
@@ -91,6 +92,11 @@ export interface OutputPage {
   readonly isEof: boolean
   readonly nextOffset: number
 }
+
+/** A picture a tool row asked the host for (M43): loaded, or why it could not be. */
+export type ToolImageState =
+  | { readonly kind: 'loaded'; readonly dataUri: string }
+  | { readonly kind: 'failed'; readonly reason: string }
 
 /**
  * A conversation the panel brought back from its saved state (M25), waiting
@@ -179,6 +185,8 @@ export interface UiState {
   readonly todos: readonly TodoItem[]
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
+  /** Pictures loaded for tool rows (M43), keyed by `toolImageKey`; never saved. */
+  readonly toolImages: Readonly<Record<string, ToolImageState>>
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
   /**
@@ -283,6 +291,7 @@ export const initialUiState: UiState = {
   paid: { features: [], tally: EMPTY_PAID_TALLY },
   todos: [],
   outputPages: {},
+  toolImages: {},
   localSequence: 0,
   sequence: 0,
   editorContext: undefined,
@@ -404,6 +413,33 @@ export function outputPageKey(itemId: string, outputRef: string): string {
   return `${itemId}:${outputRef}`
 }
 
+/** The key of a tool row's picture (M43); a path cannot hold a newline. */
+export function toolImageKey(itemId: string, path: string): string {
+  return `${itemId}\n${path}`
+}
+
+/** The image paths a tool reported the model saw (`modelVisibleContent`, M43). */
+function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
+  const paths = (item.modelVisibleContent ?? [])
+    .filter((content) => content.type === 'image')
+    .map((content) => content.path)
+  return paths.length === 0 ? undefined : paths
+}
+
+/**
+ * A tool the turn went on without (M14): flagged by the host, or a shell
+ * call Muse Code moved to the background, whose result says so (M43, live
+ * 2026-09-25); either way its turn ending does not cut it off.
+ */
+function isBackgrounded(item: ItemSnapshot): boolean | undefined {
+  if (item.background !== undefined) {
+    return item.background
+  }
+  const isRunningBehind =
+    item.visibleOutput !== undefined && backgroundRun(item.visibleOutput)?.isRunning === true
+  return isRunningBehind || undefined
+}
+
 /**
  * Replace one entry. Rows that change are almost always the newest (a
  * streaming reply, a running tool), so the search runs from the end (M25);
@@ -471,9 +507,10 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     patchRef: item.patchRef,
     outputRef: item.outputRef,
     completedSeq: undefined,
-    isBackground: item.background === true,
+    isBackground: isBackgrounded(item) === true,
     backgroundInitiator: item.backgroundInitiator,
     paid: item.paid,
+    images: reportedImages(item),
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,
@@ -572,9 +609,10 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         patchSummary: item.patchSummary ?? entry.patchSummary,
         patchRef: item.patchRef ?? entry.patchRef,
         outputRef: item.outputRef ?? entry.outputRef,
-        isBackground: item.background ?? entry.isBackground,
+        isBackground: isBackgrounded(item) ?? entry.isBackground,
         backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
         paid: item.paid ?? entry.paid,
+        images: reportedImages(item) ?? entry.images,
       }
     }
     case 'subagent': {
@@ -1181,6 +1219,7 @@ function clearedConversation(state: UiState): UiState {
     context: undefined,
     todos: [],
     outputPages: {},
+    toolImages: {},
   }
 }
 
@@ -1372,6 +1411,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           usage: isSameSession ? state.usage : undefined,
           context: isSameSession ? state.context : undefined,
           outputPages: {},
+          toolImages: {},
           childTranscripts: {},
           childOwners: {},
           strayItems: {},
@@ -1484,6 +1524,16 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             nextOffset: message.offsetBytes + message.byteLen,
           },
         },
+      }
+    }
+    case 'toolImage': {
+      const image: ToolImageState =
+        message.dataUri === undefined
+          ? { kind: 'failed', reason: message.error ?? UI_TEXT.toolImageFailed }
+          : { kind: 'loaded', dataUri: message.dataUri }
+      return {
+        ...state,
+        toolImages: { ...state.toolImages, [toolImageKey(message.itemId, message.path)]: image },
       }
     }
   }
