@@ -1424,7 +1424,13 @@ describe('ModelApiSession: web search, paid and loud (M33)', () => {
       searches: [
         {
           queries: ['vite 7 release'],
-          results: [{ title: 'Vite 7 is out', url: 'https://vite.dev/blog/announcing-vite7' }],
+          results: [
+            {
+              title: 'Vite 7 is out',
+              url: 'https://vite.dev/blog/announcing-vite7',
+              snippet: 'Vite 7.0 is released.',
+            },
+          ],
         },
       ],
       text: 'Vite 7 shipped in June.',
@@ -1447,7 +1453,14 @@ describe('ModelApiSession: web search, paid and loud (M33)', () => {
         args: JSON.stringify({ query: 'vite 7 release' }),
         // Muse Code's own `web_search` result shape, so both backends render alike (M43).
         visibleOutput: JSON.stringify({
-          results: [{ url: 'https://vite.dev/blog/announcing-vite7', title: 'Vite 7 is out' }],
+          // The snippet too (the review of PR #29).
+          results: [
+            {
+              url: 'https://vite.dev/blog/announcing-vite7',
+              title: 'Vite 7 is out',
+              snippet: 'Vite 7.0 is released.',
+            },
+          ],
         }),
         paid: 'webSearch',
       }),

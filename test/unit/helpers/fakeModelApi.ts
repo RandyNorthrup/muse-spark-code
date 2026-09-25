@@ -18,7 +18,11 @@ export interface ScriptedCall {
 export interface ScriptedSearch {
   readonly queries?: readonly string[]
   readonly status?: 'completed' | 'failed'
-  readonly results?: readonly { readonly title?: string; readonly url: string }[]
+  readonly results?: readonly {
+    readonly title?: string
+    readonly url: string
+    readonly snippet?: string
+  }[]
   /** The action instead of a search's (`open_page`, `find_in_page`). */
   readonly action?: Record<string, unknown>
   /** `output_item.done` carries only id, type and status, as Meta's guide shows it. */

@@ -4,6 +4,7 @@
 // The transcript row shapes live in transcriptEntries.ts as zod schemas, so a
 // conversation saved across a reload is validated before it comes back (M25).
 
+import * as z from 'zod/mini'
 import type { AgentEvent, ItemSnapshot, RequirementRef, TodoItem } from '../../shared/agentEvents'
 import {
   CHAT_REFERENCE_LABEL_CHARS,
@@ -413,6 +414,10 @@ export function outputPageKey(itemId: string, outputRef: string): string {
   return `${itemId}:${outputRef}`
 }
 
+// One `modelVisibleContent` element that is a picture (MSP 1.3.0's shape);
+// anything else in the array is passed over.
+const visibleImageSchema = z.object({ type: z.literal('image'), path: z.string() })
+
 /** The key of a tool row's picture (M43); a path cannot hold a newline. */
 export function toolImageKey(itemId: string, path: string): string {
   return `${itemId}\n${path}`
@@ -420,9 +425,10 @@ export function toolImageKey(itemId: string, path: string): string {
 
 /** The image paths a tool reported the model saw (`modelVisibleContent`, M43). */
 function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
-  const paths = (item.modelVisibleContent ?? [])
-    .filter((content) => content.type === 'image')
-    .map((content) => content.path)
+  const paths = (item.modelVisibleContent ?? []).flatMap((content) => {
+    const parsed = visibleImageSchema.safeParse(content)
+    return parsed.success ? [parsed.data.path] : []
+  })
   return paths.length === 0 ? undefined : paths
 }
 
