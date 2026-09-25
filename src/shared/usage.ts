@@ -12,7 +12,9 @@ import {
   MILLISECONDS_PER_SECOND,
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
+  UI_TEXT,
 } from './constants'
+import { type DurationUnit, formatUnit, plural } from './l10n/text'
 
 export const subscriptionUsageSchema = z.object({
   observedAtMs: z.number(),
@@ -58,26 +60,36 @@ export function barValue(usedPercent: number): number {
   return Math.min(Math.max(usedPercent, 0), FULL_PERCENT)
 }
 
-/** "2 h 5 min", "3 d 4 h", "1 min"; "now" once the moment has passed. */
+/** A larger unit and, when it is not zero, the smaller one after it: "2h 5m", "3d". */
+function unitPair(
+  large: number,
+  largeUnit: DurationUnit,
+  small: number,
+  smallUnit: DurationUnit,
+): string {
+  const head = formatUnit(large, largeUnit)
+  return small > 0 ? `${head} ${formatUnit(small, smallUnit)}` : head
+}
+
+/**
+ * "2h 5m", "3d 4h", "1m" in the display language's short units (PLAN.md
+ * D33); its word for "now" once the moment has passed.
+ */
 export function formatDuration(untilMs: number, nowMs: number): string {
   if (untilMs <= nowMs) {
-    return 'now'
+    return UI_TEXT.durationNow
   }
   const totalMinutes = Math.ceil((untilMs - nowMs) / MILLISECONDS_PER_MINUTE)
   const days = Math.floor(totalMinutes / (MINUTES_PER_HOUR * HOURS_PER_DAY))
   const hours = Math.floor(totalMinutes / MINUTES_PER_HOUR) % HOURS_PER_DAY
   if (days > 0) {
-    return hours > 0 ? `${String(days)} d ${String(hours)} h` : `${String(days)} d`
+    return unitPair(days, 'day', hours, 'hour')
   }
   const minutes = totalMinutes % MINUTES_PER_HOUR
-  if (hours > 0) {
-    return minutes > 0 ? `${String(hours)} h ${String(minutes)} min` : `${String(hours)} h`
-  }
-  return `${String(minutes)} min`
+  return hours > 0 ? unitPair(hours, 'hour', minutes, 'minute') : formatUnit(minutes, 'minute')
 }
 
 const OPAQUE_TIER = /^[\d-]+$/
-const SUBSCRIPTION_PLAN = 'Muse Code subscription'
 
 /**
  * The plan line: the tier id verbatim when it reads as a name, or a generic
@@ -85,12 +97,12 @@ const SUBSCRIPTION_PLAN = 'Muse Code subscription'
  * `tier: "27681393394859588"`).
  */
 export function planLabel(tier: string): string {
-  return tier === '' || OPAQUE_TIER.test(tier) ? SUBSCRIPTION_PLAN : tier
+  return tier === '' || OPAQUE_TIER.test(tier) ? UI_TEXT.usagePlanSubscription : tier
 }
 
 /** "5-hour window" / "90-minute window" from the provider's duration. */
 export function formatWindowLength(windowDurationMins: number): string {
   return windowDurationMins % MINUTES_PER_HOUR === 0
-    ? `${String(windowDurationMins / MINUTES_PER_HOUR)}-hour window`
-    : `${String(windowDurationMins)}-minute window`
+    ? plural(UI_TEXT.usageWindowHours, windowDurationMins / MINUTES_PER_HOUR)
+    : plural(UI_TEXT.usageWindowMinutes, windowDurationMins)
 }

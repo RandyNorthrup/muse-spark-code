@@ -63,6 +63,7 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvi
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
+import { loadUiTable } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup } from './host/voice/dictationHost'
 import {
@@ -93,7 +94,6 @@ import {
   MUSE_EDIT_SCHEME,
   MUSE_INIT_ARGS,
   MUSE_INIT_TIMEOUT_MS,
-  MUSE_LOGIN_TERMINAL_NAME,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
   SEARCH_WORKER_FILE,
@@ -105,6 +105,7 @@ import {
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
+import { fill } from './shared/l10n/text'
 import type { HostAction } from './shared/protocol'
 import { type AccountFacts, subscriptionUsageSchema } from './shared/usage'
 
@@ -392,7 +393,7 @@ function registerLoggedCommand(log: Logger, id: string, run: () => unknown): vsc
   })
 }
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // How long activation takes, for the log (M39).
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
@@ -401,6 +402,16 @@ export function activate(context: vscode.ExtensionContext): void {
   log.info(
     `Activating ${PRODUCT_NAME} ${version} (VS Code ${vscode.version}, Node ${process.versions.node}, ${process.platform})`,
   )
+  // The display language's table goes in before anything registers a view
+  // or says a word (PLAN.md D33); the webviews get the same table.
+  const l10n = await loadUiTable({
+    language: vscode.env.language,
+    readExtensionFile: async (segments) =>
+      new TextDecoder().decode(
+        await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...segments)),
+      ),
+    log,
+  })
 
   const registry = new SurfaceRegistry()
   const controllers = new Map<string, ConversationController>()
@@ -528,7 +539,7 @@ export function activate(context: vscode.ExtensionContext): void {
           ? { ok: true, cliPath: resolution.launch.cliPath }
           : {
               ok: false,
-              reason: `${resolution.reason} Searched: ${resolution.searched.join(', ')}`,
+              reason: `${resolution.reason} ${fill(UI_TEXT.cliSearched, { paths: resolution.searched.join(', ') })}`,
             }
       },
       credentialFileExists: () => backend.credentialFileExists(),
@@ -540,7 +551,7 @@ export function activate(context: vscode.ExtensionContext): void {
     },
     credentials,
     runInTerminal: (cliPath, args) => {
-      runInTerminal(cliPath, args, { name: MUSE_LOGIN_TERMINAL_NAME, cwd: undefined })
+      runInTerminal(cliPath, args, { name: UI_TEXT.museLoginTerminalName, cwd: undefined })
     },
     promptForApiKey,
     broadcast: (message) => {
@@ -863,7 +874,7 @@ export function activate(context: vscode.ExtensionContext): void {
           await vscode.window.showTextDocument(vscode.Uri.file(settingsPath))
         } else {
           void vscode.window.showInformationMessage(
-            `${UI_TEXT.museSettingsMissing} ${settingsPath}`,
+            fill(UI_TEXT.museSettingsMissing, { path: settingsPath }),
           )
         }
         break
@@ -1030,6 +1041,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const hostContext: WebviewHostContext = {
     extensionUri: context.extensionUri,
+    l10n,
     log,
     getSettings: () => toSettingsSnapshot(currentSettings()),
     onInputFocusChanged: (surface, isFocused) => {

@@ -9,9 +9,52 @@
       Served from the repository root; run `npm run build:dev` first.
       The colour variables below approximate VS Code's light theme for the
       screenshots; `?theme=` applies a theme captured from VS Code itself,
-      as the accessibility gate does (scripts/a11y.mjs).
+      as the accessibility gate does (scripts/a11y.mjs). `?lang=` renders
+      the panel in a translated table (below).
     -->
     <link rel="stylesheet" href="../../dist/webview/main.css" />
+    <script>
+      // `?lang=<id>` renders the panel in l10n/ui.<id>.json, and
+      // `?lang=pseudo` in the pseudo-locale table scripts/pseudo-l10n.mjs
+      // writes (PLAN.md D33). The table goes into the page as the host puts
+      // it into a webview's HTML: a JSON <script id="muse-l10n"> holding
+      // `{ locale, table }`, with <html lang> set. The bundle reads it on
+      // its first run, so it is fetched synchronously, before the bundle's
+      // <script> below; without `?lang` nothing here runs. A table that
+      // cannot be read, or that the webview refuses, fails the page
+      // (harnessErrors, further down).
+      const harnessL10n = (() => {
+        const lang = new URLSearchParams(location.search).get('lang')
+        if (lang === null) {
+          return {}
+        }
+        try {
+          const isPseudo = lang === 'pseudo'
+          if (!isPseudo && !/^[a-z]{2,3}(?:-[a-z\d]+)*$/.test(lang)) {
+            throw new Error('not a VS Code language id')
+          }
+          const url = isPseudo ? 'l10n/ui.pseudo.json' : `../../l10n/ui.${lang}.json`
+          const request = new XMLHttpRequest()
+          request.open('GET', url, false)
+          request.send()
+          if (request.status !== 200) {
+            throw new Error(`${url}: HTTP ${String(request.status)}`)
+          }
+          // The pseudo table is English underneath: its plural rules apply.
+          const locale = isPseudo ? 'en' : lang
+          const table = JSON.parse(request.responseText)
+          const element = document.createElement('script')
+          element.type = 'application/json'
+          element.id = 'muse-l10n'
+          element.textContent = JSON.stringify({ locale, table })
+          document.head.append(element)
+          document.documentElement.lang = locale
+          return { lang, table }
+        } catch (error) {
+          return { lang, error: `?lang=${lang}: ${String(error)}` }
+        }
+      })()
+    </script>
     <style>
       :root {
         --vscode-foreground: #3b3b3b;
@@ -268,6 +311,10 @@
       let turn = 0
       const outbox = []
       window.harnessOutbox = outbox
+      // Under `?lang`, what the webview reports as an error fails the page:
+      // a table it refused is reported so, and the page would otherwise be
+      // checked in English as if it were translated.
+      const webviewErrors = []
       const scenarioName = new URLSearchParams(location.search).get('scenario')
       // M25: the conversation a panel saved in VS Code's webview state before
       // the crash screen's Reload, as the webview's own snapshot writes it.
@@ -348,11 +395,16 @@
           document.title = `harness: ${message.type}`
           switch (message.type) {
             case 'ready': {
+              // The host sends these from its own table, the same one as the page's.
               send({
                 type: 'init',
                 extensionVersion: '0.0.0-harness',
-                emptyStateHint: 'Type /model to pick the right tool for the job.',
-                composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
+                emptyStateHint:
+                  harnessL10n.table?.emptyStateHint ??
+                  'Type /model to pick the right tool for the job.',
+                composerPlaceholder:
+                  harnessL10n.table?.composerPlaceholder ??
+                  'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
                 settings,
               })
               // M25: first, the session and turn the host holds for this surface.
@@ -645,6 +697,12 @@
               )
               break
             }
+            case 'webviewError': {
+              if (harnessL10n.lang !== undefined) {
+                webviewErrors.push(`?lang=${harnessL10n.lang}: the webview: ${message.message}`)
+              }
+              break
+            }
             case 'answerQuestion': {
               later(30, () =>
                 send({
@@ -687,6 +745,16 @@
         harnessErrors.push(text)
         report(text)
       })
+      // A `?lang` table the page could not read, or one the webview refused
+      // as its bundle started (reported above, before this script ran).
+      for (const text of [harnessL10n.error, ...webviewErrors]) {
+        if (text !== undefined) {
+          report(text)
+        }
+      }
+      if (harnessL10n.error !== undefined) {
+        harnessErrors.push(harnessL10n.error)
+      }
       const originalWarn = console.warn.bind(console)
       console.warn = (...args) => {
         report(`warn: ${args.map(String).join(' ')}`)
@@ -710,7 +778,30 @@
         textarea().dispatchEvent(
           new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }),
         )
-      const click = (label) => document.querySelector(`button[aria-label="${label}"]`).click()
+      // The steps name buttons by their English label; under `?lang` the
+      // page shows the table's text for the same key instead.
+      const LABEL_KEYS = {
+        Attach: ['attachTitle'],
+        Commands: ['commandsTitle'],
+        Model: ['modelPillLabel'],
+        'Record voice': ['dictationLabel'],
+        'Session history': ['historyTitle'],
+        // The permission-mode button reads "<title>: <mode>".
+        'Permission mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
+      }
+      const shown = (label) => {
+        if (harnessL10n.table === undefined) {
+          return label
+        }
+        if (!(label in LABEL_KEYS)) {
+          throw new Error(`no table key for the label "${label}"`)
+        }
+        return LABEL_KEYS[label]
+          .map((key) => key.split('.').reduce((group, name) => group[name], harnessL10n.table))
+          .join(': ')
+      }
+      const click = (label) =>
+        document.querySelector(`button[aria-label="${shown(label)}"]`).click()
       const event = (payload) => send({ type: 'agentEvent', event: payload })
       // About 10k tokens of markdown: prose plus a fenced block, repeated.
       const longReply = () =>
@@ -1158,7 +1249,7 @@
           textarea().focus()
           later(300, () => {
             document
-              .querySelector('button[aria-label="Record voice"]')
+              .querySelector(`button[aria-label="${shown('Record voice')}"]`)
               .dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }))
           })
         },
@@ -1681,6 +1772,11 @@
           exempt,
         }
       }
+      // Every error the webview reported in a `?lang` run, from its first
+      // (a refused table) to the scenario's end, fails the page.
+      const collectWebviewErrors = () => {
+        harnessErrors.push(...webviewErrors)
+      }
       const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
       if (params.get('axe') === '1') {
         themed
@@ -1690,6 +1786,7 @@
                 later(AXE_AFTER_MS, resolve)
               }),
           )
+          .then(collectWebviewErrors)
           .then(runAxe)
           .then(
             (result) => {

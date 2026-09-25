@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   AgentMap,
   type AgentMapProps,
+  agentStatusLabel,
   controlsFor,
   formatDurationMs,
   type SubagentEntry,
@@ -101,7 +104,7 @@ describe('AgentMap', () => {
     expect(screen.getByRole('button', { name: /Review the diff/ })).toHaveTextContent('running')
     expect(map).toHaveTextContent('1 background task')
     expect(screen.getByRole('list', { name: 'Background tasks' })).toHaveTextContent(
-      'powershellnpm test · inProgress',
+      'powershellnpm test · running',
     )
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(props.onSelectAgent).toHaveBeenCalledWith('sa1')
@@ -213,5 +216,20 @@ describe('AgentMap owner controls (M18)', () => {
     expect(onMessage).toHaveBeenCalledWith('sub-d', 'now BETA', true)
     fireEvent.click(screen.getByRole('button', { name: 'Close agent' }))
     expect(onControl).toHaveBeenCalledWith('sub-d', 'close')
+  })
+})
+
+describe('agentStatusLabel (M40)', () => {
+  it('says a known status in the installed table and shows an unknown one as it came', () => {
+    expect(agentStatusLabel('inProgress')).toBe('running')
+    expect(agentStatusLabel('resultReady')).toBe('result ready')
+    expect(agentStatusLabel('paused')).toBe('paused')
+    expect(agentStatusLabel('toString')).toBe('toString')
+    setUiText({ ...EN, agentStatuses: { ...EN.agentStatuses, completed: 'abgeschlossen' } }, 'de')
+    try {
+      expect(agentStatusLabel('completed')).toBe('abgeschlossen')
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 })

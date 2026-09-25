@@ -24,12 +24,7 @@
 // `museSpark.allowDangerouslySkipPermissions` setting is on, exactly as the
 // Claude Code extension gates it behind `allowDangerouslySkipPermissions`.
 
-import {
-  MODEL_API_PERMISSION_MODE_DETAILS,
-  PERMISSION_MODE_DETAILS,
-  PERMISSION_MODES,
-  type PermissionMode,
-} from './constants'
+import { PERMISSION_MODES, type PermissionMode, UI_TEXT } from './constants'
 import type { BackendKind } from './protocol'
 
 /** The Modes menu's line for a mode on the backend in use (PLAN.md D24). */
@@ -37,9 +32,12 @@ export function permissionModeDetail(
   mode: PermissionMode,
   backend: BackendKind | undefined,
 ): string {
+  // The Model API backend words only the modes that behave differently there.
+  const modelApiDetails: Readonly<Partial<Record<PermissionMode, string>>> =
+    UI_TEXT.modelApiPermissionModeDetails
   return (
-    (backend === 'modelApi' ? MODEL_API_PERMISSION_MODE_DETAILS[mode] : undefined) ??
-    PERMISSION_MODE_DETAILS[mode]
+    (backend === 'modelApi' ? modelApiDetails[mode] : undefined) ??
+    UI_TEXT.permissionModeDetails[mode]
   )
 }
 

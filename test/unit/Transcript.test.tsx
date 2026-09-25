@@ -2,6 +2,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { OUTPUT_PREVIEW_CHARS } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 import { segment, Transcript, type TranscriptProps } from '../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../src/webview/state/uiState'
 
@@ -335,6 +337,39 @@ describe('Transcript', () => {
     expect(screen.getByText('Hide 2 steps hidden by Focus view')).toBeInTheDocument()
     expect(screen.getAllByText('Read')).toHaveLength(1)
     expect(screen.getByText('Show 1 step hidden by Focus view')).toBeInTheDocument()
+  })
+
+  it('counts the hidden steps in the display language’s plural forms (M40)', () => {
+    setUiText(
+      {
+        ...EN,
+        showHiddenSteps: {
+          one: 'Pokaż {count} krok',
+          few: 'Pokaż {count} kroki',
+          many: 'Pokaż {count} kroków',
+          other: 'Pokaż {count} kroku',
+        },
+        hideHiddenSteps: {
+          one: 'Ukryj {count} krok',
+          few: 'Ukryj {count} kroki',
+          many: 'Ukryj {count} kroków',
+          other: 'Ukryj {count} kroku',
+        },
+      },
+      'pl',
+    )
+    try {
+      const steps = (count: number) =>
+        Array.from({ length: count }, (_, index) => tool({ id: `t${String(index)}` }))
+      const two = render(<Transcript {...transcriptProps(steps(2), { isFocusView: true })} />)
+      fireEvent.click(screen.getByText('Pokaż 2 kroki'))
+      expect(screen.getByText('Ukryj 2 kroki')).toBeInTheDocument()
+      two.unmount()
+      renderTranscript(steps(5), { isFocusView: true })
+      expect(screen.getByText('Pokaż 5 kroków')).toBeInTheDocument()
+    } finally {
+      setUiText(EN, 'en')
+    }
   })
 })
 

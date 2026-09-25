@@ -5,6 +5,7 @@
 // focused on mousedown so a click activates without blurring it shut.
 
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import { UI_TEXT } from '../../shared/constants'
 import { CheckIcon } from './icons'
 
 export interface MenuEntry {
@@ -142,7 +143,7 @@ export function PopoverMenu(props: PopoverMenuProps) {
                 <span className="menu-item-detail">{entry.detail}</span>
               )}
             </span>
-            {entry.isChecked === true ? <CheckIcon title="Current" /> : null}
+            {entry.isChecked === true ? <CheckIcon title={UI_TEXT.menuCurrent} /> : null}
           </li>
         ))}
       </ul>

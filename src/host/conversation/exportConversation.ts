@@ -12,7 +12,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import type { ItemSnapshot } from '../../shared/agentEvents'
-import { BACKEND_LABELS } from '../../shared/palette'
+import { backendLabel } from '../../shared/palette'
 
 export interface ConversationExports {
   /** Asks where to save the Markdown and writes it; resolves unwritten when dismissed. */
@@ -74,7 +74,7 @@ export async function exportConversation(
     renderTranscriptMarkdown({
       title,
       sessionId: session.sessionId,
-      backendLabel: BACKEND_LABELS[host.info.kind],
+      backendLabel: backendLabel(host.info.kind),
       modelId: session.modelId,
       exportedAt: now.toISOString(),
       items: history.items,

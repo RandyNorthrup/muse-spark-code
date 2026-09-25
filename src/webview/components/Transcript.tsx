@@ -11,11 +11,12 @@
 import { memo, type ReactNode, useDeferredValue, useRef, useState } from 'react'
 import type { QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
+import { plural } from '../../shared/l10n/text'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { useDismiss } from '../useDismiss'
 import type { ApprovalDecisionInput } from './ApprovalCard'
-import { formatDurationMs } from './AgentMap'
+import { agentStatusLabel, formatDurationMs } from './AgentMap'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
 import { CheckIcon, CopyIcon, FileIcon, ImageIcon, MoreIcon, ReplyIcon, RewindIcon } from './icons'
@@ -59,13 +60,16 @@ export interface TranscriptProps {
   readonly onCloseQuoteMenu?: (() => void) | undefined
 }
 
+type RewindChoice = 'fork' | 'rewind' | 'both'
+
 /** The rows of the user card's menu, in Claude Code's order. */
-const REWIND_MENU = [
-  { id: 'fork', label: UI_TEXT.forkFromHere },
-  { id: 'rewind', label: UI_TEXT.rewindCodeToHere },
-  { id: 'both', label: UI_TEXT.forkAndRewind },
-] as const
-type RewindChoice = (typeof REWIND_MENU)[number]['id']
+function rewindMenu(): readonly { readonly id: RewindChoice; readonly label: string }[] {
+  return [
+    { id: 'fork', label: UI_TEXT.forkFromHere },
+    { id: 'rewind', label: UI_TEXT.rewindCodeToHere },
+    { id: 'both', label: UI_TEXT.forkAndRewind },
+  ]
+}
 
 type StepEntry = Extract<TranscriptEntry, { kind: 'tool' | 'reasoning' }>
 
@@ -134,8 +138,7 @@ const UserCard = memo(function UserCard({
   const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
   // Without fork (a host that refuses it, D26) the menu offers the rewind alone.
   const hasMenu = onRewind !== undefined && entry.status === 'sent'
-  const menuRows =
-    onFork === undefined ? REWIND_MENU.filter((row) => row.id === 'rewind') : REWIND_MENU
+  const menuRows = rewindMenu().filter((row) => onFork !== undefined || row.id === 'rewind')
   const choose = (choice: RewindChoice) => {
     setMenuOpen(false)
     if (choice !== 'fork') {
@@ -365,8 +368,7 @@ function StepsGroup({
           setIsOpen(!isOpen)
         }}
       >
-        {isOpen ? UI_TEXT.hideSteps : UI_TEXT.showSteps} {String(count)}{' '}
-        {count === 1 ? UI_TEXT.focusHiddenOne : UI_TEXT.focusHiddenMany}
+        {plural(isOpen ? UI_TEXT.hideHiddenSteps : UI_TEXT.showHiddenSteps, count)}
       </button>
       {isOpen ? <ul className="steps-list">{group.steps.map((step) => render(step))}</ul> : null}
     </li>
@@ -387,9 +389,11 @@ function OtherRow({
             {[
               entry.objective ?? entry.role ?? UI_TEXT.agentUntitled,
               entry.durationMs === undefined ? undefined : formatDurationMs(entry.durationMs),
-              entry.status === 'inProgress'
-                ? UI_TEXT.agentRunning
-                : (entry.controlStatus ?? entry.status),
+              agentStatusLabel(
+                entry.status === 'inProgress'
+                  ? entry.status
+                  : (entry.controlStatus ?? entry.status),
+              ),
             ]
               .filter((part) => part !== undefined)
               .join(' · ')}
@@ -510,7 +514,7 @@ function TranscriptList(props: TranscriptProps) {
     }
   }
   return (
-    <ol className="transcript" aria-label="Conversation">
+    <ol className="transcript" aria-label={UI_TEXT.transcriptLabel}>
       {segment(entries, isFocusView).map((part) =>
         part.kind === 'steps' ? (
           <StepsGroup key={part.id} group={part} render={renderStep} />

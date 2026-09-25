@@ -16,6 +16,7 @@ import {
   type WebviewToHostMessage,
 } from '../../shared/protocol'
 import { buildWebviewHtml, createNonce } from '../html'
+import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import { webviewErrorLog } from './webviewErrors'
 
@@ -30,6 +31,8 @@ export type ConversationMessage = Exclude<
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
+  /** The display language's table, installed at activation, for every webview's HTML (D33). */
+  readonly l10n: UiTable
   readonly log: Logger
   readonly getSettings: () => SettingsSnapshot
   readonly onInputFocusChanged: (surface: ChatSurface, isFocused: boolean) => void
@@ -114,6 +117,7 @@ export function configureWebview(
         .toString(),
       cspSource: webview.cspSource,
       nonce: createNonce(),
+      l10n: context.l10n,
     })
   }
   applyHtml()

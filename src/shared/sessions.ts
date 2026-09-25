@@ -13,6 +13,7 @@ import {
   DAYS_PER_WEEK,
   UI_TEXT,
 } from './constants'
+import { formatDate, formatRelativeTime } from './l10n/text'
 
 /** The activity fields a `session/list` row carries through to the dialog. */
 export const sessionActivityFields = {
@@ -68,7 +69,8 @@ export function activityOf(row: SessionRow): number {
   return Date.parse(row.lastActivityAt ?? row.updatedAt)
 }
 
-const MS_PER_DAY = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY
+const MS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+const MS_PER_DAY = MS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY
 
 /** Days of inactivity after which a session is hidden; 0 never hides. */
 export function isStale(row: SessionRow, nowMs: number, archiveAfterDays: number): boolean {
@@ -102,11 +104,16 @@ function groupIdOf(row: SessionRow, nowMs: number): SessionGroupId {
 }
 
 const GROUP_ORDER: readonly SessionGroupId[] = ['today', 'yesterday', 'week', 'older']
-const GROUP_TITLES: Readonly<Record<SessionGroupId, string>> = {
-  today: UI_TEXT.historyToday,
-  yesterday: UI_TEXT.historyYesterday,
-  week: UI_TEXT.historyWeek,
-  older: UI_TEXT.historyOlder,
+
+/** A group's heading, read when the list is built so it is in the installed table. */
+function groupTitle(id: SessionGroupId): string {
+  const titles: Readonly<Record<SessionGroupId, string>> = {
+    today: UI_TEXT.historyToday,
+    yesterday: UI_TEXT.historyYesterday,
+    week: UI_TEXT.historyWeek,
+    older: UI_TEXT.historyOlder,
+  }
+  return titles[id]
 }
 
 export interface SessionListOptions {
@@ -145,26 +152,29 @@ export function groupSessions(
     .toSorted((a, b) => activityOf(b) - activityOf(a))
   return GROUP_ORDER.flatMap((id) => {
     const members = shown.filter((row) => groupIdOf(row, options.nowMs) === id)
-    return members.length === 0 ? [] : [{ id, title: GROUP_TITLES[id], rows: members }]
+    return members.length === 0 ? [] : [{ id, title: groupTitle(id), rows: members }]
   })
 }
 
-/** "just now", "5 min ago", "3 h ago", "2 d ago", else the date. */
+/**
+ * How long ago, in the display language (PLAN.md D33): "now", "5 min. ago",
+ * "3 hr. ago", "yesterday", "2 days ago"; past a week, the date. A time in
+ * the future (a clock ahead of this one) reads as now.
+ */
 export function relativeTime(iso: string, nowMs: number): string {
-  const elapsedMs = Math.max(0, nowMs - Date.parse(iso))
-  const minutes = Math.floor(elapsedMs / (MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE))
+  const thenMs = Date.parse(iso)
+  const minutes = Math.floor(Math.max(0, nowMs - thenMs) / MS_PER_MINUTE)
   if (minutes < 1) {
-    return UI_TEXT.justNow
+    // Zero seconds is the language's "now"; zero minutes would read "this minute".
+    return formatRelativeTime(0, 'second')
   }
   if (minutes < MINUTES_PER_HOUR) {
-    return `${String(minutes)} ${UI_TEXT.minutesAgo}`
+    return formatRelativeTime(-minutes, 'minute')
   }
   const hours = Math.floor(minutes / MINUTES_PER_HOUR)
   if (hours < HOURS_PER_DAY) {
-    return `${String(hours)} ${UI_TEXT.hoursAgo}`
+    return formatRelativeTime(-hours, 'hour')
   }
   const days = Math.floor(hours / HOURS_PER_DAY)
-  return days < DAYS_PER_WEEK
-    ? `${String(days)} ${UI_TEXT.daysAgo}`
-    : new Date(iso).toLocaleDateString()
+  return days < DAYS_PER_WEEK ? formatRelativeTime(-days, 'day') : formatDate(thenMs)
 }

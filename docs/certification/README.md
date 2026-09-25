@@ -51,3 +51,4 @@ The PNGs beside the records are that day's harness renders.
 - [M37](m37.md): the accessibility gate, WCAG 2.2 AA in four themes (PLAN.md D32)
 - [M38](m38.md): "/" in the prompt: the palette, then slash commands (PLAN.md M38)
 - [M39](m39.md): logging and performance you can see (PLAN.md M39)
+- [M40](m40.md): the panel in VS Code's display languages, part a: the machinery and the gate (PLAN.md D33)

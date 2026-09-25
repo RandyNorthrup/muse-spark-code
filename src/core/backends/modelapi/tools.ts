@@ -17,6 +17,7 @@ import {
 import {
   LIST_FILES_DEFAULT_LIMIT,
   MODEL_API_TOOLS,
+  MODEL_TEXT,
   READ_FILE_DEFAULT_LIMIT,
   READ_FILE_MAX_LINE_CHARS,
   SEARCH_MAX_CANDIDATES,
@@ -29,7 +30,6 @@ import {
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
-  UI_TEXT,
 } from '../../../shared/constants'
 import {
   ADD_MARKER,
@@ -700,7 +700,7 @@ function editRefusal(
 ): ToolOutcome | undefined {
   // Writing under an editor's unsaved changes makes VS Code ask which to keep.
   return context.io.hasUnsavedChanges(file.absolute)
-    ? failure(`${file.relative} ${UI_TEXT.fileHasUnsavedChanges}`)
+    ? failure(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
     : undefined
 }
 
@@ -730,7 +730,7 @@ async function writeFile(
   }
   // Claude Code's rule: a file is replaced only as the model last saw it (D27).
   if (context.seen.get(absolute) !== fingerprint(before)) {
-    return failure(`${relative} ${UI_TEXT.fileChangedSinceRead}`)
+    return failure(`${relative} ${MODEL_TEXT.fileChangedSinceRead}`)
   }
   // The file keeps its BOM, its line breaks and its final line break (D27).
   const shape = shapeOf(before)

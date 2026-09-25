@@ -10,7 +10,8 @@
 
 import { useState } from 'react'
 import { META_DASHBOARD_URL, MODEL_API_PRICES_VERIFIED_ON, UI_TEXT } from '../../shared/constants'
-import { BACKEND_LABELS, formatTokenWindow } from '../../shared/palette'
+import { fill, formatPercent, plural, templateParts } from '../../shared/l10n/text'
+import { backendLabel, formatTokenWindow } from '../../shared/palette'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,
@@ -40,7 +41,7 @@ export interface UsageDialogProps {
 type InsightWindow = 'day' | 'week'
 
 function percentLabel(usedPercent: number): string {
-  return `${String(usedPercent)}% ${UI_TEXT.usageUsed}`
+  return fill(UI_TEXT.usagePercentUsed, { percent: formatPercent(usedPercent) })
 }
 
 function UsageBar({
@@ -56,7 +57,10 @@ function UsageBar({
   readonly detail: string | undefined
   readonly nowMs: number
 }) {
-  const meta = [detail, `${UI_TEXT.usageResets} ${formatDuration(resetsAtMs, nowMs)}`]
+  const meta = [
+    detail,
+    fill(UI_TEXT.usageResetsIn, { duration: formatDuration(resetsAtMs, nowMs) }),
+  ]
     .filter((part) => part !== undefined)
     .join(' · ')
   return (
@@ -100,7 +104,9 @@ function SubscriptionSection({
         nowMs={nowMs}
       />
       <p className="usage-row-meta">
-        {UI_TEXT.usageAsOf} {relativeTime(new Date(subscription.observedAtMs).toISOString(), nowMs)}
+        {fill(UI_TEXT.usageAsOf, {
+          time: relativeTime(new Date(subscription.observedAtMs).toISOString(), nowMs),
+        })}
       </p>
     </>
   )
@@ -144,7 +150,7 @@ function TokensSection({
                 <dt>{UI_TEXT.usageCached}</dt>
                 <dd>{formatTokenWindow(usage.cachedTokens)}</dd>
                 <dt>{UI_TEXT.usageCacheHits}</dt>
-                <dd>{String(percentOf(usage.cachedTokens, usage.inputTokens))}%</dd>
+                <dd>{formatPercent(percentOf(usage.cachedTokens, usage.inputTokens))}</dd>
               </>
             )}
           </>
@@ -164,7 +170,7 @@ function TokensSection({
       </dl>
       {costUsd === undefined ? null : (
         <p className="usage-row-meta">
-          {UI_TEXT.usageCostNote} {MODEL_API_PRICES_VERIFIED_ON}.
+          {fill(UI_TEXT.usageCostNote, { date: MODEL_API_PRICES_VERIFIED_ON })}
         </p>
       )}
     </>
@@ -202,7 +208,7 @@ function AccountSection({
       <dt>{UI_TEXT.usagePlan}</dt>
       <dd>{plan}</dd>
       <dt>{UI_TEXT.usageBackend}</dt>
-      <dd>{BACKEND_LABELS[report.backend]}</dd>
+      <dd>{backendLabel(report.backend)}</dd>
       {account?.cliVersion === undefined ? null : (
         <>
           <dt>{UI_TEXT.usageCliVersion}</dt>
@@ -219,10 +225,23 @@ function AccountSection({
   )
 }
 
-function InsightLine({ share, text }: { readonly share: number; readonly text: string }) {
+/**
+ * One `{percent} of model attempts…` line with the share in its own
+ * emphasis, wherever the language puts it; the table's check keeps
+ * `{percent}` the template's only slot.
+ */
+function InsightLine({ share, template }: { readonly share: number; readonly template: string }) {
   return (
     <li className="usage-insight">
-      <span className="usage-insight-share">{String(share)}%</span> {text}
+      {templateParts(template).map((part, index) =>
+        typeof part === 'string' ? (
+          part
+        ) : (
+          <span key={String(index)} className="usage-insight-share">
+            {formatPercent(share)}
+          </span>
+        ),
+      )}
     </li>
   )
 }
@@ -260,20 +279,22 @@ function InsightsSection({
           <ul className="usage-insights">
             <InsightLine
               share={percentOf(chosen.reminderAttempts, chosen.attempts)}
-              text={UI_TEXT.usageInsightReminders}
+              template={UI_TEXT.usageInsightReminders}
             />
             <InsightLine
               share={percentOf(chosen.subagentAttempts, chosen.attempts)}
-              text={UI_TEXT.usageInsightSubagents}
+              template={UI_TEXT.usageInsightSubagents}
             />
             <InsightLine
               share={percentOf(chosen.longSessionAttempts, chosen.attempts)}
-              text={UI_TEXT.usageInsightLong}
+              template={UI_TEXT.usageInsightLong}
             />
           </ul>
           <p className="usage-row-meta">
-            {String(chosen.attempts)} {UI_TEXT.usageInsightAttempts} {String(chosen.sessions)}{' '}
-            {chosen.sessions === 1 ? UI_TEXT.usageInsightSession : UI_TEXT.usageInsightSessions}
+            {fill(UI_TEXT.usageInsightTotals, {
+              attempts: plural(UI_TEXT.modelAttemptsCount, chosen.attempts),
+              sessions: plural(UI_TEXT.sessionsCount, chosen.sessions),
+            })}
           </p>
         </>
       )}

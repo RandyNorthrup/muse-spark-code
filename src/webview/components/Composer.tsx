@@ -35,7 +35,6 @@ import {
   IME_PROCESS_KEY,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_IMAGE_BYTES,
-  PERMISSION_MODE_LABELS,
   type PermissionMode,
   UI_TEXT,
 } from '../../shared/constants'
@@ -823,7 +822,7 @@ export function Composer(props: ComposerProps) {
             type="button"
             className="pill"
             title={UI_TEXT.modelPillTitle}
-            aria-label="Model"
+            aria-label={UI_TEXT.modelPillLabel}
             onMouseDown={keepMenuFocus}
             onClick={onOpenModelPicker}
           >
@@ -877,12 +876,12 @@ export function Composer(props: ComposerProps) {
             type="button"
             className="mode-button"
             title={UI_TEXT.permissionModeTitle}
-            aria-label={`Permission mode: ${PERMISSION_MODE_LABELS[permissionMode]}`}
+            aria-label={`${UI_TEXT.permissionModeTitle}: ${UI_TEXT.permissionModes[permissionMode]}`}
             onMouseDown={keepMenuFocus}
             onClick={onOpenModeMenu}
           >
             {modeIcon(permissionMode)}
-            <span>{PERMISSION_MODE_LABELS[permissionMode]}</span>
+            <span>{UI_TEXT.permissionModes[permissionMode]}</span>
           </button>
           <button
             type="button"

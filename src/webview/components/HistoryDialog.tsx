@@ -8,6 +8,7 @@
 
 import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { plural } from '../../shared/l10n/text'
 import {
   groupSessions,
   relativeTime,
@@ -56,12 +57,11 @@ export function layoutHistory(groups: readonly SessionGroup[]): readonly History
   return entries
 }
 
-function turnsLabel(row: SessionRow): string {
-  return `${String(row.turnCount)} ${row.turnCount === 1 ? UI_TEXT.historyTurn : UI_TEXT.historyTurns}`
-}
-
 function metaOf(row: SessionRow, nowMs: number): string {
-  const parts = [relativeTime(row.lastActivityAt ?? row.updatedAt, nowMs), turnsLabel(row)]
+  const parts = [
+    relativeTime(row.lastActivityAt ?? row.updatedAt, nowMs),
+    plural(UI_TEXT.historyTurns, row.turnCount),
+  ]
   if (row.branch !== undefined) {
     parts.push(row.branch)
   }
@@ -218,6 +218,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
     }
   }
 
+  const hasList = sessions !== undefined && rows.length > 0
   let body
   if (sessions === undefined) {
     body = <p className="menu-empty">{UI_TEXT.loadingOutput}</p>
@@ -294,8 +295,10 @@ export function HistoryDialog(props: HistoryDialogProps) {
           className="palette-filter"
           type="text"
           role="combobox"
-          aria-expanded="true"
-          aria-controls="history-listbox"
+          // Only a list that is there can be controlled (seen in a translated
+          // table, M40: a search matching nothing left the reference dangling).
+          aria-expanded={hasList}
+          aria-controls={hasList ? 'history-listbox' : undefined}
           aria-autocomplete="list"
           aria-activedescendant={
             activeRow === undefined ? undefined : `${ROW_ID_PREFIX}${activeRow.sessionId}`

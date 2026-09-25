@@ -18,6 +18,7 @@ import {
   worktreeRemoveArgs,
 } from '../../core/worktrees'
 import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import type { PickItem, PickOne } from './pickItem'
 
@@ -165,7 +166,7 @@ export async function newWorktree(deps: WorktreeDeps): Promise<void> {
     return
   }
   deps.log.info(`git worktree add: ${branch} from ${base} at ${folder}`)
-  if (await deps.offerOpen(`${UI_TEXT.worktreeCreated} ${folder}`)) {
+  if (await deps.offerOpen(fill(UI_TEXT.worktreeCreated, { path: folder }))) {
     await deps.openFolder(folder)
   }
 }
@@ -262,5 +263,5 @@ export async function removeWorktree(deps: WorktreeDeps): Promise<void> {
     return
   }
   deps.log.info(`git worktree remove: ${folder}`)
-  deps.showInformation(`${UI_TEXT.worktreeRemoved} ${folder}`)
+  deps.showInformation(fill(UI_TEXT.worktreeRemoved, { path: folder }))
 }

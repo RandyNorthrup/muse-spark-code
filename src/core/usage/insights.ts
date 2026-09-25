@@ -18,6 +18,7 @@ import {
   REMINDER_RUN_TOOL_COUNT_MAX,
   TOKENS_PER_MILLION,
 } from '../../shared/constants'
+import { formatUsd as formatMoney } from '../../shared/l10n/text'
 import type { UsageInsights } from '../../shared/usage'
 
 export interface TraceAttempt {
@@ -202,7 +203,7 @@ export function estimateCostUsd(usage: BillableUsage, modelId: string): number {
 const CENTS_DECIMALS = 2
 const SMALL_DECIMALS = 4
 
-/** "$0.0123" under a dollar, "$1.23" from there. */
+/** "$0.0123" under a dollar, "$1.23" from there, as the display language writes money. */
 export function formatUsd(amount: number): string {
-  return `$${amount.toFixed(amount < 1 ? SMALL_DECIMALS : CENTS_DECIMALS)}`
+  return formatMoney(amount, amount < 1 ? SMALL_DECIMALS : CENTS_DECIMALS)
 }

@@ -8,6 +8,8 @@
 //
 //   node scripts/a11y.mjs                    every scenario, every theme
 //   node scripts/a11y.mjs palette approval   those scenarios, every theme
+//   node scripts/a11y.mjs --lang=de          in l10n/ui.de.json (PLAN.md D33)
+//   node scripts/a11y.mjs --lang=pseudo      in the pseudo-locale table
 //   CHROME_PATH=/path/to/chrome node scripts/a11y.mjs
 
 import { execFile } from 'node:child_process'
@@ -18,6 +20,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { findChrome } from './lib/chrome.mjs'
+import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import { HARNESS_PATH, LOOPBACK, SCENARIOS, serveRepo } from './lib/harnessServer.mjs'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
@@ -45,8 +48,8 @@ function decodeEntities(text) {
 }
 
 /** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
-async function scan(chrome, port, page, profileDir) {
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1`
+async function scan(chrome, port, page, lang, profileDir) {
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
     const { stdout } = await execFileAsync(
       chrome,
@@ -139,11 +142,12 @@ async function main() {
   if (chrome === undefined) {
     throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
   }
-  const requested = process.argv.slice(2)
+  const { lang, scenarios: requested } = harnessArgs(process.argv.slice(2))
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}`)
   }
+  await prepareLang(repoRoot, lang)
   const scenarios = requested.length > 0 ? requested : SCENARIOS
   const pages = THEMES.flatMap((theme) => scenarios.map((scenario) => ({ scenario, theme })))
   const workers = Math.max(1, Math.min(MAX_WORKERS, availableParallelism() - 1, pages.length))
@@ -160,7 +164,7 @@ async function main() {
         while (next < pages.length) {
           const page = pages[next]
           next += 1
-          results.push({ ...page, ...(await scan(chrome, port, page, profileDir)) })
+          results.push({ ...page, ...(await scan(chrome, port, page, lang, profileDir)) })
         }
       }),
     )
@@ -203,7 +207,7 @@ async function main() {
   )
   const nodes = elementCount(findings)
   console.log(
-    `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
+    `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes${lang === undefined ? '' : `, in ${lang}`}), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
   )
   if (byRule.size > 0 || undecidedByRule.size > 0 || failed.length > 0) {
     process.exitCode = 1

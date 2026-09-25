@@ -5,24 +5,26 @@
 // when the turn ends.
 
 import { useEffect, useState } from 'react'
-import { STATUS_VERB_INTERVAL_MS, STATUS_VERBS } from '../../shared/constants'
+import { STATUS_VERB_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
 
 export function StatusLine() {
+  const verbs = Object.values(UI_TEXT.statusVerbs)
+  const verbCount = verbs.length
   const [index, setIndex] = useState(0)
   useEffect(() => {
     const timer = setInterval(() => {
-      setIndex((current) => (current + 1) % STATUS_VERBS.length)
+      setIndex((current) => (current + 1) % verbCount)
     }, STATUS_VERB_INTERVAL_MS)
     return () => {
       clearInterval(timer)
     }
-  }, [])
+  }, [verbCount])
   return (
     <li className="status-line">
       <span className="status-spark" aria-hidden="true">
         ✦
       </span>
-      <span>{STATUS_VERBS[index]}</span>
+      <span>{verbs[index]}</span>
     </li>
   )
 }

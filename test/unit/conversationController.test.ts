@@ -10,9 +10,6 @@ import {
   ConversationController,
   type ConversationDeps,
   type LastSession,
-  NO_WORKSPACE_REASON,
-  NOT_SIGNED_IN_REASON,
-  NOTHING_TO_SEND_REASON,
   type PickedFile,
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
@@ -657,18 +654,28 @@ describe('ConversationController.sendMessage', () => {
     expect(t.surface.posted.at(-1)).toEqual({
       type: 'sendFailed',
       localId: 'l0',
-      reason: NOTHING_TO_SEND_REASON,
+      reason: UI_TEXT.nothingToSendReason,
       attachmentsKept: true,
     })
     const signedOut = setup({ status: 'signedOut' })
     await signedOut.send('l1', 'hi')
     expect(signedOut.surface.posted).toEqual([
-      { type: 'sendFailed', localId: 'l1', reason: NOT_SIGNED_IN_REASON, attachmentsKept: true },
+      {
+        type: 'sendFailed',
+        localId: 'l1',
+        reason: UI_TEXT.notSignedInReason,
+        attachmentsKept: true,
+      },
     ])
     const noWorkspace = setup({ workspaceRoot: undefined })
     await noWorkspace.send('l1', 'hi')
     expect(noWorkspace.surface.posted).toEqual([
-      { type: 'sendFailed', localId: 'l1', reason: NO_WORKSPACE_REASON, attachmentsKept: true },
+      {
+        type: 'sendFailed',
+        localId: 'l1',
+        reason: UI_TEXT.noWorkspaceReason,
+        attachmentsKept: true,
+      },
     ])
   })
 
@@ -927,8 +934,8 @@ describe('ConversationController: composer controls', () => {
     await t.controller.handle({ type: 'listSkills' })
     await t.controller.handle({ type: 'compact' })
     expect(t.surface.posted).toEqual([
-      { type: 'notice', level: 'warning', text: NOT_SIGNED_IN_REASON },
-      { type: 'notice', level: 'warning', text: NOT_SIGNED_IN_REASON },
+      { type: 'notice', level: 'warning', text: UI_TEXT.notSignedInReason },
+      { type: 'notice', level: 'warning', text: UI_TEXT.notSignedInReason },
     ])
     expect(t.server.requestsFor('session/start')).toHaveLength(0)
   })
@@ -1766,7 +1773,7 @@ describe('ConversationController: session history (M6)', () => {
     const noWorkspace = withHistory({ workspaceRoot: undefined })
     await noWorkspace.controller.handle({ type: 'listSessions' })
     expect(noWorkspace.surface.posted).toEqual([
-      { type: 'notice', level: 'warning', text: NO_WORKSPACE_REASON },
+      { type: 'notice', level: 'warning', text: UI_TEXT.noWorkspaceReason },
     ])
     const t = withHistory()
     t.server.handle('session/list', () => {

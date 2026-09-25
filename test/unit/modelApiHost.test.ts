@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import {
   ModelApiHost,
@@ -1223,7 +1223,7 @@ describe('ModelApiSession: protocol semantics (D26)', () => {
     expect(outputFor(t.api.responseBodies().at(-1), 'call_s')).toEqual({
       type: 'function_call_output',
       call_id: 'call_s',
-      output: `Error: ${UI_TEXT.toolCancelledByStop}`,
+      output: `Error: ${MODEL_TEXT.toolCancelledByStop}`,
     })
   })
 

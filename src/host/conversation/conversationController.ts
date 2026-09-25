@@ -59,6 +59,7 @@ import {
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice } from '../../shared/agentEvents'
+import { fill, plural } from '../../shared/l10n/text'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type {
@@ -236,16 +237,12 @@ export interface UsageInsightsReport {
   readonly week: UsageInsights
 }
 
-export const NO_WORKSPACE_REASON = 'Open a folder first; Muse works inside a workspace.'
-export const NOT_SIGNED_IN_REASON = 'Sign in before sending a message.'
-export const NOTHING_TO_SEND_REASON = 'Type a message or attach an image first.'
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
 const CANCELLED_STATUS = 'cancelled'
 // `session/compact` rejects with this reason before the first turn has run
 // (verified live 2026-09-21); it is "nothing to do", not a failure.
 const MISSING_RUN_REASON = 'missing_run'
-const NOTHING_TO_COMPACT = 'Nothing to compact yet.'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const FALLBACK_MODE: PermissionMode = 'manual'
 const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
@@ -266,20 +263,6 @@ const ATTENTION_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'approvalRequested',
   'questionRequested',
 ])
-// A decision or answer that arrived after its prompt had moved (PLAN.md D26).
-const PROMPT_SETTLED_TEXT: Readonly<Record<PromptSettledReason, string>> = {
-  alreadySettled: UI_TEXT.promptAlreadySettled,
-  movedOn: UI_TEXT.promptMovedOn,
-  gone: UI_TEXT.promptGone,
-}
-// What an export that wrote nothing tells the user (M30); `exported` says nothing.
-const EXPORT_NOTICES: Readonly<
-  Partial<Record<ExportOutcome, { readonly level: 'info' | 'warning'; readonly text: string }>>
-> = {
-  logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
-  historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
-  empty: { level: 'info', text: UI_TEXT.exportNothing },
-}
 const QUEUED_DISPOSITION = 'queued'
 // The unsaved files a warning names before it counts the rest (D27).
 const UNSAVED_FILES_NAMED = 3
@@ -289,6 +272,34 @@ const NOTICE_PREFIX = 'Shown in the panel: '
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+// The two tables below are built when used, never at module load: the
+// display language's table is installed at activation, after this loads.
+
+/** A decision or answer that arrived after its prompt had moved (PLAN.md D26). */
+function promptSettledText(reason: PromptSettledReason): string {
+  const texts: Readonly<Record<PromptSettledReason, string>> = {
+    alreadySettled: UI_TEXT.promptAlreadySettled,
+    movedOn: UI_TEXT.promptMovedOn,
+    gone: UI_TEXT.promptGone,
+  }
+  return texts[reason]
+}
+
+interface ExportNotice {
+  readonly level: 'info' | 'warning'
+  readonly text: string
+}
+
+/** What an export that wrote nothing tells the user (M30); `exported` says nothing. */
+function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
+  const notices: Readonly<Partial<Record<ExportOutcome, ExportNotice>>> = {
+    logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
+    historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
+    empty: { level: 'info', text: UI_TEXT.exportNothing },
+  }
+  return notices[outcome]
 }
 
 /** How a session came to this surface, for the log (M39). */
@@ -863,7 +874,7 @@ export class ConversationController {
     error: PromptSettledError,
     prompt: { readonly approvalId: string } | { readonly userInputId: string },
   ): void {
-    this.notice('info', PROMPT_SETTLED_TEXT[error.reason])
+    this.notice('info', promptSettledText(error.reason))
     if (error.reason === 'gone') {
       this.post({ type: 'promptDropped', ...prompt })
     }
@@ -898,7 +909,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId: message.userInputId })
         return
       }
-      this.notice('error', `The answer was not accepted: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
     }
   }
 
@@ -925,7 +936,7 @@ export class ConversationController {
         eof: page.eof,
       })
     } catch (error: unknown) {
-      this.notice('error', `Could not load the output: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.outputLoadFailed}: ${describe(error)}`)
     }
   }
 
@@ -963,7 +974,7 @@ export class ConversationController {
     message: Extract<ConversationMessage, { type: 'openOutput' }>,
   ): Promise<void> {
     const tabId = message.itemId.slice(-OUTPUT_TAB_ID_LENGTH)
-    const title = `${message.label} ${UI_TEXT.toolOutputTitle} (${tabId})`
+    const title = fill(UI_TEXT.toolOutputTitle, { tool: message.label, id: tabId })
     try {
       const stored =
         message.outputRef === undefined
@@ -1010,10 +1021,7 @@ export class ConversationController {
     for (const edit of edits) {
       await this.reviewEdit('revert', edit.itemId, edit.outputRef)
     }
-    this.notice(
-      'info',
-      `${UI_TEXT.rewindDone} (${String(edits.length)} ${edits.length === 1 ? 'edit' : 'edits'})`,
-    )
+    this.notice('info', plural(UI_TEXT.rewindDone, edits.length))
   }
 
   private async reviewEdit(
@@ -1031,7 +1039,7 @@ export class ConversationController {
         this.notice(notice.level, notice.text)
       }
     } catch (error: unknown) {
-      this.notice('error', `Could not review the edit: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`)
     }
   }
 
@@ -1067,7 +1075,7 @@ export class ConversationController {
       await session.setReasoningEffort(effortForThinking(this.effort, this.isThinkingEnabled))
     } catch (error: unknown) {
       this.deps.log.warn(`session/setReasoningEffort failed: ${describe(error)}`)
-      this.say('warning', `Reasoning effort could not be applied: ${describe(error)}`)
+      this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
     }
   }
 
@@ -1223,7 +1231,7 @@ export class ConversationController {
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       )
     } catch (error: unknown) {
-      this.notice('warning', `Could not apply the permission mode: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`)
     }
     this.notice('info', UI_TEXT.sessionContinued)
     return loaded.session
@@ -1232,11 +1240,11 @@ export class ConversationController {
   /** Why a user action cannot run now (signed out / no folder), posted as asked. */
   private refuseAction(localId?: string): string | undefined {
     const isSignedIn = this.deps.auth.current.status === 'signedIn'
-    const reason = isSignedIn ? undefined : NOT_SIGNED_IN_REASON
+    const reason = isSignedIn ? undefined : UI_TEXT.notSignedInReason
     if (reason === undefined && this.deps.workspaceRoot !== undefined) {
       return undefined
     }
-    const text = reason ?? NO_WORKSPACE_REASON
+    const text = reason ?? UI_TEXT.noWorkspaceReason
     // A refused message's images were never used: the composer gets them back.
     this.post(
       localId === undefined
@@ -1288,7 +1296,7 @@ export class ConversationController {
 
   private async listSessions(): Promise<void> {
     if (this.deps.workspaceRoot === undefined) {
-      this.notice('warning', NO_WORKSPACE_REASON)
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
       return
     }
     try {
@@ -1365,7 +1373,7 @@ export class ConversationController {
         throw error
       }
       this.modelId = fallbackId
-      this.notice('info', `${UI_TEXT.contributorResumeFallback} ${fallbackId}.`)
+      this.notice('info', fill(UI_TEXT.contributorResumeFallbackTo, { model: fallbackId }))
     }
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
@@ -1384,7 +1392,7 @@ export class ConversationController {
     try {
       await loaded.session.setApprovalMode(target)
     } catch (error: unknown) {
-      this.notice('warning', `Could not apply the permission mode: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`)
     }
   }
 
@@ -1563,7 +1571,7 @@ export class ConversationController {
         this.post({
           type: 'sendFailed',
           localId,
-          reason: NOTHING_TO_SEND_REASON,
+          reason: UI_TEXT.nothingToSendReason,
           attachmentsKept: true,
         })
         return
@@ -1668,7 +1676,7 @@ export class ConversationController {
         await this.session.setModel(modelId)
       } catch (error: unknown) {
         this.modelId = previous
-        this.notice('error', `Could not switch model: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`)
         return
       }
     }
@@ -1719,7 +1727,7 @@ export class ConversationController {
         await this.session.setApprovalMode(target)
       } catch (error: unknown) {
         this.permissionMode = previous
-        this.notice('error', `Could not change the permission mode: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`)
       }
     }
     this.postComposerState()
@@ -1750,16 +1758,19 @@ export class ConversationController {
     try {
       const outcome = await session.compact()
       if (outcome.status === NOOP_STATUS) {
-        this.notice('info', `Nothing to compact (${outcome.reason ?? NOOP_STATUS}).`)
+        this.notice(
+          'info',
+          fill(UI_TEXT.nothingToCompactReason, { reason: outcome.reason ?? NOOP_STATUS }),
+        )
       } else if (outcome.status === CANCELLED_STATUS) {
         this.notice('info', UI_TEXT.compactionStoppedNotice)
       }
     } catch (error: unknown) {
       const reason = describe(error)
       if (reason.includes(MISSING_RUN_REASON)) {
-        this.notice('info', NOTHING_TO_COMPACT)
+        this.notice('info', UI_TEXT.nothingToCompact)
       } else {
-        this.notice('error', `Compaction failed: ${reason}`)
+        this.notice('error', `${UI_TEXT.compactionFailed}: ${reason}`)
       }
     }
   }
@@ -1836,7 +1847,7 @@ export class ConversationController {
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {
-      this.notice('error', `${action} failed: ${describe(error)}`)
+      this.notice('error', `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`)
     }
   }
 
@@ -1935,7 +1946,7 @@ export class ConversationController {
         new Date(this.deps.now()),
         this.deps.exports,
       )
-      const notice = EXPORT_NOTICES[outcome]
+      const notice = exportNotice(outcome)
       if (notice !== undefined) {
         this.notice(notice.level, notice.text)
       }

@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { changeSummary, describeTool, writtenContent } from '../../src/webview/toolPresentation'
+import { afterEach, describe, expect, it } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
+import {
+  changeSummary,
+  describeTool,
+  toolLabel,
+  writtenContent,
+} from '../../src/webview/toolPresentation'
 
 describe('describeTool', () => {
   it('labels the captured Muse Code tools and picks the summary per kind', () => {
@@ -67,13 +74,54 @@ describe('describeTool', () => {
   })
 })
 
+describe('toolLabel', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it("names the table's tools and nothing else, not even Object.prototype's members", () => {
+    expect(toolLabel('powershell')).toBe('PowerShell')
+    expect(toolLabel('grep_files')).toBeUndefined()
+    expect(toolLabel('toString')).toBeUndefined()
+    expect(toolLabel('__proto__')).toBeUndefined()
+  })
+
+  it('reads the installed table (M40)', () => {
+    setUiText({ ...EN, toolLabels: { ...EN.toolLabels, read_file: 'Lesen' } }, 'de')
+    expect(toolLabel('read_file')).toBe('Lesen')
+    expect(describeTool('read_file', '{"path":"a.md"}').label).toBe('Lesen')
+  })
+})
+
 describe('changeSummary', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
   it('reads Added / Removed / Modified from the patch summary', () => {
     expect(changeSummary({ files: 1, added: 1, removed: 0 })).toBe('Added 1 line')
     expect(changeSummary({ files: 1, added: 82, removed: 0 })).toBe('Added 82 lines')
     expect(changeSummary({ files: 1, added: 0, removed: 6 })).toBe('Removed 6 lines')
     expect(changeSummary({ files: 1, added: 2, removed: 1 })).toBe('Modified')
     expect(changeSummary(undefined)).toBeUndefined()
+  })
+
+  it('picks the plural form by the display language’s rules (M40)', () => {
+    setUiText(
+      {
+        ...EN,
+        addedLines: {
+          one: 'Dodano {count} wiersz',
+          few: 'Dodano {count} wiersze',
+          many: 'Dodano {count} wierszy',
+          other: 'Dodano {count} wiersza',
+        },
+      },
+      'pl',
+    )
+    expect(changeSummary({ files: 1, added: 1, removed: 0 })).toBe('Dodano 1 wiersz')
+    expect(changeSummary({ files: 1, added: 3, removed: 0 })).toBe('Dodano 3 wiersze')
+    expect(changeSummary({ files: 1, added: 5, removed: 0 })).toBe('Dodano 5 wierszy')
   })
 })
 

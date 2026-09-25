@@ -7,7 +7,43 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **The groundwork for the panel in VS Code's display languages** (M40,
+  PLAN.md D33). The panel still reads in English until the translations
+  land; what changed underneath:
+  - **Whole sentences:** every text the user reads is in one table
+    (`src/shared/l10n/en.ts`). A sentence built around a value is one
+    template, so a language can put the value where its grammar needs it,
+    and a count picks its form by the language's own plural rules.
+  - **The manifest:** the Command Palette's commands, the settings and the
+    walkthrough take their text from `package.nls.json`.
+  - **Text for the model stays English:** what goes to the model is kept
+    apart, so the model behaves the same in every display language.
+  - **One file at a time:** the host loads the table for VS Code's display
+    language and hands it to each panel. A missing or damaged table falls
+    back to English, and the log says so.
+  - **`<html lang>`:** the panel declares its language to screen readers.
+- **Numbers, money and times follow the display language's conventions**
+  (`Intl`). In English that changes a few:
+  - History's times read "5 min. ago", "3 hr. ago", "yesterday".
+  - The usage window's reset reads "2h 5m".
+  - A failed Muse Code or sandbox run names its "exit code".
+
+### Fixed
+
+- A token count just under a million read "1000K"; it reads "1M".
+- Accessibility, found by checking the panel in a pseudo-locale:
+  - The palette's and History's search box kept pointing at a list that a
+    search matching nothing had removed (`aria-controls`, WCAG 4.1.2). It
+    now controls a list only while one is shown.
+  - A code block's Copy, Insert and Apply buttons are 24 px targets; with
+    longer labels, spacing alone no longer made up for their height (WCAG
+    2.5.8).
+- The Agent map showed a background task's raw status ("inProgress"); it
+  reads "running", like the agents above it.
+- The hooks view counted "3 in your settings"; it says "3 hooks in your
+  settings".
 
 ## [0.7.1] - 2026-09-25
 

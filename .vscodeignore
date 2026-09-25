@@ -9,6 +9,9 @@
 !native/windows/dictate.ps1
 !native/darwin/muse-dictate
 !package.json
+!package.nls.json
+!package.nls.*.json
+!l10n/ui.*.json
 !README.md
 !CHANGELOG.md
 !LICENSE

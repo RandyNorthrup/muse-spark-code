@@ -3,14 +3,9 @@
 // under it (Added N lines / Removed N lines / Modified) and which body to
 // render. Pure; the wire shapes are the ones captured live on 2026-09-21.
 
-import {
-  FILE_EDIT_TOOLS,
-  FILE_READ_TOOLS,
-  SHELL_TOOLS,
-  TOOL_LABELS,
-  UI_TEXT,
-} from '../shared/constants'
-import type { PatchSummary } from './state/uiState'
+import { FILE_EDIT_TOOLS, FILE_READ_TOOLS, SHELL_TOOLS, UI_TEXT } from '../shared/constants'
+import { plural } from '../shared/l10n/text'
+import type { PatchSummary } from './state/transcriptEntries'
 
 export type ToolBody = 'shell' | 'edit' | 'read' | 'question' | 'generic'
 
@@ -60,9 +55,18 @@ function parseArgs(args: string): ParsedArgs {
   }
 }
 
+/**
+ * The row label the table gives a wire tool name; undefined for a tool it
+ * does not name (only the table's own keys, never `Object.prototype`'s).
+ */
+export function toolLabel(tool: string): string | undefined {
+  const labels: Readonly<Record<string, string>> = UI_TEXT.toolLabels
+  return Object.hasOwn(labels, tool) ? labels[tool] : undefined
+}
+
 export function describeTool(tool: string, args: string): ToolPresentation {
   const parsed = parseArgs(args)
-  const label = TOOL_LABELS[tool] ?? tool
+  const label = toolLabel(tool) ?? tool
   if (SHELL_TOOLS.has(tool)) {
     return {
       label,
@@ -88,20 +92,16 @@ export function describeTool(tool: string, args: string): ToolPresentation {
   }
 }
 
-function lines(count: number): string {
-  return `${String(count)} ${count === 1 ? UI_TEXT.lineUnit : UI_TEXT.linesUnit}`
-}
-
 /** "Added 82 lines" / "Removed 6 lines" / "Modified", as the Claude Code row. */
 export function changeSummary(summary: PatchSummary | undefined): string | undefined {
   if (summary === undefined) {
     return undefined
   }
   if (summary.added > 0 && summary.removed === 0) {
-    return `${UI_TEXT.addedLines} ${lines(summary.added)}`
+    return plural(UI_TEXT.addedLines, summary.added)
   }
   return summary.removed > 0 && summary.added === 0
-    ? `${UI_TEXT.removedLines} ${lines(summary.removed)}`
+    ? plural(UI_TEXT.removedLines, summary.removed)
     : UI_TEXT.modified
 }
 

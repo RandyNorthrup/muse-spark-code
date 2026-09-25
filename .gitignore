@@ -26,5 +26,7 @@ Thumbs.db
 temp/
 # Headless-Chrome screenshots from scripts/harness-shots.mjs
 harness-shots/
+# The harness's pseudo-locale table, written by scripts/pseudo-l10n.mjs
+test/harness/l10n/
 # Claude Code session settings (permission rules), written by the tool
 .claude/

@@ -13,10 +13,10 @@ import {
   HIDDEN_ITEM_KINDS,
   MILLISECONDS_PER_SECOND,
   type PermissionMode,
-  TOOL_LABELS,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type {
   AttachmentSummary,
   AuthStatus,
@@ -33,6 +33,7 @@ import type {
 } from '../../shared/protocol'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import { toolLabel } from '../toolPresentation'
 import type {
   ChildTranscript,
   ContextSummary,
@@ -47,7 +48,6 @@ import type {
 export type {
   ChildTranscript,
   ContextSummary,
-  PatchSummary,
   PendingApproval,
   PendingQuestion,
   TranscriptEntry,
@@ -295,12 +295,14 @@ const USER_MESSAGE_KIND = 'userMessage'
 const SUBAGENT_KIND = 'subagent'
 // A refusal that is about the image's size or count (M25), or a read that
 // failed (M39), not its type: the banner says so instead of "Unsupported
-// file type".
-const STATED_REFUSALS: ReadonlySet<string> = new Set([
-  UI_TEXT.attachmentTooLarge,
-  UI_TEXT.attachmentLimit,
-  UI_TEXT.attachmentUnreadable,
-])
+// file type". Read per refusal, so the reasons are the installed table's.
+function isStatedRefusal(reason: string): boolean {
+  return [
+    UI_TEXT.attachmentTooLarge,
+    UI_TEXT.attachmentLimit,
+    UI_TEXT.attachmentUnreadable,
+  ].includes(reason)
+}
 
 /** A record's own value for `key`; never one of `Object.prototype`'s members. */
 function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
@@ -373,7 +375,7 @@ function toolFailureAnnouncement(
     return undefined
   }
   const outcome = next.status === REJECTED ? UI_TEXT.toolRejected : UI_TEXT.toolFailed
-  return `${TOOL_LABELS[next.tool] ?? next.tool}: ${outcome}`
+  return `${toolLabel(next.tool) ?? next.tool}: ${outcome}`
 }
 
 /** The composer chip and the user card's line for a reference: "Replying to: …" (M17). */
@@ -443,7 +445,7 @@ function withNotice(state: UiState, level: NoticeLevel, text: string): UiState {
 
 /** The composer banner for a refused upload (M14); a size or count refusal says why (M25). */
 function withBanner(state: UiState, name: string, reason: string): UiState {
-  const banner = STATED_REFUSALS.has(reason)
+  const banner = isStatedRefusal(reason)
     ? `${name}: ${reason}`
     : `${UI_TEXT.unsupportedFileTitle} ${name}. ${UI_TEXT.unsupportedFileDetail}`
   return announce({ ...state, banner }, `${name}: ${reason}`)
@@ -925,7 +927,7 @@ function completeTurn(
           {
             kind: 'error',
             id: `error:${event.turnId}`,
-            text: event.reason ?? event.errorKind ?? 'The turn failed.',
+            text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
           },
         ]
       : []
@@ -975,7 +977,12 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       return withNotice(
         state,
         'warning',
-        `Attempt ${String(event.attempt)}/${String(event.maxAttempts)} failed (${event.reason}); retrying in ${String(seconds)} s.`,
+        fill(UI_TEXT.turnRetrying, {
+          attempt: event.attempt,
+          maxAttempts: event.maxAttempts,
+          reason: event.reason,
+          seconds,
+        }),
       )
     }
     case 'tokenUsage': {
@@ -1038,7 +1045,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
             }),
           (entry) => (entry.kind === 'tool' ? { ...entry, approval } : entry),
         ),
-        `${UI_TEXT.announceApproval} ${TOOL_LABELS[event.toolName] ?? event.toolName}`,
+        fill(UI_TEXT.announceApprovalFor, { tool: toolLabel(event.toolName) ?? event.toolName }),
       )
     }
     case 'approvalUpdated': {

@@ -12,6 +12,7 @@ import {
   readMcpServers,
 } from '../../core/backends/musecode/museConfigView'
 import { UI_TEXT } from '../../shared/constants'
+import { fill, plural } from '../../shared/l10n/text'
 import type { PickItem, PickOne } from './pickItem'
 
 export type McpAction = 'login' | 'logout'
@@ -90,15 +91,15 @@ function serverItem(server: McpServerView): PickItem {
 function mcpSummary(view: McpSettingsView, settingsPath: string): string {
   switch (view.status) {
     case 'missing': {
-      return `${UI_TEXT.mcpNoSettings} ${settingsPath}`
+      return fill(UI_TEXT.mcpNoSettings, { path: settingsPath })
     }
     case 'unreadable': {
       return `${UI_TEXT.mcpUnreadable} ${view.reason}`
     }
     case 'read': {
       return view.servers.length === 0
-        ? `${UI_TEXT.mcpNone} ${settingsPath}`
-        : `${String(view.servers.length)} ${UI_TEXT.mcpCount} ${settingsPath}`
+        ? fill(UI_TEXT.mcpNone, { path: settingsPath })
+        : plural(UI_TEXT.mcpCount, view.servers.length, { path: settingsPath })
     }
   }
 }
@@ -124,7 +125,7 @@ async function openSettings(deps: MuseConfigDeps): Promise<void> {
     await deps.openFile(deps.settingsPath)
     return
   }
-  deps.showInformation(`${UI_TEXT.museSettingsMissing} ${deps.settingsPath}`)
+  deps.showInformation(fill(UI_TEXT.museSettingsMissing, { path: deps.settingsPath }))
 }
 
 async function serverActions(deps: MuseConfigDeps, server: McpServerView): Promise<void> {
@@ -236,7 +237,7 @@ export async function showHooks(deps: MuseConfigDeps): Promise<void> {
         detail:
           sources.userHookCount === undefined
             ? UI_TEXT.hooksUserNone
-            : `${String(sources.userHookCount)} ${UI_TEXT.hooksUserCount}`,
+            : plural(UI_TEXT.hooksUserCount, sources.userHookCount),
       },
       {
         id: MANAGED_HOOKS,

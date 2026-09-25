@@ -31,6 +31,7 @@ import {
   MODEL_API_SERVER_NAME,
   MODEL_API_TOOLS,
   MODEL_API_VERSION,
+  MODEL_TEXT,
   OUTPUT_REF_PREFIX,
   STORED_SESSION_VERSION,
   THINKING_OFF_EFFORT,
@@ -266,7 +267,7 @@ function typedInvocation(selector: string, args: string | undefined): string {
  * body with the arguments, as Muse Code does for a `skill` input part.
  */
 function skillInvocationText(skill: SkillDefinition, args: string | undefined): string {
-  return `${UI_TEXT.skillInvoked} "${skill.id}". ${UI_TEXT.skillArguments} ${args ?? UI_TEXT.skillNoArguments}\n\n${skill.body}`
+  return `${MODEL_TEXT.skillInvoked} "${skill.id}". ${MODEL_TEXT.skillArguments} ${args ?? MODEL_TEXT.skillNoArguments}\n\n${skill.body}`
 }
 
 function contentPartsFor(
@@ -798,8 +799,8 @@ export class ModelApiSession implements AgentSession {
       answers: [...answers],
     })
     const text = isCancelled
-      ? UI_TEXT.questionCancelledOutput
-      : `${UI_TEXT.answersPrefix}\n${JSON.stringify(answers)}`
+      ? MODEL_TEXT.questionCancelledOutput
+      : `${MODEL_TEXT.answersPrefix}\n${JSON.stringify(answers)}`
     return { output: text, visibleOutput: text }
   }
 
@@ -833,7 +834,7 @@ export class ModelApiSession implements AgentSession {
     }
     const skill = this.context.skill(parsed.data.id)
     if (skill === undefined) {
-      return toolFailure(`${UI_TEXT.skillNotFound} ${parsed.data.id}`)
+      return toolFailure(`${MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
     }
     return {
       output: `Skill ${skill.id}: ${skill.description}\n\n${skill.body}`,
@@ -906,7 +907,7 @@ export class ModelApiSession implements AgentSession {
     if (toolClass === 'shell' && !this.deps.isWorkspaceTrusted()) {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
       // that calls it anyway is refused, never prompted.
-      return { outcome: toolFailure(UI_TEXT.shellRestrictedMode), isRejected: true }
+      return { outcome: toolFailure(MODEL_TEXT.shellRestrictedMode), isRejected: true }
     }
     const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
     if (target?.ok === false) {
@@ -922,14 +923,14 @@ export class ModelApiSession implements AgentSession {
     const verdict = this.permissions.verdict(query)
     if (verdict === 'deny') {
       return {
-        outcome: toolFailure(`${call.name} ${UI_TEXT.toolRefusedByMode}`),
+        outcome: toolFailure(`${call.name} ${MODEL_TEXT.toolRefusedByMode}`),
         isRejected: true,
       }
     }
     if (verdict === 'ask') {
       const approval = await this.askApproval(itemId, call, signal, query)
       if (!approval.isApproved) {
-        const reason = `${call.name} ${UI_TEXT.toolRejectedByUser}`
+        const reason = `${call.name} ${MODEL_TEXT.toolRejectedByUser}`
         const feedback = approval.feedback === undefined ? '' : `\nUser: ${approval.feedback}`
         return {
           outcome: {
@@ -1002,7 +1003,13 @@ export class ModelApiSession implements AgentSession {
       result = await this.decideAndRun(itemId, call, signal)
     } catch (error: unknown) {
       if (error instanceof AbortedError || signal.aborted) {
-        this.finishCall(turnId, started, call, toolFailure(UI_TEXT.toolCancelledByStop), CANCELLED)
+        this.finishCall(
+          turnId,
+          started,
+          call,
+          toolFailure(MODEL_TEXT.toolCancelledByStop),
+          CANCELLED,
+        )
         throw new AbortedError()
       }
       // A tool that threw (a disk error, a directory for a file) is a failed
@@ -1026,7 +1033,7 @@ export class ModelApiSession implements AgentSession {
         item: {
           type: 'function_call_output',
           call_id: call.call_id,
-          output: `Error: ${UI_TEXT.toolCancelledByStop}`,
+          output: `Error: ${MODEL_TEXT.toolCancelledByStop}`,
         },
       })
     }
@@ -1041,7 +1048,7 @@ export class ModelApiSession implements AgentSession {
           type: 'message',
           role: 'user',
           content: [
-            { type: 'input_text', text: UI_TEXT.steeredPrefix },
+            { type: 'input_text', text: MODEL_TEXT.steeredPrefix },
             ...this.contentParts(parts),
           ],
         },
@@ -1188,7 +1195,7 @@ export class ModelApiSession implements AgentSession {
         {
           type: 'message',
           role: 'user',
-          content: [{ type: 'input_text', text: UI_TEXT.compactionPrompt }],
+          content: [{ type: 'input_text', text: MODEL_TEXT.compactionPrompt }],
         },
       ],
       tools: [],
@@ -1199,7 +1206,7 @@ export class ModelApiSession implements AgentSession {
       item: {
         type: 'message',
         role: 'user',
-        content: [{ type: 'input_text', text: `${UI_TEXT.compactionPrefix}\n\n${summary}` }],
+        content: [{ type: 'input_text', text: `${MODEL_TEXT.compactionPrefix}\n\n${summary}` }],
       },
     })
     const item: ItemSnapshot = {

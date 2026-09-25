@@ -4,7 +4,7 @@
 // `<ide_opened_file>` for a bare open file). The chip label lives in
 // src/shared/editorContext.ts so the webview can build it too. Pure.
 
-import { IDE_CONTEXT_TAGS, SELECTION_TEXT_MAX_CHARS, UI_TEXT } from '../shared/constants'
+import { IDE_CONTEXT_TAGS, MODEL_TEXT, SELECTION_TEXT_MAX_CHARS } from '../shared/constants'
 import type { EditorContextSummary } from '../shared/protocol'
 
 export interface EditorContext extends EditorContextSummary {
@@ -23,7 +23,7 @@ export function editorContextSummary(context: EditorContext): EditorContextSumma
 
 function clipped(text: string): string {
   return text.length > SELECTION_TEXT_MAX_CHARS
-    ? `${text.slice(0, SELECTION_TEXT_MAX_CHARS)}\n${UI_TEXT.selectionClipped}`
+    ? `${text.slice(0, SELECTION_TEXT_MAX_CHARS)}\n${MODEL_TEXT.selectionClipped}`
     : text
 }
 
@@ -36,7 +36,7 @@ export function editorContextText(context: EditorContext): string {
   const lines = `the lines ${String(startLine)} to ${String(endLine)} from ${relativePath}`
   const body =
     selectedText === undefined
-      ? `${lines}. ${UI_TEXT.selectionNotShared}`
+      ? `${lines}. ${MODEL_TEXT.selectionNotShared}`
       : `${lines}:\n${clipped(selectedText)}\n`
   return `<${IDE_CONTEXT_TAGS.selection}>The user selected ${body}</${IDE_CONTEXT_TAGS.selection}>`
 }

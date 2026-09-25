@@ -420,7 +420,7 @@ describe('MuseCodeHost', () => {
     await settle()
     expect(listener).toHaveBeenCalledWith({
       description:
-        'Muse Code refused its configuration; check its settings.json and museSpark.environmentVariables (exit 3)',
+        'Muse Code refused its configuration; check its settings.json and museSpark.environmentVariables (exit code 3)',
       isExpected: false,
       isPersistent: true,
     })
@@ -437,7 +437,7 @@ describe('MuseCodeHost', () => {
     exit(0, null)
     await settle()
     expect(listener).toHaveBeenCalledWith({
-      description: 'Muse Code stopped (exit 0)',
+      description: 'Muse Code stopped (exit code 0)',
       isExpected: true,
       isPersistent: false,
     })

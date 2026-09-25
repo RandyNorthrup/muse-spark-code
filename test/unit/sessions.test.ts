@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 import {
   activityOf,
   groupSessions,
@@ -141,13 +143,32 @@ describe('groupSessions', () => {
 })
 
 describe('relativeTime', () => {
-  it('reads just now / minutes / hours / days, then the date', () => {
-    expect(relativeTime(at(20 * 1000), NOW)).toBe('just now')
-    expect(relativeTime(at(5 * 60 * 1000), NOW)).toBe('5 min ago')
-    expect(relativeTime(at(3 * HOUR), NOW)).toBe('3 h ago')
-    expect(relativeTime(at(2 * DAY), NOW)).toBe('2 d ago')
-    expect(relativeTime(at(9 * DAY), NOW)).toBe(new Date(NOW - 9 * DAY).toLocaleDateString())
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it('reads now / minutes / hours / days, then the date', () => {
+    expect(relativeTime(at(20 * 1000), NOW)).toBe('now')
+    expect(relativeTime(at(5 * 60 * 1000), NOW)).toBe('5 min. ago')
+    expect(relativeTime(at(3 * HOUR), NOW)).toBe('3 hr. ago')
+    expect(relativeTime(at(DAY), NOW)).toBe('yesterday')
+    expect(relativeTime(at(2 * DAY), NOW)).toBe('2 days ago')
+    expect(relativeTime(at(9 * DAY), NOW)).toBe('Sep 13, 2026')
     // A clock that runs behind the host never reads as the future.
-    expect(relativeTime(new Date(NOW + HOUR).toISOString(), NOW)).toBe('just now')
+    expect(relativeTime(new Date(NOW + HOUR).toISOString(), NOW)).toBe('now')
+  })
+
+  it('reads in the display language once its table is installed (M40)', () => {
+    setUiText(EN, 'de')
+    expect(relativeTime(at(20 * 1000), NOW)).toBe('jetzt')
+    expect(relativeTime(at(5 * 60 * 1000), NOW)).toBe('vor 5 Min.')
+    expect(relativeTime(at(2 * DAY), NOW)).toBe('vorgestern')
+    expect(relativeTime(at(9 * DAY), NOW)).toBe('13.09.2026')
+  })
+
+  it('titles the groups from the table installed when the list is built (M40)', () => {
+    setUiText({ ...EN, historyToday: 'Heute' }, 'de')
+    const groups = groupSessions([row({ sessionId: 'now', updatedAt: at(HOUR) })], options)
+    expect(groups.map((group) => group.title)).toEqual(['Heute'])
   })
 })

@@ -28,9 +28,22 @@ them, the milestone plan, and the certification checklist.
 4. **Escape hatches are logged.** Any `eslint-disable`, `@ts-expect-error`,
    `as` cast that is not a narrowing the compiler can verify, or `any` needs an
    inline reason **and** a row in `PLAN.md` §8.
-5. **Constants, not literals.** Tunables and user-visible strings live in
-   `src/shared/constants.ts`. `0`, `1`, `-1`, `2`, `100`, empty collections
-   and array index 0 are fine inline.
+5. **Constants, not literals.** Tunables live in `src/shared/constants.ts`.
+   `0`, `1`, `-1`, `2`, `100`, empty collections and array index 0 are fine
+   inline.
+   - **Text the user reads** lives in the English table
+     `src/shared/l10n/en.ts` and is read as `UI_TEXT.key` when the code runs,
+     never at module load (the gate fails it), so the installed language is
+     the one shown (PLAN.md D33).
+   - **A sentence around a value** is one template, `{duration}` in `Thought for {duration}`, filled with `fill`. **A count** is `forms({ one, other })`
+     read with `plural`. Numbers, percentages, units and dates go through the
+     `Intl` helpers in `src/shared/l10n/text.ts`.
+   - **"Label: detail" and "Label (id)"** may stay spliced when the detail is
+     technical.
+   - **Text the model or Meta reads** is `MODEL_TEXT` in constants.ts and
+     stays English.
+   - **Adding or changing a key** means every table in `l10n/` gets it too,
+     or `npm run check:l10n` fails.
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit
@@ -64,6 +77,11 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client, tools, context, export,
                       worktrees, usage, dictation)
 src/shared/**         constants + zod protocol shared by host and webview
+src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
+                      table checks and the list of translated languages
+l10n/                 translated tables (ui.<language>.json) and the names the
+                      localization gate lets stay English
+package.nls.json      the manifest's text (commands, settings, walkthrough)
 src/webview/**        React 19 app (browser project, own tsconfig)
 native/windows/**     dictate.ps1, the Windows dictation helper
 native/darwin/**      Dictation.swift, Info.plist, build.sh, check-disclaim.sh:
@@ -76,24 +94,27 @@ test/integration/**   @vscode/test-cli, runs inside VS Code
 test/harness/         the webview behind a fake host, for screenshots and the
                       accessibility gate; themes/ holds VS Code's four themes
 scripts/**            esbuild build; bundle-size, host-globals, notices, audit,
-                      PSScriptAnalyzer and accessibility gates; theme capture,
-                      harness screenshots, image rendering, changelog notes
+                      PSScriptAnalyzer, accessibility and localization gates;
+                      theme capture, the pseudo-locale, harness screenshots,
+                      image rendering, changelog notes
 docs/certification/   per-milestone gate-fire records and screenshots
 media/                icons, banner, social preview, README screenshots
 ```
 
 ## Commands
 
-| Task                           | Command                               |
-| ------------------------------ | ------------------------------------- |
-| All gates (local)              | `npm run quality`                     |
-| The gates CI runs everywhere   | `npm run quality:gates`               |
-| Accessibility gate             | `npm run test:a11y`                   |
-| Unit tests with coverage       | `npm run test:unit`                   |
-| Integration tests              | `npm run test:integration`            |
-| Dev build / watch              | `npm run build:dev` / `npm run watch` |
-| Production build + size budget | `npm run build`                       |
-| Package `.vsix`                | `npm run package`                     |
+| Task                           | Command                                  |
+| ------------------------------ | ---------------------------------------- |
+| All gates (local)              | `npm run quality`                        |
+| The gates CI runs everywhere   | `npm run quality:gates`                  |
+| Accessibility gate             | `npm run test:a11y`                      |
+| Localization gate              | `npm run check:l10n`                     |
+| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo` |
+| Unit tests with coverage       | `npm run test:unit`                      |
+| Integration tests              | `npm run test:integration`               |
+| Dev build / watch              | `npm run build:dev` / `npm run watch`    |
+| Production build + size budget | `npm run build`                          |
+| Package `.vsix`                | `npm run package`                        |
 
 ## Toolchain pins that matter
 

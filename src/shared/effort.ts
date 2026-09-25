@@ -2,11 +2,11 @@
 // the conversation controller (the wire value sent to the host).
 
 import {
-  EFFORT_LABELS,
   EFFORT_LEVELS,
   type EffortLevel,
   MODEL_EFFORT_LEVELS,
   THINKING_OFF_EFFORT,
+  UI_TEXT,
 } from './constants'
 
 export function isEffortLevel(value: string): value is EffortLevel {
@@ -14,7 +14,7 @@ export function isEffortLevel(value: string): value is EffortLevel {
 }
 
 export function effortLabel(effort: EffortLevel): string {
-  return EFFORT_LABELS[effort]
+  return UI_TEXT.effortLevels[effort]
 }
 
 /**

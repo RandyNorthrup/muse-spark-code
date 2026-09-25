@@ -207,12 +207,13 @@ describe('package.json manifest', () => {
 describe('packaging (M26)', () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
   const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), 'utf8')
+  // .vscodeignore excludes everything, then lets these through.
+  const shipped = read('.vscodeignore')
+    .split('\n')
+    .filter((line) => line.startsWith('!'))
+    .map((line) => line.slice(1).trim())
 
   it('ships the licence, the third-party notices and both dictation helpers', () => {
-    const shipped = read('.vscodeignore')
-      .split('\n')
-      .filter((line) => line.startsWith('!'))
-      .map((line) => line.slice(1).trim())
     expect(shipped).toEqual(
       expect.arrayContaining([
         'LICENSE',
@@ -228,6 +229,16 @@ describe('packaging (M26)', () => {
     for (const name of [...Object.keys(manifest.dependencies), 'react', 'zod', '@muse-code/sdk']) {
       expect(notices, name).toContain(`\n${name} (`)
     }
+  })
+
+  it('ships the manifest strings and the translated tables, not the harness (M40)', () => {
+    // VS Code reads package.nls*.json beside package.json; the host reads
+    // l10n/ui.<language>.json. The gate's allowlist and the harness stay out.
+    expect(shipped).toEqual(
+      expect.arrayContaining(['package.nls.json', 'package.nls.*.json', 'l10n/ui.*.json']),
+    )
+    expect(shipped.filter((entry) => entry.startsWith('test/') || entry === 'l10n/**')).toEqual([])
+    expect(manifest.displayName).toBe('%displayName%')
   })
 
   it('bounds every CI job, keeps tokens out of checkouts and the PAT in one step (M26)', () => {

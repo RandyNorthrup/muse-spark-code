@@ -21,8 +21,8 @@ import {
 import { UI_TEXT } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import {
+  contextWindowLabel,
   filterPalette,
-  formatTokenWindow,
   type PaletteAction,
   type PaletteGroup,
   type PaletteItem,
@@ -143,10 +143,7 @@ export function modelRows(
   return models.map((model) => ({
     id: `model:${model.modelId}`,
     label: model.displayLabel,
-    detail:
-      model.contextLimit === undefined
-        ? undefined
-        : `${formatTokenWindow(model.contextLimit)} ${UI_TEXT.modelContextSuffix}`,
+    detail: model.contextLimit === undefined ? undefined : contextWindowLabel(model.contextLimit),
     widget: undefined,
     isCurrent: model.modelId === currentModelId,
     activate: () => {
@@ -173,7 +170,7 @@ function Widget({
           className={widget.isOn ? 'toggle toggle-on' : 'toggle'}
           role="switch"
           aria-checked={widget.isOn}
-          aria-label={widget.isOn ? 'On' : 'Off'}
+          aria-label={widget.isOn ? UI_TEXT.toggleOn : UI_TEXT.toggleOff}
         >
           <span className="toggle-knob" />
         </span>
@@ -232,7 +229,7 @@ function RowView({
           <span className="palette-item-detail">{row.detail}</span>
         )}
       </span>
-      {row.isCurrent ? <CheckIcon title="Current" /> : null}
+      {row.isCurrent ? <CheckIcon title={UI_TEXT.menuCurrent} /> : null}
       {row.widget === undefined ? null : <Widget widget={row.widget} onStep={row.step} />}
     </li>
   )
@@ -440,8 +437,11 @@ export function Palette(props: PaletteProps) {
             className="palette-filter"
             type="text"
             role="combobox"
-            aria-expanded="true"
-            aria-controls={PALETTE_LISTBOX_ID}
+            // Only a list that is there can be controlled (seen in a
+            // translated table, M40: a filter matching nothing left the
+            // reference dangling).
+            aria-expanded={rows.length > 0}
+            aria-controls={rows.length > 0 ? PALETTE_LISTBOX_ID : undefined}
             aria-autocomplete="list"
             aria-activedescendant={activeRowId}
             placeholder={UI_TEXT.paletteFilterPlaceholder}

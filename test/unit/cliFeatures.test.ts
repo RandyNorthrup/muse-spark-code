@@ -244,7 +244,7 @@ describe('createCliFeatures', () => {
     )
     const silent = setup(() => ({ exitCode: 2, stdout: '', stderr: '' }))
     await expect(silent.features.exports.saveSessionLog('s1', 'log.json')).rejects.toThrow(
-      'muse export exited with 2',
+      'muse export: exit code 2',
     )
     vi.mocked(inform).mockResolvedValue(undefined)
     const quiet = setup(() => ({ exitCode: 0, stdout: '', stderr: '' }))

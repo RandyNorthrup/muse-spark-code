@@ -11,9 +11,7 @@
 import path from 'node:path'
 import {
   DICTATION_DARWIN_APP_NAME_FLAG,
-  DICTATION_DARWIN_EARLY_EXIT_HINT,
   DICTATION_DARWIN_HELPER_SEGMENTS,
-  DICTATION_UNAVAILABLE_REMOTE,
   DICTATION_WINDOWS_SCRIPT_SEGMENTS,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
@@ -67,7 +65,7 @@ export function locateDictationHelper(probe: HelperProbe): HelperLocation {
   // container). VS Code's remote-extensions guide: "Workspace Extensions run
   // on the remote machine / environment."
   if (probe.remoteName !== undefined) {
-    return { isAvailable: false, reason: DICTATION_UNAVAILABLE_REMOTE }
+    return { isAvailable: false, reason: UI_TEXT.dictationUnavailableRemote }
   }
   switch (probe.platform) {
     case 'win32': {
@@ -109,7 +107,7 @@ export function locateDictationHelper(probe: HelperProbe): HelperLocation {
             invocation: {
               command,
               args: [DICTATION_DARWIN_APP_NAME_FLAG, probe.appName],
-              earlyExitHint: DICTATION_DARWIN_EARLY_EXIT_HINT,
+              earlyExitHint: UI_TEXT.dictationDarwinEarlyExit,
             },
           }
         : { isAvailable: false, reason: UI_TEXT.dictationUnavailableDarwin }

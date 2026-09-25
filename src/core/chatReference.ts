@@ -8,14 +8,14 @@ import {
   CHAT_REFERENCE_AUTHORS,
   CHAT_REFERENCE_MAX_CHARS,
   CHAT_REFERENCE_TAG,
-  UI_TEXT,
+  MODEL_TEXT,
 } from '../shared/constants'
 import type { ChatReference } from '../shared/protocol'
 
 const LEADS: Readonly<Record<ChatReference['intent'], string>> = {
-  reply: UI_TEXT.replyContextLead,
-  question: UI_TEXT.questionContextLead,
-  comment: UI_TEXT.commentContextLead,
+  reply: MODEL_TEXT.replyContextLead,
+  question: MODEL_TEXT.questionContextLead,
+  comment: MODEL_TEXT.commentContextLead,
 }
 
 function authorOf(role: string): string {
@@ -25,7 +25,7 @@ function authorOf(role: string): string {
 function clipped(text: string): string {
   return text.length <= CHAT_REFERENCE_MAX_CHARS
     ? text
-    : `${text.slice(0, CHAT_REFERENCE_MAX_CHARS)}\n${UI_TEXT.referenceTruncated} ${String(CHAT_REFERENCE_MAX_CHARS)} ${UI_TEXT.referenceCharacters}`
+    : `${text.slice(0, CHAT_REFERENCE_MAX_CHARS)}\n${MODEL_TEXT.referenceTruncated} ${String(CHAT_REFERENCE_MAX_CHARS)} ${MODEL_TEXT.referenceCharacters}`
 }
 
 export function chatReferenceText(reference: ChatReference): string {

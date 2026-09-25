@@ -8,6 +8,7 @@
 import path from 'node:path'
 import { revertHunks } from '../../core/patchApply'
 import { MUSE_EDIT_SCHEME, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { type PatchFile, parsePatchFiles } from '../../shared/patchDocument'
 import type { Logger } from '../logger'
 
@@ -133,7 +134,7 @@ export class EditReview {
       ok: false,
       notice: {
         level: 'warning',
-        text: `${resolved.relativePath} ${UI_TEXT.editNotRebuildable}.`,
+        text: fill(UI_TEXT.editNotRebuildable, { path: resolved.relativePath }),
       },
     }
   }
@@ -156,7 +157,10 @@ export class EditReview {
     for (const file of files) {
       const resolved = await this.resolve(workspaceRoot, file)
       if (resolved === undefined) {
-        notices.push({ level: 'warning', text: `${file.path} ${UI_TEXT.editPathRefused}.` })
+        notices.push({
+          level: 'warning',
+          text: fill(UI_TEXT.editPathRefused, { path: file.path }),
+        })
         continue
       }
       const rebuilt = await this.rebuild(resolved)
@@ -197,11 +201,14 @@ export class EditReview {
         await this.deps.deleteFile(resolved.fsPath)
         notices.push({
           level: 'info',
-          text: `${resolved.relativePath}: ${UI_TEXT.editCreatedRemoved}.`,
+          text: fill(UI_TEXT.editCreatedRemovedPath, { path: resolved.relativePath }),
         })
       } else {
         await this.deps.writeFile(resolved.fsPath, rebuilt.content)
-        notices.push({ level: 'info', text: `${UI_TEXT.editReverted} ${resolved.relativePath}.` })
+        notices.push({
+          level: 'info',
+          text: fill(UI_TEXT.editRevertedPath, { path: resolved.relativePath }),
+        })
       }
       this.originals.delete(originalUriPath(itemId, resolved.relativePath))
       this.deps.log.info(`Reverted Muse edit ${itemId} on ${resolved.relativePath}`)

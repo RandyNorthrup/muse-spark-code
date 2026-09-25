@@ -3,11 +3,14 @@
 // JSON trajectory for tools, not people. This renders a session's history
 // (the same items the transcript is rebuilt from, user messages in their
 // presentation form) on either backend. Items the panel hides are left out.
+// The file's own words (headings, labels, counts) are in the display
+// language (PLAN.md D33); what was said and run is written as it was.
 //
 // Pure: the host reads the history and writes the file.
 
 import type { ItemSnapshot } from '../../shared/agentEvents'
-import { HIDDEN_ITEM_KINDS } from '../../shared/constants'
+import { HIDDEN_ITEM_KINDS, UI_TEXT } from '../../shared/constants'
+import { fill, plural } from '../../shared/l10n/text'
 
 export interface TranscriptExport {
   readonly title: string
@@ -62,23 +65,25 @@ function statusSuffix(item: ItemSnapshot): string {
   return item.status === COMPLETED ? '' : ` (${item.status})`
 }
 
+/** A line of the file's own words, set in italics. */
+function note(text: string): string {
+  return `_${text}_`
+}
+
 function outputBlock(item: ItemSnapshot): readonly string[] {
   if (item.visibleOutput !== undefined && item.visibleOutput !== '') {
-    return ['Output:', '', fenced(item.visibleOutput)]
+    return [UI_TEXT.exportOutputLabel, '', fenced(item.visibleOutput)]
   }
-  if (item.outputRef !== undefined) {
-    return [
-      `_The output (${String(item.outputRef.byteLen)} bytes) is stored by the backend and not included._`,
-    ]
-  }
-  return []
+  return item.outputRef === undefined
+    ? []
+    : [note(plural(UI_TEXT.exportOutputStored, item.outputRef.byteLen))]
 }
 
 function toolSection(item: ItemSnapshot, heading: string): string {
   const lines = [`### ${heading}${statusSuffix(item)}`, '']
   if (item.args !== undefined && item.args !== '') {
     const args = prettyArgs(item.args)
-    lines.push('Arguments:', '', fenced(args.text, args.language), '')
+    lines.push(UI_TEXT.exportArgumentsLabel, '', fenced(args.text, args.language), '')
   }
   const output = outputBlock(item)
   if (output.length > 0) {
@@ -86,28 +91,26 @@ function toolSection(item: ItemSnapshot, heading: string): string {
   }
   if (item.patchSummary !== undefined) {
     const { files, added, removed } = item.patchSummary
-    lines.push(
-      `_Changed ${String(files)} file${files === 1 ? '' : 's'}: +${String(added)} −${String(removed)}._`,
-      '',
-    )
+    lines.push(note(plural(UI_TEXT.exportFilesChanged, files, { added, removed })), '')
   }
   if (item.failureReason !== undefined) {
-    lines.push(`_Failed: ${item.failureReason}_`, '')
+    lines.push(note(fill(UI_TEXT.exportFailure, { reason: item.failureReason })), '')
   }
   return lines.join('\n').trimEnd()
 }
 
 function userSection(item: ItemSnapshot): string {
-  const lines = ['## You', '', item.text ?? '']
+  const lines = [`## ${UI_TEXT.exportUserHeading}`, '', item.text ?? '']
   const images = item.attachments?.length ?? 0
   if (images > 0) {
-    lines.push('', `_${String(images)} image${images === 1 ? '' : 's'} attached._`)
+    lines.push('', note(plural(UI_TEXT.exportImagesAttached, images)))
   }
   return lines.join('\n')
 }
 
 function subagentSection(item: ItemSnapshot): string {
-  const lines = [`### Subagent: ${item.role ?? 'agent'}${statusSuffix(item)}`, '']
+  const role = item.role ?? UI_TEXT.exportSubagentNoRole
+  const lines = [`### ${fill(UI_TEXT.exportSubagentHeading, { role })}${statusSuffix(item)}`, '']
   if (item.objective !== undefined) {
     lines.push(item.objective, '')
   }
@@ -123,17 +126,21 @@ function sectionOf(item: ItemSnapshot): string | undefined {
       return userSection(item)
     }
     case AGENT_MESSAGE: {
-      return item.text === undefined || item.text === '' ? undefined : `## Muse\n\n${item.text}`
+      return item.text === undefined || item.text === ''
+        ? undefined
+        : `## ${UI_TEXT.exportAgentHeading}\n\n${item.text}`
     }
     case REASONING: {
       const text = item.summary?.join('\n\n') ?? item.text ?? ''
-      return text === '' ? undefined : `### Thinking\n\n${quoted(text)}`
+      return text === '' ? undefined : `### ${UI_TEXT.exportThinkingHeading}\n\n${quoted(text)}`
     }
     case TOOL_CALL: {
-      return toolSection(item, `Tool: ${item.tool ?? 'tool'}`)
+      // The tool's own name, as the model called it.
+      const tool = item.tool ?? UI_TEXT.exportToolNoName
+      return toolSection(item, fill(UI_TEXT.exportToolHeading, { tool }))
     }
     case USER_SHELL: {
-      return toolSection(item, 'Shell command')
+      return toolSection(item, UI_TEXT.exportShellHeading)
     }
     case SUBAGENT: {
       return subagentSection(item)
@@ -148,10 +155,10 @@ export function renderTranscriptMarkdown(input: TranscriptExport): string {
   const header = [
     `# ${input.title}`,
     '',
-    `- Session: \`${input.sessionId}\``,
-    `- Backend: ${input.backendLabel}`,
-    `- Model: ${input.modelId}`,
-    `- Exported: ${input.exportedAt}`,
+    `- ${fill(UI_TEXT.exportSessionLine, { id: input.sessionId })}`,
+    `- ${fill(UI_TEXT.exportBackendLine, { backend: input.backendLabel })}`,
+    `- ${fill(UI_TEXT.exportModelLine, { model: input.modelId })}`,
+    `- ${fill(UI_TEXT.exportTimeLine, { time: input.exportedAt })}`,
   ].join('\n')
   const sections = input.items.flatMap((item) => {
     const section = sectionOf(item)

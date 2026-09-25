@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  MODEL_TEXT,
   TOOL_FILE_MAX_BYTES,
-  UI_TEXT,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../src/shared/constants'
 import {
@@ -247,7 +247,7 @@ describe('createToolIo (real file system and shell)', () => {
     for (const [name, bytes] of Object.entries(refused)) {
       const file = path.join(folder, name)
       await writeFile(file, bytes)
-      await expect(io().readFile(file), name).rejects.toThrow(UI_TEXT.fileNotText)
+      await expect(io().readFile(file), name).rejects.toThrow(MODEL_TEXT.fileNotText)
     }
   })
 

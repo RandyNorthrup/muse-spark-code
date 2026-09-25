@@ -17,6 +17,7 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
@@ -290,7 +291,9 @@ export class ModelApiClient {
     // Nothing from the server for this long, headers or a frame, ends the
     // turn (M39); the request is aborted too, which frees the connection.
     const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-    const stalled = `${UI_TEXT.modelApiStalled} ${String(Math.round(idleMs / MILLISECONDS_PER_SECOND))} s, ${UI_TEXT.modelApiStalledDetail}`
+    const stalled = fill(UI_TEXT.modelApiStalled, {
+      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
+    })
     const stall = new AbortController()
     const within = async <T>(waiting: Promise<T>): Promise<T> => {
       try {
