@@ -9,6 +9,7 @@
 
 import {
   MODEL_API_MAX_RETRIES,
+  HTTP_TOO_MANY_REQUESTS,
   IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
@@ -197,10 +198,22 @@ export class ModelApiClient {
    */
   private async request(
     path: string,
-    init: { readonly method: 'GET' | 'POST'; readonly body?: unknown; readonly accept: string },
+    init: {
+      readonly method: 'GET' | 'POST'
+      readonly body?: unknown
+      readonly accept: string
+      /**
+       * `rateLimitOnly` for a request that bills per call (M34, the review
+       * of PR #27): a 429 was refused before any work and is retried; a
+       * lost connection or a server error may have been done and billed,
+       * so it is not.
+       */
+      readonly retries?: 'all' | 'rateLimitOnly'
+    },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
   ): Promise<Response> {
+    const isRateLimitOnly = init.retries === 'rateLimitOnly'
     const headers = { ...(await this.headers()), Accept: init.accept }
     const url = `${this.deps.baseUrl}${path}`
     const retry = async (attempt: number, delay: number, reason: string) => {
@@ -224,7 +237,7 @@ export class ModelApiClient {
           ...(signal !== undefined && { signal }),
         })
       } catch (error: unknown) {
-        if (signal?.aborted === true || attempt >= MODEL_API_MAX_RETRIES) {
+        if (isRateLimitOnly || signal?.aborted === true || attempt >= MODEL_API_MAX_RETRIES) {
           throw error instanceof ModelApiError
             ? error
             : new ModelApiError(
@@ -247,7 +260,10 @@ export class ModelApiClient {
         return response
       }
       const failure = await describeFailure(response)
-      if (!MODEL_API_RETRYABLE_STATUSES.has(response.status) || attempt >= MODEL_API_MAX_RETRIES) {
+      const isRetryable = isRateLimitOnly
+        ? response.status === HTTP_TOO_MANY_REQUESTS
+        : MODEL_API_RETRYABLE_STATUSES.has(response.status)
+      if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
         throw failure
       }
       const delay = this.backoffMs(
@@ -291,7 +307,7 @@ export class ModelApiClient {
   public async createImage(body: CreateImageBody, signal: AbortSignal): Promise<ImagesResponse> {
     const response = await this.request(
       '/images/generations',
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE },
+      { method: 'POST', body, accept: JSON_MEDIA_TYPE, retries: 'rateLimitOnly' },
       AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
     )
     return imagesResponseSchema.parse(await response.json())

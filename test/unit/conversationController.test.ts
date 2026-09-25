@@ -3215,3 +3215,42 @@ describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)',
     })
   })
 })
+
+describe('ConversationController: Muse Voice turned off mid-recording (the review of PR #27)', () => {
+  it('stops the paid recording at once and keeps its driver until the panel closes', async () => {
+    const calls: string[] = []
+    const engine = { isPaid: true }
+    let paidListener: DictationListener | undefined
+    const paid: DictationSetup = {
+      isAvailable: true,
+      create: (listener) => {
+        paidListener = listener
+        return {
+          start: () => {
+            calls.push('muse:start')
+          },
+          stop: () => {
+            calls.push('muse:stop')
+          },
+          dispose: () => {
+            calls.push('muse:dispose')
+          },
+        }
+      },
+    }
+    const t = setup({
+      dictation: namedSetup('system', calls),
+      museVoice: () => (engine.isPaid ? paid : undefined),
+    })
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    paidListener?.onStatus('listening')
+    engine.isPaid = false
+    t.controller.refreshDictation()
+    // Stopped, so no more audio is sent; not disposed, so its transcript can still land.
+    expect(calls).toEqual(['muse:start', 'muse:stop'])
+    paidListener?.onText('what was said')
+    expect(t.surface.posted).toContainEqual({ type: 'insertText', text: 'what was said ' })
+    t.controller.dispose()
+    expect(calls.at(-1)).toBe('muse:dispose')
+  })
+})

@@ -366,6 +366,12 @@ export class ConversationController {
   private dictationStatus: DictationStatus = 'idle'
   /** The engine the driver above records with (M35). */
   private dictationEngine: DictationEngine = 'system'
+  /**
+   * A driver whose engine stopped being the microphone's while it recorded
+   * (the review of PR #27): its recording was ended, and it is kept until
+   * the transcript of what it already sent arrives or the panel closes.
+   */
+  private retiredDictation: DictationHandle | undefined
   /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
   /** The remote-window Bypass confirmation, given once per conversation (D24). */
@@ -2002,15 +2008,35 @@ export class ConversationController {
     )
   }
 
+  /**
+   * The driver of an engine that is no longer the microphone's (M35, the
+   * review of PR #27): an idle one goes; a recording one stops at once, so
+   * nothing more is sent (Muse Voice turned off is off), and is kept until
+   * the panel closes, so the transcript of what it already sent arrives.
+   */
+  private retireDictation(): void {
+    const old = this.dictation
+    if (old === undefined) {
+      return
+    }
+    this.dictation = undefined
+    if (this.dictationStatus === 'idle') {
+      old.dispose()
+      return
+    }
+    old.stop()
+    this.retiredDictation?.dispose()
+    this.retiredDictation = old
+  }
+
   private dictationDriver(): DictationHandle | undefined {
     const { engine, setup } = this.dictationChoice()
     if (!setup.isAvailable) {
       return undefined
     }
-    if (this.dictation !== undefined && this.dictationEngine !== engine) {
+    if (this.dictationEngine !== engine) {
       // A press on the other engine: the driver of the old one goes first.
-      this.dictation.dispose()
-      this.dictation = undefined
+      this.retireDictation()
     }
     this.dictationEngine = engine
     this.dictation ??= setup.create({
@@ -2371,13 +2397,8 @@ export class ConversationController {
    */
   public refreshDictation(): void {
     const { engine } = this.dictationChoice()
-    if (
-      this.dictation !== undefined &&
-      this.dictationEngine !== engine &&
-      this.dictationStatus === 'idle'
-    ) {
-      this.dictation.dispose()
-      this.dictation = undefined
+    if (this.dictationEngine !== engine) {
+      this.retireDictation()
     }
     this.postDictationState()
   }
@@ -2444,5 +2465,7 @@ export class ConversationController {
     this.usageWatch.dispose()
     this.dictation?.dispose()
     this.dictation = undefined
+    this.retiredDictation?.dispose()
+    this.retiredDictation = undefined
   }
 }

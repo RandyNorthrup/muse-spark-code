@@ -47,13 +47,22 @@ export function memoryToolIo(
     files,
     binaries,
     pathExists: (absolutePath) => Promise.resolve(isTaken(keyOf(absolutePath))),
-    createFile: (absolutePath, bytes) => {
+    reserveFile: (absolutePath) => {
       const key = keyOf(absolutePath)
       if (isTaken(key)) {
         return Promise.reject(new Error(`EEXIST: file already exists, open '${absolutePath}'`))
       }
-      binaries.set(key, bytes)
-      return Promise.resolve()
+      binaries.set(key, new Uint8Array())
+      return Promise.resolve({
+        fill: (bytes) => {
+          binaries.set(key, bytes)
+          return Promise.resolve()
+        },
+        release: () => {
+          binaries.delete(key)
+          return Promise.resolve()
+        },
+      })
     },
     shellCalls,
     unsaved,
@@ -107,7 +116,8 @@ export const noopToolIo: ToolIo = {
   readFile: () => Promise.resolve(undefined),
   writeFile: () => Promise.resolve(),
   pathExists: () => Promise.resolve(false),
-  createFile: () => Promise.resolve(),
+  reserveFile: () =>
+    Promise.resolve({ fill: () => Promise.resolve(), release: () => Promise.resolve() }),
   hasUnsavedChanges: () => false,
   listFiles: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),

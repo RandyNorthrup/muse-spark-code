@@ -1769,3 +1769,70 @@ describe('ModelApiSession: image generation, paid and asked every time (M34)', (
     })
   })
 })
+
+/** One image call in Bypass, its card approved once `beforeApproval` has run. */
+async function approvedImage(
+  t: ReturnType<typeof setup>,
+  path: string,
+  beforeApproval: () => void = () => undefined,
+) {
+  const { session, events, turnDone } = await startSession(t, 'allowAll')
+  t.api.script({ calls: [imageCall({ prompt: 'x', path })] }, { text: 'ok' })
+  await session.sendTurn([{ type: 'text', text: 'draw' }])
+  const request = await approvalRequest(events, 0)
+  beforeApproval()
+  await session.decideApproval({
+    approvalId: request.approvalId,
+    choiceId: 'allow_once',
+    requirementId: request.requirementId,
+  })
+  await turnDone()
+  return toolOutput(t, 'call_img')
+}
+
+describe('ModelApiSession: image generation, the review of PR #27 (M34)', () => {
+  it('buys nothing when the feature is turned off while the card is open', async () => {
+    const paid: PaidFeature[] = ['imageGeneration']
+    const t = setup({ paid })
+    const output = await approvedImage(t, 'off.png', () => {
+      paid.length = 0
+    })
+    expect(t.api.imageBodies()).toEqual([])
+    expect(t.paidUses).toEqual([])
+    expect(output).toContain('image generation is off')
+  })
+
+  it('buys nothing when the path is taken while the card is open', async () => {
+    const t = setup({ paid: ['imageGeneration'] })
+    const output = await approvedImage(t, 'late.png', () => {
+      t.files.set(`${ROOT}/late.png`, 'someone else')
+    })
+    expect(t.api.imageBodies()).toEqual([])
+    expect(output).toContain('already exists')
+    expect(t.files.get(`${ROOT}/late.png`)).toBe('someone else')
+  })
+
+  it('never retries a lost connection or a server error, which may have been billed', async () => {
+    for (const image of [
+      { networkError: 'socket hang up' },
+      { httpError: { status: 500, message: 'boom' } },
+    ]) {
+      const t = setup({ paid: ['imageGeneration'] })
+      t.api.images.push(image, {})
+      await approvedImage(t, 'once.png')
+      expect(t.api.imageBodies()).toHaveLength(1)
+      // The reserved file goes when no image came.
+      expect(t.io.binaries.has(`${ROOT}/once.png`)).toBe(false)
+      expect(t.paidUses).toEqual([])
+    }
+  })
+
+  it('retries a rate limit, which Meta refused before any work', async () => {
+    const t = setup({ paid: ['imageGeneration'] })
+    t.api.images.push({ httpError: { status: 429, message: 'slow down' } }, {})
+    await approvedImage(t, 'later.png')
+    expect(t.api.imageBodies()).toHaveLength(2)
+    expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
+    expect(t.io.binaries.get(`${ROOT}/later.png`)?.length).toBeGreaterThan(0)
+  })
+})

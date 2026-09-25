@@ -9,7 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { lstat, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, open, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
@@ -122,9 +122,6 @@ const HOST_ONLY_VARIABLES: readonly RegExp[] = [
   /^SNAP(?:|_.*)$/,
   /^GDK_PIXBUF_.+$/,
 ]
-
-// What `open(…, 'wx')` answers when something is already at the path.
-const EXISTS = 'EEXIST'
 
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
@@ -307,19 +304,30 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
     },
-    async createFile(absolutePath, bytes) {
+    async reserveFile(absolutePath) {
       await mkdir(path.dirname(absolutePath), { recursive: true })
       // `wx`: created here or refused, never an existing file replaced (M34).
-      try {
-        await writeFile(absolutePath, bytes, { flag: 'wx' })
-      } catch (error: unknown) {
-        const code =
-          typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-        // A write that failed after creating the file (a full disk) removes it.
-        if (code !== EXISTS) {
-          await rm(absolutePath, { force: true })
-        }
-        throw error
+      const handle = await open(absolutePath, 'wx')
+      const release = async () => {
+        await handle.close()
+        await rm(absolutePath, { force: true })
+      }
+      return {
+        fill: async (bytes) => {
+          try {
+            await handle.writeFile(bytes)
+            await handle.close()
+          } catch (error: unknown) {
+            // A write that failed (a full disk) leaves no half file behind.
+            try {
+              await release()
+            } catch {
+              // The write's own failure is the one reported.
+            }
+            throw error
+          }
+        },
+        release,
       }
     },
     hasUnsavedChanges: deps.hasUnsavedChanges,

@@ -16,10 +16,11 @@ import {
   type ImageAspect,
   IMAGE_PROMPT_MAX_CHARS,
   MODEL_API_IMAGE_MODEL,
+  MODEL_TEXT,
   PNG_SIGNATURE,
 } from '../../../shared/constants'
 import type { ModelApiClient } from './client'
-import type { ToolIo, ToolOutcome } from './tools'
+import type { FileReservation, ToolIo, ToolOutcome } from './tools'
 
 const ASPECTS = Object.keys(IMAGE_ASPECT_SIZES) as [ImageAspect, ...ImageAspect[]]
 const DEFAULT_ASPECT: ImageAspect = 'square'
@@ -63,6 +64,8 @@ export interface ImageRunDeps {
   readonly client: ModelApiClient
   readonly io: ToolIo
   readonly signal: AbortSignal
+  /** Whether the feature is still on: checked after the card, before anything is bought. */
+  readonly isStillOn: () => boolean
   /** Called once an image was returned: Meta bills it whether or not it can be saved. */
   readonly onBilled: () => void
 }
@@ -75,6 +78,32 @@ function failure(reason: string): ToolOutcome {
 export async function runImageGeneration(
   args: GenerateImageArgs,
   target: { readonly absolute: string; readonly relative: string },
+  deps: ImageRunDeps,
+): Promise<ToolOutcome> {
+  // Turned off while the card was open (the review of PR #27): nothing is bought.
+  if (!deps.isStillOn()) {
+    return failure(MODEL_TEXT.imageGenerationOff)
+  }
+  // The file is taken first, so a path taken while the card was open costs nothing.
+  let reservation: FileReservation
+  try {
+    reservation = await deps.io.reserveFile(target.absolute)
+  } catch {
+    return failure(MODEL_TEXT.imagePathTaken)
+  }
+  try {
+    return await buy(args, target, reservation, deps)
+  } catch (error: unknown) {
+    await reservation.release()
+    throw error
+  }
+}
+
+/** The purchase itself, into a file already reserved; releases it when no image comes. */
+async function buy(
+  args: GenerateImageArgs,
+  target: { readonly absolute: string; readonly relative: string },
+  reservation: FileReservation,
   deps: ImageRunDeps,
 ): Promise<ToolOutcome> {
   const aspect = args.aspect ?? DEFAULT_ASPECT
@@ -92,14 +121,16 @@ export async function runImageGeneration(
   const [image] = response.data
   const encoded = image?.b64_json ?? undefined
   if (encoded === undefined) {
+    await reservation.release()
     return failure('the image service returned no image')
   }
   deps.onBilled()
   const bytes = Buffer.from(encoded, 'base64')
   if (!isPng(bytes)) {
+    await reservation.release()
     return failure('the image service returned something that is not a PNG image')
   }
-  await deps.io.createFile(target.absolute, bytes)
+  await reservation.fill(bytes)
   const size = `${String(Math.ceil(bytes.length / BYTES_PER_KIB))} KiB`
   const revised = image?.revised_prompt ?? undefined
   return {
