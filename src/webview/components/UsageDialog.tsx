@@ -23,6 +23,7 @@ import {
   paidFeatureName,
   type PaidState,
   type PaidTally,
+  listedPaidFeatures,
   paidTotalUsd,
   usablePaidFeatures,
 } from '../../shared/paid'
@@ -400,7 +401,10 @@ export function UsageDialog({
           modelId,
         )
       : undefined
-  const paidFeatures = usablePaidFeatures(report?.backend, paid.isKeyStored)
+  const paidFeatures = listedPaidFeatures(
+    usablePaidFeatures(report?.backend, paid.isKeyStored),
+    paid.tally,
+  )
   let body
   if (report === undefined) {
     body = <p className="usage-row-meta">{UI_TEXT.usageLoading}</p>

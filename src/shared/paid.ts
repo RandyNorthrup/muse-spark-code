@@ -66,6 +66,20 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
   }
 }
 
+/**
+ * The paid features Account & usage lists (the review of PR #30): the ones
+ * this backend can use, and any this window has already used, whatever the
+ * backend now, so its total is the sum of the rows it shows.
+ */
+export function listedPaidFeatures(
+  usable: readonly PaidFeature[],
+  tally: PaidTally,
+): readonly PaidFeature[] {
+  return PAID_FEATURES.filter(
+    (feature) => usable.includes(feature) || paidCostUsd(feature, tally) > 0,
+  )
+}
+
 /** The whole tally's estimated cost. */
 export function paidTotalUsd(tally: PaidTally): number {
   return PAID_FEATURES.reduce((sum, feature) => sum + paidCostUsd(feature, tally), 0)
