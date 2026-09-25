@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvironmentVariable } from '../../src/shared/constants'
 import {
@@ -21,9 +24,10 @@ const PROXY_NAMES = [
 function managerWith(
   configured: readonly EnvironmentVariable[],
   proxy = VS_CODE_PROXY,
+  log = new FakeLogOutputChannel(),
 ): MuseCodeBackendManager {
   const deps: BackendManagerDeps = {
-    log: new FakeLogOutputChannel(),
+    log,
     extensionVersion: '0.0.0-test',
     getConfiguredBinaryPath: () => '',
     getEnvironmentVariables: () => configured,
@@ -83,5 +87,26 @@ describe('MuseCodeBackendManager: VS Code’s proxy for the CLI (D25)', () => {
     const env = managerWith([], '').childEnvironment()
     expect(valuesOf(env, 'HTTPS_PROXY')).toEqual([])
     expect(valuesOf(env, 'NO_PROXY')).toEqual([])
+  })
+})
+
+// M39: "CLI not found" must not hide a permission problem.
+describe('MuseCodeBackendManager: the CLI lookup reads (M39)', () => {
+  it('says in the log when a file is there but cannot be read, not when it is missing', () => {
+    const log = new FakeLogOutputChannel()
+    const manager = managerWith([], VS_CODE_PROXY, log)
+    const installDir = mkdtempSync(path.join(tmpdir(), 'muse-lookup-'))
+    try {
+      expect(manager.installedVersion(installDir)).toBeUndefined()
+      expect(log.warn).not.toHaveBeenCalled()
+      // A folder where the version file should be: there, but not readable as a file.
+      mkdirSync(path.join(installDir, '.muse-version'))
+      expect(manager.installedVersion(installDir)).toBeUndefined()
+      expect(log.warn).toHaveBeenCalledWith(
+        expect.stringContaining('while looking for the Muse Code CLI: Error: EISDIR'),
+      )
+    } finally {
+      rmSync(installDir, { recursive: true, force: true })
+    }
   })
 })

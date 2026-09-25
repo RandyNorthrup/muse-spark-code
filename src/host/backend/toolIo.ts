@@ -9,7 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
@@ -29,10 +29,13 @@ import type {
 } from '../../core/backends/modelapi/tools'
 import { resolveExecutable } from '../../core/executables'
 import {
+  BYTES_PER_MIB,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
   SHELL_OUTPUT_MAX_CHARS,
   type TERMINAL_ENV_KEYS,
+  TOOL_FILE_MAX_BYTES,
+  TOOL_FILE_MAX_MIB,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
@@ -267,6 +270,14 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     async readFile(absolutePath) {
       let bytes: Uint8Array
       try {
+        // Refused before it is loaded (M39): the tools hold a file whole.
+        const { size } = await stat(absolutePath)
+        if (size > TOOL_FILE_MAX_BYTES) {
+          const mib = (size / BYTES_PER_MIB).toFixed(1)
+          throw new Error(
+            `${UI_TEXT.toolFileTooLarge} ${String(TOOL_FILE_MAX_MIB)} MiB, and this one is ${mib} MiB: ${UI_TEXT.toolFileTooLargeHint}`,
+          )
+        }
         bytes = await readFile(absolutePath)
       } catch (error: unknown) {
         if (isMissingFile(error)) {

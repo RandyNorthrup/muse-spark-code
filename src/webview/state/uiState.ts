@@ -293,11 +293,13 @@ const COMPLETED = 'completed'
 const REJECTED = 'rejected'
 const USER_MESSAGE_KIND = 'userMessage'
 const SUBAGENT_KIND = 'subagent'
-// A host refusal that is about the image's size or count, not its type (M25):
-// the banner says so instead of "Unsupported file type".
-const SIZE_REFUSALS: ReadonlySet<string> = new Set([
+// A refusal that is about the image's size or count (M25), or a read that
+// failed (M39), not its type: the banner says so instead of "Unsupported
+// file type".
+const STATED_REFUSALS: ReadonlySet<string> = new Set([
   UI_TEXT.attachmentTooLarge,
   UI_TEXT.attachmentLimit,
+  UI_TEXT.attachmentUnreadable,
 ])
 
 /** A record's own value for `key`; never one of `Object.prototype`'s members. */
@@ -441,7 +443,7 @@ function withNotice(state: UiState, level: NoticeLevel, text: string): UiState {
 
 /** The composer banner for a refused upload (M14); a size or count refusal says why (M25). */
 function withBanner(state: UiState, name: string, reason: string): UiState {
-  const banner = SIZE_REFUSALS.has(reason)
+  const banner = STATED_REFUSALS.has(reason)
     ? `${name}: ${reason}`
     : `${UI_TEXT.unsupportedFileTitle} ${name}. ${UI_TEXT.unsupportedFileDetail}`
   return announce({ ...state, banner }, `${name}: ${reason}`)

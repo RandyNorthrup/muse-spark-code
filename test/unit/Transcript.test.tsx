@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { OUTPUT_PREVIEW_CHARS } from '../../src/shared/constants'
 import { segment, Transcript, type TranscriptProps } from '../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../src/webview/state/uiState'
 
@@ -183,6 +184,23 @@ describe('Transcript', () => {
     expect(screen.getByText(/line 20/)).toBeInTheDocument()
     fireEvent.click(screen.getByText('Show less'))
     expect(screen.queryByText(/line 20/)).toBeNull()
+  })
+
+  // M39: one line of minified output can be megabytes.
+  it('clips a long single line by characters, with Show more for the rest', () => {
+    const line = `${'a'.repeat(OUTPUT_PREVIEW_CHARS)}TAIL`
+    renderTranscript([
+      tool({
+        id: 'min',
+        tool: 'powershell',
+        args: '{"command":"Get-Content app.min.js","description":"Read it"}',
+        output: line,
+      }),
+    ])
+    expect(screen.queryByText(/TAIL/)).toBeNull()
+    expect(screen.getByText(`${'a'.repeat(OUTPUT_PREVIEW_CHARS)}…`)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Show more'))
+    expect(screen.getByText(/TAIL/)).toBeInTheDocument()
   })
 
   it('renders an edit row from the visible-output diff, then from the fetched patch', () => {

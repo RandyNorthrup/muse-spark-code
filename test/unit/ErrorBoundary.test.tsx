@@ -17,7 +17,7 @@ describe('ErrorBoundary', () => {
 
   it('renders its children while nothing throws', () => {
     render(
-      <ErrorBoundary onReload={() => undefined}>
+      <ErrorBoundary onReload={() => undefined} onError={() => undefined}>
         <Bomb shouldThrow={false} />
       </ErrorBoundary>,
     )
@@ -30,8 +30,9 @@ describe('ErrorBoundary', () => {
       // React and the boundary both report; the test asserts on the boundary's line.
     })
     const onReload = vi.fn()
+    const onError = vi.fn()
     render(
-      <ErrorBoundary onReload={onReload}>
+      <ErrorBoundary onReload={onReload} onError={onError}>
         <Bomb shouldThrow />
       </ErrorBoundary>,
     )
@@ -41,6 +42,8 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByText('fine')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
     expect(onReload).toHaveBeenCalledOnce()
+    // The error goes to the host's log too (M39).
+    expect(onError).toHaveBeenCalledWith(new Error('render exploded'))
     expect(
       consoleError.mock.calls.some(
         (call) => typeof call[0] === 'string' && call[0].includes('render exploded'),

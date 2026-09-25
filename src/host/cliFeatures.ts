@@ -22,6 +22,7 @@ import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museC
 import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
 import type { ConversationExports } from './conversation/exportConversation'
 import type { Logger } from './logger'
+import { loggedPopups } from './popups'
 
 export interface CliFeatureDeps {
   /** The CLI with these arguments, run to completion in `muse serve`'s environment; undefined when absent. */
@@ -91,9 +92,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
     showInformation: (message) => {
       void vscode.window.showInformationMessage(message)
     },
-    showError: (message) => {
-      void vscode.window.showErrorMessage(message)
-    },
+    showError: loggedPopups(deps.log).showError,
     confirmRestart: async () =>
       (await vscode.window.showInformationMessage(
         UI_TEXT.skillsRestartPrompt,
@@ -133,9 +132,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       showInformation: (message) => {
         void vscode.window.showInformationMessage(message)
       },
-      showWarning: (message) => {
-        void vscode.window.showWarningMessage(message)
-      },
+      showWarning: loggedPopups(deps.log).showWarning,
     }
   }
   const saveTarget = (fileName: string, filterName: string, extension: string) =>

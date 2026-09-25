@@ -63,6 +63,22 @@ describe('readSettings', () => {
     expect(log.warn).toHaveBeenCalledTimes(3)
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.initialPermissionMode')
   })
+
+  // M39: the settings are read about seven times a message.
+  it('warns about an invalid value once, and again when it changes', () => {
+    const log = new FakeLogOutputChannel()
+    const read = (mode: string) =>
+      readSettings(fakeSettingsSource({ initialPermissionMode: mode }), log)
+    read('yolo')
+    read('yolo')
+    expect(log.warn).toHaveBeenCalledOnce()
+    read('bold')
+    expect(log.warn).toHaveBeenCalledTimes(2)
+    // Another logger (another activation) hears it again.
+    const fresh = new FakeLogOutputChannel()
+    readSettings(fakeSettingsSource({ initialPermissionMode: 'yolo' }), fresh)
+    expect(fresh.warn).toHaveBeenCalledOnce()
+  })
 })
 
 describe('toSettingsSnapshot', () => {

@@ -55,6 +55,20 @@ const settingSchemas = {
 
 type SettingKey = keyof typeof settingSchemas
 
+// An invalid value is reported once per logger, not on every read: the
+// settings are read about seven times for each message sent (M39).
+const reported = new WeakMap<Logger, Set<string>>()
+
+function warnOnce(log: Logger, key: string, text: string): void {
+  const seen = reported.get(log) ?? new Set<string>()
+  reported.set(log, seen)
+  if (seen.has(key)) {
+    return
+  }
+  seen.add(key)
+  log.warn(text)
+}
+
 function readSetting<K extends SettingKey>(
   config: SettingsSource,
   key: K,
@@ -69,7 +83,9 @@ function readSetting<K extends SettingKey>(
   if (result.success) {
     return result.data as ExtensionSettings[K]
   }
-  log.warn(
+  warnOnce(
+    log,
+    `${key}=${JSON.stringify(raw)}`,
     `Setting ${SETTINGS_SECTION}.${key} is invalid and its default is in effect: ${z.prettifyError(result.error)}`,
   )
   return fallback

@@ -22,6 +22,9 @@ import {
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
   SUBAGENT_ACTIONS,
+  WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
+  WEBVIEW_ERROR_SOURCES,
+  WEBVIEW_ERROR_STACK_MAX_CHARS,
 } from './constants'
 import { sessionRowSchema } from './sessions'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
@@ -184,6 +187,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // The panel's document gained focus (M25): it becomes the surface the
   // keybindings (New Conversation, Alt+T) act on.
   z.object({ type: z.literal('surfaceFocused') }),
+  // Something threw in the webview (M39): the host logs it. Cut to these
+  // lengths by the sender; nothing the user typed is sent.
+  z.object({
+    type: z.literal('webviewError'),
+    source: z.enum(WEBVIEW_ERROR_SOURCES),
+    message: z.string().check(z.maxLength(WEBVIEW_ERROR_MESSAGE_MAX_CHARS)),
+    stack: z.optional(z.string().check(z.maxLength(WEBVIEW_ERROR_STACK_MAX_CHARS))),
+  }),
   // The user pressed Send. `localId` lets the host confirm or reject the
   // optimistic echo the webview already rendered; `attachmentIds` name the
   // images the host is holding for this message.

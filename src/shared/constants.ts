@@ -354,6 +354,15 @@ export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
 // The model list and the token count have no turn to stop them (PLAN.md D25).
 export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
+// A reply stream that sends nothing for this long, headers or frames, ends
+// its turn (M39): it would otherwise hold the turn until Stop. Long enough
+// for a model reasoning at length before its first words.
+export const MODEL_API_STREAM_IDLE_MS = 300_000
+// The file tools load a file whole (read_file shows a window of it,
+// edit_file changes it): one larger than this is refused unread (M39).
+export const BYTES_PER_MIB = 1024 * 1024
+export const TOOL_FILE_MAX_MIB = 10
+export const TOOL_FILE_MAX_BYTES = TOOL_FILE_MAX_MIB * BYTES_PER_MIB
 export const HTTP_UNAUTHORIZED = 401
 // The turn error kind both backends report when the credential is refused;
 // the controller turns it into the signed-out gate.
@@ -552,6 +561,9 @@ export const CHOICE_STEERING_NOTE =
   '<harness_note>When you offer the user a choice between options, ask through the request_user_input tool instead of listing the options in prose, so the panel can show a picker.</harness_note>'
 // Collapsed tool bodies show this many lines before "Show more".
 export const OUTPUT_PREVIEW_LINES = 12
+// And at most this many characters (M39): one line of minified output can
+// be megabytes, which the line count alone would render whole.
+export const OUTPUT_PREVIEW_CHARS = 2000
 // `item/readOutput` page size (the host serves at most 6 MiB per call).
 export const OUTPUT_PAGE_BYTES = 256 * 1024
 // The spinner line under the last row cycles through these while a turn runs.
@@ -616,6 +628,8 @@ export const OUTPUT_DOCUMENT_MAX_PAGES = 64
 export const OUTPUT_TAB_ID_LENGTH = 6
 /** The URI scheme of those read-only output documents, and how many stay readable. */
 export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
+// And at most this many characters together (M39): each can be 16 MiB.
+export const OUTPUT_DOCUMENTS_MAX_CHARS = 32 * 1024 * 1024
 export const OUTPUT_DOCUMENTS_KEPT = 20
 // The IDE tool server `muse serve` reaches over loopback (session MCP), and
 // the `session/listChanged` stream behind the History dialog (M6).
@@ -879,10 +893,22 @@ export const WINDOWS_PSMODULEPATH_SEGMENTS = {
 
 // --- Webview state (M25, PLAN.md D28) ---
 
+// Webview errors reach the host's log (M39): where each came from, its text
+// and stack cut to these lengths, and at most WEBVIEW_ERROR_LOG_LIMIT a
+// minute per panel, so a render loop cannot flood the log.
+export const WEBVIEW_ERROR_SOURCES = ['render', 'window', 'promise', 'hostMessage'] as const
+export type WebviewErrorSource = (typeof WEBVIEW_ERROR_SOURCES)[number]
+export const WEBVIEW_ERROR_MESSAGE_MAX_CHARS = 1000
+export const WEBVIEW_ERROR_STACK_MAX_CHARS = 4000
+export const WEBVIEW_ERROR_LOG_LIMIT = 10
+export const WEBVIEW_ERROR_WINDOW_MS = 60_000
 // The panel keeps its conversation in VS Code's webview state so the crash
 // screen's Reload, or a panel moved to another window, comes back with it:
 // saved at most this often while it changes, and at once before a reload.
 export const WEBVIEW_STATE_SAVE_MS = 1000
+// Streamed text reaches the panel at most once a frame (M39): each post is a
+// message, a reducer pass and a render, and a fast stream sends many a frame.
+export const DELTA_BATCH_MS = 16
 // A conversation whose saved form is longer than this (UTF-16 code units, as
 // JSON.stringify counts them) keeps only its session id; History reopens it.
 export const WEBVIEW_STATE_MAX_CHARS = 8 * 1024 * 1024
@@ -1166,12 +1192,14 @@ export const UI_TEXT = {
   // @-mention menu and attachments.
   mentionMenuLabel: 'Files',
   mentionNoMatches: 'No matching files',
+  actionFailed: 'That did not work (the Muse Spark log has the details)',
   slashNoMatches: 'No matching commands; Enter sends the text as it is',
   attachmentsLabel: 'Attachments',
   removeAttachment: 'Remove',
   attachmentTooLarge: 'Images must be 10 MB or smaller.',
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
   attachmentLimit: 'At most 20 images per message.',
+  attachmentUnreadable: 'The image could not be read.',
   // Transcript rows.
   thoughtFor: 'Thought for',
   thinkingNow: 'Thinking',
@@ -1380,6 +1408,10 @@ export const UI_TEXT = {
   toolCancelled: 'cancelled',
   // PLAN.md D26: what the model and the transcript are told when Stop cuts things short.
   toolCancelledByStop: 'cancelled: the user stopped the turn',
+  toolFileTooLarge: 'The file tools read and edit files up to',
+  toolFileTooLargeHint: 'search it, or read part of it with a command, instead',
+  modelApiStalled: 'The Model API sent nothing for',
+  modelApiStalledDetail: 'so the reply was ended; send the message again to retry',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
   compactionStoppedNotice: 'Compaction stopped; the conversation is as it was.',

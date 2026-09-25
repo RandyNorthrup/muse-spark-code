@@ -7,6 +7,7 @@ import * as vscode from 'vscode'
 import { UI_TEXT, VSCODE_COMMANDS } from '../shared/constants'
 import { newWorktree, removeWorktree, type WorktreeDeps } from './commands/worktreeCommands'
 import type { Logger } from './logger'
+import { loggedPopups } from './popups'
 
 export interface WorktreeFeatureDeps {
   readonly workspaceRoot: string | undefined
@@ -56,12 +57,7 @@ export function createWorktreeFeatures(deps: WorktreeFeatureDeps): WorktreeFeatu
     showInformation: (message) => {
       void vscode.window.showInformationMessage(message)
     },
-    showWarning: (message) => {
-      void vscode.window.showWarningMessage(message)
-    },
-    showError: (message) => {
-      void vscode.window.showErrorMessage(message)
-    },
+    ...loggedPopups(deps.log),
     log: deps.log,
   })
   return {

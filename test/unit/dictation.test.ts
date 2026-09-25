@@ -54,6 +54,9 @@ function setup(helper: HelperInvocation = invocation) {
   const errors: string[] = []
   const logged: string[] = []
   const log: CoreLogger = {
+    trace: (message) => {
+      logged.push(`trace ${message}`)
+    },
     info: (message) => {
       logged.push(`info ${message}`)
     },
@@ -268,7 +271,9 @@ describe('Dictation driver', () => {
     const t = setup()
     t.dictation.start()
     t.child().stdout.emit('data', 'garbage\n')
-    expect(t.logged).toContain('warn Dictation helper wrote an unexpected line: garbage')
+    // Its length only: the line could hold dictated words (M39).
+    expect(t.logged).toContain('warn Dictation helper wrote an unexpected line (7 characters)')
+    expect(t.logged.join('\n')).not.toContain('garbage')
     t.dictation.dispose()
     t.child().emitLine({ type: 'ready', language: 'en-US' })
     expect(t.child().sent).toEqual([])

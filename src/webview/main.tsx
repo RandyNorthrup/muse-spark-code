@@ -9,6 +9,7 @@ import { createRoot } from 'react-dom/client'
 import { WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore } from './state/store'
 import './styles.css'
@@ -19,8 +20,22 @@ if (rootElement === null) {
   throw new Error(`Webview root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
 }
 
+// What throws here reaches the host's log (M39): a render the boundary
+// caught, an error or a rejected promise nothing handled, a host message.
+const report: ErrorReporter = (source, error) => {
+  vscode.postMessage(webviewErrorReport(source, error))
+}
+window.addEventListener('error', (event) => {
+  const error: unknown = event.error ?? event.message
+  report('window', error)
+})
+window.addEventListener('unhandledrejection', (event) => {
+  const reason: unknown = event.reason
+  report('promise', reason)
+})
+
 const store = createUiStore(restoredUiState(vscode.getState()))
-listenToHost(store, window, () => Date.now())
+listenToHost(store, window, () => Date.now(), report)
 const persister = persistStore(store, (state) => {
   vscode.setState(state)
 })
@@ -31,6 +46,9 @@ window.addEventListener('pagehide', () => {
 
 createRoot(rootElement).render(
   <ErrorBoundary
+    onError={(error) => {
+      report('render', error)
+    }}
     onReload={() => {
       // A state that crashed the very first render would crash the reloaded
       // one too: it is saved without its transcript then.

@@ -89,7 +89,15 @@ export class FakeMspServer implements DuplexTransport {
         typeof error.kind === 'string'
           ? error.kind
           : 'commandRejected'
-      return { jsonrpc: '2.0', id, error: { code: HANDLER_ERROR, message, data: { kind } } }
+      // And its JSON-RPC code, when it names one (a retryable refusal, M39).
+      const code =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        typeof error.code === 'number'
+          ? error.code
+          : HANDLER_ERROR
+      return { jsonrpc: '2.0', id, error: { code, message, data: { kind } } }
     }
   }
 
@@ -206,10 +214,13 @@ export function fakeMspHost(initializeResult: unknown = fakeInitializeResult): F
   }
 }
 
-/** A request handler that refuses with this MSP error kind (the host's `data.kind`). */
-export function refusalOf(kind: string): () => never {
+/** A request handler that refuses with this MSP error kind (the host's `data.kind`), and code when given. */
+export function refusalOf(kind: string, code?: number): () => never {
   return () => {
-    throw Object.assign(new Error(`refused: ${kind}`), { kind })
+    throw Object.assign(new Error(`refused: ${kind}`), {
+      kind,
+      ...(code !== undefined && { code }),
+    })
   }
 }
 

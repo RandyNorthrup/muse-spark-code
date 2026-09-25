@@ -2728,9 +2728,10 @@ change to the slash commands menu".
   accessibility violation; the component and App tests; test-fire proofs;
   the gate green.
 
-### M39 — Logging and performance you can see (planned)
+### M39 — Logging and performance you can see
 
-**Status 2026-09-24: planned.** Owner (2026-09-24): "as far as o11y for
+**Status 2026-09-24: built and certified** (`docs/certification/m39.md`);
+pull request from `features/m39-logging-performance`. Owner (2026-09-24): "as far as o11y for
 errors etc we are good? … really i mean logging and performance
 everywhere". An audit of the code that day answered: not yet. The CLI
 process layer is well logged, and every line is redacted. The conversation
@@ -2800,8 +2801,18 @@ never reach the host, and nothing measures time at runtime.
     - opened output documents bounded in host memory;
     - output previews clipped by characters as well as lines;
     - the IDE tool server started on first use.
-- **Tests**: each item has one, and a drill breaks it once. The render-cost
-  test gains the batching case.
+- **Built with these numbers**:
+  - Webview errors: at most 10 a minute per panel reach the log, their
+    text cut to 1,000 characters and their stack to 4,000.
+  - Stream idle limit: 5 minutes, for the headers and between frames.
+  - File tools: files up to 10 MiB.
+  - Output documents: at most 20, and 32 million characters together.
+  - Previews: 12 lines and 2,000 characters.
+  - Deltas: batched every 16 ms.
+  - An invalid setting warns once per value.
+  - `Logger` and `CoreLogger` gain `trace`.
+- **Tests**: each item has one, and a drill breaks it once (19 drills). The
+  batching case lives in the controller's tests, where the posts are made.
 - **Privacy**: the log gains ids, counts, results and durations only.
   Never prompt text, file contents, dictated words or model output.
 

@@ -679,6 +679,24 @@ would get a panel without a microphone.
 
 ## Troubleshooting
 
+- **What happened, in order** — **Muse Spark: Show Logs** opens the log.
+  - **What it records:** every failure the panel or a popup showed, and
+    anything that failed unseen, including an error inside the panel
+    itself.
+  - **With ids and times:** each session as it started, resumed or forked;
+    each turn with its result, its duration and when its first output came;
+    approvals; sign-in changes; and why the backend restarted.
+  - **Kept out:** your prompts, files, dictated words and the model's
+    output. Keys are redacted.
+  - **More detail:** set the channel's level to **Trace** (the gear in the
+    Output view) to see how long each Muse Code command and Model API
+    request took.
+- **A Model API reply ends with "sent nothing for 300 s"** — the stream
+  stalled, so the turn was ended rather than left running until **Stop**.
+  Send the message again to retry.
+- **The agent says a file is too large** — the file tools read and edit files
+  up to 10 MiB. The agent can search a larger file, or read part of it with
+  a command.
 - **Every shell command fails with `sandbox enforcement unavailable`** — Muse
   Code runs commands inside an OS sandbox that needs a one-time administrator
   setup on Windows. The panel offers it in a notification ("Set up now"

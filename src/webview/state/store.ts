@@ -7,6 +7,7 @@
 
 import { WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
 import { parseHostToWebviewMessage } from '../../shared/protocol'
+import type { ErrorReporter } from '../errorReport'
 import { webviewStateOf, type WebviewState } from './snapshot'
 import { type UiAction, uiReducer, type UiState } from './uiState'
 
@@ -53,17 +54,32 @@ export function createUiStore(initial: UiState): UiStore {
 }
 
 /**
- * Reduce every message the host posts to `target` into the store; anything
- * that fails validation is dropped with a warning. Returns the unsubscribe.
+ * Reduce every message the host posts to `target` into the store. One that
+ * fails validation is dropped, and one the reducer throws on is lost; both
+ * are reported to the host's log (M39). Returns the unsubscribe.
  */
-export function listenToHost(store: UiStore, target: Window, now: () => number): () => void {
+export function listenToHost(
+  store: UiStore,
+  target: Window,
+  now: () => number,
+  report: ErrorReporter,
+): () => void {
   const onMessage = (event: MessageEvent<unknown>) => {
     const parsed = parseHostToWebviewMessage(event.data)
     if (!parsed.ok) {
-      console.warn(`Dropped malformed host message: ${parsed.error}`)
+      const reason = `Dropped malformed host message: ${parsed.error}`
+      console.warn(reason)
+      report('hostMessage', reason)
       return
     }
-    store.dispatch({ type: 'hostMessage', message: parsed.message, at: now() })
+    try {
+      store.dispatch({ type: 'hostMessage', message: parsed.message, at: now() })
+    } catch (error: unknown) {
+      // Outside React's error boundary: without this the message would be
+      // lost with no trace (M39).
+      console.error(error)
+      report('hostMessage', error)
+    }
   }
   target.addEventListener('message', onMessage)
   return () => {
@@ -109,6 +125,13 @@ export function persistStore(
     }
     timer = setTimeout(() => {
       timer = undefined
+      // Not while a reply streams (M39): its state changes many times a
+      // second, and each save serialises the whole conversation. The turn's
+      // end is a change of its own, which saves; a reload or a closing panel
+      // still saves at once (`flush`).
+      if (store.getState().activeTurnId !== undefined) {
+        return
+      }
       write(true)
     }, delayMs)
   })

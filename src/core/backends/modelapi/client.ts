@@ -13,8 +13,11 @@ import {
   MODEL_API_RETRY_MAX_MS,
   MODEL_API_RETRYABLE_STATUSES,
   MODEL_API_REQUEST_TIMEOUT_MS,
+  MODEL_API_STREAM_IDLE_MS,
   MILLISECONDS_PER_SECOND,
+  UI_TEXT,
 } from '../../../shared/constants'
+import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
   type CreateResponseBody,
@@ -38,6 +41,8 @@ export interface ModelApiClientDeps {
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
   readonly random: () => number
   readonly log: CoreLogger
+  /** How long a reply stream may send nothing; the constant unless a test shortens it. */
+  readonly streamIdleMs?: number
 }
 
 export class ModelApiError extends Error {
@@ -67,7 +72,6 @@ const JSON_MEDIA_TYPE = 'application/json'
 const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
 const RETRY_AFTER_HEADER = 'retry-after'
 const NETWORK_FAILURE_STATUS = 0
-const FRAME_PREVIEW_CHARS = 80
 const SSE_DONE_SENTINEL = '[DONE]'
 
 /** The documented error envelope, or the status text when the body is not one. */
@@ -140,6 +144,9 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
 }
 
 export class ModelApiClient {
+  /** Stream event types already logged as ignored (M39). */
+  private readonly ignoredEventTypes = new Set<string>()
+
   public constructor(private readonly deps: ModelApiClientDeps) {}
 
   /** The retry delay, cut short by the turn's Stop. */
@@ -194,6 +201,8 @@ export class ModelApiClient {
       })
       await this.pause(delay, signal)
     }
+    // How long the answer took, retries included, at trace level (M39).
+    const startedAt = this.deps.now()
     for (let attempt = 0; ; attempt += 1) {
       let response: Response
       try {
@@ -221,6 +230,9 @@ export class ModelApiClient {
         continue
       }
       if (response.ok) {
+        this.deps.log.trace(
+          `Model API ${init.method} ${path} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
+        )
         return response
       }
       const failure = await describeFailure(response)
@@ -270,16 +282,40 @@ export class ModelApiClient {
     signal: AbortSignal,
     onRetry?: (notice: RetryNotice) => void,
   ): AsyncGenerator<StreamEvent> {
-    const response = await this.request(
-      '/responses',
-      { method: 'POST', body, accept: EVENT_STREAM_MEDIA_TYPE },
-      signal,
-      onRetry,
+    // Nothing from the server for this long, headers or a frame, ends the
+    // turn (M39); the request is aborted too, which frees the connection.
+    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+    const stalled = `${UI_TEXT.modelApiStalled} ${String(Math.round(idleMs / MILLISECONDS_PER_SECOND))} s, ${UI_TEXT.modelApiStalledDetail}`
+    const stall = new AbortController()
+    const within = async <T>(waiting: Promise<T>): Promise<T> => {
+      try {
+        return await withDeadline(waiting, idleMs, stalled)
+      } catch (error: unknown) {
+        if (error instanceof DeadlineError) {
+          stall.abort()
+          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
+        }
+        throw error
+      }
+    }
+    const response = await within(
+      this.request(
+        '/responses',
+        { method: 'POST', body, accept: EVENT_STREAM_MEDIA_TYPE },
+        AbortSignal.any([signal, stall.signal]),
+        onRetry,
+      ),
     )
     if (response.body === null) {
       throw new ModelApiError('The response had no body', response.status, undefined, undefined)
     }
-    for await (const frame of parseSse(response.body)) {
+    const frames = parseSse(response.body)[Symbol.asyncIterator]()
+    for (;;) {
+      const next = await within(frames.next())
+      if (next.done === true) {
+        return
+      }
+      const frame = next.value
       // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
       // data. Neither is an event (D26).
       if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
@@ -290,7 +326,9 @@ export class ModelApiClient {
         json = JSON.parse(frame.data)
       } catch {
         throw new ModelApiError(
-          `Malformed stream frame: ${frame.data.slice(0, FRAME_PREVIEW_CHARS)}`,
+          // Its length, not its text: the frame is model output, and this
+          // message becomes the failed turn's reason in the log (M39).
+          `Malformed stream frame (${String(frame.data.length)} characters)`,
           response.status,
           undefined,
           undefined,
@@ -310,7 +348,12 @@ export class ModelApiClient {
           undefined,
         )
       }
-      this.deps.log.info(`Model API stream event ${typed.data.type} ignored`)
+      // Once a type, not once a frame (M39).
+      if (this.ignoredEventTypes.has(typed.data.type)) {
+        continue
+      }
+      this.ignoredEventTypes.add(typed.data.type)
+      this.deps.log.info(`Model API stream events of type ${typed.data.type} are ignored`)
     }
   }
 }
