@@ -733,8 +733,12 @@ body {
 }
 
 /* On the selection the grey detail falls below 4.5:1 (Dark Modern: 4.41,
-   M37); it takes the selection's own text colour, a size smaller. */
+   M37); it takes the selection's own text colour, a size smaller. The
+   Modes menu's detail line too (seen in German and Japanese, M40, where
+   the longer rows put the pointer on a row the English run never
+   highlighted). */
 .menu-item-active .palette-item-detail,
+.menu-item-active .menu-item-detail,
 .palette-item-active .palette-item-detail {
   color: inherit;
 }

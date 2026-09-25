@@ -2890,10 +2890,10 @@ never reach the host, and nothing measures time at runtime.
 - **Privacy**: the log gains ids, counts, results and durations only.
   Never prompt text, file contents, dictated words or model output.
 
-### M40 — The panel in VS Code's display languages (M40a built; M40b next)
+### M40 — The panel in VS Code's display languages (built)
 
-**Status 2026-09-25: M40a built and certified** (`docs/certification/m40.md`);
-M40b, the fourteen translations, follows. Owner (2026-09-24): "yes" to the
+**Status 2026-09-25: built and certified** (`docs/certification/m40.md`):
+M40a merged in pull request #23, M40b in its own pull request. Owner (2026-09-24): "yes" to the
 languages VS Code itself ships. The design is D33.
 
 **M40a, as built** (three agents on separate file sets, after the lead wrote
@@ -2931,10 +2931,27 @@ the shared table, helpers and checks):
 - **The harness:** `--lang=<id>` for `harness:shots` and `test:a11y`, and a
   pseudo-locale (`npm run harness:pseudo`).
 
-**M40b:** the fourteen `l10n/ui.<language>.json` and
-`package.nls.<language>.json` files, machine-made; `TABLE_LOCALES` lists
-them; the README gains a Languages section with the disclosure; the
-screenshots and one accessibility run in a translated table.
+**M40b, as built:**
+
+- **The translations:** seven agents translated in parallel, two related
+  languages each, one pair of files per language. Each took VS Code's own
+  terminology in that language (several read Microsoft's VS Code language
+  packs), its form of address, and the key names VS Code shows there (Strg,
+  Umschalt, Maj, MAIUSC, Mayús).
+- **What they produced:** `TABLE_LOCALES` lists the fourteen languages, and
+  the gate checks all 28 files strictly.
+- **Words that are the same in a language** ("Backend" in German, "Model" in
+  Czech, "Manual" in Spanish) are listed per language in
+  `l10n/untranslated.json`. So are six values that are the same everywhere:
+  the product name as a heading, and five key names.
+- **The gate learned one thing:** a plural entry, or a single form of one,
+  may be listed. Czech's and Polish's "1 agent" is the English, while their
+  other forms are not; before, the agents had to write around it.
+- **Seen:** screenshots in German and Japanese. The accessibility gate ran
+  in both, 216 pages each, and found one contrast problem English had not
+  reached (the Modes menu's highlighted detail line), now fixed.
+- **Disclosed:** the README's Languages section says the translations are
+  machine-made and how to correct one.
 
 - **Goal**: the panel, the Command Palette entries and the settings read in
   the user's VS Code display language: Simplified and Traditional Chinese,

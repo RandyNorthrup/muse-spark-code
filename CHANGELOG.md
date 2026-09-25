@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **The panel in fourteen languages** (M40, PLAN.md D33). The panel, its
+  notices, the Command Palette's commands and the settings follow VS Code's
+  display language: Simplified and Traditional Chinese, Japanese, Korean,
+  German, French, Spanish, Brazilian Portuguese, Russian, Italian, Turkish,
+  Polish, Czech and Hungarian. Any other language gets English.
+  - **Machine-made**, and checked by the localization gate rather than by
+    native speakers; the README says how to report a wrong one.
+  - **Still English:** text sent to the model, and what Muse and the tools
+    write.
+
 ### Changed
 
 - **The groundwork for the panel in VS Code's display languages** (M40,
@@ -32,6 +44,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The Modes menu's highlighted row showed its detail line below 4.5:1
+  contrast in the Dark Modern theme (WCAG 1.4.3), as M37 had fixed for the
+  palette; it takes the row's own text colour.
 - A token count just under a million read "1000K"; it reads "1M".
 - Accessibility, found by checking the panel in a pseudo-locale:
   - The palette's and History's search box kept pointing at a list that a

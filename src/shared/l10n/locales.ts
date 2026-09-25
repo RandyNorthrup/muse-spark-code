@@ -1,9 +1,24 @@
 // Which display languages have a translated table, and where it lives
 // (PLAN.md D33). The ids are VS Code's own (`vscode.env.language`), lower
-// case. English is the base in `en.ts` and needs no file; M40b adds the
-// fourteen languages VS Code ships.
+// case. English is the base in `en.ts` and needs no file; these are the
+// fourteen other languages VS Code ships (M40b), machine-translated.
 
-export const TABLE_LOCALES: readonly string[] = []
+export const TABLE_LOCALES: readonly string[] = [
+  'zh-cn',
+  'zh-tw',
+  'ja',
+  'ko',
+  'de',
+  'fr',
+  'es',
+  'pt-br',
+  'ru',
+  'it',
+  'tr',
+  'pl',
+  'cs',
+  'hu',
+]
 
 /** The packaged folder that holds the translated tables. */
 export const TABLE_DIRECTORY = 'l10n'
