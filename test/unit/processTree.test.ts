@@ -108,6 +108,16 @@ describe('killTree', () => {
   it('ends the shell and the child holding its output, so the pipes close', async () => {
     const startedAt = Date.now()
     const child = shellWithChild()
+    // Killed once the child holds the pipe. On Windows its ping prints at
+    // once; after a fixed pause a loaded machine had not started it yet, so
+    // the kill missed it and its 30 s kept the pipe open (seen at 31 s).
+    const holdsPipe = IS_WINDOWS
+      ? new Promise<void>((resolve) => {
+          child.stdout?.once('data', () => {
+            resolve()
+          })
+        })
+      : pause(500)
     child.stdout?.resume()
     child.stderr?.resume()
     const closed = new Promise<void>((resolve) => {
@@ -115,7 +125,7 @@ describe('killTree', () => {
         resolve()
       })
     })
-    await pause(500)
+    await holdsPipe
     const started = Date.now()
     const kill = killTree(child, deps, startedAt)
     await closed
