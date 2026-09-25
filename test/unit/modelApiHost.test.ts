@@ -1,7 +1,12 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_TEXT, type PaidFeature, UI_TEXT } from '../../src/shared/constants'
+import {
+  MODEL_API_MAX_RETRIES,
+  MODEL_TEXT,
+  type PaidFeature,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import {
   ModelApiHost,
@@ -1935,6 +1940,10 @@ describe('ModelApiSession: replay as Meta validates it (protocols/responses)', (
     expect(events).toContainEqual(
       expect.objectContaining({ type: 'turnCompleted', terminal: 'failed' }),
     )
+    // What the failed stream showed stays in the history (the review of PR #28).
+    expect(session.history().items).toContainEqual(
+      expect.objectContaining({ kind: 'agentMessage', text: 'x' }),
+    )
   })
 
   it('retries a 502 like the other server errors', async () => {
@@ -1944,5 +1953,44 @@ describe('ModelApiSession: replay as Meta validates it (protocols/responses)', (
     await session.sendTurn([{ type: 'text', text: 'one' }])
     await turnDone()
     expect(t.api.responseBodies()).toHaveLength(2)
+  })
+
+  it('spends one retry budget on HTTP retries and whole-stream retries together (the review of PR #28)', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const busy: ScriptedReply = { httpError: { status: 502 } }
+    const httpRetries = Array.from({ length: MODEL_API_MAX_RETRIES - 1 }, () => busy)
+    t.api.script(
+      ...httpRetries,
+      { text: 'Half', streamError: { code: 'service_overloaded', message: 'busy' } },
+      ...Array.from({ length: MODEL_API_MAX_RETRIES + 1 }, () => busy),
+    )
+    await session.sendTurn([{ type: 'text', text: 'one' }])
+    await turnDone()
+    // The HTTP retries and the stream retry use the budget up; the next 502 ends the turn.
+    expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_RETRIES + 1)
+    const attempts = events.flatMap((event) => (event.type === 'turnRetry' ? [event.attempt] : []))
+    expect(attempts).toEqual(Array.from({ length: MODEL_API_MAX_RETRIES }, (_, index) => index + 1))
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'failed' }),
+    )
+  })
+
+  it('keeps what the last cut-short stream showed when the retries run out (the review of PR #28)', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    t.api.script(
+      ...Array.from({ length: MODEL_API_MAX_RETRIES + 1 }, (_, index): ScriptedReply => ({
+        text: `Part ${String(index)}`,
+        streamError: { code: 'server_shutting_down', message: 'draining' },
+      })),
+    )
+    await session.sendTurn([{ type: 'text', text: 'one' }])
+    await turnDone()
+    const replies = session
+      .history()
+      .items.filter((item) => item.kind === 'agentMessage')
+      .map((item) => item.text)
+    expect(replies.at(-1)).toBe(`Part ${String(MODEL_API_MAX_RETRIES)}`)
   })
 })
