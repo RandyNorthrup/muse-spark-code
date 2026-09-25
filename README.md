@@ -203,9 +203,12 @@ waiting cards included.
 | **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks                | The same                                                                                                         |
 
 "Always allow in this session" on a command allows that exact command line
-again, nothing broader. On both backends the file tools refuse any path that
-leaves the workspace, including through a symbolic link or junction inside
-it.
+again, nothing broader. The Model API backend's file tools refuse any path
+that leaves the workspace, including through a symbolic link or junction
+inside it. Muse Code refuses such a write while its sandbox runs; without
+the sandbox (`shellSandbox` set to `off`, or `auto` for a Windows workspace
+under your profile) its file tools may write outside the workspace, so
+choose the permission mode with that in mind.
 
 **Protected writes.** On the Model API backend, writes to files that
 configure or run code always ask, whatever the mode: `.git`, `.husky`,
