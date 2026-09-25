@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.7.1] - 2026-09-25
+
+The new mark on the Marketplace listing, the README rewritten for 0.7.0,
+and a false failure in the log fixed.
+
 ### Changed
 
 - The Marketplace icon, the README banner and the social preview carry a
