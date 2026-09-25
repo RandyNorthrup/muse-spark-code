@@ -4,6 +4,7 @@
 
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  OUTPUT_PREVIEW_CHARS,
   OUTPUT_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
   TOOL_STATUS_INTERRUPTED,
@@ -100,7 +101,7 @@ function Openable({
   )
 }
 
-/** Text clipped to the preview line count with a Show more toggle. */
+/** Text clipped to the preview line and character counts, with a Show more toggle. */
 function Clipped({
   text,
   className,
@@ -112,8 +113,13 @@ function Clipped({
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const allLines = text.split('\n')
-  const isLong = allLines.length > OUTPUT_PREVIEW_LINES
-  const shown = isExpanded || !isLong ? text : allLines.slice(0, OUTPUT_PREVIEW_LINES).join('\n')
+  const isLong = allLines.length > OUTPUT_PREVIEW_LINES || text.length > OUTPUT_PREVIEW_CHARS
+  const firstLines = allLines.slice(0, OUTPUT_PREVIEW_LINES).join('\n')
+  const preview =
+    firstLines.length > OUTPUT_PREVIEW_CHARS
+      ? `${firstLines.slice(0, OUTPUT_PREVIEW_CHARS)}…`
+      : firstLines
+  const shown = isExpanded || !isLong ? text : preview
   const pre = <pre className="tool-pre">{shown}</pre>
   return (
     <div className={className}>

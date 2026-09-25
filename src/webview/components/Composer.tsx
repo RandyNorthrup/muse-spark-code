@@ -667,9 +667,15 @@ export function Composer(props: ComposerProps) {
         continue
       }
       count += 1
-      void blobToBase64(file).then((base64) => {
-        onAttachImage({ name, mediaType: file.type, base64 })
-      })
+      void blobToBase64(file)
+        .then((base64) => {
+          onAttachImage({ name, mediaType: file.type, base64 })
+        })
+        .catch((error: unknown) => {
+          onRefuseFile(name, UI_TEXT.attachmentUnreadable)
+          // Unhandled on purpose: the page reports it to the log (M39).
+          throw error
+        })
     }
   }
 

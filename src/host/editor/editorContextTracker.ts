@@ -2,7 +2,9 @@
 // file chip (M5): the host feeds it snapshots, it keeps the latest one for the
 // next send and broadcasts the label to every surface after a short quiet gap
 // (selections change on every arrow key). No `vscode` import; the extension
-// entry point maps editor events onto `update`.
+// entry point maps editor events onto `update`. It hands over a reader, not
+// a snapshot (M39): the selected text is read once the selection has settled
+// and at send time, not on every arrow key.
 
 import { type EditorContext, editorContextSummary } from '../../core/editorContext'
 import { EDITOR_CONTEXT_DEBOUNCE_MS } from '../../shared/constants'
@@ -25,7 +27,7 @@ function isSameSummary(
 }
 
 export class EditorContextTracker {
-  private current: EditorContext | undefined
+  private read: (() => EditorContext | undefined) | undefined
   private announced: EditorContextSummary | undefined
   private timer: ReturnType<typeof setTimeout> | undefined
 
@@ -49,18 +51,20 @@ export class EditorContextTracker {
     this.deps.broadcast(next)
   }
 
-  /** The latest editor state, for the message being sent now. */
+  /** The editor state now, for the message being sent now. */
   public get active(): EditorContext | undefined {
-    return this.current
+    return this.read?.()
   }
 
-  /** The label as last broadcast, for a surface that has just opened. */
+  /** The label now, for a surface that has just opened. */
   public get summary(): EditorContextSummary | undefined {
-    return this.current === undefined ? undefined : editorContextSummary(this.current)
+    const current = this.active
+    return current === undefined ? undefined : editorContextSummary(current)
   }
 
-  public update(snapshot: EditorContext | undefined): void {
-    this.current = snapshot
+  /** The editor changed: `read` gives its state whenever it is needed. */
+  public update(read: () => EditorContext | undefined): void {
+    this.read = read
     this.clearTimer()
     this.timer = setTimeout(() => {
       this.announce()

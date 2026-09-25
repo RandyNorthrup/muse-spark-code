@@ -203,6 +203,28 @@ describe('MuseCodeHost', () => {
     })
   })
 
+  // M39: a refusal that admitted nothing is retried, and the log says so.
+  it('logs a retried refusal and traces how long each command took', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    const refuse = refusalOf('overloaded', -32_001)
+    let calls = 0
+    server.handle('session/setModel', (params) => {
+      calls += 1
+      return calls === 1 ? refuse() : ack(params)
+    })
+    await session.setModel('muse-spark-1.2')
+    expect(calls).toBe(2)
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^session\/setModel refused \(refused: overloaded\); attempt 2 in \d+ ms$/,
+      ),
+    )
+    expect(log.trace).toHaveBeenCalledWith(
+      expect.stringMatching(/^session\/setModel answered in \d+ ms$/),
+    )
+  })
+
   it('sets the model, reasoning effort and approval mode as session commands', async () => {
     const { host, server } = setup()
     const session = await host.startSession(startOptions)

@@ -26,13 +26,20 @@ const body: CreateResponseBody = {
 
 const NOW = Date.parse('2026-09-23T12:00:00Z')
 
-/** `null` means no key is stored. */
-function setup(key: string | null = 'LLM|1|secret') {
+/**
+ * `null` means no key is stored; `rawFetch` answers instead of the fake API;
+ * `streamIdleMs` shortens the stall limit (M39).
+ */
+function setup(
+  key: string | null = 'LLM|1|secret',
+  rawFetch?: typeof fetch,
+  streamIdleMs?: number,
+) {
   const api = fakeModelApi()
   const sleeps: number[] = []
   const log = new FakeLogOutputChannel()
   const client = new ModelApiClient({
-    fetch: api.fetch,
+    fetch: rawFetch ?? api.fetch,
     baseUrl: 'https://api.example.test/v1',
     apiKey: () => Promise.resolve(key ?? undefined),
     sleep: (ms) => {
@@ -42,6 +49,7 @@ function setup(key: string | null = 'LLM|1|secret') {
     now: () => NOW,
     random: () => 0.5,
     log,
+    ...(streamIdleMs !== undefined && { streamIdleMs }),
   })
   return { api, client, sleeps, log }
 }
@@ -64,6 +72,66 @@ describe('ModelApiClient', () => {
       method: 'GET',
       headers: { Authorization: 'Bearer LLM|1|secret', Accept: 'application/json' },
     })
+  })
+
+  // M39: an event type the client does not use is logged once, not once a
+  // frame, and each answer's time is traced.
+  it('logs an ignored stream event type once and traces how long the answer took', async () => {
+    const frames = ['response.queued', 'response.queued', 'response.heartbeat']
+      .map((type) => `data: ${JSON.stringify({ type })}\n\n`)
+      .join('')
+    const { client, log } = setup('LLM|1|secret', () =>
+      Promise.resolve(new Response(frames, { status: 200 })),
+    )
+    await collect(client.streamResponse(body, new AbortController().signal))
+    const ignored = log.info.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.includes('are ignored'))
+    expect(ignored).toEqual([
+      'Model API stream events of type response.queued are ignored',
+      'Model API stream events of type response.heartbeat are ignored',
+    ])
+    expect(log.trace).toHaveBeenCalledWith('Model API POST /responses answered 200 in 0 ms')
+  })
+
+  // M39: a stalled stream would otherwise hold the turn until Stop.
+  it('ends a reply stream that sends nothing for the idle time, and aborts its request', async () => {
+    let requestSignal: AbortSignal | undefined
+    const stalling = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify({ type: 'response.queued' })}\n\n`),
+        )
+      },
+    })
+    const { client } = setup(
+      'LLM|1|secret',
+      (_url, init) => {
+        requestSignal = init?.signal ?? undefined
+        return Promise.resolve(new Response(stalling, { status: 200 }))
+      },
+      50,
+    )
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow(
+      'The Model API sent nothing for 0 s, so the reply was ended; send the message again to retry',
+    )
+    expect(requestSignal?.aborted).toBe(true)
+  })
+
+  it('ends a reply whose headers never come the same way', async () => {
+    const { client } = setup(
+      'LLM|1|secret',
+      () =>
+        new Promise<Response>(() => {
+          // Never answers.
+        }),
+      50,
+    )
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow(ModelApiError)
   })
 
   it('counts input tokens without the stream flag', async () => {

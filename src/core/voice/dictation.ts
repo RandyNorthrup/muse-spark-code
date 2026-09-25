@@ -183,7 +183,10 @@ export class Dictation {
     }
     const message = parseHelperLine(line)
     if (message === undefined) {
-      this.deps.log.warn(`Dictation helper wrote an unexpected line: ${line}`)
+      // Its length only: the line could hold dictated words (M39).
+      this.deps.log.warn(
+        `Dictation helper wrote an unexpected line (${String(line.length)} characters)`,
+      )
       return
     }
     switch (message.type) {

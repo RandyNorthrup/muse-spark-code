@@ -251,6 +251,7 @@ function pause(ms: number): Promise<void> {
  */
 async function sendCommand(
   connection: Connection,
+  log: CoreLogger,
   method: string,
   params: Record<string, unknown>,
   commandId: string,
@@ -273,7 +274,11 @@ async function sendCommand(
         throw error
       }
       const ceiling = Math.min(MSP_RETRY_MAX_DELAY_MS, MSP_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1))
-      await pause(Math.floor(Math.random() * (ceiling + 1)))
+      const delayMs = Math.floor(Math.random() * (ceiling + 1))
+      log.warn(
+        `${method} refused (${error instanceof Error ? error.message : String(error)}); attempt ${String(attempt + 1)} in ${String(delayMs)} ms`,
+      )
+      await pause(delayMs)
     }
   }
 }
@@ -286,18 +291,23 @@ async function sendCommand(
 async function commandWithin(
   connection: Connection,
   timeouts: CommandTimeouts,
+  log: CoreLogger,
   method: string,
   params: Record<string, unknown>,
   commandId: string = connection.mintCommandId(),
 ): Promise<unknown> {
   const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
+  const startedAt = Date.now()
   try {
-    return await withDeadline(
-      sendCommand(connection, method, params, commandId),
+    const answer = await withDeadline(
+      sendCommand(connection, log, method, params, commandId),
       timeoutMs,
       `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
     )
+    log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
+    return answer
   } catch (error: unknown) {
+    log.trace(`${method} failed after ${String(Date.now() - startedAt)} ms`)
     const sessionId = params['sessionId']
     if (
       typeof sessionId === 'string' &&
@@ -356,12 +366,13 @@ export class MuseSession implements AgentSession {
     public readonly modelId: string,
     private readonly connection: Connection,
     private readonly onDispose: () => void,
+    private readonly log: CoreLogger,
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
   ) {}
 
   /** One MSP command against this session with a freshly minted commandId. */
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.connection, this.timeouts, method, {
+    return await commandWithin(this.connection, this.timeouts, this.log, method, {
       sessionId: this.sessionId,
       ...params,
     })
@@ -536,13 +547,19 @@ export class MuseSession implements AgentSession {
 
   /** One page of a stored tool output or patch document (`item/readOutput`). */
   public async readOutput(request: OutputPageRequest): Promise<OutputPage> {
-    const result = await commandWithin(this.connection, this.timeouts, 'item/readOutput', {
-      sessionId: this.sessionId,
-      itemId: request.itemId,
-      outputRef: request.outputRef,
-      offsetBytes: request.offsetBytes,
-      lengthBytes: request.lengthBytes,
-    })
+    const result = await commandWithin(
+      this.connection,
+      this.timeouts,
+      this.log,
+      'item/readOutput',
+      {
+        sessionId: this.sessionId,
+        itemId: request.itemId,
+        outputRef: request.outputRef,
+        offsetBytes: request.offsetBytes,
+        lengthBytes: request.lengthBytes,
+      },
+    )
     const page = readOutputResultSchema.parse(result)
     if (page.encoding !== BASE64_ENCODING) {
       return page
@@ -569,7 +586,7 @@ export class MuseSession implements AgentSession {
 
   /** The user-invocable skills in this session's workspace and plugins. */
   public async listSkills(): Promise<readonly SkillSummary[]> {
-    const result = await commandWithin(this.connection, this.timeouts, 'skill/list', {
+    const result = await commandWithin(this.connection, this.timeouts, this.log, 'skill/list', {
       sessionId: this.sessionId,
     })
     return skillListResultSchema.parse(result).skills.map((skill) => ({
@@ -772,7 +789,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.host.connection, this.timeouts, method, params)
+    return await commandWithin(this.host.connection, this.timeouts, this.log, method, params)
   }
 
   /**
@@ -837,6 +854,7 @@ export class MuseCodeHost implements AgentHost {
       () => {
         this.sessions.delete(record.sessionId)
       },
+      this.log,
       this.timeouts,
     )
     this.sessions.set(record.sessionId, handle)

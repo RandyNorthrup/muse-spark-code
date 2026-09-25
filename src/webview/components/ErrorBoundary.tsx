@@ -8,6 +8,8 @@ import { UI_TEXT } from '../../shared/constants'
 
 export interface ErrorBoundaryProps {
   readonly onReload: () => void
+  /** The render error, for the host's log (M39). */
+  readonly onError: (error: unknown) => void
   readonly children: ReactNode
 }
 
@@ -28,6 +30,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   public override componentDidCatch(error: unknown, info: ErrorInfo): void {
     console.error(`${UI_TEXT.crashTitle}: ${describe(error)}${info.componentStack ?? ''}`)
+    this.props.onError(error)
   }
 
   public override render(): ReactNode {

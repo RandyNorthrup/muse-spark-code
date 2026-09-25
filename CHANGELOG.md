@@ -62,6 +62,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A Model API reply whose stream sends nothing for five minutes ends, saying
+  so, instead of holding the turn until Stop.
+- The file tools refuse a file over 10 MiB before loading it, rather than
+  holding any file whole.
+- Opened tool-output documents are limited to 32 million characters
+  together, as well as 20.
+- An image that cannot be read says so in the banner.
+- A rewind whose file cannot be read (a permission problem) says why,
+  instead of "no longer matches".
+- A Muse Code install that cannot be read is named in the log, instead of
+  looking like no install at all.
 - Accessibility (WCAG 2.2 AA):
   - Diff line numbers, a failed tool's reason and the detail line of a
     selected menu row now meet 4.5:1 contrast in every default theme. A
@@ -95,6 +106,27 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **The log tells the whole story** (Muse Spark: Show Logs):
+  - **Failures:** every failure the panel or a popup showed, and any that
+    failed unseen, with a stack where there is one. That covers panel
+    actions, commands, background restarts and errors inside the panel
+    itself. The panel reports its errors at most ten a minute.
+  - **Sessions and turns:** each session started, resumed or forked, with
+    its id. Each turn with its result, duration and time to first output.
+  - **Also:** approvals (the tool and the answer), sign-in changes, the
+    backend in use, and why the backends restarted.
+  - **At Trace level:** each Muse Code command's and Model API request's
+    time.
+  - **Never logged:** prompt text, file contents, dictated words and model
+    output. An invalid setting now warns once, not on every read.
+- **Faster when replies stream:** streamed text reaches the panel at most once
+  a frame, and the panel stops saving its state every second while a reply
+  streams (it saves when the turn ends).
+- **Smaller:**
+  - The Model API's git facts are gathered in parallel.
+  - The editor selection is read once it settles, not on every arrow key.
+  - Tool output previews are cut at 2,000 characters as well as 12 lines.
+  - The diagnostics server starts when a session first needs it.
 - **`/` in the prompt** works as in Claude Code. A `/` on an empty prompt
   stays in the box and shows the palette above it, and the box keeps the
   keyboard: Up and Down, `Enter` and `Esc` work the palette. Type a letter

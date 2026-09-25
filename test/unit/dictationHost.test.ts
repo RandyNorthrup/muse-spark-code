@@ -160,7 +160,7 @@ describe('createDictationSetup', () => {
   const record = (message: string) => {
     logged.push(message)
   }
-  const log: CoreLogger = { info: record, warn: record, error: record }
+  const log: CoreLogger = { trace: record, info: record, warn: record, error: record }
   const windows = {
     platform: 'win32',
     systemRoot: String.raw`C:\Windows`,

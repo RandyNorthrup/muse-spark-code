@@ -151,6 +151,10 @@ function setup(
     now?: number
     /** Handshake fields over the fake's (D26: the platform, the version). */
     handshake?: Record<string, unknown>
+    /** The clipboard refuses (M39: a failure no step catches). */
+    copyFails?: boolean
+    /** A clock the test moves (M39: turn timings). */
+    clock?: { now: number }
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -334,7 +338,9 @@ function setup(
     },
     copyText: (text: string) => {
       copied.push(text)
-      return Promise.resolve()
+      return options.copyFails === true
+        ? Promise.reject(new Error('clipboard busy'))
+        : Promise.resolve()
     },
     insertCode: (text: string) => {
       inserted.push(text)
@@ -401,7 +407,7 @@ function setup(
         return Promise.resolve()
       },
     },
-    now: () => options.now ?? NOW,
+    now: () => options.clock?.now ?? options.now ?? NOW,
     log,
   }
   const controller = new ConversationController(deps)
@@ -516,6 +522,69 @@ describe('ConversationController.sendMessage', () => {
     await t.send('l2', 'again')
     expect(t.server.requestsFor('session/start')).toHaveLength(1)
     expect(t.host.sessionCount).toBe(1)
+  })
+
+  // M39: the session's story in the log, with ids, results and times, and
+  // nothing of what was typed.
+  it('logs the session and each turn with its result and times, never the prompt', async () => {
+    const clock = { now: 1000 }
+    const t = setup({ clock })
+    await t.send('l1', 'secret plan')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
+    clock.now = 1400
+    t.server.notify('item/delta', { sessionId: 's1', itemId: 'i', delta: 'x', viewCursor: 'v' })
+    await settle()
+    // A later delta does not move the first output's time.
+    clock.now = 1600
+    t.server.notify('item/delta', { sessionId: 's1', itemId: 'i', delta: 'y', viewCursor: 'v' })
+    await settle()
+    clock.now = 2500
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
+    await settle()
+    const lines = t.log.info.mock.calls.map(([line]) => String(line))
+    expect(lines).toContain('Session s1 started on the museCode backend, model muse-spark-1.3')
+    expect(lines.filter((line) => line.startsWith('Turn t1'))).toEqual([
+      'Turn t1 started in session s1',
+      'Turn t1 completed after 1500 ms, first output after 400 ms',
+    ])
+    expect(lines.join('\n')).not.toContain('secret plan')
+  })
+
+  // M39: streamed text reaches the panel at most once a frame, in order.
+  it('joins the deltas of one item into one post a frame, posted before anything after them', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      t.surface.posted.length = 0
+      for (const delta of ['Hel', 'lo', ' there']) {
+        t.server.notify('item/delta', { sessionId: 's1', itemId: 'i', delta, viewCursor: 'v' })
+      }
+      await settle()
+      expect(t.surface.posted).toEqual([])
+      vi.advanceTimersByTime(16)
+      expect(t.surface.posted).toEqual([
+        {
+          type: 'agentEvent',
+          event: { type: 'textDelta', itemId: 'i', field: 'text', delta: 'Hello there' },
+        },
+      ])
+      // Any other message posts the waiting text first.
+      t.surface.posted.length = 0
+      t.server.notify('item/delta', { sessionId: 's1', itemId: 'i', delta: '!', viewCursor: 'v' })
+      t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
+      await settle()
+      expect(
+        t.surface.posted
+          .slice(0, 2)
+          .map((message) => (message.type === 'agentEvent' ? message.event.type : message.type)),
+      ).toEqual(['textDelta', 'turnCompleted'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('steers a running turn and falls back to a fresh turn when the steer is rejected', async () => {
@@ -988,6 +1057,9 @@ describe('ConversationController: transcript actions (M4)', () => {
       requirementId: { approvalId: 'a1', sourceIndex: 0 },
       feedback: 'not that',
     })
+    // The answer is logged, never the feedback typed with it (M39).
+    expect(t.log.info).toHaveBeenCalledWith('Approval a1 answered: abort')
+    expect(t.log.info.mock.calls.flat().join('\n')).not.toContain('not that')
     expect(t.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
       sessionId: 's1',
       approvalId: 'a1',
@@ -1068,6 +1140,25 @@ describe('ConversationController: transcript actions (M4)', () => {
       type: 'notice',
       level: 'error',
       text: expect.stringContaining('missing') as string,
+    })
+    // What the panel said is in the log too (M39).
+    expect(t.log.error).toHaveBeenCalledWith(
+      expect.stringMatching(/^Shown in the panel: .*missing/),
+    )
+  })
+
+  // M39: the caller does not wait, so an uncaught failure would reach only
+  // VS Code's Extension Host log.
+  it('logs a failure no step caught, with its stack, and says it', async () => {
+    const t = setup({ copyFails: true })
+    await expect(t.controller.handle({ type: 'copyText', text: 'x' })).resolves.toBeUndefined()
+    expect(t.log.error).toHaveBeenCalledWith(
+      expect.stringMatching(/^copyText failed: Error: clipboard busy\n\s+at /),
+    )
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'That did not work (the Muse Spark log has the details): clipboard busy',
     })
   })
 

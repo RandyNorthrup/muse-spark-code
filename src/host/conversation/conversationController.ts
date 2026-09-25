@@ -36,6 +36,7 @@ import {
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
+  DELTA_BATCH_MS,
   type DictationAction,
   type EffortLevel,
   type ExportFormat,
@@ -73,7 +74,7 @@ import type {
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import type { AuthPort } from '../auth/authService'
 import type { ReviewNotice } from '../editor/editReview'
-import type { Logger } from '../logger'
+import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
 import type { DictationSetup } from '../voice/dictationHost'
 import {
@@ -283,9 +284,36 @@ const QUEUED_DISPOSITION = 'queued'
 // The unsaved files a warning names before it counts the rest (D27).
 const UNSAVED_FILES_NAMED = 3
 const STEERED_DISPOSITION = 'steered'
+// How a notice the user saw reads in the log (M39).
+const NOTICE_PREFIX = 'Shown in the panel: '
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** How a session came to this surface, for the log (M39). */
+type SessionOrigin = 'started' | 'resumed' | 'forked' | 'continued after a restart'
+
+/** When a turn started and first streamed output, for its end line (M39). */
+interface TurnClock {
+  readonly startedAt: number
+  firstOutputAt: number | undefined
+}
+
+/** A turn's end in the log (M39): its result, and how long it and its first output took. */
+function turnEndLine(
+  event: Extract<AgentEvent, { type: 'turnCompleted' }>,
+  clock: TurnClock | undefined,
+  now: number,
+): string {
+  const why = event.reason === undefined ? '' : `: ${event.reason}`
+  const durationMs = event.durationMs ?? (clock === undefined ? undefined : now - clock.startedAt)
+  const took = durationMs === undefined ? '' : ` after ${String(durationMs)} ms`
+  const firstOutput =
+    clock?.firstOutputAt === undefined
+      ? ''
+      : `, first output after ${String(clock.firstOutputAt - clock.startedAt)} ms`
+  return `Turn ${event.turnId} ${event.terminal}${why}${took}${firstOutput}`
 }
 
 function isContributorModel(modelId: string): boolean {
@@ -343,6 +371,11 @@ export class ConversationController {
   /** A transcript reload after a delivery gap, and the gaps heard so far. */
   private gapReload: Promise<void> | undefined
   private gapCount = 0
+  /** The turns under way, timed for the log (M39). */
+  private readonly turnClocks = new Map<string, TurnClock>()
+  /** Streamed text not yet posted, and the frame timer that posts it (M39). */
+  private pendingDelta: Extract<AgentEvent, { type: 'textDelta' }> | undefined
+  private deltaTimer: ReturnType<typeof setTimeout> | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -364,10 +397,57 @@ export class ConversationController {
   }
 
   private post(message: HostToWebviewMessage): void {
+    // Streamed text still waiting goes first, so nothing overtakes it.
+    this.flushDelta()
     this.deps.surface.post(message)
   }
 
+  /**
+   * Streamed text is posted at most once a frame (M39): consecutive deltas of
+   * one item's field join, and any other message posts them first.
+   */
+  private queueDelta(event: Extract<AgentEvent, { type: 'textDelta' }>): void {
+    const pending = this.pendingDelta
+    if (pending?.itemId === event.itemId && pending.field === event.field) {
+      this.pendingDelta = { ...pending, delta: pending.delta + event.delta }
+    } else {
+      this.flushDelta()
+      this.pendingDelta = event
+    }
+    this.deltaTimer ??= setTimeout(() => {
+      this.deltaTimer = undefined
+      this.flushDelta()
+    }, DELTA_BATCH_MS)
+  }
+
+  private flushDelta(): void {
+    if (this.deltaTimer !== undefined) {
+      clearTimeout(this.deltaTimer)
+      this.deltaTimer = undefined
+    }
+    const pending = this.pendingDelta
+    if (pending === undefined) {
+      return
+    }
+    this.pendingDelta = undefined
+    this.deps.surface.post({ type: 'agentEvent', event: pending })
+  }
+
+  /**
+   * Says `text` in the panel. A warning or an error goes to the log as well
+   * (M39): "Open log" and a support report hold every failure the user saw.
+   */
   private notice(level: 'info' | 'warning' | 'error', text: string): void {
+    if (level === 'error') {
+      this.deps.log.error(`${NOTICE_PREFIX}${text}`)
+    } else if (level === 'warning') {
+      this.deps.log.warn(`${NOTICE_PREFIX}${text}`)
+    }
+    this.say(level, text)
+  }
+
+  /** Says `text` in the panel only: for a failure already logged in more detail. */
+  private say(level: 'info' | 'warning' | 'error', text: string): void {
     this.post({ type: 'notice', level, text })
   }
 
@@ -526,6 +606,9 @@ export class ConversationController {
       return
     }
     this.autoApproved.add(event.approvalId)
+    this.deps.log.info(
+      `Approval ${event.approvalId} answered by Edit automatically: ${choice.choiceId}`,
+    )
     try {
       await session.decideApproval({
         approvalId: event.approvalId,
@@ -541,6 +624,10 @@ export class ConversationController {
 
   /** An event as the webview sees it, plus the unread mark. */
   private forward(event: AgentEvent): void {
+    if (event.type === 'textDelta') {
+      this.queueDelta(event)
+      return
+    }
     this.post({ type: 'agentEvent', event })
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
@@ -590,6 +677,8 @@ export class ConversationController {
       return
     }
     if (event.type === 'approvalRequested') {
+      // The tool, never its input (M39).
+      this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
       const choice = this.autoApprovalChoice(event)
       if (choice !== undefined) {
         void this.autoApprove(event, choice)
@@ -609,14 +698,29 @@ export class ConversationController {
     switch (event.type) {
       case 'turnStarted': {
         this.activeTurnId = event.turnId
+        this.turnClocks.set(event.turnId, { startedAt: this.deps.now(), firstOutputAt: undefined })
+        this.deps.log.info(
+          `Turn ${event.turnId} started in session ${this.session?.sessionId ?? '(none)'}`,
+        )
+        break
+      }
+      case 'textDelta': {
+        const clock =
+          this.activeTurnId === undefined ? undefined : this.turnClocks.get(this.activeTurnId)
+        if (clock !== undefined && clock.firstOutputAt === undefined) {
+          clock.firstOutputAt = this.deps.now()
+        }
         break
       }
       case 'turnWithdrawn': {
         // It will never run: a late acceptance must not make it the running turn.
         this.finishedTurns.add(event.turnId)
+        this.turnClocks.delete(event.turnId)
         break
       }
       case 'turnCompleted': {
+        this.deps.log.info(turnEndLine(event, this.turnClocks.get(event.turnId), this.deps.now()))
+        this.turnClocks.delete(event.turnId)
         this.finishedTurns.add(event.turnId)
         // Another turn completing (a subagent's) leaves this one running.
         if (this.activeTurnId === event.turnId) {
@@ -715,6 +819,7 @@ export class ConversationController {
     if (this.session === undefined) {
       return
     }
+    this.deps.log.info(`Approval ${message.approvalId} answered: ${message.choiceId}`)
     try {
       await this.session.decideApproval({
         approvalId: message.approvalId,
@@ -949,7 +1054,7 @@ export class ConversationController {
       await session.setReasoningEffort(effortForThinking(this.effort, this.isThinkingEnabled))
     } catch (error: unknown) {
       this.deps.log.warn(`session/setReasoningEffort failed: ${describe(error)}`)
-      this.notice('warning', `Reasoning effort could not be applied: ${describe(error)}`)
+      this.say('warning', `Reasoning effort could not be applied: ${describe(error)}`)
     }
   }
 
@@ -989,7 +1094,14 @@ export class ConversationController {
   }
 
   /** Take a session as this surface's: events, composer state, skills. */
-  private async attach(host: AgentHost, session: AgentSession): Promise<void> {
+  private async attach(
+    host: AgentHost,
+    session: AgentSession,
+    origin: SessionOrigin,
+  ): Promise<void> {
+    this.deps.log.info(
+      `Session ${session.sessionId} ${origin} on the ${host.info.kind} backend, model ${session.modelId}`,
+    )
     this.session = session
     this.sessionKind = host.info.kind
     this.canEditSessions = host.info.canEditSessions
@@ -1054,7 +1166,7 @@ export class ConversationController {
       throw new Error(UI_TEXT.surfaceClosed)
     }
     this.modelId = session.modelId
-    await this.attach(host, session)
+    await this.attach(host, session, 'started')
     if (host.info.kind === 'modelApi') {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else {
@@ -1092,7 +1204,7 @@ export class ConversationController {
       throw new Error(UI_TEXT.surfaceClosed)
     }
     this.activeTurnId = loaded.activeTurnId
-    await this.attach(host, loaded.session)
+    await this.attach(host, loaded.session, 'continued after a restart')
     try {
       await loaded.session.setApprovalMode(
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
@@ -1213,7 +1325,12 @@ export class ConversationController {
    * row (never the record's `modelId`, PLAN.md M6), and this surface's
    * composer settings are applied to it.
    */
-  private async adopt(host: AgentHost, loaded: LoadedSession, notice: string): Promise<void> {
+  private async adopt(
+    host: AgentHost,
+    loaded: LoadedSession,
+    notice: string,
+    origin: SessionOrigin,
+  ): Promise<void> {
     this.dropSession()
     const models = await host.listModels(loaded.session.sessionId)
     const active = models.find((model) => model.isActive)
@@ -1249,7 +1366,7 @@ export class ConversationController {
     }
     // Before attaching: the events held for this surface may end that turn (D26).
     this.activeTurnId = loaded.activeTurnId
-    await this.attach(host, loaded.session)
+    await this.attach(host, loaded.session, origin)
     const target = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
     try {
       await loaded.session.setApprovalMode(target)
@@ -1271,7 +1388,7 @@ export class ConversationController {
         this.modelId,
         await this.mcpServersFor(host),
       )
-      await this.adopt(host, loaded, UI_TEXT.resumedNotice)
+      await this.adopt(host, loaded, UI_TEXT.resumedNotice, 'resumed')
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`)
     }
@@ -1289,7 +1406,7 @@ export class ConversationController {
         return
       }
       const loaded = await host.forkSession(this.session.sessionId, this.modelId, lastTurnId)
-      await this.adopt(host, loaded, UI_TEXT.forkedNotice)
+      await this.adopt(host, loaded, UI_TEXT.forkedNotice, 'forked')
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`)
     }
@@ -1899,7 +2016,7 @@ export class ConversationController {
       }
     } catch (error: unknown) {
       this.deps.log.warn(`model warm-up failed: ${describe(error)}`)
-      this.notice('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
+      this.say('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
     }
   }
 
@@ -1912,32 +2029,8 @@ export class ConversationController {
     this.startupNotice = undefined
   }
 
-  public surfaceReady(): void {
-    // First, so a reloaded webview keeps the conversation it saved only when
-    // that session is still the live one here, with its running turn (M25, D28).
-    this.post({
-      type: 'surfaceState',
-      ...(this.session !== undefined && { sessionId: this.session.sessionId }),
-      ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
-    })
-    this.post(this.deps.auth.toMessage())
-    this.postComposerState()
-    this.postDictationState()
-    if (this.models !== undefined) {
-      this.post({ type: 'modelList', models: [...this.models] })
-    }
-    if (this.session !== undefined) {
-      this.postSessionInfo(this.session.modelId)
-    }
-    this.postSkills()
-    for (const attachment of this.attachments.list()) {
-      this.post({ type: 'attachmentAdded', attachment })
-    }
-    void this.warmModels()
-    this.postStartupNotice()
-  }
-
-  public async handle(message: ConversationMessage): Promise<void> {
+  /** One message from the webview, routed; `handle` catches what it throws. */
+  private async dispatch(message: ConversationMessage): Promise<void> {
     switch (message.type) {
       case 'sendMessage': {
         await this.send(
@@ -2119,6 +2212,45 @@ export class ConversationController {
     }
   }
 
+  public surfaceReady(): void {
+    // First, so a reloaded webview keeps the conversation it saved only when
+    // that session is still the live one here, with its running turn (M25, D28).
+    this.post({
+      type: 'surfaceState',
+      ...(this.session !== undefined && { sessionId: this.session.sessionId }),
+      ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
+    })
+    this.post(this.deps.auth.toMessage())
+    this.postComposerState()
+    this.postDictationState()
+    if (this.models !== undefined) {
+      this.post({ type: 'modelList', models: [...this.models] })
+    }
+    if (this.session !== undefined) {
+      this.postSessionInfo(this.session.modelId)
+    }
+    this.postSkills()
+    for (const attachment of this.attachments.list()) {
+      this.post({ type: 'attachmentAdded', attachment })
+    }
+    void this.warmModels()
+    this.postStartupNotice()
+  }
+
+  /**
+   * Runs one message from the webview. The caller does not wait (a `void`
+   * call), so a failure no step in `dispatch` caught would reach only VS Code's
+   * Extension Host log: it is logged here, with its stack, and said (M39).
+   */
+  public async handle(message: ConversationMessage): Promise<void> {
+    try {
+      await this.dispatch(message)
+    } catch (error: unknown) {
+      this.deps.log.error(`${message.type} failed: ${errorDetail(error)}`)
+      this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
+    }
+  }
+
   /**
    * The Claude Code sidebar rule: a surface that reopens within ten minutes
    * of its last session's activity picks that session up again; otherwise
@@ -2233,6 +2365,9 @@ export class ConversationController {
 
   public dispose(): void {
     this.isDisposed = true
+    clearTimeout(this.deltaTimer)
+    this.deltaTimer = undefined
+    this.pendingDelta = undefined
     this.dropSession()
     this.listWatch.dispose()
     this.usageWatch.dispose()

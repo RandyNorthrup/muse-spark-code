@@ -17,11 +17,15 @@ import {
 } from '../../shared/protocol'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { Logger } from '../logger'
+import { webviewErrorLog } from './webviewErrors'
 
 /** Messages about the conversation itself, routed to the surface's controller. */
 export type ConversationMessage = Exclude<
   WebviewToHostMessage,
-  { type: 'ready' } | { type: 'inputFocusChanged' } | { type: 'surfaceFocused' }
+  | { type: 'ready' }
+  | { type: 'inputFocusChanged' }
+  | { type: 'surfaceFocused' }
+  | { type: 'webviewError' }
 >
 
 export interface WebviewHostContext {
@@ -135,6 +139,7 @@ export function configureWebview(
     },
   }
 
+  const logWebviewError = webviewErrorLog(context.log, Date.now)
   const subscription = webview.onDidReceiveMessage((raw: unknown) => {
     const parsed = parseWebviewToHostMessage(raw)
     if (!parsed.ok) {
@@ -154,6 +159,10 @@ export function configureWebview(
       }
       case 'surfaceFocused': {
         options.onFocused(surface)
+        break
+      }
+      case 'webviewError': {
+        logWebviewError(message)
         break
       }
       default: {

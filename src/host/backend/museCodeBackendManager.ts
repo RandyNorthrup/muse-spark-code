@@ -29,9 +29,9 @@ import {
   serveArguments,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
+import { clipForLog } from '../../core/logging'
 import { withDeadline } from '../../core/timeouts'
 import {
-  CLI_STDERR_LOG_MAX_CHARS,
   MILLISECONDS_PER_SECOND,
   MSP_CLIENT_NAME,
   MSP_HANDSHAKE_TIMEOUT_MS,
@@ -76,20 +76,32 @@ const NO_PROXY_VARIABLE = 'NO_PROXY'
 const NO_PROXY_SPELLINGS = [NO_PROXY_VARIABLE, 'no_proxy'] as const
 const NO_PROXY_SEPARATOR = ','
 
-function readTextFileOrUndefined(filePath: string): string | undefined {
+// A path that is not there, as opposed to one that is there and unreadable.
+const MISSING_CODES: ReadonlySet<string> = new Set(['ENOENT', 'ENOTDIR'])
+
+/**
+ * The CLI lookup's reads (M39): a missing file or folder is simply absent,
+ * but one that cannot be read is said in the log, or "CLI not found" would
+ * hide a permission problem.
+ */
+function unlessMissing<T>(log: Logger, what: string, read: () => T, absent: T): T {
   try {
-    return readFileSync(filePath, 'utf8')
-  } catch {
-    return undefined
+    return read()
+  } catch (error: unknown) {
+    const code = error instanceof Error && 'code' in error ? String(error.code) : ''
+    if (!MISSING_CODES.has(code)) {
+      log.warn(`Could not read ${what} while looking for the Muse Code CLI: ${String(error)}`)
+    }
+    return absent
   }
 }
 
-function listDirectoryOrEmpty(directory: string): readonly string[] {
-  try {
-    return readdirSync(directory)
-  } catch {
-    return []
-  }
+function readTextFileOrUndefined(log: Logger, filePath: string): string | undefined {
+  return unlessMissing(log, filePath, () => readFileSync(filePath, 'utf8'), undefined)
+}
+
+function listDirectoryOrEmpty(log: Logger, directory: string): readonly string[] {
+  return unlessMissing(log, directory, () => readdirSync(directory), [])
 }
 
 export class MuseCodeBackendManager {
@@ -145,6 +157,8 @@ export class MuseCodeBackendManager {
       `muse serve credentials: the CLI's own (credential file ${this.credentialFileExists() ? 'present' : 'absent'}, META_API_KEY in the environment ${this.hasEnvironmentKey() ? 'present' : 'absent'}); the extension's stored key is not passed`,
     )
     this.deps.log.info(`Spawning ${launch.command} ${launch.args.join(' ')}`)
+    // Spawn to handshake, for the log (M39).
+    const spawnedAt = Date.now()
     const handshake = spawnMspConnection({
       command: launch.command,
       args: [...launch.args],
@@ -152,12 +166,7 @@ export class MuseCodeBackendManager {
       env,
       onStderr: (chunk) => {
         // A chatty or looping CLI must not flood the log (PLAN.md D24).
-        const text = chunk.trimEnd()
-        const shown =
-          text.length > CLI_STDERR_LOG_MAX_CHARS
-            ? `${text.slice(0, CLI_STDERR_LOG_MAX_CHARS)}… [${String(text.length - CLI_STDERR_LOG_MAX_CHARS)} more characters]`
-            : text
-        this.deps.log.warn(`muse serve stderr: ${shown}`)
+        this.deps.log.warn(`muse serve stderr: ${clipForLog(chunk.trimEnd())}`)
       },
     })
     const timeoutMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
@@ -211,7 +220,7 @@ export class MuseCodeBackendManager {
       throw error
     }
     this.deps.log.info(
-      `Connected to ${host.info.serverName} ${host.info.serverVersion} (museHome ${host.info.museHome})`,
+      `Connected to ${host.info.serverName} ${host.info.serverVersion} in ${String(Date.now() - spawnedAt)} ms (museHome ${host.info.museHome})`,
     )
     host.onExit(() => {
       if (this.generation === generation) {
@@ -284,8 +293,8 @@ export class MuseCodeBackendManager {
       homeDir: homedir(),
       localAppData: env['LOCALAPPDATA'],
       fileExists: existsSync,
-      readTextFile: readTextFileOrUndefined,
-      listDirectory: listDirectoryOrEmpty,
+      readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
+      listDirectory: (directory) => listDirectoryOrEmpty(this.deps.log, directory),
       serveArgs,
     })
     this.launchCache = { key, resolution }
@@ -299,7 +308,7 @@ export class MuseCodeBackendManager {
 
   /** The version the installer recorded beside the CLI, for the diagnostics report. */
   public installedVersion(installDir: string): string | undefined {
-    return readTextFileOrUndefined(path.join(installDir, MUSE_VERSION_FILE))?.trim()
+    return readTextFileOrUndefined(this.deps.log, path.join(installDir, MUSE_VERSION_FILE))?.trim()
   }
 
   /**

@@ -41,6 +41,7 @@ import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
 import { TodoPanel } from './components/TodoPanel'
 import { Transcript } from './components/Transcript'
+import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { createUiStore, listenToHost, type UiStore } from './state/store'
 import {
   canSend,
@@ -191,7 +192,10 @@ export function App({
   }, [state.transcript, isPinnedToEnd])
 
   useEffect(() => {
-    const stop = isOwnStore ? listenToHost(store, window, now) : undefined
+    const report: ErrorReporter = (source, error) => {
+      postMessage(webviewErrorReport(source, error))
+    }
+    const stop = isOwnStore ? listenToHost(store, window, now, report) : undefined
     postMessage({ type: 'ready' })
     return () => {
       stop?.()

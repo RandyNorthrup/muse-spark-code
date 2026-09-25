@@ -3,7 +3,11 @@ import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { UI_TEXT, WINDOWS_POWERSHELL_UTF8_PREAMBLE } from '../../src/shared/constants'
+import {
+  TOOL_FILE_MAX_BYTES,
+  UI_TEXT,
+  WINDOWS_POWERSHELL_UTF8_PREAMBLE,
+} from '../../src/shared/constants'
 import {
   BoundedText,
   createToolIo,
@@ -209,6 +213,18 @@ describe('createToolIo (real file system and shell)', () => {
     await expect(io().listFiles()).resolves.toEqual(['a.txt'])
     // A directory is neither missing nor readable: the error surfaces.
     await expect(io().readFile(root)).rejects.toThrow()
+  })
+
+  // M39: the tools hold a file whole, so one over the limit is not loaded.
+  it('refuses a file over the size limit before reading it, and reads one at the limit', async () => {
+    const atLimit = path.join(root, 'at-limit.txt')
+    const overLimit = path.join(root, 'over-limit.txt')
+    await writeFile(atLimit, 'a'.repeat(TOOL_FILE_MAX_BYTES))
+    await writeFile(overLimit, 'a'.repeat(TOOL_FILE_MAX_BYTES + 1))
+    await expect(io().readFile(atLimit)).resolves.toHaveLength(TOOL_FILE_MAX_BYTES)
+    await expect(io().readFile(overLimit)).rejects.toThrow(
+      'The file tools read and edit files up to 10 MiB, and this one is 10.0 MiB: search it, or read part of it with a command, instead',
+    )
   })
 
   it('creates the folders a new file goes into (D26)', async () => {

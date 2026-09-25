@@ -54,7 +54,8 @@ import { canonicalPath } from './host/canonicalPath'
 import { createCliFeatures } from './host/cliFeatures'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { processGitRunner } from './host/git'
-import { createLogger, type Logger } from './host/logger'
+import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
+import { OutputDocumentStore } from './host/outputDocuments'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
 import { readSettings, toSettingsSnapshot } from './host/settings'
@@ -94,7 +95,6 @@ import {
   MUSE_INIT_TIMEOUT_MS,
   MUSE_LOGIN_TERMINAL_NAME,
   OUTPUT_DOCUMENT_SCHEME,
-  OUTPUT_DOCUMENTS_KEPT,
   PRODUCT_NAME,
   SEARCH_WORKER_FILE,
   SETTINGS_SECTION,
@@ -182,14 +182,22 @@ async function isExistingPath(fsPath: string): Promise<boolean> {
   }
 }
 
+// VS Code's FileSystemError code for a path that does not exist.
+const FILE_NOT_FOUND = 'FileNotFound'
 // A UTF-8 BOM stays in the text, so a Revert writes the file back with it (D27).
 const TEXT_KEEPING_BOM = new TextDecoder('utf-8', { ignoreBOM: true })
 
 async function readTextFile(fsPath: string): Promise<string | undefined> {
   try {
     return TEXT_KEEPING_BOM.decode(await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)))
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // Only a missing file is absent. Anything else (no permission, a
+    // folder) is raised, so a rewind says why instead of "no longer
+    // matches" (M39).
+    if (error instanceof vscode.FileSystemError && error.code === FILE_NOT_FOUND) {
+      return undefined
+    }
+    throw error
   }
 }
 
@@ -366,7 +374,27 @@ export async function deactivate(): Promise<void> {
   lifecycle.shutdown = undefined
 }
 
+/**
+ * A command whose failure is logged, with its stack, and said once (M39). A
+ * rejected command would otherwise reach only VS Code's Extension Host log.
+ * No command here takes arguments.
+ */
+function registerLoggedCommand(log: Logger, id: string, run: () => unknown): vscode.Disposable {
+  return vscode.commands.registerCommand(id, async () => {
+    try {
+      return await run()
+    } catch (error: unknown) {
+      log.error(`${id} failed: ${errorDetail(error)}`)
+      const reason = error instanceof Error ? error.message : String(error)
+      void vscode.window.showErrorMessage(`${UI_TEXT.actionFailed}: ${reason}`)
+      return
+    }
+  })
+}
+
 export function activate(context: vscode.ExtensionContext): void {
+  // How long activation takes, for the log (M39).
+  const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
@@ -433,7 +461,8 @@ export function activate(context: vscode.ExtensionContext): void {
    * running turn is cancelled, and unless they end (sign-out, shutdown) the
    * next message resumes the same session on the new host.
    */
-  const restartBackend = async (isConversationEnding = false): Promise<void> => {
+  const restartBackend = async (reason: string, isConversationEnding = false): Promise<void> => {
+    log.info(`Restarting the backends: ${reason}`)
     await Promise.all(
       Array.from(controllers.values(), (controller) =>
         controller.backendStopping(isConversationEnding),
@@ -441,7 +470,7 @@ export function activate(context: vscode.ExtensionContext): void {
     )
     await Promise.all([backend.dispose(), modelApi.dispose()])
   }
-  lifecycle.shutdown = () => restartBackend(true)
+  lifecycle.shutdown = () => restartBackend('the window is closing', true)
   // Skills, imports and export (M30): the CLI by absolute path, in the
   // environment `muse serve` gets, from the workspace root.
   const cliFeatures = createCliFeatures({
@@ -468,7 +497,7 @@ export function activate(context: vscode.ExtensionContext): void {
     },
     museSettingsPath: () => museSettingsPath(museConfig()),
     workspaceRoot,
-    restartBackend: () => restartBackend(),
+    restartBackend: () => restartBackend('asked for after a skills or MCP change'),
     log,
   })
   const worktrees = createWorktreeFeatures({ workspaceRoot, runGit, log })
@@ -506,7 +535,8 @@ export function activate(context: vscode.ExtensionContext): void {
       credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
       hasEnvironmentKey: () => backend.hasEnvironmentKey(),
       getBackendMode: () => currentSettings().backend,
-      restartBackend,
+      restartBackend: (isConversationEnding) =>
+        restartBackend(isConversationEnding ? 'signed out' : 'signed in', isConversationEnding),
     },
     credentials,
     runInTerminal: (cliPath, args) => {
@@ -548,34 +578,32 @@ export function activate(context: vscode.ExtensionContext): void {
     ],
     log,
   )
-  const startIdeServer = async (): Promise<void> => {
-    try {
-      await ideServer.start()
-    } catch (error: unknown) {
-      log.warn(`IDE tool server could not start; diagnostics stay unavailable: ${String(error)}`)
-    }
+  // Started by the first session that asks for it, not at activation (M39);
+  // callers asking while it starts share that start.
+  let ideServerStart: Promise<void> | undefined
+  const startIdeServer = (): Promise<void> => {
+    ideServerStart ??= (async () => {
+      try {
+        await ideServer.start()
+      } catch (error: unknown) {
+        log.warn(`IDE tool server could not start; diagnostics stay unavailable: ${String(error)}`)
+      } finally {
+        ideServerStart = undefined
+      }
+    })()
+    return ideServerStart
   }
-  void startIdeServer()
   // Tool outputs open as read-only documents (M15), the tab named through the
   // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
   // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
-  const outputDocuments = new Map<string, string>()
-  let outputDocumentCount = 0
+  const outputDocuments = new OutputDocumentStore()
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(OUTPUT_DOCUMENT_SCHEME, {
       provideTextDocumentContent: (uri) => outputDocuments.get(uri.query) ?? '',
     }),
   )
   const openDocument = async (title: string, content: string): Promise<void> => {
-    outputDocumentCount += 1
-    const id = String(outputDocumentCount)
-    outputDocuments.set(id, content)
-    for (const key of outputDocuments.keys()) {
-      if (outputDocuments.size <= OUTPUT_DOCUMENTS_KEPT) {
-        break
-      }
-      outputDocuments.delete(key)
-    }
+    const id = outputDocuments.add(content)
     const uri = vscode.Uri.from({ scheme: OUTPUT_DOCUMENT_SCHEME, path: `/${title}`, query: id })
     const document = await vscode.workspace.openTextDocument(uri)
     await vscode.window.showTextDocument(document, { preview: true })
@@ -713,9 +741,12 @@ export function activate(context: vscode.ExtensionContext): void {
         runGit,
         workspaceRoot,
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        log,
+        now: Date.now,
       }),
   })
   const watchedHosts = new WeakSet<AgentHost>()
+  let chosenBackend: BackendKind | undefined
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
     const choice = selectBackend({
@@ -724,6 +755,11 @@ export function activate(context: vscode.ExtensionContext): void {
       hasCliSession: backend.credentialFileExists() || backend.hasEnvironmentKey(),
       hasStoredKey: (await credentials.getApiKey()) !== undefined,
     })
+    if (choice.kind !== chosenBackend) {
+      // Said when it changes, not on every message (M39).
+      chosenBackend = choice.kind
+      log.info(`Conversations run on the ${choice.kind ?? 'no'} backend`)
+    }
     if (choice.kind === 'modelApi') {
       return await modelApi.ensureHost()
     }
@@ -909,7 +945,7 @@ export function activate(context: vscode.ExtensionContext): void {
           })
         },
         onSandboxUnavailable: () => {
-          void sandbox.offerIfNeeded('failure')
+          void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
         },
         platform: process.platform,
         userProfileDir: process.env['USERPROFILE'],
@@ -1019,15 +1055,15 @@ export function activate(context: vscode.ExtensionContext): void {
           ? controller.restoreRecentSession()
           : controller.restoreSession(restoredSessionId)
       if (auth.current.status === 'checking') {
-        void auth.refresh().then(restore)
+        void auth.refresh().then(restore).catch(logRejection(log, 'session restore'))
       } else {
-        void restore()
+        void restore().catch(logRejection(log, 'session restore'))
       }
       // No setup offer where this window will not use the sandbox anyway.
       if (!backend.shellSandboxPosture().isSandboxed) {
         return
       }
-      void sandbox.offerIfNeeded('startup')
+      void sandbox.offerIfNeeded('startup').catch(logRejection(log, 'sandbox offer'))
     },
     onConversationMessage: (surface, message) => {
       void controllerFor(surface).handle(message)
@@ -1056,14 +1092,14 @@ export function activate(context: vscode.ExtensionContext): void {
   }
   const fileWatcher = vscode.workspace.createFileSystemWatcher(FIND_FILES_GLOB, false, true, false)
   const onSkillFilesChanged = () => {
-    void modelApi.refreshSkills()
+    void modelApi.refreshSkills().catch(logRejection(log, 'skill refresh'))
   }
   const projectSkillsWatcher = vscode.workspace.createFileSystemWatcher(PROJECT_SKILLS_GLOB)
   const personalSkillsWatcher = vscode.workspace.createFileSystemWatcher(
     new vscode.RelativePattern(vscode.Uri.file(skillsHome), PERSONAL_SKILLS_GLOB),
   )
 
-  editorContext.update(editorSnapshot())
+  editorContext.update(editorSnapshot)
   context.subscriptions.push(
     channel,
     fileWatcher,
@@ -1082,10 +1118,10 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     },
     vscode.window.onDidChangeActiveTextEditor(() => {
-      editorContext.update(editorSnapshot())
+      editorContext.update(editorSnapshot)
     }),
     vscode.window.onDidChangeTextEditorSelection(() => {
-      editorContext.update(editorSnapshot())
+      editorContext.update(editorSnapshot)
     }),
     vscode.workspace.registerTextDocumentContentProvider(MUSE_EDIT_SCHEME, {
       provideTextDocumentContent: (uri) => editReview.provide(uri.path),
@@ -1111,7 +1147,7 @@ export function activate(context: vscode.ExtensionContext): void {
         !currentSettings().allowDangerouslySkipPermissions
       ) {
         for (const controller of controllers.values()) {
-          void controller.revokeBypass()
+          void controller.revokeBypass().catch(logRejection(log, 'Bypass revocation'))
         }
       }
       // A host keeps its sandbox posture, its environment and its binary for
@@ -1119,7 +1155,9 @@ export function activate(context: vscode.ExtensionContext): void {
       // message spawns afresh (and resumes the conversation, D25).
       const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
       if (isBackendSetting) {
-        void restartBackend().then(() => auth.refresh())
+        void restartBackend('the backend setting changed')
+          .then(() => auth.refresh())
+          .catch(logRejection(log, 'backend restart'))
         return
       }
       const isCliSetting = CLI_PROCESS_SETTINGS.some((key) => event.affectsConfiguration(key))
@@ -1130,7 +1168,9 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!isHostSetting || !backend.isRunning) {
         return
       }
-      void restartBackend()
+      void restartBackend('a CLI, environment, proxy or sandbox setting changed').catch(
+        logRejection(log, 'backend restart'),
+      )
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.sandboxRestartNotice })
     }),
     // Trust is a host-lifetime posture like the sandbox (PLAN.md D13): the
@@ -1138,7 +1178,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidGrantWorkspaceTrust(() => {
       // The index was built without git in Restricted Mode (D24).
       mentions.invalidate()
-      void restartBackend()
+      void restartBackend('the workspace was trusted').catch(logRejection(log, 'backend restart'))
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
     }),
     // Editor-tab conversations come back after a window reload (D15).
@@ -1148,10 +1188,10 @@ export function activate(context: vscode.ExtensionContext): void {
         return Promise.resolve()
       },
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.openInNewTab, () => {
+    registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.newConversation, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {
         await openConversation()
@@ -1160,11 +1200,11 @@ export function activate(context: vscode.ExtensionContext): void {
       surface.reveal()
       await controllerFor(surface).handle({ type: 'clearConversation' })
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.signOut, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.signOut, async () => {
       await auth.signOut()
       void vscode.window.showInformationMessage(UI_TEXT.signedOutNotice)
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.openInTerminal, () => {
+    registerLoggedCommand(log, COMMAND_IDS.openInTerminal, () => {
       openMuseTerminal({
         resolveCli,
         runInTerminal,
@@ -1174,7 +1214,7 @@ export function activate(context: vscode.ExtensionContext): void {
         },
       })
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.createRulesFile, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.createRulesFile, async () => {
       await createRulesFile({
         workspaceRoot,
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
@@ -1207,19 +1247,19 @@ export function activate(context: vscode.ExtensionContext): void {
         log,
       })
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.openWalkthrough, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.openWalkthrough, async () => {
       await vscode.commands.executeCommand(
         VSCODE_COMMANDS.openWalkthrough,
         WALKTHROUGH_QUALIFIED_ID,
         false,
       )
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.openInSidebar, openSidebar),
-    vscode.commands.registerCommand(COMMAND_IDS.showLogs, () => {
+    registerLoggedCommand(log, COMMAND_IDS.openInSidebar, openSidebar),
+    registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {
       channel.show(true)
     }),
     // The support report (PLAN.md D14): facts only, credentials as booleans.
-    vscode.commands.registerCommand(COMMAND_IDS.diagnostics, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.diagnostics, async () => {
       const settings = currentSettings()
       const resolution = backend.resolveLaunch()
       const posture = backend.shellSandboxPosture()
@@ -1257,7 +1297,7 @@ export function activate(context: vscode.ExtensionContext): void {
       )
       channel.show(true)
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.focusInput, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.focusInput, async () => {
       await toggleInputFocus({
         isInputFocused: () => isInputFocused,
         activeSurface: () => registry.active,
@@ -1265,7 +1305,7 @@ export function activate(context: vscode.ExtensionContext): void {
         openSidebar,
       })
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.insertMentionReference, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.insertMentionReference, async () => {
       await insertMentionReference({
         activeSelection,
         activeSurface: () => registry.active,
@@ -1275,25 +1315,25 @@ export function activate(context: vscode.ExtensionContext): void {
         },
       })
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.toggleFocusView, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.toggleFocusView, async () => {
       await runHostAction('toggleFocusView')
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.toggleThinking, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.toggleThinking, async () => {
       const surface = registry.active
       if (surface !== undefined) {
         await controllerFor(surface).toggleThinking()
       }
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.setUpSandbox, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
     }),
-    vscode.commands.registerCommand(COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
-    vscode.commands.registerCommand(COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
-    vscode.commands.registerCommand(COMMAND_IDS.mcpServers, () => cliFeatures.showMcpServers()),
-    vscode.commands.registerCommand(COMMAND_IDS.hooks, () => cliFeatures.showHooks()),
-    vscode.commands.registerCommand(COMMAND_IDS.newWorktree, () => worktrees.newWorktree()),
-    vscode.commands.registerCommand(COMMAND_IDS.removeWorktree, () => worktrees.removeWorktree()),
-    vscode.commands.registerCommand(COMMAND_IDS.exportConversation, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
+    registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
+    registerLoggedCommand(log, COMMAND_IDS.mcpServers, () => cliFeatures.showMcpServers()),
+    registerLoggedCommand(log, COMMAND_IDS.hooks, () => cliFeatures.showHooks()),
+    registerLoggedCommand(log, COMMAND_IDS.newWorktree, () => worktrees.newWorktree()),
+    registerLoggedCommand(log, COMMAND_IDS.removeWorktree, () => worktrees.removeWorktree()),
+    registerLoggedCommand(log, COMMAND_IDS.exportConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {
         void vscode.window.showInformationMessage(UI_TEXT.exportNothing)
@@ -1302,4 +1342,5 @@ export function activate(context: vscode.ExtensionContext): void {
       await controllerFor(surface).handle({ type: 'exportConversation', format: 'markdown' })
     }),
   )
+  log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
 }

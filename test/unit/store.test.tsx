@@ -3,9 +3,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TodoItem } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { WebviewToHostMessage } from '../../src/shared/protocol'
+import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { ErrorBoundary } from '../../src/webview/components/ErrorBoundary'
+import type { ErrorReporter } from '../../src/webview/errorReport'
 import { restoredUiState, type WebviewState } from '../../src/webview/state/snapshot'
 import { createUiStore, listenToHost, persistStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
@@ -33,7 +34,7 @@ function deliver(data: unknown) {
   })
 }
 
-const init = {
+const init: HostToWebviewMessage = {
   type: 'init',
   emptyStateHint: 'hint',
   composerPlaceholder: 'placeholder',
@@ -50,7 +51,12 @@ function throughJson(state: WebviewState | undefined): unknown {
 /** One webview document: its store, listener, persister and the rendered app. */
 function openDocument(saved: unknown) {
   const store = createUiStore(restoredUiState(saved))
-  const stop = listenToHost(store, window, () => 0)
+  const stop = listenToHost(
+    store,
+    window,
+    () => 0,
+    () => undefined,
+  )
   const states: WebviewState[] = []
   const persister = persistStore(store, (state) => {
     states.push(state)
@@ -58,6 +64,7 @@ function openDocument(saved: unknown) {
   const posted = vi.fn<(message: WebviewToHostMessage) => void>()
   const view = render(
     <ErrorBoundary
+      onError={() => undefined}
       onReload={() => {
         persister.flush(store.hasRendered())
       }}
@@ -96,6 +103,26 @@ describe('the UI store (M25)', () => {
     vi.useRealTimers()
   })
 
+  // M39: outside React's error boundary, a throwing reducer lost the message
+  // with no trace.
+  it('reports a host message the reducer throws on, and keeps listening', () => {
+    const store = createUiStore(initialUiState)
+    vi.spyOn(console, 'error').mockImplementation(() => {
+      // asserted through the report
+    })
+    const dispatch = vi.spyOn(store, 'dispatch').mockImplementationOnce(() => {
+      throw new Error('reducer exploded')
+    })
+    const report = vi.fn<ErrorReporter>()
+    const stop = listenToHost(store, window, () => 0, report)
+    deliver(init)
+    expect(report).toHaveBeenCalledWith('hostMessage', new Error('reducer exploded'))
+    deliver(init)
+    expect(dispatch).toHaveBeenCalledTimes(2)
+    expect(store.getState().phase).toBe('ready')
+    stop()
+  })
+
   it('reduces valid host messages with no app mounted, and stops when told', () => {
     const store = createUiStore(initialUiState)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {
@@ -103,12 +130,18 @@ describe('the UI store (M25)', () => {
     })
     const listener = vi.fn()
     const unsubscribe = store.subscribe(listener)
-    const stop = listenToHost(store, window, () => 5)
+    const report = vi.fn<ErrorReporter>()
+    const stop = listenToHost(store, window, () => 5, report)
     deliver(init)
     expect(store.getState().phase).toBe('ready')
     expect(listener).toHaveBeenCalledOnce()
     deliver({ type: 'init', settings: 1 })
     expect(warn).toHaveBeenCalledOnce()
+    // The host's log hears of it too (M39).
+    expect(report).toHaveBeenCalledWith(
+      'hostMessage',
+      expect.stringContaining('Dropped malformed host message'),
+    )
     // An action that changes nothing tells nobody.
     store.dispatch({
       type: 'hostMessage',
@@ -138,6 +171,31 @@ describe('the UI store (M25)', () => {
     expect(save).toHaveBeenLastCalledWith({})
     vi.advanceTimersByTime(1000)
     expect(save).toHaveBeenCalledTimes(2)
+  })
+
+  // M39: each save serialises the whole conversation, and a streaming reply
+  // changes the state many times a second.
+  it('holds the save while a reply streams and saves when the turn ends', () => {
+    vi.useFakeTimers()
+    const store = createUiStore(initialUiState)
+    const save = vi.fn<(state: WebviewState) => void>()
+    persistStore(store, save, 1000)
+    const host = (message: HostToWebviewMessage) => {
+      store.dispatch({ type: 'hostMessage', message, at: 0 })
+    }
+    host(init)
+    host({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
+    vi.advanceTimersByTime(5000)
+    store.dispatch({ type: 'draftChanged', draft: 'typed while it streams' })
+    vi.advanceTimersByTime(5000)
+    expect(save).not.toHaveBeenCalled()
+    host({
+      type: 'agentEvent',
+      event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
+    })
+    vi.advanceTimersByTime(1000)
+    expect(save).toHaveBeenCalledOnce()
+    expect(save.mock.calls[0]?.[0].snapshot).toMatchObject({ draft: 'typed while it streams' })
   })
 })
 

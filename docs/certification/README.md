@@ -50,3 +50,4 @@ The PNGs beside the records are that day's harness renders.
 - [M36](m36.md): rewind finds a hunk that only moved (PLAN.md D31)
 - [M37](m37.md): the accessibility gate, WCAG 2.2 AA in four themes (PLAN.md D32)
 - [M38](m38.md): "/" in the prompt: the palette, then slash commands (PLAN.md M38)
+- [M39](m39.md): logging and performance you can see (PLAN.md M39)

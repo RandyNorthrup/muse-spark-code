@@ -75,6 +75,17 @@ export type AuthPort = Pick<
   | 'markBackendError'
 >
 
+/**
+ * The sign-in story for the log (M39): the state, the backend it chose and,
+ * for an error, why. Written when the state or the backend changes.
+ */
+function signInLine(snapshot: AuthSnapshot): string {
+  const backend = snapshot.backend === undefined ? '' : ` on the ${snapshot.backend} backend`
+  const why =
+    snapshot.status === 'error' && snapshot.detail !== undefined ? `: ${snapshot.detail}` : ''
+  return `Sign-in state: ${snapshot.status}${backend}${why}`
+}
+
 export class AuthService {
   private snapshot: AuthSnapshot = { status: 'checking', detail: undefined }
   /** The browser sign-in in flight: a second click joins it (PLAN.md D25). */
@@ -83,7 +94,11 @@ export class AuthService {
   public constructor(private readonly deps: AuthServiceDeps) {}
 
   private set(snapshot: AuthSnapshot): AuthSnapshot {
+    const previous = this.snapshot
     this.snapshot = snapshot
+    if (previous.status !== snapshot.status || previous.backend !== snapshot.backend) {
+      this.deps.log.info(signInLine(snapshot))
+    }
     this.deps.broadcast(this.toMessage())
     return this.snapshot
   }
@@ -178,9 +193,11 @@ export class AuthService {
   }
 
   public async signIn(method: SignInMethod): Promise<AuthSnapshot> {
+    this.deps.log.info(`Sign-in started: ${method}`)
     if (method === 'apiKey') {
       const key = await this.deps.promptForApiKey()
       if (key === undefined) {
+        this.deps.log.info('Sign-in with an API key cancelled')
         return this.snapshot
       }
       await this.deps.credentials.setApiKey(key)
