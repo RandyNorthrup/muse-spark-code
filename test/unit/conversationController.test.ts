@@ -549,6 +549,13 @@ describe('ConversationController.sendMessage', () => {
       'Turn t1 completed after 1500 ms, first output after 400 ms',
     ])
     expect(lines.join('\n')).not.toContain('secret plan')
+    // A turn cleared away with its session is said too, and its clock goes
+    // (the review of PR #20).
+    await t.send('l2', 'next')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't2', viewCursor: 'v' })
+    await settle()
+    await t.controller.handle({ type: 'clearConversation' })
+    expect(t.log.info).toHaveBeenLastCalledWith('Turn t2 ended with its session')
   })
 
   // M39: streamed text reaches the panel at most once a frame, in order.
@@ -1506,6 +1513,8 @@ describe('ConversationController: other messages', () => {
   it('ends the turn on a crash and resumes the same session with the next message (D25)', async () => {
     const t = setup()
     await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
     t.controller.hostExited({
       description: 'Muse Code failed with an unhandled error (exit 1)',
       isExpected: false,
@@ -1524,6 +1533,10 @@ describe('ConversationController: other messages', () => {
       },
     })
     expect(t.auth.calls.some((call) => call.startsWith('error:'))).toBe(false)
+    // A turn ended here gets its end line too (the review of PR #20).
+    expect(t.log.info).toHaveBeenCalledWith(
+      'Turn t1 failed: Muse Code stopped unexpectedly (Muse Code failed with an unhandled error (exit 1)) after 0 ms',
+    )
     t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
     await t.send('l2', 'again')
     expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })

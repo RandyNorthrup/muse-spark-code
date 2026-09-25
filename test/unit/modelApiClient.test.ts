@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   MissingApiKeyError,
   ModelApiClient,
@@ -52,6 +52,16 @@ function setup(
     ...(streamIdleMs !== undefined && { streamIdleMs }),
   })
   return { api, client, sleeps, log }
+}
+
+/** A response body that sends `text` and then nothing, reporting its cancellation. */
+function bodyOf(text: string, cancel: () => void): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(text))
+    },
+    cancel,
+  })
 }
 
 function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[]> {
@@ -118,6 +128,36 @@ describe('ModelApiClient', () => {
       'The Model API sent nothing for 0 s, so the reply was ended; send the message again to retry',
     )
     expect(requestSignal?.aborted).toBe(true)
+  })
+
+  // The review of PR #20: an early end closes the parser, releasing the body.
+  it('releases the response body when a frame is malformed or the caller stops reading', async () => {
+    const malformedCancel = vi.fn()
+    const malformed = setup('LLM|1|secret', () =>
+      Promise.resolve(new Response(bodyOf('data: {not json\n\n', malformedCancel))),
+    )
+    await expect(
+      collect(malformed.client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow('Malformed stream frame')
+    await vi.waitFor(() => {
+      expect(malformedCancel).toHaveBeenCalled()
+    })
+    const stoppedCancel = vi.fn()
+    const created = `data: ${JSON.stringify({
+      type: 'response.created',
+      response: { id: 'r1', status: 'in_progress', output: [] },
+    })}\n\n`
+    const stopped = setup('LLM|1|secret', () =>
+      Promise.resolve(new Response(bodyOf(created, stoppedCancel))),
+    )
+    const events = stopped.client.streamResponse(body, new AbortController().signal)
+    for await (const event of events) {
+      expect(event.type).toBe('response.created')
+      break
+    }
+    await vi.waitFor(() => {
+      expect(stoppedCancel).toHaveBeenCalled()
+    })
   })
 
   it('ends a reply whose headers never come the same way', async () => {
