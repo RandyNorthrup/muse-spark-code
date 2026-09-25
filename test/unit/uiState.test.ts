@@ -2118,3 +2118,59 @@ describe('Muse Code tool rows in the state (M43)', () => {
     expect(resumed.toolImages).toEqual({})
   })
 })
+
+describe('uiReducer: the session goal (M45)', () => {
+  const goal = { objective: 'Ship it', status: 'active', percentComplete: 0 }
+  const withGoal = reduceAll([
+    host({ type: 'sessionInfo', modelId: 'm', sessionId: 's1' }),
+    agent({ type: 'goalChanged', goal }),
+  ])
+  /** The goal after a history load of session s1 (or the message's) over `withGoal`. */
+  const loaded = (message: Partial<Extract<HostToWebviewMessage, { type: 'historyLoaded' }>>) =>
+    uiReducer(
+      withGoal,
+      host({ type: 'historyLoaded', sessionId: 's1', items: [], todos: [], ...message }),
+    ).goal
+
+  it('holds the goal and reads a change of status out, not a move of progress', () => {
+    expect(withGoal.goal).toEqual(goal)
+    expect(withGoal.announcement?.text).toBe('Goal: Active')
+    const progressed = uiReducer(
+      withGoal,
+      agent({ type: 'goalChanged', goal: { ...goal, percentComplete: 40, currentWork: 'Tests' } }),
+    )
+    expect(progressed.goal).toMatchObject({ percentComplete: 40, currentWork: 'Tests' })
+    expect(progressed.announcement).toBe(withGoal.announcement)
+    const paused = uiReducer(
+      progressed,
+      agent({ type: 'goalChanged', goal: { ...goal, status: 'paused' } }),
+    )
+    expect(paused.announcement?.text).toBe('Goal: Paused')
+    // A status Muse Code adds later is read as it came.
+    const odd = uiReducer(
+      paused,
+      agent({ type: 'goalChanged', goal: { ...goal, status: 'superseded' } }),
+    )
+    expect(odd.announcement?.text).toBe('Goal: superseded')
+    const cleared = uiReducer(odd, agent({ type: 'goalChanged', goal: null }))
+    expect(cleared.goal).toBeUndefined()
+    expect(cleared.announcement?.text).toBe(UI_TEXT.goalClearedNotice)
+    // Nothing to clear says nothing.
+    expect(uiReducer(cleared, agent({ type: 'goalChanged', goal: null })).announcement).toBe(
+      cleared.announcement,
+    )
+  })
+
+  it("takes a history's goal, keeps the same session's when the history cannot say", () => {
+    const other = { ...goal, objective: 'Other' }
+    expect(loaded({ goal: other })).toEqual(other)
+    expect(loaded({ goal: null })).toBeUndefined()
+    expect(loaded({})).toEqual(goal)
+    expect(loaded({ sessionId: 's2' })).toBeUndefined()
+  })
+
+  it('drops the goal with the conversation', () => {
+    expect(uiReducer(withGoal, { type: 'conversationCleared' }).goal).toBeUndefined()
+    expect(uiReducer(withGoal, host({ type: 'conversationCleared' })).goal).toBeUndefined()
+  })
+})

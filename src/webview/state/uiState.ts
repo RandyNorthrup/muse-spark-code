@@ -5,7 +5,13 @@
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
-import type { AgentEvent, ItemSnapshot, RequirementRef, TodoItem } from '../../shared/agentEvents'
+import type {
+  AgentEvent,
+  ItemSnapshot,
+  RequirementRef,
+  SessionGoal,
+  TodoItem,
+} from '../../shared/agentEvents'
 import {
   CHAT_REFERENCE_LABEL_CHARS,
   DEFAULT_EFFORT,
@@ -36,7 +42,7 @@ import type {
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
-import { toolLabel } from '../toolPresentation'
+import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import { backgroundRun } from '../toolDetails'
 import type {
   ChildTranscript,
@@ -184,6 +190,8 @@ export interface UiState {
   /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
   readonly paid: PaidState
   readonly todos: readonly TodoItem[]
+  /** The session goal (M45, PLAN.md D38): the strip above the composer while there is one. */
+  readonly goal: SessionGoal | undefined
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Pictures loaded for tool rows (M43), keyed by `toolImageKey`; never saved. */
@@ -291,6 +299,7 @@ export const initialUiState: UiState = {
   dictation: { status: 'idle', reason: undefined, engine: 'system' },
   paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false },
   todos: [],
+  goal: undefined,
   outputPages: {},
   toolImages: {},
   localSequence: 0,
@@ -362,6 +371,22 @@ function turnAnnouncement(terminal: string, reason: string | undefined): string 
       return undefined
     }
   }
+}
+
+/**
+ * What the live region says when the goal changes (M45): its new status in
+ * words, or that it was cleared; nothing when only its progress moved.
+ */
+function goalAnnouncement(
+  previous: SessionGoal | undefined,
+  next: SessionGoal | undefined,
+): string | undefined {
+  if (next === undefined) {
+    return previous === undefined ? undefined : UI_TEXT.goalClearedNotice
+  }
+  return previous?.status === next.status
+    ? undefined
+    : fill(UI_TEXT.announceGoalStatus, { status: goalStatusLabel(next.status) })
 }
 
 /** "Listening" when recording starts, "Stopped listening" when it ends. */
@@ -1177,6 +1202,10 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     case 'todoChanged': {
       return { ...state, todos: event.items }
     }
+    case 'goalChanged': {
+      const goal = event.goal ?? undefined
+      return announce({ ...state, goal }, goalAnnouncement(state.goal, goal))
+    }
     case 'effortChanged':
     case 'approvalModeChanged':
     case 'skillsChanged': {
@@ -1224,9 +1253,25 @@ function clearedConversation(state: UiState): UiState {
     usage: undefined,
     context: undefined,
     todos: [],
+    goal: undefined,
     outputPages: {},
     toolImages: {},
   }
+}
+
+/**
+ * The goal after a history load (M45): the history's, or, when it cannot
+ * say (Muse Code's inline history carries none), the one the panel already
+ * showed for the same session.
+ */
+function loadedGoal(
+  state: UiState,
+  message: Extract<HostToWebviewMessage, { type: 'historyLoaded' }>,
+): SessionGoal | undefined {
+  if (message.goal !== undefined) {
+    return message.goal ?? undefined
+  }
+  return message.sessionId === state.sessionId ? state.goal : undefined
 }
 
 /**
@@ -1412,6 +1457,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           transcript: replayed.entries,
           sequence: replayed.sequence,
           todos: message.todos,
+          goal: loadedGoal(state, message),
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
           usage: isSameSession ? state.usage : undefined,

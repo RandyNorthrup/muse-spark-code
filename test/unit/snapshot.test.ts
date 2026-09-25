@@ -43,6 +43,7 @@ const shown: UiState = {
   usage: { inputTokens: 5, outputTokens: 2, cachedTokens: 1 },
   context: { usedTokens: 7, windowTokens: 10, pressure: 'normal' },
   todos: [{ text: 'Write tests', status: 'inProgress', activeForm: 'Writing tests' }],
+  goal: { objective: 'Ship it', status: 'active', percentComplete: 40, nextWork: 'Docs' },
   reference: { intent: 'reply', role: 'assistant', entryId: 'm0', text: 'Use pnpm.' },
   transcript: [
     {
@@ -111,6 +112,7 @@ describe('the saved conversation (M25)', () => {
       usage: shown.usage,
       context: shown.context,
       todos: shown.todos,
+      goal: shown.goal,
       reference: shown.reference,
       restoredSessionId: 's1',
       pendingRestore: { sessionId: 's1', isTranscriptOmitted: false },

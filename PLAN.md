@@ -1221,7 +1221,7 @@ milestone that closes each gap:
 | Web search                        | Muse Code's own `web_search`, covered by the subscription (ran in `muse serve`, 2026-09-22)                                                                                                               | paid, opt in (M33)                                                                      | M43 (rows) |
 | Images                            | Muse Code's `image_generation` is gated off (no switch found)                                                                                                                                             | paid, opt in (M34); edits missing                                                       | M44        |
 | Web fetch (read a page)           | Muse Code's `web_fetch` is gated off                                                                                                                                                                      | none                                                                                    | M44        |
-| Goals                             | MSP `goal/*`, `session/goalChanged`: not wired                                                                                                                                                            | none                                                                                    | M45        |
+| Goals                             | MSP `goal/*`, `session/goalChanged` and the resumed snapshot's goal: the goal strip and `/goal` (M45)                                                                                                     | Muse Code's four goal tools, stored, pinned; no loop turns of its own (M45, D38)        | M45        |
 | Background work, stop             | MSP `task/background`, `task/stop`, `task/stopAll`: not wired                                                                                                                                             | shell commands cannot run in the background                                             | M46        |
 | `!` user shell                    | MSP `session/userShell`: not wired                                                                                                                                                                        | none                                                                                    | M46        |
 | Workflows                         | items render generically; `workflow/cancel`, `workflow/childControl` not wired                                                                                                                            | none (Muse Code's own engine)                                                           | M47        |
@@ -1281,6 +1281,72 @@ tool is switched off in `muse serve` with no setting that turns it on
 - **The tool list is read per request**, so a session started after image
   generation is turned on (or a key is stored) gets the tools; one already
   running gets them when it next starts.
+
+### D38 — Session goals on both backends (M45, 2026-09-25)
+
+What Muse Code 1.3.0 does, from msp.d.ts, its goal-tracking recipe and
+interactive docs, the strings of its goal store, and a live capture
+(2026-09-25, `C:\muse-live-m45` and `C:\muse-live-m45-stop`, three turns,
+nine model attempts on the contributor model, `docs/certification/m45.md`):
+
+- **The user's verbs** are MSP `goal/set`, `edit`, `pause`, `resume` and
+  `clear`, each acknowledged at admission (`{ commandId, status, turnId? }`).
+  A set, edit or resume that leaves the goal active while the session is
+  idle wakes a goal-driving turn, which the ack names and which has no user
+  message item; while a turn runs, the ack names that turn and nothing
+  starts. Pause and clear never wake. An edit of a paused goal keeps it
+  paused and wakes nothing.
+- **Refusals** are `commandRejected` (-32030) with `data.reason`
+  `missing_goal` (any verb but set, with no goal) or `invalid_goal_state`
+  (pause, resume or edit of a finished goal). A blank objective, or an
+  objective on a bare verb, is `invalidParams`.
+- **The goal** arrives as `session/goalChanged`: `{ objective, status,
+percentComplete, currentWork?, nextWork? }`, or `goal: null` when
+  cleared. It is not repeated on a resume. Only a resume served as a
+  snapshot carries it (`snapshot.state.goal`, `null` for none); inline
+  history does not. The goal store's statuses are active, paused,
+  complete, blocked, usage_limited and budget_limited.
+- **Its loop** pins the goal for the agent, queues a turn of its own to
+  continue after a turn that left the goal unfinished, reminds the agent to
+  report progress after about ten model calls without any (the step
+  probe), runs a completion audit (a reminder agent's model call) before
+  `update_goal` may close the goal, and pauses an unfinished goal when its
+  turn is stopped (Esc in the TUI; `turn/cancel`, the panel's Stop, too).
+
+The choices:
+
+- **Muse Code.** `session/goalChanged` and the resumed snapshot's goal
+  reach the panel; a resume now asks for `history: "snapshot"` (the same
+  items as inline, plus the name, the task list and the goal, so a resumed
+  conversation's task list comes back too). A snapshot goal is read on its
+  own: a shape that differs costs the strip, never the resume. A fork's
+  history takes no preference, so a fork's goal shows once Muse Code
+  reports it.
+- **The Model API backend** gets Muse Code's four tools with its argument
+  names, rules, failure messages and result shape (`{ goal: { session_id,
+goal_id, … } }`), so the M43 rows render identically. The goal is stored
+  with the session and pinned into the instructions while it is active, as
+  the last section so the rest stays the same from call to call. Muse
+  Code's step probe becomes a note in that section after ten model calls
+  without progress, with no call of its own. Tokens used while the goal is
+  active count against a budget the agent gave it, and a spent budget stops
+  it. Stop pauses an active goal. The user's verbs follow MSP's rules and
+  refusals; a set, edit or resume that leaves the goal active while nothing
+  runs starts one visible turn whose cue is Muse Code's own ("Continue
+  working toward the active session goal."), replayed for the model but
+  not shown as a message, as Muse Code's goal turns have none.
+- **Not on the Model API, on purpose:** no turn of its own after a turn,
+  and no completion audit. Each would be a model call billed to the key
+  that the user did not ask for. The audit's rule is in the pinned section
+  instead. A fork carries the goal as it stands, having no history to cut.
+- **The panel.** The goal strip sits above the task list while there is a
+  goal: the objective, the status in words (one Muse Code adds later as it
+  came), the percentage, a bar clamped to 0–100, now and next. Its buttons
+  are the verbs the status allows (Pause or Resume, Edit in place, Clear).
+  `/goal …` in the prompt reads the TUI's grammar and is a command, never a
+  message; the palette's `/goal` leaves `/goal ` ready. A done command is a
+  line in the transcript, a refusal a warning in words, and the live region
+  reads each change of status.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3270,6 +3336,33 @@ translations. The order is D36's table:
   list, the marking and the gate; drills; the gate green.
 - **Web fetch** (D36's M44 row) moves to its own milestone: it needs a
   network-safety design of its own (M44b, planned).
+
+### M45 — Goals (D38)
+
+**Status 2026-09-25: built and certified** (`docs/certification/m45.md`).
+
+- **Goal**: a session goal the user can set, see, pause, resume, change
+  and clear on both backends, with Muse Code's verbs, and the Model API
+  backend as close to Muse Code's goal loop as it can be without spending
+  what the user did not ask for.
+- **Research first**: msp.d.ts's `goal/*`, `session/goalChanged` and
+  `snapshot.goal`; Muse Code's goal-tracking recipe and interactive docs;
+  the goal store's statuses, tool descriptions and failure messages in the
+  1.3.0 binary; a live capture of the verbs, their refusals, a resumed
+  snapshot and a stopped goal turn (three turns, nine model attempts).
+- **Scope**: `goalChanged` in the agent events and the history; the
+  resume's snapshot preference; `controlGoal` on both sessions with the
+  captured refusals; the Model API's four goal tools, the stored goal, the
+  pinned section, the step-probe note, the token budget, Stop pausing, the
+  wake turn; the goal strip, `/goal …` in the prompt and the palette's
+  `/goal`; 29 strings in fourteen languages; harness scenarios `goal` and
+  `goal-edit`.
+- **Acceptance**: tests from the captured shapes on both backends, the
+  reducer, the controller, the strip and the prompt; drills G1–G22; both
+  scenarios seen and in the accessibility gate; the gate green.
+- **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
+  (fork is refused on Windows 1.3.0, so it could not be captured); the
+  exported Markdown does not include the goal.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 

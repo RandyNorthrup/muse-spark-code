@@ -1460,3 +1460,74 @@ describe('App webview and UI state (M25)', () => {
     expect(screen.queryByLabelText('Remove x.png')).toBeNull()
   })
 })
+
+/** Types `text` into the prompt and presses Enter. */
+function send(text: string) {
+  fireEvent.change(textarea(), { target: { value: text } })
+  fireEvent.keyDown(textarea(), { key: 'Enter' })
+}
+
+describe('App: the session goal (M45)', () => {
+  it('sends /goal as a command to the host, never as a message', () => {
+    const postMessage = renderReady()
+    send('/goal Make the parser tests pass')
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      verb: 'set',
+      objective: 'Make the parser tests pass',
+    })
+    expect(textarea()).toHaveValue('')
+    send('/goal pause')
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'goalCommand', verb: 'pause' })
+    send('/goal edit Ship on Friday')
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      verb: 'edit',
+      objective: 'Ship on Friday',
+    })
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+    expect(screen.queryByText('/goal pause')).toBeNull()
+  })
+
+  it('readies /goal for an objective from the slash list and the palette, and asks for one', () => {
+    const postMessage = renderReady()
+    const box = textarea()
+    box.focus()
+    fireEvent.change(box, { target: { value: '/goal' } })
+    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/goal')
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(box).toHaveValue('/goal ')
+    // Enter with no objective: said, and nothing sent.
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent(
+      UI_TEXT.goalObjectiveMissing,
+    )
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'goalCommand' }))
+    expect(box).toHaveValue('/goal ')
+    fireEvent.change(box, { target: { value: '' } })
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: '/goal' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(textarea()).toHaveValue('/goal ')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows the goal the host reports above the composer, with its verbs', () => {
+    const postMessage = renderReady()
+    expect(screen.queryByRole('region', { name: 'Session goal' })).toBeNull()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Ship it', status: 'active', percentComplete: 30 },
+      },
+    })
+    const strip = screen.getByRole('region', { name: 'Session goal' })
+    expect(strip).toHaveTextContent('Ship it')
+    fireEvent.click(within(strip).getByRole('button', { name: 'Pause' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'goalCommand', verb: 'pause' })
+    deliver({ type: 'agentEvent', event: { type: 'goalChanged', goal: null } })
+    expect(screen.queryByRole('region', { name: 'Session goal' })).toBeNull()
+  })
+})

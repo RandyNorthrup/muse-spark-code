@@ -737,6 +737,9 @@ export const EN = {
     paused: 'Paused',
     complete: 'Complete',
     blocked: 'Blocked',
+    // M45: the rest of Muse Code 1.3.0's list; a goal stopped by a limit.
+    usage_limited: 'Usage limit reached',
+    budget_limited: 'Token budget spent',
   },
   // {percent} is already formatted ("50%").
   goalPercent: '{percent} done',
@@ -745,6 +748,38 @@ export const EN = {
   goalNext: 'Next',
   goalTokens: 'Tokens',
   goalTokensOfBudget: '{used} of {budget}',
+  // The session goal (M45, PLAN.md D38): the strip above the composer, its
+  // controls, `/goal` in the prompt and what the conversation says of them.
+  goalItem: '/goal',
+  goalItemDetail: 'Set a goal Muse keeps working toward: /goal <objective>',
+  goalStripLabel: 'Session goal',
+  goalTitle: 'Goal',
+  goalPause: 'Pause',
+  goalResume: 'Resume',
+  goalEdit: 'Edit',
+  goalClear: 'Clear',
+  goalPauseTitle: 'Pause the goal: Muse stops working toward it until you resume it',
+  goalResumeTitle: 'Resume the goal: Muse starts working toward it again',
+  goalEditTitle: 'Change the goal’s objective',
+  goalClearTitle: 'Remove the goal',
+  goalEditLabel: 'Goal objective',
+  goalEditSave: 'Save',
+  goalEditCancel: 'Cancel',
+  // {objective} is the goal as the user typed it.
+  goalSetNotice: 'Goal set: {objective}',
+  goalEditedNotice: 'Goal changed: {objective}',
+  goalPausedNotice: 'Goal paused',
+  goalResumedNotice: 'Goal resumed',
+  goalClearedNotice: 'Goal cleared',
+  goalNone: 'There is no goal in this conversation. Set one with /goal <objective>.',
+  goalCannotPause: 'Only an active goal can be paused.',
+  goalCannotResume: 'Only a paused goal can be resumed.',
+  goalCannotEdit:
+    'Only an active or paused goal can be changed; set a new one with /goal <objective>.',
+  goalObjectiveMissing: 'Type the objective after /goal.',
+  goalCommandFailed: 'The goal command failed',
+  // Read out when the goal's status changes; {status} is the status in words.
+  announceGoalStatus: 'Goal: {status}',
   scheduleOnce: 'Once',
   scheduleRepeats: 'Repeats',
   // {date} is the local date and time.

@@ -39,6 +39,9 @@ import type {
   AgentSession,
   ApprovalDecision,
   CompactOutcome,
+  GoalCommand,
+  GoalCommandOutcome,
+  GoalRefusal,
   HostExit,
   HostInfo,
   ListSessionsOptions,
@@ -57,6 +60,7 @@ import type {
   TurnSubmission,
 } from '../../agent/agentBackend'
 import {
+  GoalRefusedError,
   PromptSettledError,
   type PromptSettledReason,
   SessionNotLoadedError,
@@ -98,7 +102,10 @@ const SESSION_LIST_CHANGED = 'session/listChanged'
 const SESSION_CLOSED = 'session/closed'
 const USAGE_CHANGED = 'usage/changed'
 const USAGE_READ = 'usage/read'
-const HISTORY_PREFERENCE_INLINE = 'inline'
+// A resume asks for the folded snapshot (M45): the same items as `inline`
+// plus the session's name, todo list and goal, which inline history lacks
+// and which no notification repeats after a resume (captured 2026-09-25).
+const HISTORY_PREFERENCE_SNAPSHOT = 'snapshot'
 
 const initializeResultSchema = z.object({
   serverInfo: z.object({ name: z.string(), version: z.string() }),
@@ -137,6 +144,30 @@ const turnStartResultSchema = z.object({
 const turnSteerResultSchema = z.object({ turnId: z.string(), status: z.string() })
 
 const compactResultSchema = z.object({ status: z.string(), reason: z.optional(z.string()) })
+
+// The shared `goal/*` ack (msp.d.ts GoalCommandResult): `turnId` names the
+// turn a set, edit or resume woke (idle) or joined (busy); pause and clear
+// never name one (captured live 2026-09-25, M45).
+const goalCommandResultSchema = z.object({ status: z.string(), turnId: z.optional(z.string()) })
+
+// A goal command's refusal (live 2026-09-25): `commandRejected` with
+// `data.reason` `missing_goal` (no goal) or `invalid_goal_state` (a finished
+// goal paused, resumed or edited).
+const COMMAND_REJECTED = 'commandRejected'
+const GOAL_REFUSALS: ReadonlyMap<string, GoalRefusal> = new Map([
+  ['missing_goal', 'noGoal'],
+  ['invalid_goal_state', 'wrongState'],
+])
+
+/** A goal refusal as a `GoalRefusedError`; anything else unchanged. */
+function goalRefusalOr(error: unknown): unknown {
+  if (!(error instanceof MspError) || error.kind !== COMMAND_REJECTED) {
+    return error
+  }
+  const reason = error.data['reason']
+  const refusal = typeof reason === 'string' ? GOAL_REFUSALS.get(reason) : undefined
+  return refusal === undefined ? error : new GoalRefusedError(refusal, error.message)
+}
 
 const modelListResultSchema = z.object({
   models: z.array(
@@ -548,6 +579,25 @@ export class MuseSession implements AgentSession {
       subagentId,
       body,
     })
+  }
+
+  /**
+   * `goal/set`, `edit`, `pause`, `resume` or `clear` (M45, PLAN.md D38).
+   * An idle set, edit or resume wakes a goal-driving turn, which then
+   * arrives as its own `turn/started`; the goal arrives as
+   * `session/goalChanged`.
+   */
+  public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    let ack: unknown
+    try {
+      ack = await this.command(
+        `goal/${command.verb}`,
+        command.verb === 'set' || command.verb === 'edit' ? { objective: command.objective } : {},
+      )
+    } catch (error: unknown) {
+      throw goalRefusalOr(error)
+    }
+    return { turnId: goalCommandResultSchema.parse(ack).turnId }
   }
 
   /** One page of a stored tool output or patch document (`item/readOutput`). */
@@ -966,10 +1016,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Load a stored session on this connection with its history inline where
-   * the host's budget allows (the served mode is reported). `modelId` is
-   * the caller's standing selection: the record's own `modelId` is the
-   * metadata fold's and not to be trusted (PLAN.md M6).
+   * Load a stored session on this connection with its history as a folded
+   * snapshot where the host's budget allows (the served mode is reported):
+   * the items, and the name, todo list and goal beside them (M45).
+   * `modelId` is the caller's standing selection: the record's own
+   * `modelId` is the metadata fold's and not to be trusted (PLAN.md M6).
    */
   public async resumeSession(
     sessionId: string,
@@ -980,7 +1031,7 @@ export class MuseCodeHost implements AgentHost {
       const envelope = sessionEnvelopeSchema.parse(
         await this.command('session/resume', {
           sessionId,
-          history: HISTORY_PREFERENCE_INLINE,
+          history: HISTORY_PREFERENCE_SNAPSHOT,
           ...this.mcpConfig(mcpServers),
         }),
       )

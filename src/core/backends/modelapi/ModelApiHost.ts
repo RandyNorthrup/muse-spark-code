@@ -19,6 +19,8 @@ import {
   CONTEXT_PRESSURE_MEDIUM,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
+  GOAL_STATUS,
+  type GoalCommandVerb,
   HTTP_UNAUTHORIZED,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
@@ -44,27 +46,31 @@ import {
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import type { SubscriptionUsage } from '../../../shared/usage'
-import type {
-  AgentHost,
-  AgentSession,
-  ApprovalDecision,
-  CompactOutcome,
-  HostExit,
-  HostInfo,
-  ListSessionsOptions,
-  LoadedSession,
-  ModelSummary,
-  OutputPage,
-  OutputPageRequest,
-  SessionEventListener,
-  SessionHistoryOutcome,
-  SessionListEvent,
-  SessionPage,
-  SessionRecord,
-  SkillSummary,
-  StartSessionOptions,
-  TurnPart,
-  TurnSubmission,
+import {
+  type AgentHost,
+  type AgentSession,
+  type ApprovalDecision,
+  type CompactOutcome,
+  type GoalCommand,
+  type GoalCommandOutcome,
+  type GoalRefusal,
+  GoalRefusedError,
+  type HostExit,
+  type HostInfo,
+  type ListSessionsOptions,
+  type LoadedSession,
+  type ModelSummary,
+  type OutputPage,
+  type OutputPageRequest,
+  type SessionEventListener,
+  type SessionHistoryOutcome,
+  type SessionListEvent,
+  type SessionPage,
+  type SessionRecord,
+  type SkillSummary,
+  type StartSessionOptions,
+  type TurnPart,
+  type TurnSubmission,
 } from '../../agent/agentBackend'
 import type { ContextIo } from '../../context/contextFiles'
 import { type SkillDefinition } from '../../context/skills'
@@ -77,6 +83,17 @@ import {
   type RetryBudget,
   type RetryNotice,
 } from './client'
+import {
+  applyGoalCommand,
+  type GoalContext,
+  goalInstructions,
+  goalObjectiveProblem,
+  type GoalRecord,
+  isGoalActive,
+  runGoalTool,
+  toSessionGoal,
+  withTokensUsed,
+} from './goals'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
 import { type ImagePlan, prepareImageCall, runImageCall } from './imageGeneration'
 import {
@@ -170,7 +187,21 @@ interface QueuedTurn {
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
+  /**
+   * Woken by a goal command (M45, PLAN.md D38): its prompt is the model's
+   * cue, replayed but not a message of the user's, so the transcript shows
+   * no card for it, as Muse Code's goal turns have none (live 2026-09-25).
+   */
+  readonly isGoalWake: boolean
 }
+
+// MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
+const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
+  noGoal: 'missing_goal',
+  wrongState: 'invalid_goal_state',
+}
+// The verbs that wake the agent when they leave the goal active (MSP's wake gate).
+const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
 interface ActiveTurn {
   readonly turnId: string
@@ -513,6 +544,10 @@ export class ModelApiSession implements AgentSession {
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
   private todos: readonly TodoItem[] = []
+  /** The session goal (M45, PLAN.md D38), in Muse Code's own record shape. */
+  private goal: GoalRecord | undefined
+  /** Model calls since the goal last moved: the step probe's count (D38). */
+  private goalSteps = 0
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   private firstPrompt: string | undefined
   private isDisposed = false
@@ -575,6 +610,7 @@ export class ModelApiSession implements AgentSession {
     const shell = shellToolFor(this.deps.platform)
     const hasShell = this.deps.isWorkspaceTrusted()
     const context = this.context.sections()
+    const goalSection = goalInstructions(this.goal, this.goalSteps)
     return {
       model: this.modelId,
       input: this.replay.map((entry) => entry.item),
@@ -587,6 +623,8 @@ export class ModelApiSession implements AgentSession {
         today: new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH),
         environment: this.environment ?? NO_ENVIRONMENT,
         context,
+        // Pinned while the goal is active (M45, PLAN.md D38).
+        ...(goalSection !== undefined && { goalSection }),
       }),
       tools: this.tools(hasShell, context.skills.length > 0),
       tool_choice: 'auto',
@@ -660,9 +698,93 @@ export class ModelApiSession implements AgentSession {
     })
   }
 
+  /** What a goal operation needs from the session (M45). */
+  private goalContext(): GoalContext {
+    return { sessionId: this.sessionId, now: this.deps.now(), newId: this.deps.newId }
+  }
+
+  /**
+   * Replaces the goal. The panel hears of it only when what it shows
+   * changed, as MSP's change gate emits nothing for an identical adoption;
+   * true when it did.
+   */
+  private replaceGoal(goal: GoalRecord | undefined): boolean {
+    const before = this.goal === undefined ? null : toSessionGoal(this.goal)
+    const after = goal === undefined ? null : toSessionGoal(goal)
+    this.goal = goal
+    if (JSON.stringify(before) === JSON.stringify(after)) {
+      return false
+    }
+    this.emit({ type: 'goalChanged', goal: after })
+    return true
+  }
+
+  /** A goal tool's call (M45): Muse Code's rules and result shape. */
+  private runGoal(call: FunctionCallItem): ToolOutcome {
+    const result = runGoalTool(call.name, call.arguments, this.goal, this.goalContext())
+    if (result.goal !== this.goal) {
+      // The goal moved (created, progressed, closed): the step probe starts over.
+      this.goalSteps = 0
+      this.replaceGoal(result.goal)
+      this.touch()
+    }
+    return result.outcome
+  }
+
+  /**
+   * The cue a goal command gives when it wakes the agent (D38): the running
+   * turn's id when one runs (its next call sees the goal), else a new turn,
+   * queued behind a compaction. Only an active goal wakes anything.
+   */
+  private wakeFor(command: GoalCommand): string | undefined {
+    if (!GOAL_WAKING_VERBS.has(command.verb) || !isGoalActive(this.goal)) {
+      return undefined
+    }
+    if (this.active !== undefined) {
+      return this.active.turnId
+    }
+    const queued: QueuedTurn = {
+      turnId: this.deps.newId(),
+      parts: [{ type: 'text', text: MODEL_TEXT.goalWake }],
+      displayText: undefined,
+      isGoalWake: true,
+    }
+    if (this.compacting === undefined) {
+      void this.runTurn(queued)
+    } else {
+      this.queuedTurns.push(queued)
+    }
+    return queued.turnId
+  }
+
+  /**
+   * A goal turn's cue (M45): replayed for the model, and not recorded as a
+   * message of the user's. A session whose first turn it is takes the
+   * objective as its title.
+   */
+  private appendGoalWake(turnId: string, parts: readonly TurnPart[]): void {
+    this.replay.push({
+      turnId,
+      item: { type: 'message', role: 'user', content: this.contentParts(parts) },
+    })
+    this.firstPrompt ??= this.goal?.objective
+  }
+
   private noteUsage(usage: Usage | null | undefined): void {
     if (usage === null || usage === undefined) {
       return
+    }
+    // What the goal used counts against its budget (M45); a budget spent
+    // stops the goal, and the panel hears of that.
+    if (isGoalActive(this.goal)) {
+      const spent = withTokensUsed(
+        this.goal,
+        usage.input_tokens + usage.output_tokens,
+        this.deps.now(),
+      )
+      if (this.replaceGoal(spent)) {
+        this.touch()
+      }
     }
     this.usage = {
       inputTokens: this.usage.inputTokens + usage.input_tokens,
@@ -1288,6 +1410,12 @@ export class ModelApiSession implements AgentSession {
       case MODEL_API_TOOLS.editImage: {
         return await this.makeImage(call, signal)
       }
+      case MODEL_API_TOOLS.createGoal:
+      case MODEL_API_TOOLS.getGoal:
+      case MODEL_API_TOOLS.updateGoal:
+      case MODEL_API_TOOLS.reportProgress: {
+        return this.runGoal(call)
+      }
       default: {
         return await executeTool(call.name, call.arguments, {
           workspaceRoot: this.deps.workspaceRoot,
@@ -1483,6 +1611,10 @@ export class ModelApiSession implements AgentSession {
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
       this.drainSteered(turn)
       const calls = await this.streamOnce(turn.turnId, signal)
+      // One more model call without progress toward the goal (the step probe, D38).
+      if (isGoalActive(this.goal)) {
+        this.goalSteps += 1
+      }
       if (calls.length === 0) {
         // A message typed while the final answer streamed gets its own round
         // instead of being accepted and dropped (D26).
@@ -1518,7 +1650,11 @@ export class ModelApiSession implements AgentSession {
     // it never throws, so the user message always follows.
     await this.context.load()
     this.environment ??= await this.loadEnvironment()
-    this.appendUserMessage(turn.turnId, queued.parts, queued.displayText)
+    if (queued.isGoalWake) {
+      this.appendGoalWake(turn.turnId, queued.parts)
+    } else {
+      this.appendUserMessage(turn.turnId, queued.parts, queued.displayText)
+    }
     this.touch()
     const startedAt = this.deps.now()
     let terminal = COMPLETED
@@ -1535,6 +1671,16 @@ export class ModelApiSession implements AgentSession {
         errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         this.deps.log.warn(`Model API turn ${turn.turnId} failed: ${reason}`)
       }
+    }
+    // Stopping a turn pauses an unfinished goal, as Muse Code does on Esc and
+    // on `turn/cancel` (captured live 2026-09-25, M45): nothing works toward
+    // it until the user resumes it.
+    if (terminal === CANCELLED && isGoalActive(this.goal)) {
+      this.replaceGoal({
+        ...this.goal,
+        status: GOAL_STATUS.paused,
+        updated_at_ms: this.deps.now(),
+      })
     }
     // `loop` returns only with nothing steered left (D26), and `steer` is
     // refused once `active` is cleared, so no input is lost between the two.
@@ -1659,7 +1805,7 @@ export class ModelApiSession implements AgentSession {
 
   public sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
     const turnId = this.deps.newId()
-    const queued: QueuedTurn = { turnId, parts, displayText }
+    const queued: QueuedTurn = { turnId, parts, displayText, isGoalWake: false }
     // A compaction is a turn too (D26): a message sent during one waits for it.
     if (this.active === undefined && this.compacting === undefined) {
       void this.runTurn(queued)
@@ -1785,6 +1931,33 @@ export class ModelApiSession implements AgentSession {
     return Promise.reject(new Error(`${UI_TEXT.subagentsUnsupported} (${subagentId})`))
   }
 
+  /**
+   * The user's goal verbs (M45, PLAN.md D38), with MSP's rules and
+   * refusals: a set, edit or resume that leaves the goal active wakes a
+   * turn when nothing runs, as `goal/*` does; nothing else starts one.
+   */
+  public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    const problem = goalObjectiveProblem(command)
+    if (problem !== undefined) {
+      return Promise.reject(new Error(`goal/${command.verb}: ${problem}`))
+    }
+    const applied = applyGoalCommand(this.goal, command, this.goalContext())
+    if (typeof applied === 'string') {
+      return Promise.reject(
+        new GoalRefusedError(
+          applied,
+          `goal/${command.verb} rejected: ${GOAL_REFUSAL_REASONS[applied]}`,
+        ),
+      )
+    }
+    this.replaceGoal(applied.goal)
+    if (command.verb === 'set' || command.verb === 'resume') {
+      this.goalSteps = 0
+    }
+    this.touch()
+    return Promise.resolve({ turnId: this.wakeFor(command) })
+  }
+
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {
     const content = this.outputs.get(request.outputRef)
     if (content === undefined) {
@@ -1893,6 +2066,7 @@ export class ModelApiSession implements AgentSession {
       items: this.transcript.map((entry) => entry.item),
       name: this.name,
       todos: [...this.todos],
+      goal: this.goal === undefined ? null : toSessionGoal(this.goal),
     }
   }
 
@@ -1912,6 +2086,7 @@ export class ModelApiSession implements AgentSession {
       ...(this.forkedFrom !== undefined && { forkedFrom: this.forkedFrom }),
       ...(this.firstPrompt !== undefined && { firstPrompt: this.firstPrompt }),
       todos: [...this.todos],
+      ...(this.goal !== undefined && { goal: this.goal }),
       replay: [...this.replay],
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
@@ -1930,6 +2105,7 @@ export class ModelApiSession implements AgentSession {
     this.effort = stored.effort
     this.name = stored.name
     this.todos = [...stored.todos]
+    this.goal = stored.goal
     this.firstPrompt = stored.firstPrompt
     this.forkedFrom = stored.forkedFrom
     this.createdAt = stored.createdAt
@@ -1955,6 +2131,9 @@ export class ModelApiSession implements AgentSession {
     target.firstPrompt = this.firstPrompt
     target.forkedFrom = this.sessionId
     target.effort = this.effort
+    // The goal as it stands goes with the fork (M45): a goal has no history
+    // to cut, so a fork from an earlier turn gets today's goal too.
+    target.goal = this.goal
     for (const [ref, content] of this.outputs) {
       target.outputs.set(ref, content)
     }
@@ -2141,6 +2320,7 @@ export class ModelApiHost implements AgentHost {
       items: stored.transcript.map((entry) => entry.item),
       name: stored.name,
       todos: stored.todos,
+      goal: stored.goal === undefined ? null : toSessionGoal(stored.goal),
     }
   }
 

@@ -2149,3 +2149,187 @@ describe('ModelApiSession: image edits, paid and asked every time (M44)', () => 
     expect(off.api.editBodies()).toEqual([])
   })
 })
+
+/** The goals a session reported, in order (M45). */
+function goalEvents(events: readonly AgentEvent[]) {
+  return events.flatMap((event) => (event.type === 'goalChanged' ? [event.goal] : []))
+}
+
+/** The instructions of the n-th request to the fake API. */
+function instructionsOf(t: ReturnType<typeof setup>, index: number) {
+  return String(t.api.responseBodies()[index]?.['instructions'])
+}
+
+describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
+  it("runs Muse Code's goal tools with its result shape and pins the goal into the next request", async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [{ name: 'create_goal', arguments: '{"objective":"Ship it"}', callId: 'c1' }] },
+      {
+        calls: [
+          {
+            name: 'report_progress',
+            arguments: '{"current_work":"Tests","next_work":"Docs","percent_complete":50}',
+            callId: 'c2',
+          },
+        ],
+      },
+      { text: 'Halfway.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'set a goal and work on it' }])
+    await turnDone()
+    expect(goalEvents(events)).toEqual([
+      { objective: 'Ship it', status: 'active', percentComplete: 0 },
+      {
+        objective: 'Ship it',
+        status: 'active',
+        percentComplete: 50,
+        currentWork: 'Tests',
+        nextWork: 'Docs',
+      },
+    ])
+    const row = events.find(
+      (event) => event.type === 'itemCompleted' && event.item.tool === 'create_goal',
+    )
+    expect(row?.type === 'itemCompleted' && JSON.parse(row.item.visibleOutput ?? '')).toMatchObject(
+      { goal: { session_id: session.sessionId, objective: 'Ship it', status: 'active' } },
+    )
+    const tools = t.api.responseBodies()[0]?.['tools'] as readonly { name?: string }[]
+    expect(tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(['create_goal', 'get_goal', 'update_goal', 'report_progress']),
+    )
+    expect(instructionsOf(t, 0)).not.toContain('# Session goal')
+    expect(instructionsOf(t, 1)).toContain('- Objective: Ship it')
+    expect(instructionsOf(t, 2)).toContain('- Current work: Tests')
+    expect(session.history().goal).toMatchObject({ objective: 'Ship it', percentComplete: 50 })
+  })
+
+  it('wakes a turn when the user sets a goal while idle, with no card for its cue', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [{ name: 'update_goal', arguments: '{"status":"complete"}', callId: 'c1' }],
+      },
+      { text: 'hello' },
+    )
+    const outcome = await session.controlGoal({ verb: 'set', objective: 'Say hello' })
+    await turnDone()
+    expect(outcome.turnId).toBeDefined()
+    expect(events).toContainEqual({ type: 'turnStarted', turnId: outcome.turnId })
+    const input = t.api.responseBodies()[0]?.['input'] as readonly Record<string, unknown>[]
+    expect(input.at(-1)).toEqual({
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
+    })
+    expect(instructionsOf(t, 0)).toContain('- Objective: Say hello')
+    expect(session.history().items.some((item) => item.kind === 'userMessage')).toBe(false)
+    expect(session.record().title).toBe('Say hello')
+    expect(goalEvents(events).at(-1)).toEqual({
+      objective: 'Say hello',
+      status: 'complete',
+      percentComplete: 100,
+    })
+  })
+
+  it('follows MSP: a busy set joins the turn, pause and clear never wake, refusals as captured', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ calls: [ASK_USER_CALL] }, { text: 'done' })
+    const running = await session.sendTurn([{ type: 'text', text: 'ask me' }])
+    const question = await awaitQuestion(events)
+    await expect(session.controlGoal({ verb: 'set', objective: 'Ship it' })).resolves.toEqual({
+      turnId: running.turnId,
+    })
+    await session.answerQuestions(question.userInputId, [{ questionId: 'q', selectedLabel: 'Red' }])
+    await turnDone()
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+    await expect(session.controlGoal({ verb: 'pause' })).resolves.toEqual({ turnId: undefined })
+    await expect(session.controlGoal({ verb: 'pause' })).rejects.toMatchObject({
+      name: 'GoalRefusedError',
+      refusal: 'wrongState',
+    })
+    // An edit of a paused goal keeps it paused, and wakes nothing (live 2026-09-25).
+    await expect(session.controlGoal({ verb: 'edit', objective: 'Ship it now' })).resolves.toEqual({
+      turnId: undefined,
+    })
+    await expect(session.controlGoal({ verb: 'edit', objective: '  ' })).rejects.toThrow(
+      MODEL_TEXT.goalEmptyObjective,
+    )
+    await session.controlGoal({ verb: 'clear' })
+    await expect(session.controlGoal({ verb: 'clear' })).rejects.toMatchObject({
+      refusal: 'noGoal',
+    })
+    expect(goalEvents(events).slice(-3)).toEqual([
+      { objective: 'Ship it', status: 'paused', percentComplete: 0 },
+      { objective: 'Ship it now', status: 'paused', percentComplete: 0 },
+      null,
+    ])
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+  })
+
+  it('pauses an active goal when Stop ends its turn, as Esc does in Muse Code', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ calls: [ASK_USER_CALL] })
+    await session.controlGoal({ verb: 'set', objective: 'Ship it' })
+    await awaitQuestion(events)
+    await session.cancel()
+    await turnDone()
+    expect(goalEvents(events).at(-1)).toEqual({
+      objective: 'Ship it',
+      status: 'paused',
+      percentComplete: 0,
+    })
+  })
+
+  it('counts what the goal used against its budget and stops it when spent', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'c1',
+          },
+        ],
+        usage: { input: 50, output: 5 },
+      },
+      { text: 'working', usage: { input: 90, output: 20 } },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    expect(goalEvents(events).at(-1)).toMatchObject({ status: 'budget_limited' })
+    expect(session.snapshot().goal).toMatchObject({ token_budget: 100, tokens_used: 110 })
+  })
+
+  it('keeps the goal with the stored session, and forks carry it', async () => {
+    const store = memorySessionStore()
+    const first = setup({ store })
+    const { session, turnDone } = await startSession(first)
+    first.api.script({ text: 'ok' })
+    await session.controlGoal({ verb: 'set', objective: 'Ship it' })
+    await turnDone()
+    await session.controlGoal({ verb: 'pause' })
+    await first.host.close()
+    const saved = store.saved.get(session.sessionId)
+    expect(saved?.goal).toMatchObject({ objective: 'Ship it', status: 'paused' })
+    expect(parseStoredSession(structuredClone(saved))).toMatchObject({
+      ok: true,
+      session: { goal: { objective: 'Ship it', status: 'paused' } },
+    })
+    const second = setup({ store })
+    await second.host.load()
+    const expected = { objective: 'Ship it', status: 'paused', percentComplete: 0 }
+    const read = await second.host.readSession(session.sessionId)
+    expect(read.goal).toEqual(expected)
+    const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(resumed.history.goal).toEqual(expected)
+    const fork = await second.host.forkSession(session.sessionId, 'muse-spark-1.3')
+    expect(fork.history.goal).toEqual(expected)
+  })
+})

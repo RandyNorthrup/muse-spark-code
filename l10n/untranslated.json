@@ -29,7 +29,8 @@
       "onboardingShortcuts.mentionFile",
       "onboardingShortcuts.dictation",
       "paidVoiceName",
-      "mcpToolLabel"
+      "mcpToolLabel",
+      "goalItem"
     ],
     "cs": [
       "groupModel",

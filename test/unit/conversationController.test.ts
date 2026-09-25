@@ -15,14 +15,20 @@ import {
 } from '../../src/host/conversation/conversationController'
 import type { DictationListener } from '../../src/core/voice/dictation'
 import type { DictationSetup } from '../../src/host/voice/dictationHost'
-import { CHOICE_STEERING_NOTE, UI_TEXT } from '../../src/shared/constants'
+import { CHOICE_STEERING_NOTE, type GoalCommandVerb, UI_TEXT } from '../../src/shared/constants'
 import type { HostAction, LineRange, MentionItem } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
-import { fakeInitializeResult, fakeMspHost, refusalOf, settle } from './helpers/fakeMsp'
+import {
+  fakeInitializeResult,
+  fakeMspHost,
+  goalRefusal,
+  refusalOf,
+  settle,
+} from './helpers/fakeMsp'
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -1838,7 +1844,7 @@ describe('ConversationController: session history (M6)', () => {
     await settle()
     expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({
       sessionId: 'old',
-      history: 'inline',
+      history: 'snapshot',
     })
     expect(t.surface.posted).toEqual([
       modelList,
@@ -3298,5 +3304,123 @@ describe('ConversationController: a tool row’s picture (M43)', () => {
       path: 'a.png',
       error: 'EACCES',
     })
+  })
+})
+
+/** MSP's bare `goal/*` ack (M45). */
+function accepted(params: Record<string, unknown>) {
+  return { commandId: params['commandId'], status: 'accepted' }
+}
+
+/** The webview's goal command (M45). */
+function goal(verb: GoalCommandVerb, objective?: string) {
+  return { type: 'goalCommand' as const, verb, ...(objective !== undefined && { objective }) }
+}
+
+/** The notices the panel was sent, in order. */
+function notices(t: ReturnType<typeof setup>) {
+  return t.surface.posted.flatMap((message) => (message.type === 'notice' ? [message] : []))
+}
+
+describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
+  it('starts a conversation for a goal, sends the verb and says what was done', async () => {
+    const t = setup()
+    t.server.handle('goal/set', (params) => ({ ...accepted(params), turnId: 'goal-turn' }))
+    t.server.handle('goal/pause', accepted)
+    await t.controller.handle(goal('set', ' Ship the parser '))
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('goal/set')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      objective: 'Ship the parser',
+    })
+    await t.controller.handle(goal('pause'))
+    expect(notices(t)).toEqual([
+      { type: 'notice', level: 'info', text: 'Goal set: Ship the parser' },
+      { type: 'notice', level: 'info', text: UI_TEXT.goalPausedNotice },
+    ])
+    // The objective is the user's text: the log says what was done, not what was typed.
+    expect(t.log.info).toHaveBeenCalledWith('Goal set accepted (turn goal-turn)')
+    expect(t.log.info).not.toHaveBeenCalledWith(expect.stringContaining('Ship the parser'))
+  })
+
+  it('says a refusal in words and asks for a missing objective before sending anything', async () => {
+    const t = setup()
+    await t.controller.handle(goal('set', ' '.repeat(3)))
+    await t.controller.handle(goal('edit'))
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    t.server.handle('goal/pause', goalRefusal('missing_goal'))
+    t.server.handle('goal/resume', goalRefusal('invalid_goal_state'))
+    t.server.handle('goal/edit', goalRefusal('invalid_goal_state'))
+    t.server.handle('goal/clear', refusalOf('overloaded', -32_050))
+    await t.controller.handle(goal('pause'))
+    await t.controller.handle(goal('resume'))
+    await t.controller.handle(goal('edit', 'New'))
+    await t.controller.handle(goal('clear'))
+    expect(notices(t).map((notice) => [notice.level, notice.text])).toEqual([
+      ['warning', UI_TEXT.goalObjectiveMissing],
+      ['warning', UI_TEXT.goalObjectiveMissing],
+      ['warning', UI_TEXT.goalNone],
+      ['warning', UI_TEXT.goalCannotResume],
+      ['warning', UI_TEXT.goalCannotEdit],
+      ['error', expect.stringContaining(`${UI_TEXT.goalCommandFailed}: `)],
+    ])
+  })
+
+  it('resumes the session and sends again when the host no longer holds it', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    let calls = 0
+    t.server.handle('goal/clear', (params) => {
+      calls += 1
+      if (calls === 1) {
+        throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+      }
+      return accepted(params)
+    })
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    await t.controller.handle(goal('clear'))
+    expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+    expect(calls).toBe(2)
+    expect(notices(t).at(-1)).toMatchObject({ text: UI_TEXT.goalClearedNotice })
+  })
+
+  it('forwards goalChanged, and a resumed snapshot brings the goal with the history', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('session/goalChanged', {
+      sessionId: 's1',
+      goal: { objective: 'Ship it', status: 'active', percentComplete: 10 },
+    })
+    await settle()
+    expect(t.surface.posted).toContainEqual({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Ship it', status: 'active', percentComplete: 10 },
+      },
+    })
+    t.server.handle('session/resume', () => ({
+      ...envelope({ ...storedSession, status: 'idle' }, 'snapshot'),
+      history: {
+        mode: 'snapshot',
+        items: null,
+        snapshot: {
+          state: {
+            items: storedItems,
+            goal: { objective: 'Old goal', status: 'paused', percentComplete: 20 },
+          },
+        },
+      },
+    }))
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'historyLoaded',
+        sessionId: 'old',
+        goal: { objective: 'Old goal', status: 'paused', percentComplete: 20 },
+      }),
+    )
   })
 })

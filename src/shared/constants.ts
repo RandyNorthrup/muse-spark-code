@@ -345,6 +345,28 @@ export const IMAGE_MAKING_TOOLS: ReadonlySet<string> = new Set([
   'mcp__ide__generateImage',
   'mcp__ide__editImage',
 ])
+// The session goal (M45, PLAN.md D38): the user's verbs, which are MSP's
+// `goal/<verb>` and the TUI's `/goal <verb>`; `set` and `edit` carry an
+// objective.
+export const GOAL_COMMANDS = ['set', 'edit', 'pause', 'resume', 'clear'] as const
+export type GoalCommandVerb = (typeof GOAL_COMMANDS)[number]
+// The goal statuses Muse Code 1.3.0 folds (its goal store's closed list);
+// the wire carries the status verbatim, so any other is shown as it came.
+export const GOAL_STATUS = {
+  active: 'active',
+  paused: 'paused',
+  complete: 'complete',
+  blocked: 'blocked',
+  usageLimited: 'usage_limited',
+  budgetLimited: 'budget_limited',
+} as const
+// `/goal <objective>` sets the goal from the prompt, as in Muse Code's TUI;
+// `/goal edit <objective>`, `/goal pause`, `/goal resume`, `/goal clear`.
+export const GOAL_SLASH_COMMAND = 'goal'
+// A progress bar's range: MSP passes the percentage verbatim (over 100
+// included), and the strip clamps it for the bar only.
+export const GOAL_PERCENT_MAX = 100
+
 // The rows that show the picture a tool read or made, when the path names one.
 export const IMAGE_PREVIEW_TOOLS: ReadonlySet<string> = new Set([
   'read_file',
@@ -432,6 +454,11 @@ export const MODEL_API_TOOLS = {
   generateImage: 'generate_image',
   // M44: the same gate and price; one or more workspace images changed by a prompt.
   editImage: 'edit_image',
+  // M45 (PLAN.md D38): Muse Code's goal tools, with its arguments and results.
+  createGoal: 'create_goal',
+  getGoal: 'get_goal',
+  updateGoal: 'update_goal',
+  reportProgress: 'report_progress',
 } as const
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
@@ -446,6 +473,16 @@ export const IDE_PAID_TOOLS: ReadonlySet<string> = new Set([
   `mcp__ide__${IDE_IMAGE_TOOLS.generateImage}`,
   `mcp__ide__${IDE_IMAGE_TOOLS.editImage}`,
 ])
+// The goal loop on the Model API backend (M45, D38). Muse Code reminds the
+// agent to report progress after about ten model calls without any (its
+// step probe, docs/muse-code/interactive); the same note rides in the
+// instructions here, with no extra call. The objective is pinned into every
+// request while the goal is active, so it is capped (Muse Code states no
+// limit; this one is the extension's).
+export const GOAL_PROGRESS_REMINDER_STEPS = 10
+export const GOAL_OBJECTIVE_MAX_CHARS = 4000
+export const GOAL_ID_PREFIX = 'goal-'
+
 // Meta's hosted search (M33): a Responses tool the server runs, shown in
 // the transcript as a tool row of this name, marked paid.
 export const MODEL_API_WEB_SEARCH_TOOL = 'web_search'
@@ -1056,6 +1093,20 @@ export const MODEL_TEXT = {
   imagePathTaken: 'something already exists at that path; choose a new file name',
   // The user said no in the price confirmation (M44): nothing was bought.
   imageDeclined: 'the user declined to buy this image; nothing was bought or written',
+  // M45 (PLAN.md D38): the goal loop on the Model API backend, in Muse Code's
+  // own words where it has them (its 1.3.0 binary's goal messages).
+  goalWake: 'Continue working toward the active session goal.',
+  goalUnfinishedExists:
+    'cannot create a new goal because this session has an unfinished goal; complete the existing goal first',
+  goalPausedExists:
+    "cannot create a new goal because this session's goal is paused; the user can resume it with /goal resume or replace it with /goal <objective>",
+  goalNoActive: 'no active goal for this session',
+  goalBadStatus: 'invalid status; expected complete or blocked',
+  goalBadPercent: 'percent_complete must be between 0 and 100',
+  goalEmptyWork: 'current_work and next_work must not be empty',
+  goalEmptyObjective: 'objective must not be empty',
+  goalObjectiveTooLong: 'objective is too long; the limit in characters is',
+  goalBadBudget: 'token_budget must be a positive whole number',
 } as const
 
 // What the user reads, in the display language (PLAN.md D33).

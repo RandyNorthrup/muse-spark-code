@@ -9,9 +9,10 @@ import type {
   ItemSnapshot,
   QuestionAnswer,
   RequirementRef,
+  SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { SubagentAction } from '../../shared/constants'
+import type { GoalCommandVerb, SubagentAction } from '../../shared/constants'
 import type { SubscriptionUsage } from '../../shared/usage'
 
 export type BackendKind = 'museCode' | 'modelApi'
@@ -56,6 +57,34 @@ export class PromptSettledError extends Error {
     super(message)
     this.name = 'PromptSettledError'
   }
+}
+
+/**
+ * Why a goal command was refused (M45, PLAN.md D38), as MSP's `commandRejected`
+ * reasons say it (captured live 2026-09-25): `missing_goal` (there is none)
+ * and `invalid_goal_state` (a finished goal cannot be paused, resumed or
+ * edited). The Model API backend refuses in the same words.
+ */
+export type GoalRefusal = 'noGoal' | 'wrongState'
+
+export class GoalRefusedError extends Error {
+  public constructor(
+    public readonly refusal: GoalRefusal,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'GoalRefusedError'
+  }
+}
+
+/** A goal command (M45): MSP `goal/<verb>`; `set` and `edit` carry the objective. */
+export type GoalCommand =
+  | { readonly verb: Extract<GoalCommandVerb, 'set' | 'edit'>; readonly objective: string }
+  | { readonly verb: Extract<GoalCommandVerb, 'pause' | 'resume' | 'clear'> }
+
+/** What a goal command started: the turn it woke or joined, when it names one. */
+export interface GoalCommandOutcome {
+  readonly turnId: string | undefined
 }
 
 export interface HostInfo {
@@ -180,6 +209,12 @@ export interface SessionHistoryOutcome {
   readonly items: readonly ItemSnapshot[]
   readonly name: string | undefined
   readonly todos: readonly TodoItem[]
+  /**
+   * The session goal (M45): `null` when the history says there is none,
+   * undefined when it cannot say (Muse Code's inline history carries no
+   * goal; its snapshot does).
+   */
+  readonly goal?: SessionGoal | null
 }
 
 /** A session loaded by resume or minted by fork (M6). */
@@ -223,6 +258,12 @@ export interface AgentSession {
   controlSubagent(subagentId: string, action: SubagentAction): Promise<void>
   /** A note to a running subagent (`subagent/sendMessage`) or a follow-up task for one that finished (`subagent/followupTask`), M18. */
   messageSubagent(subagentId: string, body: string, isFollowup: boolean): Promise<void>
+  /**
+   * The session goal's verbs (M45, PLAN.md D38): MSP `goal/<verb>`. Admission
+   * only: the goal itself arrives as `goalChanged`. A refusal is a
+   * `GoalRefusedError`.
+   */
+  controlGoal(command: GoalCommand): Promise<GoalCommandOutcome>
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */

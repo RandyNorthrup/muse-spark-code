@@ -32,6 +32,7 @@ import {
   COMPOSER_MAX_ROWS,
   DICTATION_KEY,
   type DictationAction,
+  GOAL_SLASH_COMMAND,
   IME_PROCESS_KEY,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_IMAGE_BYTES,
@@ -554,11 +555,16 @@ export function Composer(props: ComposerProps) {
     setDismissedSlash(draft)
   }
 
-  /** Enter runs a command; a skill, or Tab, completes the name instead. */
+  /**
+   * Enter runs a command; a skill, `/goal` (M45) or Tab completes the name
+   * instead, a skill and `/goal` ready for what follows them.
+   */
   const chooseSlash = (command: SlashCommand, isCompleting: boolean) => {
     const { action } = command
     if (action.type === 'insertSkill') {
       replaceDraft(`/${action.selector} `)
+    } else if (action.type === 'startGoal') {
+      replaceDraft(`/${GOAL_SLASH_COMMAND} `)
     } else if (isCompleting) {
       replaceDraft(`/${command.name}`)
     } else {

@@ -98,6 +98,18 @@ describe('toSnapshot', () => {
   })
 })
 
+/** A resumed snapshot's history with this folded state (M45: its goal, captured 2026-09-25). */
+function snapshotWith(state: Record<string, unknown>) {
+  return historyOutcome(
+    sessionEnvelopeSchema.parse({
+      session: record,
+      history: { mode: 'snapshot', items: null, snapshot: { state: { items: [], ...state } } },
+      pendingRequests: [],
+      viewCursor: 'v',
+    }),
+  )
+}
+
 describe('historyOutcome', () => {
   const tool = { itemId: 'c1', kind: 'toolCall', status: 'completed', tool: 'read_file' }
 
@@ -155,5 +167,32 @@ describe('historyOutcome', () => {
       viewCursor: 'v',
     })
     expect(nullName.name).toBeUndefined()
+  })
+
+  it('takes the goal from a snapshot, null as none', () => {
+    expect(
+      snapshotWith({
+        goal: {
+          objective: 'Reply hello',
+          status: 'paused',
+          percentComplete: 0,
+          currentWork: null,
+        },
+      }).goal,
+    ).toEqual({ objective: 'Reply hello', status: 'paused', percentComplete: 0 })
+    expect(snapshotWith({ goal: null }).goal).toBeNull()
+  })
+
+  it('cannot say without a snapshot goal, and a goal of another shape costs the goal only', () => {
+    expect(snapshotWith({})).not.toHaveProperty('goal')
+    const odd = snapshotWith({ goal: { objective: 'x' } })
+    expect(odd).not.toHaveProperty('goal')
+    expect(odd.mode).toBe('snapshot')
+    const inline = historyOutcome({
+      session: record,
+      history: { mode: 'inline', items: [tool], snapshot: null },
+      viewCursor: 'v',
+    })
+    expect(inline).not.toHaveProperty('goal')
   })
 })

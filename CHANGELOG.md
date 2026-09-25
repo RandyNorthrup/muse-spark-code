@@ -23,6 +23,18 @@ while they are (PLAN.md D30, D34).
   billed to the key, never to the subscription, each image confirmed with
   its price first, the rows marked paid, and the tally in Account & usage.
   The key never reaches the Muse Code CLI.
+- **Session goals** (M45, PLAN.md D38). `/goal <objective>` sets a goal the
+  agent keeps working toward; a strip above the task list shows its status,
+  a progress bar and the work now and next, with Pause, Resume, Edit and
+  Clear (also `/goal pause`, `resume`, `edit <objective>`, `clear`). On
+  Muse Code these are its own MSP goal verbs and `session/goalChanged`, and
+  a resumed conversation shows its goal (resumes now ask Muse Code for the
+  folded snapshot, which also brings the task list back). On the Model API
+  backend the agent gets Muse Code's four goal tools with the same results,
+  the goal is stored with the conversation and pinned into the instructions
+  while active, Stop pauses it, and nothing starts a model call the user did
+  not ask for. Built from a live capture of Muse Code 1.3.0.
+
 - **A row for every tool Muse Code runs** (M43, PLAN.md D36). Memory rows
   show the note and where it lives, and an edit as the text replaced; goal
   rows show the objective, its status, a progress bar, what is being done
@@ -59,6 +71,9 @@ while they are (PLAN.md D30, D34).
 
 ### Fixed
 
+- **A resumed Muse Code conversation shows its task list** (M45). A resume
+  asked for inline history, which carries no task list; it now asks for the
+  folded snapshot, which carries the task list and the goal.
 - **A command Muse Code moved to the background read "Interrupted"** when
   its turn ended (M43). It now shows what it printed, says it is still
   running, and is listed among the background tasks.

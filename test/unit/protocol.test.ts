@@ -29,6 +29,8 @@ describe('parseWebviewToHostMessage', () => {
     ['removeAttachment', { type: 'removeAttachment', id: 'att-1' }],
     ['droppedUris', { type: 'droppedUris', uris: ['file:///a.ts'] }],
     ['hostAction', { type: 'hostAction', action: 'openSettings' }],
+    ['goalCommand set', { type: 'goalCommand', verb: 'set', objective: 'Ship it' }],
+    ['goalCommand pause', { type: 'goalCommand', verb: 'pause' }],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -45,6 +47,7 @@ describe('parseWebviewToHostMessage', () => {
     ['effort outside the UI tiers', { type: 'setEffort', effort: 'ultra' }],
     ['unknown permission mode', { type: 'setPermissionMode', mode: 'yolo' }],
     ['unknown host action', { type: 'hostAction', action: 'formatDisk' }],
+    ['unknown goal verb', { type: 'goalCommand', verb: 'complete' }],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)

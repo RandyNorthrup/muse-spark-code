@@ -8,7 +8,7 @@
 // reducer's `surfaceState`).
 
 import * as z from 'zod/mini'
-import { todoItemSchema } from '../../shared/agentEvents'
+import { sessionGoalSchema, todoItemSchema } from '../../shared/agentEvents'
 import { WEBVIEW_SNAPSHOT_VERSION, WEBVIEW_STATE_MAX_CHARS } from '../../shared/constants'
 import { chatReferenceSchema } from '../../shared/protocol'
 import {
@@ -27,6 +27,8 @@ const snapshotSchema = z.object({
   transcript: z.readonly(z.array(transcriptEntrySchema)),
   childTranscripts: z.record(z.string(), childTranscriptSchema),
   todos: z.readonly(z.array(todoItemSchema)),
+  // M45: optional, so a snapshot saved before the goal strip still reads.
+  goal: z.optional(sessionGoalSchema),
   usage: z.optional(usageSummarySchema),
   context: z.optional(contextSummarySchema),
   sequence: z.number(),
@@ -55,6 +57,7 @@ function snapshotOf(state: UiState): UiSnapshot {
     transcript: state.transcript,
     childTranscripts: state.childTranscripts,
     todos: state.todos,
+    goal: state.goal,
     usage: state.usage,
     context: state.context,
     sequence: state.sequence,
@@ -121,6 +124,7 @@ export function restoredUiState(raw: unknown): UiState {
       childTranscripts: saved.childTranscripts,
       childOwners: childOwnersOf(saved),
       todos: saved.todos,
+      goal: saved.goal,
       usage: saved.usage,
       context: saved.context,
       sequence: saved.sequence,
