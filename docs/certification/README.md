@@ -52,4 +52,5 @@ The PNGs beside the records are that day's harness renders.
 - [M38](m38.md): "/" in the prompt: the palette, then slash commands (PLAN.md M38)
 - [M39](m39.md): logging and performance you can see (PLAN.md M39)
 - [M40](m40.md): the panel in VS Code's display languages, part a: the machinery and the gate (PLAN.md D33)
+- [M42](m42.md): replay as Meta validates it: commentary, reasoning summaries, reasoning-only turns, stream retries (PLAN.md D35)
 - [M33–M35](m33-m35.md): the paid features: web search, image generation and Muse Voice, opt in and loud (PLAN.md D30, D34)

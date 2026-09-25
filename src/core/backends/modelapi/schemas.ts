@@ -30,6 +30,8 @@ export const messageItemSchema = z.object({
   type: z.literal('message'),
   id: z.optional(z.string()),
   role: z.string(),
+  /** `commentary` on text the model writes before a tool call; absent on a final answer. */
+  phase: z.optional(z.nullable(z.string())),
   content: z.array(z.union([outputTextPartSchema, refusalPartSchema, otherPartSchema])),
   status: z.optional(z.string()),
 })
@@ -252,11 +254,21 @@ export const inputTokensSchema = z.object({ input_tokens: z.number() })
 
 // --- request items (what the backend sends back as `input`) ---
 
+/**
+ * What an assistant message was (protocols/responses, message phase):
+ * `commentary` is text the model wrote before a tool call, and must be
+ * replayed as such: replayed as a final answer before a `function_call`
+ * it is a 400. `final_answer` is accepted on input only.
+ */
+export const MESSAGE_PHASES = ['commentary', 'final_answer'] as const
+export type MessagePhase = (typeof MESSAGE_PHASES)[number]
+
 /** A user or assistant message in the replayed conversation. */
 export interface InputMessageItem {
   readonly type: 'message'
   readonly role: 'user' | 'assistant' | 'developer'
   readonly content: readonly InputContentPart[]
+  readonly phase?: MessagePhase | undefined
 }
 
 export type InputContentPart =

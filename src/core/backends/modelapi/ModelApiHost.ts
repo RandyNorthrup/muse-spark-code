@@ -25,7 +25,9 @@ import {
   MODEL_API_EFFORT_OFF,
   ISO_DATE_LENGTH,
   MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
+  MODEL_API_RETRYABLE_STREAM_CODES,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_OUTPUT_ENCODING,
   MODEL_API_OUTPUT_MEDIA_TYPE,
@@ -38,6 +40,7 @@ import {
   type PaidFeature,
   STORED_SESSION_VERSION,
   THINKING_OFF_EFFORT,
+  TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
@@ -282,6 +285,7 @@ const TURN_RUNNING = 'a turn is running'
 const SUMMARY_FIELD_PREFIX = 'summary.'
 const TEXT_FIELD = 'text'
 const OUTPUT_TEXT = 'output_text'
+const COMMENTARY_PHASE = 'commentary'
 const PRESSURE_LOW = 'low'
 const PRESSURE_MEDIUM = 'medium'
 const PRESSURE_HIGH = 'high'
@@ -290,6 +294,17 @@ const DECISION_APPROVED = 'approved'
 const DECISION_ABORT = 'abort'
 const RESOLVED_BY_USER = 'user'
 const NO_UNSUBSCRIBE = (): undefined => undefined
+
+/** A stream that ended with an error event the docs say to retry (the whole request). */
+class RetryableStreamError extends Error {
+  public constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message)
+    this.name = 'RetryableStreamError'
+  }
+}
 
 class AbortedError extends Error {
   public constructor() {
@@ -816,10 +831,44 @@ export class ModelApiSession implements AgentSession {
         )
       }
       case 'error': {
+        // The instance shut down or was overloaded mid-reply: the docs say to
+        // send the whole request again.
+        if (
+          event.code !== undefined &&
+          event.code !== null &&
+          MODEL_API_RETRYABLE_STREAM_CODES.has(event.code)
+        ) {
+          throw new RetryableStreamError(event.message, event.code)
+        }
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)
       }
       default: {
         return undefined
+      }
+    }
+  }
+
+  /**
+   * What a stream cut short left open, settled before the request is sent
+   * again: a reply or a thought keeps what it showed, a search row is marked
+   * interrupted (not counted: it did not finish). The replay takes nothing
+   * from it; the retried response is the one kept.
+   */
+  private settleCutShort(open: Map<string, OpenItem>, turnId: string): void {
+    for (const entry of open.values()) {
+      if (entry.isCompleted) {
+        continue
+      }
+      if (entry.kind === 'webSearch') {
+        entry.isCompleted = true
+        const item: ItemSnapshot = {
+          ...this.startedSnapshot(entry, turnId),
+          status: TOOL_STATUS_INTERRUPTED,
+        }
+        this.emit({ type: 'itemCompleted', item })
+        this.recordTranscript(turnId, item)
+      } else {
+        this.completeItem(entry, turnId)
       }
     }
   }
@@ -858,7 +907,42 @@ export class ModelApiSession implements AgentSession {
     turnId: string,
     signal: AbortSignal,
   ): Promise<readonly FunctionCallItem[]> {
-    const open = new Map<string, OpenItem>()
+    for (let attempt = 0; ; attempt += 1) {
+      const open = new Map<string, OpenItem>()
+      try {
+        return await this.streamAttempt(turnId, signal, open)
+      } catch (error: unknown) {
+        if (
+          !(error instanceof RetryableStreamError) ||
+          signal.aborted ||
+          attempt >= MODEL_API_MAX_RETRIES
+        ) {
+          throw error
+        }
+        this.settleCutShort(open, turnId)
+        const delayMs = this.deps.client.retryDelayMs(attempt)
+        this.emit({
+          type: 'turnRetry',
+          turnId,
+          attempt: attempt + 1,
+          maxAttempts: MODEL_API_MAX_RETRIES + 1,
+          retryDelayMs: delayMs,
+          reason: `${error.code}: ${error.message}`,
+        })
+        this.deps.log.warn(
+          `Model API stream ended with ${error.code}; sending the request again in ${String(delayMs)} ms`,
+        )
+        await this.deps.client.waitBeforeRetry(delayMs, signal)
+      }
+    }
+  }
+
+  /** One model call's stream, applied to the transcript. */
+  private async streamAttempt(
+    turnId: string,
+    signal: AbortSignal,
+    open: Map<string, OpenItem>,
+  ): Promise<readonly FunctionCallItem[]> {
     let final: ResponseObject | undefined
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
@@ -896,15 +980,23 @@ export class ModelApiSession implements AgentSession {
     open: Map<string, OpenItem>,
   ): readonly FunctionCallItem[] {
     const calls: FunctionCallItem[] = []
+    // A reasoning item must be followed by a message or a call before the
+    // next user message, or the next request is a 400 (protocols/responses).
+    let isReasoningLast = false
     for (const [index, item] of response.output.entries()) {
       const wireId = item.id ?? String(index)
       if (isMessageItem(item)) {
+        isReasoningLast = false
         this.replay.push({
           turnId,
           item: {
             type: 'message',
             role: 'assistant',
             content: [{ type: OUTPUT_TEXT, text: messageText(item) }],
+            // Text before a tool call goes back as commentary: as a final
+            // answer before a `function_call` it is a 400 (the docs'
+            // conversation structure), and dropping it costs quality.
+            ...(item.phase === COMMENTARY_PHASE && { phase: COMMENTARY_PHASE }),
           },
         })
         const entry = open.get(wireId)
@@ -926,14 +1018,29 @@ export class ModelApiSession implements AgentSession {
           this.completeSearch(entry, item, turnId)
         }
       } else if (isReasoningItem(item)) {
-        // Only replayable with its encrypted content; a bare summary is dropped.
+        // Only replayable with its encrypted content; a bare summary is
+        // dropped. Replayed, it needs its summary, empty or not (the docs).
         if (typeof item.encrypted_content === 'string') {
-          this.replay.push({ turnId, item })
+          this.replay.push({ turnId, item: { ...item, summary: item.summary ?? [] } })
+          isReasoningLast = true
         }
       } else if (isFunctionCallItem(item)) {
+        isReasoningLast = false
         this.replay.push({ turnId, item })
         calls.push(item)
       }
+    }
+    // A reply that was reasoning alone gets a minimal assistant message after
+    // it, as the docs say, so the next user message is not a 400.
+    if (isReasoningLast) {
+      this.replay.push({
+        turnId,
+        item: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: OUTPUT_TEXT, text: MODEL_TEXT.reasoningOnlyReply }],
+        },
+      })
     }
     this.noteUsage(response.usage)
     return calls

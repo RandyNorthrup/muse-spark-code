@@ -35,6 +35,10 @@ export interface ScriptedReply {
   readonly citations?: readonly { readonly url: string; readonly title: string }[]
   /** The citations appear in the completed response only, not in the item's done event. */
   readonly areCitationsLate?: boolean
+  /** The text's `phase`: `commentary` for text before a tool call. */
+  readonly phase?: 'commentary'
+  /** The reasoning item comes without a `summary` field at all. */
+  readonly isSummaryMissing?: boolean
   readonly reasoning?: string
   readonly calls?: readonly ScriptedCall[]
   readonly usage?: { readonly input: number; readonly output: number; readonly cached?: number }
@@ -130,7 +134,9 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
     const done = {
       type: 'reasoning',
       id,
-      summary: [{ type: 'summary_text', text: reply.reasoning }],
+      ...(reply.isSummaryMissing !== true && {
+        summary: [{ type: 'summary_text', text: reply.reasoning }],
+      }),
       encrypted_content: `enc:${id}`,
       status: 'completed',
     }
@@ -195,6 +201,7 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
       type: 'message',
       id,
       role: 'assistant',
+      ...(reply.phase !== undefined && { phase: reply.phase }),
       content: [{ type: 'output_text', text: reply.text, annotations: cited }],
       status: 'completed',
     })

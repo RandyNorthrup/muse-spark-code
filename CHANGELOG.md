@@ -39,6 +39,15 @@ while they are (PLAN.md D30, D34).
 
 ### Fixed
 
+- **Model API conversations that narrate before a tool** (M42, PLAN.md D35).
+  Text the model writes before a tool call is replayed as commentary, as
+  Meta requires; replayed as an answer, it made the next request fail with
+  a 400. A reasoning item is replayed with its summary (empty when there was
+  none), and a reply that was reasoning alone is followed by the minimal
+  message the docs ask for.
+- **A server that stops mid-reply** (M42). A stream that ends because the
+  instance shut down or was overloaded is sent again, with the retry notice
+  in the transcript; a 502 is retried like the other server errors.
 - **PLAN.md's 0.8.0 record** now has the release's facts.
 
 ## [0.8.0] - 2026-09-25
