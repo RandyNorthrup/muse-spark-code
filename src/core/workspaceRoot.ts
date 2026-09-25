@@ -112,7 +112,7 @@ export function hostSideUri(parts: UriParts, remoteName: string | undefined): Ur
   return parts.scheme === FILE_SCHEME ? { ...parts, scheme: LOCAL_SCHEME } : parts
 }
 
-function pathModule(platform: NodeJS.Platform): path.PlatformPath {
+export function pathModule(platform: NodeJS.Platform): path.PlatformPath {
   return platform === 'win32' ? path.win32 : path.posix
 }
 

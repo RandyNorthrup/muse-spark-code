@@ -123,6 +123,8 @@ const toolEntrySchema = z.object({
   backgroundInitiator: z.optional(z.string()),
   /** A call billed on top of tokens (M33, PLAN.md D30): the row says it is paid. */
   paid: z.optional(z.enum(PAID_FEATURES)),
+  /** Pictures the tool reported the model saw (`modelVisibleContent`, M43), by path. */
+  images: z.optional(z.readonly(z.array(z.string()))),
   approval: z.optional(pendingApprovalSchema),
   approvalOutcome: z.optional(z.object({ decision: z.string(), resolvedBy: z.string() })),
   question: z.optional(pendingQuestionSchema),

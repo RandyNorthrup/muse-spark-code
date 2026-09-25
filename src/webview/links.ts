@@ -77,3 +77,15 @@ export function linkTarget(href: string): LinkTarget {
     ? { kind: 'refused' }
     : { kind: 'file', path: segments.join('/'), range: rangeOf(lines) }
 }
+
+/** A web source's link text: its title, else its host, else the URL itself. */
+export function linkLabel(title: string | undefined, url: string): string {
+  if (title !== undefined && title !== '') {
+    return title
+  }
+  try {
+    return new URL(url).host || url
+  } catch {
+    return url
+  }
+}

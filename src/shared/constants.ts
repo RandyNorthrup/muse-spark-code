@@ -306,8 +306,34 @@ export const HAS_APPROVAL_UI = true
 // --- Transcript (M4) ---
 
 export const SHELL_TOOLS: ReadonlySet<string> = new Set(['bash', 'powershell', 'shell', 'cmd'])
-export const FILE_EDIT_TOOLS: ReadonlySet<string> = new Set(['write_file', 'edit_file'])
+// `apply_patch` is Muse Code's hunk-based editor (M43); its rows carry a
+// stored patch like `edit_file`'s.
+export const FILE_EDIT_TOOLS: ReadonlySet<string> = new Set([
+  'write_file',
+  'edit_file',
+  'apply_patch',
+])
 export const FILE_READ_TOOLS: ReadonlySet<string> = new Set(['read_file'])
+// Muse Code's own tool families whose rows read their JSON results (M43,
+// captured live 2026-09-25, PLAN.md D36).
+export const MEMORY_TOOLS: ReadonlySet<string> = new Set([
+  'read_memory',
+  'add_memory',
+  'edit_memory',
+])
+export const GOAL_TOOLS: ReadonlySet<string> = new Set([
+  'create_goal',
+  'get_goal',
+  'update_goal',
+  'report_progress',
+])
+export const SCHEDULE_TOOLS: ReadonlySet<string> = new Set([
+  'cron_create',
+  'cron_list',
+  'cron_delete',
+])
+// The rows that show the picture a tool read or made, when the path names one.
+export const IMAGE_PREVIEW_TOOLS: ReadonlySet<string> = new Set(['read_file', 'generate_image'])
 // --- Meta Model API backend (M7, PLAN.md D1 / D2 / §5.1) ---
 
 export const MODEL_API_BASE_URL = 'https://api.meta.ai/v1'

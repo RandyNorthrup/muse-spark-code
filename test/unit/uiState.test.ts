@@ -2019,3 +2019,89 @@ describe('uiReducer: paid features (M33, PLAN.md D30)', () => {
     expect(state.dictation.engine).toBe('museVoice')
   })
 })
+
+// --- M43 (PLAN.md D36): Muse Code's own tools ---
+
+describe('Muse Code tool rows in the state (M43)', () => {
+  const movedBehind = JSON.stringify({
+    execution_state: 'background_running',
+    work_id: 'work.v1.managed_bash.sha256.d48e',
+    output: '',
+  })
+
+  it('keeps a shell call Muse Code moved to the background running past its turn', () => {
+    const state = reduceAll([
+      signedIn,
+      runningTool('bg', { visibleOutput: movedBehind }),
+      agent({
+        type: 'itemUpdated',
+        item: { itemId: 'plain', kind: 'toolCall', status: 'inProgress', tool: 'powershell' },
+      }),
+      runningTool('plain'),
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+    ])
+    expect(entryOf(state, 'bg')).toMatchObject({ status: 'inProgress', isBackground: true })
+    expect(entryOf(state, 'plain')).toMatchObject({ status: 'interrupted', isBackground: false })
+    expect(backgroundTasksOf(state).map((task) => task.id)).toEqual(['bg'])
+  })
+
+  it('marks a row backgrounded when an update says so, and keeps the mark once it ends', () => {
+    const state = reduceAll([
+      signedIn,
+      runningTool('bg'),
+      agent({
+        type: 'itemUpdated',
+        item: {
+          itemId: 'bg',
+          kind: 'toolCall',
+          status: 'inProgress',
+          tool: 'powershell',
+          visibleOutput: movedBehind,
+        },
+      }),
+      agent({
+        type: 'itemCompleted',
+        item: {
+          itemId: 'bg',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'powershell',
+          visibleOutput: 'done',
+        },
+      }),
+    ])
+    expect(entryOf(state, 'bg')).toMatchObject({ status: 'completed', isBackground: true })
+  })
+
+  it('keeps the image paths a tool reported the model saw', () => {
+    const state = reduceAll([
+      signedIn,
+      runningTool('shot', {
+        tool: 'mcp__ide__screenshot',
+        modelVisibleContent: [
+          { type: 'image', path: 'shot.png', mediaType: 'image/png' },
+          { type: 'audio', path: 'clip.wav', mediaType: 'audio/wav' },
+        ],
+      }),
+    ])
+    expect(entryOf(state, 'shot')).toMatchObject({ images: ['shot.png'] })
+  })
+
+  it('holds the pictures the host loaded or refused, per row and path, and drops them on resume', () => {
+    const loaded = reduceAll([
+      host({ type: 'toolImage', itemId: 'r', path: 'a.png', dataUri: 'data:image/png;base64,AA' }),
+      host({ type: 'toolImage', itemId: 'r', path: 'b.png', error: 'too large' }),
+      host({ type: 'toolImage', itemId: 'r', path: 'c.png' }),
+    ])
+    expect(loaded.toolImages).toEqual({
+      'r\na.png': { kind: 'loaded', dataUri: 'data:image/png;base64,AA' },
+      'r\nb.png': { kind: 'failed', reason: 'too large' },
+      'r\nc.png': { kind: 'failed', reason: 'The image could not be shown' },
+    })
+    const resumed = uiReducer(
+      loaded,
+      host({ type: 'historyLoaded', sessionId: 's2', items: [], todos: [] }),
+    )
+    expect(resumed.toolImages).toEqual({})
+  })
+})

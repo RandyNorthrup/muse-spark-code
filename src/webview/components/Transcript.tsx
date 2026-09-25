@@ -13,13 +13,13 @@ import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
-import { linkTarget } from '../links'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { useDismiss } from '../useDismiss'
 import type { ApprovalDecisionInput } from './ApprovalCard'
 import { agentStatusLabel, formatDurationMs } from './AgentMap'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
+import { ExternalLink } from './ExternalLink'
 import { CheckIcon, CopyIcon, FileIcon, ImageIcon, MoreIcon, ReplyIcon, RewindIcon } from './icons'
 import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
@@ -32,6 +32,9 @@ export interface TranscriptProps {
   readonly isRunning: boolean
   readonly isFocusView: boolean
   readonly outputPages: Readonly<Record<string, OutputPage>>
+  /** Pictures loaded for tool rows (M43). */
+  readonly toolImages: ToolRowProps['toolImages']
+  readonly onReadImage: ToolRowProps['onReadImage']
   readonly onOpenLink: (url: string) => void
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
@@ -228,18 +231,6 @@ const UserCard = memo(function UserCard({
   )
 })
 
-/** The host name a citation without a title is shown by; the URL itself when it has none. */
-function citationLabel(citation: CitationSummary): string {
-  if (citation.title !== undefined) {
-    return citation.title
-  }
-  try {
-    return new URL(citation.url).host || citation.url
-  } catch {
-    return citation.url
-  }
-}
-
 /**
  * The web pages a reply cites (M33, `url_citation`), each once, under the
  * reply. They open like the reply's own links: http and https in the
@@ -260,21 +251,12 @@ function Citations({
       <ol className="citations-list">
         {citations.map((citation) => (
           <li key={citation.url}>
-            <a
-              href={citation.url}
-              title={citation.url}
-              onClick={(event) => {
-                event.preventDefault()
-                const target = linkTarget(citation.url)
-                if (target.kind === 'external') {
-                  onOpenLink(target.url)
-                } else {
-                  onRefuseLink?.()
-                }
-              }}
-            >
-              {citationLabel(citation)}
-            </a>
+            <ExternalLink
+              url={citation.url}
+              title={citation.title}
+              onOpenLink={onOpenLink}
+              onRefuseLink={onRefuseLink}
+            />
           </li>
         ))}
       </ol>
@@ -490,6 +472,8 @@ function TranscriptList(props: TranscriptProps) {
     isRunning,
     isFocusView,
     outputPages,
+    toolImages,
+    onReadImage,
     onOpenLink,
     onCopy,
     onInsert,
@@ -536,6 +520,10 @@ function TranscriptList(props: TranscriptProps) {
         onCancelQuestion={onCancelQuestion}
         onOpenEditDiff={onOpenEditDiff}
         onOpenFile={onOpenFile}
+        onOpenLink={onOpenLink}
+        onRefuseLink={onRefuseLink}
+        toolImages={toolImages}
+        onReadImage={onReadImage}
         quoteMenu={quoteMenuFor(entry.id)}
       />
     )

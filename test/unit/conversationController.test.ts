@@ -154,6 +154,8 @@ function setup(
     copyFails?: boolean
     /** A clock the test moves (M39: turn timings). */
     clock?: { now: number }
+    /** What the workspace answers for a tool row's picture (M43). */
+    readToolImage?: ConversationDeps['readToolImage']
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -377,6 +379,8 @@ function setup(
       openedFiles.push([filePath, range])
       return Promise.resolve()
     },
+    readToolImage:
+      options.readToolImage ?? (() => Promise.resolve({ ok: false, reason: 'no image here' })),
     usageCache: {
       read: () => cachedUsage,
       write: (usage) => {
@@ -3252,5 +3256,47 @@ describe('ConversationController: Muse Voice turned off mid-recording (the revie
     expect(t.surface.posted).toContainEqual({ type: 'insertText', text: 'what was said ' })
     t.controller.dispose()
     expect(calls.at(-1)).toBe('muse:dispose')
+  })
+})
+
+describe('ConversationController: a tool row’s picture (M43)', () => {
+  it('answers with the picture as a data URI, or with why it cannot be shown', async () => {
+    const asked: string[] = []
+    const t = setup({
+      readToolImage: (imagePath) => {
+        asked.push(imagePath)
+        return Promise.resolve(
+          imagePath === 'dot.png'
+            ? { ok: true, dataUri: 'data:image/png;base64,AA' }
+            : { ok: false, reason: 'path ../x.png is outside the workspace' },
+        )
+      },
+    })
+    await t.controller.handle({ type: 'readToolImage', itemId: 'r1', path: 'dot.png' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'toolImage',
+      itemId: 'r1',
+      path: 'dot.png',
+      dataUri: 'data:image/png;base64,AA',
+    })
+    await t.controller.handle({ type: 'readToolImage', itemId: 'r2', path: '../x.png' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'toolImage',
+      itemId: 'r2',
+      path: '../x.png',
+      error: 'path ../x.png is outside the workspace',
+    })
+    expect(asked).toEqual(['dot.png', '../x.png'])
+  })
+
+  it('answers a read that threw with its reason instead of leaving the row loading', async () => {
+    const t = setup({ readToolImage: () => Promise.reject(new Error('EACCES')) })
+    await t.controller.handle({ type: 'readToolImage', itemId: 'r', path: 'a.png' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'toolImage',
+      itemId: 'r',
+      path: 'a.png',
+      error: 'EACCES',
+    })
   })
 })

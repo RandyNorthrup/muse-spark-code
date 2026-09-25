@@ -6,6 +6,7 @@
 // (the API evolves additively).
 
 import * as z from 'zod/mini'
+import { webResultSchema } from '../../../shared/webResults'
 
 /** A source the reply cites (`url_citation`, search-grounding); offsets are not used. */
 const urlCitationSchema = z.object({
@@ -72,19 +73,13 @@ export const webSearchActionSchema = z.object({
 })
 export type WebSearchAction = z.infer<typeof webSearchActionSchema>
 
-/** One result, present when the request includes `web_search_call.results`. */
-const webSearchResultSchema = z.object({
-  url: z.string(),
-  title: z.optional(z.nullable(z.string())),
-  snippet: z.optional(z.nullable(z.string())),
-})
-
 export const webSearchCallItemSchema = z.object({
   type: z.literal('web_search_call'),
   id: z.optional(z.string()),
   status: z.optional(z.string()),
   action: z.optional(webSearchActionSchema),
-  results: z.optional(z.nullable(z.array(webSearchResultSchema))),
+  // Present when the request includes `web_search_call.results`.
+  results: z.optional(z.nullable(z.array(webResultSchema))),
 })
 export type WebSearchCallItem = z.infer<typeof webSearchCallItemSchema>
 

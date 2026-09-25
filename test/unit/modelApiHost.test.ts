@@ -1445,7 +1445,10 @@ describe('ModelApiSession: web search, paid and loud (M33)', () => {
       expect.objectContaining({
         status: 'completed',
         args: JSON.stringify({ query: 'vite 7 release' }),
-        visibleOutput: 'Vite 7 is out\nhttps://vite.dev/blog/announcing-vite7',
+        // Muse Code's own `web_search` result shape, so both backends render alike (M43).
+        visibleOutput: JSON.stringify({
+          results: [{ url: 'https://vite.dev/blog/announcing-vite7', title: 'Vite 7 is out' }],
+        }),
         paid: 'webSearch',
       }),
     ])

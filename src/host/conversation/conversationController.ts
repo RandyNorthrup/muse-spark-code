@@ -29,6 +29,7 @@ import {
 } from '../../core/backends/musecode/sandbox'
 import { chatReferenceText } from '../../core/chatReference'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
+import type { ToolImageResult } from '../../core/toolImages'
 import type { DictationHandle, DictationStatus } from '../../core/voice/dictation'
 import {
   ALLOWED_LINK_SCHEMES,
@@ -212,6 +213,8 @@ export interface ConversationDeps {
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
   readonly openFile: (path: string, range: LineRange | undefined) => Promise<void>
+  /** The picture a tool row names, from the workspace (M43, `loadToolImage`). */
+  readonly readToolImage: (path: string) => Promise<ToolImageResult>
   /** The subscription window the CLI last reported, kept across sessions (M16). */
   readonly usageCache: UsageCache
   /** The IDE tool server for `session/start`, when it is listening. */
@@ -956,6 +959,25 @@ export class ConversationController {
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.outputLoadFailed}: ${describe(error)}`)
     }
+  }
+
+  /** A tool row's picture (M43): the file as a data URI, or why it cannot be shown. */
+  private async readToolImage(itemId: string, imagePath: string): Promise<void> {
+    let result: ToolImageResult
+    try {
+      result = await this.deps.readToolImage(imagePath)
+    } catch (error: unknown) {
+      result = { ok: false, reason: describe(error) }
+    }
+    if (!result.ok) {
+      this.deps.log.info(`tool image ${imagePath} not shown: ${result.reason}`)
+    }
+    this.post({
+      type: 'toolImage',
+      itemId,
+      path: imagePath,
+      ...(result.ok ? { dataUri: result.dataUri } : { error: result.reason }),
+    })
   }
 
   private async insertCode(text: string): Promise<void> {
@@ -2155,6 +2177,10 @@ export class ConversationController {
       }
       case 'readOutput': {
         await this.readOutput(message)
+        break
+      }
+      case 'readToolImage': {
+        await this.readToolImage(message.itemId, message.path)
         break
       }
       case 'openOutput': {

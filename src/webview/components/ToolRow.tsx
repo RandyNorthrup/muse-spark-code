@@ -1,24 +1,29 @@
 // One tool call: status dot, label, argument summary, change line, and a
-// collapsible body (shell IN/OUT, edit diff, read output, or generic
-// args/output), plus the approval or question card when the host is waiting.
+// collapsible body (shell IN/OUT, edit diff, read output, a memory note, a
+// goal, scheduled prompts, search results, or generic args/output), the
+// picture a tool read or made, plus the approval or question card when the
+// host is waiting.
 
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  OUTPUT_PREVIEW_CHARS,
-  OUTPUT_PREVIEW_LINES,
-  PATCH_DOCUMENT_MAX_PAGES,
-  TOOL_STATUS_INTERRUPTED,
-  UI_TEXT,
-} from '../../shared/constants'
+import { PATCH_DOCUMENT_MAX_PAGES, TOOL_STATUS_INTERRUPTED, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { paidFeaturePrice } from '../../shared/paid'
 import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
-import { isFailedStatus, type OutputPage, type TranscriptEntry } from '../state/uiState'
+import {
+  isFailedStatus,
+  type OutputPage,
+  type ToolImageState,
+  toolImageKey,
+  type TranscriptEntry,
+} from '../state/uiState'
+import { backgroundRun, readableText } from '../toolDetails'
 import { changeSummary, describeTool, writtenContent } from '../toolPresentation'
 import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 import { ExpandChevron } from './icons'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
+import { Clipped, DiffTable } from './ToolBlocks'
+import { GoalBody, MemoryBody, ScheduleBody, ToolImage, WebBody } from './ToolBodies'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
@@ -40,6 +45,12 @@ export interface ToolRowProps {
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   /** The row's path: the file at its change (M16). */
   readonly onOpenFile: (path: string, range: LineRange | undefined) => void
+  /** A search result's page (M43), opened as a reply's links are. */
+  readonly onOpenLink: (url: string) => void
+  readonly onRefuseLink: (() => void) | undefined
+  /** The pictures the host has loaded for tool rows (M43), by `toolImageKey`. */
+  readonly toolImages: Readonly<Record<string, ToolImageState>>
+  readonly onReadImage: (itemId: string, path: string) => void
   /** The highlighted-text menu when it belongs to this row (M17). */
   readonly quoteMenu: ReactNode
 }
@@ -75,118 +86,6 @@ function statusClass(entry: ToolEntry): string {
   return entry.status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
 }
 
-/** A block that opens something on click or Enter/Space, as Claude Code's outputs do (M15). */
-function Openable({
-  onOpen,
-  children,
-}: {
-  readonly onOpen: () => void
-  readonly children: ReactNode
-}) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="tool-open"
-      title={UI_TEXT.openOutputTitle}
-      onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') {
-          return
-        }
-        event.preventDefault()
-        onOpen()
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-/** Text clipped to the preview line and character counts, with a Show more toggle. */
-function Clipped({
-  text,
-  className,
-  onOpen,
-}: {
-  readonly text: string
-  readonly className: string
-  readonly onOpen?: (() => void) | undefined
-}) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const allLines = text.split('\n')
-  const isLong = allLines.length > OUTPUT_PREVIEW_LINES || text.length > OUTPUT_PREVIEW_CHARS
-  const firstLines = allLines.slice(0, OUTPUT_PREVIEW_LINES).join('\n')
-  const preview =
-    firstLines.length > OUTPUT_PREVIEW_CHARS
-      ? `${firstLines.slice(0, OUTPUT_PREVIEW_CHARS)}…`
-      : firstLines
-  const shown = isExpanded || !isLong ? text : preview
-  const pre = <pre className="tool-pre">{shown}</pre>
-  return (
-    <div className={className}>
-      {onOpen === undefined ? pre : <Openable onOpen={onOpen}>{pre}</Openable>}
-      {isLong ? (
-        <button
-          type="button"
-          className="tool-more"
-          onClick={() => {
-            setIsExpanded(!isExpanded)
-          }}
-        >
-          {isExpanded ? UI_TEXT.showLess : UI_TEXT.showMore}
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-/**
- * A diff clipped to the preview line count behind "Click to expand" (M15):
- * with `onExpand` the click opens the real file in the diff editor (as
- * Claude Code's expands into an editor); without it the rows unfold inline.
- */
-function DiffTable({
-  rows,
-  onExpand,
-}: {
-  readonly rows: readonly DiffRow[]
-  readonly onExpand?: (() => void) | undefined
-}) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const isLong = rows.length > OUTPUT_PREVIEW_LINES
-  const shown = isExpanded || !isLong ? rows : rows.slice(0, OUTPUT_PREVIEW_LINES)
-  return (
-    <div className="diff-clip">
-      <table className="diff">
-        <tbody>
-          {shown.map((row, index) => (
-            <tr key={String(index)} className={`diff-${row.kind}`}>
-              <td className="diff-gutter">{row.oldLine ?? ''}</td>
-              <td className="diff-gutter">{row.newLine ?? ''}</td>
-              <td className="diff-text">{row.kind === 'hunk' ? '⋯' : row.text}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {onExpand !== undefined || (isLong && !isExpanded) ? (
-        <button
-          type="button"
-          className="tool-expand"
-          onClick={
-            onExpand ??
-            (() => {
-              setIsExpanded(true)
-            })
-          }
-        >
-          {UI_TEXT.clickToExpand}
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
 function EditBody({
   entry,
   files,
@@ -218,6 +117,11 @@ function EditBody({
   )
 }
 
+/**
+ * A shell call's IN and OUT. One Muse Code moved to the background answers
+ * with JSON about the run instead of the command's text (M43): its OUT is
+ * what the command printed so far, and a line says it still runs.
+ */
 function ShellBody({
   entry,
   command,
@@ -227,6 +131,8 @@ function ShellBody({
   readonly command: string | undefined
   readonly onOpen: () => void
 }) {
+  const run = backgroundRun(entry.output)
+  const output = run === undefined ? entry.output : run.output
   return (
     <div className="shell">
       {command === undefined ? null : (
@@ -235,12 +141,15 @@ function ShellBody({
           <pre className="tool-pre">{command}</pre>
         </div>
       )}
-      {entry.output === '' ? null : (
+      {output === '' ? null : (
         <div className="shell-box">
           <span className="shell-label">{UI_TEXT.outLabel}</span>
-          <Clipped text={entry.output} className="shell-out" onOpen={onOpen} />
+          <Clipped text={output} className="shell-out" onOpen={onOpen} />
         </div>
       )}
+      {run?.isRunning === true && entry.status === 'inProgress' ? (
+        <p className="tool-detail-meta">{UI_TEXT.backgroundRunning}</p>
+      ) : null}
     </div>
   )
 }
@@ -292,6 +201,12 @@ function usePatchPages(
   }, [isOpen, isWhole, hasPage, nextOffset, patchRefId, entry.id, onReadOutput])
 }
 
+/** The pictures the row shows: the one its path names, then any the tool reported (M43). */
+function imagePathsOf(entry: ToolEntry, imagePath: string | undefined): readonly string[] {
+  const reported = entry.images ?? []
+  return [...new Set(imagePath === undefined ? reported : [imagePath, ...reported])]
+}
+
 function ToolRowView({
   entry,
   patchPage,
@@ -302,14 +217,19 @@ function ToolRowView({
   onCancelQuestion,
   onOpenEditDiff,
   onOpenFile,
+  onOpenLink,
+  onRefuseLink,
+  toolImages,
+  onReadImage,
   quoteMenu,
 }: ToolRowProps) {
   const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
+  const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isWaiting = entry.approval !== undefined || entry.question !== undefined
-  // Shell and edit rows show their body from the start, as Claude Code's do;
-  // read and generic rows open on click (M16).
+  // Shell and edit rows show their body from the start, as Claude Code's do,
+  // and so does a row with a picture (M43); the others open on click (M16).
   const [isOpen, setIsOpen] = useState(
-    presentation.body === 'shell' || presentation.body === 'edit',
+    presentation.body === 'shell' || presentation.body === 'edit' || imagePaths.length > 0,
   )
   const change = changeSummary(entry.patchSummary)
   const isFailed = isFailedStatus(entry.status) || entry.status === TOOL_STATUS_INTERRUPTED
@@ -347,7 +267,7 @@ function ToolRowView({
       : () => {
           onOpenEditDiff(entry.id, reviewRef.id)
         }
-  let body
+  let body: ReactNode
   switch (presentation.body) {
     case 'shell': {
       body = <ShellBody entry={entry} command={presentation.command} onOpen={openOutput} />
@@ -368,19 +288,57 @@ function ToolRowView({
       body = null
       break
     }
+    case 'memory': {
+      body = <MemoryBody entry={entry} />
+      break
+    }
+    case 'goal': {
+      body = <GoalBody entry={entry} />
+      break
+    }
+    case 'schedule': {
+      body = <ScheduleBody entry={entry} />
+      break
+    }
+    case 'web': {
+      body = <WebBody entry={entry} onOpenLink={onOpenLink} onRefuseLink={onRefuseLink} />
+      break
+    }
     case 'generic': {
       body = (
         <>
-          {entry.args === '' ? null : <Clipped text={entry.args} className="tool-output" />}
+          {entry.args === '' ? null : (
+            <Clipped text={readableText(entry.args)} className="tool-output" />
+          )}
           {entry.output === '' ? null : (
-            <Clipped text={entry.output} className="tool-output" onOpen={openOutput} />
+            <Clipped
+              text={readableText(entry.output)}
+              className="tool-output"
+              onOpen={openOutput}
+            />
           )}
         </>
       )
       break
     }
   }
-  const hasBody = body !== null
+  const images =
+    entry.status === 'completed'
+      ? imagePaths.map((imagePath) => (
+          <ToolImage
+            key={imagePath}
+            path={imagePath}
+            image={toolImages[toolImageKey(entry.id, imagePath)]}
+            onRequest={() => {
+              onReadImage(entry.id, imagePath)
+            }}
+            onOpen={() => {
+              onOpenFile(imagePath, undefined)
+            }}
+          />
+        ))
+      : []
+  const hasBody = body !== null || images.length > 0
   return (
     <li
       className={isWaiting ? 'tool tool-waiting' : 'tool'}
@@ -440,7 +398,12 @@ function ToolRowView({
           {entry.failureReason === undefined ? '' : `: ${entry.failureReason}`}
         </div>
       ) : null}
-      {isOpen ? <div className="tool-body">{body}</div> : null}
+      {isOpen ? (
+        <div className="tool-body">
+          {body}
+          {images}
+        </div>
+      ) : null}
       {entry.approval === undefined ? null : (
         // Keyed by stage so feedback typed for one stage never rides on the next (M25).
         <ApprovalCard

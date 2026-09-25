@@ -51,6 +51,7 @@ import {
   type SessionMemory,
 } from './host/conversation/conversationController'
 import { canonicalPath } from './host/canonicalPath'
+import { loadToolImage } from './core/toolImages'
 import { createCliFeatures } from './host/cliFeatures'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { processGitRunner } from './host/git'
@@ -1029,6 +1030,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         editReview,
         openDocument,
         openFile,
+        readToolImage: async (imagePath) =>
+          await loadToolImage(imagePath, workspaceRoot, process.platform, {
+            realPath: canonicalPath,
+            fileSize: async (fsPath) => {
+              const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
+              return stat.size
+            },
+            readFile: async (fsPath) => await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath)),
+          }),
         usageCache: {
           read: () => {
             const parsed = subscriptionUsageSchema.safeParse(
