@@ -3190,3 +3190,22 @@ listed 0.7.0 at 01:41:52 UTC (`vsce show`). The tag is the tip of `main` but
 for this record, which follows through its own pull request with the README
 rewritten for the release (the harness fixes it needed are recorded in
 `docs/certification/m37.md`).
+
+**0.7.1 (2026-09-25):** the new mark on the Marketplace listing. The owner
+noticed the listing still showed the plain "M": the icon travels inside the
+published `.vsix`, and the squiggled "m" had reached `main` only (pull
+request #22, with the README rewritten for 0.7.0). This patch release
+carries what #22 merged:
+
+- the Marketplace icon, the README banner and the social preview's new
+  mark;
+- the README rewrite and the corrected setting descriptions and file-tool
+  hint;
+- the composer's refit moved to the next frame, so resizing the sidebar no
+  longer logs a false panel failure;
+- the harness fixes and the accessibility gate failing a scenario that
+  throws.
+
+M40a (pull request #23) waits for this release and goes out with the
+translations. The release goes through a pull request from
+`release/0.7.1`.
