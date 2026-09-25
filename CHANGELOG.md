@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.7.0] - 2026-09-25
+
+What can be built now without Meta: Muse Code's skills, MCP servers, hooks
+and worktrees from the panel, conversations exported, a rewind that finds an
+edit that moved, an accessibility gate on every screen, `/` as in Claude
+Code, and a log that tells a session's story.
+
 ### Added
 
 - **MCP servers…** and **Hooks…** (palette and Command Palette, CLI
