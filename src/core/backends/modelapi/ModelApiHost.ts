@@ -1090,6 +1090,7 @@ export class ModelApiSession implements AgentSession {
       client: this.deps.client,
       io: this.deps.io,
       signal,
+      isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
       onBilled: () => {
         this.deps.notePaidUse('imageGeneration', 1)
       },

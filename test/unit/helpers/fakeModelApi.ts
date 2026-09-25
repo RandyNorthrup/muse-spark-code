@@ -75,6 +75,8 @@ export interface ScriptedImage {
   /** No image in `data` at all. */
   readonly isEmpty?: boolean
   readonly httpError?: { readonly status: number; readonly message: string }
+  /** The connection fails before any answer (the request may have been done). */
+  readonly networkError?: string
 }
 
 export interface FakeModelApi {
@@ -355,6 +357,9 @@ export function fakeModelApi(): FakeModelApi {
       }
       if (url.pathname.endsWith('/images/generations')) {
         const image = api.images.shift() ?? {}
+        if (image.networkError !== undefined) {
+          return Promise.reject(new TypeError(image.networkError))
+        }
         if (image.httpError !== undefined) {
           return Promise.resolve(
             json(

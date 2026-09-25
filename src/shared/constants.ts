@@ -349,6 +349,8 @@ export const BYTES_PER_MIB = 1024 * 1024
 export const TOOL_FILE_MAX_MIB = 10
 export const TOOL_FILE_MAX_BYTES = TOOL_FILE_MAX_MIB * BYTES_PER_MIB
 export const HTTP_UNAUTHORIZED = 401
+// Refused before any work was done: the one status a per-call-billed request retries (M34).
+export const HTTP_TOO_MANY_REQUESTS = 429
 // The turn error kind both backends report when the credential is refused;
 // the controller turns it into the signed-out gate.
 export const AUTH_REQUIRED_ERROR_KIND = 'authRequired'

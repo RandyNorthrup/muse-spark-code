@@ -1144,8 +1144,13 @@ The choices:
   file write, so Edit automatically never answers it, and it shows the
   prompt and the price. What cannot be saved is refused before the card (a
   taken path, a wrong extension, a path outside the workspace, a prompt
-  over 4,000 characters), so nothing is billed for it. The reply must start
-  with the PNG signature, and the file is created, never overwritten.
+  over 4,000 characters), so nothing is billed for it. After the card the
+  gate is checked again, and the file is reserved (created empty,
+  exclusively) before the image is bought, so a feature turned off or a path
+  taken while the card was open costs nothing. The request retries a 429
+  only: a lost connection or a server error may have made and billed an
+  image. The reply must start with the PNG signature, and the file is
+  created, never overwritten (the review of PR #27).
 - **Muse Voice.** The microphone's engine is Muse Voice while the feature is
   on and the window runs on the Model API key; otherwise the free recogniser
   as before. The audio comes from a capture helper speaking the helper
@@ -1154,8 +1159,10 @@ The choices:
   starts), the Swift helper's `--capture` mode (AVAudioEngine, microphone
   permission only), or on Linux the system's `arecord` or `parec`. Audio
   recorded before the stream is up is held, then sent; the final text lands
-  at the caret; every whole second sent is counted. Linux gets a microphone
-  for the first time, on the paid engine only.
+  at the caret; every whole second sent is counted. Turned off (or the
+  backend changed) mid-recording, the recording stops at once and the
+  transcript of what was already sent still lands (the review of PR #27).
+  Linux gets a microphone for the first time, on the paid engine only.
 
 ## 3. Open questions (need the owner)
 

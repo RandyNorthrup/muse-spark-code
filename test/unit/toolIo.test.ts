@@ -227,16 +227,24 @@ describe('createToolIo (real file system and shell)', () => {
     )
   })
 
-  it('creates a new file from bytes, never over an existing one, and says what exists (M34)', async () => {
+  it('reserves a new file, fills or releases it, and never takes an existing one (M34)', async () => {
     const target = path.join(root, 'images', 'new.png')
     await expect(io().pathExists(target)).resolves.toBe(false)
-    await io().createFile(target, Uint8Array.from([0x89, 0x50, 0x4e, 0x47]))
-    await expect(readFile(target)).resolves.toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const reservation = await io().reserveFile(target)
+    // Held from the start: a second reservation of the same path is refused.
     await expect(io().pathExists(target)).resolves.toBe(true)
+    await expect(io().reserveFile(target)).rejects.toThrow('EEXIST')
+    await reservation.fill(Uint8Array.from([0x89, 0x50, 0x4e, 0x47]))
+    await expect(readFile(target)).resolves.toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
     await expect(io().pathExists(path.join(root, 'images'))).resolves.toBe(true)
-    await expect(io().createFile(target, Uint8Array.from([1]))).rejects.toThrow('EEXIST')
+    await expect(io().reserveFile(target)).rejects.toThrow('EEXIST')
     // The file that was there is left as it was.
     await expect(readFile(target)).resolves.toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    // A released reservation leaves nothing behind.
+    const unused = path.join(root, 'images', 'unused.png')
+    const reservation2 = await io().reserveFile(unused)
+    await reservation2.release()
+    await expect(io().pathExists(unused)).resolves.toBe(false)
   })
 
   it('creates the folders a new file goes into (D26)', async () => {

@@ -94,11 +94,12 @@ export interface ToolIo {
   /** Whether anything (a file, a folder, a link) is at the path. */
   pathExists(absolutePath: string): Promise<boolean>
   /**
-   * Creates a new file holding these bytes, its folders created (M34: a
-   * generated image). Rejects when something is already there: nothing is
-   * overwritten, and a failed write leaves no file behind.
+   * Creates a new, empty file and holds it (M34: a generated image), its
+   * folders created. Rejects when something is already there: nothing is
+   * overwritten. The file is taken before the image is bought, so a path
+   * taken meanwhile costs nothing (the review of PR #27).
    */
-  createFile(absolutePath: string, bytes: Uint8Array): Promise<void>
+  reserveFile(absolutePath: string): Promise<FileReservation>
   /** Whether an editor holds unsaved changes to the file (D27). */
   hasUnsavedChanges(absolutePath: string): boolean
   /** Workspace-relative, forward-slash paths of every listed file. */
@@ -118,6 +119,14 @@ export interface ToolIo {
    * Rejects when the file system refuses to say (permissions, link loops).
    */
   realPath(absolutePath: string): Promise<string>
+}
+
+/** A new file held empty until its bytes arrive, or removed if they never do. */
+export interface FileReservation {
+  /** Writes the bytes into the file and lets it go. */
+  fill(bytes: Uint8Array): Promise<void>
+  /** Lets the file go and removes it (it is still empty). */
+  release(): Promise<void>
 }
 
 export interface ToolContext {
