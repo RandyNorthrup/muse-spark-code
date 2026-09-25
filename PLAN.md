@@ -1348,6 +1348,13 @@ goal_id, … } }`), so the M43 rows render identically. The goal is stored
   line in the transcript, a refusal a warning in words, and the live region
   reads each change of status.
 
+The review of PR #31 found two Model API goal edges to close before M45
+merges: when a streamed reply spends the goal's token budget, its returned
+tools must get cancelled outputs and must not run or cause another automatic
+model request; and a set, edit or resume accepted during a reply with no
+tools must put an internal goal cue into the same turn's next request. Both
+need regression tests and red drills before the PR is certified.
+
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
 The owner (2026-09-25): "i dont think a 1.0 would be right until the app
@@ -3358,7 +3365,7 @@ translations. The order is D36's table:
   `/goal`; 29 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G22; both
+  reducer, the controller, the strip and the prompt; drills G1–G24; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the
@@ -3399,12 +3406,18 @@ The CLI itself is not bundled: it is Meta's closed-source binary.
 | Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA                           | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
 | Localization          | `node scripts/check-l10n.mjs` (`npm run check:l10n`, in `quality:gates`): every table in `l10n/` against the English table, strictly; the manifest against `package.nls.json`; no `UI_TEXT` read at module load | M40 ✓ (drills in `docs/certification/m40.md`)                                                                                                                                                              |
 
-The pre-commit hook runs `lint-staged` tasks serially. On 2026-09-25 a
-large staged batch produced a burst of child shells while the hook ran;
-Windows then stalled and required a restart. Serial execution keeps the
-same lint and format checks while limiting concurrent hook work. The
-exact parent of the shell burst was not captured, so this is a precaution,
-not a claim that `lint-staged` alone caused the stall.
+The pre-commit hook runs `lint-staged` tasks serially, keeping the same lint
+and format checks with fewer simultaneous children. On 2026-09-25 Windows
+stalled and required a restart. A repeated local quality run exposed a burst
+of `cmd.exe` processes launching ChromeControlMCP native messaging hosts;
+they were children of the user's persistent Chrome process, not the
+pre-commit hook. The earlier reboot has no bugcheck or dump, so its exact
+cause is not proved. ChromeControlMCP's installed extension retries a
+disconnected native host every two seconds. Disabling extensions in the
+headless test browser and using Edge did not stop the burst from the
+persistent Chrome profile; those attempted script changes were reverted.
+Pause local browser gates while that extension is enabled. Hosted CI runs
+remain available.
 
 ## 8. Escape hatches register
 

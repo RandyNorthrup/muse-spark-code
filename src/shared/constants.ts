@@ -1056,6 +1056,7 @@ export const MODEL_TEXT = {
   toolRejectedByUser: 'rejected by the user',
   // PLAN.md D26: what the model is told when Stop cuts a tool short.
   toolCancelledByStop: 'cancelled: the user stopped the turn',
+  goalBudgetReached: 'cancelled: the goal token budget was reached',
   toolFileTooLarge: 'The file tools read and edit files up to',
   toolFileTooLargeHint:
     'read part of it with a shell command instead (the search tool skips files over 1 MiB)',

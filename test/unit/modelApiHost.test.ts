@@ -2160,6 +2160,12 @@ function instructionsOf(t: ReturnType<typeof setup>, index: number) {
   return String(t.api.responseBodies()[index]?.['instructions'])
 }
 
+const GOAL_WAKE_MESSAGE = {
+  type: 'message',
+  role: 'user',
+  content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
+}
+
 describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
   it("runs Muse Code's goal tools with its result shape and pins the goal into the next request", async () => {
     const t = setup()
@@ -2218,12 +2224,7 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     await turnDone()
     expect(outcome.turnId).toBeDefined()
     expect(events).toContainEqual({ type: 'turnStarted', turnId: outcome.turnId })
-    const input = t.api.responseBodies()[0]?.['input'] as readonly Record<string, unknown>[]
-    expect(input.at(-1)).toEqual({
-      type: 'message',
-      role: 'user',
-      content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
-    })
+    expect(t.api.responseBodies()[0]?.['input']).toContainEqual(GOAL_WAKE_MESSAGE)
     expect(instructionsOf(t, 0)).toContain('- Objective: Say hello')
     expect(session.history().items.some((item) => item.kind === 'userMessage')).toBe(false)
     expect(session.record().title).toBe('Say hello')
@@ -2270,6 +2271,28 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
   })
 
+  it('gives a busy goal command a new round after a final streaming reply', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Before the goal', hold: held.promise }, { text: 'Working on it' })
+    const running = await session.sendTurn([{ type: 'text', text: 'First request' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    await expect(session.controlGoal({ verb: 'set', objective: 'Ship it' })).resolves.toEqual({
+      turnId: running.turnId,
+    })
+    held.resolve(undefined)
+    await turnDone()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(instructionsOf(t, 0)).not.toContain('# Session goal')
+    expect(instructionsOf(t, 1)).toContain('- Objective: Ship it')
+    expect(t.api.responseBodies()[1]?.['input']).toContainEqual(GOAL_WAKE_MESSAGE)
+    expect(session.history().items.filter((item) => item.kind === 'userMessage')).toHaveLength(1)
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+  })
+
   it('pauses an active goal when Stop ends its turn, as Esc does in Muse Code', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
@@ -2305,6 +2328,48 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     await turnDone()
     expect(goalEvents(events).at(-1)).toMatchObject({ status: 'budget_limited' })
     expect(session.snapshot().goal).toMatchObject({ token_budget: 100, tokens_used: 110 })
+  })
+
+  it('does not run returned tools or buy another round after the goal budget runs out', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'goal',
+          },
+        ],
+      },
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"first.txt","content":"x"}', callId: 'first' },
+          {
+            name: 'write_file',
+            arguments: '{"path":"second.txt","content":"x"}',
+            callId: 'second',
+          },
+        ],
+        usage: { input: 90, output: 10 },
+      },
+      { text: 'Next user turn' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    expect(goalEvents(events).at(-1)).toMatchObject({ status: 'budget_limited' })
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.files.has(`${ROOT}/first.txt`)).toBe(false)
+    expect(t.files.has(`${ROOT}/second.txt`)).toBe(false)
+    await session.sendTurn([{ type: 'text', text: 'A separate question' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies()[2], 'first')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.goalBudgetReached}`,
+    })
+    expect(outputFor(t.api.responseBodies()[2], 'second')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.goalBudgetReached}`,
+    })
   })
 
   it('keeps the goal with the stored session, and forks carry it', async () => {

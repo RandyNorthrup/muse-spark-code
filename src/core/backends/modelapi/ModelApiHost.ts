@@ -208,6 +208,8 @@ interface ActiveTurn {
   readonly abort: AbortController
   /** Steered input, appended before the next model call. */
   readonly steered: (readonly TurnPart[])[]
+  /** A goal accepted after the current model request began needs another round. */
+  goalWakePending: boolean
 }
 
 interface Pending<T> {
@@ -741,6 +743,7 @@ export class ModelApiSession implements AgentSession {
       return undefined
     }
     if (this.active !== undefined) {
+      this.active.goalWakePending = true
       return this.active.turnId
     }
     const queued: QueuedTurn = {
@@ -1568,15 +1571,19 @@ export class ModelApiSession implements AgentSession {
     this.finishCall(turnId, started, call, outcome, status)
   }
 
-  /** The calls of a response the Stop kept from running: each gets its output all the same. */
-  private skipCalls(turnId: string, calls: readonly FunctionCallItem[]): void {
+  /** Calls kept from running still get an output for valid replay. */
+  private skipCalls(
+    turnId: string,
+    calls: readonly FunctionCallItem[],
+    reason: string = MODEL_TEXT.toolCancelledByStop,
+  ): void {
     for (const call of calls) {
       this.replay.push({
         turnId,
         item: {
           type: 'function_call_output',
           call_id: call.call_id,
-          output: `Error: ${MODEL_TEXT.toolCancelledByStop}`,
+          output: `Error: ${reason}`,
         },
       })
     }
@@ -1606,11 +1613,36 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** A busy goal command was not in the request already in flight. */
+  private drainGoalWake(turn: ActiveTurn): void {
+    if (!turn.goalWakePending) {
+      return
+    }
+    turn.goalWakePending = false
+    if (!isGoalActive(this.goal)) {
+      return
+    }
+    this.replay.push({
+      turnId: turn.turnId,
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
+      },
+    })
+  }
+
   private async loop(turn: ActiveTurn): Promise<void> {
     const { signal } = turn.abort
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
       this.drainSteered(turn)
+      this.drainGoalWake(turn)
+      const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
       const calls = await this.streamOnce(turn.turnId, signal)
+      if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
+        this.skipCalls(turn.turnId, calls, MODEL_TEXT.goalBudgetReached)
+        return
+      }
       // One more model call without progress toward the goal (the step probe, D38).
       if (isGoalActive(this.goal)) {
         this.goalSteps += 1
@@ -1618,7 +1650,7 @@ export class ModelApiSession implements AgentSession {
       if (calls.length === 0) {
         // A message typed while the final answer streamed gets its own round
         // instead of being accepted and dropped (D26).
-        if (turn.steered.length === 0) {
+        if (turn.steered.length === 0 && !(turn.goalWakePending && isGoalActive(this.goal))) {
           return
         }
         continue
@@ -1640,7 +1672,12 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async runTurn(queued: QueuedTurn): Promise<void> {
-    const turn: ActiveTurn = { turnId: queued.turnId, abort: new AbortController(), steered: [] }
+    const turn: ActiveTurn = {
+      turnId: queued.turnId,
+      abort: new AbortController(),
+      steered: [],
+      goalWakePending: false,
+    }
     this.active = turn
     this.status = RUNNING
     this.turnIds.push(turn.turnId)

@@ -33,6 +33,8 @@ export interface ScriptedSearch {
 
 /** One model reply: streamed as reasoning + searches + text + function calls. */
 export interface ScriptedReply {
+  /** Keep the request in flight until a test releases this gate. */
+  readonly hold?: Promise<void>
   readonly text?: string
   readonly searches?: readonly ScriptedSearch[]
   /** The text's `url_citation` annotations (M33). */
@@ -297,6 +299,11 @@ function bodyStream(text: string): ReadableStream<Uint8Array> {
   })
 }
 
+async function afterGate(gate: Promise<void>, response: Response): Promise<Response> {
+  await gate
+  return response
+}
+
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return Response.json(body, {
     status,
@@ -429,12 +436,11 @@ export function fakeModelApi(): FakeModelApi {
       if (signal?.aborted === true) {
         return Promise.reject(new DOMException('aborted', 'AbortError'))
       }
-      return Promise.resolve(
-        new Response(bodyStream(text), {
-          status: 200,
-          headers: { 'content-type': 'text/event-stream' },
-        }),
-      )
+      const response = new Response(bodyStream(text), {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      })
+      return reply.hold === undefined ? Promise.resolve(response) : afterGate(reply.hold, response)
     },
   }
   return api
