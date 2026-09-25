@@ -2416,7 +2416,7 @@ primary path, the sweep staying as the fallback.
 ### M28 — macOS dictation asks under its own name (D29)
 
 **Status 2026-09-23: built and certified** (`docs/certification/m28.md`);
-pull request from `hardening/m28-release-hygiene`.
+pull request #15 from `hardening/m28-release-hygiene`, shipped in 0.7.0.
 
 The owner's go-ahead (2026-09-23) on the route M26 recorded: macOS charges
 a helper's privacy requests to the app responsible for it, VS Code for the
@@ -3163,6 +3163,9 @@ green on every job, the GitHub Release carries
 **0.7.0 (2026-09-25):** what could be built without Meta (D30), and the
 owner's asks that followed:
 
+- macOS dictation asking for its permissions under its own name, and the
+  release token moved into the `marketplace` environment (D29, M28, pull
+  request #15, merged after 0.6.0);
 - `.muse/` protected on the Model API backend (M29, pull request #16);
 - skills managed and imported, Claude Code and Codex sessions continued,
   conversations exported (M30, #16);
