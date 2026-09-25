@@ -2446,7 +2446,7 @@ asking.
 ### M29 — `.muse/` is a protected path (D30)
 
 **Status 2026-09-24: built and certified** (`docs/certification/m29.md`);
-pull request from `features/m29-m30-skills-export`.
+pull request #16 from `features/m29-m30-skills-export`, shipped in 0.7.0.
 
 - **Goal**: a write under `.muse/` on the Model API backend asks in every
   mode but Bypass, like the other paths that configure code outside the
@@ -2464,7 +2464,7 @@ pull request from `features/m29-m30-skills-export`.
 ### M30 — Skills, imports and export (D30)
 
 **Status 2026-09-24: built and certified** (`docs/certification/m30.md`);
-pull request from `features/m29-m30-skills-export`.
+pull request #16 from `features/m29-m30-skills-export`, shipped in 0.7.0.
 
 - **Goal**: manage Muse Code's skills and import Claude Code's or Codex's
   from the panel, continue work from either agent, and export a
@@ -2493,7 +2493,8 @@ pull request from `features/m29-m30-skills-export`.
 ### M31 — MCP servers and hooks, read-only (D30)
 
 **Status 2026-09-24: built and certified** (`docs/certification/m31.md`);
-pull request from `features/m31-m32-mcp-hooks-worktrees`. Found on the way
+pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
+0.7.0. Found on the way
 and fixed with it: PowerShell reads the typographic quotes U+2018 to U+201B
 as quote characters, which the job helper's quoting (M27) did not escape;
 quoting moved to `src/core/shellQuote.ts`, which the terminals the
@@ -2518,7 +2519,8 @@ extension opens now use for the CLI's path and every argument.
 ### M32 — Worktrees (D30)
 
 **Status 2026-09-24: built and certified** (`docs/certification/m32.md`);
-pull request from `features/m31-m32-mcp-hooks-worktrees`.
+pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
+0.7.0.
 
 - **Goal**: start work on a separate branch without touching the current
   checkout, as the CLI's `--worktree` does.
@@ -2623,8 +2625,8 @@ pull request from `features/m31-m32-mcp-hooks-worktrees`.
 ### M36 — Rewind finds a hunk that only moved (D31)
 
 **Status 2026-09-24: built and certified** (`docs/certification/m36.md`);
-pull request from `features/m31-m32-mcp-hooks-worktrees`, stacked with M31
-and M32 so the gate runs once.
+pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, stacked with
+M31 and M32 so the gate runs once; shipped in 0.7.0.
 
 - **Goal**: an edit whose lines are intact is undone even when lines were
   added or removed above it; nothing is ever applied that does not match
@@ -2646,7 +2648,7 @@ and M32 so the gate runs once.
 ### M37 — The accessibility gate (D32)
 
 **Status 2026-09-24: built and certified** (`docs/certification/m37.md`);
-pull request from `features/m37-accessibility`, stacked on M31, M32 and M36.
+pull request #18 from `features/m37-accessibility`, shipped in 0.7.0.
 
 - **Goal**: every screen the harness can show passes WCAG 2.2 AA's
   automated checks in all four default themes, and the gate keeps it so.
@@ -2671,7 +2673,7 @@ pull request from `features/m37-accessibility`, stacked on M31, M32 and M36.
 ### M38 — "/" in the prompt: the palette, then slash commands
 
 **Status 2026-09-24: built and certified** (`docs/certification/m38.md`);
-pull request from `features/m38-slash-autocomplete`, stacked on M37.
+pull request #19 from `features/m38-slash-autocomplete`, shipped in 0.7.0.
 
 The owner asked for this on 2026-09-24: "when the user types a slash to
 begin a slash command it should be adaptive autocomplete, not the slash
@@ -2731,9 +2733,9 @@ change to the slash commands menu".
 ### M39 — Logging and performance you can see
 
 **Status 2026-09-24: built and certified** (`docs/certification/m39.md`);
-pull request from `features/m39-logging-performance`. Owner (2026-09-24): "as far as o11y for
-errors etc we are good? … really i mean logging and performance
-everywhere". An audit of the code that day answered: not yet. The CLI
+pull request #20 from `features/m39-logging-performance`, shipped in 0.7.0.
+Owner (2026-09-24): "as far as o11y for errors etc we are good? … really i
+mean logging and performance everywhere". An audit of the code that day answered: not yet. The CLI
 process layer is well logged, and every line is redacted. The conversation
 layer reports failures to the panel but not to the log, webview errors
 never reach the host, and nothing measures time at runtime.
@@ -3157,3 +3159,23 @@ green on every job, the GitHub Release carries
 ("Published RandyNorthrup.muse-spark-code v0.6.0."); the Marketplace listed
 0.6.0 at 01:55:42 UTC, six minutes later (`vsce show`). The tag is the tip of
 `main` but for this record, which follows through its own pull request.
+
+**0.7.0 (2026-09-25):** what could be built without Meta (D30), and the
+owner's asks that followed:
+
+- `.muse/` protected on the Model API backend (M29, pull request #16);
+- skills managed and imported, Claude Code and Codex sessions continued,
+  conversations exported (M30, #16);
+- MCP servers and hooks shown read-only, with PowerShell's typographic
+  quotes escaped (M31, #17);
+- worktrees (M32, #17);
+- a rewind that finds an edit that only moved (D31, M36, #17);
+- the accessibility gate, WCAG 2.2 AA in VS Code's four themes, and the
+  fixes it found (D32, M37, #18);
+- `/` as in Claude Code: the palette, then the slash commands (M38, #19);
+- logging and performance you can see (M39, #20).
+
+Every milestone went through a pull request with the CI checks green on the
+three platforms (the accessibility gate on Linux and Windows) and its Codex
+review threads answered. The release goes through a pull request from
+`release/0.7.0`.
