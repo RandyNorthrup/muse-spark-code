@@ -96,10 +96,12 @@ export interface FakeModelApi {
   inputTokens: number
   /** The bodies of every `POST /responses` seen, parsed. */
   readonly responseBodies: () => readonly Record<string, unknown>[]
-  /** Answers for `POST /images/generations`, consumed in order; a PNG once they run out. */
+  /** Answers for `POST /images/generations` and `/images/edits`, in order; a PNG once they run out. */
   readonly images: ScriptedImage[]
   /** The bodies of every `POST /images/generations` seen, parsed. */
   readonly imageBodies: () => readonly Record<string, unknown>[]
+  /** The bodies of every `POST /images/edits` seen, parsed (M44). */
+  readonly editBodies: () => readonly Record<string, unknown>[]
 }
 
 const encoder = new TextEncoder()
@@ -326,6 +328,10 @@ export function fakeModelApi(): FakeModelApi {
   const requests: RecordedRequest[] = []
   let replies: ScriptedReply[] = [{ text: 'ok' }]
   let consumed = 0
+  const bodiesAt = (path: string) =>
+    requests
+      .filter((request) => request.path === path)
+      .map((request) => request.body as Record<string, unknown>)
   const api: FakeModelApi = {
     requests,
     models: ['muse-spark-1.3', 'muse-spark-1.3-contributor', 'muse-spark-1.2', 'muse-image-1.0'],
@@ -339,10 +345,8 @@ export function fakeModelApi(): FakeModelApi {
         .filter((request) => request.path === '/responses')
         .map((request) => request.body as Record<string, unknown>),
     images: [],
-    imageBodies: () =>
-      requests
-        .filter((request) => request.path === '/images/generations')
-        .map((request) => request.body as Record<string, unknown>),
+    imageBodies: () => bodiesAt('/images/generations'),
+    editBodies: () => bodiesAt('/images/edits'),
     fetch: (input, init) => {
       const url = urlOf(input)
       const method = init?.method ?? 'GET'
@@ -366,7 +370,7 @@ export function fakeModelApi(): FakeModelApi {
           json({ object: 'list', data: api.models.map((id) => ({ id, object: 'model' })) }),
         )
       }
-      if (url.pathname.endsWith('/images/generations')) {
+      if (url.pathname.endsWith('/images/generations') || url.pathname.endsWith('/images/edits')) {
         const image = api.images.shift() ?? {}
         if (image.networkError !== undefined) {
           return Promise.reject(new TypeError(image.networkError))

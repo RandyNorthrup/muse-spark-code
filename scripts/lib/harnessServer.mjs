@@ -71,6 +71,8 @@ export const SCENARIOS = [
   'paid-voice',
   'muse-tools',
   'muse-web',
+  'paid-edit',
+  'paid-image-cli',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

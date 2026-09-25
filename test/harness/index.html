@@ -1384,6 +1384,7 @@
           window.harnessPaid = {
             features: ['webSearch', 'imageGeneration'],
             tally: { webSearches: 3, images: 1, voiceSeconds: 0 },
+            isKeyStored: true,
           }
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           send({ type: 'paidState', state: window.harnessPaid })
@@ -1428,6 +1429,7 @@
           window.harnessPaid = {
             features: ['imageGeneration'],
             tally: { webSearches: 0, images: 0, voiceSeconds: 0 },
+            isKeyStored: true,
           }
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           send({ type: 'paidState', state: window.harnessPaid })
@@ -1476,12 +1478,94 @@
             isProtectedWrite: false,
           })
         },
+        // --- M44: an image edit's card names the images it starts from ---
+        'paid-edit': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['imageGeneration'],
+            tally: { webSearches: 0, images: 2, voiceSeconds: 0 },
+            isKeyStored: true,
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          window.harnessSilent = true
+          setDraft('Put a small red hat on the fox in the logo')
+          key({ key: 'Enter' })
+          const args = JSON.stringify({
+            prompt: 'Add a small red wool hat on the fox, keep the background',
+            images: ['media/fox.png', 'media/hat.webp'],
+            path: 'media/fox-hat.png',
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'ed1',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'edit_image',
+              args,
+              paid: 'imageGeneration',
+            },
+          })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'e1',
+            itemId: 'ed1',
+            toolName: 'edit_image',
+            rawArgs: args,
+            requirementId: { approvalId: 'e1', sourceIndex: 0 },
+            subject: {
+              kind: 'paidTool',
+              toolName: 'edit_image',
+              path: 'media/fox-hat.png',
+              paidFeature: 'imageGeneration',
+            },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
+          })
+        },
+        // --- M44: an image the ide server made for Muse Code, marked paid ---
+        'paid-image-cli': () => {
+          window.harnessPaid = {
+            features: ['imageGeneration'],
+            tally: { webSearches: 0, images: 1, voiceSeconds: 0 },
+            isKeyStored: true,
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'museCode' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          window.harnessSilent = true
+          setDraft('Make a lighthouse icon for the README')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'ide1',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'mcp__ide__generateImage',
+              args: '{"prompt":"A small lighthouse icon, flat colours","path":"media/lighthouse.png"}',
+              visibleOutput: 'Created media/lighthouse.png (PNG, square, 212 KiB).',
+              paid: 'imageGeneration',
+            },
+          })
+        },
         // --- M35: the microphone while Muse Voice is its engine ---
         'paid-voice': () => {
           window.harnessBackend = 'modelApi'
           window.harnessPaid = {
             features: ['voice'],
             tally: { webSearches: 0, images: 0, voiceSeconds: 42 },
+            isKeyStored: true,
           }
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           send({ type: 'paidState', state: window.harnessPaid })
@@ -1492,6 +1576,7 @@
           window.harnessPaid = {
             features: ['voice'],
             tally: { webSearches: 0, images: 0, voiceSeconds: 0 },
+            isKeyStored: true,
           }
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           send({ type: 'paidState', state: window.harnessPaid })

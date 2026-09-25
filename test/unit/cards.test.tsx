@@ -223,4 +223,23 @@ describe('ApprovalCard for a paid call (M34, PLAN.md D30)', () => {
       'Reject',
     ])
   })
+
+  it('names an edit’s new file and the images it starts from (M44)', () => {
+    const editApproval: PendingApproval = {
+      ...imageApproval,
+      rawArgs: JSON.stringify({
+        prompt: 'Add a red hat',
+        images: ['art/fox.png', 'art/hat.webp'],
+        path: 'art/fox-hat.png',
+      }),
+      subject: { ...imageApproval.subject, toolName: 'edit_image', path: 'art/fox-hat.png' },
+    }
+    render(<ApprovalCard approval={editApproval} toolName="edit_image" onDecide={vi.fn()} />)
+    const card = screen.getByRole('group', {
+      name: 'Muse wants to make the edited image art/fox-hat.png',
+    })
+    expect(card).toHaveTextContent('Add a red hat')
+    expect(card).toHaveTextContent('Starting from art/fox.png, art/hat.webp')
+    expect(card).toHaveTextContent('Paid: $0.01 per image')
+  })
 })

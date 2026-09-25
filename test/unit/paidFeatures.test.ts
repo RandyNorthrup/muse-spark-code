@@ -184,9 +184,10 @@ describe('PaidUsage and the prices (M33)', () => {
     const t = gateWith({ settings: ['voice'], accepted: ['voice'] })
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.add('voice', 5)
-    expect(paidStateOf(t.gate, usage)).toEqual({
+    expect(paidStateOf(t.gate, usage, true)).toEqual({
       features: ['voice'],
       tally: { webSearches: 0, images: 0, voiceSeconds: 5 },
+      isKeyStored: true,
     })
   })
 })

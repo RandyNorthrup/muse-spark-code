@@ -597,18 +597,21 @@ device is available", and step markers on stderr name where a start failed.
 
 ## Paid features
 
-Three extras of Meta's Model API cost money on top of tokens. They work on
-the Model API backend only, with your key (never your Muse Code
-subscription), and all three are **off until you turn them on**:
+Three extras of Meta's Model API cost money on top of tokens. They are
+always billed to your Model API key, never to your Muse Code subscription,
+and all three are **off until you turn them on**. All three work on the
+Model API backend; images and Muse Voice also work on the Muse Code backend
+while a key is stored (web search is Muse Code's own there, on the
+subscription):
 
-| Feature          | Price (Meta, read 2026-09-24) | What it does                                                                                 |
-| ---------------- | ----------------------------- | -------------------------------------------------------------------------------------------- |
-| Web search       | $2.50 per 1,000 searches      | The model may search the web while it answers; the reply lists the pages it cites            |
-| Image generation | $0.01 per image               | The model may create a PNG file in the workspace with `muse-image-1.0`, asking you each time |
-| Muse Voice       | $0.18 per hour of audio       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser   |
+| Feature          | Price (Meta, read 2026-09-24) | What it does                                                                                                                          |
+| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Web search       | $2.50 per 1,000 searches      | The model may search the web while it answers; the reply lists the pages it cites                                                     |
+| Image generation | $0.01 per image               | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time |
+| Muse Voice       | $0.18 per hour of audio       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                            |
 
-Turn one on from the palette (**Account & usage** group, shown on the Model
-API backend) or with its setting (`museSpark.modelApiWebSearch`,
+Turn one on from the palette (**Account & usage** group, where the backend
+can use it) or with its setting (`museSpark.modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`). Either way a confirmation
 names the price first; declining it turns the setting back off, and turning
 a setting off means the next time asks again. The settings are
@@ -622,9 +625,18 @@ While one is on, you can always tell:
 - **Every use is its own row** marked _paid_: each search, with its query
   and results, and each image, with its path.
 - **Every image asks first**, in every permission mode, Bypass included,
-  with the prompt and the price on the card and no "always allow". Plan
-  refuses it (it writes a file), and a path that is taken, outside the
-  workspace, or not a `.png` is refused before anything is asked or billed.
+  with the prompt, the images an edit starts from, and the price on the
+  card and no "always allow". Plan refuses it (it writes a file), and a
+  path that is taken, outside the workspace, or not a `.png`, or a source
+  that is missing, outside the workspace, not a PNG, JPEG or WebP image, or
+  over 10 MB, is refused before anything is asked or billed.
+- **On the Muse Code backend**, images come from the extension itself: its
+  `ide` tool server, which every Muse Code session loads, offers Muse Code
+  an image and an image-edit tool while image generation is on and a key is
+  stored. Muse Code's own permission mode decides whether it may use the
+  tool; then a dialog names the image, its prompt and its price, billed to
+  your key and not to the subscription, before every one. The key never
+  leaves the extension, and the row is marked paid as on the Model API.
 - **The microphone says so**: ringed, and named "Record voice with Muse
   Voice (paid)" with the price in its tooltip.
 - **Account & usage keeps the tally**: this window's searches, images and

@@ -98,6 +98,11 @@ const cronListSchema = z.object({
 
 const webResultsSchema = z.object({ results: z.array(webResultSchema) })
 
+const imageArgsSchema = z.object({
+  prompt: z.optional(z.string()),
+  images: z.optional(z.array(z.string())),
+})
+
 const backgroundSchema = z.object({
   execution_state: z.string(),
   work_id: z.string(),
@@ -217,6 +222,17 @@ export function webResults(output: string): readonly WebResult[] | undefined {
         snippet: result.snippet ?? undefined,
       }))
     : undefined
+}
+
+/** What an image call asked for (M34, M44): the prompt and, for an edit, its sources. */
+export function imageRequestOf(args: string): {
+  readonly prompt: string | undefined
+  readonly sources: readonly string[]
+} {
+  const parsed = imageArgsSchema.safeParse(json(args))
+  return parsed.success
+    ? { prompt: parsed.data.prompt, sources: parsed.data.images ?? [] }
+    : { prompt: undefined, sources: [] }
 }
 
 /**

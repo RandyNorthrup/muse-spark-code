@@ -35,6 +35,7 @@ const context: PaletteContext = {
   ],
   backend: 'museCode',
   paidFeatures: [],
+  isKeyStored: false,
 }
 
 describe('formatTokenWindow', () => {
@@ -437,8 +438,14 @@ function paidRows(groups: ReturnType<typeof buildPalette>) {
 }
 
 describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
-  it('offers no paid toggle on the Muse Code backend, where none is used', () => {
+  it('offers no paid toggle on the Muse Code backend without a stored key', () => {
     expect(paidRows(buildPalette(context))).toEqual([])
+  })
+
+  it('offers the key’s images and voice on the Muse Code backend when a key is stored (M44)', () => {
+    const rows = paidRows(buildPalette({ ...context, isKeyStored: true }))
+    // Web search is Muse Code's own there, on the subscription.
+    expect(rows.map((row) => row.id)).toEqual(['paid:imageGeneration', 'paid:voice'])
   })
 
   it('offers each paid feature as a toggle naming its price on the Model API backend', () => {

@@ -197,6 +197,12 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     const submission = await turn.submission
     expect(submission.disposition).toBe('started')
     expect(await turn.done()).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    // The idle status is its own notification after the turn's end; under a
+    // loaded machine it can land a moment after `done` resolves (a flake the
+    // M43 gate hit once), so it is waited for rather than assumed.
+    await vi.waitFor(() => {
+      expect(t.kinds().at(-1)).toBe('sessionStatus')
+    })
     expect(t.kinds()).toEqual([
       'turnStarted',
       'sessionStatus',

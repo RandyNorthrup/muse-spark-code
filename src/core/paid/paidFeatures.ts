@@ -202,6 +202,10 @@ export class PaidUsage {
 }
 
 /** The message the panels render the badge, the microphone and the tally from. */
-export function paidStateOf(gate: PaidFeatureGate, usage: PaidUsage): PaidState {
-  return { features: [...gate.features()], tally: usage.current }
+export function paidStateOf(
+  gate: PaidFeatureGate,
+  usage: PaidUsage,
+  isKeyStored: boolean,
+): PaidState {
+  return { features: [...gate.features()], tally: usage.current, isKeyStored }
 }

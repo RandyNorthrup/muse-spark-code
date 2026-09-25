@@ -181,6 +181,11 @@ export const MACHINE_SCOPED_SETTINGS = [
 // the composer's badge while on, shown per use and tallied (the owner's rule:
 // "opt in and loud"). They are used on the Model API backend only.
 export const PAID_FEATURES = ['webSearch', 'imageGeneration', 'voice'] as const
+// The paid features the Muse Code backend can use too, billed to a stored
+// Model API key (M44, PLAN.md D37): images through the `ide` server and
+// Muse Voice. Web search is not among them: Muse Code searches on the
+// subscription with its own tool.
+export const MUSE_CODE_PAID_FEATURES = ['imageGeneration', 'voice'] as const
 export type PaidFeature = (typeof PAID_FEATURES)[number]
 /** Each feature's setting, relative to the `museSpark` section. */
 export const PAID_FEATURE_SETTINGS = {
@@ -332,8 +337,22 @@ export const SCHEDULE_TOOLS: ReadonlySet<string> = new Set([
   'cron_list',
   'cron_delete',
 ])
+// The tools that make an image (M34, M44): their rows show the prompt and
+// the images an edit starts from.
+export const IMAGE_MAKING_TOOLS: ReadonlySet<string> = new Set([
+  'generate_image',
+  'edit_image',
+  'mcp__ide__generateImage',
+  'mcp__ide__editImage',
+])
 // The rows that show the picture a tool read or made, when the path names one.
-export const IMAGE_PREVIEW_TOOLS: ReadonlySet<string> = new Set(['read_file', 'generate_image'])
+export const IMAGE_PREVIEW_TOOLS: ReadonlySet<string> = new Set([
+  'read_file',
+  'generate_image',
+  'edit_image',
+  'mcp__ide__generateImage',
+  'mcp__ide__editImage',
+])
 // --- Meta Model API backend (M7, PLAN.md D1 / D2 / §5.1) ---
 
 export const MODEL_API_BASE_URL = 'https://api.meta.ai/v1'
@@ -411,7 +430,22 @@ export const MODEL_API_TOOLS = {
   readSkill: 'read_skill',
   // M34: offered only while paid image generation is on.
   generateImage: 'generate_image',
+  // M44: the same gate and price; one or more workspace images changed by a prompt.
+  editImage: 'edit_image',
 } as const
+// The image tools the extension's `ide` session server offers Muse Code
+// while paid image generation is on and a Model API key is stored (M44):
+// billed to the key, never to the subscription (D1, D30).
+export const IDE_IMAGE_TOOLS = {
+  generateImage: 'generateImage',
+  editImage: 'editImage',
+} as const
+// How Muse Code names those tools in its items (`mcp__<server>__<tool>`):
+// their rows are marked paid like the Model API backend's (M44).
+export const IDE_PAID_TOOLS: ReadonlySet<string> = new Set([
+  `mcp__ide__${IDE_IMAGE_TOOLS.generateImage}`,
+  `mcp__ide__${IDE_IMAGE_TOOLS.editImage}`,
+])
 // Meta's hosted search (M33): a Responses tool the server runs, shown in
 // the transcript as a tool row of this name, marked paid.
 export const MODEL_API_WEB_SEARCH_TOOL = 'web_search'
@@ -432,6 +466,18 @@ export const IMAGE_OUTPUT_FORMAT = 'png'
 export const IMAGE_FILE_EXTENSION = '.png'
 export const IMAGE_PROMPT_MAX_CHARS = 4000
 export const IMAGE_REQUEST_TIMEOUT_MS = 180_000
+// Image edits (M44, dev.meta.ai/docs/api-reference/images/edit-image, read
+// 2026-09-25): `POST /images/edits` with the source images inline as data
+// URLs, one PNG back, the same price as a generated image. Meta requires at
+// least one source and states no maximum: this one keeps a call's upload
+// (each source up to MAX_IMAGE_BYTES) bounded.
+export const IMAGE_EDIT_MAX_SOURCES = 4
+// The source images an edit can send, by the media type their name gives.
+export const IMAGE_EDIT_SOURCE_TYPES: ReadonlySet<string> = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+])
 // The first eight bytes of every PNG file: what came back is checked before it is written.
 export const PNG_SIGNATURE: readonly number[] = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 // Workspace context on the Model API backend (PLAN.md D13): the files Muse
@@ -1008,6 +1054,8 @@ export const MODEL_TEXT = {
   imageGenerationOff:
     'image generation is off; the user turns it on (it is paid) in the palette or the museSpark.modelApiImageGeneration setting',
   imagePathTaken: 'something already exists at that path; choose a new file name',
+  // The user said no in the price confirmation (M44): nothing was bought.
+  imageDeclined: 'the user declined to buy this image; nothing was bought or written',
 } as const
 
 // What the user reads, in the display language (PLAN.md D33).

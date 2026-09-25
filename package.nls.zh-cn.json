@@ -76,6 +76,6 @@
   "walkthrough.gettingStarted.step.chat.title": "聊天、提及文件、选择模式",
   "walkthrough.gettingStarted.step.chat.description": "输入消息并按 Enter。/ 打开操作面板，@ 提及文件，Shift+Tab 循环切换权限模式，“历史记录”对话框可找回过去的对话。\n[创建 AGENTS.md](command:museSpark.createRulesFile)",
   "config.modelApiWebSearch.description": "付费，默认关闭。在 Model API 后端上，允许模型在回答时搜索网页，每 1,000 次搜索 US$2.50，计费到你的 Model API 密钥，另加 token 费用。打开时会请你确认价格；每次搜索都会在对话中显示并标记为付费，并计入“账户和用量”。",
-  "config.modelApiImageGeneration.description": "付费，默认关闭。在 Model API 后端上，允许模型使用 muse-image-1.0 在工作区中创建 PNG 图片文件，每张图片 US$0.01，计费到你的 Model API 密钥。在任何权限模式下，每张图片生成前都会询问你。打开时会请你确认价格。",
-  "config.modelApiVoice.description": "付费，默认关闭。在 Model API 后端上，麦克风会将你录制的内容发送到 Meta 的 Muse Voice Transcribe，而不是使用你计算机自带的识别器，每小时音频 US$0.18，计费到你的 Model API 密钥。打开时会请你确认价格；使用付费引擎时，麦克风会注明这一点。"
+  "config.modelApiImageGeneration.description": "付费，默认关闭。允许模型使用 muse-image-1.0 在工作区中创建 PNG 图片文件，或将工作区中的图片编辑为新图片，每张图片 US$0.01，计费到你的 Model API 密钥：用于 Model API 后端，以及存储了密钥时的 Muse Code 后端（从不计费到订阅）。在任何权限模式下，每张图片生成前都会询问你。打开时会请你确认价格。",
+  "config.modelApiVoice.description": "付费，默认关闭。麦克风会将你录制的内容发送到 Meta 的 Muse Voice Transcribe，而不是使用你计算机自带的识别器，每小时音频 US$0.18，计费到你的 Model API 密钥：用于 Model API 后端，以及存储了密钥时的 Muse Code 后端。打开时会请你确认价格；使用付费引擎时，麦克风会注明这一点。"
 }

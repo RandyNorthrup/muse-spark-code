@@ -10,6 +10,7 @@ import {
   FILE_READ_TOOLS,
   GOAL_TOOLS,
   IMAGE_EXTENSIONS,
+  IMAGE_MAKING_TOOLS,
   IMAGE_PREVIEW_TOOLS,
   MEMORY_TOOLS,
   MODEL_API_WEB_SEARCH_TOOL,
@@ -21,7 +22,16 @@ import { fill, plural } from '../shared/l10n/text'
 import type { PatchSummary } from './state/transcriptEntries'
 
 export type ToolBody =
-  'shell' | 'edit' | 'read' | 'question' | 'memory' | 'goal' | 'schedule' | 'web' | 'generic'
+  | 'shell'
+  | 'edit'
+  | 'read'
+  | 'question'
+  | 'memory'
+  | 'goal'
+  | 'schedule'
+  | 'web'
+  | 'image'
+  | 'generic'
 
 export interface ToolPresentation {
   readonly label: string
@@ -166,6 +176,9 @@ function otherPresentation(
   }
   if (tool === MODEL_API_WEB_SEARCH_TOOL) {
     return { summary: parsed.query ?? parsed.url ?? '', body: 'web' }
+  }
+  if (IMAGE_MAKING_TOOLS.has(tool)) {
+    return { summary: parsed.path ?? '', body: 'image' }
   }
   return {
     summary:

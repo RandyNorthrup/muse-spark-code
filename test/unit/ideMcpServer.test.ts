@@ -14,7 +14,7 @@ const servers: IdeMcpServer[] = []
 
 async function start(): Promise<{ server: IdeMcpServer; log: FakeLogOutputChannel }> {
   const log = new FakeLogOutputChannel()
-  const server = new IdeMcpServer([tool], log)
+  const server = new IdeMcpServer(() => [tool], log)
   servers.push(server)
   await server.start()
   return { server, log }
@@ -129,9 +129,32 @@ describe('IdeMcpServer', () => {
     expect(server.current).toBeUndefined()
   })
 
+  it('lists the tools as they stand at each request (M44: the image tools come and go)', async () => {
+    const log = new FakeLogOutputChannel()
+    let isImageOn = false
+    const image: McpTool = { ...tool, name: 'generateImage' }
+    // A new list per request, as the extension builds it.
+    const server = new IdeMcpServer(() => (isImageOn ? [tool, image] : [tool]), log)
+    servers.push(server)
+    const endpoint = await server.start()
+    const names = async () => {
+      const listed = (await postJson(endpoint, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+      })) as {
+        readonly result: { readonly tools: readonly { readonly name: string }[] }
+      }
+      return listed.result.tools.map((listedTool) => listedTool.name)
+    }
+    expect(await names()).toEqual(['getDiagnostics'])
+    isImageOn = true
+    expect(await names()).toEqual(['getDiagnostics', 'generateImage'])
+  })
+
   it('shares a start in flight and can start again after a close (D25)', async () => {
     const log = new FakeLogOutputChannel()
-    const server = new IdeMcpServer([tool], log)
+    const server = new IdeMcpServer(() => [tool], log)
     servers.push(server)
     const [first, second] = await Promise.all([server.start(), server.start()])
     expect(second).toBe(first)

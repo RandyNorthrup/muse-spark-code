@@ -1247,6 +1247,41 @@ What Muse Code keeps to its TUI and cannot be reached over MSP (its theme,
 keymap, vim mode, HUD, deep research, feedback upload, voice) is listed and
 not imitated, except where the panel has its own equivalent.
 
+### D37 — The key's paid features on the Muse Code backend (2026-09-25)
+
+The owner (2026-09-25): "web search and images are pretty important to be
+able to use on each". Web search already works on both: Muse Code searches
+with its own tool on the subscription, the Model API backend with Meta's
+paid search (M33). Images did not: Muse Code 1.3.0's `image_generation`
+tool is switched off in `muse serve` with no setting that turns it on
+(inventory, 2026-09-25).
+
+- **Images come from the extension on Muse Code.** The `ide` session
+  server every Muse Code session already loads (M5) offers `generateImage`
+  and `editImage` while image generation is on (D30) and a Model API key
+  is stored. The extension makes the image itself with the key, through the
+  same pipeline as the Model API backend (`prepareImageCall`,
+  `runImageCall`): every check before the question, the file reserved
+  before the purchase, the PNG checked. The key never reaches `muse serve`
+  (D1), and the subscription never pays for an image.
+- **Asked in a dialog, every time.** Muse Code's own approval covers using
+  the tool, in whatever mode it runs; the extension's modal covers buying
+  the image: the path, the prompt, the sources and the price, billed to the
+  key. Declining refuses the call and buys nothing.
+- **Loud as on the Model API.** The rows (`mcp__ide__generateImage`,
+  `mcp__ide__editImage`) are marked paid when the items are read, the
+  tally counts the images, and the palette's toggles, the composer's badge
+  and Account & usage show the key's features on Muse Code while a key is
+  stored (`usablePaidFeatures`): images and Muse Voice, not web search.
+- **Muse Voice** works the same way: the microphone's paid engine on Muse
+  Code while a key is stored.
+- **Image edits** (`edit_image`, Meta's `/images/edits` with the sources as
+  data URLs) join generation under the same setting, gate and price, on
+  both backends.
+- **The tool list is read per request**, so a session started after image
+  generation is turned on (or a key is stored) gets the tools; one already
+  running gets them when it next starts.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -3200,6 +3235,27 @@ translations. The order is D36's table:
   the gate green.
 - **Left for later milestones**: goal controls and `session/goalChanged`
   (M45); stopping background work from the panel (M46); workflow runs (M47).
+
+### M44 — Images on both backends, and image edits (D37)
+
+**Status 2026-09-25: built and certified** (`docs/certification/m44.md`).
+
+- **Goal**: the owner's "images … on each": the model can make and edit
+  images on the Muse Code backend too, billed to the key, opt in and loud.
+- **Research**: Meta's `/images/edits` takes a JSON body with the sources
+  as data URLs and answers like a generation, at the same price
+  (dev.meta.ai/docs/api-reference/images/edit-image, read 2026-09-25).
+- **Scope**: `edit_image` on the Model API backend; the shared image
+  pipeline (`prepareImageCall` / `runImageCall`, `ToolIo.readBytes`);
+  the `ide` server's image tools with the purchase dialog; the tool list
+  read per request; key presence in the paid state (`isKeyStored`) for the
+  toggles, the badge, Account & usage and Muse Voice on Muse Code; the
+  approval card naming an edit's sources; 11 new strings and 4 changed in
+  fourteen languages; the M43 gate's e2e timing flake fixed.
+- **Acceptance**: tests for every refusal, the purchase, the dialog, the
+  list, the marking and the gate; drills; the gate green.
+- **Web fetch** (D36's M44 row) moves to its own milestone: it needs a
+  network-safety design of its own (M44b, planned).
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 

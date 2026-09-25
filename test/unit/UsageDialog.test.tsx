@@ -43,7 +43,7 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
     usage: { inputTokens: 12_345, outputTokens: 678, cachedTokens: 10_000 },
     context: { usedTokens: 21_014, windowTokens: 1_007_997, pressure: 'normal' },
     modelId: 'muse-spark-1.3',
-    paid: { features: [], tally: EMPTY_PAID_TALLY },
+    paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false },
     now: () => NOW,
     onOpenExternal: vi.fn(),
     onClose: vi.fn(),
@@ -258,6 +258,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
       paid: {
         features: ['webSearch'],
         tally: { webSearches: 4, images: 2, voiceSeconds: 90 },
+        isKeyStored: true,
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -269,8 +270,23 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('published prices, read on 2026-09-24')
   })
 
-  it('has no paid section on the Muse Code backend', () => {
+  it('has no paid section on the Muse Code backend without a stored key', () => {
     renderDialog()
     expect(screen.getByRole('dialog')).not.toHaveTextContent('Paid features')
+  })
+
+  it('tallies the key’s images and voice on the Muse Code backend with a stored key (M44)', () => {
+    renderDialog({
+      paid: {
+        features: ['imageGeneration'],
+        tally: { webSearches: 0, images: 3, voiceSeconds: 0 },
+        isKeyStored: true,
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Images (on)3 images · $0.0300')
+    expect(dialog).toHaveTextContent('Muse Voice (off)')
+    // Muse Code searches on the subscription: no paid search row there.
+    expect(dialog).not.toHaveTextContent('Web search (')
   })
 })

@@ -245,3 +245,20 @@ describe("Muse Code's own tools (M43)", () => {
     expect(describeTool('mcp__ide__getDiagnostics', '{}').label).toBe('Diagnostics')
   })
 })
+
+describe('image edits and the ide server’s images (M44)', () => {
+  it('labels them, and names the picture each one makes', () => {
+    expect(describeTool('edit_image', '{"path":"art/fox-hat.png"}')).toMatchObject({
+      label: 'Edit image',
+      imagePath: 'art/fox-hat.png',
+    })
+    expect(describeTool('mcp__ide__generateImage', '{"path":"media/l.png"}')).toMatchObject({
+      label: 'Image',
+      imagePath: 'media/l.png',
+    })
+    expect(describeTool('mcp__ide__editImage', '{"path":"b.png"}')).toMatchObject({
+      label: 'Edit image',
+      imagePath: 'b.png',
+    })
+  })
+})

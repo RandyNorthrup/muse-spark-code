@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import type { ImagePlan } from '../../core/backends/modelapi/imageGeneration'
 import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../core/paid/paidFeatures'
 import {
   GLOBAL_STATE_KEYS,
@@ -25,6 +26,8 @@ export interface PaidFeaturesDeps {
   readonly globalState: vscode.Memento
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Whether a Model API key is stored, as last read (M44). */
+  readonly isKeyStored: () => boolean
   readonly log: Logger
 }
 
@@ -56,6 +59,27 @@ async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
   return answer === accept
 }
 
+/**
+ * The price confirmation before an image the `ide` server makes for Muse
+ * Code (M44, PLAN.md D37): every one, whatever Muse Code's permission mode,
+ * naming what is made, from what, and that the key pays for it.
+ */
+export async function isImagePurchaseConfirmed(plan: ImagePlan): Promise<boolean> {
+  const price = paidFeaturePrice('imageGeneration')
+  const accept = fill(UI_TEXT.imageBuyAccept, { price })
+  const title = fill(plan.kind === 'edit' ? UI_TEXT.imageBuyEditTitle : UI_TEXT.imageBuyTitle, {
+    path: plan.target.relative,
+  })
+  const sources = plan.sources.map((source) => source.relative).join(', ')
+  const detail = [
+    fill(UI_TEXT.imageBuyPrompt, { prompt: plan.prompt }),
+    ...(sources === '' ? [] : [fill(UI_TEXT.imageBuySources, { paths: sources })]),
+    fill(UI_TEXT.imageBuyBilling, { price }),
+  ].join('\n\n')
+  const answer = await vscode.window.showWarningMessage(title, { modal: true, detail }, accept)
+  return answer === accept
+}
+
 export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   const readAccepted = (): ReadonlySet<PaidFeature> => {
     const parsed = acceptedSchema.safeParse(
@@ -82,7 +106,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   return {
     gate,
     usage,
-    state: () => paidStateOf(gate, usage),
+    state: () => paidStateOf(gate, usage, deps.isKeyStored()),
     affects: (event) =>
       PAID_FEATURES.some((feature) =>
         event.affectsConfiguration(`${SETTINGS_SECTION}.${PAID_FEATURE_SETTINGS[feature]}`),

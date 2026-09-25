@@ -12,6 +12,17 @@ while they are (PLAN.md D30, D34).
 
 ### Added
 
+- **Image edits** (M44, PLAN.md D37). With image generation on, the model
+  can also change one workspace image, or combine up to four, by a prompt,
+  into a new PNG (`edit_image`, Meta's `/images/edits`, $0.01 per image).
+  The card names the images it starts from; everything that could fail is
+  checked before anything is asked or billed.
+- **Images and Muse Voice on the Muse Code backend** (M44). While a Model
+  API key is stored, the extension's own `ide` tool server offers Muse Code
+  an image and an image-edit tool, and the microphone can use Muse Voice:
+  billed to the key, never to the subscription, each image confirmed with
+  its price first, the rows marked paid, and the tally in Account & usage.
+  The key never reaches the Muse Code CLI.
 - **A row for every tool Muse Code runs** (M43, PLAN.md D36). Memory rows
   show the note and where it lives, and an edit as the text replaced; goal
   rows show the objective, its status, a progress bar, what is being done

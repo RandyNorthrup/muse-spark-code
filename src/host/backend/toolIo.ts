@@ -287,6 +287,22 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return decodeText(bytes, absolutePath)
     },
+    async readBytes(absolutePath, maxBytes) {
+      try {
+        const { size } = await stat(absolutePath)
+        if (size > maxBytes) {
+          throw new Error(
+            `${path.basename(absolutePath)} is ${String(size)} bytes, over the ${String(maxBytes)} allowed`,
+          )
+        }
+        return await readFile(absolutePath)
+      } catch (error: unknown) {
+        if (isMissingFile(error)) {
+          return
+        }
+        throw error
+      }
+    },
     async writeFile(absolutePath, content) {
       // A new file's folders are created (PLAN.md D26: `write_file` into a
       // missing folder failed); the caller confined the whole path first.

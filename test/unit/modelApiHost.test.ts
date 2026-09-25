@@ -14,7 +14,12 @@ import {
   type ModelApiSession,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi, fakeModelApiClient, type ScriptedReply } from './helpers/fakeModelApi'
+import {
+  fakeModelApi,
+  fakeModelApiClient,
+  type ScriptedReply,
+  TINY_PNG_BASE64,
+} from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
@@ -2008,5 +2013,139 @@ describe('ModelApiSession: replay as Meta validates it (protocols/responses)', (
       .items.filter((item) => item.kind === 'agentMessage')
       .map((item) => item.text)
     expect(replies.at(-1)).toBe(`Part ${String(MODEL_API_MAX_RETRIES)}`)
+  })
+})
+
+// --- M44: image edits, the same gate and price ---
+
+/** An `edit_image` call as the model makes it (M44). */
+function editCall(args: Record<string, unknown>, callId = 'call_edit') {
+  return { name: 'edit_image', arguments: JSON.stringify(args), callId }
+}
+
+/** A session with `sources` as workspace images and paid image generation on. */
+function editSetup(sources: Readonly<Record<string, Uint8Array>> = {}) {
+  const t = setup({ paid: ['imageGeneration'], files: { 'notes.txt': 'x', 'taken.png': 'x' } })
+  for (const [name, bytes] of Object.entries(sources)) {
+    t.io.binaries.set(`${ROOT}/${name}`, bytes)
+  }
+  return t
+}
+
+const SOURCE_PNG = Buffer.from(TINY_PNG_BASE64, 'base64')
+
+describe('ModelApiSession: image edits, paid and asked every time (M44)', () => {
+  it('offers edit_image beside generate_image only while image generation is on', async () => {
+    for (const paid of [[], ['imageGeneration']] as const) {
+      const t = setup({ paid: [...paid] })
+      const { session, turnDone } = await startSession(t, 'allowAll')
+      await session.sendTurn([{ type: 'text', text: 'hi' }])
+      await turnDone()
+      const tools = t.api.responseBodies()[0]?.['tools'] as readonly Record<string, unknown>[]
+      const names = tools.map((tool) => tool['name'])
+      expect(names.includes('edit_image')).toBe(paid.length > 0)
+    }
+  })
+
+  it('asks with the sources named, then sends them inline and writes the new PNG', async () => {
+    const t = editSetup({ 'art/fox.png': SOURCE_PNG, 'art/hat.webp': SOURCE_PNG })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    const args = {
+      prompt: 'put the hat on the fox',
+      images: ['art/fox.png', 'art/hat.webp'],
+      path: 'art/fox-hat.png',
+    }
+    t.api.script({ calls: [editCall(args)] }, { text: 'Done.' })
+    await session.sendTurn([{ type: 'text', text: 'give the fox a hat' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.subject).toEqual({
+      kind: 'paidTool',
+      toolName: 'edit_image',
+      paidFeature: 'imageGeneration',
+      path: 'art/fox-hat.png',
+    })
+    expect(JSON.parse(request.rawArgs)).toEqual(args)
+    expect(t.api.editBodies()).toEqual([])
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(t.api.editBodies()).toEqual([
+      {
+        model: 'muse-image-1.0',
+        prompt: 'put the hat on the fox',
+        n: 1,
+        size: '1024x1024',
+        response_format: 'b64_json',
+        output_format: 'png',
+        images: [
+          { image_url: `data:image/png;base64,${TINY_PNG_BASE64}` },
+          { image_url: `data:image/webp;base64,${TINY_PNG_BASE64}` },
+        ],
+      },
+    ])
+    expect(t.api.imageBodies()).toEqual([])
+    expect(t.io.binaries.get(`${ROOT}/art/fox-hat.png`)?.subarray(0, 4)).toEqual(
+      SOURCE_PNG.subarray(0, 4),
+    )
+    // The sources are left as they were.
+    expect(t.io.binaries.get(`${ROOT}/art/fox.png`)).toEqual(SOURCE_PNG)
+    expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
+    expect(toolOutput(t, 'call_edit')).toContain(
+      'Created art/fox-hat.png from art/fox.png, art/hat.webp',
+    )
+  })
+
+  it('refuses before the card a source it could not send or a result it could not save', async () => {
+    const big = new Uint8Array(10 * 1024 * 1024 + 1)
+    const cases: readonly [Record<string, unknown>, string][] = [
+      [{ prompt: 'a', images: ['missing.png'], path: 'out.png' }, 'does not exist'],
+      [{ prompt: 'a', images: ['../outside.png'], path: 'out.png' }, 'outside'],
+      [{ prompt: 'a', images: ['notes.txt'], path: 'out.png' }, 'not a png, jpeg or webp'],
+      [{ prompt: 'a', images: ['anim.gif'], path: 'out.png' }, 'not a png, jpeg or webp'],
+      [{ prompt: 'a', images: ['big.png'], path: 'out.png' }, 'over'],
+      [{ prompt: 'a', images: [], path: 'out.png' }, 'invalid arguments'],
+      [
+        { prompt: 'a', images: ['a.png', 'a.png', 'a.png', 'a.png', 'a.png'], path: 'out.png' },
+        'invalid arguments',
+      ],
+      [{ prompt: 'a', images: ['a.png'], path: 'taken.png' }, 'already exists'],
+      [{ prompt: 'a', images: ['a.png'], path: 'out.jpg' }, 'must end in .png'],
+    ]
+    for (const [args, reason] of cases) {
+      const t = editSetup({ 'a.png': SOURCE_PNG, 'anim.gif': SOURCE_PNG, 'big.png': big })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      t.api.script({ calls: [editCall(args)] }, { text: 'ok' })
+      await session.sendTurn([{ type: 'text', text: 'edit' }])
+      await turnDone()
+      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      expect(t.api.editBodies()).toEqual([])
+      expect(toolOutput(t, 'call_edit')?.toLowerCase()).toContain(reason)
+    }
+  })
+
+  it('is refused in Plan, and with image generation off, without a card', async () => {
+    const plan = editSetup({ 'a.png': SOURCE_PNG })
+    const planned = await startSession(plan, 'denyUnmatched')
+    plan.api.script(
+      { calls: [editCall({ prompt: 'a', images: ['a.png'], path: 'b.png' })] },
+      { text: 'ok' },
+    )
+    await planned.session.sendTurn([{ type: 'text', text: 'edit' }])
+    await planned.turnDone()
+    expect(toolOutput(plan, 'call_edit')).toContain('refused by the permission mode')
+    const off = setup()
+    const { session, events, turnDone } = await startSession(off, 'allowAll')
+    off.api.script(
+      { calls: [editCall({ prompt: 'a', images: ['a.png'], path: 'b.png' })] },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'edit' }])
+    await turnDone()
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    expect(toolOutput(off, 'call_edit')).toContain('image generation is off')
+    expect(off.api.editBodies()).toEqual([])
   })
 })

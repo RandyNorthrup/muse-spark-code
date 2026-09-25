@@ -9,7 +9,6 @@ import {
   type ExportFormat,
   ISSUES_URL,
   MUSE_DOCS_URL,
-  PAID_FEATURES,
   type PaidFeature,
   type PermissionMode,
   RESUME_SKILL_SELECTORS,
@@ -20,7 +19,7 @@ import {
 } from './constants'
 import { effortLabel, effortLevelsFor } from './effort'
 import { fill, formatNumber } from './l10n/text'
-import { paidFeatureName, paidFeaturePrice } from './paid'
+import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from './paid'
 import type { BackendKind, ModelOption, SkillOption } from './protocol'
 
 export type PaletteWidget =
@@ -107,6 +106,8 @@ export interface PaletteContext {
   readonly backend: BackendKind | undefined
   /** The paid features that are on (M33, PLAN.md D30). */
   readonly paidFeatures: readonly PaidFeature[]
+  /** A Model API key is stored (M44): the Muse Code backend offers the key's features. */
+  readonly isKeyStored: boolean
 }
 
 /** The backend's name as the palette, the usage dialog and an export show it. */
@@ -230,15 +231,13 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
 }
 
 /**
- * The paid features' toggles (M33, PLAN.md D30), on the Model API backend
- * only, where they are used: each names its price, and turning one on asks
- * the host's confirmation first.
+ * The paid features' toggles (M33, PLAN.md D30), where they can be used: all
+ * on the Model API backend, and on Muse Code the key's images and voice when
+ * a key is stored (M44). Each names its price, and turning one on asks the
+ * host's confirmation first.
  */
 function paidItems(context: PaletteContext): readonly PaletteItem[] {
-  if (context.backend !== 'modelApi') {
-    return []
-  }
-  return PAID_FEATURES.map((feature) => {
+  return usablePaidFeatures(context.backend, context.isKeyStored).map((feature) => {
     const isOn = context.paidFeatures.includes(feature)
     return {
       id: `paid:${feature}`,

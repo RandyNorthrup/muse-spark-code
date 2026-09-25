@@ -37,7 +37,7 @@ function openRow(label: string): HTMLElement {
   if (row === null) {
     throw new Error(`no row ${label}`)
   }
-  const toggle = within(row).getAllByRole('button', { expanded: false })[0]
+  const toggle = within(row).queryAllByRole('button', { expanded: false })[0]
   if (toggle !== undefined) {
     fireEvent.click(toggle)
   }
@@ -371,5 +371,28 @@ describe('pictures a tool read or made (M43)', () => {
       },
     )
     expect(onReadImage).toHaveBeenCalledWith('m', 'shot.png')
+  })
+})
+
+describe('image rows (M44)', () => {
+  it('show the prompt, the images an edit started from, and the result', () => {
+    renderTranscript([
+      tool({
+        id: 'e1',
+        tool: 'mcp__ide__editImage',
+        args: JSON.stringify({
+          prompt: 'Add a red hat',
+          images: ['media/fox.png', 'media/hat.webp'],
+          path: 'media/fox-hat.png',
+        }),
+        status: 'inProgress',
+        output: '',
+      }),
+    ])
+    const row = openRow('Edit image')
+    expect(within(row).getByText('media/fox-hat.png')).toBeTruthy()
+    expect(within(row).getByText('Add a red hat')).toBeTruthy()
+    expect(within(row).getByText('media/fox.png, media/hat.webp')).toBeTruthy()
+    expect(within(row).queryByText(/"prompt"/)).toBeNull()
   })
 })

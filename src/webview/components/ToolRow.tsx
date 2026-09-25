@@ -23,7 +23,7 @@ import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 import { ExpandChevron } from './icons'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
 import { Clipped, DiffTable } from './ToolBlocks'
-import { GoalBody, MemoryBody, ScheduleBody, ToolImage, WebBody } from './ToolBodies'
+import { GoalBody, ImageBody, MemoryBody, ScheduleBody, ToolImage, WebBody } from './ToolBodies'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
@@ -302,6 +302,10 @@ function ToolRowView({
     }
     case 'web': {
       body = <WebBody entry={entry} onOpenLink={onOpenLink} onRefuseLink={onRefuseLink} />
+      break
+    }
+    case 'image': {
+      body = <ImageBody entry={entry} />
       break
     }
     case 'generic': {

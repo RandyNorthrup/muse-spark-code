@@ -309,6 +309,18 @@ export const EN = {
   approvalUseTool: 'Muse wants to use {action}',
   // M34: {action} is the new image's path.
   approvalCreateImage: 'Muse wants to create the image {action}',
+  // An image edit's card (M44): {action} is the new file's path.
+  approvalEditImage: 'Muse wants to make the edited image {action}',
+  // {paths} is the list of images the edit starts from, shown as code.
+  approvalImageSources: 'Starting from {paths}',
+  // The confirmation before an image the extension makes for Muse Code (M44).
+  imageBuyTitle: 'Muse Code wants to create the image {path}',
+  imageBuyEditTitle: 'Muse Code wants to make the edited image {path}',
+  imageBuyPrompt: 'Prompt: {prompt}',
+  imageBuySources: 'Starting from: {paths}',
+  imageBuyBilling:
+    'This costs {price}, billed to your Model API key, not to your Muse Code subscription.',
+  imageBuyAccept: 'Pay {price} and create',
   // M34: on the card of a paid call; {price} as `paidImagePrice` says it.
   approvalPaid: 'Paid: {price}, billed to your Model API key',
   approvalStage: 'step {position} of {total}',
@@ -669,8 +681,12 @@ export const EN = {
     subagent_cancel: 'Cancel agent',
     // Meta's hosted search on the Model API backend (M33).
     web_search: 'Web search',
-    // Paid image generation on the Model API backend (M34).
+    // Paid image generation on the Model API backend (M34) and image edits (M44).
     generate_image: 'Image',
+    edit_image: 'Edit image',
+    // The same, made by the extension's ide server for Muse Code (M44).
+    mcp__ide__generateImage: 'Image',
+    mcp__ide__editImage: 'Edit image',
     // Muse Code's own tools (M43): captured live 2026-09-25, the rest named
     // from the CLI's tool list (PLAN.md D36).
     read_memory: 'Read memory',
@@ -906,9 +922,9 @@ export const EN = {
   paidConfirmWebSearch:
     'The model may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add, and the extension cannot ask before each one. Used on the Model API backend only.',
   paidConfirmImage:
-    'The model may create image files in the workspace. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode. Used on the Model API backend only.',
+    'The model may create image files in the workspace, or edit workspace images into new ones. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode. Used on the Model API backend, and on the Muse Code backend while a key is stored (never billed to the subscription).',
   paidConfirmVoice:
-    'The microphone will send what you record to Meta’s Muse Voice Transcribe instead of your computer’s own recogniser, billed to your Model API key at {price}. Used on the Model API backend only.',
+    'The microphone will send what you record to Meta’s Muse Voice Transcribe instead of your computer’s own recogniser, billed to your Model API key at {price}. Used on the Model API backend, and on the Muse Code backend while a key is stored.',
   paidConfirmAccept: 'Turn on',
   // The composer's badge while a paid feature is on; {features} lists their names.
   paidBadge: 'Paid: {features}',

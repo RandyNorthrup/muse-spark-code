@@ -1239,6 +1239,12 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* The images an edit starts from (M44). */
+.approval-sources {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+
 .approval-feedback,
 .question-input {
   padding: 4px 6px;

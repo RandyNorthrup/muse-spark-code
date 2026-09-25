@@ -39,25 +39,39 @@ function subjectText(approval: PendingApproval, toolName: string): string {
   return subject.command ?? subject.path ?? subject.host ?? subject.target ?? toolName
 }
 
-/** The prompt of an image the card asks about (M34), shown so the user knows what is billed. */
-function imagePrompt(rawArgs: string): string | undefined {
+/**
+ * The prompt of an image the card asks about (M34), and for an edit the
+ * images it starts from (M44), shown so the user knows what is billed.
+ */
+function imageRequest(rawArgs: string): {
+  readonly prompt: string | undefined
+  readonly sources: readonly string[]
+} {
+  let parsed: unknown
   try {
-    const parsed: unknown = JSON.parse(rawArgs)
-    return typeof parsed === 'object' &&
-      parsed !== null &&
-      'prompt' in parsed &&
-      typeof parsed.prompt === 'string'
-      ? parsed.prompt
-      : undefined
+    parsed = JSON.parse(rawArgs)
   } catch {
-    return undefined
+    return { prompt: undefined, sources: [] }
+  }
+  if (typeof parsed !== 'object' || parsed === null) {
+    return { prompt: undefined, sources: [] }
+  }
+  const prompt = 'prompt' in parsed && typeof parsed.prompt === 'string' ? parsed.prompt : undefined
+  const images = 'images' in parsed && Array.isArray(parsed.images) ? parsed.images : []
+  return {
+    prompt,
+    sources: images.filter((image): image is string => typeof image === 'string'),
   }
 }
 
-/** The card's sentence: a command or path, a tool, or an image to create (M34). */
-function titleTemplate(approval: PendingApproval, stage: ApprovalStage | undefined): string {
+/** The card's sentence: a command or path, a tool, or an image to create or edit (M34, M44). */
+function titleTemplate(
+  approval: PendingApproval,
+  stage: ApprovalStage | undefined,
+  isEdit: boolean,
+): string {
   if (approval.subject.paidFeature === 'imageGeneration') {
-    return UI_TEXT.approvalCreateImage
+    return isEdit ? UI_TEXT.approvalEditImage : UI_TEXT.approvalCreateImage
   }
   return stage === undefined && approval.subject.kind === 'tool'
     ? UI_TEXT.approvalUseTool
@@ -73,10 +87,12 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
   // Decided and waiting for the host: no second decision on the same stage.
   const isLocked = approval.decidedSourceIndex === approval.requirementId.sourceIndex
   const subject = subjectText(approval, toolName)
-  // The language places the subject; it is shown as code wherever it lands.
-  const title = titleTemplate(approval, stage)
   const { paidFeature } = approval.subject
-  const prompt = paidFeature === undefined ? undefined : imagePrompt(approval.rawArgs)
+  const image =
+    paidFeature === undefined ? { prompt: undefined, sources: [] } : imageRequest(approval.rawArgs)
+  // The language places the subject; it is shown as code wherever it lands.
+  const title = titleTemplate(approval, stage, image.sources.length > 0)
+  const { prompt } = image
   return (
     <div
       className="approval"
@@ -99,6 +115,17 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
         <blockquote className="approval-prompt" dir="auto">
           {prompt}
         </blockquote>
+      )}
+      {image.sources.length === 0 ? null : (
+        <div className="approval-sources">
+          {templateParts(UI_TEXT.approvalImageSources).map((part, index) =>
+            typeof part === 'string' ? (
+              part
+            ) : (
+              <code key={String(index)}>{image.sources.join(', ')}</code>
+            ),
+          )}
+        </div>
       )}
       {paidFeature !== undefined || approval.isProtectedWrite || approval.isJudgeEscalated ? (
         <div className="approval-flags">

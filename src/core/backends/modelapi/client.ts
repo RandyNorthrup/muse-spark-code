@@ -25,6 +25,7 @@ import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
   type CreateImageBody,
+  type EditImageBody,
   type CreateResponseBody,
   errorBodySchema,
   eventTypeSchema,
@@ -290,6 +291,20 @@ export class ModelApiClient {
     }
   }
 
+  /** A billed image request: only a 429 is retried, with a deadline of its own. */
+  private async imageRequest(
+    path: string,
+    body: CreateImageBody,
+    signal: AbortSignal,
+  ): Promise<ImagesResponse> {
+    const response = await this.request(
+      path,
+      { method: 'POST', body, accept: JSON_MEDIA_TYPE, retries: 'rateLimitOnly' },
+      AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
+    )
+    return imagesResponseSchema.parse(await response.json())
+  }
+
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
     return this.backoffMs(attempt, undefined)
@@ -328,12 +343,12 @@ export class ModelApiClient {
    * a deadline of its own end the wait.
    */
   public async createImage(body: CreateImageBody, signal: AbortSignal): Promise<ImagesResponse> {
-    const response = await this.request(
-      '/images/generations',
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE, retries: 'rateLimitOnly' },
-      AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
-    )
-    return imagesResponseSchema.parse(await response.json())
+    return await this.imageRequest('/images/generations', body, signal)
+  }
+
+  /** One edited image (M44): `POST /images/edits`, billed and retried as a generation is. */
+  public async editImage(body: EditImageBody, signal: AbortSignal): Promise<ImagesResponse> {
+    return await this.imageRequest('/images/edits', body, signal)
   }
 
   /**

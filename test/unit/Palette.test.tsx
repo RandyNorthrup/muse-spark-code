@@ -25,6 +25,7 @@ const context: PaletteContext = {
   skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'Fixes a bug' }],
   backend: 'museCode',
   paidFeatures: [],
+  isKeyStored: false,
 }
 
 function paletteProps(overrides: Partial<PaletteProps> = {}): PaletteProps {

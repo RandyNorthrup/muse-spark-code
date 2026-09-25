@@ -13,7 +13,6 @@ import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
   MODEL_API_PRICES_VERIFIED_ON,
-  PAID_FEATURES,
   PAID_PRICES_VERIFIED_ON,
   type PaidFeature,
   UI_TEXT,
@@ -25,6 +24,7 @@ import {
   type PaidState,
   type PaidTally,
   paidTotalUsd,
+  usablePaidFeatures,
 } from '../../shared/paid'
 import { backendLabel, formatTokenWindow } from '../../shared/palette'
 import { relativeTime } from '../../shared/sessions'
@@ -213,14 +213,21 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
 }
 
 /**
- * The paid features on the Model API backend (D30 rule 5): each one's state,
- * this window's use and its estimated cost at the published prices.
+ * The paid features this backend uses (D30 rule 5; on Muse Code, the key's
+ * images and voice, M44): each one's state, this window's use and its
+ * estimated cost at the published prices.
  */
-function PaidSection({ paid }: { readonly paid: PaidState }) {
+function PaidSection({
+  paid,
+  features,
+}: {
+  readonly paid: PaidState
+  readonly features: readonly PaidFeature[]
+}) {
   return (
     <>
       <dl className="usage-facts">
-        {PAID_FEATURES.map((feature) => (
+        {features.map((feature) => (
           <PaidRow key={feature} feature={feature} paid={paid} />
         ))}
         <dt>{UI_TEXT.usagePaidTotal}</dt>
@@ -393,6 +400,7 @@ export function UsageDialog({
           modelId,
         )
       : undefined
+  const paidFeatures = usablePaidFeatures(report?.backend, paid.isKeyStored)
   let body
   if (report === undefined) {
     body = <p className="usage-row-meta">{UI_TEXT.usageLoading}</p>
@@ -413,10 +421,10 @@ export function UsageDialog({
         )}
         <h3 className="usage-heading">{UI_TEXT.usageSessionTokens}</h3>
         <TokensSection usage={usage} context={context} costUsd={costUsd} />
-        {report.backend === 'modelApi' ? (
+        {paidFeatures.length > 0 ? (
           <>
             <h3 className="usage-heading">{UI_TEXT.usagePaidHeading}</h3>
-            <PaidSection paid={paid} />
+            <PaidSection paid={paid} features={paidFeatures} />
           </>
         ) : null}
         <h3 className="usage-heading">{UI_TEXT.usageContributing}</h3>

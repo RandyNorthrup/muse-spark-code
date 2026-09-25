@@ -39,7 +39,12 @@ import {
   REMOVE_MARKER,
 } from '../../../shared/patchDocument'
 import { compileGlob } from './glob'
-import { GENERATE_IMAGE_DESCRIPTION, GENERATE_IMAGE_PARAMETERS } from './imageGeneration'
+import {
+  EDIT_IMAGE_DESCRIPTION,
+  EDIT_IMAGE_PARAMETERS,
+  GENERATE_IMAGE_DESCRIPTION,
+  GENERATE_IMAGE_PARAMETERS,
+} from './imageToolDefinitions'
 import type { ToolClass } from './permissions'
 import type { FunctionToolDefinition } from './schemas'
 
@@ -89,6 +94,11 @@ export interface ToolIo {
    * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
    */
   readFile(absolutePath: string): Promise<string | undefined>
+  /**
+   * The file's bytes (M44: an image to edit); undefined when it does not
+   * exist. Rejects, before reading, a file larger than `maxBytes`.
+   */
+  readBytes(absolutePath: string, maxBytes: number): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(absolutePath: string, content: string): Promise<void>
   /** Whether anything (a file, a folder, a link) is at the path. */
@@ -167,6 +177,7 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.todoWrite]: 'interactive',
   [MODEL_API_TOOLS.readSkill]: 'read',
   [MODEL_API_TOOLS.generateImage]: 'paid',
+  [MODEL_API_TOOLS.editImage]: 'paid',
 }
 
 export function classifyTool(name: string): ToolClass | undefined {
@@ -317,6 +328,11 @@ export function toolDefinitions(
             GENERATE_IMAGE_PARAMETERS,
             ['prompt', 'path'],
           ),
+          define(MODEL_API_TOOLS.editImage, EDIT_IMAGE_DESCRIPTION, EDIT_IMAGE_PARAMETERS, [
+            'prompt',
+            'images',
+            'path',
+          ]),
         ]
       : []),
     ...(options.hasSkills
