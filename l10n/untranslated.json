@@ -21,10 +21,74 @@
       "linePrefix",
       "backendDetail",
       "toolLabels.bash",
-      "toolLabels.powershell"
-    ]
+      "toolLabels.powershell",
+      "exportAgentHeading",
+      "onboardingShortcuts.palette",
+      "onboardingShortcuts.cycleMode",
+      "onboardingShortcuts.mentionSelection",
+      "onboardingShortcuts.mentionFile",
+      "onboardingShortcuts.dictation"
+    ],
+    "cs": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "agentUntitled",
+      "subagentRowLabel",
+      "exportSubagentNoRole",
+      "agentRole",
+      "agentsCount.one"
+    ],
+    "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
+    "pl": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "usagePlan",
+      "usageBackend",
+      "backendItem",
+      "exportBackendLine",
+      "agentUntitled",
+      "exportSubagentNoRole",
+      "agentsCount.one"
+    ],
+    "de": [
+      "groupSkills",
+      "hooksItem",
+      "mcpOptional",
+      "usageBackend",
+      "backendItem",
+      "agentUntitled",
+      "subagentRowLabel",
+      "permissionModes.auto",
+      "effortLevels.minimal",
+      "exportBackendLine",
+      "exportSubagentHeading"
+    ],
+    "es": ["usagePlan", "agentTokens", "permissionModes.manual"],
+    "pt-br": ["agentTokens", "permissionModes.manual"],
+    "fr": [
+      "modesTitle",
+      "paletteLabel",
+      "hooksItem",
+      "agentUntitled",
+      "subagentRowLabel",
+      "toolLabels.request_user_input",
+      "toolLabels.mcp__ide__getDiagnostics",
+      "toolLabels.ask_user",
+      "exportSubagentNoRole"
+    ],
+    "it": ["usageAccount", "exportOutputLabel"]
   },
   "manifest": {
-    "*": ["viewsContainers.museSpark.title", "command.category", "config.title"]
+    "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
+    "cs": ["views.chatView.name"],
+    "de": ["views.chatView.name", "command.hooks.title"],
+    "es": ["views.chatView.name"],
+    "pt-br": ["views.chatView.name"],
+    "fr": ["command.hooks.title"],
+    "it": ["views.chatView.name"]
   }
 }

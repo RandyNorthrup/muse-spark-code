@@ -107,16 +107,25 @@ function readJson(file, problems) {
   return value
 }
 
-/** The dotted keys of a table's plain strings (plural forms are not listed). */
+// A language's plural forms may be any of these, whichever English uses.
+const PLURAL_CATEGORIES = ['zero', 'one', 'two', 'few', 'many', 'other']
+
+/**
+ * The dotted keys `untranslated.json` may name: each plain string, and each
+ * plural entry both whole (`agentsCount`) and by form (`agentsCount.one`),
+ * since one form can read as the English does ("1 agent" in Czech and
+ * Polish) while the others do not.
+ */
 function stringKeys(table, isPluralForms, prefix = '') {
   return Object.entries(table).flatMap(([name, value]) => {
     const key = `${prefix}${name}`
     if (typeof value === 'string') {
       return [key]
     }
-    return isRecord(value) && !isPluralForms(value)
-      ? stringKeys(value, isPluralForms, `${key}.`)
-      : []
+    if (isPluralForms(value)) {
+      return [key, ...PLURAL_CATEGORIES.map((category) => `${key}.${category}`)]
+    }
+    return isRecord(value) ? stringKeys(value, isPluralForms, `${key}.`) : []
   })
 }
 

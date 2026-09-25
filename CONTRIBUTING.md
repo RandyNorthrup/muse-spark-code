@@ -74,6 +74,20 @@ translation, a changed `{slot}`, a wrong set of plural forms, and a
 renders the panel in a pseudo-locale where any English left outside the
 table stands out.
 
+**Adding or changing a key.** Add it to all fourteen tables in `l10n/`,
+because the gate fails a language that lacks it. A plural entry needs the
+forms that language uses: Russian, Polish and Czech need `few` and `many`;
+French, Spanish, Italian and Brazilian Portuguese need `many`; Chinese,
+Japanese and Korean need `other` only.
+
+**Correcting a translation.** The translations are machine-made. Edit the
+line in `l10n/ui.<language>.json` or `package.nls.<language>.json`, keeping
+its `{slots}` and code spans. Run `npm run check:l10n` and
+`npm run harness:shots -- --lang=<language>` to see the result.
+
+- **A value that reads the same as English** (a name, or a word the language
+  borrows) goes in `l10n/untranslated.json` under that language.
+
 ## Reporting bugs and proposing features
 
 Use the issue templates. For a bug, run **Muse Spark: Diagnostics** from
