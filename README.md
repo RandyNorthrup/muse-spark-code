@@ -23,7 +23,7 @@ two.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-070) ·
+**Contents:** [What's new](#whats-new-in-080) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -35,27 +35,23 @@ two.
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
 [Troubleshooting](#troubleshooting) · [Development](#development)
 
-## What's new in 0.7.0
+## What's new in 0.8.0
 
-- **`/` as in Claude Code.** A `/` on an empty prompt stays in the box and
-  shows the palette above it; one letter more turns it into a ranked list of
-  slash commands and skills.
-- **Muse Code's own tools in the panel.** Manage and import skills, see the
-  MCP servers and hooks Muse Code loads, and continue a Claude Code or Codex
-  session.
-- **Worktrees.** Start a branch in a folder of its own and a new window, and
-  remove it when you are done.
-- **Export.** Save a conversation as Markdown, or, on the CLI backend, Muse
-  Code's own session log.
-- **A smarter rewind.** An edit is found where it moved when you added lines
-  above it.
-- **Accessibility.** Every screen passes WCAG 2.2 AA's automated checks in
-  VS Code's four default themes, and more of the panel works from the
-  keyboard.
-- **A log that tells the story.** Sessions, turns with their durations,
-  approvals and every failure, with nothing you typed in it.
-- **Dictation on macOS** asks for speech recognition and the microphone as
-  its own helper, which macOS no longer refuses without asking.
+- **Your language.** The panel, its notices, the Command Palette's commands
+  and the settings follow VS Code's display language in fourteen languages,
+  from Chinese and Japanese to German and Czech. The translations are
+  machine-made; [Languages](#languages) says how to correct one.
+- **Numbers and times written your way.** Counts, percentages, money,
+  durations and "5 min. ago" follow the display language's conventions.
+- **Accessibility, checked in longer languages.** Running the checks on
+  translated text found three problems English had hidden, now fixed:
+  - the palette's search box pointed at a list that was gone;
+  - code block buttons were too small to hit reliably;
+  - a menu's highlighted detail line was too faint.
+
+0.7.0 brought `/` as in Claude Code, Muse Code's skills, MCP servers and
+hooks in the panel, worktrees, export, and the accessibility gate. 0.7.1 put
+the new mark on the listing.
 
 Every change is in the [CHANGELOG](CHANGELOG.md).
 
@@ -102,6 +98,8 @@ Every change is in the [CHANGELOG](CHANGELOG.md).
   windows; this conversation's tokens (and cache hits, on the Model API); and
   what has been eating your usage (reminder agents, subagents, long
   sessions), from `/usage`.
+- **In your language.** Fourteen of VS Code's display languages, with the
+  model's side kept in English so it behaves the same everywhere.
 - **Accessible and observable.** Checked against WCAG 2.2 AA in every default
   theme, and a log that records what happened without what you wrote.
 - **No telemetry, no server of its own.** What leaves your machine and where
@@ -147,7 +145,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.7.1.vsix
+   code --install-extension muse-spark-code-0.8.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press

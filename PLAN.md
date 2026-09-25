@@ -3349,3 +3349,16 @@ GitHub Release carries `muse-spark-code-0.7.1.vsix` (650,113 bytes) and the
 workflow published it ("Published RandyNorthrup.muse-spark-code v0.7.1." at
 06:22:20 UTC); the Marketplace listed 0.7.1 at 06:28:37 UTC (`vsce show`),
 and its page showed the squiggled "m" as the icon.
+
+**0.8.0 (2026-09-25):** the panel in VS Code's display languages (D33, M40).
+The owner said "yes" to cut it once M40 had merged.
+
+- **M40a** (pull request #23) built the machinery: the English table,
+  `MODEL_TEXT`, templates and plural forms, `Intl` formatting, the table in
+  each webview's HTML, `package.nls.json`, and the localization gate. It
+  also carried the semgrep launcher and the fix for the flaky tree-kill test.
+- **M40b** (#25) added the fourteen translations.
+- **Found and fixed along the way:** three accessibility problems that only
+  longer text exposed, the Agent map's raw status, and the "1000K" edge.
+
+The release goes through a pull request from `release/0.8.0`.
