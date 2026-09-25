@@ -2,9 +2,10 @@
 # Builds the macOS dictation helper (native/darwin/muse-dictate): a universal
 # binary from Dictation.swift with Info.plist embedded in the __info_plist
 # section (the usage descriptions behind the permission prompts) and an
-# ad-hoc signature. Runs in CI's macOS job; the .vsix packaged there carries
-# the result. The binary is git-ignored: a Windows or Linux checkout cannot
-# build it, and a package built there says so in the panel.
+# ad-hoc signature. Runs in CI's macOS job, which hands the binary to the
+# package job (Ubuntu) that packs the .vsix. The binary is git-ignored: a
+# Windows or Linux checkout cannot build it, and a package built there says
+# so in the panel.
 #
 # The bundle version is the extension's own, read from package.json here
 # and checked in the finished binary (M26, PLAN.md D29): Info.plist carries

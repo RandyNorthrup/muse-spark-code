@@ -418,16 +418,29 @@ export function Composer(props: ComposerProps) {
       return
     }
     let width = textarea.clientWidth
+    let frame: number | undefined
     const observer = new ResizeObserver(() => {
       if (textarea.clientWidth === width) {
         return
       }
       width = textarea.clientWidth
-      fitRows(textarea, textarea.value)
+      // Refit on the next frame: resizing the observed box inside its own
+      // callback is a ResizeObserver loop, which the browser reports as an
+      // error, and the panel logs every error it sees (M39).
+      if (frame !== undefined) {
+        cancelAnimationFrame(frame)
+      }
+      frame = requestAnimationFrame(() => {
+        frame = undefined
+        fitRows(textarea, textarea.value)
+      })
     })
     observer.observe(textarea)
     return () => {
       observer.disconnect()
+      if (frame !== undefined) {
+        cancelAnimationFrame(frame)
+      }
     }
   }, [])
 

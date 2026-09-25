@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400">
-  <!-- README hero banner: centred typography only, no logo. Rendered to
-       media/readme/banner.png by scripts/render-images.mjs. -->
+  <!-- README hero banner: the squiggled "m" of marketplace-icon.svg beside the
+       name, then centred typography. Rendered to media/readme/banner.png by
+       scripts/render-images.mjs. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0f1117"/>
@@ -10,6 +11,10 @@
       <stop offset="0" stop-color="#3b6cf6" stop-opacity="0.32"/>
       <stop offset="1" stop-color="#3b6cf6" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="letter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d8bff"/>
+      <stop offset="1" stop-color="#0a5cff"/>
+    </linearGradient>
     <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#7fb2ff" stop-opacity="0"/>
       <stop offset="0.5" stop-color="#7fb2ff"/>
@@ -22,8 +27,9 @@
     <path d="M0 100H1280M0 200H1280M0 300H1280"/>
     <path d="M160 0V400M320 0V400M480 0V400M640 0V400M800 0V400M960 0V400M1120 0V400"/>
   </g>
+  <path transform="translate(273.4 82) scale(0.6)" fill="none" stroke="url(#letter)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" d="M0 100L0.8 99.8L1.7 99.5L2.7 99.1L3.6 98.4L4.7 97.7L5.7 96.8L6.8 95.7L8 94.5L9.2 93.2L10.4 91.8L11.6 90.2L12.9 88.5L14.3 86.7L15.6 84.8L17 82.8L18.5 80.7L19.9 78.5L21.4 76.2L22.9 73.9L24.4 71.5L25.9 69L27.5 66.4L29.1 63.9L30.6 61.2L32.2 58.6L33.8 55.9L35.4 53.2L37 50.5L38.6 47.8L40.2 45.1L41.8 42.4L43.4 39.8L45 37.2L46.6 34.6L48.1 32L49.6 29.6L51.2 27.1L52.7 24.8L54.1 22.5L55.6 20.3L57 18.2L58.4 16.2L59.8 14.3L61.1 12.5L62.4 10.8L63.7 9.2L64.9 7.7L66.1 6.3L67.3 5.1L68.4 4L69.5 3L70.5 2.2L71.5 1.5L72.5 0.9L73.4 0.5L74.3 0.2L75.1 0L75.9 0L76.7 0.1L77.4 0.4L78.1 0.8L78.7 1.3L79.3 2L79.9 2.8L80.4 3.7L80.9 4.7L81.3 5.9L81.7 7.2L82.1 8.6L82.4 10.1L82.7 11.7L83 13.4L83.3 15.2L83.5 17L83.7 19L83.9 21L84.1 23.1L84.2 25.3L84.3 27.5L84.4 29.8L84.5 32.1L84.6 34.5L84.7 36.9L84.8 39.3L84.8 41.7L84.9 44.1L85 46.5L85 49L85.1 51.4L85.2 53.8L85.3 56.1L85.3 58.4L85.5 60.7L85.6 62.9L85.7 65.1L85.9 67.2L86 69.3L86.2 71.3L86.5 73.2L86.7 75L87 76.7L87.3 78.4L87.6 79.9L88 81.4L88.4 82.7L88.8 84L89.2 85.1L89.7 86.1L90.2 87L90.8 87.8L91.4 88.4L92 88.9L92.7 89.3L93.4 89.6L94.2 89.8L94.9 89.8L95.8 89.7L96.6 89.5L97.5 89.2L98.4 88.7L99.4 88.2L100.4 87.5L101.4 86.7L102.5 85.8L103.6 84.8L104.7 83.6L105.9 82.4L107.1 81.1L108.3 79.7L109.5 78.2L110.8 76.6L112.1 74.9L113.4 73.2L114.7 71.4L116.1 69.5L117.4 67.6L118.8 65.7L120.2 63.6L121.6 61.6L123 59.5L124.5 57.4L125.9 55.3L127.3 53.1L128.8 51L130.2 48.8L131.6 46.7L133.1 44.5L134.5 42.4L135.9 40.3L137.3 38.3L138.7 36.2L140.1 34.2L141.5 32.3L142.9 30.4L144.2 28.6L145.5 26.8L146.8 25.1L148.1 23.5L149.4 22L150.6 20.5L151.8 19.1L153 17.8L154.1 16.6L155.2 15.5L156.3 14.5L157.4 13.6L158.4 12.8L159.4 12.1L160.4 11.5L161.3 11L162.3 10.7L163.1 10.4L164 10.2L164.8 10.2L165.5 10.2L166.3 10.4L167 10.7L167.7 11.1L168.3 11.6L168.9 12.1L169.5 12.8L170.1 13.6L170.6 14.5L171.1 15.5L171.6 16.5L172 17.7L172.5 18.9L172.9 20.2L173.2 21.6L173.6 23L173.9 24.5L174.3 26.1L174.6 27.7L174.9 29.4L175.1 31.1L175.4 32.9L175.7 34.7L175.9 36.5L176.1 38.3L176.4 40.2L176.6 42L176.8 43.9L177.1 45.8L177.3 47.7L177.5 49.5L177.8 51.4L178 53.2L178.3 55L178.5 56.8L178.8 58.5L179.1 60.2L179.4 61.9L179.7 63.5L180 65L180.4 66.5L180.7 67.9L181.1 69.3L181.5 70.5L182 71.7L182.4 72.9L182.9 73.9L183.4 74.9L183.9 75.8L184.5 76.6L185 77.3L185.6 77.9L186.3 78.4L186.9 78.9L187.6 79.2L188.4 79.4L189.1 79.6L189.9 79.6L190.7 79.6L191.5 79.5L192.4 79.2L193.3 78.9L194.2 78.5L195.1 78L196.1 77.4L197.1 76.8"/>
   <g font-family="'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif" fill="#f5f7fb" text-anchor="middle">
-    <text x="640" y="140" font-size="74" font-weight="700" letter-spacing="-1">Muse Spark Code</text>
+    <text x="419.6" y="140" font-size="74" font-weight="700" letter-spacing="-1" text-anchor="start">Muse Spark Code</text>
     <rect x="510" y="162" width="260" height="3" rx="1.5" fill="url(#rule)"/>
     <text x="640" y="214" font-size="29" fill="#c3cbdc">Meta’s Muse Spark as a coding agent inside VS Code</text>
     <g font-size="19" font-weight="600" fill="#9fb7ff">

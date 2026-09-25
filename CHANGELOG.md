@@ -7,7 +7,36 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- The Marketplace icon, the README banner and the social preview carry a
+  squiggled, handwritten blue "m" in the manner of Muse's own mark, in place of
+  the plain "M" (at the owner's direction). It is drawn from a curve, not
+  traced from Meta's mark.
+- The README is rewritten for 0.7.0: a contents list, what is new, the
+  limits, accessibility, the protected writes, and the corrections below.
+- A file the Model API tools refuse as too large now says to read part of it
+  with a shell command; it no longer suggests the search tool, which skips
+  files over 1 MiB.
+- Setting descriptions: `attachOpenFile` says it also hides the open-file
+  chip and sends neither the file nor the selection when off;
+  `cleanupPeriodDays` deletes when a window lists the conversations, not
+  when it opens them; `backend`'s `auto` falls back to Muse Code's sign-in
+  when no key is stored.
+
+### Fixed
+
+- Resizing the sidebar while the prompt held a draft of several lines could
+  log a false panel failure ("ResizeObserver loop completed with undelivered
+  notifications"): the prompt refitted its height inside the browser's own
+  resize callback. It now refits on the next frame.
+- The UI harness's `chips` scenario had clicked a button renamed before the
+  first release, so it never picked a file; it now uses the Attach menu.
+- Four scenarios of the UI harness (`filter`, `agents-off`, `usage-api`,
+  `usage`) had failed since M38, when a typed `/` stopped showing the
+  palette's filter box, and the accessibility gate checked whatever the
+  broken step left on screen. They open the palette from its button again,
+  and a scenario that throws now fails the gate.
 
 ## [0.7.0] - 2026-09-25
 
@@ -51,9 +80,10 @@ Code, and a log that tells a session's story.
   Markdown (messages, thinking, tool calls with their arguments and visible
   output) where you choose, on both backends; on the CLI backend **Export
   session log…** saves Muse Code's own JSON record of the session through
-  `muse export`. An export waits for a running reply to finish, and a
-  conversation too long for Muse Code to replay is pointed to the session
-  log instead of being written as an empty file.
+  `muse export`. An export asked for while a reply runs is refused, with a
+  note to export once it has finished (corrected after release: this entry
+  said it waited), and a conversation too long for Muse Code to replay is
+  pointed to the session log instead of being written as an empty file.
 
 - **Delete** in the History dialog archives the highlighted conversation, or
   restores an archived one, while the search box is empty.

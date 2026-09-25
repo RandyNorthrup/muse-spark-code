@@ -56,21 +56,27 @@ them, the milestone plan, and the certification checklist.
 
 ```
 src/extension.ts      activation: the view, the panel, the commands, the openers
-src/host/**           VS Code adapters (views, conversation, backend managers,
-                      auth, settings, mentions, voice, the diagnostics MCP server)
+src/host/**           VS Code adapters (views, conversation, backend managers and
+                      the search worker, commands, auth, settings, mentions,
+                      editor tracking, usage trace logs, voice, the diagnostics
+                      MCP server)
 src/core/**           backend-agnostic logic; must not import `vscode`
-                      (MSP host, Model API client, tools, context, usage, dictation)
+                      (MSP host, Model API client, tools, context, export,
+                      worktrees, usage, dictation)
 src/shared/**         constants + zod protocol shared by host and webview
 src/webview/**        React 19 app (browser project, own tsconfig)
 native/windows/**     dictate.ps1, the Windows dictation helper
-native/darwin/**      Dictation.swift + build.sh, the macOS helper (built in CI)
+native/darwin/**      Dictation.swift, Info.plist, build.sh, check-disclaim.sh:
+                      the macOS helper (built and checked in CI)
 resources/            the walkthrough
 test/unit/**          vitest (node + jsdom via docblock); `vscode` is mocked
 test/e2e/**           the fake Muse Code CLI driven through the real backend;
                       the opt-in live drill
 test/integration/**   @vscode/test-cli, runs inside VS Code
-test/harness/         the webview behind a fake host, for screenshots
-scripts/**            esbuild build, bundle-size gate, PSScriptAnalyzer gate,
+test/harness/         the webview behind a fake host, for screenshots and the
+                      accessibility gate; themes/ holds VS Code's four themes
+scripts/**            esbuild build; bundle-size, host-globals, notices, audit,
+                      PSScriptAnalyzer and accessibility gates; theme capture,
                       harness screenshots, image rendering, changelog notes
 docs/certification/   per-milestone gate-fire records and screenshots
 media/                icons, banner, social preview, README screenshots
@@ -81,7 +87,8 @@ media/                icons, banner, social preview, README screenshots
 | Task                           | Command                               |
 | ------------------------------ | ------------------------------------- |
 | All gates (local)              | `npm run quality`                     |
-| Gates as CI runs them          | `npm run quality:ci`                  |
+| The gates CI runs everywhere   | `npm run quality:gates`               |
+| Accessibility gate             | `npm run test:a11y`                   |
 | Unit tests with coverage       | `npm run test:unit`                   |
 | Integration tests              | `npm run test:integration`            |
 | Dev build / watch              | `npm run build:dev` / `npm run watch` |

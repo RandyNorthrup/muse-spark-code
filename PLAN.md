@@ -3180,5 +3180,13 @@ owner's asks that followed:
 
 Every milestone went through a pull request with the CI checks green on the
 three platforms (the accessibility gate on Linux and Windows) and its Codex
-review threads answered. The release goes through a pull request from
-`release/0.7.0`.
+review threads answered. The release went through pull request #21 from
+`release/0.7.0`. Tagged `v0.7.0` (d6e7d34) through the pull request, with no
+bypass; run 36081932348 went green on every job (01:25 to 01:35 UTC on
+2026-09-25), the GitHub Release carries `muse-spark-code-0.7.0.vsix`
+(646,542 bytes) and the workflow published it ("Published
+RandyNorthrup.muse-spark-code v0.7.0." at 01:35:36 UTC); the Marketplace
+listed 0.7.0 at 01:41:52 UTC (`vsce show`). The tag is the tip of `main` but
+for this record, which follows through its own pull request with the README
+rewritten for the release (the harness fixes it needed are recorded in
+`docs/certification/m37.md`).

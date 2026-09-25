@@ -323,7 +323,7 @@
           "type": "integer",
           "minimum": 0,
           "default": 30,
-          "description": "Delete Meta Model API conversations idle for more than this many days when a window opens them; 0 keeps them for ever. Muse Code CLI sessions are kept by the CLI."
+          "description": "Delete Meta Model API conversations idle for more than this many days when a window lists them; 0 keeps them for ever. Muse Code CLI sessions are kept by the CLI."
         },
         "museSpark.backend": {
           "type": "string",
@@ -333,7 +333,7 @@
             "modelApi"
           ],
           "enumDescriptions": [
-            "Muse Code when the CLI is installed and signed in (billed to your Muse subscription); otherwise the Meta Model API with your pasted key.",
+            "Muse Code when the CLI is installed and signed in (billed to your Muse subscription); otherwise the Meta Model API when a key is stored; otherwise Muse Code's sign-in.",
             "Always the Muse Code CLI, with its own sign-in.",
             "Always the Meta Model API with the key you pasted (pay as you go), using the extension's own tools."
           ],
@@ -365,7 +365,7 @@
         "museSpark.attachOpenFile": {
           "type": "boolean",
           "default": true,
-          "description": "Attach the active file to each message. Turn off to attach only the selection."
+          "description": "Show the open-file chip and attach the active file (or its selection) to each message. Turn off to attach neither."
         },
         "museSpark.useCtrlEnterToSend": {
           "type": "boolean",

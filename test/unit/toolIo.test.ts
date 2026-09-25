@@ -223,7 +223,7 @@ describe('createToolIo (real file system and shell)', () => {
     await writeFile(overLimit, 'a'.repeat(TOOL_FILE_MAX_BYTES + 1))
     await expect(io().readFile(atLimit)).resolves.toHaveLength(TOOL_FILE_MAX_BYTES)
     await expect(io().readFile(overLimit)).rejects.toThrow(
-      'The file tools read and edit files up to 10 MiB, and this one is 10.0 MiB: search it, or read part of it with a command, instead',
+      'The file tools read and edit files up to 10 MiB, and this one is 10.0 MiB: read part of it with a shell command instead (the search tool skips files over 1 MiB)',
     )
   })
 
