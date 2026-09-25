@@ -569,7 +569,9 @@
     "subagent_status": "代理状态",
     "subagent_send_message": "向代理发消息",
     "subagent_read_result": "代理结果",
-    "subagent_cancel": "取消代理"
+    "subagent_cancel": "取消代理",
+    "web_search": "网页搜索",
+    "generate_image": "图片"
   },
   "processExitCode": "退出代码 {code}",
   "skillScopes": {
@@ -693,5 +695,48 @@
   "museExitedWithCode": "Muse Code 已退出（退出代码 {code}）",
   "museExitMeaning": "{meaning}（退出代码 {code}）",
   "museStoppedBySignal": "Muse Code 被 {signal} 停止",
-  "museUnknownSignal": "未知信号"
+  "museUnknownSignal": "未知信号",
+  "approvalCreateImage": "Muse 想要创建图片 {action}",
+  "approvalPaid": "付费：{price}，计费到你的 Model API 密钥",
+  "paidWebSearchName": "网页搜索",
+  "paidImageGenerationName": "图片生成",
+  "paidVoiceName": "Muse Voice",
+  "paidWebSearchPrice": "每 1,000 次搜索 {price}",
+  "paidImagePrice": "每张图片 {price}",
+  "paidVoicePrice": "每小时音频 {price}",
+  "paidConfirmTitle": "要打开“{feature}”吗？",
+  "paidConfirmWebSearch": "模型在回答时可能会搜索网页。每次搜索都会计费到你的 Model API 密钥（{price}），另加搜索结果所增加的 token 费用，且扩展无法在每次搜索前询问你。仅在 Model API 后端上使用。",
+  "paidConfirmImage": "模型可能会在工作区中创建图片文件。每张图片都会计费到你的 Model API 密钥（{price}），并且在任何权限模式下，每张图片生成前都会询问你。仅在 Model API 后端上使用。",
+  "paidConfirmVoice": "麦克风将把你录制的内容发送到 Meta 的 Muse Voice Transcribe，而不是使用你计算机自带的识别器，并计费到你的 Model API 密钥（{price}）。仅在 Model API 后端上使用。",
+  "paidConfirmAccept": "打开",
+  "paidBadge": "付费：{features}",
+  "paidBadgeTitle": "计费到你的 Model API 密钥：{prices}。单击可在“账户和用量”中查看此窗口的累计统计。",
+  "paidRowBadge": "付费",
+  "paidRowTitle": "计费到你的 Model API 密钥：{price}",
+  "paidToggleLabel": "{feature}（付费）",
+  "usagePaidHeading": "此窗口中的付费功能",
+  "usagePaidOn": "开",
+  "usagePaidOff": "关",
+  "usagePaidSearches": {
+    "other": "{count} 次搜索"
+  },
+  "usagePaidImages": {
+    "other": "{count} 张图片"
+  },
+  "usagePaidAudio": "音频 {duration}",
+  "usagePaidTotal": "预估付费总额",
+  "usagePaidNote": "根据 Meta 公布的价格（读取于 {date}）估算此窗口自打开以来的费用；实际账单以 dev.meta.ai 仪表板为准。",
+  "webSearchFailed": "搜索失败",
+  "citationsHeading": "来源",
+  "dictationPaidLabel": "使用 Muse Voice 录制语音（付费）",
+  "dictationPaidTitle": "Muse Voice，付费：{price}，计费到你的 Model API 密钥。轻点或按住以录音（Ctrl+D）",
+  "museVoiceNoKey": "Muse Voice 需要 Model API 密钥；请先使用密钥登录。",
+  "museVoiceNoAnswer": "Muse Voice 没有响应；请检查连接后重试。",
+  "museVoiceNoFinal": "Muse Voice 未及时发送转录结果；请重试。",
+  "museVoiceMalformed": "Muse Voice 发送的内容不是 JSON，因此已丢弃该录音。",
+  "museVoiceRefused": "Muse Voice 拒绝了该录音",
+  "museVoiceRateLimited": "此密钥在 Muse Voice 上受到速率限制；请稍候再试。",
+  "museVoiceClosed": "Muse Voice 关闭了连接（代码 {code}）",
+  "museVoiceNoWebSocket": "Muse Voice 需要 VS Code 扩展主机支持 WebSocket，而此版本不支持。",
+  "museVoiceNoRecorder": "Linux 上的 Muse Voice 使用 arecord（ALSA）或 parec（PulseAudio）录音；但在 PATH 中均未找到。"
 }

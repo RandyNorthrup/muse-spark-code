@@ -9,10 +9,11 @@
 // live region reads failures and turn ends out once (M25).
 
 import { memo, type ReactNode, useDeferredValue, useRef, useState } from 'react'
-import type { QuestionAnswer } from '../../shared/agentEvents'
+import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/uiState'
+import { linkTarget } from '../links'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { useDismiss } from '../useDismiss'
 import type { ApprovalDecisionInput } from './ApprovalCard'
@@ -227,6 +228,60 @@ const UserCard = memo(function UserCard({
   )
 })
 
+/** The host name a citation without a title is shown by; the URL itself when it has none. */
+function citationLabel(citation: CitationSummary): string {
+  if (citation.title !== undefined) {
+    return citation.title
+  }
+  try {
+    return new URL(citation.url).host || citation.url
+  } catch {
+    return citation.url
+  }
+}
+
+/**
+ * The web pages a reply cites (M33, `url_citation`), each once, under the
+ * reply. They open like the reply's own links: http and https in the
+ * browser, anything else refused.
+ */
+function Citations({
+  citations,
+  onOpenLink,
+  onRefuseLink,
+}: {
+  readonly citations: readonly CitationSummary[]
+  readonly onOpenLink: (url: string) => void
+  readonly onRefuseLink: (() => void) | undefined
+}) {
+  return (
+    <nav className="citations" aria-label={UI_TEXT.citationsHeading}>
+      <span className="citations-heading">{UI_TEXT.citationsHeading}</span>
+      <ol className="citations-list">
+        {citations.map((citation) => (
+          <li key={citation.url}>
+            <a
+              href={citation.url}
+              title={citation.url}
+              onClick={(event) => {
+                event.preventDefault()
+                const target = linkTarget(citation.url)
+                if (target.kind === 'external') {
+                  onOpenLink(target.url)
+                } else {
+                  onRefuseLink?.()
+                }
+              }}
+            >
+              {citationLabel(citation)}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
 /**
  * Assistant text. While a reply streams it is rendered in two parts: a
  * stable head (memoised, re-rendered only when the split point moves) and a
@@ -297,6 +352,15 @@ const AssistantRow = memo(function AssistantRow({
           />
         )}
         {entry.isStreaming ? <span className="cursor" aria-hidden="true" /> : null}
+        {entry.isStreaming ||
+        entry.citations === undefined ||
+        entry.citations.length === 0 ? null : (
+          <Citations
+            citations={entry.citations}
+            onOpenLink={onOpenLink}
+            onRefuseLink={onRefuseLink}
+          />
+        )}
       </div>
       {entry.isStreaming ? null : (
         <div ref={menuArea} className="response-actions" onBlur={onMenuBlur}>

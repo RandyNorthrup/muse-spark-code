@@ -70,6 +70,8 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     permissionMode: 'manual',
     contextLabel: undefined,
     contextTitle: undefined,
+    paidBadge: undefined,
+    onOpenUsage: vi.fn(),
     focusRequests: 0,
     pendingInsert: undefined,
     attachments: [],
@@ -77,7 +79,7 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     editorContextLabel: undefined,
     referenceLabel: undefined,
     onDismissReference: vi.fn(),
-    dictation: { status: 'idle', reason: undefined },
+    dictation: { status: 'idle', reason: undefined, engine: 'system' },
     now: () => clock.now,
     onDictation: vi.fn(),
     onDismissEditorContext: vi.fn(),
@@ -505,7 +507,9 @@ describe('Composer microphone (M9)', () => {
   })
 
   it('a press while listening stops, and the button reads pressed with the stop title', () => {
-    const { props } = renderComposer({ dictation: { status: 'listening', reason: undefined } })
+    const { props } = renderComposer({
+      dictation: { status: 'listening', reason: undefined, engine: 'system' },
+    })
     expect(mic()).toHaveAttribute('aria-pressed', 'true')
     expect(mic()).toHaveAttribute('title', 'Stop recording (Ctrl+D)')
     expect(screen.getByLabelText('Message Muse')).toHaveAttribute('placeholder', 'Listening…')
@@ -516,7 +520,9 @@ describe('Composer microphone (M9)', () => {
   })
 
   it('shows the starting placeholder and stops from that state too', () => {
-    const { props } = renderComposer({ dictation: { status: 'starting', reason: undefined } })
+    const { props } = renderComposer({
+      dictation: { status: 'starting', reason: undefined, engine: 'system' },
+    })
     expect(screen.getByLabelText('Message Muse')).toHaveAttribute(
       'placeholder',
       'Starting the microphone…',
@@ -538,7 +544,7 @@ describe('Composer microphone (M9)', () => {
 
   it('is dimmed with the reason as its tooltip when unavailable, and inert', () => {
     const { props } = renderComposer({
-      dictation: { status: 'unavailable', reason: 'No recogniser on Linux.' },
+      dictation: { status: 'unavailable', reason: 'No recogniser on Linux.', engine: 'system' },
     })
     expect(mic()).toHaveAttribute('aria-disabled', 'true')
     expect(mic()).toHaveAttribute('title', 'No recogniser on Linux.')
@@ -712,5 +718,40 @@ describe('Composer "/" menus (M38)', () => {
     // Each opening says so (the list opened twice above); App asks for the
     // skills only while it has none.
     expect(props.onSlashMenuOpen).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('Composer: the paid badge (M33, PLAN.md D30)', () => {
+  it('names the paid features that are on, prices them in its tooltip, and opens the tally', () => {
+    const { props } = renderComposer({
+      paidBadge: { label: 'Paid: Web search', title: 'Billed to your Model API key: …' },
+    })
+    const badge = screen.getByRole('button', { name: 'Paid: Web search' })
+    expect(badge).toHaveAttribute('title', 'Billed to your Model API key: …')
+    fireEvent.click(badge)
+    expect(props.onOpenUsage).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows no badge while no paid feature is on', () => {
+    renderComposer()
+    expect(screen.queryByRole('button', { name: /^Paid:/ })).toBeNull()
+  })
+})
+
+describe('Composer: the microphone on Muse Voice (M35, PLAN.md D30)', () => {
+  it('names the paid engine and its price, and marks the button', () => {
+    renderComposer({ dictation: { status: 'idle', reason: undefined, engine: 'museVoice' } })
+    const button = screen.getByRole('button', { name: 'Record voice with Muse Voice (paid)' })
+    expect(button).toHaveAttribute(
+      'title',
+      'Muse Voice, paid: $0.18 per hour of audio, billed to your Model API key. Tap or hold to record (Ctrl+D)',
+    )
+    expect(button).toHaveClass('mic-paid')
+  })
+
+  it('keeps the free engine’s name and look', () => {
+    renderComposer()
+    const button = screen.getByRole('button', { name: 'Record voice' })
+    expect(button).not.toHaveClass('mic-paid')
   })
 })

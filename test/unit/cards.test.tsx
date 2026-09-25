@@ -193,3 +193,34 @@ describe('ApprovalCard tool subjects (M18)', () => {
     )
   })
 })
+
+describe('ApprovalCard for a paid call (M34, PLAN.md D30)', () => {
+  const imageApproval: PendingApproval = {
+    approvalId: 'i1',
+    requirementId: { approvalId: 'i1', sourceIndex: 0 },
+    rawArgs: JSON.stringify({ prompt: 'A lighthouse at dusk, flat colours', path: 'art/l.png' }),
+    subject: {
+      kind: 'paidTool',
+      toolName: 'generate_image',
+      path: 'art/l.png',
+      paidFeature: 'imageGeneration',
+    },
+    availableChoices: [
+      { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+      { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+    ],
+    isProtectedWrite: false,
+    isJudgeEscalated: false,
+  }
+
+  it('says what it creates, shows the prompt, and names the price', () => {
+    render(<ApprovalCard approval={imageApproval} toolName="generate_image" onDecide={vi.fn()} />)
+    const card = screen.getByRole('group', { name: 'Muse wants to create the image art/l.png' })
+    expect(card).toHaveTextContent('A lighthouse at dusk, flat colours')
+    expect(card).toHaveTextContent('Paid: $0.01 per image, billed to your Model API key')
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Allow once',
+      'Reject',
+    ])
+  })
+})

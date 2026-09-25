@@ -8,7 +8,7 @@
 //
 // Pure: the host reads the history and writes the file.
 
-import type { ItemSnapshot } from '../../shared/agentEvents'
+import type { CitationSummary, ItemSnapshot } from '../../shared/agentEvents'
 import { HIDDEN_ITEM_KINDS, UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 
@@ -32,6 +32,8 @@ const MIN_FENCE = 3
 const BACKTICK_RUN = /`+/g
 const FILE_NAME_UNSAFE = /[^a-z0-9]+/g
 const EDGE_DASHES = /^-+|-+$/g
+// What a Markdown link's text must escape to stay one link.
+const LINK_TEXT_SPECIAL = /[\\[\]]/g
 const FILE_NAME_WORDS_MAX = 60
 const JSON_INDENT = 2
 const COMPLETED = 'completed'
@@ -120,15 +122,38 @@ function subagentSection(item: ItemSnapshot): string {
   return lines.join('\n').trimEnd()
 }
 
+/** A cited page as a Markdown link (M33): the title escaped, the URL in angle brackets. */
+function citationLine(citation: CitationSummary): string {
+  const title = (citation.title ?? citation.url).replaceAll(LINK_TEXT_SPECIAL, String.raw`\$&`)
+  const url = citation.url.replaceAll('<', '%3C').replaceAll('>', '%3E')
+  return `- [${title}](<${url}>)`
+}
+
+/** A reply, and the web pages it cites (M33). */
+function agentSection(item: ItemSnapshot): string | undefined {
+  if (item.text === undefined || item.text === '') {
+    return undefined
+  }
+  const lines = [`## ${UI_TEXT.exportAgentHeading}`, '', item.text]
+  const citations = item.citations ?? []
+  if (citations.length > 0) {
+    lines.push(
+      '',
+      `${UI_TEXT.citationsHeading}:`,
+      '',
+      ...citations.map((citation) => citationLine(citation)),
+    )
+  }
+  return lines.join('\n')
+}
+
 function sectionOf(item: ItemSnapshot): string | undefined {
   switch (item.kind) {
     case USER_MESSAGE: {
       return userSection(item)
     }
     case AGENT_MESSAGE: {
-      return item.text === undefined || item.text === ''
-        ? undefined
-        : `## ${UI_TEXT.exportAgentHeading}\n\n${item.text}`
+      return agentSection(item)
     }
     case REASONING: {
       const text = item.summary?.join('\n\n') ?? item.text ?? ''

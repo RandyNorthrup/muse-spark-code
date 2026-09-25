@@ -1,13 +1,15 @@
-// A thin, schema-validated client for the three Model API endpoints the
-// backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`
-// and the streamed `POST /responses`. Errors follow the documented envelope
-// and retry policy (dev.meta.ai/docs/error-handling): 429 / 500 / 503 are
+// A thin, schema-validated client for the four Model API endpoints the
+// backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
+// the streamed `POST /responses` and `POST /images/generations` (M34).
+// Errors follow the documented envelope and retry policy
+// (dev.meta.ai/docs/error-handling): 429 / 500 / 503 are
 // retried with exponential backoff and jitter, honouring `Retry-After`,
 // before any of the response has been read; everything else surfaces as a
 // `ModelApiError`. `fetch`, the clock and the key are injected.
 
 import {
   MODEL_API_MAX_RETRIES,
+  IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
@@ -21,9 +23,12 @@ import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
+  type CreateImageBody,
   type CreateResponseBody,
   errorBodySchema,
   eventTypeSchema,
+  type ImagesResponse,
+  imagesResponseSchema,
   inputTokensSchema,
   modelListSchema,
   type StreamEvent,
@@ -276,6 +281,20 @@ export class ModelApiClient {
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
     return inputTokensSchema.parse(await response.json()).input_tokens
+  }
+
+  /**
+   * One generated image (M34): `POST /images/generations`, validated. Billed
+   * per image returned; a failed or filtered one is not. The turn's Stop and
+   * a deadline of its own end the wait.
+   */
+  public async createImage(body: CreateImageBody, signal: AbortSignal): Promise<ImagesResponse> {
+    const response = await this.request(
+      '/images/generations',
+      { method: 'POST', body, accept: JSON_MEDIA_TYPE },
+      AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
+    )
+    return imagesResponseSchema.parse(await response.json())
   }
 
   /**

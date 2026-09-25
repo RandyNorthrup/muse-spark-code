@@ -581,7 +581,9 @@
     "subagent_status": "Agentenstatus",
     "subagent_send_message": "Agent benachrichtigen",
     "subagent_read_result": "Agentenergebnis",
-    "subagent_cancel": "Agent abbrechen"
+    "subagent_cancel": "Agent abbrechen",
+    "web_search": "Websuche",
+    "generate_image": "Bild"
   },
   "processExitCode": "Exitcode {code}",
   "skillScopes": {
@@ -714,5 +716,50 @@
   "museExitedWithCode": "Muse Code wurde mit Code {code} beendet",
   "museExitMeaning": "{meaning} (Exitcode {code})",
   "museStoppedBySignal": "Muse Code wurde durch {signal} angehalten",
-  "museUnknownSignal": "ein unbekanntes Signal"
+  "museUnknownSignal": "ein unbekanntes Signal",
+  "approvalCreateImage": "Muse möchte das Bild {action} erstellen",
+  "approvalPaid": "Kostenpflichtig: {price}, abgerechnet über Ihren Model-API-Schlüssel",
+  "paidWebSearchName": "Websuche",
+  "paidImageGenerationName": "Bilder",
+  "paidVoiceName": "Muse Voice",
+  "paidWebSearchPrice": "{price} pro 1.000 Suchen",
+  "paidImagePrice": "{price} pro Bild",
+  "paidVoicePrice": "{price} pro Stunde Audio",
+  "paidConfirmTitle": "{feature} einschalten?",
+  "paidConfirmWebSearch": "Das Modell kann beim Antworten im Web suchen. Jede Suche wird Ihrem Model-API-Schlüssel zum Preis von {price} berechnet, zusätzlich zu den Token, die ihre Ergebnisse hinzufügen, und die Erweiterung kann nicht vor jeder einzelnen Suche fragen. Wird nur auf dem Model-API-Backend verwendet.",
+  "paidConfirmImage": "Das Modell kann Bilddateien im Arbeitsbereich erstellen. Jedes Bild wird Ihrem Model-API-Schlüssel zum Preis von {price} berechnet, und Sie werden vor jedem Bild gefragt, in jedem Berechtigungsmodus. Wird nur auf dem Model-API-Backend verwendet.",
+  "paidConfirmVoice": "Das Mikrofon sendet Ihre Aufnahmen an Muse Voice Transcribe von Meta statt an die eigene Spracherkennung Ihres Computers; dies wird Ihrem Model-API-Schlüssel zum Preis von {price} berechnet. Wird nur auf dem Model-API-Backend verwendet.",
+  "paidConfirmAccept": "Einschalten",
+  "paidBadge": "Kostenpflichtig: {features}",
+  "paidBadgeTitle": "Abgerechnet über Ihren Model-API-Schlüssel: {prices}. Klicken, um die Aufstellung dieses Fensters unter „Konto und Nutzung“ zu sehen.",
+  "paidRowBadge": "kostenpflichtig",
+  "paidRowTitle": "Abgerechnet über Ihren Model-API-Schlüssel: {price}",
+  "paidToggleLabel": "{feature} (kostenpflichtig)",
+  "usagePaidHeading": "Kostenpflichtige Funktionen in diesem Fenster",
+  "usagePaidOn": "ein",
+  "usagePaidOff": "aus",
+  "usagePaidSearches": {
+    "one": "{count} Suche",
+    "other": "{count} Suchen"
+  },
+  "usagePaidImages": {
+    "one": "{count} Bild",
+    "other": "{count} Bilder"
+  },
+  "usagePaidAudio": "{duration} Audio",
+  "usagePaidTotal": "Geschätzte Summe der kostenpflichtigen Funktionen",
+  "usagePaidNote": "Schätzung anhand der von Meta veröffentlichten Preise, abgerufen am {date}, für dieses Fenster seit dem Öffnen; maßgeblich ist die Abrechnung im Dashboard von dev.meta.ai.",
+  "webSearchFailed": "Die Suche ist fehlgeschlagen",
+  "citationsHeading": "Quellen",
+  "dictationPaidLabel": "Sprache mit Muse Voice aufnehmen (kostenpflichtig)",
+  "dictationPaidTitle": "Muse Voice, kostenpflichtig: {price}, abgerechnet über Ihren Model-API-Schlüssel. Zum Aufnehmen tippen oder gedrückt halten (Strg+D)",
+  "museVoiceNoKey": "Muse Voice benötigt einen Model-API-Schlüssel; melden Sie sich zuerst mit einem an.",
+  "museVoiceNoAnswer": "Muse Voice hat nicht geantwortet; prüfen Sie die Verbindung, und versuchen Sie es erneut.",
+  "museVoiceNoFinal": "Muse Voice hat das Transkript nicht rechtzeitig gesendet; versuchen Sie es erneut.",
+  "museVoiceMalformed": "Muse Voice hat etwas gesendet, das kein JSON ist, daher wurde die Aufnahme verworfen.",
+  "museVoiceRefused": "Muse Voice hat die Aufnahme abgelehnt",
+  "museVoiceRateLimited": "Muse Voice hat für diesen Schlüssel das Anfragelimit erreicht; warten Sie einen Moment, und versuchen Sie es erneut.",
+  "museVoiceClosed": "Muse Voice hat die Verbindung geschlossen (Code {code})",
+  "museVoiceNoWebSocket": "Muse Voice benötigt WebSocket-Unterstützung im Erweiterungshost von VS Code, die diese Version nicht bietet.",
+  "museVoiceNoRecorder": "Muse Voice nimmt unter Linux mit arecord (ALSA) oder parec (PulseAudio) auf; keines von beiden wurde im PATH gefunden."
 }

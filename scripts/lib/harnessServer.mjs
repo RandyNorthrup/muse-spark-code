@@ -64,6 +64,11 @@ export const SCENARIOS = [
   'size-refused',
   'slash-palette',
   'slash-commands',
+  'paid',
+  'paid-usage',
+  'paid-palette',
+  'paid-image',
+  'paid-voice',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

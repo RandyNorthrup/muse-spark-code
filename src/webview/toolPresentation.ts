@@ -25,6 +25,9 @@ interface ParsedArgs {
   readonly content: string | undefined
   /** The `search` tool's regular expression (live 2026-09-22). */
   readonly pattern: string | undefined
+  /** A web search's queries (M33), or the page it opened. */
+  readonly query: string | undefined
+  readonly url: string | undefined
 }
 
 const NO_ARGS: ParsedArgs = {
@@ -33,6 +36,8 @@ const NO_ARGS: ParsedArgs = {
   description: undefined,
   content: undefined,
   pattern: undefined,
+  query: undefined,
+  url: undefined,
 }
 
 function parseArgs(args: string): ParsedArgs {
@@ -49,6 +54,8 @@ function parseArgs(args: string): ParsedArgs {
       description: pick('description'),
       content: pick('content'),
       pattern: pick('pattern'),
+      query: pick('query'),
+      url: pick('url'),
     }
   } catch {
     return NO_ARGS
@@ -86,7 +93,8 @@ export function describeTool(tool: string, args: string): ToolPresentation {
   }
   return {
     label,
-    summary: parsed.path ?? parsed.pattern ?? parsed.description ?? '',
+    summary:
+      parsed.path ?? parsed.pattern ?? parsed.query ?? parsed.url ?? parsed.description ?? '',
     body: 'generic',
     command: undefined,
   }

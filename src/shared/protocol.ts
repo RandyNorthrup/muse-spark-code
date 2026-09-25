@@ -16,9 +16,11 @@ import {
 import {
   CHAT_REFERENCE_INTENTS,
   DICTATION_ACTIONS,
+  DICTATION_ENGINES,
   DICTATION_UI_STATUSES,
   EFFORT_LEVELS,
   EXPORT_FORMATS,
+  PAID_FEATURES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
   SUBAGENT_ACTIONS,
@@ -26,6 +28,7 @@ import {
   WEBVIEW_ERROR_SOURCES,
   WEBVIEW_ERROR_STACK_MAX_CHARS,
 } from './constants'
+import { paidStateSchema } from './paid'
 import { sessionRowSchema } from './sessions'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
 
@@ -326,6 +329,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Voice dictation (M9): the microphone button / Ctrl+D. Recognised text
   // comes back as `insertText`; the button state as `dictationState`.
   z.object({ type: z.literal('dictation'), action: z.enum(DICTATION_ACTIONS) }),
+  // The palette's paid-feature toggles (M33, PLAN.md D30): on asks the host's
+  // confirmation first, which names the price.
+  z.object({
+    type: z.literal('setPaidFeature'),
+    feature: z.enum(PAID_FEATURES),
+    isOn: z.boolean(),
+  }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -423,11 +433,18 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // Voice dictation (M9): sent on surfaceReady and on every change. `reason`
   // explains an unavailable microphone (no built-in recogniser here).
+  // `engine` (M35): `museVoice` while the paid engine records, so the
+  // microphone says it is paid.
   z.object({
     type: z.literal('dictationState'),
     status: z.enum(DICTATION_UI_STATUSES),
     reason: z.optional(z.string()),
+    engine: z.optional(z.enum(DICTATION_ENGINES)),
   }),
+  // The paid features that are on and this window's tally (M33, PLAN.md
+  // D30): the composer's badge, the palette's toggles and the usage dialog.
+  // Sent on surfaceReady and on every change.
+  z.object({ type: z.literal('paidState'), state: paidStateSchema }),
   // The host accepted a sendMessage and the turn is running.
   z.object({ type: z.literal('turnAccepted'), localId: z.string(), turnId: z.string() }),
   // The host could not submit a sendMessage. `attachmentsKept` (M25): the

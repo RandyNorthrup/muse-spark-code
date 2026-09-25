@@ -581,7 +581,9 @@
     "subagent_status": "Ügynök állapota",
     "subagent_send_message": "Üzenet az ügynöknek",
     "subagent_read_result": "Ügynök eredménye",
-    "subagent_cancel": "Ügynök leállítása"
+    "subagent_cancel": "Ügynök leállítása",
+    "web_search": "Webes keresés",
+    "generate_image": "Kép"
   },
   "processExitCode": "kilépési kód: {code}",
   "skillScopes": {
@@ -714,5 +716,50 @@
   "museExitedWithCode": "A Muse Code kilépett, kilépési kód: {code}",
   "museExitMeaning": "{meaning} (kilépési kód: {code})",
   "museStoppedBySignal": "A Muse Code-ot a következő jel állította le: {signal}",
-  "museUnknownSignal": "egy ismeretlen jel"
+  "museUnknownSignal": "egy ismeretlen jel",
+  "approvalCreateImage": "A Muse létre szeretné hozni ezt a képet: {action}",
+  "approvalPaid": "Fizetős: {price}, a Model API-kulcsára számlázva",
+  "paidWebSearchName": "Webes keresés",
+  "paidImageGenerationName": "Képek",
+  "paidVoiceName": "Muse Voice",
+  "paidWebSearchPrice": "{price} / 1000 keresés",
+  "paidImagePrice": "{price} / kép",
+  "paidVoicePrice": "{price} / óra hanganyag",
+  "paidConfirmTitle": "Bekapcsolja ezt a funkciót: {feature}?",
+  "paidConfirmWebSearch": "A modell válaszadás közben kereshet a weben. A keresések díja {price}, amelyet a találataik által hozzáadott tokeneken felül a Model API-kulcsára számláznak, és a kiegészítő nem tud minden keresés előtt rákérdezni. Csak a Model API háttérrendszeren működik.",
+  "paidConfirmImage": "A modell képfájlokat hozhat létre a munkaterületen. A képek díja {price}, amelyet a Model API-kulcsára számláznak, és a kiegészítő minden kép előtt rákérdez, minden engedélyezési módban. Csak a Model API háttérrendszeren működik.",
+  "paidConfirmVoice": "A mikrofon a felvételeit a számítógép saját beszédfelismerője helyett a Meta Muse Voice Transcribe szolgáltatásának küldi; ennek díja {price}, amelyet a Model API-kulcsára számláznak. Csak a Model API háttérrendszeren működik.",
+  "paidConfirmAccept": "Bekapcsolás",
+  "paidBadge": "Fizetős: {features}",
+  "paidBadgeTitle": "A Model API-kulcsára számlázva: {prices}. Kattintson, hogy a Fiók és használat párbeszédablakban lássa ennek az ablaknak az összesítőjét.",
+  "paidRowBadge": "fizetős",
+  "paidRowTitle": "A Model API-kulcsára számlázva: {price}",
+  "paidToggleLabel": "{feature} (fizetős)",
+  "usagePaidHeading": "Fizetős funkciók ebben az ablakban",
+  "usagePaidOn": "bekapcsolva",
+  "usagePaidOff": "kikapcsolva",
+  "usagePaidSearches": {
+    "one": "{count} keresés",
+    "other": "{count} keresés"
+  },
+  "usagePaidImages": {
+    "one": "{count} kép",
+    "other": "{count} kép"
+  },
+  "usagePaidAudio": "{duration} hanganyag",
+  "usagePaidTotal": "A fizetős funkciók becsült összege",
+  "usagePaidNote": "Becslés a Meta által közzétett árak alapján (lekérdezve: {date}), erre az ablakra a megnyitása óta; a tényleges számla a dev.meta.ai irányítópultján látható.",
+  "webSearchFailed": "A keresés sikertelen",
+  "citationsHeading": "Források",
+  "dictationPaidLabel": "Hangfelvétel a Muse Voice használatával (fizetős)",
+  "dictationPaidTitle": "Muse Voice, fizetős: {price}, a Model API-kulcsára számlázva. Koppintson vagy tartsa lenyomva a felvételhez (Ctrl+D)",
+  "museVoiceNoKey": "A Muse Voice használatához Model API-kulcs szükséges; először jelentkezzen be egy kulccsal.",
+  "museVoiceNoAnswer": "A Muse Voice nem válaszolt; ellenőrizze a kapcsolatot, és próbálja újra.",
+  "museVoiceNoFinal": "A Muse Voice nem küldte el időben az átiratot; próbálja újra.",
+  "museVoiceMalformed": "A Muse Voice nem JSON formátumú adatot küldött, ezért a felvétel elveszett.",
+  "museVoiceRefused": "A Muse Voice elutasította a felvételt",
+  "museVoiceRateLimited": "A Muse Voice ennél a kulcsnál elérte a kéréskorlátot; várjon egy kicsit, és próbálja újra.",
+  "museVoiceClosed": "A Muse Voice bezárta a kapcsolatot (kód: {code})",
+  "museVoiceNoWebSocket": "A Muse Voice használatához WebSocket-támogatás szükséges a VS Code kiegészítőinek gazdafolyamatában, ez a verzió azonban nem rendelkezik vele.",
+  "museVoiceNoRecorder": "A Muse Voice Linuxon az arecord (ALSA) vagy a parec (PulseAudio) programmal rögzít; egyik sem található a PATH-on."
 }

@@ -27,7 +27,8 @@
       "onboardingShortcuts.cycleMode",
       "onboardingShortcuts.mentionSelection",
       "onboardingShortcuts.mentionFile",
-      "onboardingShortcuts.dictation"
+      "onboardingShortcuts.dictation",
+      "paidVoiceName"
     ],
     "cs": [
       "groupModel",
@@ -78,7 +79,9 @@
       "toolLabels.request_user_input",
       "toolLabels.mcp__ide__getDiagnostics",
       "toolLabels.ask_user",
-      "exportSubagentNoRole"
+      "exportSubagentNoRole",
+      "toolLabels.generate_image",
+      "citationsHeading"
     ],
     "it": ["usageAccount", "exportOutputLabel"]
   },

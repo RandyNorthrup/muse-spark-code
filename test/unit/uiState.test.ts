@@ -1229,9 +1229,13 @@ describe('uiReducer: session history (M6)', () => {
 
 describe('uiReducer: voice dictation (M9)', () => {
   it('starts idle, follows the host, and announces listening and its end', () => {
-    expect(initialUiState.dictation).toEqual({ status: 'idle', reason: undefined })
+    expect(initialUiState.dictation).toEqual({
+      status: 'idle',
+      reason: undefined,
+      engine: 'system',
+    })
     const starting = reduceAll([host({ type: 'dictationState', status: 'starting' })])
-    expect(starting.dictation).toEqual({ status: 'starting', reason: undefined })
+    expect(starting.dictation).toEqual({ status: 'starting', reason: undefined, engine: 'system' })
     expect(starting.announcement).toBeUndefined()
     const listening = uiReducer(starting, host({ type: 'dictationState', status: 'listening' }))
     expect(listening.announcement).toEqual({ text: 'Listening', sequence: 1 })
@@ -1247,7 +1251,11 @@ describe('uiReducer: voice dictation (M9)', () => {
     const state = reduceAll([
       host({ type: 'dictationState', status: 'unavailable', reason: 'No recogniser on Linux.' }),
     ])
-    expect(state.dictation).toEqual({ status: 'unavailable', reason: 'No recogniser on Linux.' })
+    expect(state.dictation).toEqual({
+      status: 'unavailable',
+      reason: 'No recogniser on Linux.',
+      engine: 'system',
+    })
   })
 })
 
@@ -1954,5 +1962,60 @@ describe('uiReducer: prompts the host moved on (D26)', () => {
     )
     expect(other.activeTurnId).toBeUndefined()
     expect(other.usage).toBeUndefined()
+  })
+})
+
+describe('uiReducer: paid features (M33, PLAN.md D30)', () => {
+  it('keeps the host’s paid state', () => {
+    const paid = {
+      features: ['voice' as const],
+      tally: { webSearches: 1, images: 0, voiceSeconds: 3 },
+    }
+    expect(reduceAll([host({ type: 'paidState', state: paid })]).paid).toEqual(paid)
+  })
+
+  it('keeps a row’s paid mark and a reply’s sources through their updates', () => {
+    const state = reduceAll([
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 'ws',
+          kind: 'toolCall',
+          status: 'inProgress',
+          tool: 'web_search',
+          paid: 'webSearch',
+        },
+      }),
+      agent({
+        type: 'itemCompleted',
+        item: { itemId: 'ws', kind: 'toolCall', status: 'completed', args: '{"query":"q"}' },
+      }),
+      agent({
+        type: 'itemCompleted',
+        item: { itemId: 'm', kind: 'agentMessage', status: 'completed', text: 'A' },
+      }),
+      agent({
+        type: 'itemUpdated',
+        item: {
+          itemId: 'm',
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'A',
+          citations: [{ url: 'https://a.example', title: 'A' }],
+        },
+      }),
+    ])
+    expect(state.transcript).toEqual([
+      expect.objectContaining({ id: 'ws', paid: 'webSearch', status: 'completed' }),
+      expect.objectContaining({ id: 'm', citations: [{ url: 'https://a.example', title: 'A' }] }),
+    ])
+  })
+
+  it('says which engine the microphone uses', () => {
+    const state = reduceAll([
+      host({ type: 'dictationState', status: 'listening', engine: 'museVoice' }),
+    ])
+    expect(state.dictation.engine).toBe('museVoice')
   })
 })

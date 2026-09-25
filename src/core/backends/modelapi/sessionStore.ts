@@ -14,7 +14,12 @@ import {
 import { STORED_SESSION_VERSION } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import type { SessionRecord } from '../../agent/agentBackend'
-import { functionCallItemSchema, type InputItem, reasoningItemSchema } from './schemas'
+import {
+  functionCallItemSchema,
+  type InputItem,
+  reasoningItemSchema,
+  webSearchActionSchema,
+} from './schemas'
 
 export interface StoredReplayItem {
   readonly turnId: string
@@ -111,11 +116,18 @@ const functionCallOutputSchema = z.object({
   call_id: z.string(),
   output: z.string(),
 })
+const webSearchCallReplaySchema = z.object({
+  type: z.literal('web_search_call'),
+  id: z.optional(z.string()),
+  status: z.string(),
+  action: z.optional(webSearchActionSchema),
+})
 const storedInputItemSchema = z.union([
   inputMessageSchema,
   functionCallOutputSchema,
   functionCallItemSchema,
   reasoningItemSchema,
+  webSearchCallReplaySchema,
 ])
 
 export const storedSessionSchema = z.object({

@@ -31,6 +31,8 @@ function managerOn(
       isWorkspaceTrusted: () => true,
       store,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
+      isPaidFeatureOn: () => false,
+      notePaidUse: () => undefined,
     }),
   }
 }

@@ -307,6 +307,10 @@ export const EN = {
   approvalAction: 'Muse wants to {action}',
   /** A bare tool name (subject kind "tool", e.g. subagent_spawn), M18. */
   approvalUseTool: 'Muse wants to use {action}',
+  // M34: {action} is the new image's path.
+  approvalCreateImage: 'Muse wants to create the image {action}',
+  // M34: on the card of a paid call; {price} as `paidImagePrice` says it.
+  approvalPaid: 'Paid: {price}, billed to your Model API key',
   approvalStage: 'step {position} of {total}',
   approvalProtectedWrite: 'Protected write',
   approvalJudgeEscalated: 'Escalated by the safety check',
@@ -663,6 +667,10 @@ export const EN = {
     subagent_send_message: 'Message agent',
     subagent_read_result: 'Agent result',
     subagent_cancel: 'Cancel agent',
+    // Meta's hosted search on the Model API backend (M33).
+    web_search: 'Web search',
+    // Paid image generation on the Model API backend (M34).
+    generate_image: 'Image',
   },
   // A CLI run that failed without saying why; {code} is the process's own number.
   processExitCode: 'exit code {code}',
@@ -818,6 +826,62 @@ export const EN = {
   museExitMeaning: '{meaning} (exit code {code})',
   museStoppedBySignal: 'Muse Code was stopped by {signal}',
   museUnknownSignal: 'an unknown signal',
+  // The paid Model API features (M33–M35, PLAN.md D30): opt in and loud.
+  // {price} is a dollar amount in the display language's money format.
+  paidWebSearchName: 'Web search',
+  paidImageGenerationName: 'Images',
+  paidVoiceName: 'Muse Voice',
+  paidWebSearchPrice: '{price} per 1,000 searches',
+  paidImagePrice: '{price} per image',
+  paidVoicePrice: '{price} per hour of audio',
+  // The confirmation shown when a paid feature is turned on; {feature} is its name.
+  paidConfirmTitle: 'Turn on {feature}?',
+  paidConfirmWebSearch:
+    'The model may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add, and the extension cannot ask before each one. Used on the Model API backend only.',
+  paidConfirmImage:
+    'The model may create image files in the workspace. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode. Used on the Model API backend only.',
+  paidConfirmVoice:
+    'The microphone will send what you record to Meta’s Muse Voice Transcribe instead of your computer’s own recogniser, billed to your Model API key at {price}. Used on the Model API backend only.',
+  paidConfirmAccept: 'Turn on',
+  // The composer's badge while a paid feature is on; {features} lists their names.
+  paidBadge: 'Paid: {features}',
+  paidBadgeTitle:
+    'Billed to your Model API key: {prices}. Click for this window’s tally in Account & usage.',
+  // A paid call's row in the transcript.
+  paidRowBadge: 'paid',
+  paidRowTitle: 'Billed to your Model API key: {price}',
+  // The palette's toggles (Model API backend only); {feature} is the name.
+  paidToggleLabel: '{feature} (paid)',
+  // The usage dialog's tally.
+  usagePaidHeading: 'Paid features in this window',
+  usagePaidOn: 'on',
+  usagePaidOff: 'off',
+  usagePaidSearches: forms({ one: '{count} search', other: '{count} searches' }),
+  usagePaidImages: forms({ one: '{count} image', other: '{count} images' }),
+  usagePaidAudio: '{duration} of audio',
+  usagePaidTotal: 'Estimated paid total',
+  usagePaidNote:
+    'Estimated at Meta’s published prices, read on {date}, for this window since it opened; the dev.meta.ai dashboard is the bill.',
+  webSearchFailed: 'The search failed',
+  // Under a reply that cites web pages (M33).
+  citationsHeading: 'Sources',
+  // The microphone while Muse Voice is its engine (M35); {price} per hour of audio.
+  dictationPaidLabel: 'Record voice with Muse Voice (paid)',
+  dictationPaidTitle:
+    'Muse Voice, paid: {price}, billed to your Model API key. Tap or hold to record (Ctrl+D)',
+  // Why Muse Voice cannot record or transcribe.
+  museVoiceNoKey: 'Muse Voice needs a Model API key; sign in with one first.',
+  museVoiceNoAnswer: 'Muse Voice did not answer; check the connection and try again.',
+  museVoiceNoFinal: 'Muse Voice did not send the transcript in time; try again.',
+  museVoiceMalformed: 'Muse Voice sent something that is not JSON, so the recording was dropped.',
+  museVoiceRefused: 'Muse Voice refused the recording',
+  museVoiceRateLimited: 'Muse Voice is rate-limited for this key; wait a moment and try again.',
+  // {code}: the WebSocket close code Meta sent.
+  museVoiceClosed: 'Muse Voice closed the connection (code {code})',
+  museVoiceNoWebSocket:
+    'Muse Voice needs WebSocket support in VS Code’s extension host, which this version does not have.',
+  museVoiceNoRecorder:
+    'Muse Voice on Linux records with arecord (ALSA) or parec (PulseAudio); neither was found on PATH.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

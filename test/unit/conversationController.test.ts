@@ -145,6 +145,8 @@ function setup(
     usageInsights?: { day: UsageInsights; week: UsageInsights }
     /** Voice dictation (M9). */
     dictation?: DictationSetup
+    /** Muse Voice when it is the microphone's engine (M35). */
+    museVoice?: () => DictationSetup | undefined
     now?: number
     /** Handshake fields over the fake's (D26: the platform, the version). */
     handshake?: Record<string, unknown>
@@ -285,6 +287,8 @@ function setup(
   }
   const deps: ConversationDeps = {
     surface,
+    setPaidFeature: vi.fn(() => Promise.resolve()),
+    museVoice: options.museVoice ?? (() => undefined),
     auth: auth.service,
     accountFacts: (backend) =>
       Promise.resolve(
@@ -463,7 +467,12 @@ describe('ConversationController.surfaceReady', () => {
       { type: 'surfaceState' },
       { type: 'authState', status: 'signedIn' },
       composerState,
-      { type: 'dictationState', status: 'unavailable', reason: 'no helper in tests' },
+      {
+        type: 'dictationState',
+        status: 'unavailable',
+        reason: 'no helper in tests',
+        engine: 'system',
+      },
     ])
     await t.send('l1', 'hi')
     await settle()
@@ -474,7 +483,12 @@ describe('ConversationController.surfaceReady', () => {
       { type: 'surfaceState', sessionId: 's1', activeTurnId: 't1' },
       { type: 'authState', status: 'signedIn' },
       composerState,
-      { type: 'dictationState', status: 'unavailable', reason: 'no helper in tests' },
+      {
+        type: 'dictationState',
+        status: 'unavailable',
+        reason: 'no helper in tests',
+        engine: 'system',
+      },
       modelList,
       sessionInfo,
       skillList,
@@ -2180,6 +2194,8 @@ describe('ConversationController: backends and tiers (M7)', () => {
       personalSkillsRoot: undefined,
       isWorkspaceTrusted: () => true,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
+      isPaidFeatureOn: () => false,
+      notePaidUse: () => undefined,
     })
     const controller = new ConversationController({
       ...t.deps,
@@ -2240,6 +2256,7 @@ describe('ConversationController: voice dictation (M9)', () => {
       type: 'dictationState',
       status: 'unavailable',
       reason: 'no helper in tests',
+      engine: 'system',
     }
     expect(t.surface.posted).toContainEqual(unavailable)
     t.surface.posted.length = 0
@@ -2251,7 +2268,11 @@ describe('ConversationController: voice dictation (M9)', () => {
     const { setup: dictation, driver } = fakeDictation()
     const t = setup({ dictation })
     t.controller.surfaceReady()
-    expect(t.surface.posted).toContainEqual({ type: 'dictationState', status: 'idle' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'dictationState',
+      status: 'idle',
+      engine: 'system',
+    })
     expect(driver.calls).toEqual([])
     await t.controller.handle({ type: 'dictation', action: 'start' })
     await t.controller.handle({ type: 'dictation', action: 'stop' })
@@ -2261,7 +2282,7 @@ describe('ConversationController: voice dictation (M9)', () => {
     driver.listener?.onText('fix the bug')
     driver.listener?.onError('No microphone is available')
     expect(t.surface.posted).toEqual([
-      { type: 'dictationState', status: 'listening' },
+      { type: 'dictationState', status: 'listening', engine: 'system' },
       { type: 'insertText', text: 'fix the bug ' },
       {
         type: 'notice',
@@ -2272,7 +2293,11 @@ describe('ConversationController: voice dictation (M9)', () => {
     // A reopened webview learns the current status.
     t.surface.posted.length = 0
     t.controller.surfaceReady()
-    expect(t.surface.posted).toContainEqual({ type: 'dictationState', status: 'listening' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'dictationState',
+      status: 'listening',
+      engine: 'system',
+    })
     t.controller.dispose()
     expect(driver.calls.at(-1)).toBe('dispose')
   })
@@ -2607,12 +2632,21 @@ describe('ConversationController: permission hardening (D24)', () => {
     requestApproval(t, 'j', { judgeEscalated: true })
     requestApproval(t, 's', { subject: { kind: 'shell', command: 'npm test' } })
     requestApproval(t, 'r', { subject: { kind: 'fileAccess', access: 'read', path: '/x' } })
+    // A paid call is always the user's to accept (M34, PLAN.md D30).
+    requestApproval(t, 'i', {
+      subject: {
+        kind: 'paidTool',
+        toolName: 'generate_image',
+        path: 'a.png',
+        paidFeature: 'imageGeneration',
+      },
+    })
     const manual = setup({ hasApprovalUi: true, initialPermissionMode: 'manual' })
     await manual.send('l1', 'hi')
     requestApproval(manual, 'm')
     await vi.waitFor(() => {
       expect(agentEvents(manual).map((event) => event.type)).toContain('approvalRequested')
-      expect(agentEvents(t).filter((event) => event.type === 'approvalRequested')).toHaveLength(4)
+      expect(agentEvents(t).filter((event) => event.type === 'approvalRequested')).toHaveLength(5)
     })
     expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
     expect(manual.server.requestsFor('approval/decide')).toHaveLength(0)
@@ -2620,7 +2654,7 @@ describe('ConversationController: permission hardening (D24)', () => {
       agentEvents(t).flatMap((event) =>
         event.type === 'approvalRequested' ? [event.approvalId] : [],
       ),
-    ).toEqual(['p', 'j', 's', 'r'])
+    ).toEqual(['p', 'j', 's', 'r', 'i'])
     expect(agentEvents(manual).map((event) => event.type)).toContain('approvalRequested')
   })
 
@@ -3102,5 +3136,82 @@ describe('ConversationController: unsaved editors (D27)', () => {
     await t.send('l1', 'hi')
     expect(t.saveAll).toHaveBeenCalledOnce()
     expect(t.surface.posted.some((message) => message.type === 'notice')).toBe(false)
+  })
+})
+
+describe('ConversationController: paid feature toggles (M33, PLAN.md D30)', () => {
+  it('hands the palette toggle to the host, which confirms the price before turning one on', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'setPaidFeature', feature: 'webSearch', isOn: true })
+    await t.controller.handle({ type: 'setPaidFeature', feature: 'voice', isOn: false })
+    expect(t.deps.setPaidFeature).toHaveBeenNthCalledWith(1, 'webSearch', true)
+    expect(t.deps.setPaidFeature).toHaveBeenNthCalledWith(2, 'voice', false)
+  })
+})
+
+/** A dictation setup whose drivers record their calls under a name (M35). */
+function namedSetup(name: string, calls: string[]): DictationSetup {
+  return {
+    isAvailable: true,
+    create: () => {
+      calls.push(`${name}:create`)
+      return {
+        start: () => {
+          calls.push(`${name}:start`)
+        },
+        stop: () => {
+          calls.push(`${name}:stop`)
+        },
+        dispose: () => {
+          calls.push(`${name}:dispose`)
+        },
+      }
+    },
+  }
+}
+describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)', () => {
+  it('records with Muse Voice while it is the engine, and says so to the microphone', async () => {
+    const calls: string[] = []
+    const engine = { isPaid: true }
+    const t = setup({
+      dictation: namedSetup('system', calls),
+      museVoice: () => (engine.isPaid ? namedSetup('muse', calls) : undefined),
+    })
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual({
+      type: 'dictationState',
+      status: 'idle',
+      engine: 'museVoice',
+    })
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    await t.controller.handle({ type: 'dictation', action: 'stop' })
+    // Turned off: the idle paid driver goes, and the next press is the free engine's.
+    engine.isPaid = false
+    t.surface.posted.length = 0
+    t.controller.refreshDictation()
+    expect(t.surface.posted).toEqual([{ type: 'dictationState', status: 'idle', engine: 'system' }])
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    expect(calls).toEqual([
+      'muse:create',
+      'muse:start',
+      'muse:stop',
+      'muse:dispose',
+      'system:create',
+      'system:start',
+    ])
+  })
+
+  it('says why when Muse Voice is the engine but cannot record here', async () => {
+    const t = setup({
+      dictation: namedSetup('system', []),
+      museVoice: () => ({ isAvailable: false, reason: 'no recorder' }),
+    })
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'dictationState',
+      status: 'unavailable',
+      reason: 'no recorder',
+      engine: 'museVoice',
+    })
   })
 })

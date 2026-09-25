@@ -38,6 +38,7 @@ import {
   DEFAULT_MODEL_ID,
   DELTA_BATCH_MS,
   type DictationAction,
+  type DictationEngine,
   type EffortLevel,
   type ExportFormat,
   IDE_MCP_SERVER_NAME,
@@ -48,6 +49,7 @@ import {
   OUTPUT_PAGE_BYTES,
   OUTPUT_TAB_ID_LENGTH,
   PATCH_DOCUMENT_MAX_PAGES,
+  type PaidFeature,
   type PermissionMode,
   SANDBOX_FAILURE_MARKER,
   SESSION_LIST_LIMIT,
@@ -225,8 +227,16 @@ export interface ConversationDeps {
   readonly isRestorable: boolean
   /** Voice dictation (M9): the platform's helper, or why there is none. */
   readonly dictation: DictationSetup
+  /**
+   * Muse Voice (M35, PLAN.md D30) when it is the microphone's engine (its
+   * setting on, its price accepted, the Model API backend); undefined while
+   * the free engine is.
+   */
+  readonly museVoice: () => DictationSetup | undefined
   /** "Export conversation…" (M30): the save dialog, the write, Muse Code's own log. */
   readonly exports: ConversationExports
+  /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
+  readonly setPaidFeature: (feature: PaidFeature, isOn: boolean) => Promise<void>
   readonly now: () => number
   readonly log: Logger
 }
@@ -354,6 +364,8 @@ export class ConversationController {
   /** The dictation driver, created on the first press (M9). */
   private dictation: DictationHandle | undefined
   private dictationStatus: DictationStatus = 'idle'
+  /** The engine the driver above records with (M35). */
+  private dictationEngine: DictationEngine = 'system'
   /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
   /** The remote-window Bypass confirmation, given once per conversation (D24). */
@@ -1973,21 +1985,35 @@ export class ConversationController {
 
   // --- Voice dictation (M9) ---
 
+  /** The engine the microphone uses now, and its setup (M35). */
+  private dictationChoice(): { readonly engine: DictationEngine; readonly setup: DictationSetup } {
+    const museVoice = this.deps.museVoice()
+    return museVoice === undefined
+      ? { engine: 'system', setup: this.deps.dictation }
+      : { engine: 'museVoice', setup: museVoice }
+  }
+
   private postDictationState(): void {
-    const { dictation } = this.deps
+    const { engine, setup } = this.dictationChoice()
     this.post(
-      dictation.isAvailable
-        ? { type: 'dictationState', status: this.dictationStatus }
-        : { type: 'dictationState', status: 'unavailable', reason: dictation.reason },
+      setup.isAvailable
+        ? { type: 'dictationState', status: this.dictationStatus, engine }
+        : { type: 'dictationState', status: 'unavailable', reason: setup.reason, engine },
     )
   }
 
   private dictationDriver(): DictationHandle | undefined {
-    const { dictation } = this.deps
-    if (!dictation.isAvailable) {
+    const { engine, setup } = this.dictationChoice()
+    if (!setup.isAvailable) {
       return undefined
     }
-    this.dictation ??= dictation.create({
+    if (this.dictation !== undefined && this.dictationEngine !== engine) {
+      // A press on the other engine: the driver of the old one goes first.
+      this.dictation.dispose()
+      this.dictation = undefined
+    }
+    this.dictationEngine = engine
+    this.dictation ??= setup.create({
       onStatus: (status) => {
         this.dictationStatus = status
         this.postDictationState()
@@ -2233,6 +2259,10 @@ export class ConversationController {
         await this.readUsage()
         break
       }
+      case 'setPaidFeature': {
+        await this.deps.setPaidFeature(message.feature, message.isOn)
+        break
+      }
     }
   }
 
@@ -2333,6 +2363,23 @@ export class ConversationController {
     }
     this.notice('warning', UI_TEXT.bypassRevoked)
     this.postComposerState()
+  }
+
+  /**
+   * The engine may have changed (M35: the paid feature or the backend): an
+   * idle driver of the other engine goes, and the microphone is told.
+   */
+  public refreshDictation(): void {
+    const { engine } = this.dictationChoice()
+    if (
+      this.dictation !== undefined &&
+      this.dictationEngine !== engine &&
+      this.dictationStatus === 'idle'
+    ) {
+      this.dictation.dispose()
+      this.dictation = undefined
+    }
+    this.postDictationState()
   }
 
   /** Alt+T: flip the Thinking toggle for this conversation. */

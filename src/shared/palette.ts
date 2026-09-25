@@ -9,6 +9,8 @@ import {
   type ExportFormat,
   ISSUES_URL,
   MUSE_DOCS_URL,
+  PAID_FEATURES,
+  type PaidFeature,
   type PermissionMode,
   RESUME_SKILL_SELECTORS,
   SKILL_IMPORT_SOURCES,
@@ -18,6 +20,7 @@ import {
 } from './constants'
 import { effortLabel, effortLevelsFor } from './effort'
 import { fill, formatNumber } from './l10n/text'
+import { paidFeatureName, paidFeaturePrice } from './paid'
 import type { BackendKind, ModelOption, SkillOption } from './protocol'
 
 export type PaletteWidget =
@@ -57,6 +60,7 @@ export type PaletteAction =
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
   | { readonly type: 'openLog' }
   | { readonly type: 'openExternal'; readonly url: string }
+  | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   | { readonly type: 'none' }
 
 export interface PaletteItem {
@@ -101,6 +105,8 @@ export interface PaletteContext {
   readonly skills: readonly SkillOption[] | undefined
   /** The backend in use (M7); undefined until the host has decided. */
   readonly backend: BackendKind | undefined
+  /** The paid features that are on (M33, PLAN.md D30). */
+  readonly paidFeatures: readonly PaidFeature[]
 }
 
 /** The backend's name as the palette, the usage dialog and an export show it. */
@@ -221,6 +227,27 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
         },
       ]
     : []
+}
+
+/**
+ * The paid features' toggles (M33, PLAN.md D30), on the Model API backend
+ * only, where they are used: each names its price, and turning one on asks
+ * the host's confirmation first.
+ */
+function paidItems(context: PaletteContext): readonly PaletteItem[] {
+  if (context.backend !== 'modelApi') {
+    return []
+  }
+  return PAID_FEATURES.map((feature) => {
+    const isOn = context.paidFeatures.includes(feature)
+    return {
+      id: `paid:${feature}`,
+      label: fill(UI_TEXT.paidToggleLabel, { feature: paidFeatureName(feature) }),
+      detail: paidFeaturePrice(feature),
+      widget: { kind: 'toggle', isOn },
+      action: { type: 'setPaidFeature', feature, isOn: !isOn },
+    }
+  })
 }
 
 /** "/export" on both backends; Muse Code's own JSON log where it runs (M30). */
@@ -398,6 +425,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           },
           action: { type: 'openSettings' },
         },
+        ...paidItems(context),
         { id: 'signOut', label: UI_TEXT.signOutItem, action: { type: 'signOut' } },
       ],
     },

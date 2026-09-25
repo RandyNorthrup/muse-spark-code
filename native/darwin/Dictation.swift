@@ -15,6 +15,24 @@
 //                                           stdout  {"type":"stopped"}
 //                                           stdout  {"type":"error","reason":"..."}   (then exits 2)
 //
+// Capture mode (`--capture`) serves Muse Voice, the opt-in paid engine, in
+// which the extension host streams the audio to Meta's Muse Voice Transcribe
+// and the text comes back from there. The helper then recognises nothing and
+// asks macOS for the microphone alone, never for speech recognition. It sends
+// the microphone's audio as it is heard, converted to signed 16-bit
+// little-endian PCM, mono, at 16,000 Hz, in lines of 100 ms (3,200 bytes),
+// base64-encoded. The commands are the same; the lines are these:
+//
+//   stdout  {"type":"ready","language":"pcm_s16le","recognizer":"capture 16000 Hz mono"}
+//   stdout  {"type":"listening"}                    once the audio engine runs after "start"
+//   stdout  {"type":"audio","data":"<base64>"}      100 ms of audio, again and again while listening
+//   stdout  {"type":"stopped"}                      after "stop", once the last, shorter audio line is out
+//   stdout  {"type":"error","reason":"..."}         (then exits 2)
+//
+// "quit" in capture mode stops the microphone and exits without sending the
+// audio still held back, since the host that asked for it is going away. The
+// Windows helper has the same mode, with the same lines.
+//
 // Built by native/darwin/build.sh (CI's macOS job) into a universal binary
 // with Info.plist embedded, since the microphone and speech-recognition
 // permission prompts need usage descriptions even for a command-line tool.
@@ -196,6 +214,28 @@ struct NoAudioInputError: LocalizedError {
 /// final result and no error, which is worse than the server round trip.
 let requiresOnDeviceRecognition = CommandLine.arguments.contains("--on-device")
 
+/// `--capture`: send the microphone's audio instead of recognising it (the
+/// capture mode in the header). The disclaimed copy starts with the same
+/// arguments, so the copy captures too.
+let isCaptureMode = CommandLine.arguments.contains("--capture")
+
+/// Capture mode's audio: signed 16-bit PCM, mono, 16,000 Hz. Intel and Apple
+/// silicon are both little-endian, so the samples as they lie in memory are
+/// already the little-endian bytes the host expects.
+let captureSampleRate: Double = 16_000
+/// The encoding named in capture mode's "ready" line.
+let captureEncoding = "pcm_s16le"
+/// Audio per capture line: 100 ms of 16-bit mono at 16,000 Hz.
+let captureLineBytes = 3_200
+/// Room in each converted buffer beyond the tap buffer's own length at the
+/// new rate, for the frames the sample-rate converter held back from an
+/// earlier buffer and releases with this one.
+let converterHeadroomFrames: AVAudioFrameCount = 512
+/// The largest magnitude a 16-bit sample reaches, for the level in the trace.
+let int16FullScale: Float = 32_768
+/// The frames per tap buffer asked of AVAudioEngine, which may deliver more.
+let tapBufferFrames: AVAudioFrameCount = 1024
+
 /// The CoreAudio device with this UID, 0 when there is none.
 func inputDevice(withUID uid: String) -> AudioObjectID {
     var address = AudioObjectPropertyAddress(
@@ -255,8 +295,62 @@ enum Output {
     }
 }
 
+/// The engine's input node, switched to `inputDevice` when one was chosen,
+/// and the hardware input format a tap on it must take.
+func openInput(of engine: AVAudioEngine, device inputDevice: AudioObjectID?) throws -> (
+    node: AVAudioInputNode, format: AVAudioFormat
+) {
+    // A Mac without an input device (a Mac mini with nothing plugged in,
+    // seen 2026-09-22): the engine's input node still answers with a
+    // nominal output format, but installing a tap on it raises an
+    // Objective-C exception, which Swift cannot catch (a crash, not an
+    // error). Check CoreAudio's default input and the hardware input
+    // format first and report a plain error line instead.
+    guard inputDevice != nil || defaultInputDevice() != 0 else {
+        throw NoAudioInputError(detail: "no default input device")
+    }
+    Output.trace("input node")
+    let input = engine.inputNode
+    if var device = inputDevice {
+        Output.trace("select device \(device)")
+        guard let unit = input.audioUnit else {
+            throw NoAudioInputError(detail: "the input node has no audio unit")
+        }
+        let status = AudioUnitSetProperty(
+            unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+            &device, UInt32(MemoryLayout<AudioObjectID>.size))
+        guard status == noErr else {
+            throw NoAudioInputError(detail: "device \(device) refused, status \(status)")
+        }
+    }
+    Output.trace("input format")
+    let hardware = input.inputFormat(forBus: 0)
+    guard hardware.channelCount > 0, hardware.sampleRate > 0 else {
+        throw NoAudioInputError(
+            detail: "input format \(hardware.sampleRate) Hz, \(hardware.channelCount) channels")
+    }
+    // The tap takes the hardware input format: the node's output format
+    // is cached from the device it was created with, and after a device
+    // change the two differ, which AVFAudio treats as a fatal assertion.
+    let cached = input.outputFormat(forBus: 0)
+    Output.trace(
+        "tap hardware \(hardware.sampleRate) Hz, \(hardware.channelCount) ch; node output \(cached.sampleRate) Hz, \(cached.channelCount) ch"
+    )
+    return (input, hardware)
+}
+
+/// What a "start" begins: a Recording, which recognises speech, or in
+/// capture mode a Capture, which sends the audio itself.
+protocol Listener: AnyObject {
+    func start() throws
+    /// Ends the audio; "stopped" follows once the last result is out.
+    func stop()
+    /// Ends the audio and sends nothing more.
+    func cancel()
+}
+
 /// One recording: an audio tap feeding a recognition request until "stop".
-final class Recording {
+final class Recording: Listener {
     private let recognizer: SFSpeechRecognizer
     /// A specific CoreAudio input device (`--input-device <uid>`); nil for
     /// the system default.
@@ -285,43 +379,8 @@ final class Recording {
         }
         Output.trace(
             "recognition \(request.requiresOnDeviceRecognition ? "on device only" : "on device where installed, otherwise Apple's servers")")
-        // A Mac without an input device (a Mac mini with nothing plugged in,
-        // seen 2026-09-22): the engine's input node still answers with a
-        // nominal output format, but installing a tap on it raises an
-        // Objective-C exception, which Swift cannot catch (a crash, not an
-        // error). Check CoreAudio's default input and the hardware input
-        // format first and report a plain error line instead.
-        guard inputDevice != nil || defaultInputDevice() != 0 else {
-            throw NoAudioInputError(detail: "no default input device")
-        }
-        Output.trace("input node")
-        let input = engine.inputNode
-        if var device = inputDevice {
-            Output.trace("select device \(device)")
-            guard let unit = input.audioUnit else {
-                throw NoAudioInputError(detail: "the input node has no audio unit")
-            }
-            let status = AudioUnitSetProperty(
-                unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                &device, UInt32(MemoryLayout<AudioObjectID>.size))
-            guard status == noErr else {
-                throw NoAudioInputError(detail: "device \(device) refused, status \(status)")
-            }
-        }
-        Output.trace("input format")
-        let hardware = input.inputFormat(forBus: 0)
-        guard hardware.channelCount > 0, hardware.sampleRate > 0 else {
-            throw NoAudioInputError(
-                detail: "input format \(hardware.sampleRate) Hz, \(hardware.channelCount) channels")
-        }
-        // The tap takes the hardware input format: the node's output format
-        // is cached from the device it was created with, and after a device
-        // change the two differ, which AVFAudio treats as a fatal assertion.
-        let cached = input.outputFormat(forBus: 0)
-        Output.trace(
-            "tap hardware \(hardware.sampleRate) Hz, \(hardware.channelCount) ch; node output \(cached.sampleRate) Hz, \(cached.channelCount) ch"
-        )
-        input.installTap(onBus: 0, bufferSize: 1024, format: hardware) { [weak self, request] buffer, _ in
+        let (input, hardware) = try openInput(of: engine, device: inputDevice)
+        input.installTap(onBus: 0, bufferSize: tapBufferFrames, format: hardware) { [weak self, request] buffer, _ in
             request.append(buffer)
             self?.meter(buffer)
         }
@@ -401,15 +460,191 @@ final class Recording {
     }
 }
 
-final class Session {
-    private let recognizer: SFSpeechRecognizer
+/// The capture converter could not be made.
+struct CaptureError: LocalizedError {
+    let detail: String
+    var errorDescription: String? { detail }
+}
+
+/// One capture (capture mode): an audio tap whose buffers are converted to
+/// 16,000 Hz mono 16-bit PCM and sent as "audio" lines until "stop".
+final class Capture: Listener {
+    /// A specific CoreAudio input device (`--input-device <uid>`); nil for
+    /// the system default.
     private let inputDevice: AudioObjectID?
-    private var recording: Recording?
+    private let engine = AVAudioEngine()
+    private let onFinished: () -> Void
+    /// Guards everything below it. The tap runs on the audio engine's own
+    /// thread, while "stop" and "quit" run on the main queue.
+    private let lock = NSLock()
+    private var converter: AVAudioConverter?
+    /// Converted audio not yet sent: less than a line's worth between taps.
+    private var pending = Data()
+    /// Set by "stop" and "quit"; a tap buffer that arrives afterwards is dropped.
+    private var isClosed = false
+    /// For the stderr trace, as in Recording: a silent microphone is the
+    /// commonest reason for "no text", and the level names it.
+    private var bufferCount = 0
+    private var sentBytes = 0
+    private var peak = 0
+
+    init(inputDevice: AudioObjectID?, onFinished: @escaping () -> Void) {
+        self.inputDevice = inputDevice
+        self.onFinished = onFinished
+    }
+
+    func start() throws {
+        guard
+            let target = AVAudioFormat(
+                commonFormat: .pcmFormatInt16, sampleRate: captureSampleRate, channels: 1, interleaved: true)
+        else {
+            throw CaptureError(detail: "the \(Int(captureSampleRate)) Hz mono 16-bit format could not be made")
+        }
+        let (input, hardware) = try openInput(of: engine, device: inputDevice)
+        Output.trace(
+            "converter \(hardware.sampleRate) Hz, \(hardware.channelCount) ch to \(target.sampleRate) Hz, \(target.channelCount) ch, 16-bit")
+        guard let converter = AVAudioConverter(from: hardware, to: target) else {
+            throw CaptureError(
+                detail:
+                    "no converter from \(hardware.sampleRate) Hz, \(hardware.channelCount) channels to \(Int(captureSampleRate)) Hz mono 16-bit PCM"
+            )
+        }
+        // Mix every input channel into the one sent, rather than keep the
+        // first and drop the rest, so a microphone on any channel is heard.
+        converter.downmix = true
+        self.converter = converter
+        input.installTap(onBus: 0, bufferSize: tapBufferFrames, format: hardware) { [weak self] buffer, _ in
+            self?.receive(buffer)
+        }
+        Output.trace("engine start")
+        engine.prepare()
+        try engine.start()
+        Output.send(["type": "listening"])
+    }
+
+    /// Ends the audio: the converter gives up the frames it still holds, the
+    /// rest goes out as a last, shorter line, then "stopped".
+    func stop() {
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        guard drain() else { return }
+        Output.send(["type": "stopped"])
+        onFinished()
+    }
+
+    func cancel() {
+        lock.lock()
+        isClosed = true
+        lock.unlock()
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+    }
+
+    /// Runs on the audio thread: converts one tap buffer and sends every
+    /// whole line's worth of audio it completes.
+    private func receive(_ buffer: AVAudioPCMBuffer) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isClosed else { return }
+        bufferCount += 1
+        convert(buffer)
+        sendLines(includingRest: false)
+    }
+
+    /// Closes the capture and sends everything still held; false when it was
+    /// already closed. A tap buffer still in flight when the tap was removed
+    /// either went out before this or is dropped after it.
+    private func drain() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isClosed else { return false }
+        isClosed = true
+        convert(nil)
+        sendLines(includingRest: true)
+        Output.trace(
+            "captured \(bufferCount) buffers, sent \(sentBytes) bytes, peak level \(Float(peak) / int16FullScale)")
+        return true
+    }
+
+    /// Feeds one tap buffer through the converter, or with nil the end of
+    /// the stream, which makes the converter give up what it holds back.
+    /// The converted audio joins `pending`. Called with the lock held.
+    private func convert(_ buffer: AVAudioPCMBuffer?) {
+        guard let converter = converter else { return }
+        let ratio = captureSampleRate / converter.inputFormat.sampleRate
+        let capacity =
+            AVAudioFrameCount((Double(buffer?.frameLength ?? 0) * ratio).rounded(.up)) + converterHeadroomFrames
+        var isSupplied = false
+        while true {
+            guard let output = AVAudioPCMBuffer(pcmFormat: converter.outputFormat, frameCapacity: capacity) else {
+                return
+            }
+            var failure: NSError?
+            let status = converter.convert(to: output, error: &failure) { _, inputStatus in
+                guard let buffer = buffer else {
+                    inputStatus.pointee = .endOfStream
+                    return nil
+                }
+                // The converter may ask more than once per call; the buffer
+                // goes in once.
+                guard !isSupplied else {
+                    inputStatus.pointee = .noDataNow
+                    return nil
+                }
+                isSupplied = true
+                inputStatus.pointee = .haveData
+                return buffer
+            }
+            if status == .error {
+                Output.fail(
+                    "The microphone's audio could not be converted: \(failure?.localizedDescription ?? "no reason given")")
+            }
+            append(output)
+            // .haveData means the output buffer filled and more is waiting;
+            // .inputRanDry and .endOfStream mean everything so far is out.
+            guard status == .haveData, output.frameLength > 0 else { return }
+        }
+    }
+
+    private func append(_ output: AVAudioPCMBuffer) {
+        guard output.frameLength > 0, let samples = output.int16ChannelData?[0] else { return }
+        let frames = UnsafeBufferPointer(start: samples, count: Int(output.frameLength))
+        for sample in frames {
+            peak = max(peak, abs(Int(sample)))
+        }
+        pending.append(frames)
+    }
+
+    /// Sends `pending` in lines of 100 ms, and with `includingRest` whatever
+    /// shorter remainder is left too.
+    private func sendLines(includingRest: Bool) {
+        var start = pending.startIndex
+        while pending.endIndex - start >= captureLineBytes {
+            let end = start + captureLineBytes
+            sendAudio(pending[start..<end])
+            start = end
+        }
+        if includingRest, start < pending.endIndex {
+            sendAudio(pending[start...])
+            start = pending.endIndex
+        }
+        pending = Data(pending[start...])
+    }
+
+    private func sendAudio(_ chunk: Data) {
+        sentBytes += chunk.count
+        Output.send(["type": "audio", "data": chunk.base64EncodedString()])
+    }
+}
+
+final class Session {
+    /// Makes what a "start" begins, given what it calls once it has stopped.
+    private let makeRecording: (@escaping () -> Void) -> Listener
+    private var recording: Listener?
     private var isStartQueued = false
 
-    init(recognizer: SFSpeechRecognizer, inputDevice: AudioObjectID?) {
-        self.recognizer = recognizer
-        self.inputDevice = inputDevice
+    init(makeRecording: @escaping (@escaping () -> Void) -> Listener) {
+        self.makeRecording = makeRecording
     }
 
     func handle(command: String) {
@@ -432,7 +667,7 @@ final class Session {
     }
 
     private func startRecording() {
-        let next = Recording(recognizer: recognizer, inputDevice: inputDevice) { [weak self] in
+        let next = makeRecording { [weak self] in
             self?.recordingFinished()
         }
         do {
@@ -514,23 +749,46 @@ func authorizationFailure() -> String? {
     return nil
 }
 
-if let refusal = authorizationFailure() {
-    Output.fail(refusal)
+/// Capture mode asks for the microphone alone: the audio is transcribed by
+/// the extension host's engine, so speech recognition is never requested.
+/// Nil when the microphone is allowed, otherwise the refusal the user reads.
+/// A decided status is not asked again; an undecided one is asked, and
+/// announced on stderr first as in `authorizationFailure()`.
+func microphoneFailure() -> String? {
+    switch AVCaptureDevice.authorizationStatus(for: .audio) {
+    case .authorized:
+        return nil
+    case .restricted:
+        return "The microphone is restricted on this Mac (by a device-management profile or Screen Time), so dictation cannot run."
+    case .notDetermined:
+        let semaphore = DispatchSemaphore(value: 0)
+        var isMicrophoneAllowed = false
+        Output.trace("asking macOS for the microphone for \(appName)")
+        AVCaptureDevice.requestAccess(for: .audio) { granted in
+            isMicrophoneAllowed = granted
+            semaphore.signal()
+        }
+        semaphore.wait()
+        if isMicrophoneAllowed {
+            return nil
+        }
+    default:
+        Output.trace("macOS has refused the microphone to \(appName)")
+    }
+    if isDisclaimed {
+        return "macOS did not allow the microphone for \(helperName), Muse Spark Code's dictation helper. Turn it on in System Settings > Privacy & Security > Microphone and try again."
+    }
+    return "macOS did not allow the microphone for \(appName), the app that started the dictation helper. Turn it on in System Settings > Privacy & Security > Microphone and try again."
 }
 
-guard let recognizer = SFSpeechRecognizer(locale: Locale.current) ?? SFSpeechRecognizer() else {
-    Output.fail("No speech recogniser is available for this language.")
-}
-guard recognizer.isAvailable else {
-    Output.fail("The speech recogniser is not available right now.")
-}
-
-// Diagnostics: `--input-device <CoreAudio UID>` captures from that device
-// instead of the system default (the test rig feeds a loopback device; a
-// user can pick one microphone among several).
-var chosenInput: AudioObjectID? = nil
-let arguments = CommandLine.arguments
-if let flag = arguments.firstIndex(of: "--input-device") {
+/// Diagnostics: `--input-device <CoreAudio UID>` captures from that device
+/// instead of the system default (the test rig feeds a loopback device; a
+/// user can pick one microphone among several). Nil for the system default.
+func chosenInputDevice() -> AudioObjectID? {
+    let arguments = CommandLine.arguments
+    guard let flag = arguments.firstIndex(of: "--input-device") else {
+        return nil
+    }
     guard flag + 1 < arguments.count else {
         Output.fail("--input-device needs a CoreAudio device UID.")
     }
@@ -539,16 +797,52 @@ if let flag = arguments.firstIndex(of: "--input-device") {
     guard device != 0 else {
         Output.fail("No audio device has the UID \(uid).")
     }
-    chosenInput = device
+    return device
 }
 
-let session = Session(recognizer: recognizer, inputDevice: chosenInput)
-Output.send([
-    "type": "ready",
-    "language": recognizer.locale.identifier,
-    "recognizer": recognizer.supportsOnDeviceRecognition
-        ? "Apple Speech (on-device capable)" : "Apple Speech",
-])
+/// Normal mode: speech recognition and the microphone allowed, a recogniser
+/// for the current language, then "ready".
+func startDictation() -> Session {
+    if let refusal = authorizationFailure() {
+        Output.fail(refusal)
+    }
+    guard let recognizer = SFSpeechRecognizer(locale: Locale.current) ?? SFSpeechRecognizer() else {
+        Output.fail("No speech recogniser is available for this language.")
+    }
+    guard recognizer.isAvailable else {
+        Output.fail("The speech recogniser is not available right now.")
+    }
+    let chosenInput = chosenInputDevice()
+    let session = Session { onFinished in
+        Recording(recognizer: recognizer, inputDevice: chosenInput, onFinished: onFinished)
+    }
+    Output.send([
+        "type": "ready",
+        "language": recognizer.locale.identifier,
+        "recognizer": recognizer.supportsOnDeviceRecognition
+            ? "Apple Speech (on-device capable)" : "Apple Speech",
+    ])
+    return session
+}
+
+/// Capture mode: the microphone allowed, then "ready" naming the audio format.
+func startCapture() -> Session {
+    if let refusal = microphoneFailure() {
+        Output.fail(refusal)
+    }
+    let chosenInput = chosenInputDevice()
+    let session = Session { onFinished in
+        Capture(inputDevice: chosenInput, onFinished: onFinished)
+    }
+    Output.send([
+        "type": "ready",
+        "language": captureEncoding,
+        "recognizer": "capture \(Int(captureSampleRate)) Hz mono",
+    ])
+    return session
+}
+
+let session = isCaptureMode ? startCapture() : startDictation()
 
 // Commands are read on a background thread and handled on the main queue,
 // where the audio engine and the recognition callbacks are serialised.

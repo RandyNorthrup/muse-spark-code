@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
+import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import { UsageDialog, type UsageDialogProps } from '../../src/webview/components/UsageDialog'
 
 const HOUR = 60 * 60 * 1000
@@ -42,6 +43,7 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
     usage: { inputTokens: 12_345, outputTokens: 678, cachedTokens: 10_000 },
     context: { usedTokens: 21_014, windowTokens: 1_007_997, pressure: 'normal' },
     modelId: 'muse-spark-1.3',
+    paid: { features: [], tally: EMPTY_PAID_TALLY },
     now: () => NOW,
     onOpenExternal: vi.fn(),
     onClose: vi.fn(),
@@ -239,5 +241,36 @@ describe('UsageDialog insights fallback (M18)', () => {
       },
     })
     expect(screen.getByText(/the Model API has no local trace logs/)).toBeInTheDocument()
+  })
+})
+
+describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
+  const modelApiReport = {
+    backend: 'modelApi' as const,
+    subscription: undefined,
+    account: { signInMethod: 'apiKey' as const },
+    insights: undefined,
+  }
+
+  it('tallies this window’s paid use with each feature’s state and estimated cost', () => {
+    renderDialog({
+      report: modelApiReport,
+      paid: {
+        features: ['webSearch'],
+        tally: { webSearches: 4, images: 2, voiceSeconds: 90 },
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Paid features in this window')
+    expect(dialog).toHaveTextContent('Web search (on)4 searches · $0.0100')
+    expect(dialog).toHaveTextContent('Images (off)2 images · $0.0200')
+    expect(dialog).toHaveTextContent('Muse Voice (off)1m 30s of audio · $0.0045')
+    expect(dialog).toHaveTextContent('Estimated paid total$0.0345')
+    expect(dialog).toHaveTextContent('published prices, read on 2026-09-24')
+  })
+
+  it('has no paid section on the Muse Code backend', () => {
+    renderDialog()
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('Paid features')
   })
 })

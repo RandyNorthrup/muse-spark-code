@@ -9,8 +9,23 @@
 // chat dimmed behind it.
 
 import { useState } from 'react'
-import { META_DASHBOARD_URL, MODEL_API_PRICES_VERIFIED_ON, UI_TEXT } from '../../shared/constants'
+import {
+  META_DASHBOARD_URL,
+  MILLISECONDS_PER_SECOND,
+  MODEL_API_PRICES_VERIFIED_ON,
+  PAID_FEATURES,
+  PAID_PRICES_VERIFIED_ON,
+  type PaidFeature,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, formatPercent, plural, templateParts } from '../../shared/l10n/text'
+import {
+  paidCostUsd,
+  paidFeatureName,
+  type PaidState,
+  type PaidTally,
+  paidTotalUsd,
+} from '../../shared/paid'
 import { backendLabel, formatTokenWindow } from '../../shared/palette'
 import { relativeTime } from '../../shared/sessions'
 import {
@@ -25,6 +40,7 @@ import {
 } from '../../shared/usage'
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
+import { formatDurationMs } from './AgentMap'
 import { Modal } from './Modal'
 
 export interface UsageDialogProps {
@@ -33,6 +49,8 @@ export interface UsageDialogProps {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly modelId: string | undefined
+  /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
+  readonly paid: PaidState
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
   readonly onClose: () => void
@@ -177,6 +195,56 @@ function TokensSection({
   )
 }
 
+/** What this window used of one paid feature: "3 searches", "2 images", "1m 30s of audio". */
+function paidUseText(feature: PaidFeature, tally: PaidTally): string {
+  switch (feature) {
+    case 'webSearch': {
+      return plural(UI_TEXT.usagePaidSearches, tally.webSearches)
+    }
+    case 'imageGeneration': {
+      return plural(UI_TEXT.usagePaidImages, tally.images)
+    }
+    case 'voice': {
+      return fill(UI_TEXT.usagePaidAudio, {
+        duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
+      })
+    }
+  }
+}
+
+/**
+ * The paid features on the Model API backend (D30 rule 5): each one's state,
+ * this window's use and its estimated cost at the published prices.
+ */
+function PaidSection({ paid }: { readonly paid: PaidState }) {
+  return (
+    <>
+      <dl className="usage-facts">
+        {PAID_FEATURES.map((feature) => (
+          <PaidRow key={feature} feature={feature} paid={paid} />
+        ))}
+        <dt>{UI_TEXT.usagePaidTotal}</dt>
+        <dd>{formatUsd(paidTotalUsd(paid.tally))}</dd>
+      </dl>
+      <p className="usage-row-meta">
+        {fill(UI_TEXT.usagePaidNote, { date: PAID_PRICES_VERIFIED_ON })}
+      </p>
+    </>
+  )
+}
+
+function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
+  const state = paid.features.includes(feature) ? UI_TEXT.usagePaidOn : UI_TEXT.usagePaidOff
+  return (
+    <>
+      <dt>{`${paidFeatureName(feature)} (${state})`}</dt>
+      <dd>
+        {`${paidUseText(feature, paid.tally)} · ${formatUsd(paidCostUsd(feature, paid.tally))}`}
+      </dd>
+    </>
+  )
+}
+
 function signInLabel(method: AccountFacts['signInMethod'] | undefined): string {
   if (method === 'cli') {
     return UI_TEXT.usageAuthCli
@@ -307,6 +375,7 @@ export function UsageDialog({
   usage,
   context,
   modelId,
+  paid,
   now,
   onOpenExternal,
   onClose,
@@ -344,6 +413,12 @@ export function UsageDialog({
         )}
         <h3 className="usage-heading">{UI_TEXT.usageSessionTokens}</h3>
         <TokensSection usage={usage} context={context} costUsd={costUsd} />
+        {report.backend === 'modelApi' ? (
+          <>
+            <h3 className="usage-heading">{UI_TEXT.usagePaidHeading}</h3>
+            <PaidSection paid={paid} />
+          </>
+        ) : null}
         <h3 className="usage-heading">{UI_TEXT.usageContributing}</h3>
         {report.insights === undefined ? (
           <p className="usage-row-meta">

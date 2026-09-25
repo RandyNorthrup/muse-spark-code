@@ -39,6 +39,7 @@ import {
   REMOVE_MARKER,
 } from '../../../shared/patchDocument'
 import { compileGlob } from './glob'
+import { GENERATE_IMAGE_DESCRIPTION, GENERATE_IMAGE_PARAMETERS } from './imageGeneration'
 import type { ToolClass } from './permissions'
 import type { FunctionToolDefinition } from './schemas'
 
@@ -90,6 +91,14 @@ export interface ToolIo {
   readFile(absolutePath: string): Promise<string | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(absolutePath: string, content: string): Promise<void>
+  /** Whether anything (a file, a folder, a link) is at the path. */
+  pathExists(absolutePath: string): Promise<boolean>
+  /**
+   * Creates a new file holding these bytes, its folders created (M34: a
+   * generated image). Rejects when something is already there: nothing is
+   * overwritten, and a failed write leaves no file behind.
+   */
+  createFile(absolutePath: string, bytes: Uint8Array): Promise<void>
   /** Whether an editor holds unsaved changes to the file (D27). */
   hasUnsavedChanges(absolutePath: string): boolean
   /** Workspace-relative, forward-slash paths of every listed file. */
@@ -148,6 +157,7 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.askUser]: 'interactive',
   [MODEL_API_TOOLS.todoWrite]: 'interactive',
   [MODEL_API_TOOLS.readSkill]: 'read',
+  [MODEL_API_TOOLS.generateImage]: 'paid',
 }
 
 export function classifyTool(name: string): ToolClass | undefined {
@@ -195,6 +205,8 @@ export interface ToolDefinitionOptions {
   readonly hasShell: boolean
   /** True when the workspace context holds at least one skill. */
   readonly hasSkills: boolean
+  /** True while paid image generation is on (M34, PLAN.md D30). */
+  readonly hasImageGeneration?: boolean
 }
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
@@ -285,6 +297,16 @@ export function toolDefinitions(
               },
             },
             ['command', 'description'],
+          ),
+        ]
+      : []),
+    ...(options.hasImageGeneration === true
+      ? [
+          define(
+            MODEL_API_TOOLS.generateImage,
+            GENERATE_IMAGE_DESCRIPTION,
+            GENERATE_IMAGE_PARAMETERS,
+            ['prompt', 'path'],
           ),
         ]
       : []),

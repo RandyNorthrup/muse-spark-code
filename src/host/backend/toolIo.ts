@@ -9,7 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
+import { lstat, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
@@ -122,6 +122,9 @@ const HOST_ONLY_VARIABLES: readonly RegExp[] = [
   /^SNAP(?:|_.*)$/,
   /^GDK_PIXBUF_.+$/,
 ]
+
+// What `open(…, 'wx')` answers when something is already at the path.
+const EXISTS = 'EEXIST'
 
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
@@ -292,6 +295,32 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       // missing folder failed); the caller confined the whole path first.
       // The write is atomic (D27): an interrupted one leaves the old file.
       await writeFileAtomically(absolutePath, content, { sleep: pause })
+    },
+    async pathExists(absolutePath) {
+      try {
+        await lstat(absolutePath)
+        return true
+      } catch (error: unknown) {
+        if (isMissingFile(error)) {
+          return false
+        }
+        throw error
+      }
+    },
+    async createFile(absolutePath, bytes) {
+      await mkdir(path.dirname(absolutePath), { recursive: true })
+      // `wx`: created here or refused, never an existing file replaced (M34).
+      try {
+        await writeFile(absolutePath, bytes, { flag: 'wx' })
+      } catch (error: unknown) {
+        const code =
+          typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+        // A write that failed after creating the file (a full disk) removes it.
+        if (code !== EXISTS) {
+          await rm(absolutePath, { force: true })
+        }
+        throw error
+      }
     },
     hasUnsavedChanges: deps.hasUnsavedChanges,
     listFiles: deps.listFiles,

@@ -7,7 +7,39 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-Nothing yet.
+Three paid extras of Meta's Model API, off until you turn them on, and loud
+while they are (PLAN.md D30, D34).
+
+### Added
+
+- **Web search** (M33). With `museSpark.modelApiWebSearch` on, the model can
+  search the web on the Model API backend ($2.50 per 1,000 searches). Each
+  search is a row marked paid with its query and results, and a reply lists
+  the pages it cites under it (also in `/export`).
+- **Image generation** (M34). With `museSpark.modelApiImageGeneration` on,
+  the model can create a PNG in the workspace with `muse-image-1.0` ($0.01
+  per image). Every image asks first, in every permission mode, Bypass
+  included, showing the prompt and the price, with no "always allow"; Plan
+  refuses it. A path that is taken, outside the workspace or not a `.png`
+  is refused before anything is billed, and a new image never overwrites a
+  file.
+- **Muse Voice** (M35). With `museSpark.modelApiVoice` on, the microphone
+  records for Meta's Muse Voice Transcribe instead of your computer's own
+  recogniser ($0.18 per hour of audio), streamed as you speak; the
+  transcript lands at the caret. The recorder is `native/windows/capture.ps1`
+  on Windows, the macOS helper's new `--capture` mode, and `arecord` or
+  `parec` on Linux, which gets a microphone for the first time.
+- **Opt in and loud, for all three.** Off by default and machine-scoped; a
+  confirmation names the price when one is turned on, from the palette's new
+  toggles or in settings, and declining it turns the setting back off. The
+  composer's badge names what is on, the microphone says when it is paid,
+  and Account & usage tallies this window's searches, images and seconds of
+  audio with their estimated cost.
+- **A languages badge** in the README.
+
+### Fixed
+
+- **PLAN.md's 0.8.0 record** now has the release's facts.
 
 ## [0.8.0] - 2026-09-25
 

@@ -6,6 +6,8 @@ import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/
 
 export interface MemoryToolIo extends ToolIo {
   readonly files: Map<string, string>
+  /** Files created as bytes (M34's images), by the same keys. */
+  readonly binaries: Map<string, Uint8Array>
   readonly shellCalls: { command: string; cwd: string; timeoutMs: number }[]
   /** Absolute paths an "editor" holds unsaved changes to (D27). */
   readonly unsaved: Set<string>
@@ -16,6 +18,11 @@ export interface MemoryToolIo extends ToolIo {
  * `links` maps a workspace-relative directory to the absolute directory it
  * really is (a symbolic link or junction), which `realPath` resolves.
  */
+/** The map key of a path: forward slashes, as the memory files are keyed. */
+function keyOf(absolutePath: string): string {
+  return absolutePath.replaceAll('\\', '/')
+}
+
 export function memoryToolIo(
   initial: Record<string, string>,
   root: string,
@@ -31,8 +38,23 @@ export function memoryToolIo(
   const files = new Map(Object.entries(initial).map(([name, text]) => [`${root}/${name}`, text]))
   const shellCalls: MemoryToolIo['shellCalls'] = []
   const unsaved = new Set<string>()
+  const binaries = new Map<string, Uint8Array>()
+  const isTaken = (key: string) =>
+    files.has(key) ||
+    binaries.has(key) ||
+    [...files.keys(), ...binaries.keys()].some((name) => name.startsWith(`${key}/`))
   return {
     files,
+    binaries,
+    pathExists: (absolutePath) => Promise.resolve(isTaken(keyOf(absolutePath))),
+    createFile: (absolutePath, bytes) => {
+      const key = keyOf(absolutePath)
+      if (isTaken(key)) {
+        return Promise.reject(new Error(`EEXIST: file already exists, open '${absolutePath}'`))
+      }
+      binaries.set(key, bytes)
+      return Promise.resolve()
+    },
     shellCalls,
     unsaved,
     hasUnsavedChanges: (absolutePath) => unsaved.has(absolutePath.replaceAll('\\', '/')),
@@ -84,6 +106,8 @@ export const noopToolIo: ToolIo = {
   realPath: (absolutePath) => Promise.resolve(absolutePath),
   readFile: () => Promise.resolve(undefined),
   writeFile: () => Promise.resolve(),
+  pathExists: () => Promise.resolve(false),
+  createFile: () => Promise.resolve(),
   hasUnsavedChanges: () => false,
   listFiles: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),

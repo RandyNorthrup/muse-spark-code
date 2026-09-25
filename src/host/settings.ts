@@ -28,6 +28,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly enableNewConversationShortcut: boolean
   /** Days an idle Model API conversation is kept; 0 keeps it (PLAN.md D26). */
   readonly cleanupPeriodDays: number
+  /** The paid Model API features (M33–M35, PLAN.md D30): on only with the price accepted too. */
+  readonly modelApiWebSearch: boolean
+  readonly modelApiImageGeneration: boolean
+  readonly modelApiVoice: boolean
 }
 
 /**
@@ -51,6 +55,9 @@ const settingSchemas = {
   backend: z.enum(BACKEND_MODES),
   enableNewConversationShortcut: z.boolean(),
   cleanupPeriodDays: z.int().check(z.nonnegative()),
+  modelApiWebSearch: z.boolean(),
+  modelApiImageGeneration: z.boolean(),
+  modelApiVoice: z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -110,6 +117,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     backend: readSetting(config, 'backend', log),
     enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),
     cleanupPeriodDays: readSetting(config, 'cleanupPeriodDays', log),
+    modelApiWebSearch: readSetting(config, 'modelApiWebSearch', log),
+    modelApiImageGeneration: readSetting(config, 'modelApiImageGeneration', log),
+    modelApiVoice: readSetting(config, 'modelApiVoice', log),
   }
 }
 

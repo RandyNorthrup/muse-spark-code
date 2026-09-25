@@ -64,6 +64,14 @@ them, the milestone plan, and the certification checklist.
     command documented in the README must have been run successfully.
 11. **Do not imply Meta endorsement.** The product is unofficial; keep the
     "(Unofficial)" suffix and never embed or ship a Meta API key.
+12. **Anything that costs money is opt in and loud** (the owner's rule,
+    PLAN.md D30, D34). A paid call runs only while `PaidFeatureGate.isOn`
+    (`src/core/paid/paidFeatures.ts`) says so: its setting on, machine-scoped
+    and off by default, and its price accepted in the confirmation. It is
+    named in the composer's badge, shown as its own row marked paid
+    (`paid` on the item), counted in `PaidUsage` for Account & usage, and
+    offered on the Model API backend only. One that can ask first does, in
+    every mode, Bypass included. The subscription never pays for one.
 
 ## Layout
 
@@ -75,7 +83,7 @@ src/host/**           VS Code adapters (views, conversation, backend managers an
                       MCP server)
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client, tools, context, export,
-                      worktrees, usage, dictation)
+                      worktrees, usage, dictation, Muse Voice, the paid gate)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
@@ -83,9 +91,11 @@ l10n/                 translated tables (ui.<language>.json) and the names the
                       localization gate lets stay English
 package.nls.json      the manifest's text (commands, settings, walkthrough)
 src/webview/**        React 19 app (browser project, own tsconfig)
-native/windows/**     dictate.ps1, the Windows dictation helper
+native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
+                      Muse Voice's recorder
 native/darwin/**      Dictation.swift, Info.plist, build.sh, check-disclaim.sh:
-                      the macOS helper (built and checked in CI)
+                      the macOS helper (built and checked in CI), with
+                      Muse Voice's `--capture` mode
 resources/            the walkthrough
 test/unit/**          vitest (node + jsdom via docblock); `vscode` is mocked
 test/e2e/**           the fake Muse Code CLI driven through the real backend;

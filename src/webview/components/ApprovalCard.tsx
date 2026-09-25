@@ -7,6 +7,7 @@ import { useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
+import { paidFeaturePrice } from '../../shared/paid'
 import type { PendingApproval } from '../state/uiState'
 
 export interface ApprovalDecisionInput {
@@ -38,6 +39,31 @@ function subjectText(approval: PendingApproval, toolName: string): string {
   return subject.command ?? subject.path ?? subject.host ?? subject.target ?? toolName
 }
 
+/** The prompt of an image the card asks about (M34), shown so the user knows what is billed. */
+function imagePrompt(rawArgs: string): string | undefined {
+  try {
+    const parsed: unknown = JSON.parse(rawArgs)
+    return typeof parsed === 'object' &&
+      parsed !== null &&
+      'prompt' in parsed &&
+      typeof parsed.prompt === 'string'
+      ? parsed.prompt
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The card's sentence: a command or path, a tool, or an image to create (M34). */
+function titleTemplate(approval: PendingApproval, stage: ApprovalStage | undefined): string {
+  if (approval.subject.paidFeature === 'imageGeneration') {
+    return UI_TEXT.approvalCreateImage
+  }
+  return stage === undefined && approval.subject.kind === 'tool'
+    ? UI_TEXT.approvalUseTool
+    : UI_TEXT.approvalAction
+}
+
 export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps) {
   const [feedback, setFeedback] = useState('')
   const hasFeedbackChoice = approval.availableChoices.some(
@@ -48,10 +74,9 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
   const isLocked = approval.decidedSourceIndex === approval.requirementId.sourceIndex
   const subject = subjectText(approval, toolName)
   // The language places the subject; it is shown as code wherever it lands.
-  const title =
-    stage === undefined && approval.subject.kind === 'tool'
-      ? UI_TEXT.approvalUseTool
-      : UI_TEXT.approvalAction
+  const title = titleTemplate(approval, stage)
+  const { paidFeature } = approval.subject
+  const prompt = paidFeature === undefined ? undefined : imagePrompt(approval.rawArgs)
   return (
     <div
       className="approval"
@@ -70,8 +95,18 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
           </span>
         ) : null}
       </div>
-      {approval.isProtectedWrite || approval.isJudgeEscalated ? (
+      {prompt === undefined ? null : (
+        <blockquote className="approval-prompt" dir="auto">
+          {prompt}
+        </blockquote>
+      )}
+      {paidFeature !== undefined || approval.isProtectedWrite || approval.isJudgeEscalated ? (
         <div className="approval-flags">
+          {paidFeature === undefined ? null : (
+            <span className="approval-paid">
+              {fill(UI_TEXT.approvalPaid, { price: paidFeaturePrice(paidFeature) })}
+            </span>
+          )}
           {approval.isProtectedWrite ? <span>{UI_TEXT.approvalProtectedWrite}</span> : null}
           {approval.isJudgeEscalated ? <span>{UI_TEXT.approvalJudgeEscalated}</span> : null}
         </div>

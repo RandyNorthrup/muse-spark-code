@@ -1,14 +1,25 @@
 // The Model API shapes the extension reads (dev.meta.ai/docs, 2026-09-22:
 // api-reference/responses, protocols/responses, tool-calling, reasoning,
-// error-handling, models). Only the fields the backend consumes are
-// validated; unknown fields and unknown item / event types pass through
+// error-handling, models; 2026-09-25: search-grounding and the Responses
+// schemas for web search, PLAN.md M33). Only the fields the backend consumes
+// are validated; unknown fields and unknown item / event types pass through
 // (the API evolves additively).
 
 import * as z from 'zod/mini'
 
+/** A source the reply cites (`url_citation`, search-grounding); offsets are not used. */
+const urlCitationSchema = z.object({
+  type: z.literal('url_citation'),
+  url: z.string(),
+  title: z.optional(z.string()),
+})
+
+const otherAnnotationSchema = z.object({ type: z.string() })
+
 export const outputTextPartSchema = z.object({
   type: z.literal('output_text'),
   text: z.string(),
+  annotations: z.optional(z.array(z.union([urlCitationSchema, otherAnnotationSchema]))),
 })
 
 const refusalPartSchema = z.object({ type: z.literal('refusal'), refusal: z.string() })
@@ -43,12 +54,45 @@ export const reasoningItemSchema = z.object({
 })
 export type ReasoningItem = z.infer<typeof reasoningItemSchema>
 
+/**
+ * What a search did (the Responses schema's `action`): `search` with its
+ * queries (`query` is the deprecated single one), or `open_page` /
+ * `find_in_page` on a URL. Meta's guide shows items without it, so it is
+ * optional here though the schema requires it.
+ */
+export const webSearchActionSchema = z.object({
+  type: z.string(),
+  query: z.optional(z.string()),
+  queries: z.optional(z.array(z.string())),
+  url: z.optional(z.nullable(z.string())),
+  pattern: z.optional(z.string()),
+  sources: z.optional(z.array(z.object({ type: z.string(), url: z.string() }))),
+})
+export type WebSearchAction = z.infer<typeof webSearchActionSchema>
+
+/** One result, present when the request includes `web_search_call.results`. */
+const webSearchResultSchema = z.object({
+  url: z.string(),
+  title: z.optional(z.nullable(z.string())),
+  snippet: z.optional(z.nullable(z.string())),
+})
+
+export const webSearchCallItemSchema = z.object({
+  type: z.literal('web_search_call'),
+  id: z.optional(z.string()),
+  status: z.optional(z.string()),
+  action: z.optional(webSearchActionSchema),
+  results: z.optional(z.nullable(z.array(webSearchResultSchema))),
+})
+export type WebSearchCallItem = z.infer<typeof webSearchCallItemSchema>
+
 const otherItemSchema = z.object({ type: z.string(), id: z.optional(z.string()) })
 
 export const outputItemSchema = z.union([
   messageItemSchema,
   functionCallItemSchema,
   reasoningItemSchema,
+  webSearchCallItemSchema,
   otherItemSchema,
 ])
 export type OutputItem = z.infer<typeof outputItemSchema>
@@ -65,6 +109,43 @@ export function isFunctionCallItem(item: OutputItem): item is FunctionCallItem {
 
 export function isReasoningItem(item: OutputItem): item is ReasoningItem {
   return item.type === 'reasoning' && !('call_id' in item) && !('content' in item)
+}
+
+export function isWebSearchCallItem(item: OutputItem): item is WebSearchCallItem {
+  return item.type === 'web_search_call'
+}
+
+export interface Citation {
+  readonly url: string
+  readonly title?: string
+}
+
+/** The sources a message cites, each URL once, in the order they first appear. */
+export function citationsOf(item: MessageItem): readonly Citation[] {
+  const citations: Citation[] = []
+  const seen = new Set<string>()
+  for (const part of item.content) {
+    if (part.type !== 'output_text' || !('annotations' in part)) {
+      continue
+    }
+    const annotations = part.annotations ?? []
+    for (const annotation of annotations) {
+      if (
+        annotation.type !== 'url_citation' ||
+        !('url' in annotation) ||
+        seen.has(annotation.url)
+      ) {
+        continue
+      }
+      seen.add(annotation.url)
+      citations.push({
+        url: annotation.url,
+        ...(annotation.title !== undefined &&
+          annotation.title !== '' && { title: annotation.title }),
+      })
+    }
+  }
+  return citations
 }
 
 /**
@@ -189,8 +270,26 @@ export interface FunctionCallOutputItem {
   readonly output: string
 }
 
-/** The replayed model items keep their wire shape (function calls, reasoning). */
-export type InputItem = InputMessageItem | FunctionCallOutputItem | FunctionCallItem | ReasoningItem
+/**
+ * A search the model made, replayed so its reasoning keeps the item that
+ * followed it (search-grounding: earlier `web_search_call` items may be
+ * replayed). Its results stay out: they were asked for the transcript, and
+ * the reply that used them is replayed already.
+ */
+export interface WebSearchCallInputItem {
+  readonly type: 'web_search_call'
+  readonly id?: string | undefined
+  readonly status: string
+  readonly action?: WebSearchAction | undefined
+}
+
+/** The replayed model items keep their wire shape (function calls, reasoning, searches). */
+export type InputItem =
+  | InputMessageItem
+  | FunctionCallOutputItem
+  | FunctionCallItem
+  | ReasoningItem
+  | WebSearchCallInputItem
 
 export interface FunctionToolDefinition {
   readonly type: 'function'
@@ -200,16 +299,50 @@ export interface FunctionToolDefinition {
   readonly strict: false
 }
 
+/** Meta's hosted search (search-grounding, M33): the model decides when to search. */
+export interface WebSearchToolDefinition {
+  readonly type: 'web_search'
+}
+
+export type ToolDefinition = FunctionToolDefinition | WebSearchToolDefinition
+
+/** What the response adds beyond its defaults: reasoning to replay, search results to show. */
+export type IncludeField = 'reasoning.encrypted_content' | 'web_search_call.results'
+
 export interface CreateResponseBody {
   readonly model: string
   readonly input: readonly InputItem[]
   readonly instructions: string
-  readonly tools: readonly FunctionToolDefinition[]
+  readonly tools: readonly ToolDefinition[]
   readonly tool_choice: 'auto'
   readonly reasoning: { readonly effort: string; readonly summary: 'auto' }
   readonly stream: true
   readonly store: false
-  readonly include: readonly ['reasoning.encrypted_content']
+  readonly include: readonly IncludeField[]
   readonly max_output_tokens: number
   readonly prompt_cache_key: string
+}
+
+// --- images (M34, dev.meta.ai/docs/api-reference/images, read 2026-09-25) ---
+
+/** What `POST /images/generations` returns: each image inline when asked for `b64_json`. */
+export const imagesResponseSchema = z.object({
+  created: z.optional(z.number()),
+  data: z.array(
+    z.object({
+      b64_json: z.optional(z.nullable(z.string())),
+      revised_prompt: z.optional(z.nullable(z.string())),
+    }),
+  ),
+})
+export type ImagesResponse = z.infer<typeof imagesResponseSchema>
+
+/** One image, PNG, returned inline: the only request the extension makes. */
+export interface CreateImageBody {
+  readonly model: string
+  readonly prompt: string
+  readonly n: 1
+  readonly size: string
+  readonly response_format: 'b64_json'
+  readonly output_format: 'png'
 }

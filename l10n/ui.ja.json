@@ -569,7 +569,9 @@
     "subagent_status": "エージェントの状態",
     "subagent_send_message": "エージェントにメッセージ",
     "subagent_read_result": "エージェントの結果",
-    "subagent_cancel": "エージェントをキャンセル"
+    "subagent_cancel": "エージェントをキャンセル",
+    "web_search": "Web 検索",
+    "generate_image": "画像生成"
   },
   "processExitCode": "終了コード {code}",
   "skillScopes": {
@@ -693,5 +695,48 @@
   "museExitedWithCode": "Muse Code がコード {code} で終了しました",
   "museExitMeaning": "{meaning} (終了コード {code})",
   "museStoppedBySignal": "Muse Code は {signal} によって停止されました",
-  "museUnknownSignal": "不明なシグナル"
+  "museUnknownSignal": "不明なシグナル",
+  "approvalCreateImage": "Muse が画像 {action} の作成を求めています",
+  "approvalPaid": "有料: {price}、Model API キーに請求されます",
+  "paidWebSearchName": "Web 検索",
+  "paidImageGenerationName": "画像生成",
+  "paidVoiceName": "Muse Voice",
+  "paidWebSearchPrice": "検索 1,000 回あたり {price}",
+  "paidImagePrice": "画像 1 枚あたり {price}",
+  "paidVoicePrice": "音声 1 時間あたり {price}",
+  "paidConfirmTitle": "{feature} をオンにしますか?",
+  "paidConfirmWebSearch": "モデルは応答中に Web を検索することがあります。検索の料金 ({price}) は Model API キーに請求され、検索結果で増えるトークンの料金も加算されます。拡張機能は検索のたびに確認することはできません。Model API バックエンドでのみ使用されます。",
+  "paidConfirmImage": "モデルはワークスペースに画像ファイルを作成することがあります。画像の料金 ({price}) は Model API キーに請求されます。どの権限モードでも、画像を作成する前に毎回確認します。Model API バックエンドでのみ使用されます。",
+  "paidConfirmVoice": "マイクで録音した音声は、コンピューター自体の音声認識エンジンではなく Meta の Muse Voice Transcribe に送信され、その料金 ({price}) は Model API キーに請求されます。Model API バックエンドでのみ使用されます。",
+  "paidConfirmAccept": "オンにする",
+  "paidBadge": "有料: {features}",
+  "paidBadgeTitle": "Model API キーに請求されます: {prices}。クリックすると、このウィンドウの集計を「アカウントと使用量」で表示します。",
+  "paidRowBadge": "有料",
+  "paidRowTitle": "Model API キーに請求されます: {price}",
+  "paidToggleLabel": "{feature} (有料)",
+  "usagePaidHeading": "このウィンドウの有料機能",
+  "usagePaidOn": "オン",
+  "usagePaidOff": "オフ",
+  "usagePaidSearches": {
+    "other": "{count} 回の検索"
+  },
+  "usagePaidImages": {
+    "other": "{count} 枚の画像"
+  },
+  "usagePaidAudio": "音声 {duration}",
+  "usagePaidTotal": "有料機能の推定合計",
+  "usagePaidNote": "このウィンドウを開いてからの、Meta が公開している価格に基づく推定値です。請求額は dev.meta.ai ダッシュボードで確認してください。価格の取得日: {date}。",
+  "webSearchFailed": "検索に失敗しました",
+  "citationsHeading": "出典",
+  "dictationPaidLabel": "Muse Voice で音声を録音 (有料)",
+  "dictationPaidTitle": "Muse Voice (有料): {price}、Model API キーに請求されます。タップまたは長押しで録音 (Ctrl+D)",
+  "museVoiceNoKey": "Muse Voice には Model API キーが必要です。先にキーでサインインしてください。",
+  "museVoiceNoAnswer": "Muse Voice から応答がありませんでした。接続を確認して、もう一度お試しください。",
+  "museVoiceNoFinal": "Muse Voice から文字起こし結果が時間内に届きませんでした。もう一度お試しください。",
+  "museVoiceMalformed": "Muse Voice から JSON ではないデータが届いたため、録音は破棄されました。",
+  "museVoiceRefused": "Muse Voice が録音を拒否しました",
+  "museVoiceRateLimited": "このキーは Muse Voice のレート制限に達しています。しばらく待ってから、もう一度お試しください。",
+  "museVoiceClosed": "Muse Voice が接続を閉じました (コード {code})",
+  "museVoiceNoWebSocket": "Muse Voice には VS Code の拡張機能ホストでの WebSocket のサポートが必要ですが、このバージョンにはありません。",
+  "museVoiceNoRecorder": "Linux の Muse Voice は arecord (ALSA) または parec (PulseAudio) で録音しますが、どちらも PATH に見つかりませんでした。"
 }

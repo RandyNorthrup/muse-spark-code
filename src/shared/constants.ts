@@ -46,6 +46,12 @@ export const GLOBAL_STATE_KEYS = {
   sandboxPromptSuppressed: 'museSpark.sandboxPromptSuppressed',
   /** The subscription window the CLI last reported, shown "as of" until a fresh one (M16). */
   lastUsage: 'museSpark.lastUsage',
+  /**
+   * The paid features whose price the user accepted in the confirmation
+   * (M33, PLAN.md D30): a setting that is on without its entry here is not
+   * used, and turning a setting off removes its entry.
+   */
+  paidConfirmations: 'museSpark.paidConfirmations',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -146,11 +152,17 @@ export const SETTING_DEFAULTS = {
   // conversation while a Muse surface is focused. Read only by the
   // keybinding's `when` clause (`config.museSpark.…`), off by default.
   enableNewConversationShortcut: false,
+  // The paid Model API features (M33–M35, PLAN.md D30): off until the user
+  // turns one on and accepts its price in the confirmation.
+  modelApiWebSearch: false,
+  modelApiImageGeneration: false,
+  modelApiVoice: false,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
 // D15): they choose what executes, what is billed and how much is approved,
-// so the manifest declares them `scope: machine` (user settings only).
+// so the manifest declares them `scope: machine` (user settings only). The
+// paid features are among them (D30): a repository cannot spend the key.
 export const MACHINE_SCOPED_SETTINGS = [
   'initialPermissionMode',
   'backend',
@@ -158,7 +170,35 @@ export const MACHINE_SCOPED_SETTINGS = [
   'allowDangerouslySkipPermissions',
   'museBinaryPath',
   'environmentVariables',
+  'modelApiWebSearch',
+  'modelApiImageGeneration',
+  'modelApiVoice',
 ] as const
+
+// --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
+
+// Each is off by default, confirmed with its price when turned on, named in
+// the composer's badge while on, shown per use and tallied (the owner's rule:
+// "opt in and loud"). They are used on the Model API backend only.
+export const PAID_FEATURES = ['webSearch', 'imageGeneration', 'voice'] as const
+export type PaidFeature = (typeof PAID_FEATURES)[number]
+/** Each feature's setting, relative to the `museSpark` section. */
+export const PAID_FEATURE_SETTINGS = {
+  webSearch: 'modelApiWebSearch',
+  imageGeneration: 'modelApiImageGeneration',
+  voice: 'modelApiVoice',
+} as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
+// Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
+// 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
+// an hour of Muse Voice Transcribe audio.
+export const PAID_PRICES_USD = {
+  webSearchPerThousand: 2.5,
+  imageGeneration: 0.01,
+  voicePerHour: 0.18,
+} as const
+export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
+export const SEARCHES_PER_PRICE_UNIT = 1000
+export const SECONDS_PER_HOUR = 3600
 
 // --- Sessions (M6, PLAN.md §6 M6) ---
 
@@ -332,7 +372,31 @@ export const MODEL_API_TOOLS = {
   askUser: 'ask_user',
   todoWrite: 'todo_write',
   readSkill: 'read_skill',
+  // M34: offered only while paid image generation is on.
+  generateImage: 'generate_image',
 } as const
+// Meta's hosted search (M33): a Responses tool the server runs, shown in
+// the transcript as a tool row of this name, marked paid.
+export const MODEL_API_WEB_SEARCH_TOOL = 'web_search'
+// Image generation (M34, dev.meta.ai/docs/image-generation, read 2026-09-25):
+// `POST /images/generations` with Meta's image model, one PNG per call,
+// returned inline. `size` sets only the aspect ratio; the generator picks the
+// pixels. Meta states no prompt limit: this one keeps a runaway prompt from
+// being sent and billed. An image can take a while (the model may search and
+// reason first), so its request has a deadline of its own.
+export const MODEL_API_IMAGE_MODEL = 'muse-image-1.0'
+export const IMAGE_ASPECT_SIZES = {
+  square: '1024x1024',
+  landscape: '1536x1024',
+  portrait: '1024x1536',
+} as const
+export type ImageAspect = keyof typeof IMAGE_ASPECT_SIZES
+export const IMAGE_OUTPUT_FORMAT = 'png'
+export const IMAGE_FILE_EXTENSION = '.png'
+export const IMAGE_PROMPT_MAX_CHARS = 4000
+export const IMAGE_REQUEST_TIMEOUT_MS = 180_000
+// The first eight bytes of every PNG file: what came back is checked before it is written.
+export const PNG_SIGNATURE: readonly number[] = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 // Workspace context on the Model API backend (PLAN.md D13): the files Muse
 // Code reads, by its conventions. Rules: `AGENTS.md`, else `CLAUDE.md`, per
 // directory; a file over the load limit is skipped and the whole rules
@@ -693,6 +757,47 @@ export const DICTATION_ACTIONS = ['start', 'stop'] as const
 export type DictationAction = (typeof DICTATION_ACTIONS)[number]
 export const DICTATION_UI_STATUSES = ['unavailable', 'idle', 'starting', 'listening'] as const
 export type DictationUiStatus = (typeof DICTATION_UI_STATUSES)[number]
+// Which recogniser the microphone uses (M35, PLAN.md D30): the operating
+// system's, free and local, or Muse Voice Transcribe, paid and opt-in, on the
+// Model API backend only.
+export const DICTATION_ENGINES = ['system', 'museVoice'] as const
+export type DictationEngine = (typeof DICTATION_ENGINES)[number]
+// Muse Voice (M35, dev.meta.ai/docs/api-reference/voice/realtime, read
+// 2026-09-25): a WebSocket whose first text frame carries the key (Meta
+// ignores the Authorization header there), then binary frames of 16-bit
+// little-endian mono PCM at real time, then `endStream`. Push-to-talk mode:
+// cumulative partials, the final one marked. Billed per whole second of audio.
+export const MUSE_VOICE_REALTIME_URL = 'wss://api.meta.ai/v1/asr/realtime'
+export const MUSE_VOICE_MODEL = 'muse-voice-transcribe-1.0'
+export const MUSE_VOICE_AUDIO_ENCODING = 'PCM_16KHZ'
+export const MUSE_VOICE_MODE = 'PUSH_TO_TALK'
+export const MUSE_VOICE_PARTIAL_MODE = 'CUMULATIVE'
+export const MUSE_VOICE_SAMPLE_RATE = 16_000
+export const MUSE_VOICE_BYTES_PER_SECOND = MUSE_VOICE_SAMPLE_RATE * 2
+// Meta closes a stream whose handshake is not sent within 10 s; the answer
+// is waited for as long. After `endStream`, the final text has this long.
+export const MUSE_VOICE_HANDSHAKE_TIMEOUT_MS = 10_000
+export const MUSE_VOICE_FINISH_TIMEOUT_MS = 15_000
+// The WebSocket close codes Meta documents: a normal end, a bad request or
+// pacing (not retried), a server failure, a rate limit.
+export const WEBSOCKET_CLOSE_NORMAL = 1000
+export const MUSE_VOICE_CLOSE_REASONS = {
+  1008: 'badRequest',
+  1011: 'serverFailure',
+  1013: 'rateLimited',
+} as const
+// The capture helpers: a second script beside dictate.ps1 on Windows, the
+// Swift helper's capture mode on macOS, and on Linux the system's own
+// recorder (ALSA's arecord, else PulseAudio's parec) writing raw PCM.
+export const DICTATION_WINDOWS_CAPTURE_SEGMENTS = ['windows', 'capture.ps1'] as const
+export const DICTATION_DARWIN_CAPTURE_FLAG = '--capture'
+export const LINUX_RECORDERS: readonly {
+  readonly command: string
+  readonly args: readonly string[]
+}[] = [
+  { command: 'arecord', args: ['-q', '-t', 'raw', '-f', 'S16_LE', '-r', '16000', '-c', '1'] },
+  { command: 'parec', args: ['--raw', '--format=s16le', '--rate=16000', '--channels=1'] },
+]
 // M26 (PLAN.md D29): dictation in a remote window, and the environment the
 // Windows helper starts with.
 /** Windows PowerShell's module search path, reset for the Windows helper. */
@@ -858,6 +963,10 @@ export const MODEL_TEXT = {
   selectionClipped: '[selection clipped]',
   selectionNotShared:
     'Its content is not shared because the file is excluded from the workspace index.',
+  // M34: what the model is told when an image cannot be made.
+  imageGenerationOff:
+    'image generation is off; the user turns it on (it is paid) in the palette or the museSpark.modelApiImageGeneration setting',
+  imagePathTaken: 'something already exists at that path; choose a new file name',
 } as const
 
 // What the user reads, in the display language (PLAN.md D33).

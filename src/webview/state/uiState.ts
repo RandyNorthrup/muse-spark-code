@@ -8,6 +8,7 @@ import type { AgentEvent, ItemSnapshot, RequirementRef, TodoItem } from '../../s
 import {
   CHAT_REFERENCE_LABEL_CHARS,
   DEFAULT_EFFORT,
+  type DictationEngine,
   type DictationUiStatus,
   type EffortLevel,
   HIDDEN_ITEM_KINDS,
@@ -31,6 +32,7 @@ import type {
   SignInMethod,
   SkillOption,
 } from '../../shared/protocol'
+import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { toolLabel } from '../toolPresentation'
@@ -75,6 +77,8 @@ export interface Announcement {
 export interface DictationUiState {
   readonly status: DictationUiStatus
   readonly reason: string | undefined
+  /** Muse Voice while the paid engine is the microphone's (M35): it says so. */
+  readonly engine: DictationEngine
 }
 
 export interface MentionResults {
@@ -170,6 +174,8 @@ export interface UiState {
   readonly announcement: Announcement | undefined
   /** The microphone button (M9): `reason` explains an unavailable one. */
   readonly dictation: DictationUiState
+  /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
+  readonly paid: PaidState
   readonly todos: readonly TodoItem[]
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
@@ -273,7 +279,8 @@ export const initialUiState: UiState = {
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
-  dictation: { status: 'idle', reason: undefined },
+  dictation: { status: 'idle', reason: undefined, engine: 'system' },
+  paid: { features: [], tally: EMPTY_PAID_TALLY },
   todos: [],
   outputPages: {},
   localSequence: 0,
@@ -466,6 +473,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     completedSeq: undefined,
     isBackground: item.background === true,
     backgroundInitiator: item.backgroundInitiator,
+    paid: item.paid,
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,
@@ -501,6 +509,7 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         id: item.itemId,
         text: item.text ?? '',
         isStreaming: item.status === IN_PROGRESS,
+        citations: item.citations,
       }
     }
     case 'reasoning': {
@@ -536,7 +545,12 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
 function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): TranscriptEntry {
   switch (entry.kind) {
     case 'assistant': {
-      return { ...entry, text: item.text ?? entry.text, isStreaming: item.status === IN_PROGRESS }
+      return {
+        ...entry,
+        text: item.text ?? entry.text,
+        isStreaming: item.status === IN_PROGRESS,
+        citations: item.citations ?? entry.citations,
+      }
     }
     case 'reasoning': {
       const isStreaming = item.status === IN_PROGRESS
@@ -560,6 +574,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         outputRef: item.outputRef ?? entry.outputRef,
         isBackground: item.background ?? entry.isBackground,
         backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
+        paid: item.paid ?? entry.paid,
       }
     }
     case 'subagent': {
@@ -1325,9 +1340,19 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'dictationState': {
       return announce(
-        { ...state, dictation: { status: message.status, reason: message.reason } },
+        {
+          ...state,
+          dictation: {
+            status: message.status,
+            reason: message.reason,
+            engine: message.engine ?? 'system',
+          },
+        },
         dictationAnnouncement(state.dictation.status, message.status),
       )
+    }
+    case 'paidState': {
+      return { ...state, paid: message.state }
     }
     case 'historyLoaded': {
       const replayed = replayHistory(message.items, at, state.sequence)
