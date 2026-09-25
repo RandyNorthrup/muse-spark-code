@@ -1633,8 +1633,12 @@
           })
         },
       }
+      // A scenario starts once the panel has drawn its surface: the composer,
+      // a sign-in or install gate, or the crash screen; never sooner than the
+      // 400 ms it always waited. A fixed delay alone raced the first render
+      // on a loaded machine (M40: `agents` and `dictation` found no composer).
       if (scenario !== null && scenario in steps) {
-        later(400, steps[scenario])
+        later(100, () => whenFound('textarea, .gate, [role="alert"]', () => steps[scenario]()))
       }
 
       // `?theme=<kind>` applies the colours VS Code gives a webview in one of

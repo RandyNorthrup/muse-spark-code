@@ -82,22 +82,26 @@ function formsProblems(
     return [`${key}: plural forms expected (an object with "other")`]
   }
   const problems: string[] = []
-  const englishSlots = slotsOf(english.other)
   // Parsed JSON: the category keys are checked, their values are not yet.
   const forms: Readonly<Record<string, unknown>> = value
+  // An allowlisted entry may keep every form in English.
+  const formOptions = (formKey: string): CheckOptions =>
+    options.untranslated?.has(key) === true
+      ? { ...options, untranslated: new Set([formKey]) }
+      : options
   for (const [category, text] of Object.entries(forms)) {
+    const formKey = `${key}.${category}`
     if (typeof text !== 'string') {
-      problems.push(`${key}.${category}: text expected`)
+      problems.push(`${formKey}: text expected`)
       continue
     }
-    const extra = slotsOf(text).filter((slot) => !englishSlots.includes(slot))
-    if (extra.length > 0) {
-      problems.push(`${key}.${category}: unknown slots {${extra.join('}, {')}}`)
-    }
-  }
-  const other = forms['other']
-  if (!isSameList(slotsOf(typeof other === 'string' ? other : ''), englishSlots)) {
-    problems.push(`${key}.other: slots {${englishSlots.join('}, {')}} expected`)
+    // Each form is checked like a string against its English form, or
+    // `other` for a category English lacks: every slot kept (Russian's
+    // `one` also covers 21, so it cannot drop `{count}`), and strictly the
+    // code spans, the bold markers and no English left behind.
+    const englishForm =
+      Object.entries(english).find(([name]) => name === category)?.[1] ?? english.other
+    problems.push(...stringProblems(formKey, englishForm, text, formOptions(formKey)))
   }
   if (options.isStrict) {
     const categories: readonly PluralCategory[] = new Intl.PluralRules(options.locale)

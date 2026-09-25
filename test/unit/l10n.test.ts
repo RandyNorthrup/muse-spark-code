@@ -179,9 +179,46 @@ describe('tableProblems', () => {
     expect(tableProblems(english, lazy, { locale: 'ru', isStrict: false })).toEqual([])
   })
 
-  it('catches a plural form with a slot English does not have', () => {
-    const table = { ...german, agents: { one: '{count} Agent {x}', other: '{count} Agenten' } }
-    expect(tableProblems(english, table, strict)).toEqual(['agents.one: unknown slots {x}'])
+  it('checks every plural form’s slots, in any mode (the review of PR #23)', () => {
+    const extra = { ...german, agents: { one: '{count} Agent {x}', other: '{count} Agenten' } }
+    expect(tableProblems(english, extra, strict)).toEqual([
+      'agents.one: slots {count} expected, found {count}, {x}',
+    ])
+    // Russian's `one` also covers 21 and 31, so a form cannot drop the number.
+    const dropped = {
+      ...german,
+      agents: {
+        one: 'агент',
+        few: '{count} агента',
+        many: '{count} агентов',
+        other: '{count} агента',
+      },
+    }
+    const problem = 'agents.one: slots {count} expected, found {}'
+    expect(tableProblems(english, dropped, { ...strict, locale: 'ru' })).toEqual([problem])
+    expect(tableProblems(english, dropped, { locale: 'ru', isStrict: false })).toEqual([problem])
+  })
+
+  it('strictly checks each plural form for code spans, bold markers and English left behind', () => {
+    const english2 = {
+      ...english,
+      hint: forms({ one: '`{count}` **step**', other: '`{count}` **steps**' }),
+    }
+    const table = {
+      ...german,
+      hint: { one: '{count} Schritt', other: '`{count}` **steps**' },
+    }
+    expect(tableProblems(english2, table, strict)).toEqual([
+      'hint.one: the code spans (`) differ from the English',
+      'hint.one: the bold markers (**) differ from the English',
+      'hint.other: left in English',
+    ])
+    expect(
+      tableProblems(english2, table, { ...strict, untranslated: new Set(['brand', 'hint']) }),
+    ).toEqual([
+      'hint.one: the code spans (`) differ from the English',
+      'hint.one: the bold markers (**) differ from the English',
+    ])
   })
 
   it('accepts the English table against itself in shape', () => {
