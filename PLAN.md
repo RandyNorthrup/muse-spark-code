@@ -1282,6 +1282,20 @@ tool is switched off in `muse serve` with no setting that turns it on
   generation is turned on (or a key is stored) gets the tools; one already
   running gets them when it next starts.
 
+### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
+
+The owner (2026-09-25): "i dont think a 1.0 would be right until the app
+has been on the market and field tested for a while … stay under that 1.0
+mark until im confident the app is worthy of being called the first full
+version". He suggested a fourth number (0.8.0.1); the Marketplace and
+`vsce` accept only a three-part semantic version, so:
+
+- **Minor for a batch of features, patch for fixes.** The minor number keeps
+  counting past nine: 0.9.0, 0.10.0, 0.11.0 and so on, each newer than the
+  last, with no ceiling below 1.0.
+- **1.0.0 only on the owner's word**, after the extension has been on the
+  Marketplace and field tested; no release proposes it on its own.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |

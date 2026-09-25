@@ -289,4 +289,17 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     // Muse Code searches on the subscription: no paid search row there.
     expect(dialog).not.toHaveTextContent('Web search (')
   })
+
+  it('keeps a feature this window used on another backend in the list and the total (the review of PR #30)', () => {
+    renderDialog({
+      paid: {
+        features: ['imageGeneration'],
+        tally: { webSearches: 4, images: 3, voiceSeconds: 0 },
+        isKeyStored: true,
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Web search (off)4 searches · $0.0100')
+    expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
+  })
 })
