@@ -55,7 +55,8 @@
       "exportBackendLine",
       "agentUntitled",
       "exportSubagentNoRole",
-      "agentsCount.one"
+      "agentsCount.one",
+      "imageBuyPrompt"
     ],
     "de": [
       "groupSkills",
@@ -71,10 +72,17 @@
       "exportSubagentHeading",
       "toolLabels.shell",
       "toolLabels.workflow",
-      "toolLabels.read_skill"
+      "toolLabels.read_skill",
+      "imageBuyPrompt"
     ],
     "es": ["usagePlan", "agentTokens", "permissionModes.manual", "toolLabels.shell", "goalTokens"],
-    "pt-br": ["agentTokens", "permissionModes.manual", "toolLabels.shell", "goalTokens"],
+    "pt-br": [
+      "agentTokens",
+      "permissionModes.manual",
+      "toolLabels.shell",
+      "goalTokens",
+      "imageBuyPrompt"
+    ],
     "fr": [
       "modesTitle",
       "paletteLabel",
@@ -88,12 +96,13 @@
       "toolLabels.generate_image",
       "citationsHeading",
       "toolLabels.shell",
-      "toolLabels.image_generation"
+      "toolLabels.image_generation",
+      "toolLabels.mcp__ide__generateImage"
     ],
-    "it": ["usageAccount", "exportOutputLabel", "toolLabels.shell"],
+    "it": ["usageAccount", "exportOutputLabel", "toolLabels.shell", "imageBuyPrompt"],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell"]
+    "hu": ["toolLabels.shell", "imageBuyPrompt"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

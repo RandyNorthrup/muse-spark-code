@@ -88,6 +88,14 @@ describe('toSnapshot', () => {
     expect(snapshot.attachments).toEqual(userItem.attachments)
     expect(toSnapshot({ ...userItem, displayText: null }).text).toBe(userItem.text)
   })
+
+  it('marks paid the images the extension’s ide server made with the key (M44)', () => {
+    const call = { itemId: 'i', kind: 'toolCall', status: 'completed' }
+    expect(toSnapshot({ ...call, tool: 'mcp__ide__generateImage' }).paid).toBe('imageGeneration')
+    expect(toSnapshot({ ...call, tool: 'mcp__ide__editImage' }).paid).toBe('imageGeneration')
+    expect(toSnapshot({ ...call, tool: 'mcp__ide__getDiagnostics' })).not.toHaveProperty('paid')
+    expect(toSnapshot({ ...call, tool: 'mcp__other__generateImage' })).not.toHaveProperty('paid')
+  })
 })
 
 describe('historyOutcome', () => {

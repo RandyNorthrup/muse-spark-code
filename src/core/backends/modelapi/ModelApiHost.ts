@@ -6,7 +6,6 @@
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
-import * as z from 'zod/mini'
 import type {
   AgentEvent,
   ApprovalSubject,
@@ -79,7 +78,7 @@ import {
   type RetryNotice,
 } from './client'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
-import { generateImageArgs, imagePathProblem, runImageGeneration } from './imageGeneration'
+import { type ImagePlan, prepareImageCall, runImageCall } from './imageGeneration'
 import {
   APPROVAL_CHOICE_IDS,
   choicesFor,
@@ -428,7 +427,22 @@ function pick(record: Record<string, unknown>, key: string): string | undefined 
  * card names the price. Undefined for every free tool.
  */
 function paidFeatureOf(toolName: string): PaidFeature | undefined {
-  return toolName === MODEL_API_TOOLS.generateImage ? 'imageGeneration' : undefined
+  return imageKindOf(toolName) === undefined ? undefined : 'imageGeneration'
+}
+
+/** Which image call a tool makes (M34, M44); undefined for every other tool. */
+function imageKindOf(toolName: string): ImagePlan['kind'] | undefined {
+  switch (toolName) {
+    case MODEL_API_TOOLS.generateImage: {
+      return 'generate'
+    }
+    case MODEL_API_TOOLS.editImage: {
+      return 'edit'
+    }
+    default: {
+      return undefined
+    }
+  }
 }
 
 /** What the approval card is about, in the MSP subject vocabulary. */
@@ -1192,36 +1206,34 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
-   * Why an image cannot be made, found before the card so nothing is asked
-   * or billed for it (M34): the feature is off, the arguments or the path
-   * are wrong, or the path is taken.
+   * An image call checked (M34, M44): the feature on, the arguments, the
+   * output path and every source. Found before the card, so nothing is asked
+   * or billed for an image that could not be made, and again after it.
    */
-  private async imageProblem(call: FunctionCallItem): Promise<string | undefined> {
-    if (!this.deps.isPaidFeatureOn('imageGeneration')) {
-      return MODEL_TEXT.imageGenerationOff
+  private async imagePlan(
+    call: FunctionCallItem,
+  ): Promise<
+    | { readonly ok: true; readonly plan: ImagePlan }
+    | { readonly ok: false; readonly reason: string }
+  > {
+    const kind = imageKindOf(call.name)
+    if (kind === undefined || !this.deps.isPaidFeatureOn('imageGeneration')) {
+      return { ok: false, reason: MODEL_TEXT.imageGenerationOff }
     }
-    const parsed = generateImageArgs.safeParse(argumentsOf(call))
-    if (!parsed.success) {
-      return `invalid arguments: ${z.prettifyError(parsed.error)}`
-    }
-    const target = await this.editTarget(call)
-    if (target?.ok !== true) {
-      return target?.reason ?? 'invalid arguments: path is required'
-    }
-    return (
-      imagePathProblem(target.relative) ??
-      ((await this.deps.io.pathExists(target.absolute)) ? MODEL_TEXT.imagePathTaken : undefined)
-    )
+    return await prepareImageCall(kind, argumentsOf(call), {
+      workspaceRoot: this.deps.workspaceRoot,
+      platform: this.deps.platform,
+      io: this.deps.io,
+    })
   }
 
-  /** `generate_image` (M34), after the card: the image, written as a new file, and counted. */
-  private async generateImage(call: FunctionCallItem, signal: AbortSignal): Promise<ToolOutcome> {
-    const parsed = generateImageArgs.safeParse(argumentsOf(call))
-    const target = await this.editTarget(call)
-    if (!parsed.success || target?.ok !== true) {
-      return toolFailure('invalid arguments')
+  /** `generate_image` and `edit_image`, after the card: the image, written as a new file, and counted. */
+  private async makeImage(call: FunctionCallItem, signal: AbortSignal): Promise<ToolOutcome> {
+    const prepared = await this.imagePlan(call)
+    if (!prepared.ok) {
+      return toolFailure(prepared.reason)
     }
-    return await runImageGeneration(parsed.data, target, {
+    return await runImageCall(prepared.plan, {
       client: this.deps.client,
       io: this.deps.io,
       signal,
@@ -1272,8 +1284,9 @@ export class ModelApiSession implements AgentSession {
       case MODEL_API_TOOLS.readSkill: {
         return this.readSkill(call)
       }
-      case MODEL_API_TOOLS.generateImage: {
-        return await this.generateImage(call, signal)
+      case MODEL_API_TOOLS.generateImage:
+      case MODEL_API_TOOLS.editImage: {
+        return await this.makeImage(call, signal)
       }
       default: {
         return await executeTool(call.name, call.arguments, {
@@ -1303,9 +1316,9 @@ export class ModelApiSession implements AgentSession {
       return { outcome: toolFailure(MODEL_TEXT.shellRestrictedMode), isRejected: true }
     }
     if (toolClass === 'paid') {
-      const problem = await this.imageProblem(call)
-      if (problem !== undefined) {
-        return { outcome: toolFailure(problem), isRejected: false }
+      const prepared = await this.imagePlan(call)
+      if (!prepared.ok) {
+        return { outcome: toolFailure(prepared.reason), isRejected: false }
       }
     }
     const target =

@@ -344,7 +344,7 @@ export const imagesResponseSchema = z.object({
 })
 export type ImagesResponse = z.infer<typeof imagesResponseSchema>
 
-/** One image, PNG, returned inline: the only request the extension makes. */
+/** One image, PNG, returned inline: the only generation the extension asks for. */
 export interface CreateImageBody {
   readonly model: string
   readonly prompt: string
@@ -352,4 +352,12 @@ export interface CreateImageBody {
   readonly size: string
   readonly response_format: 'b64_json'
   readonly output_format: 'png'
+}
+
+/**
+ * One edited image (M44): Meta's JSON form of `POST /images/edits`, the
+ * sources inline as data URLs; the answer is an `ImagesResponse`.
+ */
+export interface EditImageBody extends CreateImageBody {
+  readonly images: readonly { readonly image_url: string }[]
 }

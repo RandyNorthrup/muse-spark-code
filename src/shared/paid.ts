@@ -6,6 +6,7 @@
 
 import * as z from 'zod/mini'
 import {
+  MUSE_CODE_PAID_FEATURES,
   PAID_FEATURES,
   PAID_PRICES_USD,
   type PaidFeature,
@@ -14,6 +15,7 @@ import {
   UI_TEXT,
 } from './constants'
 import { fill, formatUsd } from './l10n/text'
+import type { BackendKind } from './protocol'
 
 /** What this window used of each paid feature since it opened. */
 export const paidTallySchema = z.object({
@@ -29,8 +31,25 @@ export const EMPTY_PAID_TALLY: PaidTally = { webSearches: 0, images: 0, voiceSec
 export const paidStateSchema = z.object({
   features: z.array(z.enum(PAID_FEATURES)),
   tally: paidTallySchema,
+  /** A Model API key is stored (M44): the Muse Code backend can use the key's paid features. */
+  isKeyStored: z.boolean(),
 })
 export type PaidState = z.infer<typeof paidStateSchema>
+
+/**
+ * The paid features a window can use (M44, PLAN.md D37): every one on the
+ * Model API backend; on Muse Code, the ones billed to a stored key that it
+ * has no subscription equivalent for; none otherwise.
+ */
+export function usablePaidFeatures(
+  backend: BackendKind | undefined,
+  isKeyStored: boolean,
+): readonly PaidFeature[] {
+  if (backend === 'modelApi') {
+    return PAID_FEATURES
+  }
+  return backend === 'museCode' && isKeyStored ? MUSE_CODE_PAID_FEATURES : []
+}
 
 /** The estimated cost of one feature's use in the tally, in dollars. */
 export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {

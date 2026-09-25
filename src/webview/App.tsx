@@ -24,7 +24,7 @@ import {
   nextPermissionMode,
   permissionModeDetail,
 } from '../shared/permissionModes'
-import { paidFeatureName, paidFeaturePrice } from '../shared/paid'
+import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { LineRange, SignInMethod, WebviewToHostMessage } from '../shared/protocol'
@@ -128,8 +128,10 @@ export function contextLabelFor(state: UiState): string | undefined {
 function paidBadgeFor(
   state: UiState,
 ): { readonly label: string; readonly title: string } | undefined {
-  const { features } = state.paid
-  if (state.auth.backend !== 'modelApi' || features.length === 0) {
+  // The features on that this backend uses (M44: the key's images and voice on Muse Code).
+  const usable = usablePaidFeatures(state.auth.backend, state.paid.isKeyStored)
+  const features = state.paid.features.filter((feature) => usable.includes(feature))
+  if (features.length === 0) {
     return undefined
   }
   return {
@@ -835,8 +837,10 @@ export function App({
         skills: state.skills,
         backend: state.auth.backend,
         paidFeatures: state.paid.features,
+        isKeyStored: state.paid.isKeyStored,
       }),
     [
+      state.paid.isKeyStored,
       state.model,
       state.models,
       state.effort,

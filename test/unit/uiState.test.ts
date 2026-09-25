@@ -1970,6 +1970,7 @@ describe('uiReducer: paid features (M33, PLAN.md D30)', () => {
     const paid = {
       features: ['voice' as const],
       tally: { webSearches: 1, images: 0, voiceSeconds: 3 },
+      isKeyStored: false,
     }
     expect(reduceAll([host({ type: 'paidState', state: paid })]).paid).toEqual(paid)
   })

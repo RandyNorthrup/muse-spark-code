@@ -62,15 +62,20 @@ security notes for contributors are in `PLAN.md` §9.
   Recognition. Where macOS offers no way for the helper to ask under its
   own name, it asks as Visual Studio Code, the app that starts it.
   Dictation is off in remote windows.
-- **The paid features (off unless you turn them on).** Each works on the
-  Model API backend only, with your key, and each asks you to accept its
-  price before it is used:
+- **The paid features (off unless you turn them on).** Each is billed to
+  your Model API key, never to your Muse Code subscription, and each asks
+  you to accept its price before it is used. All three work on the Model
+  API backend; image generation and Muse Voice also work on the Muse Code
+  backend while a key is stored, the images made by the extension itself
+  (the key is never given to the Muse Code CLI):
   - **Web search** lets the model send search queries it writes, drawn from
     the conversation, to Meta's search; the pages it cites are listed under
     the reply and open in your browser only when you click one.
   - **Image generation** sends the prompt the model writes (you see it on
-    the card and approve each image) to Meta's image model; the image comes
-    back and is saved in the workspace.
+    the card, or in the dialog on the Muse Code backend, and approve each
+    image) to Meta's image model, and for an edit the workspace images it
+    starts from, which the card names; the image comes back and is saved in
+    the workspace as a new file.
   - **Muse Voice** sends your recording to Meta's Muse Voice Transcribe
     instead of your computer's own recogniser: audio leaves the machine only
     while the microphone records on that engine, only to `api.meta.ai`, and

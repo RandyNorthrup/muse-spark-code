@@ -70,8 +70,11 @@ them, the milestone plan, and the certification checklist.
     and off by default, and its price accepted in the confirmation. It is
     named in the composer's badge, shown as its own row marked paid
     (`paid` on the item), counted in `PaidUsage` for Account & usage, and
-    offered on the Model API backend only. One that can ask first does, in
-    every mode, Bypass included. The subscription never pays for one.
+    billed to the Model API key: offered on the Model API backend, and on
+    the Muse Code backend only while a key is stored and only through the
+    extension itself (the `ide` server, M44; the key never reaches
+    `muse serve`). One that can ask first does, in every mode, Bypass
+    included. The subscription never pays for one.
 13. **Wire shapes come from a live capture.** A row, parser or schema for
     something Muse Code or the Model API sends is written from a captured
     frame (the certification record names the capture, its workspace and its

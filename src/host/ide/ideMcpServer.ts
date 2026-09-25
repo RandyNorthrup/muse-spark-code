@@ -1,7 +1,10 @@
 // The IDE tool server `muse serve` reaches from each session: MCP over
 // streamable HTTP on a loopback port, guarded by a bearer token minted per
-// extension host (never logged, never written to disk). One tool today,
-// `getDiagnostics`; the JSON-RPC handling itself is pure (src/core/mcp.ts).
+// extension host (never logged, never written to disk). Its tools are
+// `getDiagnostics` and, while paid image generation is on and a key is
+// stored, the image tools (M44); the list is read on every request, so a
+// session started after a change sees it. The JSON-RPC handling itself is
+// pure (src/core/mcp.ts).
 
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { Buffer } from 'node:buffer'
@@ -61,7 +64,8 @@ export class IdeMcpServer {
   private starting: Promise<IdeMcpEndpoint> | undefined
 
   public constructor(
-    private readonly tools: readonly McpTool[],
+    /** The tools offered now, asked on every request. */
+    private readonly tools: () => readonly McpTool[],
     private readonly log: Logger,
   ) {}
 
@@ -93,7 +97,7 @@ export class IdeMcpServer {
       response.writeHead(HTTP_STATUS.badRequest).end()
       return
     }
-    const outcome = await handleMcpMessage(body, this.tools, IDE_MCP_SERVER_INFO)
+    const outcome = await handleMcpMessage(body, this.tools(), IDE_MCP_SERVER_INFO)
     if (outcome.kind === 'accepted') {
       response.writeHead(HTTP_STATUS.accepted).end()
       return

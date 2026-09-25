@@ -5,12 +5,20 @@
 
 import { useEffect, useRef } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatDate, formatNumber, formatPercent, plural } from '../../shared/l10n/text'
+import {
+  fill,
+  formatDate,
+  formatNumber,
+  formatPercent,
+  plural,
+  templateParts,
+} from '../../shared/l10n/text'
 import type { DiffRow } from '../diff'
 import type { ToolImageState, TranscriptEntry } from '../state/uiState'
 import {
   type GoalDetails,
   goalDetails,
+  imageRequestOf,
   memoryDetails,
   type ScheduledPrompt,
   scheduledPrompts,
@@ -188,6 +196,31 @@ export function WebBody({
         </li>
       ))}
     </ol>
+  )
+}
+
+/**
+ * An image call (M34, M44): what it asked for, the images an edit started
+ * from, and what came of it; the picture itself follows the body.
+ */
+export function ImageBody({ entry }: { readonly entry: ToolEntry }) {
+  const { prompt, sources } = imageRequestOf(entry.args)
+  return (
+    <div className="tool-detail">
+      {prompt === undefined ? null : (
+        <blockquote className="approval-prompt" dir="auto">
+          {prompt}
+        </blockquote>
+      )}
+      {sources.length === 0 ? null : (
+        <div className="tool-detail-meta">
+          {templateParts(UI_TEXT.approvalImageSources).map((part, index) =>
+            typeof part === 'string' ? part : <code key={String(index)}>{sources.join(', ')}</code>,
+          )}
+        </div>
+      )}
+      {entry.output === '' ? null : <Clipped text={entry.output} className="tool-output" />}
+    </div>
   )
 }
 

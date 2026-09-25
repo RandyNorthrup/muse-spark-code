@@ -289,7 +289,7 @@ export const initialUiState: UiState = {
   banner: undefined,
   announcement: undefined,
   dictation: { status: 'idle', reason: undefined, engine: 'system' },
-  paid: { features: [], tally: EMPTY_PAID_TALLY },
+  paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false },
   todos: [],
   outputPages: {},
   toolImages: {},

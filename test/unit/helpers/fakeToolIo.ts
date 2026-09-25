@@ -78,6 +78,12 @@ export function memoryToolIo(
       return Promise.resolve(forward)
     },
     readFile: (absolutePath) => Promise.resolve(files.get(absolutePath.replaceAll('\\', '/'))),
+    readBytes: (absolutePath, maxBytes) => {
+      const bytes = binaries.get(keyOf(absolutePath))
+      return bytes !== undefined && bytes.length > maxBytes
+        ? Promise.reject(new Error(`${absolutePath} is over ${String(maxBytes)} bytes`))
+        : Promise.resolve(bytes)
+    },
     writeFile: (absolutePath, content) => {
       files.set(absolutePath.replaceAll('\\', '/'), content)
       return Promise.resolve()
@@ -114,6 +120,7 @@ export function memoryToolIo(
 export const noopToolIo: ToolIo = {
   realPath: (absolutePath) => Promise.resolve(absolutePath),
   readFile: () => Promise.resolve(undefined),
+  readBytes: () => Promise.resolve(undefined),
   writeFile: () => Promise.resolve(),
   pathExists: () => Promise.resolve(false),
   reserveFile: () =>

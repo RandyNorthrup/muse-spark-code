@@ -52,6 +52,9 @@ import {
 } from './host/conversation/conversationController'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
+import { ModelApiClient } from './core/backends/modelapi/client'
+import { ideImageTools } from './host/ide/imageTools'
+import { usablePaidFeatures } from './shared/paid'
 import { createCliFeatures } from './host/cliFeatures'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { processGitRunner } from './host/git'
@@ -67,7 +70,7 @@ import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { createPaidFeatures } from './host/paid/paidHost'
+import { isImagePurchaseConfirmed, createPaidFeatures } from './host/paid/paidHost'
 import {
   BACKEND_SETTING,
   BYPASS_SETTING,
@@ -87,6 +90,7 @@ import {
   DEFAULT_MODEL_ID,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
+  MODEL_API_BASE_URL,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
   PERSONAL_SKILLS_GLOB,
@@ -433,9 +437,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
+  // Whether a Model API key is stored (M44): the Muse Code backend then
+  // offers the key's paid images and voice. Read at start and after every
+  // sign-in change, never from anywhere but the secret store.
+  let isKeyStored = false
   const paid = createPaidFeatures({
     globalState: context.globalState,
     isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isKeyStored: () => isKeyStored,
     log,
   })
   // Muse Voice (M35): the paid engine's recorder, used only while it is
@@ -460,6 +469,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       controller.refreshDictation()
     }
   }
+  const refreshKeyPresence = async (): Promise<void> => {
+    const isStored = (await credentials.getApiKey()) !== undefined
+    if (isStored === isKeyStored) {
+      return
+    }
+    isKeyStored = isStored
+    broadcastPaidState()
+  }
+  void refreshKeyPresence()
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
   const dictation = createDictationSetup(
     {
@@ -591,6 +609,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (message.type !== 'authState') {
         return
       }
+      // A key pasted or signed out of changes what the Muse Code backend offers (M44).
+      void refreshKeyPresence()
       // The backend decides which engine the microphone uses (M35).
       for (const controller of controllers.values()) {
         controller.refreshDictation()
@@ -615,13 +635,82 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       registry.broadcast({ type: 'editorContext', context: summary })
     },
   })
-  const ideServer = new IdeMcpServer(
-    [
-      diagnosticsTool({
-        getDiagnostics: collectDiagnostics,
+  const listWorkspaceFiles = createWorkspaceFileLister({
+    workspaceRoot: workspaceRoot ?? '',
+    respectGitIgnore: () => currentSettings().respectGitIgnore,
+    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    runGit,
+    findFiles: findWorkspaceFiles,
+    log,
+  })
+  // The workspace's files and a shell (M7): the Model API backend's tools,
+  // and the files the ide server's image tools read and write (M44).
+  const toolIo = createToolIo({
+    platform: process.platform,
+    listFiles: listWorkspaceFiles,
+    systemRoot: process.env['SystemRoot'],
+    // The user's terminal environment settings apply to the shell tool as
+    // they do to VS Code's terminal (PLAN.md D25).
+    env: () =>
+      withTerminalOverrides(
+        process.env,
+        vscode.workspace
+          .getConfiguration(TERMINAL_ENV_SECTION)
+          .get<Record<string, string | null>>(TERMINAL_ENV_KEYS[terminalPlatform()]) ?? {},
+        process.platform,
         workspaceRoot,
-        platform: process.platform,
-        relativeInRoot: (absolutePath) => relativePathInWorkspace(vscode.Uri.file(absolutePath)),
+      ),
+    searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE).fsPath,
+    log: (message) => {
+      log.warn(message)
+    },
+    // Each Windows command in a job object of its own, so a Stop ends
+    // everything it started (PLAN.md M27).
+    shellJobAssembly: windowsShellJobs(context.globalStorageUri.fsPath, log),
+    // An open editor with unsaved changes to the file (PLAN.md D27).
+    hasUnsavedChanges: (absolutePath) =>
+      vscode.workspace.textDocuments.some(
+        (document) =>
+          document.isDirty &&
+          document.uri.scheme === FILE_SCHEME &&
+          isSamePath(document.uri.fsPath, absolutePath, process.platform),
+      ),
+  })
+  const diagnostics = diagnosticsTool({
+    getDiagnostics: collectDiagnostics,
+    workspaceRoot,
+    platform: process.platform,
+    relativeInRoot: (absolutePath) => relativePathInWorkspace(vscode.Uri.file(absolutePath)),
+  })
+  // Images for Muse Code (M44, PLAN.md D37): made here with the stored key,
+  // never by `muse serve`, each one confirmed with its price.
+  const keyClient = new ModelApiClient({
+    fetch: globalThis.fetch.bind(globalThis),
+    baseUrl: MODEL_API_BASE_URL,
+    apiKey: () => credentials.getApiKey(),
+    sleep: (ms) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+    now: () => Date.now(),
+    random: () => Math.random(),
+    log,
+  })
+  const ideServer = new IdeMcpServer(
+    () => [
+      diagnostics,
+      ...ideImageTools({
+        isOffered: () => isKeyStored && paid.gate.isOn('imageGeneration'),
+        workspace:
+          workspaceRoot === undefined
+            ? undefined
+            : { workspaceRoot, platform: process.platform, io: toolIo },
+        client: keyClient,
+        confirm: isImagePurchaseConfirmed,
+        onBilled: () => {
+          paid.usage.add('imageGeneration', 1)
+        },
+        log,
       }),
     ],
     log,
@@ -702,14 +791,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
   })
 
-  const listWorkspaceFiles = createWorkspaceFileLister({
-    workspaceRoot: workspaceRoot ?? '',
-    respectGitIgnore: () => currentSettings().respectGitIgnore,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
-    runGit,
-    findFiles: findWorkspaceFiles,
-    log,
-  })
   const mentions = new MentionIndex({
     listFiles: listWorkspaceFiles,
     now: () => Date.now(),
@@ -726,38 +807,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
-    io: createToolIo({
-      platform: process.platform,
-      listFiles: listWorkspaceFiles,
-      systemRoot: process.env['SystemRoot'],
-      // The user's terminal environment settings apply to the shell tool as
-      // they do to VS Code's terminal (PLAN.md D25).
-      env: () =>
-        withTerminalOverrides(
-          process.env,
-          vscode.workspace
-            .getConfiguration(TERMINAL_ENV_SECTION)
-            .get<Record<string, string | null>>(TERMINAL_ENV_KEYS[terminalPlatform()]) ?? {},
-          process.platform,
-          workspaceRoot,
-        ),
-      searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE)
-        .fsPath,
-      log: (message) => {
-        log.warn(message)
-      },
-      // Each Windows command in a job object of its own, so a Stop ends
-      // everything it started (PLAN.md M27).
-      shellJobAssembly: windowsShellJobs(context.globalStorageUri.fsPath, log),
-      // An open editor with unsaved changes to the file (PLAN.md D27).
-      hasUnsavedChanges: (absolutePath) =>
-        vscode.workspace.textDocuments.some(
-          (document) =>
-            document.isDirty &&
-            document.uri.scheme === FILE_SCHEME &&
-            isSamePath(document.uri.fsPath, absolutePath, process.platform),
-        ),
-    }),
+    io: toolIo,
     contextIo: fileContextIo,
     fetch: globalThis.fetch.bind(globalThis),
     newId: () => crypto.randomUUID(),
@@ -1080,8 +1130,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // conversation by construction (M6).
         isRestorable: surface.id === SIDEBAR_SURFACE_ID,
         dictation,
+        // Muse Voice on the Model API backend, and on Muse Code with a stored key (M44).
         museVoice: () =>
-          auth.current.backend === 'modelApi' && paid.gate.isOn('voice')
+          paid.gate.isOn('voice') &&
+          usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
             ? museVoiceSetup
             : undefined,
         exports: cliFeatures.exports,

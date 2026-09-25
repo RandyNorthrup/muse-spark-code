@@ -5,6 +5,7 @@
 
 import * as z from 'zod/mini'
 import { type ItemSnapshot, itemSnapshotFields, todoItemSchema } from '../../../shared/agentEvents'
+import { IDE_PAID_TOOLS } from '../../../shared/constants'
 import { sessionActivityFields } from '../../../shared/sessions'
 import type { SessionHistoryOutcome } from '../../agent/agentBackend'
 
@@ -42,6 +43,8 @@ export function toSnapshot(item: WireItem): ItemSnapshot {
     ...rest,
     ...(typeof turnId === 'string' && { turnId }),
     ...(typeof displayText === 'string' && { text: displayText }),
+    // An image the extension's own `ide` server bought with the key (M44).
+    ...(item.tool !== undefined && IDE_PAID_TOOLS.has(item.tool) && { paid: 'imageGeneration' }),
   }
 }
 
