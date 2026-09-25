@@ -33,6 +33,10 @@ and a false failure in the log fixed.
 
 ### Fixed
 
+- `npm run security:sast` finds a semgrep that pip installed into Python's
+  user Scripts folder when that folder is not on the shell's PATH (an
+  editor started before it was added), instead of failing with "semgrep is
+  not recognized".
 - Resizing the sidebar while the prompt held a draft of several lines could
   log a false panel failure ("ResizeObserver loop completed with undelivered
   notifications"): the prompt refitted its height inside the browser's own

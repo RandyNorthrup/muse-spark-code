@@ -34,9 +34,10 @@
   // knip does not read, so its use is invisible to it.
   "ignoreDependencies": ["axe-core"],
 
-  // gitleaks (winget/brew) and semgrep (pip) are system binaries, not npm packages:
-  // the pre-commit hook and security:secrets call gitleaks, security:sast calls semgrep.
-  "ignoreBinaries": ["gitleaks", "semgrep"],
+  // gitleaks (winget/brew) is a system binary, not an npm package: the
+  // pre-commit hook and security:secrets call it. semgrep (pip) is started by
+  // scripts/sast.mjs, which knip reads as code, not as a binary call.
+  "ignoreBinaries": ["gitleaks"],
 
   "ignoreExportsUsedInFile": true,
 
