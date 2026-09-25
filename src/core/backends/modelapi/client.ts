@@ -74,6 +74,11 @@ const RETRY_AFTER_HEADER = 'retry-after'
 const NETWORK_FAILURE_STATUS = 0
 const SSE_DONE_SENTINEL = '[DONE]'
 
+/** Closing a parser that already failed rejects with that failure, which the stream reported. */
+function ignoreClosingError(): void {
+  // Nothing to add: the stream's own error already went to its caller.
+}
+
 /** The documented error envelope, or the status text when the body is not one. */
 async function describeFailure(response: Response): Promise<ModelApiError> {
   let body: unknown
@@ -310,50 +315,57 @@ export class ModelApiClient {
       throw new ModelApiError('The response had no body', response.status, undefined, undefined)
     }
     const frames = parseSse(response.body)[Symbol.asyncIterator]()
-    for (;;) {
-      const next = await within(frames.next())
-      if (next.done === true) {
-        return
+    try {
+      for (;;) {
+        const next = await within(frames.next())
+        if (next.done === true) {
+          return
+        }
+        const frame = next.value
+        // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
+        // data. Neither is an event (D26).
+        if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
+          continue
+        }
+        let json: unknown
+        try {
+          json = JSON.parse(frame.data)
+        } catch {
+          throw new ModelApiError(
+            // Its length, not its text: the frame is model output, and this
+            // message becomes the failed turn's reason in the log (M39).
+            `Malformed stream frame (${String(frame.data.length)} characters)`,
+            response.status,
+            undefined,
+            undefined,
+          )
+        }
+        const known = streamEventSchema.safeParse(json)
+        if (known.success) {
+          yield known.data
+          continue
+        }
+        const typed = eventTypeSchema.safeParse(json)
+        if (!typed.success) {
+          throw new ModelApiError(
+            'Stream frame without a type',
+            response.status,
+            undefined,
+            undefined,
+          )
+        }
+        // Once a type, not once a frame (M39).
+        if (this.ignoredEventTypes.has(typed.data.type)) {
+          continue
+        }
+        this.ignoredEventTypes.add(typed.data.type)
+        this.deps.log.info(`Model API stream events of type ${typed.data.type} are ignored`)
       }
-      const frame = next.value
-      // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
-      // data. Neither is an event (D26).
-      if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
-        continue
-      }
-      let json: unknown
-      try {
-        json = JSON.parse(frame.data)
-      } catch {
-        throw new ModelApiError(
-          // Its length, not its text: the frame is model output, and this
-          // message becomes the failed turn's reason in the log (M39).
-          `Malformed stream frame (${String(frame.data.length)} characters)`,
-          response.status,
-          undefined,
-          undefined,
-        )
-      }
-      const known = streamEventSchema.safeParse(json)
-      if (known.success) {
-        yield known.data
-        continue
-      }
-      const typed = eventTypeSchema.safeParse(json)
-      if (!typed.success) {
-        throw new ModelApiError(
-          'Stream frame without a type',
-          response.status,
-          undefined,
-          undefined,
-        )
-      }
-      // Once a type, not once a frame (M39).
-      if (this.ignoredEventTypes.has(typed.data.type)) {
-        continue
-      }
-      this.ignoredEventTypes.add(typed.data.type)
-      this.deps.log.info(`Model API stream events of type ${typed.data.type} are ignored`)
+    } finally {
+      // An early end (a malformed frame, a stall, the caller stopping)
+      // closes the parser, which releases the response body (the review of
+      // PR #20). Not awaited: after a stall its last read may never settle.
+      void frames.return(undefined).catch(ignoreClosingError)
     }
   }
 }

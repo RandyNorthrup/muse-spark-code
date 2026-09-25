@@ -535,6 +535,11 @@ export class ConversationController {
     this.session = undefined
     this.activeTurnId = undefined
     this.finishedTurns.clear()
+    // A turn that ended with its session, no end heard: said, and forgotten.
+    for (const turnId of this.turnClocks.keys()) {
+      this.deps.log.info(`Turn ${turnId} ended with its session`)
+    }
+    this.turnClocks.clear()
   }
 
   /**
@@ -548,7 +553,16 @@ export class ConversationController {
       return
     }
     this.activeTurnId = undefined
-    this.forward({ type: 'turnCompleted', turnId, terminal, reason })
+    const event = { type: 'turnCompleted', turnId, terminal, reason } as const
+    // The same end line and clock as a turn the host ended (the review of PR #20).
+    this.endTurnClock(event)
+    this.forward(event)
+  }
+
+  /** A turn's end in the log, and its clock gone (M39). */
+  private endTurnClock(event: Extract<AgentEvent, { type: 'turnCompleted' }>): void {
+    this.deps.log.info(turnEndLine(event, this.turnClocks.get(event.turnId), this.deps.now()))
+    this.turnClocks.delete(event.turnId)
   }
 
   /** The session to pick up on the next message, on a host of the same kind. */
@@ -719,8 +733,7 @@ export class ConversationController {
         break
       }
       case 'turnCompleted': {
-        this.deps.log.info(turnEndLine(event, this.turnClocks.get(event.turnId), this.deps.now()))
-        this.turnClocks.delete(event.turnId)
+        this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
         // Another turn completing (a subagent's) leaves this one running.
         if (this.activeTurnId === event.turnId) {
