@@ -172,7 +172,10 @@ async function main() {
       ),
     )
   }
-  const failed = results.filter((result) => result.error !== undefined)
+  // A page with no result, or whose scenario threw before axe looked.
+  const failed = results.filter(
+    (result) => result.error !== undefined || (result.harnessErrors ?? []).length > 0,
+  )
   const findings = findingsIn(results, 'violations')
   const byRule = printByRule('', findings)
   // What axe could not decide by itself fails too, except the contrast of
@@ -180,7 +183,8 @@ async function main() {
   const { undecided, unseen, glyphOnly } = sortIncomplete(findingsIn(results, 'incomplete'))
   const undecidedByRule = printByRule('undecided: ', undecided)
   for (const result of failed) {
-    console.log(`\n${result.theme}/${result.scenario}: no result: ${result.error}`)
+    const why = result.error ?? `the scenario threw: ${result.harnessErrors.join('; ')}`
+    console.log(`\n${result.theme}/${result.scenario}: no result: ${why}`)
   }
   // Out of scope by WCAG's own reading, and said out loud (see the harness).
   const exempt = results.flatMap((result) =>

@@ -1409,7 +1409,8 @@ export const UI_TEXT = {
   // PLAN.md D26: what the model and the transcript are told when Stop cuts things short.
   toolCancelledByStop: 'cancelled: the user stopped the turn',
   toolFileTooLarge: 'The file tools read and edit files up to',
-  toolFileTooLargeHint: 'search it, or read part of it with a command, instead',
+  toolFileTooLargeHint:
+    'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
   modelApiStalled: 'The Model API sent nothing for',
   modelApiStalledDetail: 'so the reply was ended; send the message again to retry',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
