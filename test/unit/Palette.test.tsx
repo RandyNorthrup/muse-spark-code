@@ -73,8 +73,12 @@ describe('Palette (actions view)', () => {
     ])
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(props.onAction).toHaveBeenCalledWith({ type: 'insertSkill', selector: 'fix-bug' })
+    expect(filter).toHaveAttribute('aria-controls', 'palette-listbox')
     fireEvent.change(filter, { target: { value: 'nothing here' } })
     expect(screen.getByText('No matching actions')).toBeInTheDocument()
+    // No list is shown, so the box controls none (a dangling reference fails WCAG 4.1.2).
+    expect(filter).not.toHaveAttribute('aria-controls')
+    expect(filter).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('moves with the arrow keys, wrapping at both ends', () => {

@@ -24,6 +24,7 @@ import {
   MUSE_VERSION_FILE,
   MUSE_WINDOWS_EXE_SUFFIX,
   MUSE_WINDOWS_INSTALL_SEGMENTS,
+  UI_TEXT,
   WINDOWS_PSMODULEPATH_SEGMENTS,
 } from '../../../shared/constants'
 
@@ -123,7 +124,7 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
       }
     }
   }
-  return { ok: false, searched, reason: 'Muse Code is not installed in any known location.' }
+  return { ok: false, searched, reason: UI_TEXT.cliNotFound }
 }
 
 /**
@@ -181,7 +182,7 @@ function resolvePosix(probe: LaunchProbe): LaunchResolution {
   return {
     ok: false,
     searched: candidates,
-    reason: 'Muse Code is not installed in any known location.',
+    reason: UI_TEXT.cliNotFound,
   }
 }
 
@@ -191,7 +192,7 @@ export function resolveMuseLaunch(probe: LaunchProbe): LaunchResolution {
     return {
       ok: false,
       searched: [probe.configuredPath],
-      reason: 'museSpark.museBinaryPath must be an absolute path.',
+      reason: UI_TEXT.cliPathNotAbsolute,
     }
   }
   return probe.platform === 'win32' ? resolveWindows(probe) : resolvePosix(probe)

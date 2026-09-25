@@ -380,7 +380,7 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     await until(() => exits.length > 0)
     // A crash, not the extension's own close; restarting can help (D25).
     expect(exits[0]).toEqual({
-      description: 'Muse Code failed with an unhandled error (exit 1)',
+      description: 'Muse Code failed with an unhandled error (exit code 1)',
       isExpected: false,
       isPersistent: false,
     })

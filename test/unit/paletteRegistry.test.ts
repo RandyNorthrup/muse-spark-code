@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 import {
+  backendLabel,
   buildPalette,
   filterPalette,
   flattenPalette,
@@ -34,11 +37,57 @@ const context: PaletteContext = {
 }
 
 describe('formatTokenWindow', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
   it('formats millions, thousands and small counts', () => {
     expect(formatTokenWindow(1_007_997)).toBe('1M')
     expect(formatTokenWindow(200_000)).toBe('200K')
     expect(formatTokenWindow(12_345)).toBe('12.3K')
     expect(formatTokenWindow(512)).toBe('512')
+    // Just under a million rounds to a thousand thousands: "1M", never "1,000K".
+    expect(formatTokenWindow(999_950)).toBe('1M')
+    expect(formatTokenWindow(999_949)).toBe('999.9K')
+  })
+
+  it('writes the digits the display language writes (M40)', () => {
+    setUiText(EN, 'de')
+    expect(formatTokenWindow(12_345)).toBe('12,3K')
+    expect(formatTokenWindow(200_000)).toBe('200K')
+  })
+})
+
+describe('the palette in the installed table (M40)', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it('names the backend, the mode, the context window and the usage from the table', () => {
+    setUiText(
+      {
+        ...EN,
+        backendModelApi: 'Meta Model API (Schlüssel)',
+        permissionModes: { ...EN.permissionModes, acceptEdits: 'Automatisch bearbeiten' },
+        modelContextWindow: 'Kontext {tokens}',
+        sessionUsageValue: '{input} ein · {output} aus',
+      },
+      'de',
+    )
+    expect(backendLabel('modelApi')).toBe('Meta Model API (Schlüssel)')
+    const items = buildPalette(context).flatMap((group) => group.items)
+    expect(items.find((item) => item.id === 'switchModel')?.widget).toEqual({
+      kind: 'value',
+      text: 'muse-spark-1.3 (Kontext 1M)',
+    })
+    expect(items.find((item) => item.id === 'permissionMode')?.widget).toEqual({
+      kind: 'value',
+      text: 'Automatisch bearbeiten',
+    })
+    expect(items.find((item) => item.id === 'usage')?.widget).toEqual({
+      kind: 'value',
+      text: '12,3K ein · 678 aus',
+    })
   })
 })
 

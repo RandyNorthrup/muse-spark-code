@@ -5,6 +5,9 @@ import {
   type TranscriptExport,
 } from '../../src/core/export/transcriptMarkdown'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
+import { EN } from '../../src/shared/l10n/en'
+import { forms } from '../../src/shared/l10n/forms'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 
 function item(overrides: Partial<ItemSnapshot> & Pick<ItemSnapshot, 'kind'>): ItemSnapshot {
   return { itemId: `${overrides.kind}-1`, status: 'completed', ...overrides }
@@ -88,7 +91,8 @@ describe('renderTranscriptMarkdown', () => {
         '## Muse\n\nIt fails because **x**.',
         '### Tool: edit_file\n\nArguments:\n\n```json\n{\n  "path": "a.ts",\n  "old": "x"\n}\n```\n\nOutput:\n\n```\nok\n```\n\n_Changed 1 file: +3 −1._',
         '### Tool: bash (failed)\n\nArguments:\n\n```\nnot json\n```\n\n_Failed: exit 1_',
-        '### Tool: tool\n\n_The output (5000 bytes) is stored by the backend and not included._',
+        // Counts in the display language's digits and grouping (PLAN.md D33).
+        '### Tool: tool\n\n_The output (5,000 bytes) is stored by the backend and not included._',
         '### Shell command\n\nArguments:\n\n```\nnpm test\n```\n\nOutput:\n\n```\npassed\n```',
         '### Subagent: explorer\n\nFind the tests\n\n> Found 3 tests\n> in src',
         '### Subagent: agent (running)',
@@ -112,6 +116,39 @@ describe('renderTranscriptMarkdown', () => {
     ])
     expect(markdown).toContain('## You\n\n\n\n_2 images attached._')
     expect(markdown).toContain('_Changed 2 files: +0 −0._')
+  })
+
+  it('writes its own words in the display language and leaves the conversation as it was (D33)', () => {
+    setUiText(
+      {
+        ...EN,
+        exportUserHeading: 'Du',
+        exportToolHeading: 'Werkzeug: {tool}',
+        exportImagesAttached: forms({
+          one: '{count} Bild angehängt.',
+          other: '{count} Bilder angehängt.',
+        }),
+        exportOutputStored: forms({
+          one: 'Die Ausgabe ({count} Byte) liegt beim Backend.',
+          other: 'Die Ausgabe ({count} Bytes) liegt beim Backend.',
+        }),
+      },
+      'de',
+    )
+    try {
+      const markdown = render([
+        item({
+          kind: 'userMessage',
+          text: 'Why does it fail?',
+          attachments: [{ type: 'image', mediaType: 'image/png' }],
+        }),
+        item({ kind: 'toolCall', tool: 'read_file', outputRef: { id: 'o1', byteLen: 5000 } }),
+      ])
+      expect(markdown).toContain('## Du\n\nWhy does it fail?\n\n_1 Bild angehängt._')
+      expect(markdown).toContain('### Werkzeug: read_file\n\n_Die Ausgabe (5.000 Bytes)')
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 
   it('fences output longer than any backtick run inside it', () => {

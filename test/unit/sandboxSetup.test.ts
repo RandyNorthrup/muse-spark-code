@@ -128,7 +128,7 @@ describe('SandboxSetup.offerIfNeeded', () => {
     await t.sandbox.offerIfNeeded('startup')
     expect(t.runs).toHaveLength(2)
     expect(t.showWarning).toHaveBeenLastCalledWith(
-      'Muse Code sandbox setup did not complete (exit 1: The operation was canceled by the user.).',
+      'Muse Code sandbox setup did not complete (exit code 1: The operation was canceled by the user.).',
     )
     expect(t.showInformation).not.toHaveBeenCalled()
   })

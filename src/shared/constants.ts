@@ -79,30 +79,6 @@ export const PERMISSION_MODES = [
   'bypassPermissions',
 ] as const
 export type PermissionMode = (typeof PERMISSION_MODES)[number]
-export const PERMISSION_MODE_LABELS: Readonly<Record<PermissionMode, string>> = {
-  manual: 'Manual',
-  acceptEdits: 'Edit automatically',
-  plan: 'Plan',
-  auto: 'Auto',
-  bypassPermissions: 'Bypass permissions',
-}
-// One line under each mode in the Modes menu (the Claude Code wording, with
-// Muse in place of Claude and the MSP behaviour behind each mode, PLAN.md
-// D7), per backend where they differ (D24): in Manual Muse Code applies
-// edits inside the workspace without an approval (verified live in M4), and
-// the Model API backend has no safety-check judge behind Auto.
-export const PERMISSION_MODE_DETAILS: Readonly<Record<PermissionMode, string>> = {
-  manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
-  acceptEdits: 'Muse will edit files without asking and ask before running commands',
-  plan: 'Muse will explore the code and present a plan before editing',
-  auto: 'Muse will approve actions that pass a safety check and pause for anything risky',
-  bypassPermissions: 'Muse will edit files and run commands without asking',
-}
-export const MODEL_API_PERMISSION_MODE_DETAILS: Readonly<Partial<Record<PermissionMode, string>>> =
-  {
-    manual: 'Muse will ask for approval before each edit and each command',
-    auto: 'Muse will edit files without asking, except protected files, and ask before commands',
-  }
 export const PREFERRED_LOCATIONS = ['sidebar', 'panel'] as const
 export type PreferredLocation = (typeof PREFERRED_LOCATIONS)[number]
 
@@ -222,14 +198,6 @@ export const COMPOSER_MAX_ROWS = 10
 // so it would be a second dot for the same tier.
 export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
-export const EFFORT_LABELS: Readonly<Record<EffortLevel, string>> = {
-  minimal: 'Minimal',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'Extra high',
-  max: 'Max',
-}
 // The tiers each model family actually serves, keyed by model-id prefix
 // (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
 // with "Supported values: [minimal, low, medium, high, xhigh]"). Families not
@@ -297,29 +265,6 @@ export const HAS_APPROVAL_UI = true
 
 // --- Transcript (M4) ---
 
-// Tool names seen on the wire (Muse Code 1.3.0, live captures 2026-09-21/22)
-// and the label the row shows; unknown tools show their raw name. The IDE
-// tool is named by the CLI's MCP catalog: `mcp__<server>__<tool>`.
-export const TOOL_LABELS: Readonly<Record<string, string>> = {
-  write_file: 'Write',
-  edit_file: 'Edit',
-  read_file: 'Read',
-  search: 'Search',
-  bash: 'Bash',
-  powershell: 'PowerShell',
-  request_user_input: 'Question',
-  mcp__ide__getDiagnostics: 'Diagnostics',
-  list_files: 'List',
-  ask_user: 'Question',
-  todo_write: 'Tasks',
-  // Muse Code's native subagent tools (M14; seen live 2026-09-23).
-  subagent_spawn: 'Spawn agent',
-  subagent_wait: 'Wait for agents',
-  subagent_status: 'Agent status',
-  subagent_send_message: 'Message agent',
-  subagent_read_result: 'Agent result',
-  subagent_cancel: 'Cancel agent',
-}
 export const SHELL_TOOLS: ReadonlySet<string> = new Set(['bash', 'powershell', 'shell', 'cmd'])
 export const FILE_EDIT_TOOLS: ReadonlySet<string> = new Set(['write_file', 'edit_file'])
 export const FILE_READ_TOOLS: ReadonlySet<string> = new Set(['read_file'])
@@ -566,8 +511,8 @@ export const OUTPUT_PREVIEW_LINES = 12
 export const OUTPUT_PREVIEW_CHARS = 2000
 // `item/readOutput` page size (the host serves at most 6 MiB per call).
 export const OUTPUT_PAGE_BYTES = 256 * 1024
-// The spinner line under the last row cycles through these while a turn runs.
-export const STATUS_VERBS = ['Thinking…', 'Working…', 'Calculating…', 'Composing…'] as const
+// The spinner line under the last row changes its verb this often while a
+// turn runs (the verbs are `UI_TEXT.statusVerbs`).
 export const STATUS_VERB_INTERVAL_MS = 4000
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
@@ -666,27 +611,9 @@ export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // Windows (meta-models/muse-code-sdk#30 and #31, verified live 2026-09-22 on
 // 1.3.0): the panel does not offer either there (D26).
 export const WINDOWS_SESSION_EDITS_LIMITED_MAX_VERSION = '1.3.0'
-// Muse Code's documented exit codes (SDK `classifyExit`): what each means
-// for the user, and whether restarting can help.
-export const MUSE_EXIT_MEANINGS: Readonly<
-  Record<number, { readonly text: string; readonly isPersistent: boolean }>
-> = {
-  0: { text: 'Muse Code stopped', isPersistent: false },
-  1: { text: 'Muse Code failed with an unhandled error', isPersistent: false },
-  2: { text: 'Muse Code rejected its command line (a usage error)', isPersistent: true },
-  3: {
-    text: 'Muse Code refused its configuration; check its settings.json and museSpark.environmentVariables',
-    isPersistent: true,
-  },
-  4: {
-    text: 'another Muse Code client holds this session; it frees once that client exits',
-    isPersistent: false,
-  },
-  5: {
-    text: 'this Muse Code build does not serve the SDK surface the extension uses; update Muse Code',
-    isPersistent: true,
-  },
-}
+// Muse Code's documented exit codes (SDK `classifyExit`) after which a
+// restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
+export const MUSE_EXIT_PERSISTENT_CODES: ReadonlySet<number> = new Set([2, 3, 5])
 export const IDE_MCP_SERVER_NAME = 'ide'
 export const IDE_MCP_SERVER_INFO = { name: 'muse_spark_ide', version: '1' } as const
 export const IDE_MCP_PATH = '/mcp'
@@ -744,31 +671,6 @@ export const ISSUES_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issu
 /** The Meta developer dashboard (usage, keys, billing) the usage dialog links to. */
 export const META_DASHBOARD_URL = 'https://dev.meta.ai/'
 
-/**
- * The getting-started tips on the empty state (M8), in the order shown. The
- * shortcuts are the default bindings from package.json; Cmd stands in for
- * Ctrl on macOS as the composer placeholder already assumes. Windows keeps
- * Ctrl+Esc and Ctrl+Shift+Esc for itself, so its bindings add Alt; the
- * webview does not know the platform, so both are named (M26, D29).
- */
-export const ONBOARDING_TIPS = [
-  {
-    shortcut: 'Ctrl+Esc (Ctrl+Alt+Esc on Windows)',
-    text: 'focuses or unfocuses Muse from anywhere in VS Code',
-  },
-  { shortcut: '/', text: 'opens the actions palette: model, effort, permission mode, history' },
-  { shortcut: 'Shift+Tab', text: 'cycles the permission mode while the composer has focus' },
-  { shortcut: 'Alt+K', text: 'inserts an @-mention of the editor selection' },
-  { shortcut: '@', text: 'mentions a file; drag files or paste images to attach them' },
-  {
-    shortcut: 'Ctrl+Shift+Esc (Ctrl+Shift+Alt+Esc on Windows)',
-    text: 'opens a conversation in a new editor tab',
-  },
-  {
-    shortcut: 'Ctrl+D',
-    text: 'records your voice into the composer (tap to toggle, hold to talk)',
-  },
-] as const
 // Voice dictation (M9). The composer's microphone drives a resident helper
 // that uses the operating system's own recogniser: Windows PowerShell 5.1 +
 // System.Speech on Windows, a Swift helper on Apple's Speech framework on
@@ -793,9 +695,6 @@ export const DICTATION_UI_STATUSES = ['unavailable', 'idle', 'starting', 'listen
 export type DictationUiStatus = (typeof DICTATION_UI_STATUSES)[number]
 // M26 (PLAN.md D29): dictation in a remote window, and the environment the
 // Windows helper starts with.
-/** The button's reason in a window whose extension host runs on a remote machine. */
-export const DICTATION_UNAVAILABLE_REMOTE =
-  'Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.'
 /** Windows PowerShell's module search path, reset for the Windows helper. */
 export const WINDOWS_PSMODULEPATH_VARIABLE = 'PSModulePath'
 /**
@@ -806,12 +705,8 @@ export const WINDOWS_PSMODULEPATH_VARIABLE = 'PSModulePath'
  * that app.
  */
 export const DICTATION_DARWIN_APP_NAME_FLAG = '--app-name'
-/** Appended when the macOS helper ends before it said "ready" (not a requested quit). */
-export const DICTATION_DARWIN_EARLY_EXIT_HINT =
-  'macOS ended the dictation helper before it was ready. After a permission step, macOS refused that permission (to muse-dictate, or to the app that started it where the helper could not ask under its own name); with no step at all, macOS refused to run the helper itself, which is not notarised. The README’s Voice dictation section explains both.'
 export const MUSE_LOGIN_ARGS = ['login'] as const
 export const MUSE_LOGOUT_ARGS = ['logout'] as const
-export const MUSE_LOGIN_TERMINAL_NAME = 'Muse Code sign-in'
 // `Muse Spark: Open in Terminal` runs the CLI with no arguments (its TUI).
 export const MUSE_TERMINAL_NAME = 'Muse Code'
 // `Muse Spark: Create AGENTS.md` runs the CLI's own scaffold (no model call).
@@ -920,332 +815,38 @@ export const IME_PROCESS_KEY = 'Process'
 // The status a tool row takes when its turn ended without finishing it.
 export const TOOL_STATUS_INTERRUPTED = 'interrupted'
 
-// User-visible copy. Mirrors the Claude Code panel wording where the parity
-// checklist calls for it.
-export const UI_TEXT = {
-  untitledConversation: 'Untitled',
-  crashTitle: 'The panel hit an error',
-  crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
-  crashReload: 'Reload',
-  // M25 (PLAN.md D28): webview and UI state.
-  toolInterrupted: 'Interrupted',
-  thoughtDone: 'Thought',
-  quoteCopy: 'Copy',
-  snapshotTooLong:
-    'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
-  linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
-  emptyStateHint: 'Type /model to pick the right tool for the job.',
-  // Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start there; M26, D29).
-  composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
-  // Shown while a turn runs: Enter then steers the running turn.
-  composerQueuePlaceholder: 'Queue another message…',
-  composerLabel: 'Message Muse',
-  connecting: 'Connecting to the extension host…',
-  notSignedIn: 'Not signed in',
-  sendDisabledReason: 'Sign in to send messages',
-  stopTitle: 'Stop',
-  signInTitle: 'Sign in to Muse Spark',
-  signInBrowser: 'Sign in with your Meta account',
-  signInBrowserDetail: 'Opens a terminal running `muse login`; approve the code in your browser.',
-  signInApiKey: 'Use a Model API key',
-  signInApiKeyDetail: 'Paste a key from dev.meta.ai; it is stored in VS Code secret storage.',
-  signOutTitle: 'Sign out',
-  installTitle: 'Muse Code is not installed',
-  installDetail:
-    'The Muse Code CLI hosts conversations for this extension. Install it, then reload.',
-  installAction: 'Open install instructions',
-  retryAction: 'Check again',
-  apiKeyPrompt: 'Meta Model API key',
-  apiKeyPlaceholder: 'LLM|1234567890|…',
-  apiKeyInvalid: 'A Model API key looks like LLM|<numeric id>|<secret>.',
-  signInWaiting: 'Waiting for the browser sign-in to finish…',
-  signInTimedOut: 'The sign-in did not complete in time. Try again.',
-  hostExited: 'Muse Code stopped unexpectedly',
-  hostStarting: 'Starting Muse Code…',
-  // PLAN.md D25: restarts, crashes and closed sessions continue the conversation.
-  hostRestartsOnSend: 'The next message restarts it and continues this conversation.',
-  turnStoppedByRestart: 'Stopped: the backend restarted',
-  sessionClosedByHost: 'Muse Code closed this session',
-  sessionResumesOnSend: 'The next message resumes it.',
-  sessionContinued: 'Conversation continued after the restart.',
-  sessionNotContinued:
-    'The conversation could not be continued after the restart, so this message starts a new one',
-  surfaceClosed: 'The panel was closed',
-  hostStartFailed: 'The backend could not start',
-  decisionErrorNotice:
-    'Muse Code reported an error for the decision (the tool may have run anyway)',
-  jumpToLatest: 'New messages',
-  jumpToLatestTitle: 'Jump to the newest message',
-  copyResponse: 'Copy response',
-  openOutputTitle: 'Click to open the output in an editor',
-  toolOutputTitle: 'tool output',
-  clickToExpand: 'Click to expand',
-  openOutputFailed: 'Could not open the output',
-  working: 'Working…',
-  attachTitle: 'Attach',
-  attachMenuLabel: 'Attach',
-  uploadFromComputer: 'Upload from computer',
-  addContext: 'Add context',
-  commandsTitle: 'Commands',
-  modelPillTitle: 'Model and effort',
-  permissionModeTitle: 'Permission mode',
-  modesTitle: 'Modes',
-  modesHintKeys: '⇧ + tab',
-  modesHint: 'to switch',
-  modesLabel: 'Permission modes',
-  bypassNotAllowed:
-    'Turn on the "Allow dangerously skip permissions" setting to use Bypass permissions.',
-  // PLAN.md D24: the setting turned off while a conversation is in Bypass.
-  bypassRevoked:
-    'The "Allow dangerously skip permissions" setting was turned off; this conversation is back in Manual.',
-  // D24: in a remote window a dev container's settings can switch Bypass on.
-  bypassRemoteTitle: 'Run without approvals on a remote machine?',
-  bypassRemoteDetail:
-    'This window runs on a remote machine or in a container, where a dev container definition can set museSpark.allowDangerouslySkipPermissions without you. Bypass permissions lets Muse edit files and run commands without asking.',
-  bypassRemoteConfirm: 'Use Bypass permissions',
-  bypassRemoteStartedManual:
-    'museSpark.initialPermissionMode asks for Bypass permissions, but this is a remote window; the conversation starts in Manual. Choose Bypass from the Modes menu to confirm it.',
-  // D24: an edit the "Edit automatically" mode approved on the user's behalf.
-  editAutomaticallyResolver: 'Edit automatically',
-  contributorResumeFallback:
-    'The resumed conversation was on a contributor-tier model; it now uses',
-  focusViewBadge: 'Focus view',
-  historyTitle: 'Session history',
-  newConversationTitle: 'New conversation',
-  sendTitle: 'Send',
-  // Command palette ("/" menu).
-  paletteLabel: 'Actions',
-  paletteFilterPlaceholder: 'Filter actions…',
-  paletteNoMatches: 'No matching actions',
-  paletteBack: 'Back',
-  groupContext: 'Context',
-  groupModel: 'Model',
-  groupCustomize: 'Customize',
-  groupAccount: 'Account & usage',
-  groupSkills: 'Skills',
-  groupSlashCommands: 'Slash commands',
-  groupSupport: 'Support',
-  attachFile: 'Attach file…',
-  mentionFile: 'Mention file from this project…',
-  clearConversation: 'Clear conversation',
-  switchModel: 'Switch model…',
-  effortItem: 'Effort',
-  thinkingItem: 'Thinking',
-  permissionModeItem: 'Permission mode',
-  focusViewItem: 'Focus view',
-  ctrlEnterItem: 'Send with Ctrl+Enter',
-  openSettings: 'Open settings…',
-  openKeybindings: 'Keyboard shortcuts…',
-  sessionUsage: 'Session usage',
-  signOutItem: 'Sign out',
-  skillsLoading: 'Start a conversation to load skills',
-  skillsEmpty: 'No skills available in this workspace',
-  // Skills, imports and export (M30, D30).
-  manageSkillsItem: 'Manage skills…',
-  manageSkillsDetail: 'Turn Muse Code’s skills on or off',
-  importSkillsItem: 'Import skills…',
-  importSkillsDetail: 'Copy your Claude Code or Codex skills into Muse Code',
-  continueClaudeItem: 'Continue a Claude Code session',
-  continueCodexItem: 'Continue a Codex session',
-  continueDetail: 'Pick up unfinished work in this conversation',
-  exportItem: '/export',
-  exportDetail: 'Save this conversation as a Markdown file',
-  exportLogItem: 'Export session log…',
-  exportLogDetail: 'Muse Code’s full JSON record of this conversation',
-  skillsCliMissing: 'Managing skills needs the Muse Code CLI, which is not installed.',
-  skillsListFailed: 'Muse Code could not list its skills',
-  skillsPickTitle: 'Muse Code skills',
-  skillsPickPlaceholder: 'Checked skills are on; uncheck one to turn it off',
-  skillsUnchanged: 'No skills changed.',
-  skillsChanged: 'Skills updated',
-  skillsChangeFailed: 'Muse Code could not change',
-  skillsRestartPrompt:
-    'Muse Code loads skill changes when it starts. Restart it now? A reply that is running stops.',
-  restartNow: 'Restart now',
-  restartLater: 'Later',
-  restartedNotice:
-    'Muse Code restarted with the new skills; your next message continues the conversation.',
-  importSourceTitle: 'Import skills from',
-  importSourceClaude: 'Claude Code',
-  importSourceCodex: 'Codex',
-  importNothing: 'No skills to import from',
-  importConfirm: 'Import these skills into your Muse Code skills?',
-  importConfirmAction: 'Import',
-  importInvalid: 'not valid, will be skipped',
-  importFailed: 'Muse Code could not import skills',
-  importDone: 'Imported',
-  importSkipped: 'skipped',
-  importQuarantined: 'quarantined',
-  importFailedCount: 'failed',
-  exportNothing: 'There is no conversation to export yet.',
-  exportFailed: 'The conversation could not be exported',
-  exportSaved: 'Conversation exported to',
-  exportLogUnavailable:
-    'The session log comes from the Muse Code CLI, which this conversation does not use.',
-  exportLogLocalOnly: 'Muse Code writes the session log itself, so pick a folder on this machine.',
-  exportWaitForTurn: 'Export once the reply has finished, so the file holds all of it.',
-  exportHistoryUnavailable:
-    'Muse Code did not return this conversation’s history (it is too long to replay), so there is nothing to write as Markdown. Export session log… saves the whole record.',
-  exportCliMissing: 'Exporting the session log needs the Muse Code CLI, which is not installed.',
-  exportOpen: 'Open',
-  exportDefaultTitle: 'Muse conversation',
-  // MCP servers and hooks, read-only (M31, D30).
-  mcpItem: 'MCP servers…',
-  mcpItemDetail: 'What Muse Code connects to; sign in to a server',
-  hooksItem: 'Hooks…',
-  hooksItemDetail: 'Where Muse Code’s hooks come from',
-  mcpTitle: 'Muse Code MCP servers',
-  mcpNoSettings: 'Muse Code has no settings file yet, so no MCP servers. It would be at',
-  mcpUnreadable: 'Muse Code’s settings file could not be read:',
-  mcpNone: 'No MCP servers are configured in',
-  mcpCount: 'MCP servers in',
-  mcpOptional: 'optional',
-  mcpRequired: 'required (Muse Code stops if it fails)',
-  mcpDisabled: 'turned off',
-  mcpEnv: 'environment:',
-  mcpHeaders: 'headers:',
-  mcpModeConflict: '“required” and “mode” are both set',
-  mcpKeyConflict:
-    'Muse Code’s settings hold both “mcpServers” and “mcp_servers”, so it loads no MCP server from either. Keep one key.',
-  mcpModeConflictWarning:
-    'Muse Code loads no MCP server while a server sets both “required” and “mode”. Keep only “mode” on:',
-  mcpOpenSettings: 'Open the settings file',
-  mcpRestart: 'Restart Muse Code to load changes',
-  mcpRestartDetail:
-    'A reply that is running stops; the conversation continues on your next message',
-  mcpInvalidUrl: 'an invalid URL',
-  mcpNoCommand: 'no command',
-  mcpRestarted: 'Muse Code restarted; your next message loads the settings as they are now.',
-  mcpDocs: 'MCP servers in Muse Code (documentation)',
-  mcpSignIn: 'Sign in',
-  mcpSignInDetail: 'Runs muse mcp login in a terminal (OAuth in the browser)',
-  mcpSignOut: 'Sign out',
-  mcpRemotePlaceholder: 'A remote server: sign in or out, or edit its entry',
-  mcpStdioPlaceholder: 'A local server needs no sign-in; edit its entry in the settings file',
-  mcpCliMissing: 'Signing in to an MCP server needs the Muse Code CLI, which is not installed.',
-  mcpTerminalName: 'Muse Code MCP sign-in',
-  hooksTitle: 'Muse Code hooks',
-  hooksWarning: 'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
-  hooksProject: 'Project hooks',
-  hooksProjectFile: '.muse/hooks.json',
-  hooksProjectNone: 'This workspace has no .muse/hooks.json.',
-  hooksProjectTrusted: 'Runs in this workspace',
-  hooksProjectUntrusted: 'Runs only once you trust this workspace',
-  hooksUser: 'Your hooks',
-  hooksUserBlock: 'settings.json › hooks',
-  hooksUserNone: 'None in your settings',
-  hooksUserCount: 'in your settings',
-  hooksManaged: 'Managed hooks',
-  hooksManagedKey: 'managed_hooks_path',
-  hooksManagedNotSet: 'Not set: no administrator hooks',
-  hooksManagedSet: 'Set by your settings; whoever controls this file controls what runs',
-  hooksManagedMissing: 'Your settings name this file, but it does not exist.',
-  hooksDocs: 'Hooks in Muse Code (documentation)',
-  // Worktrees (M32, D30).
-  newWorktreeItem: 'New worktree…',
-  newWorktreeDetail: 'A new branch in its own folder and window; this checkout is untouched',
-  removeWorktreeItem: 'Remove a worktree…',
-  removeWorktreeDetail: 'Delete a worktree folder; its branch stays',
-  worktreeNoWorkspace: 'Open a folder in a git repository first.',
-  worktreeUntrusted:
-    'Worktrees need git, which does not run in Restricted Mode (a repository’s config can name programs for git to run). Trust this workspace first.',
-  worktreeNotRepository: 'This workspace is not in a git repository',
-  worktreeBranchPrompt: 'Name the new branch',
-  worktreeBranchPlaceholder: 'feature/login-form',
-  worktreeBranchEmpty: 'Type a branch name.',
-  worktreeBranchInvalid: 'git does not accept that as a branch name.',
-  worktreeBranchExists: 'A branch with that name already exists.',
-  worktreeBaseTitle: 'Start the branch from',
-  worktreeBasePlaceholder: 'The commit the new branch starts at',
-  worktreeCurrent: 'current branch:',
-  worktreeDetachedHead: 'the commit checked out now',
-  worktreeFolderExists: 'That folder already exists:',
-  worktreeAddFailed: 'git could not create the worktree',
-  worktreeCreated: 'Worktree ready at',
-  worktreeOpen: 'Open in New Window',
-  worktreeListFailed: 'git could not list the worktrees',
-  worktreeNoneToRemove:
-    'There is no other worktree to remove (the main checkout and this window’s own are kept).',
-  worktreeRemoveTitle: 'Remove a worktree',
-  worktreeRemovePlaceholder: 'The folder is deleted; its branch stays',
-  worktreeDetached: '(detached HEAD)',
-  worktreeLocked: 'locked',
-  worktreePrunable: 'its folder is gone',
-  worktreeRemoveConfirm: 'Remove this worktree? Its folder is deleted.',
-  worktreeBranchKept: 'The branch stays:',
-  worktreeRemoveAction: 'Remove',
-  worktreeDirtyConfirm:
-    'This worktree has uncommitted changes. Removing it discards them for good. Remove it anyway?',
-  worktreeDiscardAction: 'Remove and discard changes',
-  worktreeRemoveFailed: 'git could not remove the worktree',
-  worktreeRemoved: 'Removed the worktree at',
-  compactItem: '/compact',
-  compactDetail: 'Summarise older context to free the window',
-  clearItem: '/clear',
-  logoutItem: '/logout',
-  openLog: 'Open output log',
-  reportIssue: 'Report an issue…',
-  openDocs: 'Muse Code documentation',
-  modelListLabel: 'Models',
-  thinkingOff: 'No thinking',
-  modelContextSuffix: 'context',
-  // @-mention menu and attachments.
-  mentionMenuLabel: 'Files',
-  mentionNoMatches: 'No matching files',
-  actionFailed: 'That did not work (the Muse Spark log has the details)',
-  slashNoMatches: 'No matching commands; Enter sends the text as it is',
-  attachmentsLabel: 'Attachments',
-  removeAttachment: 'Remove',
-  attachmentTooLarge: 'Images must be 10 MB or smaller.',
-  attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
-  attachmentLimit: 'At most 20 images per message.',
-  attachmentUnreadable: 'The image could not be read.',
-  // Transcript rows.
-  thoughtFor: 'Thought for',
-  thinkingNow: 'Thinking',
-  addedLines: 'Added',
-  removedLines: 'Removed',
-  linesUnit: 'lines',
-  lineUnit: 'line',
-  modified: 'Modified',
-  inLabel: 'IN',
-  outLabel: 'OUT',
-  showMore: 'Show more',
-  showLess: 'Show less',
-  loadingOutput: 'Loading…',
-  toolFailed: 'Failed',
-  toolRejected: 'Rejected',
-  copyCode: 'Copy',
-  copiedCode: 'Copied',
-  insertCode: 'Insert at cursor',
-  approvalTitle: 'Muse wants to',
-  /** Before a bare tool name (subject kind "tool", e.g. subagent_spawn), M18. */
-  approvalUseTool: 'use',
-  approvalProtectedWrite: 'Protected write',
-  approvalJudgeEscalated: 'Escalated by the safety check',
-  approvalFeedbackPlaceholder: 'Tell Muse what to do instead (optional)',
-  approvalDecided: 'Decided',
-  approvalStep: 'step',
-  approvalOf: 'of',
-  questionSubmit: 'Submit',
-  questionCancel: 'Cancel',
-  questionFreeTextPlaceholder: 'Type your answer',
-  questionOther: 'Other',
-  questionOtherPlaceholder: 'Type your own answer…',
-  questionAnswered: 'Answered',
-  questionCancelled: 'Cancelled',
-  questionCancelFailed: 'The question could not be cancelled',
-  /** Replying to an output and quoting a highlighted passage (M17). */
-  messageActions: 'Message actions',
-  replyToOutput: 'Reply to this output',
-  quoteMenuLabel: 'Highlighted text',
-  askAboutThis: 'Ask about this',
-  commentOnThis: 'Comment on this',
-  referenceReply: 'Replying to',
-  referenceQuestion: 'Asking about',
-  referenceComment: 'Commenting on',
-  referenceRemove: 'Remove',
-  referenceTitle: 'Goes to the agent with your message as context',
+// What the model or Meta reads (PLAN.md D33): the context leads, the
+// compaction prompt, the steering and answer prefixes, the skill invocation
+// and the tool failures returned to the model. English whatever the display
+// language, so the model's behaviour does not change with the user's locale;
+// what the user reads is `UI_TEXT` (src/shared/l10n/).
+export const MODEL_TEXT = {
+  skillNotFound: 'unknown skill',
+  skillInvoked: 'The user invoked the skill',
+  skillArguments: 'Arguments:',
+  skillNoArguments: '(none)',
+  toolRefusedByMode: 'refused by the permission mode',
+  shellRestrictedMode:
+    'shell commands are disabled while the workspace is in Restricted Mode; trust the workspace to enable them',
+  toolRejectedByUser: 'rejected by the user',
+  // PLAN.md D26: what the model is told when Stop cuts a tool short.
+  toolCancelledByStop: 'cancelled: the user stopped the turn',
+  toolFileTooLarge: 'The file tools read and edit files up to',
+  toolFileTooLargeHint:
+    'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
+  // PLAN.md D27: what the Model API's file tools say when they will not write.
+  fileHasUnsavedChanges:
+    'has unsaved changes in an editor; ask the user to save or revert them, then try again',
+  fileChangedSinceRead:
+    'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',
+  fileNotText:
+    'is not UTF-8 text (binary, or another encoding such as UTF-16 or Latin-1), so it cannot be read or edited as text',
+  compactionPrompt:
+    'Summarise this conversation so far for your own future reference: the goal, the decisions, the files touched with what changed, open questions, and what to do next. Be complete but concise; use plain Markdown.',
+  compactionPrefix: 'Summary of the conversation so far (the earlier messages were compacted):',
+  steeredPrefix: '[The user added while you were working]',
+  answersPrefix: 'The user answered:',
+  questionCancelledOutput: 'The user declined to answer. Proceed with your best judgement.',
   replyContextLead:
     'The user is replying to this earlier output in the chat; treat their message as a direct response to it. It was written by',
   questionContextLead:
@@ -1254,308 +855,16 @@ export const UI_TEXT = {
     'The user highlighted this passage of the conversation and is commenting on it. It was written by',
   referenceTruncated: '[… truncated to',
   referenceCharacters: 'characters]',
-  todoTitle: 'Tasks',
-  focusHiddenOne: 'step hidden by Focus view',
-  focusHiddenMany: 'steps hidden by Focus view',
-  showSteps: 'Show',
-  hideSteps: 'Hide',
-  retryNotice: 'Model call failed; retrying',
-  contextLabel: 'context',
-  noEditorForInsert: 'Open a text editor to insert code into it.',
-  linkSchemeRefused: 'Only http, https and mailto links can be opened from the transcript.',
-  sandboxNotice:
-    'Muse Code cannot run shell commands until its Windows sandbox is set up. Run "Muse Spark: Set Up Shell Sandbox" (one administrator approval), then start a new conversation.',
-  // Windows sandbox setup prompt and its outcomes (OS notifications).
-  sandboxOffer:
-    'Muse Code needs a one-time administrator setup before it can run shell commands on Windows (it creates the sandbox users and network filter it runs commands under). Set it up now?',
-  sandboxSetUpNow: 'Set up now',
-  sandboxNotNow: 'Not now',
-  sandboxDontAskAgain: "Don't ask again",
-  sandboxReady: 'Muse Code sandbox is ready. Start a new conversation to run shell commands in it.',
-  sandboxAlreadyReady: 'Muse Code sandbox is already set up.',
-  sandboxStillRequired: 'Muse Code sandbox is still not ready',
-  sandboxCancelled: 'Muse Code sandbox setup did not complete',
-  sandboxNotNeeded: 'Muse Code needs no sandbox setup on this platform.',
-  sandboxCliMissing: 'Muse Code is not installed, so its sandbox cannot be checked.',
-  sandboxCheckFailed: 'Muse Code sandbox check could not run',
-  // Editor integration (M5).
-  editorContextTitle: 'Shared with Muse as context; × leaves it out',
-  editorContextRemove: 'Leave the open file out',
-  editorContextLabel: 'Open file',
-  linePrefix: 'L',
-  openFileTitle: 'Open the file at this change',
-  openFileFailed: 'Could not open the file',
-  toggleDetails: 'Show or hide the details',
-  applyCode: 'Apply',
-  noEditorForApply: 'Open a text editor to apply code into it.',
-  diffTitleSuffix: 'Muse edit',
-  editReverted: 'Reverted',
-  editCreatedRemoved: 'Moved to the trash (Muse created it)',
-  editNotRebuildable: 'cannot be rebuilt: the file changed since this edit',
-  editPathRefused: 'refused: the edited path is outside the workspace',
-  editNoPatch: 'This edit left no patch document.',
   selectionClipped: '[selection clipped]',
   selectionNotShared:
     'Its content is not shared because the file is excluded from the workspace index.',
-  // Session history (M6).
-  historyLabel: 'History',
-  historySearchPlaceholder: 'Search sessions',
-  historyEmpty: 'No sessions in this workspace yet.',
-  historyNoMatches: 'No sessions match.',
-  historyToday: 'Today',
-  historyYesterday: 'Yesterday',
-  historyWeek: 'Previous 7 days',
-  historyOlder: 'Older',
-  historyShowArchived: 'Show archived',
-  historyArchive: 'Archive',
-  historyUnarchive: 'Unarchive',
-  historyCurrent: 'current',
-  historyForkMark: 'fork',
-  historyTurns: 'turns',
-  historyTurn: 'turn',
-  justNow: 'just now',
-  minutesAgo: 'min ago',
-  hoursAgo: 'h ago',
-  daysAgo: 'd ago',
-  resumeItem: 'Resume',
-  resumeDetail: 'Pick a previous conversation in this workspace',
-  renameTitle: 'Rename this conversation',
-  renamePlaceholder: 'Conversation name',
-  // The user card's menu (Claude Code's rewind button): fork, rewind, both.
-  rewindMenuLabel: 'Fork or rewind',
-  forkFromHere: 'Fork conversation from here',
-  rewindCodeToHere: 'Rewind code to here',
-  forkAndRewind: 'Fork conversation and rewind code',
-  rewindNothing: 'No edits after this message to rewind.',
-  rewindDone: 'Code rewound to this message',
-  forkedNotice: 'Forked into a new conversation.',
-  resumedNotice: 'Resumed',
-  historyUnavailable: 'The conversation history could not be loaded',
-  historyNotServed: 'The earlier messages of this conversation could not be shown',
-  unreadTooltip: 'Muse needs your attention',
-  unreadMark: '● ',
-  sessionRequired: 'Start a conversation first.',
-  // Account & usage dialog (M8).
-  usageItem: 'Account & usage…',
-  usageItemDetail: 'Subscription usage, this conversation’s tokens, the backend',
-  agentsCommand: '/agents',
-  agentsCommandDetail: 'Show the agent map',
-  usageCommand: '/usage',
-  usageCommandDetail: 'Show account usage',
-  costCommand: '/cost',
-  costCommandDetail: 'Show this conversation’s token totals',
-  usageLabel: 'Account & usage',
-  usagePlan: 'Plan',
-  usageBackend: 'Backend',
-  usageWindow: 'Current window',
-  usageWeekly: 'This week',
-  usageUsed: 'used',
-  usageResets: 'resets in',
-  usageAsOf: 'as of',
-  usageNoSubscription:
-    'No subscription usage reported yet. Muse Code reports it after the first turn of a conversation.',
-  usageModelApiNote:
-    'This window runs on your Model API key: requests are billed to the key at pay-as-you-go rates and counted on the dev.meta.ai dashboard.',
-  usageOpenDashboard: 'Open dev.meta.ai',
-  usageSessionTokens: 'This conversation',
-  usageInput: 'Input',
-  usageOutput: 'Output',
-  usageCached: 'Cached',
-  usageContext: 'Context',
-  usageNoSession: 'No tokens counted yet in this conversation.',
-  usageLoading: 'Reading usage…',
-  usageUnavailable: 'Usage could not be read',
-  usageClose: 'Close',
-  // Onboarding tips on the empty state (M8), hidden by museSpark.hideOnboarding.
-  onboardingTitle: 'Getting started',
-  onboardingHide: 'Hide these tips',
-  // Screen-reader announcements (M8): a polite live region reads these.
-  announceTurnCompleted: 'Muse finished responding',
-  announceTurnFailed: 'The turn failed',
-  announceTurnCancelled: 'The turn was stopped',
-  announceApproval: 'Approval needed for',
-  announceQuestion: 'Muse asked a question',
-  announceResumed: 'Conversation resumed',
-  // Voice dictation (M9).
-  dictationTitle: 'Tap or hold to record (Ctrl+D)',
-  dictationStopTitle: 'Stop recording (Ctrl+D)',
-  dictationLabel: 'Record voice',
-  dictationStarting: 'Starting the microphone…',
-  dictationListening: 'Listening…',
-  dictationFailed: 'Voice dictation failed',
-  dictationHelperExited: 'The dictation helper exited',
-  dictationUnavailable: 'Voice dictation is not available on this platform.',
-  dictationUnavailableLinux:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine.',
-  dictationUnavailableWindows:
-    'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
-  dictationUnavailableDarwin:
-    'Voice dictation needs the macOS helper (native/darwin/muse-dictate), which this build does not include.',
-  announceListening: 'Listening',
-  announceStoppedListening: 'Stopped listening',
-  // Model API backend (M7).
-  allowOnce: 'Allow once',
-  allowSessionPrefix: 'Always allow in this session:',
-  reject: 'Reject',
-  toolRefusedByMode: 'refused by the permission mode',
-  shellRestrictedMode:
-    'shell commands are disabled while the workspace is in Restricted Mode; trust the workspace to enable them',
-  skillNotFound: 'unknown skill',
-  skillInvoked: 'The user invoked the skill',
-  skillArguments: 'Arguments:',
-  skillNoArguments: '(none)',
-  toolRejectedByUser: 'rejected by the user',
-  toolCancelled: 'cancelled',
-  // PLAN.md D26: what the model and the transcript are told when Stop cuts things short.
-  toolCancelledByStop: 'cancelled: the user stopped the turn',
-  toolFileTooLarge: 'The file tools read and edit files up to',
-  toolFileTooLargeHint:
-    'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
-  modelApiStalled: 'The Model API sent nothing for',
-  modelApiStalledDetail: 'so the reply was ended; send the message again to retry',
-  queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
-  compactionStopped: 'the compaction was stopped',
-  compactionStoppedNotice: 'Compaction stopped; the conversation is as it was.',
-  // PLAN.md D26: a decision or answer that arrived after the prompt had moved.
-  promptAlreadySettled: 'That request was already answered, so this choice was not needed.',
-  promptMovedOn:
-    'That request moved on to its next step before this choice arrived; choose again on the updated card.',
-  promptGone: 'That request is no longer waiting for an answer.',
-  turnUnqueued: 'Not sent: the queued message was withdrawn',
-  turnRetracted:
-    'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
-  modelRouteUnserved:
-    'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
-  viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',
-  viewGapReloadFailed:
-    'Some updates from Muse Code were missed and the conversation could not be reloaded',
-  commandTooLarge:
-    'This message is too large for Muse Code, which accepts up to 10 MiB per message (images count at a third more than their file size). Remove an image or shorten the selection and send again.',
-  outputIsBinary: 'The stored output is binary and cannot be shown as text',
-  // PLAN.md D27: what the Model API's file tools say when they will not write.
-  fileHasUnsavedChanges:
-    'has unsaved changes in an editor; ask the user to save or revert them, then try again',
-  fileChangedSinceRead:
-    'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',
-  editReviewNeedsFolder: 'Open the folder the edit was made in to review or revert it.',
-  unsavedFilesNotice:
-    'Muse reads and edits the saved files, not unsaved editor changes (turn on museSpark.autosave to save before each message). Unsaved:',
-  fileNotText:
-    'is not UTF-8 text (binary, or another encoding such as UTF-16 or Latin-1), so it cannot be read or edited as text',
-  sessionEditsUnsupported:
-    'Muse Code 1.3.0 cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).',
-  contributorTitle: 'Contributor-tier model',
-  contributorDetail:
-    'Meta may use prompts and completions sent to a contributor-tier model to train its models, in exchange for the lower price. Use it for this conversation?',
-  contributorConfirm: 'Use contributor model',
-  contributorBlocked:
-    'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
-  modelApiKeyMissing: 'Paste a Model API key to use the Meta Model API.',
-  backendItem: 'Backend',
-  backendDetail: 'museSpark.backend: auto / museCode / modelApi',
-  backendMuseCode: 'Muse Code (your Muse subscription)',
-  backendModelApi: 'Meta Model API (your key, pay as you go)',
-  modelApiUnauthorized: 'The Model API rejected the key. Sign in again with a valid key.',
-  modelApiBackendNotice:
-    'This conversation runs on the Meta Model API with the extension’s own tools (read, edit, write, search, list, shell). Its sessions are kept in this workspace’s extension storage.',
-  installOrKeyDetail:
-    'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
-  compactionDone: 'Context compacted',
-  compactionPrompt:
-    'Summarise this conversation so far for your own future reference: the goal, the decisions, the files touched with what changed, open questions, and what to do next. Be complete but concise; use plain Markdown.',
-  compactionPrefix: 'Summary of the conversation so far (the earlier messages were compacted):',
-  steeredPrefix: '[The user added while you were working]',
-  answersPrefix: 'The user answered:',
-  questionCancelledOutput: 'The user declined to answer. Proceed with your best judgement.',
-  resumeFailed: 'Could not resume the conversation',
-  forkFailed: 'Could not fork the conversation',
-  renameFailed: 'Could not rename the conversation',
-  sandboxOffProfileNotice:
-    "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
-  rulesFileNoWorkspace: 'Open a folder first; AGENTS.md lives in the workspace root.',
-  rulesFileExists: 'AGENTS.md already exists in this workspace; opening it.',
-  rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',
-  terminalCliMissing: 'The Muse Code CLI is not installed, so there is no terminal to open.',
-  signedOutNotice: 'Signed out of Muse Spark.',
-  // The Agent map, the usage modal, the banner and the compact button (M14).
-  agentsPillTitle: 'Show the agent map',
-  agentSingular: 'agent',
-  agentPlural: 'agents',
-  agentMapTitle: 'Agent map',
-  agentMapHint: 'click an agent for details',
-  agentMapEmpty: 'No subagents in this conversation.',
-  agentRunning: 'running',
-  agentTokens: 'tokens',
-  agentContextTokens: 'tokens in context',
-  agentUntitled: 'Agent',
-  agentRole: 'Role:',
-  agentBack: 'Back to the map',
-  agentTranscriptLoading: 'Reading the agent’s transcript…',
-  agentTranscriptFailed: 'Could not read the agent’s transcript',
-  /** The Agent map's owner controls (M18). */
-  agentInterrupt: 'Interrupt',
-  agentStop: 'Stop',
-  agentResume: 'Resume',
-  agentClose: 'Close agent',
-  agentSendMessage: 'Send message',
-  agentFollowup: 'Follow-up task',
-  agentMessagePlaceholder: 'A note for this agent, or its next task…',
-  agentControlsLabel: 'Agent controls',
-  agentControlFailed: 'The agent command was refused',
-  agentResultText: 'Result',
-  subagentsUnsupported: 'The Model API backend runs no subagents',
-  agentNoTranscript: 'No transcript for this agent.',
-  agentTranscriptLabel: 'Agent transcript',
-  agentDelegationOff:
-    'Muse Code’s subagent delegation is off (its default), so the model has no agent tools in this conversation. Set run.subagent_delegation_mode to "auto" in the Muse Code settings file to enable it; the extension never edits that file.',
-  agentOpenMuseSettings: 'Open the Muse Code settings file',
-  museSettingsMissing: 'Muse Code has not written a settings file yet. It would be at',
-  backgroundTaskSingular: 'background task',
-  backgroundTaskPlural: 'background tasks',
-  backgroundTasksLabel: 'Background tasks',
-  backgroundBadge: 'background',
-  subagentRowLabel: 'Agent',
-  usageAccount: 'Account',
-  usageAuthMethod: 'Auth method',
-  usageAuthCli: 'Meta account (Muse Code CLI)',
-  usageAuthKey: 'Model API key',
-  usageAuthNone: 'Not signed in',
-  usagePlanPayAsYouGo: 'Pay as you go',
-  usagePlanUnknown: 'Not reported yet',
-  usageCliVersion: 'Muse Code',
-  usageModel: 'Model',
-  usageHeading: 'Usage',
-  usageCost: 'Estimated cost',
-  usageCacheHits: 'Cache hits',
-  usageCostNote:
-    'Estimate from Meta’s published per-token prices for this model’s tier; the dev.meta.ai dashboard is the bill. Prices read on',
-  usageContributing: 'What’s contributing to your usage?',
-  usageDay: 'Day',
-  usageWeek: 'Week',
-  usageContributingNote:
-    'Approximate, from the Muse Code CLI’s trace logs on this machine; other devices are not included.',
-  usageInsightReminders:
-    'of model attempts came from Muse Code’s reminder agents, which run after every reply',
-  usageInsightSubagents: 'of model attempts came from subagents',
-  usageInsightLong: 'of model attempts came from sessions active for 8+ hours',
-  usageInsightNone: 'No CLI activity recorded in this window.',
-  usageInsightUnavailable: 'Not available on this backend: the Model API has no local trace logs.',
-  usageInsightNoLogs: 'No Muse Code trace logs were found on this machine yet.',
-  usageInsightAttempts: 'model attempts across',
-  usageInsightSession: 'session',
-  usageInsightSessions: 'sessions',
-  contextCompactTitle: 'Click to compact now',
-  contextPressure: 'pressure',
-  unsupportedFileTitle: 'Unsupported file type:',
-  unsupportedFileDetail:
-    'Supported as uploads: images (PNG, JPEG, GIF, WebP). Other files go in as @ mentions inside the workspace, or by absolute path in the prompt for files outside it.',
-  bannerDismiss: 'Dismiss',
-  trustGrantedNotice:
-    'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
-  sandboxRestartNotice:
-    'A Muse Code setting changed; Muse Code restarts with it on the next message and continues this conversation.',
-  sandboxProfileNotice: String.raw`This workspace is under your user profile, which the Windows sandbox of this Muse Code version cannot enter: shell commands will start in the PowerShell folder instead of the project and take about half a minute each. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
 } as const
+
+// What the user reads, in the display language (PLAN.md D33).
+export { UI_TEXT } from './l10n/text'
+// The JSON script element the host writes into each webview's HTML with
+// `{ locale, table }`, read before the first render (D33).
+export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for
 // `createTerminal({ shellPath })` when running `muse login` / `muse logout`.

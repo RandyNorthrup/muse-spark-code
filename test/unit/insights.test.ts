@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   classifyRun,
   estimateCostUsd,
@@ -135,6 +137,18 @@ describe('cost estimate', () => {
     expect(formatUsd(1.456)).toBe('$1.46')
     expect(percentOf(30, 31)).toBe(97)
     expect(percentOf(0, 0)).toBe(0)
+  })
+
+  it('writes dollars as the display language writes money (M40)', () => {
+    setUiText(EN, 'de')
+    try {
+      expect(formatUsd(1.456)).toBe(
+        new Intl.NumberFormat('de', { style: 'currency', currency: 'USD' }).format(1.46),
+      )
+      expect(formatUsd(1.456)).not.toBe('$1.46')
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 })
 

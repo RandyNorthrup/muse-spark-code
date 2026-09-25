@@ -12,10 +12,10 @@ import {
 import { parsePatchFiles } from '../../src/shared/patchDocument'
 import { revertHunks } from '../../src/core/patchApply'
 import {
+  MODEL_TEXT,
   SEARCH_MAX_CANDIDATES,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
-  UI_TEXT,
 } from '../../src/shared/constants'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
@@ -414,12 +414,12 @@ describe('executeTool: files as they are (D27)', () => {
   it('replaces a file only as the model last saw it (Claude Code’s rule)', async () => {
     const { io, run } = context({ 'a.txt': 'original\n' })
     const unseen = await run('write_file', { path: 'a.txt', content: 'mine\n' })
-    expect(unseen.failureReason).toBe(`a.txt ${UI_TEXT.fileChangedSinceRead}`)
+    expect(unseen.failureReason).toBe(`a.txt ${MODEL_TEXT.fileChangedSinceRead}`)
     expect(io.files.get('/ws/a.txt')).toBe('original\n')
     await run('read_file', { path: 'a.txt' })
     io.files.set('/ws/a.txt', 'the user changed it\n')
     const stale = await run('write_file', { path: 'a.txt', content: 'mine\n' })
-    expect(stale.failureReason).toBe(`a.txt ${UI_TEXT.fileChangedSinceRead}`)
+    expect(stale.failureReason).toBe(`a.txt ${MODEL_TEXT.fileChangedSinceRead}`)
     await run('read_file', { path: 'a.txt' })
     const fresh = await run('write_file', { path: 'a.txt', content: 'mine\n' })
     expect(fresh.failureReason).toBeUndefined()
@@ -434,16 +434,16 @@ describe('executeTool: files as they are (D27)', () => {
       await run('edit_file', { path: 'open.ts', find: 'x', replace: 'y' }),
       await run('write_file', { path: 'open.ts', content: 'y\n' }),
     ]) {
-      expect(outcome.failureReason).toBe(`open.ts ${UI_TEXT.fileHasUnsavedChanges}`)
+      expect(outcome.failureReason).toBe(`open.ts ${MODEL_TEXT.fileHasUnsavedChanges}`)
     }
     expect(io.files.get('/ws/open.ts')).toBe('x\n')
   })
 
   it('says a file is not text instead of rewriting it', async () => {
     const { io, run } = context({})
-    io.readFile = () => Promise.reject(new Error(`/ws/a.bin ${UI_TEXT.fileNotText}`))
+    io.readFile = () => Promise.reject(new Error(`/ws/a.bin ${MODEL_TEXT.fileNotText}`))
     await expect(run('edit_file', { path: 'a.bin', find: 'x', replace: 'y' })).rejects.toThrow(
-      UI_TEXT.fileNotText,
+      MODEL_TEXT.fileNotText,
     )
   })
 })

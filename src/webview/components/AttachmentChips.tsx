@@ -1,6 +1,7 @@
 // The `name W×H` chips above the composer for images waiting to be sent.
 
 import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { AttachmentSummary } from '../../shared/protocol'
 import { CloseIcon, ImageIcon } from './icons'
 
@@ -26,7 +27,7 @@ export function AttachmentChips({ attachments, onRemove }: AttachmentChipsProps)
             type="button"
             className="chip-remove"
             title={UI_TEXT.removeAttachment}
-            aria-label={`${UI_TEXT.removeAttachment} ${attachment.name}`}
+            aria-label={fill(UI_TEXT.removeAttachmentNamed, { name: attachment.name })}
             onClick={() => {
               onRemove(attachment.id)
             }}

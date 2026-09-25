@@ -3,13 +3,15 @@
 // the conversation this panel saved in VS Code's webview state, keeps
 // reducing host messages while the crash screen shows, and is saved again
 // (throttled, and at once before a reload) so the crash screen's Reload
-// comes back with the conversation.
+// comes back with the conversation. The display language's table goes in
+// before anything reads the text (PLAN.md D33).
 
 import { createRoot } from 'react-dom/client'
 import { WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
+import { installEmbeddedTable } from './installTable'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore } from './state/store'
 import './styles.css'
@@ -33,6 +35,12 @@ window.addEventListener('unhandledrejection', (event) => {
   const reason: unknown = event.reason
   report('promise', reason)
 })
+
+// The table came from the host, so a refused one is logged as a host message's.
+const tableError = installEmbeddedTable(document)
+if (tableError !== undefined) {
+  report('hostMessage', tableError)
+}
 
 const store = createUiStore(restoredUiState(vscode.getState()))
 listenToHost(store, window, () => Date.now(), report)

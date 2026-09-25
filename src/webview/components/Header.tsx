@@ -3,6 +3,7 @@
 
 import { type KeyboardEvent, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { plural } from '../../shared/l10n/text'
 import { HistoryIcon, NewConversationIcon } from './icons'
 
 export interface HeaderProps {
@@ -110,7 +111,7 @@ export function Header({
               }
               aria-hidden="true"
             />
-            {String(agentCount)} {agentCount === 1 ? UI_TEXT.agentSingular : UI_TEXT.agentPlural}
+            {plural(UI_TEXT.agentsCount, agentCount)}
           </button>
         ) : null}
         <button

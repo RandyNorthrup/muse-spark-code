@@ -1,4 +1,5 @@
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -12,12 +13,12 @@ import {
   type DictationAction,
   type EffortLevel,
   MUSE_DELEGATION_ENABLED,
-  PERMISSION_MODE_LABELS,
   type SubagentAction,
   UI_TEXT,
 } from '../shared/constants'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
+import { fill, formatPercent, templateParts } from '../shared/l10n/text'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -115,21 +116,41 @@ export function contextLabelFor(state: UiState): string | undefined {
     return undefined
   }
   const percent = Math.round((context.usedTokens / context.windowTokens) * PERCENT)
-  return `${String(percent)}% ${UI_TEXT.contextLabel}`
+  return fill(UI_TEXT.contextPercent, { percent: formatPercent(percent) })
 }
 
 /** Tooltip detail for the context indicator, which compacts on click (M14). */
 function contextTitleFor(state: UiState): string | undefined {
   const { context } = state
-  return context?.windowTokens === undefined
-    ? undefined
-    : `${formatTokenWindow(context.usedTokens)} of ${formatTokenWindow(context.windowTokens)} tokens · ${UI_TEXT.contextPressure} ${context.pressure} · ${UI_TEXT.contextCompactTitle}`
+  if (context?.windowTokens === undefined) {
+    return undefined
+  }
+  const detail = fill(UI_TEXT.contextDetail, {
+    used: formatTokenWindow(context.usedTokens),
+    window: formatTokenWindow(context.windowTokens),
+    pressure: context.pressure,
+  })
+  return `${detail} · ${UI_TEXT.contextCompactTitle}`
 }
 
-const ATTACH_ENTRIES: readonly MenuEntry[] = [
-  { id: ATTACH_UPLOAD, label: UI_TEXT.uploadFromComputer, icon: <UploadIcon /> },
-  { id: ATTACH_CONTEXT, label: UI_TEXT.addContext, icon: <AddContextIcon /> },
-]
+/** The "+" menu's rows, built when it opens so they are in the installed table. */
+function attachEntries(): readonly MenuEntry[] {
+  return [
+    { id: ATTACH_UPLOAD, label: UI_TEXT.uploadFromComputer, icon: <UploadIcon /> },
+    { id: ATTACH_CONTEXT, label: UI_TEXT.addContext, icon: <AddContextIcon /> },
+  ]
+}
+
+/** "⇧ + tab to switch", with the keys as a key cap wherever the language puts them. */
+function modesHint(): ReactNode {
+  return (
+    <span className="popover-hint">
+      {templateParts(UI_TEXT.modesSwitchHint).map((part, index) =>
+        typeof part === 'string' ? part : <kbd key={String(index)}>{UI_TEXT.modesHintKeys}</kbd>,
+      )}
+    </span>
+  )
+}
 
 // Stable defaults: a fresh function per render would re-run the message
 // effect (and re-post `ready`) on every render.
@@ -842,7 +863,7 @@ export function App({
     (): readonly MenuEntry[] =>
       availablePermissionModes(canBypass).map((mode) => ({
         id: mode,
-        label: PERMISSION_MODE_LABELS[mode],
+        label: UI_TEXT.permissionModes[mode],
         detail: permissionModeDetail(mode, state.auth.backend),
         icon: modeIcon(mode),
         isChecked: mode === state.permissionMode,
@@ -983,11 +1004,7 @@ export function App({
         <PopoverMenu
           label={UI_TEXT.modesLabel}
           title={UI_TEXT.modesTitle}
-          hint={
-            <span className="popover-hint">
-              <kbd>{UI_TEXT.modesHintKeys}</kbd> {UI_TEXT.modesHint}
-            </span>
-          }
+          hint={modesHint()}
           entries={modeEntries}
           align="right"
           footer={
@@ -1013,7 +1030,7 @@ export function App({
       floating = (
         <PopoverMenu
           label={UI_TEXT.attachMenuLabel}
-          entries={ATTACH_ENTRIES}
+          entries={attachEntries()}
           align="left"
           onSelect={onSelectAttach}
           onClose={closeOverlay}

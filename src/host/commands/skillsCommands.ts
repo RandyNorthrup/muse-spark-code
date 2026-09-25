@@ -20,6 +20,8 @@ import {
 } from '../../core/backends/musecode/skillsCli'
 import { clipForLog } from '../../core/logging'
 import { type SkillImportSource, UI_TEXT } from '../../shared/constants'
+import type { PluralForms } from '../../shared/l10n/forms'
+import { fill, plural } from '../../shared/l10n/text'
 import type { ProcessResult } from '../backend/sandboxSetup'
 import type { Logger } from '../logger'
 
@@ -58,11 +60,13 @@ export interface ImportSkillsDeps extends SkillsCliDeps {
 }
 
 const LINE_BREAK = /\r?\n/
-const SCOPE_LABELS: Readonly<Record<string, string>> = {
-  bundled: 'built-in',
-  user: 'yours',
-  project: 'this project',
-  plugin: 'plugin',
+const LIST_SEPARATOR = ', '
+const NO_SKILLS = '—'
+
+/** Where a skill comes from, in the display language; an unknown scope shows its id. */
+function scopeLabel(scope: string): string {
+  const labels: Readonly<Record<string, string>> = UI_TEXT.skillScopes
+  return labels[scope] ?? scope
 }
 
 function firstLine(text: string): string {
@@ -76,7 +80,9 @@ function describe(error: unknown): string {
 /** Why a finished CLI run failed, in one line. */
 function failureOf(result: ProcessResult): string {
   return (
-    firstLine(result.stderr) || firstLine(result.stdout) || `exit code ${String(result.exitCode)}`
+    firstLine(result.stderr) ||
+    firstLine(result.stdout) ||
+    fill(UI_TEXT.processExitCode, { code: String(result.exitCode) })
   )
 }
 
@@ -112,7 +118,7 @@ function pickItemOf(skill: CatalogSkill): SkillPickItem {
   return {
     id: skill.id,
     label: skill.displayName,
-    description: SCOPE_LABELS[skill.scope] ?? skill.scope,
+    description: scopeLabel(skill.scope),
     detail: skill.description,
     picked: isSkillOn(skill),
   }
@@ -166,12 +172,12 @@ export async function manageSkills(deps: ManageSkillsDeps): Promise<void> {
   const changed = changes.length - failures.length
   if (failures.length > 0) {
     deps.log.warn(`Skill changes that failed: ${failures.join('; ')}`)
-    deps.showError(`${UI_TEXT.skillsChangeFailed} ${failures.join('; ')}`)
+    deps.showError(fill(UI_TEXT.skillsChangeFailed, { skills: failures.join('; ') }))
   }
   if (changed === 0) {
     return
   }
-  deps.log.info(`${UI_TEXT.skillsChanged}: ${String(changed)} of ${String(changes.length)}`)
+  deps.log.info(`Skills changed: ${String(changed)} of ${String(changes.length)}`)
   await offerRestart(deps)
 }
 
@@ -180,22 +186,25 @@ function entryLine(entry: ImportEntry): string {
 }
 
 function importSummary(report: ImportReport): string {
+  const installed = report.installed.map((entry) => entry.id).join(LIST_SEPARATOR)
   const parts = [
-    `${UI_TEXT.importDone} ${String(report.installed.length)}: ${report.installed.map((entry) => entry.id).join(', ') || '—'}`,
+    plural(UI_TEXT.importInstalledSummary, report.installed.length, {
+      skills: installed === '' ? NO_SKILLS : installed,
+    }),
   ]
-  const counts: readonly (readonly [readonly ImportEntry[], string])[] = [
-    [report.skipped, UI_TEXT.importSkipped],
-    [report.quarantined, UI_TEXT.importQuarantined],
-    [report.failed, UI_TEXT.importFailedCount],
+  const counts: readonly (readonly [readonly ImportEntry[], PluralForms])[] = [
+    [report.skipped, UI_TEXT.importSkippedSummary],
+    [report.quarantined, UI_TEXT.importQuarantinedSummary],
+    [report.failed, UI_TEXT.importFailedSummary],
   ]
-  for (const [entries, label] of counts) {
+  for (const [entries, summary] of counts) {
     if (entries.length === 0) {
       continue
     }
     const reasons = entries.map((entry) =>
       entry.reason === undefined ? entry.id : `${entry.id} (${entry.reason})`,
     )
-    parts.push(`${String(entries.length)} ${label}: ${reasons.join(', ')}`)
+    parts.push(plural(summary, entries.length, { skills: reasons.join(LIST_SEPARATOR) }))
   }
   return parts.join('. ')
 }
@@ -220,7 +229,7 @@ export async function importSkills(deps: ImportSkillsDeps): Promise<void> {
     return
   }
   if (planned.candidates.length === 0) {
-    deps.showInformation(`${UI_TEXT.importNothing} ${planned.sourcePath ?? source}.`)
+    deps.showInformation(fill(UI_TEXT.importNothingFrom, { source: planned.sourcePath ?? source }))
     return
   }
   const isConfirmed = await deps.confirmImport(

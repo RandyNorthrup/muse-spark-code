@@ -14,6 +14,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
+import { fill, formatUnit, plural } from '../../shared/l10n/text'
 import { formatTokenWindow } from '../../shared/palette'
 import type { ChildTranscript, TranscriptEntry } from '../state/uiState'
 import { Modal } from './Modal'
@@ -55,11 +56,14 @@ export function controlsFor(agent: SubagentEntry): readonly SubagentAction[] {
   return [isRunning ? 'interrupt' : 'resume', 'stop']
 }
 
-const CONTROL_LABELS: Readonly<Record<SubagentAction, string>> = {
-  interrupt: UI_TEXT.agentInterrupt,
-  stop: UI_TEXT.agentStop,
-  resume: UI_TEXT.agentResume,
-  close: UI_TEXT.agentClose,
+function controlLabel(action: SubagentAction): string {
+  const labels: Readonly<Record<SubagentAction, string>> = {
+    interrupt: UI_TEXT.agentInterrupt,
+    stop: UI_TEXT.agentStop,
+    resume: UI_TEXT.agentResume,
+    close: UI_TEXT.agentClose,
+  }
+  return labels[action]
 }
 
 function AgentControls({
@@ -97,7 +101,7 @@ function AgentControls({
               onControl(subagentId, action)
             }}
           >
-            {CONTROL_LABELS[action]}
+            {controlLabel(action)}
           </button>
         ))}
       </div>
@@ -128,15 +132,21 @@ function AgentControls({
 }
 
 const RUNNING = 'inProgress'
+
+/** A status as the display language says it; one the table does not list shows as it came. */
+export function agentStatusLabel(status: string): string {
+  return Object.entries(UI_TEXT.agentStatuses).find(([known]) => known === status)?.[1] ?? status
+}
+
 const MILLISECONDS_PER_SECOND = 1000
 const SECONDS_PER_MINUTE = 60
 
-/** "45s", "1m 30s". */
+/** "45s", "1m 30s", in the display language's short units. */
 export function formatDurationMs(durationMs: number): string {
   const totalSeconds = Math.round(durationMs / MILLISECONDS_PER_SECOND)
   const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE)
-  const seconds = totalSeconds % SECONDS_PER_MINUTE
-  return minutes === 0 ? `${String(seconds)}s` : `${String(minutes)}m ${String(seconds)}s`
+  const seconds = formatUnit(totalSeconds % SECONDS_PER_MINUTE, 'second')
+  return minutes === 0 ? seconds : `${formatUnit(minutes, 'minute')} ${seconds}`
 }
 
 /** The figure the map shows for an agent: its input and output tokens together. */
@@ -147,14 +157,16 @@ function totalTokens(usage: TokenUsage): number {
 function agentTokens(agent: SubagentEntry): string | undefined {
   return agent.usage === undefined
     ? undefined
-    : `${formatTokenWindow(totalTokens(agent.usage))} ${UI_TEXT.agentTokens}`
+    : fill(UI_TEXT.agentTokens, { tokens: formatTokenWindow(totalTokens(agent.usage)) })
 }
 
 function agentMeta(agent: SubagentEntry): string {
   return [
     agent.durationMs === undefined ? undefined : formatDurationMs(agent.durationMs),
     agentTokens(agent),
-    agent.status === RUNNING ? UI_TEXT.agentRunning : (agent.controlStatus ?? agent.status),
+    agentStatusLabel(
+      agent.status === RUNNING ? agent.status : (agent.controlStatus ?? agent.status),
+    ),
   ]
     .filter((part) => part !== undefined)
     .join(' · ')
@@ -303,12 +315,12 @@ export function AgentMap({
   const subtitle =
     count === 0
       ? UI_TEXT.agentMapEmpty
-      : `${String(count)} ${count === 1 ? UI_TEXT.agentSingular : UI_TEXT.agentPlural} · ${UI_TEXT.agentMapHint}`
+      : `${plural(UI_TEXT.agentsCount, count)} · ${UI_TEXT.agentMapHint}`
   const mainMeta = [
     modelId,
     contextUsedTokens === undefined
       ? undefined
-      : `${formatTokenWindow(contextUsedTokens)} ${UI_TEXT.agentContextTokens}`,
+      : fill(UI_TEXT.agentContextTokens, { tokens: formatTokenWindow(contextUsedTokens) }),
   ]
     .filter((part) => part !== undefined)
     .join(' · ')
@@ -347,10 +359,7 @@ export function AgentMap({
           {backgroundTasks.length === 0 ? null : (
             <>
               <p className="usage-row-meta">
-                {String(backgroundTasks.length)}{' '}
-                {backgroundTasks.length === 1
-                  ? UI_TEXT.backgroundTaskSingular
-                  : UI_TEXT.backgroundTaskPlural}
+                {plural(UI_TEXT.backgroundTasksCount, backgroundTasks.length)}
               </p>
               <ul className="agent-tasks" aria-label={UI_TEXT.backgroundTasksLabel}>
                 {backgroundTasks.map((task) => (
@@ -360,7 +369,7 @@ export function AgentMap({
                       {task.tool}
                     </span>
                     <span className="agent-node-meta">
-                      {[task.args === '' ? undefined : task.args, task.status]
+                      {[task.args === '' ? undefined : task.args, agentStatusLabel(task.status)]
                         .filter((part) => part !== undefined)
                         .join(' · ')}
                     </span>

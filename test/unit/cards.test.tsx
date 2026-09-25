@@ -80,7 +80,7 @@ describe('ApprovalCard', () => {
         onDecide={onDecide}
       />,
     )
-    expect(screen.getByRole('group', { name: 'Muse wants to' })).toHaveAttribute(
+    expect(screen.getByRole('group', { name: /^Muse wants to / })).toHaveAttribute(
       'aria-busy',
       'true',
     )

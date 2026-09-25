@@ -6,6 +6,7 @@
 
 import { memo } from 'react'
 import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
+import { fill, formatUnit } from '../../shared/l10n/text'
 import type { TranscriptEntry } from '../state/uiState'
 
 type ReasoningEntry = Extract<TranscriptEntry, { kind: 'reasoning' }>
@@ -18,7 +19,7 @@ export function reasoningLabel(entry: ReasoningEntry): string {
     return UI_TEXT.thoughtDone
   }
   const seconds = Math.max(1, Math.round(entry.durationMs / MILLISECONDS_PER_SECOND))
-  return `${UI_TEXT.thoughtFor} ${String(seconds)}s`
+  return fill(UI_TEXT.thoughtFor, { duration: formatUnit(seconds, 'second') })
 }
 
 export const ReasoningRow = memo(function ReasoningRow({

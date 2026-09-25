@@ -17,6 +17,7 @@ import {
   type SkillImportSource,
   UI_TEXT,
 } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
 import type { ProcessResult } from './backend/sandboxSetup'
 import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
 import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
@@ -66,10 +67,13 @@ interface SourceChoice extends vscode.QuickPickItem {
   readonly source: SkillImportSource
 }
 
-const SOURCE_CHOICES: readonly SourceChoice[] = [
-  { label: UI_TEXT.importSourceClaude, source: 'claude' },
-  { label: UI_TEXT.importSourceCodex, source: 'codex' },
-]
+/** Built when asked, so the labels come from the table installed at activation. */
+function sourceChoices(): readonly SourceChoice[] {
+  return [
+    { label: UI_TEXT.importSourceClaude, source: 'claude' },
+    { label: UI_TEXT.importSourceCodex, source: 'codex' },
+  ]
+}
 const FILE_SCHEME = 'file'
 const MARKDOWN_FILTER = 'Markdown'
 const JSON_FILTER = 'JSON'
@@ -165,7 +169,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       importSkills({
         ...skillsDeps(),
         pickSource: async () => {
-          const choice = await vscode.window.showQuickPick(SOURCE_CHOICES, {
+          const choice = await vscode.window.showQuickPick(sourceChoices(), {
             title: UI_TEXT.importSourceTitle,
           })
           return choice?.source
@@ -206,12 +210,13 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
         const result = await running
         if (result.exitCode !== 0) {
           throw new Error(
-            firstLine(result.stderr) || `muse export exited with ${String(result.exitCode)}`,
+            firstLine(result.stderr) ||
+              `muse export: ${fill(UI_TEXT.processExitCode, { code: String(result.exitCode) })}`,
           )
         }
         deps.log.info(`muse export wrote session ${sessionId} to ${target.fsPath}`)
         const choice = await vscode.window.showInformationMessage(
-          `${UI_TEXT.exportSaved} ${target.fsPath}`,
+          fill(UI_TEXT.exportSaved, { path: target.fsPath }),
           UI_TEXT.exportOpen,
         )
         if (choice === UI_TEXT.exportOpen) {

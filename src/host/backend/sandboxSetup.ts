@@ -21,6 +21,7 @@ import {
   SANDBOX_STATUS_SETUP_REQUIRED,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 
 export interface ProcessResult {
@@ -86,8 +87,10 @@ export class SandboxSetup {
       const outcome =
         result.exitCode === FAILED_EXIT_CODE ? 'did not run' : `exited ${String(result.exitCode)}`
       this.deps.log.warn(`Sandbox setup ${outcome}: ${detail}`)
+      // The code as the process gave it: no digit grouping for a status.
+      const exit = fill(UI_TEXT.sandboxExitCode, { code: String(result.exitCode) })
       await this.deps.showWarning(
-        `${UI_TEXT.sandboxCancelled} (exit ${String(result.exitCode)}${detail === '' ? '' : `: ${detail}`}).`,
+        `${UI_TEXT.sandboxCancelled} (${exit}${detail === '' ? '' : `: ${detail}`}).`,
       )
       return
     }

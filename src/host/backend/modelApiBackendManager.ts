@@ -8,7 +8,7 @@ import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { ContextIo } from '../../core/context/contextFiles'
-import { MODEL_API_BASE_URL } from '../../shared/constants'
+import { MODEL_API_BASE_URL, UI_TEXT } from '../../shared/constants'
 import type { Logger } from '../logger'
 
 export interface ModelApiBackendManagerDeps {
@@ -68,7 +68,7 @@ export class ModelApiBackendManager {
   private async build(): Promise<ModelApiHost> {
     const { workspaceRoot } = this.deps
     if (workspaceRoot === undefined) {
-      throw new Error('Open a folder first; the Model API backend works inside a workspace.')
+      throw new Error(UI_TEXT.modelApiNeedsFolder)
     }
     const client = new ModelApiClient({
       fetch: this.deps.fetch,

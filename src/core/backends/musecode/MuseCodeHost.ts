@@ -22,11 +22,12 @@ import {
   MSP_RETRY_MAX_DELAY_MS,
   MSP_RETRYABLE_REFUSALS,
   MSP_SESSION_LIST_MAX_LIMIT,
-  MUSE_EXIT_MEANINGS,
+  MUSE_EXIT_PERSISTENT_CODES,
   type SubagentAction,
   UI_TEXT,
   WINDOWS_SESSION_EDITS_LIMITED_MAX_VERSION,
 } from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
 import { withDeadline } from '../../timeouts'
 import {
   type SubscriptionUsage,
@@ -327,22 +328,26 @@ export function describeExit(
 ): HostExit {
   if (exit.code === null) {
     return {
-      description: `Muse Code was stopped by ${exit.signal ?? 'an unknown signal'}`,
+      description: fill(UI_TEXT.museStoppedBySignal, {
+        signal: exit.signal ?? UI_TEXT.museUnknownSignal,
+      }),
       isExpected,
       isPersistent: false,
     }
   }
-  const meaning = MUSE_EXIT_MEANINGS[exit.code]
+  // Exit codes are ids, not amounts: no digit grouping.
+  const code = String(exit.code)
+  const meaning = Object.entries(UI_TEXT.museExitMeanings).find(([known]) => known === code)?.[1]
   return meaning === undefined
     ? {
-        description: `Muse Code exited with code ${String(exit.code)}`,
+        description: fill(UI_TEXT.museExitedWithCode, { code }),
         isExpected,
         isPersistent: false,
       }
     : {
-        description: `${meaning.text} (exit ${String(exit.code)})`,
+        description: fill(UI_TEXT.museExitMeaning, { meaning, code }),
         isExpected,
-        isPersistent: meaning.isPersistent,
+        isPersistent: MUSE_EXIT_PERSISTENT_CODES.has(exit.code),
       }
 }
 

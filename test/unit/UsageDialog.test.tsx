@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 import { UsageDialog, type UsageDialogProps } from '../../src/webview/components/UsageDialog'
 
 const HOUR = 60 * 60 * 1000
@@ -57,12 +59,12 @@ describe('UsageDialog', () => {
     expect(dialog).toHaveTextContent('muse-pro')
     const window = screen.getByRole('progressbar', { name: 'Current window: 42% used' })
     expect(window).toHaveAttribute('value', '42')
-    expect(dialog).toHaveTextContent('5-hour window · resets in 2 h 5 min')
+    expect(dialog).toHaveTextContent('5-hour window · resets in 2h 5m')
     // Over quota keeps the real number in the label and fills the bar fully.
     const weekly = screen.getByRole('progressbar', { name: 'This week: 130% used' })
     expect(weekly).toHaveAttribute('value', '100')
-    expect(dialog).toHaveTextContent('resets in 3 d')
-    expect(dialog).toHaveTextContent('as of 5 min ago')
+    expect(dialog).toHaveTextContent('resets in 3d')
+    expect(dialog).toHaveTextContent('as of 5 min. ago')
   })
 
   it('lists this conversation’s tokens and the context, and opens the dashboard', () => {
@@ -163,6 +165,52 @@ describe('UsageDialog', () => {
     expect(props.onClose).toHaveBeenCalledTimes(1)
     fireEvent.click(close)
     expect(props.onClose).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('UsageDialog in another display language (M40)', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it('puts the emphasised share where the template does and counts in the plural forms', () => {
+    setUiText(
+      {
+        ...EN,
+        usageInsightSubagents: 'Von Subagenten: {percent} der Modellversuche',
+        modelAttemptsCount: { one: '{count} Modellversuch', other: '{count} Modellversuche' },
+        sessionsCount: { one: '{count} Sitzung', other: '{count} Sitzungen' },
+        usageInsightTotals: '{attempts} in {sessions}',
+      },
+      'de',
+    )
+    renderDialog({
+      report: {
+        backend: 'museCode',
+        subscription: undefined,
+        account: { signInMethod: 'cli' },
+        insights: {
+          day: {
+            attempts: 1000,
+            sessions: 1,
+            reminderAttempts: 0,
+            subagentAttempts: 250,
+            longSessionAttempts: 0,
+          },
+          week: {
+            attempts: 0,
+            sessions: 0,
+            reminderAttempts: 0,
+            subagentAttempts: 0,
+            longSessionAttempts: 0,
+          },
+        },
+      },
+    })
+    const line = screen.getByText(/^Von Subagenten:/)
+    expect(line).toHaveTextContent('Von Subagenten: 25 % der Modellversuche')
+    expect(line.querySelector('.usage-insight-share')).toHaveTextContent('25 %')
+    expect(screen.getByRole('dialog')).toHaveTextContent('1.000 Modellversuche in 1 Sitzung')
   })
 })
 

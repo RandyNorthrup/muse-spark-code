@@ -3,7 +3,20 @@
 // composer's tricks, with "Hide these tips" writing museSpark.hideOnboarding
 // so they stay hidden across windows.
 
-import { ONBOARDING_TIPS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
+import type { UiText } from '../../shared/l10n/en'
+
+// The tips in the order shown; each id names a shortcut and what it does in
+// the table (the text is read when the tips render, in the display language).
+const TIP_IDS = [
+  'focus',
+  'palette',
+  'cycleMode',
+  'mentionSelection',
+  'mentionFile',
+  'newTab',
+  'dictation',
+] as const satisfies readonly (keyof UiText['onboardingTips'])[]
 
 export interface OnboardingProps {
   readonly onHide: () => void
@@ -14,9 +27,9 @@ export function Onboarding({ onHide }: OnboardingProps) {
     <section className="onboarding" aria-label={UI_TEXT.onboardingTitle}>
       <h2 className="onboarding-title">{UI_TEXT.onboardingTitle}</h2>
       <ul className="onboarding-list">
-        {ONBOARDING_TIPS.map((tip) => (
-          <li key={tip.shortcut}>
-            <kbd>{tip.shortcut}</kbd> <span>{tip.text}</span>
+        {TIP_IDS.map((id) => (
+          <li key={id}>
+            <kbd>{UI_TEXT.onboardingShortcuts[id]}</kbd> <span>{UI_TEXT.onboardingTips[id]}</span>
           </li>
         ))}
       </ul>

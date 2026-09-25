@@ -1409,7 +1409,12 @@ body {
   gap: 4px;
 }
 
+/* 24 px targets (WCAG 2.5.8): with longer labels in other languages the
+   buttons sit closer, and spacing alone no longer made up for their height
+   (seen in the pseudo-locale, M40). */
 .code-block-button {
+  min-width: 24px;
+  min-height: 24px;
   padding: 1px 6px;
   border: 0;
   border-radius: 3px;

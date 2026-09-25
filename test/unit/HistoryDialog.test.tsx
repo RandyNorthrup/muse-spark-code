@@ -87,8 +87,8 @@ describe('HistoryDialog', () => {
     expect(screen.getByText('Yesterday')).toBeInTheDocument()
     expect(screen.queryByText('Older')).toBeNull()
     expect(optionTitles()).toEqual(['Fix the parsercurrent', 'Write docs'])
-    expect(screen.getByText('1 h ago · 3 turns · main')).toBeInTheDocument()
-    expect(screen.getByText('1 d ago · 1 turn · fork')).toBeInTheDocument()
+    expect(screen.getByText('1 hr. ago · 3 turns · main')).toBeInTheDocument()
+    expect(screen.getByText('yesterday · 1 turn · fork')).toBeInTheDocument()
   })
 
   it('shows archived and stale rows behind the switch, with Unarchive on the archived one', () => {
@@ -109,8 +109,12 @@ describe('HistoryDialog', () => {
     expect(optionTitles()).toEqual(['Write docs'])
     fireEvent.change(search, { target: { value: 'MAIN' } })
     expect(optionTitles()).toEqual(['Fix the parsercurrent'])
+    expect(search).toHaveAttribute('aria-controls', 'history-listbox')
     fireEvent.change(search, { target: { value: 'zzz' } })
     expect(screen.getByText('No sessions match.')).toBeInTheDocument()
+    // No list is shown, so the box controls none (a dangling reference fails WCAG 4.1.2).
+    expect(search).not.toHaveAttribute('aria-controls')
+    expect(search).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('resumes with Enter on the arrowed row or with a click, closes on Escape', () => {

@@ -2,6 +2,7 @@
 // into the composer. Pure orchestration over injected dependencies.
 
 import { formatMentionReference, type MentionSource } from '../../core/mention'
+import { UI_TEXT } from '../../shared/constants'
 import type { ChatSurface } from '../views/webviewSetup'
 
 export interface InsertMentionDeps {
@@ -12,20 +13,16 @@ export interface InsertMentionDeps {
   readonly showInformation: (message: string) => void
 }
 
-export const NO_EDITOR_MESSAGE = 'Open a file in an editor to insert a reference to it.'
-export const NO_SURFACE_MESSAGE =
-  'Opened the Muse Spark panel. Press Alt+K again to insert the reference.'
-
 export async function insertMentionReference(deps: InsertMentionDeps): Promise<void> {
   const source = deps.activeSelection()
   if (source === undefined) {
-    deps.showInformation(NO_EDITOR_MESSAGE)
+    deps.showInformation(UI_TEXT.insertReferenceNoEditor)
     return
   }
   const surface = deps.activeSurface()
   if (surface === undefined) {
     await deps.openSidebar()
-    deps.showInformation(NO_SURFACE_MESSAGE)
+    deps.showInformation(UI_TEXT.insertReferencePanelOpened)
     return
   }
   surface.reveal()

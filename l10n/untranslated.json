@@ -1,0 +1,30 @@
+{
+  "ui": {
+    "*": [
+      "apiKeyPlaceholder",
+      "modesHintKeys",
+      "exportItem",
+      "compactItem",
+      "clearItem",
+      "logoutItem",
+      "agentsCommand",
+      "usageCommand",
+      "costCommand",
+      "importSourceClaude",
+      "importSourceCodex",
+      "usageCliVersion",
+      "hooksProjectFile",
+      "hooksUserBlock",
+      "hooksManagedKey",
+      "worktreeBranchPlaceholder",
+      "unreadMark",
+      "linePrefix",
+      "backendDetail",
+      "toolLabels.bash",
+      "toolLabels.powershell"
+    ]
+  },
+  "manifest": {
+    "*": ["viewsContainers.museSpark.title", "command.category", "config.title"]
+  }
+}

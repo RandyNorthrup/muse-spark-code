@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
+import { fill, templateParts } from '../../shared/l10n/text'
 import type { PendingApproval } from '../state/uiState'
 
 export interface ApprovalDecisionInput {
@@ -45,19 +46,27 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
   const stage = currentStage(approval)
   // Decided and waiting for the host: no second decision on the same stage.
   const isLocked = approval.decidedSourceIndex === approval.requirementId.sourceIndex
+  const subject = subjectText(approval, toolName)
+  // The language places the subject; it is shown as code wherever it lands.
+  const title =
+    stage === undefined && approval.subject.kind === 'tool'
+      ? UI_TEXT.approvalUseTool
+      : UI_TEXT.approvalAction
   return (
-    <div className="approval" role="group" aria-label={UI_TEXT.approvalTitle} aria-busy={isLocked}>
+    <div
+      className="approval"
+      role="group"
+      aria-label={fill(title, { action: subject })}
+      aria-busy={isLocked}
+    >
       <div className="approval-title">
-        {UI_TEXT.approvalTitle}
-        {stage === undefined && approval.subject.kind === 'tool'
-          ? ` ${UI_TEXT.approvalUseTool}`
-          : ''}{' '}
-        <code>{subjectText(approval, toolName)}</code>
+        {templateParts(title).map((part, index) =>
+          typeof part === 'string' ? part : <code key={String(index)}>{subject}</code>,
+        )}
         {stage !== undefined && stage.totalStages > 1 ? (
           <span className="approval-stage">
             {' '}
-            ({UI_TEXT.approvalStep} {String(stage.position)} {UI_TEXT.approvalOf}{' '}
-            {String(stage.totalStages)})
+            ({fill(UI_TEXT.approvalStage, { position: stage.position, total: stage.totalStages })})
           </span>
         ) : null}
       </div>

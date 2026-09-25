@@ -6,6 +6,8 @@ import type * as vscode from 'vscode'
 import { vi } from 'vitest'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
 import type { SettingsSource } from '../../../src/host/settings'
+import { EN } from '../../../src/shared/l10n/en'
+import { BASE_LOCALE } from '../../../src/shared/l10n/text'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
 import type { ChatSurface, WebviewHostContext } from '../../../src/host/views/webviewSetup'
 import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
@@ -123,6 +125,7 @@ export interface FakeHostContext extends WebviewHostContext {
 export function fakeHostContext(settings: SettingsSnapshot = testSettings): FakeHostContext {
   return {
     extensionUri: Uri.file('/ext'),
+    l10n: { locale: BASE_LOCALE, table: EN },
     log: new FakeLogOutputChannel(),
     getSettings: () => settings,
     onInputFocusChanged: vi.fn<WebviewHostContext['onInputFocusChanged']>(),

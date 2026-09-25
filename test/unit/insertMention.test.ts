@@ -2,9 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   type InsertMentionDeps,
   insertMentionReference,
-  NO_EDITOR_MESSAGE,
-  NO_SURFACE_MESSAGE,
 } from '../../src/host/commands/insertMention'
+import { UI_TEXT } from '../../src/shared/constants'
 import { fakeSurface } from './helpers/fakes'
 
 const selection = { relativePath: 'src/app.ts', startLine: 5, endLine: 10, isEmpty: false }
@@ -33,7 +32,7 @@ describe('insertMentionReference', () => {
     const surface = fakeSurface('sidebar')
     const d = deps({ activeSelection: () => undefined, activeSurface: () => surface })
     await insertMentionReference(d)
-    expect(d.showInformation).toHaveBeenCalledWith(NO_EDITOR_MESSAGE)
+    expect(d.showInformation).toHaveBeenCalledWith(UI_TEXT.insertReferenceNoEditor)
     expect(surface.posted).toEqual([])
   })
 
@@ -41,6 +40,6 @@ describe('insertMentionReference', () => {
     const d = deps()
     await insertMentionReference(d)
     expect(d.openSidebar).toHaveBeenCalledOnce()
-    expect(d.showInformation).toHaveBeenCalledWith(NO_SURFACE_MESSAGE)
+    expect(d.showInformation).toHaveBeenCalledWith(UI_TEXT.insertReferencePanelOpened)
   })
 })

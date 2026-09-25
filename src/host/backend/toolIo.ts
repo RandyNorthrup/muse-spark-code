@@ -30,13 +30,13 @@ import type {
 import { resolveExecutable } from '../../core/executables'
 import {
   BYTES_PER_MIB,
+  MODEL_TEXT,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
   SHELL_OUTPUT_MAX_CHARS,
   type TERMINAL_ENV_KEYS,
   TOOL_FILE_MAX_BYTES,
   TOOL_FILE_MAX_MIB,
-  UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
@@ -136,12 +136,12 @@ const NUL = 0
 
 export function decodeText(bytes: Uint8Array, absolutePath: string): string {
   if (bytes.includes(NUL)) {
-    throw new Error(`${absolutePath} ${UI_TEXT.fileNotText}`)
+    throw new Error(`${absolutePath} ${MODEL_TEXT.fileNotText}`)
   }
   try {
     return STRICT_UTF8.decode(bytes)
   } catch {
-    throw new Error(`${absolutePath} ${UI_TEXT.fileNotText}`)
+    throw new Error(`${absolutePath} ${MODEL_TEXT.fileNotText}`)
   }
 }
 
@@ -275,7 +275,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         if (size > TOOL_FILE_MAX_BYTES) {
           const mib = (size / BYTES_PER_MIB).toFixed(1)
           throw new Error(
-            `${UI_TEXT.toolFileTooLarge} ${String(TOOL_FILE_MAX_MIB)} MiB, and this one is ${mib} MiB: ${UI_TEXT.toolFileTooLargeHint}`,
+            `${MODEL_TEXT.toolFileTooLarge} ${String(TOOL_FILE_MAX_MIB)} MiB, and this one is ${mib} MiB: ${MODEL_TEXT.toolFileTooLargeHint}`,
           )
         }
         bytes = await readFile(absolutePath)

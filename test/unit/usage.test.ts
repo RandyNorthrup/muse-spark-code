@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 import {
   barValue,
   formatDuration,
@@ -37,18 +39,29 @@ describe('barValue', () => {
 })
 
 describe('formatDuration', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
   it('rounds up to whole minutes and drops zero parts', () => {
-    expect(formatDuration(NOW + 2 * HOUR + 5 * MINUTE, NOW)).toBe('2 h 5 min')
-    expect(formatDuration(NOW + 2 * HOUR, NOW)).toBe('2 h')
-    expect(formatDuration(NOW + 3 * DAY + 4 * HOUR, NOW)).toBe('3 d 4 h')
-    expect(formatDuration(NOW + 3 * DAY, NOW)).toBe('3 d')
-    expect(formatDuration(NOW + 30_000, NOW)).toBe('1 min')
-    expect(formatDuration(NOW + 90 * MINUTE + 1, NOW)).toBe('1 h 31 min')
+    expect(formatDuration(NOW + 2 * HOUR + 5 * MINUTE, NOW)).toBe('2h 5m')
+    expect(formatDuration(NOW + 2 * HOUR, NOW)).toBe('2h')
+    expect(formatDuration(NOW + 3 * DAY + 4 * HOUR, NOW)).toBe('3d 4h')
+    expect(formatDuration(NOW + 3 * DAY, NOW)).toBe('3d')
+    expect(formatDuration(NOW + 30_000, NOW)).toBe('1m')
+    expect(formatDuration(NOW + 90 * MINUTE + 1, NOW)).toBe('1h 31m')
   })
 
   it('says now once the moment has passed', () => {
     expect(formatDuration(NOW, NOW)).toBe('now')
     expect(formatDuration(NOW - HOUR, NOW)).toBe('now')
+  })
+
+  it('uses the display language’s units and its word for now (M40)', () => {
+    setUiText({ ...EN, durationNow: 'jetzt' }, 'de')
+    expect(formatDuration(NOW + 30_000, NOW)).toBe('1 Min.')
+    expect(formatDuration(NOW + 2 * HOUR + 5 * MINUTE, NOW)).toBe('2h 5 Min.')
+    expect(formatDuration(NOW, NOW)).toBe('jetzt')
   })
 })
 
@@ -61,9 +74,28 @@ describe('planLabel', () => {
 })
 
 describe('formatWindowLength', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
   it('names whole hours and falls back to minutes', () => {
     expect(formatWindowLength(300)).toBe('5-hour window')
     expect(formatWindowLength(60)).toBe('1-hour window')
     expect(formatWindowLength(90)).toBe('90-minute window')
+  })
+
+  it('picks the form the display language uses for the count (M40)', () => {
+    setUiText(
+      {
+        ...EN,
+        usageWindowHours: {
+          one: '{count}-Stunden-Fenster (eins)',
+          other: '{count}-Stunden-Fenster',
+        },
+      },
+      'de',
+    )
+    expect(formatWindowLength(60)).toBe('1-Stunden-Fenster (eins)')
+    expect(formatWindowLength(300)).toBe('5-Stunden-Fenster')
   })
 })

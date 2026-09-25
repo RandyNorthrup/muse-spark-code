@@ -47,9 +47,32 @@ sign-in gate explains what is missing.
 ## Style
 
 Prettier and ESLint decide formatting and style; the hooks apply them on
-commit. Comments explain why, not what. User-facing strings live in
-`UI_TEXT` in `src/shared/constants.ts`; timeouts, limits and other magic
-values are named constants there too.
+commit. Comments explain why, not what. Timeouts, limits and other magic
+values are named constants in `src/shared/constants.ts`.
+
+## Text the user reads
+
+The panel follows VS Code's display language (PLAN.md D33), so text is
+never a literal in the code:
+
+- **Panel and host text** goes in the English table,
+  `src/shared/l10n/en.ts`, and is read as `UI_TEXT.key` where it is shown,
+  never when a module loads.
+  - A sentence around a value is one template, `{duration}` in `Thought for {duration}`, filled with `fill`.
+  - A count is `forms({ one: '{count} agent', other: '{count} agents' })`,
+    read with `plural`.
+  - Numbers, percentages, money, durations and dates go through the `Intl`
+    helpers in `src/shared/l10n/text.ts`.
+- **Manifest text** (commands, settings, the walkthrough) is a `%key%` in
+  `package.json` with its English in `package.nls.json`.
+- **Text the model reads** is `MODEL_TEXT` in constants.ts and stays
+  English.
+
+`npm run check:l10n` checks all of this. It fails a key missing from a
+translation, a changed `{slot}`, a wrong set of plural forms, and a
+`UI_TEXT` read at module load. `npm run harness:shots -- --lang=pseudo`
+renders the panel in a pseudo-locale where any English left outside the
+table stands out.
 
 ## Reporting bugs and proposing features
 

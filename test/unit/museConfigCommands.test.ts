@@ -118,6 +118,14 @@ describe('showMcpServers', () => {
     expect(t.warnings).toEqual([])
   })
 
+  it('counts one server in the singular (M40: plural forms, not a spliced count)', async () => {
+    const t = harness({
+      settings: JSON.stringify({ mcpServers: { local: { type: 'stdio', command: 'tool' } } }),
+    })
+    await showMcpServers(t.deps)
+    expect(t.picks[0]?.placeholder).toBe(`1 MCP server in ${SETTINGS}`)
+  })
+
   it('signs in to or out of a remote server in a terminal, and says when the CLI is missing', async () => {
     const t = harness({ settings: TWO_SERVERS, answers: ['server:docs', 'login'] })
     await showMcpServers(t.deps)
@@ -219,7 +227,7 @@ describe('showHooks', () => {
     )
     expect(t.picks[0]?.items.map((item) => [item.id, item.description, item.detail])).toEqual([
       ['hooks:project', '.muse/hooks.json', 'Runs in this workspace'],
-      ['hooks:user', 'settings.json › hooks', '1 in your settings'],
+      ['hooks:user', 'settings.json › hooks', '1 hook in your settings'],
       [
         'hooks:managed',
         '/etc/muse/hooks.json',

@@ -8,8 +8,8 @@
 // picture for the mouse, hidden from assistive technology, and the row
 // itself carries the value ("Effort (Extra high)") and takes Left / Right.
 
-import { EFFORT_LABELS, type EffortLevel } from '../../shared/constants'
-import { effortIndex } from '../../shared/effort'
+import { type EffortLevel, UI_TEXT } from '../../shared/constants'
+import { effortIndex, effortLabel } from '../../shared/effort'
 
 export interface EffortSliderProps {
   readonly levels: readonly EffortLevel[]
@@ -33,7 +33,7 @@ export function EffortSlider({ levels, current, onSelect, isInsideOption }: Effo
           <span
             key={level}
             className={stepClass(index, currentIndex)}
-            title={EFFORT_LABELS[level]}
+            title={effortLabel(level)}
             onClick={(event) => {
               event.stopPropagation()
               onSelect?.(level)
@@ -44,14 +44,14 @@ export function EffortSlider({ levels, current, onSelect, isInsideOption }: Effo
     )
   }
   return (
-    <span className="palette-slider" role="group" aria-label="Effort">
+    <span className="palette-slider" role="group" aria-label={UI_TEXT.effortItem}>
       {levels.map((level, index) => (
         <button
           key={level}
           type="button"
           className={stepClass(index, currentIndex)}
-          title={EFFORT_LABELS[level]}
-          aria-label={EFFORT_LABELS[level]}
+          title={effortLabel(level)}
+          aria-label={effortLabel(level)}
           aria-pressed={level === current}
           disabled={onSelect === undefined}
           tabIndex={-1}

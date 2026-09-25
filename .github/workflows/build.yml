@@ -135,10 +135,10 @@ jobs:
       # What must be inside the package: the licence, the third-party
       # notices, both dictation helpers and the four bundles (the webview
       # loads main.css beside main.js).
-      - name: the .vsix carries the notices, the helpers and the bundles
+      - name: the .vsix carries the notices, the helpers, the bundles and the manifest's text
         run: |
           listing="$(unzip -Z1 ./*.vsix)"
-          for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt \
+          for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
             extension/native/windows/dictate.ps1 extension/native/darwin/muse-dictate \
             extension/dist/extension.js extension/dist/searchWorker.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do

@@ -9,7 +9,6 @@ import {
   type ExportFormat,
   ISSUES_URL,
   MUSE_DOCS_URL,
-  PERMISSION_MODE_LABELS,
   type PermissionMode,
   RESUME_SKILL_SELECTORS,
   SKILL_IMPORT_SOURCES,
@@ -18,6 +17,7 @@ import {
   UI_TEXT,
 } from './constants'
 import { effortLabel, effortLevelsFor } from './effort'
+import { fill, formatNumber } from './l10n/text'
 import type { BackendKind, ModelOption, SkillOption } from './protocol'
 
 export type PaletteWidget =
@@ -103,28 +103,41 @@ export interface PaletteContext {
   readonly backend: BackendKind | undefined
 }
 
-export const BACKEND_LABELS: Readonly<Record<BackendKind, string>> = {
-  museCode: UI_TEXT.backendMuseCode,
-  modelApi: UI_TEXT.backendModelApi,
+/** The backend's name as the palette, the usage dialog and an export show it. */
+export function backendLabel(kind: BackendKind): string {
+  // Built per call, so the name is the installed table's (PLAN.md D33).
+  const labels: Readonly<Record<BackendKind, string>> = {
+    museCode: UI_TEXT.backendMuseCode,
+    modelApi: UI_TEXT.backendModelApi,
+  }
+  return labels[kind]
 }
 
 const TOKENS_PER_MILLION = 1_000_000
 const TOKENS_PER_THOUSAND = 1000
-const KILO_DECIMALS = 1
+// Thousands are shown to one decimal: 12.3K.
+const TOKENS_PER_TENTH_THOUSAND = 100
+const TENTHS_PER_UNIT = 10
 
-/** "1M" / "200K" / "512" for a token count. */
+/** "1M" / "200K" / "12.3K" / "512" for a token count, in the display language's digits. */
 export function formatTokenWindow(tokens: number): string {
-  if (tokens >= TOKENS_PER_MILLION) {
-    return `${String(Math.round(tokens / TOKENS_PER_MILLION))}M`
+  if (tokens < TOKENS_PER_THOUSAND) {
+    return formatNumber(tokens)
   }
-  const thousands = (tokens / TOKENS_PER_THOUSAND).toFixed(KILO_DECIMALS).replace(/\.0$/, '')
-  return tokens >= TOKENS_PER_THOUSAND ? `${thousands}K` : String(tokens)
+  const thousands = Math.round(tokens / TOKENS_PER_TENTH_THOUSAND) / TENTHS_PER_UNIT
+  // 999,950 and up round to a thousand thousands: that is "1M", not "1,000K".
+  return thousands < TOKENS_PER_THOUSAND
+    ? `${formatNumber(thousands)}K`
+    : `${formatNumber(Math.round(tokens / TOKENS_PER_MILLION))}M`
+}
+
+/** "200K context": a model's context window. */
+export function contextWindowLabel(tokens: number): string {
+  return fill(UI_TEXT.modelContextWindow, { tokens: formatTokenWindow(tokens) })
 }
 
 function contextSuffix(contextLimit: number | undefined): string {
-  return contextLimit === undefined
-    ? ''
-    : ` (${formatTokenWindow(contextLimit)} ${UI_TEXT.modelContextSuffix})`
+  return contextLimit === undefined ? '' : ` (${contextWindowLabel(contextLimit)})`
 }
 
 function modelValue(context: PaletteContext): string {
@@ -137,12 +150,18 @@ function modelValue(context: PaletteContext): string {
 function usageValue(usage: UsageTotals | undefined): string {
   return usage === undefined
     ? '—'
-    : `${formatTokenWindow(usage.inputTokens)} in · ${formatTokenWindow(usage.outputTokens)} out`
+    : fill(UI_TEXT.sessionUsageValue, {
+        input: formatTokenWindow(usage.inputTokens),
+        output: formatTokenWindow(usage.outputTokens),
+      })
 }
 
-const CONTINUE_LABELS: Readonly<Record<SkillImportSource, string>> = {
-  claude: UI_TEXT.continueClaudeItem,
-  codex: UI_TEXT.continueCodexItem,
+function continueLabel(source: SkillImportSource): string {
+  const labels: Readonly<Record<SkillImportSource, string>> = {
+    claude: UI_TEXT.continueClaudeItem,
+    codex: UI_TEXT.continueCodexItem,
+  }
+  return labels[source]
 }
 
 /** Muse Code's bundled `resume-claude` / `resume-codex`, where the session lists them (M30). */
@@ -153,7 +172,7 @@ function continueItems(skills: readonly SkillOption[] | undefined): readonly Pal
       ? [
           {
             id: `continue:${source}`,
-            label: CONTINUE_LABELS[source],
+            label: continueLabel(source),
             detail: UI_TEXT.continueDetail,
             action: { type: 'insertSkill', selector } as const,
           },
@@ -327,7 +346,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           id: 'permissionMode',
           label: UI_TEXT.permissionModeItem,
           slashName: SLASH_COMMAND_NAMES.permissions,
-          widget: { kind: 'value', text: PERMISSION_MODE_LABELS[context.permissionMode] },
+          widget: { kind: 'value', text: UI_TEXT.permissionModes[context.permissionMode] },
           action: { type: 'openPermissionModes' },
         },
         {
@@ -375,7 +394,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           detail: UI_TEXT.backendDetail,
           widget: {
             kind: 'value',
-            text: context.backend === undefined ? '—' : BACKEND_LABELS[context.backend],
+            text: context.backend === undefined ? '—' : backendLabel(context.backend),
           },
           action: { type: 'openSettings' },
         },

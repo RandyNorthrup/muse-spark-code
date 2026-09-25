@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { type ChatSurface, configureWebview } from '../../src/host/views/webviewSetup'
+import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 import { FakeWebview, fakeHostContext, testSettings } from './helpers/fakes'
 
 const NONCE_PATTERN = /script-src 'nonce-([^']+)'/
@@ -39,6 +41,17 @@ describe('configureWebview', () => {
     expect(webview.html).toContain('file://webview/ext/dist/webview/main.js')
     expect(webview.html).toContain('file://webview/ext/dist/webview/main.css')
     expect(webview.html).toContain(webview.cspSource)
+  })
+
+  it('writes the table installed at activation into the document (D33)', () => {
+    const context = {
+      ...fakeHostContext(),
+      l10n: { locale: 'ja', table: { ...EN, sendTitle: '送信' } },
+    }
+    const { webview } = setup(context)
+    expect(webview.html).toContain('<html lang="ja">')
+    expect(webview.html).toContain('"sendTitle":"送信"')
+    expect(webview.html).toContain(`id="${WEBVIEW_L10N_ELEMENT_ID}"`)
   })
 
   it('uses a fresh nonce for every configuration', () => {

@@ -1017,6 +1017,78 @@ itself. **Owner's go-ahead (2026-09-24):** "sure", for axe-core 4.13.0
   "full gate set on all three". The page it checks is the same web content
   on every platform.
 
+### D33 — The panel in VS Code's display languages (2026-09-25)
+
+The owner said "yes" (2026-09-24) to the fourteen languages VS Code itself
+ships, with machine translations disclosed. What the survey of the code
+found shaped the design: about 570 keys in `UI_TEXT`; 128 places that
+splice a `UI_TEXT` fragment into a sentence (`"Thought for" + "3s"`,
+`"step" 1 "of" 2`); singular and plural pairs chosen with `=== 1`; relative
+times built by hand (`"min ago"`); labels outside the table
+(`PERMISSION_MODE_LABELS`, `TOOL_LABELS`, `EFFORT_LABELS`, `'edit' :
+'edits'`); and text that goes to the model mixed in with text the user
+reads.
+
+- **Two tables, one of them never translated.**
+  - `MODEL_TEXT` holds what the model or Meta reads. It stays English
+    whatever the display language, so the model's behaviour does not
+    change with the user's locale. It covers the context leads, the
+    compaction prompt and prefix, the steering and answer prefixes, the
+    skill invocation, and the tool failures returned to the model.
+  - `UI_TEXT` is what the user reads, and it is the one translated.
+  - The log stays in whatever language the notice was shown in (M39 logs
+    the shown line); that is accepted, since the log carries ids and
+    error details, which are not translated.
+- **Whole sentences with named slots.** A spliced sentence becomes one
+  template, `'Thought for {duration}'`, filled by `fill(template, values)`,
+  so a language can put the slots where its grammar needs them. The key
+  names the slots; the gate checks every translation has the same ones.
+- **Plurals by the language's own rules.** A count-dependent string is an
+  entry of plural forms, `{ one: '{count} agent', other: '{count} agents' }`,
+  and `plural(entry, count)` picks the form with
+  `Intl.PluralRules(locale)`. Each translation carries exactly the
+  categories its language uses: Russian, Polish and Czech have `few` and
+  `many` as well.
+- **Numbers and times from `Intl`.** Counts use `Intl.NumberFormat` and
+  "5 min ago" uses `Intl.RelativeTimeFormat`, both in the display
+  language, so those strings leave the table.
+- **Where the tables live, and why not in the bundle.** English stays in
+  TypeScript (`src/shared/l10n/en.ts`); it is the base and the type every
+  translation must match. The fourteen others are JSON files in `l10n/`,
+  shipped in the package and not bundled: fourteen copies of about 40 KB
+  would push the webview bundle (654 KiB today) past its 900 KiB budget.
+  - At activation the host maps `vscode.env.language` to a table, reads
+    that one file and checks its shape with zod.
+  - The host embeds that table in the webview's HTML, as a JSON
+    `<script type="application/json">` (not executed, so the CSP is
+    unchanged). It also sets `<html lang>` for screen readers. The webview
+    installs the table before its first render.
+  - A display language without a table (Arabic, say) gets English, and
+    the log says so once. A table that fails its check also gets English,
+    with a warning; the gate keeps such a file from shipping.
+- **The manifest** (commands, settings, views, the walkthrough's titles)
+  moves to `package.nls.json` and `package.nls.<language>.json`, which
+  VS Code applies itself. The walkthrough's Markdown pages stay English;
+  VS Code localizes the step titles and descriptions, not the pages.
+- **The gate** (`scripts/check-l10n.mjs`, in `quality:gates`) checks
+  every language against English:
+  - every key present and no extra ones;
+  - the same `{slots}` in each string;
+  - the same number of code spans and bold markers;
+  - exactly the plural categories `Intl.PluralRules` gives that language;
+  - no value left equal to the English, except an allowlist of names and
+    commands (Muse, MCP, `/export`, …);
+  - the same checks for the manifest's strings.
+- **Seen, not assumed:** the harness takes `?lang=` and renders any
+  scenario in any table, so long German and CJK strings are checked for
+  layout in screenshots, and the accessibility gate checks one full run
+  in a translated table.
+- **Two pull requests.** M40a is the machinery, the refactor, the English
+  table and the gate. M40b is the fourteen translations, the README's
+  disclosure and the screenshots.
+- **Honesty:** the translations are machine-made; the README says so and
+  asks for corrections through issues.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -2818,10 +2890,51 @@ never reach the host, and nothing measures time at runtime.
 - **Privacy**: the log gains ids, counts, results and durations only.
   Never prompt text, file contents, dictated words or model output.
 
-### M40 — The panel in VS Code's display languages (planned)
+### M40 — The panel in VS Code's display languages (M40a built; M40b next)
 
-**Status 2026-09-24: planned.** Owner (2026-09-24): "yes" to the languages
-VS Code itself ships.
+**Status 2026-09-25: M40a built and certified** (`docs/certification/m40.md`);
+M40b, the fourteen translations, follows. Owner (2026-09-24): "yes" to the
+languages VS Code itself ships. The design is D33.
+
+**M40a, as built** (three agents on separate file sets, after the lead wrote
+the shared table, helpers and checks):
+
+- **The table:** `src/shared/l10n/en.ts`, about 620 keys: strings, `{slot}`
+  templates, plural forms and label groups (the permission modes and their
+  details, effort levels, tool labels, skill scopes, status verbs,
+  onboarding tips, Muse Code's exit meanings). `MODEL_TEXT` in
+  constants.ts holds the 25 texts the model reads, in English.
+- **The helpers:** `src/shared/l10n/text.ts`: `fill`, `plural`,
+  `templateParts` (a slot rendered as markup: the approval card's code, the
+  usage insight's percentage, the Modes hint's key cap), and `Intl`
+  formatting of numbers, percentages, US dollars, units, relative times and
+  dates.
+- **The checks:** `src/shared/l10n/check.ts` does both jobs. Run loosely,
+  it is the shape check the host and the webview apply to a table they
+  load; run strictly, it is the gate. `src/shared/l10n/locales.ts` holds
+  the languages with a table (none yet) and maps VS Code's language id to
+  one.
+- **Host:** `src/host/l10n.ts` loads the table at activation. The webview
+  HTML carries it as JSON with `<html lang>`, and
+  `src/webview/installTable.ts` installs it before the first render.
+- **What else changed:**
+  - Sentences that ended in a value also became templates (a path last in
+    English comes first in Japanese).
+  - The exported Markdown's own words are in the table; the conversation in
+    it is copied as it was.
+  - Log lines no one sees in the panel stay English.
+- **The manifest:** 76 strings in `package.nls.json`.
+- **The gate** is `npm run check:l10n`, in `quality:gates`. It checks the
+  tables, `l10n/untranslated.json` (the names left in English, one list for
+  the table and one for the manifest), the manifest, and that nothing reads
+  `UI_TEXT` at module load (a TypeScript scan).
+- **The harness:** `--lang=<id>` for `harness:shots` and `test:a11y`, and a
+  pseudo-locale (`npm run harness:pseudo`).
+
+**M40b:** the fourteen `l10n/ui.<language>.json` and
+`package.nls.<language>.json` files, machine-made; `TABLE_LOCALES` lists
+them; the README gains a Languages section with the disclosure; the
+screenshots and one accessibility run in a translated table.
 
 - **Goal**: the panel, the Command Palette entries and the settings read in
   the user's VS Code display language: Simplified and Traditional Chinese,
@@ -2844,25 +2957,26 @@ VS Code itself ships.
 
 ## 7. Gates
 
-| Gate                  | Command                                                                                                                                                                               | Status                                                                                                                                                                                                     |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Format                | `prettier --check .`                                                                                                                                                                  | M0 ✓                                                                                                                                                                                                       |
-| Lint (type-aware)     | `eslint . --max-warnings=0`                                                                                                                                                           | M0 ✓                                                                                                                                                                                                       |
-| CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                                                                                                           | M0 ✓                                                                                                                                                                                                       |
-| Types                 | `tsc --noEmit` over five projects: host, webview, unit, e2e, integration (`npm run typecheck`)                                                                                        | M0 ✓                                                                                                                                                                                                       |
-| Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                                                                                                               | M0 ✓                                                                                                                                                                                                       |
-| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/webview/main.tsx`                                                                                         | M0 ✓                                                                                                                                                                                                       |
-| Duplication           | `jscpd` (config `.jscpd.json`: threshold 0 over `src` and `test`)                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
-| Unit tests + coverage | `vitest run --coverage`                                                                                                                                                               | M0 ✓                                                                                                                                                                                                       |
-| Integration tests     | `vscode-test` (two configurations: `stable` and `minimum`, the `engines.vscode` floor)                                                                                                | M0 ✓ (9 passing locally since M18; CI: ubuntu xvfb + windows); M26 ✓ on 1.139.0 and 1.125.0, downloads cached in CI                                                                                        |
-| Build + bundle budget | `node scripts/build.mjs --production && node scripts/check-bundle-size.mjs`                                                                                                           | M0 ✓                                                                                                                                                                                                       |
-| Host globals          | `node scripts/check-host-globals.mjs` (part of `npm run build`): no `navigator` in the host bundles                                                                                   | M26 ✓ (proof R)                                                                                                                                                                                            |
-| Third-party notices   | `node scripts/third-party-notices.mjs` (part of `npm run build`; `npm run notices` regenerates)                                                                                       | M26 ✓ (proofs P, Q; CI's package job requires the file in the .vsix)                                                                                                                                       |
-| Dependency audit      | `node scripts/audit.mjs` (`npm audit --json`, high and critical block; reviewed exceptions in `.github/audit-exceptions.json`, 90 days at most)                                       | M0 ✓; M26 ✓ (proofs S–W)                                                                                                                                                                                   |
-| Secrets               | `gitleaks git --redact` (history, `security:secrets`, also a CI job) and `gitleaks git --pre-commit --staged` (hook)                                                                  | M0 ✓ (staged-scan proof; the history scan runs locally and in CI)                                                                                                                                          |
-| SAST                  | `node scripts/sast.mjs` (`npm run security:sast`): `semgrep scan --config auto --error`, with semgrep found on PATH or, failing that, in a Python's user Scripts folder               | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. M26: CI pins semgrep 1.177.0 (`.github/semgrep/requirements.txt`, Dependabot pip). |
-| PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)                                                                                                | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner). M26: pinned to 1.25.0 (`-RequiredVersion`), the version CI installs.                       |
-| Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
+| Gate                  | Command                                                                                                                                                                                                         | Status                                                                                                                                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format                | `prettier --check .`                                                                                                                                                                                            | M0 ✓                                                                                                                                                                                                       |
+| Lint (type-aware)     | `eslint . --max-warnings=0`                                                                                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
+| CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
+| Types                 | `tsc --noEmit` over five projects: host, webview, unit, e2e, integration (`npm run typecheck`)                                                                                                                  | M0 ✓                                                                                                                                                                                                       |
+| Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                                                                                                                                         | M0 ✓                                                                                                                                                                                                       |
+| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/webview/main.tsx`                                                                                                                   | M0 ✓                                                                                                                                                                                                       |
+| Duplication           | `jscpd` (config `.jscpd.json`: threshold 0 over `src` and `test`)                                                                                                                                               | M0 ✓                                                                                                                                                                                                       |
+| Unit tests + coverage | `vitest run --coverage`                                                                                                                                                                                         | M0 ✓                                                                                                                                                                                                       |
+| Integration tests     | `vscode-test` (two configurations: `stable` and `minimum`, the `engines.vscode` floor)                                                                                                                          | M0 ✓ (9 passing locally since M18; CI: ubuntu xvfb + windows); M26 ✓ on 1.139.0 and 1.125.0, downloads cached in CI                                                                                        |
+| Build + bundle budget | `node scripts/build.mjs --production && node scripts/check-bundle-size.mjs`                                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
+| Host globals          | `node scripts/check-host-globals.mjs` (part of `npm run build`): no `navigator` in the host bundles                                                                                                             | M26 ✓ (proof R)                                                                                                                                                                                            |
+| Third-party notices   | `node scripts/third-party-notices.mjs` (part of `npm run build`; `npm run notices` regenerates)                                                                                                                 | M26 ✓ (proofs P, Q; CI's package job requires the file in the .vsix)                                                                                                                                       |
+| Dependency audit      | `node scripts/audit.mjs` (`npm audit --json`, high and critical block; reviewed exceptions in `.github/audit-exceptions.json`, 90 days at most)                                                                 | M0 ✓; M26 ✓ (proofs S–W)                                                                                                                                                                                   |
+| Secrets               | `gitleaks git --redact` (history, `security:secrets`, also a CI job) and `gitleaks git --pre-commit --staged` (hook)                                                                                            | M0 ✓ (staged-scan proof; the history scan runs locally and in CI)                                                                                                                                          |
+| SAST                  | `node scripts/sast.mjs` (`npm run security:sast`): `semgrep scan --config auto --error`, with semgrep found on PATH or, failing that, in a Python's user Scripts folder                                         | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. M26: CI pins semgrep 1.177.0 (`.github/semgrep/requirements.txt`, Dependabot pip). |
+| PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)                                                                                                                          | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner). M26: pinned to 1.25.0 (`-RequiredVersion`), the version CI installs.                       |
+| Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA                           | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
+| Localization          | `node scripts/check-l10n.mjs` (`npm run check:l10n`, in `quality:gates`): every table in `l10n/` against the English table, strictly; the manifest against `package.nls.json`; no `UI_TEXT` read at module load | M40 ✓ (drills in `docs/certification/m40.md`)                                                                                                                                                              |
 
 ## 8. Escape hatches register
 
