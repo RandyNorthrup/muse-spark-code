@@ -88,6 +88,17 @@ its `{slots}` and code spans. Run `npm run check:l10n` and
 - **A value that reads the same as English** (a name, or a word the language
   borrows) goes in `l10n/untranslated.json` under that language.
 
+## Paid features
+
+Anything that bills the user beyond tokens follows AGENTS.md rule 12 and
+PLAN.md D34: its own machine-scoped setting, off by default, with the price
+in its description; the gate in `src/core/paid/paidFeatures.ts` before any
+call; a row marked paid; a count in `PaidUsage`. The tests never spend:
+the Model API, the Images endpoint and the Muse Voice WebSocket are all
+fakes (`test/unit/helpers/fakeModelApi.ts` and `fakeVoiceServer.ts`, a
+small RFC 6455 server over Node's own `http`). A live check bills the
+owner's key: say what it will cost first and ask.
+
 ## Reporting bugs and proposing features
 
 Use the issue templates. For a bug, run **Muse Spark: Diagnostics** from

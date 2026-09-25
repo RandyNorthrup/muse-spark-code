@@ -12,12 +12,14 @@ import {
   approvalChoiceSchema,
   approvalSubjectSchema,
   answerSchema,
+  citationSchema,
   outputRefSchema,
   patchSummarySchema,
   questionSchema,
   requirementRefSchema,
   tokenUsageSchema,
 } from '../../shared/agentEvents'
+import { PAID_FEATURES } from '../../shared/constants'
 import { NOTICE_LEVELS } from '../../shared/protocol'
 
 const pendingApprovalSchema = z.object({
@@ -82,6 +84,8 @@ const assistantEntrySchema = z.object({
   id: z.string(),
   text: z.string(),
   isStreaming: z.boolean(),
+  /** The web pages the reply cites (M33), listed under it as links. */
+  citations: z.optional(z.readonly(z.array(citationSchema))),
 })
 
 const reasoningEntrySchema = z.object({
@@ -117,6 +121,8 @@ const toolEntrySchema = z.object({
   /** Durably backgrounded (M14): the turn went on without waiting for it. */
   isBackground: z.boolean(),
   backgroundInitiator: z.optional(z.string()),
+  /** A call billed on top of tokens (M33, PLAN.md D30): the row says it is paid. */
+  paid: z.optional(z.enum(PAID_FEATURES)),
   approval: z.optional(pendingApprovalSchema),
   approvalOutcome: z.optional(z.object({ decision: z.string(), resolvedBy: z.string() })),
   question: z.optional(pendingQuestionSchema),

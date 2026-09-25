@@ -6,6 +6,11 @@
 // Shared by host and webview: no `vscode`, Node, or DOM imports.
 
 import * as z from 'zod/mini'
+import { PAID_FEATURES } from './constants'
+
+/** A source a reply cites: the page's URL and, when Meta sent one, its title (M33). */
+export const citationSchema = z.object({ url: z.string(), title: z.optional(z.string()) })
+export type CitationSummary = z.infer<typeof citationSchema>
 
 /** A stored-output handle (`item/readOutput` fetches the bytes by `id`). */
 export const outputRefSchema = z.object({ id: z.string(), byteLen: z.number() })
@@ -83,6 +88,10 @@ export const itemSnapshotFields = {
   /** `toolCall`: durably backgrounded, and by whom (M14). */
   background: z.optional(z.boolean()),
   backgroundInitiator: z.optional(z.string()),
+  /** `toolCall`: a call billed on top of tokens (M33, PLAN.md D30), marked paid in its row. */
+  paid: z.optional(z.enum(PAID_FEATURES)),
+  /** `agentMessage`: the sources the reply cites (`url_citation`, M33), each once. */
+  citations: z.optional(z.array(citationSchema)),
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)
@@ -126,6 +135,8 @@ export const approvalSubjectSchema = z.object({
   target: z.optional(z.string()),
   toolName: z.optional(z.string()),
   stages: z.optional(z.array(approvalStageSchema)),
+  /** A call billed on top of tokens (M34, PLAN.md D30): the card names its price. */
+  paidFeature: z.optional(z.enum(PAID_FEATURES)),
 })
 export type ApprovalSubject = z.infer<typeof approvalSubjectSchema>
 

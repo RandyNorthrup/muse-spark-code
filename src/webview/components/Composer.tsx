@@ -44,6 +44,8 @@ import {
   mentionQueryAt,
   slashFilterOf,
 } from '../../shared/mentions'
+import { fill } from '../../shared/l10n/text'
+import { paidFeaturePrice } from '../../shared/paid'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
 import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands'
 import { blobToBase64, parseUriList } from '../base64'
@@ -89,6 +91,10 @@ export interface ComposerProps {
   /** "12% context" once known; undefined hides the indicator. */
   readonly contextLabel: string | undefined
   readonly contextTitle: string | undefined
+  /** The paid features that are on (M33, PLAN.md D30); undefined hides the badge. */
+  readonly paidBadge: { readonly label: string; readonly title: string } | undefined
+  /** The badge opens Account & usage, where this window's tally is. */
+  readonly onOpenUsage: () => void
   readonly focusRequests: number
   readonly pendingInsert: string | undefined
   readonly attachments: readonly AttachmentSummary[]
@@ -232,7 +238,10 @@ function dictationTitle(dictation: DictationUiState): string {
       return dictation.reason ?? UI_TEXT.dictationUnavailable
     }
     case 'idle': {
-      return UI_TEXT.dictationTitle
+      // The paid engine says so, with its price (M35, PLAN.md D30).
+      return dictation.engine === 'museVoice'
+        ? fill(UI_TEXT.dictationPaidTitle, { price: paidFeaturePrice('voice') })
+        : UI_TEXT.dictationTitle
     }
     case 'starting':
     case 'listening': {
@@ -275,6 +284,8 @@ export function Composer(props: ComposerProps) {
     permissionMode,
     contextLabel,
     contextTitle,
+    paidBadge,
+    onOpenUsage,
     focusRequests,
     pendingInsert,
     attachments,
@@ -862,6 +873,17 @@ export function Composer(props: ComposerProps) {
           )}
         </div>
         <div className="composer-toolbar-group">
+          {paidBadge === undefined ? null : (
+            <button
+              type="button"
+              className="paid-badge"
+              title={paidBadge.title}
+              onMouseDown={keepMenuFocus}
+              onClick={onOpenUsage}
+            >
+              {paidBadge.label}
+            </button>
+          )}
           {contextLabel === undefined ? null : (
             <button
               type="button"
@@ -885,9 +907,11 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className={`icon-button mic-button mic-${dictation.status}`}
+            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''}`}
             title={dictationTitle(dictation)}
-            aria-label={UI_TEXT.dictationLabel}
+            aria-label={
+              dictation.engine === 'museVoice' ? UI_TEXT.dictationPaidLabel : UI_TEXT.dictationLabel
+            }
             aria-pressed={dictation.status === 'listening' || dictation.status === 'starting'}
             aria-disabled={dictation.status === 'unavailable' || undefined}
             onPointerDown={pressDictationWithPointer}

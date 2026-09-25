@@ -14,9 +14,27 @@ export interface ScriptedCall {
   readonly callId?: string
 }
 
-/** One model reply: streamed as reasoning + text + function calls. */
+/** One hosted web search in a reply (M33), streamed before the text. */
+export interface ScriptedSearch {
+  readonly queries?: readonly string[]
+  readonly status?: 'completed' | 'failed'
+  readonly results?: readonly { readonly title?: string; readonly url: string }[]
+  /** The action instead of a search's (`open_page`, `find_in_page`). */
+  readonly action?: Record<string, unknown>
+  /** `output_item.done` carries only id, type and status, as Meta's guide shows it. */
+  readonly isBareDone?: boolean
+  /** No `output_item.done` at all: the item is only in the completed response. */
+  readonly isDoneOmitted?: boolean
+}
+
+/** One model reply: streamed as reasoning + searches + text + function calls. */
 export interface ScriptedReply {
   readonly text?: string
+  readonly searches?: readonly ScriptedSearch[]
+  /** The text's `url_citation` annotations (M33). */
+  readonly citations?: readonly { readonly url: string; readonly title: string }[]
+  /** The citations appear in the completed response only, not in the item's done event. */
+  readonly areCitationsLate?: boolean
   readonly reasoning?: string
   readonly calls?: readonly ScriptedCall[]
   readonly usage?: { readonly input: number; readonly output: number; readonly cached?: number }
@@ -45,6 +63,20 @@ export interface RecordedRequest {
   readonly body: unknown
 }
 
+/** A 1×1 PNG, as `b64_json`. */
+export const TINY_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+
+/** One answer of `POST /images/generations` (M34). */
+export interface ScriptedImage {
+  /** The image, base64; a 1×1 PNG when absent. */
+  readonly b64?: string
+  readonly revisedPrompt?: string
+  /** No image in `data` at all. */
+  readonly isEmpty?: boolean
+  readonly httpError?: { readonly status: number; readonly message: string }
+}
+
 export interface FakeModelApi {
   readonly fetch: typeof fetch
   readonly requests: RecordedRequest[]
@@ -54,6 +86,10 @@ export interface FakeModelApi {
   inputTokens: number
   /** The bodies of every `POST /responses` seen, parsed. */
   readonly responseBodies: () => readonly Record<string, unknown>[]
+  /** Answers for `POST /images/generations`, consumed in order; a PNG once they run out. */
+  readonly images: ScriptedImage[]
+  /** The bodies of every `POST /images/generations` seen, parsed. */
+  readonly imageBodies: () => readonly Record<string, unknown>[]
 }
 
 const encoder = new TextEncoder()
@@ -100,6 +136,33 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
     output.push(done)
     index += 1
   }
+  const searches = reply.searches ?? []
+  for (const search of searches) {
+    const id = nextId('ws')
+    text += frame({
+      type: 'response.output_item.added',
+      output_index: index,
+      item: { type: 'web_search_call', id, status: 'in_progress' },
+    })
+    text += frame({ type: 'response.web_search_call.searching', output_index: index, item_id: id })
+    const status = search.status ?? 'completed'
+    const full = {
+      type: 'web_search_call',
+      id,
+      status,
+      action: search.action ?? { type: 'search', queries: search.queries ?? ['query'] },
+      results: (search.results ?? []).map((result) => ({ type: 'text_result', ...result })),
+    }
+    if (search.isDoneOmitted !== true) {
+      text += frame({
+        type: 'response.output_item.done',
+        output_index: index,
+        item: search.isBareDone === true ? { type: 'web_search_call', id, status } : full,
+      })
+    }
+    output.push(full)
+    index += 1
+  }
   if (reply.text !== undefined) {
     const id = nextId('msg')
     text += frame({
@@ -119,15 +182,23 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
       })
       return text
     }
-    const done = {
+    const annotations = (reply.citations ?? []).map((citation) => ({
+      type: 'url_citation',
+      url: citation.url,
+      title: citation.title,
+      start_index: 0,
+      end_index: reply.text?.length ?? 0,
+    }))
+    const messageWith = (cited: readonly unknown[]) => ({
       type: 'message',
       id,
       role: 'assistant',
-      content: [{ type: 'output_text', text: reply.text, annotations: [] }],
+      content: [{ type: 'output_text', text: reply.text, annotations: cited }],
       status: 'completed',
-    }
+    })
+    const done = messageWith(reply.areCitationsLate === true ? [] : annotations)
     text += frame({ type: 'response.output_item.done', output_index: index, item: done })
-    output.push(done)
+    output.push(messageWith(annotations))
     index += 1
   }
   const calls = reply.calls ?? []
@@ -254,6 +325,11 @@ export function fakeModelApi(): FakeModelApi {
       requests
         .filter((request) => request.path === '/responses')
         .map((request) => request.body as Record<string, unknown>),
+    images: [],
+    imageBodies: () =>
+      requests
+        .filter((request) => request.path === '/images/generations')
+        .map((request) => request.body as Record<string, unknown>),
     fetch: (input, init) => {
       const url = urlOf(input)
       const method = init?.method ?? 'GET'
@@ -275,6 +351,34 @@ export function fakeModelApi(): FakeModelApi {
       if (url.pathname.endsWith('/models')) {
         return Promise.resolve(
           json({ object: 'list', data: api.models.map((id) => ({ id, object: 'model' })) }),
+        )
+      }
+      if (url.pathname.endsWith('/images/generations')) {
+        const image = api.images.shift() ?? {}
+        if (image.httpError !== undefined) {
+          return Promise.resolve(
+            json(
+              { error: { message: image.httpError.message, type: 'invalid_request_error' } },
+              image.httpError.status,
+            ),
+          )
+        }
+        return Promise.resolve(
+          json({
+            created: 1,
+            data:
+              image.isEmpty === true
+                ? []
+                : [
+                    {
+                      b64_json: image.b64 ?? TINY_PNG_BASE64,
+                      ...(image.revisedPrompt !== undefined && {
+                        revised_prompt: image.revisedPrompt,
+                      }),
+                    },
+                  ],
+            output_format: 'png',
+          }),
         )
       }
       if (url.pathname.endsWith('/responses/input_tokens')) {

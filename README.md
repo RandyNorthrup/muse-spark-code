@@ -8,6 +8,7 @@
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="VS Code 1.125 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.125-2b7de9">
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
+  <a href="#languages"><img alt="15 languages" src="https://img.shields.io/badge/languages-15-2b7de9"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
   <a href="https://www.paypal.com/donate/?hosted_button_id=Q9VC7B42R7K82"><img alt="Donate via PayPal" src="https://img.shields.io/badge/donate-PayPal-0070ba"></a>
 </p>
@@ -29,7 +30,8 @@ two.
 [Permission modes](#permission-modes) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [The panel](#the-panel) ·
-[Voice dictation](#voice-dictation) · [Languages](#languages) ·
+[Voice dictation](#voice-dictation) · [Paid features](#paid-features) ·
+[Languages](#languages) ·
 [Limits](#limits) ·
 [Commands](#commands-and-keybindings) · [Settings](#settings) ·
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
@@ -81,7 +83,12 @@ Every change is in the [CHANGELOG](CHANGELOG.md).
   travel with the message.
 - **Voice dictation at no cost.** Tap or hold the microphone (`Ctrl+D`) and
   speak; the words land at the caret. Windows and macOS use the recogniser
-  built into the operating system, so no audio goes to a paid service.
+  built into the operating system, so no audio goes to a paid service unless
+  you turn on Muse Voice.
+- **Paid extras, only if you ask.** On a Model API key: web search with its
+  sources, image files made on request, and Meta's Muse Voice for
+  dictation. Each is off until you turn it on and accept its price, marked
+  paid wherever it is used, and tallied in Account & usage.
 - **Two backends, never mixed.** Your Muse subscription through the Muse Code
   CLI, or a Meta Model API key (pay as you go) with the extension's own
   tools. The pasted key is never handed to the CLI.
@@ -510,7 +517,9 @@ Tap the microphone to start and again to stop; hold it (or `Ctrl+D` /
 held. The placeholder reads "Listening…", the mic pulses red, and each phrase
 lands at the caret followed by a space. Recognition runs in a small helper
 on the operating system's own engine, kept warm for five minutes after a
-recording. Nothing is billed and no third-party engine is involved.
+recording. Nothing is billed and no third-party engine is involved, unless
+you turn on [Muse Voice](#paid-features), the paid engine on a Model API
+key.
 
 Dictation is off in a remote window (SSH, WSL, containers, tunnels,
 Codespaces): the extension runs on the remote machine, which cannot hear
@@ -520,7 +529,7 @@ your microphone.
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows  | `native/windows/dictate.ps1` under Windows PowerShell 5.1 on the .NET Framework's `System.Speech`, the desktop recogniser that ships with Windows (English always; other languages with Windows speech packs). Audio never leaves the machine. Accuracy is the classic engine's, below Windows 11's voice typing; Windows' Speech Recognition training improves it for your voice.                    |
 | macOS    | `native/darwin/muse-dictate`, a Swift helper on Apple's Speech framework, built by CI on a Mac and shipped in the Marketplace package. **Dictation (System Settings > Keyboard) or Siri must be on.** Apple picks on-device recognition when its model is installed, otherwise its servers under Apple's terms at no charge (`--on-device` refuses the servers). See the macOS notes below the table. |
-| Linux    | Not available: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip.                                                                                                                                                                                                                                                           |
+| Linux    | Not available for free: no distribution ships a speech recogniser and the extension adds none. The button is dimmed with that reason as its tooltip. With [Muse Voice](#paid-features) on, the system's `arecord` or `parec` records and Meta transcribes.                                                                                                                                            |
 
 On macOS, two things can stop the helper, and the panel's error says which:
 
@@ -556,9 +565,67 @@ microphone, which separates a recogniser problem from a microphone one.
 ```
 
 Type `start` and press Enter; phrases print as JSON lines, then `stopped`.
+Muse Voice's recorder takes the same `-InputWav` (a 16 kHz, 16-bit mono
+file) and prints the audio as `audio` lines instead:
+`native\windows\capture.ps1 -InputWav …`.
 On macOS the helper takes `--input-device <CoreAudio UID>` to capture from
 one specific device; a Mac without any input device reports "no audio input
 device is available", and step markers on stderr name where a start failed.
+
+## Paid features
+
+Three extras of Meta's Model API cost money on top of tokens. They work on
+the Model API backend only, with your key (never your Muse Code
+subscription), and all three are **off until you turn them on**:
+
+| Feature          | Price (Meta, read 2026-09-24) | What it does                                                                                 |
+| ---------------- | ----------------------------- | -------------------------------------------------------------------------------------------- |
+| Web search       | $2.50 per 1,000 searches      | The model may search the web while it answers; the reply lists the pages it cites            |
+| Image generation | $0.01 per image               | The model may create a PNG file in the workspace with `muse-image-1.0`, asking you each time |
+| Muse Voice       | $0.18 per hour of audio       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser   |
+
+Turn one on from the palette (**Account & usage** group, shown on the Model
+API backend) or with its setting (`museSpark.modelApiWebSearch`,
+`modelApiImageGeneration`, `modelApiVoice`). Either way a confirmation
+names the price first; declining it turns the setting back off, and turning
+a setting off means the next time asks again. The settings are
+machine-scoped, so a repository cannot turn one on.
+
+While one is on, you can always tell:
+
+- **The composer's badge** names every paid feature that is on ("Paid: Web
+  search, Images"), with the prices in its tooltip; it opens Account &
+  usage.
+- **Every use is its own row** marked _paid_: each search, with its query
+  and results, and each image, with its path.
+- **Every image asks first**, in every permission mode, Bypass included,
+  with the prompt and the price on the card and no "always allow". Plan
+  refuses it (it writes a file), and a path that is taken, outside the
+  workspace, or not a `.png` is refused before anything is asked or billed.
+- **The microphone says so**: ringed, and named "Record voice with Muse
+  Voice (paid)" with the price in its tooltip.
+- **Account & usage keeps the tally**: this window's searches, images and
+  seconds of audio, each with its estimated cost at the published prices.
+  The dev.meta.ai dashboard is the bill.
+
+Web search's count errs high: Meta does not say how it bills a search with
+several queries, so each query counts. Muse Voice counts the whole seconds
+sent, as Meta bills them.
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="media/readme/paid.png" alt="A paid Web search row with its query, the reply with its Sources list, and the composer's badge: Paid: Web search, Images"><br><sub>A search marked paid, the reply's sources, and the badge</sub></td>
+    <td align="center" width="50%"><img src="media/readme/paid-image.png" alt="An Image row marked paid and its card: Muse wants to create the image media/lighthouse.png, the prompt, Paid: $0.01 per image, billed to your Model API key, Allow once and Reject"><br><sub>Every image asks first, with its prompt and price</sub></td>
+  </tr>
+</table>
+
+Muse Voice records the same way as free dictation (tap or hold), and the
+transcript lands at the caret when you stop. The recording is made by a
+helper that only records: `native/windows/capture.ps1` on Windows (the
+waveIn API that ships with Windows), the macOS helper's capture mode (which
+asks for the microphone only), and on Linux the system's `arecord` or
+`parec`, so Linux gets a microphone on this engine. Audio leaves the machine
+only while it records, and only to Meta.
 
 ## Languages
 
@@ -649,8 +716,8 @@ and the two worktree commands with a folder open.
 All settings live under `museSpark.*`; changes apply to open panels
 immediately. The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`,
-`allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`)
-are machine-scoped: they take effect from your user settings only, never from
+`allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`
+and the three paid features) are machine-scoped: they take effect from your user settings only, never from
 a repository's `.vscode/settings.json`. In a remote window (SSH, WSL, a dev
 container) machine settings live on the remote side, where a dev container
 definition can set them; there the extension never starts a conversation in
@@ -676,6 +743,9 @@ Bypass at once.
 | `backend`                         | `auto`   | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI. Changing it restarts the host                                                                                                                                           |
 | `shellSandbox`                    | `auto`   | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools may also write outside the workspace. Changing it restarts the host |
 | `museBinaryPath`                  | `""`     | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                                                                                                  |
+| `modelApiWebSearch`               | `false`  | [Paid](#paid-features): web search on the Model API backend, $2.50 per 1,000 searches; asks you to confirm the price when turned on                                                                                                                                                                                                    |
+| `modelApiImageGeneration`         | `false`  | [Paid](#paid-features): image files on the Model API backend, $0.01 per image; every image asks first, in every mode                                                                                                                                                                                                                   |
+| `modelApiVoice`                   | `false`  | [Paid](#paid-features): Muse Voice as the microphone's engine on the Model API backend, $0.18 per hour of audio                                                                                                                                                                                                                        |
 | `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process (an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too). Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                 |
 
 Muse Code also gets VS Code's `http.proxy` (and `http.noProxy`) as
@@ -722,7 +792,11 @@ message resumes the same session.
   conversation asks again, or in a confidential workspace moves it to a
   standard model.
 - Voice audio stays on the machine on Windows; on macOS Apple recognises on
-  the device or on its servers under Apple's terms.
+  the device or on its servers under Apple's terms. With Muse Voice on (paid,
+  off by default), the recording goes to Meta's Muse Voice Transcribe while
+  you record, and nowhere else.
+- The paid features (web search, images, Muse Voice) are off until you turn
+  one on and accept its price; a repository's settings cannot turn one on.
 - Model API conversations are stored, per workspace, in VS Code's storage
   directory for the extension (not in the repository); ones idle longer than
   `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and

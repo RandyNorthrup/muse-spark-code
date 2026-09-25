@@ -581,7 +581,9 @@
     "subagent_status": "Aracı durumu",
     "subagent_send_message": "Aracıya mesaj",
     "subagent_read_result": "Aracı sonucu",
-    "subagent_cancel": "Aracıyı iptal et"
+    "subagent_cancel": "Aracıyı iptal et",
+    "web_search": "Web araması",
+    "generate_image": "Görüntü"
   },
   "processExitCode": "çıkış kodu {code}",
   "skillScopes": {
@@ -714,5 +716,50 @@
   "museExitedWithCode": "Muse Code {code} koduyla çıktı",
   "museExitMeaning": "{meaning} (çıkış kodu {code})",
   "museStoppedBySignal": "Muse Code durduruldu (sinyal: {signal})",
-  "museUnknownSignal": "bilinmiyor"
+  "museUnknownSignal": "bilinmiyor",
+  "approvalCreateImage": "Muse şu görüntüyü oluşturmak istiyor: {action}",
+  "approvalPaid": "Ücretli: {price}, Model API anahtarınıza faturalandırılır",
+  "paidWebSearchName": "Web araması",
+  "paidImageGenerationName": "Görüntüler",
+  "paidVoiceName": "Muse Voice",
+  "paidWebSearchPrice": "1.000 arama başına {price}",
+  "paidImagePrice": "görüntü başına {price}",
+  "paidVoicePrice": "ses saati başına {price}",
+  "paidConfirmTitle": "{feature} açılsın mı?",
+  "paidConfirmWebSearch": "Model, yanıt verirken web'de arama yapabilir. Her arama, sonuçlarının eklediği belirteçlere ek olarak Model API anahtarınıza {price} üzerinden faturalandırılır ve uzantı her aramadan önce soramaz. Yalnızca Model API arka ucunda kullanılır.",
+  "paidConfirmImage": "Model, çalışma alanında görüntü dosyaları oluşturabilir. Her görüntü Model API anahtarınıza {price} üzerinden faturalandırılır ve her izin modunda, her görüntüden önce size sorulur. Yalnızca Model API arka ucunda kullanılır.",
+  "paidConfirmVoice": "Mikrofon, kaydettiklerinizi bilgisayarınızın kendi konuşma tanıyıcısı yerine Meta'nın Muse Voice Transcribe hizmetine gönderir; bu, Model API anahtarınıza {price} üzerinden faturalandırılır. Yalnızca Model API arka ucunda kullanılır.",
+  "paidConfirmAccept": "Aç",
+  "paidBadge": "Ücretli: {features}",
+  "paidBadgeTitle": "Model API anahtarınıza faturalandırılır: {prices}. Bu pencerenin toplamını Hesap ve kullanım bölümünde görmek için tıklayın.",
+  "paidRowBadge": "ücretli",
+  "paidRowTitle": "Model API anahtarınıza faturalandırılır: {price}",
+  "paidToggleLabel": "{feature} (ücretli)",
+  "usagePaidHeading": "Bu penceredeki ücretli özellikler",
+  "usagePaidOn": "açık",
+  "usagePaidOff": "kapalı",
+  "usagePaidSearches": {
+    "one": "{count} arama",
+    "other": "{count} arama"
+  },
+  "usagePaidImages": {
+    "one": "{count} görüntü",
+    "other": "{count} görüntü"
+  },
+  "usagePaidAudio": "{duration} ses",
+  "usagePaidTotal": "Tahmini ücretli toplam",
+  "usagePaidNote": "Bu pencere açıldığından beri, Meta'nın yayımladığı fiyatlara dayalı tahmin; asıl fatura dev.meta.ai panosundadır. Fiyatların okunduğu tarih: {date}.",
+  "webSearchFailed": "Arama başarısız oldu",
+  "citationsHeading": "Kaynaklar",
+  "dictationPaidLabel": "Muse Voice ile ses kaydet (ücretli)",
+  "dictationPaidTitle": "Muse Voice, ücretli: {price}, Model API anahtarınıza faturalandırılır. Kaydetmek için dokunun veya basılı tutun (Ctrl+D)",
+  "museVoiceNoKey": "Muse Voice bir Model API anahtarı gerektirir; önce bir anahtarla oturum açın.",
+  "museVoiceNoAnswer": "Muse Voice yanıt vermedi; bağlantıyı denetleyin ve yeniden deneyin.",
+  "museVoiceNoFinal": "Muse Voice dökümü zamanında göndermedi; yeniden deneyin.",
+  "museVoiceMalformed": "Muse Voice JSON olmayan bir şey gönderdi, bu nedenle kayıt atıldı.",
+  "museVoiceRefused": "Muse Voice kaydı reddetti",
+  "museVoiceRateLimited": "Muse Voice bu anahtar için hız sınırına ulaştı; biraz bekleyip yeniden deneyin.",
+  "museVoiceClosed": "Muse Voice bağlantıyı kapattı (kod {code})",
+  "museVoiceNoWebSocket": "Muse Voice, VS Code'un uzantı konağında WebSocket desteği gerektirir; bu sürümde bu destek yok.",
+  "museVoiceNoRecorder": "Muse Voice, Linux'ta arecord (ALSA) veya parec (PulseAudio) ile kayıt yapar; PATH üzerinde ikisi de bulunamadı."
 }

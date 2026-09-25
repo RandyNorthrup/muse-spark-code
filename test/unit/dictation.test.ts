@@ -10,6 +10,7 @@ import {
   LineSplitter,
   parseHelperLine,
 } from '../../src/core/voice/dictation'
+import { captureListener, SILENT_LOG } from './helpers/captureListener'
 import {
   DICTATION_IDLE_EXIT_MS,
   DICTATION_QUIT_GRACE_MS,
@@ -297,5 +298,34 @@ describe('Dictation driver', () => {
     expect(t.errors).toEqual([])
     t.dictation.start()
     expect(t.children).toHaveLength(1)
+  })
+})
+
+describe('Dictation driver: a capture helper (M35)', () => {
+  it('parses audio lines and hands the audio on, then says when the stop is complete', () => {
+    expect(parseHelperLine('{"type":"audio","data":"AAE="}')).toEqual({
+      type: 'audio',
+      data: 'AAE=',
+    })
+    expect(parseHelperLine('{"type":"audio"}')).toBeUndefined()
+    const recorded = captureListener()
+    const child = new FakeChild()
+    const dictation = new Dictation({
+      invocation,
+      spawn: () => child,
+      listener: recorded.listener,
+      log: SILENT_LOG,
+    })
+    dictation.start()
+    child.emitLine({ type: 'ready', language: 'pcm_s16le', recognizer: 'capture 16000 Hz mono' })
+    child.emitLine({ type: 'listening' })
+    child.emitLine({ type: 'audio', data: Buffer.from([0, 1, 2]).toString('base64') })
+    child.emitLine({ type: 'audio', data: Buffer.from([3]).toString('base64') })
+    dictation.stop()
+    expect(recorded.stopped()).toBe(0)
+    child.emitLine({ type: 'stopped' })
+    expect(recorded.audio).toEqual([[0, 1, 2], [3]])
+    expect(recorded.stopped()).toBe(1)
+    dictation.dispose()
   })
 })

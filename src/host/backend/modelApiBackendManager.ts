@@ -8,7 +8,7 @@ import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { ContextIo } from '../../core/context/contextFiles'
-import { MODEL_API_BASE_URL, UI_TEXT } from '../../shared/constants'
+import { MODEL_API_BASE_URL, type PaidFeature, UI_TEXT } from '../../shared/constants'
 import type { Logger } from '../logger'
 
 export interface ModelApiBackendManagerDeps {
@@ -30,6 +30,10 @@ export interface ModelApiBackendManagerDeps {
   readonly store: SessionStore | undefined
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
+  /** Whether a paid feature is on (M33–M35, PLAN.md D30). */
+  readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
+  /** Counts paid uses for the window's tally. */
+  readonly notePaidUse: (feature: PaidFeature, units: number) => void
 }
 
 const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'
@@ -92,6 +96,8 @@ export class ModelApiBackendManager {
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
       store: this.deps.store,
       describeEnvironment: this.deps.describeEnvironment,
+      isPaidFeatureOn: this.deps.isPaidFeatureOn,
+      notePaidUse: this.deps.notePaidUse,
     })
     await host.load()
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')

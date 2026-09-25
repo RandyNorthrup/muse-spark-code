@@ -227,6 +227,18 @@ describe('createToolIo (real file system and shell)', () => {
     )
   })
 
+  it('creates a new file from bytes, never over an existing one, and says what exists (M34)', async () => {
+    const target = path.join(root, 'images', 'new.png')
+    await expect(io().pathExists(target)).resolves.toBe(false)
+    await io().createFile(target, Uint8Array.from([0x89, 0x50, 0x4e, 0x47]))
+    await expect(readFile(target)).resolves.toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    await expect(io().pathExists(target)).resolves.toBe(true)
+    await expect(io().pathExists(path.join(root, 'images'))).resolves.toBe(true)
+    await expect(io().createFile(target, Uint8Array.from([1]))).rejects.toThrow('EEXIST')
+    // The file that was there is left as it was.
+    await expect(readFile(target)).resolves.toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+  })
+
   it('creates the folders a new file goes into (D26)', async () => {
     const target = path.join(root, 'deep', 'er', 'b.txt')
     await io().writeFile(target, 'nested\n')

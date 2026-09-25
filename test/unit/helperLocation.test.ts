@@ -1,6 +1,10 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { helperEnvironment, locateDictationHelper } from '../../src/core/voice/helperLocation'
+import {
+  helperEnvironment,
+  locateCaptureHelper,
+  locateDictationHelper,
+} from '../../src/core/voice/helperLocation'
 
 const helperDir = path.join('ext', 'native')
 const local = { remoteName: undefined, programFiles: undefined, appName: 'Visual Studio Code' }
@@ -150,5 +154,88 @@ describe('helperEnvironment', () => {
     })
     expect(base).toEqual({ PATH: 'x', PSMODULEPATH: 'keep' })
     expect(helperEnvironment(base, { command: 'helper', args: [] }, 'darwin')).toEqual(base)
+  })
+})
+
+/** A file probe that finds exactly these paths. */
+function onPath(present: readonly string[]): (file: string) => boolean {
+  return (file) => present.includes(file)
+}
+
+describe('locateCaptureHelper (M35)', () => {
+  const capture = { ...local, pathVariable: undefined }
+
+  it('runs the capture script on Windows and the Swift helper in capture mode on macOS', () => {
+    const windows = locateCaptureHelper({
+      ...capture,
+      platform: 'win32',
+      systemRoot: String.raw`C:\Windows`,
+      helperDir: String.raw`C:\ext\native`,
+      fileExists: () => false,
+    })
+    expect(windows).toMatchObject({
+      isAvailable: true,
+      kind: 'helper',
+      invocation: { args: expect.arrayContaining([String.raw`C:\ext\native\windows\capture.ps1`]) },
+    })
+    const darwin = locateCaptureHelper({
+      ...capture,
+      platform: 'darwin',
+      systemRoot: undefined,
+      helperDir,
+      fileExists: () => true,
+    })
+    expect(darwin).toMatchObject({
+      isAvailable: true,
+      kind: 'helper',
+      invocation: {
+        command: path.join(helperDir, 'darwin', 'muse-dictate'),
+        args: ['--capture', '--app-name', 'Visual Studio Code'],
+      },
+    })
+  })
+
+  it('takes arecord, else parec, from absolute PATH entries on Linux, and says when neither is there', () => {
+    const linux = { ...capture, platform: 'linux', systemRoot: undefined, helperDir } as const
+    expect(
+      locateCaptureHelper({
+        ...linux,
+        pathVariable: 'bin:/usr/bin',
+        fileExists: onPath(['/usr/bin/arecord', '/usr/bin/parec', 'bin/arecord']),
+      }),
+    ).toMatchObject({
+      isAvailable: true,
+      kind: 'recorder',
+      name: 'arecord',
+      command: '/usr/bin/arecord',
+    })
+    expect(
+      locateCaptureHelper({
+        ...linux,
+        pathVariable: '/usr/bin',
+        fileExists: onPath(['/usr/bin/parec']),
+      }),
+    ).toMatchObject({ isAvailable: true, kind: 'recorder', name: 'parec' })
+    expect(
+      locateCaptureHelper({ ...linux, pathVariable: '/usr/bin', fileExists: onPath([]) }),
+    ).toEqual({
+      isAvailable: false,
+      reason:
+        'Muse Voice on Linux records with arecord (ALSA) or parec (PulseAudio); neither was found on PATH.',
+    })
+  })
+
+  it('records nothing in a remote window', () => {
+    expect(
+      locateCaptureHelper({
+        ...capture,
+        remoteName: 'wsl',
+        platform: 'linux',
+        systemRoot: undefined,
+        helperDir,
+        fileExists: () => true,
+        pathVariable: '/usr/bin',
+      }),
+    ).toMatchObject({ isAvailable: false, reason: expect.stringContaining('remote window') })
   })
 })

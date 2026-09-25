@@ -4,13 +4,14 @@ import {
   choicesFor,
   isKnownChoice,
   isProtectedPath,
+  paidChoices,
   PermissionEngine,
   type ToolClass,
   verdictFor,
 } from '../../src/core/backends/modelapi/permissions'
 import { APPROVAL_MODES, type ApprovalMode } from '../../src/shared/permissionModes'
 
-const CLASSES: readonly ToolClass[] = ['read', 'edit', 'shell', 'interactive']
+const CLASSES: readonly ToolClass[] = ['read', 'edit', 'shell', 'interactive', 'paid']
 
 /** One PowerShell call as the engine judges it. */
 function shell(command: string) {
@@ -20,10 +21,22 @@ function shell(command: string) {
 describe('verdictFor', () => {
   it('follows the mode truth table', () => {
     const table: Record<ApprovalMode, Record<ToolClass, string>> = {
-      allowAll: { read: 'allow', edit: 'allow', shell: 'allow', interactive: 'allow' },
-      onRequest: { read: 'allow', edit: 'allow', shell: 'ask', interactive: 'allow' },
-      promptUnmatched: { read: 'allow', edit: 'ask', shell: 'ask', interactive: 'allow' },
-      denyUnmatched: { read: 'allow', edit: 'deny', shell: 'deny', interactive: 'allow' },
+      allowAll: { read: 'allow', edit: 'allow', shell: 'allow', interactive: 'allow', paid: 'ask' },
+      onRequest: { read: 'allow', edit: 'allow', shell: 'ask', interactive: 'allow', paid: 'ask' },
+      promptUnmatched: {
+        read: 'allow',
+        edit: 'ask',
+        shell: 'ask',
+        interactive: 'allow',
+        paid: 'ask',
+      },
+      denyUnmatched: {
+        read: 'allow',
+        edit: 'deny',
+        shell: 'deny',
+        interactive: 'allow',
+        paid: 'deny',
+      },
     }
     for (const mode of APPROVAL_MODES) {
       for (const toolClass of CLASSES) {
@@ -139,5 +152,23 @@ describe('choicesFor / isKnownChoice', () => {
     expect(isKnownChoice('allow_once')).toBe(true)
     expect(isKnownChoice('abort')).toBe(true)
     expect(isKnownChoice('allow_local_prefix')).toBe(false)
+  })
+})
+
+describe('paid calls (M34, PLAN.md D30)', () => {
+  it('ask in every mode, Bypass included, and Plan refuses them', () => {
+    expect(APPROVAL_MODES.map((mode) => [mode, verdictFor(mode, 'paid')])).toEqual(
+      APPROVAL_MODES.map((mode) => [mode, mode === 'denyUnmatched' ? 'deny' : 'ask']),
+    )
+  })
+
+  it('are never answered by a session rule, and offer no "always allow"', () => {
+    const engine = new PermissionEngine('allowAll')
+    engine.allowForSession('generate_image')
+    expect(engine.verdict({ toolName: 'generate_image', toolClass: 'paid' })).toBe('ask')
+    expect(paidChoices().map((choice) => choice.choiceId)).toEqual([
+      APPROVAL_CHOICE_IDS.allowOnce,
+      APPROVAL_CHOICE_IDS.abort,
+    ])
   })
 })

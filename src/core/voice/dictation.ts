@@ -7,11 +7,16 @@
 // "text", "stopped", "error"). Nothing leaves the machine and nothing is
 // billed; the helper is the only place audio exists.
 //
+// The capture helpers of Muse Voice (M35) speak the same protocol with one
+// more line, "audio": the recording itself, base64 16-bit PCM, which the
+// listener streams on; they recognise nothing.
+//
 // The helper stays resident between recordings so a second press starts
 // listening in milliseconds (the engine takes about a second to load), and
 // quits by itself after DICTATION_IDLE_EXIT_MS unused. This module never
 // imports `vscode` or `child_process`: the host injects the spawn.
 
+import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import {
   DICTATION_HELPER_COMMANDS,
@@ -31,6 +36,8 @@ const helperLineSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string(), confidence: z.optional(z.number()) }),
   z.object({ type: z.literal('stopped') }),
   z.object({ type: z.literal('error'), reason: z.string() }),
+  // A capture helper's recording (M35): 16-bit little-endian mono PCM, base64.
+  z.object({ type: z.literal('audio'), data: z.string() }),
 ])
 export type HelperLine = z.infer<typeof helperLineSchema>
 
@@ -83,6 +90,10 @@ export interface DictationListener {
   onText(text: string): void
   /** The helper failed or died; the status is idle again by the time this fires. */
   onError(reason: string): void
+  /** A capture helper's audio (M35), in order. */
+  onAudio?(pcm: Uint8Array): void
+  /** The helper confirmed the stop: every word, or every byte of audio, has arrived. */
+  onStopped?(): void
 }
 
 export interface DictationDeps {
@@ -221,6 +232,11 @@ export class Dictation {
         }
         this.setStatus('idle')
         this.armIdleExit(helper)
+        this.deps.listener.onStopped?.()
+        return
+      }
+      case 'audio': {
+        this.deps.listener.onAudio?.(Buffer.from(message.data, 'base64'))
         return
       }
       case 'error': {

@@ -10,6 +10,8 @@ import {
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import { paidFeaturePrice } from '../../shared/paid'
 import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
 import { isFailedStatus, type OutputPage, type TranscriptEntry } from '../state/uiState'
@@ -397,6 +399,14 @@ function ToolRowView({
           <span className={statusClass(entry)} aria-hidden="true" />
           <span className="tool-label">{presentation.label}</span>
           {entry.isBackground ? <span className="badge">{UI_TEXT.backgroundBadge}</span> : null}
+          {entry.paid === undefined ? null : (
+            <span
+              className="badge badge-paid"
+              title={fill(UI_TEXT.paidRowTitle, { price: paidFeaturePrice(entry.paid) })}
+            >
+              {UI_TEXT.paidRowBadge}
+            </span>
+          )}
           {filePath !== undefined || presentation.summary === '' ? null : (
             <span className="tool-summary">{presentation.summary}</span>
           )}

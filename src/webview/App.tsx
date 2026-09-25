@@ -24,6 +24,7 @@ import {
   nextPermissionMode,
   permissionModeDetail,
 } from '../shared/permissionModes'
+import { paidFeatureName, paidFeaturePrice } from '../shared/paid'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { LineRange, SignInMethod, WebviewToHostMessage } from '../shared/protocol'
@@ -117,6 +118,30 @@ export function contextLabelFor(state: UiState): string | undefined {
   }
   const percent = Math.round((context.usedTokens / context.windowTokens) * PERCENT)
   return fill(UI_TEXT.contextPercent, { percent: formatPercent(percent) })
+}
+
+/**
+ * The composer's paid badge (M33, PLAN.md D30): the paid features that are
+ * on, named, with their prices in the tooltip. Shown on the Model API
+ * backend only, the one that uses them.
+ */
+function paidBadgeFor(
+  state: UiState,
+): { readonly label: string; readonly title: string } | undefined {
+  const { features } = state.paid
+  if (state.auth.backend !== 'modelApi' || features.length === 0) {
+    return undefined
+  }
+  return {
+    label: fill(UI_TEXT.paidBadge, {
+      features: features.map((feature) => paidFeatureName(feature)).join(', '),
+    }),
+    title: fill(UI_TEXT.paidBadgeTitle, {
+      prices: features
+        .map((feature) => `${paidFeatureName(feature)} ${paidFeaturePrice(feature)}`)
+        .join('; '),
+    }),
+  }
 }
 
 /** Tooltip detail for the context indicator, which compacts on click (M14). */
@@ -777,6 +802,11 @@ export function App({
           closeOverlay()
           break
         }
+        case 'setPaidFeature': {
+          // The host asks for the price before turning one on (D30).
+          postMessage({ type: 'setPaidFeature', feature: action.feature, isOn: action.isOn })
+          break
+        }
         case 'none': {
           break
         }
@@ -798,6 +828,7 @@ export function App({
         usage: state.usage,
         skills: state.skills,
         backend: state.auth.backend,
+        paidFeatures: state.paid.features,
       }),
     [
       state.model,
@@ -809,8 +840,12 @@ export function App({
       state.usage,
       state.skills,
       state.auth.backend,
+      state.paid.features,
     ],
   )
+  const onOpenUsage = useCallback(() => {
+    openOverlay('usage')
+  }, [openOverlay])
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
@@ -1087,6 +1122,7 @@ export function App({
         usage={state.usage}
         context={state.context}
         modelId={state.model?.modelId}
+        paid={state.paid}
         now={now}
         onOpenExternal={onOpenExternal}
         onClose={closeOverlay}
@@ -1151,6 +1187,8 @@ export function App({
           permissionMode={state.permissionMode}
           contextLabel={contextLabelFor(state)}
           contextTitle={contextTitleFor(state)}
+          paidBadge={paidBadgeFor(state)}
+          onOpenUsage={onOpenUsage}
           focusRequests={state.focusRequests}
           pendingInsert={state.pendingInsert}
           attachments={state.attachments}

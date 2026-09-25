@@ -1089,6 +1089,74 @@ reads.
 - **Honesty:** the translations are machine-made; the README says so and
   asks for corrections through issues.
 
+### D34 — The paid features, as built (2026-09-25)
+
+The owner said "do it" (2026-09-25) to M33–M35 under D30's five rules. What
+Meta's documentation says (read 2026-09-25, public pages, no key used or
+spent; the Muse Code subscription never pays for any of this, D30):
+
+- **Web search** is a Responses tool, `{"type": "web_search"}`, billed at
+  $2.50 per 1,000 search queries on top of tokens. `include:
+["web_search_call.results"]` adds the results (title, URL, snippet) to
+  each `web_search_call` item. Replies carry `url_citation` annotations,
+  complete only once the response is ("the cookbook"). Earlier
+  `web_search_call` items may be replayed. The usage object has no search
+  count, and Meta does not say how a call with several queries, or one that
+  opened a page, is counted.
+- **Images** are `POST /v1/images/generations` with `muse-image-1.0`: $0.01
+  per image returned, whatever its size; failed and filtered ones are not
+  billed. `size` sets only the aspect ratio. `b64_json` returns the image
+  inline; `output_format` takes png, jpeg or webp.
+- **Muse Voice Transcribe** is not OpenAI-shaped: `wss://api.meta.ai/v1/asr/realtime`,
+  whose first text frame carries the key (Meta ignores the Authorization
+  header there) and the audio format; binary frames of 16-bit mono PCM at
+  16 or 24 kHz, paced at real time; `{"type":"endStream"}` at the end.
+  Push-to-talk mode sends cumulative partials and marks the final one.
+  $0.18 per hour of audio, rounded down to whole seconds.
+
+The choices:
+
+- **The gate.** A feature is on only when its setting is on _and_ the user
+  accepted its price in a modal that names it; the acceptance lives in the
+  extension's global state. A setting turned on anywhere (the palette, the
+  Settings editor, settings.json, another window, while VS Code was closed)
+  is confirmed by the focused window when it notices; a declined
+  confirmation turns the setting back off; turning a setting off forgets the
+  acceptance. The three settings are machine-scoped (D15), so a repository
+  cannot turn one on.
+- **Loud.** The composer's badge names every paid feature that is on, with
+  the prices in its tooltip, on the Model API backend only (the one that
+  uses them); the palette's toggles live there too. Each search and each
+  image is its own transcript row marked "paid", with the price in its
+  tooltip; the microphone is ringed and says "Muse Voice (paid)" while that
+  is its engine. Account & usage shows this window's count of each and its
+  estimated cost.
+- **Search.** The tool is sent only while the feature is on, never in a
+  compaction. Rows complete on `output_item.done`, or from the completed
+  response when the stream never finished them. Each query is counted, and
+  a call that opened a page counts once, so the estimate errs high; a failed
+  search is not counted. A reply's sources are listed under it, taken again
+  from the completed response. The search is replayed without its results.
+- **Images.** `generate_image` (prompt, workspace path ending in `.png`,
+  square, landscape or portrait) is offered only while the feature is on.
+  Every call asks, in every mode, Bypass included, with "Allow once" and
+  "Reject" only; Plan refuses it, since it writes a file. The card is not a
+  file write, so Edit automatically never answers it, and it shows the
+  prompt and the price. What cannot be saved is refused before the card (a
+  taken path, a wrong extension, a path outside the workspace, a prompt
+  over 4,000 characters), so nothing is billed for it. The reply must start
+  with the PNG signature, and the file is created, never overwritten.
+- **Muse Voice.** The microphone's engine is Muse Voice while the feature is
+  on and the window runs on the Model API key; otherwise the free recogniser
+  as before. The audio comes from a capture helper speaking the helper
+  protocol with one more line, `audio`: `native/windows/capture.ps1` (the
+  waveIn API through a C# type Windows PowerShell compiles when the helper
+  starts), the Swift helper's `--capture` mode (AVAudioEngine, microphone
+  permission only), or on Linux the system's `arecord` or `parec`. Audio
+  recorded before the stream is up is held, then sent; the final text lands
+  at the caret; every whole second sent is counted. Linux gets a microphone
+  for the first time, on the paid engine only.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -2611,7 +2679,9 @@ pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
 
 ### M33 — Web search on the Model API backend (D30)
 
-**Status 2026-09-24: planned.**
+**Status 2026-09-25: built and certified** (`docs/certification/m33-m35.md`,
+D34); pull request from `features/m33-m35-paid`, stacked with M34 and M35
+so the gate runs once.
 
 - **Goal**: let the key backend search the web, as Claude Code's WebSearch
   tool does, at a cost the user has agreed to, loudly (D30's five rules).
@@ -2638,7 +2708,8 @@ pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
 
 ### M34 — Image generation on the Model API backend (D30)
 
-**Status 2026-09-24: planned.**
+**Status 2026-09-25: built and certified** (`docs/certification/m33-m35.md`,
+D34), in the same pull request as M33.
 
 - **Goal**: let the key backend create an image file when asked (icons,
   mockups, diagrams), at $0.01 an image.
@@ -2665,7 +2736,12 @@ pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
 
 ### M35 — Muse Voice dictation, paid and opt-in (D30)
 
-**Status 2026-09-24: planned.**
+**Status 2026-09-25: built and certified** (`docs/certification/m33-m35.md`,
+D34), in the same pull request as M33. As built, the Windows recorder is
+compiled when its resident helper starts (no assembly in storage), the
+stream is the realtime WebSocket with the key in its first frame, and the
+end-to-end check with a real key and a real microphone waits for the owner
+(it bills the key: one recording of a few seconds is well under one cent).
 
 - **Goal**: an optional dictation engine with Meta's own recogniser (Muse
   Voice Transcribe, $0.18 per audio hour) on the Model API backend, loudly
@@ -2972,6 +3048,18 @@ the shared table, helpers and checks):
 - **Order**: after M38 and M39, so their new text is translated with the
   rest.
 
+### M41 — Install Muse Code from the panel (proposed)
+
+**Status 2026-09-25: proposed; waits for the owner's go-ahead.** The owner
+asked whether the install could be automated rather than linking to Meta's
+site. Meta publishes one-line installers (`irm https://dev.meta.ai/install.ps1
+| iex` on Windows, `curl -fsSL https://dev.meta.ai/install.sh | sh`
+elsewhere; to be re-read before building). The proposal: the sign-in page's
+"Install Muse Code" asks first, in a modal that shows the exact command,
+then runs it in a visible VS Code terminal and watches the install folder
+the extension already probes, moving on to sign-in when `muse` appears.
+The CLI itself is not bundled: it is Meta's closed-source binary.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                                                                                                                                         | Status                                                                                                                                                                                                     |
@@ -3003,7 +3091,7 @@ Every suppression, cast, or ignored error must be listed here with its reason.
 | ---------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/backend/toolIo.ts`       | `nosemgrep` on `spawn` (`detect-child-process`)                    | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                                                                                                                                                                                                     | 2026-09-22 |
 | `src/host/backend/searchWorker.ts` | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                              | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`  | `nosemgrep` on `spawn` (`detect-child-process`)                    | The dictation helper's command line is fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with the bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)) and passed as an argument array; no user, model or workspace input reaches it.                                                                                                            | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`  | `nosemgrep` on two `spawn` calls (`detect-child-process`)          | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.          | 2026-09-25 |
 | `native/darwin/Dictation.swift`    | `unsafeBitCast(symbol, to: SetDisclaim.self)`                      | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                 |
 | `src/host/backend/shellJob.ts`     | `catch { }` in the join statement each Windows command starts with | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                            |
 | `test/unit/App.test.tsx`           | `as unknown as Selection` (four stubs)                             | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                          | 2026-09-23 |
@@ -3361,4 +3449,9 @@ The owner said "yes" to cut it once M40 had merged.
 - **Found and fixed along the way:** three accessibility problems that only
   longer text exposed, the Agent map's raw status, and the "1000K" edge.
 
-The release goes through a pull request from `release/0.8.0`.
+The release went through pull request #26 from `release/0.8.0`, its gate
+recorded with `npm run quality` exiting 0. Tagged `v0.8.0` (3b6271b); run
+36150261035 went green on every job (14:51 to 15:01 UTC on 2026-09-25), the
+GitHub Release carries `muse-spark-code-0.8.0.vsix` (905,941 bytes) and the
+workflow published it ("Published RandyNorthrup.muse-spark-code v0.8.0." at
+15:01:22 UTC); the Marketplace listed 0.8.0 at 15:08:10 UTC (`vsce show`).

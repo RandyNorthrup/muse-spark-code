@@ -65,7 +65,8 @@ import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
-import { createDictationSetup } from './host/voice/dictationHost'
+import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
+import { createPaidFeatures } from './host/paid/paidHost'
 import {
   BACKEND_SETTING,
   BYPASS_SETTING,
@@ -86,6 +87,7 @@ import {
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
   MODEL_API_SESSIONS_DIR,
+  PAID_FEATURE_SETTINGS,
   PERSONAL_SKILLS_GLOB,
   PROJECT_SKILLS_GLOB,
   GLOBAL_STATE_KEYS,
@@ -428,6 +430,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const credentials = new CredentialStore(context.secrets, (message) => {
     log.warn(message)
   })
+  // The paid Model API features (M33–M35, PLAN.md D30): on only with the
+  // setting on and the price accepted; every panel shows which are on.
+  const paid = createPaidFeatures({
+    globalState: context.globalState,
+    isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    log,
+  })
+  // Muse Voice (M35): the paid engine's recorder, used only while it is
+  // on, its price accepted, and the window runs on the Model API key.
+  const museVoiceSetup = createMuseVoiceSetup(
+    {
+      platform: process.platform,
+      systemRoot: process.env['SystemRoot'],
+      helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+    },
+    {
+      apiKey: () => credentials.getApiKey(),
+      onSeconds: (seconds) => {
+        paid.usage.add('voice', seconds)
+      },
+      log,
+    },
+  )
+  const broadcastPaidState = () => {
+    registry.broadcast({ type: 'paidState', state: paid.state() })
+    for (const controller of controllers.values()) {
+      controller.refreshDictation()
+    }
+  }
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
   const dictation = createDictationSetup(
     {
@@ -556,14 +587,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     promptForApiKey,
     broadcast: (message) => {
       registry.broadcast(message)
-      // The walkthrough's sign-in step completes on this context key.
-      if (message.type === 'authState') {
-        void vscode.commands.executeCommand(
-          VSCODE_COMMANDS.setContext,
-          CONTEXT_KEYS.signedIn,
-          message.status === 'signedIn',
-        )
+      if (message.type !== 'authState') {
+        return
       }
+      // The backend decides which engine the microphone uses (M35).
+      for (const controller of controllers.values()) {
+        controller.refreshDictation()
+      }
+      // The walkthrough's sign-in step completes on this context key.
+      void vscode.commands.executeCommand(
+        VSCODE_COMMANDS.setContext,
+        CONTEXT_KEYS.signedIn,
+        message.status === 'signedIn',
+      )
     },
     sleep: (ms) =>
       new Promise((resolve) => {
@@ -755,6 +791,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         log,
         now: Date.now,
       }),
+    isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
+    notePaidUse: (feature, units) => {
+      paid.usage.add(feature, units)
+    },
   })
   const watchedHosts = new WeakSet<AgentHost>()
   let chosenBackend: BackendKind | undefined
@@ -1030,7 +1070,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // conversation by construction (M6).
         isRestorable: surface.id === SIDEBAR_SURFACE_ID,
         dictation,
+        museVoice: () =>
+          auth.current.backend === 'modelApi' && paid.gate.isOn('voice')
+            ? museVoiceSetup
+            : undefined,
         exports: cliFeatures.exports,
+        // The palette's paid-feature toggles (M33): on goes through the price confirmation.
+        setPaidFeature: async (feature, isOn) => {
+          if (isOn) {
+            await paid.gate.turnOn(feature)
+          } else {
+            await paid.gate.turnOff(feature)
+          }
+        },
         now: () => Date.now(),
         log,
       })
@@ -1059,6 +1111,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const controller = controllerFor(surface)
       controller.surfaceReady()
       surface.post({ type: 'editorContext', context: editorContext.summary })
+      surface.post({ type: 'paidState', state: paid.state() })
       // A rebuilt panel resumes the session it held (D15); the sidebar
       // follows the ten-minute rule (M6).
       const restoredSessionId = surface.takeRestoredSessionId()
@@ -1112,7 +1165,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   )
 
   editorContext.update(editorSnapshot)
+  // A setting turned on while VS Code was closed, or in another window, is
+  // confirmed here: at activation, and when this window gains focus (D30).
+  void paid.gate.review().catch(logRejection(log, 'paid feature review'))
   context.subscriptions.push(
+    { dispose: paid.gate.onDidChange(broadcastPaidState) },
+    { dispose: paid.usage.onDidChange(broadcastPaidState) },
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) {
+        void paid.gate.review().catch(logRejection(log, 'paid feature review'))
+      }
+    }),
     channel,
     fileWatcher,
     projectSkillsWatcher,
@@ -1152,6 +1215,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
+      }
+      // A paid feature turned on anywhere asks for its price once (D30).
+      if (paid.affects(event)) {
+        void paid.gate.review().catch(logRejection(log, 'paid feature review'))
       }
       // Turning the Bypass setting off ends Bypass everywhere now (D24).
       if (

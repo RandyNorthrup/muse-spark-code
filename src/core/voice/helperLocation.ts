@@ -11,13 +11,17 @@
 import path from 'node:path'
 import {
   DICTATION_DARWIN_APP_NAME_FLAG,
+  DICTATION_DARWIN_CAPTURE_FLAG,
   DICTATION_DARWIN_HELPER_SEGMENTS,
+  DICTATION_WINDOWS_CAPTURE_SEGMENTS,
   DICTATION_WINDOWS_SCRIPT_SEGMENTS,
+  LINUX_RECORDERS,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_VARIABLE,
 } from '../../shared/constants'
 import { setEnvironmentVariable, windowsPowerShellModulePath } from '../backends/musecode/launch'
+import { resolveExecutable } from '../executables'
 import type { HelperInvocation } from './dictation'
 
 export interface HelperProbe {
@@ -58,7 +62,64 @@ const WINDOWS_SCRIPT_ARGS = [
   '-File',
 ] as const
 
-export function locateDictationHelper(probe: HelperProbe): HelperLocation {
+/**
+ * Windows PowerShell 5.1 running one bundled script, in Windows paths
+ * whatever the host (the unit tests run on all three). It gets exactly
+ * Windows PowerShell's own module directories: 5.1 loads (or fails to load)
+ * pwsh 7's modules when an extension host started from a PowerShell 7
+ * terminal hands it pwsh 7's `PSModulePath`, the trap
+ * `buildChildEnvironment` closes for `muse serve` (PLAN.md D1a).
+ */
+function windowsScript(
+  probe: HelperProbe,
+  systemRoot: string,
+  script: readonly string[],
+): HelperInvocation {
+  return {
+    command: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
+    args: [...WINDOWS_SCRIPT_ARGS, path.win32.join(probe.helperDir, ...script)],
+    environment: {
+      [WINDOWS_PSMODULEPATH_VARIABLE]: windowsPowerShellModulePath(systemRoot, probe.programFiles),
+    },
+  }
+}
+
+/**
+ * The bundled macOS helper with these flags and the app it names, or why
+ * this build has none. macOS charges the helper's permission requests to the
+ * app that started it (the extension host is VS Code's own process), so the
+ * helper names that app in its refusals; a helper that dies before "ready"
+ * died at a permission step or at Gatekeeper (M26, D29).
+ */
+function darwinHelper(
+  probe: HelperProbe,
+  flags: readonly string[],
+):
+  | { readonly isAvailable: true; readonly invocation: HelperInvocation }
+  | { readonly isAvailable: false; readonly reason: string } {
+  const command = path.join(probe.helperDir, ...DICTATION_DARWIN_HELPER_SEGMENTS)
+  return probe.fileExists(command)
+    ? {
+        isAvailable: true,
+        invocation: {
+          command,
+          args: [...flags, DICTATION_DARWIN_APP_NAME_FLAG, probe.appName],
+          earlyExitHint: UI_TEXT.dictationDarwinEarlyExit,
+        },
+      }
+    : { isAvailable: false, reason: UI_TEXT.dictationUnavailableDarwin }
+}
+
+/**
+ * The bundled helper on Windows or macOS, with this script or these flags,
+ * or why it cannot run here; undefined on the other platforms, which each
+ * locator answers for itself.
+ */
+function bundledHelper(
+  probe: HelperProbe,
+  windowsScriptSegments: readonly string[],
+  darwinFlags: readonly string[],
+): HelperLocation | undefined {
   // A workspace extension in a remote window runs on the remote machine, so
   // a helper started here would listen to that machine's microphone (a
   // Windows server's), or find no recogniser (a Linux server, WSL, a
@@ -67,58 +128,27 @@ export function locateDictationHelper(probe: HelperProbe): HelperLocation {
   if (probe.remoteName !== undefined) {
     return { isAvailable: false, reason: UI_TEXT.dictationUnavailableRemote }
   }
-  switch (probe.platform) {
-    case 'win32': {
-      if (probe.systemRoot === undefined) {
-        return { isAvailable: false, reason: UI_TEXT.dictationUnavailableWindows }
-      }
-      // Windows paths whatever the host (the unit tests run on all three).
-      // The helper runs under Windows PowerShell 5.1, which loads (or fails
-      // to load) pwsh 7's modules when an extension host started from a
-      // PowerShell 7 terminal hands it pwsh 7's `PSModulePath`: the trap
-      // `buildChildEnvironment` closes for `muse serve` (PLAN.md D1a), with
-      // the same module directories here.
-      return {
-        isAvailable: true,
-        invocation: {
-          command: path.win32.join(probe.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
-          args: [
-            ...WINDOWS_SCRIPT_ARGS,
-            path.win32.join(probe.helperDir, ...DICTATION_WINDOWS_SCRIPT_SEGMENTS),
-          ],
-          environment: {
-            [WINDOWS_PSMODULEPATH_VARIABLE]: windowsPowerShellModulePath(
-              probe.systemRoot,
-              probe.programFiles,
-            ),
-          },
-        },
-      }
-    }
-    case 'darwin': {
-      // macOS charges the helper's permission requests to the app that
-      // started it (the extension host is VS Code's own process), so the
-      // helper names that app in its refusals; a helper that dies before
-      // "ready" died at a permission step or at Gatekeeper (M26, D29).
-      const command = path.join(probe.helperDir, ...DICTATION_DARWIN_HELPER_SEGMENTS)
-      return probe.fileExists(command)
-        ? {
-            isAvailable: true,
-            invocation: {
-              command,
-              args: [DICTATION_DARWIN_APP_NAME_FLAG, probe.appName],
-              earlyExitHint: UI_TEXT.dictationDarwinEarlyExit,
-            },
-          }
-        : { isAvailable: false, reason: UI_TEXT.dictationUnavailableDarwin }
-    }
-    case 'linux': {
-      return { isAvailable: false, reason: UI_TEXT.dictationUnavailableLinux }
-    }
-    default: {
-      return { isAvailable: false, reason: UI_TEXT.dictationUnavailable }
-    }
+  if (probe.platform === 'win32') {
+    return probe.systemRoot === undefined
+      ? { isAvailable: false, reason: UI_TEXT.dictationUnavailableWindows }
+      : {
+          isAvailable: true,
+          invocation: windowsScript(probe, probe.systemRoot, windowsScriptSegments),
+        }
   }
+  return probe.platform === 'darwin' ? darwinHelper(probe, darwinFlags) : undefined
+}
+
+export function locateDictationHelper(probe: HelperProbe): HelperLocation {
+  return (
+    bundledHelper(probe, DICTATION_WINDOWS_SCRIPT_SEGMENTS, []) ?? {
+      isAvailable: false,
+      reason:
+        probe.platform === 'linux'
+          ? UI_TEXT.dictationUnavailableLinux
+          : UI_TEXT.dictationUnavailable,
+    }
+  )
 }
 
 /**
@@ -141,4 +171,56 @@ export function helperEnvironment(
     setEnvironmentVariable(env, platform, name, value)
   }
   return env
+}
+
+/** Where Muse Voice's recording comes from (M35), or why there is none here. */
+export type CaptureLocation =
+  | { readonly isAvailable: true; readonly kind: 'helper'; readonly invocation: HelperInvocation }
+  | {
+      readonly isAvailable: true
+      readonly kind: 'recorder'
+      /** `arecord` or `parec`: the name the error lines use. */
+      readonly name: string
+      readonly command: string
+      readonly args: readonly string[]
+    }
+  | { readonly isAvailable: false; readonly reason: string }
+
+export interface CaptureProbe extends HelperProbe {
+  /** PATH, for Linux's recorders (absolute entries only, PLAN.md D24). */
+  readonly pathVariable: string | undefined
+}
+
+/**
+ * The capture helper for Muse Voice (M35): Windows PowerShell running the
+ * bundled capture script, the Swift helper in capture mode, or on Linux the
+ * system's recorder. A remote window records nothing, as for the free engine.
+ */
+export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
+  const helper = bundledHelper(probe, DICTATION_WINDOWS_CAPTURE_SEGMENTS, [
+    DICTATION_DARWIN_CAPTURE_FLAG,
+  ])
+  if (helper !== undefined) {
+    return helper.isAvailable ? { ...helper, kind: 'helper' } : helper
+  }
+  if (probe.platform !== 'linux') {
+    return { isAvailable: false, reason: UI_TEXT.dictationUnavailable }
+  }
+  for (const recorder of LINUX_RECORDERS) {
+    const command = resolveExecutable(recorder.command, {
+      platform: probe.platform,
+      pathVariable: probe.pathVariable,
+      fileExists: probe.fileExists,
+    })
+    if (command !== undefined) {
+      return {
+        isAvailable: true,
+        kind: 'recorder',
+        name: recorder.command,
+        command,
+        args: recorder.args,
+      }
+    }
+  }
+  return { isAvailable: false, reason: UI_TEXT.museVoiceNoRecorder }
 }

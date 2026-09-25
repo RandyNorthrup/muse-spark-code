@@ -3,8 +3,13 @@ import path from 'node:path'
 import { PassThrough, Writable } from 'node:stream'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CoreLogger } from '../../src/core/logging'
+import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { Dictation } from '../../src/core/voice/dictation'
+import { locateCaptureHelper } from '../../src/core/voice/helperLocation'
 import {
   createDictationSetup,
+  createMuseVoiceSetup,
   type HelperProcess,
   spawnHelper,
 } from '../../src/host/voice/dictationHost'
@@ -209,4 +214,131 @@ describe('createDictationSetup', () => {
     window.extensionKind = 1
     expect(createDictationSetup(windows, log).isAvailable).toBe(true)
   })
+})
+
+describe('createMuseVoiceSetup (M35)', () => {
+  const log: CoreLogger = {
+    trace: () => undefined,
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+  }
+  const deps = { apiKey: () => Promise.resolve('LLM|1|k'), onSeconds: () => undefined, log }
+
+  beforeEach(() => {
+    window.remoteName = undefined
+    window.extensionKind = 1
+  })
+
+  it('is available on Windows, and in a remote window only on the local side', () => {
+    const windows = {
+      platform: 'win32',
+      systemRoot: String.raw`C:\Windows`,
+      helperDir: 'native',
+    } as const
+    expect(createMuseVoiceSetup(windows, deps).isAvailable).toBe(true)
+    window.remoteName = 'ssh-remote'
+    window.extensionKind = 2
+    expect(createMuseVoiceSetup(windows, deps)).toMatchObject({ isAvailable: false })
+  })
+
+  it('says why without a WebSocket in the extension host', () => {
+    vi.stubGlobal('WebSocket', undefined)
+    try {
+      expect(
+        createMuseVoiceSetup({ platform: 'win32', systemRoot: 'C:/W', helperDir: 'native' }, deps),
+      ).toEqual({
+        isAvailable: false,
+        reason:
+          'Muse Voice needs WebSocket support in VS Code’s extension host, which this version does not have.',
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
+/** A 16 kHz 16-bit mono WAV: the 44-byte header, then `samples` of a ramp. */
+function writeWav(file: string, samples: number): Buffer {
+  const pcm = Buffer.alloc(samples * 2)
+  for (let index = 0; index < samples; index += 1) {
+    pcm.writeInt16LE((index % 200) * 100, index * 2)
+  }
+  const header = Buffer.alloc(44)
+  header.write('RIFF', 0)
+  header.writeUInt32LE(36 + pcm.length, 4)
+  header.write('WAVEfmt ', 8)
+  header.writeUInt32LE(16, 16)
+  header.writeUInt16LE(1, 20)
+  header.writeUInt16LE(1, 22)
+  header.writeUInt32LE(16_000, 24)
+  header.writeUInt32LE(32_000, 28)
+  header.writeUInt16LE(2, 32)
+  header.writeUInt16LE(16, 34)
+  header.write('data', 36)
+  header.writeUInt32LE(pcm.length, 40)
+  writeFileSync(file, Buffer.concat([header, pcm]))
+  return pcm
+}
+
+describe.runIf(process.platform === 'win32')('native/windows/capture.ps1 (M35)', () => {
+  it('replays a recording through the line protocol: ready, listening, the audio whole, stopped', async () => {
+    const wav = path.join(tmpdir(), `muse-capture-${String(process.pid)}.wav`)
+    const pcm = writeWav(wav, 8000)
+    const location = locateCaptureHelper({
+      platform: 'win32',
+      systemRoot: String(process.env['SystemRoot']),
+      programFiles: process.env['ProgramFiles'],
+      remoteName: undefined,
+      appName: 'Visual Studio Code',
+      helperDir: path.resolve('native'),
+      fileExists: () => true,
+      pathVariable: undefined,
+    })
+    if (!location.isAvailable || location.kind !== 'helper') {
+      throw new Error('no capture helper')
+    }
+    const chunks: Buffer[] = []
+    const statuses: string[] = []
+    const stopped = Promise.withResolvers<undefined>()
+    const errors: string[] = []
+    const dictation = new Dictation({
+      invocation: {
+        ...location.invocation,
+        args: [...location.invocation.args, '-InputWav', wav],
+      },
+      spawn: spawnHelper,
+      listener: {
+        onStatus: (status) => {
+          statuses.push(status)
+        },
+        onText: () => undefined,
+        onError: (reason) => {
+          errors.push(reason)
+          stopped.resolve(undefined)
+        },
+        onAudio: (bytes) => {
+          chunks.push(Buffer.from(bytes))
+          if (Buffer.concat(chunks).length >= pcm.length) {
+            dictation.stop()
+          }
+        },
+        onStopped: () => {
+          stopped.resolve(undefined)
+        },
+      },
+      log: {
+        trace: () => undefined,
+        info: () => undefined,
+        warn: () => undefined,
+        error: () => undefined,
+      },
+    })
+    dictation.start()
+    await stopped.promise
+    dictation.dispose()
+    expect(errors).toEqual([])
+    expect(statuses).toEqual(['starting', 'listening', 'idle'])
+    expect(Buffer.concat(chunks).equals(pcm)).toBe(true)
+  }, 60_000)
 })

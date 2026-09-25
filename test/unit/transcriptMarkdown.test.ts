@@ -175,3 +175,30 @@ describe('exportFileName', () => {
     expect(long).not.toContain('--')
   })
 })
+
+describe('renderTranscriptMarkdown: cited sources (M33)', () => {
+  it('lists a reply’s sources as links, their titles escaped and their URLs kept whole', () => {
+    const markdown = render([
+      item({
+        kind: 'agentMessage',
+        text: 'Vite 7 shipped.',
+        citations: [
+          { url: 'https://vite.dev/blog', title: 'Vite [7] is out' },
+          { url: 'https://example.com/a (b)' },
+        ],
+      }),
+    ])
+    expect(markdown).toContain(
+      [
+        '## Muse',
+        '',
+        'Vite 7 shipped.',
+        '',
+        'Sources:',
+        '',
+        String.raw`- [Vite \[7\] is out](<https://vite.dev/blog>)`,
+        '- [https://example.com/a (b)](<https://example.com/a (b)>)',
+      ].join('\n'),
+    )
+  })
+})

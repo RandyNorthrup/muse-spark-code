@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { MODEL_TEXT, type PaidFeature, UI_TEXT } from '../../src/shared/constants'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import {
   ModelApiHost,
@@ -12,6 +12,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
+import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -24,8 +25,11 @@ function setup(
     isTrusted?: boolean
     store?: ReturnType<typeof memorySessionStore>
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
+    /** The paid features that are on (M33–M35); none unless a test says so. */
+    paid?: readonly PaidFeature[]
   } = {},
 ) {
+  const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo(options.files ?? {}, ROOT)
@@ -52,8 +56,12 @@ function setup(
     isWorkspaceTrusted: () => options.isTrusted ?? true,
     store: options.store,
     describeEnvironment: options.describeEnvironment ?? (() => Promise.resolve({ git: undefined })),
+    isPaidFeatureOn: (feature) => options.paid?.includes(feature) === true,
+    notePaidUse: (feature, units) => {
+      paidUses.push({ feature, units })
+    },
   })
-  return { api, host, log, io, files: io.files, shellCalls: io.shellCalls }
+  return { api, host, log, io, files: io.files, shellCalls: io.shellCalls, paidUses }
 }
 
 async function startSession(
@@ -1369,5 +1377,395 @@ describe('ModelApiSession: protocol semantics (D26)', () => {
     expect(load).toHaveBeenCalledTimes(2)
     expect(loaded.history.items.length).toBe(history.items.length)
     await expect(t.host.readSession('never-stored')).rejects.toThrow('not held by this window')
+  })
+})
+
+/** The search rows a turn completed, in order (M33). */
+function completedSearchRows(events: readonly AgentEvent[]) {
+  return events.flatMap((event) =>
+    event.type === 'itemCompleted' && event.item.tool === 'web_search' ? [event.item] : [],
+  )
+}
+
+/** The first request of a plain turn with these paid features on (M33). */
+async function firstRequest(paid: readonly PaidFeature[]) {
+  const t = setup({ paid })
+  const { session, turnDone } = await startSession(t)
+  await answerFirst(t, session, turnDone)
+  const [body] = t.api.responseBodies()
+  return {
+    tools: body?.['tools'] as readonly Record<string, unknown>[],
+    include: body?.['include'],
+  }
+}
+
+describe('ModelApiSession: web search, paid and loud (M33)', () => {
+  it('keeps the search tool and its results out of every request while it is off', async () => {
+    const { tools, include } = await firstRequest([])
+    expect(tools.some((tool) => tool['type'] === 'web_search')).toBe(false)
+    expect(include).toEqual(['reasoning.encrypted_content'])
+  })
+
+  it('sends exactly one search tool, and asks for the results, while it is on', async () => {
+    const { tools, include } = await firstRequest(['webSearch'])
+    expect(tools.filter((tool) => tool['type'] === 'web_search')).toEqual([{ type: 'web_search' }])
+    expect(include).toEqual(['reasoning.encrypted_content', 'web_search_call.results'])
+  })
+
+  it('shows a search as a paid row with its query and results, counts it, cites, and replays it without results', async () => {
+    const t = setup({ paid: ['webSearch'] })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({
+      searches: [
+        {
+          queries: ['vite 7 release'],
+          results: [{ title: 'Vite 7 is out', url: 'https://vite.dev/blog/announcing-vite7' }],
+        },
+      ],
+      text: 'Vite 7 shipped in June.',
+      citations: [{ url: 'https://vite.dev/blog/announcing-vite7', title: 'Vite 7 is out' }],
+    })
+    await session.sendTurn([{ type: 'text', text: 'when did vite 7 ship?' }])
+    await turnDone()
+    expect(events).toContainEqual({
+      type: 'itemStarted',
+      item: expect.objectContaining({
+        kind: 'toolCall',
+        tool: 'web_search',
+        status: 'inProgress',
+        paid: 'webSearch',
+      }),
+    })
+    expect(completedSearchRows(events)).toEqual([
+      expect.objectContaining({
+        status: 'completed',
+        args: JSON.stringify({ query: 'vite 7 release' }),
+        visibleOutput: 'Vite 7 is out\nhttps://vite.dev/blog/announcing-vite7',
+        paid: 'webSearch',
+      }),
+    ])
+    expect(t.paidUses).toEqual([{ feature: 'webSearch', units: 1 }])
+    expect(events).toContainEqual({
+      type: 'itemCompleted',
+      item: expect.objectContaining({
+        kind: 'agentMessage',
+        citations: [{ url: 'https://vite.dev/blog/announcing-vite7', title: 'Vite 7 is out' }],
+      }),
+    })
+    // The next request replays the search, without the results asked for the row.
+    t.api.script({ text: 'more' })
+    await session.sendTurn([{ type: 'text', text: 'and 8?' }])
+    await turnDone()
+    const input = t.api.responseBodies().at(-1)?.['input'] as readonly Record<string, unknown>[]
+    const replayed = input.find((item) => item['type'] === 'web_search_call')
+    expect(replayed).toEqual({
+      type: 'web_search_call',
+      id: expect.any(String),
+      status: 'completed',
+      action: { type: 'search', queries: ['vite 7 release'] },
+    })
+    // The row and the sources come back with the conversation.
+    const history = session.history()
+    expect(history.items).toContainEqual(expect.objectContaining({ paid: 'webSearch' }))
+  })
+
+  it('counts each query, not a failed search, completes one only the response carried, and settles late citations', async () => {
+    const t = setup({ paid: ['webSearch'] })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({
+      searches: [
+        { queries: ['one', 'two'] },
+        { status: 'failed' },
+        { queries: ['late'], isDoneOmitted: true },
+        { isBareDone: true },
+        { action: { type: 'open_page', url: 'https://example.com/page' } },
+      ],
+      text: 'Answer.',
+      citations: [{ url: 'https://example.com/a', title: 'A' }],
+      areCitationsLate: true,
+    })
+    await session.sendTurn([{ type: 'text', text: 'search' }])
+    await turnDone()
+    const rows = completedSearchRows(events)
+    expect(rows.map((row) => row.status)).toEqual([
+      'completed',
+      'failed',
+      'completed',
+      'completed',
+      'completed',
+    ])
+    expect(rows[1]).toEqual(expect.objectContaining({ failureReason: 'The search failed' }))
+    expect(rows[2]?.args).toBe('{}')
+    expect(rows[3]?.args).toBe(JSON.stringify({ url: 'https://example.com/page' }))
+    // In stream order; the search only the response carried is counted last.
+    expect(t.paidUses.map((use) => use.units)).toEqual([2, 1, 1, 1])
+    const message = events.find(
+      (event) => event.type === 'itemCompleted' && event.item.kind === 'agentMessage',
+    )
+    expect(message?.type === 'itemCompleted' && message.item.citations).toBeFalsy()
+    expect(events).toContainEqual({
+      type: 'itemUpdated',
+      item: expect.objectContaining({
+        kind: 'agentMessage',
+        citations: [{ url: 'https://example.com/a', title: 'A' }],
+      }),
+    })
+    // The transcript holds the reply once, with its sources.
+    const replies = session.history().items.filter((item) => item.kind === 'agentMessage')
+    expect(replies).toEqual([
+      expect.objectContaining({ citations: [{ url: 'https://example.com/a', title: 'A' }] }),
+    ])
+  })
+
+  it('compacts without the search tool or its results', async () => {
+    const t = setup({ paid: ['webSearch'] })
+    const { session, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    t.api.script({ text: 'THE SUMMARY' })
+    await session.compact()
+    const body = t.api.responseBodies().at(-1)
+    expect(body?.['tools']).toEqual([])
+    expect(body?.['include']).toEqual(['reasoning.encrypted_content'])
+  })
+
+  it('stores and reads back a conversation with a search in it', async () => {
+    const store = memorySessionStore()
+    const t = setup({ paid: ['webSearch'], store })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ searches: [{ queries: ['q'] }], text: 'found' })
+    await session.sendTurn([{ type: 'text', text: 'look it up' }])
+    await turnDone()
+    await t.host.flush()
+    const stored = parseStoredSession(structuredClone(session.snapshot()))
+    expect(stored.ok).toBe(true)
+    session.dispose()
+    const history = await t.host.readSession(session.sessionId)
+    expect(history.items).toContainEqual(
+      expect.objectContaining({ tool: 'web_search', paid: 'webSearch' }),
+    )
+  })
+})
+
+/** A `generate_image` call as the model makes it (M34). */
+function imageCall(args: Record<string, unknown>, callId = 'call_img') {
+  return { name: 'generate_image', arguments: JSON.stringify(args), callId }
+}
+
+/** The tool output the model received for `callId`, from the last request's input. */
+function toolOutput(t: ReturnType<typeof setup>, callId: string): string | undefined {
+  const input = t.api.responseBodies().at(-1)?.['input'] as readonly Record<string, unknown>[]
+  const output = input.find(
+    (item) => item['type'] === 'function_call_output' && item['call_id'] === callId,
+  )
+  return output?.['output'] as string | undefined
+}
+
+describe('ModelApiSession: image generation, paid and asked every time (M34)', () => {
+  it('offers no image tool while it is off, and refuses one called anyway without a card', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [imageCall({ prompt: 'a cat', path: 'cat.png' })] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'draw a cat' }])
+    await turnDone()
+    const tools = t.api.responseBodies()[0]?.['tools'] as readonly Record<string, unknown>[]
+    expect(tools.some((tool) => tool['name'] === 'generate_image')).toBe(false)
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    expect(t.api.imageBodies()).toEqual([])
+    expect(toolOutput(t, 'call_img')).toContain('image generation is off')
+    expect(t.paidUses).toEqual([])
+  })
+
+  it('asks before the image, naming it paid, then writes the PNG and counts it', async () => {
+    const t = setup({ paid: ['imageGeneration'] })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.images.push({ revisedPrompt: 'a calm tabby cat' })
+    t.api.script(
+      { calls: [imageCall({ prompt: 'a cat', path: 'art/cat.png', aspect: 'landscape' })] },
+      { text: 'Done.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'draw a cat' }])
+    const request = await approvalRequest(events, 0)
+    const tools = t.api.responseBodies()[0]?.['tools'] as readonly Record<string, unknown>[]
+    expect(tools.filter((tool) => tool['name'] === 'generate_image')).toEqual([
+      expect.objectContaining({
+        parameters: expect.objectContaining({ required: ['prompt', 'path'] }),
+      }),
+    ])
+    expect(request.subject).toEqual({
+      kind: 'paidTool',
+      toolName: 'generate_image',
+      paidFeature: 'imageGeneration',
+      path: 'art/cat.png',
+    })
+    // This once or not at all: never "always allow".
+    expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+      'allow_once',
+      'abort',
+    ])
+    expect(t.api.imageBodies()).toEqual([])
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(t.api.imageBodies()).toEqual([
+      {
+        model: 'muse-image-1.0',
+        prompt: 'a cat',
+        n: 1,
+        size: '1536x1024',
+        response_format: 'b64_json',
+        output_format: 'png',
+      },
+    ])
+    const written = t.io.binaries.get(`${ROOT}/art/cat.png`)
+    expect([...(written?.subarray(0, 4) ?? [])]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
+    expect(events).toContainEqual({
+      type: 'itemCompleted',
+      item: expect.objectContaining({
+        tool: 'generate_image',
+        status: 'completed',
+        paid: 'imageGeneration',
+        visibleOutput: 'Created art/cat.png (landscape, 1 KiB)',
+      }),
+    })
+    expect(toolOutput(t, 'call_img')).toContain('revised the prompt to: a calm tabby cat')
+  })
+
+  it('asks in Bypass and in Auto too, asks again for the next image, and Plan refuses it', async () => {
+    for (const mode of ['allowAll', 'onRequest']) {
+      const t = setup({ paid: ['imageGeneration'] })
+      const { session, events, turnDone } = await startSession(t, mode)
+      t.api.script(
+        {
+          calls: [
+            imageCall({ prompt: 'one', path: 'one.png' }, 'c1'),
+            imageCall({ prompt: 'two', path: 'two.png' }, 'c2'),
+          ],
+        },
+        { text: 'ok' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'two images' }])
+      for (const index of [0, 1]) {
+        const request = await approvalRequest(events, index)
+        await session.decideApproval({
+          approvalId: request.approvalId,
+          choiceId: 'allow_once',
+          requirementId: request.requirementId,
+        })
+      }
+      await turnDone()
+      expect(t.api.imageBodies()).toHaveLength(2)
+      expect(t.paidUses).toHaveLength(2)
+    }
+    const plan = setup({ paid: ['imageGeneration'] })
+    const { session, events, turnDone } = await startSession(plan, 'denyUnmatched')
+    plan.api.script({ calls: [imageCall({ prompt: 'a', path: 'a.png' })] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'draw' }])
+    await turnDone()
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    expect(plan.api.imageBodies()).toEqual([])
+    expect(toolOutput(plan, 'call_img')).toContain('refused by the permission mode')
+  })
+
+  it('refuses before the card what could not be saved, so nothing is asked or billed', async () => {
+    const cases: readonly [Record<string, unknown>, string][] = [
+      [{ prompt: 'a', path: 'cat.jpg' }, 'must end in .png'],
+      [{ prompt: 'a', path: 'taken.png' }, 'already exists'],
+      [{ prompt: 'a', path: 'art' }, 'must end in .png'],
+      [{ prompt: 'a', path: '../outside.png' }, 'outside'],
+      [{ prompt: 'x'.repeat(4001), path: 'long.png' }, 'invalid arguments'],
+      [{ prompt: '', path: 'empty.png' }, 'invalid arguments'],
+    ]
+    for (const [args, reason] of cases) {
+      const t = setup({ paid: ['imageGeneration'], files: { 'taken.png': 'x', 'art/a.txt': 'x' } })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      t.api.script({ calls: [imageCall(args)] }, { text: 'ok' })
+      await session.sendTurn([{ type: 'text', text: 'draw' }])
+      await turnDone()
+      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      expect(t.api.imageBodies()).toEqual([])
+      expect(toolOutput(t, 'call_img')?.toLowerCase()).toContain(reason)
+    }
+  })
+
+  it('calls nothing when the card is rejected, and counts a billed image that was not a PNG', async () => {
+    const t = setup({ paid: ['imageGeneration'] })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.images.push({ b64: Buffer.from('GIF89a…').toString('base64') })
+    t.api.script(
+      {
+        calls: [
+          imageCall({ prompt: 'no', path: 'no.png' }, 'c1'),
+          imageCall({ prompt: 'odd', path: 'odd.png' }, 'c2'),
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'draw' }])
+    const first = await approvalRequest(events, 0)
+    await session.decideApproval({
+      approvalId: first.approvalId,
+      choiceId: 'abort',
+      requirementId: first.requirementId,
+    })
+    const second = await approvalRequest(events, 1)
+    expect(t.api.imageBodies()).toEqual([])
+    await session.decideApproval({
+      approvalId: second.approvalId,
+      choiceId: 'allow_once',
+      requirementId: second.requirementId,
+    })
+    await turnDone()
+    expect(t.api.imageBodies()).toHaveLength(1)
+    expect(t.io.binaries.size).toBe(0)
+    expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
+    expect(toolOutput(t, 'c2')).toContain('not a PNG')
+  })
+
+  it('counts nothing and writes nothing when the service returns no image', async () => {
+    const t = setup({ paid: ['imageGeneration'] })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.images.push({ isEmpty: true })
+    t.api.script({ calls: [imageCall({ prompt: 'x', path: 'none.png' })] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'draw' }])
+    const request = await approvalRequest(events, 0)
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(t.api.imageBodies()).toHaveLength(1)
+    expect(t.paidUses).toEqual([])
+    expect(t.io.binaries.size).toBe(0)
+    expect(toolOutput(t, 'call_img')).toContain('returned no image')
+  })
+
+  it('reports an API refusal as a failed row, uncounted, and flags a protected path', async () => {
+    const t = setup({ paid: ['imageGeneration'] })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.images.push({ httpError: { status: 400, message: 'prompt rejected by moderation' } })
+    t.api.script({ calls: [imageCall({ prompt: 'x', path: '.vscode/icon.png' })] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'draw' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.isProtectedWrite).toBe(true)
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(t.paidUses).toEqual([])
+    expect(events).toContainEqual({
+      type: 'itemCompleted',
+      item: expect.objectContaining({
+        tool: 'generate_image',
+        status: 'failed',
+        failureReason: 'prompt rejected by moderation',
+      }),
+    })
   })
 })

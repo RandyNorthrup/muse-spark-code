@@ -6,6 +6,7 @@
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
+import * as z from 'zod/mini'
 import type {
   AgentEvent,
   ApprovalSubject,
@@ -31,8 +32,10 @@ import {
   MODEL_API_SERVER_NAME,
   MODEL_API_TOOLS,
   MODEL_API_VERSION,
+  MODEL_API_WEB_SEARCH_TOOL,
   MODEL_TEXT,
   OUTPUT_REF_PREFIX,
+  type PaidFeature,
   STORED_SESSION_VERSION,
   THINKING_OFF_EFFORT,
   UI_TEXT,
@@ -67,11 +70,13 @@ import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { MissingApiKeyError, type ModelApiClient, ModelApiError, type RetryNotice } from './client'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
+import { generateImageArgs, imagePathProblem, runImageGeneration } from './imageGeneration'
 import {
   APPROVAL_CHOICE_IDS,
   choicesFor,
   isKnownChoice,
   isProtectedPath,
+  paidChoices,
   PermissionEngine,
   type PermissionQuery,
 } from './permissions'
@@ -83,18 +88,24 @@ import {
   type StoredSessionHeader,
 } from './sessionStore'
 import {
+  type Citation,
+  citationsOf,
   type CreateResponseBody,
   type FunctionCallItem,
+  type IncludeField,
   type InputContentPart,
   type InputItem,
   isFunctionCallItem,
   isMessageItem,
   isReasoningItem,
+  isWebSearchCallItem,
   messageText,
   type OutputItem,
   type ResponseObject,
   type StreamEvent,
+  type ToolDefinition,
   type Usage,
+  type WebSearchCallItem,
 } from './schemas'
 import {
   classifyTool,
@@ -129,6 +140,10 @@ export interface ModelApiHostDeps {
   readonly store?: SessionStore | undefined
   /** The git facts for the prompt's environment section (D15), read once per session. */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
+  /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
+  readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
+  /** Counts paid uses for the window's tally: searches made, images returned. */
+  readonly notePaidUse: (feature: PaidFeature, units: number) => void
 }
 
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
@@ -196,9 +211,58 @@ interface ApprovalOutcome {
 /** Where a streamed output item stands while its deltas arrive. */
 interface OpenItem {
   readonly ourId: string
-  readonly kind: 'agentMessage' | 'reasoning'
+  /** A search (M33) is shown as a tool row, marked paid. */
+  readonly kind: 'agentMessage' | 'reasoning' | 'webSearch'
   text: string
   readonly summary: string[]
+  /** In the transcript as completed: a later sight of the item only updates it. */
+  isCompleted: boolean
+  /** The sources the completed reply cited, as the transcript has them (M33). */
+  citations: readonly Citation[]
+}
+
+/** What a search row shows: the query (or page) as its arguments, the results as its output. */
+function searchPresentation(item: WebSearchCallItem): {
+  readonly args: string
+  readonly output: string
+} {
+  const { action } = item
+  let args: Record<string, string> = {}
+  if (action?.type === 'search') {
+    const queries = action.queries ?? (action.query === undefined ? [] : [action.query])
+    args = { query: queries.join(' · ') }
+  } else if (typeof action?.url === 'string') {
+    args = { url: action.url, ...(action.pattern !== undefined && { pattern: action.pattern }) }
+  }
+  const results = item.results ?? []
+  const lines =
+    results.length > 0
+      ? results.map((result) => {
+          const title = result.title ?? ''
+          return title === '' ? result.url : `${title}\n${result.url}`
+        })
+      : (action?.sources ?? []).map((source) => source.url)
+  return { args: JSON.stringify(args), output: lines.join('\n\n') }
+}
+
+/**
+ * The searches a call is counted as for the tally. Meta prices search
+ * queries and does not say how a call with several queries, or one that
+ * opened a page, is counted (research, 2026-09-25): each query counts, and
+ * any other call counts once, so the estimate errs high rather than low.
+ */
+function searchUnits(item: WebSearchCallItem): number {
+  const queries = item.action?.type === 'search' ? (item.action.queries?.length ?? 1) : 1
+  return Math.max(queries, 1)
+}
+
+function isSameCitations(a: readonly Citation[], b: readonly Citation[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (citation, index) => citation.url === b[index]?.url && citation.title === b[index].title,
+    )
+  )
 }
 
 const IN_PROGRESS = 'inProgress'
@@ -334,13 +398,32 @@ function pick(record: Record<string, unknown>, key: string): string | undefined 
   return typeof value === 'string' ? value : undefined
 }
 
+/**
+ * The paid feature a tool call bills (M34): its row is marked paid and its
+ * card names the price. Undefined for every free tool.
+ */
+function paidFeatureOf(toolName: string): PaidFeature | undefined {
+  return toolName === MODEL_API_TOOLS.generateImage ? 'imageGeneration' : undefined
+}
+
 /** What the approval card is about, in the MSP subject vocabulary. */
 function subjectFor(call: FunctionCallItem, platform: NodeJS.Platform): ApprovalSubject {
   const args = argumentsOf(call)
   if (call.name === shellToolFor(platform).name) {
     return { kind: 'shell', command: pick(args, 'command') ?? call.arguments }
   }
+  const paidFeature = paidFeatureOf(call.name)
   const path = pick(args, 'path')
+  // Never a `fileWrite`: Edit automatically answers those itself (D24), and
+  // a paid call is always the user's to accept (D30).
+  if (paidFeature !== undefined) {
+    return {
+      kind: 'paidTool',
+      toolName: call.name,
+      paidFeature,
+      ...(path !== undefined && { path }),
+    }
+  }
   return path === undefined
     ? { kind: 'tool', toolName: call.name }
     : { kind: 'fileWrite', path, toolName: call.name }
@@ -466,10 +549,7 @@ export class ModelApiSession implements AgentSession {
         environment: this.environment ?? NO_ENVIRONMENT,
         context,
       }),
-      tools: toolDefinitions(this.deps.platform, {
-        hasShell,
-        hasSkills: context.skills.length > 0,
-      }),
+      tools: this.tools(hasShell, context.skills.length > 0),
       tool_choice: 'auto',
       reasoning: {
         effort: this.effort === THINKING_OFF_EFFORT ? MODEL_API_EFFORT_OFF : this.effort,
@@ -477,14 +557,42 @@ export class ModelApiSession implements AgentSession {
       },
       stream: true,
       store: false,
-      include: ['reasoning.encrypted_content'],
+      include: this.includes(),
       max_output_tokens: MODEL_API_MAX_OUTPUT_TOKENS,
       prompt_cache_key: this.sessionId,
     }
   }
 
+  /** The in-process tools, and Meta's web search while that paid feature is on (M33). */
+  private tools(hasShell: boolean, hasSkills: boolean): readonly ToolDefinition[] {
+    const own = toolDefinitions(this.deps.platform, {
+      hasShell,
+      hasSkills,
+      hasImageGeneration: this.deps.isPaidFeatureOn('imageGeneration'),
+    })
+    return this.deps.isPaidFeatureOn('webSearch')
+      ? [...own, { type: MODEL_API_WEB_SEARCH_TOOL }]
+      : own
+  }
+
+  /** The encrypted reasoning always; the search results while search is on, for the rows. */
+  private includes(): readonly IncludeField[] {
+    return this.deps.isPaidFeatureOn('webSearch')
+      ? ['reasoning.encrypted_content', 'web_search_call.results']
+      : ['reasoning.encrypted_content']
+  }
+
   private recordTranscript(turnId: string, item: ItemSnapshot): void {
     this.transcript.push({ turnId, item })
+  }
+
+  /** Replaces a recorded item's snapshot (a reply whose sources arrived with the response). */
+  private rerecordTranscript(item: ItemSnapshot): void {
+    const index = this.transcript.findLastIndex((entry) => entry.item.itemId === item.itemId)
+    const entry = this.transcript[index]
+    if (entry !== undefined) {
+      this.transcript[index] = { turnId: entry.turnId, item }
+    }
   }
 
   private appendUserMessage(
@@ -548,34 +656,102 @@ export class ModelApiSession implements AgentSession {
     if (existing !== undefined) {
       return existing
     }
-    const entry: OpenItem = { ourId: this.deps.newId(), kind, text: '', summary: [] }
+    const entry: OpenItem = {
+      ourId: this.deps.newId(),
+      kind,
+      text: '',
+      summary: [],
+      isCompleted: false,
+      citations: [],
+    }
     open.set(wireId, entry)
-    this.emit({
-      type: 'itemStarted',
-      item: {
-        itemId: entry.ourId,
-        kind,
-        status: IN_PROGRESS,
-        turnId,
-        ...(kind === 'agentMessage' ? { text: '' } : { summary: [] }),
-      },
-    })
+    this.emit({ type: 'itemStarted', item: this.startedSnapshot(entry, turnId) })
     return entry
   }
 
+  private startedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
+    const common = { itemId: entry.ourId, status: IN_PROGRESS, turnId }
+    switch (entry.kind) {
+      case 'agentMessage': {
+        return { ...common, kind: entry.kind, text: '' }
+      }
+      case 'reasoning': {
+        return { ...common, kind: entry.kind, summary: [] }
+      }
+      case 'webSearch': {
+        return {
+          ...common,
+          kind: 'toolCall',
+          tool: MODEL_API_WEB_SEARCH_TOOL,
+          args: '{}',
+          paid: 'webSearch',
+        }
+      }
+    }
+  }
+
+  /** A search's row completed (M33): its query and results, marked paid, and counted. */
+  private completeSearch(entry: OpenItem, item: WebSearchCallItem, turnId: string): void {
+    const isFailed = item.status === FAILED
+    const { args, output } = searchPresentation(item)
+    const completed: ItemSnapshot = {
+      itemId: entry.ourId,
+      kind: 'toolCall',
+      status: isFailed ? FAILED : COMPLETED,
+      turnId,
+      tool: MODEL_API_WEB_SEARCH_TOOL,
+      args,
+      visibleOutput: output,
+      paid: 'webSearch',
+      ...(isFailed && { failureReason: UI_TEXT.webSearchFailed }),
+    }
+    entry.isCompleted = true
+    this.emit({ type: 'itemCompleted', item: completed })
+    this.recordTranscript(turnId, completed)
+    // A failed search is not counted: Meta bills the queries it ran.
+    if (!isFailed) {
+      this.deps.notePaidUse('webSearch', searchUnits(item))
+    }
+  }
+
+  private completedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
+    return entry.kind === 'agentMessage'
+      ? {
+          itemId: entry.ourId,
+          kind: entry.kind,
+          status: COMPLETED,
+          turnId,
+          text: entry.text,
+          ...(entry.citations.length > 0 && { citations: [...entry.citations] }),
+        }
+      : {
+          itemId: entry.ourId,
+          kind: entry.kind,
+          status: COMPLETED,
+          turnId,
+          summary: [...entry.summary],
+        }
+  }
+
   private completeItem(entry: OpenItem, turnId: string): void {
-    const item: ItemSnapshot =
-      entry.kind === 'agentMessage'
-        ? { itemId: entry.ourId, kind: entry.kind, status: COMPLETED, turnId, text: entry.text }
-        : {
-            itemId: entry.ourId,
-            kind: entry.kind,
-            status: COMPLETED,
-            turnId,
-            summary: [...entry.summary],
-          }
+    const item = this.completedSnapshot(entry, turnId)
+    entry.isCompleted = true
     this.emit({ type: 'itemCompleted', item })
     this.recordTranscript(turnId, item)
+  }
+
+  /**
+   * The sources of a completed reply as the whole response has them (M33):
+   * Meta's cookbook says citations are complete only once the stream ends.
+   */
+  private settleCitations(entry: OpenItem, citations: readonly Citation[], turnId: string): void {
+    if (isSameCitations(entry.citations, citations)) {
+      return
+    }
+    entry.citations = citations
+    const item = this.completedSnapshot(entry, turnId)
+    this.emit({ type: 'itemUpdated', item })
+    this.rerecordTranscript(item)
   }
 
   /** One streamed event applied to the transcript; the response when terminal. */
@@ -587,9 +763,12 @@ export class ModelApiSession implements AgentSession {
     switch (event.type) {
       case 'response.output_item.added': {
         const { item } = event
+        const wireId = item.id ?? String(event.output_index ?? open.size)
         if (isMessageItem(item) || isReasoningItem(item)) {
           const kind = isMessageItem(item) ? 'agentMessage' : 'reasoning'
-          this.openItem(open, item.id ?? String(event.output_index ?? open.size), kind, turnId)
+          this.openItem(open, wireId, kind, turnId)
+        } else if (isWebSearchCallItem(item)) {
+          this.openItem(open, wireId, 'webSearch', turnId)
         }
         return undefined
       }
@@ -657,7 +836,13 @@ export class ModelApiSession implements AgentSession {
       const entry = this.openItem(open, wireId, 'agentMessage', turnId)
       const text = messageText(item)
       entry.text = text === '' ? entry.text : text
+      entry.citations = citationsOf(item)
       this.completeItem(entry, turnId)
+    } else if (isWebSearchCallItem(item)) {
+      const entry = this.openItem(open, wireId, 'webSearch', turnId)
+      if (!entry.isCompleted) {
+        this.completeSearch(entry, item, turnId)
+      }
     } else if (isReasoningItem(item)) {
       const entry = this.openItem(open, wireId, 'reasoning', turnId)
       const summary = (item.summary ?? []).map((part) => part.text)
@@ -697,13 +882,22 @@ export class ModelApiSession implements AgentSession {
         undefined,
       )
     }
-    return this.adoptOutput(turnId, final)
+    return this.adoptOutput(turnId, final, open)
   }
 
-  /** Keeps the completed output for replay and returns its function calls. */
-  private adoptOutput(turnId: string, response: ResponseObject): readonly FunctionCallItem[] {
+  /**
+   * Keeps the completed output for replay and returns its function calls. A
+   * search the stream never finished is completed (and counted) here, and a
+   * reply's sources are settled from the whole response (M33).
+   */
+  private adoptOutput(
+    turnId: string,
+    response: ResponseObject,
+    open: Map<string, OpenItem>,
+  ): readonly FunctionCallItem[] {
     const calls: FunctionCallItem[] = []
-    for (const item of response.output) {
+    for (const [index, item] of response.output.entries()) {
+      const wireId = item.id ?? String(index)
       if (isMessageItem(item)) {
         this.replay.push({
           turnId,
@@ -713,6 +907,24 @@ export class ModelApiSession implements AgentSession {
             content: [{ type: OUTPUT_TEXT, text: messageText(item) }],
           },
         })
+        const entry = open.get(wireId)
+        if (entry?.isCompleted === true) {
+          this.settleCitations(entry, citationsOf(item), turnId)
+        }
+      } else if (isWebSearchCallItem(item)) {
+        this.replay.push({
+          turnId,
+          item: {
+            type: 'web_search_call',
+            ...(item.id !== undefined && { id: item.id }),
+            status: item.status ?? COMPLETED,
+            ...(item.action !== undefined && { action: item.action }),
+          },
+        })
+        const entry = this.openItem(open, wireId, 'webSearch', turnId)
+        if (!entry.isCompleted) {
+          this.completeSearch(entry, item, turnId)
+        }
       } else if (isReasoningItem(item)) {
         // Only replayable with its encrypted content; a bare summary is dropped.
         if (typeof item.encrypted_content === 'string') {
@@ -742,7 +954,9 @@ export class ModelApiSession implements AgentSession {
       rawArgs: call.arguments,
       requirementId: { approvalId, sourceIndex: 0 },
       subject: subjectFor(call, this.deps.platform),
-      availableChoices: [...choicesFor(call.name, query.command)],
+      availableChoices: [
+        ...(query.toolClass === 'paid' ? paidChoices() : choicesFor(call.name, query.command)),
+      ],
       isJudgeEscalated: false,
       isProtectedWrite: query.isProtected === true,
     })
@@ -842,6 +1056,46 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * Why an image cannot be made, found before the card so nothing is asked
+   * or billed for it (M34): the feature is off, the arguments or the path
+   * are wrong, or the path is taken.
+   */
+  private async imageProblem(call: FunctionCallItem): Promise<string | undefined> {
+    if (!this.deps.isPaidFeatureOn('imageGeneration')) {
+      return MODEL_TEXT.imageGenerationOff
+    }
+    const parsed = generateImageArgs.safeParse(argumentsOf(call))
+    if (!parsed.success) {
+      return `invalid arguments: ${z.prettifyError(parsed.error)}`
+    }
+    const target = await this.editTarget(call)
+    if (target?.ok !== true) {
+      return target?.reason ?? 'invalid arguments: path is required'
+    }
+    return (
+      imagePathProblem(target.relative) ??
+      ((await this.deps.io.pathExists(target.absolute)) ? MODEL_TEXT.imagePathTaken : undefined)
+    )
+  }
+
+  /** `generate_image` (M34), after the card: the image, written as a new file, and counted. */
+  private async generateImage(call: FunctionCallItem, signal: AbortSignal): Promise<ToolOutcome> {
+    const parsed = generateImageArgs.safeParse(argumentsOf(call))
+    const target = await this.editTarget(call)
+    if (!parsed.success || target?.ok !== true) {
+      return toolFailure('invalid arguments')
+    }
+    return await runImageGeneration(parsed.data, target, {
+      client: this.deps.client,
+      io: this.deps.io,
+      signal,
+      onBilled: () => {
+        this.deps.notePaidUse('imageGeneration', 1)
+      },
+    })
+  }
+
   /** Where an edit-family call writes, confined (links resolved), or why it cannot. */
   private async editTarget(call: FunctionCallItem): Promise<PathResolution | undefined> {
     const given = pick(argumentsOf(call), 'path')
@@ -882,6 +1136,9 @@ export class ModelApiSession implements AgentSession {
       case MODEL_API_TOOLS.readSkill: {
         return this.readSkill(call)
       }
+      case MODEL_API_TOOLS.generateImage: {
+        return await this.generateImage(call, signal)
+      }
       default: {
         return await executeTool(call.name, call.arguments, {
           workspaceRoot: this.deps.workspaceRoot,
@@ -909,7 +1166,14 @@ export class ModelApiSession implements AgentSession {
       // that calls it anyway is refused, never prompted.
       return { outcome: toolFailure(MODEL_TEXT.shellRestrictedMode), isRejected: true }
     }
-    const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
+    if (toolClass === 'paid') {
+      const problem = await this.imageProblem(call)
+      if (problem !== undefined) {
+        return { outcome: toolFailure(problem), isRejected: false }
+      }
+    }
+    const target =
+      toolClass === 'edit' || toolClass === 'paid' ? await this.editTarget(call) : undefined
     if (target?.ok === false) {
       // A path the tool would refuse anyway is refused before any card.
       return { outcome: toolFailure(target.reason), isRejected: false }
@@ -989,6 +1253,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
   ): Promise<void> {
     const itemId = this.deps.newId()
+    const paid = paidFeatureOf(call.name)
     const started: ItemSnapshot = {
       itemId,
       kind: 'toolCall',
@@ -996,6 +1261,7 @@ export class ModelApiSession implements AgentSession {
       turnId,
       tool: call.name,
       args: call.arguments,
+      ...(paid !== undefined && { paid }),
     }
     this.emit({ type: 'itemStarted', item: started })
     let result: { readonly outcome: ToolOutcome; readonly isRejected: boolean }
@@ -1199,6 +1465,7 @@ export class ModelApiSession implements AgentSession {
         },
       ],
       tools: [],
+      include: ['reasoning.encrypted_content'],
     }
     const summary = await this.collectText(body, signal)
     this.replay.splice(0, this.replay.length, {

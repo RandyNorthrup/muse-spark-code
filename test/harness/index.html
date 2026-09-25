@@ -645,6 +645,18 @@
               later(40, () => send({ type: 'insertText', text: 'open the settings file ' }))
               break
             }
+            // --- Paid features (M33): the palette's toggles, confirmed at once ---
+            case 'setPaidFeature': {
+              const features = new Set(window.harnessPaid?.features ?? [])
+              if (message.isOn) {
+                features.add(message.feature)
+              } else {
+                features.delete(message.feature)
+              }
+              window.harnessPaid = { ...window.harnessPaid, features: [...features] }
+              later(40, () => send({ type: 'paidState', state: window.harnessPaid }))
+              break
+            }
             // --- Account & usage (M8) ---
             case 'readUsage': {
               later(40, () =>
@@ -1336,6 +1348,129 @@
           whenFound('.palette-filter', (filter) => {
             setValue(filter, HTMLInputElement.prototype, '/usage')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        // --- M33: paid features on the Model API backend: the badge, a paid
+        // search row, a reply's sources, the tally and the palette's toggles ---
+        paid: () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['webSearch', 'imageGeneration'],
+            tally: { webSearches: 3, images: 1, voiceSeconds: 0 },
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          window.harnessSilent = true
+          setDraft('When did Vite 7 ship?')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'ws1',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'web_search',
+              args: '{"query":"Vite 7 release date"}',
+              visibleOutput:
+                'Announcing Vite 7\nhttps://vite.dev/blog/announcing-vite7\n\nVite releases\nhttps://vite.dev/releases',
+              paid: 'webSearch',
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'Vite 7 was released on 24 June 2025. It needs Node.js 20.19 or newer.',
+              citations: [
+                { url: 'https://vite.dev/blog/announcing-vite7', title: 'Announcing Vite 7' },
+                { url: 'https://vite.dev/releases' },
+              ],
+            },
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+        },
+        'paid-usage': () => {
+          steps.paid()
+          whenFound('.paid-badge', (badge) => badge.click())
+        },
+        // --- M34: an image asks first, naming its price, in every mode ---
+        'paid-image': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['imageGeneration'],
+            tally: { webSearches: 0, images: 0, voiceSeconds: 0 },
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          window.harnessSilent = true
+          setDraft('Make a small lighthouse icon for the README')
+          key({ key: 'Enter' })
+          const args = JSON.stringify({
+            prompt: 'A small lighthouse icon, flat colours, dark blue sea, no text',
+            path: 'media/lighthouse.png',
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'img1',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'generate_image',
+              args,
+              paid: 'imageGeneration',
+            },
+          })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'i1',
+            itemId: 'img1',
+            toolName: 'generate_image',
+            rawArgs: args,
+            requirementId: { approvalId: 'i1', sourceIndex: 0 },
+            subject: {
+              kind: 'paidTool',
+              toolName: 'generate_image',
+              path: 'media/lighthouse.png',
+              paidFeature: 'imageGeneration',
+            },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
+          })
+        },
+        // --- M35: the microphone while Muse Voice is its engine ---
+        'paid-voice': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['voice'],
+            tally: { webSearches: 0, images: 0, voiceSeconds: 42 },
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          send({ type: 'dictationState', status: 'idle', engine: 'museVoice' })
+        },
+        'paid-palette': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['voice'],
+            tally: { webSearches: 0, images: 0, voiceSeconds: 0 },
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          click('Commands')
+          whenFound('.palette-filter', (filter) => {
+            setValue(filter, HTMLInputElement.prototype, 'paid')
           })
         },
         // --- M14: the unsupported-upload banner and the compact button's pressure ---

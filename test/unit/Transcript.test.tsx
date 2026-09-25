@@ -803,3 +803,61 @@ describe('Transcript replies (M25)', () => {
     expect(onRewind).toHaveBeenCalledWith('u')
   })
 })
+
+describe('Transcript: paid rows and cited sources (M33)', () => {
+  it('marks a paid row, with its price in the tooltip, and shows the search query', () => {
+    renderTranscript([
+      tool({
+        id: 'ws',
+        tool: 'web_search',
+        args: JSON.stringify({ query: 'vite 7 release' }),
+        output: 'Vite 7\nhttps://vite.dev/blog',
+        paid: 'webSearch',
+      }),
+      tool({ id: 'free' }),
+    ])
+    expect(screen.getByText('Web search')).toBeInTheDocument()
+    expect(screen.getByText('vite 7 release')).toBeInTheDocument()
+    const badges = screen.getAllByText('paid')
+    expect(badges).toHaveLength(1)
+    expect(badges[0]).toHaveAttribute(
+      'title',
+      'Billed to your Model API key: $2.50 per 1,000 searches',
+    )
+  })
+
+  it('lists a finished reply’s sources, each opening like the reply’s own links', () => {
+    const props = renderTranscript([
+      {
+        kind: 'assistant',
+        id: 'a',
+        text: 'Vite 7 shipped.',
+        isStreaming: false,
+        citations: [
+          { url: 'https://vite.dev/blog', title: 'Vite 7 is out' },
+          { url: 'https://example.com/untitled' },
+        ],
+      },
+    ])
+    const sources = screen.getByRole('navigation', { name: 'Sources' })
+    expect(sources).toHaveTextContent('Vite 7 is out')
+    // A source without a title is named by its host.
+    expect(sources).toHaveTextContent('example.com')
+    fireEvent.click(screen.getByText('Vite 7 is out'))
+    expect(props.onOpenLink).toHaveBeenCalledWith('https://vite.dev/blog')
+  })
+
+  it('shows no sources while the reply streams, or when it cites none', () => {
+    renderTranscript([
+      {
+        kind: 'assistant',
+        id: 'a',
+        text: 'Still',
+        isStreaming: true,
+        citations: [{ url: 'https://vite.dev/blog', title: 'Vite' }],
+      },
+      { kind: 'assistant', id: 'b', text: 'Plain', isStreaming: false, citations: [] },
+    ])
+    expect(screen.queryByRole('navigation', { name: 'Sources' })).toBeNull()
+  })
+})

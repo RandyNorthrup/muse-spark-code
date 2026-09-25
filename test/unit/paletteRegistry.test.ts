@@ -34,6 +34,7 @@ const context: PaletteContext = {
     },
   ],
   backend: 'museCode',
+  paidFeatures: [],
 }
 
 describe('formatTokenWindow', () => {
@@ -427,5 +428,42 @@ describe('rankSlashCommands', () => {
   it('ignores case and leaves out what matches nothing', () => {
     expect(rank('CL')).toEqual(['clear'])
     expect(rank('zzz')).toEqual([])
+  })
+})
+
+/** The palette's paid-feature toggles (M33). */
+function paidRows(groups: ReturnType<typeof buildPalette>) {
+  return groups.flatMap((group) => group.items).filter((item) => item.id.startsWith('paid:'))
+}
+
+describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
+  it('offers no paid toggle on the Muse Code backend, where none is used', () => {
+    expect(paidRows(buildPalette(context))).toEqual([])
+  })
+
+  it('offers each paid feature as a toggle naming its price on the Model API backend', () => {
+    const rows = paidRows(
+      buildPalette({ ...context, backend: 'modelApi', paidFeatures: ['imageGeneration'] }),
+    )
+    expect(rows.map((row) => [row.label, row.detail, row.widget, row.action])).toEqual([
+      [
+        'Web search (paid)',
+        '$2.50 per 1,000 searches',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'webSearch', isOn: true },
+      ],
+      [
+        'Images (paid)',
+        '$0.01 per image',
+        { kind: 'toggle', isOn: true },
+        { type: 'setPaidFeature', feature: 'imageGeneration', isOn: false },
+      ],
+      [
+        'Muse Voice (paid)',
+        '$0.18 per hour of audio',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'voice', isOn: true },
+      ],
+    ])
   })
 })

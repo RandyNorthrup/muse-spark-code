@@ -12,6 +12,10 @@
 //                      Edit-automatically mode, as it does for Muse Code
 //   denyUnmatched    → reads run, everything else is refused (Plan)
 //
+// A paid call (M34, PLAN.md D30: image generation) asks in every mode,
+// Bypass included, with no "always allow"; Plan refuses it, since it writes
+// a file. The price is the user's to accept each time.
+//
 // A protected write (PLAN.md D24) asks in every mode but Bypass and Plan,
 // session rules included: a file that configures or runs code outside the
 // edit itself (git's hooks and config, the editor's tasks, CI workflows,
@@ -21,7 +25,7 @@ import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { PROTECTED_PATH_SEGMENTS, PROTECTED_FILE_NAMES, UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 
-export type ToolClass = 'read' | 'edit' | 'shell' | 'interactive'
+export type ToolClass = 'read' | 'edit' | 'shell' | 'interactive' | 'paid'
 
 export type PermissionVerdict = 'allow' | 'ask' | 'deny'
 
@@ -67,6 +71,9 @@ export function verdictFor(
   toolClass: ToolClass,
   isProtected = false,
 ): PermissionVerdict {
+  if (toolClass === 'paid') {
+    return mode === 'denyUnmatched' ? 'deny' : 'ask'
+  }
   if (mode === 'allowAll' || toolClass === 'read' || toolClass === 'interactive') {
     return 'allow'
   }
@@ -114,6 +121,11 @@ export function choicesFor(toolName: string, command?: string): readonly Approva
   ]
 }
 
+/** The choices for a paid call (M34): this once, or not at all; never for the session. */
+export function paidChoices(): readonly ApprovalChoice[] {
+  return choicesFor('').filter((choice) => choice.choiceId !== APPROVAL_CHOICE_IDS.allowSession)
+}
+
 /** One call as the engine judges it. */
 export interface PermissionQuery {
   readonly toolName: string
@@ -150,7 +162,8 @@ export class PermissionEngine {
   public verdict(query: PermissionQuery): PermissionVerdict {
     const isProtected = query.isProtected === true
     const byMode = verdictFor(this.mode, query.toolClass, isProtected)
-    if (byMode !== 'ask' || isProtected) {
+    // A session rule never answers for a paid call (D30).
+    if (byMode !== 'ask' || isProtected || query.toolClass === 'paid') {
       return byMode
     }
     return this.allowed.has(ruleKey(query.toolName, query.command)) ? 'allow' : 'ask'

@@ -213,12 +213,13 @@ describe('packaging (M26)', () => {
     .filter((line) => line.startsWith('!'))
     .map((line) => line.slice(1).trim())
 
-  it('ships the licence, the third-party notices and both dictation helpers', () => {
+  it('ships the licence, the third-party notices, both dictation helpers and the capture script', () => {
     expect(shipped).toEqual(
       expect.arrayContaining([
         'LICENSE',
         'THIRD_PARTY_NOTICES.txt',
         'native/windows/dictate.ps1',
+        'native/windows/capture.ps1',
         'native/darwin/muse-dictate',
       ]),
     )
