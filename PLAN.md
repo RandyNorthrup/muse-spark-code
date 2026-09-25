@@ -3322,5 +3322,13 @@ carries what #22 merged:
   throws.
 
 M40a (pull request #23) waits for this release and goes out with the
-translations. The release goes through a pull request from
-`release/0.7.1`.
+translations. The release went through pull request #24 from
+`release/0.7.1`. Its Codex review found the gate recorded with
+`security:sast` failing on the Bash tool's PATH; the launcher from #23
+(`scripts/sast.mjs`) came in, and `npm run quality` exited 0. Tagged
+`v0.7.1` (9604cc6) through the pull request, with no bypass; run
+36101852971 went green on every job (06:12 to 06:22 UTC on 2026-09-25), the
+GitHub Release carries `muse-spark-code-0.7.1.vsix` (650,113 bytes) and the
+workflow published it ("Published RandyNorthrup.muse-spark-code v0.7.1." at
+06:22:20 UTC); the Marketplace listed 0.7.1 at 06:28:37 UTC (`vsce show`),
+and its page showed the squiggled "m" as the icon.
