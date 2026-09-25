@@ -3399,6 +3399,13 @@ The CLI itself is not bundled: it is Meta's closed-source binary.
 | Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA                           | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
 | Localization          | `node scripts/check-l10n.mjs` (`npm run check:l10n`, in `quality:gates`): every table in `l10n/` against the English table, strictly; the manifest against `package.nls.json`; no `UI_TEXT` read at module load | M40 ✓ (drills in `docs/certification/m40.md`)                                                                                                                                                              |
 
+The pre-commit hook runs `lint-staged` tasks serially. On 2026-09-25 a
+large staged batch produced a burst of child shells while the hook ran;
+Windows then stalled and required a restart. Serial execution keeps the
+same lint and format checks while limiting concurrent hook work. The
+exact parent of the shell burst was not captured, so this is a precaution,
+not a claim that `lint-staged` alone caused the stall.
+
 ## 8. Escape hatches register
 
 Every suppression, cast, or ignored error must be listed here with its reason.

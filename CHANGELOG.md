@@ -71,6 +71,8 @@ while they are (PLAN.md D30, D34).
 
 ### Fixed
 
+- **Pre-commit resource pressure.** Staged lint and format tasks now run
+  serially, keeping every check while limiting concurrent child processes.
 - **A resumed Muse Code conversation shows its task list** (M45). A resume
   asked for inline history, which carries no task list; it now asks for the
   folded snapshot, which carries the task list and the goal.
