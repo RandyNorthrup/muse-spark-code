@@ -133,6 +133,10 @@ function ScheduleItem({ job }: { readonly job: ScheduledPrompt }) {
 
 export function ScheduleBody({ entry }: { readonly entry: ToolEntry }) {
   const jobs = scheduledPrompts(entry.tool, entry.args, entry.output)
+  // A result that is not the captured shape, or a failed call: its own text.
+  if (jobs === undefined) {
+    return entry.output === '' ? null : <Clipped text={entry.output} className="tool-output" />
+  }
   if (entry.tool === 'cron_list' && entry.status === 'completed' && jobs.length === 0) {
     return <p className="tool-detail-meta">{UI_TEXT.scheduleNone}</p>
   }

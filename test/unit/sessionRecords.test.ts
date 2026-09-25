@@ -6,6 +6,7 @@ import {
   type SessionEnvelope,
   sessionEnvelopeSchema,
   toSnapshot,
+  wireItemSchema,
 } from '../../src/core/backends/musecode/sessionRecords'
 
 // The `session/list` row shape captured live 2026-09-22 (Muse Code 1.3.0).
@@ -64,6 +65,21 @@ describe('toSessionRow', () => {
 })
 
 describe('toSnapshot', () => {
+  it('takes an item whatever its modelVisibleContent holds (the review of PR #29)', () => {
+    const item = {
+      itemId: 'r',
+      kind: 'toolCall',
+      status: 'completed',
+      tool: 'read_file',
+      modelVisibleContent: [
+        42,
+        { kind: 'image', base64_data: 'AA' },
+        { type: 'image', path: 'a.png' },
+      ],
+    }
+    expect(wireItemSchema.safeParse(item).success).toBe(true)
+  })
+
   it('drops a null turn and shows the display text in place of the model-visible text', () => {
     expect(toSnapshot({ ...userItem, turnId: null })).not.toHaveProperty('turnId')
     const snapshot = toSnapshot(userItem)

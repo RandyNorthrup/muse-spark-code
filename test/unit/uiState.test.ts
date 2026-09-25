@@ -2045,6 +2045,15 @@ describe('Muse Code tool rows in the state (M43)', () => {
     expect(backgroundTasksOf(state).map((task) => task.id)).toEqual(['bg'])
   })
 
+  it('takes JSON a command printed for output, not for a background run (the review of PR #29)', () => {
+    const state = reduceAll([
+      signedIn,
+      runningTool('json', { visibleOutput: '{"execution_state":"background_running"}' }),
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+    ])
+    expect(entryOf(state, 'json')).toMatchObject({ status: 'interrupted', isBackground: false })
+  })
+
   it('marks a row backgrounded when an update says so, and keeps the mark once it ends', () => {
     const state = reduceAll([
       signedIn,
@@ -2081,6 +2090,9 @@ describe('Muse Code tool rows in the state (M43)', () => {
         modelVisibleContent: [
           { type: 'image', path: 'shot.png', mediaType: 'image/png' },
           { type: 'audio', path: 'clip.wav', mediaType: 'audio/wav' },
+          // Shapes that differ are passed over, not fatal (the review of PR #29).
+          42,
+          { type: 'image', uri: 'elsewhere.png' },
         ],
       }),
     ])

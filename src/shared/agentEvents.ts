@@ -91,13 +91,13 @@ export const itemSnapshotFields = {
   /** `toolCall`: a call billed on top of tokens (M33, PLAN.md D30), marked paid in its row. */
   paid: z.optional(z.enum(PAID_FEATURES)),
   /**
-   * `toolCall`: what the model saw beyond text (MSP `ModelVisibleContent`,
-   * metadata only). Muse Code 1.3.0 did not send it on the live stream
-   * (captured 2026-09-25); it is read when it comes (M43).
+   * `toolCall`: what the model saw beyond text (MSP 1.3.0 `ModelVisibleContent`,
+   * metadata only). Muse Code did not send it on the live stream (captured
+   * 2026-09-25), so it is taken as it comes and read element by element
+   * (`reportedImages`): a shape that differs costs the picture, never the
+   * item (the review of PR #29).
    */
-  modelVisibleContent: z.optional(
-    z.array(z.object({ type: z.string(), path: z.string(), mediaType: z.string() })),
-  ),
+  modelVisibleContent: z.optional(z.array(z.unknown())),
   /** `agentMessage`: the sources the reply cites (`url_citation`, M33), each once. */
   citations: z.optional(z.array(citationSchema)),
 } as const

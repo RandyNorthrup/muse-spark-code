@@ -180,6 +180,13 @@ describe('schedule rows (M43)', () => {
     expect(facts).toBeTruthy()
   })
 
+  it('shows a list it cannot read as its text, never as "no scheduled prompts" (the review of PR #29)', () => {
+    renderTranscript([tool({ tool: 'cron_list', args: '{}', output: 'scheduler unavailable' })])
+    const row = openRow('Scheduled prompts')
+    expect(within(row).getByText('scheduler unavailable')).toBeTruthy()
+    expect(within(row).queryByText('No scheduled prompts')).toBeNull()
+  })
+
   it('says when there is nothing scheduled', () => {
     renderTranscript([tool({ tool: 'cron_list', args: '{}', output: '{"jobs":[]}' })])
     const row = openRow('Scheduled prompts')

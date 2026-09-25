@@ -100,6 +100,7 @@ const webResultsSchema = z.object({ results: z.array(webResultSchema) })
 
 const backgroundSchema = z.object({
   execution_state: z.string(),
+  work_id: z.string(),
   output: z.optional(z.string()),
 })
 
@@ -165,13 +166,15 @@ export function goalDetails(output: string): GoalDetails | undefined {
 /**
  * The prompts a schedule call names: the one `cron_create` asked for, or
  * every job `cron_list` returned. `cron_delete` names none (its row says
- * which id it removed).
+ * which id it removed). Undefined when a `cron_list` result is not the
+ * captured shape, so its text is shown instead of "none" (the review of
+ * PR #29).
  */
 export function scheduledPrompts(
   tool: string,
   args: string,
   output: string,
-): readonly ScheduledPrompt[] {
+): readonly ScheduledPrompt[] | undefined {
   if (tool === 'cron_list') {
     const parsed = cronListSchema.safeParse(json(output))
     return parsed.success
@@ -183,7 +186,7 @@ export function scheduledPrompts(
           nextFireAtMs: job.next_fire_at_ms ?? undefined,
           fireCount: job.fire_count ?? undefined,
         }))
-      : []
+      : undefined
   }
   const parsed = cronArgsSchema.safeParse(json(args))
   return parsed.success
@@ -218,8 +221,10 @@ export function webResults(output: string): readonly WebResult[] | undefined {
 
 /**
  * A shell call Muse Code moved to the background: its result is JSON with
- * `execution_state` (`background_running` while it runs) instead of the
- * command's text. Undefined for an ordinary result.
+ * `execution_state` (`background_running` while it runs) and the run's
+ * `work_id` instead of the command's text; both are required, so output
+ * that merely looks like it is not taken for one (the review of PR #29).
+ * Undefined for an ordinary result.
  */
 export function backgroundRun(output: string): BackgroundRun | undefined {
   const parsed = backgroundSchema.safeParse(json(output))

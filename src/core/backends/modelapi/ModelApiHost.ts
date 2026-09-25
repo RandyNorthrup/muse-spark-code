@@ -250,7 +250,9 @@ function searchPresentation(item: WebSearchCallItem): {
     found.length > 0
       ? found.map((result) => ({
           url: result.url,
-          ...(result.title !== undefined && result.title !== '' && { title: result.title }),
+          ...(typeof result.title === 'string' && result.title !== '' && { title: result.title }),
+          ...(typeof result.snippet === 'string' &&
+            result.snippet !== '' && { snippet: result.snippet }),
         }))
       : (action?.sources ?? []).map((source) => ({ url: source.url }))
   return { args: JSON.stringify(args), output: JSON.stringify({ results }) }
