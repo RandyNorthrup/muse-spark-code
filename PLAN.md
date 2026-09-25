@@ -1164,6 +1164,35 @@ The choices:
   transcript of what was already sent still lands (the review of PR #27).
   Linux gets a microphone for the first time, on the paid engine only.
 
+### D35 — Replay as Meta validates it (2026-09-25)
+
+A full read of Meta's Model API documentation for the parity audit
+found the Model API backend breaking three of the documented rules for a
+conversation replayed by the client (protocols/responses, "Conversation
+structure", "Message phase", "Reasoning item ordering"; error-handling,
+"Invalid conversation structure"). None had been seen live: the owner has
+held no key since 2026-09-22, and the fake API followed our own assumptions.
+
+- **Commentary.** Text the model writes before a tool call comes back with
+  `phase: "commentary"`. Replayed as an ordinary answer before a
+  `function_call`, it is a 400, so the next request of any turn where the
+  model narrated before a tool failed. Now replayed with its phase; a final
+  answer (no phase) stays without one.
+- **Reasoning summary.** A replayed reasoning item must carry `summary`,
+  `[]` when there was none; it went back as it came, possibly without one.
+- **Reasoning alone.** A reasoning item must be followed by a message or a
+  call before the next user message; a reply that was reasoning alone is now
+  followed by a minimal assistant message ("(no reply text)", model text),
+  as the docs say to do.
+
+Two retry rules were missing too (error-handling): a 502 is retried like the
+other server errors (a 504 still is not: every long request streams), and a
+stream that ends with an `error` event of `server_shutting_down`,
+`service_overloaded` or `backend_unavailable` is sent again whole, with the
+turn's retry notice; what the cut-short stream showed stays in the
+transcript (a search row cut short reads "interrupted" and is not counted),
+and only the retried response is replayed.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -3054,6 +3083,20 @@ the shared table, helpers and checks):
   asks for corrections.
 - **Order**: after M38 and M39, so their new text is translated with the
   rest.
+
+### M42 — Replay as Meta validates it (D35)
+
+**Status 2026-09-25: built and certified** (`docs/certification/m42.md`).
+
+- **Goal**: every request the Model API backend sends is a conversation
+  Meta accepts, and a stream the server ends early is retried as the docs
+  say.
+- **Scope**: `phase` on replayed assistant messages, the reasoning summary,
+  the reply after a reasoning-only turn, 502 retried, retryable stream
+  errors retried whole; the stored-session schema takes `phase`; tests,
+  CHANGELOG, this file.
+- **Acceptance**: each rule has a test from the documented shape and a red
+  drill; the gate green.
 
 ### M41 — Install Muse Code from the panel (proposed)
 

@@ -277,6 +277,16 @@ export class ModelApiClient {
     }
   }
 
+  /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
+  public retryDelayMs(attempt: number): number {
+    return this.backoffMs(attempt, undefined)
+  }
+
+  /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */
+  public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
+    await this.pause(ms, signal)
+  }
+
   /** The chat model ids the key can use, as the catalogue lists them. */
   public async listModels(): Promise<readonly string[]> {
     // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).

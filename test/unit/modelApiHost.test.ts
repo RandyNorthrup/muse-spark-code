@@ -9,7 +9,7 @@ import {
   type ModelApiSession,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { fakeModelApi, fakeModelApiClient, type ScriptedReply } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
@@ -1834,5 +1834,115 @@ describe('ModelApiSession: image generation, the review of PR #27 (M34)', () => 
     expect(t.api.imageBodies()).toHaveLength(2)
     expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
     expect(t.io.binaries.get(`${ROOT}/later.png`)?.length).toBeGreaterThan(0)
+  })
+})
+
+/** The `input` of the last request sent. */
+function lastInput(t: ReturnType<typeof setup>): readonly Record<string, unknown>[] {
+  return t.api.responseBodies().at(-1)?.['input'] as readonly Record<string, unknown>[]
+}
+
+/** Two plain turns, the first answered by `first`; the second request's input. */
+async function twoTurns(first: ScriptedReply): Promise<readonly Record<string, unknown>[]> {
+  const t = setup()
+  const { session, turnDone } = await startSession(t)
+  t.api.script(first, { text: 'later' })
+  await session.sendTurn([{ type: 'text', text: 'one' }])
+  await turnDone()
+  await session.sendTurn([{ type: 'text', text: 'two' }])
+  await turnDone()
+  return lastInput(t)
+}
+
+describe('ModelApiSession: replay as Meta validates it (protocols/responses)', () => {
+  it('replays text written before a tool call as commentary, and a final answer without a phase', async () => {
+    const t = setup({ files: { 'a.txt': 'alpha' } })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        text: 'Let me read the file first.',
+        phase: 'commentary',
+        calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }],
+      },
+      { text: 'It says alpha.' },
+      { text: 'later' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'what is in a.txt?' }])
+    await turnDone()
+    await session.sendTurn([{ type: 'text', text: 'thanks' }])
+    await turnDone()
+    const messages = lastInput(t).filter(
+      (item) => item['type'] === 'message' && item['role'] === 'assistant',
+    )
+    expect(messages).toEqual([
+      expect.objectContaining({ phase: 'commentary' }),
+      expect.not.objectContaining({ phase: expect.anything() }),
+    ])
+  })
+
+  it('replays reasoning with its summary, an empty one when Meta sent none', async () => {
+    const input = await twoTurns({ reasoning: 'hmm', isSummaryMissing: true, text: 'done' })
+    const reasoning = input.find((item) => item['type'] === 'reasoning')
+    expect(reasoning).toEqual(expect.objectContaining({ summary: [] }))
+  })
+
+  it('puts a minimal assistant message after a reply that was reasoning alone', async () => {
+    const input = await twoTurns({ reasoning: 'thinking only' })
+    const reasoningAt = input.findIndex((item) => item['type'] === 'reasoning')
+    expect(input[reasoningAt + 1]).toEqual({
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'output_text', text: '(no reply text)' }],
+    })
+    expect(input[reasoningAt + 2]).toEqual(expect.objectContaining({ role: 'user' }))
+  })
+
+  it('sends the whole request again when the stream ends with a retryable error, keeping the retried reply', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      { text: 'Half a rep', streamError: { code: 'server_shutting_down', message: 'draining' } },
+      { text: 'The whole reply.' },
+      { text: 'later' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'one' }])
+    await turnDone()
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnRetry',
+        attempt: 1,
+        reason: 'server_shutting_down: draining',
+      }),
+    )
+    expect(events.at(-2)).toEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' }),
+    )
+    await session.sendTurn([{ type: 'text', text: 'two' }])
+    await turnDone()
+    const replies = lastInput(t).filter((item) => item['role'] === 'assistant')
+    expect(JSON.stringify(replies)).toContain('The whole reply.')
+    expect(JSON.stringify(replies)).not.toContain('Half a rep')
+  })
+
+  it('fails the turn on a stream error the guide does not call retryable', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'x', streamError: { code: 'invalid_prompt', message: 'no' } })
+    await session.sendTurn([{ type: 'text', text: 'one' }])
+    await turnDone()
+    expect(events.some((event) => event.type === 'turnRetry')).toBe(false)
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'failed' }),
+    )
+  })
+
+  it('retries a 502 like the other server errors', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ httpError: { status: 502 } }, { text: 'fine' })
+    await session.sendTurn([{ type: 'text', text: 'one' }])
+    await turnDone()
+    expect(t.api.responseBodies()).toHaveLength(2)
   })
 })

@@ -330,9 +330,18 @@ export const TOKENS_PER_MILLION = 1_000_000
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
-// dev.meta.ai/docs/error-handling: 429 / 500 / 503 are retryable with
-// exponential backoff and jitter, honouring Retry-After; 3–5 attempts.
-export const MODEL_API_RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 500, 503])
+// dev.meta.ai/docs/error-handling: 429 and the server errors are retryable
+// with exponential backoff and jitter, honouring Retry-After; 3–5 attempts.
+// A 504 is not: the guide says to stream instead, which every long request
+// here already does.
+export const MODEL_API_RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 500, 502, 503])
+// A stream that ends with an `error` event of these codes (the instance shut
+// down or was overloaded mid-reply) is retried whole, as the guide says.
+export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
+  'server_shutting_down',
+  'service_overloaded',
+  'backend_unavailable',
+])
 export const MODEL_API_MAX_RETRIES = 4
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
@@ -965,6 +974,10 @@ export const MODEL_TEXT = {
   selectionClipped: '[selection clipped]',
   selectionNotShared:
     'Its content is not shared because the file is excluded from the workspace index.',
+  // A turn whose reply was reasoning alone (no text, no call): the reply
+  // replayed after it, since a reasoning item must be followed by one
+  // (dev.meta.ai/docs/protocols/responses, reasoning item ordering).
+  reasoningOnlyReply: '(no reply text)',
   // M34: what the model is told when an image cannot be made.
   imageGenerationOff:
     'image generation is off; the user turns it on (it is paid) in the palette or the museSpark.modelApiImageGeneration setting',
