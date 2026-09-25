@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.8.0] - 2026-09-25
+
+The panel in VS Code's display languages: fourteen of them, machine-made
+and checked by a gate of their own, with the model's side kept in English.
+
 ### Added
 
 - **The panel in fourteen languages** (M40, PLAN.md D33). The panel, its
