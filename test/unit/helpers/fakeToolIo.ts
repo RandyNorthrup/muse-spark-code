@@ -131,3 +131,60 @@ export const noopToolIo: ToolIo = {
   runShell: () =>
     Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }),
 }
+
+/** One command a held shell runs (M46): until the test finishes it or its signal stops it. */
+export interface HeldRun {
+  readonly command: string
+  readonly signal: AbortSignal | undefined
+  /** Its time limit was lifted (the command moved to the background). */
+  isLifted: boolean
+  finish(result: Partial<ShellResult>): void
+}
+
+/**
+ * The memory file system with a shell whose commands run until the test
+ * ends them, or their signal stops them as the real runner does (M46:
+ * commands moved to the background, stopped, and the user's own).
+ */
+export function heldShellToolIo(
+  files: Record<string, string>,
+  root: string,
+): MemoryToolIo & { readonly runs: HeldRun[] } {
+  const io = memoryToolIo(files, root)
+  const runs: HeldRun[] = []
+  return {
+    ...io,
+    runs,
+    runShell: (command, cwd, timeoutMs, signal, limit) => {
+      io.shellCalls.push({ command, cwd, timeoutMs })
+      return new Promise((resolve) => {
+        const run: HeldRun = {
+          command,
+          signal,
+          isLifted: false,
+          finish: (result) => {
+            resolve({
+              stdout: '',
+              stderr: '',
+              exitCode: 0,
+              isTimedOut: false,
+              isCancelled: false,
+              ...result,
+            })
+          },
+        }
+        limit?.bind(() => {
+          run.isLifted = true
+        })
+        signal?.addEventListener(
+          'abort',
+          () => {
+            run.finish({ exitCode: null, isCancelled: true })
+          },
+          { once: true },
+        )
+        runs.push(run)
+      })
+    },
+  }
+}

@@ -97,7 +97,7 @@ export class FakeMspServer implements DuplexTransport {
         typeof error.code === 'number'
           ? error.code
           : HANDLER_ERROR
-      // And a `commandRejected` reason, when it names one (M45's goal refusals).
+      // Goal refusals name a reason directly (M45); task refusals carry data (M46).
       const reason =
         typeof error === 'object' &&
         error !== null &&
@@ -105,7 +105,15 @@ export class FakeMspServer implements DuplexTransport {
         typeof error.reason === 'string'
           ? { reason: error.reason }
           : {}
-      return { jsonrpc: '2.0', id, error: { code, message, data: { kind, ...reason } } }
+      const data =
+        typeof error === 'object' &&
+        error !== null &&
+        'data' in error &&
+        typeof error.data === 'object' &&
+        error.data !== null
+          ? error.data
+          : {}
+      return { jsonrpc: '2.0', id, error: { code, message, data: { ...data, ...reason, kind } } }
     }
   }
 
@@ -224,14 +232,19 @@ export function fakeMspHost(initializeResult: unknown = fakeInitializeResult): F
 
 /**
  * A request handler that refuses with this MSP error kind (the host's
- * `data.kind`), and code and `data.reason` when given.
+ * `data.kind`), and code with a reason or further data when given.
  */
-export function refusalOf(kind: string, code?: number, reason?: string): () => never {
+export function refusalOf(
+  kind: string,
+  code?: number,
+  detail?: string | Record<string, unknown>,
+): () => never {
   return () => {
-    throw Object.assign(new Error(`refused: ${reason ?? kind}`), {
+    throw Object.assign(new Error(`refused: ${typeof detail === 'string' ? detail : kind}`), {
       kind,
       ...(code !== undefined && { code }),
-      ...(reason !== undefined && { reason }),
+      ...(typeof detail === 'string' && { reason: detail }),
+      ...(typeof detail === 'object' && { data: detail }),
     })
   }
 }

@@ -26,6 +26,8 @@ import {
 export interface StoredReplayItem {
   readonly turnId: string
   readonly item: InputItem
+  /** Identifies a background task's terminal model note across fork cuts. */
+  readonly backgroundTaskId?: string
 }
 
 export interface StoredTranscriptItem {
@@ -151,7 +153,13 @@ export const storedSessionSchema = z.object({
   todos: z.array(todoItemSchema),
   // Optional, so a session saved before M45 still reads.
   goal: z.optional(goalRecordSchema),
-  replay: z.array(z.object({ turnId: z.string(), item: storedInputItemSchema })),
+  replay: z.array(
+    z.object({
+      turnId: z.string(),
+      item: storedInputItemSchema,
+      backgroundTaskId: z.optional(z.string()),
+    }),
+  ),
   transcript: z.array(z.object({ turnId: z.string(), item: z.object(itemSnapshotFields) })),
   outputs: z.record(z.string(), z.string()),
   usage: z.object({
@@ -174,10 +182,15 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
   }
   // Optional fields are absent in a StoredSession, never undefined.
   const { name, forkedFrom, firstPrompt, goal, ...rest } = result.data
+  const replay = rest.replay.map(({ backgroundTaskId, ...entry }) => ({
+    ...entry,
+    ...(backgroundTaskId !== undefined && { backgroundTaskId }),
+  }))
   return {
     ok: true,
     session: {
       ...rest,
+      replay,
       ...(name !== undefined && { name }),
       ...(forkedFrom !== undefined && { forkedFrom }),
       ...(firstPrompt !== undefined && { firstPrompt }),

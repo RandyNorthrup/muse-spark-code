@@ -13,6 +13,11 @@ security notes for contributors are in `PLAN.md` §9.
   is on, and the outputs of the tools the agent runs (file contents,
   command output, Problems-panel diagnostics) are sent to Meta so the model
   can answer. Nothing is sent until you press Send.
+- **Your own shell commands (`!`).** A message that starts with `!` runs on
+  your machine, and the command with what it printed goes to Meta with the
+  next request, so the model knows what you ran; Muse Code also keeps it in
+  its session log. So does what a command moved to the background printed
+  when it ends.
 - **Through the Muse Code CLI** (what `museSpark.backend` at `auto` picks
   when the CLI is installed and signed in), the extension hands
   your messages to Meta's `muse serve` process on your machine, which talks

@@ -19,7 +19,7 @@ import {
   requirementRefSchema,
   tokenUsageSchema,
 } from '../../shared/agentEvents'
-import { PAID_FEATURES } from '../../shared/constants'
+import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
 import { NOTICE_LEVELS } from '../../shared/protocol'
 
 const pendingApprovalSchema = z.object({
@@ -129,8 +129,38 @@ const toolEntrySchema = z.object({
   approvalOutcome: z.optional(z.object({ decision: z.string(), resolvedBy: z.string() })),
   question: z.optional(pendingQuestionSchema),
   questionOutcome: z.optional(
-    z.object({ outcome: z.string(), answers: z.readonly(z.array(answerSchema)) }),
+    z.object({
+      outcome: z.string(),
+      answers: z.readonly(z.array(answerSchema)),
+      /** The explanation given instead of an answer (M46). */
+      clarification: z.optional(z.string()),
+    }),
   ),
+  /**
+   * Move to the background or Stop was pressed (M46): the button waits for
+   * the host's word, the row's next update or a refusal, as a decided
+   * approval card does (M25).
+   */
+  taskRequest: z.optional(z.enum(TASK_REQUESTS)),
+})
+
+/**
+ * The user's own shell command, the TUI's `!` (M46, MSP `userShell`,
+ * captured live 2026-09-25): outside any turn, its exit code or signal and
+ * its run time beside what it printed.
+ */
+const userShellEntrySchema = z.object({
+  kind: z.literal('userShell'),
+  id: z.string(),
+  command: z.string(),
+  status: z.string(),
+  output: z.string(),
+  exitCode: z.optional(z.number()),
+  exitSignal: z.optional(z.number()),
+  durationMs: z.optional(z.number()),
+  outputRef: z.optional(outputRefSchema),
+  failureReason: z.optional(z.string()),
+  taskRequest: z.optional(z.enum(TASK_REQUESTS)),
 })
 
 const subagentEntrySchema = z.object({
@@ -181,6 +211,7 @@ export const transcriptEntrySchema = z.discriminatedUnion('kind', [
   assistantEntrySchema,
   reasoningEntrySchema,
   toolEntrySchema,
+  userShellEntrySchema,
   subagentEntrySchema,
   itemEntrySchema,
   errorEntrySchema,

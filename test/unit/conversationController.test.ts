@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
-import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
@@ -21,7 +21,7 @@ import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
-import { noopToolIo } from './helpers/fakeToolIo'
+import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './helpers/fakeToolIo'
 import {
   fakeInitializeResult,
   fakeMspHost,
@@ -29,6 +29,13 @@ import {
   refusalOf,
   settle,
 } from './helpers/fakeMsp'
+import {
+  INVALID_TARGET,
+  SHELL_CALL_BACKGROUNDED,
+  SHELL_CALL_STARTED,
+  taskAck,
+  USER_SHELL_SANDBOX_FAILED,
+} from './helpers/m46Capture'
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -163,6 +170,8 @@ function setup(
     clock?: { now: number }
     /** What the workspace answers for a tool row's picture (M43). */
     readToolImage?: ConversationDeps['readToolImage']
+    /** VS Code's workspace trust (M46: Restricted Mode runs no `!` command). */
+    isWorkspaceTrusted?: boolean
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -297,6 +306,8 @@ function setup(
   const deps: ConversationDeps = {
     surface,
     setPaidFeature: vi.fn(() => Promise.resolve()),
+    isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
+    onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
     auth: auth.service,
     accountFacts: (backend) =>
@@ -2195,25 +2206,9 @@ describe('ConversationController: backends and tiers (M7)', () => {
       userProfileDir: String.raw`C:\Users\r`,
       workspaceRoot: String.raw`C:\Users\r\ws`,
     })
-    const api = fakeModelApi()
-    const modelApiHost = new ModelApiHost({
-      client: fakeModelApiClient(api, t.log),
+    const { api, controller } = modelApiController(t, {
       workspaceRoot: String.raw`C:\Users\r\ws`,
       platform: 'win32',
-      io: noopToolIo,
-      contextIo: memoryContextIo(new Map()),
-      newId: () => 'fixed',
-      now: () => 0,
-      log: t.log,
-      personalSkillsRoot: undefined,
-      isWorkspaceTrusted: () => true,
-      describeEnvironment: () => Promise.resolve({ git: undefined }),
-      isPaidFeatureOn: () => false,
-      notePaidUse: () => undefined,
-    })
-    const controller = new ConversationController({
-      ...t.deps,
-      ensureHost: () => Promise.resolve(modelApiHost),
     })
     api.script({ text: 'pong' })
     await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'ping', attachmentIds: [] })
@@ -2559,17 +2554,65 @@ function agentEvents(t: ReturnType<typeof setup>) {
   )
 }
 
+/** A controller backed by the in-process Model API, with explicit test I/O. */
+function modelApiController(
+  t: ReturnType<typeof setup>,
+  options: {
+    readonly workspaceRoot?: string
+    readonly platform?: NodeJS.Platform
+    readonly io?: ModelApiHostDeps['io']
+    readonly contextIo?: ModelApiHostDeps['contextIo']
+    readonly newId?: () => string
+  } = {},
+) {
+  const api = fakeModelApi()
+  const host = new ModelApiHost({
+    client: fakeModelApiClient(api, t.log),
+    workspaceRoot: options.workspaceRoot ?? '/ws',
+    platform: options.platform ?? 'linux',
+    io: options.io ?? noopToolIo,
+    contextIo: options.contextIo ?? memoryContextIo(new Map()),
+    newId: options.newId ?? (() => 'fixed'),
+    now: () => 0,
+    log: t.log,
+    personalSkillsRoot: undefined,
+    isWorkspaceTrusted: () => true,
+    describeEnvironment: () => Promise.resolve({ git: undefined }),
+    isPaidFeatureOn: () => false,
+    notePaidUse: () => undefined,
+  })
+  const controller = new ConversationController({
+    ...t.deps,
+    ensureHost: () => Promise.resolve(host),
+  })
+  return { api, host, controller }
+}
+
+function modelApiControllerWithIo(t: ReturnType<typeof setup>, io: MemoryToolIo) {
+  let nextId = 0
+  return modelApiController(t, {
+    io,
+    contextIo: memoryContextIo(io.files),
+    newId: () => `id${String(++nextId)}`,
+  })
+}
+
+function acceptApprovalDecisions(t: ReturnType<typeof setup>): void {
+  t.server.handle('approval/decide', (params) => ({
+    status: 'accepted',
+    commandId: params['commandId'],
+    approvalId: params['approvalId'],
+    terminal: true,
+  }))
+}
+
 describe('ConversationController: permission hardening (D24)', () => {
   const choices = [
     { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
     { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
   ]
-  function requestApproval(
-    t: ReturnType<typeof setup>,
-    approvalId: string,
-    overrides: Record<string, unknown> = {},
-  ) {
-    t.server.notify('approval/requested', {
+  function approvalParams(approvalId: string, overrides: Record<string, unknown> = {}) {
+    return {
       sessionId: 's1',
       approvalId,
       itemId: `item-${approvalId}`,
@@ -2581,7 +2624,14 @@ describe('ConversationController: permission hardening (D24)', () => {
       judgeEscalated: false,
       protectedWrite: false,
       ...overrides,
-    })
+    }
+  }
+  function requestApproval(
+    t: ReturnType<typeof setup>,
+    approvalId: string,
+    overrides: Record<string, unknown> = {},
+  ) {
+    t.server.notify('approval/requested', approvalParams(approvalId, overrides))
   }
 
   it('never takes a message typed while a card waits for a decision (Roo #11211)', async () => {
@@ -2638,6 +2688,204 @@ describe('ConversationController: permission hardening (D24)', () => {
       resolvedBy: 'Edit automatically',
     })
   })
+
+  it('does not auto-approve a Manual Model API edit when an Edit surface joins later', async () => {
+    const t = setup({ hasApprovalUi: true })
+    const io = memoryToolIo({ 'a.ts': 'old' }, '/ws')
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    const second = new ConversationController({
+      ...t.deps,
+      initialPermissionMode: 'acceptEdits',
+      ensureHost: () => Promise.resolve(host),
+    })
+    try {
+      api.script(
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: '{"path":"a.ts","content":"new"}',
+              callId: 'call_write',
+            },
+          ],
+        },
+        { text: 'Done.' },
+      )
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'l1',
+        text: 'edit a.ts',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+      })
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected a pending Model API edit')
+      }
+      await second.handle({ type: 'resumeSession', sessionId })
+      await settle()
+      expect(io.files.get('/ws/a.ts')).toBe('old')
+      expect(agentEvents(t).some((event) => event.type === 'approvalResolved')).toBe(false)
+    } finally {
+      second.dispose()
+      controller.dispose()
+      await host.close()
+    }
+  })
+
+  it('does not auto-approve a Manual Muse Code edit when an Edit surface joins later', async () => {
+    for (const delivery of ['backlog', 'listPending']) {
+      const t = setup({ hasApprovalUi: true })
+      const pending = approvalParams('a1')
+      t.server.handle('session/resume', () => ({
+        ...envelope({ ...storedSession, sessionId: 's1', status: 'running', activeTurnId: 't1' }),
+        pendingRequests: delivery === 'listPending' ? [{ kind: 'approval' }] : [],
+      }))
+      t.server.handle('approval/listPending', () => ({
+        approvals: delivery === 'listPending' ? [pending] : [],
+        userInputs: [],
+      }))
+      acceptApprovalDecisions(t)
+      const second = new ConversationController({
+        ...t.deps,
+        initialPermissionMode: 'acceptEdits',
+        ensureHost: () => Promise.resolve(t.host),
+      })
+      try {
+        await t.send('l1', 'edit a.ts')
+        if (delivery === 'backlog') {
+          requestApproval(t, 'a1')
+          await settle()
+        }
+        await second.handle({ type: 'resumeSession', sessionId: 's1' })
+        await settle()
+        expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+        expect(
+          t.surface.posted.filter(
+            (message) =>
+              message.type === 'agentEvent' &&
+              message.event.type === 'approvalRequested' &&
+              message.event.approvalId === 'a1',
+          ).length,
+        ).toBeGreaterThan(0)
+      } finally {
+        second.dispose()
+        t.controller.dispose()
+      }
+    }
+  })
+
+  it('does not let an earlier Edit surface approve a later Manual Model API turn', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
+    const io = memoryToolIo({ 'a.ts': 'old' }, '/ws')
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    const second = new ConversationController({
+      ...t.deps,
+      initialPermissionMode: 'manual',
+      ensureHost: () => Promise.resolve(host),
+    })
+    try {
+      api.script({ text: 'Ready.' })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'l1',
+        text: 'hello',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'turnCompleted')).toBe(true)
+      })
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected a Model API session')
+      }
+      await second.handle({ type: 'resumeSession', sessionId })
+      api.script(
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: '{"path":"a.ts","content":"new"}',
+              callId: 'call_write',
+            },
+          ],
+        },
+        { text: 'Done.' },
+      )
+      await second.handle({
+        type: 'sendMessage',
+        localId: 'l2',
+        text: 'edit a.ts',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+      })
+      await settle()
+      expect(agentEvents(t).some((event) => event.type === 'approvalResolved')).toBe(false)
+      expect(io.files.get('/ws/a.ts')).toBe('old')
+    } finally {
+      second.dispose()
+      controller.dispose()
+      await host.close()
+    }
+  })
+
+  const sharedModeCases: readonly {
+    readonly firstMode: ConversationDeps['initialPermissionMode']
+    readonly secondMode: ConversationDeps['initialPermissionMode']
+    readonly sender: 'first' | 'second'
+  }[] = [
+    { firstMode: 'acceptEdits', secondMode: 'manual', sender: 'second' },
+    { firstMode: 'manual', secondMode: 'acceptEdits', sender: 'first' },
+    { firstMode: 'acceptEdits', secondMode: 'acceptEdits', sender: 'second' },
+  ]
+
+  it.each(sharedModeCases)(
+    'keeps shared Muse Code approvals explicit ($firstMode, $secondMode, $sender)',
+    async ({ firstMode, secondMode, sender }) => {
+      const t = setup({ hasApprovalUi: true, initialPermissionMode: firstMode })
+      t.server.handle('session/resume', () =>
+        envelope({ ...storedSession, sessionId: 's1', status: 'idle' }),
+      )
+      acceptApprovalDecisions(t)
+      const second = new ConversationController({
+        ...t.deps,
+        initialPermissionMode: secondMode,
+        ensureHost: () => Promise.resolve(t.host),
+      })
+      try {
+        await t.send('l1', 'hello')
+        t.finishTurn()
+        await settle()
+        await second.handle({ type: 'resumeSession', sessionId: 's1' })
+        const sending = sender === 'first' ? t.controller : second
+        await sending.handle({
+          type: 'sendMessage',
+          localId: 'l2',
+          text: 'edit a.ts',
+          attachmentIds: [],
+        })
+        requestApproval(t, 'a2')
+        await settle()
+        expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+        if (firstMode === 'acceptEdits' && secondMode === 'manual') {
+          second.dispose()
+          requestApproval(t, 'a3')
+          await vi.waitFor(() => {
+            expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
+          })
+        }
+      } finally {
+        second.dispose()
+        t.controller.dispose()
+      }
+    },
+  )
 
   it('shows the card for protected writes, escalations, commands and the other modes', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
@@ -3646,5 +3894,328 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
         goal: { objective: 'Old goal', status: 'paused', percentComplete: 20 },
       }),
     )
+  })
+})
+
+// --- M46: background work, the user's `!` commands, explanations ---
+
+/** The captured frames of M46, on this fake host's session and turn. */
+function onFakeSession<T extends { readonly item: Record<string, unknown> }>(frame: T) {
+  return {
+    ...frame,
+    sessionId: 's1',
+    item: { ...frame.item, ...(typeof frame.item['turnId'] === 'string' && { turnId: 't1' }) },
+  }
+}
+
+/** A controller whose session runs turn t1 (M46). */
+async function runningTurn(options: Parameters<typeof setup>[0] = {}) {
+  const t = setup(options)
+  for (const method of ['task/background', 'task/stop']) {
+    t.server.handle(method, taskAck)
+  }
+  t.server.handle('task/stopAll', (params) => ({
+    commandId: params['commandId'],
+    status: 'accepted',
+  }))
+  await t.send('l1', 'start the dev server')
+  t.server.notify('turn/started', { sessionId: 's1', turnId: 't1' })
+  await settle()
+  return t
+}
+
+describe('ConversationController: the user’s own shell commands (M46)', () => {
+  it('runs a `!` command through the session, with no approval card', async () => {
+    const t = setup({ grantedCapabilities: ['userShell'] })
+    t.server.handle('session/userShell', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+    }))
+    await t.controller.handle({ type: 'runUserShell', command: " Write-Output 'hello-m46' " })
+    expect(t.server.requestsFor('session/userShell')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      commandText: "Write-Output 'hello-m46'",
+    })
+    expect(t.surface.posted.some((message) => message.type === 'userShellRefused')).toBe(false)
+  })
+
+  it('runs none in Restricted Mode and gives the command back with the reason', async () => {
+    const t = setup({ grantedCapabilities: ['userShell'], isWorkspaceTrusted: false })
+    await t.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: UI_TEXT.userShellRestricted,
+    })
+    expect(t.server.requestsFor('session/userShell')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+  })
+
+  it('returns an unsent command when signed out or when no workspace is open', async () => {
+    const signedOut = setup({ status: 'signedOut' })
+    await signedOut.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(signedOut.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: UI_TEXT.notSignedInReason,
+    })
+    expect(signedOut.server.requestsFor('session/start')).toHaveLength(0)
+
+    const noWorkspace = setup({ workspaceRoot: undefined })
+    await noWorkspace.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(noWorkspace.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: UI_TEXT.noWorkspaceReason,
+    })
+    expect(noWorkspace.server.requestsFor('session/start')).toHaveLength(0)
+  })
+
+  it('gives back a command the backend refused, and ignores an empty one', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'runUserShell', command: ' '.repeat(3) })
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    await t.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: `${UI_TEXT.userShellFailed}: ${UI_TEXT.userShellNotGranted}`,
+    })
+  })
+
+  it('offers the sandbox setup when a `!` command could not start without it', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('item/completed', onFakeSession(USER_SHELL_SANDBOX_FAILED))
+    await settle()
+    expect(
+      t.surface.posted.filter((m) => m.type === 'notice' && m.text === UI_TEXT.sandboxNotice),
+    ).toHaveLength(1)
+    expect(t.onSandboxUnavailable).toHaveBeenCalledOnce()
+  })
+})
+
+describe('ConversationController: background work (M46)', () => {
+  it('leaves Ctrl+B to VS Code while a Model API shell awaits approval', async () => {
+    const t = setup({ hasApprovalUi: true })
+    const io = heldShellToolIo({}, '/ws')
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    const second = new ConversationController({
+      ...t.deps,
+      ensureHost: () => Promise.resolve(host),
+    })
+    try {
+      api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: '{"command":"npm run dev","description":"Start the dev server"}',
+              callId: 'call_dev',
+            },
+          ],
+        },
+        { text: 'Done.' },
+      )
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'l1',
+        text: 'start the dev server',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+      })
+      const approval = agentEvents(t).find((event) => event.type === 'approvalRequested')
+      if (approval?.type !== 'approvalRequested') {
+        throw new Error('expected shell approval')
+      }
+      expect(controller.hasForegroundShell).toBe(false)
+      expect(io.runs).toHaveLength(0)
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected the live Model API session')
+      }
+      await second.handle({ type: 'resumeSession', sessionId })
+      expect(second.hasForegroundShell).toBe(false)
+      const shownApprovals = agentEvents(t).filter(
+        (event) => event.type === 'approvalRequested' && event.itemId === approval.itemId,
+      )
+      expect(shownApprovals).toHaveLength(2)
+      expect(shownApprovals.every((event) => !('isReplayed' in event))).toBe(true)
+      await controller.handle({
+        type: 'decideApproval',
+        approvalId: approval.approvalId,
+        choiceId: 'allow_once',
+        requirementId: approval.requirementId,
+      })
+      await vi.waitFor(() => {
+        expect(io.runs).toHaveLength(1)
+      })
+      expect(controller.hasForegroundShell).toBe(true)
+      expect(second.hasForegroundShell).toBe(true)
+      await second.moveRunningToBackground()
+      expect(io.runs[0]?.isLifted).toBe(true)
+    } finally {
+      second.dispose()
+      controller.dispose()
+      await host.close()
+    }
+  })
+
+  it('restores Ctrl+B from the running foreground shell in a resumed history', async () => {
+    const t = withHistory()
+    t.server.handle('session/resume', () => {
+      const resumed = envelope({
+        ...storedSession,
+        sessionId: 'old',
+        status: 'running',
+        activeTurnId: 't1',
+      })
+      return {
+        ...resumed,
+        history: {
+          ...resumed.history,
+          items: [
+            ...storedItems,
+            { ...SHELL_CALL_STARTED.item, turnId: 't1' },
+            { ...SHELL_CALL_BACKGROUNDED.item, itemId: 'already-background', turnId: 't1' },
+            { ...SHELL_CALL_STARTED.item, itemId: 'other-turn', turnId: 't0' },
+          ],
+        },
+      }
+    })
+    t.server.handle('task/background', taskAck)
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.controller.hasForegroundShell).toBe(true)
+    expect(t.deps.onForegroundTasksChanged).toHaveBeenCalledOnce()
+    await t.controller.moveRunningToBackground()
+    expect(
+      t.server.requestsFor('task/background').map((request) => request.params?.['taskId']),
+    ).toEqual([SHELL_CALL_STARTED.item.itemId])
+  })
+
+  it('stops the CLI tasks when the conversation surface closes', async () => {
+    const t = await runningTurn()
+    t.server.notify('item/started', onFakeSession(SHELL_CALL_STARTED))
+    t.server.notify('item/updated', onFakeSession(SHELL_CALL_BACKGROUNDED))
+    await settle()
+    t.controller.dispose()
+    await settle()
+    expect(t.server.requestsFor('task/stopAll')[0]?.params).toMatchObject({ sessionId: 's1' })
+    expect(t.host.sessionCount).toBe(0)
+  })
+
+  it('moves a row’s command to the background, stops it, and stops them all', async () => {
+    const t = await runningTurn()
+    const taskId = SHELL_CALL_STARTED.item.itemId
+    await t.controller.handle({ type: 'moveToBackground', itemId: taskId })
+    await t.controller.handle({ type: 'stopTask', itemId: taskId })
+    await t.controller.handle({ type: 'stopAllTasks' })
+    expect(t.server.requestsFor('task/background')[0]?.params).toMatchObject({ taskId })
+    expect(t.server.requestsFor('task/stop')[0]?.params).toMatchObject({ taskId })
+    expect(t.server.requestsFor('task/stopAll')).toHaveLength(1)
+  })
+
+  it('says why a task command was refused and frees the row’s button', async () => {
+    const t = await runningTurn()
+    const refused = refusalOf(INVALID_TARGET.kind, INVALID_TARGET.code, INVALID_TARGET.data)
+    t.server.handle('task/background', refused)
+    t.server.handle('task/stop', refused)
+    await t.controller.handle({ type: 'moveToBackground', itemId: 'gone' })
+    await t.controller.handle({ type: 'stopTask', itemId: 'gone' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: `${UI_TEXT.moveToBackgroundFailed}: ${UI_TEXT.taskNotRunning}`,
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: `${UI_TEXT.stopTaskFailed}: ${UI_TEXT.taskNotRunning}`,
+    })
+    expect(t.surface.posted.filter((m) => m.type === 'taskRefused').map((m) => m.itemId)).toEqual([
+      'gone',
+      'gone',
+    ])
+  })
+
+  it('frees the button when there is no session to ask', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'stopTask', itemId: 'x' })
+    expect(t.surface.posted).toContainEqual({ type: 'taskRefused', itemId: 'x' })
+  })
+
+  it('knows the running turn’s shell calls Ctrl+B moves, until they move or the turn ends', async () => {
+    const t = await runningTurn()
+    const changed = vi.mocked(t.deps.onForegroundTasksChanged)
+    expect(t.controller.hasForegroundShell).toBe(false)
+    await t.controller.moveRunningToBackground()
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.nothingToMoveToBackground,
+    })
+    t.server.notify('item/started', onFakeSession(SHELL_CALL_STARTED))
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(true)
+    expect(changed).toHaveBeenCalledTimes(1)
+    await t.controller.moveRunningToBackground()
+    expect(t.server.requestsFor('task/background')[0]?.params).toMatchObject({
+      taskId: SHELL_CALL_STARTED.item.itemId,
+    })
+    t.server.notify('item/updated', onFakeSession(SHELL_CALL_BACKGROUNDED))
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(false)
+    expect(changed).toHaveBeenCalledTimes(2)
+    // A new one, then the turn's end: nothing is left to move.
+    t.server.notify('item/started', {
+      ...onFakeSession(SHELL_CALL_STARTED),
+      item: { ...onFakeSession(SHELL_CALL_STARTED).item, itemId: 'second' },
+    })
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(true)
+    t.finishTurn()
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(false)
+    expect(changed).toHaveBeenCalledTimes(4)
+  })
+
+  it('stops the background tasks from the command palette', async () => {
+    const t = await runningTurn()
+    await t.controller.stopBackgroundTasks()
+    expect(t.server.requestsFor('task/stopAll')).toHaveLength(1)
+  })
+})
+
+describe('ConversationController: explanations (M46)', () => {
+  it('sends an explanation with userInput/clarify, and says when it is refused', async () => {
+    const t = await runningTurn()
+    t.server.handle('userInput/clarify', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+      userInputId: params['userInputId'],
+    }))
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q1', text: '  ' })
+    expect(t.server.requestsFor('userInput/clarify')).toHaveLength(0)
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q1', text: ' green ' })
+    expect(t.server.requestsFor('userInput/clarify')[0]?.params).toMatchObject({
+      userInputId: 'q1',
+      clarification: { format: 'text', content: 'green' },
+    })
+    t.server.handle('userInput/clarify', refusalOf('internalError'))
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q2', text: 'blue' })
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'notice',
+        level: 'error',
+        text: expect.stringContaining(UI_TEXT.clarifyNotAccepted),
+      }),
+    )
+    // A late one is settled, not an error.
+    t.server.handle('userInput/clarify', refusalOf('userInputNotFound'))
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q3', text: 'red' })
+    expect(t.surface.posted).toContainEqual({ type: 'promptDropped', userInputId: 'q3' })
   })
 })

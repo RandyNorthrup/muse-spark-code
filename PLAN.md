@@ -1214,29 +1214,29 @@ serve` probe (logged out, so no model call); the Model API from every page
 of its documentation. What reaches the panel today, what does not, and the
 milestone that closes each gap:
 
-| Capability                        | Muse Code (subscription)                                                                                                                                                                                  | Model API (key)                                                                         | Milestone  |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------- |
-| Replay Meta accepts               | the CLI's own                                                                                                                                                                                             | fixed: commentary phase, reasoning summary, reasoning-only turns, stream retries        | M42        |
-| Tool rows for every tool          | memory, goal, cron, workflow, web, work, input and reminder tools render as raw names; tool-result images unseen                                                                                          | the extension's own tools render                                                        | M43        |
-| Web search                        | Muse Code's own `web_search`, covered by the subscription (ran in `muse serve`, 2026-09-22)                                                                                                               | paid, opt in (M33)                                                                      | M43 (rows) |
-| Images                            | Muse Code's `image_generation` is gated off (no switch found)                                                                                                                                             | paid, opt in (M34); edits missing                                                       | M44        |
-| Web fetch (read a page)           | Muse Code's `web_fetch` is gated off                                                                                                                                                                      | none                                                                                    | M44        |
-| Goals                             | MSP `goal/*`, `session/goalChanged` and the resumed snapshot's goal: the goal strip and `/goal` (M45)                                                                                                     | Muse Code's four goal tools, stored, pinned; no loop turns of its own (M45, D38)        | M45        |
-| Background work, stop             | MSP `task/background`, `task/stop`, `task/stopAll`: not wired                                                                                                                                             | shell commands cannot run in the background                                             | M46        |
-| `!` user shell                    | MSP `session/userShell`: not wired                                                                                                                                                                        | none                                                                                    | M46        |
-| Workflows                         | items render generically; `workflow/cancel`, `workflow/childControl` not wired                                                                                                                            | none (Muse Code's own engine)                                                           | M47        |
-| Subagents                         | map and controls (M14, M18); `reopen` and `readResult` not wired                                                                                                                                          | none (D17)                                                                              | M48        |
-| Memory                            | Muse Code's memory tools; no view                                                                                                                                                                         | the index is read (M10); no tools                                                       | M49        |
-| MCP servers                       | loaded by Muse Code; read-only view (M31)                                                                                                                                                                 | none                                                                                    | M50        |
-| Hooks                             | run by Muse Code; read-only view (M31)                                                                                                                                                                    | none                                                                                    | M51        |
-| Scheduled prompts (`/loop`, cron) | the agent's `cron_*` tools only; no list or cancel                                                                                                                                                        | none                                                                                    | M52        |
-| Rewind a conversation, side chat  | TUI only; the panel has fork and code rewind                                                                                                                                                              | fork and code rewind                                                                    | M53        |
-| PDFs and files as input           | MSP takes text, images and skills only                                                                                                                                                                    | images only                                                                             | M54        |
-| Questions: clarify                | `userInput/clarify` not wired                                                                                                                                                                             | n/a                                                                                     | M46        |
-| Sign-in in the panel, install     | experimental `account/*` not used; install links out                                                                                                                                                      | key pasted                                                                              | M55 (M41)  |
-| Network posture, enterprise       | `--sandbox-network`, `--no-session-log` not offered; `muse config status` not shown                                                                                                                       | proxy and certificates unverified for fetch and the voice socket; cache key per session | M56        |
-| Voice                             | the OS recogniser (free); Muse Code's own voice is TUI-only and not on Windows                                                                                                                            | the OS recogniser, or Muse Voice (paid, M35)                                            | —          |
-| Everything else already at parity | sessions, history, fork, rename, compaction, export, steering, queue, approvals with stages and scopes, questions, todos, usage, model, effort, modes, skills, rules, worktrees, attachments, diagnostics | the same, through the extension's own harness                                           | —          |
+| Capability                        | Muse Code (subscription)                                                                                                                                                                                  | Model API (key)                                                                              | Milestone  |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------- |
+| Replay Meta accepts               | the CLI's own                                                                                                                                                                                             | fixed: commentary phase, reasoning summary, reasoning-only turns, stream retries             | M42        |
+| Tool rows for every tool          | memory, goal, cron, workflow, web, work, input and reminder tools render as raw names; tool-result images unseen                                                                                          | the extension's own tools render                                                             | M43        |
+| Web search                        | Muse Code's own `web_search`, covered by the subscription (ran in `muse serve`, 2026-09-22)                                                                                                               | paid, opt in (M33)                                                                           | M43 (rows) |
+| Images                            | Muse Code's `image_generation` is gated off (no switch found)                                                                                                                                             | paid, opt in (M34); edits missing                                                            | M44        |
+| Web fetch (read a page)           | Muse Code's `web_fetch` is gated off                                                                                                                                                                      | none                                                                                         | M44        |
+| Goals                             | MSP `goal/*`, `session/goalChanged` and the resumed snapshot's goal: the goal strip and `/goal` (M45)                                                                                                     | Muse Code's four goal tools, stored, pinned; no loop turns of its own (M45, D38)             | M45        |
+| Background work, stop             | MSP `task/background`, `task/stop`, `task/stopAll` wired to rows, Agent map and Ctrl+B (M46)                                                                                                              | shell calls can move to the background and be stopped; output reaches the next request (M46) | M46        |
+| `!` user shell                    | MSP `session/userShell` with the `userShell` grant; `!` prompt and row (M46)                                                                                                                              | the shell runner, outside turns, with output in replay (M46)                                 | M46        |
+| Workflows                         | items render generically; `workflow/cancel`, `workflow/childControl` not wired                                                                                                                            | none (Muse Code's own engine)                                                                | M47        |
+| Subagents                         | map and controls (M14, M18); `reopen` and `readResult` not wired                                                                                                                                          | none (D17)                                                                                   | M48        |
+| Memory                            | Muse Code's memory tools; no view                                                                                                                                                                         | the index is read (M10); no tools                                                            | M49        |
+| MCP servers                       | loaded by Muse Code; read-only view (M31)                                                                                                                                                                 | none                                                                                         | M50        |
+| Hooks                             | run by Muse Code; read-only view (M31)                                                                                                                                                                    | none                                                                                         | M51        |
+| Scheduled prompts (`/loop`, cron) | the agent's `cron_*` tools only; no list or cancel                                                                                                                                                        | none                                                                                         | M52        |
+| Rewind a conversation, side chat  | TUI only; the panel has fork and code rewind                                                                                                                                                              | fork and code rewind                                                                         | M53        |
+| PDFs and files as input           | MSP takes text, images and skills only                                                                                                                                                                    | images only                                                                                  | M54        |
+| Questions: clarify                | `userInput/clarify` wired to Explain instead (M46)                                                                                                                                                        | `ask_user` accepts the explanation (M46)                                                     | M46        |
+| Sign-in in the panel, install     | experimental `account/*` not used; install links out                                                                                                                                                      | key pasted                                                                                   | M55 (M41)  |
+| Network posture, enterprise       | `--sandbox-network`, `--no-session-log` not offered; `muse config status` not shown                                                                                                                       | proxy and certificates unverified for fetch and the voice socket; cache key per session      | M56        |
+| Voice                             | the OS recogniser (free); Muse Code's own voice is TUI-only and not on Windows                                                                                                                            | the OS recogniser, or Muse Voice (paid, M35)                                                 | —          |
+| Everything else already at parity | sessions, history, fork, rename, compaction, export, steering, queue, approvals with stages and scopes, questions, todos, usage, model, effort, modes, skills, rules, worktrees, attachments, diagnostics | the same, through the extension's own harness                                                | —          |
 
 Rulings carried: the subscription never pays for a Model API call, and the
 key is never handed to `muse serve` (D1); a paid call is opt in and loud
@@ -1464,6 +1464,78 @@ version". He suggested a fourth number (0.8.0.1); the Marketplace and
   last, with no ceiling below 1.0.
 - **1.0.0 only on the owner's word**, after the extension has been on the
   Marketplace and field tested; no release proposes it on its own.
+
+### D39 — Background work, the user's own shell, explanations, on both backends (2026-09-25)
+
+D36's rows "Background work, stop", "`!` user shell" and "Questions:
+clarify" (M46). Two live captures on the contributor model (27 model
+attempts, `docs/certification/m46.md`) gave the wire shapes:
+
+- **`task/background`** on a running shell call answers
+  `{commandId, status: "accepted", taskId}`, and an `item/updated` with
+  `background: true, backgroundInitiator: "user"` arrives before the answer.
+  The turn goes on; the model's tool result is Muse Code's background
+  envelope (`execution_state`, `work_id`). **`task/stop`** ends it as
+  `cancelled`, `failureReason: "cancelled by runtime client"`.
+  **`task/stopAll`** is accepted over nothing too. A task that is not
+  there is refused `commandRejected` with `data.reason: "invalid_target"`.
+- **`session/userShell`** needs the `userShell` grant at the handshake
+  (granted once asked). Its item is `userShell` with `turnId: null`,
+  `commandText`, and at the end `exitCode`, `durationMs` and the output
+  (no deltas): exit 0 completes, any other fails ("tool failed: exit code:
+  3\nstdout: …"). With the Windows sandbox on and not set up it fails
+  with "managed shell sandbox is unavailable". Its item id is not a
+  UUIDv7, and `task/stop` refuses it as invalid params: a `!` command
+  cannot be stopped on Muse Code. The model sees it with the next turn
+  (asked, it named the word the command printed).
+- **`userInput/clarify`** takes `clarification: {format: "text", content}`
+  and settles the prompt `clarified`, no answers, the text beside them; the
+  model answers from it.
+
+The choices:
+
+- **Ctrl+B** is a contributed command, **Muse Spark: Move Running Command
+  to Background**, bound to `ctrl+b` on every platform (the TUI's key;
+  `Cmd+B` stays VS Code's sidebar on a Mac) only while the conversation in
+  view runs a shell call in the foreground: a context key the controllers
+  keep, for the surface in view. It moves every such call. A running shell
+  row has the same as a button. Only shell calls are offered: they are what
+  the capture moved.
+- **Stop** is on a background row and in the Agent map, with **Stop all**
+  there and **Muse Spark: Stop Background Tasks** in the palette. A button
+  waits for the host, as a decided approval card does (M25): the row's next
+  update or a refusal (`taskRefused`) frees it. A stopped row reads
+  "Stopped" with its reason, on both backends.
+- **The Model API backend runs the same** (D36 parity, not too large to
+  build): a shell call runs on its own stop, linked to the turn's until it
+  moves. Moved, the call answers the model at once
+  (`MODEL_TEXT.shellMovedToBackground`), the row is updated and kept in the
+  history running, and the command's time limit is lifted (a
+  `ShellTimeLimit` the runner binds, the job-object runner unchanged
+  otherwise). When it ends, the row completes and what it printed is added
+  to the replay as a user note: at once while nothing runs, else at the
+  running turn's next request or its end, never inside a call and its
+  output. Muse Code's runtime wakes its agent when background work ends;
+  this backend makes no model call nobody asked for, so the note waits for
+  the next request. The turn's Stop leaves a moved command running; its
+  own Stop, Stop all and the session closing end it. A stored session
+  brought back, or a fork, shows a command its original still runs as
+  interrupted, and a stored one also tells the model the command ended
+  with its window.
+- **`!` commands** run as typed, outside any turn, with no approval card in
+  any permission mode (the user typed them), and never in Restricted Mode
+  (D13): the controller refuses before any session, and the Model API
+  session refuses too. On Muse Code they run through the CLI's own shell
+  and sandbox posture (D12), and its sandbox failure offers the setup as
+  the shell tool's does. On the Model API backend they run through the
+  shell tool's runner (job objects, M27) for at most ten minutes, and the
+  row has a Stop; the model reads the command and its output with its next
+  request, as above. A refused command comes back to an empty prompt with
+  the reason.
+- **Explain instead** on the question card sends up to 500 characters
+  (MSP's limit, held by the box, the protocol schema and the Model API
+  session); the Model API's `ask_user` returns the text to the model as
+  Muse Code's clarify does, and the row reads "Explained: …".
 
 ## 3. Open questions (need the owner)
 
@@ -3466,6 +3538,97 @@ translations. The order is D36's table:
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the
   exported Markdown does not include the goal.
+
+### M46 — Background work and stop; the `!` user shell; clarifying questions (D39)
+
+**Status 2026-09-25: PR #33 under review; certification pending**
+(`docs/certification/m46.md`). A full local gate passed on M45 base
+`5581fe2` with the Windows accessibility runner capped at two workers;
+M46 was then reconciled onto M45 candidates `502684c`, `ec5db58`,
+`899b573`, `f5df625`, `4da43ac`, `f3390ec` and `ef84852`. The full local
+quality gate passed on `ef84852`. M45 merged into main at `1908673`, whose
+source tree is identical to `ef84852`; M46 now branches from that merge.
+M46 was committed as `8a85d79` and opened as PR #33. Review found two
+session-lifecycle gaps: final-surface disposal must stop CLI background
+tasks, and resumed foreground shell history must restore the `Ctrl+B`
+context. Both have focused failing-before/passing-after tests. The
+corrected tree passed the full local gate. Its fresh review found one
+more case: a Model API shell row starts before approval, so the running
+shell shortcut stays off while the permission card waits. A real fake-API
+and held-shell test failed before the change, passed after, and verifies
+the shortcut works once approved. The second correction's local gate
+passed. The next review found a running Model API `!` row missing from
+another surface's history, and forks missing a background shell's terminal
+context when the later note was cut. Both failed in focused tests before
+the fixes; recording the running row and tagging terminal replay notes by
+task fixed them. A cross-host restore test then caught that the started
+`!` row needed a save at start; `touch()` persists it before completion.
+The third correction passed the local full gate. The next review found
+that a quiet foreground Model API shell was also absent from another
+surface's live history. Started tool rows are now recorded once and
+replaced by item ID when they move or finish; a focused test failed
+before the change and passed after it. An unanswered function call is
+deliberately not persisted to disk because its replay would lack an
+output, so this guarantee is for surfaces sharing the live session. The
+fourth correction passed the local full gate. A read-only review then
+found that a second panel did not know about a shell approval already
+pending in the shared Model API session, so its restored row could make
+`Ctrl+B` intercept VS Code before the shell was runnable. The live
+two-panel test failed before the change and passed after pending approval
+requests were replayed to new listeners. The fifth correction passed the
+local full gate. A second read-only review found that a joining panel in
+Edit automatically could then approve a Manual panel's pending file edit.
+Both Model API and Muse Code tests failed before the fix; replayed cards
+now carry an internal marker that forbids automatic approval, including
+Muse Code's `approval/listPending` path. The sixth correction passed the
+local full gate. A further read-only review found the inverse live case:
+an older Edit automatically surface could approve a new Manual surface's
+edit. Both backends reproduced it; the Model API also exposed a pending
+resolver registration race, fixed before the authorization drill. The
+reverse order (Manual first, Auto joining) and two Auto panels proved a
+single last-mode value cannot describe the shared session safely. Auto
+approval now runs only while one controller holds it in Edit automatically;
+detaching another panel restores it. The internal replay marker is removed
+before postMessage. The seventh correction passed the local full gate.
+Its review found one export gap: a Muse `userShell` ending by signal had
+the signal in its row but not Markdown. The existing localized signal
+label now appears in export too, with a failing-before/passing-after test.
+The final export correction passed the local full gate; current-head
+hosted CI remains the merge gate.
+
+- **Goal**: what Muse Code's TUI does with Ctrl+B, `/stop` and `!`, and its
+  "let me explain" answer to a question, from the panel, on both backends.
+- **Research first**: two live captures in empty folders on the contributor
+  model, the Windows sandbox on (`C:\muse-live-m46`) and off
+  (`C:\muse-live-m46b`): 27 model attempts, counted from the trace logs.
+  They gave the shapes in D39, and showed that a `!` command cannot be
+  stopped on Muse Code.
+- **Scope**: `task/background`, `task/stop`, `task/stopAll`,
+  `session/userShell` (the `userShell` grant asked for) and
+  `userInput/clarify` on Muse Code; the same on the Model API backend
+  (moved shell calls, the user's own commands, explanations); Move to
+  background and Stop on the rows, Stop and Stop all in the Agent map, the
+  header pill counting running background tasks, Ctrl+B and two commands;
+  the `!` prompt (the Shell chip, Run command), the **You ran** row, its
+  Markdown export; Explain instead on the question card; "Stopped" for a
+  stopped row; two onboarding tips; the fake CLI's `long:` script and its
+  task and user-shell methods; 34 strings and 2 command titles in fourteen
+  languages.
+- **Acceptance**: tests from the captured shapes on both backends, the
+  controller, the reducer, the rows, the card, the manifest and the fake
+  CLI end to end; drills; harness scenarios `muse-shell`, `background-map`
+  and `question-explain` seen and in the accessibility gate; the gate
+  green.
+- **Runner**: Windows headless Chrome runs at most two harness pages at a
+  time. Four concurrent `jump` pages timed out after M46's added UI work;
+  one page at a time passed, and two workers passed twice with all four
+  themes. This changes resource pressure only: every scenario, axe rule,
+  exemption and the per-page timeout stay as they were. Other platforms
+  retain six workers (`docs/certification/m46.md`).
+- **Left out, on purpose**: the Model API backend makes no model call when
+  a background command ends (D39: nobody asked for one); a model-side stop
+  tool like Muse Code's `work_stop`, and moving tools other than the shell,
+  wait until a capture shows Muse Code doing either.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 

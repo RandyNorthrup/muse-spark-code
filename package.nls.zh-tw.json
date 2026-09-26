@@ -27,6 +27,8 @@
   "command.hooks.title": "鉤子",
   "command.newWorktree.title": "新增工作樹…",
   "command.removeWorktree.title": "移除工作樹…",
+  "command.moveToBackground.title": "將執行中的命令移至背景",
+  "command.stopBackgroundTasks.title": "停止背景工作",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "新對話的開啟位置。",
   "config.preferredLocation.enumDescriptions.sidebar": "在 Muse Spark 側邊欄檢視中開啟新對話。",

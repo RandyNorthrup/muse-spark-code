@@ -27,6 +27,8 @@
   "command.hooks.title": "후크",
   "command.newWorktree.title": "새 작업 트리…",
   "command.removeWorktree.title": "작업 트리 제거…",
+  "command.moveToBackground.title": "실행 중인 명령을 백그라운드로 이동",
+  "command.stopBackgroundTasks.title": "백그라운드 작업 중지",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "새 대화가 열리는 위치입니다.",
   "config.preferredLocation.enumDescriptions.sidebar": "Muse Spark 사이드바 보기에서 새 대화를 엽니다.",

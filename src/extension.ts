@@ -423,6 +423,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const registry = new SurfaceRegistry()
   const controllers = new Map<string, ConversationController>()
   let isInputFocused = false
+  // Ctrl+B belongs to the panel only while the conversation in view runs a
+  // command it can move to the background (M46); VS Code's sidebar toggle
+  // keeps it otherwise.
+  const refreshTaskContext = () => {
+    const active = registry.active
+    const controller = active === undefined ? undefined : controllers.get(active.id)
+    void vscode.commands.executeCommand(
+      VSCODE_COMMANDS.setContext,
+      CONTEXT_KEYS.canMoveToBackground,
+      controller?.hasForegroundShell === true,
+    )
+  }
   const currentSettings = () =>
     readSettings(vscode.workspace.getConfiguration(SETTINGS_SECTION), log)
   const updateSetting = (key: string, value: unknown) =>
@@ -1145,6 +1157,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await paid.gate.turnOff(feature)
           }
         },
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        onForegroundTasksChanged: refreshTaskContext,
         now: () => Date.now(),
         log,
       })
@@ -1201,6 +1215,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
   })
+  registry.onActiveChanged(refreshTaskContext)
+  /** A command for the conversation in view, when there is one. */
+  const forActiveConversation =
+    (run: (controller: ConversationController) => Promise<void>) => async () => {
+      const surface = registry.active
+      if (surface !== undefined) {
+        await run(controllerFor(surface))
+      }
+    }
 
   const openSidebar = () => vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
   /** A conversation where the setting says new ones open. */
@@ -1459,12 +1482,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.toggleFocusView, async () => {
       await runHostAction('toggleFocusView')
     }),
-    registerLoggedCommand(log, COMMAND_IDS.toggleThinking, async () => {
-      const surface = registry.active
-      if (surface !== undefined) {
-        await controllerFor(surface).toggleThinking()
-      }
-    }),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.toggleThinking,
+      forActiveConversation((controller) => controller.toggleThinking()),
+    ),
+    // Ctrl+B and "Stop Background Tasks" (M46, PLAN.md D39).
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.moveToBackground,
+      forActiveConversation((controller) => controller.moveRunningToBackground()),
+    ),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.stopBackgroundTasks,
+      forActiveConversation((controller) => controller.stopBackgroundTasks()),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
     }),

@@ -10,13 +10,25 @@ import {
   forkCutBefore,
   hasPendingRequest,
   initialUiState,
+  isRunningTask,
   uiReducer,
   type UiAction,
   type UiState,
+  userShellCommandOf,
   visibleEditorContext,
   referenceLabel,
 } from '../../src/webview/state/uiState'
+import { toSnapshot, wireItemSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { testSettings } from './helpers/fakes'
+import {
+  QUESTION_CLARIFIED,
+  SHELL_CALL_BACKGROUNDED,
+  SHELL_CALL_STARTED,
+  SHELL_CALL_STOPPED,
+  USER_SHELL_COMPLETED,
+  USER_SHELL_FAILED,
+  USER_SHELL_STARTED,
+} from './helpers/m46Capture'
 
 const init: HostToWebviewMessage = {
   type: 'init',
@@ -2212,5 +2224,189 @@ describe('uiReducer: the session goal (M45)', () => {
   it('drops the goal with the conversation', () => {
     expect(uiReducer(withGoal, { type: 'conversationCleared' }).goal).toBeUndefined()
     expect(uiReducer(withGoal, host({ type: 'conversationCleared' })).goal).toBeUndefined()
+  })
+})
+
+// --- M46: background work, the user's `!` commands, explanations ---
+
+/** A captured wire item as the backend hands it to the panel (turnId null dropped). */
+function snapshotOf(frame: { readonly item: Record<string, unknown> }): ItemSnapshot {
+  return toSnapshot(wireItemSchema.parse(frame.item))
+}
+
+describe('uiReducer: the user’s own shell commands (M46)', () => {
+  it('shows a `!` command as its own row, from start to end, outside any turn', () => {
+    const started = reduceAll([
+      host(init),
+      agent({ type: 'itemStarted', item: snapshotOf(USER_SHELL_STARTED) }),
+    ])
+    expect(started.transcript).toEqual([
+      {
+        kind: 'userShell',
+        id: USER_SHELL_STARTED.item.itemId,
+        command: "Write-Output 'hello-m46'",
+        status: 'inProgress',
+        output: '',
+        exitCode: undefined,
+        exitSignal: undefined,
+        durationMs: undefined,
+        outputRef: undefined,
+        failureReason: undefined,
+        taskRequest: undefined,
+      },
+    ])
+    const done = reduceAll(
+      [
+        agent({
+          type: 'textDelta',
+          itemId: USER_SHELL_STARTED.item.itemId,
+          field: 'output',
+          delta: 'hel',
+        }),
+        agent({ type: 'itemCompleted', item: snapshotOf(USER_SHELL_COMPLETED) }),
+      ],
+      started,
+    )
+    expect(done.transcript[0]).toMatchObject({
+      kind: 'userShell',
+      status: 'completed',
+      output: 'hello-m46\r\n',
+      exitCode: 0,
+      durationMs: 563,
+    })
+  })
+
+  it('leaves a running `!` command alone when a turn ends, and reads its failure out', () => {
+    const state = reduceAll([
+      host(init),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent({ type: 'itemStarted', item: snapshotOf(USER_SHELL_STARTED) }),
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+    ])
+    expect(state.transcript[0]).toMatchObject({ kind: 'userShell', status: 'inProgress' })
+    const failed = reduceAll(
+      [agent({ type: 'itemCompleted', item: snapshotOf(USER_SHELL_FAILED) })],
+      state,
+    )
+    expect(failed.announcement?.text).toBe(`${UI_TEXT.userShellLabel}: ${UI_TEXT.toolFailed}`)
+  })
+
+  it('rebuilds `!` rows from a session’s history', () => {
+    const state = reduceAll([
+      host(init),
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        items: [snapshotOf(USER_SHELL_COMPLETED), snapshotOf(USER_SHELL_FAILED)],
+        todos: [],
+      }),
+    ])
+    expect(state.transcript.map((entry) => [entry.kind, entry.id])).toEqual([
+      ['userShell', USER_SHELL_COMPLETED.item.itemId],
+      ['userShell', USER_SHELL_FAILED.item.itemId],
+    ])
+  })
+
+  it('brings a refused command back to an empty prompt, never over a new draft', () => {
+    const refused = host({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: UI_TEXT.userShellRestricted,
+    })
+    const empty = reduceAll([host(init), refused])
+    expect(empty.draft).toBe('!ls')
+    expect(empty.transcript.at(-1)).toMatchObject({
+      kind: 'notice',
+      level: 'warning',
+      text: UI_TEXT.userShellRestricted,
+    })
+    expect(empty.announcement?.text).toBe(UI_TEXT.userShellRestricted)
+    const typed = reduceAll([host(init), { type: 'draftChanged', draft: 'new' }, refused])
+    expect(typed.draft).toBe('new')
+  })
+
+  it('sends `!command` as a command, and never a bare `!`', () => {
+    const ready = reduceAll([host(init), signedIn])
+    expect(userShellCommandOf(' !git status ')).toBe('git status')
+    expect(userShellCommandOf('what is !important')).toBeUndefined()
+    expect(canSend({ ...ready, draft: '!' })).toBe(false)
+    expect(canSend({ ...ready, draft: '! ' })).toBe(false)
+    expect(canSend({ ...ready, draft: '!ls' })).toBe(true)
+  })
+})
+
+describe('uiReducer: background tasks and their buttons (M46)', () => {
+  it('marks the call Muse Code moved, keeps it past its turn, and reads a stop as stopped', () => {
+    const moved = reduceAll([
+      host(init),
+      agent({ type: 'turnStarted', turnId: SHELL_CALL_STARTED.item.turnId }),
+      agent({ type: 'itemStarted', item: snapshotOf(SHELL_CALL_STARTED) }),
+      { type: 'taskRequested', itemId: SHELL_CALL_STARTED.item.itemId, request: 'background' },
+    ])
+    expect(moved.transcript[0]).toMatchObject({ taskRequest: 'background' })
+    const background = reduceAll(
+      [
+        agent({ type: 'itemUpdated', item: snapshotOf(SHELL_CALL_BACKGROUNDED) }),
+        agent({
+          type: 'turnCompleted',
+          turnId: SHELL_CALL_STARTED.item.turnId,
+          terminal: 'completed',
+        }),
+      ],
+      moved,
+    )
+    const [row] = backgroundTasksOf(background)
+    expect(row).toMatchObject({ status: 'inProgress', isBackground: true, taskRequest: undefined })
+    expect(row !== undefined && isRunningTask(row)).toBe(true)
+    const stopped = reduceAll(
+      [agent({ type: 'itemCompleted', item: snapshotOf(SHELL_CALL_STOPPED) })],
+      background,
+    )
+    const [ended] = backgroundTasksOf(stopped)
+    expect(ended).toMatchObject({ status: 'cancelled' })
+    expect(ended === undefined || isRunningTask(ended)).toBe(false)
+    expect(stopped.announcement?.text).toBe(`PowerShell: ${UI_TEXT.toolStopped}`)
+  })
+
+  it('frees a button the host refused, and one the turn’s end overtook', () => {
+    const asked = reduceAll([
+      host(init),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      agent({ type: 'itemStarted', item: { ...snapshotOf(SHELL_CALL_STARTED), turnId: 't1' } }),
+      { type: 'taskRequested', itemId: SHELL_CALL_STARTED.item.itemId, request: 'background' },
+    ])
+    const refused = reduceAll(
+      [host({ type: 'taskRefused', itemId: SHELL_CALL_STARTED.item.itemId })],
+      asked,
+    )
+    expect(refused.transcript[0]).toMatchObject({ taskRequest: undefined })
+    const cutOff = reduceAll(
+      [agent({ type: 'turnCompleted', turnId: 't1', terminal: 'cancelled' })],
+      asked,
+    )
+    expect(cutOff.transcript[0]).toMatchObject({ status: 'interrupted', taskRequest: undefined })
+  })
+
+  it('keeps an explanation given instead of an answer (M46)', () => {
+    const state = reduceAll([
+      host(init),
+      agent({
+        type: 'questionRequested',
+        userInputId: QUESTION_CLARIFIED.userInputId,
+        itemId: 'q-row',
+        questions: [],
+      }),
+      agent({
+        type: 'questionSettled',
+        userInputId: QUESTION_CLARIFIED.userInputId,
+        outcome: 'clarified',
+        answers: [],
+        clarification: 'I prefer green.',
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({
+      question: undefined,
+      questionOutcome: { outcome: 'clarified', answers: [], clarification: 'I prefer green.' },
+    })
   })
 })

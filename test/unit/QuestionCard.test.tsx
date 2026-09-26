@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Question } from '../../src/shared/agentEvents'
+import { CLARIFICATION_MAX_CHARS } from '../../src/shared/constants'
 import { QuestionCard, type QuestionCardProps } from '../../src/webview/components/QuestionCard'
 
 const colour: Question = {
@@ -33,6 +34,7 @@ function renderCard(questions: readonly Question[]) {
     question: { userInputId: 'q1', questions },
     onAnswer: vi.fn(),
     onCancel: vi.fn(),
+    onClarify: vi.fn(),
   }
   render(<QuestionCard {...props} />)
   return props
@@ -108,5 +110,39 @@ describe('QuestionCard (M16)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(props.onCancel).toHaveBeenCalledWith('q1')
     expect(props.onAnswer).not.toHaveBeenCalled()
+  })
+})
+
+describe('QuestionCard: Explain instead (M46)', () => {
+  it('sends an explanation in place of the options, trimmed, up to the limit', () => {
+    const props = renderCard([colour])
+    fireEvent.click(screen.getByRole('button', { name: 'Explain instead' }))
+    const box = screen.getByLabelText('Your explanation')
+    expect(box).toHaveAttribute('maxLength', String(CLARIFICATION_MAX_CHARS))
+    const send = screen.getByRole('button', { name: 'Send explanation' })
+    expect(send).toBeDisabled()
+    fireEvent.change(box, { target: { value: ' '.repeat(3) } })
+    expect(send).toBeDisabled()
+    fireEvent.change(box, { target: { value: ' Neither: I prefer green. ' } })
+    fireEvent.click(send)
+    expect(props.onClarify).toHaveBeenCalledWith('q1', 'Neither: I prefer green.')
+    expect(props.onAnswer).not.toHaveBeenCalled()
+  })
+
+  it('goes back to the choices, and locks while the host settles it', () => {
+    renderCard([colour])
+    fireEvent.click(screen.getByRole('button', { name: 'Explain instead' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the choices' }))
+    expect(submit()).toBeInTheDocument()
+    render(
+      <QuestionCard
+        question={{ userInputId: 'q2', questions: [colour], isSubmitted: true }}
+        onAnswer={vi.fn()}
+        onCancel={vi.fn()}
+        onClarify={vi.fn()}
+      />,
+    )
+    const explain = screen.getAllByRole('button', { name: 'Explain instead' })
+    expect(explain.at(-1)).toBeDisabled()
   })
 })

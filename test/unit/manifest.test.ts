@@ -135,6 +135,14 @@ describe('package.json manifest', () => {
     })
     expect(bindings.get(COMMAND_IDS.focusInput)?.when).toBeUndefined()
     expect(bindings.get(COMMAND_IDS.openInNewTab)?.when).toBeUndefined()
+    // M46: Ctrl+B, the TUI's key, everywhere (VS Code's own is Cmd+B on a
+    // Mac), and only while the conversation in view runs a command to move:
+    // VS Code's sidebar toggle keeps it otherwise.
+    expect(bindings.get(COMMAND_IDS.moveToBackground)).toMatchObject({
+      key: 'ctrl+b',
+      mac: 'ctrl+b',
+      when: `${CONTEXT_KEYS.canMoveToBackground} && (${SURFACE_ACTIVE})`,
+    })
   })
 
   it('contributes the walkthrough the command opens, completed by our own events (D15)', () => {
@@ -185,6 +193,10 @@ describe('package.json manifest', () => {
       // git worktrees of the open folder's repository (M32).
       [COMMAND_IDS.newWorktree]: 'workspaceFolderCount > 0',
       [COMMAND_IDS.removeWorktree]: 'workspaceFolderCount > 0',
+      // Only while the conversation in view runs a command to move (M46).
+      [COMMAND_IDS.moveToBackground]: CONTEXT_KEYS.canMoveToBackground,
+      // The background tasks of the conversation in front of the user (M46).
+      [COMMAND_IDS.stopBackgroundTasks]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {

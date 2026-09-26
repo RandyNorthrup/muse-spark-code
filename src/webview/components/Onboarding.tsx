@@ -16,6 +16,8 @@ const TIP_IDS = [
   'mentionFile',
   'newTab',
   'dictation',
+  'shell',
+  'moveToBackground',
 ] as const satisfies readonly (keyof UiText['onboardingTips'])[]
 
 export interface OnboardingProps {

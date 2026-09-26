@@ -28,6 +28,24 @@ export function tool(overrides: Partial<Extract<TranscriptEntry, { kind: 'tool' 
   }
 }
 
+/** The user's own `!` command's row (M46), as a completed `hello` by default. */
+export function userShell(overrides: Partial<Extract<TranscriptEntry, { kind: 'userShell' }>>) {
+  return {
+    kind: 'userShell' as const,
+    id: 'u',
+    command: "Write-Output 'hello-m46'",
+    status: 'completed',
+    output: 'hello-m46\r\n',
+    exitCode: 0,
+    exitSignal: undefined,
+    durationMs: 563,
+    outputRef: undefined,
+    failureReason: undefined,
+    taskRequest: undefined,
+    ...overrides,
+  }
+}
+
 export function transcriptProps(
   entries: readonly TranscriptEntry[],
   overrides: Partial<TranscriptProps>,
@@ -47,6 +65,10 @@ export function transcriptProps(
     onDecide: vi.fn(),
     onAnswer: vi.fn(),
     onCancelQuestion: vi.fn(),
+    onClarifyQuestion: vi.fn(),
+    onMoveToBackground: vi.fn(),
+    onStopTask: vi.fn(),
+    canStopUserShell: false,
     onApply: vi.fn(),
     onOpenEditDiff: vi.fn(),
     onOpenFile: vi.fn(),

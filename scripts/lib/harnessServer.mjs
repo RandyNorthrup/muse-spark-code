@@ -75,6 +75,9 @@ export const SCENARIOS = [
   'paid-image-cli',
   'goal',
   'goal-edit',
+  'muse-shell',
+  'background-map',
+  'question-explain',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

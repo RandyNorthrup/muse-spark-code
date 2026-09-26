@@ -61,11 +61,14 @@ import {
   SESSION_LIST_MAX_PAGES,
   CHOICE_STEERING_NOTE,
   SESSION_RESTORE_WINDOW_MS,
+  SHELL_TOOLS,
   type SubagentAction,
   UI_TEXT,
+  USER_SHELL_ITEM_KIND,
+  USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
-import type { AgentEvent, ApprovalChoice } from '../../shared/agentEvents'
+import type { AgentEvent, ApprovalChoice, ItemSnapshot } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
@@ -244,6 +247,13 @@ export interface ConversationDeps {
   readonly exports: ConversationExports
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
   readonly setPaidFeature: (feature: PaidFeature, isOn: boolean) => Promise<void>
+  /** VS Code workspace trust (PLAN.md D13): Restricted Mode runs no `!` command (M46). */
+  readonly isWorkspaceTrusted: () => boolean
+  /**
+   * A command that Ctrl+B can move to the background started or stopped
+   * running here (M46): the keybinding's context key follows.
+   */
+  readonly onForegroundTasksChanged: () => void
   readonly now: () => number
   readonly log: Logger
 }
@@ -263,6 +273,8 @@ const MISSING_RUN_REASON = 'missing_run'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const FALLBACK_MODE: PermissionMode = 'manual'
 const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
+/** Auto approval is safe only while one controller holds the shared session. */
+const sessionSurfaces = new WeakMap<AgentSession, Set<ConversationController>>()
 // Approval subjects that are a plain file write: the Model API's own, and
 // Muse Code's `fileAccess` with write access (MSP `ApprovalSubject`).
 const FILE_WRITE_SUBJECT = 'fileWrite'
@@ -281,6 +293,8 @@ const ATTENTION_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'questionRequested',
 ])
 const QUEUED_DISPOSITION = 'queued'
+const TOOL_CALL_KIND = 'toolCall'
+const IN_PROGRESS_STATUS = 'inProgress'
 // The unsaved files a warning names before it counts the rest (D27).
 const UNSAVED_FILES_NAMED = 3
 const STEERED_DISPOSITION = 'steered'
@@ -460,6 +474,14 @@ export class ConversationController {
   /** Streamed text not yet posted, and the frame timer that posts it (M39). */
   private pendingDelta: Extract<AgentEvent, { type: 'textDelta' }> | undefined
   private deltaTimer: ReturnType<typeof setTimeout> | undefined
+  /**
+   * The running turn's shell calls still in the foreground, by item (M46):
+   * what Ctrl+B moves to the background.
+   */
+  private readonly foregroundShells = new Set<string>()
+  /** A shell's row can start before its approval is granted (Model API). */
+  private readonly pendingShellApprovals = new Set<string>()
+  private readonly pausedForegroundShells = new Set<string>()
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -615,10 +637,20 @@ export class ConversationController {
     this.unsubscribe = undefined
     this.closedWatch?.()
     this.closedWatch = undefined
+    if (session !== undefined) {
+      const surfaces = sessionSurfaces.get(session)
+      surfaces?.delete(this)
+      if (surfaces?.size === 0) {
+        sessionSurfaces.delete(session)
+      }
+    }
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
     this.finishedTurns.clear()
+    this.forgetForegroundShells()
+    this.pendingShellApprovals.clear()
+    this.pausedForegroundShells.clear()
     // A turn that ended with its session, no end heard: said, and forgotten.
     for (const turnId of this.turnClocks.keys()) {
       this.deps.log.info(`Turn ${turnId} ended with its session`)
@@ -678,6 +710,9 @@ export class ConversationController {
   ): ApprovalChoice | undefined {
     if (
       this.permissionMode !== EDIT_AUTOMATICALLY_MODE ||
+      this.session === undefined ||
+      sessionSurfaces.get(this.session)?.size !== 1 ||
+      event.isReplayed === true ||
       event.isProtectedWrite ||
       event.isJudgeEscalated
     ) {
@@ -726,7 +761,13 @@ export class ConversationController {
       this.queueDelta(event)
       return
     }
-    this.post({ type: 'agentEvent', event })
+    if (event.type === 'approvalRequested' && event.isReplayed !== undefined) {
+      const shown = { ...event }
+      delete shown.isReplayed
+      this.post({ type: 'agentEvent', event: shown })
+    } else {
+      this.post({ type: 'agentEvent', event })
+    }
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
     }
@@ -783,6 +824,9 @@ export class ConversationController {
       return
     }
     if (event.type === 'approvalRequested') {
+      if (SHELL_TOOLS.has(event.toolName)) {
+        this.noteShellApprovalRequested(event.itemId)
+      }
       // The tool, never its input (M39).
       this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
       const choice = this.autoApprovalChoice(event)
@@ -790,10 +834,12 @@ export class ConversationController {
         void this.autoApprove(event, choice)
         return
       }
-    }
-    if (event.type === 'approvalResolved' && this.autoApproved.delete(event.approvalId)) {
-      this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
-      return
+    } else if (event.type === 'approvalResolved') {
+      this.noteShellApprovalResolved(event)
+      if (this.autoApproved.delete(event.approvalId)) {
+        this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
+        return
+      }
     }
     this.forward(event)
     this.track(event)
@@ -830,6 +876,10 @@ export class ConversationController {
         // Another turn completing (a subagent's) leaves this one running.
         if (this.activeTurnId === event.turnId) {
           this.activeTurnId = undefined
+          // What the turn left running is its own no more (M46).
+          this.forgetForegroundShells()
+          this.pendingShellApprovals.clear()
+          this.pausedForegroundShells.clear()
         }
         this.noteActivity()
         if (event.terminal === 'failed' && event.errorKind === AUTH_REQUIRED_ERROR_KIND) {
@@ -844,6 +894,9 @@ export class ConversationController {
       case 'sessionStatus': {
         if (event.status === IDLE_STATUS) {
           this.activeTurnId = undefined
+          this.forgetForegroundShells()
+          this.pendingShellApprovals.clear()
+          this.pausedForegroundShells.clear()
         }
         break
       }
@@ -860,15 +913,112 @@ export class ConversationController {
         }
         break
       }
+      case 'itemStarted': {
+        this.noteForegroundShell(event.item)
+        break
+      }
       case 'itemUpdated':
       case 'itemCompleted': {
+        if (event.type === 'itemCompleted' || event.item.status !== IN_PROGRESS_STATUS) {
+          this.pendingShellApprovals.delete(event.item.itemId)
+          this.pausedForegroundShells.delete(event.item.itemId)
+        }
+        this.noteForegroundShell(event.item)
         this.noteSandboxFailure(event.item.failureReason)
+        // A `!` command says it in its output (captured 2026-09-25, M46).
+        if (event.item.kind === USER_SHELL_ITEM_KIND) {
+          this.noteSandboxFailure(event.item.visibleOutput)
+        }
         break
       }
       default: {
         break
       }
     }
+  }
+
+  /**
+   * Keeps the set Ctrl+B acts on (M46): the running turn's shell calls, while
+   * they run and are not yet in the background.
+   */
+  private noteForegroundShell(item: ItemSnapshot): void {
+    const isForeground = this.isForegroundShell(item, this.activeTurnId)
+    const wasForeground = this.foregroundShells.has(item.itemId)
+    if (isForeground === wasForeground) {
+      return
+    }
+    if (isForeground) {
+      this.foregroundShells.add(item.itemId)
+    } else {
+      this.foregroundShells.delete(item.itemId)
+    }
+    this.deps.onForegroundTasksChanged()
+  }
+
+  private noteShellApprovalRequested(itemId: string): void {
+    this.pendingShellApprovals.add(itemId)
+    if (!this.foregroundShells.delete(itemId)) {
+      return
+    }
+    this.pausedForegroundShells.add(itemId)
+    this.deps.onForegroundTasksChanged()
+  }
+
+  private noteShellApprovalResolved(
+    event: Extract<AgentEvent, { type: 'approvalResolved' }>,
+  ): void {
+    this.pendingShellApprovals.delete(event.itemId)
+    if (
+      !this.pausedForegroundShells.delete(event.itemId) ||
+      event.decision !== APPROVED_DECISION ||
+      this.activeTurnId === undefined
+    ) {
+      return
+    }
+    this.foregroundShells.add(event.itemId)
+    this.deps.onForegroundTasksChanged()
+  }
+
+  private isForegroundShell(item: ItemSnapshot, activeTurnId: string | undefined): boolean {
+    return (
+      item.kind === TOOL_CALL_KIND &&
+      item.tool !== undefined &&
+      SHELL_TOOLS.has(item.tool) &&
+      item.status === IN_PROGRESS_STATUS &&
+      item.background !== true &&
+      !this.pendingShellApprovals.has(item.itemId) &&
+      item.turnId !== undefined &&
+      item.turnId === activeTurnId
+    )
+  }
+
+  /** A resume or gap reload replaces the transcript, so rebuild Ctrl+B too. */
+  private restoreForegroundShells(
+    items: readonly ItemSnapshot[],
+    activeTurnId: string | undefined,
+  ): void {
+    const restored = new Set(
+      items.filter((item) => this.isForegroundShell(item, activeTurnId)).map((item) => item.itemId),
+    )
+    if (
+      restored.size === this.foregroundShells.size &&
+      [...restored].every((itemId) => this.foregroundShells.has(itemId))
+    ) {
+      return
+    }
+    this.foregroundShells.clear()
+    for (const itemId of restored) {
+      this.foregroundShells.add(itemId)
+    }
+    this.deps.onForegroundTasksChanged()
+  }
+
+  private forgetForegroundShells(): void {
+    if (this.foregroundShells.size === 0) {
+      return
+    }
+    this.foregroundShells.clear()
+    this.deps.onForegroundTasksChanged()
   }
 
   /**
@@ -893,9 +1043,15 @@ export class ConversationController {
     }
   }
 
-  /** The shell tool's "sandbox not set up" failure gets one actionable notice. */
-  private noteSandboxFailure(failureReason: string | undefined): void {
-    if (this.hasWarnedSandbox || failureReason?.includes(SANDBOX_FAILURE_MARKER) !== true) {
+  /** The shell tool's "sandbox not set up" failure gets one actionable notice; a `!` row's too (M46). */
+  private noteSandboxFailure(text: string | undefined): void {
+    if (text === undefined || this.hasWarnedSandbox) {
+      return
+    }
+    if (
+      !text.includes(SANDBOX_FAILURE_MARKER) &&
+      !text.includes(USER_SHELL_SANDBOX_FAILURE_MARKER)
+    ) {
       return
     }
     this.hasWarnedSandbox = true
@@ -991,6 +1147,112 @@ export class ConversationController {
         return
       }
       this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
+    }
+  }
+
+  /** The question card's Explain instead (M46): the model reads the text and decides again. */
+  private async clarifyQuestion(
+    message: Extract<ConversationMessage, { type: 'clarifyQuestion' }>,
+  ): Promise<void> {
+    const text = message.text.trim()
+    if (text === '' || this.session === undefined) {
+      return
+    }
+    try {
+      await this.session.clarifyQuestions(message.userInputId, text)
+    } catch (error: unknown) {
+      if (error instanceof PromptSettledError) {
+        this.promptSettled(error, { userInputId: message.userInputId })
+        return
+      }
+      // An error notice unlocks the card, as a refused answer does (M25).
+      this.notice('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`)
+    }
+  }
+
+  /**
+   * One task command (M46): moving a running command to the background, or
+   * stopping a task. Refused, the user is told why and the row's button is
+   * free again.
+   */
+  private async taskCommand(
+    itemId: string,
+    run: (session: AgentSession) => Promise<void>,
+    failure: string,
+  ): Promise<void> {
+    const { session } = this
+    if (session === undefined) {
+      this.post({ type: 'taskRefused', itemId })
+      return
+    }
+    try {
+      await run(session)
+    } catch (error: unknown) {
+      this.notice('warning', `${failure}: ${describe(error)}`)
+      this.post({ type: 'taskRefused', itemId })
+    }
+  }
+
+  private async moveToBackground(itemId: string): Promise<void> {
+    this.deps.log.info(`Moving task ${itemId} to the background`)
+    await this.taskCommand(
+      itemId,
+      (session) => session.moveToBackground(itemId),
+      UI_TEXT.moveToBackgroundFailed,
+    )
+  }
+
+  private async stopTask(itemId: string): Promise<void> {
+    this.deps.log.info(`Stopping task ${itemId}`)
+    await this.taskCommand(itemId, (session) => session.stopTask(itemId), UI_TEXT.stopTaskFailed)
+  }
+
+  private async stopAllTasks(): Promise<void> {
+    if (this.session === undefined) {
+      return
+    }
+    this.deps.log.info('Stopping every background task')
+    try {
+      await this.session.stopAllTasks()
+    } catch (error: unknown) {
+      this.notice('warning', `${UI_TEXT.stopTaskFailed}: ${describe(error)}`)
+    }
+  }
+
+  /**
+   * A `!` prompt (M46, PLAN.md D39): the user's own command, run by the
+   * backend outside any turn, never in Restricted Mode (D13). The user typed
+   * it, so no approval card asks again, whatever the permission mode. One
+   * that does not run comes back to the prompt with the reason.
+   */
+  private async runUserShell(command: string): Promise<void> {
+    const trimmed = command.trim()
+    if (trimmed === '') {
+      return
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.userShellRestricted })
+      return
+    }
+    if (this.deps.auth.current.status !== 'signedIn') {
+      this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.notSignedInReason })
+      return
+    }
+    const workspaceRoot = this.deps.workspaceRoot
+    if (workspaceRoot === undefined) {
+      this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.noWorkspaceReason })
+      return
+    }
+    try {
+      const session = await this.ensureSession(workspaceRoot)
+      const host = await this.deps.ensureHost()
+      this.deps.log.info(`Running a command the user typed (${String(trimmed.length)} characters)`)
+      await this.runResuming(host, session, (current) => current.runUserShell(trimmed))
+      this.noteActivity()
+    } catch (error: unknown) {
+      const reason = `${UI_TEXT.userShellFailed}: ${describe(error)}`
+      this.deps.log.warn(reason)
+      this.post({ type: 'userShellRefused', command: trimmed, reason })
     }
   }
 
@@ -1225,6 +1487,9 @@ export class ConversationController {
     )
     this.session = session
     this.sessionKind = host.info.kind
+    const surfaces = sessionSurfaces.get(session) ?? new Set<ConversationController>()
+    surfaces.add(this)
+    sessionSurfaces.set(session, surfaces)
     this.canEditSessions = host.info.canEditSessions
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
@@ -1430,6 +1695,7 @@ export class ConversationController {
     activeTurnId: string | undefined,
     shouldIncludeGoal = true,
   ): void {
+    this.restoreForegroundShells(history.items, activeTurnId)
     this.post({
       type: 'historyLoaded',
       sessionId,
@@ -2311,6 +2577,26 @@ export class ConversationController {
         await this.cancelQuestion(message.userInputId)
         break
       }
+      case 'clarifyQuestion': {
+        await this.clarifyQuestion(message)
+        break
+      }
+      case 'moveToBackground': {
+        await this.moveToBackground(message.itemId)
+        break
+      }
+      case 'stopTask': {
+        await this.stopTask(message.itemId)
+        break
+      }
+      case 'stopAllTasks': {
+        await this.stopAllTasks()
+        break
+      }
+      case 'runUserShell': {
+        await this.runUserShell(message.command)
+        break
+      }
       case 'readOutput': {
         await this.readOutput(message)
         break
@@ -2572,6 +2858,31 @@ export class ConversationController {
   /** Alt+T: flip the Thinking toggle for this conversation. */
   public async toggleThinking(): Promise<void> {
     await this.updateEffort(this.effort, !this.isThinkingEnabled)
+  }
+
+  /** Whether Ctrl+B has a running command to move here (M46): its context key. */
+  public get hasForegroundShell(): boolean {
+    return this.foregroundShells.size > 0
+  }
+
+  /**
+   * Ctrl+B (M46, the TUI's key): every shell command the running turn still
+   * waits on goes on in the background, and the turn goes on without them.
+   */
+  public async moveRunningToBackground(): Promise<void> {
+    const running = [...this.foregroundShells]
+    if (running.length === 0) {
+      this.say('info', UI_TEXT.nothingToMoveToBackground)
+      return
+    }
+    for (const itemId of running) {
+      await this.moveToBackground(itemId)
+    }
+  }
+
+  /** "Stop Background Tasks" from the command palette (M46). */
+  public async stopBackgroundTasks(): Promise<void> {
+    await this.stopAllTasks()
   }
 
   /**

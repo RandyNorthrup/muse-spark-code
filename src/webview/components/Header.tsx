@@ -17,7 +17,18 @@ export interface HeaderProps {
   /** The agents pill (M14): shown once a subagent exists in this conversation. */
   readonly agentCount?: number
   readonly runningAgentCount?: number
+  /** Background tasks still running (M46): they show the pill too. */
+  readonly runningTaskCount?: number
   readonly onOpenAgents?: (() => void) | undefined
+}
+
+/** The pill's words: the agents, the running background tasks, or both (M14, M46). */
+function pillLabel(agentCount: number, runningTaskCount: number): string {
+  const parts = [
+    agentCount > 0 ? plural(UI_TEXT.agentsCount, agentCount) : undefined,
+    runningTaskCount > 0 ? plural(UI_TEXT.backgroundTasksCount, runningTaskCount) : undefined,
+  ].filter((part) => part !== undefined)
+  return parts.join(' · ')
 }
 
 function TitleEditor({
@@ -85,8 +96,11 @@ export function Header({
   onRename,
   agentCount = 0,
   runningAgentCount = 0,
+  runningTaskCount = 0,
   onOpenAgents,
 }: HeaderProps) {
+  const isPillShown = agentCount > 0 || runningTaskCount > 0
+  const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0
   return (
     <header className="header">
       {onRename === undefined ? (
@@ -98,20 +112,18 @@ export function Header({
       )}
       <div className="header-actions">
         {isFocusView ? <span className="badge">{UI_TEXT.focusViewBadge}</span> : null}
-        {onOpenAgents !== undefined && agentCount > 0 ? (
+        {onOpenAgents !== undefined && isPillShown ? (
           <button
             type="button"
             className="agents-pill"
-            title={UI_TEXT.agentsPillTitle}
+            title={agentCount > 0 ? UI_TEXT.agentsPillTitle : UI_TEXT.backgroundTasksPillTitle}
             onClick={onOpenAgents}
           >
             <span
-              className={
-                runningAgentCount > 0 ? 'agent-dot agent-dot-running' : 'agent-dot agent-dot-done'
-              }
+              className={isAnyRunning ? 'agent-dot agent-dot-running' : 'agent-dot agent-dot-done'}
               aria-hidden="true"
             />
-            {plural(UI_TEXT.agentsCount, agentCount)}
+            {pillLabel(agentCount, runningTaskCount)}
           </button>
         ) : null}
         <button

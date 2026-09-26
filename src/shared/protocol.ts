@@ -16,6 +16,7 @@ import {
 } from './agentEvents'
 import {
   CHAT_REFERENCE_INTENTS,
+  CLARIFICATION_MAX_CHARS,
   DICTATION_ACTIONS,
   DICTATION_ENGINES,
   DICTATION_UI_STATUSES,
@@ -275,6 +276,21 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     userInputId: z.string(),
     answers: z.array(answerSchema),
   }),
+  // Question card: an explanation instead of the options (M46, `userInput/clarify`).
+  z.object({
+    type: z.literal('clarifyQuestion'),
+    userInputId: z.string(),
+    text: z.string().check(z.maxLength(CLARIFICATION_MAX_CHARS)),
+  }),
+  // A running command to the background (the row's button, M46); Ctrl+B is
+  // the host's own command.
+  z.object({ type: z.literal('moveToBackground'), itemId: z.string() }),
+  // A background task's Stop, or the user's own command's (M46).
+  z.object({ type: z.literal('stopTask'), itemId: z.string() }),
+  // The Agent map's Stop all (M46).
+  z.object({ type: z.literal('stopAllTasks') }),
+  // A `!` prompt (M46): the command, without the `!`.
+  z.object({ type: z.literal('runUserShell'), command: z.string() }),
   // Tool row: fetch one page of a stored output or patch document.
   z.object({
     type: z.literal('readOutput'),
@@ -506,6 +522,11 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     content: z.string(),
     eof: z.boolean(),
   }),
+  // The host did not move or stop this task (M46): the row's button is free again.
+  z.object({ type: z.literal('taskRefused'), itemId: z.string() }),
+  // A `!` command that did not run (M46): why, and the command, which goes
+  // back into an empty prompt.
+  z.object({ type: z.literal('userShellRefused'), command: z.string(), reason: z.string() }),
   // The picture a tool row asked for (answer to readToolImage, M43): a data
   // URI of the file, or why it could not be shown.
   z.object({

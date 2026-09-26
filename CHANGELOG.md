@@ -35,6 +35,28 @@ while they are (PLAN.md D30, D34).
   while active, Stop pauses it, and nothing starts a model call the user did
   not ask for. Built from a live capture of Muse Code 1.3.0.
 
+- **Your own shell commands: `!`** (M46, PLAN.md D39). A message that
+  starts with `!` runs as a shell command in the workspace, outside any
+  turn, as Muse Code's `!` does, and gets its own row: **You ran**, the
+  command, its exit code, run time and output. The agent sees it with your
+  next message. On Muse Code it is the CLI's `session/userShell`; on the
+  Model API backend it runs through the shell tool's own runner, with a
+  **Stop**. Nothing runs in Restricted Mode, a command that could not run
+  comes back to the prompt with the reason, and one Muse Code could not
+  start without its Windows sandbox offers the setup, as the shell tool's
+  failure does.
+- **Background work you control** (M46). **Move to background** on a
+  running shell row, or `Ctrl+B` while the conversation in view runs one,
+  lets the command go on while the agent carries on; a background task has
+  **Stop** on its row and in the Agent map, which also has **Stop all**
+  (and the new **Muse Spark: Stop Background Tasks** command). The header
+  pill counts running background tasks. Muse Code's `task/background`,
+  `task/stop` and `task/stopAll` on its backend; on the Model API backend a
+  moved command runs without its time limit until it ends or is stopped,
+  and what it printed reaches the agent with its next request.
+- **Explain instead** on question cards (M46): an answer in your own words
+  in place of the options (Muse Code's `userInput/clarify`, and the same on
+  the Model API backend); the row then reads "Explained".
 - **A row for every tool Muse Code runs** (M43, PLAN.md D36). Memory rows
   show the note and where it lives, and an edit as the text replaced; goal
   rows show the objective, its status, a progress bar, what is being done
@@ -71,18 +93,50 @@ while they are (PLAN.md D30, D34).
 
 ### Fixed
 
+- **M46 session cleanup and resumed shell shortcut.** Releasing the last
+  surface of a Muse Code session now asks the CLI to stop its background
+  tasks; another surface holding that session leaves them running. Restored
+  foreground shell calls re-enable `Ctrl+B` from the resumed history. A
+  Model API shell waiting for permission leaves `Ctrl+B` to VS Code until
+  the command is approved and can actually be moved.
+- **M46 Model API history and forks.** A running `!` command is in the
+  conversation history and saved session immediately, so another surface
+  shows its row and can Stop it; completion replaces that row. A fork carries the end or
+  lost-output note for each inherited background shell even when the
+  source's later turn is outside the fork cut.
+- **M46 resumed foreground commands.** Model API tool rows now enter the
+  live transcript when they start and are replaced on move or completion,
+  so another surface on that session shows a quiet running shell and can
+  move it to the background. A second surface also receives a pending
+  shell approval card and leaves `Ctrl+B` to VS Code until it is answered.
+- **M46 pending approvals across panels.** A panel joining a conversation
+  shows its open approval cards on both backends, but never automatically
+  answers a card that was already pending under another panel's mode. An
+  older Edit automatically panel cannot approve a new Manual panel's
+  edit either. With several panels attached every approval needs an
+  explicit choice; a sole Edit automatically panel retains automatic
+  plain-edit approval.
+- **M46 shell export signal.** Markdown export now includes the localized
+  termination signal of a `!` command when Muse Code reports it without
+  an exit code, matching the row in the panel.
+
+- **Windows accessibility runner pressure** (M46). The headless Chrome
+  gate runs at most two pages together on Windows; its scenarios, axe
+  rules and page timeout are unchanged. The long transcript's New
+  messages scenario timed out with four concurrent pages and passed twice
+  with two.
 - **Goal command and recovery races** (M45, PR #31). Steering accepted in
   the final tool round now starts a fresh turn. A queued goal wake is
   withdrawn when a newer goal command supersedes it. Stop after a
   compaction summary is committed still pauses the goal it stopped while a
   later replacement stays active. Steering accepted as a goal runs out of
-  tokens gets its own turn. A gap
-  reload refreshes an open goal editor, and a late goal acknowledgement
-  or session reload cannot appear in a different conversation.
+  tokens gets its own turn. A gap reload refreshes an open goal editor, and
+  a late goal acknowledgement or session reload cannot appear in a different
+  conversation.
 - **Goal validation and composer state** (M45). Overlong objectives now
   report the limit in the installed language and count visible characters;
-  switching History sessions
-  clears an old `/goal` request's pending state so the composer responds.
+  switching History sessions clears an old `/goal` request's pending state
+  so the composer responds.
 - **Stop targets the current goal** (M45). Stop pauses the active goal when
   pressed. A replacement set while the old turn finishes stays active and
   gets a new turn; steering after Stop is refused instead of accepted and
@@ -118,6 +172,8 @@ while they are (PLAN.md D30, D34).
 - **A resumed Muse Code conversation shows its task list** (M45). A resume
   asked for inline history, which carries no task list; it now asks for the
   folded snapshot, which carries the task list and the goal.
+- **A stopped task read "Failed"** (M46): a row stopped by you or by Stop
+  now reads "Stopped" with the reason, and is read out so.
 - **A command Muse Code moved to the background read "Interrupted"** when
   its turn ended (M43). It now shows what it printed, says it is still
   running, and is listed among the background tasks.
