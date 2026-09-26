@@ -32,6 +32,14 @@ Node.js 22 or later is required.
 
 `muse-spark-code-acp --version` confirms the install.
 
+On Windows, npm installs the command as a `.cmd` launcher, which some
+editors cannot start. If the editor reports that it cannot find or start
+`muse-spark-code-acp`, give it `node` as the command and the agent's
+script as the first argument, before the others:
+`node "<npm root -g>\muse-spark-code-acp\dist\acp.js"`, where
+`<npm root -g>` is the folder `npm root -g` prints (usually
+`%APPDATA%\npm\node_modules`). The same form works on every platform.
+
 ## Choose who pays
 
 The agent runs on one backend, chosen when the editor starts it; it never
