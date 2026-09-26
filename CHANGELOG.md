@@ -74,7 +74,9 @@ while they are (PLAN.md D30, D34).
 - **Goal budget and busy commands** (M45, review of PR #31). A reply that
   spends a goal's token budget no longer runs its returned tools or starts
   another automatic request; a goal accepted while a reply streams gets a
-  follow-up round even when that reply has no tool calls.
+  follow-up round even when that reply has no tool calls. A goal wake queued
+  during compaction is withdrawn if compaction spends its budget, and a bare
+  goal command on a fresh panel does not create an empty conversation.
 - **Pre-commit resource pressure.** Staged lint and format tasks now run
   serially, keeping every check while limiting concurrent child processes.
 - **A resumed Muse Code conversation shows its task list** (M45). A resume

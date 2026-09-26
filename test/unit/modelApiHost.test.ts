@@ -2372,6 +2372,48 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     })
   })
 
+  it('withdraws a goal wake queued during compaction when the budget is spent', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'goal',
+          },
+        ],
+      },
+      { text: 'Working' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Summary', hold: held.promise, usage: { input: 90, output: 10 } })
+    const compacting = session.compact()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    await session.controlGoal({ verb: 'pause' })
+    const wake = await session.controlGoal({ verb: 'resume' })
+    expect(wake.turnId).toBeDefined()
+    held.resolve(undefined)
+    await compacting
+
+    expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited' })
+    expect(t.api.responseBodies()).toHaveLength(3)
+    expect(events).toContainEqual({
+      type: 'turnWithdrawn',
+      turnId: wake.turnId,
+      reason: UI_TEXT.goalWakeWithdrawn,
+    })
+    expect(
+      events.some((event) => event.type === 'turnStarted' && event.turnId === wake.turnId),
+    ).toBe(false)
+  })
+
   it('keeps the goal with the stored session, and forks carry it', async () => {
     const store = memorySessionStore()
     const first = setup({ store })

@@ -650,6 +650,7 @@
   "goalResumedNotice": "目標已恢復",
   "goalClearedNotice": "目標已移除",
   "goalNone": "此對話沒有目標。請使用 /goal <目標> 設定一個。",
+  "goalWakeWithdrawn": "目標工作尚未開始就已停止。",
   "goalCannotPause": "只有進行中的目標才能暫停。",
   "goalCannotResume": "只有已暫停的目標才能恢復。",
   "goalCannotEdit": "只有進行中或已暫停的目標才能變更；請使用 /goal <目標> 設定新目標。",

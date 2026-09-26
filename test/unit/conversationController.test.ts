@@ -3323,6 +3323,21 @@ function notices(t: ReturnType<typeof setup>) {
 }
 
 describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
+  it('refuses bare goal verbs without creating an empty conversation', async () => {
+    const t = setup()
+    await t.controller.handle(goal('pause'))
+    await t.controller.handle(goal('resume'))
+    await t.controller.handle(goal('edit', 'New objective'))
+    await t.controller.handle(goal('clear'))
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(notices(t).map((notice) => notice.text)).toEqual([
+      UI_TEXT.goalNone,
+      UI_TEXT.goalNone,
+      UI_TEXT.goalNone,
+      UI_TEXT.goalNone,
+    ])
+  })
+
   it('starts a conversation for a goal, sends the verb and says what was done', async () => {
     const t = setup()
     t.server.handle('goal/set', (params) => ({ ...accepted(params), turnId: 'goal-turn' }))
@@ -3348,6 +3363,9 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
     await t.controller.handle(goal('set', ' '.repeat(3)))
     await t.controller.handle(goal('edit'))
     expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
     t.server.handle('goal/pause', goalRefusal('missing_goal'))
     t.server.handle('goal/resume', goalRefusal('invalid_goal_state'))
     t.server.handle('goal/edit', goalRefusal('invalid_goal_state'))

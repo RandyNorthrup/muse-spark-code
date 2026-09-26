@@ -662,6 +662,7 @@
   "goalResumedNotice": "Ziel fortgesetzt",
   "goalClearedNotice": "Ziel entfernt",
   "goalNone": "Diese Unterhaltung hat kein Ziel. Setzen Sie eines mit /goal <Ziel>.",
+  "goalWakeWithdrawn": "Die Arbeit am Ziel wurde beendet, bevor sie begann.",
   "goalCannotPause": "Nur ein aktives Ziel kann pausiert werden.",
   "goalCannotResume": "Nur ein pausiertes Ziel kann fortgesetzt werden.",
   "goalCannotEdit": "Nur ein aktives oder pausiertes Ziel kann geändert werden; setzen Sie mit /goal <Ziel> ein neues.",

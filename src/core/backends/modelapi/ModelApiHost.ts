@@ -1742,9 +1742,21 @@ export class ModelApiSession implements AgentSession {
     if (this.active !== undefined || this.compacting !== undefined) {
       return
     }
-    const next = this.queuedTurns.shift()
-    if (next !== undefined) {
+    for (;;) {
+      const next = this.queuedTurns.shift()
+      if (next === undefined) {
+        return
+      }
+      if (next.isGoalWake && !isGoalActive(this.goal)) {
+        this.emit({
+          type: 'turnWithdrawn',
+          turnId: next.turnId,
+          reason: UI_TEXT.goalWakeWithdrawn,
+        })
+        continue
+      }
       void this.runTurn(next)
+      return
     }
   }
 

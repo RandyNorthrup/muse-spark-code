@@ -1743,6 +1743,15 @@ export class ConversationController {
       this.notice('warning', UI_TEXT.goalObjectiveMissing)
       return
     }
+    if (
+      verb !== 'set' &&
+      this.session === undefined &&
+      this.resumeTarget === undefined &&
+      this.sessionOpening === undefined
+    ) {
+      this.say('warning', UI_TEXT.goalNone)
+      return
+    }
     try {
       const session = await this.sessionForAction()
       if (session === undefined) {

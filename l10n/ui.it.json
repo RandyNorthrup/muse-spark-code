@@ -674,6 +674,7 @@
   "goalResumedNotice": "Obiettivo ripreso",
   "goalClearedNotice": "Obiettivo rimosso",
   "goalNone": "Questa conversazione non ha un obiettivo. Impostane uno con /goal <obiettivo>.",
+  "goalWakeWithdrawn": "Il lavoro sull’obiettivo è stato interrotto prima di iniziare.",
   "goalCannotPause": "Solo un obiettivo attivo può essere messo in pausa.",
   "goalCannotResume": "Solo un obiettivo in pausa può essere ripreso.",
   "goalCannotEdit": "Solo un obiettivo attivo o in pausa può essere modificato; impostane uno nuovo con /goal <obiettivo>.",

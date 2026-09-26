@@ -1352,8 +1352,12 @@ The review of PR #31 found two Model API goal edges to close before M45
 merges: when a streamed reply spends the goal's token budget, its returned
 tools must get cancelled outputs and must not run or cause another automatic
 model request; and a set, edit or resume accepted during a reply with no
-tools must put an internal goal cue into the same turn's next request. Both
-need regression tests and red drills before the PR is certified.
+tools must put an internal goal cue into the same turn's next request. The
+second review found two more boundaries: a goal wake queued during
+compaction must be withdrawn if compaction spends the goal's budget, and a
+bare pause, resume, edit or clear on a fresh panel must refuse without
+creating an empty session. Each needs a regression test and red drill before
+the PR is certified.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3362,10 +3366,10 @@ translations. The order is D36's table:
   captured refusals; the Model API's four goal tools, the stored goal, the
   pinned section, the step-probe note, the token budget, Stop pausing, the
   wake turn; the goal strip, `/goal …` in the prompt and the palette's
-  `/goal`; 29 strings in fourteen languages; harness scenarios `goal` and
+  `/goal`; 30 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G24; both
+  reducer, the controller, the strip and the prompt; drills G1–G26; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the

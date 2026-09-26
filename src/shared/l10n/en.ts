@@ -772,6 +772,7 @@ export const EN = {
   goalResumedNotice: 'Goal resumed',
   goalClearedNotice: 'Goal cleared',
   goalNone: 'There is no goal in this conversation. Set one with /goal <objective>.',
+  goalWakeWithdrawn: 'Goal work stopped before it started.',
   goalCannotPause: 'Only an active goal can be paused.',
   goalCannotResume: 'Only a paused goal can be resumed.',
   goalCannotEdit:
