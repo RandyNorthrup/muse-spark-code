@@ -31,6 +31,9 @@ const VIRTUAL_TIME_BUDGET_MS = 30_000
 // Real time for one page, far above what a page takes; a hung Chrome fails.
 const PAGE_TIMEOUT_MS = 120_000
 const MAX_WORKERS = 6
+// Windows headless Chrome stalled on the long transcript plus jump button
+// with four concurrent pages (M46); two workers passed twice with all rules.
+const WINDOWS_MAX_WORKERS = 2
 const OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 const RESULT = /<pre id="axe-result" hidden="">([\s\S]*?)<\/pre>/
 const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }
@@ -150,7 +153,8 @@ async function main() {
   await prepareLang(repoRoot, lang)
   const scenarios = requested.length > 0 ? requested : SCENARIOS
   const pages = THEMES.flatMap((theme) => scenarios.map((scenario) => ({ scenario, theme })))
-  const workers = Math.max(1, Math.min(MAX_WORKERS, availableParallelism() - 1, pages.length))
+  const maxWorkers = process.platform === 'win32' ? WINDOWS_MAX_WORKERS : MAX_WORKERS
+  const workers = Math.max(1, Math.min(maxWorkers, availableParallelism() - 1, pages.length))
   const { server, port } = await serveRepo(repoRoot)
   const profiles = await Promise.all(
     Array.from({ length: workers }, () => mkdtemp(path.join(tmpdir(), 'muse-a11y-'))),

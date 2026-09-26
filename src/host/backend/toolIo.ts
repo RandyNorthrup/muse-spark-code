@@ -25,6 +25,7 @@ import type {
   SearchOutcome,
   SearchWorkerMessage,
   ShellResult,
+  ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
 import { resolveExecutable } from '../../core/executables'
@@ -350,7 +351,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     listFiles: deps.listFiles,
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
-    async runShell(command, cwd, timeoutMs, signal) {
+    async runShell(command, cwd, timeoutMs, signal, limit) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return {
@@ -370,6 +371,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         env: shellEnvironment(deps.env(), deps.platform, deps.systemRoot),
         timeoutMs,
         signal,
+        limit,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
       })
@@ -422,6 +424,8 @@ export interface CommandRun {
   readonly env: NodeJS.ProcessEnv
   readonly timeoutMs: number
   readonly signal: AbortSignal | undefined
+  /** Lifts the timeout while the command runs (M46: moved to the background). */
+  readonly limit?: ShellTimeLimit | undefined
   readonly tree: ProcessTreeDeps
   /** The job object the command joins (Windows, M27). */
   readonly job?: ShellJob | undefined
@@ -467,6 +471,9 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       isTimedOut = true
       stop()
     }, run.timeoutMs)
+    run.limit?.bind(() => {
+      clearTimeout(timer)
+    })
     const settle = (exitCode: number | null, failure = '') => {
       if (isSettled) {
         return

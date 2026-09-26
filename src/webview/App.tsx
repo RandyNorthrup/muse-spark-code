@@ -56,8 +56,10 @@ import {
   editsAfter,
   forkCutBefore,
   initialUiState,
+  isRunningTask,
   referenceLabel,
   type UiState,
+  userShellCommandOf,
   visibleEditorContext,
 } from './state/uiState'
 import type { QuoteIntent } from './components/QuoteMenu'
@@ -351,6 +353,15 @@ export function App({
     if (!canSend(current)) {
       return
     }
+    // `!command` runs in the workspace (M46): its row comes from the host,
+    // and the images and the reference chip wait for the next message.
+    const command = userShellCommandOf(current.draft)
+    if (command !== undefined) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      postMessage({ type: 'runUserShell', command })
+      setIsPinnedToEnd(true)
+      return
+    }
     const text = current.draft.trim()
     // `/goal …` is a command to the backend, not a message (M45): no card.
     const goal = parseGoalPrompt(text)
@@ -573,6 +584,31 @@ export function App({
     },
     [dispatch, postMessage],
   )
+  const onClarifyQuestion = useCallback(
+    (userInputId: string, text: string) => {
+      dispatch({ type: 'questionSubmitted', userInputId })
+      postMessage({ type: 'clarifyQuestion', userInputId, text })
+    },
+    [dispatch, postMessage],
+  )
+  // A row's Move to background and Stop wait for the host's word (M46).
+  const onMoveToBackground = useCallback(
+    (itemId: string) => {
+      dispatch({ type: 'taskRequested', itemId, request: 'background' })
+      postMessage({ type: 'moveToBackground', itemId })
+    },
+    [dispatch, postMessage],
+  )
+  const onStopTask = useCallback(
+    (itemId: string) => {
+      dispatch({ type: 'taskRequested', itemId, request: 'stop' })
+      postMessage({ type: 'stopTask', itemId })
+    },
+    [dispatch, postMessage],
+  )
+  const onStopAllTasks = useCallback(() => {
+    postMessage({ type: 'stopAllTasks' })
+  }, [postMessage])
   const onCyclePermissionMode = useCallback(() => {
     const current = store.getState()
     postMessage({
@@ -986,6 +1022,7 @@ export function App({
     [canBypass, state.permissionMode, state.auth.backend],
   )
   const agents = agentsOf(state)
+  const backgroundTasks = backgroundTasksOf(state)
   const effortLevels = effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
@@ -1073,6 +1110,10 @@ export function App({
         onDecide={onDecide}
         onAnswer={onAnswer}
         onCancelQuestion={onCancelQuestion}
+        onClarifyQuestion={onClarifyQuestion}
+        onMoveToBackground={onMoveToBackground}
+        onStopTask={onStopTask}
+        canStopUserShell={state.auth.backend === 'modelApi'}
         onApply={onApply}
         onOpenEditDiff={onOpenEditDiff}
         onOpenFile={onOpenFile}
@@ -1171,7 +1212,7 @@ export function App({
         modelId={state.model?.modelId}
         contextUsedTokens={state.context?.usedTokens}
         agents={agents}
-        backgroundTasks={backgroundTasksOf(state)}
+        backgroundTasks={backgroundTasks}
         delegationMode={state.usageReport?.account?.delegationMode}
         isDelegationEnabled={state.usageReport?.account?.delegationMode === MUSE_DELEGATION_ENABLED}
         childTranscripts={state.childTranscripts}
@@ -1180,6 +1221,8 @@ export function App({
         onReadChild={onReadChild}
         onControl={onControlAgent}
         onMessage={onMessageAgent}
+        onStopTask={onStopTask}
+        onStopAllTasks={onStopAllTasks}
         onOpenMuseSettings={onOpenMuseSettings}
         onClose={closeOverlay}
       />
@@ -1230,6 +1273,7 @@ export function App({
           onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
           agentCount={agents.length}
           runningAgentCount={agents.filter((agent) => agent.status === 'inProgress').length}
+          runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
           onOpenAgents={onOpenAgents}
         />
         {history}

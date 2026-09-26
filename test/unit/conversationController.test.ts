@@ -29,6 +29,13 @@ import {
   refusalOf,
   settle,
 } from './helpers/fakeMsp'
+import {
+  INVALID_TARGET,
+  SHELL_CALL_BACKGROUNDED,
+  SHELL_CALL_STARTED,
+  taskAck,
+  USER_SHELL_SANDBOX_FAILED,
+} from './helpers/m46Capture'
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -163,6 +170,8 @@ function setup(
     clock?: { now: number }
     /** What the workspace answers for a tool row's picture (M43). */
     readToolImage?: ConversationDeps['readToolImage']
+    /** VS Code's workspace trust (M46: Restricted Mode runs no `!` command). */
+    isWorkspaceTrusted?: boolean
   } = {},
 ) {
   const handle = fakeMspHost()
@@ -297,6 +306,8 @@ function setup(
   const deps: ConversationDeps = {
     surface,
     setPaidFeature: vi.fn(() => Promise.resolve()),
+    isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
+    onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
     auth: auth.service,
     accountFacts: (backend) =>
@@ -3646,5 +3657,217 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
         goal: { objective: 'Old goal', status: 'paused', percentComplete: 20 },
       }),
     )
+  })
+})
+
+// --- M46: background work, the user's `!` commands, explanations ---
+
+/** The captured frames of M46, on this fake host's session and turn. */
+function onFakeSession<T extends { readonly item: Record<string, unknown> }>(frame: T) {
+  return {
+    ...frame,
+    sessionId: 's1',
+    item: { ...frame.item, ...(typeof frame.item['turnId'] === 'string' && { turnId: 't1' }) },
+  }
+}
+
+/** A controller whose session runs turn t1 (M46). */
+async function runningTurn(options: Parameters<typeof setup>[0] = {}) {
+  const t = setup(options)
+  for (const method of ['task/background', 'task/stop']) {
+    t.server.handle(method, taskAck)
+  }
+  t.server.handle('task/stopAll', (params) => ({
+    commandId: params['commandId'],
+    status: 'accepted',
+  }))
+  await t.send('l1', 'start the dev server')
+  t.server.notify('turn/started', { sessionId: 's1', turnId: 't1' })
+  await settle()
+  return t
+}
+
+describe('ConversationController: the user’s own shell commands (M46)', () => {
+  it('runs a `!` command through the session, with no approval card', async () => {
+    const t = setup({ grantedCapabilities: ['userShell'] })
+    t.server.handle('session/userShell', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+    }))
+    await t.controller.handle({ type: 'runUserShell', command: " Write-Output 'hello-m46' " })
+    expect(t.server.requestsFor('session/userShell')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      commandText: "Write-Output 'hello-m46'",
+    })
+    expect(t.surface.posted.some((message) => message.type === 'userShellRefused')).toBe(false)
+  })
+
+  it('runs none in Restricted Mode and gives the command back with the reason', async () => {
+    const t = setup({ grantedCapabilities: ['userShell'], isWorkspaceTrusted: false })
+    await t.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: UI_TEXT.userShellRestricted,
+    })
+    expect(t.server.requestsFor('session/userShell')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+  })
+
+  it('returns an unsent command when signed out or when no workspace is open', async () => {
+    const signedOut = setup({ status: 'signedOut' })
+    await signedOut.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(signedOut.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: UI_TEXT.notSignedInReason,
+    })
+    expect(signedOut.server.requestsFor('session/start')).toHaveLength(0)
+
+    const noWorkspace = setup({ workspaceRoot: undefined })
+    await noWorkspace.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(noWorkspace.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: UI_TEXT.noWorkspaceReason,
+    })
+    expect(noWorkspace.server.requestsFor('session/start')).toHaveLength(0)
+  })
+
+  it('gives back a command the backend refused, and ignores an empty one', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'runUserShell', command: ' '.repeat(3) })
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    await t.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: `${UI_TEXT.userShellFailed}: ${UI_TEXT.userShellNotGranted}`,
+    })
+  })
+
+  it('offers the sandbox setup when a `!` command could not start without it', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('item/completed', onFakeSession(USER_SHELL_SANDBOX_FAILED))
+    await settle()
+    expect(
+      t.surface.posted.filter((m) => m.type === 'notice' && m.text === UI_TEXT.sandboxNotice),
+    ).toHaveLength(1)
+    expect(t.onSandboxUnavailable).toHaveBeenCalledOnce()
+  })
+})
+
+describe('ConversationController: background work (M46)', () => {
+  it('moves a row’s command to the background, stops it, and stops them all', async () => {
+    const t = await runningTurn()
+    const taskId = SHELL_CALL_STARTED.item.itemId
+    await t.controller.handle({ type: 'moveToBackground', itemId: taskId })
+    await t.controller.handle({ type: 'stopTask', itemId: taskId })
+    await t.controller.handle({ type: 'stopAllTasks' })
+    expect(t.server.requestsFor('task/background')[0]?.params).toMatchObject({ taskId })
+    expect(t.server.requestsFor('task/stop')[0]?.params).toMatchObject({ taskId })
+    expect(t.server.requestsFor('task/stopAll')).toHaveLength(1)
+  })
+
+  it('says why a task command was refused and frees the row’s button', async () => {
+    const t = await runningTurn()
+    const refused = refusalOf(INVALID_TARGET.kind, INVALID_TARGET.code, INVALID_TARGET.data)
+    t.server.handle('task/background', refused)
+    t.server.handle('task/stop', refused)
+    await t.controller.handle({ type: 'moveToBackground', itemId: 'gone' })
+    await t.controller.handle({ type: 'stopTask', itemId: 'gone' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: `${UI_TEXT.moveToBackgroundFailed}: ${UI_TEXT.taskNotRunning}`,
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: `${UI_TEXT.stopTaskFailed}: ${UI_TEXT.taskNotRunning}`,
+    })
+    expect(t.surface.posted.filter((m) => m.type === 'taskRefused').map((m) => m.itemId)).toEqual([
+      'gone',
+      'gone',
+    ])
+  })
+
+  it('frees the button when there is no session to ask', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'stopTask', itemId: 'x' })
+    expect(t.surface.posted).toContainEqual({ type: 'taskRefused', itemId: 'x' })
+  })
+
+  it('knows the running turn’s shell calls Ctrl+B moves, until they move or the turn ends', async () => {
+    const t = await runningTurn()
+    const changed = vi.mocked(t.deps.onForegroundTasksChanged)
+    expect(t.controller.hasForegroundShell).toBe(false)
+    await t.controller.moveRunningToBackground()
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.nothingToMoveToBackground,
+    })
+    t.server.notify('item/started', onFakeSession(SHELL_CALL_STARTED))
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(true)
+    expect(changed).toHaveBeenCalledTimes(1)
+    await t.controller.moveRunningToBackground()
+    expect(t.server.requestsFor('task/background')[0]?.params).toMatchObject({
+      taskId: SHELL_CALL_STARTED.item.itemId,
+    })
+    t.server.notify('item/updated', onFakeSession(SHELL_CALL_BACKGROUNDED))
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(false)
+    expect(changed).toHaveBeenCalledTimes(2)
+    // A new one, then the turn's end: nothing is left to move.
+    t.server.notify('item/started', {
+      ...onFakeSession(SHELL_CALL_STARTED),
+      item: { ...onFakeSession(SHELL_CALL_STARTED).item, itemId: 'second' },
+    })
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(true)
+    t.finishTurn()
+    await settle()
+    expect(t.controller.hasForegroundShell).toBe(false)
+    expect(changed).toHaveBeenCalledTimes(4)
+  })
+
+  it('stops the background tasks from the command palette', async () => {
+    const t = await runningTurn()
+    await t.controller.stopBackgroundTasks()
+    expect(t.server.requestsFor('task/stopAll')).toHaveLength(1)
+  })
+})
+
+describe('ConversationController: explanations (M46)', () => {
+  it('sends an explanation with userInput/clarify, and says when it is refused', async () => {
+    const t = await runningTurn()
+    t.server.handle('userInput/clarify', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+      userInputId: params['userInputId'],
+    }))
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q1', text: '  ' })
+    expect(t.server.requestsFor('userInput/clarify')).toHaveLength(0)
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q1', text: ' green ' })
+    expect(t.server.requestsFor('userInput/clarify')[0]?.params).toMatchObject({
+      userInputId: 'q1',
+      clarification: { format: 'text', content: 'green' },
+    })
+    t.server.handle('userInput/clarify', refusalOf('internalError'))
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q2', text: 'blue' })
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'notice',
+        level: 'error',
+        text: expect.stringContaining(UI_TEXT.clarifyNotAccepted),
+      }),
+    )
+    // A late one is settled, not an error.
+    t.server.handle('userInput/clarify', refusalOf('userInputNotFound'))
+    await t.controller.handle({ type: 'clarifyQuestion', userInputId: 'q3', text: 'red' })
+    expect(t.surface.posted).toContainEqual({ type: 'promptDropped', userInputId: 'q3' })
   })
 })

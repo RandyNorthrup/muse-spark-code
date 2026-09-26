@@ -19,6 +19,7 @@ import {
   withTerminalOverrides,
 } from '../../src/host/backend/toolIo'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
+import { ShellTimeLimit } from '../../src/core/backends/modelapi/tools'
 import type { RunProgram } from '../../src/host/processTree'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -322,6 +323,25 @@ describe('createToolIo (real file system and shell)', () => {
     const command = process.platform === 'win32' ? 'Start-Sleep -Seconds 30' : 'sleep 30'
     const result = await io().runShell(command, root, 500)
     expect(result.isTimedOut).toBe(true)
+  }, 60_000)
+
+  it('lets a command moved to the background outlive its timeout (M46)', async () => {
+    const command =
+      process.platform === 'win32'
+        ? 'Start-Sleep -Milliseconds 1500; Write-Output moved'
+        : 'sleep 1.5; echo moved'
+    const limit = new ShellTimeLimit()
+    const pending = io().runShell(command, root, 800, undefined, limit)
+    limit.lift()
+    const result = await pending
+    expect(result).toMatchObject({ isTimedOut: false, exitCode: 0 })
+    expect(result.stdout).toContain('moved')
+    // Lifted before the runner bound itself, the limit is lifted at once.
+    const early = new ShellTimeLimit()
+    early.lift()
+    await expect(io().runShell(command, root, 800, undefined, early)).resolves.toMatchObject({
+      isTimedOut: false,
+    })
   }, 60_000)
 
   it('captures stderr and the exit code of a failing command', async () => {

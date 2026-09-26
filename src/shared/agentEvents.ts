@@ -88,6 +88,14 @@ export const itemSnapshotFields = {
   /** `toolCall`: durably backgrounded, and by whom (M14). */
   background: z.optional(z.boolean()),
   backgroundInitiator: z.optional(z.string()),
+  /**
+   * `userShell` (M46, captured live 2026-09-25): the command as the user
+   * typed it, and how it ended, an exit code or a signal number (MSP
+   * `exitSignal`, verbatim). `durationMs` above is its run time.
+   */
+  commandText: z.optional(z.string()),
+  exitCode: z.optional(z.number()),
+  exitSignal: z.optional(z.number()),
   /** `toolCall`: a call billed on top of tokens (M33, PLAN.md D30), marked paid in its row. */
   paid: z.optional(z.enum(PAID_FEATURES)),
   /**
@@ -290,6 +298,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
     userInputId: z.string(),
     outcome: z.string(),
     answers: z.array(answerSchema),
+    /** The explanation given instead of an answer (`clarified`, M46). */
+    clarification: z.optional(z.string()),
   }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),

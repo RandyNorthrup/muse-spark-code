@@ -2056,6 +2056,118 @@
           event({ type: 'goalChanged', goal: window.harnessGoal })
           whenFound('.goal-controls button[aria-expanded]', (edit) => edit.click())
         },
+        // --- M46: the user's own `!` commands, a command to move, one moved ---
+        'muse-shell': () => {
+          window.harnessSilent = true
+          const shell = (itemId, fields) =>
+            event({
+              type: 'itemCompleted',
+              item: { itemId, kind: 'userShell', status: 'completed', ...fields },
+            })
+          shell('us1', {
+            commandText: 'git status --short',
+            visibleOutput: ' M src/parser.ts\r\n?? test/parser.test.ts\r\n',
+            exitCode: 0,
+            durationMs: 563,
+          })
+          shell('us2', {
+            status: 'failed',
+            commandText: 'npm test -- parser',
+            visibleOutput: 'tool failed: exit code: 1\nstderr:\n1 failing: parses a ?? b || c\r\n',
+            exitCode: 1,
+            durationMs: 4537,
+          })
+          setDraft('Fix the precedence bug, run the tests, and start the watcher')
+          key({ key: 'Enter' })
+          event({ type: 'turnStarted', turnId: 'tb1' })
+          event({
+            type: 'itemUpdated',
+            item: {
+              itemId: 'bg2',
+              kind: 'toolCall',
+              status: 'inProgress',
+              turnId: 'tb1',
+              tool: 'powershell',
+              args: '{"command":"npm run watch","description":"Start the watcher"}',
+              background: true,
+              backgroundInitiator: 'user',
+            },
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'fg1',
+              kind: 'toolCall',
+              status: 'inProgress',
+              turnId: 'tb1',
+              tool: 'powershell',
+              args: '{"command":"npm test","description":"Run the test suite"}',
+            },
+          })
+          later(100, () => setDraft('!git diff --stat'))
+        },
+        // --- M46: the Agent map's background tasks, one running, one stopped ---
+        'background-map': () => {
+          steps['muse-shell']()
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'bg3',
+              kind: 'toolCall',
+              status: 'cancelled',
+              turnId: 'tb1',
+              tool: 'powershell',
+              args: '{"command":"Start-Sleep -Seconds 40","description":"Wait for the server"}',
+              failureReason: 'cancelled by runtime client',
+              background: true,
+              backgroundInitiator: 'user',
+            },
+          })
+          later(200, () => document.querySelector('.agents-pill')?.click())
+        },
+        // --- M46: a question answered with an explanation, and one being explained ---
+        'question-explain': () => {
+          steps.question()
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'q0',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'request_user_input',
+              args: '{"questions":[]}',
+            },
+          })
+          event({
+            type: 'questionRequested',
+            userInputId: 'u0',
+            itemId: 'q0',
+            questions: [
+              {
+                id: 'fix',
+                header: 'Fix',
+                question: 'Fix only `??`, or every operator the table gets wrong?',
+                selection: { mode: 'single' },
+                options: [{ label: 'Only ??' }, { label: 'Every operator' }],
+              },
+            ],
+          })
+          event({
+            type: 'questionSettled',
+            userInputId: 'u0',
+            outcome: 'clarified',
+            answers: [],
+            clarification: 'Neither yet: show me the failing cases first.',
+          })
+          later(300, () => {
+            // Explain instead: the first secondary action, whatever the language.
+            document.querySelector('.question-actions .button-secondary')?.click()
+            later(100, () => {
+              const box = document.querySelector('.question-explain-input')
+              setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.')
+            })
+          })
+        },
         // --- M25: a refused image says why, and a link out of the workspace is refused ---
         'size-refused': () => {
           send({

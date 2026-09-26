@@ -131,6 +131,8 @@ const schemas = {
     userInputId: z.string(),
     outcome: z.string(),
     answers: z.array(answerSchema),
+    // The explanation a `clarified` prompt settled with (M46); null otherwise.
+    clarification: z.optional(z.nullable(z.object({ content: z.string() }))),
   }),
   // A queued submission reclaimed: its turn never runs (tdd SS3.6).
   'turn/unqueued': z.object({ ...sessionScoped, turnId: z.string() }),
@@ -334,10 +336,21 @@ export function mapNotification(notification: WireNotification): MapOutcome {
       return { sessionId, event: { type: 'questionRequested', userInputId, itemId, questions } }
     }
     case 'userInput/settled': {
-      const { sessionId, userInputId, outcome, answers } = params as z.infer<
+      const { sessionId, userInputId, outcome, answers, clarification } = params as z.infer<
         (typeof schemas)['userInput/settled']
       >
-      return { sessionId, event: { type: 'questionSettled', userInputId, outcome, answers } }
+      return {
+        sessionId,
+        event: {
+          type: 'questionSettled',
+          userInputId,
+          outcome,
+          answers,
+          ...(typeof clarification?.content === 'string' && {
+            clarification: clarification.content,
+          }),
+        },
+      }
     }
     case 'turn/unqueued': {
       const { sessionId, turnId } = params as z.infer<(typeof schemas)['turn/unqueued']>

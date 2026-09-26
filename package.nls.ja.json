@@ -27,6 +27,8 @@
   "command.hooks.title": "フック",
   "command.newWorktree.title": "新しいワークツリー…",
   "command.removeWorktree.title": "ワークツリーの削除…",
+  "command.moveToBackground.title": "実行中のコマンドをバックグラウンドへ移動",
+  "command.stopBackgroundTasks.title": "バックグラウンド タスクの停止",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "新しい会話を開く場所。",
   "config.preferredLocation.enumDescriptions.sidebar": "新しい会話を Muse Spark のサイド バー ビューで開きます。",

@@ -5,16 +5,71 @@
 // question has an answer) beside Cancel (which declines the prompt). Either
 // locks the card until the host settles the question, as an approval card
 // locks on a decision (M25): a second click cannot post a second answer.
+// "Explain instead" (M46, MSP `userInput/clarify`) answers with a short text
+// in place of the options; the model reads it and decides again.
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { Question, QuestionAnswer } from '../../shared/agentEvents'
-import { UI_TEXT } from '../../shared/constants'
+import { CLARIFICATION_MAX_CHARS, UI_TEXT } from '../../shared/constants'
 import type { PendingQuestion } from '../state/uiState'
 
 export interface QuestionCardProps {
   readonly question: PendingQuestion
   readonly onAnswer: (userInputId: string, answers: readonly QuestionAnswer[]) => void
   readonly onCancel: (userInputId: string) => void
+  /** An explanation instead of the options (M46). */
+  readonly onClarify: (userInputId: string, text: string) => void
+}
+
+/** The explanation box that replaces Submit while the user explains (M46). */
+function ExplainForm({
+  isLocked,
+  onSend,
+  onBack,
+}: {
+  readonly isLocked: boolean
+  readonly onSend: (text: string) => void
+  readonly onBack: () => void
+}) {
+  const [text, setText] = useState('')
+  const inputId = useId()
+  const trimmed = text.trim()
+  return (
+    <div className="question-explain">
+      <label className="question-explain-label" htmlFor={inputId}>
+        {UI_TEXT.questionExplainLabel}
+      </label>
+      <textarea
+        id={inputId}
+        className="question-input question-explain-input"
+        dir="auto"
+        rows={3}
+        maxLength={CLARIFICATION_MAX_CHARS}
+        disabled={isLocked}
+        placeholder={UI_TEXT.questionExplainPlaceholder}
+        value={text}
+        autoFocus
+        onChange={(event) => {
+          setText(event.target.value)
+        }}
+      />
+      <div className="question-actions">
+        <button
+          type="button"
+          className="button-primary"
+          disabled={trimmed === '' || isLocked}
+          onClick={() => {
+            onSend(trimmed)
+          }}
+        >
+          {UI_TEXT.questionSendExplanation}
+        </button>
+        <button type="button" className="button-secondary" disabled={isLocked} onClick={onBack}>
+          {UI_TEXT.questionBackToChoices}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 interface QuestionDraft {
@@ -92,10 +147,11 @@ function Choice({
   )
 }
 
-export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps) {
+export function QuestionCard({ question, onAnswer, onCancel, onClarify }: QuestionCardProps) {
   const [draft, setDraft] = useState<Draft>({})
   const isLocked = question.isSubmitted === true
   const [activeIndex, setActiveIndex] = useState(0)
+  const [isExplaining, setIsExplaining] = useState(false)
   const draftFor = (id: string) => draft[id] ?? EMPTY_DRAFT
   const update = (id: string, change: Partial<QuestionDraft>) => {
     setDraft({ ...draft, [id]: { ...draftFor(id), ...change } })
@@ -220,31 +276,54 @@ export function QuestionCard({ question, onAnswer, onCancel }: QuestionCardProps
         </div>
       ) : null}
       {active === undefined ? null : renderQuestion(active)}
-      <div className="question-actions">
-        <button
-          type="button"
-          className="button-primary"
-          disabled={!isReady || isLocked}
-          onClick={() => {
-            onAnswer(
-              question.userInputId,
-              question.questions.map((entry) => answerFor(entry, draftFor(entry.id))),
-            )
+      {isExplaining ? (
+        <ExplainForm
+          isLocked={isLocked}
+          onSend={(text) => {
+            onClarify(question.userInputId, text)
           }}
-        >
-          {UI_TEXT.questionSubmit}
-        </button>
-        <button
-          type="button"
-          className="button-secondary"
-          disabled={isLocked}
-          onClick={() => {
-            onCancel(question.userInputId)
+          onBack={() => {
+            setIsExplaining(false)
           }}
-        >
-          {UI_TEXT.questionCancel}
-        </button>
-      </div>
+        />
+      ) : (
+        <div className="question-actions">
+          <button
+            type="button"
+            className="button-primary"
+            disabled={!isReady || isLocked}
+            onClick={() => {
+              onAnswer(
+                question.userInputId,
+                question.questions.map((entry) => answerFor(entry, draftFor(entry.id))),
+              )
+            }}
+          >
+            {UI_TEXT.questionSubmit}
+          </button>
+          <button
+            type="button"
+            className="button-secondary"
+            title={UI_TEXT.questionExplainTitle}
+            disabled={isLocked}
+            onClick={() => {
+              setIsExplaining(true)
+            }}
+          >
+            {UI_TEXT.questionExplain}
+          </button>
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={isLocked}
+            onClick={() => {
+              onCancel(question.userInputId)
+            }}
+          >
+            {UI_TEXT.questionCancel}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

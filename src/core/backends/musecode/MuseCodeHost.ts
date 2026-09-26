@@ -11,6 +11,7 @@ import { type Connection, MspError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import type { AgentEvent, QuestionAnswer, SessionGoal } from '../../../shared/agentEvents'
 import {
+  CLARIFICATION_FORMAT,
   GOAL_RECOVERY_MAX_PAGES,
   GOAL_RECOVERY_PAGE_LIMIT,
   JSON_RPC_ERRORS,
@@ -24,6 +25,7 @@ import {
   MSP_RETRY_MAX_DELAY_MS,
   MSP_RETRYABLE_REFUSALS,
   MSP_SESSION_LIST_MAX_LIMIT,
+  MSP_USER_SHELL_CAPABILITY,
   MUSE_EXIT_PERSISTENT_CODES,
   type SubagentAction,
   UI_TEXT,
@@ -247,6 +249,20 @@ function settledOr(error: unknown): unknown {
   return reason === undefined ? error : new PromptSettledError(reason, error.message)
 }
 
+// A `task/*` command naming a task that is not (or no longer) there, as
+// Muse Code 1.3.0 refuses it (captured 2026-09-25, M46): `commandRejected`
+// with the reason `invalid_target`.
+const INVALID_TARGET = 'invalid_target'
+
+/** A refused `task/*` command in the user's words when the task is gone; anything else unchanged. */
+function taskRefusalOr(error: unknown): unknown {
+  return error instanceof MspError &&
+    error.kind === COMMAND_REJECTED &&
+    error.data['reason'] === INVALID_TARGET
+    ? new Error(UI_TEXT.taskNotRunning)
+    : error
+}
+
 // `item/readOutput` encodings: text media is always utf8, binary media base64.
 const BASE64_ENCODING = 'base64'
 const UTF8_ENCODING = 'utf8'
@@ -413,6 +429,8 @@ export class MuseSession implements AgentSession {
     private readonly connection: Connection,
     private readonly onDispose: () => void,
     private readonly log: CoreLogger,
+    /** The host granted `userShell` at the handshake (M46): `!` commands may run. */
+    private readonly canRunUserShell: boolean,
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
   ) {}
 
@@ -572,6 +590,52 @@ export class MuseSession implements AgentSession {
     } catch (error: unknown) {
       throw settledOr(error)
     }
+  }
+
+  /** Explain instead of choosing (`userInput/clarify`, M46): the model decides again. */
+  public async clarifyQuestions(userInputId: string, text: string): Promise<void> {
+    try {
+      await this.command('userInput/clarify', {
+        userInputId,
+        clarification: { format: CLARIFICATION_FORMAT, content: text },
+      })
+    } catch (error: unknown) {
+      throw settledOr(error)
+    }
+  }
+
+  /** `task/background` (M46): the running tool call goes on without its turn waiting. */
+  public async moveToBackground(taskId: string): Promise<void> {
+    try {
+      await this.command('task/background', { taskId })
+    } catch (error: unknown) {
+      throw taskRefusalOr(error)
+    }
+  }
+
+  /** `task/stop` (M46): one background task, by its row's id. */
+  public async stopTask(taskId: string): Promise<void> {
+    try {
+      await this.command('task/stop', { taskId })
+    } catch (error: unknown) {
+      throw taskRefusalOr(error)
+    }
+  }
+
+  /** `task/stopAll` (M46): every background task; accepted over none too. */
+  public async stopAllTasks(): Promise<void> {
+    await this.command('task/stopAll', {})
+  }
+
+  /**
+   * `session/userShell` (M46): the command runs at once, outside any turn;
+   * its row and output arrive as a `userShell` item.
+   */
+  public async runUserShell(command: string): Promise<void> {
+    if (!this.canRunUserShell) {
+      throw new Error(UI_TEXT.userShellNotGranted)
+    }
+    await this.command('session/userShell', { commandText: command })
   }
 
   /** `subagent/interrupt`, `stop`, `resume` or `close` on a child (M18). */
@@ -920,6 +984,7 @@ export class MuseCodeHost implements AgentHost {
         this.sessions.delete(record.sessionId)
       },
       this.log,
+      this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
       this.timeouts,
     )
     this.sessions.set(record.sessionId, handle)

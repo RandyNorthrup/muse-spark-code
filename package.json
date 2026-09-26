@@ -184,6 +184,16 @@
         "command": "museSpark.removeWorktree",
         "title": "%command.removeWorktree.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.moveToBackground",
+        "title": "%command.moveToBackground.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.stopBackgroundTasks",
+        "title": "%command.stopBackgroundTasks.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -223,6 +233,12 @@
         "key": "ctrl+n",
         "mac": "cmd+n",
         "when": "config.museSpark.enableNewConversationShortcut && (activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView')"
+      },
+      {
+        "command": "museSpark.moveToBackground",
+        "key": "ctrl+b",
+        "mac": "ctrl+b",
+        "when": "museSpark.canMoveToBackground && (activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView')"
       }
     ],
     "menus": {
@@ -254,6 +270,14 @@
         {
           "command": "museSpark.removeWorktree",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "museSpark.moveToBackground",
+          "when": "museSpark.canMoveToBackground"
+        },
+        {
+          "command": "museSpark.stopBackgroundTasks",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         }
       ],
       "view/title": [

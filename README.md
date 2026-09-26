@@ -291,7 +291,8 @@ the ones that answer in JSON are shown as what they mean:
   their snippets. Search rows on the Model API backend look the same.
 - **Background work**: a command Muse Code moved to the background shows
   what it printed and that it is still running, and it stays running after
-  the turn ends instead of reading "Interrupted".
+  the turn ends instead of reading "Interrupted". See **Background work**
+  under The panel for moving one there yourself and stopping it.
 - **Pictures**: when the agent reads an image, or the Model API backend
   generates one, the row shows it; click it to open the file. Only images
   inside the workspace are shown.
@@ -449,7 +450,9 @@ command (a skill, or `/goal`, is completed so you can add what follows it),
   multi-step shell lines are approved one step at a time. Question cards
   stack radio buttons for one answer and checkboxes for several, put
   multiple questions on tabs, always offer **Other**, and keep **Submit**
-  greyed until every question has an answer; **Cancel** declines the prompt.
+  greyed until every question has an answer; **Cancel** declines the prompt,
+  and **Explain instead** answers in your own words (up to 500 characters)
+  rather than choosing, so the agent reads it and decides again.
 - The transcript follows new entries while you are at the end; scrolled up,
   it holds still and **New messages** jumps to the newest. The agent's task
   list pins above the composer, and the composer shows how much of the
@@ -501,6 +504,35 @@ export`), which includes everything, stored outputs too; it needs a folder
 on this machine. An export asked for while a reply runs is refused until it
 finishes, and a conversation too long for Muse Code to replay is pointed to
 the session log.
+
+**Your own shell commands.** Start a message with `!` to run it as a shell
+command in the workspace instead of sending it to the agent, as Muse Code's
+`!` does: `!git status`. The prompt switches to the editor's font and says
+**Shell**; the command runs at once, outside any turn (also while a reply
+runs), and gets its own row: **You ran** with the command, its exit code
+and run time, and what it printed, which opens whole in an editor tab. The
+agent sees the command and its output with your next message. No approval
+card asks first, since you typed it, whatever the permission mode; nothing
+runs while the workspace is in Restricted Mode, and a command that could not
+run comes back to the prompt with the reason. On Muse Code it runs through
+the CLI's own shell and sandbox (a missing Windows sandbox offers the setup,
+as the shell tool does); on the Model API backend it runs through the shell
+tool's runner, for ten minutes at most, and its row has a **Stop**.
+
+**Background work.** A shell command the agent is waiting on can go on in the
+background while the agent carries on: **Move to background** on its row, or
+`Ctrl+B` (also on a Mac) while the conversation in view runs one; VS Code's
+own `Ctrl+B` (the sidebar) works as usual otherwise. A background command
+keeps running after its turn ends, marked "background", with **Stop** on its
+row; the header pill counts the ones still running, and the Agent map lists
+every background task with its own **Stop** and a **Stop all** (also
+**Muse Spark: Stop Background Tasks**). On Muse Code these are the CLI's own
+`task/background`, `task/stop` and `task/stopAll`, and Muse Code tells the
+agent what the command printed when it ends. On the Model API backend the
+agent is answered at once that the command moved; it then runs without its
+time limit until it ends or you stop it, and what it printed reaches the
+agent with its next request (no model call is made for it on its own).
+Commands still running when the conversation closes are stopped with it.
 
 **Subagents.** When Muse Code spawns native subagents they appear as rows and
 an **N agents** pill in the header opens the **Agent map** (also `/agents`):
@@ -766,14 +798,18 @@ What stays in English:
 | Muse Spark: Hooks                                   | —                                                                                    | Show where Muse Code's hooks come from (project, yours, managed) and open each file                                                                       |
 | Muse Spark: New Worktree…                           | —                                                                                    | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                               |
 | Muse Spark: Remove Worktree…                        | —                                                                                    | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                   |
+| Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command        | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                       |
+| Muse Spark: Stop Background Tasks                   | —                                                                                    | Stop every background task of the conversation in view                                                                                                    |
 | (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                           |
+| (composer) Run a shell command                      | Start the message with `!`                                                           | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Seven commands appear in the
+which is why its two shortcuts add `Alt`. Nine commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
-open, Toggle Thinking and Export Conversation with a Muse panel in view,
-Set Up Shell Sandbox on Windows (or in a remote window), Create AGENTS.md
-and the two worktree commands with a folder open.
+open, Toggle Thinking, Export Conversation and Stop Background Tasks with a
+Muse panel in view, Move Running Command to Background while one runs, Set
+Up Shell Sandbox on Windows (or in a remote window), Create AGENTS.md and
+the two worktree commands with a folder open.
 
 ## Settings
 

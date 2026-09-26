@@ -69,7 +69,8 @@ describe('renderTranscriptMarkdown', () => {
         failureReason: 'exit 1',
       }),
       item({ kind: 'toolCall', outputRef: { id: 'o1', byteLen: 5000 } }),
-      item({ kind: 'userShell', args: 'npm test', visibleOutput: 'passed' }),
+      // The `userShell` shape captured live (M46): the command, its output, its exit code.
+      item({ kind: 'userShell', commandText: 'npm test', visibleOutput: 'passed', exitCode: 0 }),
       item({
         kind: 'subagent',
         role: 'explorer',
@@ -93,7 +94,7 @@ describe('renderTranscriptMarkdown', () => {
         '### Tool: bash (failed)\n\nArguments:\n\n```\nnot json\n```\n\n_Failed: exit 1_',
         // Counts in the display language's digits and grouping (PLAN.md D33).
         '### Tool: tool\n\n_The output (5,000 bytes) is stored by the backend and not included._',
-        '### Shell command\n\nArguments:\n\n```\nnpm test\n```\n\nOutput:\n\n```\npassed\n```',
+        '### Shell command\n\n```\n!npm test\n```\n\nOutput:\n\n```\npassed\n```\n\n_Exit code 0_',
         '### Subagent: explorer\n\nFind the tests\n\n> Found 3 tests\n> in src',
         '### Subagent: agent (running)',
         '### Subagent: agent\n\n> Only a summary',

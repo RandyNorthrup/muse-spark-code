@@ -8,17 +8,29 @@ import type { ChatSurface } from './webviewSetup'
 export class SurfaceRegistry {
   private readonly surfaces = new Map<string, ChatSurface>()
   private readonly removedListeners = new Set<(surface: ChatSurface) => void>()
+  private readonly activeListeners = new Set<() => void>()
   private activeId: string | undefined
+
+  /** The active surface is now `id`; its watchers hear of a change (M46). */
+  private activate(id: string | undefined): void {
+    if (this.activeId === id) {
+      return
+    }
+    this.activeId = id
+    for (const listener of this.activeListeners) {
+      listener()
+    }
+  }
 
   /** Registers a surface; the returned disposable unregisters it. */
   public add(surface: ChatSurface): vscode.Disposable {
     this.surfaces.set(surface.id, surface)
-    this.activeId ??= surface.id
+    this.activate(this.activeId ?? surface.id)
     return {
       dispose: () => {
         this.surfaces.delete(surface.id)
         if (this.activeId === surface.id) {
-          this.activeId = this.surfaces.keys().next().value
+          this.activate(this.surfaces.keys().next().value)
         }
         for (const listener of this.removedListeners) {
           listener(surface)
@@ -37,9 +49,22 @@ export class SurfaceRegistry {
     }
   }
 
+  /**
+   * Observe the active surface changing (M46): the keybindings' context keys
+   * follow the conversation the user is looking at.
+   */
+  public onActiveChanged(listener: () => void): vscode.Disposable {
+    this.activeListeners.add(listener)
+    return {
+      dispose: () => {
+        this.activeListeners.delete(listener)
+      },
+    }
+  }
+
   public setActive(surface: ChatSurface): void {
     if (this.surfaces.has(surface.id)) {
-      this.activeId = surface.id
+      this.activate(surface.id)
     }
   }
 

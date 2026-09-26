@@ -11,6 +11,7 @@ import { paidFeaturePrice } from '../../shared/paid'
 import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
 import {
+  failedOutcomeText,
   isFailedStatus,
   type OutputPage,
   type ToolImageState,
@@ -18,7 +19,12 @@ import {
   type TranscriptEntry,
 } from '../state/uiState'
 import { backgroundRun, readableText } from '../toolDetails'
-import { changeSummary, describeTool, writtenContent } from '../toolPresentation'
+import {
+  changeSummary,
+  describeTool,
+  type ToolPresentation,
+  writtenContent,
+} from '../toolPresentation'
 import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 import { ExpandChevron } from './icons'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
@@ -41,6 +47,7 @@ export interface ToolRowProps {
   readonly onDecide: ApprovalCardProps['onDecide']
   readonly onAnswer: QuestionCardProps['onAnswer']
   readonly onCancelQuestion: QuestionCardProps['onCancel']
+  readonly onClarifyQuestion: QuestionCardProps['onClarify']
   /** Edit review (M5): the stored patch of a completed edit-family item in the diff editor. */
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   /** The row's path: the file at its change (M16). */
@@ -51,6 +58,9 @@ export interface ToolRowProps {
   /** The pictures the host has loaded for tool rows (M43), by `toolImageKey`. */
   readonly toolImages: Readonly<Record<string, ToolImageState>>
   readonly onReadImage: (itemId: string, path: string) => void
+  /** A running shell call to the background, and a background task's Stop (M46). */
+  readonly onMoveToBackground: (itemId: string) => void
+  readonly onStopTask: (itemId: string) => void
   /** The highlighted-text menu when it belongs to this row (M17). */
   readonly quoteMenu: ReactNode
 }
@@ -76,14 +86,15 @@ function editRows(
   return file?.rows ?? parseUnifiedText(entry.output)
 }
 
-function statusClass(entry: ToolEntry): string {
-  if (entry.status === 'inProgress') {
+/** A row's status dot: running, done, cut off or failed (the user's `!` rows too, M46). */
+export function statusDotClass(status: string): string {
+  if (status === 'inProgress') {
     return 'tool-dot tool-dot-running'
   }
-  if (entry.status === TOOL_STATUS_INTERRUPTED) {
+  if (status === TOOL_STATUS_INTERRUPTED) {
     return 'tool-dot tool-dot-muted'
   }
-  return entry.status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
+  return status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
 }
 
 function EditBody({
@@ -147,19 +158,86 @@ function ShellBody({
           <Clipped text={output} className="shell-out" onOpen={onOpen} />
         </div>
       )}
-      {run?.isRunning === true && entry.status === 'inProgress' ? (
+      {(run?.isRunning === true || entry.isBackground) && entry.status === 'inProgress' ? (
         <p className="tool-detail-meta">{UI_TEXT.backgroundRunning}</p>
       ) : null}
     </div>
   )
 }
 
-/** "Rejected", "Interrupted" or "Failed" under a row that did not complete. */
-function outcomeText(status: string): string {
-  if (status === 'rejected') {
-    return UI_TEXT.toolRejected
+/** What a settled question card says: the answers, the explanation given instead (M46), or Cancelled. */
+function questionOutcomeText(outcome: NonNullable<ToolEntry['questionOutcome']>): string {
+  if (outcome.clarification !== undefined) {
+    return `${UI_TEXT.questionClarified}: ${outcome.clarification}`
   }
-  return status === TOOL_STATUS_INTERRUPTED ? UI_TEXT.toolInterrupted : UI_TEXT.toolFailed
+  if (outcome.answers.length === 0) {
+    return UI_TEXT.questionCancelled
+  }
+  const answers = outcome.answers
+    .map(
+      (answer) =>
+        answer.selectedLabel ?? answer.selectedLabels?.join(', ') ?? answer.freeText ?? '',
+    )
+    .join('; ')
+  return `${UI_TEXT.questionAnswered}: ${answers}`
+}
+
+/** "Rejected", "Interrupted", "Stopped" (M46) or "Failed" under a row that did not complete. */
+function outcomeText(status: string): string {
+  return status === TOOL_STATUS_INTERRUPTED ? UI_TEXT.toolInterrupted : failedOutcomeText(status)
+}
+
+/**
+ * A running shell call's Move to background, or a background task's Stop
+ * (M46, PLAN.md D39). Pressed, it waits for the host: the row's next update
+ * or a refusal frees it.
+ */
+function TaskAction({
+  entry,
+  presentation,
+  onMoveToBackground,
+  onStopTask,
+}: {
+  readonly entry: ToolEntry
+  readonly presentation: ToolPresentation
+  readonly onMoveToBackground: (itemId: string) => void
+  readonly onStopTask: (itemId: string) => void
+}) {
+  if (entry.status !== 'inProgress' || entry.approval !== undefined) {
+    return null
+  }
+  // Named for the row, so it is never mistaken for the composer's Stop.
+  const row = `${presentation.label} ${presentation.summary}`.trim()
+  if (entry.isBackground) {
+    return (
+      <button
+        type="button"
+        className="tool-more tool-task-action"
+        aria-label={`${UI_TEXT.stopTask}: ${row}`}
+        title={UI_TEXT.stopTaskTitle}
+        disabled={entry.taskRequest !== undefined}
+        onClick={() => {
+          onStopTask(entry.id)
+        }}
+      >
+        {UI_TEXT.stopTask}
+      </button>
+    )
+  }
+  return presentation.body === 'shell' ? (
+    <button
+      type="button"
+      className="tool-more tool-task-action"
+      aria-label={`${UI_TEXT.moveToBackground}: ${row}`}
+      title={UI_TEXT.moveToBackgroundTitle}
+      disabled={entry.taskRequest !== undefined}
+      onClick={() => {
+        onMoveToBackground(entry.id)
+      }}
+    >
+      {UI_TEXT.moveToBackground}
+    </button>
+  ) : null
 }
 
 /**
@@ -215,12 +293,15 @@ function ToolRowView({
   onDecide,
   onAnswer,
   onCancelQuestion,
+  onClarifyQuestion,
   onOpenEditDiff,
   onOpenFile,
   onOpenLink,
   onRefuseLink,
   toolImages,
   onReadImage,
+  onMoveToBackground,
+  onStopTask,
   quoteMenu,
 }: ToolRowProps) {
   const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
@@ -358,7 +439,7 @@ function ToolRowView({
           disabled={!hasBody}
           onClick={toggle}
         >
-          <span className={statusClass(entry)} aria-hidden="true" />
+          <span className={statusDotClass(entry.status)} aria-hidden="true" />
           <span className="tool-label">{presentation.label}</span>
           {entry.isBackground ? <span className="badge">{UI_TEXT.backgroundBadge}</span> : null}
           {entry.paid === undefined ? null : (
@@ -383,6 +464,12 @@ function ToolRowView({
             {filePath}
           </button>
         )}
+        <TaskAction
+          entry={entry}
+          presentation={presentation}
+          onMoveToBackground={onMoveToBackground}
+          onStopTask={onStopTask}
+        />
         {hasBody ? (
           <button
             type="button"
@@ -424,21 +511,16 @@ function ToolRowView({
         </div>
       )}
       {entry.question === undefined ? null : (
-        <QuestionCard question={entry.question} onAnswer={onAnswer} onCancel={onCancelQuestion} />
+        <QuestionCard
+          question={entry.question}
+          onAnswer={onAnswer}
+          onCancel={onCancelQuestion}
+          onClarify={onClarifyQuestion}
+        />
       )}
       {entry.questionOutcome === undefined ? null : (
-        <div className="tool-outcome">
-          {entry.questionOutcome.answers.length === 0
-            ? UI_TEXT.questionCancelled
-            : `${UI_TEXT.questionAnswered}: ${entry.questionOutcome.answers
-                .map(
-                  (answer) =>
-                    answer.selectedLabel ??
-                    answer.selectedLabels?.join(', ') ??
-                    answer.freeText ??
-                    '',
-                )
-                .join('; ')}`}
+        <div className="tool-outcome" dir="auto">
+          {questionOutcomeText(entry.questionOutcome)}
         </div>
       )}
       {quoteMenu}

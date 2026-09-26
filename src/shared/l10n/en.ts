@@ -300,6 +300,8 @@ export const EN = {
   loadingOutput: 'Loading…',
   toolFailed: 'Failed',
   toolRejected: 'Rejected',
+  // M46: a task the user (or Stop) ended.
+  toolStopped: 'Stopped',
   copyCode: 'Copy',
   copiedCode: 'Copied',
   insertCode: 'Insert at cursor',
@@ -336,6 +338,16 @@ export const EN = {
   questionAnswered: 'Answered',
   questionCancelled: 'Cancelled',
   questionCancelFailed: 'The question could not be cancelled',
+  // M46: an explanation instead of the options (MSP `userInput/clarify`).
+  questionExplain: 'Explain instead',
+  questionExplainTitle:
+    'Answer in your own words instead of choosing; Muse reads it and decides again',
+  questionExplainLabel: 'Your explanation',
+  questionExplainPlaceholder: 'Say what you mean instead of choosing…',
+  questionSendExplanation: 'Send explanation',
+  questionBackToChoices: 'Back to the choices',
+  questionClarified: 'Explained',
+  clarifyNotAccepted: 'The explanation was not accepted',
   /** Replying to an output and quoting a highlighted passage (M17). */
   messageActions: 'Message actions',
   replyToOutput: 'Reply to this output',
@@ -540,6 +552,8 @@ export const EN = {
   // The Agent map, the usage modal, the banner and the compact button (M14).
   agentsPillTitle: 'Show the agent map',
   agentsCount: forms({ one: '{count} agent', other: '{count} agents' }),
+  // M46: the header pill while background work runs and no agent is shown.
+  backgroundTasksPillTitle: 'Show the background tasks',
   agentMapTitle: 'Agent map',
   agentMapHint: 'click an agent for details',
   agentMapEmpty: 'No subagents in this conversation.',
@@ -792,6 +806,30 @@ export const EN = {
   scheduleNone: 'No scheduled prompts',
   webNoResults: 'No results',
   backgroundRunning: 'Running in the background',
+  // M46 (PLAN.md D39): moving a running command to the background, stopping
+  // background work, and the user's own `!` shell commands.
+  moveToBackground: 'Move to background',
+  moveToBackgroundTitle: 'Keep this command running in the background and let Muse carry on',
+  moveToBackgroundFailed: 'The command could not be moved to the background',
+  nothingToMoveToBackground: 'No command is running that could move to the background',
+  stopTask: 'Stop',
+  stopTaskTitle: 'Stop this background task',
+  stopUserShellTitle: 'Stop this command',
+  stopAllTasks: 'Stop all',
+  stopAllTasksTitle: 'Stop every background task of this conversation',
+  stopTaskFailed: 'The background task could not be stopped',
+  taskNotRunning: 'That task is not running any more',
+  userShellLabel: 'You ran',
+  userShellExitCode: 'Exit code {code}',
+  userShellExitSignal: 'Ended by signal {signal}',
+  userShellRestricted:
+    'Shell commands do not run while the workspace is in Restricted Mode. Trust the workspace to run them.',
+  userShellNotGranted: 'This Muse Code did not allow shell commands from the panel',
+  userShellFailed: 'The command did not run',
+  composerShellMode: 'Shell',
+  composerShellModeTitle:
+    'Runs this command in the workspace, as you. Muse sees the command and what it printed.',
+  runCommandTitle: 'Run command',
   toolImageAlt: 'The image {path}',
   toolImageFailed: 'The image could not be shown',
   // A CLI run that failed without saying why; {code} is the process's own number.
@@ -917,6 +955,9 @@ export const EN = {
     mentionFile: '@',
     newTab: 'Ctrl+Shift+Esc (Ctrl+Shift+Alt+Esc on Windows)',
     dictation: 'Ctrl+D',
+    // M46.
+    shell: '!',
+    moveToBackground: 'Ctrl+B',
   },
   onboardingTips: {
     focus: 'focuses or unfocuses Muse from anywhere in VS Code',
@@ -926,6 +967,9 @@ export const EN = {
     mentionFile: 'mentions a file; drag files or paste images to attach them',
     newTab: 'opens a conversation in a new editor tab',
     dictation: 'records your voice into the composer (tap to toggle, hold to talk)',
+    shell:
+      'at the start of a message runs it as a shell command in the workspace; Muse sees what it printed',
+    moveToBackground: 'moves a running command to the background, so Muse carries on',
   },
   // M26 (PLAN.md D29): dictation in a remote window, and a macOS helper that
   // ends before it is ready.

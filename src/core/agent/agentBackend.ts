@@ -254,6 +254,25 @@ export interface AgentSession {
   answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void>
   /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
   cancelQuestions(userInputId: string): Promise<void>
+  /**
+   * Answer with an explanation instead of the options (MSP `userInput/clarify`,
+   * M46): the model reads it and decides again.
+   */
+  clarifyQuestions(userInputId: string, text: string): Promise<void>
+  /**
+   * Move a running tool call to the background, its row's id naming it (MSP
+   * `task/background`, the TUI's Ctrl+B, M46): the turn goes on without it.
+   */
+  moveToBackground(taskId: string): Promise<void>
+  /** Stop one background task (`task/stop`), or every one (`task/stopAll`), M46. */
+  stopTask(taskId: string): Promise<void>
+  stopAllTasks(): Promise<void>
+  /**
+   * The user's own shell command, the TUI's `!` (MSP `session/userShell`,
+   * M46): it runs outside any turn, its row arrives as a `userShell` item,
+   * and the model sees it with its next request.
+   */
+  runUserShell(command: string): Promise<void>
   /** An owner command on a native subagent (M18): MSP `subagent/<action>`. */
   controlSubagent(subagentId: string, action: SubagentAction): Promise<void>
   /** A note to a running subagent (`subagent/sendMessage`) or a follow-up task for one that finished (`subagent/followupTask`), M18. */

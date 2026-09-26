@@ -21,8 +21,11 @@ import {
   HIDDEN_ITEM_KINDS,
   MILLISECONDS_PER_SECOND,
   type PermissionMode,
+  type TaskRequest,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
+  USER_SHELL_ITEM_KIND,
+  USER_SHELL_PREFIX,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type {
@@ -278,6 +281,8 @@ export type UiAction =
     }
   /** The user answered or cancelled a question card; lock it until the host settles it (M25). */
   | { readonly type: 'questionSubmitted'; readonly userInputId: string }
+  /** A row's Move to background or Stop (M46): its button waits for the host. */
+  | { readonly type: 'taskRequested'; readonly itemId: string; readonly request: TaskRequest }
   /** A line for the transcript the webview itself has to say (M25). */
   | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
@@ -346,6 +351,7 @@ const TEXT_FIELD = 'text'
 const IN_PROGRESS = 'inProgress'
 const COMPLETED = 'completed'
 const REJECTED = 'rejected'
+const CANCELLED = 'cancelled'
 const USER_MESSAGE_KIND = 'userMessage'
 const SUBAGENT_KIND = 'subagent'
 // A refusal that is about the image's size or count (M25), or a read that
@@ -434,19 +440,31 @@ export function isFailedStatus(status: string): boolean {
   return status !== IN_PROGRESS && status !== COMPLETED && status !== TOOL_STATUS_INTERRUPTED
 }
 
-/** "PowerShell: Failed" when a row turns failed or rejected (M25); nothing otherwise. */
+/** "Rejected", "Stopped" (M46) or "Failed": how a row that did not complete ended. */
+export function failedOutcomeText(status: string): string {
+  if (status === REJECTED) {
+    return UI_TEXT.toolRejected
+  }
+  return status === CANCELLED ? UI_TEXT.toolStopped : UI_TEXT.toolFailed
+}
+
+/**
+ * "PowerShell: Failed" when a row turns failed, rejected or stopped (M25),
+ * and "Your command: Failed" for the user's own (M46); nothing otherwise.
+ */
 function toolFailureAnnouncement(
   previous: TranscriptEntry | undefined,
   next: TranscriptEntry | undefined,
 ): string | undefined {
-  if (next?.kind !== 'tool' || !isFailedStatus(next.status)) {
+  const isShell = next?.kind === 'userShell'
+  if ((!isShell && next?.kind !== 'tool') || !isFailedStatus(next.status)) {
     return undefined
   }
-  if (previous?.kind === 'tool' && previous.status === next.status) {
+  if (previous?.kind === next.kind && previous.status === next.status) {
     return undefined
   }
-  const outcome = next.status === REJECTED ? UI_TEXT.toolRejected : UI_TEXT.toolFailed
-  return `${toolLabel(next.tool) ?? next.tool}: ${outcome}`
+  const label = isShell ? UI_TEXT.userShellLabel : (toolLabel(next.tool) ?? next.tool)
+  return `${label}: ${failedOutcomeText(next.status)}`
 }
 
 /** The composer chip and the user card's line for a reference: "Replying to: …" (M17). */
@@ -576,6 +594,24 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     approvalOutcome: undefined,
     question: undefined,
     questionOutcome: undefined,
+    taskRequest: undefined,
+  }
+}
+
+/** The user's own `!` command (M46), from its `userShell` item. */
+function userShellEntry(item: ItemSnapshot): UserShellEntry {
+  return {
+    kind: 'userShell',
+    id: item.itemId,
+    command: item.commandText ?? '',
+    status: item.status,
+    output: item.visibleOutput ?? '',
+    exitCode: item.exitCode,
+    exitSignal: item.exitSignal,
+    durationMs: item.durationMs,
+    outputRef: item.outputRef,
+    failureReason: item.failureReason,
+    taskRequest: undefined,
   }
 }
 
@@ -623,6 +659,9 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
     }
     case 'toolCall': {
       return toolEntry(item)
+    }
+    case USER_SHELL_ITEM_KIND: {
+      return userShellEntry(item)
     }
     case SUBAGENT_KIND: {
       return subagentEntry(item, seq)
@@ -674,6 +713,23 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
         paid: item.paid ?? entry.paid,
         images: reportedImages(item) ?? entry.images,
+        // The host has moved on: a button waiting for it is free again (M46).
+        taskRequest: undefined,
+      }
+    }
+    case 'userShell': {
+      const fresh = userShellEntry(item)
+      return {
+        ...entry,
+        command: fresh.command === '' ? entry.command : fresh.command,
+        status: fresh.status,
+        output: item.visibleOutput ?? entry.output,
+        exitCode: fresh.exitCode ?? entry.exitCode,
+        exitSignal: fresh.exitSignal ?? entry.exitSignal,
+        durationMs: fresh.durationMs ?? entry.durationMs,
+        outputRef: fresh.outputRef ?? entry.outputRef,
+        failureReason: fresh.failureReason ?? entry.failureReason,
+        taskRequest: undefined,
       }
     }
     case 'subagent': {
@@ -729,12 +785,27 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
         approval: undefined,
         question: undefined,
+        // A Move to background the turn's end overtook asks nothing any more (M46).
+        taskRequest: isCutOff ? undefined : entry.taskRequest,
       }
     }
     default: {
       return entry
     }
   }
+}
+
+/** A row's pending Move to background or Stop set, or cleared (M46). */
+function withTaskRequest(
+  transcript: readonly TranscriptEntry[],
+  itemId: string,
+  request: TaskRequest | undefined,
+): readonly TranscriptEntry[] {
+  return updateEntry(transcript, itemId, (entry) =>
+    (entry.kind === 'tool' || entry.kind === 'userShell') && entry.taskRequest !== request
+      ? { ...entry, taskRequest: request }
+      : entry,
+  )
 }
 
 /** Question cards locked on a submission the host refused, open again (M25). */
@@ -995,7 +1066,7 @@ function applyDelta(entry: TranscriptEntry, field: string, delta: string): Trans
   if (field === TEXT_FIELD && entry.kind === 'assistant') {
     return { ...entry, text: entry.text + delta }
   }
-  if (field === OUTPUT_FIELD && entry.kind === 'tool') {
+  if (field === OUTPUT_FIELD && (entry.kind === 'tool' || entry.kind === 'userShell')) {
     return { ...entry, output: entry.output + delta }
   }
   if (entry.kind === 'reasoning' && field.startsWith(SUMMARY_FIELD_PREFIX)) {
@@ -1223,7 +1294,13 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
             ? {
                 ...entry,
                 question: undefined,
-                questionOutcome: { outcome: event.outcome, answers: event.answers },
+                questionOutcome: {
+                  outcome: event.outcome,
+                  answers: event.answers,
+                  ...(event.clarification !== undefined && {
+                    clarification: event.clarification,
+                  }),
+                },
               }
             : entry,
         ),
@@ -1672,6 +1749,16 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
       }
     }
+    case 'taskRefused': {
+      // The host said no (M46): the row's button can be pressed again.
+      return { ...state, transcript: withTaskRequest(state.transcript, message.itemId, undefined) }
+    }
+    case 'userShellRefused': {
+      // The command comes back to an empty prompt, to be fixed and run again (M46).
+      const restored =
+        state.draft === '' ? { ...state, draft: `${USER_SHELL_PREFIX}${message.command}` } : state
+      return announce(withNotice(restored, 'warning', message.reason), message.reason)
+    }
     case 'toolImage': {
       const image: ToolImageState =
         message.dataUri === undefined
@@ -1816,6 +1903,12 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ),
       }
     }
+    case 'taskRequested': {
+      return {
+        ...state,
+        transcript: withTaskRequest(state.transcript, action.itemId, action.request),
+      }
+    }
     case 'noticeRaised': {
       return announce(
         withNotice(state, action.level, action.text),
@@ -1843,11 +1936,26 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
   }
 }
 
-/** Whether the composer may submit right now (a running turn is steered). */
+/**
+ * The command a `!` prompt runs (M46, the TUI's shell escape), or undefined
+ * for an ordinary message.
+ */
+export function userShellCommandOf(draft: string): string | undefined {
+  const trimmed = draft.trim()
+  return trimmed.startsWith(USER_SHELL_PREFIX)
+    ? trimmed.slice(USER_SHELL_PREFIX.length).trim()
+    : undefined
+}
+
+/** Whether the composer may submit right now (a running turn is steered; `!` needs a command). */
 export function canSend(state: UiState): boolean {
-  return (
-    state.auth.status === 'signedIn' && (state.draft.trim() !== '' || state.attachments.length > 0)
-  )
+  if (state.auth.status !== 'signedIn') {
+    return false
+  }
+  const command = userShellCommandOf(state.draft)
+  return command === undefined
+    ? state.draft.trim() !== '' || state.attachments.length > 0
+    : command !== ''
 }
 
 /** The open-file chip to show: the setting is on and the user has not closed it. */
@@ -1923,6 +2031,7 @@ export function editsAfter(state: UiState, entryId: string): readonly EditRef[] 
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
 export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
+export type UserShellEntry = Extract<TranscriptEntry, { kind: 'userShell' }>
 
 /** The subagents of this conversation, in transcript order (M14). */
 export function agentsOf(state: UiState): readonly SubagentEntry[] {
@@ -1934,6 +2043,11 @@ export function backgroundTasksOf(state: UiState): readonly ToolEntry[] {
   return state.transcript.filter(
     (entry): entry is ToolEntry => entry.kind === 'tool' && entry.isBackground,
   )
+}
+
+/** Whether a background task still runs, so Stop can reach it (M46). */
+export function isRunningTask(entry: ToolEntry): boolean {
+  return entry.isBackground && entry.status === IN_PROGRESS
 }
 
 /** Whether any tool row is waiting on the user (approval or question). */

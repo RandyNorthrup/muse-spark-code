@@ -16,14 +16,29 @@ import {
   refusalOf,
   settle,
 } from './helpers/fakeMsp'
+import {
+  INVALID_TARGET,
+  QUESTION_CLARIFIED,
+  SHELL_CALL_STARTED,
+  taskAck,
+} from './helpers/m46Capture'
 
 const ack = (params: Record<string, unknown>) => ({
   status: 'accepted',
   commandId: params['commandId'],
 })
 
-function setup(options: { timeouts?: CommandTimeouts } = {}) {
-  const handle = fakeMspHost()
+function setup(
+  options: {
+    timeouts?: CommandTimeouts
+    /** What the handshake granted (M46: `userShell`); nothing by default. */
+    grantedCapabilities?: readonly string[]
+  } = {},
+) {
+  const handle = fakeMspHost({
+    ...fakeInitializeResult,
+    grantedCapabilities: [...(options.grantedCapabilities ?? [])],
+  })
   const log = new FakeLogOutputChannel()
   handle.server.handle('session/start', (params) => ({
     session: {
@@ -1292,5 +1307,81 @@ describe('MuseCodeHost: the session goal (M45)', () => {
       },
       { type: 'goalChanged', goal: null },
     ])
+  })
+})
+
+describe('MuseSession: background work, `!` commands, explanations (M46)', () => {
+  it('runs a `!` command with session/userShell once the host granted it', async () => {
+    const t = setup({ grantedCapabilities: ['userShell'] })
+    t.server.handle('session/userShell', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+    }))
+    const session = await t.host.startSession(startOptions)
+    await session.runUserShell("Write-Output 'hello-m46'")
+    expect(t.server.requestsFor('session/userShell')[0]?.params).toMatchObject({
+      sessionId: 'session-for-muse-spark-1.3',
+      commandText: "Write-Output 'hello-m46'",
+    })
+  })
+
+  it('refuses a `!` command the host did not grant, sending nothing', async () => {
+    const t = setup()
+    const session = await t.host.startSession(startOptions)
+    await expect(session.runUserShell('ls')).rejects.toThrow(UI_TEXT.userShellNotGranted)
+    expect(t.server.requestsFor('session/userShell')).toHaveLength(0)
+  })
+
+  it('moves a task to the background and stops one or all, by the row’s id', async () => {
+    const t = setup()
+    t.server.handle('task/background', taskAck)
+    t.server.handle('task/stop', taskAck)
+    t.server.handle('task/stopAll', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+    }))
+    const session = await t.host.startSession(startOptions)
+    const taskId = SHELL_CALL_STARTED.item.itemId
+    await session.moveToBackground(taskId)
+    await session.stopTask(taskId)
+    await session.stopAllTasks()
+    expect(t.server.requestsFor('task/background')[0]?.params).toMatchObject({ taskId })
+    expect(t.server.requestsFor('task/stop')[0]?.params).toMatchObject({ taskId })
+    expect(t.server.requestsFor('task/stopAll')[0]?.params).toMatchObject({
+      sessionId: 'session-for-muse-spark-1.3',
+    })
+  })
+
+  it('says a task that is gone is not running any more (`invalid_target`)', async () => {
+    const t = setup()
+    const refused = refusalOf(INVALID_TARGET.kind, INVALID_TARGET.code, INVALID_TARGET.data)
+    t.server.handle('task/background', refused)
+    t.server.handle('task/stop', refused)
+    const session = await t.host.startSession(startOptions)
+    await expect(session.moveToBackground('gone')).rejects.toThrow(UI_TEXT.taskNotRunning)
+    await expect(session.stopTask('gone')).rejects.toThrow(UI_TEXT.taskNotRunning)
+    // Any other refusal is passed on as it came.
+    t.server.handle('task/stop', refusalOf('invalidParams', -32_602))
+    await expect(session.stopTask('not-a-uuid')).rejects.toThrow('refused: invalidParams')
+  })
+
+  it('explains instead of answering with userInput/clarify; a late one is settled', async () => {
+    const t = setup()
+    t.server.handle('userInput/clarify', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+      userInputId: params['userInputId'],
+    }))
+    const session = await t.host.startSession(startOptions)
+    await session.clarifyQuestions(QUESTION_CLARIFIED.userInputId, 'I prefer green.')
+    expect(t.server.requestsFor('userInput/clarify')[0]?.params).toMatchObject({
+      userInputId: QUESTION_CLARIFIED.userInputId,
+      clarification: { format: 'text', content: 'I prefer green.' },
+    })
+    t.server.handle('userInput/clarify', refusalOf('userInputAlreadySettled'))
+    await expect(session.clarifyQuestions('q1', 'late')).rejects.toMatchObject({
+      name: 'PromptSettledError',
+      reason: 'alreadySettled',
+    })
   })
 })

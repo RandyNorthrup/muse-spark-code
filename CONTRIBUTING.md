@@ -36,7 +36,10 @@ sign-in gate explains what is missing.
   guess (AGENTS.md rule 13). A capture runs a few short turns in an empty
   folder on a contributor model, writes every notification to a file, and
   counts the model attempts in the CLI's trace log afterwards;
-  `docs/certification/m43.md` shows one.
+  `docs/certification/m43.md` shows one. Frames several test files use go
+  in one helper, trimmed but otherwise as captured
+  (`test/unit/helpers/m46Capture.ts`), and the fake CLI in `test/e2e`
+  answers in the same shapes.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
   the machine.
