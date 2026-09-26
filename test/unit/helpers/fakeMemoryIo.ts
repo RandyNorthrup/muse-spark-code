@@ -14,6 +14,8 @@ import {
 
 export interface MemoryIoOptions {
   readonly links?: Readonly<Record<string, string>>
+  /** Paths open with unsaved changes, which a replacement must not clobber. */
+  readonly unsaved?: ReadonlySet<string>
   /** Paths whose read rejects (a file that is not UTF-8 text). */
   readonly unreadable?: ReadonlySet<string>
   /** Paths whose write rejects (a read-only file). */
@@ -47,6 +49,7 @@ export function memoryIoOver(files: Map<string, string>, options: MemoryIoOption
         ? Promise.reject(new Error(`${key} is not UTF-8 text`))
         : Promise.resolve(files.get(key))
     },
+    hasUnsavedChanges: (absolutePath) => options.unsaved?.has(through(absolutePath)) === true,
     writeFile: (absolutePath, content) => {
       const key = through(absolutePath)
       if (options.unwritable?.has(key) === true) {

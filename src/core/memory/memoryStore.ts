@@ -52,6 +52,8 @@ export interface MemoryDirectoryEntry {
 export interface MemoryIo {
   /** The file's text, a BOM kept; undefined when absent; rejects when it is not UTF-8 text. */
   readFile(absolutePath: string): Promise<string | undefined>
+  /** Whether the path is open with unsaved changes, which a replacement must not clobber. */
+  hasUnsavedChanges(absolutePath: string): boolean
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(absolutePath: string, content: string): Promise<void>
   /** Atomically publishes a complete new note only if absent; never replaces another writer. */
@@ -287,6 +289,15 @@ export class MemoryStore {
     return place.value
   }
 
+  /** A replacement refused under the editor's unsaved changes, or undefined. */
+  private unsavedRefusal(
+    absolutePath: string,
+  ): { readonly ok: false; readonly reason: string } | undefined {
+    return this.deps.io.hasUnsavedChanges(absolutePath)
+      ? failed(`${absolutePath} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+      : undefined
+  }
+
   /** A new note's line in its scope's `MEMORY.md`, unless one already links to it (D41). */
   private async addIndexLine(place: MemoryNotePlace, hook: string): Promise<void> {
     if (isIndexPath(place.path)) {
@@ -294,6 +305,12 @@ export class MemoryStore {
     }
     try {
       const index = await this.indexPlace(place.scope)
+      if (this.unsavedRefusal(index.absolute) !== undefined) {
+        this.deps.warn(
+          `${place.display}'s ${MEMORY_INDEX_FILE} line waits: the index has unsaved changes`,
+        )
+        return
+      }
       const text = await this.deps.io.readFile(index.absolute)
       if (text !== undefined && hasIndexLine(text, place.path)) {
         return
@@ -488,6 +505,12 @@ export class MemoryStore {
       return read
     }
     const existing = read.value
+    if (existing !== undefined) {
+      const refused = this.unsavedRefusal(place.absolute)
+      if (refused !== undefined) {
+        return refused
+      }
+    }
     try {
       if (existing === undefined) {
         await this.deps.io.createFile(place.absolute, newNoteText(note))
@@ -515,6 +538,10 @@ export class MemoryStore {
     const text = read.value
     if (text === undefined) {
       return failed(MODEL_TEXT.memoryFileNotFound)
+    }
+    const refused = this.unsavedRefusal(place.absolute)
+    if (refused !== undefined) {
+      return refused
     }
     const count = occurrences(text, change.old_str)
     if (count === 0) {
@@ -592,9 +619,16 @@ export class MemoryStore {
     const index = await this.indexPlace(place.scope)
     const text = await this.deps.io.readFile(index.absolute)
     const updated = text === undefined ? undefined : withoutIndexLines(text, place.path)
-    if (updated !== undefined) {
-      await this.deps.io.writeFile(index.absolute, updated)
+    if (updated === undefined) {
+      return
     }
+    if (this.unsavedRefusal(index.absolute) !== undefined) {
+      this.deps.warn(
+        `the ${MEMORY_INDEX_FILE} line for ${place.display} waits: the index has unsaved changes`,
+      )
+      return
+    }
+    await this.deps.io.writeFile(index.absolute, updated)
   }
 
   /**

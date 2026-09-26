@@ -40,7 +40,7 @@ export async function listMemoryEntries(
 }
 
 export function createMemoryIo(
-  files: Pick<ToolIo, 'readFile' | 'writeFile' | 'realPath'>,
+  files: Pick<ToolIo, 'readFile' | 'writeFile' | 'realPath' | 'hasUnsavedChanges'>,
   options: {
     /** A warning when cleanup fails after the target has already been published. */
     readonly warn: (message: string) => void
@@ -50,6 +50,7 @@ export function createMemoryIo(
 ): MemoryIo {
   return {
     readFile: (absolutePath) => files.readFile(absolutePath),
+    hasUnsavedChanges: (absolutePath) => files.hasUnsavedChanges(absolutePath),
     writeFile: (absolutePath, content) => files.writeFile(absolutePath, content),
     async createFile(absolutePath, content) {
       const directory = path.dirname(absolutePath)

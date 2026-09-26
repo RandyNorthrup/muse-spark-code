@@ -2637,6 +2637,15 @@ export class ModelApiSession implements AgentSession {
       if (refusal !== undefined) {
         return refusal
       }
+      // The card was open: a swapped directory would redirect the write, so
+      // the note is located again after the approval (review of PR #36).
+      const replaced = await placeMemoryCall(memory, call.name, call.arguments)
+      return {
+        outcome: replaced.ok
+          ? await runMemoryCall(memory, replaced.value)
+          : toolFailure(replaced.reason),
+        isRejected: false,
+      }
     }
     return { outcome: await runMemoryCall(memory, placed.value), isRejected: false }
   }

@@ -336,6 +336,37 @@ describe('MemoryStore: the tools', () => {
     ).resolves.toMatchObject({ ok: false, reason: expect.stringContaining('EACCES') })
     expect(t.files.has(`${PROJECT}/MEMORY.md`)).toBe(false)
   })
+
+  it('refuses a replacement under the editor’s unsaved changes, leaving the disk alone', async () => {
+    const note = `${PROJECT}/deploy.md`
+    const index = `${PROJECT}/MEMORY.md`
+    const t = setup(
+      { [note]: 'Deploys run on Fridays.', [index]: '- [deploy](deploy.md) | Deploy day\n' },
+      { unsaved: new Set([note, index]) },
+    )
+    const deploy = await place(t.store, 'project', 'deploy.md')
+    await expect(
+      t.store.edit(deploy, { old_str: 'Fridays', new_str: 'Thursdays' }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: `${note} has unsaved changes in an editor; ask the user to save or revert them, then try again`,
+    })
+    await expect(t.store.add(deploy, { content: 'More.' })).resolves.toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('unsaved changes'),
+    })
+    expect(t.files.get(note)).toBe('Deploys run on Fridays.')
+    // A new note still publishes, but its index line waits with a warning
+    // instead of replacing the open index.
+    await t.store.add(await place(t.store, 'project', 'fresh.md'), { content: 'New.' })
+    expect(t.files.get(`${PROJECT}/fresh.md`)).toContain('New.')
+    expect(t.files.get(index)).toBe('- [deploy](deploy.md) | Deploy day\n')
+    expect(t.warnings.some((warning) => warning.includes('unsaved changes'))).toBe(true)
+    // Forgetting a note leaves an open index alone the same way, with a warning.
+    await t.store.forget(deploy)
+    expect(t.files.get(index)).toBe('- [deploy](deploy.md) | Deploy day\n')
+    expect(t.warnings.some((warning) => warning.includes('unsaved changes'))).toBe(true)
+  })
 })
 
 describe('MemoryStore: the view and the snapshot', () => {

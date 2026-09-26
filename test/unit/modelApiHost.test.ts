@@ -55,6 +55,8 @@ function setup(
     io?: MemoryToolIo
     /** False: the host has no memory store (M49). */
     hasMemory?: boolean
+    /** Folders the memory fake reports as links to elsewhere (M49). */
+    memoryLinks?: Record<string, string>
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
@@ -71,7 +73,10 @@ function setup(
   const memory =
     options.hasMemory === false
       ? undefined
-      : memoryStoreOver(io.files, { platform: options.platform ?? 'linux' }).store
+      : memoryStoreOver(io.files, {
+          platform: options.platform ?? 'linux',
+          ...(options.memoryLinks !== undefined && { links: options.memoryLinks }),
+        }).store
   let ids = 0
   let clock = 1_000_000
   const client =
@@ -1055,6 +1060,45 @@ describe('ModelApiSession: memory (M49)', () => {
     await storelessRun.session.sendTurn([{ type: 'text', text: 'go' }])
     await storelessRun.turnDone()
     expect(memoryRows(storelessRun.events)[0]?.failureReason).toBe('unknown tool add_memory')
+  })
+
+  it('re-locates a memory write after its approval, refusing a swapped link', async () => {
+    const links: Record<string, string> = {}
+    const t = setup({
+      files: { '.agents/memory/prefs.md': 'Tea.' },
+      memoryLinks: links,
+    })
+    // Beyond the link the swap will point at: the same text, so a stale
+    // place would read, match and overwrite it.
+    t.files.set('/elsewhere/prefs.md', 'Tea.')
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'edit_memory',
+            arguments: '{"scope":"project","path":"prefs.md","old_str":"Tea","new_str":"Coffee"}',
+            callId: 'call_swap',
+          },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'switch to coffee' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.toolName).toBe('edit_memory')
+    // A swap while the card is open: the folder now leads outside.
+    links[`${ROOT}/.agents/memory`] = '/elsewhere'
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(memoryRows(events).map((row) => row.status)).toEqual(['failed'])
+    expect(memoryRows(events)[0]?.failureReason).toContain('link')
+    expect(t.files.get(`${ROOT}/.agents/memory/prefs.md`)).toBe('Tea.')
+    expect(t.files.get('/elsewhere/prefs.md')).toBe('Tea.')
   })
 })
 

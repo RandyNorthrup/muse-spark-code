@@ -28,15 +28,18 @@ async function readIfPresent(absolutePath: string): Promise<string | undefined> 
   }
 }
 
-const io = createMemoryIo(
-  {
+/** The file tools behind a memory I/O, unsaved-aware only when a test says so. */
+function fileTools(hasUnsavedChanges: (absolutePath: string) => boolean = () => false) {
+  return {
     readFile: readIfPresent,
-    writeFile: (absolutePath, content) =>
+    writeFile: (absolutePath: string, content: string) =>
       writeFileAtomically(absolutePath, content, { sleep: () => Promise.resolve() }),
     realPath: canonicalPath,
-  },
-  { warn: () => undefined },
-)
+    hasUnsavedChanges,
+  }
+}
+
+const io = createMemoryIo(fileTools(), { warn: () => undefined })
 
 beforeAll(async () => {
   paths.root = realpathSync.native(await mkdtemp(path.join(tmpdir(), 'muse-memory-')))
@@ -78,6 +81,19 @@ describe('systemPath', () => {
   })
 })
 
+describe('createMemoryIo unsaved changes', () => {
+  it('answers from the file tool for a path', () => {
+    const open = path.join(paths.workspace, 'open.md')
+    expect(io.hasUnsavedChanges(open)).toBe(false)
+    const forwarding = createMemoryIo(
+      fileTools((absolutePath) => absolutePath === open),
+      { warn: () => undefined },
+    )
+    expect(forwarding.hasUnsavedChanges(open)).toBe(true)
+    expect(forwarding.hasUnsavedChanges(path.join(paths.workspace, 'other.md'))).toBe(false)
+  })
+})
+
 describe('MemoryStore on the file system', () => {
   it('publishes a complete new note before adding its index line', async () => {
     const workspace = path.join(paths.root, 'published-ws')
@@ -85,24 +101,16 @@ describe('MemoryStore on the file system', () => {
     const ready = Promise.withResolvers<{ stage: string; target: string }>()
     const release = Promise.withResolvers<undefined>()
     const warnings: string[] = []
-    const stagedIo = createMemoryIo(
-      {
-        readFile: readIfPresent,
-        writeFile: (absolutePath, content) =>
-          writeFileAtomically(absolutePath, content, { sleep: () => Promise.resolve() }),
-        realPath: canonicalPath,
+    const stagedIo = createMemoryIo(fileTools(), {
+      warn: (warning) => {
+        warnings.push(warning)
       },
-      {
-        warn: (warning) => {
-          warnings.push(warning)
-        },
-        publish: async (stage, target) => {
-          ready.resolve({ stage, target })
-          await release.promise
-          await link(stage, target)
-        },
+      publish: async (stage, target) => {
+        ready.resolve({ stage, target })
+        await release.promise
+        await link(stage, target)
       },
-    )
+    })
     const store = new MemoryStore({
       io: stagedIo,
       platform: process.platform,
@@ -148,19 +156,11 @@ describe('MemoryStore on the file system', () => {
   it('refuses a filesystem without hard links before publishing a note', async () => {
     const workspace = path.join(paths.root, 'no-link-ws')
     const target = path.join(workspace, '.agents', 'memory', 'no-link.md')
-    const noLinks = createMemoryIo(
-      {
-        readFile: readIfPresent,
-        writeFile: (absolutePath, content) =>
-          writeFileAtomically(absolutePath, content, { sleep: () => Promise.resolve() }),
-        realPath: canonicalPath,
-      },
-      {
-        warn: () => undefined,
-        publish: () =>
-          Promise.reject(Object.assign(new Error('hard links unavailable'), { code: 'ENOTSUP' })),
-      },
-    )
+    const noLinks = createMemoryIo(fileTools(), {
+      warn: () => undefined,
+      publish: () =>
+        Promise.reject(Object.assign(new Error('hard links unavailable'), { code: 'ENOTSUP' })),
+    })
     await expect(noLinks.createFile(target, 'private note')).rejects.toMatchObject({
       code: 'ENOTSUP',
     })
