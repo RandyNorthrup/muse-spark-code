@@ -3648,7 +3648,15 @@ listing are M62b.
 - **M63c, the rest of the protocol**: file reads and writes through the
   client (`fs/*`) for the Model API backend; paid features with a
   confirmation that names the price; `session/close` and `delete`; the ACP
-  Registry once Q65 is answered.
+  Registry once Q65 is answered; the editor's MCP servers.
+  - **MCP servers, 2026-09-26** (`docs/certification/m63.md`): the engine's
+    per-session servers gain a stdio kind beside HTTP (MSP takes both), and
+    the agent passes the editor's stdio and HTTP servers to Muse Code on
+    `session/new`, `load` and `resume` when the host granted `sessionMcp`,
+    each optional; it advertises `mcpCapabilities.http` on that backend.
+    SSE and the unstable ACP transport are left out, the Model API backend
+    runs none, and only server names are logged (headers and environments
+    can hold secrets). JupyterLab's notebook tools now reach the agent.
 - **Acceptance (M63a)**: a session created, prompted, streamed, cancelled,
   asked for permission (allowed, denied, cancelled), loaded and listed
   over stdio on the Muse Code backend (fake CLI), and on the Model API

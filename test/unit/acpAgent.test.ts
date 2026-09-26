@@ -32,7 +32,7 @@ interface Harness {
   readonly updates: acp.SessionUpdate[]
   readonly permissions: acp.RequestPermissionRequest[]
   readonly elicitations: acp.CreateElicitationRequest[]
-  readonly log: { readonly warn: ReturnType<typeof vi.fn> }
+  readonly log: { readonly info: ReturnType<typeof vi.fn>; readonly warn: ReturnType<typeof vi.fn> }
   run<T>(op: (client: acp.ClientContext) => Promise<T>): Promise<T>
 }
 
@@ -42,17 +42,20 @@ interface HarnessOptions {
   readonly elicitation?: acp.CreateElicitationResponse
   readonly canBypass?: boolean
   readonly allowsContributorModels?: boolean
+  readonly kind?: 'museCode' | 'modelApi'
 }
 
 function harness(options: HarnessOptions = {}): Harness {
   const host = new FakeAgentHost()
+  const kind = options.kind ?? 'museCode'
+  host.info = { ...host.info, kind }
   const updates: acp.SessionUpdate[] = []
   const permissions: acp.RequestPermissionRequest[] = []
   const elicitations: acp.CreateElicitationRequest[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps: AcpAgentDeps = {
     backend: {
-      kind: 'museCode',
+      kind,
       readiness: () => Promise.resolve(options.readiness ?? { state: 'ready' }),
       hostFor: () => Promise.resolve(host),
     },
@@ -219,6 +222,62 @@ describe('the ACP agent (M63)', () => {
         args: ['login'],
       },
     ])
+  })
+
+  it('passes the editor’s MCP servers to Muse Code, logging their names only', async () => {
+    const h = harness()
+    const servers: acp.McpServer[] = [
+      {
+        name: 'notes',
+        command: 'notes-mcp',
+        args: ['--stdio'],
+        env: [{ name: 'NOTES_DIR', value: '/n' }],
+      },
+      {
+        type: 'http',
+        name: 'jupyter',
+        url: 'http://127.0.0.1:8888/mcp',
+        headers: [{ name: 'Authorization', value: 'token secret' }],
+      },
+      { type: 'sse', name: 'legacy', url: 'http://127.0.0.1:1/sse', headers: [] },
+    ]
+    await h.run(async (client) => {
+      const init = await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      expect(init.agentCapabilities?.mcpCapabilities).toEqual({ http: true, sse: false })
+      await client.request('session/new', { cwd: CWD, mcpServers: servers })
+      await client.request('session/resume', { sessionId: 'old-1', cwd: CWD, mcpServers: servers })
+    })
+    const forwarded = {
+      notes: { command: 'notes-mcp', args: ['--stdio'], env: { NOTES_DIR: '/n' } },
+      jupyter: { url: 'http://127.0.0.1:8888/mcp', headers: { Authorization: 'token secret' } },
+    }
+    expect(h.host.startSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mcpServers: forwarded }),
+    )
+    expect(h.host.resumeSession).toHaveBeenCalledWith('old-1', expect.any(String), forwarded)
+    const logged = JSON.stringify([h.log.info.mock.calls, h.log.warn.mock.calls])
+    expect(logged).toContain('legacy')
+    expect(logged).not.toContain('token secret')
+    expect(logged).not.toContain('/n')
+  })
+
+  it('passes no MCP servers without the grant, or on the Model API backend', async () => {
+    const servers: acp.McpServer[] = [{ name: 'notes', command: 'notes-mcp', args: [], env: [] }]
+    const ungranted = harness()
+    ungranted.host.info = { ...ungranted.host.info, grantedCapabilities: [] }
+    const modelApi = harness({ kind: 'modelApi' })
+    for (const h of [ungranted, modelApi]) {
+      const capabilities = await h.run(async (client) => {
+        const init = await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+        await client.request('session/new', { cwd: CWD, mcpServers: servers })
+        return init.agentCapabilities?.mcpCapabilities
+      })
+      expect(h.host.startSession).toHaveBeenCalledWith(
+        expect.not.objectContaining({ mcpServers: expect.anything() }),
+      )
+      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('not passed on (notes)'))
+      expect(capabilities?.http).toBe(h === ungranted)
+    }
   })
 
   it('answers auth_required until the backend is signed in, and an error when it cannot run', async () => {

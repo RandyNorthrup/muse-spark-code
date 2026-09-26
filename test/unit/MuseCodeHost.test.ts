@@ -598,11 +598,24 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     )
     const loaded = await host.resumeSession('old', 'muse-spark-1.3', {
       ide: { url: 'http://127.0.0.1:1/mcp', headers: { Authorization: 'Bearer x' } },
+      // An ACP client's stdio server (M63c).
+      notes: { command: 'notes-mcp', args: ['--stdio'], env: { NOTES_DIR: '/ws/notes' } },
     })
     expect(server.requestsFor('session/resume')[0]?.params).toMatchObject({
       sessionId: 'old',
       history: 'inline',
-      config: { mcpServers: { ide: { transport: 'streamableHttp', mode: 'optional' } } },
+      config: {
+        mcpServers: {
+          ide: { transport: 'streamableHttp', mode: 'optional' },
+          notes: {
+            transport: 'stdio',
+            command: 'notes-mcp',
+            args: ['--stdio'],
+            env: { NOTES_DIR: '/ws/notes' },
+            mode: 'optional',
+          },
+        },
+      },
     })
     expect(loaded.session.sessionId).toBe('old')
     expect(loaded.session.modelId).toBe('muse-spark-1.3')

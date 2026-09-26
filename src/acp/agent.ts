@@ -20,6 +20,7 @@ import {
   type CreateElicitationRequest,
   type InitializeResponse,
   type ListSessionsResponse,
+  type McpServer,
   PROTOCOL_VERSION,
   RequestError,
   type RequestPermissionResponse,
@@ -33,6 +34,7 @@ import {
   type AgentSession,
   PromptSettledError,
   type ModelSummary,
+  type SessionMcpServer,
   type SkillSummary,
   type TurnPart,
 } from '../core/agent/agentBackend'
@@ -48,6 +50,7 @@ import {
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   type EffortLevel,
+  MSP_REQUESTED_CAPABILITIES,
   type PermissionMode,
   UI_TEXT,
 } from '../shared/constants'
@@ -63,11 +66,15 @@ import { formAnswers, questionForm, questionsText } from './questions'
 import {
   approvalToolCall,
   decidedChoice,
+  mcpServersFrom,
   permissionOptions,
   planEntries,
   promptParts,
   UpdateTranslator,
 } from './translate'
+
+// Muse Code runs a session's MCP servers only with this grant (M63c).
+const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 
 /** Whether the backend can start a session now, and what the user must do if not. */
 export type BackendReadiness =
@@ -643,6 +650,41 @@ class AgentState {
     })
   }
 
+  /**
+   * The editor's MCP servers for a session (M63c): passed to Muse Code when
+   * it granted `sessionMcp`; the Model API backend runs none. Only their
+   * names are logged, as headers and environments can hold secrets.
+   */
+  private forwardedMcp(
+    host: AgentHost,
+    requested: readonly McpServer[] | undefined,
+  ): Readonly<Record<string, SessionMcpServer>> | undefined {
+    if (requested === undefined || requested.length === 0) {
+      return undefined
+    }
+    const names = requested.map((server) => server.name).join(', ')
+    if (host.info.kind !== 'museCode') {
+      this.deps.log.warn(
+        `MCP servers from the editor not passed on (${names}): the ${host.info.kind} backend runs none`,
+      )
+      return undefined
+    }
+    if (!host.info.grantedCapabilities.includes(SESSION_MCP_CAPABILITY)) {
+      this.deps.log.warn(
+        `MCP servers from the editor not passed on (${names}): Muse Code did not grant ${SESSION_MCP_CAPABILITY}`,
+      )
+      return undefined
+    }
+    const { servers, skipped } = mcpServersFrom(requested)
+    if (skipped.length > 0) {
+      this.deps.log.warn(
+        `MCP servers from the editor left out (SSE, or a name used twice): ${skipped.join(', ')}`,
+      )
+    }
+    this.deps.log.info(`MCP servers from the editor: ${Object.keys(servers).join(', ')}`)
+    return servers
+  }
+
   public initialize(clientCapabilities: ClientCapabilities | undefined): InitializeResponse {
     this.clientCapabilities = clientCapabilities ?? {}
     return {
@@ -650,6 +692,8 @@ class AgentState {
       agentCapabilities: {
         loadSession: true,
         promptCapabilities: { image: true, audio: false, embeddedContext: true },
+        // Stdio servers every agent takes; HTTP ones Muse Code runs too (M63c).
+        mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },
       },
       authMethods: [this.authMethod()],
@@ -663,13 +707,19 @@ class AgentState {
     return {}
   }
 
-  public async newSession(cwd: string, client: AgentContext) {
+  public async newSession(
+    cwd: string,
+    requestedMcp: readonly McpServer[] | undefined,
+    client: AgentContext,
+  ) {
     const { host, models } = await this.openHost(cwd)
     const modelId = startingModel(models)
+    const mcpServers = this.forwardedMcp(host, requestedMcp)
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,
       approvalMode: approvalModeFor(this.deps.options.initialMode, true),
+      ...(mcpServers !== undefined && { mcpServers }),
     })
     const acp = this.register(host, session, cwd, client, models)
     await acp.applyEffort(DEFAULT_EFFORT)
@@ -679,11 +729,16 @@ class AgentState {
   public async loadSession(
     sessionId: string,
     cwd: string,
+    requestedMcp: readonly McpServer[] | undefined,
     client: AgentContext,
     isReplayed: boolean,
   ) {
     const { host, models } = await this.openHost(cwd)
-    const loaded = await host.resumeSession(sessionId, startingModel(models))
+    const loaded = await host.resumeSession(
+      sessionId,
+      startingModel(models),
+      this.forwardedMcp(host, requestedMcp),
+    )
     const acp = this.register(host, loaded.session, cwd, client, models)
     if (isReplayed) {
       await acp.replay([...loaded.history.items])
@@ -734,13 +789,17 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) => state.initialize(context.params.clientCapabilities))
     .onRequest('authenticate', () => state.authenticate())
-    .onRequest('session/new', (context) => state.newSession(context.params.cwd, context.client))
-    .onRequest('session/load', (context) =>
-      state.loadSession(context.params.sessionId, context.params.cwd, context.client, true),
+    .onRequest('session/new', (context) =>
+      state.newSession(context.params.cwd, context.params.mcpServers, context.client),
     )
-    .onRequest('session/resume', (context) =>
-      state.loadSession(context.params.sessionId, context.params.cwd, context.client, false),
-    )
+    .onRequest('session/load', (context) => {
+      const { sessionId, cwd, mcpServers } = context.params
+      return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
+    })
+    .onRequest('session/resume', (context) => {
+      const { sessionId, cwd, mcpServers } = context.params
+      return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
+    })
     .onRequest('session/list', (context) =>
       state.listSessions(context.params.cwd ?? undefined, context.params.cursor ?? undefined),
     )

@@ -6,6 +6,7 @@ import type {
   AgentHost,
   AgentSession,
   HostExit,
+  HostInfo,
   LoadedSession,
   ModelSummary,
   SessionEventListener,
@@ -105,11 +106,11 @@ export interface FakeHistory {
 
 export class FakeAgentHost implements AgentHost {
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
-  public readonly info = {
-    kind: 'museCode' as const,
+  public info: HostInfo = {
+    kind: 'museCode',
     serverName: 'fake',
     serverVersion: '0.0.0',
-    grantedCapabilities: [],
+    grantedCapabilities: ['sessionMcp'],
     canEditSessions: true,
   }
   public readonly sessions: FakeAgentSession[] = []

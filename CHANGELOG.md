@@ -79,7 +79,9 @@ while they are (PLAN.md D30, D34).
   system's credential store (Windows Credential Manager, the macOS
   Keychain, the Secret Service on Linux, with no plaintext fallback); the
   key is never read from the environment or passed to Muse Code. Paid
-  features stay off in the agent. See `docs/acp.md`; which editors have
+  features stay off in the agent. The editor's MCP servers (stdio and
+  HTTP) are passed to Muse Code, so Jupyter AI's notebook tools and Zed's
+  context servers reach it. See `docs/acp.md`; which editors have
   been tried is tracked in `docs/ide-compatibility/hosts.md` (Zed, Emacs
   with agent-shell, Neovim with CodeCompanion and JupyterLab with Jupyter
   AI so far).

@@ -8,6 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
   ContentBlock,
+  McpServer,
   PermissionOption,
   PermissionOptionKind,
   PlanEntry,
@@ -20,7 +21,7 @@ import type {
   ToolCallUpdate,
   ToolKind,
 } from '@agentclientprotocol/sdk'
-import type { TurnPart } from '../core/agent/agentBackend'
+import type { SessionMcpServer, TurnPart } from '../core/agent/agentBackend'
 import { readImageInfo } from '../core/imageDimensions'
 import type {
   AgentEvent,
@@ -555,4 +556,43 @@ export function promptParts(blocks: readonly ContentBlock[], cwd: string): Promp
     .flatMap((block) => (block.type === 'text' ? [block.text] : []))
     .join(PART_SEPARATOR)
   return { ok: true, parts, displayText }
+}
+
+/** The editor's MCP servers the backend can run, and the names of those it cannot. */
+export interface ForwardedMcpServers {
+  readonly servers: Readonly<Record<string, SessionMcpServer>>
+  readonly skipped: readonly string[]
+}
+
+function pairs(entries: readonly { readonly name: string; readonly value: string }[]) {
+  return Object.fromEntries(entries.map((entry) => [entry.name, entry.value]))
+}
+
+/**
+ * An ACP client's MCP servers as the engine's (M63c): stdio and HTTP, keyed
+ * by name. SSE and the unstable ACP transport are left out, as is a second
+ * server under a name already taken.
+ */
+export function mcpServersFrom(requested: readonly McpServer[]): ForwardedMcpServers {
+  const servers = new Map<string, SessionMcpServer>()
+  const skipped: string[] = []
+  for (const server of requested) {
+    if (servers.has(server.name)) {
+      skipped.push(server.name)
+      continue
+    }
+    // A stdio server has no `type` in the schema; some clients send `stdio` anyway.
+    if ('command' in server) {
+      servers.set(server.name, {
+        command: server.command,
+        args: server.args,
+        env: pairs(server.env),
+      })
+    } else if (server.type === 'http') {
+      servers.set(server.name, { url: server.url, headers: pairs(server.headers) })
+    } else {
+      skipped.push(server.name)
+    }
+  }
+  return { servers: Object.fromEntries(servers), skipped }
 }

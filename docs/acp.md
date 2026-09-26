@@ -165,9 +165,8 @@ class MuseSparkAcpPersona(BaseAcpPersona):
         )
 ```
 
-Jupyter AI offers the agent its notebook tools as MCP servers, which the
-agent does not pass on yet (see Not yet), so notebooks are edited as
-files.
+Jupyter AI offers the agent its notebook tools as an MCP server, which
+the agent passes to Muse Code (below).
 
 Other editors take the same command and arguments in their own agent or
 ACP settings (JetBrains AI Assistant, Xcode's Intelligence settings, Qt
@@ -199,6 +198,10 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 - **Sessions**: listed, loaded with their history, resumed and closed.
 - **Prompts**: text, files as @mentions, attached excerpts, and PNG, JPEG,
   GIF and WebP images up to 10 MB.
+- **MCP servers** the editor offers (Zed's context servers, Jupyter AI's
+  notebook tools): passed to Muse Code for the session, over stdio or
+  HTTP, and optional, so one that fails to start does not stop the
+  session. SSE servers are not taken; the Model API backend runs none.
 
 ## Not yet
 
@@ -207,5 +210,4 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 - The Model API backend reads and writes files itself, so it does not see
   unsaved changes in the editor; save before asking it to edit a file you
   have open.
-- MCP servers the editor offers (Zed's, Jupyter AI's notebook tools) are
-  not passed on yet.
+- MCP servers on the Model API backend.

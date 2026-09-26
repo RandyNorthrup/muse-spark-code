@@ -5,6 +5,7 @@ import { formAnswers, questionForm, questionsText } from '../../src/acp/question
 import {
   approvalToolCall,
   decidedChoice,
+  mcpServersFrom,
   permissionOptions,
   promptParts,
   toolKind,
@@ -451,6 +452,32 @@ describe('promptParts', () => {
     expect(mapped.ok && mapped.parts[0]?.type === 'text' ? mapped.parts[0].text : '').toMatch(
       /x\.ts/,
     )
+  })
+})
+
+describe('mcpServersFrom (M63c)', () => {
+  it('keeps stdio and HTTP servers by name, and leaves out SSE, the ACP transport and a repeated name', () => {
+    const forwarded = mcpServersFrom([
+      { name: 'notes', command: 'notes-mcp', args: ['--stdio'], env: [{ name: 'A', value: '1' }] },
+      { type: 'http', name: 'jupyter', url: 'http://h/mcp', headers: [{ name: 'X', value: 'y' }] },
+      { type: 'sse', name: 'legacy', url: 'http://h/sse', headers: [] },
+      { type: 'acp', name: 'nested', serverId: 'agent-mcp' },
+      { name: 'notes', command: 'other', args: [], env: [] },
+    ])
+    expect(forwarded).toEqual({
+      servers: {
+        notes: { command: 'notes-mcp', args: ['--stdio'], env: { A: '1' } },
+        jupyter: { url: 'http://h/mcp', headers: { X: 'y' } },
+      },
+      skipped: ['legacy', 'nested', 'notes'],
+    })
+  })
+
+  it('takes a stdio server sent with an explicit type, as some clients do', () => {
+    const server = JSON.parse(
+      '{"type":"stdio","name":"s","command":"c","args":[],"env":[]}',
+    ) as Parameters<typeof mcpServersFrom>[0][number]
+    expect(mcpServersFrom([server]).servers).toEqual({ s: { command: 'c', args: [], env: {} } })
   })
 })
 
