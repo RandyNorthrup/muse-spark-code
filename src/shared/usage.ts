@@ -49,6 +49,8 @@ export const accountFactsSchema = z.object({
   cliVersion: z.optional(z.string()),
   /** Muse Code's `run.subagent_delegation_mode`; absent on the Model API backend. */
   delegationMode: z.optional(z.string()),
+  /** Muse Code's `run.workflow_trigger_mode` (M47); absent on the Model API backend. */
+  workflowTriggerMode: z.optional(z.string()),
 })
 export type AccountFacts = z.infer<typeof accountFactsSchema>
 

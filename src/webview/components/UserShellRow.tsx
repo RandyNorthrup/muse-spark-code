@@ -8,8 +8,8 @@
 import { memo } from 'react'
 import { UI_TEXT, USER_SHELL_PREFIX } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { formatDurationMs } from '../agentFormat'
 import { failedOutcomeText, isFailedStatus, type UserShellEntry } from '../state/uiState'
-import { formatDurationMs } from './AgentMap'
 import { Clipped } from './ToolBlocks'
 import { statusDotClass, type ToolRowProps } from './ToolRow'
 

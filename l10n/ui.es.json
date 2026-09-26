@@ -510,6 +510,36 @@
   "agentDelegationOff": "La delegación en subagentes de Muse Code está desactivada (su valor predeterminado), así que el modelo no tiene herramientas de agente en esta conversación. Establezca run.subagent_delegation_mode en \"auto\" en el archivo de configuración de Muse Code para habilitarla; la extensión nunca edita ese archivo.",
   "agentOpenMuseSettings": "Abrir el archivo de configuración de Muse Code",
   "museSettingsMissing": "Muse Code aún no ha escrito ningún archivo de configuración. Estaría en {path}",
+  "workflowRowLabel": "Flujo de trabajo",
+  "workflowGenerated": "Escrito para esta tarea",
+  "workflowTriggerSources": {
+    "guidanceAuto": "iniciado por el modelo"
+  },
+  "workflowAgentsLabel": "Agentes del flujo de trabajo",
+  "workflowChildStatuses": {
+    "scheduled": "en cola",
+    "started": "en ejecución",
+    "usage": "en ejecución",
+    "completed": "completado",
+    "terminal": "finalizado"
+  },
+  "workflowChildUntitled": "Agente {number}",
+  "workflowAttempt": "intento {attempt}",
+  "workflowsCount": {
+    "one": "{count} flujo de trabajo",
+    "many": "{count} de flujos de trabajo",
+    "other": "{count} flujos de trabajo"
+  },
+  "workflowsLabel": "Flujos de trabajo",
+  "workflowTriggerModes": {
+    "auto": "Los flujos de trabajo de Muse Code están en \"auto\": el modelo puede iniciar uno por su cuenta para trabajos grandes, e inicia uno cuando usted lo pide. Cada agente del flujo de trabajo hace sus propias llamadas al modelo.",
+    "explicit": "Los flujos de trabajo de Muse Code están en \"explicit\": el modelo inicia uno solo cuando usted lo pide.",
+    "off": "Los flujos de trabajo de Muse Code están desactivados (\"off\"): el modelo no tiene la herramienta de flujos de trabajo."
+  },
+  "workflowTriggerOther": "La configuración de flujos de trabajo de Muse Code es {mode}.",
+  "workflowTriggerHowTo": "Establezca run.workflow_trigger_mode en \"auto\", \"explicit\" u \"off\" en el archivo de configuración de Muse Code para cambiarla; la extensión nunca edita ese archivo.",
+  "workflowLaunched": "Iniciado: se ejecuta en segundo plano e informa a esta conversación.",
+  "workflowScriptSaved": "Script guardado en {path}",
   "backgroundTasksCount": {
     "one": "{count} tarea en segundo plano",
     "many": "{count} de tareas en segundo plano",

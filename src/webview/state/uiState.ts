@@ -5,12 +5,13 @@
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
-import type {
-  AgentEvent,
-  ItemSnapshot,
-  RequirementRef,
-  SessionGoal,
-  TodoItem,
+import {
+  type AgentEvent,
+  type ItemSnapshot,
+  type RequirementRef,
+  type SessionGoal,
+  type TodoItem,
+  tokenUsageSchema,
 } from '../../shared/agentEvents'
 import {
   CHAT_REFERENCE_LABEL_CHARS,
@@ -26,6 +27,7 @@ import {
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_PREFIX,
+  WORKFLOW_KIND,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type {
@@ -56,6 +58,7 @@ import type {
   PendingQuestion,
   TranscriptEntry,
   UsageSummary,
+  WorkflowChild,
 } from './transcriptEntries'
 
 export type {
@@ -65,6 +68,7 @@ export type {
   PendingQuestion,
   TranscriptEntry,
   UsageSummary,
+  WorkflowChild,
 } from './transcriptEntries'
 
 /** What the Account & usage dialog shows (M8, M14): the host's last `usageReport`. */
@@ -504,6 +508,75 @@ function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
   return paths.length === 0 ? undefined : paths
 }
 
+// One `children` element of a workflow item (MSP `WorkflowChild`, M47): its
+// identity and status are required; every other field is read on its own,
+// so one of another shape costs that field, never the agent or the run.
+const reportedChildSchema = z.object({
+  childId: z.string(),
+  attempt: z.number(),
+  status: z.string(),
+  label: z.optional(z.unknown()),
+  terminal: z.optional(z.unknown()),
+  durationMs: z.optional(z.unknown()),
+  usage: z.optional(z.unknown()),
+})
+
+function stringOf(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+/** The agents a workflow item reports; undefined when it carries no list. */
+function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefined {
+  return item.children?.flatMap((raw) => {
+    const parsed = reportedChildSchema.safeParse(raw)
+    if (!parsed.success) {
+      return []
+    }
+    const child = parsed.data
+    return [
+      {
+        childId: child.childId,
+        attempt: child.attempt,
+        status: child.status,
+        label: stringOf(child.label),
+        terminal: stringOf(child.terminal),
+        durationMs: typeof child.durationMs === 'number' ? child.durationMs : undefined,
+        usage: tokenUsageSchema.safeParse(child.usage).data,
+      },
+    ]
+  })
+}
+
+/**
+ * One agent told again (live 2026-09-25): Muse Code drops a field once the
+ * agent moves on, so what it said stays. The UI keeps the label across a
+ * new attempt; outcome, duration and tokens belong to that attempt.
+ */
+function mergeChild(before: WorkflowChild, after: WorkflowChild): WorkflowChild {
+  const isSameAttempt = after.attempt === before.attempt
+  return {
+    ...after,
+    label: after.label ?? before.label,
+    ...(isSameAttempt && {
+      terminal: after.terminal ?? before.terminal,
+      durationMs: after.durationMs ?? before.durationMs,
+      usage: after.usage ?? before.usage,
+    }),
+  }
+}
+
+/** Treat a supplied list as current: only reported agents, enriched by prior fields. */
+function mergeChildren(
+  previous: readonly WorkflowChild[],
+  reported: readonly WorkflowChild[],
+): readonly WorkflowChild[] {
+  const known = new Map(previous.map((child) => [child.childId, child]))
+  return reported.map((child) => {
+    const before = known.get(child.childId)
+    return before === undefined ? child : mergeChild(before, child)
+  })
+}
+
 /**
  * A tool the turn went on without (M14): flagged by the host, or a shell
  * call Muse Code moved to the background, whose result says so (M43, live
@@ -634,6 +707,22 @@ function subagentEntry(item: ItemSnapshot, seq: number): SubagentEntry {
   }
 }
 
+/** A workflow run's card (M47): what launched it, its agents, how it ended. */
+function workflowEntry(item: ItemSnapshot): WorkflowEntry {
+  return {
+    kind: 'workflow',
+    id: item.itemId,
+    status: item.status,
+    workflowRunId: item.workflowRunId,
+    entryId: item.entryId,
+    scriptId: item.scriptId,
+    triggerSource: item.triggerSource,
+    fallbackText: item.fallbackText,
+    children: reportedChildren(item) ?? [],
+    message: item.message,
+  }
+}
+
 /** A new row for an item; `seq` is its arrival number (a subagent keeps it, M25). */
 function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry {
   switch (item.kind) {
@@ -665,6 +754,9 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
     }
     case SUBAGENT_KIND: {
       return subagentEntry(item, seq)
+    }
+    case WORKFLOW_KIND: {
+      return workflowEntry(item)
     }
     default: {
       return {
@@ -747,6 +839,20 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         usage: fresh.usage ?? entry.usage,
         resultSummary: fresh.resultSummary ?? entry.resultSummary,
         resultText: fresh.resultText ?? entry.resultText,
+      }
+    }
+    case 'workflow': {
+      const reported = reportedChildren(item)
+      return {
+        ...entry,
+        status: item.status,
+        workflowRunId: item.workflowRunId ?? entry.workflowRunId,
+        entryId: item.entryId ?? entry.entryId,
+        scriptId: item.scriptId ?? entry.scriptId,
+        triggerSource: item.triggerSource ?? entry.triggerSource,
+        fallbackText: item.fallbackText ?? entry.fallbackText,
+        children: reported === undefined ? entry.children : mergeChildren(entry.children, reported),
+        message: item.message ?? entry.message,
       }
     }
     case 'item': {
@@ -845,14 +951,21 @@ function replayedUserEntry(item: ItemSnapshot, seq: number): TranscriptEntry {
 /**
  * Rebuild the transcript from a session's stored items (`historyLoaded`):
  * user messages become cards (the live path hides them, its own echo being
- * the card), everything else takes the live rows at their final state.
+ * the card). Same-session workflow rows keep details their final items omit.
  */
 function replayHistory(
   items: readonly ItemSnapshot[],
   at: number,
   sequence: number,
+  previous: readonly TranscriptEntry[],
 ): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
   const entries: TranscriptEntry[] = []
+  const knownWorkflows = new Map<string, WorkflowEntry>()
+  for (const entry of previous) {
+    if (entry.kind === WORKFLOW_KIND) {
+      knownWorkflows.set(entry.id, entry)
+    }
+  }
   let next = sequence
   for (const item of items) {
     if (item.kind === USER_MESSAGE_KIND) {
@@ -860,7 +973,14 @@ function replayHistory(
       entries.push(replayedUserEntry(item, next))
     } else if (!HIDDEN_ITEM_KINDS.has(item.kind)) {
       next += 1
-      entries.push(stampCompletion(entryFor(item, at, next), next))
+      const before = item.kind === WORKFLOW_KIND ? knownWorkflows.get(item.itemId) : undefined
+      const isSameRun =
+        before !== undefined &&
+        (before.workflowRunId === undefined ||
+          item.workflowRunId === undefined ||
+          before.workflowRunId === item.workflowRunId)
+      const entry = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      entries.push(stampCompletion(entry, next))
     }
   }
   return { entries, sequence: next }
@@ -982,13 +1102,16 @@ function applyChildItem(
 /**
  * Remember a conversation row whose turn is neither the running one nor the
  * last finished one (M25): it may be a subagent's, arrived before the row
- * naming its child session.
+ * naming its child session. A workflow run is never one: it outlives the
+ * turn that launched it (M47, live 2026-09-25), so its updates keep coming
+ * under that turn after others have started.
  */
 function noteStray(state: UiState, item: ItemSnapshot): UiState['strayItems'] {
   const { turnId } = item
   if (
     turnId === undefined ||
     item.kind === SUBAGENT_KIND ||
+    item.kind === WORKFLOW_KIND ||
     turnId === state.activeTurnId ||
     turnId === state.lastCompletedTurnId
   ) {
@@ -1584,9 +1707,16 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, paid: message.state }
     }
     case 'historyLoaded': {
-      const replayed = replayHistory(message.items, at, state.sequence)
       // The same session read again (a delivery gap, D26) keeps its usage.
-      const isSameSession = message.sessionId === state.sessionId
+      const isSameSession =
+        message.sessionId === state.sessionId ||
+        (state.sessionId === undefined && message.sessionId === state.restoredSessionId)
+      const replayed = replayHistory(
+        message.items,
+        at,
+        state.sequence,
+        isSameSession ? state.transcript : [],
+      )
       const goal = loadedGoal(state, message)
       const editor =
         isSameSession && message.goal !== undefined
@@ -2032,10 +2162,16 @@ export function editsAfter(state: UiState, entryId: string): readonly EditRef[] 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
 export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 export type UserShellEntry = Extract<TranscriptEntry, { kind: 'userShell' }>
+export type WorkflowEntry = Extract<TranscriptEntry, { kind: 'workflow' }>
 
 /** The subagents of this conversation, in transcript order (M14). */
 export function agentsOf(state: UiState): readonly SubagentEntry[] {
   return state.transcript.filter((entry): entry is SubagentEntry => entry.kind === SUBAGENT_KIND)
+}
+
+/** The workflow runs of this conversation, in transcript order (M47). */
+export function workflowsOf(state: UiState): readonly WorkflowEntry[] {
+  return state.transcript.filter((entry): entry is WorkflowEntry => entry.kind === WORKFLOW_KIND)
 }
 
 /** The tool calls the CLI put in the background (M14). */

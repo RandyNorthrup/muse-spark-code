@@ -22,6 +22,14 @@ import {
   SHELL_CALL_STARTED,
   taskAck,
 } from './helpers/m46Capture'
+import {
+  WORKFLOW_COMPLETED,
+  WORKFLOW_ITEM_ID,
+  WORKFLOW_MESSAGE,
+  WORKFLOW_REVISIONS,
+  WORKFLOW_RUN_ID,
+  WORKFLOW_TURN_ID,
+} from './helpers/workflowFixtures'
 
 const ack = (params: Record<string, unknown>) => ({
   status: 'accepted',
@@ -1422,6 +1430,34 @@ describe('MuseSession: background work, `!` commands, explanations (M46)', () =>
     await expect(session.clarifyQuestions('q1', 'late')).rejects.toMatchObject({
       name: 'PromptSettledError',
       reason: 'alreadySettled',
+    })
+  })
+})
+
+describe('MuseCodeHost: workflows (M47)', () => {
+  it('passes a run and its agents through as Muse Code sent them', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    for (const revision of WORKFLOW_REVISIONS) {
+      server.notify('item/updated', { sessionId: session.sessionId, item: revision })
+    }
+    await settle()
+    expect(events).toHaveLength(WORKFLOW_REVISIONS.length)
+    expect(events.at(-1)).toEqual({
+      type: 'itemUpdated',
+      item: {
+        itemId: WORKFLOW_ITEM_ID,
+        kind: 'workflow',
+        status: 'completed',
+        turnId: WORKFLOW_TURN_ID,
+        fallbackText: 'Workflow: model-chosen generated workflow',
+        workflowRunId: WORKFLOW_RUN_ID,
+        entryId: 'generated.model-chosen',
+        scriptId: 'generated.workflow.generated.model-chosen',
+        triggerSource: 'guidanceAuto',
+        children: WORKFLOW_COMPLETED.children,
+        message: WORKFLOW_MESSAGE,
+      },
     })
   })
 })

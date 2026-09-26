@@ -61,7 +61,9 @@ import {
   type UiState,
   userShellCommandOf,
   visibleEditorContext,
+  workflowsOf,
 } from './state/uiState'
+import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 
 export interface AppProps {
@@ -627,7 +629,9 @@ export function App({
       if (view === 'history') {
         // Always re-list: the rows change while the dialog is closed.
         postMessage({ type: 'listSessions' })
-      } else if (view === 'usage') {
+      } else if (view === 'usage' || view === 'agents') {
+        // The Agent map notes Muse Code's delegation and workflow settings
+        // from the same account facts (M47), read fresh as the dialog's are.
         postMessage({ type: 'readUsage' })
       }
       setOverlay(view)
@@ -1023,6 +1027,13 @@ export function App({
   )
   const agents = agentsOf(state)
   const backgroundTasks = backgroundTasksOf(state)
+  // A workflow's agents are agents too (M47): the header's pill counts them.
+  const workflows = workflowsOf(state)
+  const workflowAgents = workflows.flatMap((workflow) => workflow.children)
+  const agentCount = agents.length + workflowAgents.length
+  const runningAgentCount =
+    agents.filter((agent) => agent.status === 'inProgress').length +
+    workflowAgents.filter((child) => isChildRunning(child)).length
   const effortLevels = effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
@@ -1225,6 +1236,8 @@ export function App({
         onStopAllTasks={onStopAllTasks}
         onOpenMuseSettings={onOpenMuseSettings}
         onClose={closeOverlay}
+        workflows={workflows}
+        workflowTriggerMode={state.usageReport?.account?.workflowTriggerMode}
       />
     ) : null
   const history =
@@ -1271,8 +1284,8 @@ export function App({
           onNewConversation={onNewConversation}
           onOpenHistory={onOpenHistory}
           onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
-          agentCount={agents.length}
-          runningAgentCount={agents.filter((agent) => agent.status === 'inProgress').length}
+          agentCount={agentCount}
+          runningAgentCount={runningAgentCount}
           runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
           onOpenAgents={onOpenAgents}
         />

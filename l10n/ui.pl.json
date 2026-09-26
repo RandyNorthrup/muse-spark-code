@@ -519,6 +519,37 @@
   "agentDelegationOff": "Delegowanie do podagentów w Muse Code jest wyłączone (domyślnie), więc model nie ma w tej rozmowie narzędzi agentów. Aby je włączyć, ustaw run.subagent_delegation_mode na \"auto\" w pliku ustawień Muse Code; rozszerzenie nigdy nie edytuje tego pliku.",
   "agentOpenMuseSettings": "Otwórz plik ustawień Muse Code",
   "museSettingsMissing": "Muse Code nie zapisał jeszcze pliku ustawień. Plik znajdowałby się tutaj: {path}",
+  "workflowRowLabel": "Przepływ pracy",
+  "workflowGenerated": "Napisany dla tego zadania",
+  "workflowTriggerSources": {
+    "guidanceAuto": "uruchomiony przez model"
+  },
+  "workflowAgentsLabel": "Agenci przepływu pracy",
+  "workflowChildStatuses": {
+    "scheduled": "w kolejce",
+    "started": "w toku",
+    "usage": "w toku",
+    "completed": "ukończono",
+    "terminal": "zakończono"
+  },
+  "workflowChildUntitled": "Agent {number}",
+  "workflowAttempt": "próba {attempt}",
+  "workflowsCount": {
+    "one": "{count} przepływ pracy",
+    "few": "{count} przepływy pracy",
+    "many": "{count} przepływów pracy",
+    "other": "{count} przepływu pracy"
+  },
+  "workflowsLabel": "Przepływy pracy",
+  "workflowTriggerModes": {
+    "auto": "Przepływy pracy w Muse Code są ustawione na \"auto\": przy dużych zadaniach model może sam uruchomić przepływ pracy, a uruchamia go, gdy o to poprosisz. Każdy agent przepływu pracy wykonuje własne wywołania modelu.",
+    "explicit": "Przepływy pracy w Muse Code są ustawione na \"explicit\": model uruchamia przepływ pracy tylko wtedy, gdy o to poprosisz.",
+    "off": "Przepływy pracy w Muse Code są wyłączone (\"off\"): model nie ma narzędzia przepływów pracy."
+  },
+  "workflowTriggerOther": "Ustawienie przepływów pracy w Muse Code to {mode}.",
+  "workflowTriggerHowTo": "Aby to zmienić, ustaw run.workflow_trigger_mode na \"auto\", \"explicit\" lub \"off\" w pliku ustawień Muse Code; rozszerzenie nigdy nie edytuje tego pliku.",
+  "workflowLaunched": "Uruchomiono: działa w tle i zgłasza wynik w tej rozmowie.",
+  "workflowScriptSaved": "Skrypt zapisano w {path}",
   "backgroundTasksCount": {
     "one": "{count} zadanie w tle",
     "few": "{count} zadania w tle",

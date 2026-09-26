@@ -53,6 +53,21 @@ describe('parseWebviewToHostMessage', () => {
     ['unknown goal verb', { type: 'goalCommand', verb: 'complete' }],
     ['goal command without request id', { type: 'goalCommand', verb: 'pause' }],
     ['goal command with numeric request id', { type: 'goalCommand', requestId: 1, verb: 'pause' }],
+    [
+      'workflow cancel remains deferred',
+      { type: 'workflowCancel', sourceSessionId: 's1', workflowRunId: 'run-1' },
+    ],
+    [
+      'workflow child control remains deferred',
+      {
+        type: 'workflowChildControl',
+        sourceSessionId: 's1',
+        workflowRunId: 'run-1',
+        childId: 'c1',
+        attempt: 1,
+        action: 'skip',
+      },
+    ],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)

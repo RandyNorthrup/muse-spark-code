@@ -696,6 +696,27 @@ export const SUBAGENT_RESULT_READY = 'resultReady'
 export const SUBAGENT_CLOSED = 'closed'
 export const MUSE_DELEGATION_DEFAULT = 'off'
 export const MUSE_DELEGATION_ENABLED = 'auto'
+
+// --- Workflows (M47, PLAN.md D40) ---
+
+/** The run's own item kind, and the agent tool that launches one. */
+export const WORKFLOW_KIND = 'workflow'
+export const WORKFLOW_TOOL = 'workflow'
+/**
+ * A child's statuses while it runs (live 2026-09-25: `scheduled`, then
+ * `started`, `usage` with its tokens, `completed` and `terminal`). Muse Code
+ * showed `started` and `usage` while its child ran; the badge counts only
+ * those as running.
+ */
+export const WORKFLOW_CHILD_RUNNING_STATUSES: ReadonlySet<string> = new Set(['started', 'usage'])
+/**
+ * Muse Code's `run.workflow_trigger_mode` when its settings file leaves it
+ * unset: 1.3.0 ran as `auto` (live 2026-09-25: the session's workflow
+ * guidance let the model start one, and the run named `guidanceAuto`).
+ */
+export const MUSE_WORKFLOW_TRIGGER_DEFAULT = 'auto'
+/** The only generated workflow entry ID observed in M47's live capture. */
+export const CAPTURED_GENERATED_WORKFLOW_ENTRY_ID = 'generated.model-chosen'
 // The CLI's trace logs, one per `muse serve` process, under its data root.
 export const MUSE_TRACE_LOG_SEGMENTS = [
   '.local',

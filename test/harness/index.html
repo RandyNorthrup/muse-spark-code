@@ -701,6 +701,7 @@
                           signInMethod: 'cli',
                           cliVersion: '1.3.0',
                           delegationMode: 'off',
+                          workflowTriggerMode: 'auto',
                         },
                         subscription: {
                           observedAtMs: Date.now() - 4 * 60 * 1000,
@@ -2167,6 +2168,95 @@
               setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.')
             })
           })
+        },
+        // --- M47: workflow runs: the captured one finished, a second running with its controls ---
+        'muse-workflow': () => {
+          window.harnessSilent = true
+          setDraft('Use a workflow with one agent, labelled ping, that answers pong')
+          key({ key: 'Enter' })
+          const runOf = (itemId, workflowRunId, status, children, message) => ({
+            itemId,
+            kind: 'workflow',
+            status,
+            workflowRunId,
+            entryId: 'generated.model-chosen',
+            scriptId: 'generated.workflow.generated.model-chosen',
+            triggerSource: 'guidanceAuto',
+            fallbackText: 'Workflow: model-chosen generated workflow',
+            children,
+            ...(message === undefined ? {} : { message }),
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'wft1',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'workflow',
+              args: JSON.stringify({
+                script:
+                  'export default async function workflow(host) { const result = await host.agent({ input: "answer with the single word pong", label: "ping" }); return { status: "ok", ref: result.ref, text: result.text }; }',
+              }),
+              visibleOutput: JSON.stringify({
+                status: 'launched',
+                entryId: 'generated.model-chosen',
+                scriptPath:
+                  'C:\\Users\\me\\AppData\\Local\\Temp\\muse-workflow-session-4pclcq\\workflows\\scripts\\78b52bb7.js',
+                workflowRunId: 'run-1',
+              }),
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: runOf(
+              'wf1',
+              'run-1',
+              'completed',
+              [
+                {
+                  childId: 'c1',
+                  attempt: 1,
+                  status: 'terminal',
+                  terminal: 'completed',
+                  durationMs: 2183,
+                  label: 'ping',
+                  usage: {
+                    inputTokens: 9995,
+                    outputTokens: 135,
+                    cachedTokens: 5105,
+                    reasoningTokens: 70,
+                  },
+                },
+              ],
+              '<workflow-launch-reconciled>{"final_summary":{"status":"completed","summary":"pong"},"latest_failure":null}</workflow-launch-reconciled>',
+            ),
+          })
+          event({
+            type: 'itemStarted',
+            item: runOf('wf2', 'run-2', 'inProgress', [
+              {
+                childId: 'c2',
+                attempt: 1,
+                status: 'usage',
+                label: 'review the parser',
+                usage: {
+                  inputTokens: 48_200,
+                  outputTokens: 1_900,
+                  cachedTokens: 20_000,
+                  reasoningTokens: 400,
+                },
+              },
+              { childId: 'c3', attempt: 1, status: 'scheduled', label: 'check the tests' },
+            ]),
+          })
+          later(150, () => {
+            document.querySelector('[data-entry-id="wft1"] .tool-toggle')?.click()
+          })
+        },
+        // The same runs in the Agent map, with Muse Code's trigger setting noted.
+        'muse-workflow-map': () => {
+          steps['muse-workflow']()
+          later(600, () => document.querySelector('.agents-pill').click())
         },
         // --- M25: a refused image says why, and a link out of the workspace is refused ---
         'size-refused': () => {

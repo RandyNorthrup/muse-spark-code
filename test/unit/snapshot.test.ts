@@ -165,5 +165,11 @@ describe('the saved conversation (M25)', () => {
       }),
     }
     expect(restoredUiState(broken)).toMatchObject({ pendingRestore: undefined, transcript: [] })
+    const wrongSession = throughJson({ ...webviewStateOf(shown, true), sessionId: 'other' })
+    expect(restoredUiState(wrongSession)).toMatchObject({
+      restoredSessionId: 'other',
+      pendingRestore: undefined,
+      transcript: [],
+    })
   })
 })

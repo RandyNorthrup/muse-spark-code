@@ -592,6 +592,42 @@ export const EN = {
     'Muse Code’s subagent delegation is off (its default), so the model has no agent tools in this conversation. Set run.subagent_delegation_mode to "auto" in the Muse Code settings file to enable it; the extension never edits that file.',
   agentOpenMuseSettings: 'Open the Muse Code settings file',
   museSettingsMissing: 'Muse Code has not written a settings file yet. It would be at {path}',
+  // Workflows (M47, PLAN.md D40): a run's card, its agents and controls, the
+  // Workflow tool's row, and Muse Code's trigger setting in the Agent map.
+  workflowRowLabel: 'Workflow',
+  // A run the model wrote for this task, not a saved one.
+  workflowGenerated: 'Written for this task',
+  // What started a run (Muse Code's `triggerSource`); one not listed shows as it came.
+  workflowTriggerSources: {
+    guidanceAuto: 'started by the model',
+  },
+  workflowAgentsLabel: 'Workflow agents',
+  // A workflow agent's status before it ends; one not listed shows as it came.
+  workflowChildStatuses: {
+    scheduled: 'queued',
+    started: 'running',
+    usage: 'running',
+    completed: 'completed',
+    terminal: 'finished',
+  },
+  // An agent the workflow gave no label; {number} counts from 1.
+  workflowChildUntitled: 'Agent {number}',
+  workflowAttempt: 'attempt {attempt}',
+  workflowsCount: forms({ one: '{count} workflow', other: '{count} workflows' }),
+  workflowsLabel: 'Workflows',
+  // Muse Code's `run.workflow_trigger_mode`, one sentence per value.
+  workflowTriggerModes: {
+    auto: 'Muse Code’s workflows are on auto: the model may start one on its own for large work, and starts one when you ask. Each workflow agent makes its own model calls.',
+    explicit:
+      'Muse Code’s workflows are on explicit: the model starts one only when you ask for it.',
+    off: 'Muse Code’s workflows are off: the model has no workflow tool.',
+  },
+  workflowTriggerOther: 'Muse Code’s workflow setting is {mode}.',
+  workflowTriggerHowTo:
+    'Set run.workflow_trigger_mode to "auto", "explicit" or "off" in the Muse Code settings file to change it; the extension never edits that file.',
+  // The Workflow tool's row.
+  workflowLaunched: 'Launched: it runs in the background and reports back to this conversation.',
+  workflowScriptSaved: 'Script saved at {path}',
   backgroundTasksCount: forms({
     one: '{count} background task',
     other: '{count} background tasks',
