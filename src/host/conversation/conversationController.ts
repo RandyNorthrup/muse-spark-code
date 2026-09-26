@@ -477,6 +477,9 @@ export class ConversationController {
    * what Ctrl+B moves to the background.
    */
   private readonly foregroundShells = new Set<string>()
+  /** A shell's row can start before its approval is granted (Model API). */
+  private readonly pendingShellApprovals = new Set<string>()
+  private readonly pausedForegroundShells = new Set<string>()
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -637,6 +640,8 @@ export class ConversationController {
     this.activeTurnId = undefined
     this.finishedTurns.clear()
     this.forgetForegroundShells()
+    this.pendingShellApprovals.clear()
+    this.pausedForegroundShells.clear()
     // A turn that ended with its session, no end heard: said, and forgotten.
     for (const turnId of this.turnClocks.keys()) {
       this.deps.log.info(`Turn ${turnId} ended with its session`)
@@ -801,6 +806,9 @@ export class ConversationController {
       return
     }
     if (event.type === 'approvalRequested') {
+      if (SHELL_TOOLS.has(event.toolName)) {
+        this.noteShellApprovalRequested(event.itemId)
+      }
       // The tool, never its input (M39).
       this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
       const choice = this.autoApprovalChoice(event)
@@ -808,10 +816,12 @@ export class ConversationController {
         void this.autoApprove(event, choice)
         return
       }
-    }
-    if (event.type === 'approvalResolved' && this.autoApproved.delete(event.approvalId)) {
-      this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
-      return
+    } else if (event.type === 'approvalResolved') {
+      this.noteShellApprovalResolved(event)
+      if (this.autoApproved.delete(event.approvalId)) {
+        this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
+        return
+      }
     }
     this.forward(event)
     this.track(event)
@@ -850,6 +860,8 @@ export class ConversationController {
           this.activeTurnId = undefined
           // What the turn left running is its own no more (M46).
           this.forgetForegroundShells()
+          this.pendingShellApprovals.clear()
+          this.pausedForegroundShells.clear()
         }
         this.noteActivity()
         if (event.terminal === 'failed' && event.errorKind === AUTH_REQUIRED_ERROR_KIND) {
@@ -864,6 +876,9 @@ export class ConversationController {
       case 'sessionStatus': {
         if (event.status === IDLE_STATUS) {
           this.activeTurnId = undefined
+          this.forgetForegroundShells()
+          this.pendingShellApprovals.clear()
+          this.pausedForegroundShells.clear()
         }
         break
       }
@@ -886,6 +901,10 @@ export class ConversationController {
       }
       case 'itemUpdated':
       case 'itemCompleted': {
+        if (event.type === 'itemCompleted' || event.item.status !== IN_PROGRESS_STATUS) {
+          this.pendingShellApprovals.delete(event.item.itemId)
+          this.pausedForegroundShells.delete(event.item.itemId)
+        }
         this.noteForegroundShell(event.item)
         this.noteSandboxFailure(event.item.failureReason)
         // A `!` command says it in its output (captured 2026-09-25, M46).
@@ -918,6 +937,30 @@ export class ConversationController {
     this.deps.onForegroundTasksChanged()
   }
 
+  private noteShellApprovalRequested(itemId: string): void {
+    this.pendingShellApprovals.add(itemId)
+    if (!this.foregroundShells.delete(itemId)) {
+      return
+    }
+    this.pausedForegroundShells.add(itemId)
+    this.deps.onForegroundTasksChanged()
+  }
+
+  private noteShellApprovalResolved(
+    event: Extract<AgentEvent, { type: 'approvalResolved' }>,
+  ): void {
+    this.pendingShellApprovals.delete(event.itemId)
+    if (
+      !this.pausedForegroundShells.delete(event.itemId) ||
+      event.decision !== APPROVED_DECISION ||
+      this.activeTurnId === undefined
+    ) {
+      return
+    }
+    this.foregroundShells.add(event.itemId)
+    this.deps.onForegroundTasksChanged()
+  }
+
   private isForegroundShell(item: ItemSnapshot, activeTurnId: string | undefined): boolean {
     return (
       item.kind === TOOL_CALL_KIND &&
@@ -925,6 +968,7 @@ export class ConversationController {
       SHELL_TOOLS.has(item.tool) &&
       item.status === IN_PROGRESS_STATUS &&
       item.background !== true &&
+      !this.pendingShellApprovals.has(item.itemId) &&
       item.turnId !== undefined &&
       item.turnId === activeTurnId
     )

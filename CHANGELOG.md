@@ -96,7 +96,9 @@ while they are (PLAN.md D30, D34).
 - **M46 session cleanup and resumed shell shortcut.** Releasing the last
   surface of a Muse Code session now asks the CLI to stop its background
   tasks; another surface holding that session leaves them running. Restored
-  foreground shell calls re-enable `Ctrl+B` from the resumed history.
+  foreground shell calls re-enable `Ctrl+B` from the resumed history. A
+  Model API shell waiting for permission leaves `Ctrl+B` to VS Code until
+  the command is approved and can actually be moved.
 
 - **Windows accessibility runner pressure** (M46). The headless Chrome
   gate runs at most two pages together on Windows; its scenarios, axe

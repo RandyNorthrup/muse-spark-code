@@ -3552,8 +3552,12 @@ M46 was committed as `8a85d79` and opened as PR #33. Review found two
 session-lifecycle gaps: final-surface disposal must stop CLI background
 tasks, and resumed foreground shell history must restore the `Ctrl+B`
 context. Both have focused failing-before/passing-after tests. The
-corrected tree passed the full local gate; hosted review of the correction
-remains open.
+corrected tree passed the full local gate. Its fresh review found one
+more case: a Model API shell row starts before approval, so the running
+shell shortcut stays off while the permission card waits. A real fake-API
+and held-shell test failed before the change, passed after, and verifies
+the shortcut works once approved. The second correction's local gate
+passed; hosted review remains open.
 
 - **Goal**: what Muse Code's TUI does with Ctrl+B, `/stop` and `!`, and its
   "let me explain" answer to a question, from the panel, on both backends.

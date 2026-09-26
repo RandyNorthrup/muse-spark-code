@@ -522,7 +522,8 @@ tool's runner, for ten minutes at most, and its row has a **Stop**.
 **Background work.** A shell command the agent is waiting on can go on in the
 background while the agent carries on: **Move to background** on its row, or
 `Ctrl+B` (also on a Mac) while the conversation in view runs one; VS Code's
-own `Ctrl+B` (the sidebar) works as usual otherwise. A background command
+own `Ctrl+B` (the sidebar) works as usual otherwise, including while a shell
+permission card waits for your answer. A background command
 keeps running after its turn ends, marked "background", with **Stop** on its
 row; the header pill counts the ones still running, and the Agent map lists
 every background task with its own **Stop** and a **Stop all** (also

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
-import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
@@ -21,7 +21,7 @@ import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
-import { noopToolIo } from './helpers/fakeToolIo'
+import { heldShellToolIo, noopToolIo } from './helpers/fakeToolIo'
 import {
   fakeInitializeResult,
   fakeMspHost,
@@ -2206,25 +2206,9 @@ describe('ConversationController: backends and tiers (M7)', () => {
       userProfileDir: String.raw`C:\Users\r`,
       workspaceRoot: String.raw`C:\Users\r\ws`,
     })
-    const api = fakeModelApi()
-    const modelApiHost = new ModelApiHost({
-      client: fakeModelApiClient(api, t.log),
+    const { api, controller } = modelApiController(t, {
       workspaceRoot: String.raw`C:\Users\r\ws`,
       platform: 'win32',
-      io: noopToolIo,
-      contextIo: memoryContextIo(new Map()),
-      newId: () => 'fixed',
-      now: () => 0,
-      log: t.log,
-      personalSkillsRoot: undefined,
-      isWorkspaceTrusted: () => true,
-      describeEnvironment: () => Promise.resolve({ git: undefined }),
-      isPaidFeatureOn: () => false,
-      notePaidUse: () => undefined,
-    })
-    const controller = new ConversationController({
-      ...t.deps,
-      ensureHost: () => Promise.resolve(modelApiHost),
     })
     api.script({ text: 'pong' })
     await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'ping', attachmentIds: [] })
@@ -2568,6 +2552,40 @@ function agentEvents(t: ReturnType<typeof setup>) {
   return t.surface.posted.flatMap((message) =>
     message.type === 'agentEvent' ? [message.event] : [],
   )
+}
+
+/** A controller backed by the in-process Model API, with explicit test I/O. */
+function modelApiController(
+  t: ReturnType<typeof setup>,
+  options: {
+    readonly workspaceRoot?: string
+    readonly platform?: NodeJS.Platform
+    readonly io?: ModelApiHostDeps['io']
+    readonly contextIo?: ModelApiHostDeps['contextIo']
+    readonly newId?: () => string
+  } = {},
+) {
+  const api = fakeModelApi()
+  const host = new ModelApiHost({
+    client: fakeModelApiClient(api, t.log),
+    workspaceRoot: options.workspaceRoot ?? '/ws',
+    platform: options.platform ?? 'linux',
+    io: options.io ?? noopToolIo,
+    contextIo: options.contextIo ?? memoryContextIo(new Map()),
+    newId: options.newId ?? (() => 'fixed'),
+    now: () => 0,
+    log: t.log,
+    personalSkillsRoot: undefined,
+    isWorkspaceTrusted: () => true,
+    describeEnvironment: () => Promise.resolve({ git: undefined }),
+    isPaidFeatureOn: () => false,
+    notePaidUse: () => undefined,
+  })
+  const controller = new ConversationController({
+    ...t.deps,
+    ensureHost: () => Promise.resolve(host),
+  })
+  return { api, host, controller }
 }
 
 describe('ConversationController: permission hardening (D24)', () => {
@@ -3759,6 +3777,61 @@ describe('ConversationController: the user’s own shell commands (M46)', () => 
 })
 
 describe('ConversationController: background work (M46)', () => {
+  it('leaves Ctrl+B to VS Code while a Model API shell awaits approval', async () => {
+    const t = setup({ hasApprovalUi: true })
+    const io = heldShellToolIo({}, '/ws')
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      io,
+      contextIo: memoryContextIo(io.files),
+      newId: () => `id${String(++nextId)}`,
+    })
+    try {
+      api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: '{"command":"npm run dev","description":"Start the dev server"}',
+              callId: 'call_dev',
+            },
+          ],
+        },
+        { text: 'Done.' },
+      )
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'l1',
+        text: 'start the dev server',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+      })
+      const approval = agentEvents(t).find((event) => event.type === 'approvalRequested')
+      if (approval?.type !== 'approvalRequested') {
+        throw new Error('expected shell approval')
+      }
+      expect(controller.hasForegroundShell).toBe(false)
+      expect(io.runs).toHaveLength(0)
+      await controller.handle({
+        type: 'decideApproval',
+        approvalId: approval.approvalId,
+        choiceId: 'allow_once',
+        requirementId: approval.requirementId,
+      })
+      await vi.waitFor(() => {
+        expect(io.runs).toHaveLength(1)
+      })
+      expect(controller.hasForegroundShell).toBe(true)
+      await controller.moveRunningToBackground()
+      expect(io.runs[0]?.isLifted).toBe(true)
+    } finally {
+      controller.dispose()
+      await host.close()
+    }
+  })
+
   it('restores Ctrl+B from the running foreground shell in a resumed history', async () => {
     const t = withHistory()
     t.server.handle('session/resume', () => {
