@@ -3799,8 +3799,8 @@ listing are M62b.
     installed with each fork's CLI and the integration tests run in it,
     weekly and by hand. Their feeds are refused in the container; the
     first run on GitHub's runners passed in all four: Cursor 3.22.7 (VS
-    Code 1.128), Devin Desktop 3.10.35 (1.126), Kiro 1.1.70 (base not
-    named) and Positron 2026.09.1 (1.130), 9 integration tests each.
+    Code 1.128), Devin Desktop 3.10.35 (1.126), Kiro 1.1.70 (1.131) and
+    Positron 2026.09.1 (1.130), 9 integration tests each.
 - **Acceptance (M62a)**: every gate green with the floor's types; the
   integration tests on a 1.99 host; drills for the API and Node checks.
 

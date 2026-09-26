@@ -85,12 +85,15 @@ function describe(root) {
   const app = path.join(root, 'resources', 'app')
   const product = readJson(path.join(app, 'product.json'))
   const manifest = readJson(path.join(app, 'package.json'))
-  // Cursor names its VS Code base apart (vscodeVersion); Devin Desktop and
-  // Positron keep VS Code's as the product's and their own under a name of
-  // their own; a fork numbered in its own right (Kiro) may name it nowhere.
-  const vscode = [product.vscodeVersion, product.version, manifest.version].find(
-    (value) => typeof value === 'string' && VSCODE_VERSION.test(value),
-  )
+  // Cursor names its VS Code base apart (vscodeVersion, Kiro vsCodeVersion);
+  // Devin Desktop and Positron keep VS Code's as the product's and their own
+  // under a name of their own; another fork may name it nowhere.
+  const vscode = [
+    product.vscodeVersion,
+    product.vsCodeVersion,
+    product.version,
+    manifest.version,
+  ].find((value) => typeof value === 'string' && VSCODE_VERSION.test(value))
   const own = [
     ...new Set([product.version, product.windsurfVersion, product.positronVersion]),
   ].filter((value) => typeof value === 'string' && value !== vscode)
