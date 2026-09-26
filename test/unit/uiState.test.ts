@@ -2169,6 +2169,36 @@ describe('uiReducer: the session goal (M45)', () => {
     expect(loaded({ sessionId: 's2' })).toBeUndefined()
   })
 
+  it('reconciles an open goal editor with a recovered history goal', () => {
+    const editing = uiReducer(withGoal, { type: 'goalEditStarted', objective: goal.objective })
+    const staleDraft = uiReducer(editing, { type: 'goalEditChanged', draft: 'Stale draft' })
+    const history: Extract<HostToWebviewMessage, { type: 'historyLoaded' }> = {
+      type: 'historyLoaded',
+      sessionId: 's1',
+      items: [],
+      todos: [],
+    }
+    const changed = uiReducer(
+      staleDraft,
+      host({ ...history, goal: { ...goal, objective: 'Recovered objective' } }),
+    )
+    expect(changed.goalEdit).toMatchObject({ draft: 'Recovered objective', pending: undefined })
+    const cleared = uiReducer(staleDraft, host({ ...history, goal: null }))
+    expect(cleared.goalEdit).toBeUndefined()
+
+    const pending = uiReducer(editing, {
+      type: 'goalEditSubmitted',
+      requestId: 'edit-1',
+      objective: 'Own edit',
+    })
+    const newerDraft = uiReducer(pending, { type: 'goalEditChanged', draft: 'Newer typing' })
+    const ownEdit = uiReducer(
+      newerDraft,
+      host({ ...history, goal: { ...goal, objective: 'Own edit' } }),
+    )
+    expect(ownEdit.goalEdit?.draft).toBe('Newer typing')
+  })
+
   it('drops the goal with the conversation', () => {
     expect(uiReducer(withGoal, { type: 'conversationCleared' }).goal).toBeUndefined()
     expect(uiReducer(withGoal, host({ type: 'conversationCleared' })).goal).toBeUndefined()

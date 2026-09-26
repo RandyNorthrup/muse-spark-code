@@ -1408,6 +1408,25 @@ tool round could remain idle: its pending wake was never drained before the
 round cap failed the turn. The cap still ends that turn; when the goal is
 active, its accepted wake is queued as a fresh bounded turn so the next
 request receives the objective.
+The subsequent audit found the same final-round loss for accepted steered
+input, duplicate queued goal wakes when a goal is replaced during compaction,
+and Stop after a compaction summary committed but before token counting
+returned. Steered input now queues fresh user turns at the round cap; queued
+goal wakes carry the user-command revision and withdraw when superseded;
+late Stop keeps the committed summary but pauses further goal work. The
+following PR review found a stale inline goal editor after gap recovery and
+an old session's goal acknowledgement posted after the panel switched
+History sessions. The editor reconciles with recovered goals under the same
+own-edit/newer-draft rules as live events, and the controller routes goal
+acknowledgements only to their operated session.
+The follow-up audit found three more races: a late `sessionNotLoaded`
+refusal from an old goal RPC could still replace a newer History session
+inside the retry helper; Stop during post-summary counting could pause a
+goal set after Stop; and steering accepted while a reply spent the goal's
+budget could be silently dropped. The retry helper now checks the operated
+session before resuming it, Stop pauses its goal at the time of the action,
+and accepted steering gets a fresh ordinary turn when the goal budget
+terminates the old turn.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3419,7 +3438,7 @@ translations. The order is D36's table:
   `/goal`; 31 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G40; both
+  reducer, the controller, the strip and the prompt; drills G1–G48; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the

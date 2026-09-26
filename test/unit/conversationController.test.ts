@@ -2899,6 +2899,35 @@ function gapInlineHistory(sessionId: string) {
   }
 }
 
+function setupWithDeferredHost() {
+  const gate = Promise.withResolvers<undefined>()
+  let isDelayed = false
+  let isWaiting = false
+  const t = setup({
+    beforeEnsureHost: () => {
+      if (!isDelayed) {
+        return Promise.resolve()
+      }
+      isWaiting = true
+      return gate.promise
+    },
+  })
+  return {
+    t,
+    delay: () => {
+      isDelayed = true
+    },
+    allowOtherRequests: () => {
+      isDelayed = false
+    },
+    release: () => {
+      isDelayed = false
+      gate.resolve(undefined)
+    },
+    isWaiting: () => isWaiting,
+  }
+}
+
 async function activeGoalForGap(t: ReturnType<typeof setup>): Promise<void> {
   await t.send('l1', 'hi')
   t.server.notify('session/goalChanged', {
@@ -3069,18 +3098,8 @@ describe('ConversationController: protocol semantics (D26)', () => {
   })
 
   it('keeps a newer live goal change when an older gap read finishes later', async () => {
-    const gate = Promise.withResolvers<undefined>()
-    let isDelayed = false
-    let isWaiting = false
-    const t = setup({
-      beforeEnsureHost: () => {
-        if (!isDelayed) {
-          return Promise.resolve()
-        }
-        isWaiting = true
-        return gate.promise
-      },
-    })
+    const deferred = setupWithDeferredHost()
+    const { t } = deferred
     await activeGoalForGap(t)
     t.server.handle('view/page', () => ({
       events: [
@@ -3101,15 +3120,14 @@ describe('ConversationController: protocol semantics (D26)', () => {
       nextCursor: null,
     }))
     t.surface.posted.length = 0
-    isDelayed = true
+    deferred.delay()
     t.server.notify('view/gap', { sessionId: 's1', after: 'v:s1:1', next: 'v:s1:3' })
     await vi.waitFor(() => {
-      expect(isWaiting).toBe(true)
+      expect(deferred.isWaiting()).toBe(true)
     })
     t.server.notify('session/goalChanged', { sessionId: 's1', goal: null })
     await settle()
-    isDelayed = false
-    gate.resolve(undefined)
+    deferred.release()
     await vi.waitFor(() => {
       expect(t.surface.posted.filter((message) => message.type === 'historyLoaded')).toHaveLength(1)
     })
@@ -3548,6 +3566,49 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
     expect(calls).toBe(2)
     expect(notices(t).at(-1)).toMatchObject({ text: UI_TEXT.goalClearedNotice })
   })
+
+  it.each([
+    { result: 'accepted', isNotLoaded: false },
+    { result: 'unloaded', isNotLoaded: true },
+  ])(
+    'does not route an old $result goal request into a newly resumed session',
+    async ({ isNotLoaded }) => {
+      const deferred = setupWithDeferredHost()
+      const { t } = deferred
+      await t.send('l1', 'hi')
+      t.finishTurn()
+      await settle()
+      t.server.handle('goal/set', (params) => {
+        if (isNotLoaded) {
+          throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+        }
+        return accepted(params)
+      })
+      t.server.handle('session/resume', (params) =>
+        envelope({ ...storedSession, sessionId: params['sessionId'], status: 'idle' }),
+      )
+      t.server.handle('view/page', () => ({ events: [], nextCursor: null }))
+      deferred.delay()
+      const oldGoal = t.controller.handle(goal('set', 'Old objective'))
+      await vi.waitFor(() => {
+        expect(deferred.isWaiting()).toBe(true)
+      })
+      deferred.allowOtherRequests()
+      await t.controller.handle({ type: 'resumeSession', sessionId: 's2' })
+      const activity = vi.spyOn(t.deps.sessions, 'setLastSession')
+      t.surface.posted.length = 0
+      deferred.release()
+      await oldGoal
+      expect(t.server.requestsFor('goal/set')[0]?.params).toMatchObject({ sessionId: 's1' })
+      expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+      expect(t.memory.lastSession?.sessionId).toBe('s2')
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'notice', text: expect.stringContaining('Old objective') }),
+      )
+      expect(t.surface.posted.some((message) => message.type === 'goalCommandResult')).toBe(false)
+      expect(activity).not.toHaveBeenCalled()
+    },
+  )
 
   it('forwards goalChanged, and a resumed snapshot brings the goal with the history', async () => {
     const t = setup()

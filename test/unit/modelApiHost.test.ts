@@ -72,7 +72,7 @@ function setup(
       paidUses.push({ feature, units })
     },
   })
-  return { api, host, log, io, files: io.files, shellCalls: io.shellCalls, paidUses }
+  return { api, client, host, log, io, files: io.files, shellCalls: io.shellCalls, paidUses }
 }
 
 async function startSession(
@@ -2183,6 +2183,44 @@ async function beginBudgetGoal(
   await turnDone()
 }
 
+async function startUnbudgetedGoal(t: ReturnType<typeof setup>) {
+  const started = await startSession(t)
+  t.api.script({ text: 'Goal work' })
+  await started.session.controlGoal({ verb: 'set', objective: 'Ship it' })
+  await started.turnDone()
+  return started
+}
+
+async function startBudgetedGoal(t: ReturnType<typeof setup>) {
+  const started = await startSession(t)
+  await beginBudgetGoal(t, started.session, started.turnDone)
+  return started
+}
+
+function holdCompactionCount(t: ReturnType<typeof setup>) {
+  const counted = Promise.withResolvers<number>()
+  const countStarted = Promise.withResolvers<undefined>()
+  vi.spyOn(t.client, 'countInputTokens').mockImplementation(() => {
+    countStarted.resolve(undefined)
+    return counted.promise
+  })
+  return { counted, countStarted }
+}
+
+/** Fifty tool replies, with the final one held for a busy command. */
+function scriptHeldFinalToolRound(
+  t: ReturnType<typeof setup>,
+  hold: Promise<void>,
+  finalText: string,
+): void {
+  const tool = { name: 'get_goal', arguments: '{}' }
+  t.api.script(
+    ...Array.from({ length: MODEL_API_MAX_TOOL_ROUNDS - 1 }, () => ({ calls: [tool] })),
+    { calls: [tool], hold },
+    { text: finalText },
+  )
+}
+
 /** Records whether any persisted replay had a call without its output. */
 function storeTrackingPendingCalls() {
   const store = memorySessionStore()
@@ -2345,12 +2383,7 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
     const held = Promise.withResolvers<undefined>()
-    const tool = { name: 'get_goal', arguments: '{}' }
-    t.api.script(
-      ...Array.from({ length: MODEL_API_MAX_TOOL_ROUNDS - 1 }, () => ({ calls: [tool] })),
-      { calls: [tool], hold: held.promise },
-      { text: 'Working on the goal' },
-    )
+    scriptHeldFinalToolRound(t, held.promise, 'Working on the goal')
     await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
     await vi.waitFor(() => {
       expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
@@ -2362,6 +2395,27 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
       expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
     })
     expect(instructionsOf(t, MODEL_API_MAX_TOOL_ROUNDS)).toContain('- Objective: New goal')
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
+  })
+
+  it('starts a fresh turn for steering accepted in the last tool round', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    scriptHeldFinalToolRound(t, held.promise, 'Steered answer')
+    const running = await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+    })
+    await session.steer(running.turnId, [{ type: 'text', text: 'New instruction' }])
+    held.resolve(undefined)
+    await turnDone()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+    })
+    expect(JSON.stringify(t.api.responseBodies()[MODEL_API_MAX_TOOL_ROUNDS]?.['input'])).toContain(
+      'New instruction',
+    )
     expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
   })
 
@@ -2491,6 +2545,28 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     })
   })
 
+  it('keeps steering accepted while a response exhausts the goal budget', async () => {
+    const t = setup()
+    const { session, turnDone } = await startBudgetedGoal(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script(
+      { text: 'Budget reply', hold: held.promise, usage: { input: 90, output: 10 } },
+      { text: 'Separate answer' },
+    )
+    const running = await session.sendTurn([{ type: 'text', text: 'continue' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    await session.steer(running.turnId, [{ type: 'text', text: 'Separate question' }])
+    held.resolve(undefined)
+    await turnDone()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(4)
+    })
+    expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited' })
+    expect(JSON.stringify(t.api.responseBodies()[3]?.['input'])).toContain('Separate question')
+  })
+
   it('withdraws a goal wake queued during compaction when the budget is spent', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
@@ -2520,10 +2596,43 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     ).toBe(false)
   })
 
+  it('withdraws a superseded goal wake queued during compaction', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'Intro' })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    const held = Promise.withResolvers<undefined>()
+    t.api.script(
+      { text: 'Summary', hold: held.promise },
+      { text: 'Working on B' },
+      { text: 'Duplicate work on B' },
+    )
+    const compacting = session.compact()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(2)
+    })
+    const first = await session.controlGoal({ verb: 'set', objective: 'Goal A' })
+    const second = await session.controlGoal({ verb: 'set', objective: 'Goal B' })
+    held.resolve(undefined)
+    await compacting
+    await vi.waitFor(() => {
+      expect(events).toContainEqual({
+        type: 'turnWithdrawn',
+        turnId: first.turnId,
+        reason: UI_TEXT.goalWakeWithdrawn,
+      })
+    })
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
+    expect(events).toContainEqual({ type: 'turnStarted', turnId: second.turnId })
+  })
+
   it('charges a held response to its original goal even when the goal is paused', async () => {
     const t = setup()
-    const { session, turnDone } = await startSession(t)
-    await beginBudgetGoal(t, session, turnDone)
+    const { session, turnDone } = await startBudgetedGoal(t)
     const held = Promise.withResolvers<undefined>()
     t.api.script({ text: 'Before pause', hold: held.promise, usage: { input: 90, output: 10 } })
     await session.sendTurn([{ type: 'text', text: 'continue' }])
@@ -2565,10 +2674,7 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
 
   it('pauses an active goal when Stop cancels a compaction', async () => {
     const t = setup()
-    const { session, turnDone } = await startSession(t)
-    t.api.script({ text: 'Goal work' })
-    await session.controlGoal({ verb: 'set', objective: 'Ship it' })
-    await turnDone()
+    const { session } = await startUnbudgetedGoal(t)
     const held = Promise.withResolvers<undefined>()
     t.api.script({ text: 'Summary', hold: held.promise })
     const compacting = session.compact()
@@ -2579,6 +2685,38 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     held.resolve(undefined)
     await expect(compacting).resolves.toMatchObject({ status: 'cancelled' })
     expect(session.snapshot().goal).toMatchObject({ status: 'paused' })
+  })
+
+  it('pauses the goal when Stop arrives after the compaction summary committed', async () => {
+    const t = setup()
+    const { session } = await startUnbudgetedGoal(t)
+    const { counted, countStarted } = holdCompactionCount(t)
+    t.api.script({ text: 'Summary' })
+    const compacting = session.compact()
+    await countStarted.promise
+    await session.cancel()
+    counted.resolve(42)
+    // The summary was already committed; Stop pauses future goal work.
+    await expect(compacting).resolves.toMatchObject({ status: 'accepted' })
+    expect(session.snapshot().goal).toMatchObject({ status: 'paused' })
+  })
+
+  it('does not pause a replacement goal set after Stop during compaction counting', async () => {
+    const t = setup()
+    const { session } = await startUnbudgetedGoal(t)
+    const { counted, countStarted } = holdCompactionCount(t)
+    t.api.script({ text: 'Summary' }, { text: 'Working on B' })
+    const compacting = session.compact()
+    await countStarted.promise
+    await session.cancel()
+    await session.controlGoal({ verb: 'set', objective: 'Goal B' })
+    counted.resolve(42)
+    await expect(compacting).resolves.toMatchObject({ status: 'accepted' })
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    expect(session.snapshot().goal).toMatchObject({ objective: 'Goal B', status: 'active' })
+    expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
   })
 
   it('refuses an incomplete compaction and still charges its goal usage', async () => {

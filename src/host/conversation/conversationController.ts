@@ -1734,6 +1734,11 @@ export class ConversationController {
       if (!(error instanceof SessionNotLoadedError) || this.deps.workspaceRoot === undefined) {
         throw error
       }
+      // A late refusal from an old session must not replace the session
+      // the user opened while that command was in flight.
+      if (this.session?.sessionId !== session.sessionId) {
+        throw error
+      }
       this.deps.log.info(`Session ${error.sessionId} was not loaded; resuming it`)
       this.resumeTarget = { sessionId: error.sessionId, kind: host.info.kind }
       this.dropSession(false)
@@ -1772,16 +1777,21 @@ export class ConversationController {
       result(false)
       return
     }
+    let targetSessionId: string | undefined
     try {
       const session = await this.sessionForAction()
       if (session === undefined) {
         result(false)
         return
       }
+      targetSessionId = session.sessionId
       const host = await this.deps.ensureHost()
       const outcome = await this.runResuming(host, session, (current) =>
         current.controlGoal(command),
       )
+      if (this.session?.sessionId !== targetSessionId) {
+        return
+      }
       this.deps.log.info(
         `Goal ${verb} accepted${outcome.turnId === undefined ? '' : ` (turn ${outcome.turnId})`}`,
       )
@@ -1789,6 +1799,9 @@ export class ConversationController {
       this.noteActivity()
       result(true)
     } catch (error: unknown) {
+      if (targetSessionId !== undefined && this.session?.sessionId !== targetSessionId) {
+        return
+      }
       if (error instanceof GoalRefusedError) {
         this.deps.log.info(`Goal ${verb} refused: ${error.message}`)
         this.say('warning', goalRefusalText(verb, error.refusal))

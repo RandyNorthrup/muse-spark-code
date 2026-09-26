@@ -1234,29 +1234,8 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     }
     case 'goalChanged': {
       const goal = event.goal ?? undefined
-      if (goal === undefined) {
-        return announce({ ...state, goal, goalEdit: undefined }, goalAnnouncement(state.goal, goal))
-      }
-      const edit = state.goalEdit
-      if (edit === undefined || goal.objective === state.goal?.objective) {
-        return announce({ ...state, goal }, goalAnnouncement(state.goal, goal))
-      }
-      const isOwnEdit = edit.pending?.objective === goal.objective
-      const isNewerDraft = edit.pending !== undefined && edit.revision > edit.pending.revision
-      if (isOwnEdit) {
-        return announce(
-          { ...state, goal, goalEdit: isNewerDraft ? edit : { ...edit, draft: goal.objective } },
-          goalAnnouncement(state.goal, goal),
-        )
-      }
-      const revision = state.goalEditRevision + 1
       return announce(
-        {
-          ...state,
-          goal,
-          goalEdit: { draft: goal.objective, revision, pending: undefined },
-          goalEditRevision: revision,
-        },
+        { ...state, goal, ...goalEditorFor(state, goal) },
         goalAnnouncement(state.goal, goal),
       )
     }
@@ -1328,6 +1307,33 @@ function loadedGoal(
     return message.goal ?? undefined
   }
   return message.sessionId === state.sessionId ? state.goal : undefined
+}
+
+/** Keep an own edit's newer typing; reset a stale editor on an external goal. */
+function goalEditorFor(
+  state: UiState,
+  goal: SessionGoal | undefined,
+): Pick<UiState, 'goalEdit' | 'goalEditRevision'> {
+  if (goal === undefined) {
+    return { goalEdit: undefined, goalEditRevision: state.goalEditRevision }
+  }
+  const edit = state.goalEdit
+  if (edit === undefined || goal.objective === state.goal?.objective) {
+    return { goalEdit: edit, goalEditRevision: state.goalEditRevision }
+  }
+  const isOwnEdit = edit.pending?.objective === goal.objective
+  if (isOwnEdit) {
+    const isNewerDraft = edit.revision > edit.pending.revision
+    return {
+      goalEdit: isNewerDraft ? edit : { ...edit, draft: goal.objective },
+      goalEditRevision: state.goalEditRevision,
+    }
+  }
+  const revision = state.goalEditRevision + 1
+  return {
+    goalEdit: { draft: goal.objective, revision, pending: undefined },
+    goalEditRevision: revision,
+  }
 }
 
 /**
@@ -1504,6 +1510,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       const replayed = replayHistory(message.items, at, state.sequence)
       // The same session read again (a delivery gap, D26) keeps its usage.
       const isSameSession = message.sessionId === state.sessionId
+      const goal = loadedGoal(state, message)
+      const editor =
+        isSameSession && message.goal !== undefined
+          ? goalEditorFor(state, goal)
+          : {
+              goalEdit: isSameSession ? state.goalEdit : undefined,
+              goalEditRevision: state.goalEditRevision,
+            }
       return announce(
         {
           ...state,
@@ -1513,8 +1527,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           transcript: replayed.entries,
           sequence: replayed.sequence,
           todos: message.todos,
-          goal: loadedGoal(state, message),
-          goalEdit: isSameSession ? state.goalEdit : undefined,
+          goal,
+          ...editor,
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
           usage: isSameSession ? state.usage : undefined,

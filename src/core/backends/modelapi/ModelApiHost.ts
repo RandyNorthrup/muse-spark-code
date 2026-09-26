@@ -193,6 +193,8 @@ interface QueuedTurn {
    * no card for it, as Muse Code's goal turns have none (live 2026-09-25).
    */
   readonly isGoalWake: boolean
+  /** The accepted user goal command this queued wake must still serve. */
+  readonly goalCommandRevision?: number
 }
 
 // MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
@@ -755,6 +757,7 @@ export class ModelApiSession implements AgentSession {
       parts: [{ type: 'text', text: MODEL_TEXT.goalWake }],
       displayText: undefined,
       isGoalWake: true,
+      goalCommandRevision: this.goalCommandRevision,
     }
   }
 
@@ -1660,6 +1663,16 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Accepted steering that missed this turn's last request becomes user turns. */
+  private queuedSteered(turn: ActiveTurn): QueuedTurn[] {
+    return turn.steered.splice(0).map((parts) => ({
+      turnId: this.deps.newId(),
+      parts,
+      displayText: undefined,
+      isGoalWake: false,
+    }))
+  }
+
   /** A busy goal command was not in the request already in flight. */
   private drainGoalWake(turn: ActiveTurn): void {
     if (!turn.goalWakePending) {
@@ -1688,6 +1701,7 @@ export class ModelApiSession implements AgentSession {
       const { calls, goalCommandRevision } = await this.streamOnce(turn.turnId, signal)
       if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
         this.skipCalls(turn.turnId, calls, MODEL_TEXT.goalBudgetReached)
+        this.queuedTurns.unshift(...this.queuedSteered(turn))
         return
       }
       // One more model call without progress toward the goal (the step probe, D38).
@@ -1715,11 +1729,15 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
-    // A user goal command accepted during the last permitted round still
-    // needs a request that sees it. Start a fresh bounded turn after this
-    // one settles instead of silently dropping the pending wake.
+    // Input accepted during the last permitted round still needs a request
+    // that sees it. Steered messages belonged to this turn, so run them
+    // before separately queued messages; a goal cue follows them.
+    const overflow = this.queuedSteered(turn)
     if (turn.goalWakePending && isGoalActive(this.goal)) {
-      this.queuedTurns.push(this.queuedGoalWake())
+      overflow.push(this.queuedGoalWake())
+    }
+    if (overflow.length > 0) {
+      this.queuedTurns.unshift(...overflow)
     }
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }
@@ -1796,7 +1814,10 @@ export class ModelApiSession implements AgentSession {
       if (next === undefined) {
         return
       }
-      if (next.isGoalWake && !isGoalActive(this.goal)) {
+      if (
+        next.isGoalWake &&
+        (!isGoalActive(this.goal) || next.goalCommandRevision !== this.goalCommandRevision)
+      ) {
         this.emit({
           type: 'turnWithdrawn',
           turnId: next.turnId,
@@ -1956,7 +1977,12 @@ export class ModelApiSession implements AgentSession {
       })
     }
     this.active?.abort.abort()
-    this.compacting?.abort()
+    if (this.compacting !== undefined) {
+      // Pause the goal Stop actually targeted. A new goal accepted while
+      // post-summary counting finishes must stay active.
+      this.pauseGoalAfterStop()
+      this.compacting.abort()
+    }
     return Promise.resolve()
   }
 
@@ -2005,7 +2031,6 @@ export class ModelApiSession implements AgentSession {
       return await this.runCompaction(abort.signal)
     } catch (error: unknown) {
       if (abort.signal.aborted) {
-        this.pauseGoalAfterStop()
         return { status: CANCELLED, reason: UI_TEXT.compactionStopped }
       }
       throw error

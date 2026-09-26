@@ -71,6 +71,14 @@ while they are (PLAN.md D30, D34).
 
 ### Fixed
 
+- **Goal command and recovery races** (M45, PR #31). Steering accepted in
+  the final tool round now starts a fresh turn. A queued goal wake is
+  withdrawn when a newer goal command supersedes it. Stop after a
+  compaction summary is committed still pauses the goal it stopped while a
+  later replacement stays active. Steering accepted as a goal runs out of
+  tokens gets its own turn. A gap
+  reload refreshes an open goal editor, and a late goal acknowledgement
+  or session reload cannot appear in a different conversation.
 - **Goal lifecycle at request boundaries** (M45, review of PR #31). Model
   usage now belongs to the goal active when each request began, even if
   paused before its reply; Stop during compaction pauses the goal, and an
