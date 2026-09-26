@@ -1,13 +1,15 @@
 // What the Model API backend loads from the workspace for the model (PLAN.md
-// D13): the rules files, the skill catalogue and the project memory index,
-// by Muse Code's conventions, and only in a trusted workspace. One instance
-// per session: the root is loaded once before the first model call, a
-// subdirectory's rules file the first time a tool touches a path beneath
-// it, and the skills again when the host says their files changed.
+// D13): the rules files, the skill catalogue and the memory snapshot (every
+// scope's index and note paths since M49, D41), by Muse Code's conventions,
+// and only in a trusted workspace. One instance per session: the root is
+// loaded once before the first model call, a subdirectory's rules file the
+// first time a tool touches a path beneath it, and the skills again when
+// the host says their files changed. The memory is read once, as Muse Code
+// takes its snapshot at session start.
 
 import { RULES_PREAMBLE } from '../../shared/constants'
+import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
-import { loadMemoryIndex, type MemoryIndex } from './memory'
 import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
 import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
 
@@ -19,6 +21,8 @@ export interface WorkspaceContextDeps {
   /** Muse Code's personal skill root; undefined when the host has no home. */
   readonly personalSkillsRoot: string | undefined
   readonly isWorkspaceTrusted: () => boolean
+  /** The memory snapshot (M49); undefined when the backend has no memory. */
+  readonly loadMemory: (() => Promise<readonly MemoryScopeSnapshot[]>) | undefined
   readonly warn: (message: string) => void
 }
 
@@ -27,7 +31,8 @@ export interface ContextSections {
   /** The rendered rules section with the preamble, or undefined without rules. */
   readonly rules: string | undefined
   readonly skills: readonly SkillDefinition[]
-  readonly memory: MemoryIndex | undefined
+  /** The scopes that keep notes, as the session began; empty without any. */
+  readonly memory: readonly MemoryScopeSnapshot[]
 }
 
 const ROOT_DIRECTORY = ''
@@ -44,7 +49,7 @@ export class WorkspaceContext {
   private readonly rules: RuleFile[] = []
   private readonly checkedDirectories = new Set<string>()
   private skills: readonly SkillDefinition[] = []
-  private memory: MemoryIndex | undefined
+  private memory: readonly MemoryScopeSnapshot[] = []
   private rulesText: string | undefined
   private loading: Promise<void> | undefined
 
@@ -117,18 +122,9 @@ export class WorkspaceContext {
     await this.guarded('loading the rules', () => this.loadDirectory(ROOT_DIRECTORY), false)
     this.renderRulesSection()
     await this.refreshSkills()
-    this.memory = await this.guarded(
-      'loading the memory index',
-      () =>
-        loadMemoryIndex({
-          io: this.deps.io,
-          workspaceRoot: this.deps.workspaceRoot,
-          platform: this.deps.platform,
-        }),
-      undefined,
-    )
-    if (this.memory?.warning !== undefined) {
-      this.deps.warn(this.memory.warning)
+    const { loadMemory } = this.deps
+    if (loadMemory !== undefined) {
+      this.memory = await this.guarded('loading the memory', loadMemory, [])
     }
   }
 

@@ -761,6 +761,8 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showMcpServers' })
     run('Hooks…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showHooks' })
+    run('Memory…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showMemory' })
     run('New worktree')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'newWorktree' })
     run('Remove a worktree')

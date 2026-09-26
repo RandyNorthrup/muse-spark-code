@@ -5,11 +5,8 @@
 // the generic row showed raw.
 
 import * as z from 'zod/mini'
+import { MEMORY_SCOPES, type MemoryScope } from '../shared/constants'
 import { webResultSchema } from '../shared/webResults'
-
-/** Muse Code's memory scopes (`add_memory` and its siblings, `scope`). */
-export const MEMORY_SCOPES = ['personal_project', 'project', 'personal'] as const
-export type MemoryScope = (typeof MEMORY_SCOPES)[number]
 
 /** One memory call: where the note lives and what it says or became. */
 export interface MemoryDetails {

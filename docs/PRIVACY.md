@@ -30,13 +30,21 @@ security notes for contributors are in `PLAN.md` §9.
   Model API terms govern retention on their side.
 - **Workspace rules, skills and memory.** In a trusted workspace the agent
   reads `AGENTS.md` (or `CLAUDE.md`), the skills under `.agents/skills` and
-  `~/.config/muse/skills`, and `.agents/memory/MEMORY.md`, as the README
-  describes. On the Model API backend the rules text, the skill catalogue
-  (ids and descriptions) and the memory index go to Meta with every request
-  as part of the instructions, and a skill's full text when it is loaded or
-  invoked. On the Muse Code CLI backend the CLI reads and sends them under
-  Meta's Muse Code terms. Nothing of this is read while VS Code has the
-  folder in Restricted Mode.
+  `~/.config/muse/skills`, and Muse Code's memory (the project's
+  `.agents/memory`, and your own notes under `~/.local/share/muse/memory`),
+  as the README describes. On the Model API backend the rules text, the
+  skill catalogue (ids and descriptions) and the memory snapshot (each
+  scope's `MEMORY.md` and its notes' names, your personal scopes included)
+  go to Meta with every request as part of the instructions, a skill's full
+  text when it is loaded or invoked, and a note's text when the model reads
+  it with `read_memory`. What the model saves with `add_memory` is written
+  on your machine, in the same files Muse Code uses. On the Muse Code CLI
+  backend the CLI reads and sends them under Meta's Muse Code terms. The
+  Model API backend reads none of this while VS Code has the folder in
+  Restricted Mode; Muse Code's documentation says it still reads a
+  repository's committed project memory then.
+- **The Memory view** (M49) reads and writes only those notes on your
+  machine; it sends nothing anywhere. A note it deletes goes to your trash.
 - **Environment facts (Model API backend).** The instructions sent with
   every request name the workspace's absolute path, the operating system
   and shell, and today's date. In a trusted workspace that is a git

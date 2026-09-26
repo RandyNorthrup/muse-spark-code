@@ -25,6 +25,7 @@
   "command.exportConversation.title": "Beszélgetés exportálása",
   "command.mcpServers.title": "MCP-kiszolgálók",
   "command.hooks.title": "Hookok",
+  "command.memory.title": "Memória",
   "command.newWorktree.title": "Új munkafa…",
   "command.removeWorktree.title": "Munkafa eltávolítása…",
   "command.moveToBackground.title": "Futó parancs áthelyezése a háttérbe",

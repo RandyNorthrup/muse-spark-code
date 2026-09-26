@@ -25,6 +25,7 @@
   "command.exportConversation.title": "Konuşmayı Dışarı Aktar",
   "command.mcpServers.title": "MCP Sunucuları",
   "command.hooks.title": "Kancalar",
+  "command.memory.title": "Bellek",
   "command.newWorktree.title": "Yeni Çalışma Ağacı…",
   "command.removeWorktree.title": "Çalışma Ağacını Kaldır…",
   "command.moveToBackground.title": "Çalışan Komutu Arka Plana Taşı",

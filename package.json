@@ -176,6 +176,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.memory",
+        "title": "%command.memory.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.newWorktree",
         "title": "%command.newWorktree.title%",
         "category": "%command.category%"

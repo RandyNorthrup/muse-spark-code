@@ -2580,6 +2580,7 @@ function modelApiController(
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     isPaidFeatureOn: () => false,
     notePaidUse: () => undefined,
+    memory: undefined,
   })
   const controller = new ConversationController({
     ...t.deps,

@@ -25,6 +25,7 @@
   "command.exportConversation.title": "Exportar conversación",
   "command.mcpServers.title": "Servidores MCP",
   "command.hooks.title": "Ganchos",
+  "command.memory.title": "Memoria",
   "command.newWorktree.title": "Nuevo árbol de trabajo…",
   "command.removeWorktree.title": "Quitar árbol de trabajo…",
   "command.moveToBackground.title": "Pasar el comando en ejecución a segundo plano",

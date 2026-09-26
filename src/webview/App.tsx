@@ -903,6 +903,7 @@ export function App({
         case 'importSkills':
         case 'showMcpServers':
         case 'showHooks':
+        case 'showMemory':
         case 'newWorktree':
         case 'removeWorktree': {
           postMessage({ type: 'hostAction', action: action.type })

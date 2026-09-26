@@ -8,6 +8,7 @@ import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { ContextIo } from '../../core/context/contextFiles'
+import type { MemoryStore } from '../../core/memory/memoryStore'
 import { MODEL_API_BASE_URL, type PaidFeature, UI_TEXT } from '../../shared/constants'
 import type { Logger } from '../logger'
 
@@ -34,6 +35,8 @@ export interface ModelApiBackendManagerDeps {
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts paid uses for the window's tally. */
   readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
+  readonly memory: MemoryStore | undefined
 }
 
 const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'
@@ -98,6 +101,7 @@ export class ModelApiBackendManager {
       describeEnvironment: this.deps.describeEnvironment,
       isPaidFeatureOn: this.deps.isPaidFeatureOn,
       notePaidUse: this.deps.notePaidUse,
+      memory: this.deps.memory,
     })
     await host.load()
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')

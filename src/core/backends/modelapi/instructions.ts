@@ -3,12 +3,18 @@
 // permission engine enforces anyway (so the model does not waste calls on
 // refused actions), the environment (PLAN.md D15: today's date and the git
 // state at session start), how to work, and the workspace context of D13:
-// the rules files, the skill catalogue and the project memory index, each
-// present only when the workspace has it and is trusted; and the session
-// goal while one is active (M45).
+// the rules files, the skill catalogue and, with the memory tools (M49,
+// D41), the memory Muse Code keeps, each present only when the workspace
+// has it and is trusted; and the session goal while one is active (M45).
 
-import { MEMORY_DIR, MODEL_API_TOOLS } from '../../../shared/constants'
+import {
+  MEMORY_DIR,
+  MEMORY_INDEX_FILE,
+  MODEL_API_TOOLS,
+  type MemoryScope,
+} from '../../../shared/constants'
 import type { ContextSections } from '../../context/workspaceContext'
+import type { MemoryScopeSnapshot } from '../../memory/memoryStore'
 
 export interface GitFacts {
   readonly branch: string
@@ -30,6 +36,8 @@ export interface InstructionFacts {
   readonly shellName: string
   /** False in Restricted Mode: the shell tool is not offered. */
   readonly hasShell: boolean
+  /** True while the memory tools are offered (M49): trusted, with a memory store. */
+  readonly hasMemory: boolean
   /** `YYYY-MM-DD` in the host's clock. */
   readonly today: string
   readonly environment: EnvironmentFacts
@@ -105,14 +113,44 @@ function skillsText(context: ContextSections): string | undefined {
   ].join(PARAGRAPH)
 }
 
-function memoryText(context: ContextSections): string | undefined {
-  if (context.memory === undefined) {
+// What each scope is, in Muse Code's words (its migrate skill and docs).
+const SCOPE_MEANINGS: Readonly<Record<MemoryScope, string>> = {
+  personal_project: 'this project, private to the user, kept outside the repository (the default)',
+  project: `${MEMORY_DIR} in the repository, shared with everyone who clones it; write there only when the user asks`,
+  personal: "the user's notes for every project, private to the user",
+}
+
+function scopeSnapshotText(snapshot: MemoryScopeSnapshot): string {
+  const notes =
+    snapshot.notes.length === 0
+      ? []
+      : [
+          `Other notes: ${snapshot.notes.join(', ')}${snapshot.hasMoreNotes ? ', and more (not listed)' : ''}.`,
+        ]
+  return [
+    `## ${snapshot.scope}`,
+    ...(snapshot.index === undefined ? [] : [`${MEMORY_INDEX_FILE}:\n${snapshot.index}`]),
+    ...notes,
+  ].join(PARAGRAPH)
+}
+
+function memoryText(facts: InstructionFacts): string | undefined {
+  if (!facts.hasMemory) {
     return undefined
   }
+  const scopes = Object.entries(SCOPE_MEANINGS).map(([scope, meaning]) => `- ${scope}: ${meaning}`)
+  const snapshot =
+    facts.context.memory.length === 0
+      ? ['No memory notes are kept yet.']
+      : [
+          'The memory as this session began:',
+          ...facts.context.memory.map((snapshot) => scopeSnapshotText(snapshot)),
+        ]
   return [
-    '# Project memory',
-    `The project keeps notes under ${MEMORY_DIR}; the index (${context.memory.path}) is below. Read a note with read_file when it is relevant. To remember something for later sessions, add or update a note there with the file tools and keep one index line per note in the form \`- [Title](file.md) | hook\`.`,
-    context.memory.text,
+    '# Memory',
+    `Memory is Markdown notes kept for later sessions, shared with Muse Code. Save concise, verified, durable facts with ${MODEL_API_TOOLS.addMemory} (it creates a note or appends to one, and adds a new note's line to its scope's ${MEMORY_INDEX_FILE}); read a note with ${MODEL_API_TOOLS.readMemory} when it is relevant; correct an outdated fact with ${MODEL_API_TOOLS.editMemory}. Read the existing notes first so nothing is recorded twice, and keep each ${MEMORY_INDEX_FILE} line short: \`- [Title](file.md) | hook\`. The scopes:`,
+    scopes.join(LINE),
+    ...snapshot,
   ].join(PARAGRAPH)
 }
 
@@ -125,7 +163,7 @@ export function instructionsFor(facts: InstructionFacts): string {
       ? undefined
       : `# Workspace rules${PARAGRAPH}${facts.context.rules}`,
     skillsText(facts.context),
-    memoryText(facts.context),
+    memoryText(facts),
     facts.goalSection,
   ]
   return sections.filter((section) => section !== undefined).join(PARAGRAPH)

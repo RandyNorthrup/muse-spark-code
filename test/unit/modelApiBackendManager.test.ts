@@ -33,6 +33,7 @@ function managerOn(
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       isPaidFeatureOn: () => false,
       notePaidUse: () => undefined,
+      memory: undefined,
     }),
   }
 }

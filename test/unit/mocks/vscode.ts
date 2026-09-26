@@ -95,7 +95,11 @@ export const window = {
 
 export const workspace = {
   isTrusted: true,
-  fs: { writeFile: vi.fn<typeof vscode.workspace.fs.writeFile>() },
+  fs: {
+    writeFile: vi.fn<typeof vscode.workspace.fs.writeFile>(),
+    // The Memory view's delete, to the trash (M49).
+    delete: vi.fn<typeof vscode.workspace.fs.delete>(),
+  },
 }
 
 export const env = {

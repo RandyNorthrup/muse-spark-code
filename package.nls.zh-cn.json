@@ -25,6 +25,7 @@
   "command.exportConversation.title": "导出对话",
   "command.mcpServers.title": "MCP 服务器",
   "command.hooks.title": "钩子",
+  "command.memory.title": "记忆",
   "command.newWorktree.title": "新建工作树…",
   "command.removeWorktree.title": "删除工作树…",
   "command.moveToBackground.title": "将正在运行的命令移到后台",

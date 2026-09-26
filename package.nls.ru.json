@@ -25,6 +25,7 @@
   "command.exportConversation.title": "Экспортировать беседу",
   "command.mcpServers.title": "Серверы MCP",
   "command.hooks.title": "Хуки",
+  "command.memory.title": "Память",
   "command.newWorktree.title": "Новое рабочее дерево…",
   "command.removeWorktree.title": "Удалить рабочее дерево…",
   "command.moveToBackground.title": "Перевести выполняющуюся команду в фон",

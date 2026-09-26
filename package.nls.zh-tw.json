@@ -25,6 +25,7 @@
   "command.exportConversation.title": "匯出對話",
   "command.mcpServers.title": "MCP 伺服器",
   "command.hooks.title": "鉤子",
+  "command.memory.title": "記憶",
   "command.newWorktree.title": "新增工作樹…",
   "command.removeWorktree.title": "移除工作樹…",
   "command.moveToBackground.title": "將執行中的命令移至背景",

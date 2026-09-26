@@ -216,6 +216,10 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.getGoal]: 'interactive',
   [MODEL_API_TOOLS.updateGoal]: 'interactive',
   [MODEL_API_TOOLS.reportProgress]: 'interactive',
+  // M49 (PLAN.md D41): a memory write is judged as an edit, never a protected one.
+  [MODEL_API_TOOLS.readMemory]: 'read',
+  [MODEL_API_TOOLS.addMemory]: 'edit',
+  [MODEL_API_TOOLS.editMemory]: 'edit',
 }
 
 export function classifyTool(name: string): ToolClass | undefined {
@@ -269,18 +273,14 @@ export interface ToolDefinitionOptions {
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
 
-/** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
-export function toolDefinitions(
-  platform: NodeJS.Platform,
-  options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
-): readonly FunctionToolDefinition[] {
-  const shell = shellToolFor(platform)
-  const define = (
-    name: string,
-    description: string,
-    properties: Record<string, unknown>,
-    required: readonly string[],
-  ): FunctionToolDefinition => ({
+/** One function tool as the Responses API takes it: an object of named, described arguments. */
+export function functionTool(
+  name: string,
+  description: string,
+  properties: Record<string, unknown>,
+  required: readonly string[],
+): FunctionToolDefinition {
+  return {
     type: 'function',
     name,
     description,
@@ -291,9 +291,17 @@ export function toolDefinitions(
       additionalProperties: false,
     },
     strict: false,
-  })
+  }
+}
+
+/** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
+export function toolDefinitions(
+  platform: NodeJS.Platform,
+  options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
+): readonly FunctionToolDefinition[] {
+  const shell = shellToolFor(platform)
   return [
-    define(
+    functionTool(
       MODEL_API_TOOLS.readFile,
       'Read a text file from the workspace, numbered by line. Use offset and limit for long files.',
       {
@@ -303,7 +311,7 @@ export function toolDefinitions(
       },
       ['path'],
     ),
-    define(
+    functionTool(
       MODEL_API_TOOLS.editFile,
       'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique.',
       {
@@ -313,13 +321,13 @@ export function toolDefinitions(
       },
       ['path', 'find', 'replace'],
     ),
-    define(
+    functionTool(
       MODEL_API_TOOLS.writeFile,
       'Create or overwrite a file with the given content.',
       { path: PATH_PROPERTY, content: { type: 'string' } },
       ['path', 'content'],
     ),
-    define(
+    functionTool(
       MODEL_API_TOOLS.search,
       'Search file contents with a regular expression, optionally within files matching a glob.',
       {
@@ -335,7 +343,7 @@ export function toolDefinitions(
       },
       ['pattern'],
     ),
-    define(
+    functionTool(
       MODEL_API_TOOLS.listFiles,
       'List workspace files, optionally those matching a glob.',
       { glob: { type: 'string' }, limit: { type: 'integer' } },
@@ -343,7 +351,7 @@ export function toolDefinitions(
     ),
     ...(options.hasShell
       ? [
-          define(
+          functionTool(
             shell.name,
             `Run one ${shell.shellName} command line in the workspace root and return its output.`,
             {
@@ -360,13 +368,13 @@ export function toolDefinitions(
       : []),
     ...(options.hasImageGeneration === true
       ? [
-          define(
+          functionTool(
             MODEL_API_TOOLS.generateImage,
             GENERATE_IMAGE_DESCRIPTION,
             GENERATE_IMAGE_PARAMETERS,
             ['prompt', 'path'],
           ),
-          define(MODEL_API_TOOLS.editImage, EDIT_IMAGE_DESCRIPTION, EDIT_IMAGE_PARAMETERS, [
+          functionTool(MODEL_API_TOOLS.editImage, EDIT_IMAGE_DESCRIPTION, EDIT_IMAGE_PARAMETERS, [
             'prompt',
             'images',
             'path',
@@ -375,7 +383,7 @@ export function toolDefinitions(
       : []),
     ...(options.hasSkills
       ? [
-          define(
+          functionTool(
             MODEL_API_TOOLS.readSkill,
             'Load the full instructions of a skill listed in your instructions, by its id. Call it before starting a task the skill covers.',
             { id: { type: 'string', description: 'The skill id from the Skills list' } },
@@ -383,7 +391,7 @@ export function toolDefinitions(
           ),
         ]
       : []),
-    define(
+    functionTool(
       MODEL_API_TOOLS.askUser,
       'Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.',
       {
@@ -415,7 +423,7 @@ export function toolDefinitions(
       },
       ['questions'],
     ),
-    define(
+    functionTool(
       MODEL_API_TOOLS.todoWrite,
       'Replace your task list, shown to the user while you work.',
       {
@@ -440,7 +448,7 @@ export function toolDefinitions(
     // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
     // `muse serve` offers them.
     ...GOAL_TOOL_DEFINITIONS.map((tool) =>
-      define(tool.name, tool.description, tool.properties, tool.required),
+      functionTool(tool.name, tool.description, tool.properties, tool.required),
     ),
   ]
 }

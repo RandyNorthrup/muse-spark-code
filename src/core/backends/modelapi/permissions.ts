@@ -20,6 +20,11 @@
 // session rules included: a file that configures or runs code outside the
 // edit itself (git's hooks and config, the editor's tasks, CI workflows,
 // the agent's own rules and skills) never changes without a card.
+//
+// A memory write (M49, D41: `add_memory`, `edit_memory`) is an edit, never
+// a protected one, although the project's notes sit under `.agents`: the
+// tools write only Markdown notes under a memory root, so Manual asks, Auto
+// and Edit automatically write, and Plan refuses, as for any edit.
 
 import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { PROTECTED_PATH_SEGMENTS, PROTECTED_FILE_NAMES, UI_TEXT } from '../../../shared/constants'
