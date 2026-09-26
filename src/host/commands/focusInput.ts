@@ -2,7 +2,7 @@
 // Pure orchestration over injected dependencies so it is unit-tested without
 // VS Code.
 
-import type { ChatSurface } from '../views/webviewSetup'
+import type { ChatSurface } from '../views/chatSurface'
 
 export interface FocusInputDeps {
   /** Current value of the `museSpark.inputFocused` context key. */

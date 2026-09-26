@@ -56,3 +56,4 @@ The PNGs beside the records are that day's harness renders.
 - [M43](m43.md): a row for every tool Muse Code runs: memory, goals, scheduled prompts, web search, background work, pictures (PLAN.md D36)
 - [M42](m42.md): replay as Meta validates it: commentary, reasoning summaries, reasoning-only turns, stream retries (PLAN.md D35)
 - [M33–M35](m33-m35.md): the paid features: web search, image generation and Muse Voice, opt in and loud (PLAN.md D30, D34)
+- [M60](m60.md): the host API record and the `vscode` boundary, with M61's host bridge and portable controller (PLAN.md D60)

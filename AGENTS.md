@@ -117,6 +117,9 @@ scripts/**            esbuild build; bundle-size, host-globals, notices, audit,
                       theme capture, the pseudo-locale, harness screenshots,
                       image rendering, changelog notes
 docs/certification/   per-milestone gate-fire records and screenshots
+docs/ide-compatibility.md, docs/ide-compatibility/
+                      the plan for editors beyond VS Code (D60) and the
+                      generated record of what the extension asks of its host
 media/                icons, banner, social preview, README screenshots
 ```
 
@@ -128,6 +131,7 @@ media/                icons, banner, social preview, README screenshots
 | The gates CI runs everywhere   | `npm run quality:gates`                  |
 | Accessibility gate             | `npm run test:a11y`                      |
 | Localization gate              | `npm run check:l10n`                     |
+| Host API record (D60)          | `npm run check:host-api` (`-- --write`)  |
 | Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo` |
 | Unit tests with coverage       | `npm run test:unit`                      |
 | Integration tests              | `npm run test:integration`               |

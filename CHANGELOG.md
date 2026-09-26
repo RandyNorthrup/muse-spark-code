@@ -56,6 +56,17 @@ while they are (PLAN.md D30, D34).
   and Account & usage tallies this window's searches, images and seconds of
   audio with their estimated cost.
 - **A languages badge** in the README.
+- **Groundwork for editors other than VS Code** (M60, M61, PLAN.md D60).
+  The owner's IDE compatibility plan is filed in `docs/ide-compatibility.md`.
+  A new gate, `npm run check:host-api`, keeps a record of what the
+  extension asks of its host (`docs/ide-compatibility/host-api.md`): the
+  198 VS Code APIs it uses and where, the 11 files that import `vscode`,
+  the Node built-ins, and what the webview needs (`acquireVsCodeApi` and 57
+  theme variables); it fails when the record goes stale, and when the
+  engine, the protocol, the webview, the conversation controller, either
+  backend or the credential store reaches `vscode`. The webview now talks
+  to VS Code through one host bridge, and the chat surface, the log and the
+  dictation setup carry no VS Code types. Nothing changes in VS Code.
 
 ### Fixed
 

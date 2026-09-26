@@ -1296,6 +1296,66 @@ version". He suggested a fourth number (0.8.0.1); the Marketplace and
 - **1.0.0 only on the owner's word**, after the extension has been on the
   Marketplace and field tested; no release proposes it on its own.
 
+### D60 — Muse Spark Code beyond VS Code: the IDE compatibility program (2026-09-26)
+
+The owner (2026-09-26) handed over a plan, "Muse Spark Code — IDE
+Compatibility Plan" (prepared 2026-09-25 against 0.8.0, `bdaede4`), to be
+worked beside M45–M56, which the owner is building in parallel. It is kept
+whole in `docs/ide-compatibility.md`: the target matrix with its sources,
+the architecture, the ACP plan, the release scenarios. Its links were
+not re-read here (this environment's network policy blocks them,
+2026-09-26); each target's claim is re-read from its source before its
+milestone starts, as M41's installers are.
+
+- **One product, four families.** The VS Code extension qualified in the
+  editors built on VS Code (VSCodium, Cursor, Kiro, Positron, Theia,
+  code-server, Codespaces, Che, Firebase Studio); one agent over the Agent
+  Client Protocol for the editors that host agents in their own chat (Zed,
+  JetBrains AI Assistant, Xcode 27, Qt Creator, Neovim, Emacs, Sublime,
+  Devin Desktop); native plugins that embed the React panel (IntelliJ with
+  Android Studio, Visual Studio, Eclipse, NetBeans, JupyterLab, Spyder,
+  RStudio); and a terminal or adjacent interface where a host allows no
+  more. The name stays "Muse Spark Code (Unofficial)" everywhere (rule
+  11), and a port never proposes 1.0 (D44).
+- **The engine and the UI are shared, the host is an adapter.** `AgentHost`
+  and `AgentSession` stay the backend boundary; the webview reaches its
+  host through one bridge; the host's services (workspace roots, documents
+  and their versions, selection, edits, diffs, diagnostics, terminals,
+  settings, secrets, persistence, notifications) become a contract with
+  VS Code's implementation first. VS Code stays the reference client, and
+  its behaviour does not change while boundaries move.
+- **What already holds.** Only 11 source files import `vscode` (M60's
+  record, after M61 took the logger's); the React app reaches its host
+  only through `acquireVsCodeApi`, window messages, the text table
+  embedded in its HTML and 57 `--vscode-*` theme variables; the protocol
+  is zod-validated both ways. The work is extraction, not a
+  rewrite.
+- **Rulings carried into every adapter.** The key never reaches a child
+  process, a launch argument, an environment variable, a webview message
+  or a general IPC field (rule 8, D1): an ACP or native build signs in
+  through the CLI's own login first, and its Model API backend waits for
+  the credential-ownership decision (Q63). Paid features stay opt in and
+  loud (rule 12): an adapter whose client cannot show the price and ask
+  first offers none. Muse's approval policy is never loosened because a
+  protocol allows it; a declined or cancelled request never runs by a
+  translation default. Editing is claimed for a host only after its
+  backend-specific tests (the plan's §6.1: dirty buffers, exactly-once
+  changes, undo) pass there.
+- **Support is measured, per host.** Integration type (full Muse
+  interface, native agent interface, external) and release status
+  (Planned, Prototype, Preview, Supported) are recorded per editor,
+  version, backend and OS, with each feature tested, partial,
+  unavailable or unverified. An install is the first step, not the claim.
+- **Nothing is installed or billed unasked.** Another IDE is installed
+  for a probe, and a dependency (the ACP SDK, a JetBrains or .NET
+  toolchain) is added, only on the owner's go (Q61, Q62) and with rule 9's
+  checks. Compatibility runs never use the subscription or a paid feature;
+  a live check follows CLAUDE.md.
+- **Numbered from 60**, so M45–M56 keep their numbers while both are built
+  (M60–M66, Q60–Q64). Moves across files M45–M56 are changing (the
+  stylesheet, the controller, the protocol) wait until M56 merges; the
+  inventory and the narrow seams go first.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1309,6 +1369,11 @@ version". He suggested a fourth number (0.8.0.1); the Marketplace and
 | Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                               |
 | Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Publishing ran by hand from the CI artifact with a clipboard PAT for 0.1.0–0.5.0; since 2026-09-23 the `VSCE_PAT` repository secret lets `release.yml` publish every `v*` tag.                                                                                                                                                                                                                                                                                                                                              | Closed.                                                               |
 | Q9  | The Muse Code user rules file: `/rules import` writes one into the config root and the model is told "if user and project rules conflict, project rules win", but its file name is not printed by `muse --help`, `muse skills`, the settings skill or the binary's strings. The Model API backend cannot mirror what it cannot name.                                                                                                                                                                                                                                                                | Not loaded on the Model API backend; the CLI backend loads it itself. |
+| Q60 | Open VSX (D60, M62): VSCodium, Cursor, Kiro, Positron and Firebase Studio install from Open VSX, not the Marketplace. Publishing there needs an Eclipse account, the `RandyNorthrup` namespace claimed and an `OVSX_PAT` secret beside `VSCE_PAT`: the owner's to create.                                                                                                                                                                                                                                                                                                                           |
+| Q61 | The ACP SDK (D60, M63): `@agentclientprotocol/sdk` 1.5.0 (Apache-2.0, peer `zod ^3.25.0 \|\| ^4.0.0`, which the pinned zod 4.6.5 meets; npm registry, 2026-09-26) or a hand-written ACP v1 layer on zod. Adding it needs the owner's go (rule 9, CLAUDE.md).                                                                                                                                                                                                                                                                                                                                        |
+| Q62 | Installing other editors for M62's probes: which may be downloaded into CI or a local machine (VSCodium, Positron, Theia, Kiro, Cursor; their licences differ), and on which platforms a probe counts. Nothing is installed until the owner says.                                                                                                                                                                                                                                                                                                                                                   |
+| Q63 | Who holds the Model API key outside VS Code (D60): the runtime reads it from the OS's protected store itself, or the key-owning host makes the model requests through one narrow service. Until decided and verified, an ACP or native adapter offers Muse Code only.                                                                                                                                                                                                                                                                                                                               |
+| Q64 | The first hosts after VS Code: the plan proposes Zed then one JetBrains IDE for ACP, and VSCodium, Cursor, Kiro and Positron for the VSIX. Which JetBrains IDE, and whether Qt Creator (the owner's C++/Qt work) comes before it.                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## 4. Architecture
 
@@ -3283,6 +3348,83 @@ then runs it in a visible VS Code terminal and watches the install folder
 the extension already probes, moving on to sign-in when `muse` appears.
 The CLI itself is not bundled: it is Meta's closed-source binary.
 
+### M60–M66 — Muse Spark Code beyond VS Code (D60)
+
+**Status 2026-09-26: the program the owner handed over**
+(`docs/ide-compatibility.md`), built beside M45–M56. The phases are the
+plan's §8 (A–G); a phase that needs another editor installed waits for Q62.
+
+| Milestone | Phase | What it delivers                                                                                                                                             |
+| --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
+| M61       | B     | Shared boundaries: the webview's host bridge, the surface and controller free of VS Code types, theme tokens, the editor-services contract, a Node runtime   |
+| M62       | A, C  | The VS Code family: probes and qualification in VSCodium, Cursor, Kiro, Positron and Theia; code-server and Codespaces profiles; Open VSX (Q60)              |
+| M63       | D     | The ACP agent: `muse-spark-code acp` on ACP v1 (Q61); Zed, then one JetBrains IDE (Q64), then Xcode 27, Qt Creator, Neovim, Emacs, Sublime and Devin         |
+| M64       | E     | Native full interfaces: the IntelliJ plugin on JCEF with Android Studio qualified separately; Visual Studio on VSSDK and WebView2                            |
+| M65       | F     | Eclipse, NetBeans, JupyterLab 4 and Notebook 7, then Spyder and RStudio                                                                                      |
+| M66       | G     | Conditional hosts: vscode.dev and github.dev, Xcode 26.3's external route, Vim, Kate, MATLAB, Replit, StackBlitz, CodeSandbox and Ona; the companion's media |
+
+### M60 — The host API inventory and the `vscode` boundary (D60, phase A)
+
+**Status 2026-09-26: built and certified** (`docs/certification/m60.md`).
+
+- **Goal**: know exactly what the extension asks of its host, so each
+  editor in D60's matrix can be checked against it (Theia's API
+  comparator, a fork's VS Code version, a browser engine), and keep that
+  knowledge true as the code changes.
+- **Scope**: `scripts/check-host-api.mjs` (`npm run check:host-api`, in
+  `quality:gates`; `--write` regenerates the record): with TypeScript's
+  checker, every VS Code API the host uses at run time (functions,
+  variables, classes, enums, members of VS Code objects) and the files
+  that use it; the files that import `vscode`; the Node built-ins the host
+  imports; the webview's host calls (`acquireVsCodeApi`) and the
+  `--vscode-*` theme variables it reads; the manifest's facts (engines,
+  `extensionKind`, entry points, capabilities, activation events,
+  contribution points). The record is `docs/ide-compatibility/host-api.md`,
+  formatted as Prettier would; the gate fails when it differs from the
+  source. Whatever the record says, the portable code never reaches
+  `vscode` through its imports, type-only ones included: everything under
+  `src/core`, `src/shared` and `src/webview`, and the host modules the
+  script lists (the conversation controller, both backend managers, the
+  tool harness, the credential and session stores, the `ide` server). A
+  VS Code object handed to portable code by shape (the log channel,
+  `SecretStorage`) is still recorded, member by member, where it is handed
+  over.
+- **Acceptance**: a red drill for each failure; the gate green; the record
+  read through.
+- **Not here**: installing another editor (M62, Q62).
+
+### M61 — Shared boundaries (D60, phase B)
+
+**Status 2026-09-26: the first two steps built** (`docs/certification/m60.md`
+records them with M60); the rest waits for M56 to merge.
+
+- **Goal**: the engine and the React UI can be driven by a host other than
+  VS Code, while VS Code behaves exactly as before.
+- **Scope, in order**:
+  1. The webview's host bridge (`src/webview/hostBridge.ts`): posting to
+     the host, the saved state and the host's messages go through one
+     interface, and `main.tsx` no longer calls `acquireVsCodeApi` itself.
+     **Built.**
+  2. `ChatSurface` and `ConversationMessage` in a module with no `vscode`
+     type (`src/host/views/chatSurface.ts`), the logger taking its channel
+     by shape and `DictationSetup` in the core, so the conversation
+     controller, both backend managers and the other modules the M60 gate
+     lists are portable. **Built.**
+  3. Theme tokens: the stylesheet reads `--muse-*` tokens mapped once from
+     VS Code's variables (M60's record lists the 57), so another host maps
+     its own; the harness screenshots identical before and after. After
+     M56.
+  4. The editor-services contract (D60's list), taken by the controller
+     and the Model API tool harness, with VS Code's implementation. After
+     M56.
+  5. A standalone Node runtime entry that drives `AgentHost` without
+     `vscode`, tested against the fake CLI and the protocol captures.
+  6. Capability detection: what a host offers, and what the UI hides or
+     explains when it does not.
+- **Acceptance**: every gate and the integration tests unchanged; each
+  moved module on the M60 gate's portable list.
+
 ## 7. Gates
 
 | Gate                  | Command                                                                                                                                                                                                         | Status                                                                                                                                                                                                     |
@@ -3305,6 +3447,7 @@ The CLI itself is not bundled: it is Meta's closed-source binary.
 | PowerShell lint       | `node scripts/lint-ps.mjs` (PSScriptAnalyzer over `native/windows`, `npm run lint:ps`)                                                                                                                          | M9 ✓ on Windows (exit = finding count; a reported skip on other platforms; installed on the CI Windows runner). M26: pinned to 1.25.0 (`-RequiredVersion`), the version CI installs.                       |
 | Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA                           | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
 | Localization          | `node scripts/check-l10n.mjs` (`npm run check:l10n`, in `quality:gates`): every table in `l10n/` against the English table, strictly; the manifest against `package.nls.json`; no `UI_TEXT` read at module load | M40 ✓ (drills in `docs/certification/m40.md`)                                                                                                                                                              |
+| Host API record       | `node scripts/check-host-api.mjs` (`npm run check:host-api`, in `quality:gates`; `--write` regenerates): `docs/ide-compatibility/host-api.md` against the source, and the portable code never reaching `vscode` | M60 ✓ (drills in `docs/certification/m60.md`)                                                                                                                                                              |
 
 ## 8. Escape hatches register
 

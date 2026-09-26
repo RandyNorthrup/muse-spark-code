@@ -30,7 +30,7 @@ import {
 import { chatReferenceText } from '../../core/chatReference'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import type { ToolImageResult } from '../../core/toolImages'
-import type { DictationHandle, DictationStatus } from '../../core/voice/dictation'
+import type { DictationHandle, DictationSetup, DictationStatus } from '../../core/voice/dictation'
 import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
@@ -79,8 +79,7 @@ import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../share
 import type { AuthPort } from '../auth/authService'
 import type { ReviewNotice } from '../editor/editReview'
 import { errorDetail, type Logger } from '../logger'
-import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
-import type { DictationSetup } from '../voice/dictationHost'
+import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import {
   type ConversationExports,
   exportConversation,

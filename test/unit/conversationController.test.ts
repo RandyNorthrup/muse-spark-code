@@ -13,8 +13,7 @@ import {
   type PickedFile,
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
-import type { DictationListener } from '../../src/core/voice/dictation'
-import type { DictationSetup } from '../../src/host/voice/dictationHost'
+import type { DictationListener, DictationSetup } from '../../src/core/voice/dictation'
 import { CHOICE_STEERING_NOTE, UI_TEXT } from '../../src/shared/constants'
 import type { HostAction, LineRange, MentionItem } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'

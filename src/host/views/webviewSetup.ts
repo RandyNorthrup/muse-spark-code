@@ -1,6 +1,6 @@
 // Shared wiring for both webview surfaces (sidebar view and editor panel):
 // options, HTML with a fresh CSP nonce, the inbound message handler, and the
-// `ChatSurface` handle the rest of the host uses to talk back.
+// `ChatSurface` handle (chatSurface.ts) the rest of the host uses to talk back.
 
 import * as vscode from 'vscode'
 import {
@@ -13,21 +13,12 @@ import {
   type HostToWebviewMessage,
   parseWebviewToHostMessage,
   type SettingsSnapshot,
-  type WebviewToHostMessage,
 } from '../../shared/protocol'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
+import type { ChatSurface, ConversationMessage } from './chatSurface'
 import { webviewErrorLog } from './webviewErrors'
-
-/** Messages about the conversation itself, routed to the surface's controller. */
-export type ConversationMessage = Exclude<
-  WebviewToHostMessage,
-  | { type: 'ready' }
-  | { type: 'inputFocusChanged' }
-  | { type: 'surfaceFocused' }
-  | { type: 'webviewError' }
->
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
@@ -39,27 +30,6 @@ export interface WebviewHostContext {
   /** The webview mounted and received `init`; push the conversation state. */
   readonly onSurfaceReady: (surface: ChatSurface) => void
   readonly onConversationMessage: (surface: ChatSurface, message: ConversationMessage) => void
-}
-
-/** One chat UI instance (the sidebar view or one editor panel). */
-export interface ChatSurface extends vscode.Disposable {
-  readonly id: string
-  post(message: HostToWebviewMessage): void
-  /** Bring the surface into view and give it keyboard focus. */
-  reveal(): void
-  /** The conversation needs the user (turn done, approval, question): mark it when hidden (M6). */
-  markUnread(): void
-  /** The conversation's name, shown on the tab or beside the view name (M6). */
-  setTitle(title: string): void
-  /** Rebuild the document with a fresh nonce (the error boundary's Reload, M11). */
-  reload(): void
-  /**
-   * The session a panel held before the window reloaded (D15), until it is
-   * live here (its history went to the webview, or another session started)
-   * or the user clears the conversation (M25): every `ready` until then may
-   * try the resume again, so a failed one is not the end of the conversation.
-   */
-  takeRestoredSessionId(): string | undefined
 }
 
 export interface SurfaceOptions {
