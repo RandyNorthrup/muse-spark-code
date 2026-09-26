@@ -11,8 +11,7 @@ import { env, ExtensionKind, extensions } from 'vscode'
 import type { CoreLogger } from '../../core/logging'
 import {
   Dictation,
-  type DictationHandle,
-  type DictationListener,
+  type DictationSetup,
   type HelperChild,
   type HelperInvocation,
 } from '../../core/voice/dictation'
@@ -30,13 +29,6 @@ import {
 } from '../../core/voice/museVoice'
 import { type RecorderProcess, recorderHelper } from '../../core/voice/recorderHelper'
 import { EXTENSION_QUALIFIED_ID, MUSE_VOICE_REALTIME_URL, UI_TEXT } from '../../shared/constants'
-
-export type DictationSetup =
-  | {
-      readonly isAvailable: true
-      readonly create: (listener: DictationListener) => DictationHandle
-    }
-  | { readonly isAvailable: false; readonly reason: string }
 
 const SIGNAL_EXIT = 'signal'
 

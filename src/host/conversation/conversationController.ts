@@ -25,6 +25,7 @@ import {
   type TurnPart,
   type TurnSubmission,
 } from '../../core/agent/agentBackend'
+import { editAutomaticallyChoice } from '../../core/agent/approvalRules'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
   isProfileWorkspaceLimited,
@@ -33,7 +34,7 @@ import {
 import { chatReferenceText } from '../../core/chatReference'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import type { ToolImageResult } from '../../core/toolImages'
-import type { DictationHandle, DictationStatus } from '../../core/voice/dictation'
+import type { DictationHandle, DictationSetup, DictationStatus } from '../../core/voice/dictation'
 import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
@@ -86,8 +87,7 @@ import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../share
 import type { AuthPort } from '../auth/authService'
 import type { ReviewNotice } from '../editor/editReview'
 import { errorDetail, type Logger } from '../logger'
-import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
-import type { DictationSetup } from '../voice/dictationHost'
+import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import {
   type ConversationExports,
   exportConversation,
@@ -272,16 +272,9 @@ const CANCELLED_STATUS = 'cancelled'
 const MISSING_RUN_REASON = 'missing_run'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const FALLBACK_MODE: PermissionMode = 'manual'
-const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
 /** Auto approval is safe only while one controller holds the shared session. */
 const sessionSurfaces = new WeakMap<AgentSession, Set<ConversationController>>()
-// Approval subjects that are a plain file write: the Model API's own, and
-// Muse Code's `fileAccess` with write access (MSP `ApprovalSubject`).
-const FILE_WRITE_SUBJECT = 'fileWrite'
-const FILE_ACCESS_SUBJECT = 'fileAccess'
-const WRITE_ACCESS = 'write'
 const APPROVED_DECISION = 'approved'
-const ONCE_SCOPE = 'once'
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 const HISTORY_MODE_NONE = 'none'
 const NOT_LOADED_STATUS = 'notLoaded'
@@ -708,25 +701,9 @@ export class ConversationController {
   private autoApprovalChoice(
     event: Extract<AgentEvent, { type: 'approvalRequested' }>,
   ): ApprovalChoice | undefined {
-    if (
-      this.permissionMode !== EDIT_AUTOMATICALLY_MODE ||
-      this.session === undefined ||
-      sessionSurfaces.get(this.session)?.size !== 1 ||
-      event.isReplayed === true ||
-      event.isProtectedWrite ||
-      event.isJudgeEscalated
-    ) {
-      return undefined
-    }
-    const { subject } = event
-    const isFileWrite =
-      subject.kind === FILE_WRITE_SUBJECT ||
-      (subject.kind === FILE_ACCESS_SUBJECT && subject.access === WRITE_ACCESS)
-    return isFileWrite && subject.stages === undefined
-      ? event.availableChoices.find(
-          (choice) => choice.decision === APPROVED_DECISION && choice.scope === ONCE_SCOPE,
-        )
-      : undefined
+    return this.session === undefined || sessionSurfaces.get(this.session)?.size !== 1
+      ? undefined
+      : editAutomaticallyChoice(event, this.permissionMode)
   }
 
   /** Answers an edit approval on the user's behalf; shows the card if the host refuses. */

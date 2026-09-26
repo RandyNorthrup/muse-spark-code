@@ -1,8 +1,8 @@
 // Logging adapter over VS Code's LogOutputChannel that redacts secrets before
 // anything is written. Every host module logs through this interface, never
-// through the channel or `console` directly.
+// through the channel or `console` directly. The channel is taken by its
+// shape, so the modules that log stay free of `vscode` (M61, PLAN.md D60).
 
-import type * as vscode from 'vscode'
 import { redactSecrets } from '../core/redact'
 
 export interface Logger {
@@ -28,7 +28,8 @@ export function logRejection(log: Logger, what: string): (error: unknown) => voi
   }
 }
 
-export function createLogger(channel: vscode.LogOutputChannel): Logger {
+/** `channel` is VS Code's `LogOutputChannel`, taken by the four methods it shares with `Logger`. */
+export function createLogger(channel: Logger): Logger {
   return {
     trace(message) {
       channel.trace(redactSecrets(message))

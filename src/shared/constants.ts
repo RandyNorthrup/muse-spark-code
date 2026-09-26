@@ -640,6 +640,54 @@ export const MODEL_API_OUTPUT_ENCODING = 'utf8'
 // Model API sessions persist as one JSON file each under the workspace
 // storage directory (PLAN.md D14); the version guards the shape.
 export const MODEL_API_SESSIONS_DIR = 'modelapi-sessions'
+// --- The ACP agent (M63, PLAN.md D61, D62) ---
+// The executable other editors run, and how it names itself to them.
+export const ACP_AGENT_NAME = 'muse-spark-code-acp'
+export const ACP_AGENT_TITLE = 'Muse Spark Code (Unofficial)'
+// The OS credential store's entry for the Model API key (D61); the account
+// is the name the extension's SecretStorage uses (SECRET_KEYS.modelApiKey).
+export const KEYRING_SERVICE = 'Muse Spark Code (Unofficial)'
+// Which account pays is chosen at launch, never guessed (D62).
+export const ACP_BACKENDS = ['museCode', 'modelApi'] as const
+export type AcpBackendKind = (typeof ACP_BACKENDS)[number]
+export const ACP_DEFAULT_BACKEND: AcpBackendKind = 'museCode'
+// The terminal sign-ins `initialize` offers: the ids, and the arguments the
+// client runs the agent with for each.
+export const ACP_AUTH_METHODS = {
+  museCodeLogin: { id: 'muse-code-login', args: ['login'] },
+  modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
+} as const
+export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort' } as const
+// The paid Model API features the agent can use (M63c, PLAN.md D30): each
+// only with its flag, and once the user accepts its price in the editor.
+// Muse Voice needs the panel's microphone, so the agent has none.
+export const ACP_PAID_FEATURES = [
+  'webSearch',
+  'imageGeneration',
+] as const satisfies readonly PaidFeature[]
+export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
+export const ACP_PAID_FLAGS = {
+  webSearch: 'web-search',
+  imageGeneration: 'image-generation',
+} as const satisfies Readonly<Record<AcpPaidFeature, string>>
+// The price confirmation: its tool call row (the feature appended) and answers.
+export const ACP_PAID_TOOL_CALL_PREFIX = 'paid-feature-'
+export const ACP_PAID_OPTIONS = { accept: 'paid-accept', decline: 'paid-decline' } as const
+// A tool's output as the client sees it; the full text stays with the backend.
+export const ACP_TOOL_OUTPUT_MAX_CHARS = 20_000
+export const ACP_SESSION_LIST_LIMIT = 50
+// Model API sessions of the agent, per folder, under the user's data folder:
+// the folder named per platform, and the length of the folder's hash.
+export const ACP_DATA_FOLDER = {
+  win32: 'Muse Spark Code',
+  darwin: 'Muse Spark Code',
+  other: 'muse-spark-code',
+} as const
+export const ACP_SESSIONS_SUBFOLDER = 'acp'
+export const ACP_WORKSPACE_HASH_CHARS = 16
+// The file walk that stands in for VS Code's file search when git cannot
+// list a folder: what it never descends into.
+export const FILE_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
 export const STORED_SESSION_VERSION = 1
 // PLAN.md D26: a session store `.tmp` this old is a crash's leftover, not a
 // save in flight (another window on the same workspace may be writing one).
@@ -800,6 +848,8 @@ export const CHAT_REFERENCE_LABEL_CHARS = 60
 export const IDE_CONTEXT_TAGS = {
   selection: 'ide_selection',
   openedFile: 'ide_opened_file',
+  // A file or excerpt an ACP client attached to the prompt (M63).
+  attachedContext: 'ide_attached_context',
 } as const
 // Virtual documents holding a file's pre-edit text for the diff view.
 export const MUSE_EDIT_SCHEME = 'muse-edit'

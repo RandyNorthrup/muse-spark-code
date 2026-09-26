@@ -14,6 +14,9 @@ const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   { path: 'dist/webview/main.js', budgetKiB: 900 },
+  // The ACP agent (M63, PLAN.md D62): the engine without the webview, plus
+  // the ACP SDK and the classic zod it imports (445 of 718 KiB when set).
+  { path: 'dist/acp.js', budgetKiB: 800 },
 ]
 
 let hasFailure = false

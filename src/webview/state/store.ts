@@ -8,6 +8,7 @@
 import { WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
 import { parseHostToWebviewMessage } from '../../shared/protocol'
 import type { ErrorReporter } from '../errorReport'
+import type { MessageSource } from '../hostBridge'
 import { webviewStateOf, type WebviewState } from './snapshot'
 import { type UiAction, uiReducer, type UiState } from './uiState'
 
@@ -60,7 +61,7 @@ export function createUiStore(initial: UiState): UiStore {
  */
 export function listenToHost(
   store: UiStore,
-  target: Window,
+  target: MessageSource,
   now: () => number,
   report: ErrorReporter,
 ): () => void {

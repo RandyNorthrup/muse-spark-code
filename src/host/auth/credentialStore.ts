@@ -1,13 +1,14 @@
 // The Model API key lives only in VS Code secret storage (OS keychain). The
 // dependency is the three-method subset of `vscode.SecretStorage`, which the
-// real object satisfies structurally and tests replace with a Map.
+// real object satisfies structurally, the ACP agent's OS credential store
+// implements (PLAN.md D61), and tests replace with a Map.
 
 import { MODEL_API_KEY_PATTERN, SECRET_KEYS } from '../../shared/constants'
 
 export interface SecretStore {
-  get(key: string): Thenable<string | undefined>
-  store(key: string, value: string): Thenable<void>
-  delete(key: string): Thenable<void>
+  get(key: string): PromiseLike<string | undefined>
+  store(key: string, value: string): PromiseLike<void>
+  delete(key: string): PromiseLike<void>
 }
 
 export function isValidModelApiKey(candidate: string): boolean {

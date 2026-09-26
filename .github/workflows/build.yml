@@ -153,6 +153,25 @@ jobs:
           name: muse-spark-code-vsix
           path: '*.vsix'
           if-no-files-found: error
+      # The ACP agent's npm package (M63, PLAN.md D62), from the same
+      # production build `npm run package` just ran.
+      - run: node scripts/package-acp.mjs
+      - name: the agent's package carries its bundles, tables, notices and manifest
+        run: |
+          listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
+          for entry in package/package.json package/dist/acp.js package/dist/searchWorker.js \
+            package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md package/l10n/ui.de.json; do
+            if ! grep -qx "$entry" <<< "$listing"; then
+              echo "::error::$entry is missing from the agent's package" >&2
+              exit 1
+            fi
+          done
+          echo "the agent's package holds $(wc -l <<< "$listing") entries, the required ones included"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-spark-code-acp
+          path: dist/muse-spark-code-acp-*.tgz
+          if-no-files-found: error
 
   secrets:
     name: gitleaks

@@ -1585,13 +1585,15 @@ export class ModelApiSession implements AgentSession {
       limit,
       seen: this.seenFiles,
     })
-    const moved = Promise.withResolvers<undefined>()
-    this.foregroundShells.set(itemId, () => {
-      moved.resolve(undefined)
+    // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
+    const moved = new Promise<undefined>((resolve) => {
+      this.foregroundShells.set(itemId, () => {
+        resolve(undefined)
+      })
     })
     let finished: ToolOutcome | undefined
     try {
-      finished = await Promise.race([running, moved.promise])
+      finished = await Promise.race([running, moved])
     } finally {
       this.foregroundShells.delete(itemId)
       turnSignal.removeEventListener('abort', onTurnStop)

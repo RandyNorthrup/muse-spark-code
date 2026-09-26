@@ -108,6 +108,65 @@ while they are (PLAN.md D30, D34).
   and Account & usage tallies this window's searches, images and seconds of
   audio with their estimated cost.
 - **A languages badge** in the README.
+- **Groundwork for editors other than VS Code** (M60, M61, PLAN.md D60).
+  The owner's IDE compatibility plan is filed in `docs/ide-compatibility.md`.
+  A new gate, `npm run check:host-api`, keeps a record of what the
+  extension asks of its host (`docs/ide-compatibility/host-api.md`): the
+  198 VS Code APIs it uses and where, the 11 files that import `vscode`,
+  the Node built-ins, and what the webview needs (`acquireVsCodeApi` and 57
+  theme variables); it fails when the record goes stale, and when the
+  engine, the protocol, the webview, the conversation controller, either
+  backend or the credential store reaches `vscode`. The webview now talks
+  to VS Code through one host bridge, and the chat surface, the log and the
+  dictation setup carry no VS Code types. Nothing changes in VS Code.
+- **Muse Spark for editors that speak ACP** (M63, PLAN.md D61, D62).
+  `muse-spark-code-acp`, an npm package attached to each GitHub Release,
+  runs Muse Code or the Model API as an Agent Client Protocol agent for
+  Zed, JetBrains IDEs, Neovim, Emacs and the other ACP editors: the chat,
+  tool calls with diffs, the plan, permission prompts (a cancelled or
+  unknown answer rejects), questions as forms, the modes, the model and
+  effort, skills as commands, and sessions listed, loaded and resumed. The
+  backend is chosen when the editor starts it and never switches.
+  `muse-spark-code-acp auth set` keeps a Model API key in the operating
+  system's credential store (Windows Credential Manager, the macOS
+  Keychain, the Secret Service on Linux, with no plaintext fallback); the
+  key is never read from the environment or passed to Muse Code. Paid
+  features (web search, image generation) are off unless the editor
+  starts the agent with `--web-search` or `--image-generation`, and then
+  only once you accept their price in the editor. The editor's MCP
+  servers (stdio and HTTP) are passed to Muse Code, so Jupyter AI's
+  notebook tools and Zed's context servers reach it. See `docs/acp.md`;
+  which editors have been tried is tracked in
+  `docs/ide-compatibility/hosts.md` (Zed, Emacs
+  with agent-shell, Neovim with CodeCompanion and JupyterLab with Jupyter
+  AI so far).
+- **Open VSX and npm publishing** in the release workflow. A tag also
+  publishes the VSIX to Open VSX, for VS Code forks that install from
+  there, and the agent to npm, each only when its token is set in the
+  `marketplace` environment.
+- **Host checks in CI** (the Hosts workflow, `test/hosts/`). Every pull
+  request that touches the product runs the packaged extension in VSCodium
+  and code-server (the 1.99 floor and the latest) and in Eclipse Theia,
+  and the packaged ACP agent on Linux, macOS and Windows (its key through
+  each credential store) and in JupyterLab, Emacs and Neovim, all against
+  a fake Muse Code CLI; the latest releases are tried again every Monday.
+  A second workflow, Forks, installs the VSIX in the latest Linux builds
+  of Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron and runs
+  the integration tests there, weekly and by hand.
+
+### Changed
+
+- **VS Code 1.99 or newer** (was 1.125; M62, PLAN.md A8), so editors built
+  on VS Code 1.99 or later can install the extension. The extension uses
+  no VS Code API newer than 1.85, checked against every published
+  `@types/vscode` from 1.85 on, and its host bundles now need nothing
+  newer than Node 20.18, the Node of VS Code 1.99 and 1.100. Tested in
+  VSCodium 1.99.3 and 1.135 (the integration tests, 9 passing in each) and
+  in code-server 4.99.4 (VS Code 1.99.3: a conversation and an approval
+  in the browser), where the 1.125 floor was refused; and in the latest
+  Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron, which
+  install it and pass the integration tests. On 1.99 and 1.100 Muse Voice
+  says it is unavailable, as their Node has no WebSocket.
 
 ### Fixed
 

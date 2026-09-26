@@ -31,8 +31,9 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       // Entry points are exercised by the integration run (a real VS Code),
       // not by unit tests; the process adapter that spawns `muse serve` is
-      // covered by the e2e suite against a real child process (test/e2e).
-      exclude: ['src/extension.ts', 'src/webview/main.tsx', 'src/**/*.d.ts'],
+      // covered by the e2e suite against a real child process (test/e2e),
+      // and the ACP agent's entry by the e2e suite over its stdio (M63).
+      exclude: ['src/extension.ts', 'src/webview/main.tsx', 'src/runtime/main.ts', 'src/**/*.d.ts'],
       thresholds: COVERAGE_THRESHOLDS,
       reporter: ['text', 'lcov'],
     },

@@ -6,7 +6,7 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace version" src="https://badgen.net/vs-marketplace/v/RandyNorthrup.muse-spark-code?label=Marketplace&color=3b6cf6"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="VS Code 1.125 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.125-2b7de9">
+  <img alt="VS Code 1.99 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.99-2b7de9">
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
   <a href="#languages"><img alt="15 languages" src="https://img.shields.io/badge/languages-15-2b7de9"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
@@ -152,7 +152,7 @@ harness:shots`) against a scripted session, so they match the build.
 
 1. Install **Muse Spark Code** from the
    [Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
-   (VS Code 1.125 or newer), or from a `.vsix` attached to a
+   (VS Code 1.99 or newer), or from a `.vsix` attached to a
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
@@ -201,6 +201,21 @@ patches. The CLI backend keeps its own session store. If the panel itself
 ever fails to render, it shows the error and a **Reload** button instead of
 going blank; Reload brings the conversation back as it was, running turn and
 waiting cards included.
+
+## Other editors
+
+The same two backends run outside VS Code as `muse-spark-code-acp`, an
+agent for editors that speak the Agent Client Protocol (Zed, JetBrains IDEs,
+Neovim, Emacs and others), attached to each GitHub Release.
+[docs/acp.md](docs/acp.md) covers installing it, where it keeps a Model API
+key (the operating system's credential store), and the editor's settings.
+VS Code forks built on VS Code 1.99 or later can install the extension
+from a `.vsix`, and from Open VSX once a release is published there.
+[docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
+which editors have been tried: so far VSCodium, code-server, Eclipse
+Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
+the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
+JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
@@ -920,7 +935,10 @@ message resumes the same session.
 
 ## Requirements
 
-- VS Code 1.125.0 or newer, on Windows, macOS or Linux.
+- VS Code 1.99.0 or newer, on Windows, macOS or Linux, or an editor built
+  on it: VSCodium 1.99.3 and 1.135, code-server 4.99.4 and Theia 1.75 were
+  tested (see [hosts.md](docs/ide-compatibility/hosts.md)). On 1.99 and 1.100, whose
+  extension host is Node 20, Muse Voice is unavailable.
 - The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
   a Meta account (subscription), or a Meta Model API key (pay as you go).
 - `git` on `PATH` for `.gitignore`-aware `@` mentions, worktrees and the
@@ -1046,6 +1064,11 @@ message resumes the same session.
 - **A workflow has no Cancel, Skip or Retry button** — this increment
   follows its progress read-only. Owner controls wait for a captured
   accepted-command and outcome shape from Muse Code.
+- **The Muse Spark sidebar is blank in Eclipse Theia** — Theia 1.75 does not
+  start an extension when its webview view opens, so the view waits until
+  something else starts it. Press **Ctrl+Esc** or run any Muse Spark command
+  (**Open in New Tab**, **Show Logs**) and the sidebar fills in; it works
+  from then on in that window.
 - **The microphone says "Voice dictation failed: No microphone is available"**
   — Windows sees no recording device from this session (Remote Desktop hides
   the host's devices unless the client redirects a microphone). On macOS,
@@ -1096,7 +1119,7 @@ PowerShell and Swift with no dependencies.
 | `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, and PSScriptAnalyzer 1.25.0 over `native/windows` (Windows only; a reported skip elsewhere)                                                                                                                                                                                                                                                                                                                    |
 | `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test, e2e-test and integration-test projects                                                                                                                                                                                                                                                                                                                                                                                              |
 | `npm run deadcode`                        | `knip`: unused files, exports, dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run cycles`                          | `dpdm` circular-import check from both entry points                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `npm run cycles`                          | `dpdm` circular-import check from the three entry points (extension, webview, ACP agent)                                                                                                                                                                                                                                                                                                                                                                                             |
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                       |
 | `npm run test:e2e:live`                   | One real turn on the installed Muse Code CLI, opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60, counted from the CLI's trace log); never in CI                                                                                                                                         |
@@ -1106,10 +1129,12 @@ PowerShell and Swift with no dependencies.
 | `npm run security:sast`                   | `semgrep scan --config auto --error` through `scripts/sast.mjs`, which also finds a semgrep that pip put in Python's user Scripts folder when that folder is not on the shell's PATH                                                                                                                                                                                                                                                                                                 |
 | `npm run security:secrets`                | `gitleaks git` over the repository history                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `npm run check:l10n`                      | The localization gate: every table in `l10n/` has every key of the English one (`src/shared/l10n/en.ts`) with the same `{slots}`, code spans and bold markers, exactly the plural forms its language uses, and nothing left in English but the names `l10n/untranslated.json` allows; every string `package.json` shows is a `%key%` of `package.nls.json`; and nothing reads `UI_TEXT` while its module loads                                                                       |
-| `npm run quality:gates`                   | `format:check`, `lint`, `typecheck`, `check:l10n`, `deadcode`, `cycles`, `duplication`, `test:unit`, `build`, `security:audit`: what CI runs on all three platforms                                                                                                                                                                                                                                                                                                                  |
+| `npm run check:host-api`                  | The host API gate (PLAN.md D60): checks `docs/ide-compatibility/host-api.md`, the record of every VS Code API the extension uses and where, the files that import `vscode`, the Node built-ins and what the webview needs from its host, against the source; fails when it is stale (`-- --write` regenerates it) and when the engine, the protocol, the webview or a portable host module reaches `vscode`                                                                          |
+| `npm run quality:gates`                   | `format:check`, `lint`, `typecheck`, `check:l10n`, `check:host-api`, `deadcode`, `cycles`, `duplication`, `test:unit`, `build`, `security:audit`: what CI runs on all three platforms                                                                                                                                                                                                                                                                                                |
 | `npm run quality`                         | `quality:gates`, then `test:a11y`, `security:secrets` and `security:sast`; **exits non-zero on any finding**                                                                                                                                                                                                                                                                                                                                                                         |
 | `npm run quality:ci`                      | `quality:gates`, `test:a11y`, then `test:integration` (no secrets or SAST); CI itself runs these as separate steps, see Releases                                                                                                                                                                                                                                                                                                                                                     |
 | `npm run package`                         | `vsce package --no-dependencies` (after `vscode:prepublish` runs `npm run build`) → `.vsix`; it carries the macOS helper only if `bash native/darwin/build.sh` built it first, on a Mac                                                                                                                                                                                                                                                                                              |
+| `npm run package:acp`                     | Production build, then `scripts/package-acp.mjs` → `dist/muse-spark-code-acp-<version>.tgz`, the ACP agent's npm package (`docs/acp.md`), with its own third-party notices                                                                                                                                                                                                                                                                                                           |
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
@@ -1119,7 +1144,13 @@ in `test/unit/helpers/` implement the full VS Code interfaces. The e2e tests
 that answers the Muse Session Protocol, including approvals, questions and
 subagents. Integration tests (`test/integration/**`) run under mocha inside a
 real VS Code launched by `@vscode/test-cli` (on Linux under `xvfb-run -a`),
-against `test/fixtures/workspace/`.
+against `test/fixtures/workspace/`. The host checks (`test/hosts/`, CI's
+Hosts workflow) run the packaged extension in VSCodium, code-server and
+Eclipse Theia, and the packaged ACP agent in JupyterLab, Emacs and
+Neovim, each against the fake CLI; the Forks workflow installs the VSIX
+in the latest Cursor, Devin Desktop, Kiro and Positron and runs the
+integration tests there. `sh test/hosts/run-<host>.sh` runs one locally,
+with the arguments its header gives.
 
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are
@@ -1162,6 +1193,7 @@ test/e2e/                   the fake Muse Code CLI and the tests that drive the 
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
 test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds VS Code's four default themes
+test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
 scripts/                    esbuild build; bundle-size, host-globals, notices, audit, PSScriptAnalyzer, accessibility and localization gates; the pseudo-locale; theme capture, harness screenshots, image rendering; CHANGELOG notes and VS Code versions for the workflows
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
