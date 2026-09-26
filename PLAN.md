@@ -3541,14 +3541,19 @@ translations. The order is D36's table:
 
 ### M46 — Background work and stop; the `!` user shell; clarifying questions (D39)
 
-**Status 2026-09-25: staged on merged M45; certification pending**
+**Status 2026-09-25: PR #33 under review; certification pending**
 (`docs/certification/m46.md`). A full local gate passed on M45 base
 `5581fe2` with the Windows accessibility runner capped at two workers;
 M46 was then reconciled onto M45 candidates `502684c`, `ec5db58`,
 `899b573`, `f5df625`, `4da43ac`, `f3390ec` and `ef84852`. The full local
 quality gate passed on `ef84852`. M45 merged into main at `1908673`, whose
 source tree is identical to `ef84852`; M46 now branches from that merge.
-M46's commit and hosted certification remain open.
+M46 was committed as `8a85d79` and opened as PR #33. Review found two
+session-lifecycle gaps: final-surface disposal must stop CLI background
+tasks, and resumed foreground shell history must restore the `Ctrl+B`
+context. Both have focused failing-before/passing-after tests. The
+corrected tree passed the full local gate; hosted review of the correction
+remains open.
 
 - **Goal**: what Muse Code's TUI does with Ctrl+B, `/stop` and `!`, and its
   "let me explain" answer to a question, from the panel, on both backends.

@@ -3759,6 +3759,49 @@ describe('ConversationController: the user’s own shell commands (M46)', () => 
 })
 
 describe('ConversationController: background work (M46)', () => {
+  it('restores Ctrl+B from the running foreground shell in a resumed history', async () => {
+    const t = withHistory()
+    t.server.handle('session/resume', () => {
+      const resumed = envelope({
+        ...storedSession,
+        sessionId: 'old',
+        status: 'running',
+        activeTurnId: 't1',
+      })
+      return {
+        ...resumed,
+        history: {
+          ...resumed.history,
+          items: [
+            ...storedItems,
+            { ...SHELL_CALL_STARTED.item, turnId: 't1' },
+            { ...SHELL_CALL_BACKGROUNDED.item, itemId: 'already-background', turnId: 't1' },
+            { ...SHELL_CALL_STARTED.item, itemId: 'other-turn', turnId: 't0' },
+          ],
+        },
+      }
+    })
+    t.server.handle('task/background', taskAck)
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.controller.hasForegroundShell).toBe(true)
+    expect(t.deps.onForegroundTasksChanged).toHaveBeenCalledOnce()
+    await t.controller.moveRunningToBackground()
+    expect(
+      t.server.requestsFor('task/background').map((request) => request.params?.['taskId']),
+    ).toEqual([SHELL_CALL_STARTED.item.itemId])
+  })
+
+  it('stops the CLI tasks when the conversation surface closes', async () => {
+    const t = await runningTurn()
+    t.server.notify('item/started', onFakeSession(SHELL_CALL_STARTED))
+    t.server.notify('item/updated', onFakeSession(SHELL_CALL_BACKGROUNDED))
+    await settle()
+    t.controller.dispose()
+    await settle()
+    expect(t.server.requestsFor('task/stopAll')[0]?.params).toMatchObject({ sessionId: 's1' })
+    expect(t.host.sessionCount).toBe(0)
+  })
+
   it('moves a row’s command to the background, stops it, and stops them all', async () => {
     const t = await runningTurn()
     const taskId = SHELL_CALL_STARTED.item.itemId

@@ -442,6 +442,12 @@ export class MuseSession implements AgentSession {
     })
   }
 
+  private finishDispose(): void {
+    this.isDisposed = true
+    this.listeners.clear()
+    this.onDispose()
+  }
+
   /** One more surface holds this handle (a second panel resumed the same session). */
   public retain(): void {
     this.holders += 1
@@ -735,15 +741,24 @@ export class MuseSession implements AgentSession {
     if (this.holders > 0) {
       return
     }
-    this.isDisposed = true
-    this.listeners.clear()
-    this.onDispose()
+    // The CLI process can outlive this handle. Stop its work while the
+    // connection is still open, even when the turn that started it has ended.
+    void this.stopAllTasks().catch((error: unknown) => {
+      this.log.warn(
+        `task/stopAll before releasing session ${this.sessionId} failed: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    })
+    this.finishDispose()
   }
 
   /** The host is closing: the handle goes whoever still holds it. */
   public disposeAll(): void {
-    this.holders = 1
-    this.dispose()
+    if (this.isDisposed) {
+      return
+    }
+    // The process has already closed, so there is no session command to send.
+    this.holders = 0
+    this.finishDispose()
   }
 }
 

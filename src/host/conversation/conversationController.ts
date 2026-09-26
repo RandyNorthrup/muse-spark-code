@@ -905,14 +905,7 @@ export class ConversationController {
    * they run and are not yet in the background.
    */
   private noteForegroundShell(item: ItemSnapshot): void {
-    const isForeground =
-      item.kind === TOOL_CALL_KIND &&
-      item.tool !== undefined &&
-      SHELL_TOOLS.has(item.tool) &&
-      item.status === IN_PROGRESS_STATUS &&
-      item.background !== true &&
-      item.turnId !== undefined &&
-      item.turnId === this.activeTurnId
+    const isForeground = this.isForegroundShell(item, this.activeTurnId)
     const wasForeground = this.foregroundShells.has(item.itemId)
     if (isForeground === wasForeground) {
       return
@@ -921,6 +914,39 @@ export class ConversationController {
       this.foregroundShells.add(item.itemId)
     } else {
       this.foregroundShells.delete(item.itemId)
+    }
+    this.deps.onForegroundTasksChanged()
+  }
+
+  private isForegroundShell(item: ItemSnapshot, activeTurnId: string | undefined): boolean {
+    return (
+      item.kind === TOOL_CALL_KIND &&
+      item.tool !== undefined &&
+      SHELL_TOOLS.has(item.tool) &&
+      item.status === IN_PROGRESS_STATUS &&
+      item.background !== true &&
+      item.turnId !== undefined &&
+      item.turnId === activeTurnId
+    )
+  }
+
+  /** A resume or gap reload replaces the transcript, so rebuild Ctrl+B too. */
+  private restoreForegroundShells(
+    items: readonly ItemSnapshot[],
+    activeTurnId: string | undefined,
+  ): void {
+    const restored = new Set(
+      items.filter((item) => this.isForegroundShell(item, activeTurnId)).map((item) => item.itemId),
+    )
+    if (
+      restored.size === this.foregroundShells.size &&
+      [...restored].every((itemId) => this.foregroundShells.has(itemId))
+    ) {
+      return
+    }
+    this.foregroundShells.clear()
+    for (const itemId of restored) {
+      this.foregroundShells.add(itemId)
     }
     this.deps.onForegroundTasksChanged()
   }
@@ -1604,6 +1630,7 @@ export class ConversationController {
     activeTurnId: string | undefined,
     shouldIncludeGoal = true,
   ): void {
+    this.restoreForegroundShells(history.items, activeTurnId)
     this.post({
       type: 'historyLoaded',
       sessionId,

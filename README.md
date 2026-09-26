@@ -532,7 +532,9 @@ agent what the command printed when it ends. On the Model API backend the
 agent is answered at once that the command moved; it then runs without its
 time limit until it ends or you stop it, and what it printed reaches the
 agent with its next request (no model call is made for it on its own).
-Commands still running when the conversation closes are stopped with it.
+When the last surface leaves a conversation, its remaining background
+commands are stopped; another open surface keeps them running. A resumed
+conversation restores `Ctrl+B` for a shell command still in the foreground.
 
 **Subagents.** When Muse Code spawns native subagents they appear as rows and
 an **N agents** pill in the header opens the **Agent map** (also `/agents`):

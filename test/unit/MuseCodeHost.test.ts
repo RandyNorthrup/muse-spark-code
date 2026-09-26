@@ -516,6 +516,46 @@ describe('MuseCodeHost', () => {
     expect(host.sessionCount).toBe(0)
   })
 
+  it('stops background tasks only when the final surface releases the session (M46)', async () => {
+    const { host, server } = setup()
+    server.handle('task/stopAll', ack)
+    const first = await host.startSession(startOptions)
+    const second = await host.startSession(startOptions)
+    first.dispose()
+    await settle()
+    expect(server.requestsFor('task/stopAll')).toHaveLength(0)
+    second.dispose()
+    await settle()
+    expect(server.requestsFor('task/stopAll')[0]?.params).toMatchObject({
+      sessionId: first.sessionId,
+    })
+    expect(host.sessionCount).toBe(0)
+    second.dispose()
+    expect(server.requestsFor('task/stopAll')).toHaveLength(1)
+  })
+
+  it('does not send task commands after the host has closed its connection (M46)', async () => {
+    const { host, server } = setup()
+    await host.startSession(startOptions)
+    await host.close()
+    expect(server.requestsFor('task/stopAll')).toHaveLength(0)
+  })
+
+  it('reports a refused final stop while still releasing the session (M46)', async () => {
+    const { host, server, log } = setup()
+    server.handle('task/stopAll', () => {
+      throw new Error('stop refused')
+    })
+    const session = await host.startSession(startOptions)
+    session.dispose()
+    await settle()
+    expect(server.requestsFor('task/stopAll')).toHaveLength(1)
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining(`task/stopAll before releasing session ${session.sessionId} failed:`),
+    )
+    expect(host.sessionCount).toBe(0)
+  })
+
   it('describes every documented exit code and a signal', () => {
     expect(describeExit({ code: null, signal: 'SIGKILL' }, false)).toEqual({
       description: 'Muse Code was stopped by SIGKILL',
