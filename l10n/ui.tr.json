@@ -663,6 +663,7 @@
   "goalClearedNotice": "Hedef kaldırıldı",
   "goalNone": "Bu konuşmada hedef yok. /goal <hedef> ile bir hedef belirleyin.",
   "goalWakeWithdrawn": "Hedef üzerindeki çalışma başlamadan durduruldu.",
+  "goalRequestSuperseded": "Bu yanıt işlenirken hedef değişti.",
   "goalCannotPause": "Yalnızca etkin bir hedef duraklatılabilir.",
   "goalCannotResume": "Yalnızca duraklatılmış bir hedef sürdürülebilir.",
   "goalCannotEdit": "Yalnızca etkin veya duraklatılmış bir hedef değiştirilebilir; /goal <hedef> ile yeni bir hedef belirleyin.",

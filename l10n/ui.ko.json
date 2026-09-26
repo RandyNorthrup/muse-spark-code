@@ -651,6 +651,7 @@
   "goalClearedNotice": "목표 제거됨",
   "goalNone": "이 대화에는 목표가 없습니다. /goal <목표>로 설정하세요.",
   "goalWakeWithdrawn": "목표 작업이 시작되기 전에 중단되었습니다.",
+  "goalRequestSuperseded": "이 응답을 처리하는 동안 목표가 변경되었습니다.",
   "goalCannotPause": "활성 목표만 일시 중지할 수 있습니다.",
   "goalCannotResume": "일시 중지된 목표만 재개할 수 있습니다.",
   "goalCannotEdit": "활성 또는 일시 중지된 목표만 변경할 수 있습니다. 새 목표는 /goal <목표>로 설정하세요.",

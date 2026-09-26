@@ -548,6 +548,8 @@ export class ModelApiSession implements AgentSession {
   private todos: readonly TodoItem[] = []
   /** The session goal (M45, PLAN.md D38), in Muse Code's own record shape. */
   private goal: GoalRecord | undefined
+  /** Accepted user goal commands invalidate goal tools from older requests. */
+  private goalCommandRevision = 0
   /** Model calls since the goal last moved: the step probe's count (D38). */
   private goalSteps = 0
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
@@ -1072,7 +1074,10 @@ export class ModelApiSession implements AgentSession {
   private async streamOnce(
     turnId: string,
     signal: AbortSignal,
-  ): Promise<readonly FunctionCallItem[]> {
+  ): Promise<{
+    readonly calls: readonly FunctionCallItem[]
+    readonly goalCommandRevision: number
+  }> {
     const budget: RetryBudget = { retriesUsed: 0 }
     for (;;) {
       const open = new Map<string, OpenItem>()
@@ -1116,11 +1121,15 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     open: Map<string, OpenItem>,
     budget: RetryBudget,
-  ): Promise<readonly FunctionCallItem[]> {
+  ): Promise<{
+    readonly calls: readonly FunctionCallItem[]
+    readonly goalCommandRevision: number
+  }> {
     let final: ResponseObject | undefined
     // An HTTP or whole-stream retry gets its own snapshot: the goal may have
     // changed between attempts, but a reply never charges a newly set goal.
     const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
+    const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
       this.emit({
@@ -1148,7 +1157,10 @@ export class ModelApiSession implements AgentSession {
         undefined,
       )
     }
-    return this.adoptOutput(turnId, final, open, chargedGoalId)
+    return {
+      calls: this.adoptOutput(turnId, final, open, chargedGoalId),
+      goalCommandRevision,
+    }
   }
 
   /**
@@ -1414,6 +1426,7 @@ export class ModelApiSession implements AgentSession {
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    goalCommandRevision: number,
   ): Promise<ToolOutcome> {
     switch (call.name) {
       case MODEL_API_TOOLS.askUser: {
@@ -1430,9 +1443,18 @@ export class ModelApiSession implements AgentSession {
         return await this.makeImage(call, signal)
       }
       case MODEL_API_TOOLS.createGoal:
-      case MODEL_API_TOOLS.getGoal:
       case MODEL_API_TOOLS.updateGoal:
       case MODEL_API_TOOLS.reportProgress: {
+        if (goalCommandRevision !== this.goalCommandRevision) {
+          return {
+            output: `Error: ${MODEL_TEXT.goalRequestSuperseded}`,
+            visibleOutput: UI_TEXT.goalRequestSuperseded,
+            failureReason: UI_TEXT.goalRequestSuperseded,
+          }
+        }
+        return this.runGoal(call)
+      }
+      case MODEL_API_TOOLS.getGoal: {
         return this.runGoal(call)
       }
       default: {
@@ -1452,6 +1474,7 @@ export class ModelApiSession implements AgentSession {
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    goalCommandRevision: number,
   ): Promise<{ readonly outcome: ToolOutcome; readonly isRejected: boolean }> {
     const toolClass = classifyTool(call.name)
     if (toolClass === undefined) {
@@ -1502,7 +1525,10 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
-    return { outcome: await this.perform(itemId, call, signal), isRejected: false }
+    return {
+      outcome: await this.perform(itemId, call, signal, goalCommandRevision),
+      isRejected: false,
+    }
   }
 
   /**
@@ -1547,6 +1573,7 @@ export class ModelApiSession implements AgentSession {
     turnId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    goalCommandRevision: number,
   ): Promise<void> {
     const itemId = this.deps.newId()
     const paid = paidFeatureOf(call.name)
@@ -1562,7 +1589,7 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemStarted', item: started })
     let result: { readonly outcome: ToolOutcome; readonly isRejected: boolean }
     try {
-      result = await this.decideAndRun(itemId, call, signal)
+      result = await this.decideAndRun(itemId, call, signal, goalCommandRevision)
     } catch (error: unknown) {
       if (error instanceof AbortedError || signal.aborted) {
         this.finishCall(
@@ -1654,7 +1681,7 @@ export class ModelApiSession implements AgentSession {
       this.drainSteered(turn)
       this.drainGoalWake(turn)
       const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
-      const calls = await this.streamOnce(turn.turnId, signal)
+      const { calls, goalCommandRevision } = await this.streamOnce(turn.turnId, signal)
       if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
         this.skipCalls(turn.turnId, calls, MODEL_TEXT.goalBudgetReached)
         return
@@ -1677,7 +1704,7 @@ export class ModelApiSession implements AgentSession {
           throw new AbortedError()
         }
         try {
-          await this.runCall(turn.turnId, call, signal)
+          await this.runCall(turn.turnId, call, signal, goalCommandRevision)
         } catch (error: unknown) {
           this.skipCalls(turn.turnId, calls.slice(index + 1))
           throw error
@@ -2035,6 +2062,7 @@ export class ModelApiSession implements AgentSession {
       )
     }
     this.replaceGoal(applied.goal)
+    this.goalCommandRevision += 1
     if (command.verb === 'set' || command.verb === 'resume') {
       this.goalSteps = 0
     }

@@ -1097,6 +1097,8 @@ export const MODEL_TEXT = {
   // M45 (PLAN.md D38): the goal loop on the Model API backend, in Muse Code's
   // own words where it has them (its 1.3.0 binary's goal messages).
   goalWake: 'Continue working toward the active session goal.',
+  goalRequestSuperseded:
+    'the user changed the goal after this request began; request the current goal before reporting progress',
   goalUnfinishedExists:
     'cannot create a new goal because this session has an unfinished goal; complete the existing goal first',
   goalPausedExists:

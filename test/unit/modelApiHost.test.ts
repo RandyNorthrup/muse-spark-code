@@ -2319,6 +2319,53 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
   })
 
+  const staleGoalCases: readonly {
+    readonly command: Parameters<ModelApiSession['controlGoal']>[0]
+    readonly call: { readonly name: string; readonly arguments: string; readonly callId: string }
+  }[] = [
+    {
+      command: { verb: 'set', objective: 'Replacement' },
+      call: { name: 'update_goal', arguments: '{"status":"complete"}', callId: 'old' },
+    },
+    {
+      command: { verb: 'edit', objective: 'Replacement' },
+      call: {
+        name: 'report_progress',
+        arguments: '{"current_work":"Old work","next_work":"Done","percent_complete":100}',
+        callId: 'old',
+      },
+    },
+  ]
+  it.each(staleGoalCases)(
+    'rejects stale goal calls after a busy $command.verb',
+    async ({ command, call }) => {
+      const t = setup()
+      const { session, events, turnDone } = await startSession(t)
+      const held = Promise.withResolvers<undefined>()
+      t.api.script({ calls: [call], hold: held.promise }, { text: 'Working on replacement' })
+      await session.controlGoal({ verb: 'set', objective: 'Original' })
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(1)
+      })
+      await session.controlGoal(command)
+      held.resolve(undefined)
+      await turnDone()
+      expect(session.history().goal).toMatchObject({
+        objective: 'Replacement',
+        status: 'active',
+        percentComplete: 0,
+      })
+      expect(t.api.responseBodies()).toHaveLength(2)
+      expect(instructionsOf(t, 1)).toContain('- Objective: Replacement')
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'itemCompleted',
+          item: expect.objectContaining({ tool: call.name, status: 'failed' }),
+        }),
+      )
+    },
+  )
+
   it('pauses an active goal when Stop ends its turn, as Esc does in Muse Code', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)

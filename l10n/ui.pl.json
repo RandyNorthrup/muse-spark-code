@@ -687,6 +687,7 @@
   "goalClearedNotice": "Usunięto cel",
   "goalNone": "Ta rozmowa nie ma celu. Ustaw go poleceniem /goal <cel>.",
   "goalWakeWithdrawn": "Praca nad celem została zatrzymana, zanim się rozpoczęła.",
+  "goalRequestSuperseded": "Cel zmienił się podczas przetwarzania tej odpowiedzi.",
   "goalCannotPause": "Wstrzymać można tylko aktywny cel.",
   "goalCannotResume": "Wznowić można tylko wstrzymany cel.",
   "goalCannotEdit": "Zmienić można tylko aktywny lub wstrzymany cel; nowy ustaw poleceniem /goal <cel>.",

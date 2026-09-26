@@ -687,6 +687,7 @@
   "goalClearedNotice": "Cíl odebrán",
   "goalNone": "Tato konverzace nemá žádný cíl. Nastavte ho pomocí /goal <cíl>.",
   "goalWakeWithdrawn": "Práce na cíli se zastavila dříve, než začala.",
+  "goalRequestSuperseded": "Cíl se během zpracování této odpovědi změnil.",
   "goalCannotPause": "Pozastavit lze jen aktivní cíl.",
   "goalCannotResume": "Pokračovat lze jen v pozastaveném cíli.",
   "goalCannotEdit": "Změnit lze jen aktivní nebo pozastavený cíl; nový nastavte pomocí /goal <cíl>.",

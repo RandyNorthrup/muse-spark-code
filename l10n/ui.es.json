@@ -675,6 +675,7 @@
   "goalClearedNotice": "Objetivo quitado",
   "goalNone": "Esta conversación no tiene objetivo. Establezca uno con /goal <objetivo>.",
   "goalWakeWithdrawn": "El trabajo en el objetivo se detuvo antes de empezar.",
+  "goalRequestSuperseded": "El objetivo cambió mientras se procesaba esta respuesta.",
   "goalCannotPause": "Solo se puede pausar un objetivo activo.",
   "goalCannotResume": "Solo se puede reanudar un objetivo en pausa.",
   "goalCannotEdit": "Solo se puede cambiar un objetivo activo o en pausa; establezca uno nuevo con /goal <objetivo>.",

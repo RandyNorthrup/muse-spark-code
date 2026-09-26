@@ -1375,6 +1375,12 @@ its literal method instead of adding an unregistered `as z.infer` cast.
 The next review found a separate unchecked assertion in the Model API
 goal-tool test; its assertion now checks the unknown response as a value
 with matchers, without claiming a compiler-verified tool-array type.
+The following review found that a response started before `/goal set` or
+`/goal edit` could still complete the replacement goal with its old goal
+tools. Each Model API request now retains the revision of user goal commands
+at its start. A mutating goal tool from an older revision fails with a
+replayable output, while the accepted command's wake gives the model the
+current goal in its next request.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3383,10 +3389,10 @@ translations. The order is D36's table:
   captured refusals; the Model API's four goal tools, the stored goal, the
   pinned section, the step-probe note, the token budget, Stop pausing, the
   wake turn; the goal strip, `/goal …` in the prompt and the palette's
-  `/goal`; 30 strings in fourteen languages; harness scenarios `goal` and
+  `/goal`; 31 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G33; both
+  reducer, the controller, the strip and the prompt; drills G1–G34; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the

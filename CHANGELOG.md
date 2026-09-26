@@ -75,6 +75,9 @@ while they are (PLAN.md D30, D34).
   usage now belongs to the goal active when each request began, even if
   paused before its reply; Stop during compaction pauses the goal, and an
   incomplete compaction cannot replace history with a partial summary.
+  Goal tools returned by a request started before the user changed the goal
+  now fail without changing the replacement goal; the next request uses the
+  new objective.
   Rejected `/goal` commands keep their draft, while an accepted command
   clears only the unchanged draft. The goal editor refreshes when the
   objective changes or a goal is replaced, and keeps an inline edit open
