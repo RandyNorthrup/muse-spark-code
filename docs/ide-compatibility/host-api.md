@@ -8,7 +8,7 @@ differs from the source. Do not edit it by hand.
 
 | Field                              | Value                                                                                                                        |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `engines.vscode`                   | `^1.125.0`                                                                                                                   |
+| `engines.vscode`                   | `^1.99.0`                                                                                                                    |
 | `engines.node`                     | `>=22`                                                                                                                       |
 | `main`                             | `./dist/extension.js`                                                                                                        |
 | `browser`                          | none                                                                                                                         |
@@ -21,10 +21,11 @@ differs from the source. Do not edit it by hand.
 
 ## Build targets
 
-| Bundle    | esbuild target |
-| --------- | -------------- |
-| `node`    | `node22`       |
-| `browser` | `chrome128`    |
+| Bundle       | esbuild target |
+| ------------ | -------------- |
+| `host_node`  | `node20.18`    |
+| `agent_node` | `node22`       |
+| `browser`    | `chrome128`    |
 
 ## Files that import `vscode`
 

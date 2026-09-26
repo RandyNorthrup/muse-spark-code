@@ -38,7 +38,10 @@ const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
-const NODE_TARGET = 'node22'
+// The extension host of the oldest VS Code the manifest accepts: 1.99 runs
+// Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
+const HOST_NODE_TARGET = 'node20.18'
+const AGENT_NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
@@ -60,7 +63,7 @@ const hostOptions = {
   outfile: HOST_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: NODE_TARGET,
+  target: HOST_NODE_TARGET,
   external: ['vscode'],
 }
 
@@ -71,7 +74,7 @@ const searchWorkerOptions = {
   outfile: SEARCH_WORKER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: NODE_TARGET,
+  target: HOST_NODE_TARGET,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -81,7 +84,7 @@ const acpOptions = {
   outfile: ACP_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: NODE_TARGET,
+  target: AGENT_NODE_TARGET,
   external: ['@napi-rs/keyring'],
   banner: { js: '#!/usr/bin/env node' },
 }
@@ -111,7 +114,7 @@ const integrationTestOptions = {
   outdir: INTEGRATION_TEST_OUTDIR,
   platform: 'node',
   format: 'cjs',
-  target: NODE_TARGET,
+  target: HOST_NODE_TARGET,
   external: ['vscode', 'mocha'],
 }
 

@@ -21,40 +21,40 @@ ACP row stays Planned until one has.
 
 ## The most used
 
-| Editor                                             | Route                                         | Milestone | Status    | Evidence and notes                                     |
-| -------------------------------------------------- | --------------------------------------------- | --------- | --------- | ------------------------------------------------------ |
-| VS Code (desktop, Remote, WSL)                     | VSIX                                          | —         | Supported | The reference client, on the Marketplace since 0.1.0   |
-| Visual Studio (Windows)                            | Native (VSSDK, WebView2)                      | M64       | Planned   | Needs Windows to build and test                        |
-| IntelliJ IDEA, PyCharm, WebStorm, GoLand, PhpStorm | ACP (AI Assistant), then Native (JCEF)        | M63, M64  | Planned   | JetBrains downloads are blocked in the container       |
-| CLion, RustRover, RubyMine, DataGrip               | ACP (AI Assistant), then Native (JCEF)        | M63, M64  | Planned   | As above                                               |
-| Rider                                              | ACP (AI Assistant), then Native (JCEF)        | M63, M64  | Planned   | Deeper C# features would need its ReSharper backend    |
-| Android Studio                                     | Native (the IntelliJ plugin, built for it)    | M64       | Planned   | ACP through AI Assistant not established there         |
-| Cursor                                             | VSIX (Open VSX)                               | M62       | Planned   | Its VS Code version must meet `engines.vscode`         |
-| Windsurf / Devin Desktop                           | ACP (documented custom agents), VSIX to check | M62, M63  | Planned   | ACP is plan-dependent there                            |
-| Vim                                                | External (terminal), then a plugin            | M66       | Planned   |                                                        |
-| Neovim                                             | ACP (CodeCompanion first)                     | M63       | Planned   | Other ACP plugins are separate qualifications          |
-| Jupyter (JupyterLab 4, Notebook 7)                 | Native (lab extension and server extension)   | M65       | Planned   | Installable in the container from PyPI                 |
-| Sublime Text                                       | ACP (`sublime-acp`)                           | M63       | Planned   | A community package                                    |
-| Eclipse IDE                                        | Native (SWT Browser)                          | M65       | Planned   | Installable in the container from download.eclipse.org |
-| Xcode 27                                           | ACP (Intelligence settings)                   | M63       | Planned   | Needs macOS                                            |
-| Xcode 26.3                                         | External (Xcode's MCP tools)                  | M66       | Planned   |                                                        |
-| Zed                                                | ACP (custom agent, then the ACP Registry)     | M63       | Planned   | The registry wants an npm package (Q65)                |
-| Notepad++                                          | External                                      | M66       | Planned   | Windows only                                           |
+| Editor                                             | Route                                         | Milestone | Status    | Evidence and notes                                                  |
+| -------------------------------------------------- | --------------------------------------------- | --------- | --------- | ------------------------------------------------------------------- |
+| VS Code (desktop, Remote, WSL)                     | VSIX                                          | —         | Supported | The reference client, on the Marketplace since 0.1.0                |
+| Visual Studio (Windows)                            | Native (VSSDK, WebView2)                      | M64       | Planned   | Needs Windows to build and test                                     |
+| IntelliJ IDEA, PyCharm, WebStorm, GoLand, PhpStorm | ACP (AI Assistant), then Native (JCEF)        | M63, M64  | Planned   | JetBrains downloads are blocked in the container                    |
+| CLion, RustRover, RubyMine, DataGrip               | ACP (AI Assistant), then Native (JCEF)        | M63, M64  | Planned   | As above                                                            |
+| Rider                                              | ACP (AI Assistant), then Native (JCEF)        | M63, M64  | Planned   | Deeper C# features would need its ReSharper backend                 |
+| Android Studio                                     | Native (the IntelliJ plugin, built for it)    | M64       | Planned   | ACP through AI Assistant not established there                      |
+| Cursor                                             | VSIX (Open VSX)                               | M62       | Planned   | Its VS Code version must meet `engines.vscode`, `^1.99.0` since M62 |
+| Windsurf / Devin Desktop                           | ACP (documented custom agents), VSIX to check | M62, M63  | Planned   | ACP is plan-dependent there                                         |
+| Vim                                                | External (terminal), then a plugin            | M66       | Planned   |                                                                     |
+| Neovim                                             | ACP (CodeCompanion first)                     | M63       | Planned   | Other ACP plugins are separate qualifications                       |
+| Jupyter (JupyterLab 4, Notebook 7)                 | Native (lab extension and server extension)   | M65       | Planned   | Installable in the container from PyPI                              |
+| Sublime Text                                       | ACP (`sublime-acp`)                           | M63       | Planned   | A community package                                                 |
+| Eclipse IDE                                        | Native (SWT Browser)                          | M65       | Planned   | Installable in the container from download.eclipse.org              |
+| Xcode 27                                           | ACP (Intelligence settings)                   | M63       | Planned   | Needs macOS                                                         |
+| Xcode 26.3                                         | External (Xcode's MCP tools)                  | M66       | Planned   |                                                                     |
+| Zed                                                | ACP (custom agent, then the ACP Registry)     | M63       | Planned   | The registry wants an npm package (Q65)                             |
+| Notepad++                                          | External                                      | M66       | Planned   | Windows only                                                        |
 
 ## The VS Code family
 
-| Editor                            | Route                            | Milestone | Status  | Evidence and notes                                               |
-| --------------------------------- | -------------------------------- | --------- | ------- | ---------------------------------------------------------------- |
-| VSCodium                          | VSIX (Open VSX)                  | M62       | Planned |                                                                  |
-| Kiro IDE                          | VSIX (Open VSX)                  | M62       | Planned |                                                                  |
-| Positron                          | VSIX (Open VSX)                  | M62       | Planned |                                                                  |
-| Eclipse Theia IDE                 | VSIX                             | M62       | Planned | Theia implements the API itself; `host-api.md` lists what we use |
-| code-server                       | VSIX, in the server's host       | M62       | Planned | Installable in the container from npm                            |
-| GitHub Codespaces                 | VSIX, in the remote host         | M62       | Planned |                                                                  |
-| Eclipse Che, OpenShift Dev Spaces | VSIX with a Code-OSS editor      | M62       | Planned |                                                                  |
-| Firebase Studio                   | VSIX (Open VSX)                  | M62       | Planned |                                                                  |
-| Google Antigravity                | VSIX, if it installs extensions  | M62       | Planned | Not established that it takes arbitrary extensions               |
-| vscode.dev, github.dev            | A browser entry and remote agent | M66       | Planned | The extension has no `browser` entry today                       |
+| Editor                            | Route                            | Milestone | Status  | Evidence and notes                                                                                                                                  |
+| --------------------------------- | -------------------------------- | --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VSCodium                          | VSIX (Open VSX)                  | M62       | Preview | 2026-09-26: the integration tests pass in 1.99.3 and 1.135 (9 each), installed from the `.vsix`; Open VSX from the next tag                         |
+| Kiro IDE                          | VSIX (Open VSX)                  | M62       | Planned |                                                                                                                                                     |
+| Positron                          | VSIX (Open VSX)                  | M62       | Planned |                                                                                                                                                     |
+| Eclipse Theia IDE                 | VSIX                             | M62       | Planned | Theia implements the API itself; `host-api.md` lists what we use                                                                                    |
+| code-server                       | VSIX, in the server's host       | M62       | Preview | 2026-09-26: 4.99.4 (VS Code 1.99.3, Node 20.18.3) installs the `.vsix`, and the panel runs a conversation and an approval in the browser (fake CLI) |
+| GitHub Codespaces                 | VSIX, in the remote host         | M62       | Planned |                                                                                                                                                     |
+| Eclipse Che, OpenShift Dev Spaces | VSIX with a Code-OSS editor      | M62       | Planned |                                                                                                                                                     |
+| Firebase Studio                   | VSIX (Open VSX)                  | M62       | Planned |                                                                                                                                                     |
+| Google Antigravity                | VSIX, if it installs extensions  | M62       | Planned | Not established that it takes arbitrary extensions                                                                                                  |
+| vscode.dev, github.dev            | A browser entry and remote agent | M66       | Planned | The extension has no `browser` entry today                                                                                                          |
 
 ## Through the ACP agent
 

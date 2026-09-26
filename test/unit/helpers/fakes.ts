@@ -49,7 +49,7 @@ export class FakeWebviewView implements vscode.WebviewView {
 export class FakeWebviewPanel implements vscode.WebviewPanel {
   public readonly webview = new FakeWebview()
   public readonly options: vscode.WebviewPanelOptions = {}
-  public iconPath?: vscode.IconPath
+  public iconPath?: NonNullable<vscode.WebviewPanel['iconPath']>
   public viewColumn: vscode.ViewColumn | undefined = undefined
   public active = true
   public visible = true

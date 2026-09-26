@@ -6,7 +6,7 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace version" src="https://badgen.net/vs-marketplace/v/RandyNorthrup.muse-spark-code?label=Marketplace&color=3b6cf6"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="VS Code 1.125 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.125-2b7de9">
+  <img alt="VS Code 1.99 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.99-2b7de9">
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
   <a href="#languages"><img alt="15 languages" src="https://img.shields.io/badge/languages-15-2b7de9"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
@@ -148,7 +148,7 @@ harness:shots`) against a scripted session, so they match the build.
 
 1. Install **Muse Spark Code** from the
    [Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
-   (VS Code 1.125 or newer), or from a `.vsix` attached to a
+   (VS Code 1.99 or newer), or from a `.vsix` attached to a
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
@@ -205,8 +205,8 @@ agent for editors that speak the Agent Client Protocol (Zed, JetBrains IDEs,
 Neovim, Emacs and others), attached to each GitHub Release.
 [docs/acp.md](docs/acp.md) covers installing it, where it keeps a Model API
 key (the operating system's credential store), and the editor's settings.
-VS Code forks can install the extension from Open VSX once a release is
-published there. [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md)
+VS Code forks built on VS Code 1.99 or later can install the extension
+from a `.vsix`, and from Open VSX once a release is published there. [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md)
 records which editors have been tried; so far only VS Code.
 
 ## Permission modes
@@ -804,7 +804,10 @@ message resumes the same session.
 
 ## Requirements
 
-- VS Code 1.125.0 or newer, on Windows, macOS or Linux.
+- VS Code 1.99.0 or newer, on Windows, macOS or Linux, or an editor built
+  on it: VSCodium 1.99.3 and 1.135 and code-server 4.99.4 were tested (see
+  [hosts.md](docs/ide-compatibility/hosts.md)). On 1.99 and 1.100, whose
+  extension host is Node 20, Muse Voice is unavailable.
 - The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
   a Meta account (subscription), or a Meta Model API key (pay as you go).
 - `git` on `PATH` for `.gitignore`-aware `@` mentions, worktrees and the

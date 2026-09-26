@@ -86,6 +86,18 @@ while they are (PLAN.md D30, D34).
   there, and the agent to npm, each only when its token is set in the
   `marketplace` environment.
 
+### Changed
+
+- **VS Code 1.99 or newer** (was 1.125; M62, PLAN.md A8), so editors built
+  on VS Code 1.99 or later can install the extension. The extension uses
+  no VS Code API newer than 1.85, checked against every published
+  `@types/vscode` from 1.85 on, and its host bundles now need nothing
+  newer than Node 20.18, the Node of VS Code 1.99 and 1.100. Tested in
+  VSCodium 1.99.3 and 1.135 (the integration tests, 9 passing in each) and
+  in code-server 4.99.4 (VS Code 1.99.3: a conversation and an approval
+  in the browser), where the 1.125 floor was refused. On 1.99 and 1.100
+  Muse Voice says it is unavailable, as their Node has no WebSocket.
+
 ### Fixed
 
 - **A command Muse Code moved to the background read "Interrupted"** when
