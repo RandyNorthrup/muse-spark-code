@@ -134,6 +134,7 @@ import {
   headerOf,
   recordOf,
   type SessionStore,
+  type StoredReplayItem,
   type StoredSession,
   type StoredSessionHeader,
 } from './sessionStore'
@@ -471,6 +472,22 @@ const RESOLVED_BY_USER = 'user'
 const NO_UNSUBSCRIBE = (): undefined => undefined
 // A child is recorded inside its parent, not in the host's session map.
 const NO_CHILD_DISPOSAL = (): undefined => undefined
+
+/**
+ * A replay with a call still waiting for its output cannot be replayed
+ * after a crash — neither the parent's nor, nested in its snapshot, a
+ * child's (the review of PR #35).
+ */
+function hasUnansweredCall(replay: readonly StoredReplayItem[]): boolean {
+  const answered = new Set(
+    replay.flatMap((entry) =>
+      entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
+    ),
+  )
+  return replay.some(
+    (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
+  )
+}
 
 /** A stream that ended with an error event the docs say to retry (the whole request). */
 class RetryableStreamError extends Error {
@@ -3925,15 +3942,11 @@ export class ModelApiHost implements AgentHost {
     // A turn-start user message can be saved, but a function call without
     // its output cannot be replayed after a crash. Goal/settings touches
     // during a pending tool still announce live; the settled touch saves.
-    const answered = new Set(
-      snapshot.replay.flatMap((entry) =>
-        entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
-      ),
-    )
+    // A child's unsettled turn holds the parent's save the same way: its
+    // replay is nested in this snapshot.
     if (
-      snapshot.replay.some(
-        (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
-      )
+      hasUnansweredCall(snapshot.replay) ||
+      (snapshot.children ?? []).some((child) => hasUnansweredCall(child.session.replay))
     ) {
       return
     }

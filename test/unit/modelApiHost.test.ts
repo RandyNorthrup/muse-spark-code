@@ -30,7 +30,10 @@ import {
 } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
-import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
+import {
+  parseStoredSession,
+  type StoredSession,
+} from '../../src/core/backends/modelapi/sessionStore'
 import { heldShellToolIo, type MemoryToolIo, memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -1255,6 +1258,27 @@ async function waitForChildResult(session: ModelApiSession): Promise<void> {
   })
 }
 
+/** Every stored replay — the parent's and each nested child's — answers every call. */
+function expectStoredReplaysSettled(saved: StoredSession | undefined): void {
+  expect(saved?.children).toHaveLength(1)
+  const replays = [
+    saved?.replay ?? [],
+    ...(saved?.children ?? []).map((child) => child.session.replay),
+  ]
+  for (const replay of replays) {
+    const answered = new Set(
+      replay.flatMap((entry) =>
+        entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
+      ),
+    )
+    expect(
+      replay.filter(
+        (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
+      ),
+    ).toEqual([])
+  }
+}
+
 async function delegateAndWaitForChild(
   session: ModelApiSession,
   expected: { readonly controlStatus: string; readonly status?: string; readonly result?: object },
@@ -1663,6 +1687,68 @@ describe('ModelApiSession subagents (M48)', () => {
     })
     expect(t.api.responseBodies()).toHaveLength(before)
     expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(paidBefore)
+  })
+
+  it('holds the parent save while a child tool call waits for approval', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store })
+    const { session, events } = await startSession(t, 'promptUnmatched')
+    // Only the spawn consent is answered; the child's own tool approval waits.
+    session.onEvent((event) => {
+      if (event.type === 'approvalRequested' && event.subject.paidFeature === 'subagents') {
+        void session.decideApproval({
+          approvalId: event.approvalId,
+          choiceId: 'allow_once',
+          requirementId: event.requirementId,
+        })
+      }
+    })
+    await completePaidChild(t, session, 'spawn_persist')
+    // A follow-up starts a second child turn while the parent stays idle, so
+    // only the child consumes the scripted calls below.
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'write_file',
+            arguments: '{"path":"a.txt","content":"new"}',
+            callId: 'child_write',
+          },
+        ],
+      },
+      { text: 'Mapped.' },
+      { text: 'Noted.' },
+    )
+    await session.messageSubagent('subagent-1', 'Second task', true)
+    await vi.waitFor(() => {
+      expect(
+        events.filter(
+          (event) => event.type === 'approvalRequested' && event.toolName === 'write_file',
+        ),
+      ).toHaveLength(1)
+    })
+    const writeApproval = events.find(
+      (event): event is Extract<AgentEvent, { type: 'approvalRequested' }> =>
+        event.type === 'approvalRequested' && event.toolName === 'write_file',
+    )
+    if (writeApproval === undefined) {
+      throw new Error('expected the child write approval')
+    }
+    // The parent is idle while the child still waits: a touch must not save
+    // the nested replay with its unanswered call.
+    expect(session.status).toBe('idle')
+    await session.setModel('muse-spark-1.3')
+    await t.host.flush()
+    expectStoredReplaysSettled(store.saved.get(session.sessionId))
+    // Once the child's call is answered the saves resume with settled replays.
+    await session.decideApproval({
+      approvalId: writeApproval.approvalId,
+      choiceId: 'allow_once',
+      requirementId: writeApproval.requirementId,
+    })
+    await waitForChildResult(session)
+    await t.host.flush()
+    expectStoredReplaysSettled(store.saved.get(session.sessionId))
   })
 
   it.each(['resume', 'followup'] as const)(
