@@ -3634,6 +3634,17 @@ listing are M62b.
     streamed the reply, and ran or skipped a command from Zed's permission
     card (Allow once, Reject). Zed now needs `"type": "custom"` in
     `agent_servers`, which `docs/acp.md` lacked; fixed.
+  - **JupyterLab, 2026-09-26**: Jupyter AI 3.2.0 ships an ACP client
+    (`jupyter-ai-acp-client` 0.3.0) that runs agents as chat personas, so
+    JupyterLab 4 is reached through the agent now rather than waiting for
+    M65's native extension. With JupyterLab 4.6.3 (4.6.4 was five days
+    old) and a local persona file, the chat showed the agent's model, mode
+    and effort pickers and its context gauge, and allowed and rejected a
+    command from Allow once / Reject buttons. Found: Jupyter AI passes its
+    notebook tools as MCP servers (HTTP ones only to an agent advertising
+    `mcpCapabilities.http`) and prepends a note telling the model to use
+    them; the agent passes no MCP servers on yet, so M63c's MCP item
+    matters here first.
 - **M63c, the rest of the protocol**: file reads and writes through the
   client (`fs/*`) for the Model API backend; paid features with a
   confirmation that names the price; `session/close` and `delete`; the ACP

@@ -137,6 +137,38 @@ require("codecompanion").setup({
 `:CodeCompanionChat` opens a chat; a permission prompt lists its keys
 (Accept, Reject, Cancel) in the chat buffer.
 
+In JupyterLab 4, [Jupyter AI](https://github.com/jupyterlab/jupyter-ai) 3
+(`pip install jupyter-ai`; tested with 3.2.0 and JupyterLab 4.6.3) runs
+ACP agents as chat personas. Save this as
+`.jupyter/personas/muse_spark_persona.py` in the folder JupyterLab serves
+(the file name must contain `persona`), with any square SVG beside it as
+`muse_spark.svg`, then open a new chat and pick Muse Spark:
+
+```python
+import os
+
+from jupyter_ai_acp_client.base_acp_persona import BaseAcpPersona
+from jupyter_ai_persona_manager import PersonaDefaults
+
+
+class MuseSparkAcpPersona(BaseAcpPersona):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, executable=["muse-spark-code-acp"], **kwargs)
+
+    @property
+    def defaults(self) -> PersonaDefaults:
+        return PersonaDefaults(
+            name="Muse Spark",
+            description="Muse Spark Code (Unofficial) through its ACP agent.",
+            avatar_path=os.path.join(os.path.dirname(__file__), "muse_spark.svg"),
+            system_prompt="unused",
+        )
+```
+
+Jupyter AI offers the agent its notebook tools as MCP servers, which the
+agent does not pass on yet (see Not yet), so notebooks are edited as
+files.
+
 Other editors take the same command and arguments in their own agent or
 ACP settings (JetBrains AI Assistant, Xcode's Intelligence settings, Qt
 Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
@@ -175,4 +207,5 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 - The Model API backend reads and writes files itself, so it does not see
   unsaved changes in the editor; save before asking it to edit a file you
   have open.
-- MCP servers the editor offers are not passed on yet.
+- MCP servers the editor offers (Zed's, Jupyter AI's notebook tools) are
+  not passed on yet.
