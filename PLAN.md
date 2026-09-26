@@ -3589,8 +3589,12 @@ reverse order (Manual first, Auto joining) and two Auto panels proved a
 single last-mode value cannot describe the shared session safely. Auto
 approval now runs only while one controller holds it in Edit automatically;
 detaching another panel restores it. The internal replay marker is removed
-before postMessage. The seventh correction passed the local
-full gate; hosted review remains open.
+before postMessage. The seventh correction passed the local full gate.
+Its review found one export gap: a Muse `userShell` ending by signal had
+the signal in its row but not Markdown. The existing localized signal
+label now appears in export too, with a failing-before/passing-after test.
+The final export correction passed the local full gate; current-head
+hosted CI remains the merge gate.
 
 - **Goal**: what Muse Code's TUI does with Ctrl+B, `/stop` and `!`, and its
   "let me explain" answer to a question, from the panel, on both backends.

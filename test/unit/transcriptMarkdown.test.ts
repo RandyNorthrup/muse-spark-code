@@ -119,6 +119,14 @@ describe('renderTranscriptMarkdown', () => {
     expect(markdown).toContain('_Changed 2 files: +0 −0._')
   })
 
+  it('keeps a user shell’s signal termination in the Markdown export (M46)', () => {
+    const markdown = render([
+      item({ kind: 'userShell', status: 'cancelled', commandText: 'sleep 30', exitSignal: 9 }),
+    ])
+    expect(markdown).toContain('_Ended by signal 9_')
+    expect(markdown).not.toContain('_Exit code')
+  })
+
   it('writes its own words in the display language and leaves the conversation as it was (D33)', () => {
     setUiText(
       {

@@ -118,6 +118,9 @@ function userShellSection(item: ItemSnapshot): string {
   if (item.exitCode !== undefined) {
     lines.push(note(fill(UI_TEXT.userShellExitCode, { code: String(item.exitCode) })), '')
   }
+  if (item.exitSignal !== undefined) {
+    lines.push(note(fill(UI_TEXT.userShellExitSignal, { signal: String(item.exitSignal) })), '')
+  }
   return lines.join('\n').trimEnd()
 }
 

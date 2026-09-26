@@ -116,6 +116,9 @@ while they are (PLAN.md D30, D34).
   edit either. With several panels attached every approval needs an
   explicit choice; a sole Edit automatically panel retains automatic
   plain-edit approval.
+- **M46 shell export signal.** Markdown export now includes the localized
+  termination signal of a `!` command when Muse Code reports it without
+  an exit code, matching the row in the panel.
 
 - **Windows accessibility runner pressure** (M46). The headless Chrome
   gate runs at most two pages together on Windows; its scenarios, axe

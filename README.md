@@ -506,7 +506,8 @@ finished or needs a decision.
 
 **Export.** `/export` (or **Muse Spark: Export Conversation**) saves the
 conversation as Markdown where you choose: messages, thinking, and tool calls
-with their arguments and visible output. On the CLI backend **Export session
+with their arguments and visible output. Your `!` commands include an exit
+code or termination signal when Muse Code reports one. On the CLI backend **Export session
 log…** also saves Muse Code's own JSON record of the session (`muse
 export`), which includes everything, stored outputs too; it needs a folder
 on this machine. An export asked for while a reply runs is refused until it
