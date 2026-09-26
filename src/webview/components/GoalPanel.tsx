@@ -97,7 +97,11 @@ function ObjectiveForm({
   )
 }
 
-export function GoalPanel({ goal, isInert = false, onCommand }: GoalPanelProps) {
+function GoalPanelBody({
+  goal,
+  isInert = false,
+  onCommand,
+}: GoalPanelProps & { readonly goal: SessionGoal }) {
   const [isEditing, setIsEditing] = useState(false)
   const editRef = useRef<HTMLButtonElement>(null)
   // A field closed from inside gives the focus back to Edit, not to the page.
@@ -109,9 +113,6 @@ export function GoalPanel({ goal, isInert = false, onCommand }: GoalPanelProps) 
     focusReturn.current = false
     editRef.current?.focus()
   }, [isEditing])
-  if (goal === undefined) {
-    return null
-  }
   const isActive = goal.status === GOAL_STATUS.active
   const isPaused = goal.status === GOAL_STATUS.paused
   // Only an active or paused goal can be changed (MSP `invalid_goal_state`).
@@ -190,7 +191,12 @@ export function GoalPanel({ goal, isInert = false, onCommand }: GoalPanelProps) 
         </div>
       </div>
       {isFormShown ? (
-        <ObjectiveForm objective={goal.objective} onSave={save} onCancel={closeForm} />
+        <ObjectiveForm
+          key={goal.objective}
+          objective={goal.objective}
+          onSave={save}
+          onCancel={closeForm}
+        />
       ) : (
         <div className="goal-objective" dir="auto">
           {goal.objective}
@@ -201,5 +207,20 @@ export function GoalPanel({ goal, isInert = false, onCommand }: GoalPanelProps) 
         <GoalWork currentWork={goal.currentWork} nextWork={goal.nextWork} />
       )}
     </section>
+  )
+}
+
+export function GoalPanel({ goal, isInert = false, onCommand }: GoalPanelProps) {
+  if (goal === undefined) {
+    return null
+  }
+  const isEditable = goal.status === GOAL_STATUS.active || goal.status === GOAL_STATUS.paused
+  return (
+    <GoalPanelBody
+      key={isEditable ? 'editable' : 'fixed'}
+      goal={goal}
+      isInert={isInert}
+      onCommand={onCommand}
+    />
   )
 }

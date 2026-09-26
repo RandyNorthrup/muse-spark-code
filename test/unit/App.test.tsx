@@ -1473,20 +1473,63 @@ describe('App: the session goal (M45)', () => {
     send('/goal Make the parser tests pass')
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'goalCommand',
+      requestId: 'goal:local-1:1',
       verb: 'set',
       objective: 'Make the parser tests pass',
     })
+    expect(textarea()).toHaveValue('/goal Make the parser tests pass')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: true })
     expect(textarea()).toHaveValue('')
     send('/goal pause')
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'goalCommand', verb: 'pause' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:2',
+      verb: 'pause',
+    })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
     send('/goal edit Ship on Friday')
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'goalCommand',
+      requestId: 'goal:local-1:3',
       verb: 'edit',
       objective: 'Ship on Friday',
     })
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
     expect(screen.queryByText('/goal pause')).toBeNull()
+  })
+
+  it('keeps a refused /goal draft and never clears a newer edit on a late acceptance', () => {
+    renderReady()
+    send('/goal First objective')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: false })
+    expect(textarea()).toHaveValue('/goal First objective')
+    send('/goal First objective')
+    fireEvent.change(textarea(), { target: { value: '/goal Newer objective' } })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
+    expect(textarea()).toHaveValue('/goal Newer objective')
+    send('/goal Newer objective')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
+    expect(textarea()).toHaveValue('/goal Newer objective')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:3', accepted: true })
+    expect(textarea()).toHaveValue('')
+  })
+
+  it('does not clear a retyped identical draft after command acceptance', () => {
+    renderReady()
+    send('/goal Ship it')
+    fireEvent.change(textarea(), { target: { value: '/goal Different' } })
+    fireEvent.change(textarea(), { target: { value: '/goal Ship it' } })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: true })
+    expect(textarea()).toHaveValue('/goal Ship it')
+  })
+
+  it('does not submit the same pending command twice', () => {
+    const postMessage = renderReady()
+    send('/goal Ship it')
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'goalCommand'),
+    ).toHaveLength(1)
   })
 
   it('readies /goal for an objective from the slash list and the palette, and asks for one', () => {
@@ -1526,7 +1569,11 @@ describe('App: the session goal (M45)', () => {
     const strip = screen.getByRole('region', { name: 'Session goal' })
     expect(strip).toHaveTextContent('Ship it')
     fireEvent.click(within(strip).getByRole('button', { name: 'Pause' }))
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'goalCommand', verb: 'pause' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:1',
+      verb: 'pause',
+    })
     deliver({ type: 'agentEvent', event: { type: 'goalChanged', goal: null } })
     expect(screen.queryByRole('region', { name: 'Session goal' })).toBeNull()
   })

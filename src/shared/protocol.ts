@@ -233,6 +233,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // strip's controls. `set` and `edit` carry the objective.
   z.object({
     type: z.literal('goalCommand'),
+    requestId: z.string(),
     verb: z.enum(GOAL_COMMANDS),
     objective: z.optional(z.string()),
   }),
@@ -475,6 +476,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     reason: z.string(),
     attachmentsKept: z.optional(z.boolean()),
   }),
+  // The command's admission result. Correlation protects a newer composer draft.
+  z.object({ type: z.literal('goalCommandResult'), requestId: z.string(), accepted: z.boolean() }),
   // One backend-agnostic conversation event (see agentEvents.ts).
   z.object({ type: z.literal('agentEvent'), event: agentEventSchema }),
   // The host's model catalogue (for the picker and context-limit lookups).

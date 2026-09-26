@@ -1359,6 +1359,15 @@ bare pause, resume, edit or clear on a fresh panel must refuse without
 creating an empty session. Each needs a regression test and red drill before
 the PR is certified.
 
+The next review and a focused lifecycle audit found five more boundaries:
+usage belongs to the goal active when each request attempt began, including
+compaction and retries; Stop during compaction pauses an active goal; a
+rejected `/goal` command keeps its draft while an accepted one clears only
+the unchanged draft; the goal editor resets when the goal changes or clears;
+and an incomplete compaction cannot replace history with a partial summary
+or escape usage accounting. These are M45 corrections, not new quota or
+model features; they require regression tests and red drills before merge.
+
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
 The owner (2026-09-25): "i dont think a 1.0 would be right until the app
@@ -3350,7 +3359,7 @@ translations. The order is D36's table:
 
 ### M45 — Goals (D38)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m45.md`).
+**Status 2026-09-25: built and certified locally** (`docs/certification/m45.md`).
 
 - **Goal**: a session goal the user can set, see, pause, resume, change
   and clear on both backends, with Muse Code's verbs, and the Model API
@@ -3369,7 +3378,7 @@ translations. The order is D36's table:
   `/goal`; 30 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G26; both
+  reducer, the controller, the strip and the prompt; drills G1–G31; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the

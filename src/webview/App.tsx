@@ -213,6 +213,7 @@ export function App({
   // "new below" means it changed since, while they were away from the end.
   const bodyRef = useRef<HTMLElement>(null)
   const [isPinnedToEnd, setIsPinnedToEnd] = useState(true)
+  const nextGoalRequestId = useRef(0)
   const isPinnedRef = useRef(isPinnedToEnd)
   const [seenTranscript, setSeenTranscript] = useState(state.transcript)
   const hasNewBelow =
@@ -305,10 +306,19 @@ export function App({
   }, [dispatch, postMessage])
   // The session goal's verbs (M45, PLAN.md D38): the strip's buttons and `/goal …`.
   const onGoalCommand = useCallback(
-    (verb: GoalCommandVerb, objective?: string) => {
-      postMessage({ type: 'goalCommand', verb, ...(objective !== undefined && { objective }) })
+    (verb: GoalCommandVerb, objective?: string, isFromDraft = false) => {
+      const requestId = `goal:${newLocalId()}:${String(++nextGoalRequestId.current)}`
+      if (isFromDraft) {
+        dispatch({ type: 'goalSubmitted', requestId })
+      }
+      postMessage({
+        type: 'goalCommand',
+        requestId,
+        verb,
+        ...(objective !== undefined && { objective }),
+      })
     },
-    [postMessage],
+    [dispatch, newLocalId, postMessage],
   )
   const onSubmit = useCallback(() => {
     const current = store.getState()
@@ -319,12 +329,14 @@ export function App({
     // `/goal …` is a command to the backend, not a message (M45): no card.
     const goal = parseGoalPrompt(text)
     if (goal !== undefined) {
+      if (current.pendingGoalCommand?.draftRevision === current.draftRevision) {
+        return
+      }
       if (requiresObjective(goal.verb) && (goal.objective ?? '') === '') {
         dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.goalObjectiveMissing })
         return
       }
-      dispatch({ type: 'draftChanged', draft: '' })
-      onGoalCommand(goal.verb, goal.objective)
+      onGoalCommand(goal.verb, goal.objective, true)
       setIsPinnedToEnd(true)
       return
     }
@@ -1218,7 +1230,12 @@ export function App({
           </button>
         ) : null}
       </main>
-      <GoalPanel goal={state.goal} isInert={isModalOpen} onCommand={onGoalCommand} />
+      <GoalPanel
+        key={state.sessionId}
+        goal={state.goal}
+        isInert={isModalOpen}
+        onCommand={onGoalCommand}
+      />
       <TodoPanel items={state.todos} isInert={isModalOpen} />
       <div className="composer-area" inert={isModalOpen}>
         {floating}

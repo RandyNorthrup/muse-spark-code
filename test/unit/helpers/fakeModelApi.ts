@@ -58,6 +58,8 @@ export interface ScriptedReply {
   readonly streamError?: { readonly code: string; readonly message: string }
   /** End the stream with `response.failed` instead of `response.completed`. */
   readonly failed?: { readonly code: string; readonly message: string }
+  /** End with a partial response carrying usage, as the API can during compaction. */
+  readonly incomplete?: { readonly reason: string }
   /** Serve frames that are not JSON. */
   readonly garbage?: boolean
   /** Fail the fetch itself (network error) instead of answering. */
@@ -268,20 +270,33 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
     })}`
   }
   const usage = reply.usage ?? { input: 10, output: 5 }
+  const response = {
+    id: responseId,
+    model: 'muse-spark-1.3',
+    output,
+    usage: {
+      input_tokens: usage.input,
+      output_tokens: usage.output,
+      total_tokens: usage.input + usage.output,
+      input_tokens_details: { cached_tokens: usage.cached ?? 0 },
+      output_tokens_details: { reasoning_tokens: 1 },
+    },
+  }
+  if (reply.incomplete !== undefined) {
+    return `${text}${frame({
+      type: 'response.incomplete',
+      response: {
+        ...response,
+        status: 'incomplete',
+        incomplete_details: reply.incomplete,
+      },
+    })}`
+  }
   return `${text}${frame({
     type: 'response.completed',
     response: {
-      id: responseId,
+      ...response,
       status: 'completed',
-      model: 'muse-spark-1.3',
-      output,
-      usage: {
-        input_tokens: usage.input,
-        output_tokens: usage.output,
-        total_tokens: usage.input + usage.output,
-        input_tokens_details: { cached_tokens: usage.cached ?? 0 },
-        output_tokens_details: { reasoning_tokens: 1 },
-      },
     },
   })}${reply.doneSentinel === true ? 'data: [DONE]\n\n' : ''}`
 }
@@ -299,8 +314,15 @@ function bodyStream(text: string): ReadableStream<Uint8Array> {
   })
 }
 
-async function afterGate(gate: Promise<void>, response: Response): Promise<Response> {
+async function afterGate(
+  gate: Promise<void>,
+  response: Response,
+  signal: AbortSignal | null | undefined,
+): Promise<Response> {
   await gate
+  if (signal?.aborted === true) {
+    throw new DOMException('aborted', 'AbortError')
+  }
   return response
 }
 
@@ -440,7 +462,9 @@ export function fakeModelApi(): FakeModelApi {
         status: 200,
         headers: { 'content-type': 'text/event-stream' },
       })
-      return reply.hold === undefined ? Promise.resolve(response) : afterGate(reply.hold, response)
+      return reply.hold === undefined
+        ? Promise.resolve(response)
+        : afterGate(reply.hold, response, signal)
     },
   }
   return api

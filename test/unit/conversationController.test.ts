@@ -3314,7 +3314,12 @@ function accepted(params: Record<string, unknown>) {
 
 /** The webview's goal command (M45). */
 function goal(verb: GoalCommandVerb, objective?: string) {
-  return { type: 'goalCommand' as const, verb, ...(objective !== undefined && { objective }) }
+  return {
+    type: 'goalCommand' as const,
+    requestId: 'g1',
+    verb,
+    ...(objective !== undefined && { objective }),
+  }
 }
 
 /** The notices the panel was sent, in order. */
@@ -3336,6 +3341,12 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
       UI_TEXT.goalNone,
       UI_TEXT.goalNone,
     ])
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+    ])
   })
 
   it('starts a conversation for a goal, sends the verb and says what was done', async () => {
@@ -3349,6 +3360,10 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
       objective: 'Ship the parser',
     })
     await t.controller.handle(goal('pause'))
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: true },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: true },
+    ])
     expect(notices(t)).toEqual([
       { type: 'notice', level: 'info', text: 'Goal set: Ship the parser' },
       { type: 'notice', level: 'info', text: UI_TEXT.goalPausedNotice },
@@ -3382,6 +3397,13 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
       ['warning', UI_TEXT.goalCannotEdit],
       ['error', expect.stringContaining(`${UI_TEXT.goalCommandFailed}: `)],
     ])
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual(
+      Array.from({ length: 6 }, () => ({
+        type: 'goalCommandResult',
+        requestId: 'g1',
+        accepted: false,
+      })),
+    )
   })
 
   it('resumes the session and sends again when the host no longer holds it', async () => {

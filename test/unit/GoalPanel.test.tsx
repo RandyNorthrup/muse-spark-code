@@ -107,6 +107,28 @@ describe('GoalPanel (M45)', () => {
     expect(screen.getByText('Make the parser tests pass')).toBeTruthy()
   })
 
+  it('updates an open objective editor when the host changes the objective, but keeps typing on progress updates', () => {
+    const { onCommand, rerender } = show(active)
+    click('Edit')
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'My unfinished edit' } })
+    rerender(<GoalPanel goal={{ ...active, percentComplete: 70 }} onCommand={onCommand} />)
+    expect(screen.getByRole('textbox')).toHaveValue('My unfinished edit')
+    rerender(
+      <GoalPanel goal={{ ...active, objective: 'Host changed objective' }} onCommand={onCommand} />,
+    )
+    expect(screen.getByRole('textbox')).toHaveValue('Host changed objective')
+  })
+
+  it('does not reopen an old editor when a cleared goal returns with the same objective', () => {
+    const { onCommand, rerender } = show(active)
+    click('Edit')
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Old unfinished edit' } })
+    rerender(<GoalPanel goal={undefined} onCommand={onCommand} />)
+    rerender(<GoalPanel goal={{ ...active }} onCommand={onCommand} />)
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByText(active.objective)).toBeTruthy()
+  })
+
   it('gives the focus back to Edit when the field closes, never to the page', () => {
     show(active)
     const edit = screen.getByRole('button', { name: 'Edit' })

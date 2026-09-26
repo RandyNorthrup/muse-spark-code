@@ -131,6 +131,11 @@ export interface UiState {
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
   readonly draft: string
+  /** Every local draft edit, including edits that return to the same text. */
+  readonly draftRevision: number
+  /** Only an accepted command may clear the draft it submitted. */
+  readonly pendingGoalCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
   /** Text waiting to be inserted at the composer caret, if any. */
@@ -223,6 +228,7 @@ export interface UiState {
 export type UiAction =
   | { readonly type: 'hostMessage'; readonly message: HostToWebviewMessage; readonly at: number }
   | { readonly type: 'draftChanged'; readonly draft: string }
+  | { readonly type: 'goalSubmitted'; readonly requestId: string }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
@@ -271,6 +277,8 @@ export const initialUiState: UiState = {
   sessions: undefined,
   archivedIds: [],
   draft: '',
+  draftRevision: 0,
+  pendingGoalCommand: undefined,
   focusRequests: 0,
   pendingInsert: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
@@ -500,6 +508,7 @@ function findEntry(
 function withInsert(state: UiState, text: string): UiState {
   return {
     ...state,
+    draftRevision: state.draftRevision + 1,
     pendingInsert: (state.pendingInsert ?? '') + text,
     focusRequests: state.focusRequests + 1,
   }
@@ -1236,6 +1245,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    pendingGoalCommand: undefined,
     childTranscripts: {},
     childOwners: {},
     strayItems: {},
@@ -1485,6 +1495,17 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         ),
       }
     }
+    case 'goalCommandResult': {
+      const pending = state.pendingGoalCommand
+      if (pending?.requestId !== message.requestId) {
+        return state
+      }
+      return {
+        ...state,
+        pendingGoalCommand: undefined,
+        draft: message.accepted && state.draftRevision === pending.draftRevision ? '' : state.draft,
+      }
+    }
     case 'sendFailed': {
       // A refused message's images (M25): back in the composer when the host
       // says it still holds them, so a resend carries them; otherwise the
@@ -1597,7 +1618,13 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return applyHostMessage(state, action.message, action.at)
     }
     case 'draftChanged': {
-      return { ...state, draft: action.draft }
+      return { ...state, draft: action.draft, draftRevision: state.draftRevision + 1 }
+    }
+    case 'goalSubmitted': {
+      return {
+        ...state,
+        pendingGoalCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
     }
     case 'insertRequested': {
       return withInsert(state, action.text)
@@ -1612,6 +1639,8 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         draft: '',
+        draftRevision: state.draftRevision + 1,
+        pendingGoalCommand: undefined,
         attachments: [],
         unsentAttachments:
           action.attachments.length === 0

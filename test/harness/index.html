@@ -783,6 +783,7 @@
                   level: 'info',
                   text: notices[message.verb].replace('{objective}', message.objective ?? ''),
                 })
+                send({ type: 'goalCommandResult', requestId: message.requestId, accepted: true })
               })
               break
             }

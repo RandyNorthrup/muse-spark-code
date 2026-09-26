@@ -1737,10 +1737,18 @@ export class ConversationController {
    * one. What the goal became arrives as `goalChanged`; the transcript says
    * what was done, and a refusal says why in words.
    */
-  private async controlGoal(verb: GoalCommandVerb, objective: string | undefined): Promise<void> {
+  private async controlGoal(
+    requestId: string,
+    verb: GoalCommandVerb,
+    objective: string | undefined,
+  ): Promise<void> {
+    const result = (isAccepted: boolean) => {
+      this.post({ type: 'goalCommandResult', requestId, accepted: isAccepted })
+    }
     const command = goalCommandOf(verb, objective)
     if (command === undefined) {
       this.notice('warning', UI_TEXT.goalObjectiveMissing)
+      result(false)
       return
     }
     if (
@@ -1750,11 +1758,13 @@ export class ConversationController {
       this.sessionOpening === undefined
     ) {
       this.say('warning', UI_TEXT.goalNone)
+      result(false)
       return
     }
     try {
       const session = await this.sessionForAction()
       if (session === undefined) {
+        result(false)
         return
       }
       const host = await this.deps.ensureHost()
@@ -1766,13 +1776,16 @@ export class ConversationController {
       )
       this.say('info', goalDoneText(command))
       this.noteActivity()
+      result(true)
     } catch (error: unknown) {
       if (error instanceof GoalRefusedError) {
         this.deps.log.info(`Goal ${verb} refused: ${error.message}`)
         this.say('warning', goalRefusalText(verb, error.refusal))
+        result(false)
         return
       }
       this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`)
+      result(false)
     }
   }
 
@@ -2335,7 +2348,7 @@ export class ConversationController {
         break
       }
       case 'goalCommand': {
-        await this.controlGoal(message.verb, message.objective)
+        await this.controlGoal(message.requestId, message.verb, message.objective)
         break
       }
       case 'exportConversation': {

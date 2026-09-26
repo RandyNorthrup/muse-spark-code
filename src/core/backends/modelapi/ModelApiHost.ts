@@ -721,6 +721,19 @@ export class ModelApiSession implements AgentSession {
     return true
   }
 
+  /** Stop leaves an unfinished goal paused, including when it stops compaction. */
+  private pauseGoalAfterStop(): void {
+    if (!isGoalActive(this.goal)) {
+      return
+    }
+    this.replaceGoal({
+      ...this.goal,
+      status: GOAL_STATUS.paused,
+      updated_at_ms: this.deps.now(),
+    })
+    this.touch()
+  }
+
   /** A goal tool's call (M45): Muse Code's rules and result shape. */
   private runGoal(call: FunctionCallItem): ToolOutcome {
     const result = runGoalTool(call.name, call.arguments, this.goal, this.goalContext())
@@ -773,21 +786,20 @@ export class ModelApiSession implements AgentSession {
     this.firstPrompt ??= this.goal?.objective
   }
 
-  private noteUsage(usage: Usage | null | undefined): void {
+  private noteUsage(usage: Usage | null | undefined, chargedGoalId: string | undefined): void {
     if (usage === null || usage === undefined) {
       return
     }
     // What the goal used counts against its budget (M45); a budget spent
     // stops the goal, and the panel hears of that.
-    if (isGoalActive(this.goal)) {
+    if (chargedGoalId !== undefined && this.goal?.goal_id === chargedGoalId) {
       const spent = withTokensUsed(
         this.goal,
         usage.input_tokens + usage.output_tokens,
         this.deps.now(),
       )
-      if (this.replaceGoal(spent)) {
-        this.touch()
-      }
+      this.replaceGoal(spent)
+      this.touch()
     }
     this.usage = {
       inputTokens: this.usage.inputTokens + usage.input_tokens,
@@ -1106,6 +1118,9 @@ export class ModelApiSession implements AgentSession {
     budget: RetryBudget,
   ): Promise<readonly FunctionCallItem[]> {
     let final: ResponseObject | undefined
+    // An HTTP or whole-stream retry gets its own snapshot: the goal may have
+    // changed between attempts, but a reply never charges a newly set goal.
+    const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
       this.emit({
@@ -1133,7 +1148,7 @@ export class ModelApiSession implements AgentSession {
         undefined,
       )
     }
-    return this.adoptOutput(turnId, final, open)
+    return this.adoptOutput(turnId, final, open, chargedGoalId)
   }
 
   /**
@@ -1145,6 +1160,7 @@ export class ModelApiSession implements AgentSession {
     turnId: string,
     response: ResponseObject,
     open: Map<string, OpenItem>,
+    chargedGoalId: string | undefined,
   ): readonly FunctionCallItem[] {
     const calls: FunctionCallItem[] = []
     // A reasoning item must be followed by a message or a call before the
@@ -1209,7 +1225,7 @@ export class ModelApiSession implements AgentSession {
         },
       })
     }
-    this.noteUsage(response.usage)
+    this.noteUsage(response.usage, chargedGoalId)
     return calls
   }
 
@@ -1712,12 +1728,8 @@ export class ModelApiSession implements AgentSession {
     // Stopping a turn pauses an unfinished goal, as Muse Code does on Esc and
     // on `turn/cancel` (captured live 2026-09-25, M45): nothing works toward
     // it until the user resumes it.
-    if (terminal === CANCELLED && isGoalActive(this.goal)) {
-      this.replaceGoal({
-        ...this.goal,
-        status: GOAL_STATUS.paused,
-        updated_at_ms: this.deps.now(),
-      })
+    if (terminal === CANCELLED) {
+      this.pauseGoalAfterStop()
     }
     // `loop` returns only with nothing steered left (D26), and `steer` is
     // refused once `active` is cleared, so no input is lost between the two.
@@ -1761,7 +1773,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** The text a stream event contributes to a collected reply; throws on failure. */
-  private collectedText(event: StreamEvent): string {
+  private collectedText(event: StreamEvent, chargedGoalId: string | undefined): string {
     switch (event.type) {
       case 'response.output_text.delta': {
         return event.delta
@@ -1778,8 +1790,15 @@ export class ModelApiSession implements AgentSession {
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)
       }
       case 'response.completed': {
-        this.noteUsage(event.response.usage)
+        this.noteUsage(event.response.usage, chargedGoalId)
         return ''
+      }
+      case 'response.incomplete': {
+        this.noteUsage(event.response.usage, chargedGoalId)
+        this.deps.log.warn(
+          `Model API compaction response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+        )
+        throw new ModelApiError('response.incomplete', 0, undefined, 'response_incomplete')
       }
       default: {
         return ''
@@ -1788,16 +1807,31 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Collects the reply text of one model call without touching the transcript. */
-  private async collectText(body: CreateResponseBody, signal: AbortSignal): Promise<string> {
+  private async collectText(
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    chargedGoalId: string | undefined,
+  ): Promise<string> {
     let text = ''
+    let isComplete = false
     for await (const event of this.deps.client.streamResponse(body, signal)) {
-      text += this.collectedText(event)
+      isComplete ||= event.type === 'response.completed'
+      text += this.collectedText(event, chargedGoalId)
+    }
+    if (!isComplete) {
+      throw new ModelApiError(
+        'The stream ended without a completed response',
+        0,
+        undefined,
+        undefined,
+      )
     }
     return text
   }
 
   /** The summary call of `compact`, and the replay it leaves behind. */
   private async runCompaction(signal: AbortSignal): Promise<CompactOutcome> {
+    const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     const body: CreateResponseBody = {
       ...this.body(),
       input: [
@@ -1811,7 +1845,7 @@ export class ModelApiSession implements AgentSession {
       tools: [],
       include: ['reasoning.encrypted_content'],
     }
-    const summary = await this.collectText(body, signal)
+    const summary = await this.collectText(body, signal, chargedGoalId)
     this.replay.splice(0, this.replay.length, {
       turnId: COMPACTION_TURN_ID,
       item: {
@@ -1934,6 +1968,7 @@ export class ModelApiSession implements AgentSession {
       return await this.runCompaction(abort.signal)
     } catch (error: unknown) {
       if (abort.signal.aborted) {
+        this.pauseGoalAfterStop()
         return { status: CANCELLED, reason: UI_TEXT.compactionStopped }
       }
       throw error
