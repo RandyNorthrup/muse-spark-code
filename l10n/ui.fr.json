@@ -510,6 +510,36 @@
   "agentDelegationOff": "La délégation aux sous-agents de Muse Code est désactivée (son comportement par défaut) ; le modèle n’a donc aucun outil d’agent dans cette conversation. Définissez run.subagent_delegation_mode sur « auto » dans le fichier de paramètres de Muse Code pour l’activer ; l’extension ne modifie jamais ce fichier.",
   "agentOpenMuseSettings": "Ouvrir le fichier de paramètres de Muse Code",
   "museSettingsMissing": "Muse Code n’a pas encore écrit de fichier de paramètres. Il se trouverait ici : {path}",
+  "workflowRowLabel": "Flux de travail",
+  "workflowGenerated": "Écrit pour cette tâche",
+  "workflowTriggerSources": {
+    "guidanceAuto": "lancé par le modèle"
+  },
+  "workflowAgentsLabel": "Agents du flux de travail",
+  "workflowChildStatuses": {
+    "scheduled": "en file d’attente",
+    "started": "en cours",
+    "usage": "en cours",
+    "completed": "terminé",
+    "terminal": "fini"
+  },
+  "workflowChildUntitled": "Agent {number}",
+  "workflowAttempt": "tentative {attempt}",
+  "workflowsCount": {
+    "one": "{count} flux de travail",
+    "many": "{count} de flux de travail",
+    "other": "{count} flux de travail"
+  },
+  "workflowsLabel": "Flux de travail",
+  "workflowTriggerModes": {
+    "auto": "Les flux de travail de Muse Code sont sur « auto » : le modèle peut en lancer un de lui-même pour un travail important, et en lance un quand vous le demandez. Chaque agent d’un flux de travail fait ses propres appels au modèle.",
+    "explicit": "Les flux de travail de Muse Code sont sur « explicit » : le modèle n’en lance un que si vous le demandez.",
+    "off": "Les flux de travail de Muse Code sont désactivés (« off ») : le modèle n’a pas d’outil de flux de travail."
+  },
+  "workflowTriggerOther": "Le paramètre des flux de travail de Muse Code est {mode}.",
+  "workflowTriggerHowTo": "Définissez run.workflow_trigger_mode sur « auto », « explicit » ou « off » dans le fichier de paramètres de Muse Code pour le modifier ; l’extension ne modifie jamais ce fichier.",
+  "workflowLaunched": "Lancé : il s’exécute en arrière-plan et rend compte à cette conversation.",
+  "workflowScriptSaved": "Script enregistré dans {path}",
   "backgroundTasksCount": {
     "one": "{count} tâche en arrière-plan",
     "many": "{count} de tâches en arrière-plan",

@@ -1073,6 +1073,43 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('counts a workflow’s agents in the pill and notes the trigger mode (M47)', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemStarted',
+        item: {
+          itemId: 'w1',
+          kind: 'workflow',
+          status: 'inProgress',
+          workflowRunId: 'run-1',
+          entryId: 'generated.model-chosen',
+          children: [
+            { childId: 'c1', attempt: 1, status: 'started', label: 'ping' },
+            { childId: 'c2', attempt: 1, status: 'scheduled' },
+          ],
+        },
+      },
+    })
+    expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip ping|Retry ping/ })).toBeNull()
+    const pill = screen.getByTitle('Show the agent map')
+    expect(pill).toHaveTextContent('2 agents')
+    fireEvent.click(pill)
+    // The map reads the account facts fresh, as the usage dialog does.
+    expect(postMessage).toHaveBeenCalledWith({ type: 'readUsage' })
+    deliver({
+      type: 'usageReport',
+      backend: 'museCode',
+      account: { signInMethod: 'cli', delegationMode: 'auto', workflowTriggerMode: 'explicit' },
+    })
+    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    expect(within(map).getByRole('list', { name: 'Workflows' })).toHaveTextContent('ping')
+    expect(within(map).getByRole('note')).toHaveTextContent('workflows are on explicit')
+  })
+
   it('explains delegation being off in the Agent map and opens the Muse settings file (M14)', () => {
     const postMessage = renderReady()
     deliver({

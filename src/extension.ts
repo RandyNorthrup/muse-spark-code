@@ -33,7 +33,11 @@ import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
-import { museSettingsPath, readDelegationMode } from './host/backend/museSettings'
+import {
+  museSettingsPath,
+  readDelegationMode,
+  readWorkflowTriggerMode,
+} from './host/backend/museSettings'
 import { shellJobAssembly } from './host/backend/shellJob'
 import { createToolIo, terminalPlatform, withTerminalOverrides } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
@@ -530,6 +534,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   const delegationMode = () =>
     readDelegationMode({ ...museConfig(), readTextFile: readTextFileSync })
+  const workflowTriggerMode = () =>
+    readWorkflowTriggerMode({ ...museConfig(), readTextFile: readTextFileSync })
   /**
    * Stops both hosts (PLAN.md D25). The conversations hear it first: a
    * running turn is cancelled, and unless they end (sign-out, shutdown) the
@@ -1135,7 +1141,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           return {
             signInMethod,
             ...(cliVersion !== undefined && { cliVersion }),
-            ...(kind === 'museCode' && { delegationMode: delegationMode() }),
+            ...(kind === 'museCode' && {
+              delegationMode: delegationMode(),
+              workflowTriggerMode: workflowTriggerMode(),
+            }),
           }
         },
         usageInsights: () => insights.read(),
@@ -1452,6 +1461,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             : { ok: false, reason: resolution.reason },
           hasCliCredentialFile: backend.credentialFileExists(),
           delegationMode: delegationMode(),
+          workflowTriggerMode: workflowTriggerMode(),
           hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
           hasEnvironmentApiKey: backend.hasEnvironmentKey(),
           dictation: dictation.isAvailable

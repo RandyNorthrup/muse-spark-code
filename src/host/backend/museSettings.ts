@@ -1,13 +1,19 @@
-// The Muse Code CLI's own settings file, read for one fact (PLAN.md D17):
-// whether native subagent delegation is on. Muse Code 1.3.0 hides its
+// The Muse Code CLI's own settings file, read for two facts. Whether native
+// subagent delegation is on (PLAN.md D17): Muse Code 1.3.0 hides its
 // subagent tools unless `run.subagent_delegation_mode` is `"auto"` in
 // `$XDG_CONFIG_HOME/muse/settings.json` (else `~/.config/muse/settings.json`),
-// and the panel can only spawn agents when the CLI lets the model do so.
+// and the panel can only spawn agents when the CLI lets the model do so. And
+// when the model may start a workflow (M47, PLAN.md D40):
+// `run.workflow_trigger_mode`, `auto`, `explicit` or `off`.
 // Read only; the extension never writes this file. The user opens it from
 // the Agent map when they want to change it.
 
 import * as z from 'zod/mini'
-import { MUSE_DELEGATION_DEFAULT, MUSE_SETTINGS_FILE_SEGMENTS } from '../../shared/constants'
+import {
+  MUSE_DELEGATION_DEFAULT,
+  MUSE_SETTINGS_FILE_SEGMENTS,
+  MUSE_WORKFLOW_TRIGGER_DEFAULT,
+} from '../../shared/constants'
 import type { CredentialPathInput } from '../../core/backends/musecode/launch'
 import path from 'node:path'
 
@@ -16,10 +22,11 @@ export interface MuseSettingsDeps extends CredentialPathInput {
   readonly readTextFile: (filePath: string) => string | undefined
 }
 
-/** Only the member the extension reads; everything else is the CLI's business. */
-const settingsSchema = z.object({
-  run: z.optional(z.object({ subagent_delegation_mode: z.optional(z.string()) })),
-})
+/**
+ * Only the `run` block; each member the extension reads is checked on its
+ * own, so one of another type costs that fact alone, never the other.
+ */
+const settingsSchema = z.object({ run: z.optional(z.record(z.string(), z.unknown())) })
 
 export function museSettingsPath(input: CredentialPathInput): string {
   const p = input.platform === 'win32' ? path.win32 : path.posix
@@ -27,18 +34,26 @@ export function museSettingsPath(input: CredentialPathInput): string {
   return p.join(configHome, ...MUSE_SETTINGS_FILE_SEGMENTS)
 }
 
-/** `run.subagent_delegation_mode`, or the CLI's default when unset or unreadable. */
-export function readDelegationMode(deps: MuseSettingsDeps): string {
+/** One string member of the file's `run` block; undefined when missing, unreadable or not a string. */
+function readRunSetting(deps: MuseSettingsDeps, key: string): string | undefined {
   const text = deps.readTextFile(museSettingsPath(deps))
   if (text === undefined) {
-    return MUSE_DELEGATION_DEFAULT
+    return undefined
   }
   try {
-    const parsed = settingsSchema.safeParse(JSON.parse(text))
-    return parsed.success
-      ? (parsed.data.run?.subagent_delegation_mode ?? MUSE_DELEGATION_DEFAULT)
-      : MUSE_DELEGATION_DEFAULT
+    const value = settingsSchema.safeParse(JSON.parse(text)).data?.run?.[key]
+    return typeof value === 'string' ? value : undefined
   } catch {
-    return MUSE_DELEGATION_DEFAULT
+    return undefined
   }
+}
+
+/** `run.subagent_delegation_mode`, or the CLI's default when unset or unreadable. */
+export function readDelegationMode(deps: MuseSettingsDeps): string {
+  return readRunSetting(deps, 'subagent_delegation_mode') ?? MUSE_DELEGATION_DEFAULT
+}
+
+/** `run.workflow_trigger_mode` (M47), or the CLI's default when unset or unreadable. */
+export function readWorkflowTriggerMode(deps: MuseSettingsDeps): string {
+  return readRunSetting(deps, 'workflow_trigger_mode') ?? MUSE_WORKFLOW_TRIGGER_DEFAULT
 }

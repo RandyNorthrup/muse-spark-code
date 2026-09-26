@@ -501,6 +501,35 @@
   "agentDelegationOff": "A Muse Code alügynök-delegálása ki van kapcsolva (ez az alapértelmezés), így a modellnek ebben a beszélgetésben nincsenek ügynökeszközei. Az engedélyezéshez állítsa a run.subagent_delegation_mode értékét \"auto\" értékre a Muse Code beállításfájljában; a kiegészítő soha nem szerkeszti ezt a fájlt.",
   "agentOpenMuseSettings": "A Muse Code beállításfájljának megnyitása",
   "museSettingsMissing": "A Muse Code még nem írt beállításfájlt. Itt lenne: {path}",
+  "workflowRowLabel": "Munkafolyamat",
+  "workflowGenerated": "Ehhez a feladathoz írva",
+  "workflowTriggerSources": {
+    "guidanceAuto": "a modell indította"
+  },
+  "workflowAgentsLabel": "A munkafolyamat ügynökei",
+  "workflowChildStatuses": {
+    "scheduled": "sorban áll",
+    "started": "fut",
+    "usage": "fut",
+    "completed": "befejezve",
+    "terminal": "véget ért"
+  },
+  "workflowChildUntitled": "{number}. ügynök",
+  "workflowAttempt": "{attempt}. próbálkozás",
+  "workflowsCount": {
+    "one": "{count} munkafolyamat",
+    "other": "{count} munkafolyamat"
+  },
+  "workflowsLabel": "Munkafolyamatok",
+  "workflowTriggerModes": {
+    "auto": "A Muse Code munkafolyamatai \"auto\" módban vannak: nagyobb munkánál a modell magától is indíthat egyet, és indít egyet, ha kéri. Minden munkafolyamat-ügynök saját modellhívásokat végez.",
+    "explicit": "A Muse Code munkafolyamatai \"explicit\" módban vannak: a modell csak akkor indít egyet, ha kéri.",
+    "off": "A Muse Code munkafolyamatai ki vannak kapcsolva (\"off\"): a modellnek nincs munkafolyamat-eszköze."
+  },
+  "workflowTriggerOther": "A Muse Code munkafolyamat-beállítása: {mode}.",
+  "workflowTriggerHowTo": "A módosításhoz állítsa a run.workflow_trigger_mode értékét \"auto\", \"explicit\" vagy \"off\" értékre a Muse Code beállításfájljában; a kiegészítő soha nem szerkeszti ezt a fájlt.",
+  "workflowLaunched": "Elindítva: a háttérben fut, és ebbe a beszélgetésbe jelenti az eredményt.",
+  "workflowScriptSaved": "A szkript mentési helye: {path}",
   "backgroundTasksCount": {
     "one": "{count} háttérfeladat",
     "other": "{count} háttérfeladat"

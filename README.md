@@ -77,6 +77,10 @@ Every change is in the [CHANGELOG](CHANGELOG.md).
   **N agents** pill opens the Agent map: role, status, tokens, each agent's own
   transcript, and the controls Muse Code offers (interrupt, stop, a note,
   resume, close, a follow-up task).
+- **Workflows you can follow.** When Muse Code runs a multi-agent workflow,
+  the run is a card that keeps updating after the reply: its agents with
+  their state, time and tokens, and the result it returned. Owner controls
+  wait for a live accepted-command capture.
 - **Reply and quote with context.** A reply's ⋯ menu has **Reply to this
   output**; highlight anything in the chat and right-click for **Ask about
   this** or **Comment on this**. The passage, its author and your intent
@@ -588,6 +592,42 @@ tokens, the background tasks, and each agent's own transcript.
   its result is ready.
 - The Model API backend spawns no agents.
 
+**Workflows.** Muse Code can run a multi-agent workflow: a short script,
+written by the model for the task or saved in Muse Code beforehand, that
+starts child agents, up to 1,000 over a run, each making its own model
+calls on your subscription. The **Workflow** row shows the inline script
+when the model wrote one and says whether the run was launched. It does
+not infer a source file for a resumed run; that input shape has not been
+captured from Muse Code. The run itself is a card below it that keeps changing after
+the reply ends, as the run goes on in the background:
+
+- its captured generated label ("Written for this task"), or the entry ID or
+  fallback text Muse Code sent for another run, plus its status,
+  how many agents, their tokens, and what started it;
+- each agent with its label, state (queued, running, completed, failed…),
+  attempt, time and tokens;
+- a status Muse Code adds later shown in its own words with a neutral mark;
+- the result the run returned, or the failure it reported;
+- The run and its agents are read-only in this version. Cancel, Skip and
+  Retry will need a live capture of accepted Muse Code commands before the
+  panel can offer them.
+
+The token figure is the panel's sum of the latest usage reported for each
+agent row. It is not a billed total for a run with retries; use Muse Code's
+subscription usage for that. A reload of the same session keeps child labels
+and usage the panel saved earlier; without that saved state, Muse Code's final
+history item may omit those details.
+
+The header's **N agents** pill counts workflow agents too, and the Agent
+map lists the runs with the same read-only cards. The map also says how Muse Code
+is set to start workflows, from `run.workflow_trigger_mode` in its settings
+file (`auto`, its default: the model may start one for large work, and
+starts one when you ask; `explicit`: only when you ask; `off`: no workflow
+tool), with the file a click away; the extension never edits it. Pausing
+and resuming a run are Muse Code's terminal UI's alone (`/workflows`), and a
+workflow agent keeps no transcript of its own to open. The Model API
+backend runs no workflows.
+
 **Account & usage** (`/usage`, `/cost`) is a modal over the transcript:
 
 - **Account:** auth method, plan, backend, Muse Code version and model.
@@ -1018,6 +1058,12 @@ message resumes the same session.
 - **The Agent map says delegation is off** — Muse Code hides its subagent
   tools until `run.subagent_delegation_mode` is `"auto"` in its own settings
   file; the map's button opens that file. The extension never edits it.
+- **Muse never starts a workflow** — Muse Code's `run.workflow_trigger_mode`
+  may be `off` (no workflow tool) or `explicit` (only when you ask); the
+  Agent map says which and opens the settings file.
+- **A workflow has no Cancel, Skip or Retry button** — this increment
+  follows its progress read-only. Owner controls wait for a captured
+  accepted-command and outcome shape from Muse Code.
 - **The Muse Spark sidebar is blank in Eclipse Theia** — Theia 1.75 does not
   start an extension when its webview view opens, so the view waits until
   something else starts it. Press **Ctrl+Esc** or run any Muse Spark command

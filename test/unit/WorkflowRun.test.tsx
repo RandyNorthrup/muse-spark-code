@@ -1,0 +1,192 @@
+// @vitest-environment jsdom
+import { fireEvent, screen, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import type { WorkflowEntry } from '../../src/webview/state/uiState'
+import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import {
+  WORKFLOW_CHILD_ID,
+  WORKFLOW_ITEM_ID,
+  WORKFLOW_MESSAGE,
+  WORKFLOW_RUN_ID,
+  WORKFLOW_SCRIPT_PATH,
+  WORKFLOW_TOOL_ITEM,
+} from './helpers/workflowFixtures'
+
+const USAGE = { inputTokens: 9995, outputTokens: 135, cachedTokens: 5105, reasoningTokens: 70 }
+
+/** The captured run as the state keeps it once it completed (M47). */
+const completedRun: WorkflowEntry = {
+  kind: 'workflow',
+  id: WORKFLOW_ITEM_ID,
+  status: 'completed',
+  workflowRunId: WORKFLOW_RUN_ID,
+  entryId: 'generated.model-chosen',
+  scriptId: 'generated.workflow.generated.model-chosen',
+  triggerSource: 'guidanceAuto',
+  fallbackText: 'Workflow: model-chosen generated workflow',
+  children: [
+    {
+      childId: WORKFLOW_CHILD_ID,
+      attempt: 1,
+      status: 'terminal',
+      label: 'ping',
+      terminal: 'completed',
+      durationMs: 2183,
+      usage: USAGE,
+    },
+  ],
+  message: WORKFLOW_MESSAGE,
+}
+
+const runningRun: WorkflowEntry = {
+  ...completedRun,
+  status: 'inProgress',
+  message: undefined,
+  children: [
+    { childId: WORKFLOW_CHILD_ID, attempt: 2, status: 'usage', label: 'ping', usage: USAGE },
+    { childId: 'queued', attempt: 1, status: 'scheduled' },
+  ],
+}
+
+describe('a workflow run’s card (M47)', () => {
+  it('shows the captured run: its name, status, agent, tokens, what started it and its result', () => {
+    renderTranscript([completedRun])
+    const row = document.querySelector('.workflow')
+    expect(row).toHaveAttribute('data-entry-id', WORKFLOW_ITEM_ID)
+    expect(row).toHaveAttribute('data-status', 'completed')
+    expect(row).toHaveTextContent('WorkflowWritten for this task')
+    expect(row).toHaveTextContent('completed · 1 agent · 10.1K tokens · started by the model')
+    const agents = screen.getByRole('list', { name: 'Workflow agents' })
+    expect(agents).toHaveTextContent('ping2s · 10.1K tokens · completed')
+    expect(row).toHaveTextContent('Resultpong')
+    // Owner controls wait for a live accepted-command capture.
+    expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull()
+  })
+
+  it('shows running and queued agents without unverified owner controls', () => {
+    renderTranscript([runningRun])
+    expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip|Retry/ })).toBeNull()
+    // The queued agent, unnamed, is numbered.
+    const queued = within(screen.getByRole('list', { name: 'Workflow agents' }))
+      .getByText('Agent 2')
+      .closest('li')
+    expect(queued).toHaveTextContent('queued')
+    expect(within(queued ?? document.body).queryByRole('button')).toBeNull()
+    expect(screen.getByRole('list', { name: 'Workflow agents' })).toHaveTextContent(
+      'attempt 2 · 10.1K tokens · running',
+    )
+  })
+
+  it('shows a failure when the run has no handle', () => {
+    renderTranscript([
+      { ...runningRun, id: 'a', workflowRunId: undefined },
+      {
+        ...completedRun,
+        id: 'b',
+        status: 'failed',
+        entryId: 'review-change',
+        message:
+          '<workflow-launch-reconciled>{"final_summary":null,"latest_failure":"agent lint crashed"}</workflow-launch-reconciled>',
+      },
+    ])
+    expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull()
+    const failed = document.querySelector('[data-entry-id="b"]')
+    expect(failed).toHaveTextContent('review-change')
+    expect(failed).toHaveTextContent('Failed: agent lint crashed')
+  })
+
+  it('keeps an unknown future run and agent status verbatim without falsely marking failure', () => {
+    renderTranscript([
+      {
+        ...completedRun,
+        id: 'future-run',
+        status: 'pausedForBudget',
+        children: [
+          {
+            childId: 'future-child',
+            attempt: 1,
+            status: 'terminal',
+            terminal: 'usageLimited',
+          },
+        ],
+        message: undefined,
+      },
+      {
+        ...completedRun,
+        id: 'failed-run',
+        status: 'failed',
+        children: [{ childId: 'failed-child', attempt: 1, status: 'terminal', terminal: 'failed' }],
+        message: undefined,
+      },
+      {
+        ...completedRun,
+        id: 'cancelled-run',
+        status: 'cancelled',
+        children: [
+          { childId: 'cancelled-child', attempt: 1, status: 'terminal', terminal: 'cancelled' },
+        ],
+        message: undefined,
+      },
+    ])
+    const future = document.querySelector('[data-entry-id="future-run"]')
+    expect(future).toHaveTextContent('pausedForBudget')
+    expect(future).toHaveTextContent('usageLimited')
+    expect(future?.querySelector(':scope .workflow-header .tool-dot')).not.toHaveClass(
+      'tool-dot-failed',
+    )
+    expect(future?.querySelector(':scope .workflow-agent .tool-dot')).not.toHaveClass(
+      'tool-dot-failed',
+    )
+    const failed = document.querySelector('[data-entry-id="failed-run"]')
+    expect(failed?.querySelector(':scope .workflow-header .tool-dot')).toHaveClass(
+      'tool-dot-failed',
+    )
+    expect(failed?.querySelector(':scope .workflow-agent .tool-dot')).toHaveClass('tool-dot-failed')
+    const cancelled = document.querySelector('[data-entry-id="cancelled-run"]')
+    expect(cancelled?.querySelector(':scope .workflow-header .tool-dot')).toHaveClass(
+      'tool-dot-failed',
+    )
+    expect(cancelled?.querySelector(':scope .workflow-agent .tool-dot')).toHaveClass(
+      'tool-dot-failed',
+    )
+  })
+
+  it('shows the Workflow tool’s script and its launch in the row before the card', () => {
+    renderTranscript([
+      tool({
+        id: WORKFLOW_TOOL_ITEM.itemId,
+        tool: 'workflow',
+        args: WORKFLOW_TOOL_ITEM.args,
+        output: WORKFLOW_TOOL_ITEM.visibleOutput,
+      }),
+    ])
+    const toggle = screen.getByRole('button', { name: /Workflow/ })
+    fireEvent.click(toggle)
+    const row = toggle.closest('li')
+    expect(row).toHaveAttribute('data-entry-id', WORKFLOW_TOOL_ITEM.itemId)
+    expect(row).toHaveTextContent('export default async function workflow(host)')
+    expect(row).toHaveTextContent(
+      'Launched: it runs in the background and reports back to this conversation.',
+    )
+    expect(row).toHaveTextContent(`Script saved at ${WORKFLOW_SCRIPT_PATH}`)
+  })
+
+  it('does not label an unobserved argument as a resume source', () => {
+    renderTranscript([
+      tool({
+        id: 'resume',
+        tool: 'workflow',
+        args: JSON.stringify({ scriptPath: 'run.js' }),
+        output: 'workflow_launch_rejected: workflows are disabled for this run',
+      }),
+    ])
+    fireEvent.click(screen.getByRole('button', { name: /Workflow/ }))
+    const row = document.querySelector('[data-entry-id="resume"]')
+    expect(row).not.toHaveTextContent('run.js')
+    expect(row).toHaveTextContent('workflows are disabled for this run')
+    expect(row).not.toHaveTextContent('Launched')
+  })
+})

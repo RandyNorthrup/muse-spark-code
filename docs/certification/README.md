@@ -56,6 +56,7 @@ The PNGs beside the records are that day's harness renders.
 - [M43](m43.md): a row for every tool Muse Code runs: memory, goals, scheduled prompts, web search, background work, pictures (PLAN.md D36)
 - [M45](m45.md): session goals on both backends: the goal strip, `/goal`, Muse Code's verbs, the Model API's goal tools (PLAN.md D38)
 - [M46](m46.md): background work and stop, the `!` user shell, explanations instead of answers, on both backends (PLAN.md D39; certification pending)
+- [M47](m47.md): workflows: the run as a card, its agents, cancel, skip and retry, the trigger setting; integrated gate pending (PLAN.md D40)
 - [M42](m42.md): replay as Meta validates it: commentary, reasoning summaries, reasoning-only turns, stream retries (PLAN.md D35)
 - [M33–M35](m33-m35.md): the paid features: web search, image generation and Muse Voice, opt in and loud (PLAN.md D30, D34)
 - [M60](m60.md): the host API record and the `vscode` boundary, with M61's host bridge and portable controller (PLAN.md D60)

@@ -45,7 +45,8 @@
       "exportSubagentNoRole",
       "agentRole",
       "agentsCount.one",
-      "toolLabels.shell"
+      "toolLabels.shell",
+      "workflowChildUntitled"
     ],
     "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
     "pl": [
@@ -60,7 +61,8 @@
       "agentUntitled",
       "exportSubagentNoRole",
       "agentsCount.one",
-      "imageBuyPrompt"
+      "imageBuyPrompt",
+      "workflowChildUntitled"
     ],
     "de": [
       "groupSkills",
@@ -77,7 +79,10 @@
       "toolLabels.shell",
       "toolLabels.workflow",
       "toolLabels.read_skill",
-      "imageBuyPrompt"
+      "imageBuyPrompt",
+      "workflowRowLabel",
+      "workflowChildUntitled",
+      "workflowsLabel"
     ],
     "es": ["usagePlan", "agentTokens", "permissionModes.manual", "toolLabels.shell", "goalTokens"],
     "pt-br": [
@@ -101,7 +106,8 @@
       "citationsHeading",
       "toolLabels.shell",
       "toolLabels.image_generation",
-      "toolLabels.mcp__ide__generateImage"
+      "toolLabels.mcp__ide__generateImage",
+      "workflowChildUntitled"
     ],
     "it": ["usageAccount", "exportOutputLabel", "toolLabels.shell", "imageBuyPrompt"],
     "zh-cn": ["toolLabels.shell"],

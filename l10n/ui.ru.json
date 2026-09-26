@@ -519,6 +519,37 @@
   "agentDelegationOff": "Делегирование субагентам в Muse Code отключено (по умолчанию), поэтому в этой беседе у модели нет инструментов агентов. Чтобы включить его, задайте для run.subagent_delegation_mode значение \"auto\" в файле настроек Muse Code; расширение никогда не изменяет этот файл.",
   "agentOpenMuseSettings": "Открыть файл настроек Muse Code",
   "museSettingsMissing": "Muse Code еще не создал файл настроек. Его расположение: {path}",
+  "workflowRowLabel": "Рабочий процесс",
+  "workflowGenerated": "Написан для этой задачи",
+  "workflowTriggerSources": {
+    "guidanceAuto": "запущен моделью"
+  },
+  "workflowAgentsLabel": "Агенты рабочего процесса",
+  "workflowChildStatuses": {
+    "scheduled": "в очереди",
+    "started": "выполняется",
+    "usage": "выполняется",
+    "completed": "завершено",
+    "terminal": "закончено"
+  },
+  "workflowChildUntitled": "Агент {number}",
+  "workflowAttempt": "попытка {attempt}",
+  "workflowsCount": {
+    "one": "{count} рабочий процесс",
+    "few": "{count} рабочих процесса",
+    "many": "{count} рабочих процессов",
+    "other": "{count} рабочего процесса"
+  },
+  "workflowsLabel": "Рабочие процессы",
+  "workflowTriggerModes": {
+    "auto": "Рабочие процессы Muse Code в режиме \"auto\": для больших задач модель может сама запустить рабочий процесс и запускает его, когда вы просите. Каждый агент рабочего процесса сам обращается к модели.",
+    "explicit": "Рабочие процессы Muse Code в режиме \"explicit\": модель запускает рабочий процесс, только когда вы об этом просите.",
+    "off": "Рабочие процессы Muse Code отключены (\"off\"): у модели нет инструмента рабочих процессов."
+  },
+  "workflowTriggerOther": "Настройка рабочих процессов Muse Code: {mode}.",
+  "workflowTriggerHowTo": "Чтобы изменить это, задайте для run.workflow_trigger_mode значение \"auto\", \"explicit\" или \"off\" в файле настроек Muse Code; расширение никогда не изменяет этот файл.",
+  "workflowLaunched": "Запущен: выполняется в фоновом режиме и сообщит результат в этой беседе.",
+  "workflowScriptSaved": "Скрипт сохранен в {path}",
   "backgroundTasksCount": {
     "one": "{count} фоновая задача",
     "few": "{count} фоновые задачи",

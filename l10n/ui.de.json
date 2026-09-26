@@ -501,6 +501,35 @@
   "agentDelegationOff": "Die Subagenten-Delegierung von Muse Code ist ausgeschaltet (die Standardeinstellung), daher hat das Modell in dieser Unterhaltung keine Agenten-Tools. Setzen Sie run.subagent_delegation_mode in der Einstellungsdatei von Muse Code auf \"auto\", um sie zu aktivieren; die Erweiterung bearbeitet diese Datei nie.",
   "agentOpenMuseSettings": "Einstellungsdatei von Muse Code öffnen",
   "museSettingsMissing": "Muse Code hat noch keine Einstellungsdatei geschrieben. Sie läge unter {path}",
+  "workflowRowLabel": "Workflow",
+  "workflowGenerated": "Für diese Aufgabe geschrieben",
+  "workflowTriggerSources": {
+    "guidanceAuto": "vom Modell gestartet"
+  },
+  "workflowAgentsLabel": "Workflow-Agenten",
+  "workflowChildStatuses": {
+    "scheduled": "in der Warteschlange",
+    "started": "läuft",
+    "usage": "läuft",
+    "completed": "abgeschlossen",
+    "terminal": "beendet"
+  },
+  "workflowChildUntitled": "Agent {number}",
+  "workflowAttempt": "Versuch {attempt}",
+  "workflowsCount": {
+    "one": "{count} Workflow",
+    "other": "{count} Workflows"
+  },
+  "workflowsLabel": "Workflows",
+  "workflowTriggerModes": {
+    "auto": "Die Workflows von Muse Code stehen auf \"auto\": Das Modell kann bei großen Aufgaben von sich aus einen Workflow starten und startet einen, wenn Sie darum bitten. Jeder Workflow-Agent führt eigene Modellaufrufe aus.",
+    "explicit": "Die Workflows von Muse Code stehen auf \"explicit\": Das Modell startet einen Workflow nur, wenn Sie darum bitten.",
+    "off": "Die Workflows von Muse Code sind ausgeschaltet (\"off\"): Das Modell hat kein Workflow-Tool."
+  },
+  "workflowTriggerOther": "Die Workflow-Einstellung von Muse Code ist {mode}.",
+  "workflowTriggerHowTo": "Setzen Sie run.workflow_trigger_mode in der Einstellungsdatei von Muse Code auf \"auto\", \"explicit\" oder \"off\", um das zu ändern; die Erweiterung bearbeitet diese Datei nie.",
+  "workflowLaunched": "Gestartet: Er läuft im Hintergrund und meldet sich in dieser Unterhaltung zurück.",
+  "workflowScriptSaved": "Skript gespeichert unter {path}",
   "backgroundTasksCount": {
     "one": "{count} Hintergrundaufgabe",
     "other": "{count} Hintergrundaufgaben"

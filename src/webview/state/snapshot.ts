@@ -115,7 +115,8 @@ export function restoredUiState(raw: unknown): UiState {
   const { sessionId, snapshot, omittedSessionId } = persisted.data
   const base: UiState = { ...initialUiState, restoredSessionId: sessionId }
   const parsed = snapshotSchema.safeParse(snapshot)
-  if (parsed.success) {
+  // A valid snapshot for another session must not supply history details here.
+  if (parsed.success && parsed.data.sessionId === sessionId) {
     const saved = parsed.data
     return {
       ...base,

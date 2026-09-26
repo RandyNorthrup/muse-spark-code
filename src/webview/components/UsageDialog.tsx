@@ -41,7 +41,7 @@ import {
 } from '../../shared/usage'
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
-import { formatDurationMs } from './AgentMap'
+import { formatDurationMs } from '../agentFormat'
 import { Modal } from './Modal'
 
 export interface UsageDialogProps {

@@ -220,10 +220,13 @@ describe("Muse Code's own tools (M43)", () => {
       summary: 'vite',
       body: 'web',
     })
-    expect(describeTool('workflow', '{"prompt":"Review the diff"}')).toMatchObject({
+    // The captured call carries a script (M47); the run is its own card below the row.
+    expect(
+      describeTool('workflow', '{"script":"export default async function workflow(host) {}"}'),
+    ).toMatchObject({
       label: 'Workflow',
-      summary: 'Review the diff',
-      body: 'generic',
+      summary: '',
+      body: 'workflow',
     })
     expect(describeTool('apply_patch', '{"path":"a.ts","patch":"@@"}')).toMatchObject({
       label: 'Patch',

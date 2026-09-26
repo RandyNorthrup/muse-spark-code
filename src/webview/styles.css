@@ -2230,6 +2230,92 @@ body {
   color: var(--vscode-foreground);
 }
 
+/* A workflow run (M47): a header line like a tool row's, its agents one per
+   line on a rule, the result it returned, and the run's own control. The
+   same view is a card in the transcript and a node in the Agent map. */
+.workflow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0 2px 4px;
+}
+
+.agent-node.workflow {
+  padding: 6px 10px;
+}
+
+.workflow-header {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  min-width: 0;
+}
+
+.workflow-label {
+  font-weight: 600;
+}
+
+.workflow-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-meta,
+.workflow-agents,
+.workflow-result {
+  margin-left: calc(8px + var(--ms-gap));
+}
+
+.workflow-meta,
+.workflow-agent-meta,
+.workflow-result-label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.workflow-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-block: 0;
+  padding: 0 0 0 var(--ms-gap);
+  border-left: 1px solid var(--vscode-panel-border);
+  list-style: none;
+}
+
+.workflow-agent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--ms-gap);
+  align-items: center;
+}
+
+.workflow-agent-name {
+  overflow-wrap: anywhere;
+}
+
+.workflow-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workflow-path {
+  overflow-wrap: anywhere;
+}
+
+.agent-workflows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .composer-banner {
   display: flex;
   gap: var(--ms-gap);

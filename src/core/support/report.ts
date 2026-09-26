@@ -29,6 +29,8 @@ export interface SupportFacts {
   readonly hasCliCredentialFile: boolean
   /** Muse Code's `run.subagent_delegation_mode` as read from its settings file (M14). */
   readonly delegationMode: string
+  /** Muse Code's `run.workflow_trigger_mode`, read the same way (M47). */
+  readonly workflowTriggerMode: string
   readonly hasStoredApiKey: boolean
   readonly hasEnvironmentApiKey: boolean
   readonly dictation:
@@ -64,7 +66,7 @@ export function renderSupportReport(facts: SupportFacts): string {
     `shell sandbox: setting ${facts.shellSandboxSetting}, posture ${facts.shellSandboxPosture}`,
     `muse binary path configured: ${yesNo(facts.isBinaryPathConfigured)}; environment variables: ${String(facts.environmentVariableCount)}`,
     `muse cli: ${cli}`,
-    `muse subagent delegation: ${facts.delegationMode}`,
+    `muse subagent delegation: ${facts.delegationMode}; workflow trigger mode: ${facts.workflowTriggerMode}`,
     `cli credential file: ${yesNo(facts.hasCliCredentialFile)}; stored model api key: ${yesNo(facts.hasStoredApiKey)}; META_API_KEY in environment: ${yesNo(facts.hasEnvironmentApiKey)}`,
     `voice dictation: ${dictation}`,
   ].join('\n')

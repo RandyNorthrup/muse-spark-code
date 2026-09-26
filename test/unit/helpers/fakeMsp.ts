@@ -249,8 +249,10 @@ export function refusalOf(
   }
 }
 
-/** MSP's goal refusal (captured live 2026-09-25): `commandRejected`, -32030, with its reason. */
+/** MSP's command rejection code (captured live 2026-09-25). */
 const COMMAND_REJECTED_CODE = -32_030
+
+/** A goal refusal with a reason Muse Code sent. */
 export function goalRefusal(reason: 'missing_goal' | 'invalid_goal_state'): () => never {
   return refusalOf('commandRejected', COMMAND_REJECTED_CODE, reason)
 }
