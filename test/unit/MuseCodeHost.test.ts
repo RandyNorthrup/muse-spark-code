@@ -1526,7 +1526,7 @@ describe('MuseCodeHost: workflows (M47)', () => {
     await expect(session.cancelWorkflow(WORKFLOW_RUN_ID)).rejects.toThrow()
     server.handle('workflow/cancel', (params) => ({ ...ack(params), status: 'queued' }))
     await expect(session.cancelWorkflow(WORKFLOW_RUN_ID)).rejects.toThrow(
-      'workflow/cancel answered queued',
+      'Workflow command workflow/cancel returned status queued',
     )
   })
 })

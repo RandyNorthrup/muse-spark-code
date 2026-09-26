@@ -67,6 +67,9 @@ while they are (PLAN.md D30, D34).
   refusal does not appear in the conversation now shown. The host checks
   the workflow command's admission reply before treating it as accepted;
   malformed run and child targets are rejected at the panel boundary.
+  Each whole-list update replaces the set of agents, so a child no longer
+  reported loses its stale running controls; an unfamiliar command status
+  is reported in the installed language with its technical status intact.
   A shortened workflow name shows its full name on hover.
   The Workflow tool's row shows the script the model wrote and the launch.
   The **N agents** pill counts workflow agents, the Agent map lists the

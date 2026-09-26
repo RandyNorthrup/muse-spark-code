@@ -539,6 +539,7 @@
     "stale_attempt": "esse agente já passou para uma nova tentativa"
   },
   "workflowControlFailed": "O comando do fluxo de trabalho falhou",
+  "workflowCommandStatusUnexpected": "O comando do fluxo de trabalho {method} retornou o status {status}",
   "workflowsUnsupported": "O back-end da Model API não executa fluxos de trabalho",
   "workflowsCount": {
     "one": "{count} fluxo de trabalho",

@@ -530,6 +530,7 @@
     "stale_attempt": "dieser Agent ist bereits bei einem neuen Versuch"
   },
   "workflowControlFailed": "Der Workflow-Befehl ist fehlgeschlagen",
+  "workflowCommandStatusUnexpected": "Workflow-Befehl {method} meldete den Status {status}",
   "workflowsUnsupported": "Das Model-API-Backend führt keine Workflows aus",
   "workflowsCount": {
     "one": "{count} Workflow",

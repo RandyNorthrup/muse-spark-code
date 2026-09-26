@@ -521,6 +521,7 @@
     "stale_attempt": "そのエージェントは既に新しい試行に移っています"
   },
   "workflowControlFailed": "ワークフロー コマンドが失敗しました",
+  "workflowCommandStatusUnexpected": "ワークフロー コマンド {method} はステータス {status} を返しました",
   "workflowsUnsupported": "Model API バックエンドはワークフローを実行しません",
   "workflowsCount": {
     "other": "{count} 個のワークフロー"

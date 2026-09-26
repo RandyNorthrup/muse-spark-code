@@ -548,6 +548,7 @@
     "stale_attempt": "tento agent už přešel na nový pokus"
   },
   "workflowControlFailed": "Příkaz pracovního postupu selhal",
+  "workflowCommandStatusUnexpected": "Příkaz pracovního postupu {method} vrátil stav {status}",
   "workflowsUnsupported": "Back-end Model API nespouští žádné pracovní postupy",
   "workflowsCount": {
     "one": "{count} pracovní postup",

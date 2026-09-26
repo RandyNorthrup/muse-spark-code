@@ -1478,7 +1478,9 @@ completion then started a turn of its own, the model's reply. The choices:
   Code drops a field once the agent moves on (the label comes only with
   `scheduled`, the tokens only with `usage`), so the row keeps what it was
   told; a new attempt keeps the label and phase and starts its own outcome,
-  time and tokens. A child whose shape differs costs that child, a field
+  time and tokens. Each supplied `children` list is authoritative: a child
+  absent from that list is removed, so no stale running control remains.
+  A child whose shape differs costs that child, a field
   that differs costs that field, never the run (as `modelVisibleContent`
   since the review of PR #29).
 - **The controls MSP has.** **Cancel workflow** (`workflow/cancel`) while
@@ -1498,8 +1500,9 @@ completion then started a turn of its own, the model's reply. The choices:
   the panel must enforce the surface boundary before sending them.
 - **Admission ack.** A successful workflow control has the captured
   `{commandId, status}` shape. The host validates it before reporting
-  admission; a status other than `accepted` is shown as it came rather
-  than silently treated as success.
+  admission; a status other than `accepted` is shown in a localized
+  sentence with the method and status as technical details, rather than
+  silently treated as success.
 - **No agent transcripts.** A workflow child has no `childSessionId`, none
   of its items reaches the parent's stream, `session/read` of its id
   answers `sessionNotFound`, and `subagent/readResult` with it is admitted

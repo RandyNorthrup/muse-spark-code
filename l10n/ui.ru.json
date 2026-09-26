@@ -548,6 +548,7 @@
     "stale_attempt": "этот агент уже перешел к новой попытке"
   },
   "workflowControlFailed": "Команда рабочего процесса не выполнена",
+  "workflowCommandStatusUnexpected": "Команда рабочего процесса {method} вернула состояние {status}",
   "workflowsUnsupported": "Бэкенд Model API не запускает рабочие процессы",
   "workflowsCount": {
     "one": "{count} рабочий процесс",

@@ -2514,6 +2514,43 @@ describe('workflow runs in the state (M47)', () => {
     })
   })
 
+  it('removes children absent or unreadable in the next whole-list update', () => {
+    const first = reduceAll([
+      signedIn,
+      run({
+        itemId: 'w',
+        kind: 'workflow',
+        status: 'inProgress',
+        children: [
+          { childId: 'a', attempt: 1, status: 'started', label: 'lint' },
+          { childId: 'b', attempt: 1, status: 'scheduled', label: 'tests' },
+        ],
+      }),
+    ])
+    const revised = reduceAll(
+      [
+        run({
+          itemId: 'w',
+          kind: 'workflow',
+          status: 'inProgress',
+          children: [
+            { childId: 'a', attempt: 'invalid', status: 'started' },
+            { childId: 'b', attempt: 1, status: 'started' },
+          ],
+        }),
+      ],
+      first,
+    )
+    expect(entryOf(revised, 'w')).toMatchObject({
+      children: [{ childId: 'b', status: 'started', label: 'tests' }],
+    })
+    const empty = reduceAll(
+      [run({ itemId: 'w', kind: 'workflow', status: 'inProgress', children: [] })],
+      revised,
+    )
+    expect(entryOf(empty, 'w')).toMatchObject({ children: [] })
+  })
+
   it('keeps an agent’s label and phase across a new attempt, and nothing else of the old one', () => {
     const agentOf = (children: readonly unknown[], status = 'inProgress') =>
       run({ itemId: 'w', kind: 'workflow', status, children: [...children] })

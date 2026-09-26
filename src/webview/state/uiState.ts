@@ -568,20 +568,16 @@ function mergeChild(before: WorkflowChild, after: WorkflowChild): WorkflowChild 
   }
 }
 
-/** A run's agents after a re-emission: the known ones in their order, updated, then the new. */
+/** A whole-list re-emission: only the reported agents, enriched by their prior fields. */
 function mergeChildren(
   previous: readonly WorkflowChild[],
   reported: readonly WorkflowChild[],
 ): readonly WorkflowChild[] {
-  const byId = new Map(reported.map((child) => [child.childId, child]))
-  const known = new Set(previous.map((child) => child.childId))
-  return [
-    ...previous.map((child) => {
-      const next = byId.get(child.childId)
-      return next === undefined ? child : mergeChild(child, next)
-    }),
-    ...reported.filter((child) => !known.has(child.childId)),
-  ]
+  const known = new Map(previous.map((child) => [child.childId, child]))
+  return reported.map((child) => {
+    const before = known.get(child.childId)
+    return before === undefined ? child : mergeChild(before, child)
+  })
 }
 
 /**

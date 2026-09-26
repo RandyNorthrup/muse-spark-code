@@ -530,6 +530,7 @@
     "stale_attempt": "bu aracı yeni bir denemeye geçti"
   },
   "workflowControlFailed": "İş akışı komutu başarısız oldu",
+  "workflowCommandStatusUnexpected": "İş akışı komutu {method}, {status} durumunu döndürdü",
   "workflowsUnsupported": "Model API arka ucu iş akışı çalıştırmaz",
   "workflowsCount": {
     "one": "{count} iş akışı",

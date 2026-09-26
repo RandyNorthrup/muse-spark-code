@@ -530,6 +530,7 @@
     "stale_attempt": "az ügynök már új próbálkozásnál tart"
   },
   "workflowControlFailed": "A munkafolyamat-parancs sikertelen volt",
+  "workflowCommandStatusUnexpected": "A munkafolyamat {method} parancsa {status} állapotot adott vissza",
   "workflowsUnsupported": "A Model API háttérrendszer nem futtat munkafolyamatokat",
   "workflowsCount": {
     "one": "{count} munkafolyamat",

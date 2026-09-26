@@ -521,6 +521,7 @@
     "stale_attempt": "해당 에이전트가 이미 새 시도로 넘어갔습니다"
   },
   "workflowControlFailed": "워크플로 명령이 실패했습니다",
+  "workflowCommandStatusUnexpected": "워크플로 명령 {method}의 반환 상태는 {status}입니다",
   "workflowsUnsupported": "Model API 백엔드는 워크플로를 실행하지 않습니다",
   "workflowsCount": {
     "other": "워크플로 {count}개"

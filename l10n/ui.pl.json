@@ -548,6 +548,7 @@
     "stale_attempt": "ten agent przeszedł już do nowej próby"
   },
   "workflowControlFailed": "Polecenie przepływu pracy nie powiodło się",
+  "workflowCommandStatusUnexpected": "Polecenie przepływu pracy {method} zwróciło stan {status}",
   "workflowsUnsupported": "Backend Model API nie uruchamia przepływów pracy",
   "workflowsCount": {
     "one": "{count} przepływ pracy",

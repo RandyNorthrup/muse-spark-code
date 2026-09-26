@@ -629,6 +629,7 @@ export const EN = {
     stale_attempt: 'that agent has moved on to a new attempt',
   },
   workflowControlFailed: 'The workflow command failed',
+  workflowCommandStatusUnexpected: 'Workflow command {method} returned status {status}',
   workflowsUnsupported: 'The Model API backend runs no workflows',
   workflowsCount: forms({ one: '{count} workflow', other: '{count} workflows' }),
   workflowsLabel: 'Workflows',

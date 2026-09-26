@@ -472,7 +472,9 @@ export class MuseSession implements AgentSession {
     try {
       const result = workflowControlResultSchema.parse(await this.command(method, params))
       if (result.status !== WORKFLOW_COMMAND_ACCEPTED) {
-        throw new Error(`${method} answered ${result.status}`)
+        throw new Error(
+          fill(UI_TEXT.workflowCommandStatusUnexpected, { method, status: result.status }),
+        )
       }
     } catch (error: unknown) {
       throw workflowRefusalOr(error)

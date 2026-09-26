@@ -521,6 +521,7 @@
     "stale_attempt": "该代理已进入新的尝试"
   },
   "workflowControlFailed": "工作流命令失败",
+  "workflowCommandStatusUnexpected": "工作流命令 {method} 返回状态 {status}",
   "workflowsUnsupported": "Model API 后端不运行工作流",
   "workflowsCount": {
     "other": "{count} 个工作流"
