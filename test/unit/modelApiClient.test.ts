@@ -246,6 +246,70 @@ describe('ModelApiClient', () => {
     expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(4 + 5)
   })
 
+  it('checks a child grant after a fresh key read before every HTTP retry', async () => {
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    let key = 'LLM|1|secret'
+    const client = new ModelApiClient({
+      fetch: api.fetch,
+      baseUrl: 'https://api.example.test/v1',
+      apiKey: () => Promise.resolve(key),
+      sleep: () => {
+        key = 'LLM|1|changed'
+        return Promise.resolve()
+      },
+      now: () => NOW,
+      random: () => 0,
+      log,
+    })
+    api.script({ httpError: { status: 429 } }, { text: 'must not run' })
+    const keyDigests: (string | undefined)[] = []
+    await expect(
+      collect(
+        client.streamResponse(
+          body,
+          new AbortController().signal,
+          undefined,
+          undefined,
+          (digest) => {
+            keyDigests.push(digest)
+            if (keyDigests.length > 1) {
+              throw new Error('child consent expired')
+            }
+          },
+        ),
+      ),
+    ).rejects.toThrow('child consent expired')
+    expect(keyDigests).toHaveLength(2)
+    expect(keyDigests[0]).not.toBe(keyDigests[1])
+    expect(api.responseBodies()).toHaveLength(1)
+    expect(JSON.stringify(log)).not.toContain(key)
+  })
+
+  it('does not admit or send a stopped child after its key read completes', async () => {
+    const keyRead = Promise.withResolvers<string>()
+    const fetch = vi.fn<typeof globalThis.fetch>()
+    const admitted = vi.fn()
+    const client = new ModelApiClient({
+      fetch,
+      baseUrl: 'https://api.example.test/v1',
+      apiKey: () => keyRead.promise,
+      sleep: () => Promise.resolve(),
+      now: () => NOW,
+      random: () => 0,
+      log: new FakeLogOutputChannel(),
+    })
+    const stop = new AbortController()
+    const pending = collect(
+      client.streamResponse(body, stop.signal, undefined, undefined, admitted),
+    )
+    stop.abort()
+    keyRead.resolve('LLM|1|secret')
+    await expect(pending).rejects.toThrow()
+    expect(admitted).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('announces each retry and stops waiting when the turn is stopped (D25)', async () => {
     const { api, client } = setup()
     api.script({ httpError: { status: 503 } }, { text: 'finally' })

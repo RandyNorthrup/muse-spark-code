@@ -5,6 +5,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
+import { disabledPaidFeatures } from './helpers/fakePaidFeatures'
 
 /** A manager on the fake API with no waits, over the given root and store. */
 function managerOn(
@@ -31,8 +32,7 @@ function managerOn(
       isWorkspaceTrusted: () => true,
       store,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
-      isPaidFeatureOn: () => false,
-      notePaidUse: () => undefined,
+      ...disabledPaidFeatures,
     }),
   }
 }

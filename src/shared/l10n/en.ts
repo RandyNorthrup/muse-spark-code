@@ -566,6 +566,8 @@ export const EN = {
     cancelled: 'cancelled',
     interrupted: 'interrupted',
     resultReady: 'result ready',
+    queued: 'queued',
+    closed: 'closed',
   },
   agentTokens: '{tokens} tokens',
   agentContextTokens: '{tokens} tokens in context',
@@ -579,13 +581,14 @@ export const EN = {
   agentStop: 'Stop',
   agentResume: 'Resume',
   agentClose: 'Close agent',
+  agentReopen: 'Reopen agent',
+  agentReadResult: 'Mark result read',
   agentSendMessage: 'Send message',
   agentFollowup: 'Follow-up task',
   agentMessagePlaceholder: 'A note for this agent, or its next task…',
   agentControlsLabel: 'Agent controls',
   agentControlFailed: 'The agent command was refused',
   agentResultText: 'Result',
-  subagentsUnsupported: 'The Model API backend runs no subagents',
   agentNoTranscript: 'No transcript for this agent.',
   agentTranscriptLabel: 'Agent transcript',
   agentDelegationOff:
@@ -1033,6 +1036,13 @@ export const EN = {
   paidWebSearchName: 'Web search',
   paidImageGenerationName: 'Images',
   paidVoiceName: 'Muse Voice',
+  paidSubagentsName: 'Subagents',
+  paidSubagentRates:
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {limit} requests per task, including retries.',
+  paidSubagentTaskTitle: 'Approve paid task for {role}?',
+  paidSubagentTaskDetail:
+    '{objective}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Other enabled paid tools are charged separately. This approval covers this task only.',
+  approvalRunSubagent: 'Run paid subagent task {action}?',
   paidWebSearchPrice: '{price} per 1,000 searches',
   paidImagePrice: '{price} per image',
   paidVoicePrice: '{price} per hour of audio',
@@ -1044,6 +1054,8 @@ export const EN = {
     'The model may create image files in the workspace, or edit workspace images into new ones. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode. Used on the Model API backend, and on the Muse Code backend while a key is stored (never billed to the subscription).',
   paidConfirmVoice:
     'The microphone will send what you record to Meta’s Muse Voice Transcribe instead of your computer’s own recogniser, billed to your Model API key at {price}. Used on the Model API backend, and on the Muse Code backend while a key is stored.',
+  paidConfirmSubagents:
+    'Child agents make additional requests billed to your Model API key. {price} Each new task asks for approval in every permission mode, including Bypass. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
   paidConfirmAccept: 'Turn on',
   // The composer's badge while a paid feature is on; {features} lists their names.
   paidBadge: 'Paid: {features}',
@@ -1061,9 +1073,35 @@ export const EN = {
   usagePaidSearches: forms({ one: '{count} search', other: '{count} searches' }),
   usagePaidImages: forms({ one: '{count} image', other: '{count} images' }),
   usagePaidAudio: '{duration} of audio',
+  usagePaidSubagentRequests: forms({
+    one: '{count} child request',
+    other: '{count} child requests',
+  }),
+  usagePaidSubagentUnknown: forms({
+    one: '{count} request has no reported cost yet',
+    other: '{count} requests have no reported cost yet',
+  }),
+  usagePaidSubagentSubset:
+    'Reported child costs are included in their parent conversations’ token estimates. They are not added to the extra-feature total. Requests without reported usage may still be billed.',
+  usagePaidExtraTotal: 'Estimated extra-feature total',
+  usagePaidSubagentReported: 'Reported token estimate: {cost}',
   usagePaidTotal: 'Estimated paid total',
   usagePaidNote:
     'Estimated at Meta’s published prices, read on {date}, for this window since it opened; the dev.meta.ai dashboard is the bill.',
+  subagentPaidOff:
+    'Paid subagents are off. Enable them and accept the price before starting a child task.',
+  subagentConsentDeclined: 'The paid child task was not approved.',
+  subagentRequestLimit:
+    'The child task reached its approved limit of {limit} requests, including retries.',
+  subagentKeyChanged:
+    'The Model API key changed after approval. Approve a new child task to continue.',
+  subagentModelChanged: 'The model changed after approval. Approve a new child task to continue.',
+  subagentGoalEnded:
+    'The originating goal is no longer active. The child task cannot make another request.',
+  subagentTariffUnknown:
+    'No verified price is available for this model. The child task cannot start.',
+  subagentPlanMode: 'Plan mode refuses paid child tasks; switch mode and approve a new task.',
+  subagentWebSearchOff: 'Web search was turned off before this child request; no request was sent.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',

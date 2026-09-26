@@ -12,6 +12,8 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import type { SubagentTaskConfirmation } from '../../src/shared/paid'
 import {
   ModelApiHost,
   type ModelApiHostDeps,
@@ -43,17 +45,36 @@ function setup(
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
     /** The paid features that are on (M33–M35); none unless a test says so. */
     paid?: readonly PaidFeature[]
+    confirmSubagentTask?: ModelApiHostDeps['confirmSubagentTask']
+    apiKey?: () => Promise<string | undefined>
     /** The tools' files and shell, when a test needs its own (M46: a held shell). */
     io?: MemoryToolIo
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
+  const subagentUsage: {
+    readonly modelId: string
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly cachedTokens: number
+  }[] = []
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = options.io ?? memoryToolIo(options.files ?? {}, ROOT)
   let ids = 0
   let clock = 1_000_000
-  const client = fakeModelApiClient(api, log)
+  const client =
+    options.apiKey === undefined
+      ? fakeModelApiClient(api, log)
+      : new ModelApiClient({
+          fetch: api.fetch,
+          baseUrl: 'https://api.example.test/v1',
+          apiKey: options.apiKey,
+          sleep: () => Promise.resolve(),
+          now: () => 0,
+          random: () => 0,
+          log,
+        })
   const host = new ModelApiHost({
     client,
     workspaceRoot: ROOT,
@@ -78,8 +99,22 @@ function setup(
     notePaidUse: (feature, units) => {
       paidUses.push({ feature, units })
     },
+    confirmSubagentTask: options.confirmSubagentTask ?? (() => Promise.resolve(true)),
+    noteSubagentUsage: (modelId, usage) => {
+      subagentUsage.push({ modelId, ...usage })
+    },
   })
-  return { api, client, host, log, io, files: io.files, shellCalls: io.shellCalls, paidUses }
+  return {
+    api,
+    client,
+    host,
+    log,
+    io,
+    files: io.files,
+    shellCalls: io.shellCalls,
+    paidUses,
+    subagentUsage,
+  }
 }
 
 async function startSession(
@@ -1195,16 +1230,1482 @@ describe('ModelApiSession question cancel (M16)', () => {
   })
 })
 
-describe('ModelApiSession subagents (M18)', () => {
-  it('refuses owner controls and notes: this backend runs no subagents', async () => {
+async function waitForChildReady(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  responseCount?: number,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+      'resultReady',
+    )
+    if (responseCount !== undefined) {
+      expect(t.api.responseBodies()).toHaveLength(responseCount)
+    }
+    expect(session.status).toBe('idle')
+  })
+}
+
+/** A child can finish while its parent request remains held. */
+async function waitForChildResult(session: ModelApiSession): Promise<void> {
+  await vi.waitFor(() => {
+    expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+      controlStatus: 'resultReady',
+    })
+  })
+}
+
+async function delegateAndWaitForChild(
+  session: ModelApiSession,
+  expected: { readonly controlStatus: string; readonly status?: string; readonly result?: object },
+  isParentIdle = false,
+): Promise<void> {
+  await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  await vi.waitFor(() => {
+    expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject(expected)
+    if (isParentIdle) {
+      expect(session.status).toBe('idle')
+    }
+  })
+}
+
+async function waitForIdleResponses(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  responseCount: number,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(responseCount)
+    expect(session.status).toBe('idle')
+  })
+}
+
+function scriptWorkerSpawn(t: ReturnType<typeof setup>, objective: string): void {
+  t.api.script(
+    {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: JSON.stringify({ role: 'worker', objective }),
+          callId: 'spawn',
+        },
+      ],
+    },
+    { text: 'First task done.' },
+    { text: 'Parent continues.' },
+  )
+}
+
+async function queueChildren(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  count = 9,
+  isCancelLast = false,
+) {
+  const hold = Promise.withResolvers<undefined>()
+  const calls = Array.from({ length: count }, (_, index) => ({
+    name: 'subagent_spawn',
+    arguments: JSON.stringify({
+      role: `worker-${String(index)}`,
+      objective: `Task ${String(index)}`,
+    }),
+    callId: `spawn-${String(index)}`,
+  }))
+  t.api.script(
+    {
+      calls: isCancelLast
+        ? [
+            ...calls,
+            {
+              name: 'subagent_send_message',
+              arguments: JSON.stringify({
+                subagent_id: `subagent-${String(count)}`,
+                message: 'Cancelled queued note',
+              }),
+              callId: 'note-last',
+            },
+            {
+              name: 'subagent_cancel',
+              arguments: JSON.stringify({ subagent_id: `subagent-${String(count)}` }),
+              callId: 'cancel-last',
+            },
+          ]
+        : calls,
+    },
+    ...Array.from({ length: 10 }, () => ({ text: 'Done.', hold: hold.promise })),
+  )
+  await session.sendTurn([{ type: 'text', text: 'delegate tasks' }])
+  await vi.waitFor(() => {
+    expect(
+      session
+        .history()
+        .items.filter((item) => item.kind === 'toolCall' && item.tool === 'subagent_spawn'),
+    ).toHaveLength(count)
+  })
+  return hold
+}
+
+function setupSubagents(options: Parameters<typeof setup>[0] = {}) {
+  return setup({ ...options, paid: [...(options.paid ?? []), 'subagents'] })
+}
+
+async function startApprovedSubagentSession(t: ReturnType<typeof setup>) {
+  const started = await startSession(t, 'allowAll')
+  started.session.onEvent((event) => {
+    if (event.type === 'approvalRequested' && event.subject.paidFeature === 'subagents') {
+      void started.session.decideApproval({
+        approvalId: event.approvalId,
+        choiceId: 'allow_once',
+        requirementId: event.requirementId,
+      })
+    }
+  })
+  return started
+}
+
+async function refusePaidSpawnDecision(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  approval: Extract<AgentEvent, { type: 'approvalRequested' }>,
+  turnDone: () => Promise<void>,
+  choiceId: 'abort' | 'allow_session',
+): Promise<void> {
+  await session.decideApproval({
+    approvalId: approval.approvalId,
+    choiceId,
+    requirementId: approval.requirementId,
+  })
+  await turnDone()
+  expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+  expect(t.paidUses).toEqual([])
+}
+
+/** A settled first child, so follow-up consent tests have no parent race. */
+async function completePaidChild(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  callId: string,
+): Promise<number> {
+  t.api.script(
+    {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: '{"role":"explorer","objective":"First task"}',
+          callId,
+        },
+      ],
+    },
+    { text: 'First child task done.' },
+    { text: 'Parent done.' },
+  )
+  await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  await waitForChildReady(t, session)
+  return t.api.responseBodies().length
+}
+
+describe('ModelApiSession subagents (M48)', () => {
+  it('refuses child creation while its paid gate is off', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files"}',
+            callId: 'paid_off_spawn',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await turnDone()
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    expect(t.paidUses).toEqual([])
+  })
+
+  it('asks once for a bounded BYOK child task even in Bypass', async () => {
+    const t = setup({ paid: ['subagents'] })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files"}',
+            callId: 'paid_spawn',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    const approval = await approvalRequest(events, 0)
+    expect(approval.subject).toMatchObject({
+      paidFeature: 'subagents',
+      modelId: 'muse-spark-1.3',
+      requestLimit: 4,
+    })
+    expect(approval.availableChoices.map((choice) => choice.choiceId)).toEqual([
+      'allow_once',
+      'abort',
+    ])
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    await refusePaidSpawnDecision(t, session, approval, turnDone, 'abort')
+  })
+
+  it('rejects a forged session-wide decision on a one-use child card', async () => {
+    const t = setupSubagents()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files"}',
+            callId: 'forged_session_spawn',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    const approval = await approvalRequest(events, 0)
+    expect(approval.availableChoices.some((choice) => choice.choiceId === 'allow_session')).toBe(
+      false,
+    )
+    await refusePaidSpawnDecision(t, session, approval, turnDone, 'allow_session')
+  })
+
+  it('expires a pending paid spawn card when the parent switches to Plan', async () => {
+    const t = setupSubagents()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files"}',
+            callId: 'spawn_before_plan',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    const approval = await approvalRequest(events, 0)
+    await session.setApprovalMode('denyUnmatched')
+    await session.decideApproval({
+      approvalId: approval.approvalId,
+      choiceId: 'allow_once',
+      requirementId: approval.requirementId,
+    })
+    await turnDone()
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.paidUses).toEqual([])
+  })
+
+  it('refuses a child on a model without a verified tariff', async () => {
+    const t = setupSubagents()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    await session.setModel('muse-spark-future')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files"}',
+            callId: 'unpriced_spawn',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await turnDone()
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    expect(t.paidUses).toEqual([])
+  })
+
+  it.each(['gate', 'key', 'missingKey', 'model'] as const)(
+    'rechecks %s at the child HTTP boundary',
+    async (variant) => {
+      const paid: PaidFeature[] = ['subagents']
+      let key: string | undefined = 'LLM|1|secret'
+      const t = setup({ paid, apiKey: () => Promise.resolve(key) })
+      const { session } = await startApprovedSubagentSession(t)
+      session.onEvent((event) => {
+        if (event.type !== 'turnStarted' || !event.turnId.includes(':subagent-')) {
+          return
+        }
+        switch (variant) {
+          case 'gate': {
+            paid.length = 0
+            break
+          }
+          case 'key': {
+            key = 'LLM|1|changed'
+            break
+          }
+          case 'missingKey': {
+            key = undefined
+            break
+          }
+          case 'model': {
+            void session.setModel('muse-spark-1.2')
+            break
+          }
+        }
+      })
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'subagent_spawn',
+              arguments: '{"role":"explorer","objective":"Map files"}',
+              callId: `spawn_${variant}`,
+            },
+          ],
+        },
+        { text: 'Parent continues.' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'delegate' }])
+      const expectedKind = {
+        gate: 'paidOff',
+        key: 'keyChanged',
+        missingKey: 'keyChanged',
+        model: 'modelChanged',
+      }[variant]
+      await vi.waitFor(() => {
+        expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+          controlStatus: 'resultReady',
+          result: { errorKind: `subagent_${expectedKind}` },
+        })
+        expect(session.status).toBe('idle')
+      })
+      expect(t.api.responseBodies()).toHaveLength(variant === 'missingKey' ? 1 : 2)
+      expect(t.paidUses).toEqual([])
+      expect(t.subagentUsage).toEqual([])
+    },
+  )
+
+  it.each(['stop', 'dispose'] as const)(
+    'does not revive a closed child after %s while reopen consent waits',
+    async (action) => {
+      const pending = Promise.withResolvers<boolean>()
+      const confirm = vi.fn(() => pending.promise)
+      const t = setupSubagents({ confirmSubagentTask: confirm })
+      const { session } = await startApprovedSubagentSession(t)
+      const before = await completePaidChild(t, session, `spawn_before_${action}`)
+      await session.controlSubagent('subagent-1', 'readResult')
+      const attempts = t.paidUses.filter((use) => use.feature === 'subagents').length
+      const reopening = session.controlSubagent('subagent-1', 'reopen')
+      await vi.waitFor(() => {
+        expect(confirm).toHaveBeenCalledTimes(1)
+      })
+      if (action === 'stop') {
+        await session.controlSubagent('subagent-1', 'stop')
+      } else {
+        session.disposeAll()
+      }
+      pending.resolve(true)
+      await expect(reopening).rejects.toThrow()
+      expect(t.api.responseBodies()).toHaveLength(before)
+      expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(attempts)
+      if (action !== 'stop') {
+        return
+      }
+      t.api.script({ text: 'Deliberate later reopen.' })
+      await session.controlSubagent('subagent-1', 'reopen')
+      await vi.waitFor(() => {
+        expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(attempts + 1)
+      })
+    },
+  )
+
+  it('does not spend a child attempt when Stop wins during its key read', async () => {
+    const keyRead = Promise.withResolvers<string>()
+    let isKeyHeld = false
+    const pendingKeyReads = vi.fn()
+    const t = setupSubagents({
+      apiKey: () => {
+        if (isKeyHeld) {
+          pendingKeyReads()
+          return keyRead.promise
+        }
+        return Promise.resolve('LLM|1|secret')
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    const before = await completePaidChild(t, session, 'spawn_before_held_key')
+    const paidBefore = t.paidUses.filter((use) => use.feature === 'subagents').length
+    session.onEvent((event) => {
+      if (event.type === 'turnStarted' && event.turnId.includes(':subagent-')) {
+        isKeyHeld = true
+      }
+    })
+    t.api.script({ text: 'Must not run after Stop.' })
+    await session.messageSubagent('subagent-1', 'Second task', true)
+    await vi.waitFor(() => {
+      expect(pendingKeyReads).toHaveBeenCalled()
+    })
+    await session.controlSubagent('subagent-1', 'stop')
+    keyRead.resolve('LLM|1|secret')
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+        controlStatus: 'closed',
+      })
+    })
+    expect(t.api.responseBodies()).toHaveLength(before)
+    expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(paidBefore)
+  })
+
+  it.each(['resume', 'followup'] as const)(
+    'shows a retained queued note in restored child %s consent before its request',
+    async (action) => {
+      const store = memorySessionStore()
+      const first = setupSubagents({ store })
+      const { session } = await startApprovedSubagentSession(first)
+      await completePaidChild(first, session, `spawn_before_restore_${action}`)
+      await first.host.flush()
+      session.dispose()
+      const stored = store.saved.get(session.sessionId)
+      if (stored?.children === undefined) {
+        throw new Error('child snapshot missing')
+      }
+      store.saved.set(session.sessionId, {
+        ...stored,
+        children: stored.children.map((child) => ({
+          ...child,
+          state: 'queued',
+          pendingMessages: ['Retained note B'],
+        })),
+      })
+      const confirmed: SubagentTaskConfirmation[] = []
+      const second = setupSubagents({
+        store,
+        confirmSubagentTask: (task) => {
+          confirmed.push(task)
+          return Promise.resolve(true)
+        },
+      })
+      await second.host.load()
+      const restored = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      second.api.script({ text: 'Child resumed.' })
+      if (action === 'resume') {
+        await restored.session.controlSubagent('subagent-1', 'resume')
+      } else {
+        await restored.session.messageSubagent('subagent-1', 'Follow-up C', true)
+      }
+      const expected =
+        action === 'resume'
+          ? `Retained note B\n\n${MODEL_TEXT.subagentResume}`
+          : 'Retained note B\n\nFollow-up C'
+      expect(confirmed).toHaveLength(1)
+      expect(confirmed[0]?.objective).toBe(expected)
+      await vi.waitFor(() => {
+        expect(second.api.responseBodies()).toHaveLength(1)
+      })
+      expect(JSON.stringify(second.api.responseBodies()[0])).toContain('Retained note B')
+    },
+  )
+
+  it('refuses a child request after its originating goal is paused', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    session.onEvent((event) => {
+      if (event.type === 'turnStarted' && event.turnId.includes(':subagent-')) {
+        void session.controlGoal({ verb: 'pause' })
+      }
+    })
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'child_goal',
+          },
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files"}',
+            callId: 'goal_child',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await delegateAndWaitForChild(session, {
+      controlStatus: 'resultReady',
+      result: { errorKind: 'subagent_goalEnded' },
+    })
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.paidUses).toEqual([])
+  })
+
+  it('does not send a child request carrying web search after that gate turns off', async () => {
+    const paid: PaidFeature[] = ['subagents', 'webSearch']
+    const t = setup({ paid })
+    const { session } = await startApprovedSubagentSession(t)
+    const streamResponse = t.client.streamResponse.bind(t.client)
+    let didSeeSearchTool = false
+    vi.spyOn(t.client, 'streamResponse').mockImplementation(
+      (body, signal, retry, budget, guard) => {
+        if (body.prompt_cache_key.includes(':subagent-')) {
+          didSeeSearchTool = body.tools.some((tool) => tool.type === 'web_search')
+          paid.splice(paid.indexOf('webSearch'), 1)
+        }
+        return streamResponse(body, signal, retry, budget, guard)
+      },
+    )
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Research files"}',
+            callId: 'search_child',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await delegateAndWaitForChild(session, {
+      controlStatus: 'resultReady',
+      result: { errorKind: 'subagent_webSearchOff' },
+    })
+    expect(didSeeSearchTool).toBe(true)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.paidUses.filter((use) => use.feature === 'subagents')).toEqual([])
+  })
+
+  it('leaves UI follow-up and reopen stopped when their new price modal is declined', async () => {
+    const confirm = vi.fn((_task: SubagentTaskConfirmation) => Promise.resolve(false))
+    const t = setupSubagents({ confirmSubagentTask: confirm })
+    const { session } = await startApprovedSubagentSession(t)
+    const before = await completePaidChild(t, session, 'spawn_for_ui_decline')
+    await expect(session.messageSubagent('subagent-1', 'Second task', true)).rejects.toThrow(
+      UI_TEXT.subagentConsentDeclined,
+    )
+    await session.controlSubagent('subagent-1', 'readResult')
+    await expect(session.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
+      UI_TEXT.subagentConsentDeclined,
+    )
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(confirm.mock.calls[0]?.[0]).toMatchObject({
+      role: 'explorer',
+      objective: 'Second task',
+      modelId: 'muse-spark-1.3',
+      attemptLimit: 4,
+    })
+    expect(t.api.responseBodies()).toHaveLength(before)
+    expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(1)
+  })
+
+  it.each(['gate', 'key', 'missingKey', 'model'] as const)(
+    'expires a UI child-task consent when %s changes while its modal is open',
+    async (variant) => {
+      const paid: PaidFeature[] = ['subagents']
+      let key: string | undefined = 'LLM|1|secret'
+      const pending = Promise.withResolvers<boolean>()
+      const confirm = vi.fn(() => pending.promise)
+      const t = setup({ paid, apiKey: () => Promise.resolve(key), confirmSubagentTask: confirm })
+      const { session } = await startApprovedSubagentSession(t)
+      const before = await completePaidChild(t, session, `spawn_modal_${variant}`)
+      const continuation = session.messageSubagent('subagent-1', 'Second task', true)
+      await vi.waitFor(() => {
+        expect(confirm).toHaveBeenCalledTimes(1)
+      })
+      switch (variant) {
+        case 'gate': {
+          paid.length = 0
+          break
+        }
+        case 'key': {
+          key = 'LLM|1|changed'
+          break
+        }
+        case 'missingKey': {
+          key = undefined
+          break
+        }
+        case 'model': {
+          await session.setModel('muse-spark-1.2')
+          break
+        }
+      }
+      pending.resolve(true)
+      const reason = {
+        gate: UI_TEXT.subagentPaidOff,
+        key: UI_TEXT.subagentKeyChanged,
+        missingKey: UI_TEXT.subagentKeyChanged,
+        model: UI_TEXT.subagentModelChanged,
+      }[variant]
+      await expect(continuation).rejects.toThrow(reason)
+      expect(t.api.responseBodies()).toHaveLength(before)
+      expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(1)
+    },
+  )
+
+  it('refuses owner controls and notes for an unknown child', async () => {
     const t = setup()
     const { session } = await startSession(t)
-    // Through the backend interface, as the controller calls it.
     const asSession: AgentSession = session
-    await expect(asSession.controlSubagent('sub-1', 'stop')).rejects.toThrow('runs no subagents')
-    await expect(asSession.messageSubagent('sub-1', 'hi', false)).rejects.toThrow(
-      'runs no subagents',
+    await expect(asSession.controlSubagent('sub-1', 'stop')).rejects.toThrow('unknown subagent')
+    await expect(asSession.messageSubagent('sub-1', 'hi', false)).rejects.toThrow('unavailable')
+  })
+
+  it('runs a child independently, shows its result, and lets the owner read and reopen it', async () => {
+    const t = setupSubagents()
+    const { session, events } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files","command_id":"one"}',
+            callId: 'spawn',
+          },
+        ],
+      },
+      { text: 'Mapped files', usage: { input: 30, output: 10 } },
+      { text: 'Mapped files', usage: { input: 30, output: 10 } },
     )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await vi.waitFor(() => {
+      expect(
+        events.some(
+          (event) =>
+            event.type === 'itemUpdated' &&
+            event.item.kind === 'subagent' &&
+            event.item.controlStatus === 'resultReady',
+        ),
+      ).toBe(true)
+    })
+    const row = session.history().items.find((item) => item.kind === 'subagent')
+    expect(row).toMatchObject({
+      role: 'explorer',
+      objective: 'Map files',
+      result: { summary: 'Mapped files' },
+    })
+    expect(row?.usage?.inputTokens).toBe(30)
+    expect(session.snapshot().usage.inputTokens).toBeGreaterThanOrEqual(30)
+    expect(row?.childSessionId).toBeDefined()
+    const childHistory = await t.host.readSession(row?.childSessionId ?? '')
+    expect(
+      childHistory.items.some(
+        (item) => item.kind === 'agentMessage' && item.text === 'Mapped files',
+      ),
+    ).toBe(true)
+    await session.controlSubagent('subagent-1', 'readResult')
+    expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+      'closed',
+    )
+    await session.controlSubagent('subagent-1', 'reopen')
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+        'resultReady',
+      )
+    })
+    await session.sendTurn([{ type: 'text', text: 'What did the child find?' }])
+    await vi.waitFor(() => {
+      expect(
+        t.api
+          .responseBodies()
+          .some((body) => JSON.stringify(body['input']).includes(MODEL_TEXT.subagentResult)),
+      ).toBe(true)
+    })
+  })
+
+  it('refuses spawn in Plan before any child starts', async () => {
+    const t = setupSubagents()
+    const { session, events, turnDone } = await startSession(t, 'denyUnmatched')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Map files"}',
+            callId: 'spawn',
+          },
+        ],
+      },
+      { text: 'cannot delegate' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await turnDone()
+    expect(
+      events.some((event) => event.type === 'itemStarted' && event.item.kind === 'subagent'),
+    ).toBe(false)
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'itemCompleted' &&
+          event.item.tool === 'subagent_spawn' &&
+          event.item.status === 'rejected',
+      ),
+    ).toBe(true)
+  })
+
+  it('asks before spawning in Manual and keeps a child transcript after session disposal', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store })
+    const { session, events } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"reviewer","objective":"Review files"}',
+            callId: 'spawn',
+          },
+        ],
+      },
+      { text: 'Reviewed files' },
+      { text: 'Reviewed files' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    const approval = await approvalRequest(events, 0)
+    expect(approval.subject).toMatchObject({
+      kind: 'paidTool',
+      toolName: 'subagent_spawn',
+      paidFeature: 'subagents',
+    })
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    await session.decideApproval({
+      approvalId: approval.approvalId,
+      choiceId: 'allow_once',
+      requirementId: approval.requirementId,
+    })
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+        'resultReady',
+      )
+    })
+    const childId =
+      session.history().items.find((item) => item.kind === 'subagent')?.childSessionId ?? ''
+    expect(JSON.stringify(session.snapshot())).not.toContain('keyDigest')
+    await t.host.flush()
+    expect(parseStoredSession(store.saved.get(session.sessionId)).ok).toBe(true)
+    session.dispose()
+    const child = await t.host.readSession(childId)
+    expect(
+      child.items.some((item) => item.kind === 'agentMessage' && item.text === 'Reviewed files'),
+    ).toBe(true)
+    await expect(t.host.readSession(`${session.sessionId}:subagent-404`)).rejects.toThrow(
+      'not held by this window',
+    )
+    const confirmRestored = vi.fn(() => Promise.resolve(false))
+    const second = setupSubagents({ store, confirmSubagentTask: confirmRestored })
+    await second.host.load()
+    const restored = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(restored.history.items.find((item) => item.kind === 'subagent')).toMatchObject({
+      childSessionId: childId,
+      controlStatus: 'resultReady',
+    })
+    const restoredChild = await second.host.readSession(childId)
+    expect(restoredChild.items).toEqual(child.items)
+    await restored.session.controlSubagent('subagent-1', 'readResult')
+    const restoredParent = await second.host.readSession(session.sessionId)
+    expect(restoredParent.items.find((item) => item.kind === 'subagent')).toMatchObject({
+      controlStatus: 'closed',
+    })
+    await expect(restored.session.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
+      UI_TEXT.subagentConsentDeclined,
+    )
+    expect(confirmRestored).toHaveBeenCalledOnce()
+    expect(second.api.responseBodies()).toEqual([])
+  })
+
+  it('routes a child write approval through the parent session', async () => {
+    const t = setupSubagents()
+    const { session, events } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"writer","objective":"Write child-note.txt"}',
+            callId: 'spawn',
+          },
+        ],
+      },
+      { text: 'Child ready.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate the write' }])
+    const spawn = await approvalRequest(events, 0)
+    expect(spawn.subject).toMatchObject({
+      kind: 'paidTool',
+      toolName: 'subagent_spawn',
+      paidFeature: 'subagents',
+    })
+    await session.decideApproval({
+      approvalId: spawn.approvalId,
+      choiceId: 'allow_once',
+      requirementId: spawn.requirementId,
+    })
+    await waitForChildReady(t, session)
+    const childSessionId = session
+      .history()
+      .items.find((item) => item.kind === 'subagent')?.childSessionId
+    if (childSessionId === undefined) {
+      throw new Error('expected child session id')
+    }
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'write_file',
+            arguments: '{"path":"child-note.txt","content":"from child"}',
+            callId: 'child_write',
+          },
+        ],
+      },
+      { text: 'Child finished.' },
+    )
+    await session.messageSubagent('subagent-1', 'Write child-note.txt now', true)
+    const write = await approvalRequest(events, 1)
+    expect(write.subject).toMatchObject({ kind: 'fileWrite', path: 'child-note.txt' })
+    expect(
+      events.find((event) => event.type === 'itemStarted' && event.item.itemId === write.itemId),
+    ).toMatchObject({ item: { turnId: expect.stringContaining(`${childSessionId}:`) } })
+    const lateEvents: AgentEvent[] = []
+    const detachLate = session.onEvent((event) => {
+      lateEvents.push(event)
+    })
+    try {
+      const pending = lateEvents.filter((event) => event.type === 'approvalRequested')
+      expect(pending).toHaveLength(1)
+      expect(pending[0]).toMatchObject({ approvalId: write.approvalId, isReplayed: true })
+    } finally {
+      await session.decideApproval({
+        approvalId: write.approvalId,
+        choiceId: 'allow_once',
+        requirementId: write.requirementId,
+      })
+      detachLate()
+    }
+    await vi.waitFor(() => {
+      expect(t.files.get(`${ROOT}/child-note.txt`)).toBe('from child')
+    })
+  })
+
+  it('reuses the same child when a spawn command id is retried', async () => {
+    const t = setupSubagents()
+    const { session, events } = await startApprovedSubagentSession(t)
+    const spawn = {
+      name: 'subagent_spawn',
+      arguments: '{"role":"explorer","objective":"Map files","command_id":"same-command"}',
+    }
+    t.api.script(
+      { calls: [{ ...spawn, callId: 'first_spawn' }] },
+      { text: 'Child mapped files.' },
+      { text: 'Parent ready.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate once' }])
+    await waitForChildReady(t, session)
+    t.api.script({ calls: [{ ...spawn, callId: 'retried_spawn' }] }, { text: 'Same child.' })
+    await session.sendTurn([{ type: 'text', text: 'retry the same command' }])
+    await vi.waitFor(() => {
+      expect(
+        events.filter(
+          (event) => event.type === 'itemCompleted' && event.item.tool === 'subagent_spawn',
+        ),
+      ).toHaveLength(2)
+      expect(session.status).toBe('idle')
+    })
+    expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(1)
+    expect(session.history().items.find((item) => item.kind === 'subagent')?.subagentId).toBe(
+      'subagent-1',
+    )
+    t.api.script(
+      {
+        calls: [
+          {
+            ...spawn,
+            arguments:
+              '{"role":"explorer","objective":"Different task","command_id":"same-command"}',
+            callId: 'conflicting_spawn',
+          },
+        ],
+      },
+      { text: 'Refused.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'reuse the id for another task' }])
+    await vi.waitFor(() => {
+      expect(
+        events.filter(
+          (event) => event.type === 'itemCompleted' && event.item.tool === 'subagent_spawn',
+        ),
+      ).toHaveLength(3)
+      expect(session.status).toBe('idle')
+    })
+    expect(
+      events.findLast(
+        (event) => event.type === 'itemCompleted' && event.item.tool === 'subagent_spawn',
+      ),
+    ).toMatchObject({ item: { status: 'failed' } })
+    expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(1)
+  })
+
+  it('runs at most eight children and starts the ninth when a slot opens', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const hold = await queueChildren(t, session)
+    const rows = session.history().items.filter((item) => item.kind === 'subagent')
+    expect(rows.filter((item) => item.controlStatus === 'running')).toHaveLength(8)
+    expect(rows.filter((item) => item.controlStatus === 'queued')).toHaveLength(1)
+    expect(rows.at(-1)?.subagentId).toBe('subagent-9')
+    hold.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(
+        session
+          .history()
+          .items.filter((item) => item.kind === 'subagent' && item.controlStatus === 'resultReady'),
+      ).toHaveLength(9)
+    })
+  })
+
+  it('refuses the 65th child without losing the first 64', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const hold = await queueChildren(t, session, 65)
+    try {
+      const rows = session.history().items.filter((item) => item.kind === 'subagent')
+      expect(rows).toHaveLength(64)
+      expect(rows.at(-1)?.subagentId).toBe('subagent-64')
+      expect(
+        session
+          .history()
+          .items.findLast((item) => item.kind === 'toolCall' && item.tool === 'subagent_spawn'),
+      ).toMatchObject({ status: 'failed' })
+    } finally {
+      await t.host.close()
+      hold.resolve(undefined)
+    }
+  })
+
+  it('marks a queued child stopped without ever starting its turn', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const hold = await queueChildren(t, session)
+    try {
+      await session.controlSubagent('subagent-9', 'stop')
+      const ninth = session
+        .history()
+        .items.find((item) => item.kind === 'subagent' && item.subagentId === 'subagent-9')
+      expect(ninth).toMatchObject({ status: 'cancelled', controlStatus: 'closed' })
+      const childHistory = await t.host.readSession(ninth?.childSessionId ?? '')
+      expect(childHistory.items).toEqual([])
+    } finally {
+      hold.resolve(undefined)
+    }
+    await vi.waitFor(() => {
+      expect(
+        session
+          .history()
+          .items.filter((item) => item.kind === 'subagent' && item.controlStatus === 'resultReady'),
+      ).toHaveLength(8)
+    })
+  })
+
+  it('drops a stopped queued child’s note from persistence and a later reopen', async () => {
+    const t = setupSubagents({ store: memorySessionStore() })
+    const { session } = await startApprovedSubagentSession(t)
+    const hold = await queueChildren(t, session)
+    try {
+      await session.messageSubagent('subagent-9', 'Cancelled queued note', true)
+      await session.controlSubagent('subagent-9', 'stop')
+      const saved = session.snapshot().children?.find((child) => child.id === 'subagent-9')
+      expect(saved?.pendingMessages).toEqual([])
+      await session.controlSubagent('subagent-9', 'reopen')
+      hold.resolve(undefined)
+      await vi.waitFor(() => {
+        expect(
+          session
+            .history()
+            .items.find((item) => item.kind === 'subagent' && item.subagentId === 'subagent-9'),
+        ).toMatchObject({ controlStatus: 'resultReady' })
+      })
+      const history = await t.host.readSession(`${session.sessionId}:subagent-9`)
+      expect(JSON.stringify(history.items)).not.toContain('Cancelled queued note')
+    } finally {
+      hold.resolve(undefined)
+      await t.host.close()
+    }
+  })
+
+  it('lets the model cancel a queued child without reporting completion', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const hold = await queueChildren(t, session, 9, true)
+    try {
+      await vi.waitFor(() => {
+        expect(
+          session
+            .history()
+            .items.find((item) => item.kind === 'subagent' && item.subagentId === 'subagent-9'),
+        ).toMatchObject({ status: 'cancelled', controlStatus: 'closed' })
+      })
+      const saved = session.snapshot().children?.find((child) => child.id === 'subagent-9')
+      expect(saved?.pendingMessages).toEqual([])
+    } finally {
+      hold.resolve(undefined)
+    }
+  })
+
+  it('stops a running child before its held model response can complete', async () => {
+    const t = setupSubagents()
+    const { session, events } = await startApprovedSubagentSession(t)
+    const hold = Promise.withResolvers<undefined>()
+    scriptWorkerSpawn(t, 'Wait for work')
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session, 3)
+    const childSessionId =
+      session.history().items.find((item) => item.kind === 'subagent')?.childSessionId ?? ''
+    const priorChildTurns = events.filter(
+      (event) => event.type === 'turnCompleted' && event.turnId.startsWith(`${childSessionId}:`),
+    ).length
+    t.api.script({ text: 'A late child reply.', hold: hold.promise })
+    await session.messageSubagent('subagent-1', 'Wait again', true)
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+        'running',
+      )
+      expect(t.api.responseBodies()).toHaveLength(4)
+    })
+    await session.controlSubagent('subagent-1', 'stop')
+    hold.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(
+        events.filter(
+          (event) =>
+            event.type === 'turnCompleted' && event.turnId.startsWith(`${childSessionId}:`),
+        ).length,
+      ).toBe(priorChildTurns + 1)
+    })
+    expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+      status: 'cancelled',
+      controlStatus: 'closed',
+    })
+  })
+
+  it('returns a completed child result to a waiting parent call', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"worker","objective":"Finish task"}',
+            callId: 'spawn',
+          },
+          {
+            name: 'subagent_wait',
+            arguments: '{"subagent_id":"subagent-1","timeout_ms":1000}',
+            callId: 'wait_child',
+          },
+        ],
+      },
+      { text: 'Child result.' },
+      { text: 'Parent received it.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate and wait' }])
+    await waitForIdleResponses(t, session, 3)
+    expect(outputFor(t.api.responseBodies()[2], 'wait_child')).toMatchObject({
+      output: expect.stringContaining('"summary":"Child result."'),
+    })
+    expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+      'resultReady',
+    )
+  })
+
+  it('times out a wait without stopping the child', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const hold = Promise.withResolvers<undefined>()
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"worker","objective":"Finish later"}',
+            callId: 'spawn',
+          },
+          {
+            name: 'subagent_wait',
+            arguments: '{"subagent_id":"subagent-1","timeout_ms":1}',
+            callId: 'wait_child',
+          },
+        ],
+      },
+      { text: 'Child finished.', hold: hold.promise },
+      { text: 'Parent saw the timeout.' },
+    )
+    try {
+      await session.sendTurn([{ type: 'text', text: 'delegate and wait briefly' }])
+      await waitForIdleResponses(t, session, 3)
+      expect(outputFor(t.api.responseBodies()[2], 'wait_child')).toMatchObject({
+        output: expect.stringContaining('"timed_out":true'),
+      })
+      expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+        'running',
+      )
+    } finally {
+      hold.resolve(undefined)
+    }
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'subagent')?.controlStatus).toBe(
+        'resultReady',
+      )
+    })
+  })
+
+  it('delivers a follow-up task to the same child conversation', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    scriptWorkerSpawn(t, 'First task')
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    const childSessionId =
+      session.history().items.find((item) => item.kind === 'subagent')?.childSessionId ?? ''
+    t.api.script({ text: 'Second task done.' })
+    await session.messageSubagent('subagent-1', 'Second task', true)
+    await vi.waitFor(() => {
+      expect(
+        session.history().items.find((item) => item.kind === 'subagent')?.result?.summary,
+      ).toBe('Second task done.')
+    })
+    const child = await t.host.readSession(childSessionId)
+    expect(
+      child.items.filter((item) => item.kind === 'userMessage').map((item) => item.text),
+    ).toEqual(['First task', 'Second task'])
+  })
+
+  it('counts two children and a follow-up in the parent usage exactly once', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"first","objective":"First task"}',
+            callId: 'first',
+          },
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"second","objective":"Second task"}',
+            callId: 'second',
+          },
+        ],
+        usage: { input: 2, output: 1 },
+      },
+      { text: 'First child done.', usage: { input: 10, output: 2 } },
+      { text: 'Second child done.', usage: { input: 20, output: 3 } },
+      { text: 'Parent done.', usage: { input: 5, output: 1 } },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate twice' }])
+    await vi.waitFor(() => {
+      expect(
+        session
+          .history()
+          .items.filter((item) => item.kind === 'subagent' && item.controlStatus === 'resultReady'),
+      ).toHaveLength(2)
+      expect(session.status).toBe('idle')
+    })
+    expect(t.api.responseBodies()).toHaveLength(4)
+    expect(session.snapshot().usage).toMatchObject({ inputTokens: 37, outputTokens: 7 })
+    expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(2)
+    expect(t.subagentUsage).toHaveLength(2)
+    const rows = session.history().items.filter((item) => item.kind === 'subagent')
+    expect(t.subagentUsage.reduce((sum, use) => sum + use.inputTokens, 0)).toBe(
+      rows.reduce((sum, item) => sum + (item.usage?.inputTokens ?? 0), 0),
+    )
+    expect(t.subagentUsage.reduce((sum, use) => sum + use.outputTokens, 0)).toBe(
+      rows.reduce((sum, item) => sum + (item.usage?.outputTokens ?? 0), 0),
+    )
+    t.api.script({ text: 'Follow-up done.', usage: { input: 7, output: 3 } })
+    await session.messageSubagent('subagent-1', 'Follow-up', true)
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(5)
+      expect(
+        session.history().items.find((item) => item.kind === 'subagent')?.result?.summary,
+      ).toBe('Follow-up done.')
+    })
+    expect(session.snapshot().usage).toMatchObject({ inputTokens: 44, outputTokens: 10 })
+    expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(3)
+    expect(t.subagentUsage.at(-1)).toMatchObject({ inputTokens: 7, outputTokens: 3 })
+  })
+
+  it('stops a newly approved follow-up before its fifth HTTP attempt', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const before = await completePaidChild(t, session, 'spawn_limited')
+    t.api.script(
+      ...Array.from({ length: 4 }, (_unused, index) => ({
+        calls: [
+          {
+            name: 'read_file',
+            arguments: '{"path":"missing.txt"}',
+            callId: `child_read_${String(index)}`,
+          },
+        ],
+      })),
+      { text: 'Must not run.' },
+    )
+    await session.messageSubagent('subagent-1', 'Check missing.txt again', true)
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+        controlStatus: 'resultReady',
+        result: {
+          summary: expect.stringContaining('4 requests'),
+          errorKind: 'subagent_requestLimit',
+        },
+      })
+    })
+    expect(t.api.responseBodies()).toHaveLength(before + 4)
+    expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(5)
+  })
+
+  it('asks anew before a model-requested child follow-up in Bypass', async () => {
+    const t = setupSubagents()
+    const { session, events } = await startApprovedSubagentSession(t)
+    await completePaidChild(t, session, 'spawn_before_model_followup')
+    const priorApprovals = events.filter(
+      (event) => event.type === 'approvalRequested' && event.subject.paidFeature === 'subagents',
+    ).length
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_send_message',
+            arguments: '{"subagent_id":"subagent-1","message":"Next task"}',
+            callId: 'model_followup',
+          },
+        ],
+      },
+      { text: 'Second task done.' },
+      { text: 'Parent done.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'give the child another task' }])
+    await vi.waitFor(() => {
+      expect(
+        events.filter(
+          (event) =>
+            event.type === 'approvalRequested' && event.subject.paidFeature === 'subagents',
+        ),
+      ).toHaveLength(priorApprovals + 1)
+      expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(2)
+      expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+        controlStatus: 'resultReady',
+      })
+    })
+  })
+
+  it('lets a running-child note use its existing grant without renewing consent', async () => {
+    const t = setupSubagents()
+    const { session, events } = await startApprovedSubagentSession(t)
+    const holdChild = Promise.withResolvers<undefined>()
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"First task"}',
+            callId: 'spawn_for_note',
+          },
+        ],
+      },
+      { text: 'Parent done.' },
+      { text: 'Child done.', hold: holdChild.promise },
+    )
+    try {
+      await delegateAndWaitForChild(session, { controlStatus: 'running' }, true)
+      const priorApprovals = events.filter(
+        (event) => event.type === 'approvalRequested' && event.subject.paidFeature === 'subagents',
+      ).length
+      const priorAttempts = t.paidUses.filter((use) => use.feature === 'subagents').length
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'subagent_send_message',
+              arguments: '{"subagent_id":"subagent-1","message":"Check the next file"}',
+              callId: 'running_note',
+            },
+          ],
+        },
+        { text: 'Parent noted.' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'send a note' }])
+      await vi.waitFor(() => {
+        expect(session.status).toBe('idle')
+      })
+      expect(
+        events.filter(
+          (event) =>
+            event.type === 'approvalRequested' && event.subject.paidFeature === 'subagents',
+        ),
+      ).toHaveLength(priorApprovals)
+      expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(priorAttempts)
+    } finally {
+      holdChild.resolve(undefined)
+    }
+  })
+
+  it('spends the same four-attempt child grant on HTTP retries', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const before = await completePaidChild(t, session, 'spawn_retry_limited')
+    t.api.script(...Array.from({ length: 4 }, () => ({ httpError: { status: 429 } })), {
+      text: 'Must not run.',
+    })
+    await session.messageSubagent('subagent-1', 'Try again', true)
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+        controlStatus: 'resultReady',
+        result: { errorKind: 'subagent_requestLimit' },
+      })
+    })
+    expect(t.api.responseBodies()).toHaveLength(before + 4)
+    expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(5)
+    expect(t.subagentUsage).toHaveLength(1)
+  })
+
+  it('charges reported usage on a failed child response once to its parent and goal', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    const holdParent = Promise.withResolvers<undefined>()
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'goal_before_failed_child',
+          },
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Review tests"}',
+            callId: 'spawn_failed_child',
+          },
+        ],
+        usage: { input: 1, output: 1 },
+      },
+      { text: 'Parent done.', usage: { input: 2, output: 1 }, hold: holdParent.promise },
+      {
+        failed: { code: 'model_failure', message: 'The child failed.' },
+        usage: { input: 30, output: 7, cached: 4 },
+      },
+    )
+    try {
+      await delegateAndWaitForChild(session, { controlStatus: 'resultReady', status: 'failed' })
+    } finally {
+      holdParent.resolve(undefined)
+    }
+    await vi.waitFor(() => {
+      expect(session.status).toBe('idle')
+    })
+    expect(t.subagentUsage).toEqual([
+      { modelId: 'muse-spark-1.3', inputTokens: 30, outputTokens: 7, cachedTokens: 4 },
+    ])
+    expect(session.snapshot().goal).toMatchObject({ tokens_used: 40 })
+    expect(session.snapshot().usage).toMatchObject({ inputTokens: 33, outputTokens: 9 })
+  })
+
+  it('charges child tokens to the goal active when that child turn began', async () => {
+    const t = setupSubagents()
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    const holdParent = Promise.withResolvers<undefined>()
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'goal_for_child',
+          },
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Review tests"}',
+            callId: 'spawn_for_goal',
+          },
+        ],
+        usage: { input: 1, output: 1 },
+      },
+      { text: 'Parent finished', hold: holdParent.promise },
+      { text: 'Reviewed tests', usage: { input: 90, output: 20 } },
+    )
+    try {
+      await session.sendTurn([{ type: 'text', text: 'delegate the review' }])
+      await waitForChildResult(session)
+      expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited' })
+      expect(session.snapshot().goal?.tokens_used).toBeGreaterThanOrEqual(100)
+      const attempts = t.paidUses.filter((use) => use.feature === 'subagents').length
+      await expect(session.messageSubagent('subagent-1', 'Keep going', true)).rejects.toThrow(
+        UI_TEXT.subagentGoalEnded,
+      )
+      expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(attempts)
+    } finally {
+      holdParent.resolve(undefined)
+      await turnDone()
+    }
+  })
+
+  it('does not charge a replacement goal for an earlier child turn', async () => {
+    const t = setupSubagents()
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    const holdParent = Promise.withResolvers<undefined>()
+    const holdChild = Promise.withResolvers<undefined>()
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Original","token_budget":100}',
+            callId: 'original_goal',
+          },
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"Review tests"}',
+            callId: 'spawn_for_original_goal',
+          },
+        ],
+      },
+      { text: 'Parent finished', hold: holdParent.promise },
+      { text: 'Reviewed tests', usage: { input: 90, output: 20 }, hold: holdChild.promise },
+    )
+    try {
+      await session.sendTurn([{ type: 'text', text: 'delegate the review' }])
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(3)
+        expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+          controlStatus: 'running',
+        })
+      })
+      await session.controlGoal({ verb: 'set', objective: 'Replacement' })
+      const replacementId = session.snapshot().goal?.goal_id
+      holdChild.resolve(undefined)
+      await waitForChildResult(session)
+      expect(session.snapshot().goal).toMatchObject({
+        goal_id: replacementId,
+        status: 'active',
+        tokens_used: 0,
+      })
+      expect(session.snapshot().usage.inputTokens).toBeGreaterThanOrEqual(90)
+    } finally {
+      holdChild.resolve(undefined)
+      holdParent.resolve(undefined)
+      await turnDone()
+    }
   })
 })
 

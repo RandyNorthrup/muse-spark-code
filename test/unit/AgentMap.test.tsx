@@ -64,6 +64,7 @@ const task: ToolEntry = {
 
 function renderMap(overrides: Partial<AgentMapProps> = {}) {
   const props: AgentMapProps = {
+    backend: 'museCode',
     title: 'Chrome control update',
     modelId: 'muse-spark-1.3',
     contextUsedTokens: 705_900,
@@ -97,6 +98,11 @@ describe('formatDurationMs', () => {
 })
 
 describe('AgentMap', () => {
+  it('labels a billed Model API child in the map', () => {
+    renderMap({ backend: 'modelApi', agents: [{ ...explorer, paid: 'subagents' }] })
+    expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent('paid')
+  })
+
   it('draws the conversation, its agents with duration and tokens, and the background tasks', () => {
     const props = renderMap()
     const map = screen.getByRole('dialog', { name: 'Agent map' })
@@ -201,8 +207,22 @@ describe('AgentMap', () => {
   })
 })
 
-describe('AgentMap owner controls (M18)', () => {
-  it('offers interrupt and stop with a note while an agent runs, close and a follow-up once done, nothing when closed', () => {
+describe('AgentMap owner controls (M18, M48)', () => {
+  it('keeps Muse Code owner controls on the captured verbs and reserves read/reopen for Model API', () => {
+    const done = {
+      ...explorer,
+      subagentId: 'sub-d',
+      status: 'completed',
+      controlStatus: 'resultReady',
+    }
+    const closed = { ...done, controlStatus: 'closed' }
+    expect(controlsFor(done, 'museCode')).toEqual(['close'])
+    expect(controlsFor(closed, 'museCode')).toEqual([])
+    expect(controlsFor(done, 'modelApi')).toEqual(['readResult', 'close'])
+    expect(controlsFor(closed, 'modelApi')).toEqual(['reopen'])
+  })
+
+  it('offers interrupt and stop while running, result consumption when ready, and reopen when closed', () => {
     const running = {
       ...explorer,
       id: 'r',
@@ -226,13 +246,22 @@ describe('AgentMap owner controls (M18)', () => {
       status: 'completed',
       controlStatus: 'closed',
     }
-    expect(controlsFor(running)).toEqual(['interrupt', 'stop'])
-    expect(controlsFor(done)).toEqual(['close'])
-    expect(controlsFor(closed)).toEqual([])
-    expect(controlsFor({ ...running, controlStatus: 'interrupted' })).toEqual(['resume', 'stop'])
+    expect(controlsFor(running, 'modelApi')).toEqual(['interrupt', 'stop'])
+    expect(controlsFor(done, 'modelApi')).toEqual(['readResult', 'close'])
+    expect(controlsFor(closed, 'modelApi')).toEqual(['reopen'])
+    expect(controlsFor({ ...running, controlStatus: 'interrupted' }, 'modelApi')).toEqual([
+      'resume',
+      'stop',
+    ])
     const onControl = vi.fn()
     const onMessage = vi.fn()
-    renderMap({ agents: [running, done], selectedAgentId: 'r', onControl, onMessage })
+    renderMap({
+      backend: 'modelApi',
+      agents: [running, done],
+      selectedAgentId: 'r',
+      onControl,
+      onMessage,
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Interrupt' }))
     expect(onControl).toHaveBeenCalledWith('sub-r', 'interrupt')
     const note = screen.getByLabelText('Send message')
@@ -241,13 +270,18 @@ describe('AgentMap owner controls (M18)', () => {
     fireEvent.keyDown(note, { key: 'Enter' })
     expect(onMessage).toHaveBeenCalledWith('sub-r', 'also check tests', false)
     expect(note).toHaveValue('')
-    renderMap({ agents: [done], selectedAgentId: 'd', onControl, onMessage })
+    renderMap({ backend: 'modelApi', agents: [done], selectedAgentId: 'd', onControl, onMessage })
     expect(screen.getByText('ALPHA, as asked.')).toHaveClass('agent-result-text')
     fireEvent.change(screen.getByLabelText('Follow-up task'), { target: { value: 'now BETA' } })
     fireEvent.click(screen.getByRole('button', { name: 'Follow-up task' }))
     expect(onMessage).toHaveBeenCalledWith('sub-d', 'now BETA', true)
+    fireEvent.click(screen.getByRole('button', { name: 'Mark result read' }))
+    expect(onControl).toHaveBeenCalledWith('sub-d', 'readResult')
     fireEvent.click(screen.getByRole('button', { name: 'Close agent' }))
     expect(onControl).toHaveBeenCalledWith('sub-d', 'close')
+    renderMap({ backend: 'modelApi', agents: [closed], selectedAgentId: 'c', onControl, onMessage })
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen agent' }))
+    expect(onControl).toHaveBeenCalledWith('sub-c', 'reopen')
   })
 })
 
@@ -302,6 +336,8 @@ describe('agentStatusLabel (M40)', () => {
   it('says a known status in the installed table and shows an unknown one as it came', () => {
     expect(agentStatusLabel('inProgress')).toBe('running')
     expect(agentStatusLabel('resultReady')).toBe('result ready')
+    expect(agentStatusLabel('queued')).toBe('queued')
+    expect(agentStatusLabel('closed')).toBe('closed')
     expect(agentStatusLabel('paused')).toBe('paused')
     expect(agentStatusLabel('toString')).toBe('toString')
     setUiText({ ...EN, agentStatuses: { ...EN.agentStatuses, completed: 'abgeschlossen' } }, 'de')

@@ -5,7 +5,7 @@
 // UI's Auto) behaves as the prompting mode with edits allowed, which is
 // what Claude Code's Auto does when its classifier has nothing to say.
 //
-//   allowAll         → everything runs (Bypass permissions)
+//   allowAll         → ordinary tools run; paid calls and child tasks ask
 //   onRequest        → reads and edits run, shell commands ask
 //   promptUnmatched  → reads run, edits and shell commands ask (Manual);
 //                      the controller answers edit approvals itself in
@@ -25,7 +25,7 @@ import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { PROTECTED_PATH_SEGMENTS, PROTECTED_FILE_NAMES, UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 
-export type ToolClass = 'read' | 'edit' | 'shell' | 'interactive' | 'paid'
+export type ToolClass = 'read' | 'edit' | 'shell' | 'interactive' | 'paid' | 'spawn'
 
 export type PermissionVerdict = 'allow' | 'ask' | 'deny'
 
@@ -72,6 +72,9 @@ export function verdictFor(
   isProtected = false,
 ): PermissionVerdict {
   if (toolClass === 'paid') {
+    return mode === 'denyUnmatched' ? 'deny' : 'ask'
+  }
+  if (toolClass === 'spawn') {
     return mode === 'denyUnmatched' ? 'deny' : 'ask'
   }
   if (mode === 'allowAll' || toolClass === 'read' || toolClass === 'interactive') {
@@ -163,7 +166,12 @@ export class PermissionEngine {
     const isProtected = query.isProtected === true
     const byMode = verdictFor(this.mode, query.toolClass, isProtected)
     // A session rule never answers for a paid call (D30).
-    if (byMode !== 'ask' || isProtected || query.toolClass === 'paid') {
+    if (
+      byMode !== 'ask' ||
+      isProtected ||
+      query.toolClass === 'paid' ||
+      query.toolClass === 'spawn'
+    ) {
       return byMode
     }
     return this.allowed.has(ruleKey(query.toolName, query.command)) ? 'allow' : 'ask'

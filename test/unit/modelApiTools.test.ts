@@ -171,6 +171,26 @@ describe('toolDefinitions / classifyTool', () => {
       expect(tool.strict).toBe(false)
     }
   })
+
+  it('offers subagent controls to the parent and omits panel tools from a child (M48)', () => {
+    const parent = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: false,
+      hasSubagents: true,
+    }).map((tool) => tool.name)
+    expect(parent).toContain('subagent_spawn')
+    expect(parent).toContain('subagent_read_result')
+    expect(classifyTool('subagent_spawn')).toBe('spawn')
+    const child = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: false,
+      isSubagent: true,
+    }).map((tool) => tool.name)
+    expect(child).not.toContain('subagent_spawn')
+    expect(child).not.toContain('ask_user')
+    expect(child).not.toContain('todo_write')
+    expect(child).toContain('read_file')
+  })
 })
 
 describe('executeTool: read_file', () => {

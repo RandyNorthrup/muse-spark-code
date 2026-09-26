@@ -20,6 +20,7 @@ import type { HostAction, LineRange, MentionItem } from '../../src/shared/protoc
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { disabledPaidFeatures } from './helpers/fakePaidFeatures'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './helpers/fakeToolIo'
 import {
@@ -2492,7 +2493,7 @@ describe('ConversationController chat references (M17)', () => {
   })
 })
 
-describe('ConversationController subagent controls (M18)', () => {
+describe('ConversationController subagent controls (M18, M48)', () => {
   it('relays owner controls and notes to the session and reports a refusal', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -2545,6 +2546,26 @@ describe('ConversationController subagent controls (M18)', () => {
     })
     expect(t.server.requestsFor('subagent/stop')).toEqual([])
   })
+
+  it('refuses forged uncaptured native reopen and readResult controls before MSP', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('subagent/readResult', () => ({ status: 'accepted' }))
+    t.server.handle('subagent/reopen', () => ({ status: 'accepted' }))
+    await t.controller.handle({
+      type: 'subagentControl',
+      subagentId: 'sub-1',
+      action: 'readResult',
+    })
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'reopen' })
+    expect(t.server.requestsFor('subagent/readResult')).toEqual([])
+    expect(t.server.requestsFor('subagent/reopen')).toEqual([])
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'error',
+      text: `${UI_TEXT.agentControlFailed}: subagent/readResult`,
+    })
+  })
 })
 
 /** The agent events a test surface was sent, in order. */
@@ -2578,8 +2599,7 @@ function modelApiController(
     personalSkillsRoot: undefined,
     isWorkspaceTrusted: () => true,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
-    isPaidFeatureOn: () => false,
-    notePaidUse: () => undefined,
+    ...disabledPaidFeatures,
   })
   const controller = new ConversationController({
     ...t.deps,

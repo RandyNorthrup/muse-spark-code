@@ -18,6 +18,7 @@ import {
 import type { TokenUsage } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
 import { formatTokenWindow } from '../../shared/palette'
+import type { BackendKind } from '../../shared/protocol'
 import {
   type ChildTranscript,
   isRunningTask,
@@ -29,11 +30,13 @@ import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { workflowName, workflowTriggerText } from '../workflowDetails'
 import { Modal } from './Modal'
 import { WorkflowRunView } from './WorkflowRun'
+import { PaidBadge } from './PaidBadge'
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
 export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
 export interface AgentMapProps {
+  readonly backend: BackendKind | undefined
   readonly title: string
   readonly modelId: string | undefined
   readonly contextUsedTokens: number | undefined
@@ -61,12 +64,27 @@ export interface AgentMapProps {
   readonly workflowTriggerMode: string | undefined
 }
 
-/** Which owner controls an agent's state allows (M18); none once it is closed. */
-export function controlsFor(agent: SubagentEntry): readonly SubagentAction[] {
-  if (agent.subagentId === undefined || agent.controlStatus === SUBAGENT_CLOSED) {
+/** Muse keeps captured M18 controls; Model API children also support M48 read/reopen. */
+export function controlsFor(
+  agent: SubagentEntry,
+  backend: BackendKind | undefined,
+): readonly SubagentAction[] {
+  if (agent.subagentId === undefined) {
     return []
   }
-  if (agent.controlStatus === SUBAGENT_RESULT_READY || agent.status !== RUNNING) {
+  if (agent.controlStatus === SUBAGENT_CLOSED) {
+    return backend === 'modelApi' ? ['reopen'] : []
+  }
+  if (agent.controlStatus === SUBAGENT_RESULT_READY) {
+    return backend === 'modelApi' ? ['readResult', 'close'] : ['close']
+  }
+  if (agent.controlStatus === 'queued') {
+    return ['stop']
+  }
+  if (agent.controlStatus === 'interrupted') {
+    return ['resume', 'stop']
+  }
+  if (agent.status !== RUNNING) {
     return ['close']
   }
   const isRunning =
@@ -80,26 +98,31 @@ function controlLabel(action: SubagentAction): string {
     stop: UI_TEXT.agentStop,
     resume: UI_TEXT.agentResume,
     close: UI_TEXT.agentClose,
+    reopen: UI_TEXT.agentReopen,
+    readResult: UI_TEXT.agentReadResult,
   }
   return labels[action]
 }
 
 function AgentControls({
   agent,
+  backend,
   onControl,
   onMessage,
 }: {
   readonly agent: SubagentEntry
+  readonly backend: BackendKind | undefined
   readonly onControl: AgentMapProps['onControl']
   readonly onMessage: AgentMapProps['onMessage']
 }) {
   const [body, setBody] = useState('')
-  const controls = controlsFor(agent)
+  const controls = controlsFor(agent, backend)
   const { subagentId } = agent
   if (subagentId === undefined || controls.length === 0) {
     return null
   }
   const isFollowup = !controls.includes('interrupt')
+  const canMessage = !controls.includes('reopen')
   const send = () => {
     if (body.trim() === '') {
       return
@@ -123,28 +146,30 @@ function AgentControls({
           </button>
         ))}
       </div>
-      <div className="agent-message-form">
-        <input
-          className="question-input agent-message-input"
-          type="text"
-          aria-label={isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
-          placeholder={UI_TEXT.agentMessagePlaceholder}
-          value={body}
-          onChange={(event) => {
-            setBody(event.target.value)
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter') {
-              return
-            }
-            event.preventDefault()
-            send()
-          }}
-        />
-        <button type="button" className="tool-more" disabled={body.trim() === ''} onClick={send}>
-          {isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
-        </button>
-      </div>
+      {canMessage ? (
+        <div className="agent-message-form">
+          <input
+            className="question-input agent-message-input"
+            type="text"
+            aria-label={isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
+            placeholder={UI_TEXT.agentMessagePlaceholder}
+            value={body}
+            onChange={(event) => {
+              setBody(event.target.value)
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter') {
+                return
+              }
+              event.preventDefault()
+              send()
+            }}
+          />
+          <button type="button" className="tool-more" disabled={body.trim() === ''} onClick={send}>
+            {isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -193,6 +218,7 @@ function AgentNode({
       <span className="agent-node-title">
         <span className={statusClassOf(agent.status)} aria-hidden="true" />
         {agent.objective ?? agent.role ?? UI_TEXT.agentUntitled}
+        {agent.paid === undefined ? null : <PaidBadge feature={agent.paid} />}
       </span>
       <span className="agent-node-meta">{agentMeta(agent)}</span>
     </button>
@@ -230,12 +256,14 @@ function entryText(entry: TranscriptEntry): string {
 
 function AgentDetails({
   agent,
+  backend,
   transcript,
   onBack,
   onControl,
   onMessage,
 }: {
   readonly agent: SubagentEntry
+  readonly backend: BackendKind | undefined
   readonly transcript: ChildTranscript | undefined
   readonly onBack: () => void
   readonly onControl: AgentMapProps['onControl']
@@ -267,6 +295,7 @@ function AgentDetails({
       </button>
       <h3 className="agent-details-title">
         {agent.objective ?? agent.role ?? UI_TEXT.agentUntitled}
+        {agent.paid === undefined ? null : <PaidBadge feature={agent.paid} />}
       </h3>
       <p className="usage-row-meta">
         {[
@@ -276,7 +305,7 @@ function AgentDetails({
           .filter((part) => part !== undefined)
           .join(' · ')}
       </p>
-      <AgentControls agent={agent} onControl={onControl} onMessage={onMessage} />
+      <AgentControls agent={agent} backend={backend} onControl={onControl} onMessage={onMessage} />
       {agent.resultSummary === undefined ? null : (
         <p className="agent-result">{agent.resultSummary}</p>
       )}
@@ -360,6 +389,7 @@ function BackgroundTasks({
 }
 
 export function AgentMap({
+  backend,
   title,
   modelId,
   contextUsedTokens,
@@ -472,6 +502,7 @@ export function AgentMap({
       ) : (
         <AgentDetails
           agent={selected}
+          backend={backend}
           transcript={transcript}
           onBack={() => {
             onSelectAgent(undefined)

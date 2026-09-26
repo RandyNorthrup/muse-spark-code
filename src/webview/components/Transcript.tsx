@@ -28,6 +28,7 @@ import { StatusLine } from './StatusLine'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { WorkflowRunView } from './WorkflowRun'
+import { PaidBadge } from './PaidBadge'
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -463,6 +464,7 @@ function OtherRow({
       return (
         <li className="activity activity-subagent" data-status={entry.status}>
           <span className="activity-kind">{UI_TEXT.subagentRowLabel}</span>
+          {entry.paid === undefined ? null : <PaidBadge feature={entry.paid} />}
           <span className="activity-status" dir="auto">
             {[
               entry.objective ?? entry.role ?? UI_TEXT.agentUntitled,

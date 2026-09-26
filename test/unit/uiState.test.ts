@@ -1078,6 +1078,26 @@ describe('uiReducer: session history (M6)', () => {
     expect(cleared.childTranscripts).toEqual({})
   })
 
+  it('keeps a paid child marker through sparse updates and saved panel state', () => {
+    const state = reduceAll([
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'paid-child', kind: 'subagent', status: 'inProgress', paid: 'subagents' },
+      }),
+      agent({
+        type: 'itemUpdated',
+        item: { itemId: 'paid-child', kind: 'subagent', status: 'completed' },
+      }),
+    ])
+    expect(agentsOf(state)[0]).toMatchObject({
+      id: 'paid-child',
+      paid: 'subagents',
+      status: 'completed',
+    })
+    const restored = restoredUiState(webviewStateOf({ ...state, sessionId: 'paid-parent' }, true))
+    expect(agentsOf(restored)[0]).toMatchObject({ id: 'paid-child', paid: 'subagents' })
+  })
+
   it('turns a rejected upload into the composer banner until dismissed (M14)', () => {
     const rejected = reduceAll([
       host({ type: 'attachmentRejected', name: 'audio.node', reason: 'not an image' }),
@@ -1655,6 +1675,29 @@ describe('the end of a turn settles what it left running (M25)', () => {
     expect(
       uiReducer(empty, agent({ type: 'turnCompleted', turnId: 'child-2', terminal: 'completed' })),
     ).toBe(empty)
+  })
+
+  it('routes a Model API child turn by its session prefix (M48)', () => {
+    const state = reduceAll([
+      agent({ type: 'turnStarted', turnId: 'parent' }),
+      agent({ type: 'itemStarted', item: { ...agentRow, childSessionId: 'parent:subagent-1' } }),
+      agent({ type: 'turnStarted', turnId: 'parent:subagent-1:turn-1' }),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 'child-reply',
+          kind: 'agentMessage',
+          status: 'inProgress',
+          turnId: 'parent:subagent-1:turn-1',
+        },
+      }),
+      agent({ type: 'turnCompleted', turnId: 'parent:subagent-1:turn-1', terminal: 'completed' }),
+    ])
+    expect(state.activeTurnId).toBe('parent')
+    expect(state.childTranscripts['parent:subagent-1']?.entries[0]).toMatchObject({
+      id: 'child-reply',
+      isStreaming: false,
+    })
   })
 
   it('starts nothing when the acceptance of a turn arrives after its end', () => {

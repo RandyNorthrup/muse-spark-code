@@ -13,17 +13,28 @@ import {
   PAID_FEATURES,
   type PaidFeature,
   SETTINGS_SECTION,
+  SUBAGENT_PRICE_ACCEPTANCE_VERSION,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { paidFeatureName, paidFeaturePrice, type PaidState } from '../../shared/paid'
+import {
+  modelApiPaidTier,
+  paidFeatureName,
+  paidFeaturePrice,
+  subagentTaskPrice,
+  type PaidState,
+  type SubagentTaskConfirmation,
+} from '../../shared/paid'
 import type { Logger } from '../logger'
 
 // What an earlier version (or a hand edit) stored is validated, never trusted.
 const acceptedSchema = z.array(z.enum(PAID_FEATURES))
 
 export interface PaidFeaturesDeps {
-  readonly globalState: vscode.Memento
+  readonly globalState: {
+    get(key: string): unknown
+    update(key: string, value: unknown): Thenable<void>
+  }
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
   /** Whether a Model API key is stored, as last read (M44). */
@@ -45,6 +56,7 @@ function confirmationDetail(feature: PaidFeature): string {
     webSearch: UI_TEXT.paidConfirmWebSearch,
     imageGeneration: UI_TEXT.paidConfirmImage,
     voice: UI_TEXT.paidConfirmVoice,
+    subagents: UI_TEXT.paidConfirmSubagents,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -80,12 +92,39 @@ export async function isImagePurchaseConfirmed(plan: ImagePlan): Promise<boolean
   return answer === accept
 }
 
+/** UI-created follow-ups require the same per-task price consent as model spawns. */
+export async function isSubagentTaskConfirmed(task: SubagentTaskConfirmation): Promise<boolean> {
+  if (!vscode.window.state.focused || modelApiPaidTier(task.modelId) === undefined) {
+    return false
+  }
+  const accept = UI_TEXT.allowOnce
+  const answer = await vscode.window.showWarningMessage(
+    fill(UI_TEXT.paidSubagentTaskTitle, { role: task.role }),
+    {
+      modal: true,
+      detail: fill(UI_TEXT.paidSubagentTaskDetail, {
+        objective: task.objective,
+        price: subagentTaskPrice(task.modelId, task.attemptLimit),
+      }),
+    },
+    accept,
+  )
+  return answer === accept && vscode.window.state.focused
+}
+
 export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   const readAccepted = (): ReadonlySet<PaidFeature> => {
     const parsed = acceptedSchema.safeParse(
-      deps.globalState.get<unknown>(GLOBAL_STATE_KEYS.paidConfirmations) ?? [],
+      deps.globalState.get(GLOBAL_STATE_KEYS.paidConfirmations) ?? [],
     )
-    return new Set(parsed.success ? parsed.data : [])
+    const accepted = new Set(parsed.success ? parsed.data : [])
+    if (
+      deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) !==
+      SUBAGENT_PRICE_ACCEPTANCE_VERSION
+    ) {
+      accepted.delete('subagents')
+    }
+    return accepted
   }
   const gate = new PaidFeatureGate({
     isSettingOn: deps.isSettingOn,
@@ -96,6 +135,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     },
     readAccepted,
     writeAccepted: async (accepted) => {
+      await deps.globalState.update(
+        GLOBAL_STATE_KEYS.subagentPriceAcceptance,
+        accepted.has('subagents') ? SUBAGENT_PRICE_ACCEPTANCE_VERSION : undefined,
+      )
       await deps.globalState.update(GLOBAL_STATE_KEYS.paidConfirmations, [...accepted])
     },
     confirm: isTurnOnConfirmed,

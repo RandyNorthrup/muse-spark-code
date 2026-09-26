@@ -16,6 +16,7 @@ import {
 } from '../../../shared/agentEvents'
 import {
   LIST_FILES_DEFAULT_LIMIT,
+  MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
   MODEL_TEXT,
   READ_FILE_DEFAULT_LIMIT,
@@ -49,6 +50,7 @@ import { GOAL_TOOL_DEFINITIONS } from './goals'
 
 import type { ToolClass } from './permissions'
 import type { FunctionToolDefinition } from './schemas'
+import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 
 export interface ShellResult {
   readonly stdout: string
@@ -211,6 +213,12 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.readSkill]: 'read',
   [MODEL_API_TOOLS.generateImage]: 'paid',
   [MODEL_API_TOOLS.editImage]: 'paid',
+  [MODEL_API_SUBAGENT_TOOLS.spawn]: 'spawn',
+  [MODEL_API_SUBAGENT_TOOLS.status]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.wait]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.sendMessage]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.readResult]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.cancel]: 'interactive',
   // The goal tools change only the session's goal (M45): no card, in any mode.
   [MODEL_API_TOOLS.createGoal]: 'interactive',
   [MODEL_API_TOOLS.getGoal]: 'interactive',
@@ -265,6 +273,10 @@ export interface ToolDefinitionOptions {
   readonly hasSkills: boolean
   /** True while paid image generation is on (M34, PLAN.md D30). */
   readonly hasImageGeneration?: boolean
+  /** Child sessions cannot spawn again (M48, PLAN.md D45). */
+  readonly hasSubagents?: boolean
+  /** Child sessions cannot ask the panel or set its task list. */
+  readonly isSubagent?: boolean
 }
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
@@ -383,65 +395,74 @@ export function toolDefinitions(
           ),
         ]
       : []),
-    define(
-      MODEL_API_TOOLS.askUser,
-      'Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.',
-      {
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              header: { type: 'string', description: 'Short label (a few words)' },
-              question: { type: 'string' },
-              selection: {
-                type: 'object',
-                properties: { mode: { type: 'string', enum: ['single', 'multiple'] } },
-                required: ['mode'],
-              },
-              options: {
+    ...(options.isSubagent === true
+      ? []
+      : [
+          define(
+            MODEL_API_TOOLS.askUser,
+            'Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.',
+            {
+              questions: {
                 type: 'array',
                 items: {
                   type: 'object',
-                  properties: { label: { type: 'string' }, description: { type: 'string' } },
-                  required: ['label'],
+                  properties: {
+                    id: { type: 'string' },
+                    header: { type: 'string', description: 'Short label (a few words)' },
+                    question: { type: 'string' },
+                    selection: {
+                      type: 'object',
+                      properties: { mode: { type: 'string', enum: ['single', 'multiple'] } },
+                      required: ['mode'],
+                    },
+                    options: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: { label: { type: 'string' }, description: { type: 'string' } },
+                        required: ['label'],
+                      },
+                    },
+                  },
+                  required: ['id', 'header', 'question', 'selection', 'options'],
                 },
               },
             },
-            required: ['id', 'header', 'question', 'selection', 'options'],
-          },
-        },
-      },
-      ['questions'],
-    ),
-    define(
-      MODEL_API_TOOLS.todoWrite,
-      'Replace your task list, shown to the user while you work.',
-      {
-        items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              text: { type: 'string' },
-              status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
-              activeForm: {
-                type: 'string',
-                description: 'Present-tense form shown while in progress',
+            ['questions'],
+          ),
+          define(
+            MODEL_API_TOOLS.todoWrite,
+            'Replace your task list, shown to the user while you work.',
+            {
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    text: { type: 'string' },
+                    status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
+                    activeForm: {
+                      type: 'string',
+                      description: 'Present-tense form shown while in progress',
+                    },
+                  },
+                  required: ['text', 'status'],
+                },
               },
             },
-            required: ['text', 'status'],
-          },
-        },
-      },
-      ['items'],
-    ),
-    // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
-    // `muse serve` offers them.
-    ...GOAL_TOOL_DEFINITIONS.map((tool) =>
-      define(tool.name, tool.description, tool.properties, tool.required),
-    ),
+            ['items'],
+          ),
+          // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
+          // `muse serve` offers them.
+          ...GOAL_TOOL_DEFINITIONS.map((tool) =>
+            define(tool.name, tool.description, tool.properties, tool.required),
+          ),
+        ]),
+    ...(options.hasSubagents === true
+      ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
+          define(tool.name, tool.description, tool.properties, tool.required),
+        )
+      : []),
   ]
 }
 

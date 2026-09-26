@@ -7,6 +7,9 @@ import {
   paidFeatureName,
   paidFeaturePrice,
   paidTotalUsd,
+  modelApiPaidTier,
+  listedPaidFeatures,
+  paidTallySchema,
 } from '../../src/shared/paid'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -149,6 +152,68 @@ describe('PaidFeatureGate (M33, PLAN.md D30)', () => {
 })
 
 describe('PaidUsage and the prices (M33)', () => {
+  it('counts an attempted child request as unpriced until its usage arrives', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('subagents', 1)
+    expect(usage.current).toMatchObject({ subagentRequests: 1, subagentUnknownRequests: 1 })
+  })
+
+  it('shows reported child cost as a subset without pricing unresolved attempts as free', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('subagents', 2)
+    usage.addSubagentUsage('muse-spark-1.3', {
+      inputTokens: 1_000_000,
+      cachedTokens: 200_000,
+      outputTokens: 100_000,
+    })
+    expect(usage.current).toMatchObject({
+      subagentRequests: 2,
+      subagentUnknownRequests: 1,
+      subagentTokens: 1_100_000,
+    })
+    expect(paidCostUsd('subagents', usage.current)).toBeCloseTo(1.455)
+    expect(paidTotalUsd(usage.current)).toBe(0)
+    usage.add('imageGeneration', 1)
+    expect(paidTotalUsd(usage.current)).toBeCloseTo(0.01)
+    expect(listedPaidFeatures([], usage.current)).toContain('subagents')
+  })
+
+  it('retains a failed child attempt in usage even when no token estimate exists', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('subagents', 1)
+    expect(listedPaidFeatures([], usage.current)).toEqual(['subagents'])
+    expect(usage.current.subagentUnknownRequests).toBe(1)
+  })
+
+  it('reads older paid state and rejects invalid child counters at the panel boundary', () => {
+    expect(paidTallySchema.safeParse(EMPTY_PAID_TALLY).success).toBe(true)
+    expect(paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, subagentRequests: -1 }).success).toBe(
+      false,
+    )
+    expect(
+      paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, subagentUnknownRequests: 0.5 }).success,
+    ).toBe(false)
+  })
+
+  it('prices only the verified models and refuses invalid child usage', () => {
+    expect(modelApiPaidTier('muse-spark-1.3')).toBe('standard')
+    expect(modelApiPaidTier('muse-spark-1.2-contributor')).toBe('contributor')
+    expect(modelApiPaidTier('muse-spark-future-contributor')).toBeUndefined()
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('subagents', 1)
+    expect(() => {
+      usage.addSubagentUsage('unknown', { inputTokens: 1, outputTokens: 1, cachedTokens: 0 })
+    }).toThrow('unpriced model')
+    expect(() => {
+      usage.addSubagentUsage('muse-spark-1.3', {
+        inputTokens: -1,
+        outputTokens: 1,
+        cachedTokens: 0,
+      })
+    }).toThrow('nonnegative')
+    expect(usage.current.subagentUnknownRequests).toBe(1)
+  })
+
   it('tallies each feature, ignores nothing-used, and tells its listeners', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     const listener = vi.fn()

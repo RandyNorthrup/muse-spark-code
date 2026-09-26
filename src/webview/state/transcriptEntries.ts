@@ -176,6 +176,8 @@ const subagentEntrySchema = z.object({
   role: z.optional(z.string()),
   objective: z.optional(z.string()),
   status: z.string(),
+  /** Model API children consume paid requests; retained across panel snapshots. */
+  paid: z.optional(z.enum(PAID_FEATURES)),
   controlStatus: z.optional(z.string()),
   subagentId: z.optional(z.string()),
   childSessionId: z.optional(z.string()),

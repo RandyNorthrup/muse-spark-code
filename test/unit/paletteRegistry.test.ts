@@ -477,6 +477,13 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'voice', isOn: true },
       ],
+      [
+        'Subagents (paid)',
+        'muse-spark-1.3: $1.250 input, $0.150 cached input, $4.250 output per million tokens; up to 4 requests per task, including retries.\n' +
+          'muse-spark-1.3-contributor: $0.100 input, $0.002 cached input, $0.200 output per million tokens; up to 4 requests per task, including retries.',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'subagents', isOn: true },
+      ],
     ])
   })
 })

@@ -182,10 +182,10 @@ The model pill shows the model as soon as the panel opens.
 
 ## Backends
 
-| Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                                                                                                                                           |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`)                     | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`); its bundled skills, your user rules, its own memory, subagents, and the Problems panel through the extension            |
-| **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension's own: read, edit, write, search, list, shell, `read_skill`, `ask_user` (question cards) and `todo_write` (the task list), with approvals; the workspace rules, skills and memory |
+| Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                                                                                                                                |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own browser sign-in (`muse login`)                     | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`); its bundled skills, your user rules, its own memory, subagents, and the Problems panel through the extension |
+| **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension's own: read, edit, write, search, list, shell, skills, questions, task list and subagents, with approvals; the workspace rules, skills and memory                      |
 
 `museSpark.backend` picks: `auto` (default) uses the CLI when it is installed
 and signed in, otherwise the Model API when a key is stored; `museCode` and
@@ -560,7 +560,7 @@ same card and leaves `Ctrl+B` to VS Code until approval resolves.
 A fork has no running commands from its source; it carries the ending or
 lost-output context into the agent's next request for any inherited task.
 
-**Subagents.** When Muse Code spawns native subagents they appear as rows and
+**Subagents.** When either backend spawns subagents they appear as rows and
 an **N agents** pill in the header opens the **Agent map** (also `/agents`):
 this conversation, its agents with role, objective, status, duration and
 tokens, the background tasks, and each agent's own transcript.
@@ -574,8 +574,30 @@ tokens, the background tasks, and each agent's own transcript.
 - An agent's own replies and tool calls stay in its transcript in the map,
   and the map's details offer the controls Muse Code provides: Interrupt and
   Stop while it runs, a note to it, Resume, Close, and a follow-up task once
-  its result is ready.
-- The Model API backend spawns no agents.
+  its result is ready. A ready result can be marked read; a closed agent can
+  be reopened on the Model API backend. Muse Code's Reopen and Mark result
+  read controls wait for a live capture of their accepted MSP commands;
+  its captured Interrupt, Stop, Resume and Close controls remain available.
+- On the Model API backend, the agent can spawn up to eight child sessions at
+  once; more wait in order, up to 64 per conversation. A child has its own
+  conversation and the same workspace tools and approvals, but cannot spawn
+  again or ask you a question. Children share the workspace and use your
+  Model API key; their tokens count in the conversation's usage. Paid
+  subagents are off by default. Enabling them accepts the published model
+  rates; each new child task then asks again before it starts, including in
+  Bypass mode. Plan refuses the task. One approval allows at most four actual
+  response requests, including retries and tool rounds. A running note uses
+  that same allowance; a follow-up or reopen needs a new approval. This is
+  a request limit, not a dollar limit. Failed requests without a usage report
+  appear as unknown cost in Account & usage. A resumed child whose queued
+  notes survived a window restart shows those notes in its fresh approval
+  before they run. Stopping a
+  queued child drops its unsent notes; reopening it starts from its retained
+  objective without those canceled notes. A second panel joining during a
+  child's pending tool approval sees the same card. Child tokens spent on an
+  active goal count against that goal's budget; a replacement goal does not
+  inherit an earlier child's cost. The paid feature and its certification
+  remain in the staged M48 milestone until its gates pass.
 
 **Workflows.** Muse Code can run a multi-agent workflow: a short script,
 written by the model for the task or saved in Muse Code beforehand, that
@@ -720,22 +742,23 @@ device is available", and step markers on stderr name where a start failed.
 
 ## Paid features
 
-Three extras of Meta's Model API cost money on top of tokens. They are
+Four extras of Meta's Model API cost money on top of ordinary chat tokens. They are
 always billed to your Model API key, never to your Muse Code subscription,
-and all three are **off until you turn them on**. All three work on the
+and all four are **off until you turn them on**. All four work on the
 Model API backend; images and Muse Voice also work on the Muse Code backend
 while a key is stored (web search is Muse Code's own there, on the
 subscription):
 
-| Feature          | Price (Meta, read 2026-09-24) | What it does                                                                                                                          |
-| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Web search       | $2.50 per 1,000 searches      | The model may search the web while it answers; the reply lists the pages it cites                                                     |
-| Image generation | $0.01 per image               | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time |
-| Muse Voice       | $0.18 per hour of audio       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                            |
+| Feature          | Price (Meta, read 2026-09-24)                                         | What it does                                                                                                                          |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Web search       | $2.50 per 1,000 searches                                              | The model may search the web while it answers; the reply lists the pages it cites                                                     |
+| Image generation | $0.01 per image                                                       | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time |
+| Muse Voice       | $0.18 per hour of audio                                               | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                            |
+| Subagents        | Selected model's published input, cached input and output token rates | Child tasks on the Model API backend; every task asks again and admits at most four response requests                                 |
 
 Turn one on from the palette (**Account & usage** group, where the backend
 can use it) or with its setting (`museSpark.modelApiWebSearch`,
-`modelApiImageGeneration`, `modelApiVoice`). Either way a confirmation
+`modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`). Either way a confirmation
 names the price first; declining it turns the setting back off, and turning
 a setting off means the next time asks again. The settings are
 machine-scoped, so a repository cannot turn one on.
@@ -753,6 +776,11 @@ While one is on, you can always tell:
   path that is taken, outside the workspace, or not a `.png`, or a source
   that is missing, outside the workspace, not a PNG, JPEG or WebP image, or
   over 10 MB, is refused before anything is asked or billed.
+- **Every new child task asks first**, in every mode, Bypass included; Plan
+  refuses it. The decision shows its objective, model, published rates and
+  four-request ceiling. Retries count; a running note spends the same grant.
+  The child row is marked paid, and the child estimate in Account & usage is
+  part of the conversation's total, not an extra charge added to it.
 - **On the Muse Code backend**, images come from the extension itself: its
   `ide` tool server, which every Muse Code session loads, offers Muse Code
   an image and an image-edit tool while image generation is on and a key is
@@ -762,8 +790,9 @@ While one is on, you can always tell:
   leaves the extension, and the row is marked paid as on the Model API.
 - **The microphone says so**: ringed, and named "Record voice with Muse
   Voice (paid)" with the price in its tooltip.
-- **Account & usage keeps the tally**: this window's searches, images and
-  seconds of audio, each with its estimated cost at the published prices.
+- **Account & usage keeps the tally**: this window's searches, images,
+  seconds of audio and child request attempts, with estimated cost when
+  usage was reported. An attempt with no usage report has unknown cost.
   The dev.meta.ai dashboard is the bill.
 
 Web search's count errs high: Meta does not say how it bills a search with
@@ -908,6 +937,7 @@ Bypass at once.
 | `modelApiWebSearch`               | `false`  | [Paid](#paid-features): web search on the Model API backend, $2.50 per 1,000 searches; asks you to confirm the price when turned on                                                                                                                                                                                                    |
 | `modelApiImageGeneration`         | `false`  | [Paid](#paid-features): image files on the Model API backend, $0.01 per image; every image asks first, in every mode                                                                                                                                                                                                                   |
 | `modelApiVoice`                   | `false`  | [Paid](#paid-features): Muse Voice as the microphone's engine on the Model API backend, $0.18 per hour of audio                                                                                                                                                                                                                        |
+| `modelApiSubagents`               | `false`  | [Paid](#paid-features): Model API child tasks, with a model-rate confirmation and a fresh four-request approval for every task                                                                                                                                                                                                         |
 | `environmentVariables`            | `[]`     | `{ name, value }` pairs for the Muse Code process (an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too). Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                 |
 
 Muse Code also gets VS Code's `http.proxy` (and `http.noProxy`) as
