@@ -27,7 +27,8 @@ Node.js 22 or later is required.
   or download `muse-spark-code-acp-<version>.tgz` and run
   `npm install -g ./muse-spark-code-acp-<version>.tgz`.
 
-- From npm: not published there yet.
+- From npm, once the first release is published there:
+  `npm install -g muse-spark-code-acp`.
 
 `muse-spark-code-acp --version` confirms the install.
 

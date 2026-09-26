@@ -1490,7 +1490,7 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
 | Q62 | **Resolved 2026-09-26:** "you can install whatever you need". What this container's network lets in is recorded per editor (D62); the rest is qualified in CI or on the owner's machines.                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Q63 | **Resolved 2026-09-26:** the owner left the design to us: D61, the operating system's credential store, in-process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Q65 | Publishing `muse-spark-code-acp` to npm (D62), so editors can run it with `npx`. **Blocked 2026-09-26:** npm has held the owner's account for suspicious activity, pending npm's support. Until then each GitHub Release carries the package, installable by its URL.                                                                                                                                                                                                                                                                                                                               |
+| Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                    |
 
 ## 4. Architecture
 
@@ -3580,6 +3580,16 @@ listing are M62b.
   Firebase Studio, Che and Codespaces, each installed where it can be and
   its version recorded in `docs/ide-compatibility/hosts.md`; the Open VSX
   listing after the next tag.
+  - **Theia 1.75, 2026-09-26** (`docs/certification/m62.md`): built from
+    npm as a browser app; it claims VS Code API 1.134, so the floor is no
+    obstacle. The panel in a tab and the sidebar run a conversation and an
+    approval against the fake CLI. Found: Theia never fires `onView:` for a
+    webview view (it fires only for a view with no child widget, and a
+    webview view gets its widget at once), so the sidebar opened first
+    stays blank until a command or the tab starts the extension. Not
+    worked around with `onStartupFinished`, which would start the
+    extension, and read SecretStorage, in every VS Code window; README's
+    Troubleshooting gives the shortcut. The fix belongs in Theia.
 - **Acceptance (M62a)**: every gate green with the floor's types; the
   integration tests on a 1.99 host; drills for the API and Node checks.
 

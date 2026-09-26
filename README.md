@@ -805,8 +805,8 @@ message resumes the same session.
 ## Requirements
 
 - VS Code 1.99.0 or newer, on Windows, macOS or Linux, or an editor built
-  on it: VSCodium 1.99.3 and 1.135 and code-server 4.99.4 were tested (see
-  [hosts.md](docs/ide-compatibility/hosts.md)). On 1.99 and 1.100, whose
+  on it: VSCodium 1.99.3 and 1.135, code-server 4.99.4 and Theia 1.75 were
+  tested (see [hosts.md](docs/ide-compatibility/hosts.md)). On 1.99 and 1.100, whose
   extension host is Node 20, Muse Voice is unavailable.
 - The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
   a Meta account (subscription), or a Meta Model API key (pay as you go).
@@ -927,6 +927,11 @@ message resumes the same session.
 - **The Agent map says delegation is off** — Muse Code hides its subagent
   tools until `run.subagent_delegation_mode` is `"auto"` in its own settings
   file; the map's button opens that file. The extension never edits it.
+- **The Muse Spark sidebar is blank in Eclipse Theia** — Theia 1.75 does not
+  start an extension when its webview view opens, so the view waits until
+  something else starts it. Press **Ctrl+Esc** or run any Muse Spark command
+  (**Open in New Tab**, **Show Logs**) and the sidebar fills in; it works
+  from then on in that window.
 - **The microphone says "Voice dictation failed: No microphone is available"**
   — Windows sees no recording device from this session (Remote Desktop hides
   the host's devices unless the client redirects a microphone). On macOS,
