@@ -187,6 +187,13 @@ const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
 interface ReplayItem {
   readonly turnId: string
   readonly item: InputItem
+  /** The background task whose terminal context this note carries (M46). */
+  readonly backgroundTaskId?: string
+}
+
+interface PendingNote {
+  readonly text: string
+  readonly backgroundTaskId?: string
 }
 
 interface TranscriptItem {
@@ -631,7 +638,7 @@ export class ModelApiSession implements AgentSession {
    * What the model should read before its next request (a background command
    * ended, the user ran one) while a turn or a compaction holds the replay.
    */
-  private readonly pendingNotes: string[] = []
+  private readonly pendingNotes: PendingNote[] = []
   private readonly queuedTurns: QueuedTurn[] = []
   private active: ActiveTurn | undefined
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
@@ -1839,6 +1846,7 @@ export class ModelApiSession implements AgentSession {
     this.rerecordTranscript(completed)
     this.noteForModel(
       `${MODEL_TEXT.backgroundEndedLead}\n$ ${commandOf(call.arguments)}\n${final.output}`,
+      moved.itemId,
     )
   }
 
@@ -1854,20 +1862,29 @@ export class ModelApiSession implements AgentSession {
    * the replay while nothing holds it, else when the running turn next asks
    * or ends (a compaction: when it ends).
    */
-  private noteForModel(text: string): void {
+  private noteForModel(text: string, backgroundTaskId?: string): void {
+    const note: PendingNote = { text, ...(backgroundTaskId !== undefined && { backgroundTaskId }) }
     if (this.active !== undefined || this.compacting !== undefined) {
-      this.pendingNotes.push(text)
+      this.pendingNotes.push(note)
       return
     }
-    this.replay.push({ turnId: this.latestTurnId(), item: noteItem(text) })
+    this.replay.push({
+      turnId: this.latestTurnId(),
+      item: noteItem(text),
+      ...(backgroundTaskId !== undefined && { backgroundTaskId }),
+    })
     this.touch()
   }
 
   /** The notes held while the replay was busy, into it under `turnId`; true when there were any. */
   private settleNotes(turnId: string): boolean {
     const notes = this.pendingNotes.splice(0)
-    for (const text of notes) {
-      this.replay.push({ turnId, item: noteItem(text) })
+    for (const note of notes) {
+      this.replay.push({
+        turnId,
+        item: noteItem(note.text),
+        ...(note.backgroundTaskId !== undefined && { backgroundTaskId: note.backgroundTaskId }),
+      })
     }
     return notes.length > 0
   }
@@ -1914,7 +1931,7 @@ export class ModelApiSession implements AgentSession {
       ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
     }
     this.emit({ type: 'itemCompleted', item: completed })
-    this.recordTranscript(this.latestTurnId(), completed)
+    this.rerecordTranscript(completed)
     this.noteForModel(`${MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
   }
 
@@ -2437,6 +2454,8 @@ export class ModelApiSession implements AgentSession {
     }
     const stop = new AbortController()
     this.userShells.set(started.itemId, stop)
+    this.recordTranscript(this.latestTurnId(), started)
+    this.touch()
     this.emit({ type: 'itemStarted', item: started })
     void this.runUserShellCommand(started, command, stop)
     return Promise.resolve()
@@ -2636,6 +2655,7 @@ export class ModelApiSession implements AgentSession {
         this.replay.push({
           turnId: this.latestTurnId(),
           item: noteItem(`${MODEL_TEXT.backgroundLostLead}\n$ ${commandOf(item.args ?? '')}`),
+          backgroundTaskId: item.itemId,
         })
       }
     }
@@ -2665,10 +2685,32 @@ export class ModelApiSession implements AgentSession {
     const kept = new Set(this.turnIds.slice(0, cut + 1))
     kept.add(COMPACTION_TURN_ID)
     target.replay.push(...this.replay.filter((entry) => kept.has(entry.turnId)))
-    target.transcript.push(
-      ...withoutRunning(this.transcript.filter((entry) => kept.has(entry.turnId))),
-    )
+    const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
+    target.transcript.push(...withoutRunning(retained))
     target.turnIds.push(...this.turnIds.slice(0, cut + 1))
+    const copiedNotes = new Set(
+      target.replay.flatMap((entry) =>
+        entry.backgroundTaskId === undefined ? [] : [entry.backgroundTaskId],
+      ),
+    )
+    for (const { item } of retained) {
+      if (item.background !== true || copiedNotes.has(item.itemId)) {
+        continue
+      }
+      const recorded = this.replay.findLast((entry) => entry.backgroundTaskId === item.itemId)
+      const pending = this.pendingNotes.findLast((note) => note.backgroundTaskId === item.itemId)
+      const command = commandOf(item.args ?? '')
+      const fallback =
+        item.status === IN_PROGRESS
+          ? `${MODEL_TEXT.backgroundLostLead}\n$ ${command}`
+          : `${MODEL_TEXT.backgroundEndedLead}\n$ ${command}\n${item.visibleOutput ?? ''}`
+      target.replay.push({
+        turnId: target.latestTurnId(),
+        item: recorded?.item ?? noteItem(pending?.text ?? fallback),
+        backgroundTaskId: item.itemId,
+      })
+      copiedNotes.add(item.itemId)
+    }
     target.turnCount = target.turnIds.length
     target.firstPrompt = this.firstPrompt
     target.forkedFrom = this.sessionId

@@ -2992,6 +2992,18 @@ function requestInput(t: ReturnType<typeof setup>, index: number): readonly unkn
   return z.array(z.unknown()).parse(t.api.responseBodies()[index]?.['input'])
 }
 
+/** Ask a fork about the inherited shell and return exactly what its model read. */
+async function forkInput(
+  t: ReturnType<typeof setup>,
+  session: AgentSession,
+): Promise<readonly unknown[]> {
+  const { turnDone } = watchTurns(session)
+  t.api.script({ text: 'It was ready.' })
+  await session.sendTurn([{ type: 'text', text: 'what happened?' }])
+  await turnDone()
+  return requestInput(t, t.api.responseBodies().length - 1)
+}
+
 describe('ModelApiSession: background shell commands (M46)', () => {
   it('answers the model at once and keeps the command running, without its time limit', async () => {
     const r = await runningShell()
@@ -3139,10 +3151,82 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     await r.turnDone()
     const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3')
     expect(fork.history.items.find((item) => item.itemId === r.itemId)?.status).toBe('interrupted')
+    const { turnDone } = watchTurns(fork.session)
+    r.t.api.script({ text: 'I will restart it.' })
+    await fork.session.sendTurn([{ type: 'text', text: 'is the server running?' }])
+    await turnDone()
+    const input = requestInput(r.t, r.t.api.responseBodies().length - 1)
+    expect(noteText(input.at(-2))).toBe(`${MODEL_TEXT.backgroundLostLead}\n$ npm run dev`)
+  })
+
+  it('copies a background completion note into a fork cut before that note', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    const firstTurnId = r.session.snapshot().turnIds[0]
+    r.t.api.script({ text: 'Waiting.' })
+    await r.session.sendTurn([{ type: 'text', text: 'continue' }])
+    await r.turnDone()
+    r.run.finish({ stdout: 'ready', exitCode: 0 })
+    await completionOf(r.events, r.itemId)
+    const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3', firstTurnId)
+    const input = await forkInput(r.t, fork.session)
+    expect(noteText(input.at(-2))).toBe(
+      `${MODEL_TEXT.backgroundEndedLead}\n$ npm run dev\nready\n[exit code 0]`,
+    )
+  })
+
+  it('does not duplicate a background completion note the fork already retained', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    r.run.finish({ stdout: 'ready', exitCode: 0 })
+    await completionOf(r.events, r.itemId)
+    const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3')
+    const input = await forkInput(r.t, fork.session)
+    expect(
+      input.filter((item) => noteText(item)?.startsWith(MODEL_TEXT.backgroundEndedLead)),
+    ).toHaveLength(1)
   })
 })
 
 describe('ModelApiSession: the user’s own shell commands (M46)', () => {
+  it('includes a running command in a second surface’s history and replaces its row on completion', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io })
+    const { session, events } = await startSession(t)
+    await session.runUserShell('sleep 30')
+    const [started] = userShellStarts(events)
+    const loaded = await t.host.resumeSession(session.sessionId, session.modelId)
+    expect(loaded.history.items.find((item) => item.itemId === started?.item.itemId)).toMatchObject(
+      { kind: 'userShell', status: 'inProgress', commandText: 'sleep 30' },
+    )
+    io.runs[0]?.finish({ stdout: 'done', exitCode: 0 })
+    await completionOf(events, started?.item.itemId ?? '')
+    expect(session.history().items.filter((item) => item.itemId === started?.item.itemId)).toEqual([
+      expect.objectContaining({ status: 'completed', visibleOutput: 'done' }),
+    ])
+    loaded.session.dispose()
+  })
+
+  it('persists a running user-shell row before another host restores the session', async () => {
+    const store = memorySessionStore()
+    const io = heldShellToolIo({}, ROOT)
+    const first = setup({ io, store })
+    const { session, events } = await startSession(first)
+    await session.runUserShell('sleep 30')
+    const [started] = userShellStarts(events)
+    await first.host.flush()
+    const other = setup({ store })
+    await other.host.load()
+    const restored = await other.host.resumeSession(session.sessionId, session.modelId)
+    expect(
+      restored.history.items.find((item) => item.itemId === started?.item.itemId),
+    ).toMatchObject({ kind: 'userShell', status: 'interrupted', commandText: 'sleep 30' })
+    await session.stopTask(started?.item.itemId ?? '')
+    await completionOf(events, started?.item.itemId ?? '')
+  })
+
   it('runs one outside any turn, as its own row, and tells the model before the next prompt', async () => {
     const io = heldShellToolIo({}, ROOT)
     const t = setup({ io })

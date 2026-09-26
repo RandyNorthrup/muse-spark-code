@@ -99,6 +99,11 @@ while they are (PLAN.md D30, D34).
   foreground shell calls re-enable `Ctrl+B` from the resumed history. A
   Model API shell waiting for permission leaves `Ctrl+B` to VS Code until
   the command is approved and can actually be moved.
+- **M46 Model API history and forks.** A running `!` command is in the
+  conversation history and saved session immediately, so another surface
+  shows its row and can Stop it; completion replaces that row. A fork carries the end or
+  lost-output note for each inherited background shell even when the
+  source's later turn is outside the fork cut.
 
 - **Windows accessibility runner pressure** (M46). The headless Chrome
   gate runs at most two pages together on Windows; its scenarios, axe

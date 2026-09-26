@@ -3557,7 +3557,14 @@ more case: a Model API shell row starts before approval, so the running
 shell shortcut stays off while the permission card waits. A real fake-API
 and held-shell test failed before the change, passed after, and verifies
 the shortcut works once approved. The second correction's local gate
-passed; hosted review remains open.
+passed. The next review found a running Model API `!` row missing from
+another surface's history, and forks missing a background shell's terminal
+context when the later note was cut. Both failed in focused tests before
+the fixes; recording the running row and tagging terminal replay notes by
+task fixed them. A cross-host restore test then caught that the started
+`!` row needed a save at start; `touch()` persists it before completion.
+The third correction passed the local full gate; hosted
+review remains open.
 
 - **Goal**: what Muse Code's TUI does with Ctrl+B, `/stop` and `!`, and its
   "let me explain" answer to a question, from the panel, on both backends.

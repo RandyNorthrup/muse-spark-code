@@ -518,6 +518,10 @@ run comes back to the prompt with the reason. On Muse Code it runs through
 the CLI's own shell and sandbox (a missing Windows sandbox offers the setup,
 as the shell tool does); on the Model API backend it runs through the shell
 tool's runner, for ten minutes at most, and its row has a **Stop**.
+While a Model API command is still running, another surface sharing that
+session shows its row and can stop it. A session loaded in another VS Code
+window shows the saved row as interrupted, since that window cannot
+control the original runner.
 
 **Background work.** A shell command the agent is waiting on can go on in the
 background while the agent carries on: **Move to background** on its row, or
@@ -536,6 +540,8 @@ agent with its next request (no model call is made for it on its own).
 When the last surface leaves a conversation, its remaining background
 commands are stopped; another open surface keeps them running. A resumed
 conversation restores `Ctrl+B` for a shell command still in the foreground.
+A fork has no running commands from its source; it carries the ending or
+lost-output context into the agent's next request for any inherited task.
 
 **Subagents.** When Muse Code spawns native subagents they appear as rows and
 an **N agents** pill in the header opens the **Agent map** (also `/agents`):
