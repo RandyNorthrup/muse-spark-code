@@ -327,6 +327,11 @@ const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
 const COMPACTION_TURN_ID = 'compaction'
 const MODEL_API_ERROR_KIND = 'modelApi'
 const TURN_NOT_RUNNING = 'the turn is not running'
+
+/** Re-read mutable abort state after awaits and between returned calls. */
+function isAbortRequested(signal: AbortSignal): boolean {
+  return signal.aborted
+}
 const TURN_RUNNING = 'a turn is running'
 const SUMMARY_FIELD_PREFIX = 'summary.'
 const TEXT_FIELD = 'text'
@@ -773,6 +778,12 @@ export class ModelApiSession implements AgentSession {
       return undefined
     }
     if (this.active !== undefined) {
+      if (this.active.abort.signal.aborted) {
+        // Stop already ended that turn's chance to make another request.
+        const queued = this.queuedGoalWake()
+        this.queuedTurns.push(queued)
+        return queued.turnId
+      }
       this.active.goalWakePending = true
       return this.active.turnId
     }
@@ -1697,10 +1708,19 @@ export class ModelApiSession implements AgentSession {
   private async loop(turn: ActiveTurn): Promise<void> {
     const { signal } = turn.abort
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
+      if (isAbortRequested(signal)) {
+        throw new AbortedError()
+      }
       this.drainSteered(turn)
       this.drainGoalWake(turn)
       const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
       const { calls, goalCommandRevision } = await this.streamOnce(turn.turnId, signal)
+      if (isAbortRequested(signal)) {
+        // A buffered completed response may arrive after Stop. Its calls
+        // still need outputs for valid replay, but no work or steering runs.
+        this.skipCalls(turn.turnId, calls)
+        throw new AbortedError()
+      }
       if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
         this.skipCalls(turn.turnId, calls, MODEL_TEXT.goalBudgetReached)
         this.queuedTurns.unshift(...this.queuedSteered(turn))
@@ -1719,7 +1739,7 @@ export class ModelApiSession implements AgentSession {
         continue
       }
       for (const [index, call] of calls.entries()) {
-        if (signal.aborted) {
+        if (isAbortRequested(signal)) {
           this.skipCalls(turn.turnId, calls.slice(index))
           throw new AbortedError()
         }
@@ -1781,12 +1801,6 @@ export class ModelApiSession implements AgentSession {
         errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         this.deps.log.warn(`Model API turn ${turn.turnId} failed: ${reason}`)
       }
-    }
-    // Stopping a turn pauses an unfinished goal, as Muse Code does on Esc and
-    // on `turn/cancel` (captured live 2026-09-25, M45): nothing works toward
-    // it until the user resumes it.
-    if (terminal === CANCELLED) {
-      this.pauseGoalAfterStop()
     }
     // `loop` returns only with nothing steered left (D26), and `steer` is
     // refused once `active` is cleared, so no input is lost between the two.
@@ -1959,7 +1973,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   public steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<string> {
-    if (this.active?.turnId !== expectedTurnId) {
+    if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted) {
       return Promise.reject(new Error(TURN_NOT_RUNNING))
     }
     this.active.steered.push(parts)
@@ -1978,11 +1992,13 @@ export class ModelApiSession implements AgentSession {
         reason: UI_TEXT.queuedTurnDropped,
       })
     }
+    if (this.active !== undefined || this.compacting !== undefined) {
+      // Pause the goal Stop targeted now. A replacement accepted while an
+      // aborted turn unwinds must remain active and get its own wake.
+      this.pauseGoalAfterStop()
+    }
     this.active?.abort.abort()
     if (this.compacting !== undefined) {
-      // Pause the goal Stop actually targeted. A new goal accepted while
-      // post-summary counting finishes must stay active.
-      this.pauseGoalAfterStop()
       this.compacting.abort()
     }
     return Promise.resolve()

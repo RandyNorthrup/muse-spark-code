@@ -2210,6 +2210,17 @@ function holdCompactionCount(t: ReturnType<typeof setup>) {
   return { counted, countStarted }
 }
 
+async function expectReplacementGoalWake(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(3)
+  })
+  expect(session.snapshot().goal).toMatchObject({ objective: 'Goal B', status: 'active' })
+  expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
+}
+
 /** Fifty tool replies, with the final one held for a busy command. */
 function scriptHeldFinalToolRound(
   t: ReturnType<typeof setup>,
@@ -2497,6 +2508,40 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     })
   })
 
+  it('keeps a replacement goal active when Stop is still unwinding an old turn', async () => {
+    const t = setup()
+    const { session, turnDone } = await startUnbudgetedGoal(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Old reply', hold: held.promise }, { text: 'Working on B' })
+    await session.sendTurn([{ type: 'text', text: 'continue A' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(2)
+    })
+    const stopping = session.cancel()
+    const setting = session.controlGoal({ verb: 'set', objective: 'Goal B' })
+    await Promise.all([stopping, setting])
+    held.resolve(undefined)
+    await turnDone()
+    await expectReplacementGoalWake(t, session)
+  })
+
+  it('refuses steering after Stop while an old response is still unwinding', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Old reply', hold: held.promise })
+    const running = await session.sendTurn([{ type: 'text', text: 'go' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    await session.cancel()
+    await expect(
+      session.steer(running.turnId, [{ type: 'text', text: 'Too late' }]),
+    ).rejects.toThrow('the turn is not running')
+    held.resolve(undefined)
+    await turnDone()
+  })
+
   it('counts what the goal used against its budget and stops it when spent', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
@@ -2581,6 +2626,32 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     })
     expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited' })
     expect(JSON.stringify(t.api.responseBodies()[3]?.['input'])).toContain('Separate question')
+  })
+
+  it('does not replay steering after Stop when a completed budget reply was buffered', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    await beginBudgetGoal(t, session, turnDone)
+    const streamed = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const originalStream = t.client.streamResponse.bind(t.client)
+    vi.spyOn(t.client, 'streamResponse').mockImplementation(async function* (...args) {
+      yield* originalStream(...args)
+      streamed.resolve(undefined)
+      await release.promise
+    })
+    t.api.script(
+      { text: 'Budget reply', usage: { input: 90, output: 10 } },
+      { text: 'Must not run' },
+    )
+    const running = await session.sendTurn([{ type: 'text', text: 'continue' }])
+    await streamed.promise
+    await session.steer(running.turnId, [{ type: 'text', text: 'Should be cancelled' }])
+    await session.cancel()
+    release.resolve(undefined)
+    await turnDone()
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
+    expect(t.api.responseBodies()).toHaveLength(3)
   })
 
   it('withdraws a goal wake queued during compaction when the budget is spent', async () => {
@@ -2728,11 +2799,7 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     await session.controlGoal({ verb: 'set', objective: 'Goal B' })
     counted.resolve(42)
     await expect(compacting).resolves.toMatchObject({ status: 'accepted' })
-    await vi.waitFor(() => {
-      expect(t.api.responseBodies()).toHaveLength(3)
-    })
-    expect(session.snapshot().goal).toMatchObject({ objective: 'Goal B', status: 'active' })
-    expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
+    await expectReplacementGoalWake(t, session)
   })
 
   it('refuses an incomplete compaction and still charges its goal usage', async () => {

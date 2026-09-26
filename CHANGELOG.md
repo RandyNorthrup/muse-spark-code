@@ -83,6 +83,11 @@ while they are (PLAN.md D30, D34).
   report the limit in the installed language and count visible characters;
   switching History sessions
   clears an old `/goal` request's pending state so the composer responds.
+- **Stop targets the current goal** (M45). Stop pauses the active goal when
+  pressed. A replacement set while the old turn finishes stays active and
+  gets a new turn; steering after Stop is refused instead of accepted and
+  silently lost. A completed response buffered across Stop cannot replay
+  previously accepted steering or run returned tools.
 - **Goal lifecycle at request boundaries** (M45, review of PR #31). Model
   usage now belongs to the goal active when each request began, even if
   paused before its reply; Stop during compaction pauses the goal, and an

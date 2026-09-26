@@ -1439,6 +1439,17 @@ supplementary character twice against the 4,000-character objective limit.
 The Model API validator now counts grapheme clusters (so a joined emoji is
 one visible character) and stops after 4,001; the 14 translated limit
 messages still format the number with `Intl`.
+The next PR review found that Stop on an ordinary Model API turn paused a
+replacement goal if the old turn took time to unwind. Stop now pauses its
+current goal synchronously, and a goal accepted while that aborted turn is
+still attached queues a fresh wake. Steering after Stop is explicitly
+refused instead of being accepted into a turn that cannot run it.
+A follow-up cancellation audit found that a buffered completed reply could
+return after Stop and take the budget-limit or round-cap branch before any
+abort check, re-queuing steering that Stop had cancelled. The loop now checks
+the abort before each round and immediately after each response; returned
+calls receive cancelled outputs for replay validity, with no tool or
+steering continuation.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3450,7 +3461,7 @@ translations. The order is D36's table:
   `/goal`; 32 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G51; both
+  reducer, the controller, the strip and the prompt; drills G1–G54; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the
