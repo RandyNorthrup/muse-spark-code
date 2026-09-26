@@ -1,6 +1,7 @@
 // One tool call: status dot, label, argument summary, change line, and a
 // collapsible body (shell IN/OUT, edit diff, read output, a memory note, a
-// goal, scheduled prompts, search results, or generic args/output), the
+// goal, scheduled prompts, search results, a workflow's script and launch,
+// or generic args/output), the
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
@@ -29,7 +30,15 @@ import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 import { ExpandChevron } from './icons'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
 import { Clipped, DiffTable } from './ToolBlocks'
-import { GoalBody, ImageBody, MemoryBody, ScheduleBody, ToolImage, WebBody } from './ToolBodies'
+import {
+  GoalBody,
+  ImageBody,
+  MemoryBody,
+  ScheduleBody,
+  ToolImage,
+  WebBody,
+  WorkflowBody,
+} from './ToolBodies'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
@@ -387,6 +396,10 @@ function ToolRowView({
     }
     case 'image': {
       body = <ImageBody entry={entry} />
+      break
+    }
+    case 'workflow': {
+      body = <WorkflowBody entry={entry} />
       break
     }
     case 'generic': {

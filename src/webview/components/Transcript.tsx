@@ -16,7 +16,7 @@ import { type OutputPage, outputPageKey, type TranscriptEntry } from '../state/u
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { useDismiss } from '../useDismiss'
 import type { ApprovalDecisionInput } from './ApprovalCard'
-import { agentStatusLabel, formatDurationMs } from './AgentMap'
+import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
 import { ExternalLink } from './ExternalLink'
@@ -27,6 +27,7 @@ import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
+import { type WorkflowControls, WorkflowRunView } from './WorkflowRun'
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -69,6 +70,9 @@ export interface TranscriptProps {
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
+  /** A workflow run's card controls (M47); absent, the card offers none. */
+  readonly onCancelWorkflow?: WorkflowControls['onCancelWorkflow']
+  readonly onControlWorkflowChild?: WorkflowControls['onControlWorkflowChild']
 }
 
 type RewindChoice = 'fork' | 'rewind' | 'both'
@@ -428,10 +432,38 @@ function StepsGroup({
   )
 }
 
+/**
+ * A workflow run's card (M47): it stays in its place and keeps changing
+ * after the turn that launched it ends, as the run goes on in the background.
+ */
+const WorkflowRow = memo(function WorkflowRow({
+  entry,
+  onCancelWorkflow,
+  onControlWorkflowChild,
+}: { readonly entry: Extract<TranscriptEntry, { kind: 'workflow' }> } & WorkflowControls) {
+  return (
+    <li
+      className="workflow"
+      data-status={entry.status}
+      data-entry-id={entry.id}
+      data-role="workflow"
+    >
+      <WorkflowRunView
+        entry={entry}
+        onCancelWorkflow={onCancelWorkflow}
+        onControlWorkflowChild={onControlWorkflowChild}
+      />
+    </li>
+  )
+})
+
 function OtherRow({
   entry,
 }: {
-  readonly entry: Exclude<TranscriptEntry, StepEntry | { kind: 'user' | 'assistant' | 'userShell' }>
+  readonly entry: Exclude<
+    TranscriptEntry,
+    StepEntry | { kind: 'user' | 'assistant' | 'userShell' | 'workflow' }
+  >
 }) {
   switch (entry.kind) {
     case 'subagent': {
@@ -504,6 +536,8 @@ function TranscriptList(props: TranscriptProps) {
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
+    onCancelWorkflow,
+    onControlWorkflowChild,
   } = props
   const quoteMenuFor = (entryId: string): ReactNode =>
     quoteMenuEntryId === entryId &&
@@ -582,6 +616,16 @@ function TranscriptList(props: TranscriptProps) {
             canStop={canStopUserShell}
             onOpenOutput={onOpenOutput}
             onStopTask={onStopTask}
+          />
+        )
+      }
+      case 'workflow': {
+        return (
+          <WorkflowRow
+            key={entry.id}
+            entry={entry}
+            onCancelWorkflow={onCancelWorkflow}
+            onControlWorkflowChild={onControlWorkflowChild}
           />
         )
       }

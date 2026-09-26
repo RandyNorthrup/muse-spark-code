@@ -12,7 +12,7 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, SubagentAction } from '../../shared/constants'
+import type { GoalCommandVerb, SubagentAction, WorkflowChildAction } from '../../shared/constants'
 import type { SubscriptionUsage } from '../../shared/usage'
 
 export type BackendKind = 'museCode' | 'modelApi'
@@ -85,6 +85,30 @@ export type GoalCommand =
 /** What a goal command started: the turn it woke or joined, when it names one. */
 export interface GoalCommandOutcome {
   readonly turnId: string | undefined
+}
+
+/**
+ * Muse Code refused a workflow control (M47, PLAN.md D40): MSP
+ * `commandRejected` with the host's own `reason`, such as `already_terminal`
+ * (captured live 2026-09-25). Nothing broke: the run or child had moved on,
+ * and the panel says why.
+ */
+export class WorkflowControlRefusedError extends Error {
+  public constructor(
+    public readonly reason: string,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'WorkflowControlRefusedError'
+  }
+}
+
+/** Skip or retry one workflow child, keyed by its current attempt (MSP `workflow/childControl`). */
+export interface WorkflowChildControl {
+  readonly workflowRunId: string
+  readonly childId: string
+  readonly attempt: number
+  readonly action: WorkflowChildAction
 }
 
 export interface HostInfo {
@@ -283,6 +307,10 @@ export interface AgentSession {
    * `GoalRefusedError`.
    */
   controlGoal(command: GoalCommand): Promise<GoalCommandOutcome>
+  /** Cancel a live workflow run (MSP `workflow/cancel`, M47); the run's item updates carry the outcome. */
+  cancelWorkflow(workflowRunId: string): Promise<void>
+  /** Skip or retry one workflow child (MSP `workflow/childControl`, M47). */
+  controlWorkflowChild(control: WorkflowChildControl): Promise<void>
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */

@@ -17,6 +17,7 @@ import {
   userShellCommandOf,
   visibleEditorContext,
   referenceLabel,
+  workflowsOf,
 } from '../../src/webview/state/uiState'
 import { toSnapshot, wireItemSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { testSettings } from './helpers/fakes'
@@ -29,6 +30,21 @@ import {
   USER_SHELL_FAILED,
   USER_SHELL_STARTED,
 } from './helpers/m46Capture'
+import {
+  WORKFLOW_CHILD_DONE,
+  WORKFLOW_CHILD_ENDED,
+  WORKFLOW_CHILD_ID,
+  WORKFLOW_COMPLETED,
+  WORKFLOW_ITEM_ID,
+  WORKFLOW_MESSAGE,
+  WORKFLOW_RUN_ID,
+  WORKFLOW_RUNNING,
+  WORKFLOW_SCHEDULED,
+  WORKFLOW_STARTED,
+  WORKFLOW_TOOL_ITEM,
+  WORKFLOW_TURN_ID,
+  WORKFLOW_USAGE,
+} from './helpers/workflowFixtures'
 
 const init: HostToWebviewMessage = {
   type: 'init',
@@ -327,13 +343,14 @@ describe('uiReducer: agent events', () => {
         type: 'itemStarted',
         item: { itemId: 'r', kind: 'reminderChild', status: 'inProgress' },
       }),
+      // A kind Muse Code may add later (workflow was one until M47).
       agent({
         type: 'itemStarted',
-        item: { itemId: 's', kind: 'workflow', status: 'inProgress', fallbackText: 'Explorer' },
+        item: { itemId: 's', kind: 'sideChat', status: 'inProgress', fallbackText: 'Explorer' },
       }),
       agent({
         type: 'itemCompleted',
-        item: { itemId: 's', kind: 'workflow', status: 'completed' },
+        item: { itemId: 's', kind: 'sideChat', status: 'completed' },
       }),
       agent({
         type: 'itemCompleted',
@@ -341,7 +358,7 @@ describe('uiReducer: agent events', () => {
       }),
     ])
     expect(state.transcript).toEqual([
-      { kind: 'item', id: 's', itemKind: 'workflow', status: 'completed', text: 'Explorer' },
+      { kind: 'item', id: 's', itemKind: 'sideChat', status: 'completed', text: 'Explorer' },
       { kind: 'item', id: 'c', itemKind: 'compaction', status: 'completed', text: undefined },
     ])
   })
@@ -2407,6 +2424,151 @@ describe('uiReducer: background tasks and their buttons (M46)', () => {
     expect(state.transcript[0]).toMatchObject({
       question: undefined,
       questionOutcome: { outcome: 'clarified', answers: [], clarification: 'I prefer green.' },
+    })
+  })
+})
+
+/** A workflow item re-sent whole, as `item/updated` or, at its end, `item/completed` (M47). */
+function run(item: ItemSnapshot, type: 'itemUpdated' | 'itemCompleted' = 'itemUpdated'): UiAction {
+  return agent({ type, item })
+}
+
+describe('workflow runs in the state (M47)', () => {
+  it('builds the card from the captured frames, keeping what Muse Code drops as the agent moves on', () => {
+    const early = reduceAll([
+      signedIn,
+      agent({ type: 'turnStarted', turnId: WORKFLOW_TURN_ID }),
+      agent({ type: 'itemCompleted', item: WORKFLOW_TOOL_ITEM }),
+      agent({ type: 'itemStarted', item: WORKFLOW_STARTED }),
+      // The launching turn ended while the run went on (live 2026-09-25).
+      agent({ type: 'turnCompleted', turnId: WORKFLOW_TURN_ID, terminal: 'completed' }),
+      run(WORKFLOW_SCHEDULED),
+      run(WORKFLOW_RUNNING),
+    ])
+    expect(entryOf(early, WORKFLOW_ITEM_ID)).toMatchObject({
+      kind: 'workflow',
+      status: 'inProgress',
+      children: [{ childId: WORKFLOW_CHILD_ID, attempt: 1, status: 'started', label: 'ping' }],
+    })
+    const state = reduceAll(
+      [
+        run(WORKFLOW_USAGE),
+        // A later turn runs and ends while the run's updates keep naming its own.
+        agent({ type: 'turnStarted', turnId: 'next' }),
+        agent({ type: 'turnCompleted', turnId: 'next', terminal: 'completed' }),
+        run(WORKFLOW_CHILD_DONE),
+        run(WORKFLOW_CHILD_ENDED),
+        run(WORKFLOW_COMPLETED, 'itemCompleted'),
+      ],
+      early,
+    )
+    expect(entryOf(state, WORKFLOW_ITEM_ID)).toEqual({
+      kind: 'workflow',
+      id: WORKFLOW_ITEM_ID,
+      status: 'completed',
+      workflowRunId: WORKFLOW_RUN_ID,
+      entryId: 'generated.model-chosen',
+      scriptId: 'generated.workflow.generated.model-chosen',
+      triggerSource: 'guidanceAuto',
+      fallbackText: 'Workflow: model-chosen generated workflow',
+      children: [
+        {
+          childId: WORKFLOW_CHILD_ID,
+          attempt: 1,
+          status: 'terminal',
+          label: 'ping',
+          phase: undefined,
+          terminal: 'completed',
+          durationMs: 2183,
+          usage: { inputTokens: 9995, outputTokens: 135, cachedTokens: 5105, reasoningTokens: 70 },
+        },
+      ],
+      message: WORKFLOW_MESSAGE,
+    })
+    expect(workflowsOf(state).map((workflow) => workflow.id)).toEqual([WORKFLOW_ITEM_ID])
+    expect(state.strayItems).toEqual({})
+    // The run keeps its place after the tool row that launched it.
+    expect(state.transcript.map((entry) => entry.kind)).toEqual(['tool', 'workflow'])
+  })
+
+  it('reads each agent on its own: a shape that differs costs that agent or that field', () => {
+    const state = reduceAll([
+      signedIn,
+      run({
+        itemId: 'w',
+        kind: 'workflow',
+        status: 'inProgress',
+        children: [
+          { childId: 'a', attempt: 1, status: 'started', label: 7, usage: { inputTokens: 'x' } },
+          { attempt: 1, status: 'started' },
+          'not an agent',
+          { childId: 'b', attempt: 1, status: 'waiting', phase: 'review', durationMs: '1s' },
+        ],
+      }),
+    ])
+    expect(entryOf(state, 'w')).toMatchObject({
+      children: [
+        { childId: 'a', status: 'started', label: undefined, usage: undefined },
+        { childId: 'b', status: 'waiting', phase: 'review', durationMs: undefined },
+      ],
+    })
+  })
+
+  it('keeps an agent’s label and phase across a new attempt, and nothing else of the old one', () => {
+    const agentOf = (children: readonly unknown[], status = 'inProgress') =>
+      run({ itemId: 'w', kind: 'workflow', status, children: [...children] })
+    const state = reduceAll([
+      signedIn,
+      agentOf([{ childId: 'a', attempt: 1, status: 'scheduled', label: 'lint', phase: 'check' }]),
+      agentOf([
+        {
+          childId: 'a',
+          attempt: 1,
+          status: 'terminal',
+          terminal: 'failed',
+          durationMs: 900,
+          usage: { inputTokens: 1, outputTokens: 2, cachedTokens: 0, reasoningTokens: 0 },
+        },
+      ]),
+      agentOf([
+        { childId: 'a', attempt: 2, status: 'started' },
+        { childId: 'c', attempt: 1, status: 'scheduled' },
+      ]),
+      // An update without a list leaves the agents as they were.
+      run({ itemId: 'w', kind: 'workflow', status: 'inProgress' }),
+    ])
+    expect(entryOf(state, 'w')).toMatchObject({
+      children: [
+        {
+          childId: 'a',
+          attempt: 2,
+          status: 'started',
+          label: 'lint',
+          phase: 'check',
+          terminal: undefined,
+          durationMs: undefined,
+          usage: undefined,
+        },
+        { childId: 'c', attempt: 1, status: 'scheduled' },
+      ],
+    })
+  })
+
+  it('brings a stored run back from history as its card', () => {
+    const state = reduceAll([
+      signedIn,
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        items: [WORKFLOW_TOOL_ITEM, WORKFLOW_COMPLETED],
+        todos: [],
+      }),
+    ])
+    expect(state.transcript.map((entry) => entry.kind)).toEqual(['tool', 'workflow'])
+    expect(entryOf(state, WORKFLOW_ITEM_ID)).toMatchObject({
+      status: 'completed',
+      children: [{ childId: WORKFLOW_CHILD_ID, terminal: 'completed' }],
+      message: WORKFLOW_MESSAGE,
     })
   })
 })

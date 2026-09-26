@@ -492,6 +492,50 @@
   "agentDelegationOff": "Muse Code のサブエージェント委任はオフ (既定) のため、この会話ではモデルがエージェント ツールを使用できません。有効にするには、Muse Code の設定ファイルで run.subagent_delegation_mode を \"auto\" に設定してください。拡張機能がこのファイルを編集することはありません。",
   "agentOpenMuseSettings": "Muse Code の設定ファイルを開く",
   "museSettingsMissing": "Muse Code はまだ設定ファイルを書き込んでいません。設定ファイルの場所は {path} です",
+  "workflowRowLabel": "ワークフロー",
+  "workflowGenerated": "このタスク用に作成",
+  "workflowTriggerSources": {
+    "guidanceAuto": "モデルが開始"
+  },
+  "workflowAgentsLabel": "ワークフローのエージェント",
+  "workflowChildStatuses": {
+    "scheduled": "待機中",
+    "started": "実行中",
+    "usage": "実行中",
+    "completed": "完了",
+    "terminal": "終了"
+  },
+  "workflowChildUntitled": "エージェント {number}",
+  "workflowAttempt": "試行 {attempt}",
+  "workflowCancel": "ワークフローをキャンセル",
+  "workflowSkip": "スキップ",
+  "workflowRetry": "再試行",
+  "workflowSkipChild": "{child} をスキップ",
+  "workflowRetryChild": "{child} を再試行",
+  "workflowCancelRefused": "ワークフローはキャンセルされませんでした: {reason}。",
+  "workflowChildRefused": "ワークフローのエージェントは変更されませんでした: {reason}。",
+  "workflowRefusals": {
+    "already_terminal": "既に終了しています",
+    "missing_run": "Muse Code にはその ID の実行中のワークフローがありません",
+    "invalid_target": "そのエージェントは実行されていません",
+    "stale_attempt": "そのエージェントは既に新しい試行に移っています"
+  },
+  "workflowControlFailed": "ワークフロー コマンドが失敗しました",
+  "workflowsUnsupported": "Model API バックエンドはワークフローを実行しません",
+  "workflowsCount": {
+    "other": "{count} 個のワークフロー"
+  },
+  "workflowsLabel": "ワークフロー",
+  "workflowTriggerModes": {
+    "auto": "Muse Code のワークフローは \"auto\" です。大きな作業ではモデルが自分でワークフローを開始でき、依頼すると開始します。ワークフローの各エージェントはそれぞれモデルを呼び出します。",
+    "explicit": "Muse Code のワークフローは \"explicit\" です。モデルは依頼されたときにのみワークフローを開始します。",
+    "off": "Muse Code のワークフローはオフ (\"off\") です。モデルはワークフロー ツールを使用できません。"
+  },
+  "workflowTriggerOther": "Muse Code のワークフロー設定は {mode} です。",
+  "workflowTriggerHowTo": "変更するには、Muse Code の設定ファイルで run.workflow_trigger_mode を \"auto\"、\"explicit\"、\"off\" のいずれかに設定してください。拡張機能がこのファイルを編集することはありません。",
+  "workflowLaunched": "開始しました: バックグラウンドで実行され、結果はこの会話に報告されます。",
+  "workflowResumesFrom": "{path} から以前の実行を再開します",
+  "workflowScriptSaved": "スクリプトの保存先: {path}",
   "backgroundTasksCount": {
     "other": "{count} 個のバックグラウンド タスク"
   },

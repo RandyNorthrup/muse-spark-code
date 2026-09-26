@@ -18,6 +18,7 @@ import {
   questionSchema,
   requirementRefSchema,
   tokenUsageSchema,
+  workflowRunFields,
 } from '../../shared/agentEvents'
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
 import { NOTICE_LEVELS } from '../../shared/protocol'
@@ -186,8 +187,42 @@ const subagentEntrySchema = z.object({
   resultText: z.optional(z.string()),
 })
 
+/**
+ * One agent of a workflow run (MSP `WorkflowChild`, captured live
+ * 2026-09-25), keyed by `childId`; `attempt` is its current one, the key
+ * `workflow/childControl` needs. Muse Code re-sends the whole list on every
+ * change but drops a field once it moves on (the label after `scheduled`,
+ * the tokens after `usage`), so the row keeps what it was told.
+ */
+export const workflowChildSchema = z.object({
+  childId: z.string(),
+  attempt: z.number(),
+  status: z.string(),
+  label: z.optional(z.string()),
+  phase: z.optional(z.string()),
+  /** The child's outcome once it ends (`completed`, `failed`, `cancelled`). */
+  terminal: z.optional(z.string()),
+  durationMs: z.optional(z.number()),
+  usage: z.optional(tokenUsageSchema),
+})
+export type WorkflowChild = z.infer<typeof workflowChildSchema>
+
+const workflowEntrySchema = z.object({
+  /** A workflow run Muse Code launched (M47, PLAN.md D40). */
+  kind: z.literal('workflow'),
+  id: z.string(),
+  status: z.string(),
+  /** Without its `workflowRunId` the card offers no control. */
+  ...workflowRunFields,
+  /** The server's one-line summary, the name when the entry is not one the panel reads. */
+  fallbackText: z.optional(z.string()),
+  children: z.readonly(z.array(workflowChildSchema)),
+  /** The reconciled message the run ends with (`workflowOutcome` reads it). */
+  message: z.optional(z.string()),
+})
+
 const itemEntrySchema = z.object({
-  /** Kinds the UI does not know (workflow, compaction, …). */
+  /** Kinds the UI does not know (compaction, …). */
   kind: z.literal('item'),
   id: z.string(),
   itemKind: z.string(),
@@ -213,6 +248,7 @@ export const transcriptEntrySchema = z.discriminatedUnion('kind', [
   toolEntrySchema,
   userShellEntrySchema,
   subagentEntrySchema,
+  workflowEntrySchema,
   itemEntrySchema,
   errorEntrySchema,
   noticeEntrySchema,

@@ -510,6 +510,52 @@
   "agentDelegationOff": "La delega agli agenti secondari di Muse Code è disattivata (è l’impostazione predefinita), quindi il modello non ha strumenti per agenti in questa conversazione. Imposta run.subagent_delegation_mode su “auto” nel file di impostazioni di Muse Code per attivarla; l’estensione non modifica mai quel file.",
   "agentOpenMuseSettings": "Apri il file di impostazioni di Muse Code",
   "museSettingsMissing": "Muse Code non ha ancora scritto un file di impostazioni. Si troverebbe in {path}",
+  "workflowRowLabel": "Flusso di lavoro",
+  "workflowGenerated": "Scritto per questa attività",
+  "workflowTriggerSources": {
+    "guidanceAuto": "avviato dal modello"
+  },
+  "workflowAgentsLabel": "Agenti del flusso di lavoro",
+  "workflowChildStatuses": {
+    "scheduled": "in coda",
+    "started": "in esecuzione",
+    "usage": "in esecuzione",
+    "completed": "completato",
+    "terminal": "terminato"
+  },
+  "workflowChildUntitled": "Agente {number}",
+  "workflowAttempt": "tentativo {attempt}",
+  "workflowCancel": "Annulla flusso di lavoro",
+  "workflowSkip": "Salta",
+  "workflowRetry": "Riprova",
+  "workflowSkipChild": "Salta {child}",
+  "workflowRetryChild": "Riprova {child}",
+  "workflowCancelRefused": "Il flusso di lavoro non è stato annullato: {reason}.",
+  "workflowChildRefused": "L’agente del flusso di lavoro non è stato modificato: {reason}.",
+  "workflowRefusals": {
+    "already_terminal": "è già terminato",
+    "missing_run": "Muse Code non ha un’esecuzione attiva con quell’id",
+    "invalid_target": "quell’agente non è in esecuzione",
+    "stale_attempt": "quell’agente è passato a un nuovo tentativo"
+  },
+  "workflowControlFailed": "Il comando del flusso di lavoro non è riuscito",
+  "workflowsUnsupported": "Il back-end Model API non esegue flussi di lavoro",
+  "workflowsCount": {
+    "one": "{count} flusso di lavoro",
+    "many": "{count} di flussi di lavoro",
+    "other": "{count} flussi di lavoro"
+  },
+  "workflowsLabel": "Flussi di lavoro",
+  "workflowTriggerModes": {
+    "auto": "I flussi di lavoro di Muse Code sono su “auto”: il modello può avviarne uno da solo per lavori grandi, e ne avvia uno quando lo chiedi. Ogni agente del flusso di lavoro fa le proprie chiamate al modello.",
+    "explicit": "I flussi di lavoro di Muse Code sono su “explicit”: il modello ne avvia uno solo quando lo chiedi.",
+    "off": "I flussi di lavoro di Muse Code sono disattivati (“off”): il modello non ha lo strumento per i flussi di lavoro."
+  },
+  "workflowTriggerOther": "L’impostazione dei flussi di lavoro di Muse Code è {mode}.",
+  "workflowTriggerHowTo": "Imposta run.workflow_trigger_mode su “auto”, “explicit” o “off” nel file di impostazioni di Muse Code per cambiarla; l’estensione non modifica mai quel file.",
+  "workflowLaunched": "Avviato: viene eseguito in background e riferisce a questa conversazione.",
+  "workflowResumesFrom": "Riprende un’esecuzione precedente da {path}",
+  "workflowScriptSaved": "Script salvato in {path}",
   "backgroundTasksCount": {
     "one": "{count} attività in background",
     "many": "{count} di attività in background",

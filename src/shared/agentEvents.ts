@@ -53,6 +53,18 @@ const subagentResultSchema = z.object({
   errorKind: z.optional(z.string()),
 })
 
+/**
+ * A workflow run as its item names it (M47): the handle its controls send,
+ * the entry and script it launched, and what started it. The wire item and
+ * the transcript's saved row share these.
+ */
+export const workflowRunFields = {
+  workflowRunId: z.optional(z.string()),
+  entryId: z.optional(z.string()),
+  scriptId: z.optional(z.string()),
+  triggerSource: z.optional(z.string()),
+} as const
+
 export const itemSnapshotFields = {
   itemId: z.string(),
   kind: z.string(),
@@ -108,6 +120,15 @@ export const itemSnapshotFields = {
   modelVisibleContent: z.optional(z.array(z.unknown())),
   /** `agentMessage`: the sources the reply cites (`url_citation`, M33), each once. */
   citations: z.optional(z.array(citationSchema)),
+  /**
+   * `workflow` (M47, captured live 2026-09-25): the run as above, and the
+   * reconciled message it ends with. Its `children` are taken as they come
+   * and read one by one (`reportedChildren`), so a child whose shape
+   * differs costs that child, never the run.
+   */
+  ...workflowRunFields,
+  children: z.optional(z.array(z.unknown())),
+  message: z.optional(z.string()),
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)

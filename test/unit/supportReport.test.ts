@@ -22,6 +22,7 @@ const base: SupportFacts = {
   },
   hasCliCredentialFile: true,
   delegationMode: 'off',
+  workflowTriggerMode: 'auto',
   hasStoredApiKey: false,
   hasEnvironmentApiKey: false,
   dictation: { isAvailable: true },
@@ -42,7 +43,7 @@ describe('renderSupportReport', () => {
         'muse binary path configured: no; environment variables: 2',
         // The home directory is `~` in a report meant for a public issue (D24).
         String.raw`muse cli: found in ~\AppData\Local\Programs\muse (version 1.3.0)`,
-        'muse subagent delegation: off',
+        'muse subagent delegation: off; workflow trigger mode: auto',
         'cli credential file: yes; stored model api key: no; META_API_KEY in environment: no',
         'voice dictation: available',
       ].join('\n'),

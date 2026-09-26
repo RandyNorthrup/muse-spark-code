@@ -17,6 +17,7 @@ import {
   SCHEDULE_TOOLS,
   SHELL_TOOLS,
   UI_TEXT,
+  WORKFLOW_TOOL,
 } from '../shared/constants'
 import { fill, plural } from '../shared/l10n/text'
 import type { PatchSummary } from './state/transcriptEntries'
@@ -31,6 +32,7 @@ export type ToolBody =
   | 'schedule'
   | 'web'
   | 'image'
+  | 'workflow'
   | 'generic'
 
 export interface ToolPresentation {
@@ -179,6 +181,10 @@ function otherPresentation(
   }
   if (IMAGE_MAKING_TOOLS.has(tool)) {
     return { summary: parsed.path ?? '', body: 'image' }
+  }
+  // The run itself is its own card below the row (M47); the row shows the script.
+  if (tool === WORKFLOW_TOOL) {
+    return { summary: '', body: 'workflow' }
   }
   return {
     summary:

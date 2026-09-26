@@ -519,6 +519,53 @@
   "agentDelegationOff": "Delegování na podagenty je v Muse Code vypnuto (výchozí stav), takže model v této konverzaci nemá žádné nástroje agentů. Chcete-li ho zapnout, nastavte v souboru nastavení Muse Code run.subagent_delegation_mode na „auto“; rozšíření tento soubor nikdy neupravuje.",
   "agentOpenMuseSettings": "Otevřít soubor nastavení Muse Code",
   "museSettingsMissing": "Muse Code zatím nezapsal soubor nastavení. Soubor by byl v umístění {path}",
+  "workflowRowLabel": "Pracovní postup",
+  "workflowGenerated": "Napsaný pro tento úkol",
+  "workflowTriggerSources": {
+    "guidanceAuto": "spustil ho model"
+  },
+  "workflowAgentsLabel": "Agenti pracovního postupu",
+  "workflowChildStatuses": {
+    "scheduled": "ve frontě",
+    "started": "běží",
+    "usage": "běží",
+    "completed": "dokončeno",
+    "terminal": "skončeno"
+  },
+  "workflowChildUntitled": "Agent {number}",
+  "workflowAttempt": "pokus {attempt}",
+  "workflowCancel": "Zrušit pracovní postup",
+  "workflowSkip": "Přeskočit",
+  "workflowRetry": "Zopakovat",
+  "workflowSkipChild": "Přeskočit {child}",
+  "workflowRetryChild": "Zopakovat {child}",
+  "workflowCancelRefused": "Pracovní postup nebyl zrušen: {reason}.",
+  "workflowChildRefused": "Agent pracovního postupu nebyl změněn: {reason}.",
+  "workflowRefusals": {
+    "already_terminal": "už skončil",
+    "missing_run": "Muse Code nemá žádný běh s tímto ID",
+    "invalid_target": "tento agent neběží",
+    "stale_attempt": "tento agent už přešel na nový pokus"
+  },
+  "workflowControlFailed": "Příkaz pracovního postupu selhal",
+  "workflowsUnsupported": "Back-end Model API nespouští žádné pracovní postupy",
+  "workflowsCount": {
+    "one": "{count} pracovní postup",
+    "few": "{count} pracovní postupy",
+    "many": "{count} pracovního postupu",
+    "other": "{count} pracovních postupů"
+  },
+  "workflowsLabel": "Pracovní postupy",
+  "workflowTriggerModes": {
+    "auto": "Pracovní postupy Muse Code jsou nastaveny na „auto“: model může u rozsáhlé práce spustit pracovní postup sám a spustí ho, když o to požádáte. Každý agent pracovního postupu provádí vlastní volání modelu.",
+    "explicit": "Pracovní postupy Muse Code jsou nastaveny na „explicit“: model spustí pracovní postup, jen když o to požádáte.",
+    "off": "Pracovní postupy Muse Code jsou vypnuté („off“): model nemá nástroj pro pracovní postupy."
+  },
+  "workflowTriggerOther": "Nastavení pracovních postupů Muse Code je {mode}.",
+  "workflowTriggerHowTo": "Chcete-li to změnit, nastavte v souboru nastavení Muse Code run.workflow_trigger_mode na „auto“, „explicit“ nebo „off“; rozšíření tento soubor nikdy neupravuje.",
+  "workflowLaunched": "Spuštěno: běží na pozadí a výsledek ohlásí do této konverzace.",
+  "workflowResumesFrom": "Navazuje na dřívější běh ze souboru {path}",
+  "workflowScriptSaved": "Skript uložen v {path}",
   "backgroundTasksCount": {
     "one": "{count} úloha na pozadí",
     "few": "{count} úlohy na pozadí",

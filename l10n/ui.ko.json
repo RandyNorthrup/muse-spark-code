@@ -492,6 +492,50 @@
   "agentDelegationOff": "Muse Code의 하위 에이전트 위임이 꺼져 있으므로(기본값) 이 대화에서 모델에 에이전트 도구가 없습니다. 사용하려면 Muse Code 설정 파일에서 run.subagent_delegation_mode를 \"auto\"로 설정하세요. 확장은 이 파일을 편집하지 않습니다.",
   "agentOpenMuseSettings": "Muse Code 설정 파일 열기",
   "museSettingsMissing": "Muse Code가 아직 설정 파일을 쓰지 않았습니다. 설정 파일 위치: {path}",
+  "workflowRowLabel": "워크플로",
+  "workflowGenerated": "이 작업용으로 작성됨",
+  "workflowTriggerSources": {
+    "guidanceAuto": "모델이 시작함"
+  },
+  "workflowAgentsLabel": "워크플로 에이전트",
+  "workflowChildStatuses": {
+    "scheduled": "대기 중",
+    "started": "실행 중",
+    "usage": "실행 중",
+    "completed": "완료됨",
+    "terminal": "종료됨"
+  },
+  "workflowChildUntitled": "에이전트 {number}",
+  "workflowAttempt": "시도 {attempt}",
+  "workflowCancel": "워크플로 취소",
+  "workflowSkip": "건너뛰기",
+  "workflowRetry": "다시 시도",
+  "workflowSkipChild": "{child} 건너뛰기",
+  "workflowRetryChild": "{child} 다시 시도",
+  "workflowCancelRefused": "워크플로가 취소되지 않았습니다: {reason}.",
+  "workflowChildRefused": "워크플로 에이전트가 변경되지 않았습니다: {reason}.",
+  "workflowRefusals": {
+    "already_terminal": "이미 종료되었습니다",
+    "missing_run": "Muse Code에 해당 ID의 실행 중인 워크플로가 없습니다",
+    "invalid_target": "해당 에이전트가 실행 중이 아닙니다",
+    "stale_attempt": "해당 에이전트가 이미 새 시도로 넘어갔습니다"
+  },
+  "workflowControlFailed": "워크플로 명령이 실패했습니다",
+  "workflowsUnsupported": "Model API 백엔드는 워크플로를 실행하지 않습니다",
+  "workflowsCount": {
+    "other": "워크플로 {count}개"
+  },
+  "workflowsLabel": "워크플로",
+  "workflowTriggerModes": {
+    "auto": "Muse Code의 워크플로가 \"auto\"로 설정되어 있습니다. 모델은 큰 작업에서 스스로 워크플로를 시작할 수 있으며, 요청하면 시작합니다. 각 워크플로 에이전트는 자체적으로 모델을 호출합니다.",
+    "explicit": "Muse Code의 워크플로가 \"explicit\"로 설정되어 있습니다. 모델은 요청할 때만 워크플로를 시작합니다.",
+    "off": "Muse Code의 워크플로가 꺼져 있습니다(\"off\"). 모델에 워크플로 도구가 없습니다."
+  },
+  "workflowTriggerOther": "Muse Code의 워크플로 설정은 {mode}입니다.",
+  "workflowTriggerHowTo": "변경하려면 Muse Code 설정 파일에서 run.workflow_trigger_mode를 \"auto\", \"explicit\" 또는 \"off\"로 설정하세요. 확장은 이 파일을 편집하지 않습니다.",
+  "workflowLaunched": "시작됨: 백그라운드에서 실행되며 결과를 이 대화에 알립니다.",
+  "workflowResumesFrom": "{path}에서 이전 실행을 재개합니다",
+  "workflowScriptSaved": "스크립트 저장 위치: {path}",
   "backgroundTasksCount": {
     "other": "백그라운드 작업 {count}개"
   },

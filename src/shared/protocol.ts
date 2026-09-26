@@ -30,6 +30,7 @@ import {
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
   WEBVIEW_ERROR_STACK_MAX_CHARS,
+  WORKFLOW_CHILD_ACTIONS,
 } from './constants'
 import { paidStateSchema } from './paid'
 import { sessionRowSchema } from './sessions'
@@ -346,6 +347,21 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     subagentId: z.string(),
     body: z.string(),
     isFollowup: z.boolean(),
+  }),
+  // A workflow run's controls (M47): cancel the run, or skip or retry one
+  // child's current attempt (the host refuses a stale one).
+  z.object({
+    type: z.literal('workflowCancel'),
+    sourceSessionId: z.string().check(z.minLength(1)),
+    workflowRunId: z.string().check(z.minLength(1)),
+  }),
+  z.object({
+    type: z.literal('workflowChildControl'),
+    sourceSessionId: z.string().check(z.minLength(1)),
+    workflowRunId: z.string().check(z.minLength(1)),
+    childId: z.string().check(z.minLength(1)),
+    attempt: z.int().check(z.minimum(1)),
+    action: z.enum(WORKFLOW_CHILD_ACTIONS),
   }),
   z.object({ type: z.literal('resumeSession'), sessionId: z.string() }),
   z.object({

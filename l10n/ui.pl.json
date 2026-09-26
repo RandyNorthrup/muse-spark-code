@@ -519,6 +519,53 @@
   "agentDelegationOff": "Delegowanie do podagentów w Muse Code jest wyłączone (domyślnie), więc model nie ma w tej rozmowie narzędzi agentów. Aby je włączyć, ustaw run.subagent_delegation_mode na \"auto\" w pliku ustawień Muse Code; rozszerzenie nigdy nie edytuje tego pliku.",
   "agentOpenMuseSettings": "Otwórz plik ustawień Muse Code",
   "museSettingsMissing": "Muse Code nie zapisał jeszcze pliku ustawień. Plik znajdowałby się tutaj: {path}",
+  "workflowRowLabel": "Przepływ pracy",
+  "workflowGenerated": "Napisany dla tego zadania",
+  "workflowTriggerSources": {
+    "guidanceAuto": "uruchomiony przez model"
+  },
+  "workflowAgentsLabel": "Agenci przepływu pracy",
+  "workflowChildStatuses": {
+    "scheduled": "w kolejce",
+    "started": "w toku",
+    "usage": "w toku",
+    "completed": "ukończono",
+    "terminal": "zakończono"
+  },
+  "workflowChildUntitled": "Agent {number}",
+  "workflowAttempt": "próba {attempt}",
+  "workflowCancel": "Anuluj przepływ pracy",
+  "workflowSkip": "Pomiń",
+  "workflowRetry": "Ponów",
+  "workflowSkipChild": "Pomiń {child}",
+  "workflowRetryChild": "Ponów {child}",
+  "workflowCancelRefused": "Przepływ pracy nie został anulowany: {reason}.",
+  "workflowChildRefused": "Agent przepływu pracy nie został zmieniony: {reason}.",
+  "workflowRefusals": {
+    "already_terminal": "już się zakończył",
+    "missing_run": "Muse Code nie ma aktywnego przebiegu o tym identyfikatorze",
+    "invalid_target": "ten agent nie działa",
+    "stale_attempt": "ten agent przeszedł już do nowej próby"
+  },
+  "workflowControlFailed": "Polecenie przepływu pracy nie powiodło się",
+  "workflowsUnsupported": "Backend Model API nie uruchamia przepływów pracy",
+  "workflowsCount": {
+    "one": "{count} przepływ pracy",
+    "few": "{count} przepływy pracy",
+    "many": "{count} przepływów pracy",
+    "other": "{count} przepływu pracy"
+  },
+  "workflowsLabel": "Przepływy pracy",
+  "workflowTriggerModes": {
+    "auto": "Przepływy pracy w Muse Code są ustawione na \"auto\": przy dużych zadaniach model może sam uruchomić przepływ pracy, a uruchamia go, gdy o to poprosisz. Każdy agent przepływu pracy wykonuje własne wywołania modelu.",
+    "explicit": "Przepływy pracy w Muse Code są ustawione na \"explicit\": model uruchamia przepływ pracy tylko wtedy, gdy o to poprosisz.",
+    "off": "Przepływy pracy w Muse Code są wyłączone (\"off\"): model nie ma narzędzia przepływów pracy."
+  },
+  "workflowTriggerOther": "Ustawienie przepływów pracy w Muse Code to {mode}.",
+  "workflowTriggerHowTo": "Aby to zmienić, ustaw run.workflow_trigger_mode na \"auto\", \"explicit\" lub \"off\" w pliku ustawień Muse Code; rozszerzenie nigdy nie edytuje tego pliku.",
+  "workflowLaunched": "Uruchomiono: działa w tle i zgłasza wynik w tej rozmowie.",
+  "workflowResumesFrom": "Wznawia wcześniejszy przebieg z pliku {path}",
+  "workflowScriptSaved": "Skrypt zapisano w {path}",
   "backgroundTasksCount": {
     "one": "{count} zadanie w tle",
     "few": "{count} zadania w tle",

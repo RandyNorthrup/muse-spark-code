@@ -17,6 +17,7 @@ import {
   MUSE_DELEGATION_ENABLED,
   type SubagentAction,
   UI_TEXT,
+  type WorkflowChildAction,
 } from '../shared/constants'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
@@ -61,7 +62,9 @@ import {
   type UiState,
   userShellCommandOf,
   visibleEditorContext,
+  workflowsOf,
 } from './state/uiState'
+import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 
 export interface AppProps {
@@ -627,7 +630,9 @@ export function App({
       if (view === 'history') {
         // Always re-list: the rows change while the dialog is closed.
         postMessage({ type: 'listSessions' })
-      } else if (view === 'usage') {
+      } else if (view === 'usage' || view === 'agents') {
+        // The Agent map notes Muse Code's delegation and workflow settings
+        // from the same account facts (M47), read fresh as the dialog's are.
         postMessage({ type: 'readUsage' })
       }
       setOverlay(view)
@@ -688,6 +693,41 @@ export function App({
       postMessage({ type: 'subagentMessage', subagentId, body, isFollowup })
     },
     [postMessage],
+  )
+  const onCancelWorkflow = useCallback(
+    (workflowRunId: string) => {
+      const current = store.getState()
+      const workflow = workflowsOf(current).find((entry) => entry.workflowRunId === workflowRunId)
+      if (current.sessionId === undefined || workflow?.status !== 'inProgress') {
+        return
+      }
+      postMessage({ type: 'workflowCancel', sourceSessionId: current.sessionId, workflowRunId })
+    },
+    [postMessage, store],
+  )
+  const onControlWorkflowChild = useCallback(
+    (workflowRunId: string, childId: string, attempt: number, action: WorkflowChildAction) => {
+      const current = store.getState()
+      const workflow = workflowsOf(current).find((entry) => entry.workflowRunId === workflowRunId)
+      const child = workflow?.children.find((entry) => entry.childId === childId)
+      if (
+        current.sessionId === undefined ||
+        workflow?.status !== 'inProgress' ||
+        child?.attempt !== attempt ||
+        !isChildRunning(child)
+      ) {
+        return
+      }
+      postMessage({
+        type: 'workflowChildControl',
+        sourceSessionId: current.sessionId,
+        workflowRunId,
+        childId,
+        attempt,
+        action,
+      })
+    },
+    [postMessage, store],
   )
   const onOpenMuseSettings = useCallback(() => {
     postMessage({ type: 'hostAction', action: 'openMuseSettings' })
@@ -1023,6 +1063,13 @@ export function App({
   )
   const agents = agentsOf(state)
   const backgroundTasks = backgroundTasksOf(state)
+  // A workflow's agents are agents too (M47): the header's pill counts them.
+  const workflows = workflowsOf(state)
+  const workflowAgents = workflows.flatMap((workflow) => workflow.children)
+  const agentCount = agents.length + workflowAgents.length
+  const runningAgentCount =
+    agents.filter((agent) => agent.status === 'inProgress').length +
+    workflowAgents.filter((child) => isChildRunning(child)).length
   const effortLevels = effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
@@ -1125,6 +1172,8 @@ export function App({
         onQuote={onQuote}
         onCopyQuote={onCopyQuote}
         onCloseQuoteMenu={onCloseQuoteMenu}
+        onCancelWorkflow={onCancelWorkflow}
+        onControlWorkflowChild={onControlWorkflowChild}
       />
     )
   } else {
@@ -1225,6 +1274,10 @@ export function App({
         onStopAllTasks={onStopAllTasks}
         onOpenMuseSettings={onOpenMuseSettings}
         onClose={closeOverlay}
+        workflows={workflows}
+        workflowTriggerMode={state.usageReport?.account?.workflowTriggerMode}
+        onCancelWorkflow={onCancelWorkflow}
+        onControlWorkflowChild={onControlWorkflowChild}
       />
     ) : null
   const history =
@@ -1271,8 +1324,8 @@ export function App({
           onNewConversation={onNewConversation}
           onOpenHistory={onOpenHistory}
           onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
-          agentCount={agents.length}
-          runningAgentCount={agents.filter((agent) => agent.status === 'inProgress').length}
+          agentCount={agentCount}
+          runningAgentCount={runningAgentCount}
           runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
           onOpenAgents={onOpenAgents}
         />

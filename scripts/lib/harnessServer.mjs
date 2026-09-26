@@ -78,6 +78,8 @@ export const SCENARIOS = [
   'muse-shell',
   'background-map',
   'question-explain',
+  'muse-workflow',
+  'muse-workflow-map',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

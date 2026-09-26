@@ -492,6 +492,50 @@
   "agentDelegationOff": "Muse Code 的子代理委派已关闭（默认值），因此模型在此对话中没有代理工具。要启用它，请在 Muse Code 设置文件中将 run.subagent_delegation_mode 设置为 \"auto\"；此扩展从不编辑该文件。",
   "agentOpenMuseSettings": "打开 Muse Code 设置文件",
   "museSettingsMissing": "Muse Code 尚未写入设置文件。该文件应位于 {path}",
+  "workflowRowLabel": "工作流",
+  "workflowGenerated": "为此任务编写",
+  "workflowTriggerSources": {
+    "guidanceAuto": "由模型启动"
+  },
+  "workflowAgentsLabel": "工作流代理",
+  "workflowChildStatuses": {
+    "scheduled": "排队中",
+    "started": "运行中",
+    "usage": "运行中",
+    "completed": "已完成",
+    "terminal": "已结束"
+  },
+  "workflowChildUntitled": "代理 {number}",
+  "workflowAttempt": "第 {attempt} 次尝试",
+  "workflowCancel": "取消工作流",
+  "workflowSkip": "跳过",
+  "workflowRetry": "重试",
+  "workflowSkipChild": "跳过 {child}",
+  "workflowRetryChild": "重试 {child}",
+  "workflowCancelRefused": "工作流未取消：{reason}。",
+  "workflowChildRefused": "工作流代理未更改：{reason}。",
+  "workflowRefusals": {
+    "already_terminal": "它已经结束",
+    "missing_run": "Muse Code 没有该 ID 的运行中工作流",
+    "invalid_target": "该代理未在运行",
+    "stale_attempt": "该代理已进入新的尝试"
+  },
+  "workflowControlFailed": "工作流命令失败",
+  "workflowsUnsupported": "Model API 后端不运行工作流",
+  "workflowsCount": {
+    "other": "{count} 个工作流"
+  },
+  "workflowsLabel": "工作流",
+  "workflowTriggerModes": {
+    "auto": "Muse Code 的工作流设置为 \"auto\"：对于大型工作，模型可以自行启动工作流，并会在你要求时启动。每个工作流代理都会自行调用模型。",
+    "explicit": "Muse Code 的工作流设置为 \"explicit\"：模型仅在你要求时启动工作流。",
+    "off": "Muse Code 的工作流已关闭（\"off\"）：模型没有工作流工具。"
+  },
+  "workflowTriggerOther": "Muse Code 的工作流设置为 {mode}。",
+  "workflowTriggerHowTo": "要更改，请在 Muse Code 设置文件中将 run.workflow_trigger_mode 设置为 \"auto\"、\"explicit\" 或 \"off\"；此扩展从不编辑该文件。",
+  "workflowLaunched": "已启动：它在后台运行，并会向此对话报告结果。",
+  "workflowResumesFrom": "从 {path} 继续之前的运行",
+  "workflowScriptSaved": "脚本已保存到 {path}",
   "backgroundTasksCount": {
     "other": "{count} 个后台任务"
   },

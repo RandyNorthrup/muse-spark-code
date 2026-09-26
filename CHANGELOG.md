@@ -57,6 +57,24 @@ while they are (PLAN.md D30, D34).
 - **Explain instead** on question cards (M46): an answer in your own words
   in place of the options (Muse Code's `userInput/clarify`, and the same on
   the Model API backend); the row then reads "Explained".
+- **Workflows** (M47, PLAN.md D40). A multi-agent workflow Muse Code runs
+  is a card that keeps updating after the reply: its name, status, what
+  started it, each agent's state, attempt, time and tokens, and the result
+  it returned or the failure it reported. **Cancel workflow** and, on an
+  agent that is running, **Skip** and **Retry** go to Muse Code; a refusal
+  (the run had finished, the agent had moved on) is a notice that says why.
+  A delayed control from another conversation is ignored, and a late
+  refusal does not appear in the conversation now shown. The host checks
+  the workflow command's admission reply before treating it as accepted;
+  malformed run and child targets are rejected at the panel boundary.
+  A shortened workflow name shows its full name on hover.
+  The Workflow tool's row shows the script the model wrote and the launch.
+  The **N agents** pill counts workflow agents, the Agent map lists the
+  runs, and it says how Muse Code is set to start workflows
+  (`run.workflow_trigger_mode`, read from its settings file, never
+  written); Diagnostics reports the setting too. Built from a live capture
+  of Muse Code 1.3.0. A future run or agent status stays in words with a
+  neutral dot instead of being shown falsely as a failure.
 - **A row for every tool Muse Code runs** (M43, PLAN.md D36). Memory rows
   show the note and where it lives, and an edit as the text replaced; goal
   rows show the objective, its status, a progress bar, what is being done
@@ -174,6 +192,10 @@ while they are (PLAN.md D30, D34).
   folded snapshot, which carries the task list and the goal.
 - **A stopped task read "Failed"** (M46): a row stopped by you or by Stop
   now reads "Stopped" with the reason, and is read out so.
+- **The Agent map's note about Muse Code's delegation setting** showed only
+  once Account & usage had been opened in that panel (M47). Opening the map
+  now reads the setting itself. A map with background tasks also no longer
+  says it is empty merely because it has no subagent row.
 - **A command Muse Code moved to the background read "Interrupted"** when
   its turn ended (M43). It now shows what it printed, says it is still
   running, and is listed among the background tasks.

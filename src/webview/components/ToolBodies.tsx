@@ -1,7 +1,7 @@
 // The bodies of Muse Code's own tools (M43, PLAN.md D36): a memory note, a
-// goal, the scheduled prompts, a search's results and a picture the tool
-// read or made. Each falls back to the tool's own text when its result is
-// not the shape captured live.
+// goal, the scheduled prompts, a search's results, a workflow's launch (M47)
+// and a picture the tool read or made. Each falls back to the tool's own
+// text when its result is not the shape captured live.
 
 import { useEffect, useRef } from 'react'
 import { UI_TEXT } from '../../shared/constants'
@@ -20,11 +20,13 @@ import {
   goalDetails,
   imageRequestOf,
   memoryDetails,
+  readableText,
   type ScheduledPrompt,
   scheduledPrompts,
   webResults,
 } from '../toolDetails'
 import { goalStatusLabel } from '../toolPresentation'
+import { workflowLaunch } from '../workflowDetails'
 import { ExternalLink } from './ExternalLink'
 import { GoalBar, GoalWork } from './GoalParts'
 import { Clipped, DiffTable } from './ToolBlocks'
@@ -202,6 +204,43 @@ export function ImageBody({ entry }: { readonly entry: ToolEntry }) {
         </div>
       )}
       {entry.output === '' ? null : <Clipped text={entry.output} className="tool-output" />}
+    </div>
+  )
+}
+
+/**
+ * The Workflow tool's call (M47): the script the model wrote (or the file a
+ * resumed run starts from) and whether Muse Code launched it. The run
+ * itself is its own card, which follows the row.
+ */
+export function WorkflowBody({ entry }: { readonly entry: ToolEntry }) {
+  const launch = workflowLaunch(entry.args, entry.output)
+  let answer = null
+  if (launch.isLaunched) {
+    answer = (
+      <>
+        <p className="tool-detail-meta">{UI_TEXT.workflowLaunched}</p>
+        {launch.scriptPath === undefined ? null : (
+          <p className="tool-detail-meta workflow-path">
+            {fill(UI_TEXT.workflowScriptSaved, { path: launch.scriptPath })}
+          </p>
+        )}
+      </>
+    )
+  } else if (entry.output !== '') {
+    answer = <Clipped text={readableText(entry.output)} className="tool-output" />
+  }
+  return (
+    <div className="tool-detail">
+      {launch.script === undefined ? null : (
+        <Clipped text={launch.script} className="tool-output" />
+      )}
+      {launch.resumesFrom === undefined ? null : (
+        <p className="tool-detail-meta workflow-path">
+          {fill(UI_TEXT.workflowResumesFrom, { path: launch.resumesFrom })}
+        </p>
+      )}
+      {answer}
     </div>
   )
 }

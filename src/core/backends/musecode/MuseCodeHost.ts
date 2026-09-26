@@ -68,6 +68,8 @@ import {
   PromptSettledError,
   type PromptSettledReason,
   SessionNotLoadedError,
+  type WorkflowChildControl,
+  WorkflowControlRefusedError,
 } from '../../agent/agentBackend'
 import type { CoreLogger } from '../../logging'
 import {
@@ -239,6 +241,23 @@ const PROMPT_SETTLED_KINDS: ReadonlyMap<string, PromptSettledReason> = new Map([
   ['approvalNotFound', 'gone'],
   ['userInputNotFound', 'gone'],
 ])
+
+// `workflow/cancel` and `workflow/childControl` refuse as `commandRejected`
+// with the host's reason in `data` (captured live 2026-09-25:
+// `already_terminal`, `invalid_target`, `missing_run`; msp.d.ts names
+// `stale_attempt` too), M47.
+const refusalReasonSchema = z.object({ reason: z.string() })
+const workflowControlResultSchema = z.object({ commandId: z.string(), status: z.string() })
+const WORKFLOW_COMMAND_ACCEPTED = 'accepted'
+
+/** A refused workflow control as a `WorkflowControlRefusedError`; anything else unchanged. */
+function workflowRefusalOr(error: unknown): unknown {
+  if (!(error instanceof MspError) || error.kind !== COMMAND_REJECTED) {
+    return error
+  }
+  const parsed = refusalReasonSchema.safeParse(error.data)
+  return parsed.success ? new WorkflowControlRefusedError(parsed.data.reason, error.message) : error
+}
 
 /** A late decision or answer as a `PromptSettledError`; anything else unchanged. */
 function settledOr(error: unknown): unknown {
@@ -446,6 +465,18 @@ export class MuseSession implements AgentSession {
     this.isDisposed = true
     this.listeners.clear()
     this.onDispose()
+  }
+
+  /** A workflow control (M47): admission only, a refusal named by its reason. */
+  private async workflowCommand(method: string, params: Record<string, unknown>): Promise<void> {
+    try {
+      const result = workflowControlResultSchema.parse(await this.command(method, params))
+      if (result.status !== WORKFLOW_COMMAND_ACCEPTED) {
+        throw new Error(`${method} answered ${result.status}`)
+      }
+    } catch (error: unknown) {
+      throw workflowRefusalOr(error)
+    }
   }
 
   /** One more surface holds this handle (a second panel resumed the same session). */
@@ -678,6 +709,21 @@ export class MuseSession implements AgentSession {
       throw goalRefusalOr(error)
     }
     return { turnId: goalCommandResultSchema.parse(ack).turnId }
+  }
+
+  /** `workflow/cancel` (M47): the run's item updates carry the outcome, never the ack. */
+  public async cancelWorkflow(workflowRunId: string): Promise<void> {
+    await this.workflowCommand('workflow/cancel', { workflowRunId })
+  }
+
+  /** `workflow/childControl` (M47), keyed by the child's current attempt. */
+  public async controlWorkflowChild(control: WorkflowChildControl): Promise<void> {
+    await this.workflowCommand('workflow/childControl', {
+      workflowRunId: control.workflowRunId,
+      childId: control.childId,
+      attempt: control.attempt,
+      action: control.action,
+    })
   }
 
   /** One page of a stored tool output or patch document (`item/readOutput`). */

@@ -1,9 +1,10 @@
 // The Agent map (PLAN.md D17), as Claude Code's: this conversation on the
 // left, the subagents it spawned on the right (objective, role, status,
-// duration, tokens), the background tasks below, and a click on an agent for
-// its own transcript, read from the child session the CLI keeps for it.
-// When Muse Code's delegation is off (its default), the map says so and
-// opens the CLI's settings file on request; the extension never edits it.
+// duration, tokens), the workflow runs and their agents (M47), the
+// background tasks below, and a click on an agent for its own transcript,
+// read from the child session the CLI keeps for it. What Muse Code's
+// settings file says about delegation and workflows is noted, with the file
+// a click away; the extension never edits it.
 
 import { useState } from 'react'
 import {
@@ -15,11 +16,19 @@ import {
   USER_SHELL_PREFIX,
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
-import { fill, formatUnit, plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
 import { formatTokenWindow } from '../../shared/palette'
-import { type ChildTranscript, isRunningTask, type TranscriptEntry } from '../state/uiState'
+import {
+  type ChildTranscript,
+  isRunningTask,
+  type TranscriptEntry,
+  type WorkflowEntry,
+} from '../state/uiState'
 import { describeTool } from '../toolPresentation'
+import { agentStatusLabel, formatDurationMs } from '../agentFormat'
+import { workflowName, workflowTriggerText } from '../workflowDetails'
 import { Modal } from './Modal'
+import { type WorkflowControls, WorkflowRunView } from './WorkflowRun'
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
 export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
@@ -46,6 +55,12 @@ export interface AgentMapProps {
   readonly onStopAllTasks: () => void
   readonly onOpenMuseSettings: () => void
   readonly onClose: () => void
+  /** This conversation's workflow runs (M47), with their controls. */
+  readonly workflows: readonly WorkflowEntry[]
+  /** Muse Code's `run.workflow_trigger_mode`; undefined on the Model API backend. */
+  readonly workflowTriggerMode: string | undefined
+  readonly onCancelWorkflow: WorkflowControls['onCancelWorkflow']
+  readonly onControlWorkflowChild: WorkflowControls['onControlWorkflowChild']
 }
 
 /** Which owner controls an agent's state allows (M18); none once it is closed. */
@@ -138,22 +153,6 @@ function AgentControls({
 
 const RUNNING = 'inProgress'
 
-/** A status as the display language says it; one the table does not list shows as it came. */
-export function agentStatusLabel(status: string): string {
-  return Object.entries(UI_TEXT.agentStatuses).find(([known]) => known === status)?.[1] ?? status
-}
-
-const MILLISECONDS_PER_SECOND = 1000
-const SECONDS_PER_MINUTE = 60
-
-/** "45s", "1m 30s", in the display language's short units. */
-export function formatDurationMs(durationMs: number): string {
-  const totalSeconds = Math.round(durationMs / MILLISECONDS_PER_SECOND)
-  const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE)
-  const seconds = formatUnit(totalSeconds % SECONDS_PER_MINUTE, 'second')
-  return minutes === 0 ? seconds : `${formatUnit(minutes, 'minute')} ${seconds}`
-}
-
 /** The figure the map shows for an agent: its input and output tokens together. */
 function totalTokens(usage: TokenUsage): number {
   return usage.inputTokens + usage.outputTokens
@@ -221,6 +220,9 @@ function entryText(entry: TranscriptEntry): string {
     }
     case 'subagent': {
       return entry.objective ?? entry.role ?? UI_TEXT.agentUntitled
+    }
+    case 'workflow': {
+      return workflowName(entry)
     }
     case 'item': {
       return entry.text ?? entry.status
@@ -377,6 +379,10 @@ export function AgentMap({
   onStopAllTasks,
   onOpenMuseSettings,
   onClose,
+  workflows,
+  workflowTriggerMode,
+  onCancelWorkflow,
+  onControlWorkflowChild,
 }: AgentMapProps) {
   const selected = agents.find((agent) => agent.id === selectedAgentId)
   const transcript =
@@ -391,10 +397,15 @@ export function AgentMap({
     }
   }
   const count = agents.length
-  const subtitle =
-    count === 0
-      ? UI_TEXT.agentMapEmpty
-      : `${plural(UI_TEXT.agentsCount, count)} · ${UI_TEXT.agentMapHint}`
+  // Delegation off explains an empty map; with agents in it there is nothing to explain.
+  const isDelegationNoted = delegationMode !== undefined && !isDelegationEnabled && count === 0
+  // A map with workflow runs is not empty, though it has no subagents (M47).
+  let subtitle: string | undefined =
+    `${plural(UI_TEXT.agentsCount, count)} · ${UI_TEXT.agentMapHint}`
+  if (count === 0) {
+    subtitle =
+      workflows.length === 0 && backgroundTasks.length === 0 ? UI_TEXT.agentMapEmpty : undefined
+  }
   const mainMeta = [
     modelId,
     contextUsedTokens === undefined
@@ -407,7 +418,7 @@ export function AgentMap({
     <Modal title={UI_TEXT.agentMapTitle} titleId="agent-map-title" isWide onClose={onClose}>
       {selected === undefined ? (
         <>
-          <p className="usage-row-meta">{subtitle}</p>
+          {subtitle === undefined ? null : <p className="usage-row-meta">{subtitle}</p>}
           <div className="agent-tree">
             <div className="agent-node agent-node-main">
               <span className="agent-node-title">{title}</span>
@@ -427,9 +438,32 @@ export function AgentMap({
               </div>
             )}
           </div>
-          {delegationMode !== undefined && !isDelegationEnabled && count === 0 ? (
+          {workflows.length === 0 ? null : (
+            <>
+              <p className="usage-row-meta">{plural(UI_TEXT.workflowsCount, workflows.length)}</p>
+              <ul className="agent-workflows" aria-label={UI_TEXT.workflowsLabel}>
+                {workflows.map((workflow) => (
+                  <li
+                    key={workflow.id}
+                    className="agent-node workflow"
+                    data-status={workflow.status}
+                  >
+                    <WorkflowRunView
+                      entry={workflow}
+                      onCancelWorkflow={onCancelWorkflow}
+                      onControlWorkflowChild={onControlWorkflowChild}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {isDelegationNoted || workflowTriggerMode !== undefined ? (
             <div className="agent-notice" role="note">
-              <p>{UI_TEXT.agentDelegationOff}</p>
+              {isDelegationNoted ? <p>{UI_TEXT.agentDelegationOff}</p> : null}
+              {workflowTriggerMode === undefined ? null : (
+                <p>{workflowTriggerText(workflowTriggerMode)}</p>
+              )}
               <button type="button" className="tool-more" onClick={onOpenMuseSettings}>
                 {UI_TEXT.agentOpenMuseSettings}
               </button>

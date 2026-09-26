@@ -3,12 +3,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import { agentStatusLabel, formatDurationMs } from '../../src/webview/agentFormat'
+import type { WorkflowEntry } from '../../src/webview/state/uiState'
 import {
   AgentMap,
   type AgentMapProps,
-  agentStatusLabel,
   controlsFor,
-  formatDurationMs,
   type SubagentEntry,
   type ToolEntry,
 } from '../../src/webview/components/AgentMap'
@@ -81,6 +81,10 @@ function renderMap(overrides: Partial<AgentMapProps> = {}) {
     onStopAllTasks: vi.fn(),
     onOpenMuseSettings: vi.fn(),
     onClose: vi.fn(),
+    workflows: [],
+    workflowTriggerMode: undefined,
+    onCancelWorkflow: vi.fn(),
+    onControlWorkflowChild: vi.fn(),
     ...overrides,
   }
   render(<AgentMap {...props} />)
@@ -120,6 +124,7 @@ describe('AgentMap', () => {
   it('stops one background task or all of them, and only running ones (M46)', () => {
     const done: ToolEntry = { ...task, id: 'bg2', status: 'cancelled' }
     const props = renderMap({ agents: [], backgroundTasks: [task, done] })
+    expect(screen.getByRole('dialog', { name: 'Agent map' })).not.toHaveTextContent('No subagents')
     const list = screen.getByRole('list', { name: 'Background tasks' })
     // Only the running one has a Stop, named for what it stops.
     const stops = screen.getAllByRole('button', { name: /^Stop: / })
@@ -245,6 +250,55 @@ describe('AgentMap owner controls (M18)', () => {
     expect(onMessage).toHaveBeenCalledWith('sub-d', 'now BETA', true)
     fireEvent.click(screen.getByRole('button', { name: 'Close agent' }))
     expect(onControl).toHaveBeenCalledWith('sub-d', 'close')
+  })
+})
+
+describe('AgentMap workflows (M47)', () => {
+  const run: WorkflowEntry = {
+    kind: 'workflow',
+    id: 'w1',
+    status: 'inProgress',
+    workflowRunId: 'run-1',
+    entryId: 'generated.model-chosen',
+    triggerSource: 'guidanceAuto',
+    children: [{ childId: 'c1', attempt: 1, status: 'started', label: 'ping' }],
+  }
+
+  it('lists the runs with their agents and controls, and notes the trigger mode beside delegation', () => {
+    const props = renderMap({
+      agents: [],
+      backgroundTasks: [],
+      delegationMode: 'off',
+      isDelegationEnabled: false,
+      workflows: [run],
+      workflowTriggerMode: 'auto',
+    })
+    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    expect(map).toHaveTextContent('1 workflow')
+    // A map with a run in it is not "empty", though it has no subagents.
+    expect(map).not.toHaveTextContent('No subagents')
+    const runs = screen.getByRole('list', { name: 'Workflows' })
+    expect(runs).toHaveTextContent('Written for this task')
+    expect(runs).toHaveTextContent('ping')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel workflow' }))
+    expect(props.onCancelWorkflow).toHaveBeenCalledWith('run-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Skip ping' }))
+    expect(props.onControlWorkflowChild).toHaveBeenCalledWith('run-1', 'c1', 1, 'skip')
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent('subagent delegation is off')
+    expect(note).toHaveTextContent('Muse Code’s workflows are on auto')
+    expect(note).toHaveTextContent('Set run.workflow_trigger_mode')
+    // One way to the settings file, whatever the note says.
+    fireEvent.click(screen.getByRole('button', { name: 'Open the Muse Code settings file' }))
+    expect(props.onOpenMuseSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('notes the trigger mode alone when delegation needs no word', () => {
+    renderMap({ workflowTriggerMode: 'off' })
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent('Muse Code’s workflows are off')
+    expect(note).not.toHaveTextContent('delegation')
+    expect(screen.queryByRole('list', { name: 'Workflows' })).toBeNull()
   })
 })
 

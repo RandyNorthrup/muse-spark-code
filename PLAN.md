@@ -1224,7 +1224,7 @@ milestone that closes each gap:
 | Goals                             | MSP `goal/*`, `session/goalChanged` and the resumed snapshot's goal: the goal strip and `/goal` (M45)                                                                                                     | Muse Code's four goal tools, stored, pinned; no loop turns of its own (M45, D38)             | M45        |
 | Background work, stop             | MSP `task/background`, `task/stop`, `task/stopAll` wired to rows, Agent map and Ctrl+B (M46)                                                                                                              | shell calls can move to the background and be stopped; output reaches the next request (M46) | M46        |
 | `!` user shell                    | MSP `session/userShell` with the `userShell` grant; `!` prompt and row (M46)                                                                                                                              | the shell runner, outside turns, with output in replay (M46)                                 | M46        |
-| Workflows                         | items render generically; `workflow/cancel`, `workflow/childControl` not wired                                                                                                                            | none (Muse Code's own engine)                                                                | M47        |
+| Workflows                         | run and agents render as a card; cancel, skip and retry use MSP controls (M47, D40)                                                                                                                       | none (Muse Code's own engine)                                                                | M47        |
 | Subagents                         | map and controls (M14, M18); `reopen` and `readResult` not wired                                                                                                                                          | none (D17)                                                                                   | M48        |
 | Memory                            | Muse Code's memory tools; no view                                                                                                                                                                         | the index is read (M10); no tools                                                            | M49        |
 | MCP servers                       | loaded by Muse Code; read-only view (M31)                                                                                                                                                                 | none                                                                                         | M50        |
@@ -1450,6 +1450,78 @@ abort check, re-queuing steering that Stop had cancelled. The loop now checks
 the abort before each round and immediately after each response; returned
 calls receive cancelled outputs for replay validity, with no tool or
 steering continuation.
+
+### D40 — Workflows: the run as a card, Muse Code's controls, its setting read (2026-09-25)
+
+M47's live capture (one turn in an empty folder on the contributor model,
+eight model attempts; `docs/certification/m47.md`) showed what a workflow
+is on the wire. The `workflow` tool call carries the script the model
+wrote (`{"script": …}`) and answers with a launch (`status: "launched"`,
+`scriptPath`, `workflowRunId`); a separate `workflow` item follows, with
+`workflowRunId`, `entryId` (`generated.model-chosen` for a script the model
+wrote), `scriptId`, `triggerSource` (`guidanceAuto`), `fallbackText`, a
+`children` list re-sent whole on every change, and, on completion, a
+`message` wrapping a JSON report in `<workflow-launch-reconciled>`. The
+launching turn ended before the run did (8.0 s against 10.5 s); the run's
+completion then started a turn of its own, the model's reply. The choices:
+
+- **A card, not a generic row.** The item becomes its own row kind: the
+  run's name ("Written for this task", or a saved workflow's own), status,
+  agent count and tokens, what started it, its agents, and the report's
+  `final_summary.summary` (or `latest_failure`); a message that is not the
+  report is shown as it came. The card outlives its turn: it is never
+  settled as interrupted when the turn ends, and its updates, which keep
+  naming the launching turn, are never taken for a subagent's strays.
+  A status Muse Code adds later keeps a plain dot alongside its verbatim
+  text; only known failed or cancelled statuses get a failure mark.
+- **Agents as Muse Code tells them.** A child is keyed by `childId`. Muse
+  Code drops a field once the agent moves on (the label comes only with
+  `scheduled`, the tokens only with `usage`), so the row keeps what it was
+  told; a new attempt keeps the label and phase and starts its own outcome,
+  time and tokens. A child whose shape differs costs that child, a field
+  that differs costs that field, never the run (as `modelVisibleContent`
+  since the review of PR #29).
+- **The controls MSP has.** **Cancel workflow** (`workflow/cancel`) while
+  the run is in progress, **Skip** and **Retry** (`workflow/childControl`)
+  on an agent that is running (`started`, `usage`), as Muse Code's own
+  documentation offers them, keyed by its current attempt. The acks only
+  admit a command; the item's updates carry what happened. A refusal is
+  MSP `commandRejected` with the host's `reason` (captured:
+  `already_terminal`, `invalid_target`, `missing_run`; msp.d.ts names
+  `stale_attempt`), shown as a warning in words; a reason Muse Code adds
+  later shows as it came. Pause and resume have no MSP verb (`/workflows`
+  in the terminal UI only) and are not offered.
+- **Control ownership.** A webview control names the source session whose
+  workflow card offered it. The host ignores a late control after that
+  surface changes sessions; a refusal arriving after the change is not
+  shown on the new conversation. MSP controls name only the run/child, so
+  the panel must enforce the surface boundary before sending them.
+- **Admission ack.** A successful workflow control has the captured
+  `{commandId, status}` shape. The host validates it before reporting
+  admission; a status other than `accepted` is shown as it came rather
+  than silently treated as success.
+- **No agent transcripts.** A workflow child has no `childSessionId`, none
+  of its items reaches the parent's stream, `session/read` of its id
+  answers `sessionNotFound`, and `subagent/readResult` with it is admitted
+  and then sends nothing (free probes after the capture). The Agent map
+  lists the runs with the same view and controls instead, and the header's
+  pill counts their agents.
+- **The trigger setting, read.** `run.workflow_trigger_mode` is read from
+  Muse Code's settings file as `run.subagent_delegation_mode` is (D17),
+  each member on its own; unset, it reads `auto`, as 1.3.0 ran (the owner's
+  file has no `run` block, and the session's workflow guidance was the auto
+  one). The Agent map says what the mode means and how to change it, with
+  the file a click away, and Diagnostics names it. Opening the map now
+  reads these account facts itself; before, the delegation note waited for
+  Account & usage to have been opened.
+- **Cost.** A workflow spends the subscription like any turn (each agent
+  makes its own model calls, up to 1,000 over a run), so it is not a paid
+  feature under D30; the auto mode's note says so. The card's token figure
+  sums each child's latest reported attempt, not the subscription's billed
+  total across retries (no retry run was captured).
+- **Model API parity: none.** Workflows are Muse Code's own engine (its
+  JavaScript script engine and child runs); the Model API backend never
+  shows a run and refuses the controls.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3629,6 +3701,57 @@ hosted CI remains the merge gate.
   a background command ends (D39: nobody asked for one); a model-side stop
   tool like Muse Code's `work_stop`, and moving tools other than the shell,
   wait until a capture shows Muse Code doing either.
+
+### M47 — Workflows: the run, its agents, cancel and agent control (D40)
+
+**Status 2026-09-26: M46 merged base integrated; M47 locally verified,
+hosted certification pending** (`docs/certification/m47.md`). The isolated
+branch sits on M46 merge commit `e219d04` with M47's staged work. The
+final documented-tree quality gate passed; hosted CI and review remain.
+
+- **Goal**: a workflow Muse Code runs reads as what it is, a run of agents
+  going on in the background, and can be stopped or steered from the panel
+  as far as MSP allows.
+- **Research first**: a live capture of one turn asking for a workflow
+  with one agent, in `C:\muse-live-m47` on the contributor model (eight
+  model attempts, counted from the trace log, two of them a first run cut
+  short by the capture script); free probes of the controls against the
+  finished run for the refusals, and of `session/read` and
+  `subagent/readResult` with the agent's id.
+- **Scope**: the `workflow` item's fields through the MSP mapping; a
+  `workflow` transcript row (name, status, agents, tokens, trigger source,
+  result or failure) that outlives its turn; agents merged as Muse Code
+  drops fields; `workflow/cancel` and `workflow/childControl` on the
+  session interface, refusals as `WorkflowControlRefusedError` and warning
+  notices in words; the Workflow tool's row (script, launch, a resume's
+  file); the agents pill counting workflow agents and the Agent map listing
+  runs; `run.workflow_trigger_mode` read, noted in the map and in
+  Diagnostics; 34 strings in fourteen languages.
+- **Stale controls**: cancel, skip and retry are bound to the card's source
+  session; late messages and late refusal notices cannot act on or disturb
+  the conversation now shown on that surface.
+- **Control input**: the postMessage boundary requires a nonempty run ID,
+  nonempty child ID for child control, and an integer attempt of at least
+  one, matching MSP's target constraints before a command can be sent.
+- **Narrow layout**: a workflow name that is visually shortened keeps its
+  full display name in the title tooltip; a script ID is not a substitute
+  for that name.
+- **Agent map composition**: a map with a workflow or background task is not
+  empty even if it has no subagent row. The empty hint appears only when all
+  three are absent.
+- **Model API**: no parity is expected or built; workflows are Muse Code's
+  own engine (D40), and the backend refuses the controls.
+- **Acceptance pending**: tests from the captured frames and refusals,
+  drills W1–W24 (W5 caught on rerun in the integrated worktree), harness
+  scenarios `muse-workflow` and `muse-workflow-map` in the accessibility
+  gate; `npm run quality` must exit 0
+  on the final integrated worktree. Claude's M47 source worktree
+  passed `quality:gates` but its accessibility run had four Chrome pages
+  without a result and exited 1; secrets and SAST did not run.
+- **Left out, by Muse Code**: pausing and resuming a run (no MSP verb); a
+  workflow agent's transcript (no session to read); listing or recovering
+  saved workflows (`muse workflows list|recover` are CLI commands outside
+  MSP, left for a later look).
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
