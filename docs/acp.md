@@ -79,10 +79,62 @@ written (check its current documentation):
 }
 ```
 
+In Emacs, [agent-shell](https://github.com/xenodium/agent-shell) takes an
+agent configuration; this one was tested with agent-shell 0.79.2 and
+Emacs 29.3 (add `"--backend" "modelApi"` to the arguments for the other
+backend):
+
+```elisp
+(require 'agent-shell)
+
+(defun muse-spark-agent-config ()
+  (agent-shell-make-agent-config
+   :identifier 'muse-spark
+   :mode-line-name "Muse Spark"
+   :buffer-name "Muse Spark"
+   :shell-prompt "Muse> "
+   :shell-prompt-regexp "Muse> "
+   :client-maker (lambda (buffer)
+                   (acp-make-client :command "muse-spark-code-acp"
+                                    :command-params '()
+                                    :context-buffer buffer))))
+
+(defun muse-spark ()
+  "Start a Muse Spark shell."
+  (interactive)
+  (agent-shell-start :config (muse-spark-agent-config)))
+```
+
+`M-x muse-spark` opens the shell; a permission prompt takes `y` to allow
+once and `C-c C-c` to reject (which also stops the turn).
+
+In Neovim, [CodeCompanion](https://github.com/olimorris/codecompanion.nvim)
+takes an ACP adapter; this one was tested with CodeCompanion v19.25.0 and
+Neovim 0.11.4:
+
+```lua
+require("codecompanion").setup({
+  adapters = {
+    acp = {
+      muse_spark = function()
+        return require("codecompanion.adapters").extend("goose", {
+          name = "muse_spark",
+          formatted_name = "Muse Spark",
+          commands = { default = { "muse-spark-code-acp" } },
+        })
+      end,
+    },
+  },
+  interactions = { chat = { adapter = "muse_spark" } },
+})
+```
+
+`:CodeCompanionChat` opens a chat; a permission prompt lists its keys
+(Accept, Reject, Cancel) in the chat buffer.
+
 Other editors take the same command and arguments in their own agent or
 ACP settings (JetBrains AI Assistant, Xcode's Intelligence settings, Qt
-Creator's ACP Client, CodeCompanion for Neovim, agent-shell for Emacs,
-sublime-acp, Devin Desktop's custom agents).
+Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Options
 

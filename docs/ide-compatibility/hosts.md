@@ -16,8 +16,9 @@ qualified in CI or on the owner's machines.
 
 The ACP agent itself is built (M63a) and certified against the ACP SDK's
 own client, over stdio and in process, with the fake backends
-(`docs/certification/m63.md`). No editor below has run it yet, so every
-ACP row stays Planned until one has.
+(`docs/certification/m63.md`). Emacs with agent-shell and Neovim with
+CodeCompanion have run it; every other ACP row stays Planned until its
+editor has.
 
 ## The most used
 
@@ -58,17 +59,17 @@ ACP row stays Planned until one has.
 
 ## Through the ACP agent
 
-| Editor                  | Client                      | Milestone | Status  | Evidence and notes                        |
-| ----------------------- | --------------------------- | --------- | ------- | ----------------------------------------- |
-| Zed                     | Built in                    | M63       | Planned |                                           |
-| JetBrains IDEs          | AI Assistant                | M63       | Planned | WSL not supported by JetBrains' ACP       |
-| Xcode 27                | Built in                    | M63       | Planned |                                           |
-| Qt Creator              | The ACP Client extension    | M63       | Planned |                                           |
-| Neovim                  | CodeCompanion               | M63       | Planned |                                           |
-| Emacs                   | agent-shell                 | M63       | Planned | Emacs installable from Ubuntu's archive   |
-| Sublime Text            | sublime-acp                 | M63       | Planned |                                           |
-| Windsurf, Devin Desktop | Custom agents               | M63       | Planned |                                           |
-| Kate                    | Its ACP work, once released | M66       | Planned | Still an open merge request when reviewed |
+| Editor                  | Client                      | Milestone | Status  | Evidence and notes                                                                                                                                                                                     |
+| ----------------------- | --------------------------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Zed                     | Built in                    | M63       | Planned |                                                                                                                                                                                                        |
+| JetBrains IDEs          | AI Assistant                | M63       | Planned | WSL not supported by JetBrains' ACP                                                                                                                                                                    |
+| Xcode 27                | Built in                    | M63       | Planned |                                                                                                                                                                                                        |
+| Qt Creator              | The ACP Client extension    | M63       | Planned |                                                                                                                                                                                                        |
+| Neovim                  | CodeCompanion               | M63       | Preview | 2026-09-26: Neovim 0.11.4 with CodeCompanion v19.25.0: a streamed reply, a command accepted and one rejected from its approval prompt (fake CLI); setup in `docs/acp.md`                               |
+| Emacs                   | agent-shell                 | M63       | Preview | 2026-09-26: Emacs 29.3 with agent-shell 0.79.2 (acp.el 0.15.2, shell-maker 0.97.3): modes, model and effort, a streamed reply, a tool call allowed and one rejected (fake CLI); setup in `docs/acp.md` |
+| Sublime Text            | sublime-acp                 | M63       | Planned |                                                                                                                                                                                                        |
+| Windsurf, Devin Desktop | Custom agents               | M63       | Planned |                                                                                                                                                                                                        |
+| Kate                    | Its ACP work, once released | M66       | Planned | Still an open merge request when reviewed                                                                                                                                                              |
 
 ## Native and scientific
 

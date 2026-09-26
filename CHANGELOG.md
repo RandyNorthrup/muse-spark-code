@@ -80,7 +80,8 @@ while they are (PLAN.md D30, D34).
   Keychain, the Secret Service on Linux, with no plaintext fallback); the
   key is never read from the environment or passed to Muse Code. Paid
   features stay off in the agent. See `docs/acp.md`; which editors have
-  been tried is tracked in `docs/ide-compatibility/hosts.md` (none yet).
+  been tried is tracked in `docs/ide-compatibility/hosts.md` (Emacs with
+  agent-shell and Neovim with CodeCompanion so far).
 - **Open VSX and npm publishing** in the release workflow. A tag also
   publishes the VSIX to Open VSX, for VS Code forks that install from
   there, and the agent to npm, each only when its token is set in the

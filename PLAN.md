@@ -3613,6 +3613,20 @@ listing are M62b.
   can be (Neovim with CodeCompanion, Emacs with agent-shell, Zed,
   a JetBrains IDE, Qt Creator, Xcode 27, Sublime, Devin Desktop), its
   version and results recorded in `docs/ide-compatibility/hosts.md`.
+  - **Emacs, 2026-09-26** (`docs/certification/m63.md`): Emacs 29.3 from
+    Ubuntu, acp.el 0.15.2, shell-maker 0.97.3 and agent-shell 0.79.2
+    fetched file by file (GitHub's archives are refused here). acp.el
+    alone, and agent-shell in batch, ran the agent against the fake CLI:
+    the modes, the model and effort, a streamed reply, a tool call allowed
+    (`y`) and one rejected (`C-c C-c`, which cancels the turn, so the
+    permission answer is `cancelled` and the call is rejected). The
+    agent-shell configuration is in `docs/acp.md`.
+  - **Neovim, 2026-09-26**: Neovim 0.11.4 (its GitHub release),
+    plenary.nvim and CodeCompanion v19.25.0 (cloned; the tag was ten days
+    old), headless: a streamed reply, then CodeCompanion's approval prompt
+    (Accept `g2`, Reject `g3`, Cancel `g4`) pressed in the chat buffer:
+    accepted, the command ran; rejected, it was skipped. The adapter is in
+    `docs/acp.md`.
 - **M63c, the rest of the protocol**: file reads and writes through the
   client (`fs/*`) for the Model API backend; paid features with a
   confirmation that names the price; `session/close` and `delete`; the ACP

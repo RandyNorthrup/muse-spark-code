@@ -206,8 +206,11 @@ Neovim, Emacs and others), attached to each GitHub Release.
 [docs/acp.md](docs/acp.md) covers installing it, where it keeps a Model API
 key (the operating system's credential store), and the editor's settings.
 VS Code forks built on VS Code 1.99 or later can install the extension
-from a `.vsix`, and from Open VSX once a release is published there. [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md)
-records which editors have been tried; so far only VS Code.
+from a `.vsix`, and from Open VSX once a release is published there.
+[docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
+which editors have been tried: so far VSCodium, code-server and Eclipse
+Theia with the extension, and Emacs (agent-shell) and Neovim
+(CodeCompanion) with the agent.
 
 ## Permission modes
 
