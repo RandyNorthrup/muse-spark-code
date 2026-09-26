@@ -156,6 +156,22 @@ export function mapNotification(notification: WireNotification): MapOutcome {
   if (!isMappedMethod(method)) {
     return UNKNOWN_METHOD
   }
+  // Parse the new goal frame under its literal method so TypeScript can
+  // verify the schema/data relationship without an unchecked cast (M45).
+  if (method === 'session/goalChanged') {
+    const parsedGoal = schemas[method].safeParse(notification.params)
+    if (!parsedGoal.success) {
+      return MALFORMED_PARAMS
+    }
+    const { sessionId, goal } = parsedGoal.data
+    return {
+      sessionId,
+      event: {
+        type: 'goalChanged',
+        goal: goal === undefined || goal === null ? null : toSessionGoal(goal),
+      },
+    }
+  }
   const parsed = schemas[method].safeParse(notification.params)
   if (!parsed.success) {
     return MALFORMED_PARAMS
@@ -263,16 +279,6 @@ export function mapNotification(notification: WireNotification): MapOutcome {
     case 'session/todoListChanged': {
       const { sessionId, items } = params as z.infer<(typeof schemas)['session/todoListChanged']>
       return { sessionId, event: { type: 'todoChanged', items } }
-    }
-    case 'session/goalChanged': {
-      const { sessionId, goal } = params as z.infer<(typeof schemas)['session/goalChanged']>
-      return {
-        sessionId,
-        event: {
-          type: 'goalChanged',
-          goal: goal === undefined || goal === null ? null : toSessionGoal(goal),
-        },
-      }
     }
     case 'skill/changed': {
       return { sessionId: params.sessionId, event: { type: 'skillsChanged' } }

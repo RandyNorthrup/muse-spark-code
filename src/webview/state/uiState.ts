@@ -136,6 +136,21 @@ export interface UiState {
   /** Only an accepted command may clear the draft it submitted. */
   readonly pendingGoalCommand:
     { readonly requestId: string; readonly draftRevision: number } | undefined
+  /** Inline goal editor's exact text and its request awaiting host admission. */
+  readonly goalEdit:
+    | {
+        readonly draft: string
+        readonly revision: number
+        readonly pending:
+          | {
+              readonly requestId: string
+              readonly revision: number
+              readonly objective: string
+            }
+          | undefined
+      }
+    | undefined
+  readonly goalEditRevision: number
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
   /** Text waiting to be inserted at the composer caret, if any. */
@@ -229,6 +244,10 @@ export type UiAction =
   | { readonly type: 'hostMessage'; readonly message: HostToWebviewMessage; readonly at: number }
   | { readonly type: 'draftChanged'; readonly draft: string }
   | { readonly type: 'goalSubmitted'; readonly requestId: string }
+  | { readonly type: 'goalEditStarted'; readonly objective: string }
+  | { readonly type: 'goalEditChanged'; readonly draft: string }
+  | { readonly type: 'goalEditCanceled' }
+  | { readonly type: 'goalEditSubmitted'; readonly requestId: string; readonly objective: string }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
@@ -279,6 +298,8 @@ export const initialUiState: UiState = {
   draft: '',
   draftRevision: 0,
   pendingGoalCommand: undefined,
+  goalEdit: undefined,
+  goalEditRevision: 0,
   focusRequests: 0,
   pendingInsert: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
@@ -1213,7 +1234,31 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     }
     case 'goalChanged': {
       const goal = event.goal ?? undefined
-      return announce({ ...state, goal }, goalAnnouncement(state.goal, goal))
+      if (goal === undefined) {
+        return announce({ ...state, goal, goalEdit: undefined }, goalAnnouncement(state.goal, goal))
+      }
+      const edit = state.goalEdit
+      if (edit === undefined || goal.objective === state.goal?.objective) {
+        return announce({ ...state, goal }, goalAnnouncement(state.goal, goal))
+      }
+      const isOwnEdit = edit.pending?.objective === goal.objective
+      const isNewerDraft = edit.pending !== undefined && edit.revision > edit.pending.revision
+      if (isOwnEdit) {
+        return announce(
+          { ...state, goal, goalEdit: isNewerDraft ? edit : { ...edit, draft: goal.objective } },
+          goalAnnouncement(state.goal, goal),
+        )
+      }
+      const revision = state.goalEditRevision + 1
+      return announce(
+        {
+          ...state,
+          goal,
+          goalEdit: { draft: goal.objective, revision, pending: undefined },
+          goalEditRevision: revision,
+        },
+        goalAnnouncement(state.goal, goal),
+      )
     }
     case 'effortChanged':
     case 'approvalModeChanged':
@@ -1246,6 +1291,7 @@ function clearedConversation(state: UiState): UiState {
   return {
     ...state,
     pendingGoalCommand: undefined,
+    goalEdit: undefined,
     childTranscripts: {},
     childOwners: {},
     strayItems: {},
@@ -1468,6 +1514,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           sequence: replayed.sequence,
           todos: message.todos,
           goal: loadedGoal(state, message),
+          goalEdit: isSameSession ? state.goalEdit : undefined,
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
           usage: isSameSession ? state.usage : undefined,
@@ -1497,13 +1544,24 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'goalCommandResult': {
       const pending = state.pendingGoalCommand
-      if (pending?.requestId !== message.requestId) {
+      if (pending?.requestId === message.requestId) {
+        return {
+          ...state,
+          pendingGoalCommand: undefined,
+          draft:
+            message.accepted && state.draftRevision === pending.draftRevision ? '' : state.draft,
+        }
+      }
+      const edit = state.goalEdit
+      if (edit?.pending?.requestId !== message.requestId) {
         return state
       }
       return {
         ...state,
-        pendingGoalCommand: undefined,
-        draft: message.accepted && state.draftRevision === pending.draftRevision ? '' : state.draft,
+        goalEdit:
+          message.accepted && edit.revision === edit.pending.revision
+            ? undefined
+            : { ...edit, pending: undefined },
       }
     }
     case 'sendFailed': {
@@ -1624,6 +1682,46 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         pendingGoalCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
+    case 'goalEditStarted': {
+      const revision = state.goalEditRevision + 1
+      return {
+        ...state,
+        goalEdit: { draft: action.objective, revision, pending: undefined },
+        goalEditRevision: revision,
+      }
+    }
+    case 'goalEditChanged': {
+      const edit = state.goalEdit
+      if (edit === undefined) {
+        return state
+      }
+      const revision = state.goalEditRevision + 1
+      return {
+        ...state,
+        goalEdit: { ...edit, draft: action.draft, revision },
+        goalEditRevision: revision,
+      }
+    }
+    case 'goalEditCanceled': {
+      return { ...state, goalEdit: undefined }
+    }
+    case 'goalEditSubmitted': {
+      const edit = state.goalEdit
+      if (edit === undefined || edit.pending !== undefined) {
+        return state
+      }
+      return {
+        ...state,
+        goalEdit: {
+          ...edit,
+          pending: {
+            requestId: action.requestId,
+            revision: edit.revision,
+            objective: action.objective,
+          },
+        },
       }
     }
     case 'insertRequested': {

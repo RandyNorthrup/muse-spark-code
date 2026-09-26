@@ -306,10 +306,12 @@ export function App({
   }, [dispatch, postMessage])
   // The session goal's verbs (M45, PLAN.md D38): the strip's buttons and `/goal …`.
   const onGoalCommand = useCallback(
-    (verb: GoalCommandVerb, objective?: string, isFromDraft = false) => {
+    (verb: GoalCommandVerb, objective?: string, source?: 'composer' | 'inline') => {
       const requestId = `goal:${newLocalId()}:${String(++nextGoalRequestId.current)}`
-      if (isFromDraft) {
+      if (source === 'composer') {
         dispatch({ type: 'goalSubmitted', requestId })
+      } else if (source === 'inline' && objective !== undefined) {
+        dispatch({ type: 'goalEditSubmitted', requestId, objective })
       }
       postMessage({
         type: 'goalCommand',
@@ -319,6 +321,30 @@ export function App({
       })
     },
     [dispatch, newLocalId, postMessage],
+  )
+  const onGoalEditStarted = useCallback(
+    (objective: string) => {
+      dispatch({ type: 'goalEditStarted', objective })
+    },
+    [dispatch],
+  )
+  const onGoalEditChanged = useCallback(
+    (draft: string) => {
+      dispatch({ type: 'goalEditChanged', draft })
+    },
+    [dispatch],
+  )
+  const onGoalEditCanceled = useCallback(() => {
+    dispatch({ type: 'goalEditCanceled' })
+  }, [dispatch])
+  const onGoalEditSaved = useCallback(
+    (objective: string) => {
+      if (store.getState().goalEdit?.pending !== undefined) {
+        return
+      }
+      onGoalCommand('edit', objective, 'inline')
+    },
+    [store, onGoalCommand],
   )
   const onSubmit = useCallback(() => {
     const current = store.getState()
@@ -336,7 +362,7 @@ export function App({
         dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.goalObjectiveMissing })
         return
       }
-      onGoalCommand(goal.verb, goal.objective, true)
+      onGoalCommand(goal.verb, goal.objective, 'composer')
       setIsPinnedToEnd(true)
       return
     }
@@ -1235,6 +1261,14 @@ export function App({
         goal={state.goal}
         isInert={isModalOpen}
         onCommand={onGoalCommand}
+        editor={{
+          draft: state.goalEdit?.draft,
+          isPending: state.goalEdit?.pending !== undefined,
+          onStart: onGoalEditStarted,
+          onChange: onGoalEditChanged,
+          onCancel: onGoalEditCanceled,
+          onSave: onGoalEditSaved,
+        }}
       />
       <TodoPanel items={state.todos} isInert={isModalOpen} />
       <div className="composer-area" inert={isModalOpen}>

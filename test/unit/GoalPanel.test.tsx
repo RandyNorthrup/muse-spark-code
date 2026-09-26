@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionGoal } from '../../src/shared/agentEvents'
@@ -13,9 +14,42 @@ const active: SessionGoal = {
   nextWork: 'Fix the precedence bug',
 }
 
+function Harness({
+  goal,
+  onCommand,
+  accepted = false,
+}: {
+  readonly goal: SessionGoal | undefined
+  readonly onCommand: (verb: string, objective?: string) => void
+  readonly accepted?: boolean
+}) {
+  const [draft, setDraft] = useState<string | undefined>(undefined)
+  const [isPending, setIsPending] = useState(false)
+  return (
+    <GoalPanel
+      goal={goal}
+      onCommand={onCommand}
+      editor={{
+        draft: accepted ? undefined : draft,
+        isPending,
+        onStart: setDraft,
+        onChange: setDraft,
+        onCancel: () => {
+          setDraft(undefined)
+          setIsPending(false)
+        },
+        onSave: (objective) => {
+          onCommand('edit', objective)
+          setIsPending(true)
+        },
+      }}
+    />
+  )
+}
+
 function show(goal: SessionGoal | undefined) {
   const onCommand = vi.fn<(verb: string, objective?: string) => void>()
-  const view = render(<GoalPanel goal={goal} onCommand={onCommand} />)
+  const view = render(<Harness goal={goal} onCommand={onCommand} />)
   return { onCommand, ...view }
 }
 
@@ -55,13 +89,13 @@ describe('GoalPanel (M45)', () => {
     expect(button('Resume')).toBeNull()
     click('Pause')
     expect(onCommand).toHaveBeenLastCalledWith('pause')
-    rerender(<GoalPanel goal={{ ...active, status: 'paused' }} onCommand={onCommand} />)
+    rerender(<Harness goal={{ ...active, status: 'paused' }} onCommand={onCommand} />)
     expect(button('Pause')).toBeNull()
     click('Resume')
     expect(onCommand).toHaveBeenLastCalledWith('resume')
     expect(button('Edit')).toBeTruthy()
     rerender(
-      <GoalPanel
+      <Harness
         goal={{ ...active, status: 'complete', percentComplete: 100 }}
         onCommand={onCommand}
       />,
@@ -86,7 +120,9 @@ describe('GoalPanel (M45)', () => {
     fireEvent.change(field, { target: { value: ' Ship on Friday ' } })
     click('Save')
     expect(onCommand).toHaveBeenLastCalledWith('edit', 'Ship on Friday')
-    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByRole('textbox')).toHaveValue(' Ship on Friday ')
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled).toBe(true)
+    click('Cancel')
     click('Edit')
     click('Save')
     expect(onCommand).toHaveBeenCalledTimes(1)
@@ -102,35 +138,31 @@ describe('GoalPanel (M45)', () => {
   it('closes the field when the goal can no longer be edited', () => {
     const { onCommand, rerender } = show(active)
     click('Edit')
-    rerender(<GoalPanel goal={{ ...active, status: 'complete' }} onCommand={onCommand} />)
+    rerender(<Harness goal={{ ...active, status: 'complete' }} onCommand={onCommand} />)
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getByText('Make the parser tests pass')).toBeTruthy()
   })
 
-  it('updates an open objective editor when the host changes the objective, but keeps typing on progress updates', () => {
+  it('keeps an open objective editor through a progress update', () => {
     const { onCommand, rerender } = show(active)
     click('Edit')
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'My unfinished edit' } })
-    rerender(<GoalPanel goal={{ ...active, percentComplete: 70 }} onCommand={onCommand} />)
+    rerender(<Harness goal={{ ...active, percentComplete: 70 }} onCommand={onCommand} />)
     expect(screen.getByRole('textbox')).toHaveValue('My unfinished edit')
-    rerender(
-      <GoalPanel goal={{ ...active, objective: 'Host changed objective' }} onCommand={onCommand} />,
-    )
-    expect(screen.getByRole('textbox')).toHaveValue('Host changed objective')
   })
 
   it('does not reopen an old editor when a cleared goal returns with the same objective', () => {
     const { onCommand, rerender } = show(active)
     click('Edit')
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Old unfinished edit' } })
-    rerender(<GoalPanel goal={undefined} onCommand={onCommand} />)
-    rerender(<GoalPanel goal={{ ...active }} onCommand={onCommand} />)
+    rerender(<Harness goal={undefined} onCommand={onCommand} />)
+    rerender(<Harness goal={{ ...active }} onCommand={onCommand} />)
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getByText(active.objective)).toBeTruthy()
   })
 
   it('gives the focus back to Edit when the field closes, never to the page', () => {
-    show(active)
+    const { onCommand, rerender } = show(active)
     const edit = screen.getByRole('button', { name: 'Edit' })
     fireEvent.click(edit)
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
@@ -138,6 +170,7 @@ describe('GoalPanel (M45)', () => {
     fireEvent.click(edit)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Ship on Friday' } })
     click('Save')
+    rerender(<Harness goal={active} onCommand={onCommand} accepted />)
     expect(document.activeElement).toBe(edit)
   })
 })

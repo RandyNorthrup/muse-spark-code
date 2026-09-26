@@ -1467,7 +1467,103 @@ function send(text: string) {
   fireEvent.keyDown(textarea(), { key: 'Enter' })
 }
 
+function showGoal() {
+  deliver({
+    type: 'agentEvent',
+    event: {
+      type: 'goalChanged',
+      goal: { objective: 'Original objective', status: 'active', percentComplete: 10 },
+    },
+  })
+  return screen.getByRole('region', { name: 'Session goal' })
+}
+
 describe('App: the session goal (M45)', () => {
+  it('keeps the exact inline edit through refusal, then closes on acceptance', () => {
+    const postMessage = renderReady()
+    const strip = showGoal()
+    const edit = within(strip).getByRole('button', { name: 'Edit' })
+    fireEvent.click(edit)
+    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    const rawDraft = `  ${'Long objective '.repeat(60)}  `
+    fireEvent.change(field, { target: { value: rawDraft } })
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:1',
+      verb: 'edit',
+      objective: rawDraft.trim(),
+    })
+    expect(field).toHaveValue(rawDraft)
+    expect(within(strip).getByRole('button', { name: 'Save' })).toBeDisabled()
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: false })
+    expect(field).toHaveValue(rawDraft)
+    expect(within(strip).getByRole('button', { name: 'Save' })).toBeEnabled()
+    fireEvent.change(field, { target: { value: 'Accepted objective' } })
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Accepted objective', status: 'active', percentComplete: 10 },
+      },
+    })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
+    expect(within(strip).queryByRole('textbox', { name: 'Goal objective' })).toBeNull()
+    expect(edit).toHaveFocus()
+  })
+
+  it('preserves newer inline typing when the old edit changes the goal before its result', () => {
+    const postMessage = renderReady()
+    const strip = showGoal()
+    fireEvent.click(within(strip).getByRole('button', { name: 'Edit' }))
+    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    fireEvent.change(field, { target: { value: 'First edit' } })
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    fireEvent.change(field, { target: { value: 'Newer unsent edit' } })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'First edit', status: 'active', percentComplete: 20 },
+      },
+    })
+    expect(field).toHaveValue('Newer unsent edit')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: true })
+    expect(field).toHaveValue('Newer unsent edit')
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:2',
+      verb: 'edit',
+      objective: 'Newer unsent edit',
+    })
+  })
+
+  it('updates an open inline editor for external objective changes, but keeps progress typing', () => {
+    renderReady()
+    const strip = showGoal()
+    fireEvent.click(within(strip).getByRole('button', { name: 'Edit' }))
+    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    fireEvent.change(field, { target: { value: 'My unfinished edit' } })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Original objective', status: 'active', percentComplete: 25 },
+      },
+    })
+    expect(field).toHaveValue('My unfinished edit')
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'External objective', status: 'active', percentComplete: 25 },
+      },
+    })
+    expect(field).toHaveValue('External objective')
+  })
+
   it('sends /goal as a command to the host, never as a message', () => {
     const postMessage = renderReady()
     send('/goal Make the parser tests pass')

@@ -18,6 +18,14 @@ export interface GoalPanelProps {
   readonly isInert?: boolean
   /** A verb for the host; `edit` carries the new objective. */
   readonly onCommand: (verb: GoalCommandVerb, objective?: string) => void
+  readonly editor: {
+    readonly draft: string | undefined
+    readonly isPending: boolean
+    readonly onStart: (objective: string) => void
+    readonly onChange: (draft: string) => void
+    readonly onCancel: () => void
+    readonly onSave: (objective: string) => void
+  }
 }
 
 // The statuses that stopped the goal short of done, shown alike.
@@ -43,15 +51,18 @@ function dotClass(status: string): string {
 }
 
 function ObjectiveForm({
-  objective,
+  draft,
+  isPending,
+  onChange,
   onSave,
   onCancel,
 }: {
-  readonly objective: string
+  readonly draft: string
+  readonly isPending: boolean
+  readonly onChange: (draft: string) => void
   readonly onSave: (objective: string) => void
   readonly onCancel: () => void
 }) {
-  const [draft, setDraft] = useState(objective)
   const inputRef = useRef<HTMLInputElement>(null)
   // The field takes the focus as it opens, with the text selected to retype.
   useEffect(() => {
@@ -83,11 +94,11 @@ function ObjectiveForm({
         aria-label={UI_TEXT.goalEditLabel}
         value={draft}
         onChange={(event) => {
-          setDraft(event.target.value)
+          onChange(event.target.value)
         }}
         onKeyDown={onKeyDown}
       />
-      <button type="submit" className="tool-more" disabled={draft.trim() === ''}>
+      <button type="submit" className="tool-more" disabled={isPending || draft.trim() === ''}>
         {UI_TEXT.goalEditSave}
       </button>
       <button type="button" className="tool-more" onClick={onCancel}>
@@ -101,33 +112,37 @@ function GoalPanelBody({
   goal,
   isInert = false,
   onCommand,
+  editor,
 }: GoalPanelProps & { readonly goal: SessionGoal }) {
   const [isEditing, setIsEditing] = useState(false)
   const editRef = useRef<HTMLButtonElement>(null)
   // A field closed from inside gives the focus back to Edit, not to the page.
   const focusReturn = useRef(false)
+  const isActive = goal.status === GOAL_STATUS.active
+  const isPaused = goal.status === GOAL_STATUS.paused
+  const canEdit = isActive || isPaused
+  const isFormShown = isEditing && canEdit && editor.draft !== undefined
   useEffect(() => {
-    if (isEditing || !focusReturn.current) {
+    if (isFormShown || !focusReturn.current) {
       return
     }
     focusReturn.current = false
     editRef.current?.focus()
-  }, [isEditing])
-  const isActive = goal.status === GOAL_STATUS.active
-  const isPaused = goal.status === GOAL_STATUS.paused
+  }, [isFormShown])
   // Only an active or paused goal can be changed (MSP `invalid_goal_state`).
-  const canEdit = isActive || isPaused
-  const isFormShown = isEditing && canEdit
   const percent = goal.percentComplete
   const closeForm = () => {
     focusReturn.current = true
     setIsEditing(false)
+    editor.onCancel()
   }
   const save = (objective: string) => {
-    closeForm()
-    if (objective !== goal.objective) {
-      onCommand('edit', objective)
+    if (objective === goal.objective) {
+      closeForm()
+      return
     }
+    focusReturn.current = true
+    editor.onSave(objective)
   }
   return (
     <section className="goal" aria-label={UI_TEXT.goalStripLabel} inert={isInert}>
@@ -171,7 +186,12 @@ function GoalPanelBody({
               title={UI_TEXT.goalEditTitle}
               aria-expanded={isFormShown}
               onClick={() => {
-                setIsEditing(!isFormShown)
+                if (isFormShown) {
+                  closeForm()
+                } else {
+                  editor.onStart(goal.objective)
+                  setIsEditing(true)
+                }
               }}
             >
               {UI_TEXT.goalEdit}
@@ -182,7 +202,7 @@ function GoalPanelBody({
             className="tool-more"
             title={UI_TEXT.goalClearTitle}
             onClick={() => {
-              setIsEditing(false)
+              closeForm()
               onCommand('clear')
             }}
           >
@@ -192,8 +212,9 @@ function GoalPanelBody({
       </div>
       {isFormShown ? (
         <ObjectiveForm
-          key={goal.objective}
-          objective={goal.objective}
+          draft={editor.draft}
+          isPending={editor.isPending}
+          onChange={editor.onChange}
           onSave={save}
           onCancel={closeForm}
         />
@@ -210,7 +231,7 @@ function GoalPanelBody({
   )
 }
 
-export function GoalPanel({ goal, isInert = false, onCommand }: GoalPanelProps) {
+export function GoalPanel({ goal, isInert = false, onCommand, editor }: GoalPanelProps) {
   if (goal === undefined) {
     return null
   }
@@ -221,6 +242,7 @@ export function GoalPanel({ goal, isInert = false, onCommand }: GoalPanelProps) 
       goal={goal}
       isInert={isInert}
       onCommand={onCommand}
+      editor={editor}
     />
   )
 }

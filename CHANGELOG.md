@@ -77,7 +77,8 @@ while they are (PLAN.md D30, D34).
   incomplete compaction cannot replace history with a partial summary.
   Rejected `/goal` commands keep their draft, while an accepted command
   clears only the unchanged draft. The goal editor refreshes when the
-  objective changes or a goal is replaced.
+  objective changes or a goal is replaced, and keeps an inline edit open
+  with its exact text if the host rejects it.
 - **Goal budget and busy commands** (M45, review of PR #31). A reply that
   spends a goal's token budget no longer runs its returned tools or starts
   another automatic request; a goal accepted while a reply streams gets a

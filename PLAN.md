@@ -1368,6 +1368,11 @@ and an incomplete compaction cannot replace history with a partial summary
 or escape usage accounting. These are M45 corrections, not new quota or
 model features; they require regression tests and red drills before merge.
 
+The following PR review also requires inline goal edits to keep their
+objective until the host accepts the edit, with rejection preserving the
+field; and the new `session/goalChanged` notification must be parsed under
+its literal method instead of adding an unregistered `as z.infer` cast.
+
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
 The owner (2026-09-25): "i dont think a 1.0 would be right until the app
@@ -3378,7 +3383,7 @@ translations. The order is D36's table:
   `/goal`; 30 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G31; both
+  reducer, the controller, the strip and the prompt; drills G1–G33; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the
