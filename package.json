@@ -591,6 +591,7 @@
     "lint-staged": "17.5.1",
     "npm-run-all2": "9.0.3",
     "ovsx": "1.2.0",
+    "playwright-core": "1.63.0",
     "prettier": "3.9.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",

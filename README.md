@@ -1010,7 +1010,11 @@ in `test/unit/helpers/` implement the full VS Code interfaces. The e2e tests
 that answers the Muse Session Protocol, including approvals, questions and
 subagents. Integration tests (`test/integration/**`) run under mocha inside a
 real VS Code launched by `@vscode/test-cli` (on Linux under `xvfb-run -a`),
-against `test/fixtures/workspace/`.
+against `test/fixtures/workspace/`. The host checks (`test/hosts/`, CI's
+Hosts workflow) run the packaged extension in VSCodium, code-server and
+Eclipse Theia, and the packaged ACP agent in JupyterLab, Emacs and
+Neovim, each against the fake CLI; `sh test/hosts/run-<host>.sh` runs
+one locally, with the arguments its header gives.
 
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are
@@ -1053,6 +1057,7 @@ test/e2e/                   the fake Muse Code CLI and the tests that drive the 
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
 test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds VS Code's four default themes
+test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
 scripts/                    esbuild build; bundle-size, host-globals, notices, audit, PSScriptAnalyzer, accessibility and localization gates; the pseudo-locale; theme capture, harness screenshots, image rendering; CHANGELOG notes and VS Code versions for the workflows
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots

@@ -117,6 +117,8 @@ test/e2e/**           the fake Muse Code CLI driven through the real backend;
 test/integration/**   @vscode/test-cli, runs inside VS Code
 test/harness/         the webview behind a fake host, for screenshots and the
                       accessibility gate; themes/ holds VS Code's four themes
+test/hosts/           the extension and the ACP agent in other editors
+                      against the fake CLI, one script per host (hosts.yml)
 scripts/**            esbuild build; bundle-size, host-globals, notices, audit,
                       PSScriptAnalyzer, accessibility and localization gates;
                       theme capture, the pseudo-locale, harness screenshots,
@@ -146,6 +148,7 @@ media/                icons, banner, social preview, README screenshots
 | Production build + size budget | `npm run build`                          |
 | Package `.vsix`                | `npm run package`                        |
 | Package the ACP agent (D62)    | `npm run package:acp`                    |
+| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`            |
 
 ## Toolchain pins that matter
 

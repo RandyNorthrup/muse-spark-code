@@ -89,6 +89,12 @@ while they are (PLAN.md D30, D34).
   publishes the VSIX to Open VSX, for VS Code forks that install from
   there, and the agent to npm, each only when its token is set in the
   `marketplace` environment.
+- **Host checks in CI** (the Hosts workflow, `test/hosts/`). Every pull
+  request that touches the product runs the packaged extension in VSCodium
+  and code-server (the 1.99 floor and the latest) and in Eclipse Theia,
+  and the packaged ACP agent on Linux, macOS and Windows (its key through
+  each credential store) and in JupyterLab, Emacs and Neovim, all against
+  a fake Muse Code CLI; the latest releases are tried again every Monday.
 
 ### Changed
 

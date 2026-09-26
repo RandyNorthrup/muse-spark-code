@@ -1,12 +1,14 @@
 // The ACP agent as editors run it (M63, PLAN.md D62): `acp.js` bundled from
-// the source as the build bundles it, started as a real child process, and
+// the source as the build bundles it (or, with MUSE_ACP_PACKAGE_DIR, the
+// package npm installed, as hosts.yml checks it on each platform), started
+// as a real child process, and
 // driven over its stdio by the ACP SDK's own client, on the fake Muse Code
 // CLI of fake-muse/serve.mjs. A reply streamed, a tool call allowed and one
 // denied, a cancel, the session listed, sign-in asked for, and the key never
 // on the wire.
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
@@ -20,12 +22,14 @@ import { installFakeCredential, installFakeMuse } from './fakeMuse'
 
 const TEST_TIMEOUT_MS = 30_000
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
-// The package laid out as npm installs it; the native keyring binding it
-// requires comes from this repository's node_modules (NODE_PATH), as an
-// installed package finds its own dependency.
-const PACKAGE = mkdtempSync(path.join(tmpdir(), 'acp-package-'))
+// An installed package brings its own native keyring binding. One laid out
+// here as npm installs it takes the binding from this repository's
+// node_modules (NODE_PATH), as an installed package finds its dependency.
+const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
+const PACKAGE = INSTALLED ?? mkdtempSync(path.join(tmpdir(), 'acp-package-'))
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
-const NODE_PATH = path.join(ROOT, 'node_modules')
+const NODE_PATH = INSTALLED === undefined ? path.join(ROOT, 'node_modules') : ''
+const LAID_OUT_VERSION = '0.0.0-e2e'
 
 const fake = installFakeMuse()
 const signedIn = installFakeCredential()
@@ -34,6 +38,9 @@ const workspace = mkdtempSync(path.join(tmpdir(), 'acp-e2e-ws-'))
 const children: ChildProcessWithoutNullStreams[] = []
 
 beforeAll(async () => {
+  if (INSTALLED !== undefined) {
+    return
+  }
   mkdirSync(path.dirname(AGENT), { recursive: true })
   await build({
     entryPoints: [path.join(ROOT, 'src', 'runtime', 'main.ts')],
@@ -45,7 +52,7 @@ beforeAll(async () => {
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
   })
-  writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: '0.0.0-e2e' }))
+  writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
   cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
 })
 
@@ -53,10 +60,9 @@ afterAll(async () => {
   for (const child of children) {
     child.kill()
   }
+  const made = [fake.installDir, signedIn, signedOut, workspace]
   await Promise.all(
-    [PACKAGE, fake.installDir, signedIn, signedOut, workspace].map((folder) =>
-      removeFolder(folder),
-    ),
+    [...made, ...(INSTALLED === undefined ? [PACKAGE] : [])].map((folder) => removeFolder(folder)),
   )
 })
 
@@ -130,7 +136,15 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
   it('prints its version and help, and refuses an argument it does not know', () => {
     const env = { ...process.env, NODE_PATH, LANG: 'C' }
     const version = spawnSync(process.execPath, [AGENT, '--version'], { encoding: 'utf8', env })
-    expect(version.stdout.trim()).toBe('0.0.0-e2e')
+    const expected =
+      INSTALLED === undefined
+        ? LAID_OUT_VERSION
+        : (
+            JSON.parse(readFileSync(path.join(PACKAGE, 'package.json'), 'utf8')) as {
+              version: string
+            }
+          ).version
+    expect(version.stdout.trim()).toBe(expected)
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })

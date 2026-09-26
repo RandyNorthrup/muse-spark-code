@@ -1,0 +1,5 @@
+# JupyterLab with Jupyter AI's ACP client, for the host check in hosts.yml
+# (PLAN.md M63): each release at least seven days old when pinned.
+jupyter-ai==3.2.0
+jupyter-ai-persona-manager==0.2.0
+jupyterlab==4.6.3

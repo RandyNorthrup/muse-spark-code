@@ -22,6 +22,7 @@
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",
     "test/integration/**/*.test.ts",
+    "test/hosts/*.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs"
   ],

@@ -3645,6 +3645,12 @@ listing are M62b.
     `mcpCapabilities.http`) and prepends a note telling the model to use
     them; the agent passes no MCP servers on yet, so M63c's MCP item
     matters here first.
+  - **In CI, 2026-09-26** (`.github/workflows/hosts.yml`, `test/hosts/`,
+    `docs/certification/m63.md`): JupyterLab, Emacs (acp.el v0.15.1 and
+    agent-shell v0.77.4, the newest tags seven days old) and Neovim run
+    the packaged agent against the fake CLI on each pull request, with
+    VSCodium, code-server and Theia for the extension, and the agent's
+    package and key store on all three platforms. Zed stays manual.
 - **M63c, the rest of the protocol**: file reads and writes through the
   client (`fs/*`) for the Model API backend; paid features with a
   confirmation that names the price; `session/close` and `delete`; the ACP
@@ -3689,6 +3695,7 @@ listing are M62b.
 | Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA                           | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
 | Localization          | `node scripts/check-l10n.mjs` (`npm run check:l10n`, in `quality:gates`): every table in `l10n/` against the English table, strictly; the manifest against `package.nls.json`; no `UI_TEXT` read at module load | M40 ✓ (drills in `docs/certification/m40.md`)                                                                                                                                                              |
 | Host API record       | `node scripts/check-host-api.mjs` (`npm run check:host-api`, in `quality:gates`; `--write` regenerates): `docs/ide-compatibility/host-api.md` against the source, and the portable code never reaching `vscode` | M60 ✓ (drills in `docs/certification/m60.md`)                                                                                                                                                              |
+| Hosts                 | `.github/workflows/hosts.yml`, CI only: each job runs one `test/hosts` script (VSCodium, code-server, Theia, the agent package and key store, Jupyter, Emacs, Neovim)                                           | M62/M63 ✓ locally (drills H1–H5 in `docs/certification/m63.md`)                                                                                                                                            |
 
 ## 8. Escape hatches register
 
