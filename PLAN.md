@@ -1390,6 +1390,19 @@ inline history cannot answer, and Model API usage is persisted after both
 goal and cumulative counters update. The new view shape was captured live
 without a model turn (M45 certification); the tests and red drills cover
 clear, completion, paging and persisted failed compaction usage.
+The following review found that saving each Model API usage update can
+persist a function call before its pending approval or tool has produced an
+output, making replay invalid after a crash. Normal turns now save at their
+existing settled boundary, while compaction saves in its `finally` after
+its usage and status settle. A captured-save regression test guards every
+snapshot written during a pending `ask_user` call.
+The independent M45 audit found that goal tools, goal commands and settings
+changes could still save a pending normal-turn call, so the store now defers
+any snapshot with an unanswered function call while preserving safe
+turn-start saves and live session-list updates. It also found that a resume downgraded to inline
+history needs the same durable goal read as a gap reload, and that a live
+goal event arriving during a gap read must win over that older read. Focused
+tests and red drills cover both paths.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3401,7 +3414,7 @@ translations. The order is D36's table:
   `/goal`; 31 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G36; both
+  reducer, the controller, the strip and the prompt; drills G1–G39; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the

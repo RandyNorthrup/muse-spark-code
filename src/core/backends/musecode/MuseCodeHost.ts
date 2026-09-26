@@ -1094,6 +1094,17 @@ export class MuseCodeHost implements AgentHost {
     if (hasPending) {
       await this.presentPending(sessionId)
     }
+    if (loaded.history.goal === undefined) {
+      try {
+        return {
+          ...loaded,
+          history: { ...loaded.history, goal: await this.goalFromView(sessionId) },
+        }
+      } catch {
+        // A page failure must not strand an attached session after resume.
+        this.log.warn('Muse Code could not recover the goal from view history after resume')
+      }
+    }
     return loaded
   }
 

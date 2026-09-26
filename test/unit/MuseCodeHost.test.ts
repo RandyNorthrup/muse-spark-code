@@ -1135,6 +1135,17 @@ function goalAck(turnId?: string) {
   })
 }
 
+function resumedGoalSession(sessionId: string) {
+  return {
+    sessionId,
+    status: 'idle',
+    activeTurnId: null,
+    createdAt: '2026-09-25T19:06:18Z',
+    updatedAt: '2026-09-25T19:06:39Z',
+    turnCount: 1,
+  }
+}
+
 describe('MuseCodeHost: the session goal (M45)', () => {
   it('sends each verb as goal/<verb>, the objective only with set and edit', async () => {
     const { host, server } = setup()
@@ -1195,14 +1206,7 @@ describe('MuseCodeHost: the session goal (M45)', () => {
   it('resumes asking for a snapshot, whose goal and task list come with the history', async () => {
     const { host, server } = setup()
     server.handle('session/resume', (params) => ({
-      session: {
-        sessionId: params['sessionId'],
-        status: 'idle',
-        activeTurnId: null,
-        createdAt: '2026-09-25T19:06:18Z',
-        updatedAt: '2026-09-25T19:06:39Z',
-        turnCount: 1,
-      },
+      session: resumedGoalSession(String(params['sessionId'])),
       history: {
         mode: 'snapshot',
         items: null,
@@ -1233,6 +1237,42 @@ describe('MuseCodeHost: the session goal (M45)', () => {
     })
     // Inline history carried no task list, so a resume lost it before M45.
     expect(loaded.history.todos).toEqual([{ text: 'Say hello', status: 'pending' }])
+    expect(server.requestsFor('view/page')).toHaveLength(0)
+  })
+
+  it('recovers the goal when a resume downgrades from snapshot to inline', async () => {
+    const { host, server } = setup()
+    server.handle('session/resume', (params) => ({
+      session: resumedGoalSession(String(params['sessionId'])),
+      history: { mode: 'inline', items: [], snapshot: null },
+      pendingRequests: [],
+      viewCursor: 'v:old:14',
+    }))
+    server.handle('view/page', () => ({
+      events: [
+        {
+          method: 'session/goalChanged',
+          params: {
+            sessionId: 'old',
+            viewCursor: 'v:old:14',
+            sourceRange: {
+              stream: { kind: 'session', id: 'old' },
+              first: { id: 'goal', sequence: 14 },
+              last: { id: 'goal', sequence: 14 },
+            },
+            goal: { objective: 'Ship it', status: 'paused', percentComplete: 25 },
+          },
+        },
+      ],
+      nextCursor: null,
+    }))
+    const loaded = await host.resumeSession('old', 'muse-spark-1.3')
+    expect(loaded.history.goal).toEqual({
+      objective: 'Ship it',
+      status: 'paused',
+      percentComplete: 25,
+    })
+    expect(server.requestsFor('view/page')).toHaveLength(1)
   })
 
   it('routes session/goalChanged to the session as goalChanged', async () => {

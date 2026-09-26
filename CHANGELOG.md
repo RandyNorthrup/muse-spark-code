@@ -79,7 +79,11 @@ while they are (PLAN.md D30, D34).
   now fail without changing the replacement goal; the next request uses the
   new objective. A Muse Code gap reload recovers the latest goal change from
   durable view history, including a clear or completion. Billed usage from
-  an incomplete compaction is saved before the error returns.
+  an incomplete compaction is saved before the error returns; ordinary tool
+  rounds are saved only after every call has an output. A resumed Muse Code
+  conversation also recovers its goal if the server downgrades its requested
+  snapshot to inline history, and a live goal change outranks an older gap
+  reload that finishes afterward.
   Rejected `/goal` commands keep their draft, while an accepted command
   clears only the unchanged draft. The goal editor refreshes when the
   objective changes or a goal is replaced, and keeps an inline edit open

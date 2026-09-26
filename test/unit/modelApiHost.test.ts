@@ -2182,6 +2182,27 @@ async function beginBudgetGoal(
   await turnDone()
 }
 
+/** Records whether any persisted replay had a call without its output. */
+function storeTrackingPendingCalls() {
+  const store = memorySessionStore()
+  const savedWithoutOutput: boolean[] = []
+  const save = store.save.bind(store)
+  store.save = (snapshot) => {
+    const outputs = new Set(
+      snapshot.replay.flatMap((entry) =>
+        entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
+      ),
+    )
+    savedWithoutOutput.push(
+      snapshot.replay.some(
+        (entry) => entry.item.type === 'function_call' && !outputs.has(entry.item.call_id),
+      ),
+    )
+    return save(snapshot)
+  }
+  return { store, savedWithoutOutput }
+}
+
 const GOAL_WAKE_MESSAGE = {
   type: 'message',
   role: 'user',
@@ -2577,6 +2598,42 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(session.snapshot().usage.inputTokens).toBe(before.inputTokens + 90)
     expect(session.snapshot().usage.outputTokens).toBe(before.outputTokens + 10)
     expect(store.saved.get(session.sessionId)?.usage).toEqual(session.snapshot().usage)
+  })
+
+  it('never saves a pending function call without its output', async () => {
+    const { store, savedWithoutOutput } = storeTrackingPendingCalls()
+    const t = setup({ store })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          { name: 'todo_write', arguments: '{"items":[{"text":"First","status":"completed"}]}' },
+          ASK_USER_CALL,
+        ],
+      },
+      { text: 'Done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'ask me' }])
+    const question = await awaitQuestion(events)
+    await session.controlGoal({ verb: 'set', objective: 'Ship it' })
+    await session.answerQuestions(question.userInputId, [{ questionId: 'q', selectedLabel: 'Red' }])
+    await turnDone()
+    await t.host.close()
+    expect(savedWithoutOutput).not.toContain(true)
+  })
+
+  it('saves goal tool calls only after their outputs', async () => {
+    const { store, savedWithoutOutput } = storeTrackingPendingCalls()
+    const t = setup({ store })
+    const { session, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [{ name: 'create_goal', arguments: '{"objective":"Ship it"}', callId: 'goal' }] },
+      { text: 'Working' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'set a goal' }])
+    await turnDone()
+    await t.host.close()
+    expect(savedWithoutOutput).not.toContain(true)
   })
 
   it('keeps the goal with the stored session, and forks carry it', async () => {

@@ -811,9 +811,6 @@ export class ModelApiSession implements AgentSession {
     }
     this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
     this.noteContext(usage.input_tokens + usage.output_tokens)
-    // A failed or incomplete compaction has no later transcript touch; save
-    // the billed usage after both the goal and cumulative counters have moved.
-    this.touch()
   }
 
   private noteContext(usedTokens: number): void {
@@ -2005,6 +2002,9 @@ export class ModelApiSession implements AgentSession {
       this.compacting = undefined
       this.status = IDLE
       this.emit({ type: 'sessionStatus', status: IDLE })
+      // A rejected compaction still spent tokens. Save after it settles;
+      // normal turns wait for every function call's output before saving.
+      this.touch()
       this.startNextQueued()
     }
   }
@@ -2283,6 +2283,21 @@ export class ModelApiHost implements AgentHost {
       return
     }
     const snapshot = session.snapshot()
+    // A turn-start user message can be saved, but a function call without
+    // its output cannot be replayed after a crash. Goal/settings touches
+    // during a pending tool still announce live; the settled touch saves.
+    const answered = new Set(
+      snapshot.replay.flatMap((entry) =>
+        entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
+      ),
+    )
+    if (
+      snapshot.replay.some(
+        (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
+      )
+    ) {
+      return
+    }
     this.stored.set(snapshot.sessionId, headerOf(snapshot))
     const previous = this.saving
     this.saving = (async () => {

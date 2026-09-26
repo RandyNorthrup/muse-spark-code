@@ -159,6 +159,7 @@ function setup(
     /** The clipboard refuses (M39: a failure no step catches). */
     copyFails?: boolean
     /** A clock the test moves (M39: turn timings). */
+    beforeEnsureHost?: () => Promise<void>
     clock?: { now: number }
     /** What the workspace answers for a tool row's picture (M43). */
     readToolImage?: ConversationDeps['readToolImage']
@@ -305,7 +306,10 @@ function setup(
           : { signInMethod: 'apiKey' as const },
       ),
     usageInsights: () => Promise.resolve(options.usageInsights),
-    ensureHost: () => Promise.resolve(host),
+    ensureHost: async () => {
+      await options.beforeEnsureHost?.()
+      return host
+    },
     workspaceRoot: 'workspaceRoot' in options ? options.workspaceRoot : '/ws',
     modelId: 'muse-spark-1.3',
     initialPermissionMode: options.initialPermissionMode ?? 'manual',
@@ -2886,6 +2890,24 @@ describe('ConversationController: lifecycle (D25)', () => {
   })
 })
 
+function gapInlineHistory(sessionId: string) {
+  return {
+    session: { sessionId, createdAt: 'c', updatedAt: 'u', status: 'running', turnCount: 1 },
+    history: { mode: 'inline', items: [] },
+    viewCursor: 'v:s1:3',
+    pendingRequests: [],
+  }
+}
+
+async function activeGoalForGap(t: ReturnType<typeof setup>): Promise<void> {
+  await t.send('l1', 'hi')
+  t.server.notify('session/goalChanged', {
+    sessionId: 's1',
+    goal: { objective: 'Old goal', status: 'active', percentComplete: 50 },
+  })
+  t.server.handle('session/read', (params) => gapInlineHistory(String(params['sessionId'])))
+}
+
 describe('ConversationController: protocol semantics (D26)', () => {
   const refusal = refusalOf
 
@@ -3010,23 +3032,7 @@ describe('ConversationController: protocol semantics (D26)', () => {
     },
   ])('recovers a missed goal $name from view history', async ({ recoveredGoal, paged }) => {
     const t = setup()
-    await t.send('l1', 'hi')
-    t.server.notify('session/goalChanged', {
-      sessionId: 's1',
-      goal: { objective: 'Old goal', status: 'active', percentComplete: 50 },
-    })
-    t.server.handle('session/read', (params) => ({
-      session: {
-        sessionId: params['sessionId'],
-        createdAt: 'c',
-        updatedAt: 'u',
-        status: 'running',
-        turnCount: 1,
-      },
-      history: { mode: 'inline', items: [] },
-      viewCursor: 'v:s1:3',
-      pendingRequests: [],
-    }))
+    await activeGoalForGap(t)
     t.server.handle('view/page', (params) => {
       if (paged && params['cursor'] === undefined) {
         return {
@@ -3060,6 +3066,60 @@ describe('ConversationController: protocol semantics (D26)', () => {
       expect.objectContaining({ type: 'historyLoaded', sessionId: 's1', goal: recoveredGoal }),
     )
     expect(t.server.requestsFor('view/page')).toHaveLength(paged ? 2 : 1)
+  })
+
+  it('keeps a newer live goal change when an older gap read finishes later', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    let isDelayed = false
+    let isWaiting = false
+    const t = setup({
+      beforeEnsureHost: () => {
+        if (!isDelayed) {
+          return Promise.resolve()
+        }
+        isWaiting = true
+        return gate.promise
+      },
+    })
+    await activeGoalForGap(t)
+    t.server.handle('view/page', () => ({
+      events: [
+        {
+          method: 'session/goalChanged',
+          params: {
+            sessionId: 's1',
+            viewCursor: 'v:s1:2',
+            sourceRange: {
+              stream: { kind: 'session', id: 's1' },
+              first: { id: 'goal-old', sequence: 2 },
+              last: { id: 'goal-old', sequence: 2 },
+            },
+            goal: { objective: 'Old goal', status: 'active', percentComplete: 50 },
+          },
+        },
+      ],
+      nextCursor: null,
+    }))
+    t.surface.posted.length = 0
+    isDelayed = true
+    t.server.notify('view/gap', { sessionId: 's1', after: 'v:s1:1', next: 'v:s1:3' })
+    await vi.waitFor(() => {
+      expect(isWaiting).toBe(true)
+    })
+    t.server.notify('session/goalChanged', { sessionId: 's1', goal: null })
+    await settle()
+    isDelayed = false
+    gate.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.surface.posted.filter((message) => message.type === 'historyLoaded')).toHaveLength(1)
+    })
+    const reloads = t.surface.posted.filter((message) => message.type === 'historyLoaded')
+    expect(reloads).toHaveLength(1)
+    expect(reloads[0]).not.toHaveProperty('goal')
+    expect(t.surface.posted).toContainEqual({
+      type: 'agentEvent',
+      event: { type: 'goalChanged', goal: null },
+    })
   })
 
   it('posts a backend notice as a notice, never as an event', async () => {

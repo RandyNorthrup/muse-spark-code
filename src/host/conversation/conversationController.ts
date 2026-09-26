@@ -453,6 +453,8 @@ export class ConversationController {
   /** A transcript reload after a delivery gap, and the gaps heard so far. */
   private gapReload: Promise<void> | undefined
   private gapCount = 0
+  /** Live goal events after a gap read began take precedence over that read. */
+  private goalEventCount = 0
   /** The turns under way, timed for the log (M39). */
   private readonly turnClocks = new Map<string, TurnClock>()
   /** Streamed text not yet posted, and the frame timer that posts it (M39). */
@@ -743,11 +745,17 @@ export class ConversationController {
       if (session === undefined) {
         break
       }
+      const goalEventsAtStart = this.goalEventCount
       try {
         const host = await this.deps.ensureHost()
         const history = await host.readSession(session.sessionId, { recoverGoal: true })
         if (this.session === session) {
-          this.postHistory(session.sessionId, history, this.activeTurnId)
+          this.postHistory(
+            session.sessionId,
+            history,
+            this.activeTurnId,
+            goalEventsAtStart === this.goalEventCount,
+          )
           this.notice('info', UI_TEXT.viewGapReloaded)
         }
       } catch (error: unknown) {
@@ -768,7 +776,9 @@ export class ConversationController {
       this.onViewGap()
       return
     }
-    if (event.type === 'backendNotice') {
+    if (event.type === 'goalChanged') {
+      this.goalEventCount += 1
+    } else if (event.type === 'backendNotice') {
       this.notice(event.level, event.text)
       return
     }
@@ -1418,6 +1428,7 @@ export class ConversationController {
     sessionId: string,
     history: SessionHistoryOutcome,
     activeTurnId: string | undefined,
+    shouldIncludeGoal = true,
   ): void {
     this.post({
       type: 'historyLoaded',
@@ -1426,7 +1437,7 @@ export class ConversationController {
       ...(history.name !== undefined && { name: history.name }),
       todos: [...history.todos],
       // Absent when the history could not say (M45): the panel keeps what it knew.
-      ...(history.goal !== undefined && { goal: history.goal }),
+      ...(shouldIncludeGoal && history.goal !== undefined && { goal: history.goal }),
       // A turn still running keeps its Stop and its steering (D26).
       ...(activeTurnId !== undefined && { activeTurnId }),
     })
