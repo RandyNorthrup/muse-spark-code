@@ -16,7 +16,7 @@ import {
   todoItemSchema,
 } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
-import { toSnapshot, wireItemSchema } from './sessionRecords'
+import { toSessionGoal, toSnapshot, wireGoalSchema, wireItemSchema } from './sessionRecords'
 
 export type MappedNotification =
   | { readonly sessionId: string; readonly event: AgentEvent }
@@ -85,6 +85,13 @@ const schemas = {
   'session/reasoningEffortChanged': z.object({ ...sessionScoped, reasoningEffort: z.string() }),
   'session/approvalModeChanged': z.object({ ...sessionScoped, mode: z.string() }),
   'session/todoListChanged': z.object({ ...sessionScoped, items: z.array(todoItemSchema) }),
+  // The goal block replaced wholesale; an explicit `null` clears it (tdd
+  // SS4.6.2, captured live 2026-09-25, M45). Absent reads as cleared too:
+  // the schema types it optional, and it never means "unchanged".
+  'session/goalChanged': z.object({
+    ...sessionScoped,
+    goal: z.optional(z.nullable(wireGoalSchema)),
+  }),
   'skill/changed': z.object(sessionScoped),
   'approval/requested': z.object({
     ...sessionScoped,
@@ -148,6 +155,22 @@ export function mapNotification(notification: WireNotification): MapOutcome {
   const { method } = notification
   if (!isMappedMethod(method)) {
     return UNKNOWN_METHOD
+  }
+  // Parse the new goal frame under its literal method so TypeScript can
+  // verify the schema/data relationship without an unchecked cast (M45).
+  if (method === 'session/goalChanged') {
+    const parsedGoal = schemas[method].safeParse(notification.params)
+    if (!parsedGoal.success) {
+      return MALFORMED_PARAMS
+    }
+    const { sessionId, goal } = parsedGoal.data
+    return {
+      sessionId,
+      event: {
+        type: 'goalChanged',
+        goal: goal === undefined || goal === null ? null : toSessionGoal(goal),
+      },
+    }
   }
   const parsed = schemas[method].safeParse(notification.params)
   if (!parsed.success) {

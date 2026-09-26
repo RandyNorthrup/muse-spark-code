@@ -14,6 +14,7 @@ import {
 import { STORED_SESSION_VERSION } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import type { SessionRecord } from '../../agent/agentBackend'
+import { type GoalRecord, goalRecordSchema } from './goals'
 import {
   functionCallItemSchema,
   type InputItem,
@@ -54,6 +55,8 @@ export interface StoredSession {
   readonly forkedFrom?: string
   readonly firstPrompt?: string
   readonly todos: readonly TodoItem[]
+  /** The session goal (M45, PLAN.md D38); absent when there is none. */
+  readonly goal?: GoalRecord
   readonly replay: readonly StoredReplayItem[]
   readonly transcript: readonly StoredTranscriptItem[]
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
@@ -146,6 +149,8 @@ export const storedSessionSchema = z.object({
   forkedFrom: z.optional(z.string()),
   firstPrompt: z.optional(z.string()),
   todos: z.array(todoItemSchema),
+  // Optional, so a session saved before M45 still reads.
+  goal: z.optional(goalRecordSchema),
   replay: z.array(z.object({ turnId: z.string(), item: storedInputItemSchema })),
   transcript: z.array(z.object({ turnId: z.string(), item: z.object(itemSnapshotFields) })),
   outputs: z.record(z.string(), z.string()),
@@ -168,7 +173,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     return { ok: false, reason: z.prettifyError(result.error) }
   }
   // Optional fields are absent in a StoredSession, never undefined.
-  const { name, forkedFrom, firstPrompt, ...rest } = result.data
+  const { name, forkedFrom, firstPrompt, goal, ...rest } = result.data
   return {
     ok: true,
     session: {
@@ -176,6 +181,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(name !== undefined && { name }),
       ...(forkedFrom !== undefined && { forkedFrom }),
       ...(firstPrompt !== undefined && { firstPrompt }),
+      ...(goal !== undefined && { goal }),
     },
   }
 }

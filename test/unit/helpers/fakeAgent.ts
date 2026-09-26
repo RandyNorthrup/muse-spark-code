@@ -35,6 +35,10 @@ function sameName(name: string): Promise<string> {
   return Promise.resolve(name)
 }
 
+function goalAdmitted(): ReturnType<AgentSession['controlGoal']> {
+  return Promise.resolve({ turnId: undefined })
+}
+
 export class FakeAgentSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   private turns = 0
@@ -56,6 +60,7 @@ export class FakeAgentSession implements AgentSession {
   public readonly cancelQuestions = vi.fn<AgentSession['cancelQuestions']>(resolved)
   public readonly controlSubagent = vi.fn<AgentSession['controlSubagent']>(resolved)
   public readonly messageSubagent = vi.fn<AgentSession['messageSubagent']>(resolved)
+  public readonly controlGoal = vi.fn<AgentSession['controlGoal']>(goalAdmitted)
   public readonly readOutput = vi.fn<AgentSession['readOutput']>(noOutput)
   public readonly listSkills = vi.fn<AgentSession['listSkills']>(() => Promise.resolve(this.skills))
   public readonly rename = vi.fn<AgentSession['rename']>(sameName)

@@ -29,6 +29,11 @@ describe('parseWebviewToHostMessage', () => {
     ['removeAttachment', { type: 'removeAttachment', id: 'att-1' }],
     ['droppedUris', { type: 'droppedUris', uris: ['file:///a.ts'] }],
     ['hostAction', { type: 'hostAction', action: 'openSettings' }],
+    [
+      'goalCommand set',
+      { type: 'goalCommand', requestId: 'g1', verb: 'set', objective: 'Ship it' },
+    ],
+    ['goalCommand pause', { type: 'goalCommand', requestId: 'g2', verb: 'pause' }],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -45,6 +50,9 @@ describe('parseWebviewToHostMessage', () => {
     ['effort outside the UI tiers', { type: 'setEffort', effort: 'ultra' }],
     ['unknown permission mode', { type: 'setPermissionMode', mode: 'yolo' }],
     ['unknown host action', { type: 'hostAction', action: 'formatDisk' }],
+    ['unknown goal verb', { type: 'goalCommand', verb: 'complete' }],
+    ['goal command without request id', { type: 'goalCommand', verb: 'pause' }],
+    ['goal command with numeric request id', { type: 'goalCommand', requestId: 1, verb: 'pause' }],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)
@@ -71,6 +79,7 @@ describe('parseHostToWebviewMessage', () => {
     ['sessionInfo', { type: 'sessionInfo', modelId: 'm', contextLimit: 10 }],
     ['turnAccepted', { type: 'turnAccepted', localId: 'l', turnId: 't' }],
     ['sendFailed', { type: 'sendFailed', localId: 'l', reason: 'no' }],
+    ['goalCommandResult', { type: 'goalCommandResult', requestId: 'g1', accepted: false }],
     ['agentEvent', { type: 'agentEvent', event: { type: 'turnStarted', turnId: 't' } }],
     [
       'modelList',
@@ -122,6 +131,11 @@ describe('parseHostToWebviewMessage', () => {
     ['agentEvent with an unknown event', { type: 'agentEvent', event: { type: 'nope' } }],
     ['composerState with a bad effort', { type: 'composerState', effort: 'ultra' }],
     ['notice with an unknown level', { type: 'notice', level: 'panic', text: 'x' }],
+    ['goal result without acceptance', { type: 'goalCommandResult', requestId: 'g1' }],
+    [
+      'goal result with numeric request id',
+      { type: 'goalCommandResult', requestId: 1, accepted: true },
+    ],
     ['unknown type', { type: 'explode' }],
   ])('rejects %s', (_label, input) => {
     expect(parseHostToWebviewMessage(input).ok).toBe(false)

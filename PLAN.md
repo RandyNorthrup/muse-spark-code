@@ -1222,7 +1222,7 @@ milestone that closes each gap:
 | Web search                        | Muse Code's own `web_search`, covered by the subscription (ran in `muse serve`, 2026-09-22)                                                                                                               | paid, opt in (M33)                                                                      | M43 (rows) |
 | Images                            | Muse Code's `image_generation` is gated off (no switch found)                                                                                                                                             | paid, opt in (M34); edits missing                                                       | M44        |
 | Web fetch (read a page)           | Muse Code's `web_fetch` is gated off                                                                                                                                                                      | none                                                                                    | M44        |
-| Goals                             | MSP `goal/*`, `session/goalChanged`: not wired                                                                                                                                                            | none                                                                                    | M45        |
+| Goals                             | MSP `goal/*`, `session/goalChanged` and the resumed snapshot's goal: the goal strip and `/goal` (M45)                                                                                                     | Muse Code's four goal tools, stored, pinned; no loop turns of its own (M45, D38)        | M45        |
 | Background work, stop             | MSP `task/background`, `task/stop`, `task/stopAll`: not wired                                                                                                                                             | shell commands cannot run in the background                                             | M46        |
 | `!` user shell                    | MSP `session/userShell`: not wired                                                                                                                                                                        | none                                                                                    | M46        |
 | Workflows                         | items render generically; `workflow/cancel`, `workflow/childControl` not wired                                                                                                                            | none (Muse Code's own engine)                                                           | M47        |
@@ -1282,6 +1282,175 @@ tool is switched off in `muse serve` with no setting that turns it on
 - **The tool list is read per request**, so a session started after image
   generation is turned on (or a key is stored) gets the tools; one already
   running gets them when it next starts.
+
+### D38 — Session goals on both backends (M45, 2026-09-25)
+
+What Muse Code 1.3.0 does, from msp.d.ts, its goal-tracking recipe and
+interactive docs, the strings of its goal store, and a live capture
+(2026-09-25, `C:\muse-live-m45` and `C:\muse-live-m45-stop`, three turns,
+nine model attempts on the contributor model, `docs/certification/m45.md`):
+
+- **The user's verbs** are MSP `goal/set`, `edit`, `pause`, `resume` and
+  `clear`, each acknowledged at admission (`{ commandId, status, turnId? }`).
+  A set, edit or resume that leaves the goal active while the session is
+  idle wakes a goal-driving turn, which the ack names and which has no user
+  message item; while a turn runs, the ack names that turn and nothing
+  starts. Pause and clear never wake. An edit of a paused goal keeps it
+  paused and wakes nothing.
+- **Refusals** are `commandRejected` (-32030) with `data.reason`
+  `missing_goal` (any verb but set, with no goal) or `invalid_goal_state`
+  (pause, resume or edit of a finished goal). A blank objective, or an
+  objective on a bare verb, is `invalidParams`.
+- **The goal** arrives as `session/goalChanged`: `{ objective, status,
+percentComplete, currentWork?, nextWork? }`, or `goal: null` when
+  cleared. It is not repeated on a resume. Only a resume served as a
+  snapshot carries it (`snapshot.state.goal`, `null` for none); inline
+  history does not. The goal store's statuses are active, paused,
+  complete, blocked, usage_limited and budget_limited.
+- **Its loop** pins the goal for the agent, queues a turn of its own to
+  continue after a turn that left the goal unfinished, reminds the agent to
+  report progress after about ten model calls without any (the step
+  probe), runs a completion audit (a reminder agent's model call) before
+  `update_goal` may close the goal, and pauses an unfinished goal when its
+  turn is stopped (Esc in the TUI; `turn/cancel`, the panel's Stop, too).
+
+The choices:
+
+- **Muse Code.** `session/goalChanged` and the resumed snapshot's goal
+  reach the panel; a resume now asks for `history: "snapshot"` (the same
+  items as inline, plus the name, the task list and the goal, so a resumed
+  conversation's task list comes back too). A snapshot goal is read on its
+  own: a shape that differs costs the strip, never the resume. A fork's
+  history takes no preference, so a fork's goal shows once Muse Code
+  reports it.
+- **The Model API backend** gets Muse Code's four tools with its argument
+  names, rules, failure messages and result shape (`{ goal: { session_id,
+goal_id, … } }`), so the M43 rows render identically. The goal is stored
+  with the session and pinned into the instructions while it is active, as
+  the last section so the rest stays the same from call to call. Muse
+  Code's step probe becomes a note in that section after ten model calls
+  without progress, with no call of its own. Tokens used while the goal is
+  active count against a budget the agent gave it, and a spent budget stops
+  it. Stop pauses an active goal. The user's verbs follow MSP's rules and
+  refusals; a set, edit or resume that leaves the goal active while nothing
+  runs starts one visible turn whose cue is Muse Code's own ("Continue
+  working toward the active session goal."), replayed for the model but
+  not shown as a message, as Muse Code's goal turns have none.
+- **Not on the Model API, on purpose:** no turn of its own after a turn,
+  and no completion audit. Each would be a model call billed to the key
+  that the user did not ask for. The audit's rule is in the pinned section
+  instead. A fork carries the goal as it stands, having no history to cut.
+- **The panel.** The goal strip sits above the task list while there is a
+  goal: the objective, the status in words (one Muse Code adds later as it
+  came), the percentage, a bar clamped to 0–100, now and next. Its buttons
+  are the verbs the status allows (Pause or Resume, Edit in place, Clear).
+  `/goal …` in the prompt reads the TUI's grammar and is a command, never a
+  message; the palette's `/goal` leaves `/goal ` ready. A done command is a
+  line in the transcript, a refusal a warning in words, and the live region
+  reads each change of status.
+
+The review of PR #31 found two Model API goal edges to close before M45
+merges: when a streamed reply spends the goal's token budget, its returned
+tools must get cancelled outputs and must not run or cause another automatic
+model request; and a set, edit or resume accepted during a reply with no
+tools must put an internal goal cue into the same turn's next request. The
+second review found two more boundaries: a goal wake queued during
+compaction must be withdrawn if compaction spends the goal's budget, and a
+bare pause, resume, edit or clear on a fresh panel must refuse without
+creating an empty session. Each needs a regression test and red drill before
+the PR is certified.
+
+The next review and a focused lifecycle audit found five more boundaries:
+usage belongs to the goal active when each request attempt began, including
+compaction and retries; Stop during compaction pauses an active goal; a
+rejected `/goal` command keeps its draft while an accepted one clears only
+the unchanged draft; the goal editor resets when the goal changes or clears;
+and an incomplete compaction cannot replace history with a partial summary
+or escape usage accounting. These are M45 corrections, not new quota or
+model features; they require regression tests and red drills before merge.
+
+The following PR review also requires inline goal edits to keep their
+objective until the host accepts the edit, with rejection preserving the
+field; and the new `session/goalChanged` notification must be parsed under
+its literal method instead of adding an unregistered `as z.infer` cast.
+The next review found a separate unchecked assertion in the Model API
+goal-tool test; its assertion now checks the unknown response as a value
+with matchers, without claiming a compiler-verified tool-array type.
+The following review found that a response started before `/goal set` or
+`/goal edit` could still complete the replacement goal with its old goal
+tools. Each Model API request now retains the revision of user goal commands
+at its start. A mutating goal tool from an older revision fails with a
+replayable output, while the accepted command's wake gives the model the
+current goal in its next request.
+The next review found two recovery gaps: `session/read` serves inline items
+without a goal, so reloading after a `view/gap` could leave a cleared or
+completed goal stale in the panel; and a failed compaction recorded billed
+tokens in memory but not always in the stored session. Gap reloads now use
+the last durable `session/goalChanged` from backward `view/page` reads when
+inline history cannot answer, and Model API usage is persisted after both
+goal and cumulative counters update. The new view shape was captured live
+without a model turn (M45 certification); the tests and red drills cover
+clear, completion, paging and persisted failed compaction usage.
+The following review found that saving each Model API usage update can
+persist a function call before its pending approval or tool has produced an
+output, making replay invalid after a crash. Normal turns now save at their
+existing settled boundary, while compaction saves in its `finally` after
+its usage and status settle. A captured-save regression test guards every
+snapshot written during a pending `ask_user` call.
+The independent M45 audit found that goal tools, goal commands and settings
+changes could still save a pending normal-turn call, so the store now defers
+any snapshot with an unanswered function call while preserving safe
+turn-start saves and live session-list updates. It also found that a resume downgraded to inline
+history needs the same durable goal read as a gap reload, and that a live
+goal event arriving during a gap read must win over that older read. Focused
+tests and red drills cover both paths.
+The next PR review found that a goal accepted during the last Model API
+tool round could remain idle: its pending wake was never drained before the
+round cap failed the turn. The cap still ends that turn; when the goal is
+active, its accepted wake is queued as a fresh bounded turn so the next
+request receives the objective.
+The subsequent audit found the same final-round loss for accepted steered
+input, duplicate queued goal wakes when a goal is replaced during compaction,
+and Stop after a compaction summary committed but before token counting
+returned. Steered input now queues fresh user turns at the round cap; queued
+goal wakes carry the user-command revision and withdraw when superseded;
+late Stop keeps the committed summary but pauses further goal work. The
+following PR review found a stale inline goal editor after gap recovery and
+an old session's goal acknowledgement posted after the panel switched
+History sessions. The editor reconciles with recovered goals under the same
+own-edit/newer-draft rules as live events, and the controller routes goal
+acknowledgements only to their operated session.
+The follow-up audit found three more races: a late `sessionNotLoaded`
+refusal from an old goal RPC could still replace a newer History session
+inside the retry helper; Stop during post-summary counting could pause a
+goal set after Stop; and steering accepted while a reply spent the goal's
+budget could be silently dropped. The retry helper now checks the operated
+session before resuming it, Stop pauses its goal at the time of the action,
+and accepted steering gets a fresh ordinary turn when the goal budget
+terminates the old turn.
+The next PR review found that Model API objective validation exposed an
+English model-facing error to translated users, and that a suppressed late
+goal acknowledgement could leave the new session's composer stuck with the
+old pending command. Objective validation now returns a reason code: model
+tools keep Muse Code's English result, while user goal commands read a
+localized message and format the limit with `Intl`. A History switch clears
+the old pending command correlation. Both paths have focused red drills.
+The final focused audit found JavaScript's UTF-16 `.length` counted a
+supplementary character twice against the 4,000-character objective limit.
+The Model API validator now counts grapheme clusters (so a joined emoji is
+one visible character) and stops after 4,001; the 14 translated limit
+messages still format the number with `Intl`.
+The next PR review found that Stop on an ordinary Model API turn paused a
+replacement goal if the old turn took time to unwind. Stop now pauses its
+current goal synchronously, and a goal accepted while that aborted turn is
+still attached queues a fresh wake. Steering after Stop is explicitly
+refused instead of being accepted into a turn that cannot run it.
+A follow-up cancellation audit found that a buffered completed reply could
+return after Stop and take the budget-limit or round-cap branch before any
+abort check, re-queuing steering that Stop had cancelled. The loop now checks
+the abort before each round and immediately after each response; returned
+calls receive cancelled outputs for replay validity, with no tool or
+steering continuation.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3453,6 +3622,33 @@ translations. The order is D36's table:
 - **Web fetch** (D36's M44 row) moves to its own milestone: it needs a
   network-safety design of its own (M44b, planned).
 
+### M45 — Goals (D38)
+
+**Status 2026-09-25: built and certified locally** (`docs/certification/m45.md`).
+
+- **Goal**: a session goal the user can set, see, pause, resume, change
+  and clear on both backends, with Muse Code's verbs, and the Model API
+  backend as close to Muse Code's goal loop as it can be without spending
+  what the user did not ask for.
+- **Research first**: msp.d.ts's `goal/*`, `session/goalChanged` and
+  `snapshot.goal`; Muse Code's goal-tracking recipe and interactive docs;
+  the goal store's statuses, tool descriptions and failure messages in the
+  1.3.0 binary; a live capture of the verbs, their refusals, a resumed
+  snapshot and a stopped goal turn (three turns, nine model attempts).
+- **Scope**: `goalChanged` in the agent events and the history; the
+  resume's snapshot preference; `controlGoal` on both sessions with the
+  captured refusals; the Model API's four goal tools, the stored goal, the
+  pinned section, the step-probe note, the token budget, Stop pausing, the
+  wake turn; the goal strip, `/goal …` in the prompt and the palette's
+  `/goal`; 32 strings in fourteen languages; harness scenarios `goal` and
+  `goal-edit`.
+- **Acceptance**: tests from the captured shapes on both backends, the
+  reducer, the controller, the strip and the prompt; drills G1–G54; both
+  scenarios seen and in the accessibility gate; the gate green.
+- **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
+  (fork is refused on Windows 1.3.0, so it could not be captured); the
+  exported Markdown does not include the goal.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36).** The owner
@@ -3703,6 +3899,19 @@ listing are M62b.
 | Localization          | `node scripts/check-l10n.mjs` (`npm run check:l10n`, in `quality:gates`): every table in `l10n/` against the English table, strictly; the manifest against `package.nls.json`; no `UI_TEXT` read at module load | M40 ✓ (drills in `docs/certification/m40.md`)                                                                                                                                                              |
 | Host API record       | `node scripts/check-host-api.mjs` (`npm run check:host-api`, in `quality:gates`; `--write` regenerates): `docs/ide-compatibility/host-api.md` against the source, and the portable code never reaching `vscode` | M60 ✓ (drills in `docs/certification/m60.md`)                                                                                                                                                              |
 | Hosts                 | `hosts.yml` (VSCodium, code-server, Theia, the agent package and key store, Jupyter, Emacs, Neovim) and `forks.yml` (Cursor, Devin Desktop, Kiro, Positron), CI only: each job runs one `test/hosts` script     | M62/M63 ✓ locally (drills H1–H5 in `m63.md`, F1–F2 in `m62.md`); the forks only on GitHub's runners                                                                                                        |
+
+The pre-commit hook runs `lint-staged` tasks serially, keeping the same lint
+and format checks with fewer simultaneous children. On 2026-09-25 Windows
+stalled and required a restart. A repeated local quality run exposed a burst
+of `cmd.exe` processes launching ChromeControlMCP native messaging hosts;
+they were children of the user's persistent Chrome process, not the
+pre-commit hook. The earlier reboot has no bugcheck or dump, so its exact
+cause is not proved. ChromeControlMCP's installed extension retries a
+disconnected native host every two seconds. Disabling extensions in the
+headless test browser and using Edge did not stop the burst from the
+persistent Chrome profile; those attempted script changes were reverted.
+Pause local browser gates while that extension is enabled. Hosted CI runs
+remain available.
 
 ## 8. Escape hatches register
 

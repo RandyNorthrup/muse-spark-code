@@ -23,6 +23,18 @@ while they are (PLAN.md D30, D34).
   billed to the key, never to the subscription, each image confirmed with
   its price first, the rows marked paid, and the tally in Account & usage.
   The key never reaches the Muse Code CLI.
+- **Session goals** (M45, PLAN.md D38). `/goal <objective>` sets a goal the
+  agent keeps working toward; a strip above the task list shows its status,
+  a progress bar and the work now and next, with Pause, Resume, Edit and
+  Clear (also `/goal pause`, `resume`, `edit <objective>`, `clear`). On
+  Muse Code these are its own MSP goal verbs and `session/goalChanged`, and
+  a resumed conversation shows its goal (resumes now ask Muse Code for the
+  folded snapshot, which also brings the task list back). On the Model API
+  backend the agent gets Muse Code's four goal tools with the same results,
+  the goal is stored with the conversation and pinned into the instructions
+  while active, Stop pauses it, and nothing starts a model call the user did
+  not ask for. Built from a live capture of Muse Code 1.3.0.
+
 - **A row for every tool Muse Code runs** (M43, PLAN.md D36). Memory rows
   show the note and where it lives, and an edit as the text replaced; goal
   rows show the objective, its status, a progress bar, what is being done
@@ -113,6 +125,53 @@ while they are (PLAN.md D30, D34).
 
 ### Fixed
 
+- **Goal command and recovery races** (M45, PR #31). Steering accepted in
+  the final tool round now starts a fresh turn. A queued goal wake is
+  withdrawn when a newer goal command supersedes it. Stop after a
+  compaction summary is committed still pauses the goal it stopped while a
+  later replacement stays active. Steering accepted as a goal runs out of
+  tokens gets its own turn. A gap
+  reload refreshes an open goal editor, and a late goal acknowledgement
+  or session reload cannot appear in a different conversation.
+- **Goal validation and composer state** (M45). Overlong objectives now
+  report the limit in the installed language and count visible characters;
+  switching History sessions
+  clears an old `/goal` request's pending state so the composer responds.
+- **Stop targets the current goal** (M45). Stop pauses the active goal when
+  pressed. A replacement set while the old turn finishes stays active and
+  gets a new turn; steering after Stop is refused instead of accepted and
+  silently lost. A completed response buffered across Stop cannot replay
+  previously accepted steering or run returned tools.
+- **Goal lifecycle at request boundaries** (M45, review of PR #31). Model
+  usage now belongs to the goal active when each request began, even if
+  paused before its reply; Stop during compaction pauses the goal, and an
+  incomplete compaction cannot replace history with a partial summary.
+  Goal tools returned by a request started before the user changed the goal
+  now fail without changing the replacement goal; the next request uses the
+  new objective. A Muse Code gap reload recovers the latest goal change from
+  durable view history, including a clear or completion. Billed usage from
+  an incomplete compaction is saved before the error returns; ordinary tool
+  rounds are saved only after every call has an output. A goal accepted during
+  the last allowed tool round starts a fresh bounded turn to receive it.
+  A resumed Muse Code
+  conversation also recovers its goal if the server downgrades its requested
+  snapshot to inline history, and a live goal change outranks an older gap
+  reload that finishes afterward.
+  Rejected `/goal` commands keep their draft, while an accepted command
+  clears only the unchanged draft. The goal editor refreshes when the
+  objective changes or a goal is replaced, and keeps an inline edit open
+  with its exact text if the host rejects it.
+- **Goal budget and busy commands** (M45, review of PR #31). A reply that
+  spends a goal's token budget no longer runs its returned tools or starts
+  another automatic request; a goal accepted while a reply streams gets a
+  follow-up round even when that reply has no tool calls. A goal wake queued
+  during compaction is withdrawn if compaction spends its budget, and a bare
+  goal command on a fresh panel does not create an empty conversation.
+- **Pre-commit resource pressure.** Staged lint and format tasks now run
+  serially, keeping every check while limiting concurrent child processes.
+- **A resumed Muse Code conversation shows its task list** (M45). A resume
+  asked for inline history, which carries no task list; it now asks for the
+  folded snapshot, which carries the task list and the goal.
 - **A command Muse Code moved to the background read "Interrupted"** when
   its turn ended (M43). It now shows what it printed, says it is still
   running, and is listed among the background tasks.

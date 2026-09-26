@@ -5,7 +5,13 @@
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
-import type { AgentEvent, ItemSnapshot, RequirementRef, TodoItem } from '../../shared/agentEvents'
+import type {
+  AgentEvent,
+  ItemSnapshot,
+  RequirementRef,
+  SessionGoal,
+  TodoItem,
+} from '../../shared/agentEvents'
 import {
   CHAT_REFERENCE_LABEL_CHARS,
   DEFAULT_EFFORT,
@@ -36,7 +42,7 @@ import type {
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
-import { toolLabel } from '../toolPresentation'
+import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import { backgroundRun } from '../toolDetails'
 import type {
   ChildTranscript,
@@ -125,6 +131,26 @@ export interface UiState {
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
   readonly draft: string
+  /** Every local draft edit, including edits that return to the same text. */
+  readonly draftRevision: number
+  /** Only an accepted command may clear the draft it submitted. */
+  readonly pendingGoalCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
+  /** Inline goal editor's exact text and its request awaiting host admission. */
+  readonly goalEdit:
+    | {
+        readonly draft: string
+        readonly revision: number
+        readonly pending:
+          | {
+              readonly requestId: string
+              readonly revision: number
+              readonly objective: string
+            }
+          | undefined
+      }
+    | undefined
+  readonly goalEditRevision: number
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
   /** Text waiting to be inserted at the composer caret, if any. */
@@ -184,6 +210,8 @@ export interface UiState {
   /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
   readonly paid: PaidState
   readonly todos: readonly TodoItem[]
+  /** The session goal (M45, PLAN.md D38): the strip above the composer while there is one. */
+  readonly goal: SessionGoal | undefined
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Pictures loaded for tool rows (M43), keyed by `toolImageKey`; never saved. */
@@ -215,6 +243,11 @@ export interface UiState {
 export type UiAction =
   | { readonly type: 'hostMessage'; readonly message: HostToWebviewMessage; readonly at: number }
   | { readonly type: 'draftChanged'; readonly draft: string }
+  | { readonly type: 'goalSubmitted'; readonly requestId: string }
+  | { readonly type: 'goalEditStarted'; readonly objective: string }
+  | { readonly type: 'goalEditChanged'; readonly draft: string }
+  | { readonly type: 'goalEditCanceled' }
+  | { readonly type: 'goalEditSubmitted'; readonly requestId: string; readonly objective: string }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
@@ -263,6 +296,10 @@ export const initialUiState: UiState = {
   sessions: undefined,
   archivedIds: [],
   draft: '',
+  draftRevision: 0,
+  pendingGoalCommand: undefined,
+  goalEdit: undefined,
+  goalEditRevision: 0,
   focusRequests: 0,
   pendingInsert: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
@@ -291,6 +328,7 @@ export const initialUiState: UiState = {
   dictation: { status: 'idle', reason: undefined, engine: 'system' },
   paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false },
   todos: [],
+  goal: undefined,
   outputPages: {},
   toolImages: {},
   localSequence: 0,
@@ -362,6 +400,22 @@ function turnAnnouncement(terminal: string, reason: string | undefined): string 
       return undefined
     }
   }
+}
+
+/**
+ * What the live region says when the goal changes (M45): its new status in
+ * words, or that it was cleared; nothing when only its progress moved.
+ */
+function goalAnnouncement(
+  previous: SessionGoal | undefined,
+  next: SessionGoal | undefined,
+): string | undefined {
+  if (next === undefined) {
+    return previous === undefined ? undefined : UI_TEXT.goalClearedNotice
+  }
+  return previous?.status === next.status
+    ? undefined
+    : fill(UI_TEXT.announceGoalStatus, { status: goalStatusLabel(next.status) })
 }
 
 /** "Listening" when recording starts, "Stopped listening" when it ends. */
@@ -475,6 +529,7 @@ function findEntry(
 function withInsert(state: UiState, text: string): UiState {
   return {
     ...state,
+    draftRevision: state.draftRevision + 1,
     pendingInsert: (state.pendingInsert ?? '') + text,
     focusRequests: state.focusRequests + 1,
   }
@@ -1177,6 +1232,13 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     case 'todoChanged': {
       return { ...state, todos: event.items }
     }
+    case 'goalChanged': {
+      const goal = event.goal ?? undefined
+      return announce(
+        { ...state, goal, ...goalEditorFor(state, goal) },
+        goalAnnouncement(state.goal, goal),
+      )
+    }
     case 'effortChanged':
     case 'approvalModeChanged':
     case 'skillsChanged': {
@@ -1207,6 +1269,8 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    pendingGoalCommand: undefined,
+    goalEdit: undefined,
     childTranscripts: {},
     childOwners: {},
     strayItems: {},
@@ -1224,8 +1288,51 @@ function clearedConversation(state: UiState): UiState {
     usage: undefined,
     context: undefined,
     todos: [],
+    goal: undefined,
     outputPages: {},
     toolImages: {},
+  }
+}
+
+/**
+ * The goal after a history load (M45): the history's, or, when it cannot
+ * say (Muse Code's inline history carries none), the one the panel already
+ * showed for the same session.
+ */
+function loadedGoal(
+  state: UiState,
+  message: Extract<HostToWebviewMessage, { type: 'historyLoaded' }>,
+): SessionGoal | undefined {
+  if (message.goal !== undefined) {
+    return message.goal ?? undefined
+  }
+  return message.sessionId === state.sessionId ? state.goal : undefined
+}
+
+/** Keep an own edit's newer typing; reset a stale editor on an external goal. */
+function goalEditorFor(
+  state: UiState,
+  goal: SessionGoal | undefined,
+): Pick<UiState, 'goalEdit' | 'goalEditRevision'> {
+  if (goal === undefined) {
+    return { goalEdit: undefined, goalEditRevision: state.goalEditRevision }
+  }
+  const edit = state.goalEdit
+  if (edit === undefined || goal.objective === state.goal?.objective) {
+    return { goalEdit: edit, goalEditRevision: state.goalEditRevision }
+  }
+  const isOwnEdit = edit.pending?.objective === goal.objective
+  if (isOwnEdit) {
+    const isNewerDraft = edit.revision > edit.pending.revision
+    return {
+      goalEdit: isNewerDraft ? edit : { ...edit, draft: goal.objective },
+      goalEditRevision: state.goalEditRevision,
+    }
+  }
+  const revision = state.goalEditRevision + 1
+  return {
+    goalEdit: { draft: goal.objective, revision, pending: undefined },
+    goalEditRevision: revision,
   }
 }
 
@@ -1403,6 +1510,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       const replayed = replayHistory(message.items, at, state.sequence)
       // The same session read again (a delivery gap, D26) keeps its usage.
       const isSameSession = message.sessionId === state.sessionId
+      const goal = loadedGoal(state, message)
+      const editor =
+        isSameSession && message.goal !== undefined
+          ? goalEditorFor(state, goal)
+          : {
+              goalEdit: isSameSession ? state.goalEdit : undefined,
+              goalEditRevision: state.goalEditRevision,
+            }
       return announce(
         {
           ...state,
@@ -1412,6 +1527,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           transcript: replayed.entries,
           sequence: replayed.sequence,
           todos: message.todos,
+          goal,
+          ...editor,
+          pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
           usage: isSameSession ? state.usage : undefined,
@@ -1437,6 +1555,28 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
           entry.kind === 'user' ? { ...entry, status: 'sent', turnId: message.turnId } : entry,
         ),
+      }
+    }
+    case 'goalCommandResult': {
+      const pending = state.pendingGoalCommand
+      if (pending?.requestId === message.requestId) {
+        return {
+          ...state,
+          pendingGoalCommand: undefined,
+          draft:
+            message.accepted && state.draftRevision === pending.draftRevision ? '' : state.draft,
+        }
+      }
+      const edit = state.goalEdit
+      if (edit?.pending?.requestId !== message.requestId) {
+        return state
+      }
+      return {
+        ...state,
+        goalEdit:
+          message.accepted && edit.revision === edit.pending.revision
+            ? undefined
+            : { ...edit, pending: undefined },
       }
     }
     case 'sendFailed': {
@@ -1551,7 +1691,53 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return applyHostMessage(state, action.message, action.at)
     }
     case 'draftChanged': {
-      return { ...state, draft: action.draft }
+      return { ...state, draft: action.draft, draftRevision: state.draftRevision + 1 }
+    }
+    case 'goalSubmitted': {
+      return {
+        ...state,
+        pendingGoalCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
+    case 'goalEditStarted': {
+      const revision = state.goalEditRevision + 1
+      return {
+        ...state,
+        goalEdit: { draft: action.objective, revision, pending: undefined },
+        goalEditRevision: revision,
+      }
+    }
+    case 'goalEditChanged': {
+      const edit = state.goalEdit
+      if (edit === undefined) {
+        return state
+      }
+      const revision = state.goalEditRevision + 1
+      return {
+        ...state,
+        goalEdit: { ...edit, draft: action.draft, revision },
+        goalEditRevision: revision,
+      }
+    }
+    case 'goalEditCanceled': {
+      return { ...state, goalEdit: undefined }
+    }
+    case 'goalEditSubmitted': {
+      const edit = state.goalEdit
+      if (edit === undefined || edit.pending !== undefined) {
+        return state
+      }
+      return {
+        ...state,
+        goalEdit: {
+          ...edit,
+          pending: {
+            requestId: action.requestId,
+            revision: edit.revision,
+            objective: action.objective,
+          },
+        },
+      }
     }
     case 'insertRequested': {
       return withInsert(state, action.text)
@@ -1566,6 +1752,8 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         draft: '',
+        draftRevision: state.draftRevision + 1,
+        pendingGoalCommand: undefined,
         attachments: [],
         unsentAttachments:
           action.attachments.length === 0

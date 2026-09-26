@@ -12,12 +12,15 @@ import type { QuestionAnswer } from '../shared/agentEvents'
 import {
   type DictationAction,
   type EffortLevel,
+  GOAL_SLASH_COMMAND,
+  type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   type SubagentAction,
   UI_TEXT,
 } from '../shared/constants'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
+import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { fill, formatPercent, templateParts } from '../shared/l10n/text'
 import {
   availablePermissionModes,
@@ -33,6 +36,7 @@ import { AgentMap } from './components/AgentMap'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
+import { GoalPanel } from './components/GoalPanel'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
 import { UsageDialog } from './components/UsageDialog'
@@ -85,6 +89,8 @@ const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
   'none',
 ])
 
+// What choosing `/goal` leaves in the prompt: the command, ready for the objective (M45).
+const GOAL_PROMPT_START = `/${GOAL_SLASH_COMMAND} `
 const GATED_STATUSES = new Set(['noCli', 'signedOut', 'signingIn', 'error'])
 const ATTACH_UPLOAD = 'upload'
 const ATTACH_CONTEXT = 'context'
@@ -207,6 +213,7 @@ export function App({
   // "new below" means it changed since, while they were away from the end.
   const bodyRef = useRef<HTMLElement>(null)
   const [isPinnedToEnd, setIsPinnedToEnd] = useState(true)
+  const nextGoalRequestId = useRef(0)
   const isPinnedRef = useRef(isPinnedToEnd)
   const [seenTranscript, setSeenTranscript] = useState(state.transcript)
   const hasNewBelow =
@@ -297,12 +304,68 @@ export function App({
     dispatch({ type: 'conversationCleared' })
     postMessage({ type: 'clearConversation' })
   }, [dispatch, postMessage])
+  // The session goal's verbs (M45, PLAN.md D38): the strip's buttons and `/goal …`.
+  const onGoalCommand = useCallback(
+    (verb: GoalCommandVerb, objective?: string, source?: 'composer' | 'inline') => {
+      const requestId = `goal:${newLocalId()}:${String(++nextGoalRequestId.current)}`
+      if (source === 'composer') {
+        dispatch({ type: 'goalSubmitted', requestId })
+      } else if (source === 'inline' && objective !== undefined) {
+        dispatch({ type: 'goalEditSubmitted', requestId, objective })
+      }
+      postMessage({
+        type: 'goalCommand',
+        requestId,
+        verb,
+        ...(objective !== undefined && { objective }),
+      })
+    },
+    [dispatch, newLocalId, postMessage],
+  )
+  const onGoalEditStarted = useCallback(
+    (objective: string) => {
+      dispatch({ type: 'goalEditStarted', objective })
+    },
+    [dispatch],
+  )
+  const onGoalEditChanged = useCallback(
+    (draft: string) => {
+      dispatch({ type: 'goalEditChanged', draft })
+    },
+    [dispatch],
+  )
+  const onGoalEditCanceled = useCallback(() => {
+    dispatch({ type: 'goalEditCanceled' })
+  }, [dispatch])
+  const onGoalEditSaved = useCallback(
+    (objective: string) => {
+      if (store.getState().goalEdit?.pending !== undefined) {
+        return
+      }
+      onGoalCommand('edit', objective, 'inline')
+    },
+    [store, onGoalCommand],
+  )
   const onSubmit = useCallback(() => {
     const current = store.getState()
     if (!canSend(current)) {
       return
     }
     const text = current.draft.trim()
+    // `/goal …` is a command to the backend, not a message (M45): no card.
+    const goal = parseGoalPrompt(text)
+    if (goal !== undefined) {
+      if (current.pendingGoalCommand?.draftRevision === current.draftRevision) {
+        return
+      }
+      if (requiresObjective(goal.verb) && (goal.objective ?? '') === '') {
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.goalObjectiveMissing })
+        return
+      }
+      onGoalCommand(goal.verb, goal.objective, 'composer')
+      setIsPinnedToEnd(true)
+      return
+    }
     const localId = newLocalId()
     const attachmentIds = current.attachments.map((attachment) => attachment.id)
     // The open-file chip travels with the message: the host adds the context.
@@ -325,7 +388,7 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, postMessage])
+  }, [store, dispatch, newLocalId, postMessage, onGoalCommand])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [dispatch])
@@ -785,6 +848,12 @@ export function App({
           setOverlay(undefined)
           break
         }
+        case 'startGoal': {
+          // The prompt becomes `/goal ` for the objective (M45).
+          dispatch({ type: 'draftChanged', draft: GOAL_PROMPT_START })
+          closeOverlay()
+          break
+        }
         case 'compact': {
           postMessage({ type: 'compact' })
           closeOverlay()
@@ -863,8 +932,9 @@ export function App({
   const slashPaletteKeys = useRef<PaletteKeys>(null)
   const onPromptAction = useCallback(
     (action: PaletteAction) => {
-      if (action.type === 'insertSkill') {
-        dispatch({ type: 'draftChanged', draft: `/${action.selector} ` })
+      if (action.type === 'insertSkill' || action.type === 'startGoal') {
+        const start = action.type === 'startGoal' ? GOAL_PROMPT_START : `/${action.selector} `
+        dispatch({ type: 'draftChanged', draft: start })
         dispatch({ type: 'focusRequested' })
         return
       }
@@ -1186,6 +1256,20 @@ export function App({
           </button>
         ) : null}
       </main>
+      <GoalPanel
+        key={state.sessionId}
+        goal={state.goal}
+        isInert={isModalOpen}
+        onCommand={onGoalCommand}
+        editor={{
+          draft: state.goalEdit?.draft,
+          isPending: state.goalEdit?.pending !== undefined,
+          onStart: onGoalEditStarted,
+          onChange: onGoalEditChanged,
+          onCancel: onGoalEditCanceled,
+          onSave: onGoalEditSaved,
+        }}
+      />
       <TodoPanel items={state.todos} isInert={isModalOpen} />
       <div className="composer-area" inert={isModalOpen}>
         {floating}

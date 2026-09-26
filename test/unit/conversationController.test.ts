@@ -14,14 +14,20 @@ import {
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
 import type { DictationListener, DictationSetup } from '../../src/core/voice/dictation'
-import { CHOICE_STEERING_NOTE, UI_TEXT } from '../../src/shared/constants'
+import { CHOICE_STEERING_NOTE, type GoalCommandVerb, UI_TEXT } from '../../src/shared/constants'
 import type { HostAction, LineRange, MentionItem } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
-import { fakeInitializeResult, fakeMspHost, refusalOf, settle } from './helpers/fakeMsp'
+import {
+  fakeInitializeResult,
+  fakeMspHost,
+  goalRefusal,
+  refusalOf,
+  settle,
+} from './helpers/fakeMsp'
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -152,6 +158,7 @@ function setup(
     /** The clipboard refuses (M39: a failure no step catches). */
     copyFails?: boolean
     /** A clock the test moves (M39: turn timings). */
+    beforeEnsureHost?: () => Promise<void>
     clock?: { now: number }
     /** What the workspace answers for a tool row's picture (M43). */
     readToolImage?: ConversationDeps['readToolImage']
@@ -298,7 +305,10 @@ function setup(
           : { signInMethod: 'apiKey' as const },
       ),
     usageInsights: () => Promise.resolve(options.usageInsights),
-    ensureHost: () => Promise.resolve(host),
+    ensureHost: async () => {
+      await options.beforeEnsureHost?.()
+      return host
+    },
     workspaceRoot: 'workspaceRoot' in options ? options.workspaceRoot : '/ws',
     modelId: 'muse-spark-1.3',
     initialPermissionMode: options.initialPermissionMode ?? 'manual',
@@ -1837,7 +1847,7 @@ describe('ConversationController: session history (M6)', () => {
     await settle()
     expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({
       sessionId: 'old',
-      history: 'inline',
+      history: 'snapshot',
     })
     expect(t.surface.posted).toEqual([
       modelList,
@@ -2879,6 +2889,53 @@ describe('ConversationController: lifecycle (D25)', () => {
   })
 })
 
+function gapInlineHistory(sessionId: string) {
+  return {
+    session: { sessionId, createdAt: 'c', updatedAt: 'u', status: 'running', turnCount: 1 },
+    history: { mode: 'inline', items: [] },
+    viewCursor: 'v:s1:3',
+    pendingRequests: [],
+  }
+}
+
+function setupWithDeferredHost() {
+  const gate = Promise.withResolvers<undefined>()
+  let isDelayed = false
+  let isWaiting = false
+  const t = setup({
+    beforeEnsureHost: () => {
+      if (!isDelayed) {
+        return Promise.resolve()
+      }
+      isWaiting = true
+      return gate.promise
+    },
+  })
+  return {
+    t,
+    delay: () => {
+      isDelayed = true
+    },
+    allowOtherRequests: () => {
+      isDelayed = false
+    },
+    release: () => {
+      isDelayed = false
+      gate.resolve(undefined)
+    },
+    isWaiting: () => isWaiting,
+  }
+}
+
+async function activeGoalForGap(t: ReturnType<typeof setup>): Promise<void> {
+  await t.send('l1', 'hi')
+  t.server.notify('session/goalChanged', {
+    sessionId: 's1',
+    goal: { objective: 'Old goal', status: 'active', percentComplete: 50 },
+  })
+  t.server.handle('session/read', (params) => gapInlineHistory(String(params['sessionId'])))
+}
+
 describe('ConversationController: protocol semantics (D26)', () => {
   const refusal = refusalOf
 
@@ -2961,6 +3018,7 @@ describe('ConversationController: protocol semantics (D26)', () => {
         pendingRequests: [],
       }
     })
+    t.server.handle('view/page', () => ({ events: [], nextCursor: null }))
     t.surface.posted.length = 0
     t.server.notify('view/gap', { sessionId: 's1', after: 'v1', next: 'v2' })
     await settle()
@@ -2973,6 +3031,7 @@ describe('ConversationController: protocol semantics (D26)', () => {
       sessionId: 's1',
       items: [expect.objectContaining({ itemId: 'm1' })],
       activeTurnId: 't1',
+      goal: null,
     })
     expect(t.surface.posted).toContainEqual({
       type: 'notice',
@@ -2989,6 +3048,94 @@ describe('ConversationController: protocol semantics (D26)', () => {
       type: 'notice',
       level: 'warning',
       text: `${UI_TEXT.viewGapReloadFailed}: log locked`,
+    })
+  })
+
+  it.each([
+    { name: 'clear', recoveredGoal: null, paged: false },
+    {
+      name: 'completion',
+      recoveredGoal: { objective: 'Old goal', status: 'complete', percentComplete: 100 },
+      paged: true,
+    },
+  ])('recovers a missed goal $name from view history', async ({ recoveredGoal, paged }) => {
+    const t = setup()
+    await activeGoalForGap(t)
+    t.server.handle('view/page', (params) => {
+      if (paged && params['cursor'] === undefined) {
+        return {
+          events: [{ method: 'session/statusChanged', params: { sessionId: 's1' } }],
+          nextCursor: 'v:s1:2',
+        }
+      }
+      return {
+        events: [
+          {
+            method: 'session/goalChanged',
+            params: {
+              sessionId: 's1',
+              viewCursor: 'v:s1:2',
+              sourceRange: {
+                stream: { kind: 'session', id: 's1' },
+                first: { id: 'goal-change', sequence: 2 },
+                last: { id: 'goal-change', sequence: 2 },
+              },
+              goal: recoveredGoal,
+            },
+          },
+        ],
+        nextCursor: null,
+      }
+    })
+    t.surface.posted.length = 0
+    t.server.notify('view/gap', { sessionId: 's1', after: 'v:s1:1', next: 'v:s1:3' })
+    await settle()
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'historyLoaded', sessionId: 's1', goal: recoveredGoal }),
+    )
+    expect(t.server.requestsFor('view/page')).toHaveLength(paged ? 2 : 1)
+  })
+
+  it('keeps a newer live goal change when an older gap read finishes later', async () => {
+    const deferred = setupWithDeferredHost()
+    const { t } = deferred
+    await activeGoalForGap(t)
+    t.server.handle('view/page', () => ({
+      events: [
+        {
+          method: 'session/goalChanged',
+          params: {
+            sessionId: 's1',
+            viewCursor: 'v:s1:2',
+            sourceRange: {
+              stream: { kind: 'session', id: 's1' },
+              first: { id: 'goal-old', sequence: 2 },
+              last: { id: 'goal-old', sequence: 2 },
+            },
+            goal: { objective: 'Old goal', status: 'active', percentComplete: 50 },
+          },
+        },
+      ],
+      nextCursor: null,
+    }))
+    t.surface.posted.length = 0
+    deferred.delay()
+    t.server.notify('view/gap', { sessionId: 's1', after: 'v:s1:1', next: 'v:s1:3' })
+    await vi.waitFor(() => {
+      expect(deferred.isWaiting()).toBe(true)
+    })
+    t.server.notify('session/goalChanged', { sessionId: 's1', goal: null })
+    await settle()
+    deferred.release()
+    await vi.waitFor(() => {
+      expect(t.surface.posted.filter((message) => message.type === 'historyLoaded')).toHaveLength(1)
+    })
+    const reloads = t.surface.posted.filter((message) => message.type === 'historyLoaded')
+    expect(reloads).toHaveLength(1)
+    expect(reloads[0]).not.toHaveProperty('goal')
+    expect(t.surface.posted).toContainEqual({
+      type: 'agentEvent',
+      event: { type: 'goalChanged', goal: null },
     })
   })
 
@@ -3297,5 +3444,206 @@ describe('ConversationController: a tool row’s picture (M43)', () => {
       path: 'a.png',
       error: 'EACCES',
     })
+  })
+})
+
+/** MSP's bare `goal/*` ack (M45). */
+function accepted(params: Record<string, unknown>) {
+  return { commandId: params['commandId'], status: 'accepted' }
+}
+
+/** The webview's goal command (M45). */
+function goal(verb: GoalCommandVerb, objective?: string) {
+  return {
+    type: 'goalCommand' as const,
+    requestId: 'g1',
+    verb,
+    ...(objective !== undefined && { objective }),
+  }
+}
+
+/** The notices the panel was sent, in order. */
+function notices(t: ReturnType<typeof setup>) {
+  return t.surface.posted.flatMap((message) => (message.type === 'notice' ? [message] : []))
+}
+
+describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
+  it('refuses bare goal verbs without creating an empty conversation', async () => {
+    const t = setup()
+    await t.controller.handle(goal('pause'))
+    await t.controller.handle(goal('resume'))
+    await t.controller.handle(goal('edit', 'New objective'))
+    await t.controller.handle(goal('clear'))
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(notices(t).map((notice) => notice.text)).toEqual([
+      UI_TEXT.goalNone,
+      UI_TEXT.goalNone,
+      UI_TEXT.goalNone,
+      UI_TEXT.goalNone,
+    ])
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+    ])
+  })
+
+  it('starts a conversation for a goal, sends the verb and says what was done', async () => {
+    const t = setup()
+    t.server.handle('goal/set', (params) => ({ ...accepted(params), turnId: 'goal-turn' }))
+    t.server.handle('goal/pause', accepted)
+    await t.controller.handle(goal('set', ' Ship the parser '))
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('goal/set')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      objective: 'Ship the parser',
+    })
+    await t.controller.handle(goal('pause'))
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: true },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: true },
+    ])
+    expect(notices(t)).toEqual([
+      { type: 'notice', level: 'info', text: 'Goal set: Ship the parser' },
+      { type: 'notice', level: 'info', text: UI_TEXT.goalPausedNotice },
+    ])
+    // The objective is the user's text: the log says what was done, not what was typed.
+    expect(t.log.info).toHaveBeenCalledWith('Goal set accepted (turn goal-turn)')
+    expect(t.log.info).not.toHaveBeenCalledWith(expect.stringContaining('Ship the parser'))
+  })
+
+  it('says a refusal in words and asks for a missing objective before sending anything', async () => {
+    const t = setup()
+    await t.controller.handle(goal('set', ' '.repeat(3)))
+    await t.controller.handle(goal('edit'))
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    t.server.handle('goal/pause', goalRefusal('missing_goal'))
+    t.server.handle('goal/resume', goalRefusal('invalid_goal_state'))
+    t.server.handle('goal/edit', goalRefusal('invalid_goal_state'))
+    t.server.handle('goal/clear', refusalOf('overloaded', -32_050))
+    await t.controller.handle(goal('pause'))
+    await t.controller.handle(goal('resume'))
+    await t.controller.handle(goal('edit', 'New'))
+    await t.controller.handle(goal('clear'))
+    expect(notices(t).map((notice) => [notice.level, notice.text])).toEqual([
+      ['warning', UI_TEXT.goalObjectiveMissing],
+      ['warning', UI_TEXT.goalObjectiveMissing],
+      ['warning', UI_TEXT.goalNone],
+      ['warning', UI_TEXT.goalCannotResume],
+      ['warning', UI_TEXT.goalCannotEdit],
+      ['error', expect.stringContaining(`${UI_TEXT.goalCommandFailed}: `)],
+    ])
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual(
+      Array.from({ length: 6 }, () => ({
+        type: 'goalCommandResult',
+        requestId: 'g1',
+        accepted: false,
+      })),
+    )
+  })
+
+  it('resumes the session and sends again when the host no longer holds it', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    let calls = 0
+    t.server.handle('goal/clear', (params) => {
+      calls += 1
+      if (calls === 1) {
+        throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+      }
+      return accepted(params)
+    })
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    await t.controller.handle(goal('clear'))
+    expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+    expect(calls).toBe(2)
+    expect(notices(t).at(-1)).toMatchObject({ text: UI_TEXT.goalClearedNotice })
+  })
+
+  it.each([
+    { result: 'accepted', isNotLoaded: false },
+    { result: 'unloaded', isNotLoaded: true },
+  ])(
+    'does not route an old $result goal request into a newly resumed session',
+    async ({ isNotLoaded }) => {
+      const deferred = setupWithDeferredHost()
+      const { t } = deferred
+      await t.send('l1', 'hi')
+      t.finishTurn()
+      await settle()
+      t.server.handle('goal/set', (params) => {
+        if (isNotLoaded) {
+          throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+        }
+        return accepted(params)
+      })
+      t.server.handle('session/resume', (params) =>
+        envelope({ ...storedSession, sessionId: params['sessionId'], status: 'idle' }),
+      )
+      t.server.handle('view/page', () => ({ events: [], nextCursor: null }))
+      deferred.delay()
+      const oldGoal = t.controller.handle(goal('set', 'Old objective'))
+      await vi.waitFor(() => {
+        expect(deferred.isWaiting()).toBe(true)
+      })
+      deferred.allowOtherRequests()
+      await t.controller.handle({ type: 'resumeSession', sessionId: 's2' })
+      const activity = vi.spyOn(t.deps.sessions, 'setLastSession')
+      t.surface.posted.length = 0
+      deferred.release()
+      await oldGoal
+      expect(t.server.requestsFor('goal/set')[0]?.params).toMatchObject({ sessionId: 's1' })
+      expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+      expect(t.memory.lastSession?.sessionId).toBe('s2')
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'notice', text: expect.stringContaining('Old objective') }),
+      )
+      expect(t.surface.posted.some((message) => message.type === 'goalCommandResult')).toBe(false)
+      expect(activity).not.toHaveBeenCalled()
+    },
+  )
+
+  it('forwards goalChanged, and a resumed snapshot brings the goal with the history', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('session/goalChanged', {
+      sessionId: 's1',
+      goal: { objective: 'Ship it', status: 'active', percentComplete: 10 },
+    })
+    await settle()
+    expect(t.surface.posted).toContainEqual({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Ship it', status: 'active', percentComplete: 10 },
+      },
+    })
+    t.server.handle('session/resume', () => ({
+      ...envelope({ ...storedSession, status: 'idle' }, 'snapshot'),
+      history: {
+        mode: 'snapshot',
+        items: null,
+        snapshot: {
+          state: {
+            items: storedItems,
+            goal: { objective: 'Old goal', status: 'paused', percentComplete: 20 },
+          },
+        },
+      },
+    }))
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'historyLoaded',
+        sessionId: 'old',
+        goal: { objective: 'Old goal', status: 'paused', percentComplete: 20 },
+      }),
+    )
   })
 })

@@ -97,7 +97,15 @@ export class FakeMspServer implements DuplexTransport {
         typeof error.code === 'number'
           ? error.code
           : HANDLER_ERROR
-      return { jsonrpc: '2.0', id, error: { code, message, data: { kind } } }
+      // And a `commandRejected` reason, when it names one (M45's goal refusals).
+      const reason =
+        typeof error === 'object' &&
+        error !== null &&
+        'reason' in error &&
+        typeof error.reason === 'string'
+          ? { reason: error.reason }
+          : {}
+      return { jsonrpc: '2.0', id, error: { code, message, data: { kind, ...reason } } }
     }
   }
 
@@ -214,14 +222,24 @@ export function fakeMspHost(initializeResult: unknown = fakeInitializeResult): F
   }
 }
 
-/** A request handler that refuses with this MSP error kind (the host's `data.kind`), and code when given. */
-export function refusalOf(kind: string, code?: number): () => never {
+/**
+ * A request handler that refuses with this MSP error kind (the host's
+ * `data.kind`), and code and `data.reason` when given.
+ */
+export function refusalOf(kind: string, code?: number, reason?: string): () => never {
   return () => {
-    throw Object.assign(new Error(`refused: ${kind}`), {
+    throw Object.assign(new Error(`refused: ${reason ?? kind}`), {
       kind,
       ...(code !== undefined && { code }),
+      ...(reason !== undefined && { reason }),
     })
   }
+}
+
+/** MSP's goal refusal (captured live 2026-09-25): `commandRejected`, -32030, with its reason. */
+const COMMAND_REJECTED_CODE = -32_030
+export function goalRefusal(reason: 'missing_goal' | 'invalid_goal_state'): () => never {
+  return refusalOf('commandRejected', COMMAND_REJECTED_CODE, reason)
 }
 
 /** Yields to the event loop enough times for a notification to be dispatched. */

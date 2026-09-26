@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
-import { SessionNotLoadedError } from '../../src/core/agent/agentBackend'
+import { GoalRefusedError, SessionNotLoadedError } from '../../src/core/agent/agentBackend'
 import {
   type CommandTimeouts,
   describeExit,
@@ -9,7 +9,13 @@ import {
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { MSP_FRAME_LIMIT_BYTES, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeInitializeResult, fakeMspHost, refusalOf, settle } from './helpers/fakeMsp'
+import {
+  fakeInitializeResult,
+  fakeMspHost,
+  goalRefusal,
+  refusalOf,
+  settle,
+} from './helpers/fakeMsp'
 
 const ack = (params: Record<string, unknown>) => ({
   status: 'accepted',
@@ -591,7 +597,7 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     expect(server.requestsFor('session/list')[0]?.params).not.toHaveProperty('cursor')
   })
 
-  it('resumes with inline history, tracks the session and routes its events', async () => {
+  it('resumes asking for a snapshot, tracks the session and routes its events', async () => {
     const { host, server } = setup()
     server.handle('session/resume', (params) =>
       envelope({ ...stored, sessionId: params['sessionId'], status: 'idle' }),
@@ -603,7 +609,7 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     })
     expect(server.requestsFor('session/resume')[0]?.params).toMatchObject({
       sessionId: 'old',
-      history: 'inline',
+      history: 'snapshot',
       config: {
         mcpServers: {
           ide: { transport: 'streamableHttp', mode: 'optional' },
@@ -1127,5 +1133,177 @@ describe('MuseCodeHost: the handshake facts (D26)', () => {
     const { log } = hostOn('macos', '1.3.0')
     expect(log.info).toHaveBeenCalledWith(expect.stringContaining('MSP host on macos'))
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('ephemeral sessions'))
+  })
+})
+
+/**
+ * The shared `goal/*` ack as `muse serve` answered it (live 2026-09-25): an
+ * idle set or resume names the turn it woke, a pause never names one (M45).
+ */
+function goalAck(turnId?: string) {
+  return (params: Record<string, unknown>) => ({
+    commandId: params['commandId'],
+    status: 'accepted',
+    ...(turnId !== undefined && { turnId }),
+  })
+}
+
+function resumedGoalSession(sessionId: string) {
+  return {
+    sessionId,
+    status: 'idle',
+    activeTurnId: null,
+    createdAt: '2026-09-25T19:06:18Z',
+    updatedAt: '2026-09-25T19:06:39Z',
+    turnCount: 1,
+  }
+}
+
+describe('MuseCodeHost: the session goal (M45)', () => {
+  it('sends each verb as goal/<verb>, the objective only with set and edit', async () => {
+    const { host, server } = setup()
+    const { session } = await listeningSession(host)
+    server.handle('goal/set', goalAck('turn-goal'))
+    server.handle('goal/edit', goalAck())
+    server.handle('goal/pause', goalAck())
+    server.handle('goal/resume', goalAck('turn-goal-2'))
+    server.handle('goal/clear', goalAck())
+    await expect(session.controlGoal({ verb: 'set', objective: 'Ship it' })).resolves.toEqual({
+      turnId: 'turn-goal',
+    })
+    await expect(session.controlGoal({ verb: 'edit', objective: 'Ship it now' })).resolves.toEqual({
+      turnId: undefined,
+    })
+    await session.controlGoal({ verb: 'pause' })
+    await expect(session.controlGoal({ verb: 'resume' })).resolves.toEqual({
+      turnId: 'turn-goal-2',
+    })
+    await session.controlGoal({ verb: 'clear' })
+    expect(server.requestsFor('goal/set')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      objective: 'Ship it',
+    })
+    expect(server.requestsFor('goal/edit')[0]?.params).toMatchObject({ objective: 'Ship it now' })
+    // A bare verb with an objective is `invalidParams` on the wire (live).
+    for (const verb of ['goal/pause', 'goal/resume', 'goal/clear']) {
+      expect(server.requestsFor(verb)[0]?.params, verb).not.toHaveProperty('objective')
+      expect(server.requestsFor(verb)[0]?.params, verb).toHaveProperty('commandId')
+    }
+  })
+
+  it('turns the captured refusals into GoalRefusedError, anything else as it came', async () => {
+    const { host, server } = setup()
+    const { session } = await listeningSession(host)
+    server.handle('goal/pause', goalRefusal('missing_goal'))
+    server.handle('goal/resume', goalRefusal('invalid_goal_state'))
+    server.handle('goal/clear', refusalOf('commandRejected', -32_030, 'session_busy'))
+    server.handle('goal/set', refusalOf('invalidParams', -32_602))
+    await expect(session.controlGoal({ verb: 'pause' })).rejects.toMatchObject({
+      name: 'GoalRefusedError',
+      refusal: 'noGoal',
+    })
+    await expect(session.controlGoal({ verb: 'resume' })).rejects.toBeInstanceOf(GoalRefusedError)
+    await expect(session.controlGoal({ verb: 'resume' })).rejects.toMatchObject({
+      refusal: 'wrongState',
+    })
+    // Another reason is not a goal refusal: it comes as MSP sent it.
+    await expect(session.controlGoal({ verb: 'clear' })).rejects.toMatchObject({
+      name: 'MspError',
+      kind: 'commandRejected',
+    })
+    await expect(session.controlGoal({ verb: 'set', objective: 'x' })).rejects.toMatchObject({
+      kind: 'invalidParams',
+    })
+  })
+
+  it('resumes asking for a snapshot, whose goal and task list come with the history', async () => {
+    const { host, server } = setup()
+    server.handle('session/resume', (params) => ({
+      session: resumedGoalSession(String(params['sessionId'])),
+      history: {
+        mode: 'snapshot',
+        items: null,
+        snapshot: {
+          schemaVersion: 1,
+          viewCursor: 'v:old:14',
+          state: {
+            items: [],
+            goal: {
+              objective: 'Reply with the single word hello',
+              status: 'paused',
+              percentComplete: 0,
+            },
+            todoList: { items: [{ text: 'Say hello', status: 'pending' }] },
+            name: null,
+          },
+        },
+      },
+      pendingRequests: [],
+      viewCursor: 'v:old:14',
+    }))
+    const loaded = await host.resumeSession('old', 'muse-spark-1.3')
+    expect(server.requestsFor('session/resume')[0]?.params).toMatchObject({ history: 'snapshot' })
+    expect(loaded.history.goal).toEqual({
+      objective: 'Reply with the single word hello',
+      status: 'paused',
+      percentComplete: 0,
+    })
+    // Inline history carried no task list, so a resume lost it before M45.
+    expect(loaded.history.todos).toEqual([{ text: 'Say hello', status: 'pending' }])
+    expect(server.requestsFor('view/page')).toHaveLength(0)
+  })
+
+  it('recovers the goal when a resume downgrades from snapshot to inline', async () => {
+    const { host, server } = setup()
+    server.handle('session/resume', (params) => ({
+      session: resumedGoalSession(String(params['sessionId'])),
+      history: { mode: 'inline', items: [], snapshot: null },
+      pendingRequests: [],
+      viewCursor: 'v:old:14',
+    }))
+    server.handle('view/page', () => ({
+      events: [
+        {
+          method: 'session/goalChanged',
+          params: {
+            sessionId: 'old',
+            viewCursor: 'v:old:14',
+            sourceRange: {
+              stream: { kind: 'session', id: 'old' },
+              first: { id: 'goal', sequence: 14 },
+              last: { id: 'goal', sequence: 14 },
+            },
+            goal: { objective: 'Ship it', status: 'paused', percentComplete: 25 },
+          },
+        },
+      ],
+      nextCursor: null,
+    }))
+    const loaded = await host.resumeSession('old', 'muse-spark-1.3')
+    expect(loaded.history.goal).toEqual({
+      objective: 'Ship it',
+      status: 'paused',
+      percentComplete: 25,
+    })
+    expect(server.requestsFor('view/page')).toHaveLength(1)
+  })
+
+  it('routes session/goalChanged to the session as goalChanged', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    server.notify('session/goalChanged', {
+      sessionId: session.sessionId,
+      viewCursor: 'v:1',
+      goal: { objective: 'Ship it', status: 'active', percentComplete: 0 },
+    })
+    server.notify('session/goalChanged', { sessionId: session.sessionId, goal: null })
+    await settle()
+    expect(events).toEqual([
+      {
+        type: 'goalChanged',
+        goal: { objective: 'Ship it', status: 'active', percentComplete: 0 },
+      },
+      { type: 'goalChanged', goal: null },
+    ])
   })
 })

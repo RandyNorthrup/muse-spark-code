@@ -73,6 +73,8 @@ export const SCENARIOS = [
   'muse-web',
   'paid-edit',
   'paid-image-cli',
+  'goal',
+  'goal-edit',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

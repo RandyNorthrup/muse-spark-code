@@ -258,6 +258,7 @@ describe('buildPalette', () => {
     expect(slash?.items.map((item) => item.label)).toEqual([
       '/agents',
       '/compact',
+      '/goal',
       '/export',
       'Export session log…',
       '/clear',
@@ -376,6 +377,7 @@ describe('slashCommandsOf', () => {
       'acme:deploy',
       'agents',
       'compact',
+      'goal',
       'export',
       'clear',
       'logout',
@@ -390,6 +392,10 @@ describe('slashCommandsOf', () => {
     expect(commands.find((command) => command.name === 'compact')?.detail).toBe(
       'Summarise older context to free the window',
     )
+    // M45: /goal readies the prompt for an objective.
+    expect(commands.find((command) => command.name === 'goal')?.action).toEqual({
+      type: 'startGoal',
+    })
     expect(commands.find((command) => command.name === 'acme:deploy')?.action).toEqual({
       type: 'insertSkill',
       selector: 'acme:deploy',

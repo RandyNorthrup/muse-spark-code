@@ -149,6 +149,11 @@ describe('toolDefinitions / classifyTool', () => {
       'bash',
       'ask_user',
       'todo_write',
+      // Muse Code's goal tools (M45), offered in every session.
+      'create_goal',
+      'get_goal',
+      'update_goal',
+      'report_progress',
     ])
     expect(toolDefinitions('win32').map((tool) => tool.name)).toContain('powershell')
     expect(shellToolFor('win32')).toEqual({ name: 'powershell', shellName: 'PowerShell' })
@@ -159,6 +164,7 @@ describe('toolDefinitions / classifyTool', () => {
     expect(classifyTool('write_file')).toBe('edit')
     expect(classifyTool('bash')).toBe('shell')
     expect(classifyTool('ask_user')).toBe('interactive')
+    expect(classifyTool('report_progress')).toBe('interactive')
     expect(classifyTool('nope')).toBeUndefined()
     for (const tool of toolDefinitions('linux')) {
       expect(tool.parameters).toMatchObject({ type: 'object', additionalProperties: false })

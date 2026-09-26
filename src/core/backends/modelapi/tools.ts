@@ -45,6 +45,8 @@ import {
   GENERATE_IMAGE_DESCRIPTION,
   GENERATE_IMAGE_PARAMETERS,
 } from './imageToolDefinitions'
+import { GOAL_TOOL_DEFINITIONS } from './goals'
+
 import type { ToolClass } from './permissions'
 import type { FunctionToolDefinition } from './schemas'
 
@@ -178,6 +180,11 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.readSkill]: 'read',
   [MODEL_API_TOOLS.generateImage]: 'paid',
   [MODEL_API_TOOLS.editImage]: 'paid',
+  // The goal tools change only the session's goal (M45): no card, in any mode.
+  [MODEL_API_TOOLS.createGoal]: 'interactive',
+  [MODEL_API_TOOLS.getGoal]: 'interactive',
+  [MODEL_API_TOOLS.updateGoal]: 'interactive',
+  [MODEL_API_TOOLS.reportProgress]: 'interactive',
 }
 
 export function classifyTool(name: string): ToolClass | undefined {
@@ -398,6 +405,11 @@ export function toolDefinitions(
         },
       },
       ['items'],
+    ),
+    // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
+    // `muse serve` offers them.
+    ...GOAL_TOOL_DEFINITIONS.map((tool) =>
+      define(tool.name, tool.description, tool.properties, tool.required),
     ),
   ]
 }

@@ -366,6 +366,35 @@ worktree with uncommitted changes is removed only after a second
 confirmation that says the changes will be lost. Both commands need a
 trusted workspace, since git does not run in Restricted Mode.
 
+## Session goals
+
+Give a conversation a goal and Muse keeps working toward it across turns, on
+both backends, as Muse Code's `/goal` does.
+
+- **Set one** with `/goal <objective>` in the prompt, or choose `/goal` in
+  the `/` menu, which leaves `/goal ` ready for the objective. When nothing
+  is running, Muse starts on it at once; a reply that is running takes it up
+  instead.
+- **The goal strip** above the task list shows the objective, its status
+  (Active, Paused, Complete, Blocked, or a limit reached), a progress bar,
+  and what the agent says it is doing now and next.
+- **Its controls**: Pause or Resume, Edit (the objective changes in place;
+  a paused goal stays paused) and Clear. Typed, they are `/goal pause`,
+  `/goal resume`, `/goal edit <objective>` and `/goal clear`. Stop pauses
+  an active goal. A command that cannot apply (there is no goal, or the
+  goal is finished) says why.
+- **On Muse Code** these are Muse Code's own goal verbs. Its goal loop also
+  continues unfinished work on its own and checks the work before the goal
+  closes; each of those is a model turn on your subscription. A resumed
+  conversation shows its goal.
+- **On the Model API** the agent has the same four goal tools (Set goal,
+  Check goal, Update goal, Goal progress, with Muse Code's rows), the goal is
+  kept with the conversation, and it is pinned into every request while it
+  is active. A turn starts only when you set, edit or resume a goal while
+  nothing runs: the backend never continues on its own and runs no check of
+  its own, so your key pays for nothing you did not ask for. A token budget
+  the agent gives a goal stops it once spent.
+
 ## The panel
 
 **Composer.**
@@ -401,12 +430,12 @@ palette with a filter box of its own. Its groups:
 
 Type a letter after the `/` and the palette gives way to a flat list of slash
 commands narrowed as you type: `/agents`, `/clear`, `/compact`, `/config`,
-`/cost`, `/export`, `/logout`, `/model`, `/permissions`, `/resume`, `/usage`,
-`/mcp` and `/hooks` (CLI backend), and the session's skills. Names that start
-with your letters come first. Up and Down move, `Enter` runs a command (a
-skill is completed so you can add its arguments), `Tab` completes the name
-and `Esc` closes the list. With nothing matching, `Enter` sends the text as
-it is.
+`/cost`, `/export`, `/goal`, `/logout`, `/model`, `/permissions`, `/resume`,
+`/usage`, `/mcp` and `/hooks` (CLI backend), and the session's skills. Names
+that start with your letters come first. Up and Down move, `Enter` runs a
+command (a skill, or `/goal`, is completed so you can add what follows it),
+`Tab` completes the name and `Esc` closes the list. With nothing matching,
+`Enter` sends the text as it is.
 
 **Transcript.**
 
