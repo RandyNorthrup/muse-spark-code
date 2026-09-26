@@ -1427,6 +1427,18 @@ budget could be silently dropped. The retry helper now checks the operated
 session before resuming it, Stop pauses its goal at the time of the action,
 and accepted steering gets a fresh ordinary turn when the goal budget
 terminates the old turn.
+The next PR review found that Model API objective validation exposed an
+English model-facing error to translated users, and that a suppressed late
+goal acknowledgement could leave the new session's composer stuck with the
+old pending command. Objective validation now returns a reason code: model
+tools keep Muse Code's English result, while user goal commands read a
+localized message and format the limit with `Intl`. A History switch clears
+the old pending command correlation. Both paths have focused red drills.
+The final focused audit found JavaScript's UTF-16 `.length` counted a
+supplementary character twice against the 4,000-character objective limit.
+The Model API validator now counts grapheme clusters (so a joined emoji is
+one visible character) and stops after 4,001; the 14 translated limit
+messages still format the number with `Intl`.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3435,10 +3447,10 @@ translations. The order is D36's table:
   captured refusals; the Model API's four goal tools, the stored goal, the
   pinned section, the step-probe note, the token budget, Stop pausing, the
   wake turn; the goal strip, `/goal …` in the prompt and the palette's
-  `/goal`; 31 strings in fourteen languages; harness scenarios `goal` and
+  `/goal`; 32 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G48; both
+  reducer, the controller, the strip and the prompt; drills G1–G51; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the

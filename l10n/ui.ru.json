@@ -692,6 +692,7 @@
   "goalCannotResume": "Возобновить можно только приостановленную цель.",
   "goalCannotEdit": "Изменить можно только активную или приостановленную цель; новую задайте командой /goal <цель>.",
   "goalObjectiveMissing": "Введите цель после /goal.",
+  "goalObjectiveTooLong": "Цель должна содержать не более {limit} символов.",
   "goalCommandFailed": "Не удалось выполнить команду цели",
   "announceGoalStatus": "Цель: {status}",
   "scheduleOnce": "Однократно",

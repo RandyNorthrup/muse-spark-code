@@ -656,6 +656,7 @@
   "goalCannotResume": "只有已暂停的目标才能恢复。",
   "goalCannotEdit": "只有进行中或已暂停的目标才能更改；请使用 /goal <目标> 设定新目标。",
   "goalObjectiveMissing": "请在 /goal 后输入目标。",
+  "goalObjectiveTooLong": "目标内容不得超过 {limit} 个字符。",
   "goalCommandFailed": "目标命令失败",
   "announceGoalStatus": "目标：{status}",
   "scheduleOnce": "单次",

@@ -79,6 +79,10 @@ while they are (PLAN.md D30, D34).
   tokens gets its own turn. A gap
   reload refreshes an open goal editor, and a late goal acknowledgement
   or session reload cannot appear in a different conversation.
+- **Goal validation and composer state** (M45). Overlong objectives now
+  report the limit in the installed language and count visible characters;
+  switching History sessions
+  clears an old `/goal` request's pending state so the composer responds.
 - **Goal lifecycle at request boundaries** (M45, review of PR #31). Model
   usage now belongs to the goal active when each request began, even if
   paused before its reply; Stop during compaction pauses the goal, and an

@@ -144,14 +144,26 @@ function parsedArgs<T>(schema: z.ZodMiniType<T>, args: string): T | undefined {
   return parsed.success ? parsed.data : undefined
 }
 
-/** Why an objective cannot be a goal's, or undefined. */
-function objectiveProblem(objective: string): string | undefined {
-  if (objective.trim() === '') {
-    return MODEL_TEXT.goalEmptyObjective
+/** A validation code shared by user verbs and model tools, with separate text. */
+type ObjectiveProblem = 'empty' | 'tooLong'
+
+function objectiveProblem(objective: string): ObjectiveProblem | undefined {
+  const trimmed = objective.trim()
+  if (trimmed === '') {
+    return 'empty'
   }
-  return objective.trim().length > GOAL_OBJECTIVE_MAX_CHARS
-    ? `${MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`
-    : undefined
+  // Count visible characters, including a joined emoji as one. Stop after
+  // the first over-limit cluster so a huge pasted objective stays bounded.
+  const segments = new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed)
+  const iterator = segments[Symbol.iterator]()
+  let count = 0
+  while (!iterator.next().done) {
+    count += 1
+    if (count > GOAL_OBJECTIVE_MAX_CHARS) {
+      return 'tooLong'
+    }
+  }
+  return undefined
 }
 
 function freshGoal(
@@ -199,7 +211,11 @@ function createGoal(
   }
   const problem = objectiveProblem(parsed.objective)
   if (problem !== undefined) {
-    return { outcome: failure(problem), goal }
+    const text =
+      problem === 'empty'
+        ? MODEL_TEXT.goalEmptyObjective
+        : `${MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`
+    return { outcome: failure(text), goal }
   }
   const budget = parsed.token_budget ?? null
   return budget === null || isBudget(budget)
@@ -321,7 +337,7 @@ export function applyGoalCommand(
 }
 
 /** Why a set or edit's objective is refused before anything changes, or undefined. */
-export function goalObjectiveProblem(command: GoalCommand): string | undefined {
+export function goalObjectiveProblem(command: GoalCommand): ObjectiveProblem | undefined {
   return command.verb === 'set' || command.verb === 'edit'
     ? objectiveProblem(command.objective)
     : undefined

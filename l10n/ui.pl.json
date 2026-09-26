@@ -692,6 +692,7 @@
   "goalCannotResume": "Wznowić można tylko wstrzymany cel.",
   "goalCannotEdit": "Zmienić można tylko aktywny lub wstrzymany cel; nowy ustaw poleceniem /goal <cel>.",
   "goalObjectiveMissing": "Wpisz cel po /goal.",
+  "goalObjectiveTooLong": "Cel może mieć maksymalnie {limit} znaków.",
   "goalCommandFailed": "Polecenie celu nie powiodło się",
   "announceGoalStatus": "Cel: {status}",
   "scheduleOnce": "Jednorazowo",

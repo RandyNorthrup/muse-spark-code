@@ -668,6 +668,7 @@
   "goalCannotResume": "Nur ein pausiertes Ziel kann fortgesetzt werden.",
   "goalCannotEdit": "Nur ein aktives oder pausiertes Ziel kann geändert werden; setzen Sie mit /goal <Ziel> ein neues.",
   "goalObjectiveMissing": "Geben Sie das Ziel nach /goal ein.",
+  "goalObjectiveTooLong": "Das Ziel darf höchstens {limit} Zeichen lang sein.",
   "goalCommandFailed": "Der Zielbefehl ist fehlgeschlagen",
   "announceGoalStatus": "Ziel: {status}",
   "scheduleOnce": "Einmalig",

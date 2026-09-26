@@ -19,6 +19,7 @@ import {
   CONTEXT_PRESSURE_MEDIUM,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
+  GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
   type GoalCommandVerb,
   HTTP_UNAUTHORIZED,
@@ -45,6 +46,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
+import { fill } from '../../../shared/l10n/text'
 import type { SubscriptionUsage } from '../../../shared/usage'
 import {
   type AgentHost,
@@ -2088,7 +2090,11 @@ export class ModelApiSession implements AgentSession {
   public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
     const problem = goalObjectiveProblem(command)
     if (problem !== undefined) {
-      return Promise.reject(new Error(`goal/${command.verb}: ${problem}`))
+      const detail =
+        problem === 'empty'
+          ? UI_TEXT.goalObjectiveMissing
+          : fill(UI_TEXT.goalObjectiveTooLong, { limit: GOAL_OBJECTIVE_MAX_CHARS })
+      return Promise.reject(new Error(`goal/${command.verb}: ${detail}`))
     }
     const applied = applyGoalCommand(this.goal, command, this.goalContext())
     if (typeof applied === 'string') {

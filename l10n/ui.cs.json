@@ -692,6 +692,7 @@
   "goalCannotResume": "Pokračovat lze jen v pozastaveném cíli.",
   "goalCannotEdit": "Změnit lze jen aktivní nebo pozastavený cíl; nový nastavte pomocí /goal <cíl>.",
   "goalObjectiveMissing": "Za /goal napište zadání cíle.",
+  "goalObjectiveTooLong": "Cíl může mít nejvýše {limit} znaků.",
   "goalCommandFailed": "Příkaz pro cíl selhal",
   "announceGoalStatus": "Cíl: {status}",
   "scheduleOnce": "Jednorázově",

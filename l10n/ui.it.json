@@ -680,6 +680,7 @@
   "goalCannotResume": "Solo un obiettivo in pausa può essere ripreso.",
   "goalCannotEdit": "Solo un obiettivo attivo o in pausa può essere modificato; impostane uno nuovo con /goal <obiettivo>.",
   "goalObjectiveMissing": "Scrivi l’obiettivo dopo /goal.",
+  "goalObjectiveTooLong": "L’obiettivo non può superare {limit} caratteri.",
   "goalCommandFailed": "Il comando dell’obiettivo non è riuscito",
   "announceGoalStatus": "Obiettivo: {status}",
   "scheduleOnce": "Una volta",

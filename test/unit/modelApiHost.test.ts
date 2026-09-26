@@ -4,6 +4,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
+  GOAL_OBJECTIVE_MAX_CHARS,
   MODEL_TEXT,
   type PaidFeature,
   UI_TEXT,
@@ -15,6 +16,8 @@ import {
   type ModelApiSession,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { EN } from '../../src/shared/l10n/en'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   fakeModelApi,
   fakeModelApiClient,
@@ -2249,6 +2252,19 @@ const GOAL_WAKE_MESSAGE = {
 }
 
 describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
+  it('rejects an overlong user objective in the installed language', async () => {
+    setUiText({ ...EN, goalObjectiveTooLong: 'Ziel höchstens {limit} Zeichen.' }, 'de')
+    try {
+      const t = setup()
+      const { session } = await startSession(t)
+      await expect(
+        session.controlGoal({ verb: 'set', objective: 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
+      ).rejects.toThrow('Ziel höchstens 4.000 Zeichen.')
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
+  })
+
   it("runs Muse Code's goal tools with its result shape and pins the goal into the next request", async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
@@ -2343,7 +2359,7 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
       turnId: undefined,
     })
     await expect(session.controlGoal({ verb: 'edit', objective: '  ' })).rejects.toThrow(
-      MODEL_TEXT.goalEmptyObjective,
+      UI_TEXT.goalObjectiveMissing,
     )
     await session.controlGoal({ verb: 'clear' })
     await expect(session.controlGoal({ verb: 'clear' })).rejects.toMatchObject({

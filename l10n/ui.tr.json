@@ -668,6 +668,7 @@
   "goalCannotResume": "Yalnızca duraklatılmış bir hedef sürdürülebilir.",
   "goalCannotEdit": "Yalnızca etkin veya duraklatılmış bir hedef değiştirilebilir; /goal <hedef> ile yeni bir hedef belirleyin.",
   "goalObjectiveMissing": "/goal komutundan sonra hedefi yazın.",
+  "goalObjectiveTooLong": "Hedef en fazla {limit} karakter olabilir.",
   "goalCommandFailed": "Hedef komutu başarısız oldu",
   "announceGoalStatus": "Hedef: {status}",
   "scheduleOnce": "Bir kez",

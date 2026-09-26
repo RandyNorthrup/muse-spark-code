@@ -219,9 +219,15 @@ describe('the user goal verbs on the Model API backend (M45)', () => {
   })
 
   it('checks a set or edit objective before anything changes', () => {
-    expect(goalObjectiveProblem({ verb: 'set', objective: ' ' })).toBe(
-      MODEL_TEXT.goalEmptyObjective,
-    )
+    expect(goalObjectiveProblem({ verb: 'set', objective: ' ' })).toBe('empty')
+    expect(
+      goalObjectiveProblem({ verb: 'edit', objective: 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
+    ).toBe('tooLong')
+    expect(goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(2001) })).toBeUndefined()
+    expect(goalObjectiveProblem({ verb: 'set', objective: '👨‍👩‍👧‍👦'.repeat(2001) })).toBeUndefined()
+    expect(
+      goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
+    ).toBe('tooLong')
     expect(goalObjectiveProblem({ verb: 'edit', objective: 'fine' })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'pause' })).toBeUndefined()
   })

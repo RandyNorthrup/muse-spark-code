@@ -656,6 +656,7 @@
   "goalCannotResume": "再開できるのは一時停止中の目標だけです。",
   "goalCannotEdit": "変更できるのはアクティブまたは一時停止中の目標だけです。新しい目標は /goal <目標> で設定してください。",
   "goalObjectiveMissing": "/goal の後に目標を入力してください。",
+  "goalObjectiveTooLong": "目標は {limit} 文字以内で入力してください。",
   "goalCommandFailed": "目標コマンドが失敗しました",
   "announceGoalStatus": "目標: {status}",
   "scheduleOnce": "1 回のみ",

@@ -2199,6 +2199,16 @@ describe('uiReducer: the session goal (M45)', () => {
     expect(ownEdit.goalEdit?.draft).toBe('Newer typing')
   })
 
+  it('clears an old pending goal command when History switches sessions', () => {
+    const pending = uiReducer(withGoal, { type: 'goalSubmitted', requestId: 'old-goal' })
+    expect(pending.pendingGoalCommand).toBeDefined()
+    const switched = uiReducer(
+      pending,
+      host({ type: 'historyLoaded', sessionId: 's2', items: [], todos: [] }),
+    )
+    expect(switched.pendingGoalCommand).toBeUndefined()
+  })
+
   it('drops the goal with the conversation', () => {
     expect(uiReducer(withGoal, { type: 'conversationCleared' }).goal).toBeUndefined()
     expect(uiReducer(withGoal, host({ type: 'conversationCleared' })).goal).toBeUndefined()

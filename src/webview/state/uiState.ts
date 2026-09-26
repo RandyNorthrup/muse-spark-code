@@ -1529,6 +1529,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           todos: message.todos,
           goal,
           ...editor,
+          pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
           usage: isSameSession ? state.usage : undefined,
