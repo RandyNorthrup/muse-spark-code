@@ -12,8 +12,7 @@ import {
   MODEL_API_TOOLS,
 } from '../../../shared/constants'
 import type { Located, MemoryNotePlace, MemoryStore } from '../../memory/memoryStore'
-import { functionTool, type ToolOutcome } from './tools'
-import type { FunctionToolDefinition } from './schemas'
+import type { ToolOutcome } from './tools'
 
 const scopeArg = z.optional(z.enum(MEMORY_SCOPES))
 const memoryReadArgs = z.object({
@@ -62,60 +61,59 @@ export function isMemoryTool(name: string): boolean {
 }
 
 /** The three memory tools as Muse Code describes them to its model. */
-export function memoryToolDefinitions(): readonly FunctionToolDefinition[] {
-  return [
-    functionTool(
-      MODEL_API_TOOLS.readMemory,
+export const MEMORY_TOOL_DEFINITIONS = [
+  {
+    name: MODEL_API_TOOLS.readMemory,
+    description:
       'Read a bounded line window from one local Markdown memory file. Use this when you need live memory content; reads never write to memory.',
-      {
-        path: PATH_PROPERTY,
-        scope: SCOPE_PROPERTY,
-        offset: {
-          type: 'integer',
-          description: '1-based line number where the read window starts. Defaults to 1.',
-        },
-        limit: {
-          type: 'integer',
-          description: 'Maximum number of lines to return. Defaults to 500.',
-        },
+    properties: {
+      path: PATH_PROPERTY,
+      scope: SCOPE_PROPERTY,
+      offset: {
+        type: 'integer',
+        description: '1-based line number where the read window starts. Defaults to 1.',
       },
-      ['path'],
-    ),
-    functionTool(
-      MODEL_API_TOOLS.addMemory,
-      `Add Markdown content to local memory: creates the file when it is missing, appends to the end when it already exists, and does not overwrite existing content. A new note gets its line in the scope's MEMORY.md index. Use ${MODEL_API_TOOLS.editMemory} for exact replacements.`,
-      {
-        path: PATH_PROPERTY,
-        scope: SCOPE_PROPERTY,
-        content: {
-          type: 'string',
-          description: 'Markdown content to append. Existing file content is preserved.',
-        },
-        type: {
-          type: 'string',
-          enum: [...MEMORY_NOTE_TYPES],
-          description: 'Optional memory note type for future recall.',
-        },
-        description: { type: 'string', description: 'Optional short summary for future recall.' },
+      limit: {
+        type: 'integer',
+        description: 'Maximum number of lines to return. Defaults to 500.',
       },
-      ['path', 'content'],
-    ),
-    functionTool(
-      MODEL_API_TOOLS.editMemory,
-      `Replace one exact string in local Markdown memory. The edit fails unless old_str appears exactly once; use ${MODEL_API_TOOLS.addMemory} to append new content.`,
-      {
-        path: PATH_PROPERTY,
-        scope: SCOPE_PROPERTY,
-        old_str: {
-          type: 'string',
-          description: 'Exact text to replace. Must match exactly once.',
-        },
-        new_str: { type: 'string', description: 'Replacement text. May be empty.' },
+    },
+    required: ['path'],
+  },
+  {
+    name: MODEL_API_TOOLS.addMemory,
+    description: `Add Markdown content to local memory: creates the file when it is missing, appends to the end when it already exists, and does not overwrite existing content. A new note gets its line in the scope's MEMORY.md index. Use ${MODEL_API_TOOLS.editMemory} for exact replacements.`,
+    properties: {
+      path: PATH_PROPERTY,
+      scope: SCOPE_PROPERTY,
+      content: {
+        type: 'string',
+        description: 'Markdown content to append. Existing file content is preserved.',
       },
-      ['path', 'old_str', 'new_str'],
-    ),
-  ]
-}
+      type: {
+        type: 'string',
+        enum: [...MEMORY_NOTE_TYPES],
+        description: 'Optional memory note type for future recall.',
+      },
+      description: { type: 'string', description: 'Optional short summary for future recall.' },
+    },
+    required: ['path', 'content'],
+  },
+  {
+    name: MODEL_API_TOOLS.editMemory,
+    description: `Replace one exact string in local Markdown memory. The edit fails unless old_str appears exactly once; use ${MODEL_API_TOOLS.addMemory} to append new content.`,
+    properties: {
+      path: PATH_PROPERTY,
+      scope: SCOPE_PROPERTY,
+      old_str: {
+        type: 'string',
+        description: 'Exact text to replace. Must match exactly once.',
+      },
+      new_str: { type: 'string', description: 'Replacement text. May be empty.' },
+    },
+    required: ['path', 'old_str', 'new_str'],
+  },
+]
 
 function invalid(error: z.core.$ZodError): Located<MemoryCall> {
   return { ok: false, reason: `invalid arguments: ${z.prettifyError(error)}` }

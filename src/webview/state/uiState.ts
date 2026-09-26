@@ -696,6 +696,7 @@ function subagentEntry(item: ItemSnapshot, seq: number): SubagentEntry {
     role: item.role,
     objective: item.objective,
     status: item.status,
+    paid: item.paid,
     controlStatus: item.controlStatus,
     subagentId: item.subagentId,
     childSessionId: item.childSessionId,
@@ -828,6 +829,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       const fresh = subagentEntry(item, entry.seq)
       return {
         ...entry,
+        paid: fresh.paid ?? entry.paid,
         role: fresh.role ?? entry.role,
         objective: fresh.objective ?? entry.objective,
         status: fresh.status,
@@ -1048,15 +1050,17 @@ function stampCompletion(entry: TranscriptEntry, seq: number): TranscriptEntry {
 /**
  * The subagent whose child session a turn belongs to (M18). Seen live
  * 2026-09-23: a child's own items (its reply, its tool calls) reach the
- * parent stream with `turnId` equal to the child session id, so they are
- * the agent's transcript, not the conversation's.
+ * parent stream with `turnId` equal to the child session id. Model API
+ * children (M48) prefix each of their turn ids with their child session id.
  */
 function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry | undefined {
   return turnId === undefined
     ? undefined
     : state.transcript.find(
         (entry): entry is SubagentEntry =>
-          entry.kind === SUBAGENT_KIND && entry.childSessionId === turnId,
+          entry.kind === SUBAGENT_KIND &&
+          entry.childSessionId !== undefined &&
+          (entry.childSessionId === turnId || turnId.startsWith(`${entry.childSessionId}:`)),
       )
 }
 

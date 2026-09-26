@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isMemoryTool,
-  memoryToolDefinitions,
+  MEMORY_TOOL_DEFINITIONS,
   placeMemoryCall,
   runMemoryCall,
 } from '../../src/core/backends/modelapi/memoryTools'
@@ -24,21 +24,21 @@ async function run(store: ReturnType<typeof setup>['store'], name: string, args:
 }
 
 describe('memory tools on the Model API backend (M49)', () => {
-  it('offers Muse Code’s three tools with its arguments, the note path always required', () => {
-    const tools = memoryToolDefinitions()
-    expect(tools.map((tool) => [tool.name, tool.parameters['required']])).toEqual([
+  it('names Muse Code’s three tools with its arguments, the note path always required', () => {
+    const tools = MEMORY_TOOL_DEFINITIONS
+    expect(tools.map((tool) => [tool.name, tool.required])).toEqual([
       ['read_memory', ['path']],
       ['add_memory', ['path', 'content']],
       ['edit_memory', ['path', 'old_str', 'new_str']],
     ])
-    expect(Object.keys(tools[1]?.parameters['properties'] ?? {})).toEqual([
+    expect(Object.keys(tools[1]?.properties ?? {})).toEqual([
       'path',
       'scope',
       'content',
       'type',
       'description',
     ])
-    expect(tools[0]?.parameters['properties']).toMatchObject({
+    expect(tools[0]?.properties).toMatchObject({
       scope: { enum: ['personal_project', 'project', 'personal'] },
     })
     expect(

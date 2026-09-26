@@ -80,5 +80,6 @@
   "walkthrough.gettingStarted.step.chat.description": "輸入訊息並按 Enter。/ 會開啟動作選擇區，@ 會提及檔案，Shift+Tab 會循環切換權限模式，「歷程記錄」對話方塊可找回過去的對話。\n[建立 AGENTS.md](command:museSpark.createRulesFile)",
   "config.modelApiWebSearch.description": "付費，預設為關閉。在 Model API 後端上，允許模型在回答時搜尋網頁，每 1,000 次搜尋 US$2.50，向您的 Model API 金鑰計費，另加 token 費用。開啟時會請您確認價格；每次搜尋都會在對話中顯示並標示為付費，且計入「帳戶與使用量」。",
   "config.modelApiImageGeneration.description": "付費，預設為關閉。允許模型使用 muse-image-1.0 在工作區中建立 PNG 圖片檔案，或將工作區中的圖片編輯為新圖片，每張圖片 US$0.01，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端（絕不會向訂閱計費）。在任何權限模式下，每張圖片產生前都會詢問您。開啟時會請您確認價格。",
-  "config.modelApiVoice.description": "付費，預設為關閉。麥克風會將您錄製的內容傳送至 Meta 的 Muse Voice Transcribe，而不是使用您電腦本身的辨識器，每小時音訊 US$0.18，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端。開啟時會請您確認價格；使用付費引擎時，麥克風會加以標示。"
+  "config.modelApiVoice.description": "付費，預設為關閉。麥克風會將您錄製的內容傳送至 Meta 的 Muse Voice Transcribe，而不是使用您電腦本身的辨識器，每小時音訊 US$0.18，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端。開啟時會請您確認價格；使用付費引擎時，麥克風會加以標示。",
+  "config.modelApiSubagents.description": "付費功能，預設關閉。在 Model API 後端，子代理程式使用您的 Model API 金鑰。啟用時會要求您接受權杖價格。每項新子工作都須核准，包括 略過權限 模式；每項工作最多四次請求，包含重試。子代理程式權杖費用已包含在對話估算中。"
 }

@@ -16,6 +16,7 @@ import {
 } from '../../../shared/agentEvents'
 import {
   LIST_FILES_DEFAULT_LIMIT,
+  MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
   MODEL_TEXT,
   READ_FILE_DEFAULT_LIMIT,
@@ -46,9 +47,11 @@ import {
   GENERATE_IMAGE_PARAMETERS,
 } from './imageToolDefinitions'
 import { GOAL_TOOL_DEFINITIONS } from './goals'
+import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
 import type { FunctionToolDefinition } from './schemas'
+import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 
 export interface ShellResult {
   readonly stdout: string
@@ -211,15 +214,21 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.readSkill]: 'read',
   [MODEL_API_TOOLS.generateImage]: 'paid',
   [MODEL_API_TOOLS.editImage]: 'paid',
+  [MODEL_API_SUBAGENT_TOOLS.spawn]: 'spawn',
+  [MODEL_API_SUBAGENT_TOOLS.status]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.wait]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.sendMessage]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.readResult]: 'interactive',
+  [MODEL_API_SUBAGENT_TOOLS.cancel]: 'interactive',
+  // M49 (PLAN.md D41): a memory write is judged as an edit, never a protected one.
+  [MODEL_API_TOOLS.readMemory]: 'read',
+  [MODEL_API_TOOLS.addMemory]: 'edit',
+  [MODEL_API_TOOLS.editMemory]: 'edit',
   // The goal tools change only the session's goal (M45): no card, in any mode.
   [MODEL_API_TOOLS.createGoal]: 'interactive',
   [MODEL_API_TOOLS.getGoal]: 'interactive',
   [MODEL_API_TOOLS.updateGoal]: 'interactive',
   [MODEL_API_TOOLS.reportProgress]: 'interactive',
-  // M49 (PLAN.md D41): a memory write is judged as an edit, never a protected one.
-  [MODEL_API_TOOLS.readMemory]: 'read',
-  [MODEL_API_TOOLS.addMemory]: 'edit',
-  [MODEL_API_TOOLS.editMemory]: 'edit',
 }
 
 export function classifyTool(name: string): ToolClass | undefined {
@@ -269,18 +278,28 @@ export interface ToolDefinitionOptions {
   readonly hasSkills: boolean
   /** True while paid image generation is on (M34, PLAN.md D30). */
   readonly hasImageGeneration?: boolean
+  /** Child sessions cannot spawn again (M48, PLAN.md D45). */
+  readonly hasSubagents?: boolean
+  /** Child sessions cannot ask the panel or set its task list. */
+  readonly isSubagent?: boolean
+  /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
+  readonly hasMemory?: boolean
 }
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
 
-/** One function tool as the Responses API takes it: an object of named, described arguments. */
-export function functionTool(
-  name: string,
-  description: string,
-  properties: Record<string, unknown>,
-  required: readonly string[],
-): FunctionToolDefinition {
-  return {
+/** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
+export function toolDefinitions(
+  platform: NodeJS.Platform,
+  options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
+): readonly FunctionToolDefinition[] {
+  const shell = shellToolFor(platform)
+  const define = (
+    name: string,
+    description: string,
+    properties: Record<string, unknown>,
+    required: readonly string[],
+  ): FunctionToolDefinition => ({
     type: 'function',
     name,
     description,
@@ -291,17 +310,9 @@ export function functionTool(
       additionalProperties: false,
     },
     strict: false,
-  }
-}
-
-/** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
-export function toolDefinitions(
-  platform: NodeJS.Platform,
-  options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
-): readonly FunctionToolDefinition[] {
-  const shell = shellToolFor(platform)
+  })
   return [
-    functionTool(
+    define(
       MODEL_API_TOOLS.readFile,
       'Read a text file from the workspace, numbered by line. Use offset and limit for long files.',
       {
@@ -311,7 +322,7 @@ export function toolDefinitions(
       },
       ['path'],
     ),
-    functionTool(
+    define(
       MODEL_API_TOOLS.editFile,
       'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique.',
       {
@@ -321,13 +332,13 @@ export function toolDefinitions(
       },
       ['path', 'find', 'replace'],
     ),
-    functionTool(
+    define(
       MODEL_API_TOOLS.writeFile,
       'Create or overwrite a file with the given content.',
       { path: PATH_PROPERTY, content: { type: 'string' } },
       ['path', 'content'],
     ),
-    functionTool(
+    define(
       MODEL_API_TOOLS.search,
       'Search file contents with a regular expression, optionally within files matching a glob.',
       {
@@ -343,7 +354,7 @@ export function toolDefinitions(
       },
       ['pattern'],
     ),
-    functionTool(
+    define(
       MODEL_API_TOOLS.listFiles,
       'List workspace files, optionally those matching a glob.',
       { glob: { type: 'string' }, limit: { type: 'integer' } },
@@ -351,7 +362,7 @@ export function toolDefinitions(
     ),
     ...(options.hasShell
       ? [
-          functionTool(
+          define(
             shell.name,
             `Run one ${shell.shellName} command line in the workspace root and return its output.`,
             {
@@ -368,13 +379,13 @@ export function toolDefinitions(
       : []),
     ...(options.hasImageGeneration === true
       ? [
-          functionTool(
+          define(
             MODEL_API_TOOLS.generateImage,
             GENERATE_IMAGE_DESCRIPTION,
             GENERATE_IMAGE_PARAMETERS,
             ['prompt', 'path'],
           ),
-          functionTool(MODEL_API_TOOLS.editImage, EDIT_IMAGE_DESCRIPTION, EDIT_IMAGE_PARAMETERS, [
+          define(MODEL_API_TOOLS.editImage, EDIT_IMAGE_DESCRIPTION, EDIT_IMAGE_PARAMETERS, [
             'prompt',
             'images',
             'path',
@@ -383,7 +394,7 @@ export function toolDefinitions(
       : []),
     ...(options.hasSkills
       ? [
-          functionTool(
+          define(
             MODEL_API_TOOLS.readSkill,
             'Load the full instructions of a skill listed in your instructions, by its id. Call it before starting a task the skill covers.',
             { id: { type: 'string', description: 'The skill id from the Skills list' } },
@@ -391,65 +402,79 @@ export function toolDefinitions(
           ),
         ]
       : []),
-    functionTool(
-      MODEL_API_TOOLS.askUser,
-      'Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.',
-      {
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              header: { type: 'string', description: 'Short label (a few words)' },
-              question: { type: 'string' },
-              selection: {
-                type: 'object',
-                properties: { mode: { type: 'string', enum: ['single', 'multiple'] } },
-                required: ['mode'],
-              },
-              options: {
+    ...(options.isSubagent === true
+      ? []
+      : [
+          define(
+            MODEL_API_TOOLS.askUser,
+            'Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.',
+            {
+              questions: {
                 type: 'array',
                 items: {
                   type: 'object',
-                  properties: { label: { type: 'string' }, description: { type: 'string' } },
-                  required: ['label'],
+                  properties: {
+                    id: { type: 'string' },
+                    header: { type: 'string', description: 'Short label (a few words)' },
+                    question: { type: 'string' },
+                    selection: {
+                      type: 'object',
+                      properties: { mode: { type: 'string', enum: ['single', 'multiple'] } },
+                      required: ['mode'],
+                    },
+                    options: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: { label: { type: 'string' }, description: { type: 'string' } },
+                        required: ['label'],
+                      },
+                    },
+                  },
+                  required: ['id', 'header', 'question', 'selection', 'options'],
                 },
               },
             },
-            required: ['id', 'header', 'question', 'selection', 'options'],
-          },
-        },
-      },
-      ['questions'],
-    ),
-    functionTool(
-      MODEL_API_TOOLS.todoWrite,
-      'Replace your task list, shown to the user while you work.',
-      {
-        items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              text: { type: 'string' },
-              status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
-              activeForm: {
-                type: 'string',
-                description: 'Present-tense form shown while in progress',
+            ['questions'],
+          ),
+          define(
+            MODEL_API_TOOLS.todoWrite,
+            'Replace your task list, shown to the user while you work.',
+            {
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    text: { type: 'string' },
+                    status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
+                    activeForm: {
+                      type: 'string',
+                      description: 'Present-tense form shown while in progress',
+                    },
+                  },
+                  required: ['text', 'status'],
+                },
               },
             },
-            required: ['text', 'status'],
-          },
-        },
-      },
-      ['items'],
-    ),
-    // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
-    // `muse serve` offers them.
-    ...GOAL_TOOL_DEFINITIONS.map((tool) =>
-      functionTool(tool.name, tool.description, tool.properties, tool.required),
-    ),
+            ['items'],
+          ),
+          // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
+          // `muse serve` offers them.
+          ...GOAL_TOOL_DEFINITIONS.map((tool) =>
+            define(tool.name, tool.description, tool.properties, tool.required),
+          ),
+        ]),
+    ...(options.hasSubagents === true
+      ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
+          define(tool.name, tool.description, tool.properties, tool.required),
+        )
+      : []),
+    ...(options.hasMemory === true
+      ? MEMORY_TOOL_DEFINITIONS.map((tool) =>
+          define(tool.name, tool.description, tool.properties, tool.required),
+        )
+      : []),
   ]
 }
 

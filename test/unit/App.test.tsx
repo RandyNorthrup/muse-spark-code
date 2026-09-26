@@ -1075,6 +1075,64 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it.each(['museCode', 'modelApi'] as const)(
+    'shows only verified %s agent result controls through the real App',
+    (backend) => {
+      const postMessage = renderReady()
+      deliver({ type: 'authState', status: 'signedIn', backend })
+      deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+      const started = {
+        itemId: 'sa-controls',
+        kind: 'subagent',
+        status: 'inProgress',
+        subagentId: 'sub-controls',
+        childSessionId: 'child-controls',
+        objective: 'Check controls',
+      }
+      deliver({ type: 'agentEvent', event: { type: 'itemStarted', item: started } })
+      deliver({
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: {
+            ...started,
+            status: 'completed',
+            controlStatus: 'resultReady',
+            result: { summary: 'Done' },
+          },
+        },
+      })
+      fireEvent.click(screen.getByTitle('Show the agent map'))
+      fireEvent.click(screen.getByRole('button', { name: /Check controls/ }))
+      if (backend === 'modelApi') {
+        fireEvent.click(screen.getByRole('button', { name: 'Mark result read' }))
+        expect(postMessage).toHaveBeenCalledWith({
+          type: 'subagentControl',
+          subagentId: 'sub-controls',
+          action: 'readResult',
+        })
+      } else {
+        expect(screen.queryByRole('button', { name: 'Mark result read' })).toBeNull()
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Close agent' }))
+      expect(postMessage).toHaveBeenCalledWith({
+        type: 'subagentControl',
+        subagentId: 'sub-controls',
+        action: 'close',
+      })
+      deliver({
+        type: 'agentEvent',
+        event: {
+          type: 'itemUpdated',
+          item: { ...started, status: 'completed', controlStatus: 'closed' },
+        },
+      })
+      expect(screen.queryByRole('button', { name: 'Reopen agent' }) !== null).toBe(
+        backend === 'modelApi',
+      )
+    },
+  )
+
   it('counts a workflow’s agents in the pill and notes the trigger mode (M47)', () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })

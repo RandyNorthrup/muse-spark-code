@@ -336,7 +336,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('listSessions') }),
   // The Agent map reads a subagent's own session (M14).
   z.object({ type: z.literal('readChildSession'), sessionId: z.string() }),
-  // The Agent map's owner controls on a subagent (M18): interrupt, stop, resume, close.
+  // The Agent map's owner controls (M18, M48), including reopen and readResult.
   z.object({
     type: z.literal('subagentControl'),
     subagentId: z.string(),

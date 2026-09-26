@@ -5,9 +5,9 @@
 
 import { useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
-import { UI_TEXT } from '../../shared/constants'
+import { MODEL_API_SUBAGENT_TOOLS, UI_TEXT } from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
-import { paidFeaturePrice } from '../../shared/paid'
+import { paidFeaturePrice, subagentTaskPrice } from '../../shared/paid'
 import type { PendingApproval } from '../state/uiState'
 
 export interface ApprovalDecisionInput {
@@ -40,26 +40,36 @@ function subjectText(approval: PendingApproval, toolName: string): string {
 }
 
 /**
- * The prompt of an image the card asks about (M34), and for an edit the
- * images it starts from (M44), shown so the user knows what is billed.
+ * An image prompt and its sources (M34, M44), or a subagent objective (M48),
+ * shown so the user knows what approving the call will do.
  */
-function imageRequest(rawArgs: string): {
+function requestDetails(rawArgs: string): {
   readonly prompt: string | undefined
   readonly sources: readonly string[]
+  readonly objective: string | undefined
+  readonly role: string | undefined
 } {
   let parsed: unknown
   try {
     parsed = JSON.parse(rawArgs)
   } catch {
-    return { prompt: undefined, sources: [] }
+    return { prompt: undefined, sources: [], objective: undefined, role: undefined }
   }
   if (typeof parsed !== 'object' || parsed === null) {
-    return { prompt: undefined, sources: [] }
+    return { prompt: undefined, sources: [], objective: undefined, role: undefined }
   }
   const prompt = 'prompt' in parsed && typeof parsed.prompt === 'string' ? parsed.prompt : undefined
+  let objective =
+    'objective' in parsed && typeof parsed.objective === 'string' ? parsed.objective : undefined
+  if (objective === undefined && 'message' in parsed && typeof parsed.message === 'string') {
+    objective = parsed.message
+  }
+  const role = 'role' in parsed && typeof parsed.role === 'string' ? parsed.role : undefined
   const images = 'images' in parsed && Array.isArray(parsed.images) ? parsed.images : []
   return {
     prompt,
+    objective,
+    role,
     sources: images.filter((image): image is string => typeof image === 'string'),
   }
 }
@@ -73,9 +83,22 @@ function titleTemplate(
   if (approval.subject.paidFeature === 'imageGeneration') {
     return isEdit ? UI_TEXT.approvalEditImage : UI_TEXT.approvalCreateImage
   }
+  if (approval.subject.paidFeature === 'subagents') {
+    return UI_TEXT.approvalRunSubagent
+  }
   return stage === undefined && approval.subject.kind === 'tool'
     ? UI_TEXT.approvalUseTool
     : UI_TEXT.approvalAction
+}
+
+function approvalPrice(approval: PendingApproval): string {
+  const { paidFeature, modelId, requestLimit } = approval.subject
+  if (paidFeature === 'subagents') {
+    return modelId === undefined || requestLimit === undefined
+      ? UI_TEXT.subagentTariffUnknown
+      : subagentTaskPrice(modelId, requestLimit)
+  }
+  return paidFeature === undefined ? '' : paidFeaturePrice(paidFeature)
 }
 
 export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps) {
@@ -86,13 +109,20 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
   const stage = currentStage(approval)
   // Decided and waiting for the host: no second decision on the same stage.
   const isLocked = approval.decidedSourceIndex === approval.requirementId.sourceIndex
-  const subject = subjectText(approval, toolName)
   const { paidFeature } = approval.subject
-  const image =
-    paidFeature === undefined ? { prompt: undefined, sources: [] } : imageRequest(approval.rawArgs)
+  const details = requestDetails(approval.rawArgs)
+  const subject =
+    paidFeature === 'subagents'
+      ? (details.role ?? subjectText(approval, toolName))
+      : subjectText(approval, toolName)
+  const image = paidFeature === undefined ? { prompt: undefined, sources: [] } : details
   // The language places the subject; it is shown as code wherever it lands.
   const title = titleTemplate(approval, stage, image.sources.length > 0)
-  const { prompt } = image
+  const prompt =
+    paidFeature === 'subagents' || toolName === MODEL_API_SUBAGENT_TOOLS.spawn
+      ? details.objective
+      : image.prompt
+  const price = approvalPrice(approval)
   return (
     <div
       className="approval"
@@ -130,9 +160,7 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
       {paidFeature !== undefined || approval.isProtectedWrite || approval.isJudgeEscalated ? (
         <div className="approval-flags">
           {paidFeature === undefined ? null : (
-            <span className="approval-paid">
-              {fill(UI_TEXT.approvalPaid, { price: paidFeaturePrice(paidFeature) })}
-            </span>
+            <span className="approval-paid">{fill(UI_TEXT.approvalPaid, { price })}</span>
           )}
           {approval.isProtectedWrite ? <span>{UI_TEXT.approvalProtectedWrite}</span> : null}
           {approval.isJudgeEscalated ? <span>{UI_TEXT.approvalJudgeEscalated}</span> : null}

@@ -441,6 +441,29 @@ describe('MuseCodeHost', () => {
     })
   })
 
+  it('refuses uncaptured child owner verbs without MSP while preserving captured close (M48)', async () => {
+    const { host, server } = setup()
+    server.handle('subagent/readResult', ack)
+    server.handle('subagent/reopen', ack)
+    server.handle('subagent/close', ack)
+    const session = await host.startSession(startOptions)
+    await expect(session.controlSubagent('opaque-child', 'readResult')).rejects.toThrow(
+      'subagent/readResult',
+    )
+    await expect(session.controlSubagent('opaque-child', 'reopen')).rejects.toThrow(
+      'subagent/reopen',
+    )
+    for (const method of ['subagent/readResult', 'subagent/reopen']) {
+      expect(server.requestsFor(method)).toEqual([])
+    }
+    await session.controlSubagent('opaque-child', 'close')
+    expect(server.requestsFor('subagent/close')[0]?.params).toMatchObject({
+      sessionId: session.sessionId,
+      subagentId: 'opaque-child',
+      commandId: expect.any(String),
+    })
+  })
+
   it('reports a crash to listeners, with what the exit code means (D25)', async () => {
     const { host, exit, log } = setup()
     const listener = vi.fn()

@@ -644,8 +644,11 @@ export class MuseSession implements AgentSession {
     await this.command('session/userShell', { commandText: command })
   }
 
-  /** `subagent/interrupt`, `stop`, `resume` or `close` on a child (M18). */
+  /** Captured owner verbs on a child (M18); M48's uncaptured verbs stay unavailable. */
   public async controlSubagent(subagentId: string, action: SubagentAction): Promise<void> {
+    if (action === 'reopen' || action === 'readResult') {
+      throw new Error(`subagent/${action}`)
+    }
     await this.command(`subagent/${action}`, { subagentId })
   }
 

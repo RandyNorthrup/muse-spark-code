@@ -11,7 +11,7 @@ import {
 } from '../../src/core/backends/modelapi/permissions'
 import { APPROVAL_MODES, type ApprovalMode } from '../../src/shared/permissionModes'
 
-const CLASSES: readonly ToolClass[] = ['read', 'edit', 'shell', 'interactive', 'paid']
+const CLASSES: readonly ToolClass[] = ['read', 'edit', 'shell', 'interactive', 'paid', 'spawn']
 
 /** One PowerShell call as the engine judges it. */
 function shell(command: string) {
@@ -21,14 +21,29 @@ function shell(command: string) {
 describe('verdictFor', () => {
   it('follows the mode truth table', () => {
     const table: Record<ApprovalMode, Record<ToolClass, string>> = {
-      allowAll: { read: 'allow', edit: 'allow', shell: 'allow', interactive: 'allow', paid: 'ask' },
-      onRequest: { read: 'allow', edit: 'allow', shell: 'ask', interactive: 'allow', paid: 'ask' },
+      allowAll: {
+        read: 'allow',
+        edit: 'allow',
+        shell: 'allow',
+        interactive: 'allow',
+        paid: 'ask',
+        spawn: 'ask',
+      },
+      onRequest: {
+        read: 'allow',
+        edit: 'allow',
+        shell: 'ask',
+        interactive: 'allow',
+        paid: 'ask',
+        spawn: 'ask',
+      },
       promptUnmatched: {
         read: 'allow',
         edit: 'ask',
         shell: 'ask',
         interactive: 'allow',
         paid: 'ask',
+        spawn: 'ask',
       },
       denyUnmatched: {
         read: 'allow',
@@ -36,6 +51,7 @@ describe('verdictFor', () => {
         shell: 'deny',
         interactive: 'allow',
         paid: 'deny',
+        spawn: 'deny',
       },
     }
     for (const mode of APPROVAL_MODES) {
@@ -126,6 +142,15 @@ describe('PermissionEngine', () => {
       'ask',
     )
     expect(engine.verdict({ toolName: 'edit_file', toolClass: 'edit' })).toBe('allow')
+  })
+
+  it('never lets Bypass or a session rule approve a new paid child task', () => {
+    const bypass = new PermissionEngine('allowAll')
+    const manual = new PermissionEngine('promptUnmatched')
+    const spawn = { toolName: 'subagent_spawn', toolClass: 'spawn' } as const
+    expect(bypass.verdict(spawn)).toBe('ask')
+    manual.allowForSession('subagent_spawn')
+    expect(manual.verdict(spawn)).toBe('ask')
   })
 })
 

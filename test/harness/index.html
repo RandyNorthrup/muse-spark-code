@@ -1361,7 +1361,7 @@
             item: {
               ...spawned('sa2', 'verifier', 'Run the unit tests', 'sub-2', 'child-2'),
               status: 'completed',
-              controlStatus: 'completed',
+              controlStatus: 'resultReady',
               durationMs: 42_000,
               usage: {
                 inputTokens: 12_000,
@@ -1377,6 +1377,31 @@
         'agents-details': () => {
           steps.agents()
           later(600, () => document.querySelector('.agent-node-clickable').click())
+        },
+        'agents-result': () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          steps.agents()
+          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+        },
+        'agents-closed': () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          steps.agents()
+          later(450, () =>
+            event({
+              type: 'itemUpdated',
+              item: {
+                itemId: 'sa2',
+                kind: 'subagent',
+                status: 'completed',
+                controlStatus: 'closed',
+                subagentId: 'sub-2',
+                childSessionId: 'child-2',
+              },
+            }),
+          )
+          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
         },
         'agents-off': () => {
           send({
@@ -1454,6 +1479,85 @@
         'paid-usage': () => {
           steps.paid()
           whenFound('.paid-badge', (badge) => badge.click())
+        },
+        'paid-subagent-approval': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['subagents'],
+            tally: {
+              webSearches: 0,
+              images: 0,
+              voiceSeconds: 0,
+              subagentRequests: 2,
+              subagentUnknownRequests: 1,
+              subagentTokens: 1100000,
+              subagentCostUsd: 1.455,
+            },
+            isKeyStored: true,
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          event({
+            type: 'tokenUsage',
+            inputTokens: 1000000,
+            cachedTokens: 200000,
+            outputTokens: 100000,
+            reasoningTokens: 0,
+          })
+          window.harnessSilent = true
+          setDraft('Ask a reviewer to inspect the local changes')
+          key({ key: 'Enter' })
+          const args = JSON.stringify({
+            role: 'reviewer',
+            objective: 'Review the workspace changes for errors and report the findings.',
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'paid-child-call',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'subagent_spawn',
+              args,
+              paid: 'subagents',
+            },
+          })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'paid-child-approval',
+            itemId: 'paid-child-call',
+            toolName: 'subagent_spawn',
+            rawArgs: args,
+            requirementId: { approvalId: 'paid-child-approval', sourceIndex: 0 },
+            subject: {
+              kind: 'paidTool',
+              paidFeature: 'subagents',
+              toolName: 'subagent_spawn',
+              modelId: 'muse-spark-1.3',
+              requestLimit: 4,
+            },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
+          })
+        },
+        'paid-subagent-usage': () => {
+          steps['paid-subagent-approval']()
+          whenFound('.paid-badge', (badge) => badge.click())
+        },
+        'paid-subagent-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['paid-subagent-approval']()
+        },
+        'paid-subagent-map': () => {
+          steps['agents-result']()
+          event({
+            type: 'itemUpdated',
+            item: { itemId: 'sa2', kind: 'subagent', status: 'completed', paid: 'subagents' },
+          })
         },
         // --- M34: an image asks first, naming its price, in every mode ---
         'paid-image': () => {

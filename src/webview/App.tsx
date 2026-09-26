@@ -1220,6 +1220,7 @@ export function App({
   const agentMap =
     overlay === 'agents' ? (
       <AgentMap
+        backend={state.auth.backend}
         title={title}
         modelId={state.model?.modelId}
         contextUsedTokens={state.context?.usedTokens}

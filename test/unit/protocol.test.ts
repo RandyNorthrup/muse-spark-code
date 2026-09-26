@@ -34,6 +34,11 @@ describe('parseWebviewToHostMessage', () => {
       { type: 'goalCommand', requestId: 'g1', verb: 'set', objective: 'Ship it' },
     ],
     ['goalCommand pause', { type: 'goalCommand', requestId: 'g2', verb: 'pause' }],
+    [
+      'subagent readResult',
+      { type: 'subagentControl', subagentId: 'child-1', action: 'readResult' },
+    ],
+    ['subagent reopen', { type: 'subagentControl', subagentId: 'child-1', action: 'reopen' }],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })

@@ -156,7 +156,7 @@ describe('UsageDialog', () => {
     })
     // 800K fresh input at $1.25, 200K cached at $0.15, 100K output at $4.25.
     expect(screen.getByRole('dialog')).toHaveTextContent('Estimated cost$1.46')
-    expect(screen.getByRole('dialog')).toHaveTextContent('Prices read on 2026-09-22')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Prices read on 2026-09-26')
   })
 
   it('focuses the close button, closes on it and on Escape', () => {
@@ -245,6 +245,28 @@ describe('UsageDialog insights fallback (M18)', () => {
 })
 
 describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
+  it('shows unknown child request cost without claiming it was free', () => {
+    renderDialog({
+      report: {
+        backend: 'modelApi',
+        subscription: undefined,
+        account: undefined,
+        insights: undefined,
+      },
+      paid: {
+        features: ['subagents'],
+        isKeyStored: true,
+        tally: { ...EMPTY_PAID_TALLY, subagentRequests: 1, subagentUnknownRequests: 1 },
+      },
+    })
+    const label = screen.getByText('Subagents (on)')
+    expect(label.nextElementSibling).toHaveTextContent('1 child request')
+    expect(label.nextElementSibling).toHaveTextContent('1 request has no reported cost yet')
+    expect(label.nextElementSibling).not.toHaveTextContent('$0')
+    expect(label.nextElementSibling).not.toHaveTextContent('0 tokens')
+    expect(screen.getByText(/Reported child costs are included/)).toBeInTheDocument()
+  })
+
   const modelApiReport = {
     backend: 'modelApi' as const,
     subscription: undefined,
@@ -266,7 +288,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Web search (on)4 searches · $0.0100')
     expect(dialog).toHaveTextContent('Images (off)2 images · $0.0200')
     expect(dialog).toHaveTextContent('Muse Voice (off)1m 30s of audio · $0.0045')
-    expect(dialog).toHaveTextContent('Estimated paid total$0.0345')
+    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0345')
     expect(dialog).toHaveTextContent('published prices, read on 2026-09-24')
   })
 

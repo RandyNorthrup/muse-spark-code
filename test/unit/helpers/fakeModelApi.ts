@@ -33,8 +33,8 @@ export interface ScriptedSearch {
 
 /** One model reply: streamed as reasoning + searches + text + function calls. */
 export interface ScriptedReply {
-  /** Keep the request in flight until a test releases this gate. */
-  readonly hold?: Promise<void>
+  /** Hold this response while concurrent sessions run (M48 capacity tests). */
+  readonly hold?: Promise<unknown>
   readonly text?: string
   readonly searches?: readonly ScriptedSearch[]
   /** The text's `url_citation` annotations (M33). */
@@ -263,24 +263,31 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   if (reply.doneSentinel === true) {
     text += 'data:\n\n'
   }
+  const usage = reply.usage ?? { input: 10, output: 5 }
+  const usagePayload = {
+    input_tokens: usage.input,
+    output_tokens: usage.output,
+    total_tokens: usage.input + usage.output,
+    input_tokens_details: { cached_tokens: usage.cached ?? 0 },
+    output_tokens_details: { reasoning_tokens: 1 },
+  }
   if (reply.failed !== undefined) {
     return `${text}${frame({
       type: 'response.failed',
-      response: { id: responseId, status: 'failed', output, error: reply.failed },
+      response: {
+        id: responseId,
+        status: 'failed',
+        output,
+        error: reply.failed,
+        ...(reply.usage !== undefined && { usage: usagePayload }),
+      },
     })}`
   }
-  const usage = reply.usage ?? { input: 10, output: 5 }
   const response = {
     id: responseId,
     model: 'muse-spark-1.3',
     output,
-    usage: {
-      input_tokens: usage.input,
-      output_tokens: usage.output,
-      total_tokens: usage.input + usage.output,
-      input_tokens_details: { cached_tokens: usage.cached ?? 0 },
-      output_tokens_details: { reasoning_tokens: 1 },
-    },
+    usage: usagePayload,
   }
   if (reply.incomplete !== undefined) {
     return `${text}${frame({
@@ -315,15 +322,24 @@ function bodyStream(text: string): ReadableStream<Uint8Array> {
 }
 
 async function afterGate(
-  gate: Promise<void>,
+  gate: Promise<unknown>,
   response: Response,
   signal: AbortSignal | null | undefined,
 ): Promise<Response> {
-  await gate
   if (signal?.aborted === true) {
     throw new DOMException('aborted', 'AbortError')
   }
-  return response
+  const aborted = Promise.withResolvers<never>()
+  const onAbort = () => {
+    aborted.reject(new DOMException('aborted', 'AbortError'))
+  }
+  signal?.addEventListener('abort', onAbort, { once: true })
+  try {
+    await Promise.race([gate, aborted.promise])
+    return response
+  } finally {
+    signal?.removeEventListener('abort', onAbort)
+  }
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {

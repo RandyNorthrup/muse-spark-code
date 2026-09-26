@@ -479,6 +479,12 @@
           "default": false,
           "description": "%config.modelApiVoice.description%",
           "scope": "machine"
+        },
+        "museSpark.modelApiSubagents": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.modelApiSubagents.description%",
+          "scope": "machine"
         }
       }
     },

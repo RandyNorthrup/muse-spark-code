@@ -82,6 +82,7 @@ export const ViewColumn = {
 } as const
 
 export const window = {
+  state: { focused: true },
   createWebviewPanel: vi.fn<typeof vscode.window.createWebviewPanel>(),
   // The pickers, dialogs and editors behind the CLI features (M30).
   showQuickPick: vi.fn<typeof vscode.window.showQuickPick>(),

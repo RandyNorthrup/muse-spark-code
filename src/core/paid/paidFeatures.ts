@@ -13,8 +13,15 @@
 // the window focus.
 
 import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
-import { EMPTY_PAID_TALLY, type PaidState, type PaidTally } from '../../shared/paid'
+import {
+  EMPTY_PAID_TALLY,
+  modelApiPaidTier,
+  type PaidState,
+  type PaidTally,
+  type SubagentUsage,
+} from '../../shared/paid'
 import type { CoreLogger } from '../logging'
+import { estimateCostUsd } from '../usage/insights'
 
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
@@ -193,8 +200,39 @@ export class PaidUsage {
         this.tally = { ...tally, voiceSeconds: tally.voiceSeconds + units }
         break
       }
+      case 'subagents': {
+        this.tally = {
+          ...tally,
+          subagentRequests: (tally.subagentRequests ?? 0) + units,
+          subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) + units,
+        }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
+    for (const listener of this.listeners) {
+      listener()
+    }
+  }
+
+  /** One admitted child attempt reported billable usage; never replayed from storage. */
+  public addSubagentUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate subagent use for an unpriced model')
+    }
+    if (Object.values(usage).some((value) => !Number.isFinite(value) || value < 0)) {
+      throw new Error('Subagent usage must be finite and nonnegative')
+    }
+    const { tally } = this
+    if ((tally.subagentUnknownRequests ?? 0) === 0) {
+      return
+    }
+    this.tally = {
+      ...tally,
+      subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) - 1,
+      subagentTokens: (tally.subagentTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      subagentCostUsd: (tally.subagentCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+    }
     for (const listener of this.listeners) {
       listener()
     }

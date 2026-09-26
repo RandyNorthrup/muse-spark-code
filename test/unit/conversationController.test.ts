@@ -20,6 +20,7 @@ import type { HostAction, LineRange, MentionItem } from '../../src/shared/protoc
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { disabledPaidFeatures } from './helpers/fakePaidFeatures'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './helpers/fakeToolIo'
 import {
@@ -2492,7 +2493,7 @@ describe('ConversationController chat references (M17)', () => {
   })
 })
 
-describe('ConversationController subagent controls (M18)', () => {
+describe('ConversationController subagent controls (M18, M48)', () => {
   it('relays owner controls and notes to the session and reports a refusal', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -2545,6 +2546,26 @@ describe('ConversationController subagent controls (M18)', () => {
     })
     expect(t.server.requestsFor('subagent/stop')).toEqual([])
   })
+
+  it('refuses forged uncaptured native reopen and readResult controls before MSP', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('subagent/readResult', () => ({ status: 'accepted' }))
+    t.server.handle('subagent/reopen', () => ({ status: 'accepted' }))
+    await t.controller.handle({
+      type: 'subagentControl',
+      subagentId: 'sub-1',
+      action: 'readResult',
+    })
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'reopen' })
+    expect(t.server.requestsFor('subagent/readResult')).toEqual([])
+    expect(t.server.requestsFor('subagent/reopen')).toEqual([])
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'error',
+      text: `${UI_TEXT.agentControlFailed}: subagent/readResult`,
+    })
+  })
 })
 
 /** The agent events a test surface was sent, in order. */
@@ -2578,8 +2599,7 @@ function modelApiController(
     personalSkillsRoot: undefined,
     isWorkspaceTrusted: () => true,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
-    isPaidFeatureOn: () => false,
-    notePaidUse: () => undefined,
+    ...disabledPaidFeatures,
     memory: undefined,
   })
   const controller = new ConversationController({
@@ -3186,6 +3206,16 @@ async function activeGoalForGap(t: ReturnType<typeof setup>): Promise<void> {
   t.server.handle('session/read', (params) => gapInlineHistory(String(params['sessionId'])))
 }
 
+/** A steer fake that only lets the running parent turn t1 be steered (M48). */
+function steerOnlyParentTurn(t: ReturnType<typeof setup>): void {
+  t.server.handle('turn/steer', (params) => {
+    if (params['expectedTurnId'] !== 't1') {
+      throw new Error(`turn ${String(params['expectedTurnId'])} is not running`)
+    }
+    return { turnId: 't1', status: 'accepted', commandId: params['commandId'] }
+  })
+}
+
 describe('ConversationController: protocol semantics (D26)', () => {
   const refusal = refusalOf
 
@@ -3412,6 +3442,69 @@ describe('ConversationController: protocol semantics (D26)', () => {
     t.server.notify('turn/unqueued', { sessionId: 's1', turnId: 't2', commandId: 'c' })
     await settle()
     await t.send('l2', 'more')
+    expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({ expectedTurnId: 't1' })
+  })
+
+  it('keeps steering the parent turn when a child turn starts mid-turn (M48)', async () => {
+    const t = setup()
+    steerOnlyParentTurn(t)
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1' })
+    // The child's row names its session before the child's first turn (M48).
+    t.server.notify('item/started', {
+      sessionId: 's1',
+      item: {
+        itemId: 'sub-1',
+        kind: 'subagent',
+        status: 'inProgress',
+        turnId: 't1',
+        subagentId: 'sub-1',
+        childSessionId: 'child-1',
+        role: 'explorer',
+        objective: 'Map files',
+      },
+    })
+    // A Model API child's own turn reaches the parent stream (M48); it must
+    // not take the steering a correction aims at the running parent turn.
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 'child-1:c1' })
+    await settle()
+    await t.send('l2', 'actually, that')
+    expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({ expectedTurnId: 't1' })
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  })
+
+  it('still steers the parent when a resumed history named the child session (M48)', async () => {
+    const t = setup()
+    steerOnlyParentTurn(t)
+    t.server.handle('session/resume', () => ({
+      session: { ...storedSession, sessionId: 's1', status: 'running', activeTurnId: 't1' },
+      history: {
+        mode: 'inline',
+        items: [
+          ...storedItems,
+          {
+            itemId: 'sub-1',
+            kind: 'subagent',
+            status: 'inProgress',
+            turnId: 't1',
+            subagentId: 'sub-1',
+            childSessionId: 'child-1',
+            role: 'explorer',
+            objective: 'Map files',
+          },
+        ],
+        snapshot: null,
+      },
+      pendingRequests: [],
+      viewCursor: 'v',
+    }))
+    await t.controller.handle({ type: 'resumeSession', sessionId: 's1' })
+    await settle()
+    // A Muse Code child's items arrive under its own session id (M18); its
+    // turn must not take the steering either.
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 'child-1' })
+    await settle()
+    await t.send('l1', 'correction')
     expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({ expectedTurnId: 't1' })
   })
 

@@ -7,14 +7,20 @@
 import * as z from 'zod/mini'
 import {
   MUSE_CODE_PAID_FEATURES,
+  DEFAULT_MODEL_ID,
+  CONTRIBUTOR_MODEL_SUFFIX,
+  MODEL_API_PRICED_MODELS,
+  MODEL_API_PRICES_PER_MILLION,
+  MODEL_API_PRICE_DECIMALS,
   PAID_FEATURES,
   PAID_PRICES_USD,
   type PaidFeature,
   SEARCHES_PER_PRICE_UNIT,
   SECONDS_PER_HOUR,
+  SUBAGENT_TASK_MAX_REQUESTS,
   UI_TEXT,
 } from './constants'
-import { fill, formatUsd } from './l10n/text'
+import { fill, formatNumber, formatUsd } from './l10n/text'
 import type { BackendKind } from './protocol'
 
 /** What this window used of each paid feature since it opened. */
@@ -22,10 +28,56 @@ export const paidTallySchema = z.object({
   webSearches: z.number(),
   images: z.number(),
   voiceSeconds: z.number(),
+  // Optional for panels saved before M48; absent means no child use recorded.
+  subagentRequests: z.optional(z.int().check(z.nonnegative())),
+  subagentUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  subagentTokens: z.optional(z.int().check(z.nonnegative())),
+  subagentCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
 export const EMPTY_PAID_TALLY: PaidTally = { webSearches: 0, images: 0, voiceSeconds: 0 }
+
+export interface SubagentTaskConfirmation {
+  readonly role: string
+  readonly objective: string
+  readonly modelId: string
+  readonly attemptLimit: number
+}
+
+export interface SubagentUsage {
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly cachedTokens: number
+}
+
+/** Unknown model tariffs cannot authorize a paid child task. */
+export function modelApiPaidTier(
+  modelId: string,
+): keyof typeof MODEL_API_PRICES_PER_MILLION | undefined {
+  const standard: readonly string[] = MODEL_API_PRICED_MODELS.standard
+  if (standard.includes(modelId)) {
+    return 'standard'
+  }
+  const contributor: readonly string[] = MODEL_API_PRICED_MODELS.contributor
+  return contributor.includes(modelId) ? 'contributor' : undefined
+}
+
+/** Exact published rates and the task's HTTP attempt cap, in the installed locale. */
+export function subagentTaskPrice(modelId: string, attemptLimit: number): string {
+  const tier = modelApiPaidTier(modelId)
+  if (tier === undefined) {
+    return UI_TEXT.subagentTariffUnknown
+  }
+  const rates = MODEL_API_PRICES_PER_MILLION[tier]
+  return fill(UI_TEXT.paidSubagentRates, {
+    model: modelId,
+    input: formatUsd(rates.input, MODEL_API_PRICE_DECIMALS),
+    cached: formatUsd(rates.cachedInput, MODEL_API_PRICE_DECIMALS),
+    output: formatUsd(rates.output, MODEL_API_PRICE_DECIMALS),
+    limit: formatNumber(attemptLimit),
+  })
+}
 
 /** The features that are on (setting on and price accepted), and the tally. */
 export const paidStateSchema = z.object({
@@ -63,6 +115,9 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
     case 'voice': {
       return (tally.voiceSeconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR
     }
+    case 'subagents': {
+      return tally.subagentCostUsd ?? 0
+    }
   }
 }
 
@@ -76,13 +131,23 @@ export function listedPaidFeatures(
   tally: PaidTally,
 ): readonly PaidFeature[] {
   return PAID_FEATURES.filter(
-    (feature) => usable.includes(feature) || paidCostUsd(feature, tally) > 0,
+    (feature) =>
+      usable.includes(feature) ||
+      paidCostUsd(feature, tally) > 0 ||
+      (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0),
   )
 }
 
 /** The whole tally's estimated cost. */
 export function paidTotalUsd(tally: PaidTally): number {
-  return PAID_FEATURES.reduce((sum, feature) => sum + paidCostUsd(feature, tally), 0)
+  // Child token cost is already part of the conversation's token estimate.
+  let total = 0
+  for (const feature of PAID_FEATURES) {
+    if (feature !== 'subagents') {
+      total += paidCostUsd(feature, tally)
+    }
+  }
+  return total
 }
 
 // Built per call, never at module load: the display language's table is
@@ -94,6 +159,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     webSearch: UI_TEXT.paidWebSearchName,
     imageGeneration: UI_TEXT.paidImageGenerationName,
     voice: UI_TEXT.paidVoiceName,
+    subagents: UI_TEXT.paidSubagentsName,
   }
   return names[feature]
 }
@@ -111,6 +177,15 @@ export function paidFeaturePrice(feature: PaidFeature): string {
     }
     case 'voice': {
       return fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
+    }
+    case 'subagents': {
+      return [
+        subagentTaskPrice(DEFAULT_MODEL_ID, SUBAGENT_TASK_MAX_REQUESTS),
+        subagentTaskPrice(
+          `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
+          SUBAGENT_TASK_MAX_REQUESTS,
+        ),
+      ].join('\n')
     }
   }
 }

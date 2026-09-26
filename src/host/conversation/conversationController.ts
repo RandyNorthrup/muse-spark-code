@@ -294,6 +294,7 @@ const ATTENTION_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
 ])
 const QUEUED_DISPOSITION = 'queued'
 const TOOL_CALL_KIND = 'toolCall'
+const SUBAGENT_ITEM_KIND = 'subagent'
 const IN_PROGRESS_STATUS = 'inProgress'
 // The unsaved files a warning names before it counts the rest (D27).
 const UNSAVED_FILES_NAMED = 3
@@ -421,6 +422,11 @@ export class ConversationController {
   private effort: EffortLevel = DEFAULT_EFFORT
   private isThinkingEnabled = true
   private activeTurnId: string | undefined
+  /**
+   * Child sessions this surface has rows for. Their turns reach the parent
+   * stream (M48) but never take the parent turn's steering, Stop or Ctrl+B.
+   */
+  private readonly childSessionIds = new Set<string>()
   private hasWarnedSandbox = false
   /** The contributor model the user said yes to (once per conversation). */
   private confirmedContributor: string | undefined
@@ -647,6 +653,7 @@ export class ConversationController {
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
+    this.childSessionIds.clear()
     this.finishedTurns.clear()
     this.forgetForegroundShells()
     this.pendingShellApprovals.clear()
@@ -846,9 +853,34 @@ export class ConversationController {
   }
 
   /** The controller's own bookkeeping for an event the webview was sent. */
+  /**
+   * A turn of a known child session (M48): its row names the session id, and
+   * a Model API child's turn ids prefix it, as the panel already reads them.
+   */
+  private isChildTurn(turnId: string): boolean {
+    for (const childSessionId of this.childSessionIds) {
+      if (turnId === childSessionId || turnId.startsWith(`${childSessionId}:`)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /** Remember a subagent row's child session, live or from a loaded history. */
+  private noteSubagentRow(item: ItemSnapshot): void {
+    if (item.kind === SUBAGENT_ITEM_KIND && item.childSessionId !== undefined) {
+      this.childSessionIds.add(item.childSessionId)
+    }
+  }
+
   private track(event: AgentEvent): void {
     switch (event.type) {
       case 'turnStarted': {
+        // A child's own turn reaches the parent stream; the running parent
+        // turn keeps the steering, Stop and Ctrl+B (the review of PR #35).
+        if (this.isChildTurn(event.turnId)) {
+          break
+        }
         this.activeTurnId = event.turnId
         this.turnClocks.set(event.turnId, { startedAt: this.deps.now(), firstOutputAt: undefined })
         this.deps.log.info(
@@ -915,6 +947,7 @@ export class ConversationController {
       }
       case 'itemStarted': {
         this.noteForegroundShell(event.item)
+        this.noteSubagentRow(event.item)
         break
       }
       case 'itemUpdated':
@@ -924,6 +957,7 @@ export class ConversationController {
           this.pausedForegroundShells.delete(event.item.itemId)
         }
         this.noteForegroundShell(event.item)
+        this.noteSubagentRow(event.item)
         this.noteSandboxFailure(event.item.failureReason)
         // A `!` command says it in its output (captured 2026-09-25, M46).
         if (event.item.kind === USER_SHELL_ITEM_KIND) {
@@ -1695,6 +1729,9 @@ export class ConversationController {
     activeTurnId: string | undefined,
     shouldIncludeGoal = true,
   ): void {
+    for (const item of history.items) {
+      this.noteSubagentRow(item)
+    }
     this.restoreForegroundShells(history.items, activeTurnId)
     this.post({
       type: 'historyLoaded',
