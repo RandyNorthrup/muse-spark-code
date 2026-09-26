@@ -1493,6 +1493,11 @@ completion then started a turn of its own, the model's reply. The choices:
   `stale_attempt`), shown as a warning in words; a reason Muse Code adds
   later shows as it came. Pause and resume have no MSP verb (`/workflows`
   in the terminal UI only) and are not offered.
+- **Resume-source evidence limit.** The live tool call captured for M47
+  carried an inline `script` and its launch result carried `scriptPath`.
+  No resumed-workflow tool arguments were captured, so the Workflow tool
+  row does not interpret an input `scriptPath` or claim a resume-source
+  file. That display waits for a live owner capture of a resumed run.
 - **Control ownership.** A webview control names the source session whose
   workflow card offered it. The host ignores a late control after that
   surface changes sessions; a refusal arriving after the change is not
@@ -3707,10 +3712,11 @@ hosted CI remains the merge gate.
 
 ### M47 — Workflows: the run, its agents, cancel and agent control (D40)
 
-**Status 2026-09-26: M46 merged base integrated; M47 locally verified,
-hosted certification pending** (`docs/certification/m47.md`). The isolated
-branch sits on M46 merge commit `e219d04` with M47's staged work. The
-final documented-tree quality gate passed; hosted CI and review remain.
+**Status 2026-09-26: M46 merged base integrated; M47 local gate green,
+hosted review pending** (`docs/certification/m47.md`). The branch sits on
+M46 merge commit `e219d04`. The unverified resumed-workflow source display
+was removed and the narrowed exact-tree local quality gate passed; hosted
+CI and review remain.
 
 - **Goal**: a workflow Muse Code runs reads as what it is, a run of agents
   going on in the background, and can be stopped or steered from the panel
@@ -3726,8 +3732,8 @@ final documented-tree quality gate passed; hosted CI and review remain.
   result or failure) that outlives its turn; agents merged as Muse Code
   drops fields; `workflow/cancel` and `workflow/childControl` on the
   session interface, refusals as `WorkflowControlRefusedError` and warning
-  notices in words; the Workflow tool's row (script, launch, a resume's
-  file); the agents pill counting workflow agents and the Agent map listing
+  notices in words; the Workflow tool's row (captured inline script and
+  launch); the agents pill counting workflow agents and the Agent map listing
   runs; `run.workflow_trigger_mode` read, noted in the map and in
   Diagnostics; 34 strings in fourteen languages.
 - **Stale controls**: cancel, skip and retry are bound to the card's source
@@ -3751,10 +3757,11 @@ final documented-tree quality gate passed; hosted CI and review remain.
   on the final integrated worktree. Claude's M47 source worktree
   passed `quality:gates` but its accessibility run had four Chrome pages
   without a result and exited 1; secrets and SAST did not run.
-- **Left out, by Muse Code**: pausing and resuming a run (no MSP verb); a
-  workflow agent's transcript (no session to read); listing or recovering
-  saved workflows (`muse workflows list|recover` are CLI commands outside
-  MSP, left for a later look).
+- **Left out, by Muse Code or evidence**: pausing and resuming a run (no MSP
+  verb); a workflow agent's transcript (no session to read); listing or
+  recovering saved workflows (`muse workflows list|recover` are CLI commands
+  outside MSP); and a resumed workflow's source file in the tool row until
+  its actual input arguments are captured.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 

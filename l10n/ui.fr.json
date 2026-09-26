@@ -555,7 +555,6 @@
   "workflowTriggerOther": "Le paramètre des flux de travail de Muse Code est {mode}.",
   "workflowTriggerHowTo": "Définissez run.workflow_trigger_mode sur « auto », « explicit » ou « off » dans le fichier de paramètres de Muse Code pour le modifier ; l’extension ne modifie jamais ce fichier.",
   "workflowLaunched": "Lancé : il s’exécute en arrière-plan et rend compte à cette conversation.",
-  "workflowResumesFrom": "Reprend une exécution précédente depuis {path}",
   "workflowScriptSaved": "Script enregistré dans {path}",
   "backgroundTasksCount": {
     "one": "{count} tâche en arrière-plan",

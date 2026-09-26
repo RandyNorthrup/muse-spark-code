@@ -71,7 +71,8 @@ while they are (PLAN.md D30, D34).
   reported loses its stale running controls; an unfamiliar command status
   is reported in the installed language with its technical status intact.
   A shortened workflow name shows its full name on hover.
-  The Workflow tool's row shows the script the model wrote and the launch.
+  The Workflow tool's row shows the captured inline script and launch; it
+  does not infer a resumed run's source file from unverified arguments.
   The **N agents** pill counts workflow agents, the Agent map lists the
   runs, and it says how Muse Code is set to start workflows
   (`run.workflow_trigger_mode`, read from its settings file, never

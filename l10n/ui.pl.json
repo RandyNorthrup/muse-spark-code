@@ -565,7 +565,6 @@
   "workflowTriggerOther": "Ustawienie przepływów pracy w Muse Code to {mode}.",
   "workflowTriggerHowTo": "Aby to zmienić, ustaw run.workflow_trigger_mode na \"auto\", \"explicit\" lub \"off\" w pliku ustawień Muse Code; rozszerzenie nigdy nie edytuje tego pliku.",
   "workflowLaunched": "Uruchomiono: działa w tle i zgłasza wynik w tej rozmowie.",
-  "workflowResumesFrom": "Wznawia wcześniejszy przebieg z pliku {path}",
   "workflowScriptSaved": "Skrypt zapisano w {path}",
   "backgroundTasksCount": {
     "one": "{count} zadanie w tle",

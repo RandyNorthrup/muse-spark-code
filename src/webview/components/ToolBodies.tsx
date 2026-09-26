@@ -209,9 +209,8 @@ export function ImageBody({ entry }: { readonly entry: ToolEntry }) {
 }
 
 /**
- * The Workflow tool's call (M47): the script the model wrote (or the file a
- * resumed run starts from) and whether Muse Code launched it. The run
- * itself is its own card, which follows the row.
+ * The Workflow tool's captured inline script and whether Muse Code launched
+ * it (M47). The run itself is its own card, which follows the row.
  */
 export function WorkflowBody({ entry }: { readonly entry: ToolEntry }) {
   const launch = workflowLaunch(entry.args, entry.output)
@@ -234,11 +233,6 @@ export function WorkflowBody({ entry }: { readonly entry: ToolEntry }) {
     <div className="tool-detail">
       {launch.script === undefined ? null : (
         <Clipped text={launch.script} className="tool-output" />
-      )}
-      {launch.resumesFrom === undefined ? null : (
-        <p className="tool-detail-meta workflow-path">
-          {fill(UI_TEXT.workflowResumesFrom, { path: launch.resumesFrom })}
-        </p>
       )}
       {answer}
     </div>

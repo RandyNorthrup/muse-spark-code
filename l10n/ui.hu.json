@@ -545,7 +545,6 @@
   "workflowTriggerOther": "A Muse Code munkafolyamat-beállítása: {mode}.",
   "workflowTriggerHowTo": "A módosításhoz állítsa a run.workflow_trigger_mode értékét \"auto\", \"explicit\" vagy \"off\" értékre a Muse Code beállításfájljában; a kiegészítő soha nem szerkeszti ezt a fájlt.",
   "workflowLaunched": "Elindítva: a háttérben fut, és ebbe a beszélgetésbe jelenti az eredményt.",
-  "workflowResumesFrom": "Egy korábbi futást folytat innen: {path}",
   "workflowScriptSaved": "A szkript mentési helye: {path}",
   "backgroundTasksCount": {
     "one": "{count} háttérfeladat",

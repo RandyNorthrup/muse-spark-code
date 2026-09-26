@@ -545,7 +545,6 @@
   "workflowTriggerOther": "Muse Code iş akışı ayarı: {mode}.",
   "workflowTriggerHowTo": "Değiştirmek için Muse Code ayarlar dosyasında run.workflow_trigger_mode değerini “auto”, “explicit” veya “off” olarak ayarlayın; uzantı bu dosyayı hiçbir zaman düzenlemez.",
   "workflowLaunched": "Başlatıldı: arka planda çalışır ve sonucu bu konuşmaya bildirir.",
-  "workflowResumesFrom": "{path} konumundan önceki bir çalıştırmayı sürdürür",
   "workflowScriptSaved": "Betik şuraya kaydedildi: {path}",
   "backgroundTasksCount": {
     "one": "{count} arka plan görevi",

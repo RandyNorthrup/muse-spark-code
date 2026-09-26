@@ -535,7 +535,6 @@
   "workflowTriggerOther": "Muse Code のワークフロー設定は {mode} です。",
   "workflowTriggerHowTo": "変更するには、Muse Code の設定ファイルで run.workflow_trigger_mode を \"auto\"、\"explicit\"、\"off\" のいずれかに設定してください。拡張機能がこのファイルを編集することはありません。",
   "workflowLaunched": "開始しました: バックグラウンドで実行され、結果はこの会話に報告されます。",
-  "workflowResumesFrom": "{path} から以前の実行を再開します",
   "workflowScriptSaved": "スクリプトの保存先: {path}",
   "backgroundTasksCount": {
     "other": "{count} 個のバックグラウンド タスク"

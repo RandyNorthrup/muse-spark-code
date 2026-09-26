@@ -565,7 +565,6 @@
   "workflowTriggerOther": "Настройка рабочих процессов Muse Code: {mode}.",
   "workflowTriggerHowTo": "Чтобы изменить это, задайте для run.workflow_trigger_mode значение \"auto\", \"explicit\" или \"off\" в файле настроек Muse Code; расширение никогда не изменяет этот файл.",
   "workflowLaunched": "Запущен: выполняется в фоновом режиме и сообщит результат в этой беседе.",
-  "workflowResumesFrom": "Продолжает прежний запуск из {path}",
   "workflowScriptSaved": "Скрипт сохранен в {path}",
   "backgroundTasksCount": {
     "one": "{count} фоновая задача",

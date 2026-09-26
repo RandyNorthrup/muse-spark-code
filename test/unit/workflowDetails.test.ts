@@ -13,7 +13,6 @@ import {
 } from '../../src/webview/workflowDetails'
 import {
   WORKFLOW_MESSAGE,
-  WORKFLOW_RUN_ID,
   WORKFLOW_SCRIPT,
   WORKFLOW_SCRIPT_PATH,
   WORKFLOW_TOOL_ITEM,
@@ -68,23 +67,20 @@ describe('workflowLaunch (M47)', () => {
   it('reads the captured call: the script, and a launch with its saved script', () => {
     expect(workflowLaunch(WORKFLOW_TOOL_ITEM.args, WORKFLOW_TOOL_ITEM.visibleOutput)).toEqual({
       script: WORKFLOW_SCRIPT,
-      resumesFrom: undefined,
       isLaunched: true,
       scriptPath: WORKFLOW_SCRIPT_PATH,
     })
   })
 
-  it('names the file a resumed run starts from, and a result that is not a launch', () => {
-    const resume = JSON.stringify({ scriptPath: 'run.js', resumeFromRunId: WORKFLOW_RUN_ID })
-    expect(workflowLaunch(resume, 'workflow launch disabled')).toEqual({
+  it('does not interpret an unobserved input path as a resume source', () => {
+    const unknownArgs = JSON.stringify({ scriptPath: 'run.js' })
+    expect(workflowLaunch(unknownArgs, 'workflow launch disabled')).toEqual({
       script: undefined,
-      resumesFrom: 'run.js',
       isLaunched: false,
       scriptPath: undefined,
     })
     expect(workflowLaunch('', '')).toEqual({
       script: undefined,
-      resumesFrom: undefined,
       isLaunched: false,
       scriptPath: undefined,
     })

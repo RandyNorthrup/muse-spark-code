@@ -645,7 +645,6 @@ export const EN = {
     'Set run.workflow_trigger_mode to "auto", "explicit" or "off" in the Muse Code settings file to change it; the extension never edits that file.',
   // The Workflow tool's row.
   workflowLaunched: 'Launched: it runs in the background and reports back to this conversation.',
-  workflowResumesFrom: 'Resumes an earlier run from {path}',
   workflowScriptSaved: 'Script saved at {path}',
   backgroundTasksCount: forms({
     one: '{count} background task',

@@ -580,8 +580,10 @@ tokens, the background tasks, and each agent's own transcript.
 **Workflows.** Muse Code can run a multi-agent workflow: a short script,
 written by the model for the task or saved in Muse Code beforehand, that
 starts child agents, up to 1,000 over a run, each making its own model
-calls on your subscription. The **Workflow** row shows the script and says the run
-was launched; the run itself is a card below it that keeps changing after
+calls on your subscription. The **Workflow** row shows the inline script
+when the model wrote one and says whether the run was launched. It does
+not infer a source file for a resumed run; that input shape has not been
+captured from Muse Code. The run itself is a card below it that keeps changing after
 the reply ends, as the run goes on in the background:
 
 - its name ("Written for this task", or a saved workflow's own), its status,

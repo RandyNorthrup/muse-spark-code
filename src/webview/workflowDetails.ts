@@ -25,8 +25,6 @@ export interface WorkflowOutcome {
 export interface WorkflowLaunch {
   /** The inline script the model wrote. */
   readonly script: string | undefined
-  /** A resumed run's script file. */
-  readonly resumesFrom: string | undefined
   /** The launch was admitted: the run goes on in the background. */
   readonly isLaunched: boolean
   /** Where Muse Code kept the script. */
@@ -42,7 +40,6 @@ const reconciledSchema = z.object({
 
 const launchArgsSchema = z.object({
   script: z.optional(z.string()),
-  scriptPath: z.optional(z.string()),
 })
 const launchResultSchema = z.object({
   status: z.string(),
@@ -99,7 +96,6 @@ export function workflowLaunch(args: string, output: string): WorkflowLaunch {
   const result = launchResultSchema.safeParse(json(output)).data
   return {
     script: given?.script,
-    resumesFrom: given?.script === undefined ? given?.scriptPath : undefined,
     isLaunched: result?.status === LAUNCHED,
     scriptPath: result?.scriptPath,
   }

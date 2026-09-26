@@ -535,7 +535,6 @@
   "workflowTriggerOther": "Muse Code 的工作流设置为 {mode}。",
   "workflowTriggerHowTo": "要更改，请在 Muse Code 设置文件中将 run.workflow_trigger_mode 设置为 \"auto\"、\"explicit\" 或 \"off\"；此扩展从不编辑该文件。",
   "workflowLaunched": "已启动：它在后台运行，并会向此对话报告结果。",
-  "workflowResumesFrom": "从 {path} 继续之前的运行",
   "workflowScriptSaved": "脚本已保存到 {path}",
   "backgroundTasksCount": {
     "other": "{count} 个后台任务"

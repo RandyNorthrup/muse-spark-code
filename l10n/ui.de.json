@@ -545,7 +545,6 @@
   "workflowTriggerOther": "Die Workflow-Einstellung von Muse Code ist {mode}.",
   "workflowTriggerHowTo": "Setzen Sie run.workflow_trigger_mode in der Einstellungsdatei von Muse Code auf \"auto\", \"explicit\" oder \"off\", um das zu ändern; die Erweiterung bearbeitet diese Datei nie.",
   "workflowLaunched": "Gestartet: Er läuft im Hintergrund und meldet sich in dieser Unterhaltung zurück.",
-  "workflowResumesFrom": "Setzt einen früheren Lauf aus {path} fort",
   "workflowScriptSaved": "Skript gespeichert unter {path}",
   "backgroundTasksCount": {
     "one": "{count} Hintergrundaufgabe",

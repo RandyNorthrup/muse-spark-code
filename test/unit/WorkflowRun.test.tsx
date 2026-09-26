@@ -196,18 +196,18 @@ describe('a workflow run’s card (M47)', () => {
     expect(row).toHaveTextContent(`Script saved at ${WORKFLOW_SCRIPT_PATH}`)
   })
 
-  it('names the file a resumed run starts from, and shows a result that is not a launch', () => {
+  it('does not label an unobserved argument as a resume source', () => {
     renderTranscript([
       tool({
         id: 'resume',
         tool: 'workflow',
-        args: JSON.stringify({ scriptPath: 'run.js', resumeFromRunId: WORKFLOW_RUN_ID }),
+        args: JSON.stringify({ scriptPath: 'run.js' }),
         output: 'workflow_launch_rejected: workflows are disabled for this run',
       }),
     ])
     fireEvent.click(screen.getByRole('button', { name: /Workflow/ }))
     const row = document.querySelector('[data-entry-id="resume"]')
-    expect(row).toHaveTextContent('Resumes an earlier run from run.js')
+    expect(row).not.toHaveTextContent('run.js')
     expect(row).toHaveTextContent('workflows are disabled for this run')
     expect(row).not.toHaveTextContent('Launched')
   })

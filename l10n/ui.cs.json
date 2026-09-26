@@ -565,7 +565,6 @@
   "workflowTriggerOther": "Nastavení pracovních postupů Muse Code je {mode}.",
   "workflowTriggerHowTo": "Chcete-li to změnit, nastavte v souboru nastavení Muse Code run.workflow_trigger_mode na „auto“, „explicit“ nebo „off“; rozšíření tento soubor nikdy neupravuje.",
   "workflowLaunched": "Spuštěno: běží na pozadí a výsledek ohlásí do této konverzace.",
-  "workflowResumesFrom": "Navazuje na dřívější běh ze souboru {path}",
   "workflowScriptSaved": "Skript uložen v {path}",
   "backgroundTasksCount": {
     "one": "{count} úloha na pozadí",
