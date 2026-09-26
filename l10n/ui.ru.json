@@ -534,22 +534,6 @@
   },
   "workflowChildUntitled": "Агент {number}",
   "workflowAttempt": "попытка {attempt}",
-  "workflowCancel": "Отменить рабочий процесс",
-  "workflowSkip": "Пропустить",
-  "workflowRetry": "Повторить",
-  "workflowSkipChild": "Пропустить {child}",
-  "workflowRetryChild": "Повторить {child}",
-  "workflowCancelRefused": "Рабочий процесс не отменен: {reason}.",
-  "workflowChildRefused": "Агент рабочего процесса не изменен: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "он уже завершился",
-    "missing_run": "у Muse Code нет активного запуска с таким идентификатором",
-    "invalid_target": "этот агент не выполняется",
-    "stale_attempt": "этот агент уже перешел к новой попытке"
-  },
-  "workflowControlFailed": "Команда рабочего процесса не выполнена",
-  "workflowCommandStatusUnexpected": "Команда рабочего процесса {method} вернула состояние {status}",
-  "workflowsUnsupported": "Бэкенд Model API не запускает рабочие процессы",
   "workflowsCount": {
     "one": "{count} рабочий процесс",
     "few": "{count} рабочих процесса",

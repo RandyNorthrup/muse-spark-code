@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
 import { renderTranscript, tool } from './helpers/transcriptFixtures'
 import {
@@ -50,10 +50,7 @@ const runningRun: WorkflowEntry = {
 
 describe('a workflow run’s card (M47)', () => {
   it('shows the captured run: its name, status, agent, tokens, what started it and its result', () => {
-    renderTranscript([completedRun], {
-      onCancelWorkflow: vi.fn(),
-      onControlWorkflowChild: vi.fn(),
-    })
+    renderTranscript([completedRun])
     const row = document.querySelector('.workflow')
     expect(row).toHaveAttribute('data-entry-id', WORKFLOW_ITEM_ID)
     expect(row).toHaveAttribute('data-status', 'completed')
@@ -62,35 +59,16 @@ describe('a workflow run’s card (M47)', () => {
     const agents = screen.getByRole('list', { name: 'Workflow agents' })
     expect(agents).toHaveTextContent('ping2s · 10.1K tokens · completed')
     expect(row).toHaveTextContent('Resultpong')
-    // A finished run offers no control.
+    // Owner controls wait for a live accepted-command capture.
     expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull()
   })
 
-  it('cancels a running run and skips or retries a running agent by its current attempt', () => {
-    const props = renderTranscript([runningRun], {
-      onCancelWorkflow: vi.fn(),
-      onControlWorkflowChild: vi.fn(),
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel workflow' }))
-    expect(props.onCancelWorkflow).toHaveBeenCalledWith(WORKFLOW_RUN_ID)
-    fireEvent.click(screen.getByRole('button', { name: 'Skip ping' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Retry ping' }))
-    expect(props.onControlWorkflowChild).toHaveBeenNthCalledWith(
-      1,
-      WORKFLOW_RUN_ID,
-      WORKFLOW_CHILD_ID,
-      2,
-      'skip',
-    )
-    expect(props.onControlWorkflowChild).toHaveBeenNthCalledWith(
-      2,
-      WORKFLOW_RUN_ID,
-      WORKFLOW_CHILD_ID,
-      2,
-      'retry',
-    )
-    // The queued agent, unnamed, is numbered and has nothing to skip yet.
+  it('shows running and queued agents without unverified owner controls', () => {
+    renderTranscript([runningRun])
+    expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip|Retry/ })).toBeNull()
+    // The queued agent, unnamed, is numbered.
     const queued = within(screen.getByRole('list', { name: 'Workflow agents' }))
       .getByText('Agent 2')
       .closest('li')
@@ -101,7 +79,7 @@ describe('a workflow run’s card (M47)', () => {
     )
   })
 
-  it('offers no control without the run’s handle or the callbacks, and shows a failure', () => {
+  it('shows a failure when the run has no handle', () => {
     renderTranscript([
       { ...runningRun, id: 'a', workflowRunId: undefined },
       {

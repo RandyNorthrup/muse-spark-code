@@ -525,22 +525,6 @@
   },
   "workflowChildUntitled": "Agente {number}",
   "workflowAttempt": "intento {attempt}",
-  "workflowCancel": "Cancelar flujo de trabajo",
-  "workflowSkip": "Omitir",
-  "workflowRetry": "Reintentar",
-  "workflowSkipChild": "Omitir {child}",
-  "workflowRetryChild": "Reintentar {child}",
-  "workflowCancelRefused": "No se canceló el flujo de trabajo: {reason}.",
-  "workflowChildRefused": "No se modificó el agente del flujo de trabajo: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "ya ha finalizado",
-    "missing_run": "Muse Code no tiene ninguna ejecución activa con ese id",
-    "invalid_target": "ese agente no se está ejecutando",
-    "stale_attempt": "ese agente ya pasó a un nuevo intento"
-  },
-  "workflowControlFailed": "Error en el comando del flujo de trabajo",
-  "workflowCommandStatusUnexpected": "El comando del flujo de trabajo {method} devolvió el estado {status}",
-  "workflowsUnsupported": "El back-end de Model API no ejecuta flujos de trabajo",
   "workflowsCount": {
     "one": "{count} flujo de trabajo",
     "many": "{count} de flujos de trabajo",

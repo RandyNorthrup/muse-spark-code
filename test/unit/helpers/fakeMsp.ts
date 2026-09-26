@@ -257,11 +257,6 @@ export function goalRefusal(reason: 'missing_goal' | 'invalid_goal_state'): () =
   return refusalOf('commandRejected', COMMAND_REJECTED_CODE, reason)
 }
 
-/** A workflow command rejection with a reason Muse Code sent. */
-export function rejectionOf(reason: string): () => never {
-  return refusalOf('commandRejected', COMMAND_REJECTED_CODE, reason)
-}
-
 /** Yields to the event loop enough times for a notification to be dispatched. */
 export async function settle(): Promise<void> {
   const TICKS = 5

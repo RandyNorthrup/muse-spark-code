@@ -702,13 +702,11 @@ export const MUSE_DELEGATION_ENABLED = 'auto'
 /** The run's own item kind, and the agent tool that launches one. */
 export const WORKFLOW_KIND = 'workflow'
 export const WORKFLOW_TOOL = 'workflow'
-/** The owner controls on one workflow child's current attempt (MSP `workflow/childControl`, closed on the wire). */
-export const WORKFLOW_CHILD_ACTIONS = ['skip', 'retry'] as const
-export type WorkflowChildAction = (typeof WORKFLOW_CHILD_ACTIONS)[number]
 /**
  * A child's statuses while it runs (live 2026-09-25: `scheduled`, then
  * `started`, `usage` with its tokens, `completed` and `terminal`). Muse Code
- * skips or restarts only a running child, so only these offer the controls.
+ * showed `started` and `usage` while its child ran; the badge counts only
+ * those as running.
  */
 export const WORKFLOW_CHILD_RUNNING_STATUSES: ReadonlySet<string> = new Set(['started', 'usage'])
 /**
@@ -717,8 +715,8 @@ export const WORKFLOW_CHILD_RUNNING_STATUSES: ReadonlySet<string> = new Set(['st
  * guidance let the model start one, and the run named `guidanceAuto`).
  */
 export const MUSE_WORKFLOW_TRIGGER_DEFAULT = 'auto'
-/** The name prefix of a workflow the model wrote for the task, not a saved one. */
-export const GENERATED_WORKFLOW_PREFIX = 'generated.'
+/** The only generated workflow entry ID observed in M47's live capture. */
+export const CAPTURED_GENERATED_WORKFLOW_ENTRY_ID = 'generated.model-chosen'
 // The CLI's trace logs, one per `muse serve` process, under its data root.
 export const MUSE_TRACE_LOG_SEGMENTS = [
   '.local',

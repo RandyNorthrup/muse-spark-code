@@ -516,22 +516,6 @@
   },
   "workflowChildUntitled": "Aracı {number}",
   "workflowAttempt": "{attempt}. deneme",
-  "workflowCancel": "İş akışını iptal et",
-  "workflowSkip": "Atla",
-  "workflowRetry": "Yeniden dene",
-  "workflowSkipChild": "Atla: {child}",
-  "workflowRetryChild": "Yeniden dene: {child}",
-  "workflowCancelRefused": "İş akışı iptal edilmedi: {reason}.",
-  "workflowChildRefused": "İş akışı aracısı değiştirilmedi: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "zaten bitti",
-    "missing_run": "Muse Code'da bu kimliğe sahip etkin bir çalıştırma yok",
-    "invalid_target": "bu aracı çalışmıyor",
-    "stale_attempt": "bu aracı yeni bir denemeye geçti"
-  },
-  "workflowControlFailed": "İş akışı komutu başarısız oldu",
-  "workflowCommandStatusUnexpected": "İş akışı komutu {method}, {status} durumunu döndürdü",
-  "workflowsUnsupported": "Model API arka ucu iş akışı çalıştırmaz",
   "workflowsCount": {
     "one": "{count} iş akışı",
     "other": "{count} iş akışı"

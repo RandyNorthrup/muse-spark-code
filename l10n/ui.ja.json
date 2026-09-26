@@ -507,22 +507,6 @@
   },
   "workflowChildUntitled": "エージェント {number}",
   "workflowAttempt": "試行 {attempt}",
-  "workflowCancel": "ワークフローをキャンセル",
-  "workflowSkip": "スキップ",
-  "workflowRetry": "再試行",
-  "workflowSkipChild": "{child} をスキップ",
-  "workflowRetryChild": "{child} を再試行",
-  "workflowCancelRefused": "ワークフローはキャンセルされませんでした: {reason}。",
-  "workflowChildRefused": "ワークフローのエージェントは変更されませんでした: {reason}。",
-  "workflowRefusals": {
-    "already_terminal": "既に終了しています",
-    "missing_run": "Muse Code にはその ID の実行中のワークフローがありません",
-    "invalid_target": "そのエージェントは実行されていません",
-    "stale_attempt": "そのエージェントは既に新しい試行に移っています"
-  },
-  "workflowControlFailed": "ワークフロー コマンドが失敗しました",
-  "workflowCommandStatusUnexpected": "ワークフロー コマンド {method} はステータス {status} を返しました",
-  "workflowsUnsupported": "Model API バックエンドはワークフローを実行しません",
   "workflowsCount": {
     "other": "{count} 個のワークフロー"
   },

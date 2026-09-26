@@ -78,7 +78,6 @@ import {
   type StartSessionOptions,
   type TurnPart,
   type TurnSubmission,
-  type WorkflowChildControl,
 } from '../../agent/agentBackend'
 import type { ContextIo } from '../../context/contextFiles'
 import { type SkillDefinition } from '../../context/skills'
@@ -2513,15 +2512,6 @@ export class ModelApiSession implements AgentSession {
     }
     this.touch()
     return Promise.resolve({ turnId: this.wakeFor(command) })
-  }
-
-  /** Workflows are Muse Code's own engine (M47, PLAN.md D40): this backend runs none. */
-  public cancelWorkflow(workflowRunId: string): Promise<void> {
-    return Promise.reject(new Error(`${UI_TEXT.workflowsUnsupported} (${workflowRunId})`))
-  }
-
-  public controlWorkflowChild(control: WorkflowChildControl): Promise<void> {
-    return Promise.reject(new Error(`${UI_TEXT.workflowsUnsupported} (${control.workflowRunId})`))
   }
 
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {

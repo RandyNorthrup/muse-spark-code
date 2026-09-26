@@ -2265,8 +2265,7 @@ body {
 
 .workflow-meta,
 .workflow-agents,
-.workflow-result,
-.workflow-actions {
+.workflow-result {
   margin-left: calc(8px + var(--ms-gap));
 }
 
@@ -2296,12 +2295,6 @@ body {
 
 .workflow-agent-name {
   overflow-wrap: anywhere;
-}
-
-.workflow-agent-controls,
-.workflow-actions {
-  display: flex;
-  gap: 4px;
 }
 
 .workflow-result {

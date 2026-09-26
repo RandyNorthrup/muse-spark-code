@@ -516,22 +516,6 @@
   },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "Versuch {attempt}",
-  "workflowCancel": "Workflow abbrechen",
-  "workflowSkip": "Überspringen",
-  "workflowRetry": "Wiederholen",
-  "workflowSkipChild": "Überspringen: {child}",
-  "workflowRetryChild": "Wiederholen: {child}",
-  "workflowCancelRefused": "Der Workflow wurde nicht abgebrochen: {reason}.",
-  "workflowChildRefused": "Der Workflow-Agent wurde nicht geändert: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "er ist bereits beendet",
-    "missing_run": "Muse Code hat keinen laufenden Lauf mit dieser ID",
-    "invalid_target": "dieser Agent läuft nicht",
-    "stale_attempt": "dieser Agent ist bereits bei einem neuen Versuch"
-  },
-  "workflowControlFailed": "Der Workflow-Befehl ist fehlgeschlagen",
-  "workflowCommandStatusUnexpected": "Workflow-Befehl {method} meldete den Status {status}",
-  "workflowsUnsupported": "Das Model-API-Backend führt keine Workflows aus",
   "workflowsCount": {
     "one": "{count} Workflow",
     "other": "{count} Workflows"

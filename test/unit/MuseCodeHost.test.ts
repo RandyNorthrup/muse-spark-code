@@ -1,10 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
-import {
-  GoalRefusedError,
-  SessionNotLoadedError,
-  WorkflowControlRefusedError,
-} from '../../src/core/agent/agentBackend'
+import { GoalRefusedError, SessionNotLoadedError } from '../../src/core/agent/agentBackend'
 import {
   type CommandTimeouts,
   describeExit,
@@ -18,7 +14,6 @@ import {
   fakeMspHost,
   goalRefusal,
   refusalOf,
-  rejectionOf,
   settle,
 } from './helpers/fakeMsp'
 import {
@@ -28,7 +23,6 @@ import {
   taskAck,
 } from './helpers/m46Capture'
 import {
-  WORKFLOW_CHILD_ID,
   WORKFLOW_COMPLETED,
   WORKFLOW_ITEM_ID,
   WORKFLOW_MESSAGE,
@@ -1465,68 +1459,5 @@ describe('MuseCodeHost: workflows (M47)', () => {
         message: WORKFLOW_MESSAGE,
       },
     })
-  })
-
-  it('cancels a run and skips or retries an agent by its current attempt', async () => {
-    const { host, server } = setup()
-    server.handle('workflow/cancel', ack)
-    server.handle('workflow/childControl', ack)
-    const session = await host.startSession(startOptions)
-    await session.cancelWorkflow(WORKFLOW_RUN_ID)
-    await session.controlWorkflowChild({
-      workflowRunId: WORKFLOW_RUN_ID,
-      childId: WORKFLOW_CHILD_ID,
-      attempt: 2,
-      action: 'retry',
-    })
-    expect(server.requestsFor('workflow/cancel')[0]?.params).toMatchObject({
-      sessionId: session.sessionId,
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    expect(server.requestsFor('workflow/childControl')[0]?.params).toMatchObject({
-      sessionId: session.sessionId,
-      workflowRunId: WORKFLOW_RUN_ID,
-      childId: WORKFLOW_CHILD_ID,
-      attempt: 2,
-      action: 'retry',
-    })
-  })
-
-  it('names a refusal by the reason Muse Code gave, and leaves any other failure as it was', async () => {
-    const { host, server } = setup()
-    const session = await host.startSession(startOptions)
-    server.handle('workflow/cancel', rejectionOf('already_terminal'))
-    await expect(session.cancelWorkflow(WORKFLOW_RUN_ID)).rejects.toMatchObject({
-      name: 'WorkflowControlRefusedError',
-      reason: 'already_terminal',
-    })
-    server.handle('workflow/childControl', rejectionOf('invalid_target'))
-    const skip = {
-      workflowRunId: WORKFLOW_RUN_ID,
-      childId: WORKFLOW_CHILD_ID,
-      attempt: 1,
-      action: 'skip' as const,
-    }
-    await expect(session.controlWorkflowChild(skip)).rejects.toBeInstanceOf(
-      WorkflowControlRefusedError,
-    )
-    // A rejection without a reason, or an error of another kind, is not a refusal.
-    server.handle('workflow/childControl', refusalOf('commandRejected'))
-    await expect(session.controlWorkflowChild(skip)).rejects.not.toBeInstanceOf(
-      WorkflowControlRefusedError,
-    )
-    server.handle('workflow/cancel', refusalOf('invalidParams', -32_602))
-    await expect(session.cancelWorkflow('')).rejects.not.toBeInstanceOf(WorkflowControlRefusedError)
-  })
-
-  it('requires the captured workflow admission ack and reports a future status (M47)', async () => {
-    const { host, server } = setup()
-    const session = await host.startSession(startOptions)
-    server.handle('workflow/cancel', () => ({ status: 'accepted' }))
-    await expect(session.cancelWorkflow(WORKFLOW_RUN_ID)).rejects.toThrow()
-    server.handle('workflow/cancel', (params) => ({ ...ack(params), status: 'queued' }))
-    await expect(session.cancelWorkflow(WORKFLOW_RUN_ID)).rejects.toThrow(
-      'Workflow command workflow/cancel returned status queued',
-    )
   })
 })

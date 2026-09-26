@@ -83,8 +83,6 @@ function renderMap(overrides: Partial<AgentMapProps> = {}) {
     onClose: vi.fn(),
     workflows: [],
     workflowTriggerMode: undefined,
-    onCancelWorkflow: vi.fn(),
-    onControlWorkflowChild: vi.fn(),
     ...overrides,
   }
   render(<AgentMap {...props} />)
@@ -264,7 +262,7 @@ describe('AgentMap workflows (M47)', () => {
     children: [{ childId: 'c1', attempt: 1, status: 'started', label: 'ping' }],
   }
 
-  it('lists the runs with their agents and controls, and notes the trigger mode beside delegation', () => {
+  it('lists the runs and agents read-only, and notes the trigger mode beside delegation', () => {
     const props = renderMap({
       agents: [],
       backgroundTasks: [],
@@ -280,10 +278,8 @@ describe('AgentMap workflows (M47)', () => {
     const runs = screen.getByRole('list', { name: 'Workflows' })
     expect(runs).toHaveTextContent('Written for this task')
     expect(runs).toHaveTextContent('ping')
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel workflow' }))
-    expect(props.onCancelWorkflow).toHaveBeenCalledWith('run-1')
-    fireEvent.click(screen.getByRole('button', { name: 'Skip ping' }))
-    expect(props.onControlWorkflowChild).toHaveBeenCalledWith('run-1', 'c1', 1, 'skip')
+    expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip ping|Retry ping/ })).toBeNull()
     const note = screen.getByRole('note')
     expect(note).toHaveTextContent('subagent delegation is off')
     expect(note).toHaveTextContent('Muse Code’s workflows are on auto')

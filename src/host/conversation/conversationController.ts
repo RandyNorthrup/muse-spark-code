@@ -24,8 +24,6 @@ import {
   type SessionRecord,
   type TurnPart,
   type TurnSubmission,
-  type WorkflowChildControl,
-  WorkflowControlRefusedError,
 } from '../../core/agent/agentBackend'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
@@ -364,16 +362,6 @@ function goalRefusalText(verb: GoalCommandVerb, refusal: GoalRefusal): string {
     edit: UI_TEXT.goalCannotEdit,
   }
   return texts[verb] ?? UI_TEXT.goalCommandFailed
-}
-
-/**
- * Why Muse Code refused a workflow control, in words (M47): the reasons
- * captured live and the one msp.d.ts names; a reason it adds later shows as
- * it came.
- */
-function workflowRefusalText(reason: string): string {
-  const texts: Readonly<Record<string, string>> = UI_TEXT.workflowRefusals
-  return Object.hasOwn(texts, reason) ? (texts[reason] ?? reason) : reason
 }
 
 interface ExportNotice {
@@ -2377,35 +2365,6 @@ export class ConversationController {
     }
   }
 
-  /**
-   * A control from a workflow run's card (M47, PLAN.md D40). The ack only
-   * admits it; the run's item updates carry the outcome. A refusal (the run
-   * or the child had moved on) is a warning saying why in words; anything
-   * else is an error.
-   */
-  private async controlWorkflow(
-    sourceSessionId: string,
-    control: (session: AgentSession) => Promise<void>,
-    refusedTemplate: string,
-  ): Promise<void> {
-    const source = this.session
-    if (source?.sessionId !== sourceSessionId) {
-      return
-    }
-    try {
-      await control(source)
-    } catch (error: unknown) {
-      if (this.session !== source) {
-        return
-      }
-      if (error instanceof WorkflowControlRefusedError) {
-        this.notice('warning', fill(refusedTemplate, { reason: workflowRefusalText(error.reason) }))
-        return
-      }
-      this.notice('error', `${UI_TEXT.workflowControlFailed}: ${describe(error)}`)
-    }
-  }
-
   /** "Export conversation…" (M30): nothing to export before the first message. */
   private async exportConversation(format: ExportFormat): Promise<void> {
     const { session } = this
@@ -2752,29 +2711,6 @@ export class ConversationController {
       }
       case 'subagentMessage': {
         await this.messageSubagent(message.subagentId, message.body, message.isFollowup)
-        break
-      }
-      case 'workflowCancel': {
-        const { workflowRunId } = message
-        await this.controlWorkflow(
-          message.sourceSessionId,
-          (session) => session.cancelWorkflow(workflowRunId),
-          UI_TEXT.workflowCancelRefused,
-        )
-        break
-      }
-      case 'workflowChildControl': {
-        const control: WorkflowChildControl = {
-          workflowRunId: message.workflowRunId,
-          childId: message.childId,
-          attempt: message.attempt,
-          action: message.action,
-        }
-        await this.controlWorkflow(
-          message.sourceSessionId,
-          (session) => session.controlWorkflowChild(control),
-          UI_TEXT.workflowChildRefused,
-        )
         break
       }
       case 'resumeSession': {

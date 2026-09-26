@@ -516,7 +516,6 @@ const reportedChildSchema = z.object({
   attempt: z.number(),
   status: z.string(),
   label: z.optional(z.unknown()),
-  phase: z.optional(z.unknown()),
   terminal: z.optional(z.unknown()),
   durationMs: z.optional(z.unknown()),
   usage: z.optional(z.unknown()),
@@ -540,7 +539,6 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
         attempt: child.attempt,
         status: child.status,
         label: stringOf(child.label),
-        phase: stringOf(child.phase),
         terminal: stringOf(child.terminal),
         durationMs: typeof child.durationMs === 'number' ? child.durationMs : undefined,
         usage: tokenUsageSchema.safeParse(child.usage).data,
@@ -551,7 +549,7 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
 
 /**
  * One agent told again (live 2026-09-25): Muse Code drops a field once the
- * agent moves on, so what it said stays. Its label and phase outlive a new
+ * agent moves on, so what it said stays. Its label outlives a new
  * attempt; its outcome, duration and tokens belong to the attempt.
  */
 function mergeChild(before: WorkflowChild, after: WorkflowChild): WorkflowChild {
@@ -559,7 +557,6 @@ function mergeChild(before: WorkflowChild, after: WorkflowChild): WorkflowChild 
   return {
     ...after,
     label: after.label ?? before.label,
-    phase: after.phase ?? before.phase,
     ...(isSameAttempt && {
       terminal: after.terminal ?? before.terminal,
       durationMs: after.durationMs ?? before.durationMs,

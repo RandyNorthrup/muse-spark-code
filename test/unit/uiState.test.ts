@@ -2477,7 +2477,6 @@ describe('workflow runs in the state (M47)', () => {
           attempt: 1,
           status: 'terminal',
           label: 'ping',
-          phase: undefined,
           terminal: 'completed',
           durationMs: 2183,
           usage: { inputTokens: 9995, outputTokens: 135, cachedTokens: 5105, reasoningTokens: 70 },
@@ -2509,9 +2508,10 @@ describe('workflow runs in the state (M47)', () => {
     expect(entryOf(state, 'w')).toMatchObject({
       children: [
         { childId: 'a', status: 'started', label: undefined, usage: undefined },
-        { childId: 'b', status: 'waiting', phase: 'review', durationMs: undefined },
+        { childId: 'b', status: 'waiting', durationMs: undefined },
       ],
     })
+    expect(entryOf(state, 'w')).not.toHaveProperty('children.1.phase')
   })
 
   it('removes children absent or unreadable in the next whole-list update', () => {
@@ -2551,7 +2551,7 @@ describe('workflow runs in the state (M47)', () => {
     expect(entryOf(empty, 'w')).toMatchObject({ children: [] })
   })
 
-  it('keeps an agent’s label and phase across a new attempt, and nothing else of the old one', () => {
+  it('keeps an agent’s captured label across a new attempt, ignoring an unobserved phase', () => {
     const agentOf = (children: readonly unknown[], status = 'inProgress') =>
       run({ itemId: 'w', kind: 'workflow', status, children: [...children] })
     const state = reduceAll([
@@ -2581,7 +2581,6 @@ describe('workflow runs in the state (M47)', () => {
           attempt: 2,
           status: 'started',
           label: 'lint',
-          phase: 'check',
           terminal: undefined,
           durationMs: undefined,
           usage: undefined,
@@ -2589,6 +2588,7 @@ describe('workflow runs in the state (M47)', () => {
         { childId: 'c', attempt: 1, status: 'scheduled' },
       ],
     })
+    expect(entryOf(state, 'w')).not.toHaveProperty('children.0.phase')
   })
 
   it('brings a stored run back from history as its card', () => {

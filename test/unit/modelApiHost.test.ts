@@ -1206,21 +1206,6 @@ describe('ModelApiSession subagents (M18)', () => {
       'runs no subagents',
     )
   })
-
-  it('refuses workflow controls: workflows are Muse Code’s own engine (M47)', async () => {
-    const t = setup()
-    const { session } = await startSession(t)
-    const asSession: AgentSession = session
-    await expect(asSession.cancelWorkflow('run-1')).rejects.toThrow('runs no workflows')
-    await expect(
-      asSession.controlWorkflowChild({
-        workflowRunId: 'run-1',
-        childId: 'c',
-        attempt: 1,
-        action: 'skip',
-      }),
-    ).rejects.toThrow('runs no workflows')
-  })
 })
 
 /** The `function_call_output` the replay holds for one call id, from a request body. */

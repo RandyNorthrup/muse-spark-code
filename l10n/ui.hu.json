@@ -516,22 +516,6 @@
   },
   "workflowChildUntitled": "{number}. ügynök",
   "workflowAttempt": "{attempt}. próbálkozás",
-  "workflowCancel": "Munkafolyamat megszakítása",
-  "workflowSkip": "Kihagyás",
-  "workflowRetry": "Újrapróbálás",
-  "workflowSkipChild": "{child} kihagyása",
-  "workflowRetryChild": "{child} újrapróbálása",
-  "workflowCancelRefused": "A munkafolyamat nem lett megszakítva: {reason}.",
-  "workflowChildRefused": "A munkafolyamat ügynöke nem változott: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "már befejeződött",
-    "missing_run": "a Muse Code-nak nincs ilyen azonosítójú futó munkafolyamata",
-    "invalid_target": "az ügynök nem fut",
-    "stale_attempt": "az ügynök már új próbálkozásnál tart"
-  },
-  "workflowControlFailed": "A munkafolyamat-parancs sikertelen volt",
-  "workflowCommandStatusUnexpected": "A munkafolyamat {method} parancsa {status} állapotot adott vissza",
-  "workflowsUnsupported": "A Model API háttérrendszer nem futtat munkafolyamatokat",
   "workflowsCount": {
     "one": "{count} munkafolyamat",
     "other": "{count} munkafolyamat"

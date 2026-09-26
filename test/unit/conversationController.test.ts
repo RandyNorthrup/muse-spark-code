@@ -27,7 +27,6 @@ import {
   fakeMspHost,
   goalRefusal,
   refusalOf,
-  rejectionOf,
   settle,
 } from './helpers/fakeMsp'
 import {
@@ -37,7 +36,6 @@ import {
   taskAck,
   USER_SHELL_SANDBOX_FAILED,
 } from './helpers/m46Capture'
-import { WORKFLOW_CHILD_ID, WORKFLOW_RUN_ID } from './helpers/workflowFixtures'
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -2494,11 +2492,6 @@ describe('ConversationController chat references (M17)', () => {
   })
 })
 
-/** An admission-only ack, as `workflow/cancel` and `workflow/childControl` answer (M47). */
-function acceptedCommand(params: Record<string, unknown>) {
-  return { status: 'accepted', commandId: params['commandId'] }
-}
-
 describe('ConversationController subagent controls (M18)', () => {
   it('relays owner controls and notes to the session and reports a refusal', async () => {
     const t = setup()
@@ -2541,125 +2534,8 @@ describe('ConversationController subagent controls (M18)', () => {
     })
   })
 
-  it('relays workflow controls and says in words why Muse Code refused one (M47)', async () => {
-    const t = setup()
-    await t.send('l1', 'hi')
-    t.server.handle('workflow/cancel', acceptedCommand)
-    t.server.handle('workflow/childControl', acceptedCommand)
-    const skip = {
-      type: 'workflowChildControl',
-      sourceSessionId: 's1',
-      workflowRunId: WORKFLOW_RUN_ID,
-      childId: WORKFLOW_CHILD_ID,
-      attempt: 1,
-      action: 'skip',
-    } as const
-    const before = t.surface.posted.length
-    await t.controller.handle({
-      type: 'workflowCancel',
-      sourceSessionId: 's1',
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    await t.controller.handle(skip)
-    expect(t.server.requestsFor('workflow/cancel')[0]?.params).toMatchObject({
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    expect(t.server.requestsFor('workflow/childControl')[0]?.params).toMatchObject({
-      workflowRunId: WORKFLOW_RUN_ID,
-      childId: WORKFLOW_CHILD_ID,
-      attempt: 1,
-      action: 'skip',
-    })
-    // An admitted control says nothing: the run's own updates show what it did.
-    expect(t.surface.posted.slice(before)).toEqual([])
-    t.server.handle('workflow/cancel', rejectionOf('already_terminal'))
-    await t.controller.handle({
-      type: 'workflowCancel',
-      sourceSessionId: 's1',
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    expect(t.surface.posted.at(-1)).toEqual({
-      type: 'notice',
-      level: 'warning',
-      text: 'The workflow was not cancelled: it has already finished.',
-    })
-    t.server.handle('workflow/childControl', rejectionOf('stale_attempt'))
-    await t.controller.handle(skip)
-    expect(t.surface.posted.at(-1)).toMatchObject({
-      level: 'warning',
-      text: 'The workflow agent was not changed: that agent has moved on to a new attempt.',
-    })
-    // A reason Muse Code adds later is shown as it came.
-    t.server.handle('workflow/childControl', rejectionOf('owner_paused'))
-    await t.controller.handle(skip)
-    expect(t.surface.posted.at(-1)).toMatchObject({
-      text: 'The workflow agent was not changed: owner_paused.',
-    })
-    t.server.handle('workflow/cancel', () => {
-      throw new Error('the host went away')
-    })
-    await t.controller.handle({
-      type: 'workflowCancel',
-      sourceSessionId: 's1',
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    expect(notices(t).at(-1)).toMatchObject({ level: 'error' })
-    expect(notices(t).at(-1)?.text).toContain('The workflow command failed: ')
-  })
-
-  it('ignores a workflow control from a session this surface no longer shows (M47)', async () => {
-    const t = setup()
-    await t.send('l1', 'hi')
-    t.server.handle('workflow/cancel', acceptedCommand)
-    await t.controller.handle({
-      type: 'workflowCancel',
-      sourceSessionId: 'previous-session',
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    expect(t.server.requestsFor('workflow/cancel')).toHaveLength(0)
-  })
-
-  it('does not show a late workflow refusal after this surface clears (M47)', async () => {
-    const t = setup()
-    await t.send('l1', 'hi')
-    t.server.silence('workflow/cancel')
-    const controlling = t.controller.handle({
-      type: 'workflowCancel',
-      sourceSessionId: 's1',
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    await vi.waitFor(() => {
-      expect(t.server.requestsFor('workflow/cancel')).toHaveLength(1)
-    })
-    const request = t.server.requestsFor('workflow/cancel')[0]
-    if (request?.id === undefined) {
-      throw new Error('the workflow request ID was not recorded')
-    }
-    await t.controller.handle({ type: 'clearConversation' })
-    const before = notices(t).length
-    t.server.incoming.push(
-      `${JSON.stringify({
-        jsonrpc: '2.0',
-        id: request.id,
-        error: {
-          code: -32_030,
-          message: 'already terminal',
-          data: { kind: 'commandRejected', reason: 'already_terminal' },
-        },
-      })}\n`,
-    )
-    await controlling
-    expect(notices(t)).toHaveLength(before)
-  })
-
   it('does nothing without a session', async () => {
     const t = setup()
-    await t.controller.handle({
-      type: 'workflowCancel',
-      sourceSessionId: 's1',
-      workflowRunId: WORKFLOW_RUN_ID,
-    })
-    expect(t.server.requestsFor('workflow/cancel')).toEqual([])
     await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'stop' })
     await t.controller.handle({
       type: 'subagentMessage',

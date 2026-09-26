@@ -1073,7 +1073,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('counts a workflow’s agents in the pill, posts its controls and notes the trigger mode (M47)', () => {
+  it('counts a workflow’s agents in the pill and notes the trigger mode (M47)', () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
     deliver({
@@ -1093,21 +1093,8 @@ describe('App session history (M6)', () => {
         },
       },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel workflow' }))
-    expect(postMessage).toHaveBeenLastCalledWith({
-      type: 'workflowCancel',
-      sourceSessionId: 's1',
-      workflowRunId: 'run-1',
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Retry ping' }))
-    expect(postMessage).toHaveBeenLastCalledWith({
-      type: 'workflowChildControl',
-      sourceSessionId: 's1',
-      workflowRunId: 'run-1',
-      childId: 'c1',
-      attempt: 1,
-      action: 'retry',
-    })
+    expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip ping|Retry ping/ })).toBeNull()
     const pill = screen.getByTitle('Show the agent map')
     expect(pill).toHaveTextContent('2 agents')
     fireEvent.click(pill)

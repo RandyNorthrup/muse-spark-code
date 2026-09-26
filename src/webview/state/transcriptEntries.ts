@@ -189,18 +189,17 @@ const subagentEntrySchema = z.object({
 
 /**
  * One agent of a workflow run (MSP `WorkflowChild`, captured live
- * 2026-09-25), keyed by `childId`; `attempt` is its current one, the key
- * `workflow/childControl` needs. Muse Code re-sends the whole list on every
- * change but drops a field once it moves on (the label after `scheduled`,
- * the tokens after `usage`), so the row keeps what it was told.
+ * 2026-09-25), keyed by `childId`; `attempt` is the number it reports.
+ * Captured revisions carried a `children` list but omitted some fields as
+ * a child moved on (the label after `scheduled`, tokens after `usage`).
+ * The row keeps previously reported fields within that attempt.
  */
 export const workflowChildSchema = z.object({
   childId: z.string(),
   attempt: z.number(),
   status: z.string(),
   label: z.optional(z.string()),
-  phase: z.optional(z.string()),
-  /** The child's outcome once it ends (`completed`, `failed`, `cancelled`). */
+  /** The child's reported terminal outcome; the capture observed `completed`. */
   terminal: z.optional(z.string()),
   durationMs: z.optional(z.number()),
   usage: z.optional(tokenUsageSchema),
@@ -212,7 +211,7 @@ const workflowEntrySchema = z.object({
   kind: z.literal('workflow'),
   id: z.string(),
   status: z.string(),
-  /** Without its `workflowRunId` the card offers no control. */
+  /** The opaque run identity when Muse Code reports one. */
   ...workflowRunFields,
   /** The server's one-line summary, the name when the entry is not one the panel reads. */
   fallbackText: z.optional(z.string()),

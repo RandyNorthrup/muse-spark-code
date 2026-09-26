@@ -613,24 +613,6 @@ export const EN = {
   // An agent the workflow gave no label; {number} counts from 1.
   workflowChildUntitled: 'Agent {number}',
   workflowAttempt: 'attempt {attempt}',
-  workflowCancel: 'Cancel workflow',
-  workflowSkip: 'Skip',
-  workflowRetry: 'Retry',
-  // The same buttons as a screen reader names them; {child} is the agent's label.
-  workflowSkipChild: 'Skip {child}',
-  workflowRetryChild: 'Retry {child}',
-  workflowCancelRefused: 'The workflow was not cancelled: {reason}.',
-  workflowChildRefused: 'The workflow agent was not changed: {reason}.',
-  // Why Muse Code refused a control, keyed by its own reason.
-  workflowRefusals: {
-    already_terminal: 'it has already finished',
-    missing_run: 'Muse Code has no live run by that id',
-    invalid_target: 'that agent is not running',
-    stale_attempt: 'that agent has moved on to a new attempt',
-  },
-  workflowControlFailed: 'The workflow command failed',
-  workflowCommandStatusUnexpected: 'Workflow command {method} returned status {status}',
-  workflowsUnsupported: 'The Model API backend runs no workflows',
   workflowsCount: forms({ one: '{count} workflow', other: '{count} workflows' }),
   workflowsLabel: 'Workflows',
   // Muse Code's `run.workflow_trigger_mode`, one sentence per value.

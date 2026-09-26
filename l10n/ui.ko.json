@@ -507,22 +507,6 @@
   },
   "workflowChildUntitled": "에이전트 {number}",
   "workflowAttempt": "시도 {attempt}",
-  "workflowCancel": "워크플로 취소",
-  "workflowSkip": "건너뛰기",
-  "workflowRetry": "다시 시도",
-  "workflowSkipChild": "{child} 건너뛰기",
-  "workflowRetryChild": "{child} 다시 시도",
-  "workflowCancelRefused": "워크플로가 취소되지 않았습니다: {reason}.",
-  "workflowChildRefused": "워크플로 에이전트가 변경되지 않았습니다: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "이미 종료되었습니다",
-    "missing_run": "Muse Code에 해당 ID의 실행 중인 워크플로가 없습니다",
-    "invalid_target": "해당 에이전트가 실행 중이 아닙니다",
-    "stale_attempt": "해당 에이전트가 이미 새 시도로 넘어갔습니다"
-  },
-  "workflowControlFailed": "워크플로 명령이 실패했습니다",
-  "workflowCommandStatusUnexpected": "워크플로 명령 {method}의 반환 상태는 {status}입니다",
-  "workflowsUnsupported": "Model API 백엔드는 워크플로를 실행하지 않습니다",
   "workflowsCount": {
     "other": "워크플로 {count}개"
   },

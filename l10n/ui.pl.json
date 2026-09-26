@@ -534,22 +534,6 @@
   },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "próba {attempt}",
-  "workflowCancel": "Anuluj przepływ pracy",
-  "workflowSkip": "Pomiń",
-  "workflowRetry": "Ponów",
-  "workflowSkipChild": "Pomiń {child}",
-  "workflowRetryChild": "Ponów {child}",
-  "workflowCancelRefused": "Przepływ pracy nie został anulowany: {reason}.",
-  "workflowChildRefused": "Agent przepływu pracy nie został zmieniony: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "już się zakończył",
-    "missing_run": "Muse Code nie ma aktywnego przebiegu o tym identyfikatorze",
-    "invalid_target": "ten agent nie działa",
-    "stale_attempt": "ten agent przeszedł już do nowej próby"
-  },
-  "workflowControlFailed": "Polecenie przepływu pracy nie powiodło się",
-  "workflowCommandStatusUnexpected": "Polecenie przepływu pracy {method} zwróciło stan {status}",
-  "workflowsUnsupported": "Backend Model API nie uruchamia przepływów pracy",
   "workflowsCount": {
     "one": "{count} przepływ pracy",
     "few": "{count} przepływy pracy",

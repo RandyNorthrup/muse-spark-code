@@ -88,8 +88,9 @@ describe('workflowLaunch (M47)', () => {
 })
 
 describe('the words of a workflow run (M47)', () => {
-  it('names a run the model wrote, a saved one by its own name, and one without an entry', () => {
+  it('names the captured generated run and shows other entry IDs verbatim', () => {
     expect(workflowName(entry({ entryId: 'generated.model-chosen' }))).toBe('Written for this task')
+    expect(workflowName(entry({ entryId: 'generated.future-kind' }))).toBe('generated.future-kind')
     expect(workflowName(entry({ entryId: 'review-change' }))).toBe('review-change')
     expect(workflowName(entry({ fallbackText: 'Workflow: nightly audit' }))).toBe(
       'Workflow: nightly audit',

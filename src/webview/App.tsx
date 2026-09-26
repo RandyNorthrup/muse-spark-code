@@ -17,7 +17,6 @@ import {
   MUSE_DELEGATION_ENABLED,
   type SubagentAction,
   UI_TEXT,
-  type WorkflowChildAction,
 } from '../shared/constants'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
@@ -694,41 +693,6 @@ export function App({
     },
     [postMessage],
   )
-  const onCancelWorkflow = useCallback(
-    (workflowRunId: string) => {
-      const current = store.getState()
-      const workflow = workflowsOf(current).find((entry) => entry.workflowRunId === workflowRunId)
-      if (current.sessionId === undefined || workflow?.status !== 'inProgress') {
-        return
-      }
-      postMessage({ type: 'workflowCancel', sourceSessionId: current.sessionId, workflowRunId })
-    },
-    [postMessage, store],
-  )
-  const onControlWorkflowChild = useCallback(
-    (workflowRunId: string, childId: string, attempt: number, action: WorkflowChildAction) => {
-      const current = store.getState()
-      const workflow = workflowsOf(current).find((entry) => entry.workflowRunId === workflowRunId)
-      const child = workflow?.children.find((entry) => entry.childId === childId)
-      if (
-        current.sessionId === undefined ||
-        workflow?.status !== 'inProgress' ||
-        child?.attempt !== attempt ||
-        !isChildRunning(child)
-      ) {
-        return
-      }
-      postMessage({
-        type: 'workflowChildControl',
-        sourceSessionId: current.sessionId,
-        workflowRunId,
-        childId,
-        attempt,
-        action,
-      })
-    },
-    [postMessage, store],
-  )
   const onOpenMuseSettings = useCallback(() => {
     postMessage({ type: 'hostAction', action: 'openMuseSettings' })
   }, [postMessage])
@@ -1172,8 +1136,6 @@ export function App({
         onQuote={onQuote}
         onCopyQuote={onCopyQuote}
         onCloseQuoteMenu={onCloseQuoteMenu}
-        onCancelWorkflow={onCancelWorkflow}
-        onControlWorkflowChild={onControlWorkflowChild}
       />
     )
   } else {
@@ -1276,8 +1238,6 @@ export function App({
         onClose={closeOverlay}
         workflows={workflows}
         workflowTriggerMode={state.usageReport?.account?.workflowTriggerMode}
-        onCancelWorkflow={onCancelWorkflow}
-        onControlWorkflowChild={onControlWorkflowChild}
       />
     ) : null
   const history =

@@ -58,19 +58,12 @@ while they are (PLAN.md D30, D34).
   in place of the options (Muse Code's `userInput/clarify`, and the same on
   the Model API backend); the row then reads "Explained".
 - **Workflows** (M47, PLAN.md D40). A multi-agent workflow Muse Code runs
-  is a card that keeps updating after the reply: its name, status, what
+  is a read-only card that keeps updating after the reply: its captured
+  generated label or raw entry ID, status, what
   started it, each agent's state, attempt, time and tokens, and the result
-  it returned or the failure it reported. **Cancel workflow** and, on an
-  agent that is running, **Skip** and **Retry** go to Muse Code; a refusal
-  (the run had finished, the agent had moved on) is a notice that says why.
-  A delayed control from another conversation is ignored, and a late
-  refusal does not appear in the conversation now shown. The host checks
-  the workflow command's admission reply before treating it as accepted;
-  malformed run and child targets are rejected at the panel boundary.
-  Each whole-list update replaces the set of agents, so a child no longer
-  reported loses its stale running controls; an unfamiliar command status
-  is reported in the installed language with its technical status intact.
-  A shortened workflow name shows its full name on hover.
+  it returned or the failure it reported. The panel treats each supplied
+  child list as its current set. A shortened workflow label shows its full text on
+  hover.
   The Workflow tool's row shows the captured inline script and launch; it
   does not infer a resumed run's source file from unverified arguments.
   The **N agents** pill counts workflow agents, the Agent map lists the
@@ -78,7 +71,9 @@ while they are (PLAN.md D30, D34).
   (`run.workflow_trigger_mode`, read from its settings file, never
   written); Diagnostics reports the setting too. Built from a live capture
   of Muse Code 1.3.0. A future run or agent status stays in words with a
-  neutral dot instead of being shown falsely as a failure.
+  neutral dot instead of being shown falsely as a failure. Cancel, Skip and
+  Retry remain deferred until a live accepted-command capture establishes
+  their ack and outcome shapes.
 - **A row for every tool Muse Code runs** (M43, PLAN.md D36). Memory rows
   show the note and where it lives, and an edit as the text replaced; goal
   rows show the objective, its status, a progress bar, what is being done

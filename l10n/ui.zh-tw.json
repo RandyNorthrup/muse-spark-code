@@ -507,22 +507,6 @@
   },
   "workflowChildUntitled": "代理程式 {number}",
   "workflowAttempt": "第 {attempt} 次嘗試",
-  "workflowCancel": "取消工作流程",
-  "workflowSkip": "略過",
-  "workflowRetry": "重試",
-  "workflowSkipChild": "略過 {child}",
-  "workflowRetryChild": "重試 {child}",
-  "workflowCancelRefused": "工作流程未取消：{reason}。",
-  "workflowChildRefused": "工作流程代理程式未變更：{reason}。",
-  "workflowRefusals": {
-    "already_terminal": "它已經結束",
-    "missing_run": "Muse Code 沒有該 ID 的執行中工作流程",
-    "invalid_target": "該代理程式未在執行",
-    "stale_attempt": "該代理程式已進入新的嘗試"
-  },
-  "workflowControlFailed": "工作流程命令失敗",
-  "workflowCommandStatusUnexpected": "工作流程命令 {method} 傳回狀態 {status}",
-  "workflowsUnsupported": "Model API 後端不執行工作流程",
   "workflowsCount": {
     "other": "{count} 個工作流程"
   },

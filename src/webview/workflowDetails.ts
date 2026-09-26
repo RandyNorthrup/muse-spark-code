@@ -1,11 +1,11 @@
 // What a workflow run's card and the Workflow tool's row show (M47, PLAN.md
 // D40), read from what Muse Code 1.3.0 sent in a live capture on 2026-09-25
 // (docs/certification/m47.md). Pure. A value Muse Code adds later (a status,
-// a trigger source, a refusal) shows as it came.
+// a trigger source, an entry ID) shows as it came.
 
 import * as z from 'zod/mini'
 import {
-  GENERATED_WORKFLOW_PREFIX,
+  CAPTURED_GENERATED_WORKFLOW_ENTRY_ID,
   UI_TEXT,
   WORKFLOW_CHILD_RUNNING_STATUSES,
 } from '../shared/constants'
@@ -101,12 +101,12 @@ export function workflowLaunch(args: string, output: string): WorkflowLaunch {
   }
 }
 
-/** A run's name: a saved workflow's own, "Written for this task" for one the model wrote. */
+/** The captured generated label, otherwise Muse Code's raw entry id or fallback text. */
 export function workflowName(entry: WorkflowEntry): string {
   if (entry.entryId === undefined) {
     return entry.fallbackText ?? UI_TEXT.workflowRowLabel
   }
-  return entry.entryId.startsWith(GENERATED_WORKFLOW_PREFIX)
+  return entry.entryId === CAPTURED_GENERATED_WORKFLOW_ENTRY_ID
     ? UI_TEXT.workflowGenerated
     : entry.entryId
 }
@@ -123,7 +123,7 @@ export function childStatusLabel(child: WorkflowChild): string {
     : agentStatusLabel(child.terminal)
 }
 
-/** Whether Muse Code would skip or restart the agent now: it runs and has not ended. */
+/** Whether the captured status reports an agent running, with no terminal outcome. */
 export function isChildRunning(child: WorkflowChild): boolean {
   return child.terminal === undefined && WORKFLOW_CHILD_RUNNING_STATUSES.has(child.status)
 }
@@ -134,8 +134,8 @@ export function childName(child: WorkflowChild, index: number): string {
 }
 
 /**
- * Latest reported input + output for each child's current attempt. A retry
- * resets that child's usage, so this is not the subscription's billed total.
+ * Latest reported input + output for each child's current attempt. The UI
+ * resets prior usage on a new attempt, so this is not a billed total.
  */
 export function workflowTokens(entry: WorkflowEntry): number | undefined {
   const reported = entry.children.flatMap((child) =>

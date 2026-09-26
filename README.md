@@ -79,8 +79,8 @@ Every change is in the [CHANGELOG](CHANGELOG.md).
   resume, close, a follow-up task).
 - **Workflows you can follow.** When Muse Code runs a multi-agent workflow,
   the run is a card that keeps updating after the reply: its agents with
-  their state, time and tokens, the result it returned, **Cancel workflow**,
-  and **Skip** or **Retry** on an agent that is running.
+  their state, time and tokens, and the result it returned. Owner controls
+  wait for a live accepted-command capture.
 - **Reply and quote with context.** A reply's ⋯ menu has **Reply to this
   output**; highlight anything in the chat and right-click for **Ask about
   this** or **Comment on this**. The passage, its author and your intent
@@ -586,24 +586,23 @@ not infer a source file for a resumed run; that input shape has not been
 captured from Muse Code. The run itself is a card below it that keeps changing after
 the reply ends, as the run goes on in the background:
 
-- its name ("Written for this task", or a saved workflow's own), its status,
+- its captured generated label ("Written for this task"), or the entry ID or
+  fallback text Muse Code sent for another run, plus its status,
   how many agents, their tokens, and what started it;
 - each agent with its label, state (queued, running, completed, failed…),
   attempt, time and tokens;
 - a status Muse Code adds later shown in its own words with a neutral mark;
 - the result the run returned, or the failure it reported;
-- **Cancel workflow** while it runs, and **Skip** or **Retry** on an agent
-  that is running. Muse Code answers these on its own terms: a run that has
-  finished, or an agent that has moved on, is refused and the panel says
-  why. A control queued from a conversation the tab has since left is
-  ignored.
+- The run and its agents are read-only in this version. Cancel, Skip and
+  Retry will need a live capture of accepted Muse Code commands before the
+  panel can offer them.
 
-The token figure sums the latest usage Muse Code reported for each agent's
-current attempt. It is not a billed total for a run with retries; use Muse
-Code's subscription usage for that.
+The token figure is the panel's sum of the latest usage reported for each
+agent row. It is not a billed total for a run with retries; use Muse Code's
+subscription usage for that.
 
 The header's **N agents** pill counts workflow agents too, and the Agent
-map lists the runs with the same controls. The map also says how Muse Code
+map lists the runs with the same read-only cards. The map also says how Muse Code
 is set to start workflows, from `run.workflow_trigger_mode` in its settings
 file (`auto`, its default: the model may start one for large work, and
 starts one when you ask; `explicit`: only when you ask; `off`: no workflow
@@ -1042,8 +1041,9 @@ message resumes the same session.
 - **Muse never starts a workflow** — Muse Code's `run.workflow_trigger_mode`
   may be `off` (no workflow tool) or `explicit` (only when you ask); the
   Agent map says which and opens the settings file.
-- **"The workflow was not cancelled: it has already finished"** — the run
-  ended before the command reached Muse Code; its card shows how it ended.
+- **A workflow has no Cancel, Skip or Retry button** — this increment
+  follows its progress read-only. Owner controls wait for a captured
+  accepted-command and outcome shape from Muse Code.
 - **The microphone says "Voice dictation failed: No microphone is available"**
   — Windows sees no recording device from this session (Remote Desktop hides
   the host's devices unless the client redirects a microphone). On macOS,

@@ -28,7 +28,7 @@ import { describeTool } from '../toolPresentation'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { workflowName, workflowTriggerText } from '../workflowDetails'
 import { Modal } from './Modal'
-import { type WorkflowControls, WorkflowRunView } from './WorkflowRun'
+import { WorkflowRunView } from './WorkflowRun'
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
 export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
@@ -55,12 +55,10 @@ export interface AgentMapProps {
   readonly onStopAllTasks: () => void
   readonly onOpenMuseSettings: () => void
   readonly onClose: () => void
-  /** This conversation's workflow runs (M47), with their controls. */
+  /** This conversation's workflow runs (M47). */
   readonly workflows: readonly WorkflowEntry[]
   /** Muse Code's `run.workflow_trigger_mode`; undefined on the Model API backend. */
   readonly workflowTriggerMode: string | undefined
-  readonly onCancelWorkflow: WorkflowControls['onCancelWorkflow']
-  readonly onControlWorkflowChild: WorkflowControls['onControlWorkflowChild']
 }
 
 /** Which owner controls an agent's state allows (M18); none once it is closed. */
@@ -381,8 +379,6 @@ export function AgentMap({
   onClose,
   workflows,
   workflowTriggerMode,
-  onCancelWorkflow,
-  onControlWorkflowChild,
 }: AgentMapProps) {
   const selected = agents.find((agent) => agent.id === selectedAgentId)
   const transcript =
@@ -448,11 +444,7 @@ export function AgentMap({
                     className="agent-node workflow"
                     data-status={workflow.status}
                   >
-                    <WorkflowRunView
-                      entry={workflow}
-                      onCancelWorkflow={onCancelWorkflow}
-                      onControlWorkflowChild={onControlWorkflowChild}
-                    />
+                    <WorkflowRunView entry={workflow} />
                   </li>
                 ))}
               </ul>

@@ -534,22 +534,6 @@
   },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "pokus {attempt}",
-  "workflowCancel": "Zrušit pracovní postup",
-  "workflowSkip": "Přeskočit",
-  "workflowRetry": "Zopakovat",
-  "workflowSkipChild": "Přeskočit {child}",
-  "workflowRetryChild": "Zopakovat {child}",
-  "workflowCancelRefused": "Pracovní postup nebyl zrušen: {reason}.",
-  "workflowChildRefused": "Agent pracovního postupu nebyl změněn: {reason}.",
-  "workflowRefusals": {
-    "already_terminal": "už skončil",
-    "missing_run": "Muse Code nemá žádný běh s tímto ID",
-    "invalid_target": "tento agent neběží",
-    "stale_attempt": "tento agent už přešel na nový pokus"
-  },
-  "workflowControlFailed": "Příkaz pracovního postupu selhal",
-  "workflowCommandStatusUnexpected": "Příkaz pracovního postupu {method} vrátil stav {status}",
-  "workflowsUnsupported": "Back-end Model API nespouští žádné pracovní postupy",
   "workflowsCount": {
     "one": "{count} pracovní postup",
     "few": "{count} pracovní postupy",

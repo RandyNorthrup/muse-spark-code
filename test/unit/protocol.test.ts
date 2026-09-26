@@ -34,18 +34,6 @@ describe('parseWebviewToHostMessage', () => {
       { type: 'goalCommand', requestId: 'g1', verb: 'set', objective: 'Ship it' },
     ],
     ['goalCommand pause', { type: 'goalCommand', requestId: 'g2', verb: 'pause' }],
-    ['workflowCancel', { type: 'workflowCancel', sourceSessionId: 's1', workflowRunId: 'run-1' }],
-    [
-      'workflowChildControl',
-      {
-        type: 'workflowChildControl',
-        sourceSessionId: 's1',
-        workflowRunId: 'run-1',
-        childId: 'c1',
-        attempt: 2,
-        action: 'retry',
-      },
-    ],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -65,79 +53,19 @@ describe('parseWebviewToHostMessage', () => {
     ['unknown goal verb', { type: 'goalCommand', verb: 'complete' }],
     ['goal command without request id', { type: 'goalCommand', verb: 'pause' }],
     ['goal command with numeric request id', { type: 'goalCommand', requestId: 1, verb: 'pause' }],
-    // MSP's `workflow/childControl` takes these two actions and no other (M47).
     [
-      'a workflow action MSP does not take',
+      'workflow cancel remains deferred',
+      { type: 'workflowCancel', sourceSessionId: 's1', workflowRunId: 'run-1' },
+    ],
+    [
+      'workflow child control remains deferred',
       {
         type: 'workflowChildControl',
         sourceSessionId: 's1',
-        workflowRunId: 'r',
-        childId: 'c',
+        workflowRunId: 'run-1',
+        childId: 'c1',
         attempt: 1,
-        action: 'pause',
-      },
-    ],
-    ['a workflow cancel without its run', { type: 'workflowCancel' }],
-    [
-      'a workflow cancel with an empty run',
-      { type: 'workflowCancel', sourceSessionId: 's1', workflowRunId: '' },
-    ],
-    [
-      'a workflow cancel without its source session',
-      { type: 'workflowCancel', workflowRunId: 'r' },
-    ],
-    [
-      'a workflow child control without its source session',
-      {
-        type: 'workflowChildControl',
-        workflowRunId: 'r',
-        childId: 'c',
-        attempt: 1,
-        action: 'retry',
-      },
-    ],
-    [
-      'a workflow child control with an empty run',
-      {
-        type: 'workflowChildControl',
-        sourceSessionId: 's1',
-        workflowRunId: '',
-        childId: 'c',
-        attempt: 1,
-        action: 'retry',
-      },
-    ],
-    [
-      'a workflow child control with an empty child',
-      {
-        type: 'workflowChildControl',
-        sourceSessionId: 's1',
-        workflowRunId: 'r',
-        childId: '',
-        attempt: 1,
-        action: 'retry',
-      },
-    ],
-    [
-      'a workflow child control with a zero attempt',
-      {
-        type: 'workflowChildControl',
-        sourceSessionId: 's1',
-        workflowRunId: 'r',
-        childId: 'c',
-        attempt: 0,
-        action: 'retry',
-      },
-    ],
-    [
-      'a workflow child control with a fractional attempt',
-      {
-        type: 'workflowChildControl',
-        sourceSessionId: 's1',
-        workflowRunId: 'r',
-        childId: 'c',
-        attempt: 1.5,
-        action: 'retry',
+        action: 'skip',
       },
     ],
   ])('rejects %s', (_label, input) => {

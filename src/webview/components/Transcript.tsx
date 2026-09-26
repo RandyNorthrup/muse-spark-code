@@ -27,7 +27,7 @@ import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
-import { type WorkflowControls, WorkflowRunView } from './WorkflowRun'
+import { WorkflowRunView } from './WorkflowRun'
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -70,9 +70,6 @@ export interface TranscriptProps {
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
-  /** A workflow run's card controls (M47); absent, the card offers none. */
-  readonly onCancelWorkflow?: WorkflowControls['onCancelWorkflow']
-  readonly onControlWorkflowChild?: WorkflowControls['onControlWorkflowChild']
 }
 
 type RewindChoice = 'fork' | 'rewind' | 'both'
@@ -438,9 +435,9 @@ function StepsGroup({
  */
 const WorkflowRow = memo(function WorkflowRow({
   entry,
-  onCancelWorkflow,
-  onControlWorkflowChild,
-}: { readonly entry: Extract<TranscriptEntry, { kind: 'workflow' }> } & WorkflowControls) {
+}: {
+  readonly entry: Extract<TranscriptEntry, { kind: 'workflow' }>
+}) {
   return (
     <li
       className="workflow"
@@ -448,11 +445,7 @@ const WorkflowRow = memo(function WorkflowRow({
       data-entry-id={entry.id}
       data-role="workflow"
     >
-      <WorkflowRunView
-        entry={entry}
-        onCancelWorkflow={onCancelWorkflow}
-        onControlWorkflowChild={onControlWorkflowChild}
-      />
+      <WorkflowRunView entry={entry} />
     </li>
   )
 })
@@ -536,8 +529,6 @@ function TranscriptList(props: TranscriptProps) {
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
-    onCancelWorkflow,
-    onControlWorkflowChild,
   } = props
   const quoteMenuFor = (entryId: string): ReactNode =>
     quoteMenuEntryId === entryId &&
@@ -620,14 +611,7 @@ function TranscriptList(props: TranscriptProps) {
         )
       }
       case 'workflow': {
-        return (
-          <WorkflowRow
-            key={entry.id}
-            entry={entry}
-            onCancelWorkflow={onCancelWorkflow}
-            onControlWorkflowChild={onControlWorkflowChild}
-          />
-        )
+        return <WorkflowRow key={entry.id} entry={entry} />
       }
       default: {
         return <MemoOtherRow key={entry.id} entry={entry} />
