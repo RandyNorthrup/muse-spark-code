@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   MODEL_API_MAX_RETRIES,
+  MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_TEXT,
   type PaidFeature,
   UI_TEXT,
@@ -2338,6 +2339,30 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(t.api.responseBodies()[1]?.['input']).toContainEqual(GOAL_WAKE_MESSAGE)
     expect(session.history().items.filter((item) => item.kind === 'userMessage')).toHaveLength(1)
     expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+  })
+
+  it('starts a fresh goal turn when a busy command arrives in the last tool round', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    const tool = { name: 'get_goal', arguments: '{}' }
+    t.api.script(
+      ...Array.from({ length: MODEL_API_MAX_TOOL_ROUNDS - 1 }, () => ({ calls: [tool] })),
+      { calls: [tool], hold: held.promise },
+      { text: 'Working on the goal' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+    })
+    await session.controlGoal({ verb: 'set', objective: 'New goal' })
+    held.resolve(undefined)
+    await turnDone()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+    })
+    expect(instructionsOf(t, MODEL_API_MAX_TOOL_ROUNDS)).toContain('- Objective: New goal')
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
   })
 
   const staleGoalCases: readonly {

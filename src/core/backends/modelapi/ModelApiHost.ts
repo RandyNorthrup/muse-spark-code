@@ -748,6 +748,16 @@ export class ModelApiSession implements AgentSession {
     return result.outcome
   }
 
+  /** An internal cue for a fresh goal turn, without a user-message card. */
+  private queuedGoalWake(): QueuedTurn {
+    return {
+      turnId: this.deps.newId(),
+      parts: [{ type: 'text', text: MODEL_TEXT.goalWake }],
+      displayText: undefined,
+      isGoalWake: true,
+    }
+  }
+
   /**
    * The cue a goal command gives when it wakes the agent (D38): the running
    * turn's id when one runs (its next call sees the goal), else a new turn,
@@ -761,12 +771,7 @@ export class ModelApiSession implements AgentSession {
       this.active.goalWakePending = true
       return this.active.turnId
     }
-    const queued: QueuedTurn = {
-      turnId: this.deps.newId(),
-      parts: [{ type: 'text', text: MODEL_TEXT.goalWake }],
-      displayText: undefined,
-      isGoalWake: true,
-    }
+    const queued = this.queuedGoalWake()
     if (this.compacting === undefined) {
       void this.runTurn(queued)
     } else {
@@ -1709,6 +1714,12 @@ export class ModelApiSession implements AgentSession {
           throw error
         }
       }
+    }
+    // A user goal command accepted during the last permitted round still
+    // needs a request that sees it. Start a fresh bounded turn after this
+    // one settles instead of silently dropping the pending wake.
+    if (turn.goalWakePending && isGoalActive(this.goal)) {
+      this.queuedTurns.push(this.queuedGoalWake())
     }
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }

@@ -80,7 +80,9 @@ while they are (PLAN.md D30, D34).
   new objective. A Muse Code gap reload recovers the latest goal change from
   durable view history, including a clear or completion. Billed usage from
   an incomplete compaction is saved before the error returns; ordinary tool
-  rounds are saved only after every call has an output. A resumed Muse Code
+  rounds are saved only after every call has an output. A goal accepted during
+  the last allowed tool round starts a fresh bounded turn to receive it.
+  A resumed Muse Code
   conversation also recovers its goal if the server downgrades its requested
   snapshot to inline history, and a live goal change outranks an older gap
   reload that finishes afterward.

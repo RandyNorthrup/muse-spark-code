@@ -1403,6 +1403,11 @@ turn-start saves and live session-list updates. It also found that a resume down
 history needs the same durable goal read as a gap reload, and that a live
 goal event arriving during a gap read must win over that older read. Focused
 tests and red drills cover both paths.
+The next PR review found that a goal accepted during the last Model API
+tool round could remain idle: its pending wake was never drained before the
+round cap failed the turn. The cap still ends that turn; when the goal is
+active, its accepted wake is queued as a fresh bounded turn so the next
+request receives the objective.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3414,7 +3419,7 @@ translations. The order is D36's table:
   `/goal`; 31 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G39; both
+  reducer, the controller, the strip and the prompt; drills G1–G40; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the
