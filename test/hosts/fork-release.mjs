@@ -78,23 +78,32 @@ function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'))
 }
 
+/** A VS Code release number: 1, then a minor of two digits or more (1.99.3, 1.128.0). */
+const VSCODE_VERSION = /^1\.\d{2,}\.\d+$/
+
 function describe(root) {
   const app = path.join(root, 'resources', 'app')
   const product = readJson(path.join(app, 'product.json'))
   const manifest = readJson(path.join(app, 'package.json'))
-  // Cursor names its VS Code base apart; the others keep VS Code's version
-  // as the product's and their own under a name of their own.
-  const vscode = product.vscodeVersion ?? manifest.version
+  // Cursor names its VS Code base apart (vscodeVersion); Devin Desktop and
+  // Positron keep VS Code's as the product's and their own under a name of
+  // their own; a fork numbered in its own right (Kiro) may name it nowhere.
+  const vscode = [product.vscodeVersion, product.version, manifest.version].find(
+    (value) => typeof value === 'string' && VSCODE_VERSION.test(value),
+  )
   const own = [
-    product.version,
-    product.windsurfVersion,
-    product.positronVersion,
-    product.kiroVersion,
-  ]
-    .filter((value) => typeof value === 'string' && value !== vscode)
-    .join(' / ')
+    ...new Set([product.version, product.windsurfVersion, product.positronVersion]),
+  ].filter((value) => typeof value === 'string' && value !== vscode)
+  const fields = Object.entries(product)
+    .filter(([key, value]) => /version/i.test(key) && typeof value === 'string')
+    .map(([key, value]) => `${key} ${value}`)
+    .join(', ')
+  const base =
+    vscode === undefined
+      ? `VS Code version not named; product.json has ${fields}`
+      : `VS Code ${vscode}`
   console.log(product.applicationName)
-  console.log(`${product.nameLong} ${own === '' ? '' : `${own} `}(VS Code ${vscode})`)
+  console.log(`${[product.nameLong, ...own].join(' ')} (${base})`)
 }
 
 const [command, argument] = process.argv.slice(2)

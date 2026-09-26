@@ -120,8 +120,10 @@ while they are (PLAN.md D30, D34).
   newer than Node 20.18, the Node of VS Code 1.99 and 1.100. Tested in
   VSCodium 1.99.3 and 1.135 (the integration tests, 9 passing in each) and
   in code-server 4.99.4 (VS Code 1.99.3: a conversation and an approval
-  in the browser), where the 1.125 floor was refused. On 1.99 and 1.100
-  Muse Voice says it is unavailable, as their Node has no WebSocket.
+  in the browser), where the 1.125 floor was refused; and in the latest
+  Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron, which
+  install it and pass the integration tests. On 1.99 and 1.100 Muse Voice
+  says it is unavailable, as their Node has no WebSocket.
 
 ### Fixed
 

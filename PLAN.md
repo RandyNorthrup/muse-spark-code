@@ -156,6 +156,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `npm-run-all2`                                                          | 9.0.3                             | Runs gate scripts in sequence/parallel.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `rimraf`                                                                | 6.1.3                             | Cross-platform clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `axe-core`                                                              | 4.13.0                            | The accessibility gate (M37, D32): WCAG 2.0 to 2.2, levels A and AA, run inside the harness page. MPL-2.0; a dev dependency, never bundled.                                                                                                                                                                                                                                                                                                                                                          |
+| `playwright-core`                                                       | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                |
 
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
@@ -3791,8 +3792,10 @@ listing are M62b.
     name), Kiro and Positron at their latest Linux builds, found through
     their own update feeds as nixpkgs and Homebrew find them; the VSIX
     installed with each fork's CLI and the integration tests run in it,
-    weekly and by hand. Their feeds are refused in the container, so the
-    first results come from GitHub's runners.
+    weekly and by hand. Their feeds are refused in the container; the
+    first run on GitHub's runners passed in all four: Cursor 3.22.7 (VS
+    Code 1.128), Devin Desktop 3.10.35 (1.126), Kiro 1.1.70 (base not
+    named) and Positron 2026.09.1 (1.130), 9 integration tests each.
 - **Acceptance (M62a)**: every gate green with the floor's types; the
   integration tests on a 1.99 host; drills for the API and Node checks.
 

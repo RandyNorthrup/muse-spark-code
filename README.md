@@ -208,9 +208,10 @@ key (the operating system's credential store), and the editor's settings.
 VS Code forks built on VS Code 1.99 or later can install the extension
 from a `.vsix`, and from Open VSX once a release is published there.
 [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
-which editors have been tried: so far VSCodium, code-server and Eclipse
-Theia with the extension, and Zed, Emacs (agent-shell), Neovim
-(CodeCompanion) and JupyterLab (Jupyter AI) with the agent.
+which editors have been tried: so far VSCodium, code-server, Eclipse
+Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
+the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
+JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
