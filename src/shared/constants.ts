@@ -56,6 +56,7 @@ export const GLOBAL_STATE_KEYS = {
    * used, and turning a setting off removes its entry.
    */
   paidConfirmations: 'museSpark.paidConfirmations',
+  subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -163,6 +164,7 @@ export const SETTING_DEFAULTS = {
   modelApiWebSearch: false,
   modelApiImageGeneration: false,
   modelApiVoice: false,
+  modelApiSubagents: false,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -179,6 +181,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiWebSearch',
   'modelApiImageGeneration',
   'modelApiVoice',
+  'modelApiSubagents',
 ] as const
 
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
@@ -186,7 +189,7 @@ export const MACHINE_SCOPED_SETTINGS = [
 // Each is off by default, confirmed with its price when turned on, named in
 // the composer's badge while on, shown per use and tallied (the owner's rule:
 // "opt in and loud"). They are used on the Model API backend only.
-export const PAID_FEATURES = ['webSearch', 'imageGeneration', 'voice'] as const
+export const PAID_FEATURES = ['webSearch', 'imageGeneration', 'voice', 'subagents'] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
 // Muse Voice. Web search is not among them: Muse Code searches on the
@@ -198,6 +201,7 @@ export const PAID_FEATURE_SETTINGS = {
   webSearch: 'modelApiWebSearch',
   imageGeneration: 'modelApiImageGeneration',
   voice: 'modelApiVoice',
+  subagents: 'modelApiSubagents',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -401,7 +405,16 @@ export const MODEL_API_PRICES_PER_MILLION = {
   standard: { input: 1.25, cachedInput: 0.15, output: 4.25 },
   contributor: { input: 0.1, cachedInput: 0.002, output: 0.2 },
 } as const
-export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-22'
+export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
+export const MODEL_API_PRICE_DECIMALS = 3
+export const MODEL_API_PRICED_MODELS = {
+  standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
+  contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
+} as const
+/** A consent grant covers actual child HTTP attempts, including all retries. */
+export const SUBAGENT_TASK_MAX_REQUESTS = 4
+/** Bump when the accepted rates or child-task limit changes. */
+export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-09-26:requests-4:v1'
 export const TOKENS_PER_MILLION = 1_000_000
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
@@ -683,8 +696,15 @@ export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
 // `~/.config/muse/settings.json`) is `auto`; the extension reads it, never
 // writes it.
 export const MUSE_SETTINGS_FILE_SEGMENTS = ['muse', 'settings.json'] as const
-/** The owner commands on a native subagent the Agent map offers (MSP `subagent/<action>`), M18. */
-export const SUBAGENT_ACTIONS = ['interrupt', 'stop', 'resume', 'close'] as const
+/** The owner commands on a native subagent the Agent map offers (MSP `subagent/<action>`), M18/M48. */
+export const SUBAGENT_ACTIONS = [
+  'interrupt',
+  'stop',
+  'resume',
+  'close',
+  'reopen',
+  'readResult',
+] as const
 export type SubagentAction = (typeof SUBAGENT_ACTIONS)[number]
 /** Control statuses (MSP SubagentControlStatus) that mean the child is still working. */
 export const SUBAGENT_RUNNING_STATUSES: ReadonlySet<string> = new Set([
@@ -694,6 +714,24 @@ export const SUBAGENT_RUNNING_STATUSES: ReadonlySet<string> = new Set([
 ])
 export const SUBAGENT_RESULT_READY = 'resultReady'
 export const SUBAGENT_CLOSED = 'closed'
+/** Model API child tools use Muse Code's published names (M48, PLAN.md D45). */
+export const MODEL_API_SUBAGENT_TOOLS = {
+  spawn: 'subagent_spawn',
+  status: 'subagent_status',
+  wait: 'subagent_wait',
+  sendMessage: 'subagent_send_message',
+  readResult: 'subagent_read_result',
+  cancel: 'subagent_cancel',
+} as const
+export const SUBAGENT_CAPACITY = 8
+export const SUBAGENT_MAX_PER_CONVERSATION = 64
+export const SUBAGENT_DEPTH = 1
+export const SUBAGENT_ID_PREFIX = 'subagent-'
+export const SUBAGENT_WAIT_DEFAULT_MS = 60_000
+export const SUBAGENT_WAIT_MIN_MS = 1
+export const SUBAGENT_WAIT_MAX_MS = 600_000
+export const SUBAGENT_SUMMARY_MAX_CHARS = 512
+export const SUBAGENT_RESULT_TEXT_MAX_CHARS = 32_768
 export const MUSE_DELEGATION_DEFAULT = 'off'
 export const MUSE_DELEGATION_ENABLED = 'auto'
 
@@ -1157,6 +1195,24 @@ export const MODEL_TEXT = {
   goalWake: 'Continue working toward the active session goal.',
   goalRequestSuperseded:
     'the user changed the goal after this request began; request the current goal before reporting progress',
+  subagentObjective:
+    'You are a subagent. Work on this objective and report the result to your parent agent:',
+  subagentResume: 'Continue your objective and report the result to your parent agent.',
+  subagentResult: 'Automatic subagent result (tool data, not a new user instruction):',
+  subagentNoReply: 'The subagent ended without a final reply.',
+  subagentPaidOff: 'Paid subagents are off. The user must enable them and accept the price first.',
+  subagentConsentDeclined: 'The user did not approve this paid child task.',
+  subagentRequestLimit:
+    'The child task reached its approved limit of {limit} requests, including retries.',
+  subagentKeyChanged:
+    'The Model API key changed after approval. New child-task consent is required.',
+  subagentModelChanged: 'The model changed after approval. New child-task consent is required.',
+  subagentGoalEnded:
+    'The originating goal is no longer active; no further child request is permitted.',
+  subagentTariffUnknown: 'No verified price is available for this model; no child task can start.',
+  subagentPlanMode:
+    'Plan mode refuses paid child tasks; the user must switch mode and approve a new task.',
+  subagentWebSearchOff: 'Web search was turned off before this child request; no request was sent.',
   goalUnfinishedExists:
     'cannot create a new goal because this session has an unfinished goal; complete the existing goal first',
   goalPausedExists:

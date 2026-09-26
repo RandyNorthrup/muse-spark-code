@@ -12,6 +12,26 @@ while they are (PLAN.md D30, D34).
 
 ### Added
 
+- **Subagents on the Model API backend** (M48, PLAN.md D45). Child sessions
+  run in parallel with bounded capacity, their own transcript, the existing
+  tool approvals and workspace rules, and usage counted with the parent.
+  The Agent map can steer, stop, read and reopen them. Stopping a queued child
+  now discards notes it never saw, so a later reopen cannot run canceled work.
+  A panel joining while a child's tool approval waits sees that pending card.
+  Child tokens charge the goal active when their turn began, without charging
+  a later replacement goal.
+  Model API subagents now require a machine-scoped paid setting and accepted
+  model rates. Every new child task asks for one-use consent in all modes,
+  including Bypass; Plan refuses it. Each consent allows at most four actual
+  response requests, counting retries and tool rounds. The child row and
+  Account & usage show paid attempts and reported token usage; attempts
+  without usage retain unknown cost, and child cost is a subset of the
+  conversation total.
+  Muse Code's `subagent/readResult` and `subagent/reopen` controls remain
+  deferred until an accepted-command capture establishes their behavior.
+  Muse Code's two uncaptured owner verbs remain a later follow-up. Final
+  M48 quality and hosted checks remain open.
+
 - **Image edits** (M44, PLAN.md D37). With image generation on, the model
   can also change one workspace image, or combine up to four, by a prompt,
   into a new PNG (`edit_image`, Meta's `/images/edits`, $0.01 per image).

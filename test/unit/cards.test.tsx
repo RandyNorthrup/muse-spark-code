@@ -191,6 +191,7 @@ describe('ApprovalCard tool subjects (M18)', () => {
     expect(screen.getByText('subagent_spawn').closest('.approval-title')).toHaveTextContent(
       'Muse wants to use subagent_spawn',
     )
+    expect(screen.getByText('Map the tree')).toHaveClass('approval-prompt')
   })
 })
 
@@ -241,5 +242,26 @@ describe('ApprovalCard for a paid call (M34, PLAN.md D30)', () => {
     expect(card).toHaveTextContent('Add a red hat')
     expect(card).toHaveTextContent('Starting from art/fox.png, art/hat.webp')
     expect(card).toHaveTextContent('Paid: $0.01 per image')
+  })
+
+  it('shows one-use child consent with its actual model, objective, rates and request limit', () => {
+    const approval: PendingApproval = {
+      ...imageApproval,
+      rawArgs: JSON.stringify({ role: 'reviewer', objective: 'Review current changes' }),
+      subject: {
+        kind: 'paidTool',
+        toolName: 'subagent_spawn',
+        paidFeature: 'subagents',
+        modelId: 'muse-spark-1.3-contributor',
+        requestLimit: 4,
+      },
+    }
+    render(<ApprovalCard approval={approval} toolName="subagent_spawn" onDecide={vi.fn()} />)
+    const card = screen.getByRole('group', { name: 'Run paid subagent task reviewer?' })
+    expect(card).toHaveTextContent('Review current changes')
+    expect(card).toHaveTextContent('muse-spark-1.3-contributor')
+    expect(card).toHaveTextContent('$0.100 input, $0.002 cached input, $0.200 output')
+    expect(card).toHaveTextContent('4 requests per task, including retries')
+    expect(screen.queryByRole('button', { name: /session/i })).not.toBeInTheDocument()
   })
 })

@@ -24,6 +24,7 @@ import {
   GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
   type GoalCommandVerb,
+  type SubagentAction,
   HTTP_UNAUTHORIZED,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
@@ -36,6 +37,7 @@ import {
   MODEL_API_OUTPUT_ENCODING,
   MODEL_API_OUTPUT_MEDIA_TYPE,
   MODEL_API_SERVER_NAME,
+  MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
   MODEL_API_VERSION,
   MODEL_API_WEB_SEARCH_TOOL,
@@ -44,14 +46,29 @@ import {
   type PaidFeature,
   QUESTION_OUTCOME_CLARIFIED,
   STORED_SESSION_VERSION,
+  SUBAGENT_CAPACITY,
+  SUBAGENT_DEPTH,
+  SUBAGENT_ID_PREFIX,
+  SUBAGENT_MAX_PER_CONVERSATION,
+  SUBAGENT_RESULT_READY,
+  SUBAGENT_WAIT_DEFAULT_MS,
+  SUBAGENT_SUMMARY_MAX_CHARS,
+  SUBAGENT_RESULT_TEXT_MAX_CHARS,
+  SUBAGENT_TASK_MAX_REQUESTS,
   THINKING_OFF_EFFORT,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_TIMEOUT_MS,
 } from '../../../shared/constants'
+import { plural } from '../../../shared/l10n/text'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import { fill } from '../../../shared/l10n/text'
+import {
+  modelApiPaidTier,
+  type SubagentTaskConfirmation,
+  type SubagentUsage,
+} from '../../../shared/paid'
 import type { SubscriptionUsage } from '../../../shared/usage'
 import {
   type AgentHost,
@@ -89,6 +106,7 @@ import {
   ModelApiError,
   type RetryBudget,
   type RetryNotice,
+  type ResponseAttemptGuard,
 } from './client'
 import {
   applyGoalCommand,
@@ -116,6 +134,7 @@ import {
   headerOf,
   recordOf,
   type SessionStore,
+  type StoredReplayItem,
   type StoredSession,
   type StoredSessionHeader,
 } from './sessionStore'
@@ -156,8 +175,29 @@ import {
   type ToolIo,
   type ToolOutcome,
 } from './tools'
+import {
+  isSubagentTool,
+  sendMessageArgs,
+  spawnArgs,
+  statusArgs,
+  type SubagentState,
+  targetArgs,
+  waitArgs,
+} from './subagentTools'
 
-export interface ModelApiHostDeps {
+/** Paid state and usage are injected by the host, never read from workspace settings. */
+export interface ModelApiPaidHooks {
+  /** Whether a paid feature is on: its machine setting and accepted price. */
+  readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
+  /** Counts attempts and extra-feature uses for the window. */
+  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  /** A fresh user decision before an owner-initiated child task. */
+  readonly confirmSubagentTask: (task: SubagentTaskConfirmation) => Promise<boolean>
+  /** Child token cost is a subset of the parent's conversation estimate. */
+  readonly noteSubagentUsage: (modelId: string, usage: SubagentUsage) => void
+}
+
+export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly client: ModelApiClient
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
@@ -176,10 +216,6 @@ export interface ModelApiHostDeps {
   readonly store?: SessionStore | undefined
   /** The git facts for the prompt's environment section (D15), read once per session. */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
-  /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
-  readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
-  /** Counts paid uses for the window's tally: searches made, images returned. */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
 }
 
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
@@ -199,6 +235,44 @@ interface PendingNote {
 interface TranscriptItem {
   readonly turnId: string
   readonly item: ItemSnapshot
+}
+
+/** One Model API child: a private session with its own replay and transcript. */
+interface ChildRecord {
+  readonly id: string
+  readonly role: string
+  readonly objective: string
+  readonly itemId: string
+  readonly parentTurnId: string
+  readonly session: ModelApiSession
+  readonly startedAt: number
+  state: SubagentState
+  result:
+    { readonly summary: string; readonly text?: string; readonly errorKind?: string } | undefined
+  terminal: string | undefined
+  usage: {
+    inputTokens: number
+    outputTokens: number
+    cachedTokens: number
+    reasoningTokens: number
+  }
+  /** The goal active when this child's current turn began, never a later replacement. */
+  chargedGoalId: string | undefined
+  readonly waiters: Set<() => void>
+  readonly pendingMessages: string[]
+  followupAfterStop: string | undefined
+  /** New consent waiting for an interrupted prior turn to finish; never persisted. */
+  nextTaskGrant: ChildTaskGrant | undefined
+  /** Any state change invalidates a modal opened before it. */
+  revision: number
+}
+
+/** One consented child task; only in memory, never in the session snapshot. */
+interface ChildTaskGrant {
+  readonly modelId: string
+  readonly keyDigest: string
+  readonly goalId: string | undefined
+  remainingAttempts: number
 }
 
 interface QueuedTurn {
@@ -355,6 +429,21 @@ const COMPLETED = 'completed'
 const FAILED = 'failed'
 const REJECTED = 'rejected'
 const CANCELLED = 'cancelled'
+const CHILD_RESULT_STATES: ReadonlySet<SubagentState> = new Set([
+  'result_ready',
+  'closed',
+  'interrupted',
+])
+const FORWARDED_CHILD_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
+  'turnStarted',
+  'itemStarted',
+  'itemUpdated',
+  'itemCompleted',
+  'textDelta',
+  'approvalRequested',
+  'approvalUpdated',
+  'approvalResolved',
+])
 const IDLE = 'idle'
 const RUNNING = 'running'
 const NOOP = 'noop'
@@ -381,6 +470,24 @@ const DECISION_APPROVED = 'approved'
 const DECISION_ABORT = 'abort'
 const RESOLVED_BY_USER = 'user'
 const NO_UNSUBSCRIBE = (): undefined => undefined
+// A child is recorded inside its parent, not in the host's session map.
+const NO_CHILD_DISPOSAL = (): undefined => undefined
+
+/**
+ * A replay with a call still waiting for its output cannot be replayed
+ * after a crash — neither the parent's nor, nested in its snapshot, a
+ * child's (the review of PR #35).
+ */
+function hasUnansweredCall(replay: readonly StoredReplayItem[]): boolean {
+  const answered = new Set(
+    replay.flatMap((entry) =>
+      entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
+    ),
+  )
+  return replay.some(
+    (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
+  )
+}
 
 /** A stream that ended with an error event the docs say to retry (the whole request). */
 class RetryableStreamError extends Error {
@@ -452,6 +559,110 @@ function questionResultText(reply: QuestionReply): string {
     }
     case 'clarified': {
       return `${MODEL_TEXT.clarificationLead}\n${reply.text}`
+    }
+  }
+}
+
+function subagentFailure(reason: string): ToolOutcome {
+  return {
+    output: `Error: ${reason}`,
+    visibleOutput: UI_TEXT.agentControlFailed,
+    failureReason: UI_TEXT.agentControlFailed,
+  }
+}
+
+const CHILD_TASK_REFUSALS = [
+  'paidOff',
+  'consentDeclined',
+  'requestLimit',
+  'keyChanged',
+  'modelChanged',
+  'goalEnded',
+  'tariffUnknown',
+  'planMode',
+  'webSearchOff',
+] as const
+type ChildTaskRefusal = (typeof CHILD_TASK_REFUSALS)[number]
+
+function childTaskMessages(kind: ChildTaskRefusal): {
+  readonly model: string
+  readonly visible: string
+} {
+  switch (kind) {
+    case 'paidOff': {
+      return { model: MODEL_TEXT.subagentPaidOff, visible: UI_TEXT.subagentPaidOff }
+    }
+    case 'consentDeclined': {
+      return { model: MODEL_TEXT.subagentConsentDeclined, visible: UI_TEXT.subagentConsentDeclined }
+    }
+    case 'requestLimit': {
+      const limit = SUBAGENT_TASK_MAX_REQUESTS
+      return {
+        model: fill(MODEL_TEXT.subagentRequestLimit, { limit }),
+        visible: fill(UI_TEXT.subagentRequestLimit, { limit }),
+      }
+    }
+    case 'keyChanged': {
+      return { model: MODEL_TEXT.subagentKeyChanged, visible: UI_TEXT.subagentKeyChanged }
+    }
+    case 'modelChanged': {
+      return { model: MODEL_TEXT.subagentModelChanged, visible: UI_TEXT.subagentModelChanged }
+    }
+    case 'goalEnded': {
+      return { model: MODEL_TEXT.subagentGoalEnded, visible: UI_TEXT.subagentGoalEnded }
+    }
+    case 'tariffUnknown': {
+      return { model: MODEL_TEXT.subagentTariffUnknown, visible: UI_TEXT.subagentTariffUnknown }
+    }
+    case 'planMode': {
+      return { model: MODEL_TEXT.subagentPlanMode, visible: UI_TEXT.subagentPlanMode }
+    }
+    case 'webSearchOff': {
+      return { model: MODEL_TEXT.subagentWebSearchOff, visible: UI_TEXT.subagentWebSearchOff }
+    }
+  }
+}
+
+function childTaskFailure(kind: ChildTaskRefusal): ToolOutcome {
+  const { model, visible } = childTaskMessages(kind)
+  return { output: `Error: ${model}`, visibleOutput: visible, failureReason: visible }
+}
+
+class ChildTaskRefusedError extends Error {
+  public readonly visible: string
+
+  public constructor(public readonly kind: ChildTaskRefusal) {
+    const messages = childTaskMessages(kind)
+    super(messages.model)
+    this.name = 'ChildTaskRefusedError'
+    this.visible = messages.visible
+  }
+}
+
+function modelChildFailure(
+  errorKind: string | undefined,
+  fallback: string | undefined,
+): string | undefined {
+  const kind = CHILD_TASK_REFUSALS.find((candidate) => errorKind === `subagent_${candidate}`)
+  return kind === undefined ? fallback : childTaskMessages(kind).model
+}
+
+function childStateLabel(state: SubagentState): string {
+  switch (state) {
+    case 'queued': {
+      return UI_TEXT.agentStatuses.queued
+    }
+    case 'running': {
+      return UI_TEXT.agentStatuses.inProgress
+    }
+    case 'interrupted': {
+      return UI_TEXT.agentStatuses.interrupted
+    }
+    case 'result_ready': {
+      return UI_TEXT.agentStatuses.resultReady
+    }
+    case 'closed': {
+      return UI_TEXT.agentStatuses.closed
     }
   }
 }
@@ -567,8 +778,22 @@ function imageKindOf(toolName: string): ImagePlan['kind'] | undefined {
 }
 
 /** What the approval card is about, in the MSP subject vocabulary. */
-function subjectFor(call: FunctionCallItem, platform: NodeJS.Platform): ApprovalSubject {
+function subjectFor(
+  call: FunctionCallItem,
+  platform: NodeJS.Platform,
+  childTask?: SubagentTaskConfirmation,
+): ApprovalSubject {
   const args = argumentsOf(call)
+  if (childTask !== undefined) {
+    return {
+      kind: 'paidTool',
+      toolName: call.name,
+      paidFeature: 'subagents',
+      target: childTask.role,
+      modelId: childTask.modelId,
+      requestLimit: childTask.attemptLimit,
+    }
+  }
   if (call.name === shellToolFor(platform).name) {
     return { kind: 'shell', command: pick(args, 'command') ?? call.arguments }
   }
@@ -645,6 +870,32 @@ export class ModelApiSession implements AgentSession {
    */
   private readonly pendingNotes: PendingNote[] = []
   private readonly queuedTurns: QueuedTurn[] = []
+  private readonly children = new Map<string, ChildRecord>()
+  private readonly spawnCommands = new Map<string, string>()
+  private readonly pendingChildResults: string[] = []
+  private childTaskGrant: ChildTaskGrant | undefined
+  private readonly admitChildAttempt = (
+    keyDigest: string | undefined,
+    body: CreateResponseBody,
+  ): void => {
+    const grant = this.childTaskGrant
+    const parent = this.parentSession
+    if (grant === undefined || parent === undefined || this.isDisposed || parent.isDisposed) {
+      throw new ChildTaskRefusedError('consentDeclined')
+    }
+    const refusal = parent.childGrantRefusal(grant, keyDigest, this.modelId)
+    if (refusal !== undefined) {
+      throw new ChildTaskRefusedError(refusal)
+    }
+    if (
+      body.tools.some((tool) => tool.type === MODEL_API_WEB_SEARCH_TOOL) &&
+      !this.deps.isPaidFeatureOn('webSearch')
+    ) {
+      throw new ChildTaskRefusedError('webSearchOff')
+    }
+    grant.remainingAttempts -= 1
+    this.deps.notePaidUse('subagents', 1)
+  }
   private active: ActiveTurn | undefined
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
   private readonly seenFiles = new Map<string, string>()
@@ -678,6 +929,8 @@ export class ModelApiSession implements AgentSession {
     private readonly deps: ModelApiHostDeps,
     private readonly onChanged: () => void,
     private readonly onDispose: () => void,
+    private readonly isSubagent = false,
+    private readonly parentSession?: ModelApiSession,
   ) {
     this.modelId = modelId
     this.permissions = new PermissionEngine(approvalMode)
@@ -716,7 +969,17 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  private drainChildResults(): void {
+    for (const text of this.pendingChildResults.splice(0)) {
+      this.replay.push({
+        turnId: this.turnIds.at(-1) ?? this.sessionId,
+        item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
+      })
+    }
+  }
+
   private body(): CreateResponseBody {
+    this.drainChildResults()
     const shell = shellToolFor(this.deps.platform)
     const hasShell = this.deps.isWorkspaceTrusted()
     const context = this.context.sections()
@@ -756,6 +1019,8 @@ export class ModelApiSession implements AgentSession {
       hasShell,
       hasSkills,
       hasImageGeneration: this.deps.isPaidFeatureOn('imageGeneration'),
+      hasSubagents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents'),
+      isSubagent: this.isSubagent,
     })
     return this.deps.isPaidFeatureOn('webSearch')
       ? [...own, { type: MODEL_API_WEB_SEARCH_TOOL }]
@@ -927,6 +1192,13 @@ export class ModelApiSession implements AgentSession {
       reasoningTokens:
         this.usage.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens ?? 0),
     }
+    if (this.isSubagent) {
+      this.deps.noteSubagentUsage(this.modelId, {
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+        cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+      })
+    }
     this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
     this.noteContext(usage.input_tokens + usage.output_tokens)
   }
@@ -1054,6 +1326,7 @@ export class ModelApiSession implements AgentSession {
     event: StreamEvent,
     open: Map<string, OpenItem>,
     turnId: string,
+    chargedGoalId: string | undefined,
   ): ResponseObject | undefined {
     switch (event.type) {
       case 'response.output_item.added': {
@@ -1102,6 +1375,7 @@ export class ModelApiSession implements AgentSession {
         return event.response
       }
       case 'response.failed': {
+        this.noteUsage(event.response.usage, chargedGoalId)
         const failure = event.response.error
         throw new ModelApiError(
           failure?.message ?? 'The response failed',
@@ -1258,13 +1532,21 @@ export class ModelApiSession implements AgentSession {
         reason: notice.reason,
       })
     }
-    for await (const event of this.deps.client.streamResponse(
-      this.body(),
+    const requestBody = this.body()
+    const admitAttempt: ResponseAttemptGuard | undefined = this.isSubagent
+      ? (keyDigest) => {
+          this.admitChildAttempt(keyDigest, requestBody)
+        }
+      : undefined
+    const responseStream = this.deps.client.streamResponse(
+      requestBody,
       signal,
       onRetry,
       budget,
-    )) {
-      final = this.applyStreamEvent(event, open, turnId) ?? final
+      admitAttempt,
+    )
+    for await (const event of responseStream) {
+      final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
     }
     if (final === undefined) {
       throw new ModelApiError(
@@ -1363,6 +1645,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     query: PermissionQuery,
+    childTask?: SubagentTaskConfirmation,
   ): Promise<ApprovalOutcome> {
     const approvalId = this.deps.newId()
     const request: Extract<AgentEvent, { type: 'approvalRequested' }> = {
@@ -1372,9 +1655,11 @@ export class ModelApiSession implements AgentSession {
       toolName: call.name,
       rawArgs: call.arguments,
       requirementId: { approvalId, sourceIndex: 0 },
-      subject: subjectFor(call, this.deps.platform),
+      subject: subjectFor(call, this.deps.platform, childTask),
       availableChoices: [
-        ...(query.toolClass === 'paid' ? paidChoices() : choicesFor(call.name, query.command)),
+        ...(childTask !== undefined || query.toolClass === 'paid'
+          ? paidChoices()
+          : choicesFor(call.name, query.command)),
       ],
       isJudgeEscalated: false,
       isProtectedWrite: query.isProtected === true,
@@ -1390,13 +1675,17 @@ export class ModelApiSession implements AgentSession {
       this.pendingApprovalEvents.delete(approvalId)
       this.pendingApprovals.delete(approvalId)
     }
-    if (decision.choiceId === APPROVAL_CHOICE_IDS.allowSession) {
+    const isOffered = request.availableChoices.some(
+      (choice) => choice.choiceId === decision.choiceId,
+    )
+    if (isOffered && decision.choiceId === APPROVAL_CHOICE_IDS.allowSession) {
       this.permissions.allowForSession(call.name, query.command)
     }
     // Only the two allow choices this card offered approve; anything else refuses.
     const isApproved =
-      decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ||
-      decision.choiceId === APPROVAL_CHOICE_IDS.allowSession
+      isOffered &&
+      (decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ||
+        decision.choiceId === APPROVAL_CHOICE_IDS.allowSession)
     this.emit({
       type: 'approvalResolved',
       approvalId,
@@ -1604,12 +1893,605 @@ export class ModelApiSession implements AgentSession {
     return { outcome: { output: MODEL_TEXT.shellMovedToBackground, visibleOutput: '' }, running }
   }
 
+  /** The Agent map's row is the durable parent-side account of a child. */
+  private childSnapshot(child: ChildRecord): ItemSnapshot {
+    const isDone = child.state === 'result_ready' || child.state === 'closed'
+    let status: ItemSnapshot['status'] = IN_PROGRESS
+    if (child.state === 'interrupted') {
+      status = CANCELLED
+    } else if (isDone) {
+      status = child.terminal ?? COMPLETED
+    }
+    return {
+      itemId: child.itemId,
+      kind: 'subagent',
+      turnId: child.parentTurnId,
+      status,
+      role: child.role,
+      objective: child.objective,
+      subagentId: child.id,
+      childSessionId: child.session.sessionId,
+      depth: SUBAGENT_DEPTH,
+      controlStatus: child.state === 'result_ready' ? SUBAGENT_RESULT_READY : child.state,
+      ...(isDone && { durationMs: this.deps.now() - child.startedAt }),
+      usage: child.usage,
+      paid: 'subagents',
+      ...(child.result !== undefined && { result: child.result }),
+    }
+  }
+
+  private updateChild(child: ChildRecord): void {
+    child.revision += 1
+    const item = this.childSnapshot(child)
+    this.rerecordTranscript(item)
+    this.emit({ type: 'itemUpdated', item })
+    this.touch()
+    for (const wake of child.waiters) {
+      wake()
+    }
+  }
+
+  /** Charge only the goal that owned this child turn, never a replacement. */
+  private chargeChildGoal(child: ChildRecord, spentTokens: number): void {
+    if (spentTokens <= 0 || child.chargedGoalId === undefined) {
+      return
+    }
+    const goal = this.goal
+    if (goal?.goal_id !== child.chargedGoalId) {
+      return
+    }
+    this.replaceGoal(withTokensUsed(goal, spentTokens, this.deps.now()))
+  }
+
+  private childEvent(child: ChildRecord, event: AgentEvent): void {
+    if (event.type === 'turnStarted') {
+      child.chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
+    } else if (event.type === 'tokenUsage') {
+      const latest = child.session.usage
+      const inputDelta = latest.inputTokens - child.usage.inputTokens
+      const outputDelta = latest.outputTokens - child.usage.outputTokens
+      this.chargeChildGoal(child, inputDelta + outputDelta)
+      this.usage = {
+        inputTokens: this.usage.inputTokens + inputDelta,
+        outputTokens: this.usage.outputTokens + outputDelta,
+        cachedTokens: this.usage.cachedTokens + latest.cachedTokens - child.usage.cachedTokens,
+        reasoningTokens:
+          this.usage.reasoningTokens + latest.reasoningTokens - child.usage.reasoningTokens,
+      }
+      child.usage = { ...latest }
+      this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
+      this.updateChild(child)
+      return
+    }
+    if (event.type === 'turnCompleted') {
+      child.chargedGoalId = undefined
+      child.session.childTaskGrant = undefined
+      if (child.nextTaskGrant !== undefined) {
+        child.session.childTaskGrant = child.nextTaskGrant
+        child.nextTaskGrant = undefined
+      }
+      child.terminal = event.terminal
+      if (child.state !== 'closed' && child.state !== 'interrupted') {
+        child.state = 'result_ready'
+      }
+      const reply = child.session.transcript.findLast(
+        (entry) => entry.turnId === event.turnId && entry.item.kind === 'agentMessage',
+      )
+      const isTaskRefusal = event.errorKind?.startsWith('subagent_') === true
+      const text =
+        (isTaskRefusal ? event.reason : (reply?.item.text ?? event.reason)) ??
+        MODEL_TEXT.subagentNoReply
+      const modelText = isTaskRefusal ? (modelChildFailure(event.errorKind, text) ?? text) : text
+      child.result = {
+        summary: text.slice(0, SUBAGENT_SUMMARY_MAX_CHARS),
+        ...(text !== '' && { text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }),
+        ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
+      }
+      this.pendingChildResults.push(
+        `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
+      )
+      this.emit(event)
+      this.updateChild(child)
+      if (child.followupAfterStop !== undefined) {
+        child.pendingMessages.push(child.followupAfterStop)
+        child.followupAfterStop = undefined
+        child.state = 'queued'
+      }
+      this.startQueuedChildren()
+      return
+    }
+    if (FORWARDED_CHILD_EVENTS.has(event.type)) {
+      this.emit(event)
+    }
+  }
+
+  private installChildGrant(child: ChildRecord, grant: ChildTaskGrant): void {
+    if (child.session.activeTurnId === undefined) {
+      child.session.childTaskGrant = grant
+    } else {
+      child.nextTaskGrant = grant
+    }
+  }
+
+  /** Every new task buys a fresh bounded grant; a running note does not. */
+  private childTaskFor(call: FunctionCallItem): SubagentTaskConfirmation | undefined {
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
+      const parsed = spawnArgs.safeParse(argumentsOf(call))
+      return parsed.success
+        ? {
+            role: parsed.data.role,
+            objective: parsed.data.objective,
+            modelId: this.modelId,
+            attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
+          }
+        : undefined
+    }
+    if (call.name !== MODEL_API_SUBAGENT_TOOLS.sendMessage) {
+      return undefined
+    }
+    const parsed = sendMessageArgs.safeParse(argumentsOf(call))
+    const child = parsed.success ? this.childById(parsed.data.subagent_id) : undefined
+    if (
+      child === undefined ||
+      child.state === 'closed' ||
+      child.state === 'queued' ||
+      (child.state === 'running' && parsed.success && parsed.data.interrupt !== true)
+    ) {
+      return undefined
+    }
+    return {
+      role: child.role,
+      objective: parsed.success ? parsed.data.message : child.objective,
+      modelId: this.modelId,
+      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
+    }
+  }
+
+  private childGrantRefusal(
+    grant: ChildTaskGrant,
+    keyDigest: string | undefined,
+    childModelId: string,
+  ): ChildTaskRefusal | undefined {
+    if (this.isDisposed) {
+      return 'consentDeclined'
+    }
+    if (this.permissions.currentMode === 'denyUnmatched') {
+      return 'planMode'
+    }
+    if (!this.deps.isPaidFeatureOn('subagents')) {
+      return 'paidOff'
+    }
+    if (modelApiPaidTier(grant.modelId) === undefined) {
+      return 'tariffUnknown'
+    }
+    if (childModelId !== grant.modelId || this.modelId !== grant.modelId) {
+      return 'modelChanged'
+    }
+    if (keyDigest !== grant.keyDigest) {
+      return 'keyChanged'
+    }
+    if (
+      grant.goalId !== undefined &&
+      (!isGoalActive(this.goal) || this.goal.goal_id !== grant.goalId)
+    ) {
+      return 'goalEnded'
+    }
+    return grant.remainingAttempts <= 0 ? 'requestLimit' : undefined
+  }
+
+  private async prepareChildGrant(): Promise<ChildTaskGrant> {
+    if (!this.deps.isPaidFeatureOn('subagents')) {
+      throw new ChildTaskRefusedError('paidOff')
+    }
+    if (this.goal?.status === GOAL_STATUS.budgetLimited) {
+      throw new ChildTaskRefusedError('goalEnded')
+    }
+    if (modelApiPaidTier(this.modelId) === undefined) {
+      throw new ChildTaskRefusedError('tariffUnknown')
+    }
+    return {
+      modelId: this.modelId,
+      keyDigest: await this.deps.client.currentKeyDigest(),
+      goalId: isGoalActive(this.goal) ? this.goal.goal_id : undefined,
+      remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
+    }
+  }
+
+  private async validateChildGrant(grant: ChildTaskGrant): Promise<void> {
+    let keyDigest: string | undefined
+    try {
+      keyDigest = await this.deps.client.currentKeyDigest()
+    } catch (error: unknown) {
+      if (!(error instanceof MissingApiKeyError)) {
+        throw error
+      }
+    }
+    const reason = this.childGrantRefusal(grant, keyDigest, grant.modelId)
+    if (reason !== undefined) {
+      throw new ChildTaskRefusedError(reason)
+    }
+  }
+
+  /** A user-owned follow-up or reopen gets one native price decision. */
+  private async confirmOwnerChildTask(
+    child: ChildRecord,
+    objective: string,
+  ): Promise<ChildTaskGrant> {
+    try {
+      const grant = await this.prepareChildGrant()
+      const isAccepted = await this.deps.confirmSubagentTask({
+        role: child.role,
+        objective,
+        modelId: grant.modelId,
+        attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
+      })
+      if (!isAccepted) {
+        throw new ChildTaskRefusedError('consentDeclined')
+      }
+      await this.validateChildGrant(grant)
+      return grant
+    } catch (error: unknown) {
+      if (error instanceof ChildTaskRefusedError) {
+        throw new Error(error.visible, { cause: error })
+      }
+      throw error
+    }
+  }
+
+  /** The exact task text sent after queued notes are added to a child turn. */
+  private queuedChildTask(child: ChildRecord, additions: readonly string[]): string {
+    const parts = child.session.turnCount === 0 ? [child.objective, ...additions] : additions
+    return parts.join('\n\n') || MODEL_TEXT.subagentResume
+  }
+
+  /** Starts queued children in spawn order, bounded by the Model API capacity. */
+  private startQueuedChildren(): void {
+    if (this.isDisposed) {
+      return
+    }
+    let active = 0
+    for (const entry of this.children.values()) {
+      if (entry.state === 'running' || entry.session.activeTurnId !== undefined) {
+        active += 1
+      }
+    }
+    for (const child of this.children.values()) {
+      if (active >= SUBAGENT_CAPACITY) {
+        return
+      }
+      if (child.state !== 'queued' || child.session.activeTurnId !== undefined) {
+        continue
+      }
+      const grant = child.session.childTaskGrant
+      const refusal =
+        grant === undefined
+          ? 'consentDeclined'
+          : this.childGrantRefusal(grant, grant.keyDigest, child.session.modelId)
+      if (refusal !== undefined) {
+        const messages = childTaskMessages(refusal)
+        child.state = 'closed'
+        child.terminal = FAILED
+        child.result = {
+          summary: messages.visible,
+          text: messages.visible,
+          errorKind: `subagent_${refusal}`,
+        }
+        child.pendingMessages.length = 0
+        child.session.childTaskGrant = undefined
+        this.pendingChildResults.push(
+          `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ summary: messages.model, text: messages.model, errorKind: `subagent_${refusal}` })}`,
+        )
+        this.updateChild(child)
+        continue
+      }
+      active += 1
+      child.state = 'running'
+      child.result = undefined
+      child.terminal = undefined
+      const additions = child.pendingMessages.splice(0)
+      const task = this.queuedChildTask(child, additions)
+      this.updateChild(child)
+      void child.session.sendTurn(
+        [{ type: 'text', text: `${MODEL_TEXT.subagentObjective}\n\n${task}` }],
+        task,
+      )
+    }
+  }
+
+  private spawnChild(
+    call: FunctionCallItem,
+    turnId: string,
+    grant: ChildTaskGrant | undefined,
+  ): ToolOutcome {
+    if (grant === undefined) {
+      return childTaskFailure('consentDeclined')
+    }
+    const parsed = spawnArgs.safeParse(argumentsOf(call))
+    if (!parsed.success) {
+      return subagentFailure('invalid subagent_spawn arguments')
+    }
+    if (parsed.data.worktree_isolation !== undefined && parsed.data.worktree_isolation !== false) {
+      return subagentFailure('worktree isolation is unavailable on this backend')
+    }
+    const prior =
+      parsed.data.command_id === undefined
+        ? undefined
+        : this.spawnCommands.get(parsed.data.command_id)
+    if (prior !== undefined) {
+      const child = this.childById(prior)
+      if (child !== undefined) {
+        if (child.role !== parsed.data.role || child.objective !== parsed.data.objective) {
+          return subagentFailure('command_id was already used for a different spawn')
+        }
+        return {
+          output: JSON.stringify({
+            subagent_id: child.id,
+            state: child.state,
+            child_session_id: child.session.sessionId,
+          }),
+          visibleOutput: `${child.role}: ${childStateLabel(child.state)}`,
+        }
+      }
+    }
+    if (this.children.size >= SUBAGENT_MAX_PER_CONVERSATION) {
+      return subagentFailure('subagent limit reached for this conversation')
+    }
+    const id = `${SUBAGENT_ID_PREFIX}${String(this.children.size + 1)}`
+    const child = new ModelApiSession(
+      `${this.sessionId}:${id}`,
+      this.modelId,
+      this.permissions.currentMode,
+      this.deps,
+      () => {
+        this.touch()
+      },
+      NO_CHILD_DISPOSAL,
+      true,
+      this,
+    )
+    child.childTaskGrant = grant
+    const record: ChildRecord = {
+      id,
+      role: parsed.data.role,
+      objective: parsed.data.objective,
+      itemId: this.deps.newId(),
+      parentTurnId: turnId,
+      session: child,
+      startedAt: this.deps.now(),
+      state: 'queued',
+      result: undefined,
+      terminal: undefined,
+      usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+      chargedGoalId: undefined,
+      waiters: new Set(),
+      pendingMessages: [],
+      followupAfterStop: undefined,
+      nextTaskGrant: undefined,
+      revision: 0,
+    }
+    child.onEvent((event) => {
+      this.childEvent(record, event)
+    })
+    this.children.set(id, record)
+    if (parsed.data.command_id !== undefined) {
+      this.spawnCommands.set(parsed.data.command_id, id)
+    }
+    const row = this.childSnapshot(record)
+    this.recordTranscript(turnId, row)
+    this.emit({ type: 'itemStarted', item: row })
+    this.startQueuedChildren()
+    return {
+      output: JSON.stringify({
+        subagent_id: id,
+        state: record.state,
+        child_session_id: child.sessionId,
+      }),
+      visibleOutput: `${record.role}: ${childStateLabel(record.state)}`,
+    }
+  }
+
+  private childById(id: string): ChildRecord | undefined {
+    return this.children.get(id)
+  }
+
+  private async waitForChild(
+    child: ChildRecord,
+    timeoutMs: number,
+    signal: AbortSignal,
+  ): Promise<ToolOutcome> {
+    if (signal.aborted) {
+      throw new AbortedError()
+    }
+    if (CHILD_RESULT_STATES.has(child.state)) {
+      return {
+        output: JSON.stringify({ subagent_id: child.id, state: child.state, result: child.result }),
+        visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+      }
+    }
+    const state = await new Promise<'ready' | 'timeout' | 'aborted'>((resolve) => {
+      const finish = (value: 'ready' | 'timeout' | 'aborted') => {
+        clearTimeout(timer)
+        child.waiters.delete(wake)
+        signal.removeEventListener('abort', abort)
+        resolve(value)
+      }
+      const wake = () => {
+        if (CHILD_RESULT_STATES.has(child.state)) {
+          finish('ready')
+        }
+      }
+      const abort = () => {
+        finish('aborted')
+      }
+      const timer = setTimeout(() => {
+        finish('timeout')
+      }, timeoutMs)
+      child.waiters.add(wake)
+      signal.addEventListener('abort', abort, { once: true })
+      wake()
+    })
+    if (state === 'aborted') {
+      throw new AbortedError()
+    }
+    return {
+      output: JSON.stringify({
+        subagent_id: child.id,
+        state: child.state,
+        timed_out: state === 'timeout',
+        result: child.result,
+      }),
+      visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+    }
+  }
+
+  private async runSubagentTool(
+    turnId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    grant?: ChildTaskGrant,
+  ): Promise<ToolOutcome> {
+    if (this.isSubagent) {
+      return subagentFailure('a subagent cannot spawn or control other subagents')
+    }
+    const args = argumentsOf(call)
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
+      return this.spawnChild(call, turnId, grant)
+    }
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.status) {
+      const parsed = statusArgs.safeParse(args)
+      if (!parsed.success) {
+        return subagentFailure('invalid subagent_status arguments')
+      }
+      if (parsed.data.subagent_id !== undefined && !this.children.has(parsed.data.subagent_id)) {
+        return subagentFailure('unknown subagent')
+      }
+      const children: {
+        subagent_id: string
+        role: string
+        objective: string
+        state: SubagentState
+        result: ChildRecord['result']
+      }[] = []
+      for (const child of this.children.values()) {
+        if (parsed.data.subagent_id !== undefined && child.id !== parsed.data.subagent_id) {
+          continue
+        }
+        const statusFilter = parsed.data.status_filter
+        if (statusFilter && statusFilter !== 'all' && child.state !== statusFilter) {
+          continue
+        }
+        children.push({
+          subagent_id: child.id,
+          role: child.role,
+          objective: child.objective,
+          state: child.state,
+          result: child.result,
+        })
+      }
+      return {
+        output: JSON.stringify({ subagents: children }),
+        visibleOutput: plural(UI_TEXT.agentsCount, children.length),
+      }
+    }
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.wait) {
+      const parsed = waitArgs.safeParse(args)
+      if (!parsed.success) {
+        return subagentFailure('invalid subagent_wait arguments')
+      }
+      const child = this.childById(parsed.data.subagent_id)
+      return child === undefined
+        ? subagentFailure('unknown subagent')
+        : await this.waitForChild(child, parsed.data.timeout_ms ?? SUBAGENT_WAIT_DEFAULT_MS, signal)
+    }
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.sendMessage) {
+      const parsed = sendMessageArgs.safeParse(args)
+      if (!parsed.success) {
+        return subagentFailure('invalid subagent_send_message arguments')
+      }
+      const child = this.childById(parsed.data.subagent_id)
+      if (child === undefined || child.state === 'closed') {
+        return subagentFailure('subagent is unavailable')
+      }
+      const isNewTask =
+        (parsed.data.interrupt === true && child.state === 'running') ||
+        child.state === 'interrupted' ||
+        child.state === 'result_ready'
+      if (isNewTask) {
+        if (grant === undefined) {
+          return childTaskFailure('consentDeclined')
+        }
+        this.installChildGrant(child, grant)
+      }
+      if (parsed.data.interrupt === true && child.state === 'running') {
+        child.followupAfterStop = parsed.data.message
+        child.state = 'interrupted'
+        await child.session.cancel()
+      } else if (child.state === 'running') {
+        const activeTurnId = child.session.activeTurnId
+        if (activeTurnId === undefined) {
+          return subagentFailure('subagent turn is settling; retry the message')
+        }
+        await child.session.steer(activeTurnId, [{ type: 'text', text: parsed.data.message }])
+      } else {
+        child.pendingMessages.push(parsed.data.message)
+        child.state = 'queued'
+        this.startQueuedChildren()
+      }
+      this.updateChild(child)
+      return {
+        output: JSON.stringify({ subagent_id: child.id, state: child.state }),
+        visibleOutput: childStateLabel(child.state),
+      }
+    }
+    const parsed = targetArgs.safeParse(args)
+    if (!parsed.success) {
+      return subagentFailure('invalid subagent target')
+    }
+    const child = this.childById(parsed.data.subagent_id)
+    if (child === undefined) {
+      return subagentFailure('unknown subagent')
+    }
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.readResult) {
+      if (child.state !== 'result_ready') {
+        return subagentFailure('subagent result is not ready')
+      }
+      child.state = 'closed'
+      this.updateChild(child)
+      return {
+        output: JSON.stringify({ subagent_id: child.id, result: child.result }),
+        visibleOutput: child.result?.summary ?? '',
+      }
+    }
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.cancel) {
+      child.revision += 1
+      child.pendingMessages.length = 0
+      child.followupAfterStop = undefined
+      child.nextTaskGrant = undefined
+      child.session.childTaskGrant = undefined
+      child.terminal ??= CANCELLED
+      child.state = 'closed'
+      await child.session.cancel()
+      this.updateChild(child)
+      this.startQueuedChildren()
+      return {
+        output: JSON.stringify({ subagent_id: child.id, state: child.state }),
+        visibleOutput: childStateLabel(child.state),
+      }
+    }
+    return subagentFailure(`unknown tool ${call.name}`)
+  }
+
   private async perform(
+    turnId: string,
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
+    childGrant?: ChildTaskGrant,
   ): Promise<Performed> {
+    if (isSubagentTool(call.name)) {
+      return { outcome: await this.runSubagentTool(turnId, call, signal, childGrant) }
+    }
     switch (call.name) {
       case MODEL_API_TOOLS.askUser: {
         return { outcome: await this.askUser(itemId, call, signal) }
@@ -1660,6 +2542,7 @@ export class ModelApiSession implements AgentSession {
 
   /** The permission check and, when it allows, the tool itself. May throw (an abort, an I/O error). */
   private async decideAndRun(
+    turnId: string,
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -1668,6 +2551,22 @@ export class ModelApiSession implements AgentSession {
     const toolClass = classifyTool(call.name)
     if (toolClass === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+    }
+    if (
+      this.isSubagent &&
+      (isSubagentTool(call.name) ||
+        call.name === MODEL_API_TOOLS.askUser ||
+        call.name === MODEL_API_TOOLS.todoWrite ||
+        call.name === MODEL_API_TOOLS.createGoal ||
+        call.name === MODEL_API_TOOLS.getGoal ||
+        call.name === MODEL_API_TOOLS.updateGoal ||
+        call.name === MODEL_API_TOOLS.reportProgress)
+    ) {
+      return { outcome: subagentFailure('tool unavailable to a subagent'), isRejected: true }
+    }
+    const childTask = this.childTaskFor(call)
+    if (childTask === undefined && call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
+      return { outcome: subagentFailure('invalid subagent_spawn arguments'), isRejected: true }
     }
     if (toolClass === 'shell' && !this.deps.isWorkspaceTrusted()) {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
@@ -1688,7 +2587,7 @@ export class ModelApiSession implements AgentSession {
     }
     const query: PermissionQuery = {
       toolName: call.name,
-      toolClass,
+      toolClass: childTask === undefined ? toolClass : 'spawn',
       command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
       isProtected: target?.ok === true && isProtectedPath(target.canonical),
     }
@@ -1699,9 +2598,23 @@ export class ModelApiSession implements AgentSession {
         isRejected: true,
       }
     }
+    let childGrant: ChildTaskGrant | undefined
+    if (childTask !== undefined) {
+      try {
+        childGrant = await this.prepareChildGrant()
+      } catch (error: unknown) {
+        if (error instanceof ChildTaskRefusedError) {
+          return { outcome: childTaskFailure(error.kind), isRejected: true }
+        }
+        throw error
+      }
+    }
     if (verdict === 'ask') {
-      const approval = await this.askApproval(itemId, call, signal, query)
+      const approval = await this.askApproval(itemId, call, signal, query, childTask)
       if (!approval.isApproved) {
+        if (childTask !== undefined) {
+          return { outcome: childTaskFailure('consentDeclined'), isRejected: true }
+        }
         const reason = `${call.name} ${MODEL_TEXT.toolRejectedByUser}`
         const feedback = approval.feedback === undefined ? '' : `\nUser: ${approval.feedback}`
         return {
@@ -1714,7 +2627,20 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
-    return { ...(await this.perform(itemId, call, signal, goalCommandRevision)), isRejected: false }
+    if (childGrant !== undefined) {
+      try {
+        await this.validateChildGrant(childGrant)
+      } catch (error: unknown) {
+        if (error instanceof ChildTaskRefusedError) {
+          return { outcome: childTaskFailure(error.kind), isRejected: true }
+        }
+        throw error
+      }
+    }
+    return {
+      ...(await this.perform(turnId, itemId, call, signal, goalCommandRevision, childGrant)),
+      isRejected: false,
+    }
   }
 
   /**
@@ -1762,7 +2688,7 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
   ): Promise<void> {
     const itemId = this.deps.newId()
-    const paid = paidFeatureOf(call.name)
+    const paid = this.childTaskFor(call) === undefined ? paidFeatureOf(call.name) : 'subagents'
     const started: ItemSnapshot = {
       itemId,
       kind: 'toolCall',
@@ -1776,7 +2702,7 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemStarted', item: started })
     let result: CallResult
     try {
-      result = await this.decideAndRun(itemId, call, signal, goalCommandRevision)
+      result = await this.decideAndRun(turnId, itemId, call, signal, goalCommandRevision)
     } catch (error: unknown) {
       if (error instanceof AbortedError || signal.aborted) {
         this.finishCall(
@@ -2094,6 +3020,7 @@ export class ModelApiSession implements AgentSession {
     this.environment ??= await this.loadEnvironment()
     // Pending background output and user shell commands precede this turn.
     this.settleNotes(turn.turnId)
+    this.drainChildResults()
     if (queued.isGoalWake) {
       this.appendGoalWake(turn.turnId, queued.parts)
     } else {
@@ -2111,8 +3038,12 @@ export class ModelApiSession implements AgentSession {
         terminal = CANCELLED
       } else {
         terminal = FAILED
-        reason = describe(error)
-        errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
+        reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
+        if (error instanceof ChildTaskRefusedError) {
+          errorKind = `subagent_${error.kind}`
+        } else {
+          errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
+        }
         this.deps.log.warn(`Model API turn ${turn.turnId} failed: ${reason}`)
       }
     }
@@ -2169,6 +3100,7 @@ export class ModelApiSession implements AgentSession {
         return event.delta
       }
       case 'response.failed': {
+        this.noteUsage(event.response.usage, chargedGoalId)
         throw new ModelApiError(
           event.response.error?.message ?? 'The response failed',
           0,
@@ -2204,7 +3136,19 @@ export class ModelApiSession implements AgentSession {
   ): Promise<string> {
     let text = ''
     let isComplete = false
-    for await (const event of this.deps.client.streamResponse(body, signal)) {
+    const admitAttempt: ResponseAttemptGuard | undefined = this.isSubagent
+      ? (keyDigest) => {
+          this.admitChildAttempt(keyDigest, body)
+        }
+      : undefined
+    const responseStream = this.deps.client.streamResponse(
+      body,
+      signal,
+      undefined,
+      undefined,
+      admitAttempt,
+    )
+    for await (const event of responseStream) {
       isComplete ||= event.type === 'response.completed'
       text += this.collectedText(event, chargedGoalId)
     }
@@ -2270,6 +3214,11 @@ export class ModelApiSession implements AgentSession {
     for (const request of this.pendingApprovalEvents.values()) {
       listener({ ...request, isReplayed: true })
     }
+    for (const child of this.children.values()) {
+      for (const request of child.session.pendingApprovalEvents.values()) {
+        listener({ ...request, isReplayed: true })
+      }
+    }
     return () => {
       this.listeners.delete(listener)
     }
@@ -2280,7 +3229,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   public sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
-    const turnId = this.deps.newId()
+    const turnId = this.isSubagent ? `${this.sessionId}:${this.deps.newId()}` : this.deps.newId()
     const queued: QueuedTurn = { turnId, parts, displayText, isGoalWake: false }
     // A compaction is a turn too (D26): a message sent during one waits for it.
     if (this.active === undefined && this.compacting === undefined) {
@@ -2344,6 +3293,9 @@ export class ModelApiSession implements AgentSession {
       return Promise.reject(new Error(`unknown approval mode ${mode}`))
     }
     this.permissions.setMode(mode as ApprovalMode)
+    for (const child of this.children.values()) {
+      void child.session.setApprovalMode(mode)
+    }
     this.touch()
     return Promise.resolve()
   }
@@ -2389,6 +3341,11 @@ export class ModelApiSession implements AgentSession {
   public decideApproval(decision: ApprovalDecision): Promise<void> {
     const pending = this.pendingApprovals.get(decision.approvalId)
     if (pending === undefined) {
+      for (const child of this.children.values()) {
+        if (child.session.pendingApprovals.has(decision.approvalId)) {
+          return child.session.decideApproval(decision)
+        }
+      }
       return Promise.reject(new Error(`approval ${decision.approvalId} is not pending`))
     }
     if (!isKnownChoice(decision.choiceId)) {
@@ -2473,13 +3430,117 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve()
   }
 
-  /** This backend runs no subagents (PLAN.md D17); the map never offers the controls. */
-  public controlSubagent(subagentId: string): Promise<void> {
-    return Promise.reject(new Error(`${UI_TEXT.subagentsUnsupported} (${subagentId})`))
+  /** Owner controls for Model API children (M48, PLAN.md D45). */
+  public async controlSubagent(subagentId: string, action: SubagentAction): Promise<void> {
+    const child = this.childById(subagentId)
+    if (child === undefined) {
+      throw new Error(`unknown subagent ${subagentId}`)
+    }
+    switch (action) {
+      case 'readResult': {
+        if (child.state !== 'result_ready') {
+          throw new Error('subagent result is not ready')
+        }
+        child.state = 'closed'
+
+        break
+      }
+      case 'reopen':
+      case 'resume': {
+        if (child.state !== 'closed' && child.state !== 'interrupted') {
+          throw new Error('subagent cannot resume from this state')
+        }
+        const stateBeforeConsent = child.state
+        const revisionBeforeConsent = child.revision
+        const taskBeforeConsent = this.queuedChildTask(child, [
+          ...child.pendingMessages,
+          MODEL_TEXT.subagentResume,
+        ])
+        const grant = await this.confirmOwnerChildTask(child, taskBeforeConsent)
+        if (
+          this.isDisposed ||
+          child.state !== stateBeforeConsent ||
+          child.revision !== revisionBeforeConsent ||
+          this.queuedChildTask(child, [...child.pendingMessages, MODEL_TEXT.subagentResume]) !==
+            taskBeforeConsent
+        ) {
+          throw new Error(UI_TEXT.subagentConsentDeclined)
+        }
+        this.installChildGrant(child, grant)
+        child.pendingMessages.push(MODEL_TEXT.subagentResume)
+        child.state = 'queued'
+        this.startQueuedChildren()
+
+        break
+      }
+      case 'interrupt': {
+        if (child.state !== 'running') {
+          throw new Error('subagent is not running')
+        }
+        child.state = 'interrupted'
+        await child.session.cancel()
+
+        break
+      }
+      default: {
+        child.revision += 1
+        if (action === 'stop') {
+          child.terminal ??= CANCELLED
+        }
+        child.pendingMessages.length = 0
+        child.followupAfterStop = undefined
+        child.nextTaskGrant = undefined
+        child.session.childTaskGrant = undefined
+        child.state = 'closed'
+        await child.session.cancel()
+        this.startQueuedChildren()
+      }
+    }
+    this.updateChild(child)
   }
 
-  public messageSubagent(subagentId: string): Promise<void> {
-    return Promise.reject(new Error(`${UI_TEXT.subagentsUnsupported} (${subagentId})`))
+  public async messageSubagent(
+    subagentId: string,
+    body: string,
+    isFollowup: boolean,
+  ): Promise<void> {
+    const child = this.childById(subagentId)
+    if (child === undefined || child.state === 'closed') {
+      throw new Error(`subagent ${subagentId} is unavailable`)
+    }
+    if (body.trim() === '') {
+      throw new Error('subagent message is empty')
+    }
+    if (isFollowup && child.state === 'running') {
+      throw new Error('subagent is still running')
+    }
+    if (!isFollowup && child.state === 'running') {
+      const turnId = child.session.activeTurnId
+      if (turnId === undefined) {
+        throw new Error('subagent turn is settling; retry the message')
+      }
+      await child.session.steer(turnId, [{ type: 'text', text: body }])
+    } else {
+      if (child.state !== 'queued') {
+        const stateBeforeConsent = child.state
+        const revisionBeforeConsent = child.revision
+        const taskBeforeConsent = this.queuedChildTask(child, [...child.pendingMessages, body])
+        const grant = await this.confirmOwnerChildTask(child, taskBeforeConsent)
+        if (
+          this.isDisposed ||
+          child.state !== stateBeforeConsent ||
+          child.revision !== revisionBeforeConsent ||
+          this.queuedChildTask(child, [...child.pendingMessages, body]) !== taskBeforeConsent
+        ) {
+          throw new Error(UI_TEXT.subagentConsentDeclined)
+        }
+        this.installChildGrant(child, grant)
+      }
+      child.pendingMessages.push(body)
+      child.state = 'queued'
+      this.startQueuedChildren()
+    }
+    this.updateChild(child)
   }
 
   /**
@@ -2586,6 +3647,9 @@ export class ModelApiSession implements AgentSession {
     for (const stop of [...this.backgroundShells.values(), ...this.userShells.values()]) {
       stop.abort()
     }
+    for (const child of this.children.values()) {
+      child.session.disposeAll()
+    }
     this.listeners.clear()
     this.onDispose()
   }
@@ -2652,6 +3716,25 @@ export class ModelApiSession implements AgentSession {
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
+      ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
+      ...(this.pendingChildResults.length > 0 && {
+        pendingChildResults: [...this.pendingChildResults],
+      }),
+      ...(this.children.size > 0 && {
+        children: Array.from(this.children.values(), (child) => ({
+          id: child.id,
+          role: child.role,
+          objective: child.objective,
+          itemId: child.itemId,
+          parentTurnId: child.parentTurnId,
+          startedAt: child.startedAt,
+          state: child.state,
+          ...(child.result !== undefined && { result: child.result }),
+          ...(child.terminal !== undefined && { terminal: child.terminal }),
+          pendingMessages: [...child.pendingMessages],
+          session: child.session.snapshot(),
+        })),
+      }),
     }
   }
 
@@ -2685,6 +3768,51 @@ export class ModelApiSession implements AgentSession {
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
     this.status = IDLE
+    this.pendingChildResults.push(...(stored.pendingChildResults ?? []))
+    const savedCommands = Object.entries(stored.spawnCommands ?? {})
+    for (const [commandId, childId] of savedCommands) {
+      this.spawnCommands.set(commandId, childId)
+    }
+    const savedChildren = stored.children ?? []
+    for (const saved of savedChildren) {
+      const session = new ModelApiSession(
+        saved.session.sessionId,
+        saved.session.modelId,
+        saved.session.approvalMode,
+        this.deps,
+        () => {
+          this.touch()
+        },
+        NO_CHILD_DISPOSAL,
+        true,
+        this,
+      )
+      session.adopt(saved.session)
+      const record: ChildRecord = {
+        id: saved.id,
+        role: saved.role,
+        objective: saved.objective,
+        itemId: saved.itemId,
+        parentTurnId: saved.parentTurnId,
+        session,
+        startedAt: saved.startedAt,
+        state: saved.state === 'running' || saved.state === 'queued' ? 'interrupted' : saved.state,
+        result: saved.result,
+        terminal: saved.terminal,
+        usage: { ...saved.session.usage },
+        chargedGoalId: undefined,
+        waiters: new Set(),
+        pendingMessages: [...saved.pendingMessages],
+        followupAfterStop: undefined,
+        nextTaskGrant: undefined,
+        revision: 0,
+      }
+      session.onEvent((event) => {
+        this.childEvent(record, event)
+      })
+      this.children.set(record.id, record)
+      this.rerecordTranscript(this.childSnapshot(record))
+    }
   }
 
   /** Copies the turns through `lastTurnId` (all of them when absent) into `target`. */
@@ -2730,9 +3858,55 @@ export class ModelApiSession implements AgentSession {
     // The goal as it stands goes with the fork (M45): a goal has no history
     // to cut, so a fork from an earlier turn gets today's goal too.
     target.goal = this.goal
+    for (const child of this.children.values()) {
+      if (!kept.has(child.parentTurnId)) {
+        continue
+      }
+      const sessionId = `${target.sessionId}:${child.id}`
+      const session = new ModelApiSession(
+        sessionId,
+        child.session.modelId,
+        child.session.approvalMode,
+        this.deps,
+        () => {
+          target.touch()
+        },
+        NO_CHILD_DISPOSAL,
+        true,
+        target,
+      )
+      session.adopt({ ...child.session.snapshot(), sessionId })
+      const cloned: ChildRecord = {
+        ...child,
+        session,
+        state: 'closed',
+        usage: { ...child.usage },
+        chargedGoalId: undefined,
+        waiters: new Set(),
+        pendingMessages: [],
+        followupAfterStop: undefined,
+        nextTaskGrant: undefined,
+        revision: 0,
+      }
+      session.onEvent((event) => {
+        target.childEvent(cloned, event)
+      })
+      target.children.set(cloned.id, cloned)
+      target.rerecordTranscript(target.childSnapshot(cloned))
+    }
     for (const [ref, content] of this.outputs) {
       target.outputs.set(ref, content)
     }
+  }
+
+  /** Child transcripts are read through the host, not listed as conversations. */
+  public childHistory(sessionId: string): SessionHistoryOutcome | undefined {
+    for (const child of this.children.values()) {
+      if (child.session.sessionId === sessionId) {
+        return child.session.history()
+      }
+    }
+    return undefined
   }
 }
 
@@ -2768,15 +3942,11 @@ export class ModelApiHost implements AgentHost {
     // A turn-start user message can be saved, but a function call without
     // its output cannot be replayed after a crash. Goal/settings touches
     // during a pending tool still announce live; the settled touch saves.
-    const answered = new Set(
-      snapshot.replay.flatMap((entry) =>
-        entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
-      ),
-    )
+    // A child's unsettled turn holds the parent's save the same way: its
+    // replay is nested in this snapshot.
     if (
-      snapshot.replay.some(
-        (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
-      )
+      hasUnansweredCall(snapshot.replay) ||
+      (snapshot.children ?? []).some((child) => hasUnansweredCall(child.session.replay))
     ) {
       return
     }
@@ -2923,15 +4093,38 @@ export class ModelApiHost implements AgentHost {
     return Promise.resolve({ sessions, nextCursor: undefined })
   }
 
-  /** The stored transcript; this backend spawns no subagents, so this serves the History dialog's peers only. */
+  /** A conversation or one of its private child transcripts (M48). */
   public async readSession(sessionId: string): Promise<SessionHistoryOutcome> {
-    const stored = await this.storedSession(sessionId)
+    const live = this.sessions.get(sessionId)
+    if (live !== undefined) {
+      return live.history()
+    }
+    for (const parent of this.sessions.values()) {
+      const child = parent.childHistory(sessionId)
+      if (child !== undefined) {
+        return child
+      }
+    }
+    let source: StoredSession
+    if (this.stored.has(sessionId)) {
+      source = await this.storedSession(sessionId)
+    } else {
+      const childMarker = `:${SUBAGENT_ID_PREFIX}`
+      const separator = sessionId.lastIndexOf(childMarker)
+      const parentId = separator === -1 ? sessionId : sessionId.slice(0, separator)
+      const stored = await this.storedSession(parentId)
+      const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
+      if (child === undefined) {
+        throw new Error(`session ${sessionId} is not held by this window`)
+      }
+      source = child.session
+    }
     return {
       mode: 'inline',
-      items: stored.transcript.map((entry) => entry.item),
-      name: stored.name,
-      todos: stored.todos,
-      goal: stored.goal === undefined ? null : toSessionGoal(stored.goal),
+      items: source.transcript.map((entry) => entry.item),
+      name: source.name,
+      todos: source.todos,
+      goal: source.goal === undefined ? null : toSessionGoal(source.goal),
     }
   }
 

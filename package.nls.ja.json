@@ -79,5 +79,6 @@
   "walkthrough.gettingStarted.step.chat.description": "メッセージを入力して Enter キーを押します。/ でパレットが開き、@ でファイルをメンションし、Shift+Tab で権限モードを順に切り替えます。履歴ダイアログで過去の会話を呼び戻せます。\n[AGENTS.md の作成](command:museSpark.createRulesFile)",
   "config.modelApiWebSearch.description": "有料、既定ではオフ。Model API バックエンドで、モデルが応答中に Web を検索できるようにします。料金は検索 1,000 回あたり $2.50 で、トークンの料金に加えて Model API キーに請求されます。オンにするときに価格の確認を求めます。各検索は会話内に有料として表示され、「アカウントと使用量」で集計されます。",
   "config.modelApiImageGeneration.description": "有料、既定ではオフ。muse-image-1.0 を使って、モデルはワークスペースに PNG 画像ファイルを作成したり、ワークスペースの画像を編集して新しい画像にしたりできます。料金は画像 1 枚あたり $0.01 で Model API キーに請求されます。Model API バックエンドで使用されるほか、Model API キーが保存されている間は Muse Code バックエンドでも使用されます (サブスクリプションには請求されません)。どの権限モードでも、画像を作成する前に毎回確認します。オンにするときに価格の確認を求めます。",
-  "config.modelApiVoice.description": "有料、既定ではオフ。マイクで録音した音声を、コンピューター自体の音声認識エンジンではなく Meta の Muse Voice Transcribe に送信します。料金は音声 1 時間あたり $0.18 で Model API キーに請求されます。Model API バックエンドで使用されるほか、Model API キーが保存されている間は Muse Code バックエンドでも使用されます。オンにするときに価格の確認を求めます。有料のエンジンを使用しているときは、マイクにそのことが表示されます。"
+  "config.modelApiVoice.description": "有料、既定ではオフ。マイクで録音した音声を、コンピューター自体の音声認識エンジンではなく Meta の Muse Voice Transcribe に送信します。料金は音声 1 時間あたり $0.18 で Model API キーに請求されます。Model API バックエンドで使用されるほか、Model API キーが保存されている間は Muse Code バックエンドでも使用されます。オンにするときに価格の確認を求めます。有料のエンジンを使用しているときは、マイクにそのことが表示されます。",
+  "config.modelApiSubagents.description": "有料、初期状態ではオフ。Model APIバックエンドでは子エージェントがModel APIキーを使います。有効化するとトークン料金の承認を求めます。権限バイパスを含め、新しい子タスクごとに承認が必要です。再試行を含め最大4リクエストまで。子エージェントのトークン費用は会話の見積もりに含まれます。"
 }

@@ -74,7 +74,11 @@ import type { ChatSurface, WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { isImagePurchaseConfirmed, createPaidFeatures } from './host/paid/paidHost'
+import {
+  isImagePurchaseConfirmed,
+  isSubagentTaskConfirmed,
+  createPaidFeatures,
+} from './host/paid/paidHost'
 import {
   BACKEND_SETTING,
   BYPASS_SETTING,
@@ -863,6 +867,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
     notePaidUse: (feature, units) => {
       paid.usage.add(feature, units)
+    },
+    confirmSubagentTask: isSubagentTaskConfirmed,
+    noteSubagentUsage: (modelId, usage) => {
+      paid.usage.addSubagentUsage(modelId, usage)
     },
   })
   const watchedHosts = new WeakSet<AgentHost>()

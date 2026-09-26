@@ -32,6 +32,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiWebSearch: boolean
   readonly modelApiImageGeneration: boolean
   readonly modelApiVoice: boolean
+  readonly modelApiSubagents: boolean
 }
 
 /**
@@ -58,6 +59,7 @@ const settingSchemas = {
   modelApiWebSearch: z.boolean(),
   modelApiImageGeneration: z.boolean(),
   modelApiVoice: z.boolean(),
+  modelApiSubagents: z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -120,6 +122,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiWebSearch: readSetting(config, 'modelApiWebSearch', log),
     modelApiImageGeneration: readSetting(config, 'modelApiImageGeneration', log),
     modelApiVoice: readSetting(config, 'modelApiVoice', log),
+    modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
   }
 }
 

@@ -1612,6 +1612,65 @@ The choices:
   session); the Model API's `ask_user` returns the text to the model as
   Muse Code's clarify does, and the row reads "Explained: …".
 
+### D45 — Subagents on both backends (M48, 2026-09-25)
+
+The Model API backend runs bounded child sessions with their own conversation
+and the parent's workspace rules, tool permissions and model. The initial
+prototype let Bypass spawn a child without a paid card. M48 now requires a
+machine-scoped gate, price acceptance, one-use consent and a four-request
+ceiling for every new child task, including retries. Certification remains
+pending. Each child
+has a row and transcript in the Agent map, receives a note or follow-up, and
+can be stopped. Child model calls use the stored Model API key and count in
+the parent's token usage. The parent may continue while children work; a
+limit bounds the number running and the number a conversation can create.
+The child cannot spawn further children or ask the user directly. A closed
+child's result remains readable. No child writes outside the existing tool
+confinement and approval rules.
+
+**Paid child admission (owner-cost rule, 2026-09-26).** The initial spawn-mode
+prototype was not delivery consent for extra BYOK calls. Subagents are a
+machine-scoped paid feature, off until its price is accepted. Every new
+child task—spawn, follow-up, reopen or resume—requires a one-use approval
+in every mode, Bypass included; Plan refuses it. The approval names the
+objective, selected model and its Standard or Contributor input, cached
+input and output prices, and a hard ceiling of four actual Model API
+response POST attempts for that task. HTTP and whole-stream retries and
+tool rounds spend the same ceiling. A note to a child already running uses
+the remaining grant; it never renews it. No grant survives a process
+restart. A queued task starts only while its gate, consent, key, model and
+originating goal are still valid. After SecretStorage reads the key and
+immediately before each child HTTP attempt, the client rechecks these and
+consumes one attempt; a failed or unanswered attempt still counts, with
+unknown cost if Meta supplies no usage. A spent cap, revoked gate, changed
+key or model, switch to Plan, or exhausted originating goal ends the child
+task with a localized visible refusal. Stop or disposal while a key read or
+owner modal waits invalidates admission. A child request carrying paid web
+search is refused if that gate turned off before the request is sent. A
+removed key after approval receives the same localized changed-key refusal.
+For a restored queued child, the new price decision names every retained
+pending note in the exact task that the child will receive; changing that
+task while the modal is open invalidates the decision. A
+failed response with reported usage charges that usage once; a failed
+attempt without usage keeps unknown cost. The output cap remains 32,768 tokens per
+request; four attempts are a request ceiling, not a dollar or token-cost
+maximum. Child tokens already appear in the parent's conversation total,
+so their estimated cost is a subset, never added to it again. Other paid
+tools keep their own separate gates and approvals.
+
+An approval a child is awaiting is replayed to a newly attached panel as
+pending, with the same no-auto-decision marker as a parent approval; a
+late panel can answer it through the parent session. A child's token-usage
+delta counts once in the parent's total and against the goal active when
+that child turn began, while that same goal still exists. Replacing the
+goal before the child answers never charges the replacement goal.
+
+Muse Code's SDK lists `subagent/reopen` and `subagent/readResult`, but M48
+captured neither an accepted command nor its resulting item update. The
+Agent map keeps the captured M18 controls; those two verbs remain unavailable
+until a bounded live owner-command capture establishes their success shapes.
+The Model API backend's local read and reopen actions are separate from MSP.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -3530,7 +3589,7 @@ translations. The order is D36's table:
 | M45       | Goals: set, see, pause, clear                                                                                                         |
 | M46       | Background work and stop; the `!` user shell; clarifying questions                                                                    |
 | M47       | Workflows: captured run and children as read-only cards; owner controls deferred until a live success capture                         |
-| M48       | Subagents on the Model API backend; reopen and read a result on Muse Code                                                             |
+| M48       | Model API subagents with staged paid child admission; Muse Code read/reopen deferred until live success capture and certification     |
 | M49       | Memory: see and edit; memory tools on the Model API backend                                                                           |
 | M50       | MCP servers on the Model API backend                                                                                                  |
 | M51       | Hooks on the Model API backend                                                                                                        |
@@ -3616,7 +3675,7 @@ translations. The order is D36's table:
 
 ### M46 — Background work and stop; the `!` user shell; clarifying questions (D39)
 
-**Status 2026-09-25: PR #33 under review; certification pending**
+**Status 2026-09-26: PR #33 merged into main at `e219d04` after local and hosted gates**
 (`docs/certification/m46.md`). A full local gate passed on M45 base
 `5581fe2` with the Windows accessibility runner capped at two workers;
 M46 was then reconciled onto M45 candidates `502684c`, `ec5db58`,
@@ -3668,8 +3727,8 @@ before postMessage. The seventh correction passed the local full gate.
 Its review found one export gap: a Muse `userShell` ending by signal had
 the signal in its row but not Markdown. The existing localized signal
 label now appears in export too, with a failing-before/passing-after test.
-The final export correction passed the local full gate; current-head
-hosted CI remains the merge gate.
+The final export correction passed the local and current-head hosted
+quality matrix, with no open review threads, before PR #33 merged.
 
 - **Goal**: what Muse Code's TUI does with Ctrl+B, `/stop` and `!`, and its
   "let me explain" answer to a question, from the panel, on both backends.
@@ -3707,15 +3766,11 @@ hosted CI remains the merge gate.
 
 ### M47 — Workflows: captured run and agents (D40)
 
-**Status 2026-09-26: captured presentation increment locally gated; owner
-controls deferred** (`docs/certification/m47.md`). The branch sits on M46
-merge commit `e219d04`. Live capture proved the run card and one child's
-updates and rejected owner commands; accepted control shapes remain
-uncaptured. The read-only candidate passed local `npm run quality`; a
-current-head review then found a sparse history replay loss. Its correction
-passed local `npm run quality` on staged tree
-`0edaadb6bca8846487d7964a25dd9b7cffffeb9b`; this receipt changed
-the documentation, so a final exact-tree rerun and hosted CI remain.
+**Status 2026-09-26: captured read-only presentation merged; owner controls
+deferred** (`docs/certification/m47.md`). PR #34 merged into main as
+`34002ab` after exact-tree local quality, all seven hosted checks and review.
+Live capture proved the run card and one child's updates plus rejected
+owner commands; accepted control shapes remain uncaptured.
 
 - **Goal**: a workflow Muse Code runs reads as what it is, a run of agents
   going on in the background, with its captured progress and result.
@@ -3749,9 +3804,9 @@ the documentation, so a final exact-tree rerun and hosted CI remain.
   the applicable rendering drills (the old control drills remain historical
   in the certification record), harness
   scenarios `muse-workflow` and `muse-workflow-map` in the accessibility
-  gate. The reduced candidate passed `npm run quality` on staged tree
-  `e5fe0228643bfc54ef9753d1319064b91498d728`; hosted CI and review
-  remain. Claude's M47 source worktree
+  gate. The final candidate passed `npm run quality` on tree
+  `7390e3b2fc080aef5fcaa1ad4226f688e0f5ed75`, all seven hosted
+  checks and review; PR #34 merged. Claude's M47 source worktree
   passed `quality:gates` but its accessibility run had four Chrome pages
   without a result and exited 1; secrets and SAST did not run.
 - **Left out, by Muse Code or evidence**: pausing and resuming a run (no MSP
@@ -3762,6 +3817,78 @@ the documentation, so a final exact-tree rerun and hosted CI remain.
   a live accepted-command and outcome capture; the captured refusal probes
   alone do not certify usable controls. A child `phase` and saved workflow
   display name also wait for live evidence.
+
+### M48 — Model API subagents and captured Muse Code controls (D45)
+
+**Status 2026-09-26: implemented on merged M47 `34002ab`; local quality passed;
+hosted checks pending; Muse read/reopen deferred** (`docs/certification/m48.md`).
+Child requests use a default-off paid gate, one-use task consent and a final
+HTTP admission check with a four-attempt limit. The full `npm run quality`
+passed on staged tree `e72d1c4e`: 1,766 tests passed (3 skipped), all 304
+accessibility pages returned results with zero violations or undecided
+results, and dependency/secret/SAST scans were clean. An independent audit
+found zero owned browser or capture processes. The result receipt was added
+to documentation afterward and checked with formatting and whitespace gates;
+the PR's hosted checks will validate its final commit. No real paid request
+or subscription turn was made. Earlier focused checks and gate-fire records
+remain in the certification record. Native read/reopen have no callable
+panel path until a bounded live success capture is available.
+
+The queued-child cancellation audit found an unsent-note replay and fixed it
+with two red drills. The same audit exposed 33 targeted ESLint findings in
+the two existing M48 WIP files under the current toolchain; source fixes
+reduced them to zero without weakening any rule. Six focused files now pass
+241/241; host, unit and webview types and localization passed at that
+checkpoint. Hosted evidence remains open.
+
+The 2026-09-25 free capture preflight found that Windows locks the live Muse
+trace (`EBUSY`). Installed `muse serve` and the SDK session/turn commands
+expose no model-attempt cap; the installed `muse exec --max-model-steps` cap
+has not been proved to cover descendant attempts or later MSP owner
+controls. The agreed 30-attempt ceiling is therefore not enforceable by the
+planned watcher. No paid/subscription turn or owner-command capture was run;
+the exact probe and process audit are in `docs/certification/m48.md`.
+An independent no-turn audit of the installed CLI help and both stable and
+experimental `SessionStart`/`TurnStart` schemas confirmed that `serve` has
+no hard model-admission limit. The SDK's `maxAttempts` only retries a
+command, and `exec`'s cap is for its headless run. The locked live trace
+cannot make a polling cap enforceable.
+
+- **Goal**: the Model API backend can delegate bounded independent work to
+  child sessions, with the Agent map and parent context showing the result.
+  Muse Code's remaining `reopen` and `readResult` owner commands wait for
+  a live success capture.
+- **Research**: Muse Code's MSP `SubagentTargetParams` and the method schema
+  say `readResult` consumes an already visible result and `reopen` starts a
+  later attempt. The 2026-09-23 captured `subagent_spawn` and
+  `subagent_wait` calls give their names and core arguments. A live capture
+  of the two MSP owner commands is still required under rule 13; SDK types
+  alone do not justify a callable panel control.
+- **Scope**: six Model API subagent tools; child sessions with their own
+  replay and transcript, capacity and idempotent spawn; owner controls;
+  child results queued into the parent's next model request; persistence,
+  usage and approval routing; Agent map controls and all translations;
+  `agents-result` and `agents-closed` harness scenarios.
+- **Cancellation boundary**: stopping a queued child discards messages it
+  never saw. A later reopen starts the retained objective without replaying
+  that cancelled queue; persisted child state carries no cancelled note.
+- **Cross-surface and goal boundary**: a child approval pending when another
+  panel attaches is replayed with the no-auto-decision marker, and the
+  parent routes its decision back to that child. Child usage contributes to
+  the parent total once and charges only the goal active at the child turn's
+  start, never a later replacement goal.
+- **Paid child acceptance staged**: default-off machine gate and price
+  confirmation, one-use child-task cards in every mode, four-attempt
+  admission budget checked at the final HTTP boundary on all child paths,
+  paid row/badge/tally without double-counting conversation token cost,
+  fake-key red drills and localization. Final quality and hosted evidence
+  remain open. No live billed request is needed for this acceptance; the
+  Muse Code owner-command capture remains separate.
+- **Acceptance for the delivered subset**: unit and protocol tests, each
+  new check seen failing in a red drill, local quality gate green, hosted
+  checks and the certification record under `docs/certification/m48.md`.
+  Muse Code `readResult` and `reopen` remain removed and require a later
+  bounded live success capture before they can be offered.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
