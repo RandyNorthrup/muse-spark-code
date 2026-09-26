@@ -3627,6 +3627,13 @@ listing are M62b.
     (Accept `g2`, Reject `g3`, Cancel `g4`) pressed in the chat buffer:
     accepted, the command ran; rejected, it was skipped. The adapter is in
     `docs/acp.md`.
+  - **Zed, 2026-09-26**: Zed 1.20.2 from its GitHub release (zed.dev is
+    refused here), run as an unprivileged user on Xvfb with Mesa's
+    software Vulkan and driven with xdotool. Muse Spark appeared under
+    External Agents; its thread showed the model and effort selectors,
+    streamed the reply, and ran or skipped a command from Zed's permission
+    card (Allow once, Reject). Zed now needs `"type": "custom"` in
+    `agent_servers`, which `docs/acp.md` lacked; fixed.
 - **M63c, the rest of the protocol**: file reads and writes through the
   client (`fs/*`) for the Model API backend; paid features with a
   confirmation that names the price; `session/close` and `delete`; the ACP

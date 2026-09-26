@@ -64,16 +64,21 @@ plaintext fallback.
 ## Configure the editor
 
 Every editor needs the same two things: the command,
-`muse-spark-code-acp`, and the arguments. For example, Zed's custom agents
-take them in its settings, in the format Zed documented when this was
-written (check its current documentation):
+`muse-spark-code-acp`, and the arguments. The configurations below were
+tested with the editor versions they name; check each editor's current
+documentation if the format has moved on.
+
+In Zed (tested with 1.20.2), a custom agent goes in `settings.json`; it
+then appears under External Agents in the Agent Panel's new-thread menu:
 
 ```json
 {
   "agent_servers": {
     "Muse Spark": {
+      "type": "custom",
       "command": "muse-spark-code-acp",
-      "args": []
+      "args": [],
+      "env": {}
     }
   }
 }
