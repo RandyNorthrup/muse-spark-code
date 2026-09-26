@@ -9,8 +9,10 @@
 import { Buffer } from 'node:buffer'
 import { type Connection, MspError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
-import type { AgentEvent, QuestionAnswer } from '../../../shared/agentEvents'
+import type { AgentEvent, QuestionAnswer, SessionGoal } from '../../../shared/agentEvents'
 import {
+  GOAL_RECOVERY_MAX_PAGES,
+  GOAL_RECOVERY_PAGE_LIMIT,
   JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
   MSP_COMMAND_ATTEMPTS,
@@ -106,6 +108,14 @@ const USAGE_READ = 'usage/read'
 // plus the session's name, todo list and goal, which inline history lacks
 // and which no notification repeats after a resume (captured 2026-09-25).
 const HISTORY_PREFERENCE_SNAPSHOT = 'snapshot'
+const VIEW_PAGE = 'view/page'
+
+// Captured from Muse Code 1.3.0 on 2026-09-25: backward pages return
+// ascending unframed notifications and a nullable cursor for the next page.
+const viewPageResultSchema = z.object({
+  events: z.array(z.object({ method: z.string(), params: z.record(z.string(), z.unknown()) })),
+  nextCursor: z.nullable(z.string()),
+})
 
 const initializeResultSchema = z.object({
   serverInfo: z.object({ name: z.string(), version: z.string() }),
@@ -976,6 +986,47 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
+  /** Last durable goal event at the view head; an empty history means no goal. */
+  private async goalFromView(sessionId: string): Promise<SessionGoal | null> {
+    let cursor: string | undefined
+    for (let page = 0; page < GOAL_RECOVERY_MAX_PAGES; page += 1) {
+      const raw = await withDeadline(
+        this.host.connection.request(VIEW_PAGE, {
+          sessionId,
+          limit: GOAL_RECOVERY_PAGE_LIMIT,
+          direction: 'backward',
+          ...(cursor !== undefined && { cursor }),
+        }),
+        this.timeouts.normalMs,
+        `Muse Code did not answer ${VIEW_PAGE} while recovering the goal`,
+      )
+      const result = viewPageResultSchema.parse(raw)
+      for (const frame of result.events.toReversed()) {
+        if (frame.method !== 'session/goalChanged') {
+          continue
+        }
+        const mapped = mapNotification(frame)
+        if (
+          typeof mapped === 'string' ||
+          !('event' in mapped) ||
+          mapped.sessionId !== sessionId ||
+          mapped.event.type !== 'goalChanged'
+        ) {
+          throw new Error('Muse Code returned an invalid goal event in view history')
+        }
+        return mapped.event.goal
+      }
+      if (result.nextCursor === null) {
+        return null
+      }
+      if (result.nextCursor === cursor) {
+        throw new Error('Muse Code repeated a view history cursor')
+      }
+      cursor = result.nextCursor
+    }
+    throw new Error('Muse Code view history exceeded the goal recovery limit')
+  }
+
   public onExit(listener: (exit: HostExit) => void): () => void {
     this.exitListeners.add(listener)
     return () => {
@@ -1047,12 +1098,18 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** A point-in-time read with items, without loading the session. */
-  public async readSession(sessionId: string): Promise<SessionHistoryOutcome> {
+  public async readSession(
+    sessionId: string,
+    options?: { readonly recoverGoal?: boolean },
+  ): Promise<SessionHistoryOutcome> {
     const result = await this.command('session/read', {
       sessionId,
       excludeItems: false,
     })
-    return historyOutcome(sessionEnvelopeSchema.parse(result))
+    const history = historyOutcome(sessionEnvelopeSchema.parse(result))
+    return options?.recoverGoal === true && history.goal === undefined
+      ? { ...history, goal: await this.goalFromView(sessionId) }
+      : history
   }
 
   /**

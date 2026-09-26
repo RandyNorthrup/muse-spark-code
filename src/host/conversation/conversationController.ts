@@ -745,7 +745,7 @@ export class ConversationController {
       }
       try {
         const host = await this.deps.ensureHost()
-        const history = await host.readSession(session.sessionId)
+        const history = await host.readSession(session.sessionId, { recoverGoal: true })
         if (this.session === session) {
           this.postHistory(session.sessionId, history, this.activeTurnId)
           this.notice('info', UI_TEXT.viewGapReloaded)

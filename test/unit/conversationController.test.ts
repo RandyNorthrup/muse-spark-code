@@ -2968,6 +2968,7 @@ describe('ConversationController: protocol semantics (D26)', () => {
         pendingRequests: [],
       }
     })
+    t.server.handle('view/page', () => ({ events: [], nextCursor: null }))
     t.surface.posted.length = 0
     t.server.notify('view/gap', { sessionId: 's1', after: 'v1', next: 'v2' })
     await settle()
@@ -2980,6 +2981,7 @@ describe('ConversationController: protocol semantics (D26)', () => {
       sessionId: 's1',
       items: [expect.objectContaining({ itemId: 'm1' })],
       activeTurnId: 't1',
+      goal: null,
     })
     expect(t.surface.posted).toContainEqual({
       type: 'notice',
@@ -2997,6 +2999,67 @@ describe('ConversationController: protocol semantics (D26)', () => {
       level: 'warning',
       text: `${UI_TEXT.viewGapReloadFailed}: log locked`,
     })
+  })
+
+  it.each([
+    { name: 'clear', recoveredGoal: null, paged: false },
+    {
+      name: 'completion',
+      recoveredGoal: { objective: 'Old goal', status: 'complete', percentComplete: 100 },
+      paged: true,
+    },
+  ])('recovers a missed goal $name from view history', async ({ recoveredGoal, paged }) => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('session/goalChanged', {
+      sessionId: 's1',
+      goal: { objective: 'Old goal', status: 'active', percentComplete: 50 },
+    })
+    t.server.handle('session/read', (params) => ({
+      session: {
+        sessionId: params['sessionId'],
+        createdAt: 'c',
+        updatedAt: 'u',
+        status: 'running',
+        turnCount: 1,
+      },
+      history: { mode: 'inline', items: [] },
+      viewCursor: 'v:s1:3',
+      pendingRequests: [],
+    }))
+    t.server.handle('view/page', (params) => {
+      if (paged && params['cursor'] === undefined) {
+        return {
+          events: [{ method: 'session/statusChanged', params: { sessionId: 's1' } }],
+          nextCursor: 'v:s1:2',
+        }
+      }
+      return {
+        events: [
+          {
+            method: 'session/goalChanged',
+            params: {
+              sessionId: 's1',
+              viewCursor: 'v:s1:2',
+              sourceRange: {
+                stream: { kind: 'session', id: 's1' },
+                first: { id: 'goal-change', sequence: 2 },
+                last: { id: 'goal-change', sequence: 2 },
+              },
+              goal: recoveredGoal,
+            },
+          },
+        ],
+        nextCursor: null,
+      }
+    })
+    t.surface.posted.length = 0
+    t.server.notify('view/gap', { sessionId: 's1', after: 'v:s1:1', next: 'v:s1:3' })
+    await settle()
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'historyLoaded', sessionId: 's1', goal: recoveredGoal }),
+    )
+    expect(t.server.requestsFor('view/page')).toHaveLength(paged ? 2 : 1)
   })
 
   it('posts a backend notice as a notice, never as an event', async () => {

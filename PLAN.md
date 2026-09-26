@@ -1381,6 +1381,15 @@ tools. Each Model API request now retains the revision of user goal commands
 at its start. A mutating goal tool from an older revision fails with a
 replayable output, while the accepted command's wake gives the model the
 current goal in its next request.
+The next review found two recovery gaps: `session/read` serves inline items
+without a goal, so reloading after a `view/gap` could leave a cleared or
+completed goal stale in the panel; and a failed compaction recorded billed
+tokens in memory but not always in the stored session. Gap reloads now use
+the last durable `session/goalChanged` from backward `view/page` reads when
+inline history cannot answer, and Model API usage is persisted after both
+goal and cumulative counters update. The new view shape was captured live
+without a model turn (M45 certification); the tests and red drills cover
+clear, completion, paging and persisted failed compaction usage.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 
@@ -3392,7 +3401,7 @@ translations. The order is D36's table:
   `/goal`; 31 strings in fourteen languages; harness scenarios `goal` and
   `goal-edit`.
 - **Acceptance**: tests from the captured shapes on both backends, the
-  reducer, the controller, the strip and the prompt; drills G1–G34; both
+  reducer, the controller, the strip and the prompt; drills G1–G36; both
   scenarios seen and in the accessibility gate; the gate green.
 - **Left**: a fork's goal on Muse Code shows only once Muse Code reports it
   (fork is refused on Windows 1.3.0, so it could not be captured); the

@@ -211,6 +211,10 @@ export const SECONDS_PER_HOUR = 3600
 // dialog will follow before it stops.
 export const SESSION_LIST_LIMIT = 200
 export const SESSION_LIST_MAX_PAGES = 5
+// A gap reload scans recent durable view pages backward for the last goal
+// change. `view/page` allows 1–1000 events per page (MSP SS4.7.3).
+export const GOAL_RECOVERY_PAGE_LIMIT = 1000
+export const GOAL_RECOVERY_MAX_PAGES = 100
 // A surface that opens within this long of its last session's activity
 // resumes it (the Claude Code sidebar rule: "if a message was sent in the
 // last 10 minutes").

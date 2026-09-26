@@ -801,7 +801,6 @@ export class ModelApiSession implements AgentSession {
         this.deps.now(),
       )
       this.replaceGoal(spent)
-      this.touch()
     }
     this.usage = {
       inputTokens: this.usage.inputTokens + usage.input_tokens,
@@ -812,6 +811,9 @@ export class ModelApiSession implements AgentSession {
     }
     this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
     this.noteContext(usage.input_tokens + usage.output_tokens)
+    // A failed or incomplete compaction has no later transcript touch; save
+    // the billed usage after both the goal and cumulative counters have moved.
+    this.touch()
   }
 
   private noteContext(usedTokens: number): void {

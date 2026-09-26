@@ -2555,6 +2555,30 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(replay).not.toContain('PARTIAL SUMMARY')
   })
 
+  it.each([false, true])('persists incomplete compaction usage (goal: %s)', async (withGoal) => {
+    const store = memorySessionStore()
+    const t = setup({ store })
+    const { session, turnDone } = await startSession(t)
+    if (withGoal) {
+      await beginBudgetGoal(t, session, turnDone)
+    } else {
+      t.api.script({ text: 'Start' })
+      await session.sendTurn([{ type: 'text', text: 'go' }])
+      await turnDone()
+    }
+    const before = session.snapshot().usage
+    t.api.script({
+      text: 'PARTIAL SUMMARY',
+      incomplete: { reason: 'max_output_tokens' },
+      usage: { input: 90, output: 10 },
+    })
+    await expect(session.compact()).rejects.toThrow('response.incomplete')
+    await t.host.close()
+    expect(session.snapshot().usage.inputTokens).toBe(before.inputTokens + 90)
+    expect(session.snapshot().usage.outputTokens).toBe(before.outputTokens + 10)
+    expect(store.saved.get(session.sessionId)?.usage).toEqual(session.snapshot().usage)
+  })
+
   it('keeps the goal with the stored session, and forks carry it', async () => {
     const store = memorySessionStore()
     const first = setup({ store })
