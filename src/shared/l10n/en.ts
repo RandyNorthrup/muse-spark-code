@@ -881,6 +881,16 @@ export const EN = {
   acpQuestionAsked:
     'Muse has a question; this editor cannot show it as a form, so answer in your next message:',
   acpUnknownArgument: 'Unknown argument: {argument}',
+  // {argument}: the paid feature's flag as typed.
+  acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
+  // The price confirmation at the first prompt (M63c); the title and the
+  // accept button are paidConfirmTitle and paidConfirmAccept. {price} as
+  // paidWebSearchPrice and paidImagePrice say it.
+  acpPaidConfirmWebSearch:
+    'The model may search the web while it answers, until the agent stops. Each search is billed to your Model API key at {price}, on top of the tokens its results add, and the agent cannot ask before each one.',
+  acpPaidConfirmImage:
+    'The model may create image files in the workspace, or edit workspace images into new ones, until the agent stops. Each image is billed to your Model API key at {price}, and you are asked before every one.',
+  acpPaidDecline: 'Keep off',
   // {command}: the executable's name. The options and values stay as typed.
   acpUsage: [
     'Usage:',
@@ -894,6 +904,8 @@ export const EN = {
     '  --shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
     '  --allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
+    '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
+    '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
   ].join('\n'),

@@ -1,8 +1,9 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
+import { AcpPaidFeatures } from '../../src/acp/paid'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot } from '../../src/shared/agentEvents'
-import { UI_TEXT } from '../../src/shared/constants'
+import { type AcpPaidFeature, UI_TEXT } from '../../src/shared/constants'
 import { FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
@@ -29,6 +30,7 @@ type PermissionAnswer = (
 
 interface Harness {
   readonly host: FakeAgentHost
+  readonly paid: AcpPaidFeatures
   readonly updates: acp.SessionUpdate[]
   readonly permissions: acp.RequestPermissionRequest[]
   readonly elicitations: acp.CreateElicitationRequest[]
@@ -43,6 +45,7 @@ interface HarnessOptions {
   readonly canBypass?: boolean
   readonly allowsContributorModels?: boolean
   readonly kind?: 'museCode' | 'modelApi'
+  readonly paid?: readonly AcpPaidFeature[]
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -53,6 +56,7 @@ function harness(options: HarnessOptions = {}): Harness {
   const permissions: acp.RequestPermissionRequest[] = []
   const elicitations: acp.CreateElicitationRequest[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const paid = new AcpPaidFeatures(options.paid ?? [], log)
   const deps: AcpAgentDeps = {
     backend: {
       kind,
@@ -73,6 +77,7 @@ function harness(options: HarnessOptions = {}): Harness {
       command: 'muse-spark-code-acp login',
     },
     defaultCwd: CWD,
+    paid,
     log,
   }
   const agent = createAcpAgent(deps)
@@ -93,6 +98,7 @@ function harness(options: HarnessOptions = {}): Harness {
     })
   return {
     host,
+    paid,
     updates,
     permissions,
     elicitations,
@@ -770,5 +776,165 @@ describe('the ACP agent (M63)', () => {
       }),
     ).rejects.toThrow(/killed by signal 9/)
     expect(h.log.warn).toHaveBeenCalledWith('The museCode backend stopped: killed by signal 9')
+  })
+})
+
+const accept: PermissionAnswer = () => ({
+  outcome: { outcome: 'selected', optionId: 'paid-accept' },
+})
+const decline: PermissionAnswer = () => ({
+  outcome: { outcome: 'selected', optionId: 'paid-decline' },
+})
+
+describe('paid features in the agent (M63c)', () => {
+  it('asks nothing when no paid flag was given', async () => {
+    const h = harness({ kind: 'modelApi', answer: accept })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await turn(h, client, sessionId, () => undefined)
+    })
+    expect(h.permissions).toEqual([])
+    expect(h.paid.isOn('webSearch')).toBe(false)
+  })
+
+  it('names the price at the first prompt, and turns the feature on only when accepted', async () => {
+    const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: accept })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions[0]!
+      const response = prompt(client, sessionId)
+      await until(() => session.sendTurn.mock.calls.length > 0)
+      // The turn starts only after the answer: the backend sees the feature on.
+      expect(h.paid.isOn('webSearch')).toBe(true)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await response
+      await turn(h, client, sessionId, () => undefined)
+    })
+    expect(h.permissions).toHaveLength(1)
+    const [asked] = h.permissions
+    expect(asked?.toolCall).toMatchObject({
+      toolCallId: 'paid-feature-webSearch',
+      title: 'Turn on Web search?',
+    })
+    expect(asked?.options).toEqual([
+      { optionId: 'paid-accept', name: 'Turn on', kind: 'allow_always' },
+      { optionId: 'paid-decline', name: 'Keep off', kind: 'reject_always' },
+    ])
+    const row = h.updates.find(
+      (update) =>
+        update.sessionUpdate === 'tool_call' && update.toolCallId === 'paid-feature-webSearch',
+    )
+    expect(JSON.stringify(row)).toContain('$2.50 per 1,000 searches')
+    expect(h.updates).toContainEqual({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'paid-feature-webSearch',
+      status: 'completed',
+    })
+  })
+
+  it('keeps a declined feature off and does not ask again', async () => {
+    const h = harness({ kind: 'modelApi', paid: ['webSearch', 'imageGeneration'], answer: decline })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await turn(h, client, sessionId, () => undefined)
+      await turn(h, client, sessionId, () => undefined)
+    })
+    expect(h.permissions.map((request) => request.toolCall.toolCallId)).toEqual([
+      'paid-feature-webSearch',
+      'paid-feature-imageGeneration',
+    ])
+    expect(h.paid.isOn('webSearch')).toBe(false)
+    expect(h.paid.isOn('imageGeneration')).toBe(false)
+    expect(h.updates).toContainEqual({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'paid-feature-imageGeneration',
+      status: 'failed',
+    })
+  })
+
+  it('keeps it off when the client cannot answer', async () => {
+    const h = harness({
+      kind: 'modelApi',
+      paid: ['imageGeneration'],
+      answer: () => {
+        throw new Error('no permission prompts here')
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await turn(h, client, sessionId, () => undefined)
+    })
+    expect(h.paid.isOn('imageGeneration')).toBe(false)
+    expect(h.log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Paid feature imageGeneration: the price could not be asked'),
+    )
+  })
+
+  it('ends the prompt cancelled, without a turn, when cancelled while the price is asked', async () => {
+    let release: (() => void) | undefined
+    const h = harness({
+      kind: 'modelApi',
+      paid: ['webSearch'],
+      answer: () =>
+        new Promise((resolve) => {
+          release = () => {
+            resolve({ outcome: { outcome: 'cancelled' } })
+          }
+        }),
+    })
+    const stop = await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const response = prompt(client, sessionId)
+      await until(() => release !== undefined)
+      await client.notify('session/cancel', { sessionId })
+      await until(() =>
+        h.log.info.mock.calls.some(([line]) => String(line).includes('cancelled before its turn')),
+      )
+      release?.()
+      return await response
+    })
+    expect(stop).toEqual({ stopReason: 'cancelled' })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    expect(h.paid.isOn('webSearch')).toBe(false)
+  })
+
+  it('names the price on a paid approval and a paid row', async () => {
+    const h = harness({ kind: 'modelApi', answer: () => ({ outcome: { outcome: 'cancelled' } }) })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await turn(h, client, sessionId, async (session) => {
+        session.emit({
+          type: 'itemStarted',
+          item: {
+            itemId: 'search-1',
+            kind: 'toolCall',
+            status: 'inProgress',
+            turnId: 'turn-1',
+            tool: 'web_search',
+            args: JSON.stringify({ query: 'acp' }),
+            paid: 'webSearch',
+          },
+        })
+        session.emit(
+          approval({
+            itemId: 'image-1',
+            toolName: 'generate_image',
+            rawArgs: JSON.stringify({ path: 'logo.png', prompt: 'a logo' }),
+            subject: { kind: 'tool', toolName: 'generate_image', paidFeature: 'imageGeneration' },
+            availableChoices: [CHOICES[0]!, CHOICES[2]!],
+          }),
+        )
+        await until(() => h.permissions.length === 1)
+      })
+    })
+    const row = h.updates.find(
+      (update) => update.sessionUpdate === 'tool_call' && update.toolCallId === 'search-1',
+    )
+    expect(row).toMatchObject({
+      title: expect.stringContaining('(Billed to your Model API key: $2.50 per 1,000 searches)'),
+    })
+    expect(h.permissions[0]?.toolCall.title).toContain(
+      '(Billed to your Model API key: $0.01 per image)',
+    )
   })
 })

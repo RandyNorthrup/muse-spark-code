@@ -154,7 +154,9 @@ hands it, the same way the extension does, and nothing else:
   log; keys and tokens are redacted.
 - The folder's rules, skills and memory are read only with
   `--trust-workspace`; contributor-tier models are listed only with
-  `--allow-contributor-models`; the paid features are off in the agent.
+  `--allow-contributor-models`; web search and image generation only with
+  `--web-search` or `--image-generation` and once you accept their price
+  in the editor (see the paid features above).
   It has no telemetry either.
 
 ## Your choices

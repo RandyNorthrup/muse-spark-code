@@ -40,10 +40,12 @@ import {
   MODEL_API_WEB_SEARCH_TOOL,
   SELECTION_TEXT_MAX_CHARS,
   SHELL_TOOLS,
+  type PaidFeature,
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { formatMention } from '../shared/mentions'
+import { paidFeaturePrice } from '../shared/paid'
 
 const TEXT_FIELD = 'text'
 const OUTPUT_FIELD = 'output'
@@ -127,6 +129,13 @@ export function toolName(tool: string): string {
   return mcp === null
     ? tool
     : fill(UI_TEXT.mcpToolLabel, { server: mcp[1] ?? '', tool: mcp[2] ?? '' })
+}
+
+/** A billed call's title names what the key pays for it (M63c, "opt in and loud"). */
+function withPrice(title: string, paid: PaidFeature | undefined): string {
+  return paid === undefined
+    ? title
+    : `${title} (${fill(UI_TEXT.paidRowTitle, { price: paidFeaturePrice(paid) })})`
 }
 
 /** "Edit: src/app.ts", "Bash: Run the tests": the name, and what the call is about. */
@@ -292,7 +301,7 @@ export class UpdateTranslator {
     const title =
       item.kind === 'subagent'
         ? `${toolName('subagent_spawn')}: ${item.objective ?? item.role ?? ''}`
-        : toolTitle(tool, args)
+        : withPrice(toolTitle(tool, args), item.paid)
     const status = toolStatus(item.status, isCompleted)
     const updates: SessionUpdate[] = []
     if (!this.announced.has(item.itemId)) {
@@ -457,7 +466,10 @@ export function approvalToolCall(
   const name = toolName(event.toolName)
   return {
     toolCallId: event.itemId,
-    title: detail === undefined ? toolTitle(event.toolName, args) : `${name}: ${detail}`,
+    title: withPrice(
+      detail === undefined ? toolTitle(event.toolName, args) : `${name}: ${detail}`,
+      event.subject.paidFeature,
+    ),
     kind: toolKind(event.toolName),
     status: 'pending',
     locations: toolLocations(args, cwd),

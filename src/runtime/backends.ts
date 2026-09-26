@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
+import { AcpPaidFeatures } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import { environmentValue } from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
@@ -52,6 +53,8 @@ export interface RuntimeBackend {
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
   readonly museCode: MuseCodeBackendManager
+  /** The flagged paid features and the user's answers, shared with the agent (M63c). */
+  readonly paid: AcpPaidFeatures
   readonly close: () => Promise<void>
 }
 
@@ -89,6 +92,7 @@ function modelApiManager(
   credentials: CredentialStore,
   workspaceRoot: string,
   xdgConfigHome: string | undefined,
+  paid: AcpPaidFeatures,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const isWorkspaceTrusted = () => options.trustWorkspace
@@ -152,9 +156,9 @@ function modelApiManager(
         log,
         now: () => Date.now(),
       }),
-    isPaidFeatureOn: () => false,
-    notePaidUse: (feature) => {
-      log.error(`A paid use of ${feature} was reported, but paid features are off in the agent`)
+    isPaidFeatureOn: (feature) => paid.isOn(feature),
+    notePaidUse: (feature, units) => {
+      paid.noteUse(feature, units)
     },
   })
 }
@@ -167,6 +171,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const credentials = new CredentialStore(deps.secrets, (message) => {
     deps.log.warn(message)
   })
+  const paid = new AcpPaidFeatures(deps.options.paidFeatures, deps.log)
   const xdgConfigHome = environmentValue(
     museCode.childEnvironment(),
     deps.platform,
@@ -204,7 +209,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const hostFor = (cwd: string): Promise<AgentHost> => {
     if (deps.options.backend === 'modelApi') {
       const manager =
-        modelApiHosts.get(cwd) ?? modelApiManager(deps, credentials, cwd, xdgConfigHome)
+        modelApiHosts.get(cwd) ?? modelApiManager(deps, credentials, cwd, xdgConfigHome, paid)
       modelApiHosts.set(cwd, manager)
       return manager.ensureHost()
     }
@@ -223,6 +228,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       hostFor,
     },
     museCode,
+    paid,
     close: async () => {
       const managers = [...museCodeHosts.values(), ...modelApiHosts.values()]
       await Promise.all(managers.map((manager) => manager.dispose()))

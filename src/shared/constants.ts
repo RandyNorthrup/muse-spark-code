@@ -652,6 +652,21 @@ export const ACP_AUTH_METHODS = {
   modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
 } as const
 export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort' } as const
+// The paid Model API features the agent can use (M63c, PLAN.md D30): each
+// only with its flag, and once the user accepts its price in the editor.
+// Muse Voice needs the panel's microphone, so the agent has none.
+export const ACP_PAID_FEATURES = [
+  'webSearch',
+  'imageGeneration',
+] as const satisfies readonly PaidFeature[]
+export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
+export const ACP_PAID_FLAGS = {
+  webSearch: 'web-search',
+  imageGeneration: 'image-generation',
+} as const satisfies Readonly<Record<AcpPaidFeature, string>>
+// The price confirmation: its tool call row (the feature appended) and answers.
+export const ACP_PAID_TOOL_CALL_PREFIX = 'paid-feature-'
+export const ACP_PAID_OPTIONS = { accept: 'paid-accept', decline: 'paid-decline' } as const
 // A tool's output as the client sees it; the full text stays with the backend.
 export const ACP_TOOL_OUTPUT_MAX_CHARS = 20_000
 export const ACP_SESSION_LIST_LIMIT = 50

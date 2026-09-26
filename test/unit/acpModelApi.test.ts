@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
 import { createRuntimeBackend } from '../../src/runtime/backends'
-import { SECRET_KEYS } from '../../src/shared/constants'
+import { type AcpPaidFeature, SECRET_KEYS } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -46,7 +46,10 @@ function writeCall(file: string, content: string, callId: string) {
   return { name: 'write_file', arguments: JSON.stringify({ path: file, content }), callId }
 }
 
-function setup(answer: (request: acp.RequestPermissionRequest) => acp.RequestPermissionResponse) {
+function setup(
+  answer: (request: acp.RequestPermissionRequest) => acp.RequestPermissionResponse,
+  paidFeatures: readonly AcpPaidFeature[] = [],
+) {
   const api = fakeModelApi()
   const secrets = memorySecrets()
   secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
@@ -61,6 +64,7 @@ function setup(answer: (request: acp.RequestPermissionRequest) => acp.RequestPer
       shellSandbox: 'auto',
       canBypass: false,
       allowsContributorModels: false,
+      paidFeatures,
       isVerbose: false,
     },
     version: '0.0.0-test',
@@ -85,6 +89,7 @@ function setup(answer: (request: acp.RequestPermissionRequest) => acp.RequestPer
       command: 'muse-spark-code-acp auth set',
     },
     defaultCwd: workspace,
+    paid: runtime.paid,
     log,
   })
   const updates: acp.SessionUpdate[] = []
@@ -100,6 +105,7 @@ function setup(answer: (request: acp.RequestPermissionRequest) => acp.RequestPer
     })
   return {
     api,
+    log,
     workspace,
     runtime,
     updates,
@@ -169,7 +175,7 @@ describe('the ACP agent on the Model API backend (M63)', () => {
     // The key went to the Model API as the bearer token, and nowhere near the client.
     expect(t.api.requests.at(-1)?.headers['Authorization']).toBe(`Bearer ${KEY}`)
     expect(JSON.stringify([t.updates, t.permissions])).not.toContain(KEY)
-    // Paid features are off in the agent (D60): no web search or image tools offered.
+    // Paid features are off without their flags (M63c): no web search or image tools offered.
     const offered = JSON.stringify(t.api.responseBodies()[0]?.['tools'])
     for (const paid of ['web_search', 'generate_image', 'edit_image']) {
       expect(offered).not.toContain(paid)
@@ -201,6 +207,44 @@ describe('the ACP agent on the Model API backend (M63)', () => {
     })
     expect(textOf(t.updates, 'user_message_chunk')).toBe('write the notes')
     expect(textOf(t.updates, 'agent_message_chunk')).toBe('Left it alone.')
+    await t.runtime.close()
+  })
+
+  it('offers web search once its price is accepted, and tallies each search (M63c)', async () => {
+    const t = setup(
+      (request) => ({
+        outcome: {
+          outcome: 'selected',
+          optionId: request.options.some((option) => option.optionId === 'paid-accept')
+            ? 'paid-accept'
+            : 'reject',
+        },
+      }),
+      ['webSearch'],
+    )
+    t.api.script({ searches: [{ queries: ['acp registry'] }], text: 'Found it.' })
+    const { stopReason } = await t.run((client) => promptOnce(client, t.workspace))
+    expect(stopReason).toBe('end_turn')
+    expect(t.permissions.map((request) => request.toolCall.toolCallId)).toEqual([
+      'paid-feature-webSearch',
+    ])
+    expect(JSON.stringify(t.api.responseBodies()[0]?.['tools'])).toContain('web_search')
+    expect(t.log.info).toHaveBeenCalledWith('Paid use of webSearch: 1, 1 since the agent started')
+    await t.runtime.close()
+  })
+
+  it('offers neither paid tool when their prices are declined (M63c)', async () => {
+    const t = setup(
+      () => ({ outcome: { outcome: 'selected', optionId: 'paid-decline' } }),
+      ['webSearch', 'imageGeneration'],
+    )
+    t.api.script({ text: 'No search.' })
+    await t.run((client) => promptOnce(client, t.workspace))
+    expect(t.permissions).toHaveLength(2)
+    const offered = JSON.stringify(t.api.responseBodies()[0]?.['tools'])
+    for (const paid of ['web_search', 'generate_image', 'edit_image']) {
+      expect(offered).not.toContain(paid)
+    }
     await t.runtime.close()
   })
 })

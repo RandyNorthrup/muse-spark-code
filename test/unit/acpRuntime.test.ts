@@ -46,6 +46,7 @@ const DEFAULTS: ServeOptions = {
   shellSandbox: 'auto',
   canBypass: false,
   allowsContributorModels: false,
+  paidFeatures: [],
   isVerbose: false,
 }
 
@@ -106,6 +107,8 @@ describe('parseCommandLine', () => {
         'off',
         '--allow-dangerously-skip-permissions',
         '--allow-contributor-models',
+        '--image-generation',
+        '--web-search',
         '--verbose',
       ]),
     ).toEqual({
@@ -117,8 +120,20 @@ describe('parseCommandLine', () => {
         shellSandbox: 'off',
         canBypass: true,
         allowsContributorModels: true,
+        paidFeatures: ['webSearch', 'imageGeneration'],
         isVerbose: true,
       },
+    })
+  })
+
+  it('refuses a paid feature on the Muse Code backend, naming the flag (M63c)', () => {
+    expect(parseCommandLine(['--web-search'])).toEqual({
+      command: 'invalid',
+      reason: '--web-search needs --backend modelApi: paid features bill a Model API key.',
+    })
+    expect(parseCommandLine(['--backend', 'museCode', '--image-generation'])).toEqual({
+      command: 'invalid',
+      reason: '--image-generation needs --backend modelApi: paid features bill a Model API key.',
     })
   })
 

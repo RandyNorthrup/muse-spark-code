@@ -6,7 +6,10 @@ import { parseArgs } from 'node:util'
 import {
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
+  ACP_PAID_FEATURES,
+  ACP_PAID_FLAGS,
   type AcpBackendKind,
+  type AcpPaidFeature,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -24,6 +27,8 @@ export interface ServeOptions {
   readonly shellSandbox: ShellSandboxMode
   readonly canBypass: boolean
   readonly allowsContributorModels: boolean
+  /** The paid features the user may turn on at the first prompt (M63c); Model API only. */
+  readonly paidFeatures: readonly AcpPaidFeature[]
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
 }
@@ -60,6 +65,11 @@ function invalid(argument: string): RuntimeCommand {
   return { command: 'invalid', reason: fill(UI_TEXT.acpUnknownArgument, { argument }) }
 }
 
+/** The paid features whose flags were given, in the flags' order. */
+function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeature[] {
+  return ACP_PAID_FEATURES.filter((feature) => values[ACP_PAID_FLAGS[feature]] === true)
+}
+
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
@@ -82,6 +92,14 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   if (!isOneOf(SHELL_SANDBOX_MODES, shellSandbox)) {
     return invalid(`--shell-sandbox ${shellSandbox}`)
   }
+  const paidFeatures = paidFeaturesOf(values)
+  const [firstPaid] = paidFeatures
+  if (firstPaid !== undefined && backend !== 'modelApi') {
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.acpPaidNeedsModelApi, { argument: `--${ACP_PAID_FLAGS[firstPaid]}` }),
+    }
+  }
   const options: ServeOptions = {
     backend,
     trustWorkspace: values['trust-workspace'] === true,
@@ -89,6 +107,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     shellSandbox,
     canBypass: values['allow-dangerously-skip-permissions'] === true,
     allowsContributorModels: values['allow-contributor-models'] === true,
+    paidFeatures,
     isVerbose: values.verbose === true,
   }
   const [first, second, ...rest] = positionals
@@ -114,6 +133,8 @@ function parseCommandLineStrictly(argv: readonly string[]) {
       'shell-sandbox': { type: 'string' },
       'allow-dangerously-skip-permissions': { type: 'boolean' },
       'allow-contributor-models': { type: 'boolean' },
+      [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
+      [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
       verbose: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },

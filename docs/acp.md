@@ -190,6 +190,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
 | `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
 | `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
+| `--web-search`                         | Offer paid web search (Model API backend only), once you accept its price in the editor                                 |
+| `--image-generation`                   | Offer paid image generation (Model API backend only), once you accept its price in the editor                           |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
 
 ## What the editor sees
@@ -211,10 +213,22 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   HTTP, and optional, so one that fails to start does not stop the
   session. SSE servers are not taken; the Model API backend runs none.
 
+## Paid features
+
+Web search ($2.50 per 1,000 searches) and image generation ($0.01 per
+image) cost money on top of tokens and are billed to your Model API key.
+They are off unless the editor starts the agent with `--web-search` or
+`--image-generation` (with `--backend modelApi`). Then the first prompt
+asks, in the editor, whether to turn each on, naming what it does and
+its price; only "Turn on" does. The answer holds until the agent stops;
+"Keep off", a cancelled question or an editor that cannot ask leaves the
+feature off and it is not asked again. Every image is still asked for
+one by one, and every paid row and approval names its price. The agent
+log counts each billed use. Muse Voice needs the VS Code panel's
+microphone, so the agent has none.
+
 ## Not yet
 
-- Paid features (Model API web search, image generation and Muse Voice)
-  are off in the agent until it can name the price and ask first.
 - The Model API backend reads and writes files itself, so it does not see
   unsaved changes in the editor; save before asking it to edit a file you
   have open.

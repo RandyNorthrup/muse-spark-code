@@ -1622,7 +1622,12 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   no workspace trust of its own.
 - **Paid features are off in the agent** (rule 12, D60) until a
   confirmation over `session/request_permission` that names the price is
-  built and certified.
+  built and certified. **Built 2026-09-26 (M63c):** `--web-search` and
+  `--image-generation` (Model API backend only) let the first prompt ask
+  for each, with the panel's title and price; only "Turn on" turns it on,
+  for the life of the process, and anything else leaves it off without
+  asking again. Paid rows and approvals name their price; Muse Voice has
+  no microphone in the agent.
 - **Tools run in the agent**, as ACP allows. Routing the Model API
   backend's file reads and writes through the client (`fs/*`), so an
   unsaved buffer is seen and never overwritten, is a later step, with its
@@ -3869,6 +3874,13 @@ listing are M62b.
     SSE and the unstable ACP transport are left out, the Model API backend
     runs none, and only server names are logged (headers and environments
     can hold secrets). JupyterLab's notebook tools now reach the agent.
+  - **Paid features, 2026-09-26** (`docs/certification/m63.md`): web
+    search and image generation behind `--web-search` and
+    `--image-generation` on the Model API backend, each confirmed in the
+    editor at the first prompt with its price (`src/acp/paid.ts`); a
+    cancel while the price is asked ends the prompt without a turn.
+    File access through the client (`fs/*`) waits for M46–M56, since it
+    needs the session threaded through the Model API backend's tools.
 - **Acceptance (M63a)**: a session created, prompted, streamed, cancelled,
   asked for permission (allowed, denied, cancelled), loaded and listed
   over stdio on the Muse Code backend (fake CLI), and on the Model API

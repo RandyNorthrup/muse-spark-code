@@ -116,6 +116,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     },
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
+    paid: runtime.paid,
     log,
   })
   const connection = agent.connect(
