@@ -94,6 +94,20 @@ describe('parseStoredSession', () => {
     expect(parseStoredSession({ ...full, goal: { objective: 'x' } })).toMatchObject({ ok: false })
   })
 
+  it('keeps a background completion note tied to its task across storage (M46)', () => {
+    const note = {
+      turnId: 't1',
+      backgroundTaskId: 'shell-1',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'The shell ended.' }],
+      },
+    }
+    const parsed = parseStoredSession(structuredClone({ ...full, replay: [...full.replay, note] }))
+    expect(parsed).toMatchObject({ ok: true, session: { replay: [...full.replay, note] } })
+  })
+
   it('names what is wrong with a bad document', () => {
     expect(parseStoredSession({ ...full, version: 2 })).toMatchObject({ ok: false })
     expect(parseStoredSession({ ...full, approvalMode: 'yolo' })).toMatchObject({ ok: false })

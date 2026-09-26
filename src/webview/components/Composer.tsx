@@ -52,7 +52,7 @@ import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands
 import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
 import { wrapIndex } from '../listNavigation'
-import type { DictationUiState, MentionResults } from '../state/uiState'
+import { type DictationUiState, type MentionResults, userShellCommandOf } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
 import {
   CloseIcon,
@@ -265,6 +265,14 @@ function dictationPlaceholder(dictation: DictationUiState): string | undefined {
   }
 }
 
+/** The Send button's tooltip: why it is off, or what it does (a `!` prompt runs, M46). */
+function sendTitle(canSend: boolean, isShellMode: boolean): string {
+  if (!canSend) {
+    return UI_TEXT.sendDisabledReason
+  }
+  return isShellMode ? UI_TEXT.runCommandTitle : UI_TEXT.sendTitle
+}
+
 /** What a prompt that is one `/token` shows (M38): the palette for `/` alone, the list after. */
 function slashMenuOf(draft: string, caret: number): 'palette' | 'commands' | undefined {
   const query = slashFilterOf(draft)
@@ -374,6 +382,8 @@ export function Composer(props: ComposerProps) {
     }
   })
 
+  // A prompt that starts with `!` runs as a shell command (M46): the box says so.
+  const isShellMode = userShellCommandOf(draft) !== undefined
   const mention: MentionQuery | undefined = mentionQueryAt(draft, caret)
   const isMentionOpen = mention !== undefined && dismissedMention !== mention.start
   const mentionItems: readonly MentionItem[] =
@@ -786,7 +796,7 @@ export function Composer(props: ComposerProps) {
       <AttachmentChips attachments={attachments} onRemove={onRemoveAttachment} />
       <textarea
         ref={textareaRef}
-        className="composer-input"
+        className={isShellMode ? 'composer-input composer-input-shell' : 'composer-input'}
         dir="auto"
         aria-label={UI_TEXT.composerLabel}
         aria-autocomplete="list"
@@ -845,6 +855,11 @@ export function Composer(props: ComposerProps) {
           >
             {modelLabel}
           </button>
+          {isShellMode ? (
+            <span className="editor-chip shell-chip" title={UI_TEXT.composerShellModeTitle}>
+              <span className="editor-chip-label">{UI_TEXT.composerShellMode}</span>
+            </span>
+          ) : null}
           {editorContextLabel === undefined ? null : (
             <span className="editor-chip" title={UI_TEXT.editorContextTitle}>
               <FileIcon />
@@ -940,8 +955,8 @@ export function Composer(props: ComposerProps) {
             <button
               type="button"
               className="send-button"
-              title={canSend ? UI_TEXT.sendTitle : UI_TEXT.sendDisabledReason}
-              aria-label={UI_TEXT.sendTitle}
+              title={sendTitle(canSend, isShellMode)}
+              aria-label={isShellMode ? UI_TEXT.runCommandTitle : UI_TEXT.sendTitle}
               disabled={!canSend}
               onClick={onSubmit}
             >

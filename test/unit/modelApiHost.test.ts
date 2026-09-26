@@ -1,7 +1,9 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
+  CLARIFICATION_MAX_CHARS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
   GOAL_OBJECTIVE_MAX_CHARS,
@@ -27,7 +29,7 @@ import {
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
-import { memoryToolIo } from './helpers/fakeToolIo'
+import { heldShellToolIo, type MemoryToolIo, memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
 
@@ -41,12 +43,14 @@ function setup(
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
     /** The paid features that are on (M33–M35); none unless a test says so. */
     paid?: readonly PaidFeature[]
+    /** The tools' files and shell, when a test needs its own (M46: a held shell). */
+    io?: MemoryToolIo
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
-  const io = memoryToolIo(options.files ?? {}, ROOT)
+  const io = options.io ?? memoryToolIo(options.files ?? {}, ROOT)
   let ids = 0
   let clock = 1_000_000
   const client = fakeModelApiClient(api, log)
@@ -87,6 +91,14 @@ async function startSession(
     modelId: 'muse-spark-1.3',
     approvalMode,
   })) as ModelApiSession
+  return { session, ...watchTurns(session) }
+}
+
+/** A session's events, and a wait for its next turn's end. */
+function watchTurns(session: AgentSession): {
+  events: AgentEvent[]
+  turnDone: () => Promise<void>
+} {
   const events: AgentEvent[] = []
   let done = Promise.withResolvers<undefined>()
   session.onEvent((event) => {
@@ -97,7 +109,7 @@ async function startSession(
     done.resolve(undefined)
     done = Promise.withResolvers<undefined>()
   })
-  return { session, events, turnDone: () => done.promise }
+  return { events, turnDone: () => done.promise }
 }
 
 /** Waits for the n-th approval request (0-based) and returns it. */
@@ -2906,5 +2918,450 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(resumed.history.goal).toEqual(expected)
     const fork = await second.host.forkSession(session.sessionId, 'muse-spark-1.3')
     expect(fork.history.goal).toEqual(expected)
+  })
+})
+
+// --- M46: background work, the user's `!` commands, explanations ---
+
+/** A `bash` call the fake API asks for: a dev server, as a long command. */
+const DEV_SERVER_CALL = {
+  name: 'bash',
+  arguments: '{"command":"npm run dev","description":"Start the dev server"}',
+  callId: 'call_dev',
+}
+
+/** A session on a held shell whose first turn is running `npm run dev` (M46). */
+async function runningShell(store?: ReturnType<typeof memorySessionStore>) {
+  const io = heldShellToolIo({}, ROOT)
+  const t = setup({ io, ...(store !== undefined && { store }) })
+  const started = await startSession(t, 'allowAll')
+  t.api.script({ calls: [DEV_SERVER_CALL] }, { text: 'Started it.' }, { text: 'Noted.' })
+  await started.session.sendTurn([{ type: 'text', text: 'start the dev server' }])
+  await vi.waitFor(() => {
+    expect(io.runs).toHaveLength(1)
+  })
+  const call = started.events.find(
+    (event): event is Extract<AgentEvent, { type: 'itemStarted' }> =>
+      event.type === 'itemStarted' && event.item.tool === 'bash',
+  )
+  const run = io.runs[0]
+  if (call === undefined || run === undefined) {
+    throw new Error('expected the running shell call')
+  }
+  return { ...started, t, io, run, itemId: call.item.itemId }
+}
+
+/** The completion of one item, once it arrives. */
+async function completionOf(events: readonly AgentEvent[], itemId: string) {
+  await vi.waitFor(() => {
+    expect(
+      events.some((event) => event.type === 'itemCompleted' && event.item.itemId === itemId),
+    ).toBe(true)
+  })
+  const completed = events.find(
+    (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+      event.type === 'itemCompleted' && event.item.itemId === itemId,
+  )
+  if (completed === undefined) {
+    throw new Error('expected a completion')
+  }
+  return completed.item
+}
+
+/** The rows of the user's own commands, as they started. */
+function userShellStarts(events: readonly AgentEvent[]) {
+  return events.filter(
+    (event): event is Extract<AgentEvent, { type: 'itemStarted' }> =>
+      event.type === 'itemStarted' && event.item.kind === 'userShell',
+  )
+}
+
+/** A user message's text as the replay holds it. */
+const userNoteSchema = z.object({
+  role: z.literal('user'),
+  content: z.array(z.object({ text: z.string() })),
+})
+
+function noteText(item: unknown): string | undefined {
+  const parsed = userNoteSchema.safeParse(item)
+  return parsed.success ? parsed.data.content[0]?.text : undefined
+}
+
+/** The input of the n-th request (0-based) the fake API saw. */
+function requestInput(t: ReturnType<typeof setup>, index: number): readonly unknown[] {
+  return z.array(z.unknown()).parse(t.api.responseBodies()[index]?.['input'])
+}
+
+/** Ask a fork about the inherited shell and return exactly what its model read. */
+async function forkInput(
+  t: ReturnType<typeof setup>,
+  session: AgentSession,
+): Promise<readonly unknown[]> {
+  const { turnDone } = watchTurns(session)
+  t.api.script({ text: 'It was ready.' })
+  await session.sendTurn([{ type: 'text', text: 'what happened?' }])
+  await turnDone()
+  return requestInput(t, t.api.responseBodies().length - 1)
+}
+
+describe('ModelApiSession: background shell commands (M46)', () => {
+  it('shows a quiet foreground shell to a second surface, then replaces its moved and completed row', async () => {
+    const r = await runningShell()
+    const loaded = await r.t.host.resumeSession(r.session.sessionId, r.session.modelId)
+    expect(loaded.history.items.find((item) => item.itemId === r.itemId)).toMatchObject({
+      kind: 'toolCall',
+      status: 'inProgress',
+      tool: 'bash',
+    })
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    expect(r.session.history().items.filter((item) => item.itemId === r.itemId)).toEqual([
+      expect.objectContaining({ status: 'inProgress', background: true }),
+    ])
+    r.run.finish({ stdout: 'ready', exitCode: 0 })
+    await completionOf(r.events, r.itemId)
+    expect(r.session.history().items.filter((item) => item.itemId === r.itemId)).toEqual([
+      expect.objectContaining({ status: 'completed', background: true }),
+    ])
+    loaded.session.dispose()
+  })
+
+  it('answers the model at once and keeps the command running, without its time limit', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    expect(r.run.isLifted).toBe(true)
+    expect(r.run.signal?.aborted).toBe(false)
+    expect(r.events).toContainEqual({
+      type: 'itemUpdated',
+      item: expect.objectContaining({
+        itemId: r.itemId,
+        status: 'inProgress',
+        background: true,
+        backgroundInitiator: 'user',
+      }),
+    })
+    // The row is not completed, and the history holds it running.
+    expect(
+      r.events.some((event) => event.type === 'itemCompleted' && event.item.itemId === r.itemId),
+    ).toBe(false)
+    expect(r.session.history().items.find((item) => item.itemId === r.itemId)?.status).toBe(
+      'inProgress',
+    )
+    expect(requestInput(r.t, 1)).toContainEqual({
+      type: 'function_call_output',
+      call_id: 'call_dev',
+      output: MODEL_TEXT.shellMovedToBackground,
+    })
+  })
+
+  it('completes the row when the command ends and tells the model with its next request', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    r.run.finish({ stdout: 'listening on 3000', exitCode: 0 })
+    expect(await completionOf(r.events, r.itemId)).toMatchObject({
+      status: 'completed',
+      background: true,
+      visibleOutput: 'listening on 3000\n[exit code 0]',
+    })
+    expect(r.session.history().items.find((item) => item.itemId === r.itemId)?.status).toBe(
+      'completed',
+    )
+    await r.session.sendTurn([{ type: 'text', text: 'is it up?' }])
+    await r.turnDone()
+    const input = requestInput(r.t, 2)
+    expect(noteText(input.at(-2))).toBe(
+      `${MODEL_TEXT.backgroundEndedLead}\n$ npm run dev\nlistening on 3000\n[exit code 0]`,
+    )
+    expect(noteText(input.at(-1))).toBe('is it up?')
+  })
+
+  it('outlives the turn’s Stop; its own Stop ends it, marked stopped', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [DEV_SERVER_CALL] },
+      { calls: [{ name: 'write_file', arguments: '{"path":"n.txt","content":"x"}' }] },
+      { text: 'Stopped.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'start it, then write n.txt' }])
+    const shell = await approvalRequest(events, 0)
+    await session.decideApproval({
+      approvalId: shell.approvalId,
+      choiceId: 'allow_once',
+      requirementId: shell.requirementId,
+    })
+    await vi.waitFor(() => {
+      expect(io.runs).toHaveLength(1)
+    })
+    await session.moveToBackground(shell.itemId)
+    // The turn goes on to the next card; Stop ends the turn, not the command.
+    await approvalRequest(events, 1)
+    await session.cancel()
+    await turnDone()
+    expect(io.runs[0]?.signal?.aborted).toBe(false)
+    await session.stopTask(shell.itemId)
+    expect(io.runs[0]?.signal?.aborted).toBe(true)
+    expect(await completionOf(events, shell.itemId)).toMatchObject({
+      status: 'cancelled',
+      failureReason: 'stopped by the user',
+    })
+    // Stopped once, it is no task any more.
+    await expect(session.stopTask(shell.itemId)).rejects.toThrow(UI_TEXT.taskNotRunning)
+  })
+
+  it('leaves a command in the foreground to the turn’s Stop, as before (D25)', async () => {
+    const r = await runningShell()
+    await r.session.cancel()
+    await r.turnDone()
+    expect(r.run.signal?.aborted).toBe(true)
+    expect(await completionOf(r.events, r.itemId)).toMatchObject({
+      failureReason: 'stopped by the user',
+    })
+    await expect(r.session.moveToBackground(r.itemId)).rejects.toThrow(UI_TEXT.taskNotRunning)
+  })
+
+  it('stops the background commands with Stop all, and any left when the session goes', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    await r.session.stopAllTasks()
+    expect(r.run.signal?.aborted).toBe(true)
+    // A second one, left running, goes with the session.
+    r.t.api.script({ calls: [{ ...DEV_SERVER_CALL, callId: 'call_two' }] }, { text: 'Again.' })
+    await r.session.sendTurn([{ type: 'text', text: 'again' }])
+    await vi.waitFor(() => {
+      expect(r.io.runs).toHaveLength(2)
+    })
+    const second = r.events.findLast(
+      (event): event is Extract<AgentEvent, { type: 'itemStarted' }> =>
+        event.type === 'itemStarted' && event.item.tool === 'bash',
+    )
+    await r.session.moveToBackground(second?.item.itemId ?? '')
+    await r.turnDone()
+    r.session.dispose()
+    expect(r.io.runs[1]?.signal?.aborted).toBe(true)
+  })
+
+  it('brings a session back without the command its window took, and tells the model', async () => {
+    const store = memorySessionStore()
+    const r = await runningShell(store)
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    // Another window reads what this one saved while the command ran.
+    const next = setup({ store })
+    await next.host.load()
+    const resumed = await next.host.resumeSession(r.session.sessionId, 'muse-spark-1.3')
+    expect(resumed.history.items.find((item) => item.itemId === r.itemId)?.status).toBe(
+      'interrupted',
+    )
+    const { turnDone } = watchTurns(resumed.session)
+    next.api.script({ text: 'I will start it again.' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'is the server up?' }])
+    await turnDone()
+    const input = requestInput(next, 0)
+    expect(noteText(input.at(-2))).toBe(`${MODEL_TEXT.backgroundLostLead}\n$ npm run dev`)
+    expect(noteText(input.at(-1))).toBe('is the server up?')
+  })
+
+  it('shows a fork the command still running in its original as interrupted', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3')
+    expect(fork.history.items.find((item) => item.itemId === r.itemId)?.status).toBe('interrupted')
+    const { turnDone } = watchTurns(fork.session)
+    r.t.api.script({ text: 'I will restart it.' })
+    await fork.session.sendTurn([{ type: 'text', text: 'is the server running?' }])
+    await turnDone()
+    const input = requestInput(r.t, r.t.api.responseBodies().length - 1)
+    expect(noteText(input.at(-2))).toBe(`${MODEL_TEXT.backgroundLostLead}\n$ npm run dev`)
+  })
+
+  it('copies a background completion note into a fork cut before that note', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    const firstTurnId = r.session.snapshot().turnIds[0]
+    r.t.api.script({ text: 'Waiting.' })
+    await r.session.sendTurn([{ type: 'text', text: 'continue' }])
+    await r.turnDone()
+    r.run.finish({ stdout: 'ready', exitCode: 0 })
+    await completionOf(r.events, r.itemId)
+    const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3', firstTurnId)
+    const input = await forkInput(r.t, fork.session)
+    expect(noteText(input.at(-2))).toBe(
+      `${MODEL_TEXT.backgroundEndedLead}\n$ npm run dev\nready\n[exit code 0]`,
+    )
+  })
+
+  it('does not duplicate a background completion note the fork already retained', async () => {
+    const r = await runningShell()
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    r.run.finish({ stdout: 'ready', exitCode: 0 })
+    await completionOf(r.events, r.itemId)
+    const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3')
+    const input = await forkInput(r.t, fork.session)
+    expect(
+      input.filter((item) => noteText(item)?.startsWith(MODEL_TEXT.backgroundEndedLead)),
+    ).toHaveLength(1)
+  })
+})
+
+describe('ModelApiSession: the user’s own shell commands (M46)', () => {
+  it('includes a running command in a second surface’s history and replaces its row on completion', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io })
+    const { session, events } = await startSession(t)
+    await session.runUserShell('sleep 30')
+    const [started] = userShellStarts(events)
+    const loaded = await t.host.resumeSession(session.sessionId, session.modelId)
+    expect(loaded.history.items.find((item) => item.itemId === started?.item.itemId)).toMatchObject(
+      { kind: 'userShell', status: 'inProgress', commandText: 'sleep 30' },
+    )
+    io.runs[0]?.finish({ stdout: 'done', exitCode: 0 })
+    await completionOf(events, started?.item.itemId ?? '')
+    expect(session.history().items.filter((item) => item.itemId === started?.item.itemId)).toEqual([
+      expect.objectContaining({ status: 'completed', visibleOutput: 'done' }),
+    ])
+    loaded.session.dispose()
+  })
+
+  it('persists a running user-shell row before another host restores the session', async () => {
+    const store = memorySessionStore()
+    const io = heldShellToolIo({}, ROOT)
+    const first = setup({ io, store })
+    const { session, events } = await startSession(first)
+    await session.runUserShell('sleep 30')
+    const [started] = userShellStarts(events)
+    await first.host.flush()
+    const other = setup({ store })
+    await other.host.load()
+    const restored = await other.host.resumeSession(session.sessionId, session.modelId)
+    expect(
+      restored.history.items.find((item) => item.itemId === started?.item.itemId),
+    ).toMatchObject({ kind: 'userShell', status: 'interrupted', commandText: 'sleep 30' })
+    await session.stopTask(started?.item.itemId ?? '')
+    await completionOf(events, started?.item.itemId ?? '')
+  })
+
+  it('runs one outside any turn, as its own row, and tells the model before the next prompt', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io })
+    const { session, events, turnDone } = await startSession(t)
+    await session.runUserShell('ls')
+    const [started] = userShellStarts(events)
+    // Muse Code's shape (captured 2026-09-25): the command, and no turn.
+    expect(started?.item).toEqual({
+      itemId: started?.item.itemId,
+      kind: 'userShell',
+      status: 'inProgress',
+      commandText: 'ls',
+    })
+    expect(io.shellCalls[0]).toMatchObject({ command: 'ls', cwd: ROOT })
+    io.runs[0]?.finish({ stdout: 'a.txt\n', exitCode: 0 })
+    const done = await completionOf(events, started?.item.itemId ?? '')
+    expect(done).toMatchObject({
+      status: 'completed',
+      exitCode: 0,
+      visibleOutput: 'a.txt',
+      durationMs: 1000,
+    })
+    expect(done.turnId).toBeUndefined()
+    t.api.script({ text: 'I see a.txt.' })
+    await session.sendTurn([{ type: 'text', text: 'what did I list?' }])
+    await turnDone()
+    const input = requestInput(t, 0)
+    expect(noteText(input.at(-2))).toBe(`${MODEL_TEXT.userShellLead}\n$ ls\na.txt\n[exit code 0]`)
+    expect(noteText(input.at(-1))).toBe('what did I list?')
+    expect(session.history().items.map((item) => item.kind)).toContain('userShell')
+  })
+
+  it('marks a failing command failed with its exit code, and a stopped one stopped', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io })
+    const { session, events } = await startSession(t)
+    await session.runUserShell('exit 3')
+    await session.runUserShell('sleep 30')
+    const [failing, sleeping] = userShellStarts(events)
+    io.runs[0]?.finish({ stdout: 'failing-m46', exitCode: 3 })
+    expect(await completionOf(events, failing?.item.itemId ?? '')).toMatchObject({
+      status: 'failed',
+      exitCode: 3,
+    })
+    // Stop all is for background work; the user's own command runs on.
+    await session.stopAllTasks()
+    expect(io.runs[1]?.signal?.aborted).toBe(false)
+    await session.stopTask(sleeping?.item.itemId ?? '')
+    expect(await completionOf(events, sleeping?.item.itemId ?? '')).toMatchObject({
+      status: 'cancelled',
+      failureReason: 'stopped by the user',
+    })
+  })
+
+  it('reads a command that ended during a turn at the turn’s next request', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [{ name: 'write_file', arguments: '{"path":"n.txt","content":"x"}' }] },
+      { text: 'Written.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write n.txt' }])
+    const approval = await approvalRequest(events, 0)
+    await session.runUserShell('git status')
+    io.runs[0]?.finish({ stdout: 'clean', exitCode: 0 })
+    const [started] = userShellStarts(events)
+    await completionOf(events, started?.item.itemId ?? '')
+    await session.decideApproval({
+      approvalId: approval.approvalId,
+      choiceId: 'allow_once',
+      requirementId: approval.requirementId,
+    })
+    await turnDone()
+    expect(noteText(requestInput(t, 1).at(-1))).toBe(
+      `${MODEL_TEXT.userShellLead}\n$ git status\nclean\n[exit code 0]`,
+    )
+  })
+
+  it('runs none in Restricted Mode (D13)', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io, isTrusted: false })
+    const { session, events } = await startSession(t)
+    await expect(session.runUserShell('ls')).rejects.toThrow(UI_TEXT.userShellRestricted)
+    expect(io.shellCalls).toHaveLength(0)
+    expect(events).toHaveLength(0)
+  })
+})
+
+describe('ModelApiSession: an explanation instead of an answer (M46)', () => {
+  it('settles the question clarified and hands the model the text, as Muse Code does', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ calls: [ASK_USER_CALL] }, { text: 'Green, then.' })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    const question = await awaitQuestion(events)
+    await expect(session.clarifyQuestions(question.userInputId, ' '.repeat(3))).rejects.toThrow()
+    await expect(
+      session.clarifyQuestions(question.userInputId, 'x'.repeat(CLARIFICATION_MAX_CHARS + 1)),
+    ).rejects.toThrow()
+    await session.clarifyQuestions(question.userInputId, ' Neither: I prefer green. ')
+    await turnDone()
+    expect(events.find((event) => event.type === 'questionSettled')).toEqual({
+      type: 'questionSettled',
+      userInputId: question.userInputId,
+      outcome: 'clarified',
+      answers: [],
+      clarification: 'Neither: I prefer green.',
+    })
+    expect(requestInput(t, 1)).toContainEqual(
+      expect.objectContaining({
+        type: 'function_call_output',
+        output: `${MODEL_TEXT.clarificationLead}\nNeither: I prefer green.`,
+      }),
+    )
   })
 })

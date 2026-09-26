@@ -38,6 +38,10 @@ export const COMMAND_IDS = {
   hooks: 'museSpark.hooks',
   newWorktree: 'museSpark.newWorktree',
   removeWorktree: 'museSpark.removeWorktree',
+  // M46: Ctrl+B moves the running commands to the background; the other
+  // stops every background task of the conversation.
+  moveToBackground: 'museSpark.moveToBackground',
+  stopBackgroundTasks: 'museSpark.stopBackgroundTasks',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -59,6 +63,8 @@ export const CONTEXT_KEYS = {
   inputFocused: 'museSpark.inputFocused',
   /** True while a credential for the selected backend is present (the walkthrough's sign-in step). */
   signedIn: 'museSpark.signedIn',
+  /** The focused conversation runs a command Ctrl+B can move to the background (M46). */
+  canMoveToBackground: 'museSpark.canMoveToBackground',
 } as const
 
 // Built-in VS Code commands the extension invokes.
@@ -697,6 +703,27 @@ export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 // Item kinds the transcript never shows: our own echo and host-internal children.
 export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'reminderChild'])
 
+// --- Background work, the `!` user shell, clarifications (M46, PLAN.md D39) ---
+
+// A shell command the user runs from the prompt (`!ls`): MSP's `userShell`
+// item, outside any turn; the model sees it with its next request.
+export const USER_SHELL_ITEM_KIND = 'userShell'
+export const USER_SHELL_PREFIX = '!'
+// The Model API backend runs the user's command through the shell tool's own
+// runner (job objects on Windows, M27) with this limit, the shell tool's
+// longest; the row's Stop ends it sooner.
+export const USER_SHELL_TIMEOUT_MS = 10 * 60 * 1000
+// Who moved a task to the background (MSP `BackgroundInitiator`).
+export const BACKGROUND_INITIATOR_USER = 'user'
+// What a row's button asked of a task: `task/background` or `task/stop`.
+export const TASK_REQUESTS = ['background', 'stop'] as const
+export type TaskRequest = (typeof TASK_REQUESTS)[number]
+// `userInput/clarify` (tdd SS5.10.2): a free-form answer in place of the
+// options, "text" in MSP v1, at most this many characters.
+export const CLARIFICATION_FORMAT = 'text'
+export const CLARIFICATION_MAX_CHARS = 500
+export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
+
 // --- Subagents, background tasks and usage insights (M14, PLAN.md D17) ---
 
 // Muse Code hides its subagent tools unless this setting in its own
@@ -758,6 +785,9 @@ export const DAYS_PER_WEEK = 7
 // Muse Code's shell tool reports this when its OS sandbox is not set up
 // (Windows: `muse sandbox windows setup` from an elevated shell).
 export const SANDBOX_FAILURE_MARKER = 'sandbox enforcement unavailable'
+// And a `!` command's row says this in its output instead (M46, captured
+// 2026-09-25 on Windows with the sandbox on and not set up).
+export const USER_SHELL_SANDBOX_FAILURE_MARKER = 'managed shell sandbox is unavailable'
 // `muse sandbox windows check` / `setup` (Muse Code 1.3.0; the only platform
 // with a sandbox subcommand, verified 2026-09-22 on Windows and Linux). The
 // check prints `key=value` lines and exits 1 while setup is required.
@@ -814,9 +844,12 @@ export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
 // And at most this many characters together (M39): each can be 16 MiB.
 export const OUTPUT_DOCUMENTS_MAX_CHARS = 32 * 1024 * 1024
 export const OUTPUT_DOCUMENTS_KEPT = 20
-// The IDE tool server `muse serve` reaches over loopback (session MCP), and
-// the `session/listChanged` stream behind the History dialog (M6).
-export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream'] as const
+// The IDE tool server `muse serve` reaches over loopback (session MCP), the
+// `session/listChanged` stream behind the History dialog (M6), and the
+// TUI's `!` escape, `session/userShell` (M46, PLAN.md D39). The first stays
+// first: the IDE server's warning names it.
+export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
+export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
 // timeouts of its own, INV-006): the handshake, an ordinary command, and the
 // commands that load or copy a whole session. Past them the command fails
@@ -1164,6 +1197,17 @@ export const MODEL_TEXT = {
   goalEmptyObjective: 'objective must not be empty',
   goalObjectiveTooLong: 'objective is too long; the limit in characters is',
   goalBadBudget: 'token_budget must be a positive whole number',
+  // M46 (PLAN.md D39): a command the user moved to the background, what the
+  // model is told when it ends, a command the user ran from the prompt, and
+  // an explanation given instead of an answer.
+  shellMovedToBackground:
+    'The user moved this command to the background, where it keeps running. Its output is added to the conversation when it ends; do not wait or poll for it, and go on with the task.',
+  backgroundEndedLead: '[A command of yours that the user moved to the background has ended]',
+  backgroundLostLead:
+    '[A command of yours that ran in the background ended when its VS Code window closed; its output was not kept]',
+  userShellLead:
+    '[The user ran this shell command in the workspace themselves. Its output is context for you, not a request]',
+  clarificationLead: 'The user chose none of the options and explained instead:',
 } as const
 
 // What the user reads, in the display language (PLAN.md D33).

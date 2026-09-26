@@ -15,6 +15,8 @@ import type {
 } from '../../../shared/agentEvents'
 import {
   AUTH_REQUIRED_ERROR_KIND,
+  BACKGROUND_INITIATOR_USER,
+  CLARIFICATION_MAX_CHARS,
   CONTEXT_PRESSURE_HIGH,
   CONTEXT_PRESSURE_MEDIUM,
   DEFAULT_EFFORT,
@@ -40,10 +42,13 @@ import {
   MODEL_TEXT,
   OUTPUT_REF_PREFIX,
   type PaidFeature,
+  QUESTION_OUTCOME_CLARIFIED,
   STORED_SESSION_VERSION,
   THINKING_OFF_EFFORT,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
+  USER_SHELL_ITEM_KIND,
+  USER_SHELL_TIMEOUT_MS,
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import { fill } from '../../../shared/l10n/text'
@@ -141,6 +146,10 @@ import {
   parseQuestions,
   type PathResolution,
   readSkillArgs,
+  type ShellResult,
+  shellOutcome,
+  shellText,
+  ShellTimeLimit,
   shellToolFor,
   todoWriteArgs,
   toolDefinitions,
@@ -178,6 +187,13 @@ const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
 interface ReplayItem {
   readonly turnId: string
   readonly item: InputItem
+  /** The background task whose terminal context this note carries (M46). */
+  readonly backgroundTaskId?: string
+}
+
+interface PendingNote {
+  readonly text: string
+  readonly backgroundTaskId?: string
 }
 
 interface TranscriptItem {
@@ -219,6 +235,26 @@ interface ActiveTurn {
 interface Pending<T> {
   resolve(value: T): void
   reject(error: Error): void
+}
+
+/** How the question card settled a prompt (M16), an explanation included (M46). */
+type QuestionReply =
+  | { readonly kind: 'answered'; readonly answers: readonly QuestionAnswer[] }
+  | { readonly kind: 'cancelled' }
+  | { readonly kind: 'clarified'; readonly text: string }
+
+/**
+ * A tool's result. A shell call the user moved to the background (M46)
+ * answers the model at once and carries the command's own end.
+ */
+interface Performed {
+  readonly outcome: ToolOutcome
+  readonly running?: Promise<ToolOutcome>
+}
+
+/** A permission check and the tool, or the refusal. */
+interface CallResult extends Performed {
+  readonly isRejected: boolean
 }
 
 // A UTF-8 continuation byte is 0b10xxxxxx: it never starts a character.
@@ -387,6 +423,39 @@ function toolFailure(reason: string): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
 }
 
+/**
+ * A transcript brought back or copied into a fork: a background command still
+ * running in the original runs only there (or went with its window), so its
+ * row here reads interrupted, never running for ever (M46).
+ */
+function withoutRunning(entries: readonly TranscriptItem[]): readonly TranscriptItem[] {
+  return entries.map((entry) =>
+    entry.item.status === IN_PROGRESS
+      ? { ...entry, item: { ...entry.item, status: TOOL_STATUS_INTERRUPTED } }
+      : entry,
+  )
+}
+
+/** A user message the model reads before its next request (M46). */
+function noteItem(text: string): InputItem {
+  return { type: 'message', role: 'user', content: [{ type: 'input_text', text }] }
+}
+
+/** What the model is told a question card settled with. */
+function questionResultText(reply: QuestionReply): string {
+  switch (reply.kind) {
+    case 'answered': {
+      return `${MODEL_TEXT.answersPrefix}\n${JSON.stringify(reply.answers)}`
+    }
+    case 'cancelled': {
+      return MODEL_TEXT.questionCancelledOutput
+    }
+    case 'clarified': {
+      return `${MODEL_TEXT.clarificationLead}\n${reply.text}`
+    }
+  }
+}
+
 /** A typed `/id arguments`, as the transcript shows it. */
 function typedInvocation(selector: string, args: string | undefined): string {
   return `/${selector}${args === undefined ? '' : ` ${args}`}`
@@ -450,18 +519,28 @@ function typedText(parts: readonly TurnPart[]): string {
     .trim()
 }
 
-function argumentsOf(call: FunctionCallItem): Record<string, unknown> {
+/** A tool's argument JSON as an object; an empty one when it is not an object. */
+function parsedArguments(argsJson: string): Record<string, unknown> {
   try {
-    const parsed: unknown = JSON.parse(call.arguments)
+    const parsed: unknown = JSON.parse(argsJson)
     return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {}
   } catch {
     return {}
   }
 }
 
+function argumentsOf(call: FunctionCallItem): Record<string, unknown> {
+  return parsedArguments(call.arguments)
+}
+
 function pick(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key]
   return typeof value === 'string' ? value : undefined
+}
+
+/** A shell call's command line, from its arguments (as they came when they name none). */
+function commandOf(argsJson: string): string {
+  return pick(parsedArguments(argsJson), 'command') ?? argsJson
 }
 
 /**
@@ -546,7 +625,25 @@ export class ModelApiSession implements AgentSession {
   /** The git facts of the prompt's environment section (D15), read on the first turn. */
   private environment: EnvironmentFacts | undefined
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
-  private readonly pendingQuestions = new Map<string, Pending<readonly QuestionAnswer[]>>()
+  /** Live cards for a second surface joining while a decision is still pending. */
+  private readonly pendingApprovalEvents = new Map<
+    string,
+    Extract<AgentEvent, { type: 'approvalRequested' }>
+  >()
+  private readonly pendingQuestions = new Map<string, Pending<QuestionReply>>()
+  /**
+   * Shell calls running in the foreground, by row: what moves each to the
+   * background (M46, PLAN.md D39).
+   */
+  private readonly foregroundShells = new Map<string, () => void>()
+  /** Commands running in the background, and the user's own `!` commands, by row: their stops. */
+  private readonly backgroundShells = new Map<string, AbortController>()
+  private readonly userShells = new Map<string, AbortController>()
+  /**
+   * What the model should read before its next request (a background command
+   * ended, the user ran one) while a turn or a compaction holds the replay.
+   */
+  private readonly pendingNotes: PendingNote[] = []
   private readonly queuedTurns: QueuedTurn[] = []
   private active: ActiveTurn | undefined
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
@@ -1268,7 +1365,7 @@ export class ModelApiSession implements AgentSession {
     query: PermissionQuery,
   ): Promise<ApprovalOutcome> {
     const approvalId = this.deps.newId()
-    this.emit({
+    const request: Extract<AgentEvent, { type: 'approvalRequested' }> = {
       type: 'approvalRequested',
       approvalId,
       itemId,
@@ -1281,13 +1378,16 @@ export class ModelApiSession implements AgentSession {
       ],
       isJudgeEscalated: false,
       isProtectedWrite: query.isProtected === true,
-    })
+    }
     let decision: ApprovalDecision
     try {
       decision = await waitFor<ApprovalDecision>(signal, (pending) => {
         this.pendingApprovals.set(approvalId, pending)
+        this.pendingApprovalEvents.set(approvalId, request)
+        this.emit(request)
       })
     } finally {
+      this.pendingApprovalEvents.delete(approvalId)
       this.pendingApprovals.delete(approvalId)
     }
     if (decision.choiceId === APPROVAL_CHOICE_IDS.allowSession) {
@@ -1318,26 +1418,40 @@ export class ModelApiSession implements AgentSession {
     }
     const userInputId = this.deps.newId()
     this.emit({ type: 'questionRequested', userInputId, itemId, questions: [...questions] })
-    let answers: readonly QuestionAnswer[]
+    let reply: QuestionReply
     try {
-      answers = await waitFor<readonly QuestionAnswer[]>(signal, (pending) => {
+      reply = await waitFor<QuestionReply>(signal, (pending) => {
         this.pendingQuestions.set(userInputId, pending)
       })
     } finally {
       this.pendingQuestions.delete(userInputId)
     }
-    // No answers at all is the card's Cancel (M16); a submitted card answers every question.
-    const isCancelled = answers.length === 0
+    // Settled as Muse Code settles it (captured 2026-09-25, M46): an
+    // explanation is `clarified` with no answers and the text beside them.
+    const outcomes: Readonly<Record<QuestionReply['kind'], string>> = {
+      answered: ANSWERED,
+      cancelled: CANCELLED,
+      clarified: QUESTION_OUTCOME_CLARIFIED,
+    }
     this.emit({
       type: 'questionSettled',
       userInputId,
-      outcome: isCancelled ? CANCELLED : ANSWERED,
-      answers: [...answers],
+      outcome: outcomes[reply.kind],
+      answers: reply.kind === 'answered' ? [...reply.answers] : [],
+      ...(reply.kind === 'clarified' && { clarification: reply.text }),
     })
-    const text = isCancelled
-      ? MODEL_TEXT.questionCancelledOutput
-      : `${MODEL_TEXT.answersPrefix}\n${JSON.stringify(answers)}`
+    const text = questionResultText(reply)
     return { output: text, visibleOutput: text }
+  }
+
+  /** Settles a waiting question card with `reply`. */
+  private settleQuestion(userInputId: string, reply: QuestionReply): Promise<void> {
+    const pending = this.pendingQuestions.get(userInputId)
+    if (pending === undefined) {
+      return Promise.reject(new Error(`question ${userInputId} is not pending`))
+    }
+    pending.resolve(reply)
+    return Promise.resolve()
   }
 
   private writeTodos(call: FunctionCallItem): ToolOutcome {
@@ -1442,49 +1556,106 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * The shell tool, movable to the background while it runs (M46, PLAN.md
+   * D39). Until it moves, the turn's Stop ends it and its time limit holds;
+   * once moved, the call answers the model at once, the command runs on with
+   * no limit, and only its own stop (its row, Stop all, the session closing)
+   * ends it.
+   */
+  private async runShellCall(
+    itemId: string,
+    call: FunctionCallItem,
+    turnSignal: AbortSignal,
+  ): Promise<Performed> {
+    const stop = new AbortController()
+    const onTurnStop = () => {
+      stop.abort()
+    }
+    if (turnSignal.aborted) {
+      stop.abort()
+    }
+    turnSignal.addEventListener('abort', onTurnStop, { once: true })
+    const limit = new ShellTimeLimit()
+    const running = executeTool(call.name, call.arguments, {
+      workspaceRoot: this.deps.workspaceRoot,
+      platform: this.deps.platform,
+      io: this.deps.io,
+      signal: stop.signal,
+      limit,
+      seen: this.seenFiles,
+    })
+    // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
+    const moved = new Promise<undefined>((resolve) => {
+      this.foregroundShells.set(itemId, () => {
+        resolve(undefined)
+      })
+    })
+    let finished: ToolOutcome | undefined
+    try {
+      finished = await Promise.race([running, moved])
+    } finally {
+      this.foregroundShells.delete(itemId)
+      turnSignal.removeEventListener('abort', onTurnStop)
+    }
+    if (finished !== undefined) {
+      return { outcome: finished }
+    }
+    limit.lift()
+    this.backgroundShells.set(itemId, stop)
+    return { outcome: { output: MODEL_TEXT.shellMovedToBackground, visibleOutput: '' }, running }
+  }
+
   private async perform(
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
-  ): Promise<ToolOutcome> {
+  ): Promise<Performed> {
     switch (call.name) {
       case MODEL_API_TOOLS.askUser: {
-        return await this.askUser(itemId, call, signal)
+        return { outcome: await this.askUser(itemId, call, signal) }
       }
       case MODEL_API_TOOLS.todoWrite: {
-        return this.writeTodos(call)
+        return { outcome: this.writeTodos(call) }
       }
       case MODEL_API_TOOLS.readSkill: {
-        return this.readSkill(call)
+        return { outcome: this.readSkill(call) }
       }
       case MODEL_API_TOOLS.generateImage:
       case MODEL_API_TOOLS.editImage: {
-        return await this.makeImage(call, signal)
+        return { outcome: await this.makeImage(call, signal) }
       }
       case MODEL_API_TOOLS.createGoal:
       case MODEL_API_TOOLS.updateGoal:
       case MODEL_API_TOOLS.reportProgress: {
         if (goalCommandRevision !== this.goalCommandRevision) {
           return {
-            output: `Error: ${MODEL_TEXT.goalRequestSuperseded}`,
-            visibleOutput: UI_TEXT.goalRequestSuperseded,
-            failureReason: UI_TEXT.goalRequestSuperseded,
+            outcome: {
+              output: `Error: ${MODEL_TEXT.goalRequestSuperseded}`,
+              visibleOutput: UI_TEXT.goalRequestSuperseded,
+              failureReason: UI_TEXT.goalRequestSuperseded,
+            },
           }
         }
-        return this.runGoal(call)
+        return { outcome: this.runGoal(call) }
       }
       case MODEL_API_TOOLS.getGoal: {
-        return this.runGoal(call)
+        return { outcome: this.runGoal(call) }
+      }
+      case shellToolFor(this.deps.platform).name: {
+        return await this.runShellCall(itemId, call, signal)
       }
       default: {
-        return await executeTool(call.name, call.arguments, {
-          workspaceRoot: this.deps.workspaceRoot,
-          platform: this.deps.platform,
-          io: this.deps.io,
-          signal,
-          seen: this.seenFiles,
-        })
+        return {
+          outcome: await executeTool(call.name, call.arguments, {
+            workspaceRoot: this.deps.workspaceRoot,
+            platform: this.deps.platform,
+            io: this.deps.io,
+            signal,
+            seen: this.seenFiles,
+          }),
+        }
       }
     }
   }
@@ -1495,7 +1666,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
-  ): Promise<{ readonly outcome: ToolOutcome; readonly isRejected: boolean }> {
+  ): Promise<CallResult> {
     const toolClass = classifyTool(call.name)
     if (toolClass === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
@@ -1545,10 +1716,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
-    return {
-      outcome: await this.perform(itemId, call, signal, goalCommandRevision),
-      isRejected: false,
-    }
+    return { ...(await this.perform(itemId, call, signal, goalCommandRevision)), isRejected: false }
   }
 
   /**
@@ -1581,7 +1749,7 @@ export class ModelApiSession implements AgentSession {
         }),
     }
     this.emit({ type: 'itemCompleted', item: completed })
-    this.recordTranscript(turnId, completed)
+    this.rerecordTranscript(completed)
     this.replay.push({
       turnId,
       item: { type: 'function_call_output', call_id: call.call_id, output: outcome.output },
@@ -1606,8 +1774,9 @@ export class ModelApiSession implements AgentSession {
       args: call.arguments,
       ...(paid !== undefined && { paid }),
     }
+    this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
-    let result: { readonly outcome: ToolOutcome; readonly isRejected: boolean }
+    let result: CallResult
     try {
       result = await this.decideAndRun(itemId, call, signal, goalCommandRevision)
     } catch (error: unknown) {
@@ -1626,12 +1795,155 @@ export class ModelApiSession implements AgentSession {
       result = { outcome: toolFailure(describe(error)), isRejected: false }
     }
     await this.touchPath(call)
-    const { outcome, isRejected } = result
+    const { outcome, isRejected, running } = result
+    if (running !== undefined) {
+      this.continueInBackground(turnId, started, call, outcome, running)
+      return
+    }
     let status = COMPLETED
     if (outcome.failureReason !== undefined) {
       status = isRejected ? REJECTED : FAILED
     }
     this.finishCall(turnId, started, call, outcome, status)
+  }
+
+  /**
+   * A shell call the user moved to the background (M46): the model gets its
+   * answer now and the turn goes on; the row stays running, marked, and is
+   * kept in the history as it is, until the command ends.
+   */
+  private continueInBackground(
+    turnId: string,
+    started: ItemSnapshot,
+    call: FunctionCallItem,
+    outcome: ToolOutcome,
+    running: Promise<ToolOutcome>,
+  ): void {
+    const moved: ItemSnapshot = {
+      ...started,
+      background: true,
+      backgroundInitiator: BACKGROUND_INITIATOR_USER,
+    }
+    this.emit({ type: 'itemUpdated', item: moved })
+    this.rerecordTranscript(moved)
+    this.replay.push({
+      turnId,
+      item: { type: 'function_call_output', call_id: call.call_id, output: outcome.output },
+    })
+    void running
+      .catch((error: unknown) => toolFailure(describe(error)))
+      .then((final) => {
+        this.endInBackground(moved, call, final)
+      })
+  }
+
+  /** A background command ended (M46): its row completes and the model hears how. */
+  private endInBackground(moved: ItemSnapshot, call: FunctionCallItem, final: ToolOutcome): void {
+    const stop = this.backgroundShells.get(moved.itemId)
+    this.backgroundShells.delete(moved.itemId)
+    let status = COMPLETED
+    if (stop?.signal.aborted === true) {
+      status = CANCELLED
+    } else if (final.failureReason !== undefined) {
+      status = FAILED
+    }
+    const completed: ItemSnapshot = {
+      ...moved,
+      status,
+      visibleOutput: final.visibleOutput,
+      ...(final.failureReason !== undefined && { failureReason: final.failureReason }),
+    }
+    this.emit({ type: 'itemCompleted', item: completed })
+    this.rerecordTranscript(completed)
+    this.noteForModel(
+      `${MODEL_TEXT.backgroundEndedLead}\n$ ${commandOf(call.arguments)}\n${final.output}`,
+      moved.itemId,
+    )
+  }
+
+  /** The turn a note or a user shell's row belongs to: the latest, or the conversation's base. */
+  private latestTurnId(): string {
+    // Before any turn it belongs to the base, as a compaction's summary does:
+    // every fork keeps it.
+    return this.turnIds.at(-1) ?? COMPACTION_TURN_ID
+  }
+
+  /**
+   * Something the model reads before its next request (M46): straight into
+   * the replay while nothing holds it, else when the running turn next asks
+   * or ends (a compaction: when it ends).
+   */
+  private noteForModel(text: string, backgroundTaskId?: string): void {
+    const note: PendingNote = { text, ...(backgroundTaskId !== undefined && { backgroundTaskId }) }
+    if (this.active !== undefined || this.compacting !== undefined) {
+      this.pendingNotes.push(note)
+      return
+    }
+    this.replay.push({
+      turnId: this.latestTurnId(),
+      item: noteItem(text),
+      ...(backgroundTaskId !== undefined && { backgroundTaskId }),
+    })
+    this.touch()
+  }
+
+  /** The notes held while the replay was busy, into it under `turnId`; true when there were any. */
+  private settleNotes(turnId: string): boolean {
+    const notes = this.pendingNotes.splice(0)
+    for (const note of notes) {
+      this.replay.push({
+        turnId,
+        item: noteItem(note.text),
+        ...(note.backgroundTaskId !== undefined && { backgroundTaskId: note.backgroundTaskId }),
+      })
+    }
+    return notes.length > 0
+  }
+
+  /** The user's `!` command (M46): run, shown as its row, and told to the model. */
+  private async runUserShellCommand(
+    started: ItemSnapshot,
+    command: string,
+    stop: AbortController,
+  ): Promise<void> {
+    const startedAt = this.deps.now()
+    let result: ShellResult
+    try {
+      result = await this.deps.io.runShell(
+        command,
+        this.deps.workspaceRoot,
+        USER_SHELL_TIMEOUT_MS,
+        stop.signal,
+      )
+    } catch (error: unknown) {
+      result = {
+        stdout: '',
+        stderr: describe(error),
+        exitCode: null,
+        isTimedOut: false,
+        isCancelled: false,
+      }
+    } finally {
+      this.userShells.delete(started.itemId)
+    }
+    const outcome = shellOutcome(result, USER_SHELL_TIMEOUT_MS)
+    // As Muse Code's rows read (captured 2026-09-25): exit 0 completed, any
+    // other failed; one the user stopped reads stopped.
+    let status = result.exitCode === 0 ? COMPLETED : FAILED
+    if (stop.signal.aborted) {
+      status = CANCELLED
+    }
+    const completed: ItemSnapshot = {
+      ...started,
+      status,
+      visibleOutput: shellText(result),
+      durationMs: this.deps.now() - startedAt,
+      ...(result.exitCode !== null && { exitCode: result.exitCode }),
+      ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
+    }
+    this.emit({ type: 'itemCompleted', item: completed })
+    this.rerecordTranscript(completed)
+    this.noteForModel(`${MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
   }
 
   /** Calls kept from running still get an output for valid replay. */
@@ -1653,6 +1965,8 @@ export class ModelApiSession implements AgentSession {
   }
 
   private drainSteered(turn: ActiveTurn): void {
+    // What ended or ran meanwhile first (M46), then what the user added.
+    this.settleNotes(turn.turnId)
     for (const parts of turn.steered.splice(0)) {
       const text = typedText(parts)
       this.replay.push({
@@ -1780,6 +2094,8 @@ export class ModelApiSession implements AgentSession {
     // it never throws, so the user message always follows.
     await this.context.load()
     this.environment ??= await this.loadEnvironment()
+    // Pending background output and user shell commands precede this turn.
+    this.settleNotes(turn.turnId)
     if (queued.isGoalWake) {
       this.appendGoalWake(turn.turnId, queued.parts)
     } else {
@@ -1804,6 +2120,8 @@ export class ModelApiSession implements AgentSession {
     }
     // `loop` returns only with nothing steered left (D26), and `steer` is
     // refused once `active` is cleared, so no input is lost between the two.
+    // A note that arrived during the last reply is kept for the next request (M46).
+    this.settleNotes(turn.turnId)
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
@@ -1951,6 +2269,9 @@ export class ModelApiSession implements AgentSession {
 
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
+    for (const request of this.pendingApprovalEvents.values()) {
+      listener({ ...request, isReplayed: true })
+    }
     return () => {
       this.listeners.delete(listener)
     }
@@ -2054,6 +2375,10 @@ export class ModelApiSession implements AgentSession {
       throw error
     } finally {
       this.compacting = undefined
+      // Notes that arrived during the summary follow it (M46), and are kept.
+      if (this.settleNotes(this.latestTurnId())) {
+        this.touch()
+      }
       this.status = IDLE
       this.emit({ type: 'sessionStatus', status: IDLE })
       // A rejected compaction still spent tokens. Save after it settles;
@@ -2075,18 +2400,79 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve()
   }
 
+  /** A submitted card answers every question; none at all is a Cancel (M16). */
   public answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void> {
-    const pending = this.pendingQuestions.get(userInputId)
-    if (pending === undefined) {
-      return Promise.reject(new Error(`question ${userInputId} is not pending`))
-    }
-    pending.resolve(answers)
-    return Promise.resolve()
+    return this.settleQuestion(
+      userInputId,
+      answers.length === 0 ? { kind: 'cancelled' } : { kind: 'answered', answers },
+    )
   }
 
   /** Decline the prompt (M16): the tool resolves with no answers and tells the model so. */
   public cancelQuestions(userInputId: string): Promise<void> {
-    return this.answerQuestions(userInputId, [])
+    return this.settleQuestion(userInputId, { kind: 'cancelled' })
+  }
+
+  /** Explain instead of choosing (M46): the tool returns the text, as Muse Code's clarify does. */
+  public clarifyQuestions(userInputId: string, text: string): Promise<void> {
+    const trimmed = text.trim()
+    return trimmed === '' || trimmed.length > CLARIFICATION_MAX_CHARS
+      ? Promise.reject(
+          new Error(`an explanation is 1 to ${String(CLARIFICATION_MAX_CHARS)} characters`),
+        )
+      : this.settleQuestion(userInputId, { kind: 'clarified', text: trimmed })
+  }
+
+  /** The running shell call `taskId` goes on in the background (M46). */
+  public moveToBackground(taskId: string): Promise<void> {
+    const move = this.foregroundShells.get(taskId)
+    if (move === undefined) {
+      return Promise.reject(new Error(UI_TEXT.taskNotRunning))
+    }
+    move()
+    return Promise.resolve()
+  }
+
+  /** Stops a background command, or the user's own `!` command, by its row (M46). */
+  public stopTask(taskId: string): Promise<void> {
+    const stop = this.backgroundShells.get(taskId) ?? this.userShells.get(taskId)
+    if (stop === undefined) {
+      return Promise.reject(new Error(UI_TEXT.taskNotRunning))
+    }
+    stop.abort()
+    return Promise.resolve()
+  }
+
+  /** Every background command, as Muse Code's `task/stopAll`; the user's own run on (M46). */
+  public stopAllTasks(): Promise<void> {
+    for (const stop of this.backgroundShells.values()) {
+      stop.abort()
+    }
+    return Promise.resolve()
+  }
+
+  /**
+   * The user's `!` command (M46): refused in Restricted Mode like the shell
+   * tool (PLAN.md D13); otherwise it runs at once, outside any turn, through
+   * the shell tool's runner.
+   */
+  public runUserShell(command: string): Promise<void> {
+    if (!this.deps.isWorkspaceTrusted()) {
+      return Promise.reject(new Error(UI_TEXT.userShellRestricted))
+    }
+    const started: ItemSnapshot = {
+      itemId: this.deps.newId(),
+      kind: USER_SHELL_ITEM_KIND,
+      status: IN_PROGRESS,
+      commandText: command,
+    }
+    const stop = new AbortController()
+    this.userShells.set(started.itemId, stop)
+    this.recordTranscript(this.latestTurnId(), started)
+    this.touch()
+    this.emit({ type: 'itemStarted', item: started })
+    void this.runUserShellCommand(started, command, stop)
+    return Promise.resolve()
   }
 
   /** This backend runs no subagents (PLAN.md D17); the map never offers the controls. */
@@ -2197,6 +2583,11 @@ export class ModelApiSession implements AgentSession {
     }
     this.isDisposed = true
     void this.cancel()
+    // Nothing is left running unwatched (M46): the background commands and
+    // the user's own go with the session.
+    for (const stop of [...this.backgroundShells.values(), ...this.userShells.values()]) {
+      stop.abort()
+    }
     this.listeners.clear()
     this.onDispose()
   }
@@ -2269,8 +2660,19 @@ export class ModelApiSession implements AgentSession {
   /** Fills a fresh session from its stored form; the session is idle afterwards. */
   public adopt(stored: StoredSession): void {
     this.replay.push(...stored.replay)
-    this.transcript.push(...stored.transcript)
+    this.transcript.push(...withoutRunning(stored.transcript))
     this.turnIds.push(...stored.turnIds)
+    // A background command its window took with it (M46): the model, told it
+    // runs on, hears that it ended and its output was lost.
+    for (const { item } of stored.transcript) {
+      if (item.status === IN_PROGRESS && item.background === true) {
+        this.replay.push({
+          turnId: this.latestTurnId(),
+          item: noteItem(`${MODEL_TEXT.backgroundLostLead}\n$ ${commandOf(item.args ?? '')}`),
+          backgroundTaskId: item.itemId,
+        })
+      }
+    }
     for (const [ref, content] of Object.entries(stored.outputs)) {
       this.outputs.set(ref, content)
     }
@@ -2297,8 +2699,32 @@ export class ModelApiSession implements AgentSession {
     const kept = new Set(this.turnIds.slice(0, cut + 1))
     kept.add(COMPACTION_TURN_ID)
     target.replay.push(...this.replay.filter((entry) => kept.has(entry.turnId)))
-    target.transcript.push(...this.transcript.filter((entry) => kept.has(entry.turnId)))
+    const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
+    target.transcript.push(...withoutRunning(retained))
     target.turnIds.push(...this.turnIds.slice(0, cut + 1))
+    const copiedNotes = new Set(
+      target.replay.flatMap((entry) =>
+        entry.backgroundTaskId === undefined ? [] : [entry.backgroundTaskId],
+      ),
+    )
+    for (const { item } of retained) {
+      if (item.background !== true || copiedNotes.has(item.itemId)) {
+        continue
+      }
+      const recorded = this.replay.findLast((entry) => entry.backgroundTaskId === item.itemId)
+      const pending = this.pendingNotes.findLast((note) => note.backgroundTaskId === item.itemId)
+      const command = commandOf(item.args ?? '')
+      const fallback =
+        item.status === IN_PROGRESS
+          ? `${MODEL_TEXT.backgroundLostLead}\n$ ${command}`
+          : `${MODEL_TEXT.backgroundEndedLead}\n$ ${command}\n${item.visibleOutput ?? ''}`
+      target.replay.push({
+        turnId: target.latestTurnId(),
+        item: recorded?.item ?? noteItem(pending?.text ?? fallback),
+        backgroundTaskId: item.itemId,
+      })
+      copiedNotes.add(item.itemId)
+    }
     target.turnCount = target.turnIds.length
     target.firstPrompt = this.firstPrompt
     target.forkedFrom = this.sessionId

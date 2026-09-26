@@ -239,6 +239,59 @@ describe('App conversation', () => {
     expect(screen.getByLabelText('Send')).toBeInTheDocument()
   })
 
+  it('runs a `!` prompt as a shell command: no message, the row comes from the host (M46)', () => {
+    const postMessage = renderReady()
+    fireEvent.change(textarea(), { target: { value: '!' } })
+    expect(screen.getByLabelText('Run command')).toBeDisabled()
+    fireEvent.change(textarea(), { target: { value: "!Write-Output 'hello-m46'" } })
+    expect(textarea()).toHaveClass('composer-input-shell')
+    expect(screen.getByTitle(UI_TEXT.composerShellModeTitle)).toHaveTextContent('Shell')
+    expect(screen.getByLabelText('Run command')).toHaveAttribute('title', 'Run command')
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'runUserShell',
+      command: "Write-Output 'hello-m46'",
+    })
+    expect(textarea()).toHaveValue('')
+    expect(screen.queryByText("!Write-Output 'hello-m46'")).toBeNull()
+    // Refused, it comes back to the prompt with the reason.
+    deliver({ type: 'userShellRefused', command: 'ls', reason: UI_TEXT.userShellRestricted })
+    expect(textarea()).toHaveValue('!ls')
+    expect(
+      screen.getByText(UI_TEXT.userShellRestricted, { selector: '.notice' }),
+    ).toBeInTheDocument()
+  })
+
+  it('moves a running command to the background and stops it from its row (M46)', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
+    const call = {
+      itemId: 'c1',
+      kind: 'toolCall',
+      status: 'inProgress',
+      turnId: 't1',
+      tool: 'powershell',
+      args: '{"command":"npm run dev"}',
+    }
+    deliver({ type: 'agentEvent', event: { type: 'itemStarted', item: call } })
+    fireEvent.click(screen.getByRole('button', { name: /^Move to background/ }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'moveToBackground', itemId: 'c1' })
+    expect(screen.getByRole('button', { name: /^Move to background/ })).toBeDisabled()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemUpdated',
+        item: { ...call, background: true, backgroundInitiator: 'user' },
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Stop: PowerShell/ }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopTask', itemId: 'c1' })
+    // The header pill counts it, and the map's Stop all reaches the host.
+    fireEvent.click(screen.getByRole('button', { name: '1 background task' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Stop all' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopAllTasks' })
+  })
+
   it('stops the running turn from the Stop button and still lets Enter steer', () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })

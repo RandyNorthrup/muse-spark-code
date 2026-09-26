@@ -45,7 +45,8 @@ const task: ToolEntry = {
   kind: 'tool',
   id: 'bg1',
   tool: 'powershell',
-  args: 'npm test',
+  // The arguments of the shell call captured live when it was moved (M46).
+  args: '{"command":"Start-Sleep -Seconds 40; Write-Output done-m46","description":"Run delayed output command"}',
   status: 'inProgress',
   output: '',
   failureReason: undefined,
@@ -76,6 +77,8 @@ function renderMap(overrides: Partial<AgentMapProps> = {}) {
     onReadChild: vi.fn(),
     onControl: vi.fn(),
     onMessage: vi.fn(),
+    onStopTask: vi.fn(),
+    onStopAllTasks: vi.fn(),
     onOpenMuseSettings: vi.fn(),
     onClose: vi.fn(),
     ...overrides,
@@ -104,7 +107,7 @@ describe('AgentMap', () => {
     expect(screen.getByRole('button', { name: /Review the diff/ })).toHaveTextContent('running')
     expect(map).toHaveTextContent('1 background task')
     expect(screen.getByRole('list', { name: 'Background tasks' })).toHaveTextContent(
-      'powershellnpm test · running',
+      'PowerShellRun delayed output command · runningStop',
     )
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(props.onSelectAgent).toHaveBeenCalledWith('sa1')
@@ -112,6 +115,32 @@ describe('AgentMap', () => {
     // An agent without a child session has no transcript to read.
     fireEvent.click(screen.getByRole('button', { name: /Review the diff/ }))
     expect(props.onReadChild).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops one background task or all of them, and only running ones (M46)', () => {
+    const done: ToolEntry = { ...task, id: 'bg2', status: 'cancelled' }
+    const props = renderMap({ agents: [], backgroundTasks: [task, done] })
+    const list = screen.getByRole('list', { name: 'Background tasks' })
+    // Only the running one has a Stop, named for what it stops.
+    const stops = screen.getAllByRole('button', { name: /^Stop: / })
+    expect(stops).toHaveLength(1)
+    expect(stops[0]).toHaveAccessibleName('Stop: PowerShell Run delayed output command')
+    expect(list).toHaveTextContent('cancelled')
+    fireEvent.click(screen.getByRole('button', { name: /^Stop: / }))
+    expect(props.onStopTask).toHaveBeenCalledWith('bg1')
+    fireEvent.click(screen.getByRole('button', { name: 'Stop all' }))
+    expect(props.onStopAllTasks).toHaveBeenCalledOnce()
+  })
+
+  it('waits on a Stop already asked (M46)', () => {
+    renderMap({ agents: [], backgroundTasks: [{ ...task, taskRequest: 'stop' }] })
+    expect(screen.getByRole('button', { name: /^Stop: / })).toBeDisabled()
+  })
+
+  it('offers no Stop all when every background task has ended (M46)', () => {
+    renderMap({ agents: [], backgroundTasks: [{ ...task, status: 'completed' }] })
+    expect(screen.queryByRole('button', { name: 'Stop all' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Stop: / })).not.toBeInTheDocument()
   })
 
   it('shows an agent’s details and transcript, and a running one without a transcript', () => {

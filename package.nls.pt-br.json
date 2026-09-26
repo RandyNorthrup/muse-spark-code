@@ -27,6 +27,8 @@
   "command.hooks.title": "Ganchos",
   "command.newWorktree.title": "Nova Árvore de Trabalho…",
   "command.removeWorktree.title": "Remover Árvore de Trabalho…",
+  "command.moveToBackground.title": "Mover Comando em Execução para Segundo Plano",
+  "command.stopBackgroundTasks.title": "Parar Tarefas em Segundo Plano",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Onde as novas conversas são abertas.",
   "config.preferredLocation.enumDescriptions.sidebar": "Abrir novas conversas na exibição da barra lateral do Muse Spark.",

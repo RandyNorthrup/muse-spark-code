@@ -12,11 +12,13 @@ import {
   SUBAGENT_RUNNING_STATUSES,
   type SubagentAction,
   UI_TEXT,
+  USER_SHELL_PREFIX,
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
 import { fill, formatUnit, plural } from '../../shared/l10n/text'
 import { formatTokenWindow } from '../../shared/palette'
-import type { ChildTranscript, TranscriptEntry } from '../state/uiState'
+import { type ChildTranscript, isRunningTask, type TranscriptEntry } from '../state/uiState'
+import { describeTool } from '../toolPresentation'
 import { Modal } from './Modal'
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
@@ -39,6 +41,9 @@ export interface AgentMapProps {
   readonly onControl: (subagentId: string, action: SubagentAction) => void
   /** A note to a running agent, or a follow-up task for a finished one (M18). */
   readonly onMessage: (subagentId: string, body: string, isFollowup: boolean) => void
+  /** Stop one background task, or all of them (M46). */
+  readonly onStopTask: (itemId: string) => void
+  readonly onStopAllTasks: () => void
   readonly onOpenMuseSettings: () => void
   readonly onClose: () => void
 }
@@ -208,6 +213,9 @@ function entryText(entry: TranscriptEntry): string {
     case 'tool': {
       return `${entry.tool}${entry.args === '' ? '' : ` ${entry.args}`}`
     }
+    case 'userShell': {
+      return `${USER_SHELL_PREFIX}${entry.command}`
+    }
     case 'reasoning': {
       return entry.parts.join('\n')
     }
@@ -282,6 +290,75 @@ function AgentDetails({
   )
 }
 
+/**
+ * The conversation's background tasks (M14), each with its Stop while it
+ * runs and one Stop all (M46): the row says what the task is, as its
+ * transcript row does, and how it stands.
+ */
+function BackgroundTasks({
+  tasks,
+  onStopTask,
+  onStopAllTasks,
+}: {
+  readonly tasks: readonly ToolEntry[]
+  readonly onStopTask: (itemId: string) => void
+  readonly onStopAllTasks: () => void
+}) {
+  const running = tasks.filter((task) => isRunningTask(task))
+  return (
+    <>
+      <div className="agent-tasks-header">
+        <p className="usage-row-meta">{plural(UI_TEXT.backgroundTasksCount, tasks.length)}</p>
+        {running.length === 0 ? null : (
+          <button
+            type="button"
+            className="tool-more"
+            title={UI_TEXT.stopAllTasksTitle}
+            onClick={onStopAllTasks}
+          >
+            {UI_TEXT.stopAllTasks}
+          </button>
+        )}
+      </div>
+      <ul className="agent-tasks" aria-label={UI_TEXT.backgroundTasksLabel}>
+        {tasks.map((task) => {
+          const presentation = describeTool(task.tool, task.args)
+          return (
+            <li key={task.id} className="agent-node agent-task">
+              <span className="agent-node-title">
+                <span className={statusClassOf(task.status)} aria-hidden="true" />
+                {presentation.label}
+              </span>
+              <span className="agent-node-meta">
+                {[
+                  presentation.summary === '' ? undefined : presentation.summary,
+                  agentStatusLabel(task.status),
+                ]
+                  .filter((part) => part !== undefined)
+                  .join(' · ')}
+              </span>
+              {isRunningTask(task) ? (
+                <button
+                  type="button"
+                  className="tool-more agent-task-stop"
+                  aria-label={`${UI_TEXT.stopTask}: ${presentation.label} ${presentation.summary}`}
+                  title={UI_TEXT.stopTaskTitle}
+                  disabled={task.taskRequest === 'stop'}
+                  onClick={() => {
+                    onStopTask(task.id)
+                  }}
+                >
+                  {UI_TEXT.stopTask}
+                </button>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+    </>
+  )
+}
+
 export function AgentMap({
   title,
   modelId,
@@ -296,6 +373,8 @@ export function AgentMap({
   onReadChild,
   onControl,
   onMessage,
+  onStopTask,
+  onStopAllTasks,
   onOpenMuseSettings,
   onClose,
 }: AgentMapProps) {
@@ -357,26 +436,11 @@ export function AgentMap({
             </div>
           ) : null}
           {backgroundTasks.length === 0 ? null : (
-            <>
-              <p className="usage-row-meta">
-                {plural(UI_TEXT.backgroundTasksCount, backgroundTasks.length)}
-              </p>
-              <ul className="agent-tasks" aria-label={UI_TEXT.backgroundTasksLabel}>
-                {backgroundTasks.map((task) => (
-                  <li key={task.id} className="agent-node">
-                    <span className="agent-node-title">
-                      <span className={statusClassOf(task.status)} aria-hidden="true" />
-                      {task.tool}
-                    </span>
-                    <span className="agent-node-meta">
-                      {[task.args === '' ? undefined : task.args, agentStatusLabel(task.status)]
-                        .filter((part) => part !== undefined)
-                        .join(' · ')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
+            <BackgroundTasks
+              tasks={backgroundTasks}
+              onStopTask={onStopTask}
+              onStopAllTasks={onStopAllTasks}
+            />
           )}
         </>
       ) : (

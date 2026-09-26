@@ -9,7 +9,12 @@
 // Pure: the host reads the history and writes the file.
 
 import type { CitationSummary, ItemSnapshot } from '../../shared/agentEvents'
-import { HIDDEN_ITEM_KINDS, UI_TEXT } from '../../shared/constants'
+import {
+  HIDDEN_ITEM_KINDS,
+  UI_TEXT,
+  USER_SHELL_ITEM_KIND,
+  USER_SHELL_PREFIX,
+} from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 
 export interface TranscriptExport {
@@ -26,7 +31,6 @@ const USER_MESSAGE = 'userMessage'
 const AGENT_MESSAGE = 'agentMessage'
 const REASONING = 'reasoning'
 const TOOL_CALL = 'toolCall'
-const USER_SHELL = 'userShell'
 const SUBAGENT = 'subagent'
 const MIN_FENCE = 3
 const BACKTICK_RUN = /`+/g
@@ -101,6 +105,25 @@ function toolSection(item: ItemSnapshot, heading: string): string {
   return lines.join('\n').trimEnd()
 }
 
+/** The user's own `!` command (M46): what they ran, what it printed, how it ended. */
+function userShellSection(item: ItemSnapshot): string {
+  const lines = [`### ${UI_TEXT.exportShellHeading}${statusSuffix(item)}`, '']
+  if (item.commandText !== undefined && item.commandText !== '') {
+    lines.push(fenced(`${USER_SHELL_PREFIX}${item.commandText}`), '')
+  }
+  const output = outputBlock(item)
+  if (output.length > 0) {
+    lines.push(...output, '')
+  }
+  if (item.exitCode !== undefined) {
+    lines.push(note(fill(UI_TEXT.userShellExitCode, { code: String(item.exitCode) })), '')
+  }
+  if (item.exitSignal !== undefined) {
+    lines.push(note(fill(UI_TEXT.userShellExitSignal, { signal: String(item.exitSignal) })), '')
+  }
+  return lines.join('\n').trimEnd()
+}
+
 function userSection(item: ItemSnapshot): string {
   const lines = [`## ${UI_TEXT.exportUserHeading}`, '', item.text ?? '']
   const images = item.attachments?.length ?? 0
@@ -164,8 +187,8 @@ function sectionOf(item: ItemSnapshot): string | undefined {
       const tool = item.tool ?? UI_TEXT.exportToolNoName
       return toolSection(item, fill(UI_TEXT.exportToolHeading, { tool }))
     }
-    case USER_SHELL: {
-      return toolSection(item, UI_TEXT.exportShellHeading)
+    case USER_SHELL_ITEM_KIND: {
+      return userShellSection(item)
     }
     case SUBAGENT: {
       return subagentSection(item)

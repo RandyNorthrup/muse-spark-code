@@ -2383,6 +2383,67 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* --- background work, the user's `!` commands, explanations (M46) --- */
+
+/* A running command's Move to background, a background task's Stop: a 24 px
+   target (WCAG 2.5.8). */
+.tool-task-action {
+  flex-shrink: 0;
+  min-height: 24px;
+  white-space: nowrap;
+}
+
+/* The user's own command: "You ran !ls", the command in the editor's font. */
+.user-shell-title {
+  display: flex;
+  flex: 1;
+  gap: var(--ms-gap);
+  align-items: center;
+  min-width: 0;
+}
+
+.user-shell-command {
+  overflow: hidden;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A `!` prompt reads as a command, and the chip beside the model says so. */
+.composer-input-shell,
+.shell-chip {
+  font-family: var(--vscode-editor-font-family);
+}
+
+.shell-chip {
+  padding-right: 6px;
+}
+
+/* Explain instead: the box under the question. */
+.question-explain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.question-explain-label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+/* The Agent map's background tasks: Stop all above, Stop on each running one. */
+.agent-tasks-header {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agent-task-stop {
+  align-self: flex-start;
+}
+
 /* Reduced motion (M25): every animation and transition in the panel stops,
    not only the microphone's pulse. */
 @media (prefers-reduced-motion: reduce) {

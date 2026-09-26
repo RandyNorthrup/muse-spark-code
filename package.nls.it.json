@@ -27,6 +27,8 @@
   "command.hooks.title": "Hook",
   "command.newWorktree.title": "Nuovo albero di lavoro…",
   "command.removeWorktree.title": "Rimuovi albero di lavoro…",
+  "command.moveToBackground.title": "Sposta il comando in esecuzione in background",
+  "command.stopBackgroundTasks.title": "Arresta le attività in background",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Dove si aprono le nuove conversazioni.",
   "config.preferredLocation.enumDescriptions.sidebar": "Apre le nuove conversazioni nella visualizzazione Muse Spark della barra laterale.",

@@ -27,6 +27,8 @@
   "command.hooks.title": "Hooks",
   "command.newWorktree.title": "Nouvelle arborescence de travail…",
   "command.removeWorktree.title": "Supprimer une arborescence de travail…",
+  "command.moveToBackground.title": "Passer la commande en cours en arrière-plan",
+  "command.stopBackgroundTasks.title": "Arrêter les tâches en arrière-plan",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Emplacement d’ouverture des nouvelles conversations.",
   "config.preferredLocation.enumDescriptions.sidebar": "Ouvrir les nouvelles conversations dans la vue Muse Spark de la barre latérale.",

@@ -5,6 +5,13 @@ import {
   UNKNOWN_METHOD,
 } from '../../src/core/backends/musecode/mapNotification'
 import { UI_TEXT } from '../../src/shared/constants'
+import {
+  CAPTURED_SESSION_ID,
+  QUESTION_CLARIFIED,
+  SHELL_CALL_BACKGROUNDED,
+  USER_SHELL_FAILED,
+  USER_SHELL_STARTED,
+} from './helpers/m46Capture'
 
 const sessionId = 's1'
 
@@ -539,5 +546,64 @@ describe('mapNotification: the session goal (M45)', () => {
   it('drops a goal that is not the captured shape', () => {
     expect(map({ objective: 'o', status: 'active' })).toBe(MALFORMED_PARAMS)
     expect(map('active')).toBe(MALFORMED_PARAMS)
+  })
+})
+
+describe('mapNotification: the M46 capture', () => {
+  it('maps a `!` command’s row: its command, how it ended, and no turn', () => {
+    expect(mapNotification({ method: 'item/started', params: USER_SHELL_STARTED })).toEqual({
+      sessionId: CAPTURED_SESSION_ID,
+      event: {
+        type: 'itemStarted',
+        item: {
+          itemId: USER_SHELL_STARTED.item.itemId,
+          kind: 'userShell',
+          status: 'inProgress',
+          commandText: "Write-Output 'hello-m46'",
+        },
+      },
+    })
+    expect(mapNotification({ method: 'item/completed', params: USER_SHELL_FAILED })).toEqual({
+      sessionId: CAPTURED_SESSION_ID,
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: USER_SHELL_FAILED.item.itemId,
+          kind: 'userShell',
+          status: 'failed',
+          commandText: "Write-Output 'failing-m46'; exit 3",
+          visibleOutput: 'tool failed: exit code: 3\nstdout:\nfailing-m46\r\n',
+          exitCode: 3,
+          durationMs: 617,
+        },
+      },
+    })
+  })
+
+  it('maps a call moved to the background with who moved it', () => {
+    expect(mapNotification({ method: 'item/updated', params: SHELL_CALL_BACKGROUNDED })).toEqual({
+      sessionId: CAPTURED_SESSION_ID,
+      event: {
+        type: 'itemUpdated',
+        item: expect.objectContaining({
+          status: 'inProgress',
+          background: true,
+          backgroundInitiator: 'user',
+        }),
+      },
+    })
+  })
+
+  it('maps a question settled with an explanation, the text beside no answers', () => {
+    expect(mapNotification({ method: 'userInput/settled', params: QUESTION_CLARIFIED })).toEqual({
+      sessionId: CAPTURED_SESSION_ID,
+      event: {
+        type: 'questionSettled',
+        userInputId: QUESTION_CLARIFIED.userInputId,
+        outcome: 'clarified',
+        answers: [],
+        clarification: 'Neither: I prefer green, please use green.',
+      },
+    })
   })
 })

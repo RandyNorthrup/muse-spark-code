@@ -27,6 +27,8 @@
   "command.hooks.title": "Hookok",
   "command.newWorktree.title": "Új munkafa…",
   "command.removeWorktree.title": "Munkafa eltávolítása…",
+  "command.moveToBackground.title": "Futó parancs áthelyezése a háttérbe",
+  "command.stopBackgroundTasks.title": "Háttérfeladatok leállítása",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Hol nyíljanak meg az új beszélgetések.",
   "config.preferredLocation.enumDescriptions.sidebar": "Az új beszélgetések megnyitása a Muse Spark oldalsávnézetében.",

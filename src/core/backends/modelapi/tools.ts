@@ -59,6 +59,31 @@ export interface ShellResult {
   readonly isCancelled: boolean
 }
 
+/**
+ * A running command's time limit, which its caller can lift (M46, PLAN.md
+ * D39): a command the user moved to the background runs until it ends or is
+ * stopped. The runner binds itself once its clock is running.
+ */
+export class ShellTimeLimit {
+  private onLift: (() => void) | undefined
+  private isLifted = false
+
+  /** The runner's hook; called at once when the limit is already lifted. */
+  public bind(onLift: () => void): void {
+    if (this.isLifted) {
+      onLift()
+      return
+    }
+    this.onLift = onLift
+  }
+
+  public lift(): void {
+    this.isLifted = true
+    this.onLift?.()
+    this.onLift = undefined
+  }
+}
+
 /** One `search` run: the model's pattern over the files that passed the glob. */
 export interface SearchJob {
   readonly pattern: string
@@ -118,12 +143,16 @@ export interface ToolIo {
   listFiles(): Promise<readonly string[]>
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
   searchFiles(job: SearchJob): Promise<SearchOutcome>
-  /** A timeout or the signal kills the whole process tree (PLAN.md D25). */
+  /**
+   * A timeout or the signal kills the whole process tree (PLAN.md D25);
+   * `limit` lets the caller lift the timeout while it runs (M46).
+   */
   runShell(
     command: string,
     cwd: string,
     timeoutMs: number,
     signal?: AbortSignal,
+    limit?: ShellTimeLimit,
   ): Promise<ShellResult>
   /**
    * The canonical form of an absolute path: links, junctions and short
@@ -147,6 +176,8 @@ export interface ToolContext {
   readonly io: ToolIo
   /** The turn's: aborting it stops a running command (PLAN.md D25). */
   readonly signal?: AbortSignal
+  /** The shell's time limit, lifted when the command moves to the background (M46). */
+  readonly limit?: ShellTimeLimit
   /**
    * The session's record of each file as the model last read or wrote it
    * (absolute path to a fingerprint): `write_file` replaces only what the
@@ -956,20 +987,37 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     context.workspaceRoot,
     timeoutMs,
     context.signal,
+    context.limit,
   )
-  // Each stream keeps its beginning and its end, and the exit line is never
-  // clipped, so a flood of output still says how the command ended (D27).
+  return shellOutcome(result, timeoutMs)
+}
+
+/**
+ * What a finished command printed: each stream keeps its beginning and its
+ * end within its share of the output budget (D27).
+ */
+export function shellText(result: ShellResult): string {
   const streamBudget = Math.floor(TOOL_OUTPUT_MAX_CHARS / SHELL_STREAMS)
-  const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()]
+  return [result.stdout.trimEnd(), result.stderr.trimEnd()]
     .filter((part) => part !== '')
     .map((part) => clipMiddle(part, streamBudget))
+    .join('\n')
+}
+
+/**
+ * A finished command as the model and the row read it (the shell tool, and
+ * the user's own `!` command on this backend, M46): what it printed, then an
+ * exit line that is never clipped, so a flood of output still says how the
+ * command ended (D27).
+ */
+export function shellOutcome(result: ShellResult, timeoutMs: number): ToolOutcome {
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
   if (result.isCancelled) {
     exit = SHELL_STOPPED_BY_USER
   } else if (result.isTimedOut) {
     exit = `stopped after ${String(timeoutMs)} ms`
   }
-  const body = `${parts.join('\n')}\n[${exit}]`.trim()
+  const body = `${shellText(result)}\n[${exit}]`.trim()
   return {
     output: body,
     visibleOutput: body,

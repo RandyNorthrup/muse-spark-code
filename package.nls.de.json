@@ -27,6 +27,8 @@
   "command.hooks.title": "Hooks",
   "command.newWorktree.title": "Neuer Worktree…",
   "command.removeWorktree.title": "Worktree entfernen…",
+  "command.moveToBackground.title": "Laufenden Befehl in den Hintergrund verschieben",
+  "command.stopBackgroundTasks.title": "Hintergrundaufgaben anhalten",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Wo neue Unterhaltungen geöffnet werden.",
   "config.preferredLocation.enumDescriptions.sidebar": "Neue Unterhaltungen in der Muse Spark-Ansicht der Seitenleiste öffnen.",

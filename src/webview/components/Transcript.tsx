@@ -26,6 +26,7 @@ import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
 import { ToolRow, type ToolRowProps } from './ToolRow'
+import { UserShellRow } from './UserShellRow'
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -43,8 +44,14 @@ export interface TranscriptProps {
   readonly onOpenOutput: ToolRowProps['onOpenOutput']
   readonly onDecide: (decision: ApprovalDecisionInput) => void
   readonly onAnswer: (userInputId: string, answers: readonly QuestionAnswer[]) => void
-  /** The question card's Cancel (M16). */
+  /** The question card's Cancel (M16), and its Explain instead (M46). */
   readonly onCancelQuestion: (userInputId: string) => void
+  readonly onClarifyQuestion: ToolRowProps['onClarifyQuestion']
+  /** A running command to the background, a task's Stop (M46). */
+  readonly onMoveToBackground: ToolRowProps['onMoveToBackground']
+  readonly onStopTask: ToolRowProps['onStopTask']
+  /** The backend stops the user's own `!` commands (M46). */
+  readonly canStopUserShell: boolean
   /** Code block Apply and edit review (M5). */
   readonly onApply: (text: string) => void
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
@@ -424,7 +431,7 @@ function StepsGroup({
 function OtherRow({
   entry,
 }: {
-  readonly entry: Exclude<TranscriptEntry, StepEntry | { kind: 'user' | 'assistant' }>
+  readonly entry: Exclude<TranscriptEntry, StepEntry | { kind: 'user' | 'assistant' | 'userShell' }>
 }) {
   switch (entry.kind) {
     case 'subagent': {
@@ -482,6 +489,10 @@ function TranscriptList(props: TranscriptProps) {
     onDecide,
     onAnswer,
     onCancelQuestion,
+    onClarifyQuestion,
+    onMoveToBackground,
+    onStopTask,
+    canStopUserShell,
     onApply,
     onOpenEditDiff,
     onOpenFile,
@@ -518,12 +529,15 @@ function TranscriptList(props: TranscriptProps) {
         onDecide={onDecide}
         onAnswer={onAnswer}
         onCancelQuestion={onCancelQuestion}
+        onClarifyQuestion={onClarifyQuestion}
         onOpenEditDiff={onOpenEditDiff}
         onOpenFile={onOpenFile}
         onOpenLink={onOpenLink}
         onRefuseLink={onRefuseLink}
         toolImages={toolImages}
         onReadImage={onReadImage}
+        onMoveToBackground={onMoveToBackground}
+        onStopTask={onStopTask}
         quoteMenu={quoteMenuFor(entry.id)}
       />
     )
@@ -559,6 +573,17 @@ function TranscriptList(props: TranscriptProps) {
       case 'reasoning':
       case 'tool': {
         return renderStep(entry)
+      }
+      case 'userShell': {
+        return (
+          <UserShellRow
+            key={entry.id}
+            entry={entry}
+            canStop={canStopUserShell}
+            onOpenOutput={onOpenOutput}
+            onStopTask={onStopTask}
+          />
+        )
       }
       default: {
         return <MemoOtherRow key={entry.id} entry={entry} />

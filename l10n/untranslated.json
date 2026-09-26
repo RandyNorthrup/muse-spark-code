@@ -30,7 +30,10 @@
       "onboardingShortcuts.dictation",
       "paidVoiceName",
       "mcpToolLabel",
-      "goalItem"
+      "goalItem",
+      "composerShellMode",
+      "onboardingShortcuts.shell",
+      "onboardingShortcuts.moveToBackground"
     ],
     "cs": [
       "groupModel",

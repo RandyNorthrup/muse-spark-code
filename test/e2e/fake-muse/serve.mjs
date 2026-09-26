@@ -15,6 +15,8 @@
 //   subagents         two native subagents (running, then done) with child
 //                     sessions readable through `session/read`
 //   background: <cmd> a `powershell` call the host backgrounds (item/updated)
+//   long: <cmd>       a `powershell` call that runs until `task/background`
+//                     moves it (M46); `task/stop` then ends it
 //   anything else     "echo: <text>" streamed in two deltas
 //
 // Environment: MUSE_FAKE_FINGERPRINT (the SDK's pinned schema fingerprint,
@@ -34,6 +36,7 @@ const DIE_EXIT_CODE = 1
 const ECHO_PREFIX = 'echo: '
 const TOOL_PREFIX = 'tool:'
 const BACKGROUND_PREFIX = 'background:'
+const LONG_PREFIX = 'long:'
 const SUBAGENTS = [
   { role: 'explorer', objective: 'Map the workspace layout' },
   { role: 'reviewer', objective: 'Review the change for dead code' },
@@ -64,6 +67,8 @@ const state = {
   running: undefined,
   /** The approval in flight, if any: { resolve } */
   pendingApproval: undefined,
+  /** Long tool calls by item (M46): { sessionId, call, isBackground, onBackground } */
+  tasks: new Map(),
 }
 
 function id(prefix) {
@@ -316,6 +321,50 @@ function runBackground(session, turnId, command) {
   streamReply(session, turnId, `backgrounded: ${command}`)
 }
 
+/**
+ * A tool call that runs until `task/background` moves it (M46): the turn
+ * then goes on and ends, and the call runs on until `task/stop`.
+ */
+async function runLong(session, turnId, command) {
+  const sessionId = session.record.sessionId
+  const call = {
+    itemId: id('task'),
+    kind: 'toolCall',
+    status: 'inProgress',
+    turnId,
+    tool: TOOL_NAME,
+    args: JSON.stringify({ command }),
+  }
+  notify('item/started', { sessionId, item: call })
+  await new Promise((resolve) => {
+    state.tasks.set(call.itemId, { sessionId, call, isBackground: false, onBackground: resolve })
+  })
+  streamReply(session, turnId, `moved: ${command}`)
+}
+
+/** A refusal as Muse Code 1.3.0 words it for a task that is not there (M46). */
+function rejected(reason) {
+  return Object.assign(new Error(`rejected: ${reason}`), { reason })
+}
+
+/** A background task stopped: cancelled, as the capture of 2026-09-25 shows. */
+function stopTask(taskId) {
+  const task = state.tasks.get(taskId)
+  if (task?.isBackground !== true) {
+    throw rejected('invalid_target')
+  }
+  state.tasks.delete(taskId)
+  const done = {
+    ...task.call,
+    status: 'cancelled',
+    failureReason: 'cancelled by runtime client',
+    background: true,
+    backgroundInitiator: 'user',
+  }
+  sessions.get(task.sessionId)?.items.push(done)
+  notify('item/completed', { sessionId: task.sessionId, item: done })
+}
+
 async function runTurn(session, turnId, text) {
   const sessionId = session.record.sessionId
   notify('turn/started', { sessionId, turnId })
@@ -338,6 +387,8 @@ async function runTurn(session, turnId, text) {
     await runTool(session, turnId, text.slice(TOOL_PREFIX.length).trim())
   } else if (text.startsWith(BACKGROUND_PREFIX)) {
     runBackground(session, turnId, text.slice(BACKGROUND_PREFIX.length).trim())
+  } else if (text.startsWith(LONG_PREFIX)) {
+    await runLong(session, turnId, text.slice(LONG_PREFIX.length).trim())
   } else if (text === 'subagents') {
     runSubagents(session, turnId)
   } else {
@@ -519,6 +570,58 @@ const handlers = {
   'session/fork': (params) => {
     throw new Error(`fork is not supported by the fake (${String(params.sessionId)})`)
   },
+  // --- M46: the TUI's `!`, background work (shapes captured 2026-09-25) ---
+  'session/userShell': (params) => {
+    const session = sessionFor(params)
+    const sessionId = session.record.sessionId
+    const started = {
+      itemId: id('shell'),
+      kind: 'userShell',
+      turnId: null,
+      status: 'inProgress',
+      commandId: params.commandId,
+      commandText: params.commandText,
+    }
+    const done = {
+      ...started,
+      status: 'completed',
+      visibleOutput: `ran ${String(params.commandText)}\r\n`,
+      exitCode: 0,
+      durationMs: 5,
+    }
+    session.items.push(done)
+    notify('item/started', { sessionId, item: started })
+    setImmediate(() => {
+      notify('item/completed', { sessionId, item: done })
+    })
+    return { commandId: params.commandId, status: 'accepted' }
+  },
+  'task/background': (params) => {
+    const task = state.tasks.get(params.taskId)
+    if (task === undefined || task.isBackground) {
+      throw rejected('invalid_target')
+    }
+    task.isBackground = true
+    // The update goes out before the answer, as it did live.
+    notify('item/updated', {
+      sessionId: task.sessionId,
+      item: { ...task.call, background: true, backgroundInitiator: 'user' },
+    })
+    task.onBackground()
+    return { commandId: params.commandId, status: 'accepted', taskId: params.taskId }
+  },
+  'task/stop': (params) => {
+    stopTask(params.taskId)
+    return { commandId: params.commandId, status: 'accepted', taskId: params.taskId }
+  },
+  'task/stopAll': (params) => {
+    for (const [taskId, task] of state.tasks) {
+      if (task.isBackground) {
+        stopTask(taskId)
+      }
+    }
+    return { commandId: params.commandId, status: 'accepted' }
+  },
   'model/list': (params) => ({
     providerId: 'meta',
     models: [
@@ -570,9 +673,14 @@ function handle(frame) {
     send({ id: frame.id, result: handler(frame.params ?? {}) })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const reason = error instanceof Error && 'reason' in error ? error.reason : undefined
     send({
       id: frame.id,
-      error: { code: COMMAND_REJECTED, message, data: { kind: 'commandRejected' } },
+      error: {
+        code: COMMAND_REJECTED,
+        message,
+        data: { kind: 'commandRejected', ...(reason !== undefined && { reason }) },
+      },
     })
   }
 }

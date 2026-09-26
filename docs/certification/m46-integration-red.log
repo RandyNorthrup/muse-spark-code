@@ -1,0 +1,96 @@
+[baseline] exit=0
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.1 C:/Users/Randy/Coding/muse-extension-m46-integrate
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed | 87 skipped (89)
+   Start at  18:50:58
+   Duration  1.48s (import 48%, transform 31%, setup 10%, tests 10%)
+
+
+[mutated] exit=1
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.1 C:/Users/Randy/Coding/muse-extension-m46-integrate
+
+ ❯ test/unit/modelApiHost.test.ts (89 tests | 2 failed | 87 skipped) 150ms
+   ❯ ModelApiHost: the session goal (M45, PLAN.md D38) (15)
+     × rejects stale goal calls after a busy set 85ms
+     × rejects stale goal calls after a busy edit 64ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: the session goal (M45, PLAN.md D38) > rejects stale goal calls after a busy set
+AssertionError: expected { objective: 'Replacement', …(2) } to match object { objective: 'Replacement', …(2) }
+
+- Expected
++ Received
+
+  {
+    "objective": "Replacement",
+-   "percentComplete": 0,
+-   "status": "active",
++   "percentComplete": 100,
++   "status": "complete",
+  }
+
+ ❯ test/unit/modelApiHost.test.ts:2365:38
+    2363|       held.resolve(undefined)
+    2364|       await turnDone()
+    2365|       expect(session.history().goal).toMatchObject({
+       |                                      ^
+    2366|         objective: 'Replacement',
+    2367|         status: 'active',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: the session goal (M45, PLAN.md D38) > rejects stale goal calls after a busy edit
+AssertionError: expected { objective: 'Replacement', …(4) } to match object { objective: 'Replacement', …(2) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "objective": "Replacement",
+-   "percentComplete": 0,
+-   "status": "active",
++   "percentComplete": 100,
++   "status": "complete",
+  }
+
+ ❯ test/unit/modelApiHost.test.ts:2365:38
+    2363|       held.resolve(undefined)
+    2364|       await turnDone()
+    2365|       expect(session.history().goal).toMatchObject({
+       |                                      ^
+    2366|         objective: 'Replacement',
+    2367|         status: 'active',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 87 skipped (89)
+   Start at  18:51:00
+   Duration  1.53s (import 45%, transform 33%, tests 11%, setup 11%)
+
+
+[restored] exit=0
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.1 C:/Users/Randy/Coding/muse-extension-m46-integrate
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed | 87 skipped (89)
+   Start at  18:51:03
+   Duration  1.44s (import 46%, transform 33%, setup 11%, tests 10%)

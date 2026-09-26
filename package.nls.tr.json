@@ -27,6 +27,8 @@
   "command.hooks.title": "Kancalar",
   "command.newWorktree.title": "Yeni Çalışma Ağacı…",
   "command.removeWorktree.title": "Çalışma Ağacını Kaldır…",
+  "command.moveToBackground.title": "Çalışan Komutu Arka Plana Taşı",
+  "command.stopBackgroundTasks.title": "Arka Plan Görevlerini Durdur",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Yeni konuşmaların açılacağı yer.",
   "config.preferredLocation.enumDescriptions.sidebar": "Yeni konuşmaları Muse Spark kenar çubuğu görünümünde aç.",

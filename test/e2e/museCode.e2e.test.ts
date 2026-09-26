@@ -16,7 +16,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { AgentSession, HostExit } from '../../src/core/agent/agentBackend'
 import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
-import { DEFAULT_MODEL_ID, MSP_CLIENT_NAME } from '../../src/shared/constants'
+import { DEFAULT_MODEL_ID, MSP_CLIENT_NAME, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 import { installFakeCredential, installFakeMuse } from './fakeMuse'
 
@@ -173,7 +173,8 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(host.info.serverName).toBe('muse')
     expect(host.info.serverVersion).toBe('0.0.0-fake serve --disable-sandbox --trust-workspace')
     expect(host.info.museHome).toBe(`/fake/home/${MSP_CLIENT_NAME}`)
-    expect(host.info.grantedCapabilities).toEqual(['sessionMcp', 'sessionListStream'])
+    // M46 asks for `userShell` too: the panel's `!` commands.
+    expect(host.info.grantedCapabilities).toEqual(['sessionMcp', 'sessionListStream', 'userShell'])
     expect(backend.isRunning).toBe(true)
     expect(log.warn).not.toHaveBeenCalled()
     expect(await backend.ensureHost()).toBe(host)
@@ -363,6 +364,45 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
       backgroundInitiator: 'user',
       status: 'completed',
     })
+  })
+
+  it('runs a `!` command outside any turn, and moves a running call to the background and stops it (M46)', async () => {
+    const { manager: backend } = manager()
+    const host = await backend.ensureHost()
+    const t = await openSession(host, 'allowAll')
+    await t.session.runUserShell('git status')
+    await until(() => t.completedItems().some((item) => item.kind === 'userShell'))
+    expect(t.completedItems().find((item) => item.kind === 'userShell')).toMatchObject({
+      status: 'completed',
+      commandText: 'git status',
+      visibleOutput: 'ran git status\r\n',
+      exitCode: 0,
+    })
+    expect(t.completedItems().find((item) => item.kind === 'userShell')?.turnId).toBeUndefined()
+    // A call that runs until it is moved: the turn then ends, the call runs on.
+    const turn = t.start('long: npm run dev')
+    await until(() =>
+      t.events.some((event) => event.type === 'itemStarted' && event.item.kind === 'toolCall'),
+    )
+    const started = t.events.find(
+      (event) => event.type === 'itemStarted' && event.item.kind === 'toolCall',
+    )
+    const taskId = started?.type === 'itemStarted' ? started.item.itemId : ''
+    await t.session.moveToBackground(taskId)
+    expect(await turn.done()).toMatchObject({ terminal: 'completed' })
+    expect(t.events).toContainEqual({
+      type: 'itemUpdated',
+      item: expect.objectContaining({ itemId: taskId, background: true }),
+    })
+    await t.session.stopTask(taskId)
+    await until(() => t.completedItems().some((item) => item.itemId === taskId))
+    expect(t.completedItems().find((item) => item.itemId === taskId)).toMatchObject({
+      status: 'cancelled',
+      failureReason: 'cancelled by runtime client',
+    })
+    // Gone, it is refused in the user's words; Stop all over nothing is fine.
+    await expect(t.session.stopTask(taskId)).rejects.toThrow(UI_TEXT.taskNotRunning)
+    await t.session.stopAllTasks()
   })
 
   it('survives a malformed frame', async () => {

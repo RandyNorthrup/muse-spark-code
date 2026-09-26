@@ -1,8 +1,9 @@
 // The one approval a client answers without asking (PLAN.md D24): in "Edit
 // automatically", a plain file write, allowed once. Never a protected
-// write, an escalation, a staged command or anything in another mode. The
-// panel's controller and the ACP agent (D62) both ask this module, so the
-// rule exists once.
+// write, an escalation, a staged command, a request replayed from history
+// (M46) or anything in another mode. The panel's controller and the ACP
+// agent (D62) both ask this module, so the rule exists once; the panel
+// adds its own condition (one panel holding the session).
 
 import type { AgentEvent, ApprovalChoice } from '../../shared/agentEvents'
 import type { PermissionMode } from '../../shared/constants'
@@ -21,7 +22,12 @@ export function editAutomaticallyChoice(
   event: Extract<AgentEvent, { type: 'approvalRequested' }>,
   mode: PermissionMode,
 ): ApprovalChoice | undefined {
-  if (mode !== EDIT_AUTOMATICALLY_MODE || event.isProtectedWrite || event.isJudgeEscalated) {
+  if (
+    mode !== EDIT_AUTOMATICALLY_MODE ||
+    event.isReplayed === true ||
+    event.isProtectedWrite ||
+    event.isJudgeEscalated
+  ) {
     return undefined
   }
   const { subject } = event
