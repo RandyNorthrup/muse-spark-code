@@ -3005,6 +3005,27 @@ async function forkInput(
 }
 
 describe('ModelApiSession: background shell commands (M46)', () => {
+  it('shows a quiet foreground shell to a second surface, then replaces its moved and completed row', async () => {
+    const r = await runningShell()
+    const loaded = await r.t.host.resumeSession(r.session.sessionId, r.session.modelId)
+    expect(loaded.history.items.find((item) => item.itemId === r.itemId)).toMatchObject({
+      kind: 'toolCall',
+      status: 'inProgress',
+      tool: 'bash',
+    })
+    await r.session.moveToBackground(r.itemId)
+    await r.turnDone()
+    expect(r.session.history().items.filter((item) => item.itemId === r.itemId)).toEqual([
+      expect.objectContaining({ status: 'inProgress', background: true }),
+    ])
+    r.run.finish({ stdout: 'ready', exitCode: 0 })
+    await completionOf(r.events, r.itemId)
+    expect(r.session.history().items.filter((item) => item.itemId === r.itemId)).toEqual([
+      expect.objectContaining({ status: 'completed', background: true }),
+    ])
+    loaded.session.dispose()
+  })
+
   it('answers the model at once and keeps the command running, without its time limit', async () => {
     const r = await runningShell()
     await r.session.moveToBackground(r.itemId)

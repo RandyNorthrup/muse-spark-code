@@ -208,6 +208,14 @@ waiting cards included.
 | **Auto**               | Runs edits, asks before commands (no safety-check model on this backend) | The CLI runs its own safety check and asks for anything risky                                                    |
 | **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks                | The same                                                                                                         |
 
+A Manual approval still needs your answer if you open the conversation
+in another panel set to Edit automatically. Joining a conversation never
+approves a card that was already waiting. A Manual panel's new edit
+approval also stays Manual when an older Edit automatically panel remains
+open on that conversation. While two panels share a conversation, every
+approval needs an explicit choice. Edit automatically resumes when it is
+the only panel holding that session.
+
 "Always allow in this session" on a command allows that exact command line
 again, nothing broader. The Model API backend's file tools refuse any path
 that leaves the workspace, including through a symbolic link or junction
@@ -540,6 +548,10 @@ agent with its next request (no model call is made for it on its own).
 When the last surface leaves a conversation, its remaining background
 commands are stopped; another open surface keeps them running. A resumed
 conversation restores `Ctrl+B` for a shell command still in the foreground.
+A second surface sharing a live Model API session also shows its running
+foreground command and can move it with `Ctrl+B`.
+If that shell is still awaiting permission, the second surface shows the
+same card and leaves `Ctrl+B` to VS Code until approval resolves.
 A fork has no running commands from its source; it carries the ending or
 lost-output context into the agent's next request for any inherited task.
 

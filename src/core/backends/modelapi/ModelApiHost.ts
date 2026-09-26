@@ -625,6 +625,11 @@ export class ModelApiSession implements AgentSession {
   /** The git facts of the prompt's environment section (D15), read on the first turn. */
   private environment: EnvironmentFacts | undefined
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
+  /** Live cards for a second surface joining while a decision is still pending. */
+  private readonly pendingApprovalEvents = new Map<
+    string,
+    Extract<AgentEvent, { type: 'approvalRequested' }>
+  >()
   private readonly pendingQuestions = new Map<string, Pending<QuestionReply>>()
   /**
    * Shell calls running in the foreground, by row: what moves each to the
@@ -1360,7 +1365,7 @@ export class ModelApiSession implements AgentSession {
     query: PermissionQuery,
   ): Promise<ApprovalOutcome> {
     const approvalId = this.deps.newId()
-    this.emit({
+    const request: Extract<AgentEvent, { type: 'approvalRequested' }> = {
       type: 'approvalRequested',
       approvalId,
       itemId,
@@ -1373,13 +1378,16 @@ export class ModelApiSession implements AgentSession {
       ],
       isJudgeEscalated: false,
       isProtectedWrite: query.isProtected === true,
-    })
+    }
     let decision: ApprovalDecision
     try {
       decision = await waitFor<ApprovalDecision>(signal, (pending) => {
         this.pendingApprovals.set(approvalId, pending)
+        this.pendingApprovalEvents.set(approvalId, request)
+        this.emit(request)
       })
     } finally {
+      this.pendingApprovalEvents.delete(approvalId)
       this.pendingApprovals.delete(approvalId)
     }
     if (decision.choiceId === APPROVAL_CHOICE_IDS.allowSession) {
@@ -1739,7 +1747,7 @@ export class ModelApiSession implements AgentSession {
         }),
     }
     this.emit({ type: 'itemCompleted', item: completed })
-    this.recordTranscript(turnId, completed)
+    this.rerecordTranscript(completed)
     this.replay.push({
       turnId,
       item: { type: 'function_call_output', call_id: call.call_id, output: outcome.output },
@@ -1764,6 +1772,7 @@ export class ModelApiSession implements AgentSession {
       args: call.arguments,
       ...(paid !== undefined && { paid }),
     }
+    this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
     let result: CallResult
     try {
@@ -1814,7 +1823,7 @@ export class ModelApiSession implements AgentSession {
       backgroundInitiator: BACKGROUND_INITIATOR_USER,
     }
     this.emit({ type: 'itemUpdated', item: moved })
-    this.recordTranscript(turnId, moved)
+    this.rerecordTranscript(moved)
     this.replay.push({
       turnId,
       item: { type: 'function_call_output', call_id: call.call_id, output: outcome.output },
@@ -2258,6 +2267,9 @@ export class ModelApiSession implements AgentSession {
 
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
+    for (const request of this.pendingApprovalEvents.values()) {
+      listener({ ...request, isReplayed: true })
+    }
     return () => {
       this.listeners.delete(listener)
     }

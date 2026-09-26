@@ -463,7 +463,7 @@ export class MuseSession implements AgentSession {
     const backlog = this.early ?? this.prompts.open()
     this.early = undefined
     for (const event of backlog) {
-      listener(event)
+      listener(event.type === 'approvalRequested' ? { ...event, isReplayed: true } : event)
     }
     return () => {
       this.listeners.delete(listener)
@@ -853,24 +853,28 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** A session's notification to its handle; false when nothing can show it. */
-  private deliver(notification: WireNotification): boolean {
+  private deliver(notification: WireNotification, isReplay = false): boolean {
     const mapped = mapNotification(notification)
     if (mapped === UNKNOWN_METHOD || mapped === MALFORMED_PARAMS) {
       this.noteUnmapped(notification.method, mapped)
       return false
     }
-    const session = this.sessions.get(mapped.sessionId)
+    const admitted: MappedNotification =
+      isReplay && 'event' in mapped && mapped.event.type === 'approvalRequested'
+        ? { ...mapped, event: { ...mapped.event, isReplayed: true } }
+        : mapped
+    const session = this.sessions.get(admitted.sessionId)
     if (session !== undefined) {
-      session.receive(mapped)
+      session.receive(admitted)
       return true
     }
     if (this.opening > 0) {
-      const waiting = this.unclaimed.get(mapped.sessionId) ?? []
-      waiting.push(mapped)
-      this.unclaimed.set(mapped.sessionId, waiting)
+      const waiting = this.unclaimed.get(admitted.sessionId) ?? []
+      waiting.push(admitted)
+      this.unclaimed.set(admitted.sessionId, waiting)
       return true
     }
-    this.log.warn(`MSP event ${notification.method} for unknown session ${mapped.sessionId}`)
+    this.log.warn(`MSP event ${notification.method} for unknown session ${admitted.sessionId}`)
     return false
   }
 
@@ -1032,7 +1036,7 @@ export class MuseCodeHost implements AgentHost {
         await this.command('approval/listPending', { sessionId }),
       )
       for (const params of pending.approvals) {
-        this.deliver({ method: 'approval/requested', params })
+        this.deliver({ method: 'approval/requested', params }, true)
       }
       for (const params of pending.userInputs) {
         this.deliver({ method: 'userInput/requested', params })

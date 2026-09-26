@@ -273,6 +273,8 @@ const MISSING_RUN_REASON = 'missing_run'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const FALLBACK_MODE: PermissionMode = 'manual'
 const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
+/** Auto approval is safe only while one controller holds the shared session. */
+const sessionSurfaces = new WeakMap<AgentSession, Set<ConversationController>>()
 // Approval subjects that are a plain file write: the Model API's own, and
 // Muse Code's `fileAccess` with write access (MSP `ApprovalSubject`).
 const FILE_WRITE_SUBJECT = 'fileWrite'
@@ -635,6 +637,13 @@ export class ConversationController {
     this.unsubscribe = undefined
     this.closedWatch?.()
     this.closedWatch = undefined
+    if (session !== undefined) {
+      const surfaces = sessionSurfaces.get(session)
+      surfaces?.delete(this)
+      if (surfaces?.size === 0) {
+        sessionSurfaces.delete(session)
+      }
+    }
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
@@ -701,6 +710,9 @@ export class ConversationController {
   ): ApprovalChoice | undefined {
     if (
       this.permissionMode !== EDIT_AUTOMATICALLY_MODE ||
+      this.session === undefined ||
+      sessionSurfaces.get(this.session)?.size !== 1 ||
+      event.isReplayed === true ||
       event.isProtectedWrite ||
       event.isJudgeEscalated
     ) {
@@ -749,7 +761,13 @@ export class ConversationController {
       this.queueDelta(event)
       return
     }
-    this.post({ type: 'agentEvent', event })
+    if (event.type === 'approvalRequested' && event.isReplayed !== undefined) {
+      const shown = { ...event }
+      delete shown.isReplayed
+      this.post({ type: 'agentEvent', event: shown })
+    } else {
+      this.post({ type: 'agentEvent', event })
+    }
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
     }
@@ -1469,6 +1487,9 @@ export class ConversationController {
     )
     this.session = session
     this.sessionKind = host.info.kind
+    const surfaces = sessionSurfaces.get(session) ?? new Set<ConversationController>()
+    surfaces.add(this)
+    sessionSurfaces.set(session, surfaces)
     this.canEditSessions = host.info.canEditSessions
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)

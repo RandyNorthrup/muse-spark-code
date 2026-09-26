@@ -270,6 +270,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
     availableChoices: z.array(approvalChoiceSchema),
     isJudgeEscalated: z.boolean(),
     isProtectedWrite: z.boolean(),
+    /** A pending card shown to a later surface; joining never approves it automatically. */
+    isReplayed: z.optional(z.boolean()),
   }),
   // A stage was decided and the next one is pending: new choices, same card.
   z.object({

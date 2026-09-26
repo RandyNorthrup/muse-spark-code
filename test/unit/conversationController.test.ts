@@ -21,7 +21,7 @@ import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
-import { heldShellToolIo, noopToolIo } from './helpers/fakeToolIo'
+import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './helpers/fakeToolIo'
 import {
   fakeInitializeResult,
   fakeMspHost,
@@ -2588,17 +2588,31 @@ function modelApiController(
   return { api, host, controller }
 }
 
+function modelApiControllerWithIo(t: ReturnType<typeof setup>, io: MemoryToolIo) {
+  let nextId = 0
+  return modelApiController(t, {
+    io,
+    contextIo: memoryContextIo(io.files),
+    newId: () => `id${String(++nextId)}`,
+  })
+}
+
+function acceptApprovalDecisions(t: ReturnType<typeof setup>): void {
+  t.server.handle('approval/decide', (params) => ({
+    status: 'accepted',
+    commandId: params['commandId'],
+    approvalId: params['approvalId'],
+    terminal: true,
+  }))
+}
+
 describe('ConversationController: permission hardening (D24)', () => {
   const choices = [
     { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
     { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
   ]
-  function requestApproval(
-    t: ReturnType<typeof setup>,
-    approvalId: string,
-    overrides: Record<string, unknown> = {},
-  ) {
-    t.server.notify('approval/requested', {
+  function approvalParams(approvalId: string, overrides: Record<string, unknown> = {}) {
+    return {
       sessionId: 's1',
       approvalId,
       itemId: `item-${approvalId}`,
@@ -2610,7 +2624,14 @@ describe('ConversationController: permission hardening (D24)', () => {
       judgeEscalated: false,
       protectedWrite: false,
       ...overrides,
-    })
+    }
+  }
+  function requestApproval(
+    t: ReturnType<typeof setup>,
+    approvalId: string,
+    overrides: Record<string, unknown> = {},
+  ) {
+    t.server.notify('approval/requested', approvalParams(approvalId, overrides))
   }
 
   it('never takes a message typed while a card waits for a decision (Roo #11211)', async () => {
@@ -2667,6 +2688,204 @@ describe('ConversationController: permission hardening (D24)', () => {
       resolvedBy: 'Edit automatically',
     })
   })
+
+  it('does not auto-approve a Manual Model API edit when an Edit surface joins later', async () => {
+    const t = setup({ hasApprovalUi: true })
+    const io = memoryToolIo({ 'a.ts': 'old' }, '/ws')
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    const second = new ConversationController({
+      ...t.deps,
+      initialPermissionMode: 'acceptEdits',
+      ensureHost: () => Promise.resolve(host),
+    })
+    try {
+      api.script(
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: '{"path":"a.ts","content":"new"}',
+              callId: 'call_write',
+            },
+          ],
+        },
+        { text: 'Done.' },
+      )
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'l1',
+        text: 'edit a.ts',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+      })
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected a pending Model API edit')
+      }
+      await second.handle({ type: 'resumeSession', sessionId })
+      await settle()
+      expect(io.files.get('/ws/a.ts')).toBe('old')
+      expect(agentEvents(t).some((event) => event.type === 'approvalResolved')).toBe(false)
+    } finally {
+      second.dispose()
+      controller.dispose()
+      await host.close()
+    }
+  })
+
+  it('does not auto-approve a Manual Muse Code edit when an Edit surface joins later', async () => {
+    for (const delivery of ['backlog', 'listPending']) {
+      const t = setup({ hasApprovalUi: true })
+      const pending = approvalParams('a1')
+      t.server.handle('session/resume', () => ({
+        ...envelope({ ...storedSession, sessionId: 's1', status: 'running', activeTurnId: 't1' }),
+        pendingRequests: delivery === 'listPending' ? [{ kind: 'approval' }] : [],
+      }))
+      t.server.handle('approval/listPending', () => ({
+        approvals: delivery === 'listPending' ? [pending] : [],
+        userInputs: [],
+      }))
+      acceptApprovalDecisions(t)
+      const second = new ConversationController({
+        ...t.deps,
+        initialPermissionMode: 'acceptEdits',
+        ensureHost: () => Promise.resolve(t.host),
+      })
+      try {
+        await t.send('l1', 'edit a.ts')
+        if (delivery === 'backlog') {
+          requestApproval(t, 'a1')
+          await settle()
+        }
+        await second.handle({ type: 'resumeSession', sessionId: 's1' })
+        await settle()
+        expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+        expect(
+          t.surface.posted.filter(
+            (message) =>
+              message.type === 'agentEvent' &&
+              message.event.type === 'approvalRequested' &&
+              message.event.approvalId === 'a1',
+          ).length,
+        ).toBeGreaterThan(0)
+      } finally {
+        second.dispose()
+        t.controller.dispose()
+      }
+    }
+  })
+
+  it('does not let an earlier Edit surface approve a later Manual Model API turn', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
+    const io = memoryToolIo({ 'a.ts': 'old' }, '/ws')
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    const second = new ConversationController({
+      ...t.deps,
+      initialPermissionMode: 'manual',
+      ensureHost: () => Promise.resolve(host),
+    })
+    try {
+      api.script({ text: 'Ready.' })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'l1',
+        text: 'hello',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'turnCompleted')).toBe(true)
+      })
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected a Model API session')
+      }
+      await second.handle({ type: 'resumeSession', sessionId })
+      api.script(
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: '{"path":"a.ts","content":"new"}',
+              callId: 'call_write',
+            },
+          ],
+        },
+        { text: 'Done.' },
+      )
+      await second.handle({
+        type: 'sendMessage',
+        localId: 'l2',
+        text: 'edit a.ts',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+      })
+      await settle()
+      expect(agentEvents(t).some((event) => event.type === 'approvalResolved')).toBe(false)
+      expect(io.files.get('/ws/a.ts')).toBe('old')
+    } finally {
+      second.dispose()
+      controller.dispose()
+      await host.close()
+    }
+  })
+
+  const sharedModeCases: readonly {
+    readonly firstMode: ConversationDeps['initialPermissionMode']
+    readonly secondMode: ConversationDeps['initialPermissionMode']
+    readonly sender: 'first' | 'second'
+  }[] = [
+    { firstMode: 'acceptEdits', secondMode: 'manual', sender: 'second' },
+    { firstMode: 'manual', secondMode: 'acceptEdits', sender: 'first' },
+    { firstMode: 'acceptEdits', secondMode: 'acceptEdits', sender: 'second' },
+  ]
+
+  it.each(sharedModeCases)(
+    'keeps shared Muse Code approvals explicit ($firstMode, $secondMode, $sender)',
+    async ({ firstMode, secondMode, sender }) => {
+      const t = setup({ hasApprovalUi: true, initialPermissionMode: firstMode })
+      t.server.handle('session/resume', () =>
+        envelope({ ...storedSession, sessionId: 's1', status: 'idle' }),
+      )
+      acceptApprovalDecisions(t)
+      const second = new ConversationController({
+        ...t.deps,
+        initialPermissionMode: secondMode,
+        ensureHost: () => Promise.resolve(t.host),
+      })
+      try {
+        await t.send('l1', 'hello')
+        t.finishTurn()
+        await settle()
+        await second.handle({ type: 'resumeSession', sessionId: 's1' })
+        const sending = sender === 'first' ? t.controller : second
+        await sending.handle({
+          type: 'sendMessage',
+          localId: 'l2',
+          text: 'edit a.ts',
+          attachmentIds: [],
+        })
+        requestApproval(t, 'a2')
+        await settle()
+        expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+        if (firstMode === 'acceptEdits' && secondMode === 'manual') {
+          second.dispose()
+          requestApproval(t, 'a3')
+          await vi.waitFor(() => {
+            expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
+          })
+        }
+      } finally {
+        second.dispose()
+        t.controller.dispose()
+      }
+    },
+  )
 
   it('shows the card for protected writes, escalations, commands and the other modes', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
@@ -3780,11 +3999,10 @@ describe('ConversationController: background work (M46)', () => {
   it('leaves Ctrl+B to VS Code while a Model API shell awaits approval', async () => {
     const t = setup({ hasApprovalUi: true })
     const io = heldShellToolIo({}, '/ws')
-    let nextId = 0
-    const { api, host, controller } = modelApiController(t, {
-      io,
-      contextIo: memoryContextIo(io.files),
-      newId: () => `id${String(++nextId)}`,
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    const second = new ConversationController({
+      ...t.deps,
+      ensureHost: () => Promise.resolve(host),
     })
     try {
       api.script(
@@ -3814,6 +4032,18 @@ describe('ConversationController: background work (M46)', () => {
       }
       expect(controller.hasForegroundShell).toBe(false)
       expect(io.runs).toHaveLength(0)
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected the live Model API session')
+      }
+      await second.handle({ type: 'resumeSession', sessionId })
+      expect(second.hasForegroundShell).toBe(false)
+      const shownApprovals = agentEvents(t).filter(
+        (event) => event.type === 'approvalRequested' && event.itemId === approval.itemId,
+      )
+      expect(shownApprovals).toHaveLength(2)
+      expect(shownApprovals.every((event) => !('isReplayed' in event))).toBe(true)
       await controller.handle({
         type: 'decideApproval',
         approvalId: approval.approvalId,
@@ -3824,9 +4054,11 @@ describe('ConversationController: background work (M46)', () => {
         expect(io.runs).toHaveLength(1)
       })
       expect(controller.hasForegroundShell).toBe(true)
-      await controller.moveRunningToBackground()
+      expect(second.hasForegroundShell).toBe(true)
+      await second.moveRunningToBackground()
       expect(io.runs[0]?.isLifted).toBe(true)
     } finally {
+      second.dispose()
       controller.dispose()
       await host.close()
     }

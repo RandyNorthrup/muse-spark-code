@@ -104,6 +104,18 @@ while they are (PLAN.md D30, D34).
   shows its row and can Stop it; completion replaces that row. A fork carries the end or
   lost-output note for each inherited background shell even when the
   source's later turn is outside the fork cut.
+- **M46 resumed foreground commands.** Model API tool rows now enter the
+  live transcript when they start and are replaced on move or completion,
+  so another surface on that session shows a quiet running shell and can
+  move it to the background. A second surface also receives a pending
+  shell approval card and leaves `Ctrl+B` to VS Code until it is answered.
+- **M46 pending approvals across panels.** A panel joining a conversation
+  shows its open approval cards on both backends, but never automatically
+  answers a card that was already pending under another panel's mode. An
+  older Edit automatically panel cannot approve a new Manual panel's
+  edit either. With several panels attached every approval needs an
+  explicit choice; a sole Edit automatically panel retains automatic
+  plain-edit approval.
 
 - **Windows accessibility runner pressure** (M46). The headless Chrome
   gate runs at most two pages together on Windows; its scenarios, axe

@@ -3563,8 +3563,34 @@ context when the later note was cut. Both failed in focused tests before
 the fixes; recording the running row and tagging terminal replay notes by
 task fixed them. A cross-host restore test then caught that the started
 `!` row needed a save at start; `touch()` persists it before completion.
-The third correction passed the local full gate; hosted
-review remains open.
+The third correction passed the local full gate. The next review found
+that a quiet foreground Model API shell was also absent from another
+surface's live history. Started tool rows are now recorded once and
+replaced by item ID when they move or finish; a focused test failed
+before the change and passed after it. An unanswered function call is
+deliberately not persisted to disk because its replay would lack an
+output, so this guarantee is for surfaces sharing the live session. The
+fourth correction passed the local full gate. A read-only review then
+found that a second panel did not know about a shell approval already
+pending in the shared Model API session, so its restored row could make
+`Ctrl+B` intercept VS Code before the shell was runnable. The live
+two-panel test failed before the change and passed after pending approval
+requests were replayed to new listeners. The fifth correction passed the
+local full gate. A second read-only review found that a joining panel in
+Edit automatically could then approve a Manual panel's pending file edit.
+Both Model API and Muse Code tests failed before the fix; replayed cards
+now carry an internal marker that forbids automatic approval, including
+Muse Code's `approval/listPending` path. The sixth correction passed the
+local full gate. A further read-only review found the inverse live case:
+an older Edit automatically surface could approve a new Manual surface's
+edit. Both backends reproduced it; the Model API also exposed a pending
+resolver registration race, fixed before the authorization drill. The
+reverse order (Manual first, Auto joining) and two Auto panels proved a
+single last-mode value cannot describe the shared session safely. Auto
+approval now runs only while one controller holds it in Edit automatically;
+detaching another panel restores it. The internal replay marker is removed
+before postMessage. The seventh correction passed the local
+full gate; hosted review remains open.
 
 - **Goal**: what Muse Code's TUI does with Ctrl+B, `/stop` and `!`, and its
   "let me explain" answer to a question, from the panel, on both backends.
