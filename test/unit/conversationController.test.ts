@@ -2600,6 +2600,7 @@ function modelApiController(
     isWorkspaceTrusted: () => true,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     ...disabledPaidFeatures,
+    memory: undefined,
   })
   const controller = new ConversationController({
     ...t.deps,

@@ -25,6 +25,7 @@
   "command.exportConversation.title": "会話のエクスポート",
   "command.mcpServers.title": "MCP サーバー",
   "command.hooks.title": "フック",
+  "command.memory.title": "メモリ",
   "command.newWorktree.title": "新しいワークツリー…",
   "command.removeWorktree.title": "ワークツリーの削除…",
   "command.moveToBackground.title": "実行中のコマンドをバックグラウンドへ移動",

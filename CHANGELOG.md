@@ -128,6 +128,35 @@ while they are (PLAN.md D30, D34).
   and Account & usage tallies this window's searches, images and seconds of
   audio with their estimated cost.
 - **A languages badge** in the README.
+- **Memory, on both backends** (M49, PLAN.md D41). Muse Code keeps Markdown
+  notes in three scopes: yours for this project (the default, outside the
+  repository), the project's (`.agents/memory`, shared with the
+  repository) and yours for every project. Both backends now read and write
+  the same notes, found on disk and in a live capture of Muse Code 1.3.0.
+  - **Memory…** in the palette (`/memory`, **Muse Spark: Memory**) lists
+    up to 500 notes per scope with their scopes and summaries; open one to read or
+    edit it, create one, or delete one to the trash after a confirmation.
+    The scope's `MEMORY.md` index gains a created note's line and loses a
+    deleted note's lines.
+  - **The Model API backend** has Muse Code's `read_memory`, `add_memory`
+    and `edit_memory`, with its arguments, refusals and JSON results, so
+    their rows read the same on both backends; at the start of a
+    conversation the model gets each scope's `MEMORY.md` and its notes'
+    names, as Muse Code gives them. A new note gets its index line. Writes
+    ask in Manual, run in Auto and Edit automatically, and are refused in
+    Plan; a refused path asks nothing. Not offered in Restricted Mode.
+     Linked scope folders below the workspace or data home are refused, so
+     they cannot expose notes outside their intended roots.
+  - Updates to an existing note replace it atomically but do not take Muse
+    Code's native memory lock; simultaneous writers can still lose an update.
+
+### Changed
+
+- **The Model API backend saves memory with the memory tools** (M49). It
+  used to be told to write `.agents/memory` with the file tools, which as
+  protected writes asked every time. The personal scopes, left out before
+  (PLAN.md D13), are now read and written too, and a memory note must be
+  UTF-8, as Muse Code requires.
 
 ### Fixed
 
@@ -207,6 +236,16 @@ while they are (PLAN.md D30, D34).
   goal command on a fresh panel does not create an empty conversation.
 - **Pre-commit resource pressure.** Staged lint and format tasks now run
   serially, keeping every check while limiting concurrent child processes.
+- **A new memory note cannot overwrite a racing writer** (M49). The Model
+  API memory tool and Memory view now create a missing note exclusively;
+  a name taken after the initial read is refused and its bytes remain.
+- **New memory notes are published whole** (M49). A hidden, synced stage is
+  hard-linked into a free note name, then removed. Readers never see partial
+  new bytes; a filesystem without hard links refuses the create. Existing
+  note and index updates still lack Muse Code's native cross-process lock.
+- **Memory index links for unusual filenames** (M49). Paths with spaces,
+  parentheses, brackets or percent signs are encoded in `MEMORY.md` and
+  decoded when a line is found or removed, so one note keeps one index line.
 - **A resumed Muse Code conversation shows its task list** (M45). A resume
   asked for inline history, which carries no task list; it now asks for the
   folded snapshot, which carries the task list and the goal.

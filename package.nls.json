@@ -25,6 +25,7 @@
   "command.exportConversation.title": "Export Conversation",
   "command.mcpServers.title": "MCP Servers",
   "command.hooks.title": "Hooks",
+  "command.memory.title": "Memory",
   "command.newWorktree.title": "New Worktree…",
   "command.removeWorktree.title": "Remove Worktree…",
   "command.moveToBackground.title": "Move Running Command to Background",

@@ -172,6 +172,27 @@ describe('toolDefinitions / classifyTool', () => {
     }
   })
 
+  it('offers Muse Code’s memory tools last, only with memory on (M49)', () => {
+    const options = { hasShell: true, hasSkills: false, hasMemory: true }
+    const withMemory = toolDefinitions('linux', options)
+    const memoryTools = withMemory.slice(-3)
+    expect(memoryTools.map((tool) => tool.name)).toEqual([
+      'read_memory',
+      'add_memory',
+      'edit_memory',
+    ])
+    for (const tool of memoryTools) {
+      expect(tool.parameters).toMatchObject({ type: 'object', additionalProperties: false })
+      expect(tool.strict).toBe(false)
+    }
+    expect(
+      toolDefinitions('linux', { hasShell: true, hasSkills: false }).map((tool) => tool.name),
+    ).not.toContain('read_memory')
+    expect(classifyTool('read_memory')).toBe('read')
+    expect(classifyTool('add_memory')).toBe('edit')
+    expect(classifyTool('edit_memory')).toBe('edit')
+  })
+
   it('offers subagent controls to the parent and omits panel tools from a child (M48)', () => {
     const parent = toolDefinitions('linux', {
       hasShell: true,

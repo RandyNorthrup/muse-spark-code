@@ -25,6 +25,7 @@
   "command.exportConversation.title": "Unterhaltung exportieren",
   "command.mcpServers.title": "MCP-Server",
   "command.hooks.title": "Hooks",
+  "command.memory.title": "Gedächtnis",
   "command.newWorktree.title": "Neuer Worktree…",
   "command.removeWorktree.title": "Worktree entfernen…",
   "command.moveToBackground.title": "Laufenden Befehl in den Hintergrund verschieben",

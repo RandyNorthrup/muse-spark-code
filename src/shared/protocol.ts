@@ -127,6 +127,8 @@ export const HOST_ACTIONS = [
   /** The palette's "MCP servers…" and "Hooks…" (M31). */
   'showMcpServers',
   'showHooks',
+  /** The palette's "Memory…" (M49). */
+  'showMemory',
   /** The palette's "New worktree…" and "Remove a worktree…" (M32). */
   'newWorktree',
   'removeWorktree',

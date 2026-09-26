@@ -11,6 +11,8 @@ import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue } from './core/backends/musecode/launch'
 import { selectBackend } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
+import { memoryDataRoot } from './core/memory/memoryLocation'
+import { MemoryStore } from './core/memory/memoryStore'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
 import { renderSupportReport } from './core/support/report'
@@ -33,6 +35,7 @@ import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
+import { createMemoryIo, systemPath } from './host/backend/memoryIo'
 import {
   museSettingsPath,
   readDelegationMode,
@@ -61,6 +64,7 @@ import { ideImageTools } from './host/ide/imageTools'
 import { usablePaidFeatures } from './shared/paid'
 import { createCliFeatures } from './host/cliFeatures'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { createMemoryFeatures } from './host/memoryFeatures'
 import { processGitRunner } from './host/git'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import { OutputDocumentStore } from './host/outputDocuments'
@@ -825,6 +829,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Muse Code's managed personal skill root, watched alongside the workspace's
   // `.agents/skills` so the palette follows the files (PLAN.md D13).
   const skillsHome = personalSkillsRoot(museConfig())
+  // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
+  // the Model API's memory tools and the Memory view both use, in the data
+  // home `muse serve` sees (`museSpark.environmentVariables` included).
+  const memory = new MemoryStore({
+    io: createMemoryIo(toolIo, {
+      warn: (message) => {
+        log.warn(`Memory: ${message}`)
+      },
+    }),
+    platform: process.platform,
+    dataRoot: () =>
+      memoryDataRoot({
+        platform: process.platform,
+        homeDir: homedir(),
+        xdgDataHome: environmentValue(
+          backend.childEnvironment(),
+          process.platform,
+          'XDG_DATA_HOME',
+        ),
+      }),
+    workspaceRoot,
+    systemPath,
+    warn: (message) => {
+      log.warn(`Memory: ${message}`)
+    },
+  })
+  const memoryView = createMemoryFeatures({ store: memory, log })
   const modelApi = new ModelApiBackendManager({
     log,
     getApiKey: () => credentials.getApiKey(),
@@ -872,6 +903,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     noteSubagentUsage: (modelId, usage) => {
       paid.usage.addSubagentUsage(modelId, usage)
     },
+    memory,
   })
   const watchedHosts = new WeakSet<AgentHost>()
   let chosenBackend: BackendKind | undefined
@@ -1010,6 +1042,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       case 'showHooks': {
         await cliFeatures.showHooks()
+        break
+      }
+      case 'showMemory': {
+        await memoryView.showMemory()
         break
       }
       case 'newWorktree': {
@@ -1523,6 +1559,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
     registerLoggedCommand(log, COMMAND_IDS.mcpServers, () => cliFeatures.showMcpServers()),
     registerLoggedCommand(log, COMMAND_IDS.hooks, () => cliFeatures.showHooks()),
+    registerLoggedCommand(log, COMMAND_IDS.memory, () => memoryView.showMemory()),
     registerLoggedCommand(log, COMMAND_IDS.newWorktree, () => worktrees.newWorktree()),
     registerLoggedCommand(log, COMMAND_IDS.removeWorktree, () => worktrees.removeWorktree()),
     registerLoggedCommand(log, COMMAND_IDS.exportConversation, async () => {

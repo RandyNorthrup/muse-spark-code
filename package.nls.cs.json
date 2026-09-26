@@ -25,6 +25,7 @@
   "command.exportConversation.title": "Exportovat konverzaci",
   "command.mcpServers.title": "Servery MCP",
   "command.hooks.title": "Hooky",
+  "command.memory.title": "Paměť",
   "command.newWorktree.title": "Nový pracovní strom…",
   "command.removeWorktree.title": "Odebrat pracovní strom…",
   "command.moveToBackground.title": "Přesunout běžící příkaz na pozadí",

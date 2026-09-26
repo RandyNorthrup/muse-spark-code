@@ -8,6 +8,7 @@ import { ModelApiHost, type ModelApiPaidHooks } from '../../core/backends/modela
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { ContextIo } from '../../core/context/contextFiles'
+import type { MemoryStore } from '../../core/memory/memoryStore'
 import { MODEL_API_BASE_URL, UI_TEXT } from '../../shared/constants'
 import type { Logger } from '../logger'
 
@@ -30,6 +31,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly store: SessionStore | undefined
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
+  /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
+  readonly memory: MemoryStore | undefined
 }
 
 const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'
@@ -96,6 +99,7 @@ export class ModelApiBackendManager {
       notePaidUse: this.deps.notePaidUse,
       confirmSubagentTask: this.deps.confirmSubagentTask,
       noteSubagentUsage: this.deps.noteSubagentUsage,
+      memory: this.deps.memory,
     })
     await host.load()
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')

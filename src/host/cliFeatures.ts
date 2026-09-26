@@ -24,6 +24,7 @@ import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skill
 import type { ConversationExports } from './conversation/exportConversation'
 import type { Logger } from './logger'
 import { loggedPopups } from './popups'
+import { showPickOne } from './quickPick'
 
 export interface CliFeatureDeps {
   /** The CLI with these arguments, run to completion in `muse serve`'s environment; undefined when absent. */
@@ -117,13 +118,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
           : path.join(deps.workspaceRoot, ...PROJECT_HOOKS_SEGMENTS),
       fileExists: existsSync,
       isWorkspaceTrusted: () => vscode.workspace.isTrusted,
-      pick: async (items, title, placeholder) => {
-        const choice = await vscode.window.showQuickPick(
-          items.map((item) => ({ ...item })),
-          { title, placeHolder: placeholder, matchOnDescription: true, matchOnDetail: true },
-        )
-        return choice?.id
-      },
+      pick: showPickOne,
       openFile: async (fsPath) => {
         await vscode.window.showTextDocument(vscode.Uri.file(fsPath), { preview: false })
       },

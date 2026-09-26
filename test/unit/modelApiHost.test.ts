@@ -35,6 +35,7 @@ import {
   type StoredSession,
 } from '../../src/core/backends/modelapi/sessionStore'
 import { heldShellToolIo, type MemoryToolIo, memoryToolIo } from './helpers/fakeToolIo'
+import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
 
 const ROOT = '/ws'
 
@@ -52,6 +53,10 @@ function setup(
     apiKey?: () => Promise<string | undefined>
     /** The tools' files and shell, when a test needs its own (M46: a held shell). */
     io?: MemoryToolIo
+    /** False: the host has no memory store (M49). */
+    hasMemory?: boolean
+    /** Folders the memory fake reports as links to elsewhere (M49). */
+    memoryLinks?: Record<string, string>
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
@@ -64,6 +69,14 @@ function setup(
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = options.io ?? memoryToolIo(options.files ?? {}, ROOT)
+  // Muse Code's memory over the same files the tools see (M49).
+  const memory =
+    options.hasMemory === false
+      ? undefined
+      : memoryStoreOver(io.files, {
+          platform: options.platform ?? 'linux',
+          ...(options.memoryLinks !== undefined && { links: options.memoryLinks }),
+        }).store
   let ids = 0
   let clock = 1_000_000
   const client =
@@ -106,6 +119,7 @@ function setup(
     noteSubagentUsage: (modelId, usage) => {
       subagentUsage.push({ modelId, ...usage })
     },
+    memory,
   })
   return {
     api,
@@ -873,6 +887,220 @@ describe('ModelApiSession: turns', () => {
 
 const skillFile = (name: string, description: string, body: string) =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`
+
+const toolNames = (body: Record<string, unknown> | undefined) =>
+  (body?.['tools'] as { name?: string }[]).map((tool) => tool.name)
+const MEMORY_TOOL_NAMES = ['read_memory', 'add_memory', 'edit_memory']
+const ADD_DEPLOY = {
+  name: 'add_memory',
+  arguments: JSON.stringify({
+    scope: 'project',
+    path: 'deploy.md',
+    content: 'Deploys run on Fridays.',
+    type: 'reference',
+    description: 'Deploy day',
+  }),
+  callId: 'call_add',
+}
+const DEPLOY_WRITTEN =
+  '{"success":true,"scope":"project","path":"deploy.md","operation":"add","message":"memory note written"}'
+
+/** The memory rows' final snapshots, in order. */
+const memoryRows = (events: readonly AgentEvent[]) =>
+  events.flatMap((event) =>
+    event.type === 'itemCompleted' &&
+    event.item.kind === 'toolCall' &&
+    MEMORY_TOOL_NAMES.includes(event.item.tool ?? '')
+      ? [event.item]
+      : [],
+  )
+
+describe('ModelApiSession: memory (M49)', () => {
+  it('offers the memory tools and the snapshot only in a trusted workspace with a store', async () => {
+    const trusted = setup({ files: { '.agents/memory/MEMORY.md': '- [Build](build.md) | npm\n' } })
+    const first = await startSession(trusted)
+    await answerFirst(trusted, first.session, first.turnDone)
+    const body = trusted.api.responseBodies()[0]
+    expect(toolNames(body)).toEqual(expect.arrayContaining(MEMORY_TOOL_NAMES))
+    expect(body?.['instructions']).toContain('## project\n\nMEMORY.md:\n- [Build](build.md) | npm')
+    for (const t of [setup({ isTrusted: false }), setup({ hasMemory: false })]) {
+      const { session, turnDone } = await startSession(t)
+      await answerFirst(t, session, turnDone)
+      const other = t.api.responseBodies()[0]
+      expect(toolNames(other)).not.toContain('add_memory')
+      expect(other?.['instructions']).not.toContain('# Memory')
+    }
+  })
+
+  it('writes a note in Manual after a card that names it, and answers as Muse Code does', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ calls: [ADD_DEPLOY] }, { text: 'saved' })
+    await session.sendTurn([{ type: 'text', text: 'remember the deploy day' }])
+    const request = await approvalRequest(events, 0)
+    expect(request).toMatchObject({
+      toolName: 'add_memory',
+      subject: { kind: 'fileWrite', path: '.agents/memory/deploy.md', toolName: 'add_memory' },
+      isProtectedWrite: false,
+    })
+    expect(t.files.has(`${ROOT}/.agents/memory/deploy.md`)).toBe(false)
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(memoryRows(events)).toEqual([
+      expect.objectContaining({ status: 'completed', visibleOutput: DEPLOY_WRITTEN }),
+    ])
+    expect(t.files.get(`${ROOT}/.agents/memory/deploy.md`)).toBe(
+      '---\ntype: reference\ndescription: Deploy day\n---\n\nDeploys run on Fridays.',
+    )
+    expect(t.files.get(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(
+      '- [deploy](deploy.md) | Deploy day\n',
+    )
+    const replayed = t.api.responseBodies()[1]?.['input'] as Record<string, unknown>[]
+    expect(replayed.at(-1)).toEqual({
+      type: 'function_call_output',
+      call_id: 'call_add',
+      output: DEPLOY_WRITTEN,
+    })
+  })
+
+  it('writes without a card in Auto, reads without one in Manual, and refuses writes in Plan', async () => {
+    const auto = setup()
+    const autoRun = await startSession(auto, 'onRequest')
+    auto.api.script(
+      {
+        calls: [
+          ADD_DEPLOY,
+          {
+            name: 'read_memory',
+            arguments: '{"scope":"project","path":"deploy.md","offset":6}',
+            callId: 'call_read',
+          },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await autoRun.session.sendTurn([{ type: 'text', text: 'go' }])
+    await autoRun.turnDone()
+    expect(autoRun.events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    expect(JSON.parse(memoryRows(autoRun.events)[1]?.visibleOutput ?? '')).toEqual({
+      success: true,
+      scope: 'project',
+      path: 'deploy.md',
+      start_line_number: 6,
+      content: 'Deploys run on Fridays.',
+      truncated: false,
+    })
+    const plan = setup({ files: { '.agents/memory/deploy.md': 'Fridays.' } })
+    const planRun = await startSession(plan, 'denyUnmatched')
+    plan.api.script(
+      {
+        calls: [
+          ADD_DEPLOY,
+          { name: 'read_memory', arguments: '{"scope":"project","path":"deploy.md"}', callId: 'r' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await planRun.session.sendTurn([{ type: 'text', text: 'go' }])
+    await planRun.turnDone()
+    expect(memoryRows(planRun.events).map((row) => row.status)).toEqual(['rejected', 'completed'])
+    expect(memoryRows(planRun.events)[0]?.failureReason).toBe(
+      'add_memory refused by the permission mode',
+    )
+    expect(plan.files.get(`${ROOT}/.agents/memory/deploy.md`)).toBe('Fridays.')
+  })
+
+  it('refuses a bad path before any card, and memory altogether in Restricted Mode', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          { name: 'add_memory', arguments: '{"path":"../escape.md","content":"x"}', callId: 'a' },
+          {
+            name: 'edit_memory',
+            arguments: '{"path":"prefs.md","scope":"personal","old_str":"a","new_str":"b"}',
+            callId: 'b',
+          },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.subject).toMatchObject({ path: `${PERSONAL}/prefs.md` })
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(memoryRows(events).map((row) => [row.status, row.failureReason])).toEqual([
+      ['failed', 'memory path traversal is not allowed'],
+      ['failed', 'memory file not found'],
+    ])
+    expect(events.filter((event) => event.type === 'approvalRequested')).toHaveLength(1)
+    const restricted = setup({ isTrusted: false })
+    const restrictedRun = await startSession(restricted, 'allowAll')
+    restricted.api.script({ calls: [ADD_DEPLOY] }, { text: 'ok' })
+    await restrictedRun.session.sendTurn([{ type: 'text', text: 'go' }])
+    await restrictedRun.turnDone()
+    expect(memoryRows(restrictedRun.events)[0]).toMatchObject({
+      status: 'rejected',
+      failureReason:
+        'memory is not available while the workspace is in Restricted Mode; trust the workspace to use it',
+    })
+    const storeless = setup({ hasMemory: false })
+    const storelessRun = await startSession(storeless, 'allowAll')
+    storeless.api.script({ calls: [ADD_DEPLOY] }, { text: 'ok' })
+    await storelessRun.session.sendTurn([{ type: 'text', text: 'go' }])
+    await storelessRun.turnDone()
+    expect(memoryRows(storelessRun.events)[0]?.failureReason).toBe('unknown tool add_memory')
+  })
+
+  it('re-locates a memory write after its approval, refusing a swapped link', async () => {
+    const links: Record<string, string> = {}
+    const t = setup({
+      files: { '.agents/memory/prefs.md': 'Tea.' },
+      memoryLinks: links,
+    })
+    // Beyond the link the swap will point at: the same text, so a stale
+    // place would read, match and overwrite it.
+    t.files.set('/elsewhere/prefs.md', 'Tea.')
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'edit_memory',
+            arguments: '{"scope":"project","path":"prefs.md","old_str":"Tea","new_str":"Coffee"}',
+            callId: 'call_swap',
+          },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'switch to coffee' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.toolName).toBe('edit_memory')
+    // A swap while the card is open: the folder now leads outside.
+    links[`${ROOT}/.agents/memory`] = '/elsewhere'
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: 'allow_once',
+      requirementId: request.requirementId,
+    })
+    await turnDone()
+    expect(memoryRows(events).map((row) => row.status)).toEqual(['failed'])
+    expect(memoryRows(events)[0]?.failureReason).toContain('link')
+    expect(t.files.get(`${ROOT}/.agents/memory/prefs.md`)).toBe('Tea.')
+    expect(t.files.get('/elsewhere/prefs.md')).toBe('Tea.')
+  })
+})
 
 describe('ModelApiSession: workspace context (M10)', () => {
   it('sends the rules, the catalogue and the memory index, serves read_skill, and loads deeper rules on touch', async () => {

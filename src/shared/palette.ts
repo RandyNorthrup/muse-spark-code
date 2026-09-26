@@ -56,6 +56,7 @@ export type PaletteAction =
   | { readonly type: 'importSkills' }
   | { readonly type: 'showMcpServers' }
   | { readonly type: 'showHooks' }
+  | { readonly type: 'showMemory' }
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
@@ -390,6 +391,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'toggleCtrlEnterToSend' },
         },
         ...museConfigItems(context.backend),
+        // Muse Code's memory (M49): the same notes on both backends.
+        {
+          id: 'memory',
+          label: UI_TEXT.memoryItem,
+          slashName: SLASH_COMMAND_NAMES.memory,
+          detail: UI_TEXT.memoryItemDetail,
+          action: { type: 'showMemory' },
+        },
         {
           id: 'settings',
           label: UI_TEXT.openSettings,

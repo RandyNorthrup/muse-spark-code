@@ -90,6 +90,7 @@ describe('fileContextIo', () => {
       platform: process.platform,
       personalSkillsRoot: paths.personal,
       isWorkspaceTrusted: () => true,
+      loadMemory: undefined,
       warn: (message) => {
         warnings.push(message)
       },

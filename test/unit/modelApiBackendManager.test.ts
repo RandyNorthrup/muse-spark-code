@@ -33,6 +33,7 @@ function managerOn(
       store,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       ...disabledPaidFeatures,
+      memory: undefined,
     }),
   }
 }

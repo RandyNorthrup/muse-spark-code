@@ -25,6 +25,7 @@
   "command.exportConversation.title": "대화 내보내기",
   "command.mcpServers.title": "MCP 서버",
   "command.hooks.title": "후크",
+  "command.memory.title": "메모리",
   "command.newWorktree.title": "새 작업 트리…",
   "command.removeWorktree.title": "작업 트리 제거…",
   "command.moveToBackground.title": "실행 중인 명령을 백그라운드로 이동",

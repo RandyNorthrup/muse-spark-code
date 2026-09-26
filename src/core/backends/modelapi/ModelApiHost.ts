@@ -100,6 +100,7 @@ import type { ContextIo } from '../../context/contextFiles'
 import { type SkillDefinition } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
+import type { MemoryStore } from '../../memory/memoryStore'
 import {
   MissingApiKeyError,
   type ModelApiClient,
@@ -121,6 +122,7 @@ import {
 } from './goals'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
 import { type ImagePlan, prepareImageCall, runImageCall } from './imageGeneration'
+import { isMemoryTool, placeMemoryCall, runMemoryCall } from './memoryTools'
 import {
   APPROVAL_CHOICE_IDS,
   choicesFor,
@@ -129,6 +131,7 @@ import {
   paidChoices,
   PermissionEngine,
   type PermissionQuery,
+  type ToolClass,
 } from './permissions'
 import {
   headerOf,
@@ -216,6 +219,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly store?: SessionStore | undefined
   /** The git facts for the prompt's environment section (D15), read once per session. */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
+  /**
+   * Muse Code's memory (M49, PLAN.md D41): the memory tools and the
+   * session-start snapshot; undefined leaves them out.
+   */
+  readonly memory: MemoryStore | undefined
 }
 
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
@@ -361,6 +369,12 @@ function characterEnd(bytes: Uint8Array, index: number): number {
 interface ApprovalOutcome {
   readonly isApproved: boolean
   readonly feedback: string | undefined
+}
+
+/** A call's outcome, and whether the mode or the user refused it. */
+interface CallResult {
+  readonly outcome: ToolOutcome
+  readonly isRejected: boolean
 }
 
 /** Where a streamed output item stands while its deltas arrive. */
@@ -626,6 +640,17 @@ function childTaskMessages(kind: ChildTaskRefusal): {
 function childTaskFailure(kind: ChildTaskRefusal): ToolOutcome {
   const { model, visible } = childTaskMessages(kind)
   return { output: `Error: ${model}`, visibleOutput: visible, failureReason: visible }
+}
+
+/** A refused tool call, with the user's answer when they gave one. */
+function refusedOutcome(call: FunctionCallItem, feedback: string | undefined): ToolOutcome {
+  const reason = `${call.name} ${MODEL_TEXT.toolRejectedByUser}`
+  const withFeedback = feedback === undefined ? '' : `\nUser: ${feedback}`
+  return {
+    output: `Error: ${reason}${withFeedback}`,
+    visibleOutput: reason,
+    failureReason: reason,
+  }
 }
 
 class ChildTaskRefusedError extends Error {
@@ -934,12 +959,14 @@ export class ModelApiSession implements AgentSession {
   ) {
     this.modelId = modelId
     this.permissions = new PermissionEngine(approvalMode)
+    const { memory } = deps
     this.context = new WorkspaceContext({
       io: deps.contextIo,
       workspaceRoot: deps.workspaceRoot,
       platform: deps.platform,
       personalSkillsRoot: deps.personalSkillsRoot,
       isWorkspaceTrusted: deps.isWorkspaceTrusted,
+      loadMemory: memory === undefined ? undefined : () => memory.snapshot(),
       warn: (message) => {
         deps.log.warn(`Workspace context: ${message}`)
       },
@@ -982,6 +1009,8 @@ export class ModelApiSession implements AgentSession {
     this.drainChildResults()
     const shell = shellToolFor(this.deps.platform)
     const hasShell = this.deps.isWorkspaceTrusted()
+    // Memory is the workspace context's (D13): offered in a trusted workspace only (D41).
+    const hasMemory = hasShell && this.deps.memory !== undefined
     const context = this.context.sections()
     const goalSection = goalInstructions(this.goal, this.goalSteps)
     return {
@@ -993,13 +1022,14 @@ export class ModelApiSession implements AgentSession {
         shellToolName: shell.name,
         shellName: shell.shellName,
         hasShell,
+        hasMemory,
         today: new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH),
         environment: this.environment ?? NO_ENVIRONMENT,
         context,
         // Pinned while the goal is active (M45, PLAN.md D38).
         ...(goalSection !== undefined && { goalSection }),
       }),
-      tools: this.tools(hasShell, context.skills.length > 0),
+      tools: this.tools(hasShell, context.skills.length > 0, hasMemory),
       tool_choice: 'auto',
       reasoning: {
         effort: this.effort === THINKING_OFF_EFFORT ? MODEL_API_EFFORT_OFF : this.effort,
@@ -1014,13 +1044,18 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** The in-process tools, and Meta's web search while that paid feature is on (M33). */
-  private tools(hasShell: boolean, hasSkills: boolean): readonly ToolDefinition[] {
+  private tools(
+    hasShell: boolean,
+    hasSkills: boolean,
+    hasMemory: boolean,
+  ): readonly ToolDefinition[] {
     const own = toolDefinitions(this.deps.platform, {
       hasShell,
       hasSkills,
       hasImageGeneration: this.deps.isPaidFeatureOn('imageGeneration'),
       hasSubagents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents'),
       isSubagent: this.isSubagent,
+      hasMemory,
     })
     return this.deps.isPaidFeatureOn('webSearch')
       ? [...own, { type: MODEL_API_WEB_SEARCH_TOOL }]
@@ -1645,6 +1680,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     query: PermissionQuery,
+    subject: ApprovalSubject,
     childTask?: SubagentTaskConfirmation,
   ): Promise<ApprovalOutcome> {
     const approvalId = this.deps.newId()
@@ -1655,7 +1691,7 @@ export class ModelApiSession implements AgentSession {
       toolName: call.name,
       rawArgs: call.arguments,
       requirementId: { approvalId, sourceIndex: 0 },
-      subject: subjectFor(call, this.deps.platform, childTask),
+      subject,
       availableChoices: [
         ...(childTask !== undefined || query.toolClass === 'paid'
           ? paidChoices()
@@ -1831,7 +1867,8 @@ export class ModelApiSession implements AgentSession {
   /** A tool that named a path may have entered a directory with its own rules file. */
   private async touchPath(call: FunctionCallItem): Promise<void> {
     const given = pick(argumentsOf(call), 'path')
-    if (given === undefined) {
+    // A memory note's path is under its scope's root, not the workspace (M49).
+    if (given === undefined || isMemoryTool(call.name)) {
       return
     }
     const resolved = await confineWorkspacePath(
@@ -2540,6 +2577,79 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * The mode's verdict on a call, and the card when it asks: the refusal, or
+   * undefined when the call may run.
+   */
+  private async judge(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    query: PermissionQuery,
+    subject: ApprovalSubject,
+  ): Promise<CallResult | undefined> {
+    const verdict = this.permissions.verdict(query)
+    if (verdict === 'deny') {
+      return {
+        outcome: toolFailure(`${call.name} ${MODEL_TEXT.toolRefusedByMode}`),
+        isRejected: true,
+      }
+    }
+    if (verdict === 'allow') {
+      return undefined
+    }
+    const approval = await this.askApproval(itemId, call, signal, query, subject)
+    return approval.isApproved
+      ? undefined
+      : { outcome: refusedOutcome(call, approval.feedback), isRejected: true }
+  }
+
+  /**
+   * A memory call (M49, PLAN.md D41): its note placed before any card (a
+   * refused path asks nothing); a write judged as an edit, never a
+   * protected one, its card naming the note.
+   */
+  private async decideAndRunMemory(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    toolClass: ToolClass,
+  ): Promise<CallResult> {
+    const { memory } = this.deps
+    if (memory === undefined) {
+      return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      return { outcome: toolFailure(MODEL_TEXT.memoryRestrictedMode), isRejected: true }
+    }
+    const placed = await placeMemoryCall(memory, call.name, call.arguments)
+    if (!placed.ok) {
+      return { outcome: toolFailure(placed.reason), isRejected: false }
+    }
+    if (toolClass !== 'read') {
+      const refusal = await this.judge(
+        itemId,
+        call,
+        signal,
+        { toolName: call.name, toolClass, isProtected: false },
+        { kind: 'fileWrite', path: placed.value.place.display, toolName: call.name },
+      )
+      if (refusal !== undefined) {
+        return refusal
+      }
+      // The card was open: a swapped directory would redirect the write, so
+      // the note is located again after the approval (review of PR #36).
+      const replaced = await placeMemoryCall(memory, call.name, call.arguments)
+      return {
+        outcome: replaced.ok
+          ? await runMemoryCall(memory, replaced.value)
+          : toolFailure(replaced.reason),
+        isRejected: false,
+      }
+    }
+    return { outcome: await runMemoryCall(memory, placed.value), isRejected: false }
+  }
+
   /** The permission check and, when it allows, the tool itself. May throw (an abort, an I/O error). */
   private async decideAndRun(
     turnId: string,
@@ -2551,6 +2661,9 @@ export class ModelApiSession implements AgentSession {
     const toolClass = classifyTool(call.name)
     if (toolClass === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+    }
+    if (isMemoryTool(call.name)) {
+      return await this.decideAndRunMemory(itemId, call, signal, toolClass)
     }
     if (
       this.isSubagent &&
@@ -2610,19 +2723,20 @@ export class ModelApiSession implements AgentSession {
       }
     }
     if (verdict === 'ask') {
-      const approval = await this.askApproval(itemId, call, signal, query, childTask)
+      const approval = await this.askApproval(
+        itemId,
+        call,
+        signal,
+        query,
+        subjectFor(call, this.deps.platform, childTask),
+        childTask,
+      )
       if (!approval.isApproved) {
-        if (childTask !== undefined) {
-          return { outcome: childTaskFailure('consentDeclined'), isRejected: true }
-        }
-        const reason = `${call.name} ${MODEL_TEXT.toolRejectedByUser}`
-        const feedback = approval.feedback === undefined ? '' : `\nUser: ${approval.feedback}`
         return {
-          outcome: {
-            output: `Error: ${reason}${feedback}`,
-            visibleOutput: reason,
-            failureReason: reason,
-          },
+          outcome:
+            childTask === undefined
+              ? refusedOutcome(call, approval.feedback)
+              : childTaskFailure('consentDeclined'),
           isRejected: true,
         }
       }

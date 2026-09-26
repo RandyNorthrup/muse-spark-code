@@ -47,6 +47,7 @@ import {
   GENERATE_IMAGE_PARAMETERS,
 } from './imageToolDefinitions'
 import { GOAL_TOOL_DEFINITIONS } from './goals'
+import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
 import type { FunctionToolDefinition } from './schemas'
@@ -219,6 +220,10 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_SUBAGENT_TOOLS.sendMessage]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.readResult]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.cancel]: 'interactive',
+  // M49 (PLAN.md D41): a memory write is judged as an edit, never a protected one.
+  [MODEL_API_TOOLS.readMemory]: 'read',
+  [MODEL_API_TOOLS.addMemory]: 'edit',
+  [MODEL_API_TOOLS.editMemory]: 'edit',
   // The goal tools change only the session's goal (M45): no card, in any mode.
   [MODEL_API_TOOLS.createGoal]: 'interactive',
   [MODEL_API_TOOLS.getGoal]: 'interactive',
@@ -277,6 +282,8 @@ export interface ToolDefinitionOptions {
   readonly hasSubagents?: boolean
   /** Child sessions cannot ask the panel or set its task list. */
   readonly isSubagent?: boolean
+  /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
+  readonly hasMemory?: boolean
 }
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
@@ -460,6 +467,11 @@ export function toolDefinitions(
         ]),
     ...(options.hasSubagents === true
       ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
+          define(tool.name, tool.description, tool.properties, tool.required),
+        )
+      : []),
+    ...(options.hasMemory === true
+      ? MEMORY_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),
         )
       : []),

@@ -60,3 +60,4 @@ The PNGs beside the records are that day's harness renders.
 - [M48](m48.md): opt-in, bounded Model API subagents; native read/reopen deferred (PLAN.md D45; local quality passed, hosted checks pending)
 - [M42](m42.md): replay as Meta validates it: commentary, reasoning summaries, reasoning-only turns, stream retries (PLAN.md D35)
 - [M33–M35](m33-m35.md): the paid features: web search, image generation and Muse Voice, opt in and loud (PLAN.md D30, D34)
+- [M49](m49.md): memory: the Memory view, and Muse Code's memory tools on the Model API backend, one memory for both (PLAN.md D41; full gate pending)

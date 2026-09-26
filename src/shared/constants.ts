@@ -36,6 +36,7 @@ export const COMMAND_IDS = {
   exportConversation: 'museSpark.exportConversation',
   mcpServers: 'museSpark.mcpServers',
   hooks: 'museSpark.hooks',
+  memory: 'museSpark.memory',
   newWorktree: 'museSpark.newWorktree',
   removeWorktree: 'museSpark.removeWorktree',
   // M46: Ctrl+B moves the running commands to the background; the other
@@ -340,6 +341,10 @@ export const MEMORY_TOOLS: ReadonlySet<string> = new Set([
   'add_memory',
   'edit_memory',
 ])
+// Muse Code's memory scopes (`scope` of the memory tools), the default first.
+export const MEMORY_SCOPES = ['personal_project', 'project', 'personal'] as const
+export type MemoryScope = (typeof MEMORY_SCOPES)[number]
+export const DEFAULT_MEMORY_SCOPE: MemoryScope = 'personal_project'
 export const GOAL_TOOLS: ReadonlySet<string> = new Set([
   'create_goal',
   'get_goal',
@@ -482,6 +487,10 @@ export const MODEL_API_TOOLS = {
   getGoal: 'get_goal',
   updateGoal: 'update_goal',
   reportProgress: 'report_progress',
+  // M49 (PLAN.md D41): Muse Code's own memory tools, with its arguments and results.
+  readMemory: 'read_memory',
+  addMemory: 'add_memory',
+  editMemory: 'edit_memory',
 } as const
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
@@ -568,12 +577,39 @@ export const SKILL_SOURCES = ['project', 'user'] as const
 // What the extension watches so the palette follows skill files (D13).
 export const PROJECT_SKILLS_GLOB = '**/.agents/skills/**'
 export const PERSONAL_SKILLS_GLOB = '*/SKILL.md'
-// Memory: the project index `.agents/memory/MEMORY.md`, read at session start.
-export const MEMORY_INDEX_SEGMENTS = ['.agents', 'memory', 'MEMORY.md'] as const
+// Memory (M49, PLAN.md D41, found on disk and in a live capture 2026-09-25):
+// Muse Code keeps Markdown notes in three scopes. `project` is the
+// repository's `.agents/memory`; `personal` is `<data>/muse/memory/personal`
+// and `personal_project` is `<data>/muse/memory/projects/<slug>-<key>`,
+// where `<data>` is `$XDG_DATA_HOME`, else `~/.local/share`. Each scope may
+// keep a `MEMORY.md` index, one line per note (`- [Title](file.md) | hook`).
+export const MEMORY_DIR_SEGMENTS = ['.agents', 'memory'] as const
 export const MEMORY_DIR = '.agents/memory'
+export const MEMORY_INDEX_FILE = 'MEMORY.md'
+export const MEMORY_DATA_HOME_SEGMENTS = ['.local', 'share'] as const
+export const MEMORY_DATA_SEGMENTS = ['muse', 'memory'] as const
+export const MEMORY_PERSONAL_DIR = 'personal'
+export const MEMORY_PROJECTS_DIR = 'projects'
+export const MEMORY_NOTE_EXTENSION = '.md'
+export const MEMORY_STAGE_FILE_MODE = 0o600
+// `add_memory`'s optional `type` (the binary's schema; `user`, `reference`
+// and `project` seen accepted live).
+export const MEMORY_NOTE_TYPES = ['user', 'feedback', 'project', 'reference'] as const
+// `read_memory`'s window when the call names none (the tool's own schema).
+export const MEMORY_READ_DEFAULT_LIMIT = 500
+// Muse Code's session-start snapshot lists each scope's other notes by
+// path, "up to 48 files" (dev.meta.ai/docs/muse-code/configuration).
+export const MEMORY_SNAPSHOT_MAX_NOTES = 48
+// What the Memory view lists per scope, and how deep it looks for notes.
+export const MEMORY_LIST_MAX_NOTES = 500
+export const MEMORY_LIST_MAX_DEPTH = 8
+// An index line's hook, cut to this many characters.
+export const MEMORY_HOOK_MAX_CHARS = 120
+export const MEMORY_MARKDOWN_ESCAPE = String.fromCodePoint(92)
 export const MEMORY_INDEX_MAX_LINES = 200
 export const MEMORY_INDEX_MAX_BYTES = 32 * 1024
 export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
+export const MUSE_MEMORY_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/configuration#local-memory'
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
 // PLAN.md D27: a clipped shell stream keeps its beginning and its end, with
@@ -1048,6 +1084,7 @@ export const SLASH_COMMAND_NAMES = {
   config: 'config',
   mcp: 'mcp',
   hooks: 'hooks',
+  memory: 'memory',
 } as const
 /** Muse Code's bundled skills that continue another agent's session (M30). */
 export const RESUME_SKILL_SELECTORS: Readonly<Record<SkillImportSource, string>> = {
@@ -1235,6 +1272,29 @@ export const MODEL_TEXT = {
   userShellLead:
     '[The user ran this shell command in the workspace themselves. Its output is context for you, not a request]',
   clarificationLead: 'The user chose none of the options and explained instead:',
+  // M49 (PLAN.md D41): the memory tools' results and refusals in Muse Code's
+  // own words (its 1.3.0 binary's strings, and the live capture of 2026-09-25).
+  memoryNoteWritten: 'memory note written',
+  memoryNoteEdited: 'memory note edited',
+  memoryPathEmpty: 'memory path must not be empty',
+  memoryPathAbsolute: 'absolute memory paths are not allowed',
+  memoryPathTraversal: 'memory path traversal is not allowed',
+  memoryPathHidden: 'hidden memory path components are not allowed',
+  memoryPathNoFileName: 'memory path must include a file name',
+  memoryPathNotMarkdown: 'memory path must be a Markdown .md file',
+  memoryPathLink: 'memory path contains a symlink',
+  memoryFileNotFound: 'memory file not found',
+  memoryOffsetTooSmall: 'offset must be at least 1',
+  memoryLimitTooSmall: 'limit must be at least 1',
+  memoryOldStrEmpty: 'old_str must not be empty',
+  memoryOldStrNotFound: 'old_str not found:',
+  memoryOldStrAmbiguous: 'ambiguous old_str',
+  // The extension's own, where Muse Code has no counterpart.
+  memoryNoteExists: 'a memory note already exists at that path',
+  memoryNoWorkspace: 'no workspace folder is open, so this scope has no memory',
+  memoryNoHome: 'the home folder is unknown, so this scope has no memory',
+  memoryRestrictedMode:
+    'memory is not available while the workspace is in Restricted Mode; trust the workspace to use it',
 } as const
 
 // What the user reads, in the display language (PLAN.md D33).
