@@ -33,6 +33,8 @@ export interface ScriptedSearch {
 
 /** One model reply: streamed as reasoning + searches + text + function calls. */
 export interface ScriptedReply {
+  /** Keep the request in flight until a test releases this gate. */
+  readonly hold?: Promise<void>
   readonly text?: string
   readonly searches?: readonly ScriptedSearch[]
   /** The text's `url_citation` annotations (M33). */
@@ -56,6 +58,8 @@ export interface ScriptedReply {
   readonly streamError?: { readonly code: string; readonly message: string }
   /** End the stream with `response.failed` instead of `response.completed`. */
   readonly failed?: { readonly code: string; readonly message: string }
+  /** End with a partial response carrying usage, as the API can during compaction. */
+  readonly incomplete?: { readonly reason: string }
   /** Serve frames that are not JSON. */
   readonly garbage?: boolean
   /** Fail the fetch itself (network error) instead of answering. */
@@ -266,20 +270,33 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
     })}`
   }
   const usage = reply.usage ?? { input: 10, output: 5 }
+  const response = {
+    id: responseId,
+    model: 'muse-spark-1.3',
+    output,
+    usage: {
+      input_tokens: usage.input,
+      output_tokens: usage.output,
+      total_tokens: usage.input + usage.output,
+      input_tokens_details: { cached_tokens: usage.cached ?? 0 },
+      output_tokens_details: { reasoning_tokens: 1 },
+    },
+  }
+  if (reply.incomplete !== undefined) {
+    return `${text}${frame({
+      type: 'response.incomplete',
+      response: {
+        ...response,
+        status: 'incomplete',
+        incomplete_details: reply.incomplete,
+      },
+    })}`
+  }
   return `${text}${frame({
     type: 'response.completed',
     response: {
-      id: responseId,
+      ...response,
       status: 'completed',
-      model: 'muse-spark-1.3',
-      output,
-      usage: {
-        input_tokens: usage.input,
-        output_tokens: usage.output,
-        total_tokens: usage.input + usage.output,
-        input_tokens_details: { cached_tokens: usage.cached ?? 0 },
-        output_tokens_details: { reasoning_tokens: 1 },
-      },
     },
   })}${reply.doneSentinel === true ? 'data: [DONE]\n\n' : ''}`
 }
@@ -295,6 +312,18 @@ function bodyStream(text: string): ReadableStream<Uint8Array> {
       controller.close()
     },
   })
+}
+
+async function afterGate(
+  gate: Promise<void>,
+  response: Response,
+  signal: AbortSignal | null | undefined,
+): Promise<Response> {
+  await gate
+  if (signal?.aborted === true) {
+    throw new DOMException('aborted', 'AbortError')
+  }
+  return response
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -429,12 +458,13 @@ export function fakeModelApi(): FakeModelApi {
       if (signal?.aborted === true) {
         return Promise.reject(new DOMException('aborted', 'AbortError'))
       }
-      return Promise.resolve(
-        new Response(bodyStream(text), {
-          status: 200,
-          headers: { 'content-type': 'text/event-stream' },
-        }),
-      )
+      const response = new Response(bodyStream(text), {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      })
+      return reply.hold === undefined
+        ? Promise.resolve(response)
+        : afterGate(reply.hold, response, signal)
     },
   }
   return api

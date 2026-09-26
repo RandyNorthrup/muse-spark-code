@@ -123,14 +123,14 @@ describe('goal rows (M43)', () => {
       tool({
         id: 'g3',
         tool: 'update_goal',
-        args: '{"status":"budget_limited"}',
+        args: '{"status":"superseded"}',
         status: 'inProgress',
       }),
     ])
     expect(screen.getByText('Ship it')).toBeTruthy()
     expect(screen.getByText('Complete')).toBeTruthy()
     // A status Muse Code adds later shows as it came.
-    expect(screen.getByText('budget_limited')).toBeTruthy()
+    expect(screen.getByText('superseded')).toBeTruthy()
   })
 
   it('falls back to the text when a goal tool answers something else', () => {

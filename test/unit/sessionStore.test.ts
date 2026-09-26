@@ -20,6 +20,20 @@ const full: StoredSession = {
   forkedFrom: 's0',
   firstPrompt: 'fix the parser',
   todos: [{ text: 'read', status: 'completed' }],
+  // M45: the goal as Muse Code's tools return it.
+  goal: {
+    goal_id: 'goal-1',
+    objective: 'Fix the parser',
+    status: 'paused',
+    percent_complete: 40,
+    current_work: 'Tests',
+    next_work: null,
+    token_budget: null,
+    tokens_used: 1200,
+    created_at_ms: 1,
+    updated_at_ms: 2,
+    last_progress_at_ms: 2,
+  },
   replay: [
     {
       turnId: 't1',
@@ -70,6 +84,14 @@ describe('parseStoredSession', () => {
   it('accepts a full record unchanged after a JSON round trip', () => {
     const parsed = parseStoredSession(structuredClone(full))
     expect(parsed).toEqual({ ok: true, session: full })
+  })
+
+  it('reads a session saved before goals (M45) as one without a goal', () => {
+    const { goal: _goal, ...older } = full
+    const parsed = parseStoredSession(structuredClone(older))
+    expect(parsed).toEqual({ ok: true, session: older })
+    expect(parsed.ok && 'goal' in parsed.session).toBe(false)
+    expect(parseStoredSession({ ...full, goal: { objective: 'x' } })).toMatchObject({ ok: false })
   })
 
   it('names what is wrong with a bad document', () => {

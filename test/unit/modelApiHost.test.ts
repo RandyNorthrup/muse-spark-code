@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   MODEL_API_MAX_RETRIES,
+  MODEL_API_MAX_TOOL_ROUNDS,
+  GOAL_OBJECTIVE_MAX_CHARS,
   MODEL_TEXT,
   type PaidFeature,
   UI_TEXT,
@@ -14,6 +16,8 @@ import {
   type ModelApiSession,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { EN } from '../../src/shared/l10n/en'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   fakeModelApi,
   fakeModelApiClient,
@@ -71,7 +75,7 @@ function setup(
       paidUses.push({ feature, units })
     },
   })
-  return { api, host, log, io, files: io.files, shellCalls: io.shellCalls, paidUses }
+  return { api, client, host, log, io, files: io.files, shellCalls: io.shellCalls, paidUses }
 }
 
 async function startSession(
@@ -2147,5 +2151,760 @@ describe('ModelApiSession: image edits, paid and asked every time (M44)', () => 
     expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
     expect(toolOutput(off, 'call_edit')).toContain('image generation is off')
     expect(off.api.editBodies()).toEqual([])
+  })
+})
+
+/** The goals a session reported, in order (M45). */
+function goalEvents(events: readonly AgentEvent[]) {
+  return events.flatMap((event) => (event.type === 'goalChanged' ? [event.goal] : []))
+}
+
+/** The instructions of the n-th request to the fake API. */
+function instructionsOf(t: ReturnType<typeof setup>, index: number) {
+  return String(t.api.responseBodies()[index]?.['instructions'])
+}
+
+/** Establish an active budgeted goal with one completed model turn. */
+async function beginBudgetGoal(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  turnDone: () => Promise<void>,
+): Promise<void> {
+  t.api.script(
+    {
+      calls: [
+        {
+          name: 'create_goal',
+          arguments: '{"objective":"Ship it","token_budget":100}',
+          callId: 'goal',
+        },
+      ],
+    },
+    { text: 'Working' },
+  )
+  await session.sendTurn([{ type: 'text', text: 'go' }])
+  await turnDone()
+}
+
+async function startUnbudgetedGoal(t: ReturnType<typeof setup>) {
+  const started = await startSession(t)
+  t.api.script({ text: 'Goal work' })
+  await started.session.controlGoal({ verb: 'set', objective: 'Ship it' })
+  await started.turnDone()
+  return started
+}
+
+async function startBudgetedGoal(t: ReturnType<typeof setup>) {
+  const started = await startSession(t)
+  await beginBudgetGoal(t, started.session, started.turnDone)
+  return started
+}
+
+function holdCompactionCount(t: ReturnType<typeof setup>) {
+  const counted = Promise.withResolvers<number>()
+  const countStarted = Promise.withResolvers<undefined>()
+  vi.spyOn(t.client, 'countInputTokens').mockImplementation(() => {
+    countStarted.resolve(undefined)
+    return counted.promise
+  })
+  return { counted, countStarted }
+}
+
+async function expectReplacementGoalWake(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(3)
+  })
+  expect(session.snapshot().goal).toMatchObject({ objective: 'Goal B', status: 'active' })
+  expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
+}
+
+/** Fifty tool replies, with the final one held for a busy command. */
+function scriptHeldFinalToolRound(
+  t: ReturnType<typeof setup>,
+  hold: Promise<void>,
+  finalText: string,
+): void {
+  const tool = { name: 'get_goal', arguments: '{}' }
+  t.api.script(
+    ...Array.from({ length: MODEL_API_MAX_TOOL_ROUNDS - 1 }, () => ({ calls: [tool] })),
+    { calls: [tool], hold },
+    { text: finalText },
+  )
+}
+
+/** Records whether any persisted replay had a call without its output. */
+function storeTrackingPendingCalls() {
+  const store = memorySessionStore()
+  const savedWithoutOutput: boolean[] = []
+  const save = store.save.bind(store)
+  store.save = (snapshot) => {
+    const outputs = new Set(
+      snapshot.replay.flatMap((entry) =>
+        entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
+      ),
+    )
+    savedWithoutOutput.push(
+      snapshot.replay.some(
+        (entry) => entry.item.type === 'function_call' && !outputs.has(entry.item.call_id),
+      ),
+    )
+    return save(snapshot)
+  }
+  return { store, savedWithoutOutput }
+}
+
+const GOAL_WAKE_MESSAGE = {
+  type: 'message',
+  role: 'user',
+  content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
+}
+
+describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
+  it('rejects an overlong user objective in the installed language', async () => {
+    setUiText({ ...EN, goalObjectiveTooLong: 'Ziel höchstens {limit} Zeichen.' }, 'de')
+    try {
+      const t = setup()
+      const { session } = await startSession(t)
+      await expect(
+        session.controlGoal({ verb: 'set', objective: 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
+      ).rejects.toThrow('Ziel höchstens 4.000 Zeichen.')
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
+  })
+
+  it("runs Muse Code's goal tools with its result shape and pins the goal into the next request", async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [{ name: 'create_goal', arguments: '{"objective":"Ship it"}', callId: 'c1' }] },
+      {
+        calls: [
+          {
+            name: 'report_progress',
+            arguments: '{"current_work":"Tests","next_work":"Docs","percent_complete":50}',
+            callId: 'c2',
+          },
+        ],
+      },
+      { text: 'Halfway.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'set a goal and work on it' }])
+    await turnDone()
+    expect(goalEvents(events)).toEqual([
+      { objective: 'Ship it', status: 'active', percentComplete: 0 },
+      {
+        objective: 'Ship it',
+        status: 'active',
+        percentComplete: 50,
+        currentWork: 'Tests',
+        nextWork: 'Docs',
+      },
+    ])
+    const row = events.find(
+      (event) => event.type === 'itemCompleted' && event.item.tool === 'create_goal',
+    )
+    expect(row?.type === 'itemCompleted' && JSON.parse(row.item.visibleOutput ?? '')).toMatchObject(
+      { goal: { session_id: session.sessionId, objective: 'Ship it', status: 'active' } },
+    )
+    expect(t.api.responseBodies()[0]?.['tools']).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'create_goal' }),
+        expect.objectContaining({ name: 'get_goal' }),
+        expect.objectContaining({ name: 'update_goal' }),
+        expect.objectContaining({ name: 'report_progress' }),
+      ]),
+    )
+    expect(instructionsOf(t, 0)).not.toContain('# Session goal')
+    expect(instructionsOf(t, 1)).toContain('- Objective: Ship it')
+    expect(instructionsOf(t, 2)).toContain('- Current work: Tests')
+    expect(session.history().goal).toMatchObject({ objective: 'Ship it', percentComplete: 50 })
+  })
+
+  it('wakes a turn when the user sets a goal while idle, with no card for its cue', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [{ name: 'update_goal', arguments: '{"status":"complete"}', callId: 'c1' }],
+      },
+      { text: 'hello' },
+    )
+    const outcome = await session.controlGoal({ verb: 'set', objective: 'Say hello' })
+    await turnDone()
+    expect(outcome.turnId).toBeDefined()
+    expect(events).toContainEqual({ type: 'turnStarted', turnId: outcome.turnId })
+    expect(t.api.responseBodies()[0]?.['input']).toContainEqual(GOAL_WAKE_MESSAGE)
+    expect(instructionsOf(t, 0)).toContain('- Objective: Say hello')
+    expect(session.history().items.some((item) => item.kind === 'userMessage')).toBe(false)
+    expect(session.record().title).toBe('Say hello')
+    expect(goalEvents(events).at(-1)).toEqual({
+      objective: 'Say hello',
+      status: 'complete',
+      percentComplete: 100,
+    })
+  })
+
+  it('follows MSP: a busy set joins the turn, pause and clear never wake, refusals as captured', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ calls: [ASK_USER_CALL] }, { text: 'done' })
+    const running = await session.sendTurn([{ type: 'text', text: 'ask me' }])
+    const question = await awaitQuestion(events)
+    await expect(session.controlGoal({ verb: 'set', objective: 'Ship it' })).resolves.toEqual({
+      turnId: running.turnId,
+    })
+    await session.answerQuestions(question.userInputId, [{ questionId: 'q', selectedLabel: 'Red' }])
+    await turnDone()
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+    await expect(session.controlGoal({ verb: 'pause' })).resolves.toEqual({ turnId: undefined })
+    await expect(session.controlGoal({ verb: 'pause' })).rejects.toMatchObject({
+      name: 'GoalRefusedError',
+      refusal: 'wrongState',
+    })
+    // An edit of a paused goal keeps it paused, and wakes nothing (live 2026-09-25).
+    await expect(session.controlGoal({ verb: 'edit', objective: 'Ship it now' })).resolves.toEqual({
+      turnId: undefined,
+    })
+    await expect(session.controlGoal({ verb: 'edit', objective: '  ' })).rejects.toThrow(
+      UI_TEXT.goalObjectiveMissing,
+    )
+    await session.controlGoal({ verb: 'clear' })
+    await expect(session.controlGoal({ verb: 'clear' })).rejects.toMatchObject({
+      refusal: 'noGoal',
+    })
+    expect(goalEvents(events).slice(-3)).toEqual([
+      { objective: 'Ship it', status: 'paused', percentComplete: 0 },
+      { objective: 'Ship it now', status: 'paused', percentComplete: 0 },
+      null,
+    ])
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+  })
+
+  it('gives a busy goal command a new round after a final streaming reply', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Before the goal', hold: held.promise }, { text: 'Working on it' })
+    const running = await session.sendTurn([{ type: 'text', text: 'First request' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    await expect(session.controlGoal({ verb: 'set', objective: 'Ship it' })).resolves.toEqual({
+      turnId: running.turnId,
+    })
+    held.resolve(undefined)
+    await turnDone()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(instructionsOf(t, 0)).not.toContain('# Session goal')
+    expect(instructionsOf(t, 1)).toContain('- Objective: Ship it')
+    expect(t.api.responseBodies()[1]?.['input']).toContainEqual(GOAL_WAKE_MESSAGE)
+    expect(session.history().items.filter((item) => item.kind === 'userMessage')).toHaveLength(1)
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+  })
+
+  it('starts a fresh goal turn when a busy command arrives in the last tool round', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    scriptHeldFinalToolRound(t, held.promise, 'Working on the goal')
+    await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+    })
+    await session.controlGoal({ verb: 'set', objective: 'New goal' })
+    held.resolve(undefined)
+    await turnDone()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+    })
+    expect(instructionsOf(t, MODEL_API_MAX_TOOL_ROUNDS)).toContain('- Objective: New goal')
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
+  })
+
+  it('starts a fresh turn for steering accepted in the last tool round', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    scriptHeldFinalToolRound(t, held.promise, 'Steered answer')
+    const running = await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+    })
+    await session.steer(running.turnId, [{ type: 'text', text: 'New instruction' }])
+    held.resolve(undefined)
+    await turnDone()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+    })
+    expect(JSON.stringify(t.api.responseBodies()[MODEL_API_MAX_TOOL_ROUNDS]?.['input'])).toContain(
+      'New instruction',
+    )
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
+  })
+
+  const staleGoalCases: readonly {
+    readonly command: Parameters<ModelApiSession['controlGoal']>[0]
+    readonly call: { readonly name: string; readonly arguments: string; readonly callId: string }
+  }[] = [
+    {
+      command: { verb: 'set', objective: 'Replacement' },
+      call: { name: 'update_goal', arguments: '{"status":"complete"}', callId: 'old' },
+    },
+    {
+      command: { verb: 'edit', objective: 'Replacement' },
+      call: {
+        name: 'report_progress',
+        arguments: '{"current_work":"Old work","next_work":"Done","percent_complete":100}',
+        callId: 'old',
+      },
+    },
+  ]
+  it.each(staleGoalCases)(
+    'rejects stale goal calls after a busy $command.verb',
+    async ({ command, call }) => {
+      const t = setup()
+      const { session, events, turnDone } = await startSession(t)
+      const held = Promise.withResolvers<undefined>()
+      t.api.script({ calls: [call], hold: held.promise }, { text: 'Working on replacement' })
+      await session.controlGoal({ verb: 'set', objective: 'Original' })
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(1)
+      })
+      await session.controlGoal(command)
+      held.resolve(undefined)
+      await turnDone()
+      expect(session.history().goal).toMatchObject({
+        objective: 'Replacement',
+        status: 'active',
+        percentComplete: 0,
+      })
+      expect(t.api.responseBodies()).toHaveLength(2)
+      expect(instructionsOf(t, 1)).toContain('- Objective: Replacement')
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'itemCompleted',
+          item: expect.objectContaining({ tool: call.name, status: 'failed' }),
+        }),
+      )
+    },
+  )
+
+  it('pauses an active goal when Stop ends its turn, as Esc does in Muse Code', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ calls: [ASK_USER_CALL] })
+    await session.controlGoal({ verb: 'set', objective: 'Ship it' })
+    await awaitQuestion(events)
+    await session.cancel()
+    await turnDone()
+    expect(goalEvents(events).at(-1)).toEqual({
+      objective: 'Ship it',
+      status: 'paused',
+      percentComplete: 0,
+    })
+  })
+
+  it('keeps a replacement goal active when Stop is still unwinding an old turn', async () => {
+    const t = setup()
+    const { session, turnDone } = await startUnbudgetedGoal(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Old reply', hold: held.promise }, { text: 'Working on B' })
+    await session.sendTurn([{ type: 'text', text: 'continue A' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(2)
+    })
+    const stopping = session.cancel()
+    const setting = session.controlGoal({ verb: 'set', objective: 'Goal B' })
+    await Promise.all([stopping, setting])
+    held.resolve(undefined)
+    await turnDone()
+    await expectReplacementGoalWake(t, session)
+  })
+
+  it('refuses steering after Stop while an old response is still unwinding', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Old reply', hold: held.promise })
+    const running = await session.sendTurn([{ type: 'text', text: 'go' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    await session.cancel()
+    await expect(
+      session.steer(running.turnId, [{ type: 'text', text: 'Too late' }]),
+    ).rejects.toThrow('the turn is not running')
+    held.resolve(undefined)
+    await turnDone()
+  })
+
+  it('counts what the goal used against its budget and stops it when spent', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'c1',
+          },
+        ],
+        usage: { input: 50, output: 5 },
+      },
+      { text: 'working', usage: { input: 90, output: 20 } },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    expect(goalEvents(events).at(-1)).toMatchObject({ status: 'budget_limited' })
+    expect(session.snapshot().goal).toMatchObject({ token_budget: 100, tokens_used: 110 })
+  })
+
+  it('does not run returned tools or buy another round after the goal budget runs out', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'create_goal',
+            arguments: '{"objective":"Ship it","token_budget":100}',
+            callId: 'goal',
+          },
+        ],
+      },
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"first.txt","content":"x"}', callId: 'first' },
+          {
+            name: 'write_file',
+            arguments: '{"path":"second.txt","content":"x"}',
+            callId: 'second',
+          },
+        ],
+        usage: { input: 90, output: 10 },
+      },
+      { text: 'Next user turn' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    expect(goalEvents(events).at(-1)).toMatchObject({ status: 'budget_limited' })
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.files.has(`${ROOT}/first.txt`)).toBe(false)
+    expect(t.files.has(`${ROOT}/second.txt`)).toBe(false)
+    await session.sendTurn([{ type: 'text', text: 'A separate question' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies()[2], 'first')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.goalBudgetReached}`,
+    })
+    expect(outputFor(t.api.responseBodies()[2], 'second')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.goalBudgetReached}`,
+    })
+  })
+
+  it('keeps steering accepted while a response exhausts the goal budget', async () => {
+    const t = setup()
+    const { session, turnDone } = await startBudgetedGoal(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script(
+      { text: 'Budget reply', hold: held.promise, usage: { input: 90, output: 10 } },
+      { text: 'Separate answer' },
+    )
+    const running = await session.sendTurn([{ type: 'text', text: 'continue' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    await session.steer(running.turnId, [{ type: 'text', text: 'Separate question' }])
+    held.resolve(undefined)
+    await turnDone()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(4)
+    })
+    expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited' })
+    expect(JSON.stringify(t.api.responseBodies()[3]?.['input'])).toContain('Separate question')
+  })
+
+  it('does not replay steering after Stop when a completed budget reply was buffered', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    await beginBudgetGoal(t, session, turnDone)
+    const streamed = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const originalStream = t.client.streamResponse.bind(t.client)
+    vi.spyOn(t.client, 'streamResponse').mockImplementation(async function* (...args) {
+      yield* originalStream(...args)
+      streamed.resolve(undefined)
+      await release.promise
+    })
+    t.api.script(
+      { text: 'Budget reply', usage: { input: 90, output: 10 } },
+      { text: 'Must not run' },
+    )
+    const running = await session.sendTurn([{ type: 'text', text: 'continue' }])
+    await streamed.promise
+    await session.steer(running.turnId, [{ type: 'text', text: 'Should be cancelled' }])
+    await session.cancel()
+    release.resolve(undefined)
+    await turnDone()
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
+    expect(t.api.responseBodies()).toHaveLength(3)
+  })
+
+  it('withdraws a goal wake queued during compaction when the budget is spent', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    await beginBudgetGoal(t, session, turnDone)
+
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Summary', hold: held.promise, usage: { input: 90, output: 10 } })
+    const compacting = session.compact()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    await session.controlGoal({ verb: 'pause' })
+    const wake = await session.controlGoal({ verb: 'resume' })
+    expect(wake.turnId).toBeDefined()
+    held.resolve(undefined)
+    await compacting
+
+    expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited' })
+    expect(t.api.responseBodies()).toHaveLength(3)
+    expect(events).toContainEqual({
+      type: 'turnWithdrawn',
+      turnId: wake.turnId,
+      reason: UI_TEXT.goalWakeWithdrawn,
+    })
+    expect(
+      events.some((event) => event.type === 'turnStarted' && event.turnId === wake.turnId),
+    ).toBe(false)
+  })
+
+  it('withdraws a superseded goal wake queued during compaction', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'Intro' })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    const held = Promise.withResolvers<undefined>()
+    t.api.script(
+      { text: 'Summary', hold: held.promise },
+      { text: 'Working on B' },
+      { text: 'Duplicate work on B' },
+    )
+    const compacting = session.compact()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(2)
+    })
+    const first = await session.controlGoal({ verb: 'set', objective: 'Goal A' })
+    const second = await session.controlGoal({ verb: 'set', objective: 'Goal B' })
+    held.resolve(undefined)
+    await compacting
+    await vi.waitFor(() => {
+      expect(events).toContainEqual({
+        type: 'turnWithdrawn',
+        turnId: first.turnId,
+        reason: UI_TEXT.goalWakeWithdrawn,
+      })
+    })
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
+    expect(events).toContainEqual({ type: 'turnStarted', turnId: second.turnId })
+  })
+
+  it('charges a held response to its original goal even when the goal is paused', async () => {
+    const t = setup()
+    const { session, turnDone } = await startBudgetedGoal(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Before pause', hold: held.promise, usage: { input: 90, output: 10 } })
+    await session.sendTurn([{ type: 'text', text: 'continue' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    await session.controlGoal({ verb: 'pause' })
+    held.resolve(undefined)
+    await turnDone()
+    expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited', tokens_used: 115 })
+    expect(t.api.responseBodies()).toHaveLength(3)
+  })
+
+  it('does not charge an old request to a goal resumed while it streamed', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    await beginBudgetGoal(t, session, turnDone)
+    await session.controlGoal({ verb: 'pause' })
+    const old = Promise.withResolvers<undefined>()
+    const wake = Promise.withResolvers<undefined>()
+    t.api.script(
+      { text: 'Old answer', hold: old.promise, usage: { input: 90, output: 10 } },
+      { text: 'Goal answer', hold: wake.promise, usage: { input: 1, output: 1 } },
+    )
+    await session.sendTurn([{ type: 'text', text: 'unrelated request' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(3)
+    })
+    await session.controlGoal({ verb: 'resume' })
+    old.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(4)
+    })
+    expect(session.snapshot().goal).toMatchObject({ status: 'active', tokens_used: 15 })
+    wake.resolve(undefined)
+    await turnDone()
+    expect(session.snapshot().goal).toMatchObject({ status: 'active', tokens_used: 17 })
+  })
+
+  it('pauses an active goal when Stop cancels a compaction', async () => {
+    const t = setup()
+    const { session } = await startUnbudgetedGoal(t)
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ text: 'Summary', hold: held.promise })
+    const compacting = session.compact()
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(2)
+    })
+    await session.cancel()
+    held.resolve(undefined)
+    await expect(compacting).resolves.toMatchObject({ status: 'cancelled' })
+    expect(session.snapshot().goal).toMatchObject({ status: 'paused' })
+  })
+
+  it('pauses the goal when Stop arrives after the compaction summary committed', async () => {
+    const t = setup()
+    const { session } = await startUnbudgetedGoal(t)
+    const { counted, countStarted } = holdCompactionCount(t)
+    t.api.script({ text: 'Summary' })
+    const compacting = session.compact()
+    await countStarted.promise
+    await session.cancel()
+    counted.resolve(42)
+    // The summary was already committed; Stop pauses future goal work.
+    await expect(compacting).resolves.toMatchObject({ status: 'accepted' })
+    expect(session.snapshot().goal).toMatchObject({ status: 'paused' })
+  })
+
+  it('does not pause a replacement goal set after Stop during compaction counting', async () => {
+    const t = setup()
+    const { session } = await startUnbudgetedGoal(t)
+    const { counted, countStarted } = holdCompactionCount(t)
+    t.api.script({ text: 'Summary' }, { text: 'Working on B' })
+    const compacting = session.compact()
+    await countStarted.promise
+    await session.cancel()
+    await session.controlGoal({ verb: 'set', objective: 'Goal B' })
+    counted.resolve(42)
+    await expect(compacting).resolves.toMatchObject({ status: 'accepted' })
+    await expectReplacementGoalWake(t, session)
+  })
+
+  it('refuses an incomplete compaction and still charges its goal usage', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    await beginBudgetGoal(t, session, turnDone)
+    t.api.script({
+      text: 'PARTIAL SUMMARY',
+      incomplete: { reason: 'max_output_tokens' },
+      usage: { input: 90, output: 10 },
+    })
+    await expect(session.compact()).rejects.toThrow('response.incomplete')
+    expect(session.snapshot().goal).toMatchObject({ status: 'budget_limited', tokens_used: 115 })
+    expect(session.history().items.some((item) => item.kind === 'compaction')).toBe(false)
+    t.api.script({ text: 'Next answer' })
+    await session.sendTurn([{ type: 'text', text: 'next request' }])
+    await turnDone()
+    const replay = JSON.stringify(t.api.responseBodies().at(-1)?.['input'])
+    expect(replay).toContain('go')
+    expect(replay).not.toContain('PARTIAL SUMMARY')
+  })
+
+  it.each([false, true])('persists incomplete compaction usage (goal: %s)', async (withGoal) => {
+    const store = memorySessionStore()
+    const t = setup({ store })
+    const { session, turnDone } = await startSession(t)
+    if (withGoal) {
+      await beginBudgetGoal(t, session, turnDone)
+    } else {
+      t.api.script({ text: 'Start' })
+      await session.sendTurn([{ type: 'text', text: 'go' }])
+      await turnDone()
+    }
+    const before = session.snapshot().usage
+    t.api.script({
+      text: 'PARTIAL SUMMARY',
+      incomplete: { reason: 'max_output_tokens' },
+      usage: { input: 90, output: 10 },
+    })
+    await expect(session.compact()).rejects.toThrow('response.incomplete')
+    await t.host.close()
+    expect(session.snapshot().usage.inputTokens).toBe(before.inputTokens + 90)
+    expect(session.snapshot().usage.outputTokens).toBe(before.outputTokens + 10)
+    expect(store.saved.get(session.sessionId)?.usage).toEqual(session.snapshot().usage)
+  })
+
+  it('never saves a pending function call without its output', async () => {
+    const { store, savedWithoutOutput } = storeTrackingPendingCalls()
+    const t = setup({ store })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          { name: 'todo_write', arguments: '{"items":[{"text":"First","status":"completed"}]}' },
+          ASK_USER_CALL,
+        ],
+      },
+      { text: 'Done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'ask me' }])
+    const question = await awaitQuestion(events)
+    await session.controlGoal({ verb: 'set', objective: 'Ship it' })
+    await session.answerQuestions(question.userInputId, [{ questionId: 'q', selectedLabel: 'Red' }])
+    await turnDone()
+    await t.host.close()
+    expect(savedWithoutOutput).not.toContain(true)
+  })
+
+  it('saves goal tool calls only after their outputs', async () => {
+    const { store, savedWithoutOutput } = storeTrackingPendingCalls()
+    const t = setup({ store })
+    const { session, turnDone } = await startSession(t)
+    t.api.script(
+      { calls: [{ name: 'create_goal', arguments: '{"objective":"Ship it"}', callId: 'goal' }] },
+      { text: 'Working' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'set a goal' }])
+    await turnDone()
+    await t.host.close()
+    expect(savedWithoutOutput).not.toContain(true)
+  })
+
+  it('keeps the goal with the stored session, and forks carry it', async () => {
+    const store = memorySessionStore()
+    const first = setup({ store })
+    const { session, turnDone } = await startSession(first)
+    first.api.script({ text: 'ok' })
+    await session.controlGoal({ verb: 'set', objective: 'Ship it' })
+    await turnDone()
+    await session.controlGoal({ verb: 'pause' })
+    await first.host.close()
+    const saved = store.saved.get(session.sessionId)
+    expect(saved?.goal).toMatchObject({ objective: 'Ship it', status: 'paused' })
+    expect(parseStoredSession(structuredClone(saved))).toMatchObject({
+      ok: true,
+      session: { goal: { objective: 'Ship it', status: 'paused' } },
+    })
+    const second = setup({ store })
+    await second.host.load()
+    const expected = { objective: 'Ship it', status: 'paused', percentComplete: 0 }
+    const read = await second.host.readSession(session.sessionId)
+    expect(read.goal).toEqual(expected)
+    const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(resumed.history.goal).toEqual(expected)
+    const fork = await second.host.forkSession(session.sessionId, 'muse-spark-1.3')
+    expect(fork.history.goal).toEqual(expected)
   })
 })

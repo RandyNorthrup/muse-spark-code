@@ -756,6 +756,37 @@
               )
               break
             }
+            // --- The session goal (M45): the host answers as Muse Code's goal/*
+            // and session/goalChanged did (captured live 2026-09-25).
+            case 'goalCommand': {
+              const words = (key, english) => harnessL10n.table?.[key] ?? english
+              const goals = {
+                set: () => ({ objective: message.objective, status: 'active', percentComplete: 0 }),
+                edit: () => ({ ...window.harnessGoal, objective: message.objective }),
+                pause: () => ({ ...window.harnessGoal, status: 'paused' }),
+                resume: () => ({ ...window.harnessGoal, status: 'active' }),
+                clear: () => null,
+              }
+              const notices = {
+                set: words('goalSetNotice', 'Goal set: {objective}'),
+                edit: words('goalEditedNotice', 'Goal changed: {objective}'),
+                pause: words('goalPausedNotice', 'Goal paused'),
+                resume: words('goalResumedNotice', 'Goal resumed'),
+                clear: words('goalClearedNotice', 'Goal cleared'),
+              }
+              const goal = goals[message.verb]()
+              window.harnessGoal = goal ?? undefined
+              later(30, () => {
+                send({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
+                send({
+                  type: 'notice',
+                  level: 'info',
+                  text: notices[message.verb].replace('{objective}', message.objective ?? ''),
+                })
+                send({ type: 'goalCommandResult', requestId: message.requestId, accepted: true })
+              })
+              break
+            }
             default: {
               break
             }
@@ -1962,6 +1993,68 @@
           later(150, () => {
             document.querySelector('[data-entry-id="web1"] .tool-toggle')?.click()
           })
+        },
+        // --- M45: the session goal: set from the prompt, then the agent's progress ---
+        goal: () => {
+          window.harnessSilent = true
+          const objective = 'Make the parser handle ?? and || precedence'
+          setDraft(`/goal ${objective}`)
+          key({ key: 'Enter' })
+          const progressed = {
+            objective,
+            status: 'active',
+            percent_complete: 60,
+            current_work: 'Writing the parser tests',
+            next_work: 'Fix the precedence bug',
+            token_budget: null,
+            tokens_used: 48898,
+          }
+          later(120, () => {
+            event({
+              type: 'itemCompleted',
+              item: {
+                itemId: 'gp1',
+                kind: 'toolCall',
+                status: 'completed',
+                tool: 'report_progress',
+                args: '{"current_work":"Writing the parser tests","next_work":"Fix the precedence bug","percent_complete":60}',
+                visibleOutput: JSON.stringify({ goal: progressed }),
+              },
+            })
+            event({
+              type: 'goalChanged',
+              goal: {
+                objective,
+                status: 'active',
+                percentComplete: 60,
+                currentWork: progressed.current_work,
+                nextWork: progressed.next_work,
+              },
+            })
+            event({
+              type: 'todoChanged',
+              items: [
+                { text: 'Read the precedence table', status: 'completed' },
+                {
+                  text: 'Write the parser tests',
+                  status: 'inProgress',
+                  activeForm: 'Writing the parser tests',
+                },
+              ],
+            })
+          })
+        },
+        // --- M45: a paused goal with its objective open for a change ---
+        'goal-edit': () => {
+          window.harnessGoal = {
+            objective: 'Ship the release notes for 0.9.0',
+            status: 'paused',
+            percentComplete: 25,
+            currentWork: 'Drafting the Added section',
+            nextWork: 'Review the translations',
+          }
+          event({ type: 'goalChanged', goal: window.harnessGoal })
+          whenFound('.goal-controls button[aria-expanded]', (edit) => edit.click())
         },
         // --- M25: a refused image says why, and a link out of the workspace is refused ---
         'size-refused': () => {

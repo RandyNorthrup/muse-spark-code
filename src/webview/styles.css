@@ -1318,7 +1318,9 @@ body {
 
 /* --- todo panel --- */
 
-.todo {
+/* The goal strip (M45) is the same box, above the task list. */
+.todo,
+.goal {
   margin: 0 var(--ms-gap);
   padding: 6px var(--ms-gap);
   border: 1px solid var(--vscode-panel-border);
@@ -1352,6 +1354,53 @@ body {
 .todo-mark {
   width: 1em;
   text-align: center;
+}
+
+/* --- goal strip (M45): the session goal above the task list --- */
+
+.goal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.goal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.goal-title,
+.goal-percent {
+  color: var(--vscode-descriptionForeground);
+}
+
+.goal-status {
+  font-weight: 600;
+}
+
+.goal-controls,
+.goal-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.goal-controls {
+  margin-left: auto;
+}
+
+/* Each control is a 24 px target (WCAG 2.5.8). */
+.goal-controls .tool-more,
+.goal-edit .tool-more {
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.goal-edit-input {
+  flex: 1 1 200px;
 }
 
 /* --- context indicator --- */

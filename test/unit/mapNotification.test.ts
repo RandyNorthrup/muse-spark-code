@@ -478,3 +478,66 @@ describe('mapNotification', () => {
     ).toMatchObject({ sessionId, event: { type: 'approvalUpdated', approvalId: 'a1' } })
   })
 })
+
+describe('mapNotification: the session goal (M45)', () => {
+  // Frames as `muse serve` sent them (captured live 2026-09-25, C:\muse-live-m45).
+  const envelope = {
+    sessionId,
+    viewCursor: 'v:s1:44',
+    sourceRange: {
+      stream: { kind: 'session', id: sessionId },
+      first: { id: 'r1', sequence: 289 },
+      last: { id: 'r1', sequence: 289 },
+    },
+  }
+  const map = (goal: unknown) =>
+    mapNotification({ method: 'session/goalChanged', params: { ...envelope, goal } })
+
+  it('passes the goal block on, work fields once reported', () => {
+    expect(map({ objective: 'Say hello', status: 'active', percentComplete: 0 })).toEqual({
+      sessionId,
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Say hello', status: 'active', percentComplete: 0 },
+      },
+    })
+    expect(
+      map({
+        objective: 'Say hello',
+        status: 'active',
+        percentComplete: 50,
+        currentWork: 'Saying hello',
+        nextWork: 'Mark complete',
+      }),
+    ).toMatchObject({
+      event: {
+        goal: { percentComplete: 50, currentWork: 'Saying hello', nextWork: 'Mark complete' },
+      },
+    })
+  })
+
+  it('keeps a status and a percentage verbatim, and reads a null work field as none', () => {
+    expect(
+      map({ objective: 'o', status: 'superseded', percentComplete: 140, currentWork: null }),
+    ).toEqual({
+      sessionId,
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'o', status: 'superseded', percentComplete: 140 },
+      },
+    })
+  })
+
+  it('clears on an explicit null, or when the goal is absent', () => {
+    expect(map(null)).toEqual({ sessionId, event: { type: 'goalChanged', goal: null } })
+    expect(mapNotification({ method: 'session/goalChanged', params: envelope })).toEqual({
+      sessionId,
+      event: { type: 'goalChanged', goal: null },
+    })
+  })
+
+  it('drops a goal that is not the captured shape', () => {
+    expect(map({ objective: 'o', status: 'active' })).toBe(MALFORMED_PARAMS)
+    expect(map('active')).toBe(MALFORMED_PARAMS)
+  })
+})

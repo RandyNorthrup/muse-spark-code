@@ -1460,3 +1460,217 @@ describe('App webview and UI state (M25)', () => {
     expect(screen.queryByLabelText('Remove x.png')).toBeNull()
   })
 })
+
+/** Types `text` into the prompt and presses Enter. */
+function send(text: string) {
+  fireEvent.change(textarea(), { target: { value: text } })
+  fireEvent.keyDown(textarea(), { key: 'Enter' })
+}
+
+function showGoal() {
+  deliver({
+    type: 'agentEvent',
+    event: {
+      type: 'goalChanged',
+      goal: { objective: 'Original objective', status: 'active', percentComplete: 10 },
+    },
+  })
+  return screen.getByRole('region', { name: 'Session goal' })
+}
+
+describe('App: the session goal (M45)', () => {
+  it('keeps the exact inline edit through refusal, then closes on acceptance', () => {
+    const postMessage = renderReady()
+    const strip = showGoal()
+    const edit = within(strip).getByRole('button', { name: 'Edit' })
+    fireEvent.click(edit)
+    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    const rawDraft = `  ${'Long objective '.repeat(60)}  `
+    fireEvent.change(field, { target: { value: rawDraft } })
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:1',
+      verb: 'edit',
+      objective: rawDraft.trim(),
+    })
+    expect(field).toHaveValue(rawDraft)
+    expect(within(strip).getByRole('button', { name: 'Save' })).toBeDisabled()
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: false })
+    expect(field).toHaveValue(rawDraft)
+    expect(within(strip).getByRole('button', { name: 'Save' })).toBeEnabled()
+    fireEvent.change(field, { target: { value: 'Accepted objective' } })
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Accepted objective', status: 'active', percentComplete: 10 },
+      },
+    })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
+    expect(within(strip).queryByRole('textbox', { name: 'Goal objective' })).toBeNull()
+    expect(edit).toHaveFocus()
+  })
+
+  it('preserves newer inline typing when the old edit changes the goal before its result', () => {
+    const postMessage = renderReady()
+    const strip = showGoal()
+    fireEvent.click(within(strip).getByRole('button', { name: 'Edit' }))
+    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    fireEvent.change(field, { target: { value: 'First edit' } })
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    fireEvent.change(field, { target: { value: 'Newer unsent edit' } })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'First edit', status: 'active', percentComplete: 20 },
+      },
+    })
+    expect(field).toHaveValue('Newer unsent edit')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: true })
+    expect(field).toHaveValue('Newer unsent edit')
+    fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:2',
+      verb: 'edit',
+      objective: 'Newer unsent edit',
+    })
+  })
+
+  it('updates an open inline editor for external objective changes, but keeps progress typing', () => {
+    renderReady()
+    const strip = showGoal()
+    fireEvent.click(within(strip).getByRole('button', { name: 'Edit' }))
+    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    fireEvent.change(field, { target: { value: 'My unfinished edit' } })
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Original objective', status: 'active', percentComplete: 25 },
+      },
+    })
+    expect(field).toHaveValue('My unfinished edit')
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'External objective', status: 'active', percentComplete: 25 },
+      },
+    })
+    expect(field).toHaveValue('External objective')
+  })
+
+  it('sends /goal as a command to the host, never as a message', () => {
+    const postMessage = renderReady()
+    send('/goal Make the parser tests pass')
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:1',
+      verb: 'set',
+      objective: 'Make the parser tests pass',
+    })
+    expect(textarea()).toHaveValue('/goal Make the parser tests pass')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: true })
+    expect(textarea()).toHaveValue('')
+    send('/goal pause')
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:2',
+      verb: 'pause',
+    })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
+    send('/goal edit Ship on Friday')
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:3',
+      verb: 'edit',
+      objective: 'Ship on Friday',
+    })
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+    expect(screen.queryByText('/goal pause')).toBeNull()
+  })
+
+  it('keeps a refused /goal draft and never clears a newer edit on a late acceptance', () => {
+    renderReady()
+    send('/goal First objective')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: false })
+    expect(textarea()).toHaveValue('/goal First objective')
+    send('/goal First objective')
+    fireEvent.change(textarea(), { target: { value: '/goal Newer objective' } })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
+    expect(textarea()).toHaveValue('/goal Newer objective')
+    send('/goal Newer objective')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
+    expect(textarea()).toHaveValue('/goal Newer objective')
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:3', accepted: true })
+    expect(textarea()).toHaveValue('')
+  })
+
+  it('does not clear a retyped identical draft after command acceptance', () => {
+    renderReady()
+    send('/goal Ship it')
+    fireEvent.change(textarea(), { target: { value: '/goal Different' } })
+    fireEvent.change(textarea(), { target: { value: '/goal Ship it' } })
+    deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:1', accepted: true })
+    expect(textarea()).toHaveValue('/goal Ship it')
+  })
+
+  it('does not submit the same pending command twice', () => {
+    const postMessage = renderReady()
+    send('/goal Ship it')
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'goalCommand'),
+    ).toHaveLength(1)
+  })
+
+  it('readies /goal for an objective from the slash list and the palette, and asks for one', () => {
+    const postMessage = renderReady()
+    const box = textarea()
+    box.focus()
+    fireEvent.change(box, { target: { value: '/goal' } })
+    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/goal')
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(box).toHaveValue('/goal ')
+    // Enter with no objective: said, and nothing sent.
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent(
+      UI_TEXT.goalObjectiveMissing,
+    )
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'goalCommand' }))
+    expect(box).toHaveValue('/goal ')
+    fireEvent.change(box, { target: { value: '' } })
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: '/goal' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(textarea()).toHaveValue('/goal ')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows the goal the host reports above the composer, with its verbs', () => {
+    const postMessage = renderReady()
+    expect(screen.queryByRole('region', { name: 'Session goal' })).toBeNull()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'goalChanged',
+        goal: { objective: 'Ship it', status: 'active', percentComplete: 30 },
+      },
+    })
+    const strip = screen.getByRole('region', { name: 'Session goal' })
+    expect(strip).toHaveTextContent('Ship it')
+    fireEvent.click(within(strip).getByRole('button', { name: 'Pause' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'goalCommand',
+      requestId: 'goal:local-1:1',
+      verb: 'pause',
+    })
+    deliver({ type: 'agentEvent', event: { type: 'goalChanged', goal: null } })
+    expect(screen.queryByRole('region', { name: 'Session goal' })).toBeNull()
+  })
+})

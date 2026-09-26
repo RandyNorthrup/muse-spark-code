@@ -10,6 +10,9 @@ import {
   type AgentHost,
   type AgentSession,
   type BackendKind,
+  type GoalCommand,
+  type GoalRefusal,
+  GoalRefusedError,
   type HostExit,
   type LoadedSession,
   PromptSettledError,
@@ -42,6 +45,7 @@ import {
   type DictationEngine,
   type EffortLevel,
   type ExportFormat,
+  type GoalCommandVerb,
   IDE_MCP_SERVER_NAME,
   IMAGE_EXTENSIONS,
   MENTION_RESULT_LIMIT,
@@ -300,6 +304,52 @@ function promptSettledText(reason: PromptSettledReason): string {
   return texts[reason]
 }
 
+/** The command a `goalCommand` message asks for (M45); undefined for a set or edit with no objective. */
+function goalCommandOf(
+  verb: GoalCommandVerb,
+  objective: string | undefined,
+): GoalCommand | undefined {
+  if (verb === 'set' || verb === 'edit') {
+    const trimmed = objective?.trim() ?? ''
+    return trimmed === '' ? undefined : { verb, objective: trimmed }
+  }
+  return { verb }
+}
+
+/** What the transcript says once a goal command was accepted (M45). */
+function goalDoneText(command: GoalCommand): string {
+  switch (command.verb) {
+    case 'set': {
+      return fill(UI_TEXT.goalSetNotice, { objective: command.objective })
+    }
+    case 'edit': {
+      return fill(UI_TEXT.goalEditedNotice, { objective: command.objective })
+    }
+    case 'pause': {
+      return UI_TEXT.goalPausedNotice
+    }
+    case 'resume': {
+      return UI_TEXT.goalResumedNotice
+    }
+    case 'clear': {
+      return UI_TEXT.goalClearedNotice
+    }
+  }
+}
+
+/** Why a goal command was refused, in words (M45; MSP's reasons, captured live). */
+function goalRefusalText(verb: GoalCommandVerb, refusal: GoalRefusal): string {
+  if (refusal === 'noGoal') {
+    return UI_TEXT.goalNone
+  }
+  const texts: Readonly<Partial<Record<GoalCommandVerb, string>>> = {
+    pause: UI_TEXT.goalCannotPause,
+    resume: UI_TEXT.goalCannotResume,
+    edit: UI_TEXT.goalCannotEdit,
+  }
+  return texts[verb] ?? UI_TEXT.goalCommandFailed
+}
+
 interface ExportNotice {
   readonly level: 'info' | 'warning'
   readonly text: string
@@ -403,6 +453,8 @@ export class ConversationController {
   /** A transcript reload after a delivery gap, and the gaps heard so far. */
   private gapReload: Promise<void> | undefined
   private gapCount = 0
+  /** Live goal events after a gap read began take precedence over that read. */
+  private goalEventCount = 0
   /** The turns under way, timed for the log (M39). */
   private readonly turnClocks = new Map<string, TurnClock>()
   /** Streamed text not yet posted, and the frame timer that posts it (M39). */
@@ -693,11 +745,17 @@ export class ConversationController {
       if (session === undefined) {
         break
       }
+      const goalEventsAtStart = this.goalEventCount
       try {
         const host = await this.deps.ensureHost()
-        const history = await host.readSession(session.sessionId)
+        const history = await host.readSession(session.sessionId, { recoverGoal: true })
         if (this.session === session) {
-          this.postHistory(session.sessionId, history, this.activeTurnId)
+          this.postHistory(
+            session.sessionId,
+            history,
+            this.activeTurnId,
+            goalEventsAtStart === this.goalEventCount,
+          )
           this.notice('info', UI_TEXT.viewGapReloaded)
         }
       } catch (error: unknown) {
@@ -718,7 +776,9 @@ export class ConversationController {
       this.onViewGap()
       return
     }
-    if (event.type === 'backendNotice') {
+    if (event.type === 'goalChanged') {
+      this.goalEventCount += 1
+    } else if (event.type === 'backendNotice') {
       this.notice(event.level, event.text)
       return
     }
@@ -1368,6 +1428,7 @@ export class ConversationController {
     sessionId: string,
     history: SessionHistoryOutcome,
     activeTurnId: string | undefined,
+    shouldIncludeGoal = true,
   ): void {
     this.post({
       type: 'historyLoaded',
@@ -1375,6 +1436,8 @@ export class ConversationController {
       items: [...history.items],
       ...(history.name !== undefined && { name: history.name }),
       todos: [...history.todos],
+      // Absent when the history could not say (M45): the panel keeps what it knew.
+      ...(shouldIncludeGoal && history.goal !== undefined && { goal: history.goal }),
       // A turn still running keeps its Stop and its steering (D26).
       ...(activeTurnId !== undefined && { activeTurnId }),
     })
@@ -1631,7 +1694,9 @@ export class ConversationController {
       const parts = [...typed, ...referenced, ...(context === undefined ? [] : [context]), ...note]
       // With extra parts the durable transcript keeps the typed text only.
       const displayText = parts.length === typed.length ? undefined : text
-      const submission = await this.submitResuming(host, session, parts, displayText)
+      const submission = await this.runResuming(host, session, (current) =>
+        this.submit(current, parts, displayText),
+      )
       // The images go only once the host has the message (D26).
       this.attachments.release(attachmentIds)
       if (this.isDisposed) {
@@ -1654,26 +1719,97 @@ export class ConversationController {
   }
 
   /**
-   * `submit`, once more on the resumed session when the host says it no
-   * longer holds this one (MSP `sessionNotLoaded`: evicted or closed, D25).
+   * A command on the session (a submission, a goal verb), once more on the
+   * resumed session when the host says it no longer holds this one (MSP
+   * `sessionNotLoaded`: evicted or closed, D25).
    */
-  private async submitResuming(
+  private async runResuming<T>(
     host: AgentHost,
     session: AgentSession,
-    parts: readonly TurnPart[],
-    displayText: string | undefined,
-  ): Promise<TurnSubmission> {
+    run: (current: AgentSession) => Promise<T>,
+  ): Promise<T> {
     try {
-      return await this.submit(session, parts, displayText)
+      return await run(session)
     } catch (error: unknown) {
       if (!(error instanceof SessionNotLoadedError) || this.deps.workspaceRoot === undefined) {
+        throw error
+      }
+      // A late refusal from an old session must not replace the session
+      // the user opened while that command was in flight.
+      if (this.session?.sessionId !== session.sessionId) {
         throw error
       }
       this.deps.log.info(`Session ${error.sessionId} was not loaded; resuming it`)
       this.resumeTarget = { sessionId: error.sessionId, kind: host.info.kind }
       this.dropSession(false)
       const resumed = await this.ensureSession(this.deps.workspaceRoot)
-      return await this.submit(resumed, parts, displayText)
+      return await run(resumed)
+    }
+  }
+
+  /**
+   * The session goal's verbs (M45, PLAN.md D38): `/goal …` in the prompt and
+   * the goal strip's controls. A set on a panel with no conversation starts
+   * one. What the goal became arrives as `goalChanged`; the transcript says
+   * what was done, and a refusal says why in words.
+   */
+  private async controlGoal(
+    requestId: string,
+    verb: GoalCommandVerb,
+    objective: string | undefined,
+  ): Promise<void> {
+    const result = (isAccepted: boolean) => {
+      this.post({ type: 'goalCommandResult', requestId, accepted: isAccepted })
+    }
+    const command = goalCommandOf(verb, objective)
+    if (command === undefined) {
+      this.notice('warning', UI_TEXT.goalObjectiveMissing)
+      result(false)
+      return
+    }
+    if (
+      verb !== 'set' &&
+      this.session === undefined &&
+      this.resumeTarget === undefined &&
+      this.sessionOpening === undefined
+    ) {
+      this.say('warning', UI_TEXT.goalNone)
+      result(false)
+      return
+    }
+    let targetSessionId: string | undefined
+    try {
+      const session = await this.sessionForAction()
+      if (session === undefined) {
+        result(false)
+        return
+      }
+      targetSessionId = session.sessionId
+      const host = await this.deps.ensureHost()
+      const outcome = await this.runResuming(host, session, (current) =>
+        current.controlGoal(command),
+      )
+      if (this.session?.sessionId !== targetSessionId) {
+        return
+      }
+      this.deps.log.info(
+        `Goal ${verb} accepted${outcome.turnId === undefined ? '' : ` (turn ${outcome.turnId})`}`,
+      )
+      this.say('info', goalDoneText(command))
+      this.noteActivity()
+      result(true)
+    } catch (error: unknown) {
+      if (targetSessionId !== undefined && this.session?.sessionId !== targetSessionId) {
+        return
+      }
+      if (error instanceof GoalRefusedError) {
+        this.deps.log.info(`Goal ${verb} refused: ${error.message}`)
+        this.say('warning', goalRefusalText(verb, error.refusal))
+        result(false)
+        return
+      }
+      this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`)
+      result(false)
     }
   }
 
@@ -2233,6 +2369,10 @@ export class ConversationController {
       }
       case 'compact': {
         await this.compact()
+        break
+      }
+      case 'goalCommand': {
+        await this.controlGoal(message.requestId, message.verb, message.objective)
         break
       }
       case 'exportConversation': {

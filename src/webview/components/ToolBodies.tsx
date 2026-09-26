@@ -26,6 +26,7 @@ import {
 } from '../toolDetails'
 import { goalStatusLabel } from '../toolPresentation'
 import { ExternalLink } from './ExternalLink'
+import { GoalBar, GoalWork } from './GoalParts'
 import { Clipped, DiffTable } from './ToolBlocks'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
@@ -73,27 +74,8 @@ function GoalCard({ goal }: { readonly goal: GoalDetails }) {
           ? ''
           : ` · ${fill(UI_TEXT.goalPercent, { percent: formatPercent(percent) })}`}
       </div>
-      {percent === undefined ? null : (
-        <progress
-          className="usage-bar"
-          max={100}
-          value={Math.min(Math.max(percent, 0), 100)}
-          aria-label={UI_TEXT.goalProgress}
-        />
-      )}
-      <dl className="tool-facts">
-        {goal.currentWork === undefined ? null : (
-          <>
-            <dt>{UI_TEXT.goalNow}</dt>
-            <dd>{goal.currentWork}</dd>
-          </>
-        )}
-        {goal.nextWork === undefined ? null : (
-          <>
-            <dt>{UI_TEXT.goalNext}</dt>
-            <dd>{goal.nextWork}</dd>
-          </>
-        )}
+      {percent === undefined ? null : <GoalBar percent={percent} />}
+      <GoalWork currentWork={goal.currentWork} nextWork={goal.nextWork}>
         {goal.tokensUsed === undefined ? null : (
           <>
             <dt>{UI_TEXT.goalTokens}</dt>
@@ -107,7 +89,7 @@ function GoalCard({ goal }: { readonly goal: GoalDetails }) {
             </dd>
           </>
         )}
-      </dl>
+      </GoalWork>
     </div>
   )
 }

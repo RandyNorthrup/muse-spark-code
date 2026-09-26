@@ -49,6 +49,8 @@ export type PaletteAction =
   | { readonly type: 'openKeybindings' }
   | { readonly type: 'signOut' }
   | { readonly type: 'insertSkill'; readonly selector: string }
+  /** `/goal ` in the prompt, for the objective (M45). */
+  | { readonly type: 'startGoal' }
   | { readonly type: 'compact' }
   | { readonly type: 'manageSkills' }
   | { readonly type: 'importSkills' }
@@ -448,6 +450,13 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: UI_TEXT.compactItem,
           detail: UI_TEXT.compactDetail,
           action: { type: 'compact' },
+        },
+        // The session goal (M45, PLAN.md D38), on both backends.
+        {
+          id: 'goal',
+          label: UI_TEXT.goalItem,
+          detail: UI_TEXT.goalItemDetail,
+          action: { type: 'startGoal' },
         },
         ...exportItems(context.backend),
         {

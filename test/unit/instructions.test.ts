@@ -76,6 +76,20 @@ describe('instructionsFor', () => {
     expect(text.indexOf('# How to work')).toBeLessThan(rulesAt)
   })
 
+  it('pins the goal section last, after the memory index (M45)', () => {
+    const text = instructionsFor({
+      ...base,
+      hasShell: true,
+      context: {
+        ...noContext,
+        memory: { path: '.agents/memory/MEMORY.md', text: '- [A](a.md)', warning: undefined },
+      },
+      goalSection: '# Session goal\n\n- Objective: Ship it',
+    })
+    expect(text.endsWith('# Session goal\n\n- Objective: Ship it')).toBe(true)
+    expect(text.indexOf('# Session goal')).toBeGreaterThan(text.indexOf('# Project memory'))
+  })
+
   it('states the date, the git facts and the working rules (M12)', () => {
     const text = instructionsFor({
       ...base,

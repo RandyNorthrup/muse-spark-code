@@ -180,6 +180,22 @@ export const todoItemSchema = z.object({
 })
 export type TodoItem = z.infer<typeof todoItemSchema>
 
+/**
+ * The session goal (M45, PLAN.md D38): MSP 1.3.0's `Goal` block, as
+ * `session/goalChanged` and a resumed snapshot carry it (captured live
+ * 2026-09-25). `status` and `percentComplete` are verbatim: a status Muse
+ * Code adds later is shown as it came, and the bar clamps the percentage.
+ * The Model API backend's goal takes the same shape.
+ */
+export const sessionGoalSchema = z.object({
+  objective: z.string(),
+  status: z.string(),
+  percentComplete: z.number(),
+  currentWork: z.optional(z.string()),
+  nextWork: z.optional(z.string()),
+})
+export type SessionGoal = z.infer<typeof sessionGoalSchema>
+
 const agentEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('turnStarted'), turnId: z.string() }),
   z.object({ type: z.literal('itemStarted'), item: itemSnapshotSchema }),
@@ -277,6 +293,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
   }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),
+  // The session goal, replaced wholesale; `null` when it was cleared (M45).
+  z.object({ type: z.literal('goalChanged'), goal: z.nullable(sessionGoalSchema) }),
   // A queued message that will never run (D26): the host withdrew it
   // (`turn/unqueued`) or Stop cleared the queue. Only its message is marked;
   // the running turn, if any, runs on.

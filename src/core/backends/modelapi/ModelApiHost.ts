@@ -19,6 +19,9 @@ import {
   CONTEXT_PRESSURE_MEDIUM,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
+  GOAL_OBJECTIVE_MAX_CHARS,
+  GOAL_STATUS,
+  type GoalCommandVerb,
   HTTP_UNAUTHORIZED,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
@@ -43,28 +46,33 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
+import { fill } from '../../../shared/l10n/text'
 import type { SubscriptionUsage } from '../../../shared/usage'
-import type {
-  AgentHost,
-  AgentSession,
-  ApprovalDecision,
-  CompactOutcome,
-  HostExit,
-  HostInfo,
-  ListSessionsOptions,
-  LoadedSession,
-  ModelSummary,
-  OutputPage,
-  OutputPageRequest,
-  SessionEventListener,
-  SessionHistoryOutcome,
-  SessionListEvent,
-  SessionPage,
-  SessionRecord,
-  SkillSummary,
-  StartSessionOptions,
-  TurnPart,
-  TurnSubmission,
+import {
+  type AgentHost,
+  type AgentSession,
+  type ApprovalDecision,
+  type CompactOutcome,
+  type GoalCommand,
+  type GoalCommandOutcome,
+  type GoalRefusal,
+  GoalRefusedError,
+  type HostExit,
+  type HostInfo,
+  type ListSessionsOptions,
+  type LoadedSession,
+  type ModelSummary,
+  type OutputPage,
+  type OutputPageRequest,
+  type SessionEventListener,
+  type SessionHistoryOutcome,
+  type SessionListEvent,
+  type SessionPage,
+  type SessionRecord,
+  type SkillSummary,
+  type StartSessionOptions,
+  type TurnPart,
+  type TurnSubmission,
 } from '../../agent/agentBackend'
 import type { ContextIo } from '../../context/contextFiles'
 import { type SkillDefinition } from '../../context/skills'
@@ -77,6 +85,17 @@ import {
   type RetryBudget,
   type RetryNotice,
 } from './client'
+import {
+  applyGoalCommand,
+  type GoalContext,
+  goalInstructions,
+  goalObjectiveProblem,
+  type GoalRecord,
+  isGoalActive,
+  runGoalTool,
+  toSessionGoal,
+  withTokensUsed,
+} from './goals'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
 import { type ImagePlan, prepareImageCall, runImageCall } from './imageGeneration'
 import {
@@ -170,13 +189,31 @@ interface QueuedTurn {
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
+  /**
+   * Woken by a goal command (M45, PLAN.md D38): its prompt is the model's
+   * cue, replayed but not a message of the user's, so the transcript shows
+   * no card for it, as Muse Code's goal turns have none (live 2026-09-25).
+   */
+  readonly isGoalWake: boolean
+  /** The accepted user goal command this queued wake must still serve. */
+  readonly goalCommandRevision?: number
 }
+
+// MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
+const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
+  noGoal: 'missing_goal',
+  wrongState: 'invalid_goal_state',
+}
+// The verbs that wake the agent when they leave the goal active (MSP's wake gate).
+const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
 interface ActiveTurn {
   readonly turnId: string
   readonly abort: AbortController
   /** Steered input, appended before the next model call. */
   readonly steered: (readonly TurnPart[])[]
+  /** A goal accepted after the current model request began needs another round. */
+  goalWakePending: boolean
 }
 
 interface Pending<T> {
@@ -290,6 +327,11 @@ const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
 const COMPACTION_TURN_ID = 'compaction'
 const MODEL_API_ERROR_KIND = 'modelApi'
 const TURN_NOT_RUNNING = 'the turn is not running'
+
+/** Re-read mutable abort state after awaits and between returned calls. */
+function isAbortRequested(signal: AbortSignal): boolean {
+  return signal.aborted
+}
 const TURN_RUNNING = 'a turn is running'
 const SUMMARY_FIELD_PREFIX = 'summary.'
 const TEXT_FIELD = 'text'
@@ -513,6 +555,12 @@ export class ModelApiSession implements AgentSession {
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
   private todos: readonly TodoItem[] = []
+  /** The session goal (M45, PLAN.md D38), in Muse Code's own record shape. */
+  private goal: GoalRecord | undefined
+  /** Accepted user goal commands invalidate goal tools from older requests. */
+  private goalCommandRevision = 0
+  /** Model calls since the goal last moved: the step probe's count (D38). */
+  private goalSteps = 0
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   private firstPrompt: string | undefined
   private isDisposed = false
@@ -575,6 +623,7 @@ export class ModelApiSession implements AgentSession {
     const shell = shellToolFor(this.deps.platform)
     const hasShell = this.deps.isWorkspaceTrusted()
     const context = this.context.sections()
+    const goalSection = goalInstructions(this.goal, this.goalSteps)
     return {
       model: this.modelId,
       input: this.replay.map((entry) => entry.item),
@@ -587,6 +636,8 @@ export class ModelApiSession implements AgentSession {
         today: new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH),
         environment: this.environment ?? NO_ENVIRONMENT,
         context,
+        // Pinned while the goal is active (M45, PLAN.md D38).
+        ...(goalSection !== undefined && { goalSection }),
       }),
       tools: this.tools(hasShell, context.skills.length > 0),
       tool_choice: 'auto',
@@ -660,9 +711,117 @@ export class ModelApiSession implements AgentSession {
     })
   }
 
-  private noteUsage(usage: Usage | null | undefined): void {
+  /** What a goal operation needs from the session (M45). */
+  private goalContext(): GoalContext {
+    return { sessionId: this.sessionId, now: this.deps.now(), newId: this.deps.newId }
+  }
+
+  /**
+   * Replaces the goal. The panel hears of it only when what it shows
+   * changed, as MSP's change gate emits nothing for an identical adoption;
+   * true when it did.
+   */
+  private replaceGoal(goal: GoalRecord | undefined): boolean {
+    const before = this.goal === undefined ? null : toSessionGoal(this.goal)
+    const after = goal === undefined ? null : toSessionGoal(goal)
+    this.goal = goal
+    if (JSON.stringify(before) === JSON.stringify(after)) {
+      return false
+    }
+    this.emit({ type: 'goalChanged', goal: after })
+    return true
+  }
+
+  /** Stop leaves an unfinished goal paused, including when it stops compaction. */
+  private pauseGoalAfterStop(): void {
+    if (!isGoalActive(this.goal)) {
+      return
+    }
+    this.replaceGoal({
+      ...this.goal,
+      status: GOAL_STATUS.paused,
+      updated_at_ms: this.deps.now(),
+    })
+    this.touch()
+  }
+
+  /** A goal tool's call (M45): Muse Code's rules and result shape. */
+  private runGoal(call: FunctionCallItem): ToolOutcome {
+    const result = runGoalTool(call.name, call.arguments, this.goal, this.goalContext())
+    if (result.goal !== this.goal) {
+      // The goal moved (created, progressed, closed): the step probe starts over.
+      this.goalSteps = 0
+      this.replaceGoal(result.goal)
+      this.touch()
+    }
+    return result.outcome
+  }
+
+  /** An internal cue for a fresh goal turn, without a user-message card. */
+  private queuedGoalWake(): QueuedTurn {
+    return {
+      turnId: this.deps.newId(),
+      parts: [{ type: 'text', text: MODEL_TEXT.goalWake }],
+      displayText: undefined,
+      isGoalWake: true,
+      goalCommandRevision: this.goalCommandRevision,
+    }
+  }
+
+  /**
+   * The cue a goal command gives when it wakes the agent (D38): the running
+   * turn's id when one runs (its next call sees the goal), else a new turn,
+   * queued behind a compaction. Only an active goal wakes anything.
+   */
+  private wakeFor(command: GoalCommand): string | undefined {
+    if (!GOAL_WAKING_VERBS.has(command.verb) || !isGoalActive(this.goal)) {
+      return undefined
+    }
+    if (this.active !== undefined) {
+      if (this.active.abort.signal.aborted) {
+        // Stop already ended that turn's chance to make another request.
+        const queued = this.queuedGoalWake()
+        this.queuedTurns.push(queued)
+        return queued.turnId
+      }
+      this.active.goalWakePending = true
+      return this.active.turnId
+    }
+    const queued = this.queuedGoalWake()
+    if (this.compacting === undefined) {
+      void this.runTurn(queued)
+    } else {
+      this.queuedTurns.push(queued)
+    }
+    return queued.turnId
+  }
+
+  /**
+   * A goal turn's cue (M45): replayed for the model, and not recorded as a
+   * message of the user's. A session whose first turn it is takes the
+   * objective as its title.
+   */
+  private appendGoalWake(turnId: string, parts: readonly TurnPart[]): void {
+    this.replay.push({
+      turnId,
+      item: { type: 'message', role: 'user', content: this.contentParts(parts) },
+    })
+    this.firstPrompt ??= this.goal?.objective
+  }
+
+  private noteUsage(usage: Usage | null | undefined, chargedGoalId: string | undefined): void {
     if (usage === null || usage === undefined) {
       return
+    }
+    // What the goal used counts against its budget (M45); a budget spent
+    // stops the goal, and the panel hears of that.
+    if (chargedGoalId !== undefined && this.goal?.goal_id === chargedGoalId) {
+      const spent = withTokensUsed(
+        this.goal,
+        usage.input_tokens + usage.output_tokens,
+        this.deps.now(),
+      )
+      this.replaceGoal(spent)
     }
     this.usage = {
       inputTokens: this.usage.inputTokens + usage.input_tokens,
@@ -935,7 +1094,10 @@ export class ModelApiSession implements AgentSession {
   private async streamOnce(
     turnId: string,
     signal: AbortSignal,
-  ): Promise<readonly FunctionCallItem[]> {
+  ): Promise<{
+    readonly calls: readonly FunctionCallItem[]
+    readonly goalCommandRevision: number
+  }> {
     const budget: RetryBudget = { retriesUsed: 0 }
     for (;;) {
       const open = new Map<string, OpenItem>()
@@ -979,8 +1141,15 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     open: Map<string, OpenItem>,
     budget: RetryBudget,
-  ): Promise<readonly FunctionCallItem[]> {
+  ): Promise<{
+    readonly calls: readonly FunctionCallItem[]
+    readonly goalCommandRevision: number
+  }> {
     let final: ResponseObject | undefined
+    // An HTTP or whole-stream retry gets its own snapshot: the goal may have
+    // changed between attempts, but a reply never charges a newly set goal.
+    const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
+    const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
       this.emit({
@@ -1008,7 +1177,10 @@ export class ModelApiSession implements AgentSession {
         undefined,
       )
     }
-    return this.adoptOutput(turnId, final, open)
+    return {
+      calls: this.adoptOutput(turnId, final, open, chargedGoalId),
+      goalCommandRevision,
+    }
   }
 
   /**
@@ -1020,6 +1192,7 @@ export class ModelApiSession implements AgentSession {
     turnId: string,
     response: ResponseObject,
     open: Map<string, OpenItem>,
+    chargedGoalId: string | undefined,
   ): readonly FunctionCallItem[] {
     const calls: FunctionCallItem[] = []
     // A reasoning item must be followed by a message or a call before the
@@ -1084,7 +1257,7 @@ export class ModelApiSession implements AgentSession {
         },
       })
     }
-    this.noteUsage(response.usage)
+    this.noteUsage(response.usage, chargedGoalId)
     return calls
   }
 
@@ -1273,6 +1446,7 @@ export class ModelApiSession implements AgentSession {
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    goalCommandRevision: number,
   ): Promise<ToolOutcome> {
     switch (call.name) {
       case MODEL_API_TOOLS.askUser: {
@@ -1287,6 +1461,21 @@ export class ModelApiSession implements AgentSession {
       case MODEL_API_TOOLS.generateImage:
       case MODEL_API_TOOLS.editImage: {
         return await this.makeImage(call, signal)
+      }
+      case MODEL_API_TOOLS.createGoal:
+      case MODEL_API_TOOLS.updateGoal:
+      case MODEL_API_TOOLS.reportProgress: {
+        if (goalCommandRevision !== this.goalCommandRevision) {
+          return {
+            output: `Error: ${MODEL_TEXT.goalRequestSuperseded}`,
+            visibleOutput: UI_TEXT.goalRequestSuperseded,
+            failureReason: UI_TEXT.goalRequestSuperseded,
+          }
+        }
+        return this.runGoal(call)
+      }
+      case MODEL_API_TOOLS.getGoal: {
+        return this.runGoal(call)
       }
       default: {
         return await executeTool(call.name, call.arguments, {
@@ -1305,6 +1494,7 @@ export class ModelApiSession implements AgentSession {
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    goalCommandRevision: number,
   ): Promise<{ readonly outcome: ToolOutcome; readonly isRejected: boolean }> {
     const toolClass = classifyTool(call.name)
     if (toolClass === undefined) {
@@ -1355,7 +1545,10 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
-    return { outcome: await this.perform(itemId, call, signal), isRejected: false }
+    return {
+      outcome: await this.perform(itemId, call, signal, goalCommandRevision),
+      isRejected: false,
+    }
   }
 
   /**
@@ -1400,6 +1593,7 @@ export class ModelApiSession implements AgentSession {
     turnId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    goalCommandRevision: number,
   ): Promise<void> {
     const itemId = this.deps.newId()
     const paid = paidFeatureOf(call.name)
@@ -1415,7 +1609,7 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemStarted', item: started })
     let result: { readonly outcome: ToolOutcome; readonly isRejected: boolean }
     try {
-      result = await this.decideAndRun(itemId, call, signal)
+      result = await this.decideAndRun(itemId, call, signal, goalCommandRevision)
     } catch (error: unknown) {
       if (error instanceof AbortedError || signal.aborted) {
         this.finishCall(
@@ -1440,15 +1634,19 @@ export class ModelApiSession implements AgentSession {
     this.finishCall(turnId, started, call, outcome, status)
   }
 
-  /** The calls of a response the Stop kept from running: each gets its output all the same. */
-  private skipCalls(turnId: string, calls: readonly FunctionCallItem[]): void {
+  /** Calls kept from running still get an output for valid replay. */
+  private skipCalls(
+    turnId: string,
+    calls: readonly FunctionCallItem[],
+    reason: string = MODEL_TEXT.toolCancelledByStop,
+  ): void {
     for (const call of calls) {
       this.replay.push({
         turnId,
         item: {
           type: 'function_call_output',
           call_id: call.call_id,
-          output: `Error: ${MODEL_TEXT.toolCancelledByStop}`,
+          output: `Error: ${reason}`,
         },
       })
     }
@@ -1478,37 +1676,101 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Accepted steering that missed this turn's last request becomes user turns. */
+  private queuedSteered(turn: ActiveTurn): QueuedTurn[] {
+    return turn.steered.splice(0).map((parts) => ({
+      turnId: this.deps.newId(),
+      parts,
+      displayText: undefined,
+      isGoalWake: false,
+    }))
+  }
+
+  /** A busy goal command was not in the request already in flight. */
+  private drainGoalWake(turn: ActiveTurn): void {
+    if (!turn.goalWakePending) {
+      return
+    }
+    turn.goalWakePending = false
+    if (!isGoalActive(this.goal)) {
+      return
+    }
+    this.replay.push({
+      turnId: turn.turnId,
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
+      },
+    })
+  }
+
   private async loop(turn: ActiveTurn): Promise<void> {
     const { signal } = turn.abort
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
+      if (isAbortRequested(signal)) {
+        throw new AbortedError()
+      }
       this.drainSteered(turn)
-      const calls = await this.streamOnce(turn.turnId, signal)
+      this.drainGoalWake(turn)
+      const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
+      const { calls, goalCommandRevision } = await this.streamOnce(turn.turnId, signal)
+      if (isAbortRequested(signal)) {
+        // A buffered completed response may arrive after Stop. Its calls
+        // still need outputs for valid replay, but no work or steering runs.
+        this.skipCalls(turn.turnId, calls)
+        throw new AbortedError()
+      }
+      if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
+        this.skipCalls(turn.turnId, calls, MODEL_TEXT.goalBudgetReached)
+        this.queuedTurns.unshift(...this.queuedSteered(turn))
+        return
+      }
+      // One more model call without progress toward the goal (the step probe, D38).
+      if (isGoalActive(this.goal)) {
+        this.goalSteps += 1
+      }
       if (calls.length === 0) {
         // A message typed while the final answer streamed gets its own round
         // instead of being accepted and dropped (D26).
-        if (turn.steered.length === 0) {
+        if (turn.steered.length === 0 && !(turn.goalWakePending && isGoalActive(this.goal))) {
           return
         }
         continue
       }
       for (const [index, call] of calls.entries()) {
-        if (signal.aborted) {
+        if (isAbortRequested(signal)) {
           this.skipCalls(turn.turnId, calls.slice(index))
           throw new AbortedError()
         }
         try {
-          await this.runCall(turn.turnId, call, signal)
+          await this.runCall(turn.turnId, call, signal, goalCommandRevision)
         } catch (error: unknown) {
           this.skipCalls(turn.turnId, calls.slice(index + 1))
           throw error
         }
       }
     }
+    // Input accepted during the last permitted round still needs a request
+    // that sees it. Steered messages belonged to this turn, so run them
+    // before separately queued messages; a goal cue follows them.
+    const overflow = this.queuedSteered(turn)
+    if (turn.goalWakePending && isGoalActive(this.goal)) {
+      overflow.push(this.queuedGoalWake())
+    }
+    if (overflow.length > 0) {
+      this.queuedTurns.unshift(...overflow)
+    }
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }
 
   private async runTurn(queued: QueuedTurn): Promise<void> {
-    const turn: ActiveTurn = { turnId: queued.turnId, abort: new AbortController(), steered: [] }
+    const turn: ActiveTurn = {
+      turnId: queued.turnId,
+      abort: new AbortController(),
+      steered: [],
+      goalWakePending: false,
+    }
     this.active = turn
     this.status = RUNNING
     this.turnIds.push(turn.turnId)
@@ -1518,7 +1780,11 @@ export class ModelApiSession implements AgentSession {
     // it never throws, so the user message always follows.
     await this.context.load()
     this.environment ??= await this.loadEnvironment()
-    this.appendUserMessage(turn.turnId, queued.parts, queued.displayText)
+    if (queued.isGoalWake) {
+      this.appendGoalWake(turn.turnId, queued.parts)
+    } else {
+      this.appendUserMessage(turn.turnId, queued.parts, queued.displayText)
+    }
     this.touch()
     const startedAt = this.deps.now()
     let terminal = COMPLETED
@@ -1559,14 +1825,29 @@ export class ModelApiSession implements AgentSession {
     if (this.active !== undefined || this.compacting !== undefined) {
       return
     }
-    const next = this.queuedTurns.shift()
-    if (next !== undefined) {
+    for (;;) {
+      const next = this.queuedTurns.shift()
+      if (next === undefined) {
+        return
+      }
+      if (
+        next.isGoalWake &&
+        (!isGoalActive(this.goal) || next.goalCommandRevision !== this.goalCommandRevision)
+      ) {
+        this.emit({
+          type: 'turnWithdrawn',
+          turnId: next.turnId,
+          reason: UI_TEXT.goalWakeWithdrawn,
+        })
+        continue
+      }
       void this.runTurn(next)
+      return
     }
   }
 
   /** The text a stream event contributes to a collected reply; throws on failure. */
-  private collectedText(event: StreamEvent): string {
+  private collectedText(event: StreamEvent, chargedGoalId: string | undefined): string {
     switch (event.type) {
       case 'response.output_text.delta': {
         return event.delta
@@ -1583,8 +1864,15 @@ export class ModelApiSession implements AgentSession {
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)
       }
       case 'response.completed': {
-        this.noteUsage(event.response.usage)
+        this.noteUsage(event.response.usage, chargedGoalId)
         return ''
+      }
+      case 'response.incomplete': {
+        this.noteUsage(event.response.usage, chargedGoalId)
+        this.deps.log.warn(
+          `Model API compaction response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+        )
+        throw new ModelApiError('response.incomplete', 0, undefined, 'response_incomplete')
       }
       default: {
         return ''
@@ -1593,16 +1881,31 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Collects the reply text of one model call without touching the transcript. */
-  private async collectText(body: CreateResponseBody, signal: AbortSignal): Promise<string> {
+  private async collectText(
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    chargedGoalId: string | undefined,
+  ): Promise<string> {
     let text = ''
+    let isComplete = false
     for await (const event of this.deps.client.streamResponse(body, signal)) {
-      text += this.collectedText(event)
+      isComplete ||= event.type === 'response.completed'
+      text += this.collectedText(event, chargedGoalId)
+    }
+    if (!isComplete) {
+      throw new ModelApiError(
+        'The stream ended without a completed response',
+        0,
+        undefined,
+        undefined,
+      )
     }
     return text
   }
 
   /** The summary call of `compact`, and the replay it leaves behind. */
   private async runCompaction(signal: AbortSignal): Promise<CompactOutcome> {
+    const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     const body: CreateResponseBody = {
       ...this.body(),
       input: [
@@ -1616,7 +1919,7 @@ export class ModelApiSession implements AgentSession {
       tools: [],
       include: ['reasoning.encrypted_content'],
     }
-    const summary = await this.collectText(body, signal)
+    const summary = await this.collectText(body, signal, chargedGoalId)
     this.replay.splice(0, this.replay.length, {
       turnId: COMPACTION_TURN_ID,
       item: {
@@ -1659,7 +1962,7 @@ export class ModelApiSession implements AgentSession {
 
   public sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
     const turnId = this.deps.newId()
-    const queued: QueuedTurn = { turnId, parts, displayText }
+    const queued: QueuedTurn = { turnId, parts, displayText, isGoalWake: false }
     // A compaction is a turn too (D26): a message sent during one waits for it.
     if (this.active === undefined && this.compacting === undefined) {
       void this.runTurn(queued)
@@ -1670,7 +1973,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   public steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<string> {
-    if (this.active?.turnId !== expectedTurnId) {
+    if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted) {
       return Promise.reject(new Error(TURN_NOT_RUNNING))
     }
     this.active.steered.push(parts)
@@ -1689,8 +1992,15 @@ export class ModelApiSession implements AgentSession {
         reason: UI_TEXT.queuedTurnDropped,
       })
     }
+    if (this.active !== undefined || this.compacting !== undefined) {
+      // Pause the goal Stop targeted now. A replacement accepted while an
+      // aborted turn unwinds must remain active and get its own wake.
+      this.pauseGoalAfterStop()
+    }
     this.active?.abort.abort()
-    this.compacting?.abort()
+    if (this.compacting !== undefined) {
+      this.compacting.abort()
+    }
     return Promise.resolve()
   }
 
@@ -1746,6 +2056,9 @@ export class ModelApiSession implements AgentSession {
       this.compacting = undefined
       this.status = IDLE
       this.emit({ type: 'sessionStatus', status: IDLE })
+      // A rejected compaction still spent tokens. Save after it settles;
+      // normal turns wait for every function call's output before saving.
+      this.touch()
       this.startNextQueued()
     }
   }
@@ -1783,6 +2096,38 @@ export class ModelApiSession implements AgentSession {
 
   public messageSubagent(subagentId: string): Promise<void> {
     return Promise.reject(new Error(`${UI_TEXT.subagentsUnsupported} (${subagentId})`))
+  }
+
+  /**
+   * The user's goal verbs (M45, PLAN.md D38), with MSP's rules and
+   * refusals: a set, edit or resume that leaves the goal active wakes a
+   * turn when nothing runs, as `goal/*` does; nothing else starts one.
+   */
+  public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    const problem = goalObjectiveProblem(command)
+    if (problem !== undefined) {
+      const detail =
+        problem === 'empty'
+          ? UI_TEXT.goalObjectiveMissing
+          : fill(UI_TEXT.goalObjectiveTooLong, { limit: GOAL_OBJECTIVE_MAX_CHARS })
+      return Promise.reject(new Error(`goal/${command.verb}: ${detail}`))
+    }
+    const applied = applyGoalCommand(this.goal, command, this.goalContext())
+    if (typeof applied === 'string') {
+      return Promise.reject(
+        new GoalRefusedError(
+          applied,
+          `goal/${command.verb} rejected: ${GOAL_REFUSAL_REASONS[applied]}`,
+        ),
+      )
+    }
+    this.replaceGoal(applied.goal)
+    this.goalCommandRevision += 1
+    if (command.verb === 'set' || command.verb === 'resume') {
+      this.goalSteps = 0
+    }
+    this.touch()
+    return Promise.resolve({ turnId: this.wakeFor(command) })
   }
 
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {
@@ -1893,6 +2238,7 @@ export class ModelApiSession implements AgentSession {
       items: this.transcript.map((entry) => entry.item),
       name: this.name,
       todos: [...this.todos],
+      goal: this.goal === undefined ? null : toSessionGoal(this.goal),
     }
   }
 
@@ -1912,6 +2258,7 @@ export class ModelApiSession implements AgentSession {
       ...(this.forkedFrom !== undefined && { forkedFrom: this.forkedFrom }),
       ...(this.firstPrompt !== undefined && { firstPrompt: this.firstPrompt }),
       todos: [...this.todos],
+      ...(this.goal !== undefined && { goal: this.goal }),
       replay: [...this.replay],
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
@@ -1930,6 +2277,7 @@ export class ModelApiSession implements AgentSession {
     this.effort = stored.effort
     this.name = stored.name
     this.todos = [...stored.todos]
+    this.goal = stored.goal
     this.firstPrompt = stored.firstPrompt
     this.forkedFrom = stored.forkedFrom
     this.createdAt = stored.createdAt
@@ -1955,6 +2303,9 @@ export class ModelApiSession implements AgentSession {
     target.firstPrompt = this.firstPrompt
     target.forkedFrom = this.sessionId
     target.effort = this.effort
+    // The goal as it stands goes with the fork (M45): a goal has no history
+    // to cut, so a fork from an earlier turn gets today's goal too.
+    target.goal = this.goal
     for (const [ref, content] of this.outputs) {
       target.outputs.set(ref, content)
     }
@@ -1990,6 +2341,21 @@ export class ModelApiHost implements AgentHost {
       return
     }
     const snapshot = session.snapshot()
+    // A turn-start user message can be saved, but a function call without
+    // its output cannot be replayed after a crash. Goal/settings touches
+    // during a pending tool still announce live; the settled touch saves.
+    const answered = new Set(
+      snapshot.replay.flatMap((entry) =>
+        entry.item.type === 'function_call_output' ? [entry.item.call_id] : [],
+      ),
+    )
+    if (
+      snapshot.replay.some(
+        (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
+      )
+    ) {
+      return
+    }
     this.stored.set(snapshot.sessionId, headerOf(snapshot))
     const previous = this.saving
     this.saving = (async () => {
@@ -2141,6 +2507,7 @@ export class ModelApiHost implements AgentHost {
       items: stored.transcript.map((entry) => entry.item),
       name: stored.name,
       todos: stored.todos,
+      goal: stored.goal === undefined ? null : toSessionGoal(stored.goal),
     }
   }
 

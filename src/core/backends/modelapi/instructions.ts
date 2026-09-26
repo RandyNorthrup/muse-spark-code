@@ -4,7 +4,8 @@
 // refused actions), the environment (PLAN.md D15: today's date and the git
 // state at session start), how to work, and the workspace context of D13:
 // the rules files, the skill catalogue and the project memory index, each
-// present only when the workspace has it and is trusted.
+// present only when the workspace has it and is trusted; and the session
+// goal while one is active (M45).
 
 import { MEMORY_DIR, MODEL_API_TOOLS } from '../../../shared/constants'
 import type { ContextSections } from '../../context/workspaceContext'
@@ -33,6 +34,11 @@ export interface InstructionFacts {
   readonly today: string
   readonly environment: EnvironmentFacts
   readonly context: ContextSections
+  /**
+   * The session goal while it is active (M45, PLAN.md D38, `goals.ts`):
+   * last, so the sections before it stay the same from call to call.
+   */
+  readonly goalSection?: string
 }
 
 const PARAGRAPH = '\n\n'
@@ -120,6 +126,7 @@ export function instructionsFor(facts: InstructionFacts): string {
       : `# Workspace rules${PARAGRAPH}${facts.context.rules}`,
     skillsText(facts.context),
     memoryText(facts.context),
+    facts.goalSection,
   ]
   return sections.filter((section) => section !== undefined).join(PARAGRAPH)
 }

@@ -11,6 +11,7 @@ import {
   answerSchema,
   itemSnapshotSchema,
   requirementRefSchema,
+  sessionGoalSchema,
   todoItemSchema,
 } from './agentEvents'
 import {
@@ -20,6 +21,7 @@ import {
   DICTATION_UI_STATUSES,
   EFFORT_LEVELS,
   EXPORT_FORMATS,
+  GOAL_COMMANDS,
   PAID_FEATURES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
@@ -227,6 +229,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('clearConversation') }),
   // "/compact": ask the host to summarise older context.
   z.object({ type: z.literal('compact') }),
+  // The session goal (M45, PLAN.md D38): `/goal …` in the prompt or the goal
+  // strip's controls. `set` and `edit` carry the objective.
+  z.object({
+    type: z.literal('goalCommand'),
+    requestId: z.string(),
+    verb: z.enum(GOAL_COMMANDS),
+    objective: z.optional(z.string()),
+  }),
   // "/export" and "Export session log…" (M30): Markdown, or Muse Code's JSON log.
   z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
   // The palette opened: (re)load the session's skills.
@@ -416,6 +426,10 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     items: z.array(itemSnapshotSchema),
     name: z.optional(z.string()),
     todos: z.array(todoItemSchema),
+    // The session goal (M45): `null` when the history says there is none;
+    // absent when the history could not say (Muse Code serves the goal only
+    // with a snapshot), so the panel keeps what it knew of the same session.
+    goal: z.optional(z.nullable(sessionGoalSchema)),
     // The turn still running in the session (D26): Stop and steering stay.
     activeTurnId: z.optional(z.string()),
   }),
@@ -462,6 +476,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     reason: z.string(),
     attachmentsKept: z.optional(z.boolean()),
   }),
+  // The command's admission result. Correlation protects a newer composer draft.
+  z.object({ type: z.literal('goalCommandResult'), requestId: z.string(), accepted: z.boolean() }),
   // One backend-agnostic conversation event (see agentEvents.ts).
   z.object({ type: z.literal('agentEvent'), event: agentEventSchema }),
   // The host's model catalogue (for the picker and context-limit lookups).
