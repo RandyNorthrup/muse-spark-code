@@ -549,8 +549,8 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
 
 /**
  * One agent told again (live 2026-09-25): Muse Code drops a field once the
- * agent moves on, so what it said stays. Its label outlives a new
- * attempt; its outcome, duration and tokens belong to the attempt.
+ * agent moves on, so what it said stays. The UI keeps the label across a
+ * new attempt; outcome, duration and tokens belong to that attempt.
  */
 function mergeChild(before: WorkflowChild, after: WorkflowChild): WorkflowChild {
   const isSameAttempt = after.attempt === before.attempt
@@ -565,7 +565,7 @@ function mergeChild(before: WorkflowChild, after: WorkflowChild): WorkflowChild 
   }
 }
 
-/** A whole-list re-emission: only the reported agents, enriched by their prior fields. */
+/** Treat a supplied list as current: only reported agents, enriched by prior fields. */
 function mergeChildren(
   previous: readonly WorkflowChild[],
   reported: readonly WorkflowChild[],
@@ -951,14 +951,21 @@ function replayedUserEntry(item: ItemSnapshot, seq: number): TranscriptEntry {
 /**
  * Rebuild the transcript from a session's stored items (`historyLoaded`):
  * user messages become cards (the live path hides them, its own echo being
- * the card), everything else takes the live rows at their final state.
+ * the card). Same-session workflow rows keep details their final items omit.
  */
 function replayHistory(
   items: readonly ItemSnapshot[],
   at: number,
   sequence: number,
+  previous: readonly TranscriptEntry[],
 ): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
   const entries: TranscriptEntry[] = []
+  const knownWorkflows = new Map<string, WorkflowEntry>()
+  for (const entry of previous) {
+    if (entry.kind === WORKFLOW_KIND) {
+      knownWorkflows.set(entry.id, entry)
+    }
+  }
   let next = sequence
   for (const item of items) {
     if (item.kind === USER_MESSAGE_KIND) {
@@ -966,7 +973,14 @@ function replayHistory(
       entries.push(replayedUserEntry(item, next))
     } else if (!HIDDEN_ITEM_KINDS.has(item.kind)) {
       next += 1
-      entries.push(stampCompletion(entryFor(item, at, next), next))
+      const before = item.kind === WORKFLOW_KIND ? knownWorkflows.get(item.itemId) : undefined
+      const isSameRun =
+        before !== undefined &&
+        (before.workflowRunId === undefined ||
+          item.workflowRunId === undefined ||
+          before.workflowRunId === item.workflowRunId)
+      const entry = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      entries.push(stampCompletion(entry, next))
     }
   }
   return { entries, sequence: next }
@@ -1693,9 +1707,16 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, paid: message.state }
     }
     case 'historyLoaded': {
-      const replayed = replayHistory(message.items, at, state.sequence)
       // The same session read again (a delivery gap, D26) keeps its usage.
-      const isSameSession = message.sessionId === state.sessionId
+      const isSameSession =
+        message.sessionId === state.sessionId ||
+        (state.sessionId === undefined && message.sessionId === state.restoredSessionId)
+      const replayed = replayHistory(
+        message.items,
+        at,
+        state.sequence,
+        isSameSession ? state.transcript : [],
+      )
       const goal = loadedGoal(state, message)
       const editor =
         isSameSession && message.goal !== undefined

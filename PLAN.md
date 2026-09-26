@@ -3711,8 +3711,11 @@ hosted CI remains the merge gate.
 controls deferred** (`docs/certification/m47.md`). The branch sits on M46
 merge commit `e219d04`. Live capture proved the run card and one child's
 updates and rejected owner commands; accepted control shapes remain
-uncaptured. The reduced candidate passed local `npm run quality`; hosted
-CI and review remain.
+uncaptured. The read-only candidate passed local `npm run quality`; a
+current-head review then found a sparse history replay loss. Its correction
+passed local `npm run quality` on staged tree
+`0edaadb6bca8846487d7964a25dd9b7cffffeb9b`; this receipt changed
+the documentation, so a final exact-tree rerun and hosted CI remain.
 
 - **Goal**: a workflow Muse Code runs reads as what it is, a run of agents
   going on in the background, with its captured progress and result.
@@ -3735,6 +3738,11 @@ CI and review remain.
 - **Agent map composition**: a map with a workflow or background task is not
   empty even if it has no subagent row. The empty hint appears only when all
   three are absent.
+- **Sparse history replay**: a same-session history reload preserves a
+  workflow child's earlier label and usage from the panel's validated live
+  or saved webview snapshot when the final Muse Code item omits those fields.
+  A different session never inherits them. With no prior snapshot, absent
+  values remain unknown; the final wire item cannot reconstruct them.
 - **Model API**: no parity is expected or built; workflows are Muse Code's
   own engine (D40).
 - **Acceptance**: tests from the captured presentation frames,

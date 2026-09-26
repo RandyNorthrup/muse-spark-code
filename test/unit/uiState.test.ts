@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import {
   canSend,
   agentsOf,
@@ -2433,6 +2434,18 @@ function run(item: ItemSnapshot, type: 'itemUpdated' | 'itemCompleted' = 'itemUp
   return agent({ type, item })
 }
 
+function capturedLiveRun(): UiState {
+  return reduceAll([
+    signedIn,
+    host({ type: 'sessionInfo', sessionId: 's1', modelId: 'm', contextLimit: 100 }),
+    agent({ type: 'turnStarted', turnId: WORKFLOW_TURN_ID }),
+    agent({ type: 'itemStarted', item: WORKFLOW_STARTED }),
+    run(WORKFLOW_SCHEDULED),
+    run(WORKFLOW_USAGE),
+    run(WORKFLOW_COMPLETED, 'itemCompleted'),
+  ])
+}
+
 describe('workflow runs in the state (M47)', () => {
   it('builds the card from the captured frames, keeping what Muse Code drops as the agent moves on', () => {
     const early = reduceAll([
@@ -2606,6 +2619,74 @@ describe('workflow runs in the state (M47)', () => {
       status: 'completed',
       children: [{ childId: WORKFLOW_CHILD_ID, terminal: 'completed' }],
       message: WORKFLOW_MESSAGE,
+    })
+  })
+
+  it('keeps captured child label and usage on a same-session history reload only', () => {
+    const live = capturedLiveRun()
+    const history = (sessionId: string): UiAction =>
+      host({
+        type: 'historyLoaded',
+        sessionId,
+        items: [WORKFLOW_TOOL_ITEM, WORKFLOW_COMPLETED],
+        todos: [],
+      })
+    const expected = {
+      label: 'ping',
+      usage: { inputTokens: 9995, outputTokens: 135 },
+    }
+    expect(entryOf(live, WORKFLOW_ITEM_ID)).toMatchObject({ children: [expected] })
+    expect(entryOf(uiReducer(live, history('s1')), WORKFLOW_ITEM_ID)).toMatchObject({
+      children: [expected],
+    })
+    expect(entryOf(uiReducer(live, history('s2')), WORKFLOW_ITEM_ID)).toMatchObject({
+      children: [{ label: undefined, usage: undefined }],
+    })
+    const otherRun = uiReducer(
+      live,
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        items: [WORKFLOW_TOOL_ITEM, { ...WORKFLOW_COMPLETED, workflowRunId: 'another-run' }],
+        todos: [],
+      }),
+    )
+    expect(entryOf(otherRun, WORKFLOW_ITEM_ID)).toMatchObject({
+      children: [{ label: undefined, usage: undefined }],
+    })
+  })
+
+  it('uses the saved webview workflow details when the same session resumes', () => {
+    const live = capturedLiveRun()
+    const json = JSON.stringify(webviewStateOf(live, true))
+    const saved: unknown = JSON.parse(json)
+    const restored = restoredUiState(saved)
+    expect(restored.sessionId).toBeUndefined()
+    expect(restored.restoredSessionId).toBe('s1')
+    const resumed = uiReducer(
+      restored,
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        items: [WORKFLOW_TOOL_ITEM, WORKFLOW_COMPLETED],
+        todos: [],
+      }),
+    )
+    expect(entryOf(resumed, WORKFLOW_ITEM_ID)).toMatchObject({
+      children: [{ label: 'ping', usage: { inputTokens: 9995, outputTokens: 135 } }],
+    })
+    const confirmed = uiReducer(restored, host({ type: 'surfaceState', sessionId: 's1' }))
+    const afterConfirmation = uiReducer(
+      confirmed,
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        items: [WORKFLOW_TOOL_ITEM, WORKFLOW_COMPLETED],
+        todos: [],
+      }),
+    )
+    expect(entryOf(afterConfirmation, WORKFLOW_ITEM_ID)).toMatchObject({
+      children: [{ label: 'ping', usage: { inputTokens: 9995, outputTokens: 135 } }],
     })
   })
 })

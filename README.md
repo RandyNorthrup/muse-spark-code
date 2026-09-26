@@ -599,7 +599,9 @@ the reply ends, as the run goes on in the background:
 
 The token figure is the panel's sum of the latest usage reported for each
 agent row. It is not a billed total for a run with retries; use Muse Code's
-subscription usage for that.
+subscription usage for that. A reload of the same session keeps child labels
+and usage the panel saved earlier; without that saved state, Muse Code's final
+history item may omit those details.
 
 The header's **N agents** pill counts workflow agents too, and the Agent
 map lists the runs with the same read-only cards. The map also says how Muse Code

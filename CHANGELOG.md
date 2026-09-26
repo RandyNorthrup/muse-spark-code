@@ -63,7 +63,8 @@ while they are (PLAN.md D30, D34).
   started it, each agent's state, attempt, time and tokens, and the result
   it returned or the failure it reported. The panel treats each supplied
   child list as its current set. A shortened workflow label shows its full text on
-  hover.
+  hover. A same-session history reload keeps child labels and usage from the
+  validated panel snapshot when Muse Code's final item omits them.
   The Workflow tool's row shows the captured inline script and launch; it
   does not infer a resumed run's source file from unverified arguments.
   The **N agents** pill counts workflow agents, the Agent map lists the
