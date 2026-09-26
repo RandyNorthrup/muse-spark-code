@@ -1372,6 +1372,9 @@ The following PR review also requires inline goal edits to keep their
 objective until the host accepts the edit, with rejection preserving the
 field; and the new `session/goalChanged` notification must be parsed under
 its literal method instead of adding an unregistered `as z.infer` cast.
+The next review found a separate unchecked assertion in the Model API
+goal-tool test; its assertion now checks the unknown response as a value
+with matchers, without claiming a compiler-verified tool-array type.
 
 ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
 

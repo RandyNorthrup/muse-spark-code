@@ -2223,9 +2223,13 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(row?.type === 'itemCompleted' && JSON.parse(row.item.visibleOutput ?? '')).toMatchObject(
       { goal: { session_id: session.sessionId, objective: 'Ship it', status: 'active' } },
     )
-    const tools = t.api.responseBodies()[0]?.['tools'] as readonly { name?: string }[]
-    expect(tools.map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(['create_goal', 'get_goal', 'update_goal', 'report_progress']),
+    expect(t.api.responseBodies()[0]?.['tools']).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'create_goal' }),
+        expect.objectContaining({ name: 'get_goal' }),
+        expect.objectContaining({ name: 'update_goal' }),
+        expect.objectContaining({ name: 'report_progress' }),
+      ]),
     )
     expect(instructionsOf(t, 0)).not.toContain('# Session goal')
     expect(instructionsOf(t, 1)).toContain('- Objective: Ship it')
