@@ -809,6 +809,55 @@ export const EN = {
   cliNotFound: 'Muse Code is not installed in any known location.',
   cliPathNotAbsolute: 'museSpark.museBinaryPath must be an absolute path.',
   cliSearched: 'Searched: {paths}',
+  // The ACP agent in other editors (M63, PLAN.md D61, D62): its sign-ins,
+  // the key's commands, its errors and its help.
+  acpAuthMuseCodeName: 'Sign in to Muse Code',
+  acpAuthMuseCodeDetail:
+    'Runs Muse Code’s own sign-in in a terminal. Your Muse subscription pays for the conversations.',
+  acpAuthKeyName: 'Store a Meta Model API key',
+  acpAuthKeyDetail:
+    'Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations.',
+  // {command}: the sign-in command, for a client that cannot run it itself.
+  acpSignInByHand: 'Run “{command}” in a terminal, then try again.',
+  acpMuseCodeSignedOut: 'Muse Code is not signed in; sign in and try again.',
+  acpNoStoredKey: 'No Meta Model API key is stored; store one and try again.',
+  acpKeyPrompt: 'Meta Model API key (not shown as you type): ',
+  // {store}: where the key lives (acpStoreNames).
+  acpKeyStored: 'The key is stored in {store}.',
+  acpKeyNotStored: 'No key was entered, so nothing was stored.',
+  acpKeyPresent: 'A Meta Model API key is stored in {store}.',
+  acpKeyAbsent: 'No Meta Model API key is stored.',
+  acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
+  // {reason}: the operating system's own error.
+  acpStoreUnavailable:
+    'This computer’s credential store cannot be used ({reason}). On Linux the agent needs a running, unlocked Secret Service, such as GNOME Keyring or KWallet.',
+  acpStoreNames: {
+    windows: 'Windows Credential Manager',
+    macos: 'the macOS Keychain',
+    linux: 'the Secret Service keyring',
+  },
+  acpNoModels: 'The backend offers no model this agent may use.',
+  acpPromptBusy: 'A prompt is already running in this session.',
+  acpQuestionFormMessage: 'Muse has a question for you.',
+  acpQuestionAsked:
+    'Muse has a question; this editor cannot show it as a form, so answer in your next message:',
+  acpUnknownArgument: 'Unknown argument: {argument}',
+  // {command}: the executable's name. The options and values stay as typed.
+  acpUsage: [
+    'Usage:',
+    '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
+    '  {command} [options] login        Sign in to Muse Code in this terminal',
+    '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
+    'Options:',
+    '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
+    '  --trust-workspace                Load the folder’s rules, skills and memory',
+    '  --muse-binary <path>             The Muse Code CLI to run',
+    '  --shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
+    '  --allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
+    '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
+    '  --verbose                        Log every detail on stderr',
+    '  --help, --version',
+  ].join('\n'),
   // The exported Markdown's own words (M30); what was said and run is copied as it was.
   exportSessionLine: 'Session: `{id}`',
   exportBackendLine: 'Backend: {backend}',

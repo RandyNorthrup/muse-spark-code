@@ -30,9 +30,11 @@
 // every target has to provide.
 //
 // Whatever the record says, the portable code never reaches `vscode`
-// through its imports, type-only ones included: everything under
-// PORTABLE_ROOTS and the host modules PORTABLE_HOST lists. That fails even
-// after --write; the fix is in the code.
+// through its imports, type-only ones included, nor names one of the
+// global types `@types/vscode` declares (`Thenable`), which needs no
+// import: everything under PORTABLE_ROOTS and the host modules
+// PORTABLE_HOST lists. That fails even after --write; the fix is in the
+// code.
 //
 //   node scripts/check-host-api.mjs          check (quality:gates)
 //   node scripts/check-host-api.mjs --write  regenerate the record
@@ -50,8 +52,9 @@ const HOST_PROJECT = 'tsconfig.json'
 const BUILD_SCRIPT = 'scripts/build.mjs'
 const SOURCE_ROOT = 'src'
 const WEBVIEW_ROOT = 'src/webview'
-// Code other hosts load as it is: the engine, the protocol, the React app.
-const PORTABLE_ROOTS = ['src/core', 'src/shared', 'src/webview']
+// Code other hosts load as it is: the engine, the protocol, the React app,
+// and the ACP agent with its process (M63, D62), which run with no VS Code.
+const PORTABLE_ROOTS = ['src/core', 'src/shared', 'src/webview', 'src/acp', 'src/runtime']
 // Host modules another adapter reuses (D60, M61): the conversation, both
 // backends and their tool harness, the credential store, the session
 // store, the `ide` MCP server.
@@ -367,7 +370,8 @@ function handedOverMembers(checker, node, record) {
 }
 
 /** Every VS Code API the host's code uses at run time, with the files using it. */
-function vsCodeApiUses(files) {
+/** The host project's program (tsconfig.json), with the VS Code types it compiles against. */
+function hostProgram() {
   const configPath = path.resolve(HOST_PROJECT)
   const config = ts.getParsedCommandLineOfConfigFile(
     configPath,
@@ -379,7 +383,37 @@ function vsCodeApiUses(files) {
       },
     },
   )
-  const program = ts.createProgram({ rootNames: config.fileNames, options: config.options })
+  return ts.createProgram({ rootNames: config.fileNames, options: config.options })
+}
+
+/**
+ * A VS Code declaration a portable file names without importing it: the
+ * ambient globals `@types/vscode` declares (`Thenable`), which no import
+ * shows. Each as "file: name".
+ */
+function ambientVsCodeNames(program, portableFiles) {
+  const checker = program.getTypeChecker()
+  const found = new Set()
+  for (const sourceFile of program.getSourceFiles()) {
+    const file = relative(sourceFile.fileName)
+    if (!portableFiles.has(file)) {
+      continue
+    }
+    const visit = (node) => {
+      if (ts.isIdentifier(node)) {
+        const declaration = referencedSymbol(checker, node)?.declarations?.[0]
+        if (declaration !== undefined && isVsCodeDeclaration(declaration)) {
+          found.add(`${file}: ${node.text}`)
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sourceFile)
+  }
+  return found
+}
+
+function vsCodeApiUses(program, files) {
   const checker = program.getTypeChecker()
   const hostFiles = new Set(files)
   const uses = new Map()
@@ -615,7 +649,12 @@ for (const file of portable) {
   }
 }
 
-const apis = vsCodeApiUses(hostFiles)
+const program = hostProgram()
+const ambientUses = ambientVsCodeNames(program, new Set(portable))
+for (const use of ambientUses) {
+  problems.push(`${use} is a VS Code type, which portable code does not use`)
+}
+const apis = vsCodeApiUses(program, hostFiles)
 const apisPerFile = new Map()
 for (const files of apis.values()) {
   for (const file of files) {

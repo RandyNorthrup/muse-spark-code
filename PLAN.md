@@ -207,6 +207,7 @@ quality`) and as a CI job.
 | `dist/extension.js`    | ≤ 600 KiB (the M7 Model API client fit without raising it)                     |
 | `dist/searchWorker.js` | ≤ 50 KiB                                                                       |
 | `dist/webview/main.js` | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle) |
+| `dist/acp.js`          | ≤ 800 KiB (718 KiB at M63, 445 KiB of it the classic zod the ACP SDK imports)  |
 | `.vsix`                | not gated; 0.5.3 is 552 KB (the GitHub Release asset)                          |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
@@ -1356,6 +1357,121 @@ milestone starts, as M41's installers are.
   stylesheet, the controller, the protocol) wait until M56 merges; the
   inventory and the narrow seams go first.
 
+### D61 — The Model API key outside VS Code (2026-09-26)
+
+The owner (2026-09-26): "you need to figure out the proper api key safe
+storage". Inside VS Code the key stays in SecretStorage (rule 8). An agent
+that another editor starts (D62), and later the native plugins (M64), run
+with no VS Code, so the key needs a home of its own.
+
+- **Rejected**: the operating system's command-line tools as child
+  processes (`security`, `secret-tool`, PowerShell with DPAPI): the key
+  would pass through another process, and `security
+add-generic-password -w` takes it as an argument, visible to `ps`. A
+  file encrypted with a key of our own: only as safe as the file's
+  permissions, and crypto invented here. An environment variable, as many
+  CLIs take: it invites the key into editor settings files (Zed's agent
+  `env`, JetBrains' `acp.json`), which rule 8 forbids.
+- **Chosen**: the operating system's credential store, reached in-process
+  through `@napi-rs/keyring` 2.1.0 (MIT, the Node binding of the
+  `keyring` Rust crate; prebuilt for Windows x64, arm64 and ia32, macOS
+  x64 and arm64, Linux x64 and arm64 on glibc and musl, arm, riscv64,
+  FreeBSD; published 2026-09-13, outside the 7-day window). Windows
+  Credential Manager (DPAPI, per user), the macOS login Keychain, and on
+  Linux the Secret Service (GNOME Keyring, KWallet, KeePassXC), pinned
+  with `linux: { store: 'secret-service' }`: the kernel keyring the
+  library would otherwise fall back to forgets the key at reboot. Without
+  a Secret Service the Model API backend says how to get one; there is no
+  plaintext fallback.
+- **One entry per user**: service `Muse Spark Code (Unofficial)`, account
+  `museSpark.modelApiKey` (the key's name in the extension's
+  SecretStorage), shared by every editor that runs the agent. A missing
+  entry reads as `null` from the binding, whatever its typings say (found
+  against GNOME Keyring at M63); the store turns it into `undefined`.
+- **Setting it**: `muse-spark-code-acp auth set` reads the key from the
+  terminal with echo off (or one line from a pipe), checks its shape,
+  stores it and prints only that it did; `auth status` says whether a key
+  is stored, never any of it; `auth clear` removes it. Each ACP client is
+  offered a terminal sign-in that runs exactly `auth set`, so the key goes
+  from the keyboard to the store without passing through the editor.
+- **Never**: an argument, an environment variable, a settings file, a log
+  (the redactor stays), an ACP message, or the environment of `muse serve`
+  (D1).
+- **Later**: offering, in VS Code, to copy the key into the OS store for
+  the other editors needs the native module in the `.vsix`, so
+  per-platform packages (with M64).
+
+### D62 — The ACP agent, and the order the editors come in (2026-09-26)
+
+The owner (2026-09-26): "the top editors come first but i want them all or
+as close to all as possible", and approved the ACP SDK. One agent over the
+Agent Client Protocol reaches the most editors for the least code (Zed,
+the JetBrains IDEs through AI Assistant, Xcode 27, Qt Creator, Neovim,
+Emacs, Sublime Text, Devin Desktop), so it comes first.
+
+- **One executable**, `muse-spark-code-acp` (an npm package of that name;
+  its bin is `dist/acp.js`, Node 22 or later), speaking ACP v1 on stdio
+  through `@agentclientprotocol/sdk`, which parses every inbound frame
+  against the protocol's schema before a handler runs (rule 7). stdout is
+  the protocol; the log goes to stderr, redacted.
+- **The panel's engine, not a second one**: the backend managers of
+  `src/host/backend` (portable since M61), the same `AgentHost`,
+  `AgentSession` and `AgentEvent`s. The ACP code lives in `src/acp` and the
+  process wiring in `src/runtime`, both under the M60 gate's portable
+  roots.
+- **The backend is chosen at launch**: `--backend museCode` (the default:
+  the CLI signed in on its own, the subscription pays) or `--backend
+modelApi` (the key of D61). There is no "auto", so the bill is never a
+  surprise; a user who wants both configures two agents.
+- **What maps to what**: messages to `agent_message_chunk`; reasoning to
+  `agent_thought_chunk`; tool calls to `tool_call` and `tool_call_update`
+  (kind, title, locations, arguments, output, diffs for edits); a subagent
+  to a tool call; the todo list to a `plan`; approvals to
+  `session/request_permission` with the backend's own choices (allow or
+  deny, once or for the session: `allow_once`, `allow_always`,
+  `reject_once`, `reject_always`); permission modes to session modes;
+  model and effort to config options; skills to available commands; the
+  session's name to `session_info_update`; context use to `usage_update`.
+- **Nothing runs by a translation default**: a permission request the
+  client cancels, or answers with an option it was not offered, is decided
+  with the backend's deny choice. A question the agent asks goes to the
+  client's elicitation form where it has one; otherwise the question is
+  shown as text and declined, so the model carries on and the user answers
+  in the next prompt.
+- **Sessions**: new, load (the history replayed as updates), list, resume,
+  and fork where the backend allows it (`canEditSessions`).
+- **Prompts**: text, resource links (as @mentions), embedded text
+  resources (as context), images (checked by their headers, as
+  attachments are).
+- **Sign-in**: `initialize` offers two terminal methods, "Sign in to Muse
+  Code" (the agent's `login`, which runs `muse login`) and "Store a Meta
+  Model API key" (`auth set`, D61); `session/new` answers
+  `auth_required` until the chosen backend has its credential.
+- **Trust**: a folder's rules, skills and memory load only with
+  `--trust-workspace`, the flag Muse Code itself takes (D13); ACP carries
+  no workspace trust of its own.
+- **Paid features are off in the agent** (rule 12, D60) until a
+  confirmation over `session/request_permission` that names the price is
+  built and certified.
+- **Tools run in the agent**, as ACP allows. Routing the Model API
+  backend's file reads and writes through the client (`fs/*`), so an
+  unsaved buffer is seen and never overwritten, is a later step, with its
+  own tests (the owner's plan, §6.1).
+- **Where it is tested**: against the SDK's own client in-process and
+  over a real stdio pipe to the built `dist/acp.js`, with the fake Muse
+  Code CLI (`test/e2e`); in editors as each can be installed. This
+  container reaches npm, PyPI, Maven Central, Gradle, NuGet, Ubuntu's
+  archive and download.eclipse.org, and not JetBrains, Microsoft's
+  VS Code downloads, Open VSX, Zed's site or neovim.io (2026-09-26).
+- **The order**: the most-used editors first. VS Code's family (Cursor,
+  Windsurf, VSCodium, Kiro, Positron, Theia, code-server, Codespaces)
+  through the `.vsix` and Open VSX (M62); the JetBrains IDEs, Zed, Neovim,
+  Emacs, Xcode 27, Qt Creator, Sublime and Devin through this agent (M63);
+  then Visual Studio and the JetBrains full panel (M64); Eclipse,
+  NetBeans, Jupyter, Spyder and RStudio (M65); and the constrained hosts
+  (M66). `docs/ide-compatibility/hosts.md` tracks each editor's route and
+  status.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                |
@@ -1369,11 +1485,12 @@ milestone starts, as M41's installers are.
 | Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                               |
 | Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Publishing ran by hand from the CI artifact with a clipboard PAT for 0.1.0–0.5.0; since 2026-09-23 the `VSCE_PAT` repository secret lets `release.yml` publish every `v*` tag.                                                                                                                                                                                                                                                                                                                                              | Closed.                                                               |
 | Q9  | The Muse Code user rules file: `/rules import` writes one into the config root and the model is told "if user and project rules conflict, project rules win", but its file name is not printed by `muse --help`, `muse skills`, the settings skill or the binary's strings. The Model API backend cannot mirror what it cannot name.                                                                                                                                                                                                                                                                | Not loaded on the Model API backend; the CLI backend loads it itself. |
-| Q60 | Open VSX (D60, M62): VSCodium, Cursor, Kiro, Positron and Firebase Studio install from Open VSX, not the Marketplace. Publishing there needs an Eclipse account, the `RandyNorthrup` namespace claimed and an `OVSX_PAT` secret beside `VSCE_PAT`: the owner's to create.                                                                                                                                                                                                                                                                                                                           |
-| Q61 | The ACP SDK (D60, M63): `@agentclientprotocol/sdk` 1.5.0 (Apache-2.0, peer `zod ^3.25.0 \|\| ^4.0.0`, which the pinned zod 4.6.5 meets; npm registry, 2026-09-26) or a hand-written ACP v1 layer on zod. Adding it needs the owner's go (rule 9, CLAUDE.md).                                                                                                                                                                                                                                                                                                                                        |
-| Q62 | Installing other editors for M62's probes: which may be downloaded into CI or a local machine (VSCodium, Positron, Theia, Kiro, Cursor; their licences differ), and on which platforms a probe counts. Nothing is installed until the owner says.                                                                                                                                                                                                                                                                                                                                                   |
-| Q63 | Who holds the Model API key outside VS Code (D60): the runtime reads it from the OS's protected store itself, or the key-owning host makes the model requests through one narrow service. Until decided and verified, an ACP or native adapter offers Muse Code only.                                                                                                                                                                                                                                                                                                                               |
-| Q64 | The first hosts after VS Code: the plan proposes Zed then one JetBrains IDE for ACP, and VSCodium, Cursor, Kiro and Positron for the VSIX. Which JetBrains IDE, and whether Qt Creator (the owner's C++/Qt work) comes before it.                                                                                                                                                                                                                                                                                                                                                                   |
+| Q60 | **Answered 2026-09-26:** the owner is setting up the Open VSX account (namespace `RandyNorthrup`, token `OVSX_PAT`). The release workflow publishes there once the secret exists (M62).                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Q61 | **Resolved 2026-09-26:** the owner approved the ACP SDK. `@agentclientprotocol/sdk` 1.4.0 is pinned: 1.5.0 (2026-09-21) is inside `.npmrc`'s 7-day `min-release-age`, and 1.4.0 speaks the same ACP v1 (D62).                                                                                                                                                                                                                                                                                                                                                                                       |
+| Q62 | **Resolved 2026-09-26:** "you can install whatever you need". What this container's network lets in is recorded per editor (D62); the rest is qualified in CI or on the owner's machines.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Q63 | **Resolved 2026-09-26:** the owner left the design to us: D61, the operating system's credential store, in-process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Q65 | Publishing `muse-spark-code-acp` to npm (D62), so editors can run it with `npx`: the owner's npm account and an `NPM_TOKEN` secret. Until then each GitHub Release carries the package as a tarball.                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ## 4. Architecture
 
@@ -3420,10 +3537,45 @@ records them with M60); the rest waits for M56 to merge.
      M56.
   5. A standalone Node runtime entry that drives `AgentHost` without
      `vscode`, tested against the fake CLI and the protocol captures.
+     **Built with M63a** (`src/runtime/`, on the M60 gate's portable
+     list), driven over stdio against the fake CLI.
   6. Capability detection: what a host offers, and what the UI hides or
      explains when it does not.
 - **Acceptance**: every gate and the integration tests unchanged; each
   moved module on the M60 gate's portable list.
+
+### M63 — The ACP agent (D62, phase D)
+
+**Status 2026-09-26: M63a built and certified**
+(`docs/certification/m63.md`); no ACP client has run it yet (M63b).
+
+- **Goal**: Muse Spark in every editor that hosts agents over ACP, on
+  both backends, with the panel's approvals and none of its bills
+  unannounced.
+- **M63a, the agent**: `src/acp` (the translation of D62) and
+  `src/runtime` (the process: arguments, the stderr log, the two backend
+  managers, the OS key store of D61, the data folder for Model API
+  sessions); `muse-spark-code-acp` with `auth set|status|clear` and
+  `login`; the esbuild entry `dist/acp.js` and its budget; the npm package
+  and its tarball on each GitHub Release; tests against the SDK's client
+  in-process and over stdio to the built agent with the fake Muse Code
+  CLI; README configuration for each client; drills.
+- **M63b, the clients**: each ACP client installed and driven where it
+  can be (Neovim with CodeCompanion, Emacs with agent-shell, Zed,
+  a JetBrains IDE, Qt Creator, Xcode 27, Sublime, Devin Desktop), its
+  version and results recorded in `docs/ide-compatibility/hosts.md`.
+- **M63c, the rest of the protocol**: file reads and writes through the
+  client (`fs/*`) for the Model API backend; paid features with a
+  confirmation that names the price; `session/close` and `delete`; the ACP
+  Registry once Q65 is answered.
+- **Acceptance (M63a)**: a session created, prompted, streamed, cancelled,
+  asked for permission (allowed, denied, cancelled), loaded and listed
+  over stdio on the Muse Code backend (fake CLI), and on the Model API
+  backend (fake server) in process through the same runtime backend,
+  because the process reads the key only from the OS store; `auth set`,
+  `status` and `clear` against a real Secret Service; `auth_required`
+  before sign-in; the key never in a frame, an argument, the environment
+  or the log; every gate green.
 
 ## 7. Gates
 
@@ -3434,7 +3586,7 @@ records them with M60); the rest waits for M56 to merge.
 | CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                                                                                                                                     | M0 ✓                                                                                                                                                                                                       |
 | Types                 | `tsc --noEmit` over five projects: host, webview, unit, e2e, integration (`npm run typecheck`)                                                                                                                  | M0 ✓                                                                                                                                                                                                       |
 | Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                                                                                                                                         | M0 ✓                                                                                                                                                                                                       |
-| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/webview/main.tsx`                                                                                                                   | M0 ✓                                                                                                                                                                                                       |
+| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/webview/main.tsx src/runtime/main.ts`                                                                                               | M0 ✓                                                                                                                                                                                                       |
 | Duplication           | `jscpd` (config `.jscpd.json`: threshold 0 over `src` and `test`)                                                                                                                                               | M0 ✓                                                                                                                                                                                                       |
 | Unit tests + coverage | `vitest run --coverage`                                                                                                                                                                                         | M0 ✓                                                                                                                                                                                                       |
 | Integration tests     | `vscode-test` (two configurations: `stable` and `minimum`, the `engines.vscode` floor)                                                                                                                          | M0 ✓ (9 passing locally since M18; CI: ubuntu xvfb + windows); M26 ✓ on 1.139.0 and 1.125.0, downloads cached in CI                                                                                        |

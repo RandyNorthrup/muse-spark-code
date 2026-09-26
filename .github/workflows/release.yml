@@ -3,7 +3,12 @@
 # and the Marketplace publish runs when the VSCE_PAT secret of the
 # `marketplace` environment is set (a Marketplace "Manage" PAT scoped to the
 # publisher's organisation; without it the publish step is skipped and
-# reported, and `npx vsce publish --packagePath` by hand still works).
+# reported, and `npx vsce publish --packagePath` by hand still works). The
+# same .vsix goes to Open VSX, for VSCodium, Cursor, Kiro, Positron and the
+# other editors that install from it, when the environment's OVSX_PAT is
+# set (PLAN.md D62, M62), under the same rules. The ACP agent's package
+# (muse-spark-code-acp, M63) rides on the GitHub Release and goes to npm
+# when the environment's NPM_TOKEN is set (Q65).
 #
 # Before anything is built, the tag must name the manifest's version and
 # point at a commit on main. The PAT reaches one step only, after an
@@ -69,13 +74,17 @@ jobs:
         with:
           name: muse-spark-code-vsix
           path: release
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-acp
+          path: release
       - name: release notes from the CHANGELOG
         run: node scripts/changelog-notes.mjs "${GITHUB_REF_NAME#v}" > release/notes.md
       - name: create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" release/*.vsix \
+          gh release create "${GITHUB_REF_NAME}" release/*.vsix release/*.tgz \
             --title "${GITHUB_REF_NAME}" \
             --notes-file release/notes.md \
             --verify-tag
@@ -122,3 +131,65 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: ./node_modules/.bin/vsce publish --packagePath release/*.vsix
+
+  openvsx:
+    name: Open VSX publish
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Its own job, so either registry failing leaves the other published;
+    # the token lives in the same tag-only environment as VSCE_PAT.
+    environment: marketplace
+    env:
+      HAS_OVSX_PAT: ${{ secrets.OVSX_PAT != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-vsix
+          path: release
+      - name: skipped without OVSX_PAT
+        if: env.HAS_OVSX_PAT != 'true'
+        run: echo "OVSX_PAT is not set; the Open VSX publish was skipped. Publish by hand with npx ovsx publish release/*.vsix" >> "$GITHUB_STEP_SUMMARY"
+      # The locked ovsx, with no install script of any package run.
+      - name: install the locked tools without install scripts
+        if: env.HAS_OVSX_PAT == 'true'
+        run: npm ci --ignore-scripts --no-audit
+      - name: publish to Open VSX
+        if: env.HAS_OVSX_PAT == 'true'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: ./node_modules/.bin/ovsx publish release/*.vsix
+
+  npm:
+    name: npm publish (ACP agent)
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The same tag-only environment as the other registries' tokens.
+    environment: marketplace
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-acp
+          path: release
+      - name: skipped without NPM_TOKEN
+        if: env.HAS_NPM_TOKEN != 'true'
+        run: echo "NPM_TOKEN is not set; muse-spark-code-acp was not published to npm. The GitHub Release carries its package." >> "$GITHUB_STEP_SUMMARY"
+      # The packed tarball as it is: no install, no script of any package.
+      - name: publish muse-spark-code-acp to npm
+        if: env.HAS_NPM_TOKEN == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish release/muse-spark-code-acp-*.tgz --access public --ignore-scripts

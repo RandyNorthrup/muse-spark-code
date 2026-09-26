@@ -51,6 +51,8 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - everything under `src/core/`
 - everything under `src/shared/`
 - everything under `src/webview/`
+- everything under `src/acp/`
+- everything under `src/runtime/`
 - `src/host/auth/authService.ts`
 - `src/host/auth/credentialStore.ts`
 - `src/host/backend/fileSessionStore.ts`
@@ -265,22 +267,23 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                         |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`                                                                                                                         |
 
-## Node built-ins the host imports (13)
+## Node built-ins the host imports (14)
 
 | Module                | Files |
 | --------------------- | ----- |
-| `node:buffer`         | 9     |
-| `node:child_process`  | 5     |
-| `node:crypto`         | 4     |
-| `node:fs`             | 8     |
-| `node:fs/promises`    | 8     |
+| `node:buffer`         | 10    |
+| `node:child_process`  | 6     |
+| `node:crypto`         | 6     |
+| `node:fs`             | 9     |
+| `node:fs/promises`    | 10    |
 | `node:http`           | 1     |
-| `node:os`             | 3     |
-| `node:path`           | 28    |
-| `node:stream`         | 1     |
+| `node:os`             | 4     |
+| `node:path`           | 34    |
+| `node:process`        | 1     |
+| `node:stream`         | 4     |
 | `node:string_decoder` | 1     |
-| `node:url`            | 1     |
-| `node:util`           | 1     |
+| `node:url`            | 2     |
+| `node:util`           | 2     |
 | `node:worker_threads` | 2     |
 
 ## The webview's host

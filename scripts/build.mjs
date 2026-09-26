@@ -13,6 +13,11 @@
 // dist/meta/ (M26, PLAN.md D29): the list of every source file that went in,
 // from which scripts/third-party-notices.mjs derives the packages whose
 // licences travel with the .vsix. The folder is not packaged.
+//
+// The ACP agent (`dist/acp.js`, PLAN.md D62) is built beside them for its own
+// npm package, not the .vsix; its metafile goes to dist/meta-acp/ so the
+// extension's notices never list what only the agent ships. Its keyring
+// binding is a native module, installed with the package, never bundled.
 
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -28,6 +33,9 @@ const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const ACP_ENTRY = 'src/runtime/main.ts'
+const ACP_OUTFILE = 'dist/acp.js'
+const ACP_METAFILE_DIR = 'dist/meta-acp'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 const NODE_TARGET = 'node22'
@@ -64,6 +72,18 @@ const searchWorkerOptions = {
   platform: 'node',
   format: 'cjs',
   target: NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const acpOptions = {
+  ...common,
+  entryPoints: [ACP_ENTRY],
+  outfile: ACP_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: NODE_TARGET,
+  external: ['@napi-rs/keyring'],
+  banner: { js: '#!/usr/bin/env node' },
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -114,7 +134,8 @@ if (isWatch) {
     searchWorker: esbuild.build(searchWorkerOptions),
     webview: esbuild.build(webviewOptions),
   }
-  const builds = Object.values(shipped)
+  const acp = esbuild.build(acpOptions)
+  const builds = [...Object.values(shipped), acp]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -125,10 +146,14 @@ if (isWatch) {
       const { metafile } = await build
       writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
+    mkdirSync(ACP_METAFILE_DIR, { recursive: true })
+    const { metafile } = await acp
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(ACP_OUTFILE)
 }

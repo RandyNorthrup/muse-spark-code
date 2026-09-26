@@ -17,6 +17,7 @@
     "src/extension.ts",
     "src/host/backend/searchWorker.ts",
     "src/webview/main.tsx",
+    "src/runtime/main.ts",
     "test/unit/**/*.test.{ts,tsx}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",

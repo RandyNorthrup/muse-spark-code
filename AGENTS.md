@@ -93,6 +93,11 @@ src/host/**           VS Code adapters (views, conversation, backend managers an
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client, tools, context, export,
                       worktrees, usage, dictation, Muse Voice, the paid gate)
+src/acp/**            the ACP agent (D62): the ACP side of a session and the
+                      translation of the engine's events; must not import
+                      `vscode`
+src/runtime/**        the agent's process: arguments, backends outside VS Code,
+                      the OS credential store (D61), `auth` and `login`
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
@@ -118,8 +123,10 @@ scripts/**            esbuild build; bundle-size, host-globals, notices, audit,
                       image rendering, changelog notes
 docs/certification/   per-milestone gate-fire records and screenshots
 docs/ide-compatibility.md, docs/ide-compatibility/
-                      the plan for editors beyond VS Code (D60) and the
-                      generated record of what the extension asks of its host
+                      the plan for editors beyond VS Code (D60), the
+                      generated record of what the extension asks of its host,
+                      and hosts.md, what each editor was tested at
+docs/acp.md           the ACP agent's guide, shipped as its package's README
 media/                icons, banner, social preview, README screenshots
 ```
 
@@ -138,6 +145,7 @@ media/                icons, banner, social preview, README screenshots
 | Dev build / watch              | `npm run build:dev` / `npm run watch`    |
 | Production build + size budget | `npm run build`                          |
 | Package `.vsix`                | `npm run package`                        |
+| Package the ACP agent (D62)    | `npm run package:acp`                    |
 
 ## Toolchain pins that matter
 

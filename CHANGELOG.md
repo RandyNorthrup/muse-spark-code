@@ -67,6 +67,24 @@ while they are (PLAN.md D30, D34).
   backend or the credential store reaches `vscode`. The webview now talks
   to VS Code through one host bridge, and the chat surface, the log and the
   dictation setup carry no VS Code types. Nothing changes in VS Code.
+- **Muse Spark for editors that speak ACP** (M63, PLAN.md D61, D62).
+  `muse-spark-code-acp`, an npm package attached to each GitHub Release,
+  runs Muse Code or the Model API as an Agent Client Protocol agent for
+  Zed, JetBrains IDEs, Neovim, Emacs and the other ACP editors: the chat,
+  tool calls with diffs, the plan, permission prompts (a cancelled or
+  unknown answer rejects), questions as forms, the modes, the model and
+  effort, skills as commands, and sessions listed, loaded and resumed. The
+  backend is chosen when the editor starts it and never switches.
+  `muse-spark-code-acp auth set` keeps a Model API key in the operating
+  system's credential store (Windows Credential Manager, the macOS
+  Keychain, the Secret Service on Linux, with no plaintext fallback); the
+  key is never read from the environment or passed to Muse Code. Paid
+  features stay off in the agent. See `docs/acp.md`; which editors have
+  been tried is tracked in `docs/ide-compatibility/hosts.md` (none yet).
+- **Open VSX and npm publishing** in the release workflow. A tag also
+  publishes the VSIX to Open VSX, for VS Code forks that install from
+  there, and the agent to npm, each only when its token is set in the
+  `marketplace` environment.
 
 ### Fixed
 
