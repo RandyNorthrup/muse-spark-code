@@ -95,6 +95,9 @@ while they are (PLAN.md D30, D34).
   and the packaged ACP agent on Linux, macOS and Windows (its key through
   each credential store) and in JupyterLab, Emacs and Neovim, all against
   a fake Muse Code CLI; the latest releases are tried again every Monday.
+  A second workflow, Forks, installs the VSIX in the latest Linux builds
+  of Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron and runs
+  the integration tests there, weekly and by hand.
 
 ### Changed
 

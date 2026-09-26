@@ -3590,6 +3590,13 @@ listing are M62b.
     worked around with `onStartupFinished`, which would start the
     extension, and read SecretStorage, in every VS Code window; README's
     Troubleshooting gives the shortcut. The fix belongs in Theia.
+  - **Forks in CI, 2026-09-26** (`.github/workflows/forks.yml`,
+    `docs/certification/m62.md`): Cursor, Devin Desktop (Windsurf's new
+    name), Kiro and Positron at their latest Linux builds, found through
+    their own update feeds as nixpkgs and Homebrew find them; the VSIX
+    installed with each fork's CLI and the integration tests run in it,
+    weekly and by hand. Their feeds are refused in the container, so the
+    first results come from GitHub's runners.
 - **Acceptance (M62a)**: every gate green with the floor's types; the
   integration tests on a 1.99 host; drills for the API and Node checks.
 
@@ -3695,7 +3702,7 @@ listing are M62b.
 | Accessibility         | `node scripts/a11y.mjs` (`npm run test:a11y`, in `quality` after the build; in CI on Linux and Windows): axe-core over every harness scenario in the four default themes, WCAG 2.2 AA                           | M37 ✓ (proofs A–G, J–M); Lighthouse itself is not run (D32)                                                                                                                                                |
 | Localization          | `node scripts/check-l10n.mjs` (`npm run check:l10n`, in `quality:gates`): every table in `l10n/` against the English table, strictly; the manifest against `package.nls.json`; no `UI_TEXT` read at module load | M40 ✓ (drills in `docs/certification/m40.md`)                                                                                                                                                              |
 | Host API record       | `node scripts/check-host-api.mjs` (`npm run check:host-api`, in `quality:gates`; `--write` regenerates): `docs/ide-compatibility/host-api.md` against the source, and the portable code never reaching `vscode` | M60 ✓ (drills in `docs/certification/m60.md`)                                                                                                                                                              |
-| Hosts                 | `.github/workflows/hosts.yml`, CI only: each job runs one `test/hosts` script (VSCodium, code-server, Theia, the agent package and key store, Jupyter, Emacs, Neovim)                                           | M62/M63 ✓ locally (drills H1–H5 in `docs/certification/m63.md`)                                                                                                                                            |
+| Hosts                 | `hosts.yml` (VSCodium, code-server, Theia, the agent package and key store, Jupyter, Emacs, Neovim) and `forks.yml` (Cursor, Devin Desktop, Kiro, Positron), CI only: each job runs one `test/hosts` script     | M62/M63 ✓ locally (drills H1–H5 in `m63.md`, F1–F2 in `m62.md`); the forks only on GitHub's runners                                                                                                        |
 
 ## 8. Escape hatches register
 

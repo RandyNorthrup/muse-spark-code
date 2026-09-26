@@ -1013,8 +1013,10 @@ real VS Code launched by `@vscode/test-cli` (on Linux under `xvfb-run -a`),
 against `test/fixtures/workspace/`. The host checks (`test/hosts/`, CI's
 Hosts workflow) run the packaged extension in VSCodium, code-server and
 Eclipse Theia, and the packaged ACP agent in JupyterLab, Emacs and
-Neovim, each against the fake CLI; `sh test/hosts/run-<host>.sh` runs
-one locally, with the arguments its header gives.
+Neovim, each against the fake CLI; the Forks workflow installs the VSIX
+in the latest Cursor, Devin Desktop, Kiro and Positron and runs the
+integration tests there. `sh test/hosts/run-<host>.sh` runs one locally,
+with the arguments its header gives.
 
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are

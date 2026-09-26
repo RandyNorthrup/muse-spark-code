@@ -1,0 +1,79 @@
+# The VS Code forks that ship Linux builds (PLAN.md M62b): Cursor, Devin
+# Desktop (Windsurf until 2026), Kiro and Positron, each at its latest
+# release from its own update feed (test/hosts/fork-release.mjs). Each job
+# installs the .vsix with the fork's CLI and runs the integration tests in
+# the fork; the job summary names the fork's version and its VS Code base.
+#
+# Apart from hosts.yml because these are the forks' latest builds, not
+# pinned ones, and their feeds can change without notice: every Monday, by
+# hand, and on pull requests that change this check. Every job has a
+# timeout and leaves no token in the git config; none pushes.
+name: Forks
+
+on:
+  pull_request:
+    paths:
+      - 'test/hosts/fork-release.mjs'
+      - 'test/hosts/installed.vscode-test.mjs'
+      - 'test/hosts/run-fork.sh'
+      - '.github/workflows/forks.yml'
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vsix:
+    name: vsix
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: forks-vsix
+          path: '*.vsix'
+          if-no-files-found: error
+
+  fork:
+    name: ${{ matrix.fork }}
+    needs: vsix
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        fork: [cursor, devin-desktop, kiro, positron]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:dev
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: forks-vsix
+          path: forks-vsix
+      - name: ${{ matrix.fork }}
+        env:
+          # Positron's latest release is read from the GitHub API.
+          GH_TOKEN: ${{ github.token }}
+        run: xvfb-run -a sh test/hosts/run-fork.sh "${{ matrix.fork }}" forks-vsix/*.vsix "$RUNNER_TEMP/fork"

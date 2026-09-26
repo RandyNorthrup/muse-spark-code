@@ -19,4 +19,4 @@ curl -fsSL -o "$work/vscodium.tar.gz" \
 tar -xzf "$work/vscodium.tar.gz" -C "$work/vscodium"
 echo "VSCodium $release"
 cd "$here/../.."
-VSCODIUM_BIN="$work/vscodium/codium" npx vscode-test --config test/hosts/vscodium.vscode-test.mjs
+HOST_BIN="$work/vscodium/codium" HOST_LABEL=vscodium npx vscode-test --config test/hosts/installed.vscode-test.mjs
