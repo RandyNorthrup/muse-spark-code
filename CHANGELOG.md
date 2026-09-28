@@ -86,6 +86,122 @@ happened, not what was planned; superseded entries are kept.
   and third-party-notices checks cover the new bundle, `npm run cycles`
   follows it, and the `.vsix` ships it.
 
+### Fixed
+
+- **Signing out of Muse Code finishes, and a signed-out CLI no longer reads
+  as signed in** (PLAN.md D26).
+  - **The cause.** `muse logout` rewrites the CLI's `auth.json` with no
+    sign-in in it; it never deletes the file. Muse Code 1.3.0 and 1.4.0 do
+    this on every OS.
+  - **What went wrong.** The extension took the file being there for a
+    sign-in. After any sign-out it went on choosing Muse Code, and the panel
+    stayed on "Sign-out is in progress or credentials remain" until a new
+    browser sign-in.
+  - **Reading the file.** The extension now reads only its structure: the
+    schema version, which providers it names, the storage lane of each, and
+    whether Muse Code's own (`meta`) holds a key in a shape Muse Code was
+    seen writing (`api_key`, `access_token`). Every value, the token
+    included, is dropped as the file is parsed. Another entry alone, such
+    as the one Muse Code's bundled Slack connector reads, or a `meta` entry
+    in any other shape, is not taken for a Muse sign-in.
+  - **Asking Muse Code.** When the structure cannot say, the extension asks
+    Muse Code itself (`account/read` on a short-lived host). On macOS that
+    covers every file but the empty one a sign-out leaves, since no one has
+    seen what Muse Code 1.4.0 does there with a file holding the sign-in.
+    The extension keeps the answer until the file changes, or until you
+    sign in, sign out or choose **Check again**, which always asks afresh;
+    pressing it twice asks once. On macOS it asks only when you act: a
+    click in the panel, or the **Sign Out** or **Diagnostics** command.
+  - **Switching backends.** Whenever the panel moves conversations to the
+    other backend (Muse Code signed in after all, a pasted key while Muse
+    Code is signed out, an install that found Muse Code signed in, a
+    changed `museSpark.backend`), the
+    conversation running on the old backend ends first, as a completed
+    browser sign-in already did. Before, a Cancel pressed just after the
+    browser approved could switch to Muse Code while a Model API
+    conversation kept running. A restart that finishes late no longer
+    forgets a backend signed in on meanwhile, and a save of the sign-out
+    state that fails late no longer keeps conversations shut after a later
+    save succeeded. A restart that fails late, or an install's error
+    report, no longer replaces a newer state with its error.
+  - **Old answers.** An answer Muse Code gives to a question the extension
+    had already dropped (after Cancel, a sign-out or **Check again**)
+    reaches no one, and a slower, older check never replaces what a newer
+    one showed. While a browser sign-in shows its code, a check leaves the
+    code where it is.
+  - **Signing out.** Sign-out uses Muse Code's own `account/logout` and
+    confirms it with `account/read`. Only when Muse Code still reads signed
+    in afterwards does it open `muse logout` in a terminal. With
+    `META_API_KEY` set, a sign-out no longer opens that terminal every
+    time. A sign-out never decides on an earlier answer from Muse Code, so
+    a Keychain sign-in made since is signed out too.
+  - **Check again after a sign-out.** A sign-out that must wait for the
+    terminal, or for `META_API_KEY` to go, now offers **Check again**,
+    which its message asks for.
+- **Browser sign-in waits as long as the code lives, and ends at once when
+  Muse Code ends it.**
+  - **The code's lifetime.** A code lasts ten minutes (captured on
+    1.4.0-R4302.1). The panel now waits that long and says when the code
+    expired. Before, it gave up after five minutes and cancelled a code
+    that could still be approved.
+  - **Other endings.** A denied code and a sign-in Muse Code could not save
+    each have a message of their own. An ending Muse Code has not been
+    seen to send is shown in its own word.
+  - **Cancel.** It works at once, even when Muse Code stops answering, and
+    the code leaves the panel at once. If the browser approved just
+    before, the panel follows what Muse Code saved instead of saying the
+    sign-in was cancelled. On macOS, where an approval may reach only the
+    Keychain, a Cancel after the code was shown asks Muse Code afresh,
+    and so does every click that asks it (Diagnostics included), unless
+    it already asked during that same click.
+  - **Success.** It is taken from Muse Code's `account/read` turning
+    signed in, or from a new credential file it does not contradict. When
+    Muse Code could not say who was signed in before the flow, its own
+    `granted`, borne out by `account/read`, counts too, so a Keychain
+    sign-in that leaves the file as it was is seen.
+  - **A re-sign-in to the same account** after a sign-out Muse Code could
+    not finish is recognized from Muse Code's own `granted`, even when
+    only the macOS Keychain changed; before, it waited out the limit.
+  - **With `museSpark.backend` set to the Model API,** the panel no longer
+    asks Muse Code about its sign-in at all, so a slow answer cannot keep a
+    stored key waiting.
+  - **A host that exits.** The sign-in fails at once instead of waiting
+    out the eleven-minute limit, unless the credential file changed first:
+    then the sign-in went through. A change Muse Code already called
+    signed out (another Muse process signing out) still counts as signed
+    out.
+  - **Sign-out and closing the window** no longer wait on Muse Code's
+    answer to a sign-in that had just finished or failed. Closing the
+    window cancels the sign-in and closes its host and every short-lived
+    account host, and a sign-in click still checking the CLI then starts
+    nothing. A check that answers after a sign-out no longer holds the
+    sign-out gate again.
+- **A macOS `auth.json` copied to Windows or Linux is named** as the reason
+  Muse Code cannot start, instead of a host that exits at every message.
+  That covers an empty version-2 file too: Muse Code 1.4.0 refuses it on
+  Windows and on Linux, as it refuses a pointer and a Keychain entry in a
+  version-1 file. With `META_API_KEY` set Muse Code starts with any of
+  them. The log names that state without the file's path; the panel still
+  shows it.
+- **The CLI's terminals get `museSpark.environmentVariables`.** The
+  terminals for `muse logout`, MCP sign-in and **Open in Terminal** now run
+  with them, as `muse serve` does, so with `XDG_CONFIG_HOME` moved they use
+  the same config home.
+- **Muse Spark: Diagnostics** describes the CLI's credential file by its
+  structure and gives the CLI's sign-in state. On macOS it also says whether
+  the login Keychain holds Muse Code's item, looked up by attribute only,
+  which reads no secret and shows no prompt. Its question to Muse Code
+  about the sign-in may still show the Keychain's prompt, as Muse Code
+  reads the Keychain to answer.
+- **The log keeps no text Muse Code chose.** Its messages can name a folder
+  in your profile or your e-mail address, and the log's redaction catches
+  only keys. How a browser sign-in ended is logged in fixed words; an MSP
+  error by its kind and code; a sign-in state or reason only when shaped
+  like a protocol word; and what `muse serve` and `muse skills` write to
+  stderr as fixed words for the lines Muse Code was seen writing (an
+  unsupported credential file, an unreadable Keychain item, a failed
+  model-catalog fetch), otherwise by its length alone.
+
 ## [0.9.1] - 2026-09-27
 
 Works with Muse Code 1.4.0, now Meta's stable release, which its launcher

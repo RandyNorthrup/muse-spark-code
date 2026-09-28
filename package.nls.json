@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "Treat this workspace as confidential: contributor-tier models (whose traffic Meta may use for training) are blocked.",
   "config.allowDangerouslySkipPermissions.description": "Allow dangerously skip permissions: list Bypass permissions in the Modes menu. Muse then edits files and runs commands without asking; use only in a sandbox.",
   "config.museBinaryPath.description": "Absolute path to the Muse Code executable. Leave empty to discover it on PATH or in the default install directory.",
-  "config.environmentVariables.description": "Environment variables set for the Muse Code process. Do not put API keys here; use the Sign in flow, which stores them in secret storage.",
+  "config.environmentVariables.description": "Environment variables set for the Muse Code process and the terminals that run the Muse Code CLI. Do not put API keys here; use the Sign in flow, which stores them in secret storage.",
   "config.environmentVariables.name.description": "Variable name.",
   "config.environmentVariables.value.description": "Variable value.",
   "config.enableNewConversationShortcut.description": "Use Ctrl+N (Cmd+N on macOS) to start a new conversation while a Muse Spark panel is focused.",

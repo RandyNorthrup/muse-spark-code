@@ -7,7 +7,7 @@
 // history and usage, plus the drills: a host that dies mid-turn, a
 // malformed frame, a binary that will not start, and no binary at all.
 
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
@@ -23,7 +23,8 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
-import { installFakeCredential, installFakeMuse } from './fakeMuse'
+import { capturedInlineVerdict } from '../unit/helpers/credentialShapes'
+import { installFakeCredential, installFakeMuse, removeTestFolders } from './fakeMuse'
 
 const TURN_TIMEOUT_MS = 10_000
 const TEST_TIMEOUT_MS = 30_000
@@ -40,6 +41,14 @@ const workspaceRoot = mkdtempSync(path.join(tmpdir(), 'fake-muse-ws-'))
 const configHome = installFakeCredential()
 process.env['XDG_CONFIG_HOME'] = configHome
 const managers: MuseCodeBackendManager[] = []
+
+/**
+ * How the log names a stderr line no capture covers: by its length, never
+ * its text (the review of PR #49).
+ */
+function stderrLogged(line: string): string {
+  return `muse serve stderr: a line of ${String(line.length)} characters (not logged: it may name a path or an account)`
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -151,36 +160,22 @@ afterEach(async () => {
   await Promise.all(managers.splice(0).map((created) => created.dispose()))
 })
 
-// On Windows the fake CLI's executable can still be held for a moment after
-// its process has exited (seen in CI and under a full local run, every test
-// green), and removing its folder then fails with EPERM. Node retries the
-// removal; if the folder still cannot go, the suite says so and leaves it
-// to the OS temp cleanup rather than fail on housekeeping.
-const RM_RETRIES = 5
-const RM_RETRY_DELAY_MS = 200
-
 afterAll(() => {
   delete process.env['XDG_CONFIG_HOME']
-  for (const dir of [fake.installDir, workspaceRoot, configHome]) {
-    try {
-      rmSync(dir, {
-        recursive: true,
-        force: true,
-        maxRetries: RM_RETRIES,
-        retryDelay: RM_RETRY_DELAY_MS,
-      })
-    } catch (error: unknown) {
-      process.stderr.write(`e2e teardown left ${dir} behind: ${String(error)}\n`)
-    }
-  }
+  removeTestFolders([fake.installDir, workspaceRoot, configHome])
 })
 
 // Each case spawns a process; CI runners are slower than a workstation.
 describe('Muse Code backend against a real child process', { timeout: TEST_TIMEOUT_MS }, () => {
   it('spawns the configured binary with the serve flags, shakes hands as the extension, and sees the credential file', async () => {
     const { manager: backend, log } = manager()
-    expect(backend.credentialFileExists()).toBe(true)
+    // The browser sign-in file, as this OS reads it (on macOS the CLI's to
+    // say; the table is pinned for every OS in credentialFile.test.ts).
+    const verdict = capturedInlineVerdict(process.platform)
+    expect(backend.credentialFileVerdict()).toBe(verdict)
     const host = await backend.ensureHost()
+    // Described by its structure, never by a value in it (D26).
+    expect(log.info).toHaveBeenCalledWith(expect.stringContaining(`(credential file ${verdict},`))
     expect(host.info.serverName).toBe('muse')
     expect(host.info.serverVersion).toBe('0.0.0-fake serve --disable-sandbox --trust-workspace')
     expect(host.info.museHome).toBe(`/fake/home/${MSP_CLIENT_NAME}`)
@@ -442,7 +437,8 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
       isPersistent: false,
     })
     expect(backend.isRunning).toBe(false)
-    expect(log.warn).toHaveBeenCalledWith('muse serve stderr: fake muse: dying on purpose')
+    expect(log.warn).toHaveBeenCalledWith(stderrLogged('fake muse: dying on purpose'))
+    expect(log.warn).not.toHaveBeenCalledWith(expect.stringContaining('dying on purpose'))
     const next = await backend.ensureHost()
     expect(next).not.toBe(host)
     expect(next.info.serverName).toBe('muse')
@@ -472,9 +468,7 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     const crashing = manager({ start: 'crash' })
     await expect(crashing.manager.ensureHost()).rejects.toThrow()
     expect(crashing.manager.isRunning).toBe(false)
-    expect(crashing.log.warn).toHaveBeenCalledWith(
-      'muse serve stderr: fake muse: refusing to start',
-    )
+    expect(crashing.log.warn).toHaveBeenCalledWith(stderrLogged('fake muse: refusing to start'))
   })
 
   it('gives up on a host that never answers the handshake, and ends it (drill, D25)', async () => {

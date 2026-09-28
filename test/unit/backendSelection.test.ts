@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest'
-import { type BackendFacts, selectBackend } from '../../src/core/backendSelection'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  type BackendFacts,
+  readBackendChoice,
+  selectBackend,
+} from '../../src/core/backendSelection'
 
 function facts(overrides: Partial<BackendFacts>): BackendFacts {
   return { setting: 'auto', hasCli: true, hasCliSession: false, hasStoredKey: false, ...overrides }
@@ -58,5 +62,35 @@ describe('selectBackend', () => {
     expect(
       selectBackend(facts({ setting: 'modelApi', hasCli: false, hasStoredKey: true })),
     ).toMatchObject({ kind: 'modelApi', status: 'signedIn' })
+  })
+})
+
+// Forced Model API asks the CLI nothing: a slow answer about an ambiguous
+// credential file must not hold up a stored key (Codex on 328efb52).
+describe('readBackendChoice', () => {
+  it('never asks for the CLI’s sign-in when the backend is forced to the Model API', async () => {
+    const askCliSession = vi.fn(() => new Promise<boolean>(() => undefined))
+    await expect(
+      readBackendChoice({
+        setting: 'modelApi',
+        hasCli: true,
+        hasCliSession: askCliSession,
+        hasStoredKey: () => Promise.resolve(true),
+      }),
+    ).resolves.toEqual({ kind: 'modelApi', status: 'signedIn', methods: ['apiKey'] })
+    expect(askCliSession).not.toHaveBeenCalled()
+  })
+
+  it.each(['auto', 'museCode'] as const)('asks for it when the setting is %s', async (setting) => {
+    const askCliSession = vi.fn(() => Promise.resolve(true))
+    await expect(
+      readBackendChoice({
+        setting,
+        hasCli: true,
+        hasCliSession: askCliSession,
+        hasStoredKey: () => Promise.resolve(false),
+      }),
+    ).resolves.toMatchObject({ kind: 'museCode', status: 'signedIn' })
+    expect(askCliSession).toHaveBeenCalledOnce()
   })
 })

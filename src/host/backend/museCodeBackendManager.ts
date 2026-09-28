@@ -15,6 +15,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { type FingerprintWarning, spawnMspConnection } from '@muse-code/sdk'
+import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
 import { MuseCodeHost, type MspHost } from '../../core/backends/musecode/MuseCodeHost'
 import {
   buildChildEnvironment,
@@ -31,6 +32,7 @@ import {
   serveArguments,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
+import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
 import { clipForLog } from '../../core/logging'
 import { withDeadline } from '../../core/timeouts'
 import {
@@ -49,6 +51,7 @@ import {
   type SandboxNetworkMode,
   type ShellSandboxMode,
 } from '../../shared/constants'
+import { readCredentialFile } from '../auth/cliAccount'
 import type { Logger } from '../logger'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -188,7 +191,7 @@ export class MuseCodeBackendManager {
     // The CLI's own credential pays (its login or its own key); the key the
     // panel stores is for the Model API backend and is never passed here.
     this.deps.log.info(
-      `muse serve credentials: the CLI's own (credential file ${this.credentialFileExists() ? 'present' : 'absent'}, META_API_KEY in the environment ${this.hasEnvironmentKey() ? 'present' : 'absent'}); the extension's stored key is not passed`,
+      `muse serve credentials: the CLI's own (credential file ${this.credentialFileVerdict()}, META_API_KEY in the environment ${this.hasEnvironmentKey() ? 'present' : 'absent'}); the extension's stored key is not passed`,
     )
     this.deps.log.info(`Spawning ${launch.command} ${launch.args.join(' ')}`)
     // Spawn to handshake, for the log (M39).
@@ -199,8 +202,9 @@ export class MuseCodeBackendManager {
       ...(this.deps.workspaceRoot !== undefined && { cwd: this.deps.workspaceRoot }),
       env,
       onStderr: (chunk) => {
-        // A chatty or looping CLI must not flood the log (PLAN.md D24).
-        this.deps.log.warn(`muse serve stderr: ${clipForLog(chunk.trimEnd())}`)
+        // A chatty or looping CLI must not flood the log (PLAN.md D24), and
+        // its free text is named in fixed words (the review of PR #49).
+        this.deps.log.warn(`muse serve stderr: ${clipForLog(stderrForLog(chunk))}`)
       },
     })
     const timeoutMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
@@ -225,7 +229,7 @@ export class MuseCodeBackendManager {
       try {
         await handshake.close()
       } catch (closeError: unknown) {
-        this.deps.log.warn(`Closing the unstarted muse serve failed: ${String(closeError)}`)
+        this.deps.log.warn(`Closing the unstarted muse serve failed: ${failureForLog(closeError)}`)
       }
       throw error
     }
@@ -380,8 +384,9 @@ export class MuseCodeBackendManager {
     })
   }
 
-  public credentialFileExists(): boolean {
-    return existsSync(this.credentialFilePath())
+  /** What the credential file's structure says, never a value in it (D26): the log and Diagnostics. */
+  public credentialFileVerdict(): CredentialFileVerdict | 'absent' {
+    return readCredentialFile(this.credentialFilePath(), process.platform)?.verdict ?? 'absent'
   }
 
   /** A META_API_KEY in the CLI's environment (the user's own, or one the settings add). */
@@ -415,7 +420,7 @@ export class MuseCodeBackendManager {
       const host = await pending
       await host.close()
     } catch (error: unknown) {
-      this.deps.log.warn(`Ignoring error while closing muse serve: ${String(error)}`)
+      this.deps.log.warn(`Ignoring error while closing muse serve: ${failureForLog(error)}`)
     }
   }
 }

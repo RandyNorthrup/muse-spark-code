@@ -1458,6 +1458,79 @@ export const MUSE_ACCOUNT_LOGIN_START = 'account/loginStart'
 export const MUSE_ACCOUNT_LOGIN_CANCEL = 'account/loginCancel'
 export const MUSE_ACCOUNT_LOGIN_COMPLETED = 'account/loginCompleted'
 export const MUSE_ACCOUNT_DEVICE_CODE_TYPE = 'deviceCode'
+// The CLI's own answer about its sign-in, and its own sign-out (experimental
+// MSP; captured on 1.3.0 and 1.4.0-R4302.1 in isolated homes, 2026-09-27).
+export const MUSE_ACCOUNT_READ = 'account/read'
+export const MUSE_ACCOUNT_LOGOUT = 'account/logout'
+// `AccountStateKind`: which credential lane wins (`envKey` beats `apiKey`
+// beats `accountLogin`), or none. The schema calls the vocabulary open.
+export const MUSE_ACCOUNT_STATES = {
+  loggedOut: 'loggedOut',
+  envKey: 'envKey',
+  apiKey: 'apiKey',
+  accountLogin: 'accountLogin',
+} as const
+// `AccountLoginOutcome` (`account/loginCompleted`): how a device sign-in
+// ended, every word captured live (1.4.0-R4302.1, 2026-09-27; `cancelled`
+// also on 1.3.0). `granted` came after the file was written and
+// `account/read` already said `accountLogin`, so those decide and it is the
+// one word that does not end the flow. The schema calls the vocabulary open,
+// so any other word ends the flow as the CLI named it (AGENTS.md rule 13).
+export const MUSE_LOGIN_OUTCOMES = {
+  granted: 'granted',
+  expired: 'expired',
+  cancelled: 'cancelled',
+  denied: 'denied',
+  failed: 'failed',
+} as const
+// An outcome word the panel shows as it came is cut at this length.
+export const MUSE_LOGIN_OUTCOME_SHOWN_MAX_CHARS = 40
+// How long `account/loginCancel` may take before the sign-in host is closed
+// anyway (captured: answered within 4 ms, after the `cancelled` ending).
+export const MUSE_LOGIN_CANCEL_TIMEOUT_MS = 2000
+// The CLI's credential file (`auth.json`), read for its structure only: its
+// schema version, whether it names the Muse provider, that provider's
+// `storage` lane, and whether it carries a captured credential key. Version
+// 1 holds the credential itself on Windows and Linux (captured); on macOS no
+// version-1 file holding one was captured (with TBH_CREDENTIAL_BACKEND=file
+// the Mac wrote no file, and read a pointer as signed out). Version 2 is
+// macOS's token-free pointer, which `muse serve` on Windows and Linux
+// refuses whatever it holds, unless META_API_KEY is set.
+export const MUSE_CREDENTIAL_INLINE_SCHEMA = 1
+export const MUSE_CREDENTIAL_POINTER_SCHEMA = 2
+export const MUSE_CREDENTIAL_KEYCHAIN_STORAGE = 'keychain'
+// The provider the CLI keeps its own sign-in under. Other entries share the
+// file (1.4.0-R4302.1's bundled Slack connector reads
+// `providers.slack_connector`), so only this one speaks for the sign-in.
+export const MUSE_CREDENTIAL_PROVIDER = 'meta'
+/** A larger file is not read (the CLI's own is under 1 KiB). */
+export const MUSE_CREDENTIAL_FILE_MAX_BYTES = 64 * 1024
+// Looks at the credential file when it changes while the CLI answers about it,
+// or when the probe it waited on was abandoned: a file rewritten again and
+// again, or probes abandoned again and again, end as `unknown` (the review of
+// PR #49).
+export const MUSE_CREDENTIAL_READ_ATTEMPTS = 3
+// On macOS a sign-in or sign-out made elsewhere may change only the
+// Keychain, the file as it was, so a user action asks the CLI afresh. An
+// answer this young is from the same click (a sign-out asks up to three
+// times, a refresh with the hold on four) and is reused, so one click is
+// one question and at most one Keychain prompt (Codex on 2a324d48).
+export const MUSE_USER_ACTION_ANSWER_REUSE_MS = 5000
+// The macOS login Keychain item the CLI keeps a sign-in in. Diagnostics looks
+// it up by attribute only (no `-g`/`-w`, so no secret and no prompt): exit 0
+// found, 44 not found.
+export const MACOS_SECURITY_TOOL = '/usr/bin/security'
+export const MUSE_KEYCHAIN_SERVICE = 'ai.meta.dev.credentials'
+export const MUSE_KEYCHAIN_ACCOUNT = 'meta'
+export const MACOS_KEYCHAIN_LOOKUP_ARGS = [
+  'find-generic-password',
+  '-s',
+  MUSE_KEYCHAIN_SERVICE,
+  '-a',
+  MUSE_KEYCHAIN_ACCOUNT,
+] as const
+export const MACOS_KEYCHAIN_ITEM_NOT_FOUND_EXIT = 44
+export const MACOS_KEYCHAIN_LOOKUP_TIMEOUT_MS = 10 * 1000
 export const MUSE_DOCS_URL = 'https://dev.meta.ai/products/muse-code/'
 // Muse Code's own page on MCP servers and hooks (M31).
 export const MUSE_EXTENDING_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/extending'
@@ -1588,10 +1661,14 @@ export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
 }
 // An unnamed conversation's export takes its title from the first prompt, cut here.
 export const EXPORT_TITLE_MAX_CHARS = 60
-// How long the browser sign-in may take before the extension stops watching
-// for the credential file, and how often it looks.
+// How often the browser sign-in asks the sign-in host (`account/read`) and
+// looks at the credential file, and how long it may take before the
+// extension stops waiting. Muse Code ends the flow itself when the code
+// expires (captured on 1.4.0-R4302.1: `expired` 600 s after
+// `account/loginStart`), so the extension's own limit is only a backstop set
+// past that: a shorter one cancelled codes that were still live.
 export const CREDENTIAL_POLL_INTERVAL_MS = 2000
-export const CREDENTIAL_POLL_TIMEOUT_MS = 5 * 60 * 1000
+export const CREDENTIAL_POLL_TIMEOUT_MS = 11 * 60 * 1000
 // Model API key shapes. Meta's current keys are `LLM_` and at least 16
 // letters, digits, `_` or `-` (a key issued 2026-09-27 had 44 after the
 // prefix, no `|`); older keys were `LLM|<numeric id>|<secret>`. The log

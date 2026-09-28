@@ -18,6 +18,7 @@ import {
   skillImportArgs,
   skillsListArgs,
 } from '../../core/backends/musecode/skillsCli'
+import { stderrForLog } from '../../core/backends/musecode/logText'
 import { clipForLog } from '../../core/logging'
 import { type SkillImportSource, UI_TEXT } from '../../shared/constants'
 import type { PluralForms } from '../../shared/l10n/forms'
@@ -99,7 +100,9 @@ async function runForOutput(
   }
   const result = await running
   if (result.exitCode !== 0) {
-    deps.log.warn(`muse ${args.join(' ')} failed: ${clipForLog(result.stderr.trim())}`)
+    deps.log.warn(
+      `muse ${args.join(' ')} failed with exit code ${String(result.exitCode)}: ${clipForLog(stderrForLog(result.stderr))}`,
+    )
     deps.showError(`${failure}: ${failureOf(result)}`)
     return undefined
   }

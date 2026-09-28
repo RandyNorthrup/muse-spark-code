@@ -1,13 +1,23 @@
 // The "Muse Spark: Diagnostics" report (PLAN.md D14): the facts a bug
 // report needs, as text for the log channel. Pure: the host gathers the
-// facts. Nothing secret is ever in it: credentials appear as booleans,
+// facts. Nothing secret is ever in it: credentials appear as booleans or,
+// for the CLI's credential file, as one word for its structure (D26),
 // environment variables as a count, the home directory as `~` (PLAN.md
 // D24: the report is meant to be pasted into a public issue), and the
 // logger redacts on top. The network posture (M56, PLAN.md D43) is stated
 // the same way: whether a proxy is set, never its address, which can hold
 // a password; and `muse config status` contributes only known-safe fields.
 
-import { MUSE_CONFIG_STATUS_MAX_CHARS, PRODUCT_NAME } from '../../shared/constants'
+import {
+  MUSE_CONFIG_STATUS_MAX_CHARS,
+  MUSE_KEYCHAIN_SERVICE,
+  PRODUCT_NAME,
+} from '../../shared/constants'
+import type {
+  CliSignIn,
+  CredentialFileVerdict,
+  KeychainItemPresence,
+} from '../backends/musecode/credentialFile'
 
 /**
  * The network the extension's own requests and Muse Code's run under (M56).
@@ -58,7 +68,17 @@ export interface SupportFacts {
   readonly cli:
     | { readonly ok: true; readonly installDir: string; readonly version: string | undefined }
     | { readonly ok: false; readonly reason: string }
-  readonly hasCliCredentialFile: boolean
+  /**
+   * What the CLI's credential file's structure says, never a value from it:
+   * `absent`, `empty` (no sign-in), `inline` (holds one), `keychain` (a macOS
+   * pointer), `unsupportedHere` (a macOS file where `muse serve` cannot
+   * start with it) or `unrecognized`.
+   */
+  readonly cliCredentialFile: CredentialFileVerdict | 'absent'
+  /** The CLI's sign-in as the gate counts it (`unknown` counts as signed in). */
+  readonly cliSignIn: CliSignIn
+  /** macOS only: whether the login Keychain holds the CLI's item, by attribute lookup. */
+  readonly keychainItem: KeychainItemPresence | undefined
   /** Muse Code's `run.subagent_delegation_mode` as read from its settings file (M14). */
   readonly delegationMode: string
   /** Muse Code's `run.workflow_trigger_mode`, read the same way (M47). */
@@ -168,7 +188,10 @@ export function renderSupportReport(facts: SupportFacts): string {
     `muse binary path configured: ${yesNo(facts.isBinaryPathConfigured)}; environment variables: ${String(facts.environmentVariableCount)}`,
     `muse cli: ${cli}`,
     `muse subagent delegation: ${facts.delegationMode}; workflow trigger mode: ${facts.workflowTriggerMode}`,
-    `cli credential file: ${yesNo(facts.hasCliCredentialFile)}; stored model api key: ${yesNo(facts.hasStoredApiKey)}; META_API_KEY in environment: ${yesNo(facts.hasEnvironmentApiKey)}`,
+    `cli credential file: ${facts.cliCredentialFile}; cli sign-in: ${facts.cliSignIn}; stored model api key: ${yesNo(facts.hasStoredApiKey)}; META_API_KEY in environment: ${yesNo(facts.hasEnvironmentApiKey)}`,
+    ...(facts.keychainItem === undefined
+      ? []
+      : [`macOS Keychain item ${MUSE_KEYCHAIN_SERVICE}: ${facts.keychainItem}`]),
     `voice dictation: ${dictation}`,
     ...networkLines(facts.network),
     ...managedConfigurationLines(facts.managedConfiguration),

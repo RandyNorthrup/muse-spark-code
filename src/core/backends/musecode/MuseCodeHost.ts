@@ -78,6 +78,7 @@ import {
   UNKNOWN_METHOD,
   type WireNotification,
 } from './mapNotification'
+import { failureForLog } from './logText'
 import { PromptLedger } from './promptLedger'
 import {
   historyOutcome,
@@ -378,7 +379,7 @@ async function sendCommand(
       const ceiling = Math.min(MSP_RETRY_MAX_DELAY_MS, MSP_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1))
       const delayMs = Math.floor(Math.random() * (ceiling + 1))
       log.warn(
-        `${method} refused (${error instanceof Error ? error.message : String(error)}); attempt ${String(attempt + 1)} in ${String(delayMs)} ms`,
+        `${method} refused (${failureForLog(error)}); attempt ${String(attempt + 1)} in ${String(delayMs)} ms`,
       )
       await pause(delayMs)
     }
@@ -796,7 +797,7 @@ export class MuseSession implements AgentSession {
     // connection is still open, even when the turn that started it has ended.
     void this.stopAllTasks().catch((error: unknown) => {
       this.log.warn(
-        `task/stopAll before releasing session ${this.sessionId} failed: ${error instanceof Error ? error.message : String(error)}`,
+        `task/stopAll before releasing session ${this.sessionId} failed: ${failureForLog(error)}`,
       )
     })
     this.finishDispose()
@@ -1095,7 +1096,9 @@ export class MuseCodeHost implements AgentHost {
         this.deliver({ method: 'userInput/requested', params })
       }
     } catch (error: unknown) {
-      this.log.warn(`approval/listPending after resuming ${sessionId} failed: ${String(error)}`)
+      this.log.warn(
+        `approval/listPending after resuming ${sessionId} failed: ${failureForLog(error)}`,
+      )
     }
   }
 

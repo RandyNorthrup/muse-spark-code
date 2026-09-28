@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "Diesen Arbeitsbereich als vertraulich behandeln: Modelle der Contributor-Stufe (deren Datenverkehr Meta für Training verwenden darf) sind gesperrt.",
   "config.allowDangerouslySkipPermissions.description": "Gefährliches Überspringen von Berechtigungen zulassen: „Berechtigungen umgehen“ im Menü „Modi“ anzeigen. Muse bearbeitet dann Dateien und führt Befehle ohne Nachfrage aus; nur in einer Sandbox verwenden.",
   "config.museBinaryPath.description": "Absoluter Pfad zur ausführbaren Datei von Muse Code. Leer lassen, um sie über PATH oder im Standardinstallationsverzeichnis zu finden.",
-  "config.environmentVariables.description": "Umgebungsvariablen, die für den Muse Code-Prozess gesetzt werden. Tragen Sie hier keine API-Schlüssel ein; verwenden Sie den Anmeldevorgang, der sie im geheimen Speicher ablegt.",
+  "config.environmentVariables.description": "Umgebungsvariablen, die für den Muse Code-Prozess und die Terminals gesetzt werden, in denen die Muse Code-CLI läuft. Tragen Sie hier keine API-Schlüssel ein; verwenden Sie den Anmeldevorgang, der sie im geheimen Speicher ablegt.",
   "config.environmentVariables.name.description": "Variablenname.",
   "config.environmentVariables.value.description": "Variablenwert.",
   "config.enableNewConversationShortcut.description": "Strg+N (Cmd+N unter macOS) verwenden, um eine neue Unterhaltung zu starten, während ein Muse Spark-Panel den Fokus hat.",

@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "이 작업 영역을 기밀로 처리합니다. 기여자 등급 모델(Meta가 트래픽을 학습에 사용할 수 있는 모델)이 차단됩니다.",
   "config.allowDangerouslySkipPermissions.description": "위험을 감수하고 권한 건너뛰기 허용: 모드 메뉴에 권한 우회를 표시합니다. 그러면 Muse가 묻지 않고 파일을 편집하고 명령을 실행합니다. 샌드박스에서만 사용하세요.",
   "config.museBinaryPath.description": "Muse Code 실행 파일의 절대 경로입니다. 비워 두면 PATH 또는 기본 설치 디렉터리에서 찾습니다.",
-  "config.environmentVariables.description": "Muse Code 프로세스에 설정되는 환경 변수입니다. 여기에 API 키를 넣지 마세요. 키를 비밀 저장소에 저장하는 로그인 흐름을 사용하세요.",
+  "config.environmentVariables.description": "Muse Code 프로세스와 Muse Code CLI를 실행하는 터미널에 설정되는 환경 변수입니다. 여기에 API 키를 넣지 마세요. 키를 비밀 저장소에 저장하는 로그인 흐름을 사용하세요.",
   "config.environmentVariables.name.description": "변수 이름입니다.",
   "config.environmentVariables.value.description": "변수 값입니다.",
   "config.enableNewConversationShortcut.description": "Muse Spark 패널에 포커스가 있을 때 Ctrl+N(macOS에서는 Cmd+N)을 사용하여 새 대화를 시작합니다.",

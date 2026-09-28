@@ -71,7 +71,10 @@ Use this order for a candidate branch:
   `docs/certification/m43.md` shows one. Frames several test files use go
   in one helper, trimmed but otherwise as captured
   (`test/unit/helpers/m46Capture.ts`), and the fake CLI in `test/e2e`
-  answers in the same shapes.
+  answers in the same shapes. The CLI's credential file is the same: its
+  captured shapes, with placeholders for every secret, are in
+  `test/unit/helpers/credentialShapes.ts`, and a test that needs a shape
+  nobody captured says so in a comment.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
   the machine.

@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "將此工作區視為機密：封鎖貢獻者層級模型（Meta 可能會將其流量用於訓練）。",
   "config.allowDangerouslySkipPermissions.description": "允許危險地略過權限：在「模式」功能表中列出「略過權限」。這樣 Muse 就會直接編輯檔案及執行命令，不會詢問；僅限在沙箱中使用。",
   "config.museBinaryPath.description": "Muse Code 可執行檔的絕對路徑。保留空白即可在 PATH 或預設安裝目錄中尋找。",
-  "config.environmentVariables.description": "為 Muse Code 處理程序設定的環境變數。請勿將 API 金鑰放在這裡；請使用登入流程，它會將金鑰儲存在秘密儲存空間中。",
+  "config.environmentVariables.description": "為 Muse Code 處理程序以及執行 Muse Code CLI 的終端機設定的環境變數。請勿將 API 金鑰放在這裡；請使用登入流程，它會將金鑰儲存在秘密儲存空間中。",
   "config.environmentVariables.name.description": "變數名稱。",
   "config.environmentVariables.value.description": "變數值。",
   "config.enableNewConversationShortcut.description": "在 Muse Spark 面板有焦點時，使用 Ctrl+N（macOS 上為 Cmd+N）開始新對話。",

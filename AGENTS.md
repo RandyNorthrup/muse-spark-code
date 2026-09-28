@@ -52,10 +52,25 @@ them, the milestone plan, and the certification checklist.
    frame, every HTTP response is parsed with a zod schema before use.
 8. **Secrets never leave SecretStorage.** No API keys in settings, logs,
    telemetry, tests, or fixtures. The pasted Model API key is never passed to
-   any child process: the Muse Code CLI signs in on its own, and the
-   extension only checks that its credential file exists and when it last
-   changed, never its contents. Log through the `LogOutputChannel`; never
-   `console.log` in the host.
+   any child process: the Muse Code CLI signs in on its own.
+   - **The CLI's credential file.** The extension reads only its structure
+     (`src/core/backends/musecode/credentialFile.ts`): the schema version,
+     which providers are named (only `meta` speaks for the sign-in), each
+     one's `storage` lane, and whether `meta` has an `api_key` or
+     `access_token` entry (the parse replaces the value with `true`). It
+     also reads the file's size and modification time. Never a token
+     value.
+   - **When the structure cannot say**, the CLI answers `account/read`
+     (PLAN.md D26). Its `label` (an e-mail address) and `avatarUrl` are
+     never kept, logged or shown.
+   - **Text the CLI chose.** A `loginCompleted` message, `muse serve` or
+     `muse skills` stderr and an MSP error message never reach the log as
+     sent: they can name a path under the user's profile or an account,
+     and the redactor catches only keys. Log a protocol word through
+     `wireWordForLog`, an MSP failure through `failureForLog`, stderr
+     through `stderrForLog`, or fixed words.
+   - **Logging.** Log through the `LogOutputChannel`; never `console.log`
+     in the host.
 9. **Dependencies are deliberate.** Before adding one: check peer ranges
    against the pins in `PLAN.md` §2 D3 (`npm info <pkg> peerDependencies`),
    check `npm audit`, pin the exact version (`.npmrc` enforces `save-exact`),

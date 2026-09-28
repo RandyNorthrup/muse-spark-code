@@ -37,6 +37,31 @@ const BOTH: readonly SignInMethod[] = ['browser', 'apiKey']
 const BROWSER_ONLY: readonly SignInMethod[] = ['browser']
 const KEY_ONLY: readonly SignInMethod[] = ['apiKey']
 
+/**
+ * Whether the choice needs the CLI's own sign-in. With the backend forced to
+ * the Model API it does not, so nothing asks the CLI (no probe, no
+ * `account/read`): a CLI that is slow to answer about an ambiguous file must
+ * not hold up a user whose key is stored (Codex on 328efb52).
+ */
+export function isCliSignInConsulted(setting: BackendMode): boolean {
+  return setting !== 'modelApi'
+}
+
+/** The choice, asking for the CLI's sign-in only when the setting needs it. */
+export async function readBackendChoice(asked: {
+  readonly setting: BackendMode
+  readonly hasCli: boolean
+  readonly hasCliSession: () => Promise<boolean>
+  readonly hasStoredKey: () => Promise<boolean>
+}): Promise<BackendChoice> {
+  return selectBackend({
+    setting: asked.setting,
+    hasCli: asked.hasCli,
+    hasCliSession: isCliSignInConsulted(asked.setting) && (await asked.hasCliSession()),
+    hasStoredKey: await asked.hasStoredKey(),
+  })
+}
+
 export function selectBackend(facts: BackendFacts): BackendChoice {
   switch (facts.setting) {
     case 'museCode': {

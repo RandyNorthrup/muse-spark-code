@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "Považovat tento pracovní prostor za důvěrný: modely přispěvatelské úrovně (jejichž provoz může Meta použít k trénování) jsou blokovány.",
   "config.allowDangerouslySkipPermissions.description": "Povolit nebezpečné přeskočení oprávnění: zobrazit režim Obejít oprávnění v nabídce Režimy. Muse pak upravuje soubory a spouští příkazy bez ptaní; používejte jen v sandboxu.",
   "config.museBinaryPath.description": "Absolutní cesta ke spustitelnému souboru Muse Code. Ponechte prázdné, aby se vyhledal v PATH nebo ve výchozím instalačním adresáři.",
-  "config.environmentVariables.description": "Proměnné prostředí nastavené pro proces Muse Code. Nevkládejte sem klíče API; použijte přihlášení, které je uloží do úložiště tajných kódů.",
+  "config.environmentVariables.description": "Proměnné prostředí nastavené pro proces Muse Code a pro terminály, ve kterých běží CLI Muse Code. Nevkládejte sem klíče API; použijte přihlášení, které je uloží do úložiště tajných kódů.",
   "config.environmentVariables.name.description": "Název proměnné.",
   "config.environmentVariables.value.description": "Hodnota proměnné.",
   "config.enableNewConversationShortcut.description": "Používat Ctrl+N (v macOS Cmd+N) k zahájení nové konverzace, když má fokus panel Muse Spark.",

@@ -191,9 +191,13 @@ harness:shots`) against a scripted session, so they match the build.
    directly and keeps the manual instructions available.
    Sign in, one of two ways:
    - **Sign in with your Meta account** shows an approval code in the panel.
-     Open its sign-in page in your browser and approve the code. **Cancel
-     sign-in** stops the temporary CLI sign-in process. Work is billed to your
-     Muse subscription.
+     Open its sign-in page in your browser and approve the code within ten
+     minutes, before it expires. **Cancel sign-in** stops the temporary CLI
+     sign-in process; if the browser approved just before, the panel
+     follows what Muse Code saved. If you deny the code, it expires, or Muse
+     Code cannot save the sign-in, the panel says so; an ending Muse Code
+     has not been seen to send is shown in its own word. Work is billed to
+     your Muse subscription.
    - **Use a Model API key** takes a key from dev.meta.ai (Meta's current
      keys start with `LLM_`; older ones look like `LLM|<id>|<secret>`),
      stores it in VS Code's secret storage and runs the Model API backend
@@ -1299,7 +1303,7 @@ What stays in English:
 | --------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Muse Spark: Open in Sidebar                         | —                                                                                    | Focus the chat view in the activity bar                                                                                                                                                           |
 | Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused          | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                          |
-| Muse Spark: Sign Out                                | —                                                                                    | Forget the stored Model API key and run `muse logout` when the CLI is signed in                                                                                                                   |
+| Muse Spark: Sign Out                                | —                                                                                    | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                              |
 | Muse Spark: Open in Terminal                        | —                                                                                    | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                                                                     |
 | Muse Spark: Create AGENTS.md                        | —                                                                                    | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                                                              |
 | Muse Spark: Open Walkthrough                        | —                                                                                    | Open the four-step Get Started walkthrough                                                                                                                                                        |
@@ -1310,7 +1314,7 @@ What stays in English:
 | Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                   | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal                                         |
 | Muse Spark: Set Up Shell Sandbox                    | —                                                                                    | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                              |
 | Muse Spark: Show Logs                               | —                                                                                    | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                 |
-| Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential presence (as yes/no), the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
+| Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
@@ -1376,7 +1380,7 @@ Bypass at once.
 | `modelApiScheduledPrompts`        | `false`     | [Paid](#scheduled-prompts-model-api): a due prompt can run only after this machine-scoped gate and a separate confirmation of that occurrence's Model API token rates; never unattended                                                                                                                                                     |
 | `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, outside the agent's sandbox, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                         |
 | `turnCheckpoints`                 | `true`      | A checkpoint of the workspace's files at each turn's start and end, for **Restore files to here** and its Redo (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                           |
-| `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process (an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too). Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                      |
+| `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                     |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -1554,18 +1558,59 @@ stopped and the next message resumes the same session.
   read and edit text and images up to 10 MiB and read PDFs up to 32 MB; the
   search tool skips files over 1 MiB. The agent can read part of a larger
   file with a shell command.
-- **Sign-out does not finish, or the panel stays gated** — if `muse logout`
-  is still running or its terminal could not open, the panel stays gated and
-  tells you to finish logout. An inherited `META_API_KEY` remains outside the
-  extension: remove it from your environment or VS Code's configured
-  environment variables, then choose **Check again**. Browser approval
-  cannot override that key's billing priority. If VS Code reports that
-  sign-out protection could not be saved, finish `muse logout` and remove
-  `META_API_KEY` before reopening VS Code. If the old CLI credential file
-  remains, a fresh browser approval can replace it; the panel requires a new
-  file write before using that sign-in. If VS Code cannot delete the stored
-  Model API key, sign-out stops this window's backend and keeps it gated
-  until the key can be cleared.
+- **Sign-out does not finish, or the panel stays gated** — sign-out asks
+  Muse Code to sign itself out (`account/logout`). Only when Muse Code
+  still reads signed in afterwards does it open `muse logout` in a
+  terminal, with `museSpark.environmentVariables`, so it signs out the
+  same config home. With `META_API_KEY` set, Muse Code cannot confirm the
+  logout itself; the extension then reads the sign-in again and opens no
+  terminal once it shows none.
+  - **Waiting for the terminal:** the panel stays gated, with **Check
+    again**, until `muse logout` has run. That command leaves
+    `~/.config/muse/auth.json` behind with no sign-in in it, and the
+    extension reads that as signed out. Choose **Check again** once the
+    terminal is done. If the terminal could not open, run `muse logout`
+    yourself.
+  - **An inherited `META_API_KEY`:** it stays outside the extension. Remove
+    it from your environment or VS Code's configured environment variables,
+    then choose **Check again**. Browser approval cannot override that key's
+    billing priority.
+  - **Sign-out protection could not be saved:** finish `muse logout` and
+    remove `META_API_KEY` before reopening VS Code.
+  - **The old CLI sign-in remains:** a fresh browser approval can replace
+    it. The panel uses that sign-in only after Muse Code confirms it.
+  - **The stored Model API key cannot be deleted:** sign-out stops this
+    window's backend and keeps it gated until the key can be cleared.
+- **The panel says Muse Code cannot start because its sign-in file is in
+  the macOS format** — the `auth.json` it names came from a Mac: a
+  version-2 file, or one whose sign-in lives in the Keychain. Muse Code
+  1.4.0 on Windows and on Linux exits at startup with such a file, even an
+  empty one. Move or rename the file, then sign in again. With
+  `META_API_KEY` set, Muse Code starts anyway and uses the key.
+- **The panel shows signed in on macOS, but the first message asks you to
+  sign in** — on a Mac the token is in the login Keychain, and the
+  extension asks Muse Code about it only when you act: a click in the
+  panel (sign-in, sign-out, **Check again**), or the **Sign Out** or
+  **Diagnostics** command. That goes for any `auth.json` on a Mac but the
+  empty one a sign-out leaves, since what Muse Code 1.4.0 does there with
+  another file has not been seen. A Keychain prompt never appears just
+  because VS Code opened. Choose **Check again** to have Muse Code asked
+  afresh now. **Muse Spark: Diagnostics** says whether the Keychain item exists,
+  looked up without reading the secret; it also asks Muse Code for its
+  sign-in, and Muse Code may read the Keychain to answer, which can show
+  the Keychain's prompt.
+- **Browser sign-in fails with "keychain write failed (internal error
+  -2147483648)" on Windows or Linux** — Muse Code 1.4.0-R4161.1 could not
+  save a sign-in there
+  ([#38](https://github.com/meta-models/muse-code-sdk/issues/38),
+  [#53](https://github.com/meta-models/muse-code-sdk/issues/53)). R4302.1
+  fixed it, and Muse Code's launcher updates itself; 1.4.0-R4302.1 or later
+  needs nothing more (**Muse Spark: Diagnostics** shows the version). Only
+  if you are stuck on R4161.1: add `TBH_CREDENTIAL_BACKEND` with the value `file` to
+  `museSpark.environmentVariables` and to the terminal you sign in from.
+  That undocumented switch, which Meta's own SDK tests use, keeps the
+  sign-in in `auth.json`. Remove it after updating, and never set it on
+  macOS, where it hides a Keychain sign-in.
 - **Every shell command fails with `sandbox enforcement unavailable`** — Muse
   Code runs commands inside an OS sandbox that needs a one-time administrator
   setup on Windows. The panel offers it in a notification ("Set up now"

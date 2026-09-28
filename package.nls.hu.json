@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "A munkaterület bizalmasként kezelése: a contributor-szintű modellek (amelyek forgalmát a Meta tanításra használhatja) le vannak tiltva.",
   "config.allowDangerouslySkipPermissions.description": "Engedélyek veszélyes kihagyásának engedélyezése: az Engedélyek megkerülése mód megjelenik a Módok menüben. A Muse ekkor kérdezés nélkül szerkeszt fájlokat és futtat parancsokat; csak homokozóban használja.",
   "config.museBinaryPath.description": "A Muse Code végrehajtható fájljának abszolút elérési útja. Hagyja üresen, hogy a PATH-on vagy az alapértelmezett telepítési könyvtárban keresse meg.",
-  "config.environmentVariables.description": "A Muse Code folyamat számára beállított környezeti változók. Ne adjon meg itt API-kulcsokat; használja a bejelentkezési folyamatot, amely a titkos tárolóban tárolja őket.",
+  "config.environmentVariables.description": "A Muse Code folyamat és a Muse Code CLI-t futtató terminálok számára beállított környezeti változók. Ne adjon meg itt API-kulcsokat; használja a bejelentkezési folyamatot, amely a titkos tárolóban tárolja őket.",
   "config.environmentVariables.name.description": "Változó neve.",
   "config.environmentVariables.value.description": "Változó értéke.",
   "config.enableNewConversationShortcut.description": "A Ctrl+N (macOS-en Cmd+N) billentyűparancs új beszélgetést indít, amíg egy Muse Spark panel van fókuszban.",

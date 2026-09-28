@@ -78,6 +78,17 @@ export const EN = {
     'A Model API key starts with LLM_ (older keys look like LLM|<numeric id>|<secret>).',
   signInWaiting: 'Waiting for the browser sign-in to finish…',
   signInTimedOut: 'The sign-in did not complete in time. Try again.',
+  // How Muse Code ended a browser sign-in (`account/loginCompleted`, D26):
+  // `expired`, `denied` and `failed` as captured live; any other ending as
+  // Muse Code named it.
+  signInExpired: 'The code expired before it was approved. Sign in again to get a new code.',
+  signInDenied: 'You denied the sign-in in the browser.',
+  signInSaveFailed: 'Muse Code signed in but could not save the credential.',
+  signInEnded: 'Sign-in ended: {outcome}. Sign in again to get a new code.',
+  // A macOS credential file on Windows or Linux stops `muse serve` (D26):
+  // version 2, empty or a Keychain pointer, or the Keychain lane.
+  cliCredentialUnsupported:
+    'Muse Code cannot start: its sign-in file {path} is in the macOS format, which Muse Code cannot read on this system. Move or rename that file, then sign in again.',
   hostExited: 'Muse Code stopped unexpectedly',
   hostStarting: 'Starting Muse Code…',
   // PLAN.md D25: restarts, crashes and closed sessions continue the conversation.

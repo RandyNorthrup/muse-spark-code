@@ -184,6 +184,12 @@ describe('manageSkills', () => {
     })
     await manageSkills(failing.manage)
     expect(failing.errors).toEqual(['Muse Code could not list its skills: malformed settings file'])
+    // The panel shows the CLI's first line; the log names its stderr by
+    // length only, since it is free text (the review of PR #49).
+    expect(failing.log.warn).toHaveBeenCalledWith(
+      expect.stringMatching(/ failed with exit code 2: a line of 23 characters \(not logged/u),
+    )
+    expect(failing.log.warn).not.toHaveBeenCalledWith(expect.stringContaining('malformed'))
     expect(failing.shown).toEqual([])
     const garbled = harness({ cli: () => ok('Skills: 26 loaded') })
     await manageSkills(garbled.manage)

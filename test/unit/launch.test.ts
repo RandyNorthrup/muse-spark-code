@@ -5,6 +5,7 @@ import {
   credentialFilePath,
   type LaunchProbe,
   resolveMuseLaunch,
+  terminalEnvironment,
   withLoopbackBypass,
 } from '../../src/core/backends/musecode/launch'
 
@@ -241,6 +242,29 @@ describe('buildChildEnvironment', () => {
       programFiles: undefined,
     })
     expect(env).toEqual({ PATH: 'x', PSModulePath: 'keep', META_API_KEY: 'from-the-user-shell' })
+  })
+})
+
+// The CLI in a terminal (`muse logout`, `muse mcp login`) reads the config
+// home `muse serve` does: with XDG_CONFIG_HOME moved, a logout there must
+// not sign out the default one (the review of PR #49).
+describe('terminalEnvironment', () => {
+  it('gives a CLI terminal the configured variables, one spelling each on Windows', () => {
+    const variables = [
+      { name: 'xdg_config_home', value: 'C:/old' },
+      { name: 'XDG_CONFIG_HOME', value: 'D:/muse-config' },
+      { name: 'TBH_CREDENTIAL_BACKEND', value: 'file' },
+    ]
+    expect(terminalEnvironment(variables, 'win32')).toEqual({
+      XDG_CONFIG_HOME: 'D:/muse-config',
+      TBH_CREDENTIAL_BACKEND: 'file',
+    })
+    expect(terminalEnvironment(variables, 'linux')).toEqual({
+      xdg_config_home: 'C:/old',
+      XDG_CONFIG_HOME: 'D:/muse-config',
+      TBH_CREDENTIAL_BACKEND: 'file',
+    })
+    expect(terminalEnvironment([], 'linux')).toEqual({})
   })
 })
 

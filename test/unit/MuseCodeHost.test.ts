@@ -249,9 +249,10 @@ describe('MuseCodeHost', () => {
     })
     await session.setModel('muse-spark-1.2')
     expect(calls).toBe(2)
+    // Named by its kind and code, not the CLI's message (the review of PR #49).
     expect(log.warn).toHaveBeenCalledWith(
       expect.stringMatching(
-        /^session\/setModel refused \(refused: overloaded\); attempt 2 in \d+ ms$/,
+        /^session\/setModel refused \(overloaded \(MSP error -32001\)\); attempt 2 in \d+ ms$/,
       ),
     )
     expect(log.trace).toHaveBeenCalledWith(

@@ -1,0 +1,442 @@
+{
+  "capture": {
+    "cli": "Muse Code 1.4.0-R4302.1 (serverInfo 1.4.0, build aebe0c188b3832bf0e2f68a30f797b42e7930072, windows-x86_64), muse-bin-1.4.0-R4302.1.exe serve",
+    "client": "raw MSP NDJSON over stdio; initialize with experimentalApi as the extension does",
+    "home": "a new mkdtemp folder under %TEMP% (HOME, USERPROFILE, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_CACHE_HOME, APPDATA and LOCALAPPDATA inside it; META_API_KEY, TBH_CREDENTIAL_BACKEND and MUSE_AUTH_PATH removed), deleted afterwards; the trace confirmed kind=\"config_root\" source=\"xdg\" before loginStart",
+    "workspace": "an empty folder inside that home",
+    "modelAttempts": 0,
+    "ownerCredentialFile": "stat only (size and mtime): 640 bytes, mtime 2026-09-22T20:21:02.598Z, unchanged before and after",
+    "redaction": "the user code is replaced by its shape (AAAA-AAAA), in the result and in the URL; museHome is under <throwaway>; every label (the account's e-mail address) is the stand-in \"someone@example.com\" and every avatarUrl the stand-in \"https://example.com/avatar.png\" (both were redacted by key before the frame was written, so the avatarUrl's own shape was not recorded); no token is in any frame",
+    "name": "granted",
+    "date": "2026-09-27 21:27:45-21:28:15 PDT (2026-09-28T04:27:45Z-04:28:15Z)",
+    "browser": "the device page (auth.meta.com/oauth/device/?code=…) in the owner's signed-in Chrome asked \"Approve Muse Code?\" with the code and two buttons, Approve and Deny; Approve was clicked about 20 s after loginStart and the page said \"Muse Code was approved\"",
+    "polls": "account/read every second between loginStart and the ending: 20 answers, all {\"state\":\"loggedOut\",\"credentialRequired\":true}; the first two and the last are kept, and the request in flight when the first notification arrived",
+    "finding": "the credential file first appeared (437 B) 20.4 s after loginStart's answer; the next poll saw it: account/changed {state: accountLogin, credentialRequired: true} with no label arrived 3 ms after that account/read was sent and 1 ms before its answer (also accountLogin, no label), about 820 ms after the file appeared; after a trace credential.refresh (outcome success, 1007 ms) the file was rewritten 21.44 s after loginStart's answer (1062 B, schema_version 1, providers.meta holding access_token, api_key, api_base_url, obtained_via device_code, mechanism oauth, and the user's name, e-mail and avatar URL); account/loginCompleted {outcome: \"granted\"} with no message came 14 ms later (21.46 s), 205 ms after the first account/changed; a second account/changed, now with label and avatarUrl, came 1 ms after it (emittedAtMs 2 ms later), and every account/read from then on carried label and avatarUrl; avatarUrl is not in the MSP AccountState schema; a later loginCancel answers {cancelled: false}; account/logout answered {state: loggedOut, credentialRequired: true} in 27 ms, preceded by 1 ms by account/changed {state: loggedOut, credentialRequired: true}; the file became the 44-byte {\"schema_version\":1,\"providers\":{}}; the trace logged credential.revoke outcome \"revoked\" (1305 ms); account/read 3 s later said loggedOut"
+  },
+  "frames": [
+    {
+      "atMs": 17,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "clientInfo": {
+            "name": "muse_spark_code_capture",
+            "version": "0.0.0"
+          },
+          "capabilities": {
+            "experimentalApi": true,
+            "userInputDialogs": false
+          }
+        }
+      }
+    },
+    {
+      "atMs": 1146,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "serverInfo": {
+            "name": "muse",
+            "version": "1.4.0"
+          },
+          "userAgent": "muse-build/1.4.0 (non-interactive; windows-x86_64; build aebe0c188b3832bf0e2f68a30f797b42e7930072)",
+          "museHome": "<throwaway>\\data\\muse",
+          "platformFamily": "windows",
+          "platformOs": "windows",
+          "schema": {
+            "version": 1,
+            "fingerprint": "sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658"
+          },
+          "grantedCapabilities": [],
+          "experimentalApi": true,
+          "sessionDurability": "durable"
+        }
+      }
+    },
+    {
+      "atMs": 1147,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "initialized"
+      }
+    },
+    {
+      "atMs": 1147,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 1148,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 1170,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "account/loginStart",
+        "params": {
+          "type": "deviceCode"
+        }
+      }
+    },
+    {
+      "atMs": 1617,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "verificationUrl": "https://auth.meta.com/oauth/device/?code=AAAA-AAAA",
+          "userCode": "AAAA-AAAA"
+        }
+      }
+    },
+    {
+      "atMs": 2634,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 2636,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 3636,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 3637,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 21855,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 21856,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 22868,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 24,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 22870,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "account/changed",
+        "params": {
+          "state": "accountLogin",
+          "credentialRequired": true
+        },
+        "emittedAtMs": 1790569688753
+      }
+    },
+    {
+      "atMs": 22871,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 24,
+        "result": {
+          "state": "accountLogin",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 23075,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "account/loginCompleted",
+        "params": {
+          "outcome": "granted"
+        },
+        "emittedAtMs": 1790569688957
+      }
+    },
+    {
+      "atMs": 23076,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 23076,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "account/changed",
+        "params": {
+          "state": "accountLogin",
+          "label": "someone@example.com",
+          "avatarUrl": "https://example.com/avatar.png",
+          "credentialRequired": true
+        },
+        "emittedAtMs": 1790569688959
+      }
+    },
+    {
+      "atMs": 23077,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "result": {
+          "state": "accountLogin",
+          "label": "someone@example.com",
+          "avatarUrl": "https://example.com/avatar.png",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 24090,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 24092,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "result": {
+          "state": "accountLogin",
+          "label": "someone@example.com",
+          "avatarUrl": "https://example.com/avatar.png",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 25102,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 25106,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "result": {
+          "state": "accountLogin",
+          "label": "someone@example.com",
+          "avatarUrl": "https://example.com/avatar.png",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 26123,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 26127,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "result": {
+          "state": "accountLogin",
+          "label": "someone@example.com",
+          "avatarUrl": "https://example.com/avatar.png",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 26128,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 29,
+        "method": "account/loginCancel",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 26129,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 29,
+        "result": {
+          "cancelled": false
+        }
+      }
+    },
+    {
+      "atMs": 26130,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 30,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 26132,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 30,
+        "result": {
+          "state": "accountLogin",
+          "label": "someone@example.com",
+          "avatarUrl": "https://example.com/avatar.png",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 26134,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 31,
+        "method": "account/logout",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 26160,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "account/changed",
+        "params": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        },
+        "emittedAtMs": 1790569692042
+      }
+    },
+    {
+      "atMs": 26161,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 31,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 29164,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 32,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 29166,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 32,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    }
+  ]
+}

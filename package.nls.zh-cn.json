@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "将此工作区视为机密：阻止贡献者级模型（Meta 可能会将其流量用于训练）。",
   "config.allowDangerouslySkipPermissions.description": "允许危险地跳过权限：在“模式”菜单中列出“绕过权限”。这样 Muse 会直接编辑文件和运行命令而不询问；仅在沙盒中使用。",
   "config.museBinaryPath.description": "Muse Code 可执行文件的绝对路径。留空则在 PATH 或默认安装目录中查找。",
-  "config.environmentVariables.description": "为 Muse Code 进程设置的环境变量。请勿在此处放置 API 密钥；请使用登录流程，它会将密钥存储在机密存储中。",
+  "config.environmentVariables.description": "为 Muse Code 进程以及运行 Muse Code CLI 的终端设置的环境变量。请勿在此处放置 API 密钥；请使用登录流程，它会将密钥存储在机密存储中。",
   "config.environmentVariables.name.description": "变量名称。",
   "config.environmentVariables.value.description": "变量值。",
   "config.enableNewConversationShortcut.description": "在 Muse Spark 面板获得焦点时，使用 Ctrl+N（macOS 上为 Cmd+N）开始新对话。",

@@ -3929,7 +3929,9 @@ export class ConversationController {
       }
       case 'retryBackend': {
         this.dropSession()
-        await this.deps.auth.refresh()
+        // Check again is a click: the CLI is asked afresh, and macOS may ask
+        // it about a Keychain sign-in.
+        await this.deps.auth.checkAgain()
         break
       }
       case 'openExternal': {

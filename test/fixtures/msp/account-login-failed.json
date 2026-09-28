@@ -1,0 +1,327 @@
+{
+  "capture": {
+    "cli": "Muse Code 1.4.0-R4302.1 (serverInfo 1.4.0, build aebe0c188b3832bf0e2f68a30f797b42e7930072, windows-x86_64), muse-bin-1.4.0-R4302.1.exe serve",
+    "client": "raw MSP NDJSON over stdio; initialize with experimentalApi as the extension does",
+    "home": "a new mkdtemp folder under %TEMP% (HOME, USERPROFILE, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_CACHE_HOME, APPDATA and LOCALAPPDATA inside it; META_API_KEY, TBH_CREDENTIAL_BACKEND and MUSE_AUTH_PATH removed), deleted afterwards; the trace confirmed kind=\"config_root\" source=\"xdg\" before loginStart",
+    "workspace": "an empty folder inside that home",
+    "modelAttempts": 0,
+    "ownerCredentialFile": "stat only (size and mtime): 640 bytes, mtime 2026-09-22T20:21:02.598Z, unchanged before and after",
+    "redaction": "the user code is replaced by its shape (AAAA-AAAA), in the result and in the URL; museHome and paths are under <throwaway>; no label, e-mail or token is in these frames",
+    "name": "failed",
+    "date": "2026-09-27 21:29:35-21:30:00 PDT (2026-09-28T04:29:35Z-04:30:00Z)",
+    "browser": "the same \"Approve Muse Code?\" page; Approve was clicked about 20 s after loginStart and the page said \"Muse Code was approved\"",
+    "setup": "a regular 49-byte file at <throwaway>\\cfg\\muse, where the CLI keeps auth.json; no permission or ACL was changed",
+    "polls": "account/read every second between loginStart and the ending: 20 answers, all {\"state\":\"loggedOut\",\"credentialRequired\":true}; the first two and the last are kept",
+    "finding": "account/loginCompleted {outcome: \"failed\", message: \"login succeeded but saving failed: failed to write credential file at <throwaway>\\cfg\\muse: Cannot create a file when that file already exists. (os error 183)\"} came 20.5 s after loginStart's answer; the message names the path; no account/changed was sent; account/read stayed loggedOut; nothing was written anywhere in the throwaway home (no auth.json, no .auth.json.lock); the trace shows no credential.refresh, so no API key was minted; a later loginCancel answers {cancelled: false}"
+  },
+  "frames": [
+    {
+      "atMs": 18,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "clientInfo": {
+            "name": "muse_spark_code_capture",
+            "version": "0.0.0"
+          },
+          "capabilities": {
+            "experimentalApi": true,
+            "userInputDialogs": false
+          }
+        }
+      }
+    },
+    {
+      "atMs": 1259,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "serverInfo": {
+            "name": "muse",
+            "version": "1.4.0"
+          },
+          "userAgent": "muse-build/1.4.0 (non-interactive; windows-x86_64; build aebe0c188b3832bf0e2f68a30f797b42e7930072)",
+          "museHome": "<throwaway>\\data\\muse",
+          "platformFamily": "windows",
+          "platformOs": "windows",
+          "schema": {
+            "version": 1,
+            "fingerprint": "sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658"
+          },
+          "grantedCapabilities": [],
+          "experimentalApi": true,
+          "sessionDurability": "durable"
+        }
+      }
+    },
+    {
+      "atMs": 1261,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "initialized"
+      }
+    },
+    {
+      "atMs": 1262,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 1263,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 1289,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "account/loginStart",
+        "params": {
+          "type": "deviceCode"
+        }
+      }
+    },
+    {
+      "atMs": 1710,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "verificationUrl": "https://auth.meta.com/oauth/device/?code=AAAA-AAAA",
+          "userCode": "AAAA-AAAA"
+        }
+      }
+    },
+    {
+      "atMs": 2731,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 2732,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 3745,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 3747,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 21980,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 21983,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 22203,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "account/loginCompleted",
+        "params": {
+          "outcome": "failed",
+          "message": "login succeeded but saving failed: failed to write credential file at <throwaway>\\cfg\\muse: Cannot create a file when that file already exists. (os error 183)"
+        },
+        "emittedAtMs": 1790569797687
+      }
+    },
+    {
+      "atMs": 22204,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 24,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 22204,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 24,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 23210,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 23216,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 24224,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 24226,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 25227,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 25229,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 25229,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "method": "account/loginCancel",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 25229,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "result": {
+          "cancelled": false
+        }
+      }
+    },
+    {
+      "atMs": 25230,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 29,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 25231,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 29,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    }
+  ]
+}

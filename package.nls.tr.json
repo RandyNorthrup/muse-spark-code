@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "Bu çalışma alanını gizli olarak değerlendir: katkı katmanı modelleri (trafiğini Meta'nın eğitim için kullanabileceği modeller) engellenir.",
   "config.allowDangerouslySkipPermissions.description": "İzinleri tehlikeli şekilde atlamaya izin ver: Modlar menüsünde İzinleri atla modunu listele. Muse bu durumda sormadan dosya düzenler ve komut çalıştırır; yalnızca bir korumalı alanda kullanın.",
   "config.museBinaryPath.description": "Muse Code yürütülebilir dosyasının mutlak yolu. PATH üzerinde veya varsayılan yükleme dizininde bulunması için boş bırakın.",
-  "config.environmentVariables.description": "Muse Code işlemi için ayarlanan ortam değişkenleri. API anahtarlarını buraya koymayın; bunları gizli depolama alanında saklayan oturum açma akışını kullanın.",
+  "config.environmentVariables.description": "Muse Code işlemi ve Muse Code CLI’yi çalıştıran terminaller için ayarlanan ortam değişkenleri. API anahtarlarını buraya koymayın; bunları gizli depolama alanında saklayan oturum açma akışını kullanın.",
   "config.environmentVariables.name.description": "Değişken adı.",
   "config.environmentVariables.value.description": "Değişken değeri.",
   "config.enableNewConversationShortcut.description": "Bir Muse Spark paneli odaktayken yeni konuşma başlatmak için Ctrl+N (macOS'ta Cmd+N) kullan.",

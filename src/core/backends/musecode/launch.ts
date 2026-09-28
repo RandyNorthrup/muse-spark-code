@@ -306,6 +306,24 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
 }
 
 /**
+ * `museSpark.environmentVariables` for a terminal that runs the CLI (`muse
+ * logout`, `muse mcp login`, Open in Terminal). VS Code adds them to the
+ * terminal's own environment, so the CLI there reads the same config home
+ * as `muse serve` (the review of PR #49). On Windows one spelling per name,
+ * the last one given winning, as for `muse serve`.
+ */
+export function terminalEnvironment(
+  variables: readonly EnvironmentVariable[],
+  platform: NodeJS.Platform,
+): Record<string, string> {
+  const env: Record<string, string> = {}
+  for (const variable of variables) {
+    setEnvironmentVariable(env, platform, variable.name, variable.value)
+  }
+  return env
+}
+
+/**
  * Keeps loopback off the proxy (M56, PLAN.md D43). Muse Code sends every
  * HTTP request through the proxy its environment names, including its
  * connection to the extension's `ide` server on 127.0.0.1, which a corporate

@@ -64,7 +64,7 @@
   "config.confidentialWorkspace.description": "Считать эту рабочую область конфиденциальной: модели уровня Contributor (трафик которых Meta может использовать для обучения) блокируются.",
   "config.allowDangerouslySkipPermissions.description": "Разрешить опасный пропуск разрешений: показывать «Обход разрешений» в меню «Режимы». Тогда Muse изменяет файлы и выполняет команды без запроса; используйте только в песочнице.",
   "config.museBinaryPath.description": "Абсолютный путь к исполняемому файлу Muse Code. Оставьте пустым, чтобы найти его в PATH или в каталоге установки по умолчанию.",
-  "config.environmentVariables.description": "Переменные среды, задаваемые для процесса Muse Code. Не указывайте здесь ключи API; используйте вход, который хранит их в хранилище секретов.",
+  "config.environmentVariables.description": "Переменные среды, задаваемые для процесса Muse Code и терминалов, в которых работает CLI Muse Code. Не указывайте здесь ключи API; используйте вход, который хранит их в хранилище секретов.",
   "config.environmentVariables.name.description": "Имя переменной.",
   "config.environmentVariables.value.description": "Значение переменной.",
   "config.enableNewConversationShortcut.description": "Использовать Ctrl+N (Cmd+N в macOS), чтобы начать новую беседу, когда панель Muse Spark в фокусе.",

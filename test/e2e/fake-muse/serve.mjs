@@ -24,13 +24,81 @@
 // the handshake, the spawn-failure drill) or =silent (read the handshake and
 // never answer it, the wedged-CLI drill of PLAN.md D25). Node built-ins
 // only: the file is copied beside the executable the resolver spawns.
+//
+// The credential file under XDG_CONFIG_HOME (never the developer's own) is
+// checked at startup as 1.4.0-R4302.1 was captured checking it on Windows
+// and Linux (docs/certification/sign-in-detection.md): a schema version
+// other than 1 (1 or 2 on macOS) exits 3 before `initialize` with "unsupported
+// auth schema version …", and off macOS a version-1 `meta` whose storage is
+// the Keychain exits 3 with "keychain item for meta is unreadable". The
+// real CLI starts with each of these while META_API_KEY is set; the fake
+// does not model that key.
+//
+// Account methods (PLAN.md D26, shapes captured on 1.3.0 and 1.4.0,
+// 2026-09-27), for a client that asked for `experimentalApi` only:
+// `account/read` answers from that file as captured: `accountLogin` for a
+// `meta` holding `access_token` (a browser sign-in), `apiKey` for one holding
+// `api_key` alone (`muse auth set`), otherwise signed out; `account/logout`
+// rewrites the file as the empty one the CLI leaves.
+//
+// The device sign-in replays the frames captured live on 1.4.0-R4302.1
+// (test/fixtures/msp/account-login-*.json, 2026-09-27), read from the folder
+// MUSE_FAKE_CAPTURES names. `account/loginStart` answers as captured; with
+// MUSE_FAKE_LOGIN_ENDING=<capture> that capture's notifications up to its
+// ending follow after MUSE_FAKE_LOGIN_ENDING_MS, in the captured order (for
+// `granted`: the file written as the browser sign-in left it, then
+// `account/changed`, the ending, and `account/changed` again).
+// `account/loginCancel` sends the captured `cancelled` ending, then answers
+// `{cancelled: true}`, in the captured order; with no flow pending it
+// answers as captured after an ending. MUSE_FAKE_ACCOUNT_READ=silentAfterStart
+// leaves every `account/read` after `account/loginStart` unanswered (a
+// wedged CLI); MUSE_FAKE_LOGIN_EXIT_MS exits that long after
+// `account/loginStart` (a host that dies mid-flow).
 
-import { argv, env, exit, stderr, stdin, stdout } from 'node:process'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { argv, env, exit, platform, stderr, stdin, stdout } from 'node:process'
 import { createInterface } from 'node:readline'
-import { setImmediate } from 'node:timers'
+import { clearTimeout, setImmediate, setTimeout } from 'node:timers'
 
 const METHOD_NOT_FOUND = -32_601
 const COMMAND_REJECTED = -32_000
+// What `muse logout` and `account/logout` leave behind (44 bytes).
+const LOGOUT_SHELL = '{\n  "schema_version": 1,\n  "providers": {}\n}'
+// The account's display label: an e-mail address the extension never logs.
+const ACCOUNT_LABEL = 'person@example.com'
+// The provider the CLI keeps its own sign-in under; others share the file.
+const MUSE_PROVIDER = 'meta'
+// The credential file's versions: 1 holds the credential, 2 is macOS's pointer.
+const INLINE_SCHEMA = 1
+const POINTER_SCHEMA = 2
+const KEYCHAIN_STORAGE = 'keychain'
+// What 1.4.0-R4302.1 wrote to stderr for a version-1 Keychain lane off macOS.
+const KEYCHAIN_UNREADABLE = 'keychain item for meta is unreadable (internal error -2147483648)'
+// The lane `account/read` named for the Muse entry's key, as captured: a
+// browser sign-in (`access_token`, with `api_key` beside it) is
+// `accountLogin`; `muse auth set` (`api_key` alone) is `apiKey`.
+const CAPTURED_LANES = [
+  ['access_token', 'accountLogin'],
+  ['api_key', 'apiKey'],
+]
+// A browser sign-in as the granted capture left the file (schema 1, `meta`
+// with these keys; placeholders for every secret or personal value).
+const DEVICE_LOGIN_FILE = JSON.stringify({
+  schema_version: 1,
+  providers: {
+    meta: {
+      access_token: '<placeholder>',
+      obtained_via: 'device_code',
+      mechanism: 'oauth',
+      api_key: '<placeholder>',
+      api_base_url: '<placeholder>',
+      user_full_name: '<placeholder>',
+      user_email: '<placeholder>',
+      user_avatar_url: '<placeholder>',
+    },
+  },
+})
 const CRASH_EXIT_CODE = 3
 const DIE_EXIT_CODE = 1
 const ECHO_PREFIX = 'echo: '
@@ -55,12 +123,16 @@ if (env['MUSE_FAKE_START'] === 'crash') {
   exit(CRASH_EXIT_CODE)
 }
 
+refuseUnsupportedCredentialFile()
+
 const serveArgs = argv.slice(2).join(' ')
 const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? 'sha256:fake'
 /** sessionId → { record, items, approvalMode } */
 const sessions = new Map()
 const state = {
   clientName: 'unknown',
+  /** The client asked for the experimental methods (account/*). */
+  isExperimental: false,
   usage: undefined,
   nextId: 0,
   /** The turn in flight, if any: { sessionId, turnId, onCancel } */
@@ -69,6 +141,10 @@ const state = {
   pendingApproval: undefined,
   /** Long tool calls by item (M46): { sessionId, call, isBackground, onBackground } */
   tasks: new Map(),
+  /** The device sign-in in flight, if any: { timer } */
+  login: undefined,
+  /** `account/loginStart` was asked at least once. */
+  isLoginStarted: false,
 }
 
 function id(prefix) {
@@ -347,6 +423,152 @@ function rejected(reason) {
   return Object.assign(new Error(`rejected: ${reason}`), { reason })
 }
 
+/** An account method without `experimentalApi`, as 1.4.0 refuses it. */
+function requireExperimental(method) {
+  if (!state.isExperimental) {
+    throw Object.assign(new Error(`${method} requires experimentalApi capability`), {
+      code: METHOD_NOT_FOUND,
+      kind: 'experimentalRequired',
+    })
+  }
+}
+
+function credentialFile() {
+  const configHome = env['XDG_CONFIG_HOME']
+  return configHome === undefined ? undefined : path.join(configHome, 'muse', 'auth.json')
+}
+
+/** The credential file's JSON; an empty object when there is none or it is not JSON. */
+function credentialJson() {
+  const file = credentialFile()
+  if (file === undefined || !existsSync(file)) {
+    return {}
+  }
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) ?? {}
+  } catch {
+    return {}
+  }
+}
+
+/** The Muse provider's entry (other providers, a connector's, share the file); `{}` when absent. */
+function museEntry() {
+  const providers = credentialJson().providers ?? {}
+  const entry = Object.hasOwn(providers, MUSE_PROVIDER) ? providers[MUSE_PROVIDER] : {}
+  return typeof entry === 'object' && entry !== null ? entry : {}
+}
+
+/** Exits 3 before `initialize` on a file 1.4.0-R4302.1 was captured refusing. */
+function refuseUnsupportedCredentialFile() {
+  const version = credentialJson().schema_version
+  if (version === undefined) {
+    return
+  }
+  const isMacOs = platform === 'darwin'
+  const supported = isMacOs ? [INLINE_SCHEMA, POINTER_SCHEMA] : [INLINE_SCHEMA]
+  if (!supported.includes(version)) {
+    stderr.write(
+      `compose serve model client: unsupported auth schema version ${String(version)} at ${credentialFile()}\n`,
+    )
+    exit(CRASH_EXIT_CODE)
+  }
+  if (isMacOs || museEntry().storage !== KEYCHAIN_STORAGE) {
+    return
+  }
+  stderr.write(`compose serve model client: ${KEYCHAIN_UNREADABLE}\n`)
+  exit(CRASH_EXIT_CODE)
+}
+
+function accountState() {
+  const entry = museEntry()
+  const lane = CAPTURED_LANES.find(([key]) => Object.hasOwn(entry, key))?.[1]
+  return lane === undefined
+    ? { state: 'loggedOut', credentialRequired: true }
+    : { state: lane, label: ACCOUNT_LABEL, credentialRequired: true }
+}
+
+/** A live capture's frames, in the order they crossed the wire. */
+function captureFrames(name) {
+  const folder = env['MUSE_FAKE_CAPTURES']
+  if (folder === undefined) {
+    throw new Error('MUSE_FAKE_CAPTURES is not set')
+  }
+  return JSON.parse(readFileSync(path.join(folder, `account-login-${name}.json`), 'utf8')).frames
+}
+
+/** What the captured host answered the first time it was asked `method`. */
+function capturedAnswer(name, method) {
+  const frames = captureFrames(name)
+  const asked = frames.find((entry) => entry.dir === 'out' && entry.frame.method === method)
+  return frames.find((entry) => entry.dir === 'in' && entry.frame.id === asked?.frame.id)?.frame
+    .result
+}
+
+/** The captured `account/loginCompleted` frame, as it arrived. */
+function capturedEnding(name) {
+  return captureFrames(name).find(
+    (entry) => entry.dir === 'in' && entry.frame.method === 'account/loginCompleted',
+  )?.frame
+}
+
+/** The notifications a capture received before it sent `account/loginCancel`. */
+function capturedFlowNotifications(name) {
+  const frames = captureFrames(name)
+  const cancelAt = frames.findIndex(
+    (entry) => entry.dir === 'out' && entry.frame.method === 'account/loginCancel',
+  )
+  return frames
+    .slice(0, cancelAt === -1 ? frames.length : cancelAt)
+    .filter((entry) => entry.dir === 'in' && entry.frame.method !== undefined)
+    .map((entry) => entry.frame)
+}
+
+/** A capture's flow as it ended: the file a sign-in left, then its notifications. */
+function endLogin(name) {
+  state.login = undefined
+  const file = credentialFile()
+  if (name === 'granted' && file !== undefined) {
+    writeFileSync(file, DEVICE_LOGIN_FILE)
+  }
+  for (const frame of capturedFlowNotifications(name)) {
+    send(frame)
+  }
+}
+
+function startLogin() {
+  state.isLoginStarted = true
+  const ending = env['MUSE_FAKE_LOGIN_ENDING']
+  const exitAfter = env['MUSE_FAKE_LOGIN_EXIT_MS']
+  if (exitAfter !== undefined) {
+    setTimeout(() => {
+      exit(DIE_EXIT_CODE)
+    }, Number(exitAfter))
+  }
+  const timer =
+    ending === undefined
+      ? undefined
+      : setTimeout(
+          () => {
+            endLogin(ending)
+          },
+          Number(env['MUSE_FAKE_LOGIN_ENDING_MS'] ?? '0'),
+        )
+  state.login = { timer }
+  return capturedAnswer('cancelled', 'account/loginStart')
+}
+
+function cancelLogin() {
+  if (state.login === undefined) {
+    // As captured after the code expired: nothing left to cancel.
+    return capturedAnswer('expired', 'account/loginCancel')
+  }
+  clearTimeout(state.login.timer)
+  state.login = undefined
+  // As captured: the ending, then the answer.
+  send(capturedEnding('cancelled'))
+  return capturedAnswer('cancelled', 'account/loginCancel')
+}
+
 /** A background task stopped: cancelled, as the capture of 2026-09-25 shows. */
 function stopTask(taskId) {
   const task = state.tasks.get(taskId)
@@ -447,10 +669,11 @@ function envelope(session) {
 const handlers = {
   initialize: (params) => {
     state.clientName = String(params.clientInfo?.name ?? 'unknown')
+    state.isExperimental = params.capabilities?.experimentalApi === true
     return {
       serverInfo: { name: 'muse', version: `0.0.0-fake ${serveArgs}` },
       museHome: `/fake/home/${state.clientName}`,
-      experimentalApi: false,
+      experimentalApi: state.isExperimental,
       grantedCapabilities: [...(params.capabilities?.requestedCapabilities ?? [])],
       platformFamily: 'fake',
       platformOs: 'fake',
@@ -636,6 +859,31 @@ const handlers = {
   }),
   'skill/list': () => ({ skills: [] }),
   'usage/read': () => (state.usage === undefined ? {} : { usage: state.usage }),
+  'account/read': () => {
+    requireExperimental('account/read')
+    return accountState()
+  },
+  'account/logout': () => {
+    requireExperimental('account/logout')
+    const file = credentialFile()
+    if (file !== undefined && existsSync(file)) {
+      writeFileSync(file, LOGOUT_SHELL)
+    }
+    const after = accountState()
+    notify('account/changed', after)
+    return after
+  },
+  'account/loginStart': (params) => {
+    requireExperimental('account/loginStart')
+    if (params.type !== 'deviceCode') {
+      throw new Error('this fake runs the device-code flow only')
+    }
+    return startLogin()
+  },
+  'account/loginCancel': () => {
+    requireExperimental('account/loginCancel')
+    return cancelLogin()
+  },
   'item/readOutput': (params) => {
     const content = `output of ${String(params.itemId)}`
     return {
@@ -650,11 +898,15 @@ const handlers = {
 }
 
 const isSilent = env['MUSE_FAKE_START'] === 'silent'
+const isAccountReadSilentAfterStart = env['MUSE_FAKE_ACCOUNT_READ'] === 'silentAfterStart'
 
 function handle(frame) {
   if (isSilent || frame.id === undefined) {
     // `initialized` and any other client notification need no answer; a
     // silent host answers nothing at all.
+    return
+  }
+  if (isAccountReadSilentAfterStart && state.isLoginStarted && frame.method === 'account/read') {
     return
   }
   const handler = handlers[frame.method]
@@ -674,12 +926,16 @@ function handle(frame) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const reason = error instanceof Error && 'reason' in error ? error.reason : undefined
+    // Only a refusal built here names its own JSON-RPC code and kind.
+    const isOwn = error instanceof Error && 'kind' in error && typeof error.code === 'number'
+    const code = isOwn ? error.code : COMMAND_REJECTED
+    const kind = isOwn ? error.kind : 'commandRejected'
     send({
       id: frame.id,
       error: {
-        code: COMMAND_REJECTED,
+        code,
         message,
-        data: { kind: 'commandRejected', ...(reason !== undefined && { reason }) },
+        data: { kind, ...(reason !== undefined && { reason }) },
       },
     })
   }

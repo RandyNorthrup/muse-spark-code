@@ -6,11 +6,20 @@
 // which the extension honours on every platform (launch.ts).
 
 import { execFileSync } from 'node:child_process'
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { MUSE_CREDENTIAL_FILE_SEGMENTS } from '../../src/shared/constants'
+import { DEVICE_LOGIN_FILE } from '../unit/helpers/credentialShapes'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const SERVE_SOURCE = path.join(here, 'fake-muse', 'serve.mjs')
@@ -18,6 +27,29 @@ const STUB_SOURCE = path.join(here, 'fake-muse', 'stub.cs')
 const STUB_EXE = 'muse-bin-0.0.0-fake.exe'
 const CSC_RELATIVE_PATH = String.raw`Microsoft.NET\Framework64\v4.0.30319\csc.exe`
 const EXECUTABLE_MODE = 0o755
+// On Windows the fake CLI's executable can still be held for a moment after
+// its process has exited (seen in CI and under a full local run, every test
+// green), and removing its folder then fails with EPERM. Node retries the
+// removal; if the folder still cannot go, the suite says so and leaves it
+// to the OS temp cleanup rather than fail on housekeeping.
+const RM_RETRIES = 5
+const RM_RETRY_DELAY_MS = 200
+
+/** A suite's teardown: its temporary folders, removed or named. */
+export function removeTestFolders(dirs: readonly string[]): void {
+  for (const dir of dirs) {
+    try {
+      rmSync(dir, {
+        recursive: true,
+        force: true,
+        maxRetries: RM_RETRIES,
+        retryDelay: RM_RETRY_DELAY_MS,
+      })
+    } catch (error: unknown) {
+      process.stderr.write(`e2e teardown left ${dir} behind: ${String(error)}\n`)
+    }
+  }
+}
 
 export interface FakeMuseInstall {
   /** What `museSpark.museBinaryPath` should point at. */
@@ -65,11 +97,24 @@ export function installFakeMuse(): FakeMuseInstall {
   return { binaryPath: script, installDir }
 }
 
-/** A config home holding the CLI's credential file (metadata only, no secret). */
-export function installFakeCredential(): string {
+/**
+ * A config home holding the CLI's credential file: a browser sign-in's
+ * structure as the granted capture left it, placeholders for every secret
+ * or personal value; or `contents` as given.
+ */
+export function installFakeCredential(contents = DEVICE_LOGIN_FILE): string {
   const configHome = mkdtempSync(path.join(tmpdir(), 'fake-muse-config-'))
-  const file = path.join(configHome, ...MUSE_CREDENTIAL_FILE_SEGMENTS)
-  mkdirSync(path.dirname(file), { recursive: true })
-  writeFileSync(file, JSON.stringify({ fake: true }))
+  writeFakeCredential(configHome, contents)
   return configHome
+}
+
+/** Where the extension and the fake CLI look for it under `configHome`. */
+export function fakeCredentialFile(configHome: string): string {
+  return path.join(configHome, ...MUSE_CREDENTIAL_FILE_SEGMENTS)
+}
+
+export function writeFakeCredential(configHome: string, contents: string): void {
+  const file = fakeCredentialFile(configHome)
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, contents)
 }

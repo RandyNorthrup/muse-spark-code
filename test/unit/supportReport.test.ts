@@ -38,7 +38,9 @@ const base: SupportFacts = {
     installDir: String.raw`C:\Users\r\AppData\Local\Programs\muse`,
     version: '1.3.0',
   },
-  hasCliCredentialFile: true,
+  cliCredentialFile: 'inline',
+  cliSignIn: 'signedIn',
+  keychainItem: undefined,
   delegationMode: 'off',
   workflowTriggerMode: 'auto',
   hasStoredApiKey: false,
@@ -65,7 +67,7 @@ describe('renderSupportReport', () => {
         // The home directory is `~` in a report meant for a public issue (D24).
         String.raw`muse cli: found in ~\AppData\Local\Programs\muse (version 1.3.0)`,
         'muse subagent delegation: off; workflow trigger mode: auto',
-        'cli credential file: yes; stored model api key: no; META_API_KEY in environment: no',
+        'cli credential file: inline; cli sign-in: signedIn; stored model api key: no; META_API_KEY in environment: no',
         'voice dictation: available',
         'network: http.proxy set: no; proxySupport: override; proxyStrictSSL: yes; proxyAuthorization set: no; noProxy entries: 0; proxy in environment: no',
         'certificates: system certificates: yes; NODE_EXTRA_CA_CERTS: no',
@@ -104,6 +106,27 @@ describe('renderSupportReport', () => {
         cli: { ok: true, installDir: '/opt/muse', version: undefined },
       }),
     ).toContain('(version unknown)')
+  })
+
+  // PLAN.md D26 (2026-09-27): the CLI's credential file by its structure,
+  // and on macOS whether the Keychain holds its item; never a value.
+  it('describes the CLI’s sign-in by the file’s structure and the Keychain item', () => {
+    expect(
+      renderSupportReport({
+        ...base,
+        platform: 'darwin',
+        cliCredentialFile: 'keychain',
+        cliSignIn: 'unknown',
+        keychainItem: 'absent',
+      }),
+    ).toContain('cli credential file: keychain; cli sign-in: unknown;')
+    expect(renderSupportReport({ ...base, keychainItem: 'present' })).toContain(
+      'macOS Keychain item ai.meta.dev.credentials: present',
+    )
+    expect(renderSupportReport(base)).not.toContain('Keychain item')
+    expect(
+      renderSupportReport({ ...base, cliCredentialFile: 'empty', cliSignIn: 'signedOut' }),
+    ).toContain('cli credential file: empty; cli sign-in: signedOut;')
   })
 
   // M56 (PLAN.md D43): the network posture, as yes/no and counts only.

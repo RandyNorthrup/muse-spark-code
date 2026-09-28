@@ -8,9 +8,9 @@ import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
-import { environmentValue } from './core/backends/musecode/launch'
+import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
 import { confineWorkspacePath } from './core/workspacePath'
-import { selectBackend } from './core/backendSelection'
+import { readBackendChoice } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
 import { MemoryStore } from './core/memory/memoryStore'
@@ -28,8 +28,11 @@ import {
   resolveAgainstRoot,
   rootRelativePath,
 } from './core/workspaceRoot'
+import { keychainItemPresence } from './core/backends/musecode/credentialFile'
+import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
 import { AuthService } from './host/auth/authService'
-import { connectDeviceSession, runDeviceSignIn } from './host/auth/deviceSignIn'
+import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
+import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
@@ -128,6 +131,9 @@ import {
   PERSONAL_SKILLS_GLOB,
   PROJECT_SKILLS_GLOB,
   GLOBAL_STATE_KEYS,
+  MACOS_KEYCHAIN_LOOKUP_ARGS,
+  MACOS_KEYCHAIN_LOOKUP_TIMEOUT_MS,
+  MACOS_SECURITY_TOOL,
   MENTION_INDEX_LIMIT,
   MENTION_INDEX_TTL_MS,
   MUSE_CONFIG_STATUS_ARGS,
@@ -279,12 +285,13 @@ function modifiedAt(fsPath: string): number | undefined {
  * shell is pinned so the call syntax is known (PLAN.md D25): Windows
  * PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
  * default shell of pwsh or nushell would not run `"path" login` as a
- * command).
+ * command). `env` is added to the terminal's own environment.
  */
 function runInTerminal(
   cliPath: string,
   args: readonly string[],
   options: TerminalLaunchOptions,
+  env: Record<string, string>,
 ): void {
   const isWindows = process.platform === 'win32'
   const systemRoot = process.env['SystemRoot']
@@ -295,6 +302,7 @@ function runInTerminal(
     name: options.name,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(shellPath !== undefined && { shellPath }),
+    env,
   })
   terminal.show(true)
   // The path and each argument single-quoted for the pinned shell (M31):
@@ -600,7 +608,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     )
     await Promise.all([backend.dispose(), modelApi.dispose()])
   }
-  lifecycle.shutdown = () => restartBackend('the window is closing', true)
+  /**
+   * The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
+   * Terminal), with `museSpark.environmentVariables` as `muse serve` gets
+   * them, so it reads the same config home (the review of PR #49).
+   */
+  const runCliInTerminal = (
+    cliPath: string,
+    args: readonly string[],
+    options: TerminalLaunchOptions,
+  ): void => {
+    runInTerminal(
+      cliPath,
+      args,
+      options,
+      terminalEnvironment(currentSettings().environmentVariables, process.platform),
+    )
+  }
   // Skills, imports and export (M30): the CLI by absolute path, in the
   // environment `muse serve` gets, from the workspace root.
   const cliFeatures = createCliFeatures({
@@ -622,7 +646,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!resolution.ok) {
         return false
       }
-      runInTerminal(resolution.launch.cliPath, args, { name: terminalName, cwd: workspaceRoot })
+      runCliInTerminal(resolution.launch.cliPath, args, { name: terminalName, cwd: workspaceRoot })
       return true
     },
     museSettingsPath: () => museSettingsPath(museConfig()),
@@ -657,6 +681,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     log,
   })
+  // Muse Code's account methods run on a short-lived host of their own (M55,
+  // D26): the device sign-in, `account/read` and `account/logout`.
+  const connectAccountHost = (signal: AbortSignal) =>
+    connectAccountSession(backend, version, log, workspaceRoot, signal)
+  // The short-lived account/read and account/logout hosts end with the window.
+  const accountHosts = new AccountHosts(connectAccountHost, log)
+  const cliAccount = new CliAccount({
+    platform: process.platform,
+    credentialFilePath: () => backend.credentialFilePath(),
+    probe: () => accountHosts.probe(),
+    log,
+  })
+  /** The CLI's own credential without a question to the CLI on macOS: META_API_KEY or its sign-in. */
+  const hasCliSession = async () =>
+    backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
   const auth = new AuthService({
     backend: {
       resolveCli: () => {
@@ -670,12 +709,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
               reason: `${resolution.reason} ${fill(UI_TEXT.cliSearched, { paths: resolution.searched.join(', ') })}`,
             }
       },
-      credentialFileExists: () => backend.credentialFileExists(),
+      cliSignIn: (isUserAction) => cliAccount.signIn(isUserAction),
+      abandonCliProbe: () => {
+        cliAccount.abandonProbe()
+      },
+      forgetCliAnswers: () => {
+        cliAccount.forgetAnswers()
+      },
+      credentialFilePath: () => backend.credentialFilePath(),
       credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
       hasEnvironmentKey: () => backend.hasEnvironmentKey(),
       getBackendMode: () => currentSettings().backend,
       restartBackend: (isConversationEnding) =>
         restartBackend('authentication changed', isConversationEnding),
+      logOutCli: async () => (await accountHosts.logOut()) === 'confirmed',
     },
     credentials,
     logoutHold: {
@@ -683,7 +730,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       set: (isHeld) => context.globalState.update(GLOBAL_STATE_KEYS.cliLogoutHold, isHeld),
     },
     runInTerminal: (cliPath, args) => {
-      runInTerminal(cliPath, args, { name: UI_TEXT.museLoginTerminalName, cwd: undefined })
+      runCliInTerminal(cliPath, args, { name: UI_TEXT.museLoginTerminalName, cwd: undefined })
     },
     installCommand:
       process.platform === 'win32' ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix,
@@ -704,13 +751,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     runDeviceSignIn: (signal, onCode) =>
       runDeviceSignIn({
-        connect: (connectSignal) =>
-          connectDeviceSession(backend, version, log, workspaceRoot, connectSignal),
+        connect: connectAccountHost,
         credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
         sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         now: Date.now,
         signal,
         onCode,
+        log,
       }),
     promptForApiKey,
     broadcast: (message) => {
@@ -738,6 +785,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     now: () => Date.now(),
     log,
   })
+  // The window closing ends the account hosts, then the browser sign-in
+  // (awaited, so its host is closed too), then the backends (the review of
+  // PR #49).
+  lifecycle.shutdown = async () => {
+    accountHosts.close()
+    await auth.stopSignIn()
+    await restartBackend('the window is closing', true)
+  }
 
   const editorContext = new EditorContextTracker({
     broadcast: (summary) => {
@@ -1071,12 +1126,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const ensureSelectedHost = async () => {
     const host = await chooseAuthorizedHost(
       () => auth.backend,
+      // Forced Model API asks the CLI nothing (Codex on 328efb52).
       async () =>
-        selectBackend({
+        await readBackendChoice({
           setting: currentSettings().backend,
           hasCli: backend.resolveLaunch().ok,
-          hasCliSession: backend.credentialFileExists() || backend.hasEnvironmentKey(),
-          hasStoredKey: (await credentials.getApiKey()) !== undefined,
+          hasCliSession,
+          hasStoredKey: async () => (await credentials.getApiKey()) !== undefined,
         }),
       async (kind): Promise<AgentHost> =>
         kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
@@ -1348,9 +1404,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // The usage modal's Account section and insights (M14).
         accountFacts: async (kind) => {
           const resolution = backend.resolveLaunch()
-          const hasCliSession = backend.credentialFileExists() || backend.hasEnvironmentKey()
+          const isCliSession = await hasCliSession()
           const hasKey = (await credentials.getApiKey()) !== undefined
-          const signInMethod = signInMethodFor(kind, hasCliSession, hasKey)
+          const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
           const cliVersion = resolution.ok
             ? backend.installedVersion(resolution.launch.installDir)
             : undefined
@@ -1630,7 +1686,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.openInTerminal, () => {
       openMuseTerminal({
         resolveCli,
-        runInTerminal,
+        runInTerminal: runCliInTerminal,
         workspaceRoot,
         showWarning: (message) => {
           void vscode.window.showWarningMessage(message)
@@ -1699,6 +1755,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
               )
           : undefined,
       )
+      // Where a macOS sign-in's token lives, looked up by attribute only (no
+      // `-g`/`-w`: no secret, no prompt); never the sign-in signal (D26).
+      const keychainLookup =
+        process.platform === 'darwin'
+          ? await runProcess(
+              { command: MACOS_SECURITY_TOOL, args: MACOS_KEYCHAIN_LOOKUP_ARGS },
+              MACOS_KEYCHAIN_LOOKUP_TIMEOUT_MS,
+            )
+          : undefined
       log.info(
         renderSupportReport({
           extensionVersion: version,
@@ -1723,7 +1788,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 version: backend.installedVersion(resolution.launch.installDir),
               }
             : { ok: false, reason: resolution.reason },
-          hasCliCredentialFile: backend.credentialFileExists(),
+          cliCredentialFile: backend.credentialFileVerdict(),
+          cliSignIn: await cliAccount.signIn(true),
+          keychainItem:
+            keychainLookup === undefined
+              ? undefined
+              : keychainItemPresence(keychainLookup.exitCode),
           delegationMode: delegationMode(),
           workflowTriggerMode: workflowTriggerMode(),
           hasStoredApiKey: (await credentials.getApiKey()) !== undefined,

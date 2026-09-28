@@ -1,0 +1,237 @@
+{
+  "capture": {
+    "cli": "Muse Code 1.4.0-R4302.1 (serverInfo 1.4.0, build aebe0c188b3832bf0e2f68a30f797b42e7930072, windows-x86_64), muse-bin-1.4.0-R4302.1.exe serve",
+    "client": "raw MSP NDJSON over stdio; initialize with experimentalApi as the extension does",
+    "home": "a new mkdtemp folder under %TEMP% (HOME, USERPROFILE, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_CACHE_HOME, APPDATA and LOCALAPPDATA inside it; META_API_KEY and TBH_CREDENTIAL_BACKEND removed), deleted afterwards",
+    "workspace": "an empty folder inside that home",
+    "modelAttempts": 0,
+    "ownerCredentialFile": "stat only (size and mtime), unchanged before and after",
+    "redaction": "the user code is replaced by its shape (AAAA-AAAA), in the result and in the URL; museHome is under <throwaway>; nothing else needed it (no label, e-mail or token is in these frames)",
+    "name": "cancelled",
+    "date": "2026-09-27 18:14-18:22 PDT (2026-09-28T01:14Z-01:22Z)",
+    "browser": "nothing: the run was meant to approve the code, but the browser could not be driven, so loginCancel was sent at the 480 s deadline",
+    "polls": "account/read every second between loginStart and the cancel: 474 answers, all {state: loggedOut, credentialRequired: true}; the first two and the last are kept",
+    "finding": "the code was still live 482 s after loginStart; account/loginCompleted {outcome: cancelled} (no message) arrives before the loginCancel result {cancelled: true}"
+  },
+  "frames": [
+    {
+      "atMs": 15,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "clientInfo": {
+            "name": "muse_spark_code_capture",
+            "version": "0.0.0"
+          },
+          "capabilities": {
+            "experimentalApi": true,
+            "userInputDialogs": false
+          }
+        }
+      }
+    },
+    {
+      "atMs": 1064,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "serverInfo": {
+            "name": "muse",
+            "version": "1.4.0"
+          },
+          "userAgent": "muse-build/1.4.0 (non-interactive; windows-x86_64; build aebe0c188b3832bf0e2f68a30f797b42e7930072)",
+          "museHome": "<throwaway>\\data\\muse",
+          "platformFamily": "windows",
+          "platformOs": "windows",
+          "schema": {
+            "version": 1,
+            "fingerprint": "sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658"
+          },
+          "grantedCapabilities": [],
+          "experimentalApi": true,
+          "sessionDurability": "durable"
+        }
+      }
+    },
+    {
+      "atMs": 1065,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "initialized"
+      }
+    },
+    {
+      "atMs": 1065,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 1066,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 1067,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "account/loginStart",
+        "params": {
+          "type": "deviceCode"
+        }
+      }
+    },
+    {
+      "atMs": 1529,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "verificationUrl": "https://auth.meta.com/oauth/device/?code=AAAA-AAAA",
+          "userCode": "AAAA-AAAA"
+        }
+      }
+    },
+    {
+      "atMs": 2569,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 2570,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 3583,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 3585,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 482425,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 477,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 482427,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 477,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    },
+    {
+      "atMs": 482428,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 478,
+        "method": "account/loginCancel",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 482431,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "account/loginCompleted",
+        "params": {
+          "outcome": "cancelled"
+        },
+        "emittedAtMs": 1790558520103
+      }
+    },
+    {
+      "atMs": 482432,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 478,
+        "result": {
+          "cancelled": true
+        }
+      }
+    },
+    {
+      "atMs": 484440,
+      "dir": "out",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 479,
+        "method": "account/read",
+        "params": {}
+      }
+    },
+    {
+      "atMs": 484442,
+      "dir": "in",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 479,
+        "result": {
+          "state": "loggedOut",
+          "credentialRequired": true
+        }
+      }
+    }
+  ]
+}

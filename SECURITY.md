@@ -30,13 +30,25 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
 - **Credentials.** A pasted Model API key lives only in VS Code's
   SecretStorage, is sent only to `api.meta.ai`, and is never passed to a
   child process, written to settings or logs, or shown in the panel. The
-  Muse Code CLI's own credential file is never read: the extension checks
-  only that it exists and when it last changed. In-panel sign-in runs Muse
-  Code's device-code flow in a temporary `muse serve` that owns no
-  conversation and is closed on success, cancel, timeout or error; the only
-  page it opens must be on `https://auth.meta.com`. The log channel redacts
-  key-shaped strings, in Meta's current `LLM_…` form and the older
-  `LLM|<id>|<secret>` one.
+  extension reads only the structure of the Muse Code CLI's own credential
+  file, never a token in it: the schema version, which providers it names
+  (only `meta` speaks for the sign-in), each one's storage lane (the macOS
+  Keychain), and whether `meta` has an `api_key` or `access_token` entry
+  (the parse keeps the fact, never the value). When that is not enough, it
+  asks the CLI (`account/read`) and discards the account label and avatar
+  address the answer carries. It never reads the Keychain's secret.
+  In-panel sign-in, that question and sign-out (`account/logout`) run in a
+  temporary `muse serve` that owns no conversation and is closed on
+  success, cancel, timeout, error or when the window closes, after which
+  no sign-in starts; a sign-in whose host exits fails at once unless the
+  credential file changed first, by a write no `account/read` answer
+  called signed out. The only page sign-in opens must be on
+  `https://auth.meta.com`. The log channel redacts key-shaped strings, in
+  Meta's current `LLM_…` form and the older `LLM|<id>|<secret>` one; it
+  cannot catch a path or an e-mail address, so free text Muse Code writes
+  (sign-in endings, MSP error messages, `muse serve` and `muse skills`
+  stderr) is logged in fixed words, by its kind, or by its length, never
+  as sent.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
   workspace rules, skills or memory, runs no shell commands, and the
   extension runs no `git` (a repository's `.git/config` can name programs
