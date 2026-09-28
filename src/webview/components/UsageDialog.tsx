@@ -160,19 +160,44 @@ function contextValueOf(context: ContextSummary | undefined): string | undefined
     : `${used} / ${formatTokenWindow(context.windowTokens)}`
 }
 
+/**
+ * What the prompt cache saved (M82): the uncached price minus the priced
+ * one, with its share of the uncached price. Defined only where a cost is
+ * priced (the Model API); Muse Code reports no honest cache totals
+ * (PLAN.md D26).
+ */
+function cacheSavings(
+  usage: UsageSummary,
+  costUsd: number,
+  modelId: string,
+): { readonly amount: number; readonly percent: number } {
+  const uncached = estimateCostUsd(
+    { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens: 0 },
+    modelId,
+  )
+  const amount = uncached - costUsd
+  return { amount, percent: uncached > 0 ? percentOf(amount, uncached) : 0 }
+}
+
 function TokensSection({
   usage,
   context,
   costUsd,
+  modelId,
 }: {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly costUsd: number | undefined
+  readonly modelId: string | undefined
 }) {
   if (usage === undefined && context === undefined) {
     return <p className="usage-row-meta">{UI_TEXT.usageNoSession}</p>
   }
   const contextValue = contextValueOf(context)
+  const savings =
+    usage !== undefined && costUsd !== undefined && modelId !== undefined
+      ? cacheSavings(usage, costUsd, modelId)
+      : undefined
   return (
     <>
       <dl className="usage-facts">
@@ -202,6 +227,17 @@ function TokensSection({
           <>
             <dt>{UI_TEXT.usageCost}</dt>
             <dd>{formatUsd(costUsd)}</dd>
+          </>
+        )}
+        {savings !== undefined && (
+          <>
+            <dt>{UI_TEXT.usageCacheSavings}</dt>
+            <dd>
+              {fill(UI_TEXT.usageCacheSavingsValue, {
+                amount: formatUsd(savings.amount),
+                percent: formatPercent(savings.percent),
+              })}
+            </dd>
           </>
         )}
       </dl>
@@ -510,7 +546,7 @@ export function UsageDialog({
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
         )}
         <h3 className="usage-heading">{UI_TEXT.usageSessionTokens}</h3>
-        <TokensSection usage={usage} context={context} costUsd={costUsd} />
+        <TokensSection usage={usage} context={context} costUsd={costUsd} modelId={modelId} />
         {paidFeatures.length > 0 ? (
           <>
             <h3 className="usage-heading">{UI_TEXT.usagePaidHeading}</h3>

@@ -81,7 +81,7 @@ import {
   USER_SHELL_ITEM_KIND,
   USER_SHELL_TIMEOUT_MS,
 } from '../../../shared/constants'
-import { fill, plural } from '../../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../../shared/l10n/text'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import {
   modelApiPaidTier,
@@ -167,6 +167,14 @@ import {
 } from './hooks'
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
 import { nextScheduleFire } from './schedules'
+import {
+  type BudgetBase,
+  type BudgetReservation,
+  estimateInput,
+  requestParts,
+  reserveRequest,
+} from './sessionBudget'
+import { estimateCostUsd, formatUsd } from '../../usage/insights'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
 import { promptCacheKey } from './promptCache'
@@ -280,6 +288,10 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly notePaidUse: (feature: PaidFeature, units: number) => void
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
+  /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
+  readonly sessionBudgetUsd: () => number
+  /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
+  readonly showReplyUsage: () => boolean
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -443,6 +455,23 @@ interface StreamedCall {
   readonly calls: readonly FunctionCallItem[]
   readonly goalCommandRevision: number
   readonly postContexts: readonly string[]
+}
+
+/** A request's budget reservation while it runs (M82). */
+interface OpenReservation extends BudgetReservation {
+  /** Its parts: the next estimate's base once its usage is reported. */
+  readonly parts: ReadonlyMap<string, number>
+  /** Its response began: a request ending now without usage counts at the whole reservation. */
+  hasStarted: boolean
+}
+
+/** The requests behind a reply line (M82): their tokens and dollars. */
+interface ReplyUsageTally {
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly cachedTokens: number
+  readonly reasoningTokens: number
+  readonly costUsd: number
 }
 
 interface Pending<T> {
@@ -1230,6 +1259,21 @@ export class ModelApiSession implements AgentSession {
   private goalSteps = 0
   private scheduleTimer: ReturnType<typeof setInterval> | undefined
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
+  /**
+   * Dollars this conversation spent at list price (M82), kept with the
+   * session: every response that reported usage (a turn's, a failed one's,
+   * a compaction's), each child task's as it reports (their consent is
+   * separate, D48, so they are never reserved), and the whole reservation
+   * of a request whose response began but never reported. A child session
+   * keeps none of its own.
+   */
+  private budgetSpentUsd = 0
+  /** The last reported request, which the next estimate starts from (M82). */
+  private budgetBase: BudgetBase | undefined
+  /** The reservation of the request in flight, until its usage is reported or it ends (M82). */
+  private openReservation: OpenReservation | undefined
+  /** What the requests since the last reply line used (M82), for the next line. */
+  private unshownUsage: ReplyUsageTally | undefined
   private firstPrompt: string | undefined
   private isDisposed = false
   /** The surfaces holding this session: closing one must not cancel another's turn. */
@@ -1447,6 +1491,60 @@ export class ModelApiSession implements AgentSession {
         item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
       })
     }
+  }
+
+  /**
+   * The body as the session budget lets it be sent (M82): with a cap, its
+   * input estimated high from the last reported request and
+   * `max_output_tokens` lowered so input plus output at list price fits
+   * what is left, the reservation held open until the response reports.
+   * Throws `SessionBudgetExceededError` when it cannot fit: it is not sent,
+   * and the turn stops with the reason. A child session is never reserved:
+   * its task was priced and allowed on its own (D48).
+   */
+  private budgeted(body: CreateResponseBody): CreateResponseBody {
+    this.openReservation = undefined
+    const capUsd = this.isSubagent ? 0 : this.deps.sessionBudgetUsd()
+    if (capUsd <= 0) {
+      return body
+    }
+    const estimate = estimateInput(requestParts(body), this.budgetBase)
+    const reservation = reserveRequest({
+      capUsd,
+      spentUsd: this.budgetSpentUsd,
+      estimatedInputTokens: estimate.inputTokens,
+      modelId: this.modelId,
+    })
+    this.openReservation = { ...reservation, parts: estimate.parts, hasStarted: false }
+    return { ...body, max_output_tokens: reservation.maxOutputTokens }
+  }
+
+  /** The reservation of the request about to be sent, as the log keeps it (M82). */
+  private sendingReserved(): OpenReservation | undefined {
+    const reservation = this.openReservation
+    if (reservation !== undefined) {
+      this.deps.log.info(
+        `Session budget: request reserved for ${String(reservation.estimatedInputTokens)} input and ${String(reservation.maxOutputTokens)} output tokens`,
+      )
+    }
+    return reservation
+  }
+
+  /**
+   * A request ended (M82). One still reserved reported no usage: when its
+   * response had begun, Meta ran it, so its whole reservation counts as
+   * spent; when it had not, nothing ran.
+   */
+  private closeReservation(): void {
+    const reservation = this.openReservation
+    this.openReservation = undefined
+    if (reservation?.hasStarted !== true) {
+      return
+    }
+    this.budgetSpentUsd += reservation.costUsd
+    this.deps.log.warn(
+      `Session budget: a response ended without its usage; its reservation of ${String(reservation.costUsd)} USD counts as spent`,
+    )
   }
 
   private body(): CreateResponseBody {
@@ -1790,15 +1888,58 @@ export class ModelApiSession implements AgentSession {
       reasoningTokens:
         this.usage.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens ?? 0),
     }
+    const billable = {
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+    }
     if (this.isSubagent) {
-      this.deps.noteSubagentUsage(this.modelId, {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-      })
+      this.deps.noteSubagentUsage(this.modelId, billable)
+    } else {
+      const costUsd = estimateCostUsd(billable, this.modelId)
+      this.budgetSpentUsd += costUsd
+      this.settleReservation(usage)
+      const shown = this.unshownUsage
+      this.unshownUsage = {
+        inputTokens: (shown?.inputTokens ?? 0) + billable.inputTokens,
+        outputTokens: (shown?.outputTokens ?? 0) + billable.outputTokens,
+        cachedTokens: (shown?.cachedTokens ?? 0) + billable.cachedTokens,
+        reasoningTokens:
+          (shown?.reasoningTokens ?? 0) + (usage.output_tokens_details?.reasoning_tokens ?? 0),
+        costUsd: (shown?.costUsd ?? 0) + costUsd,
+      }
     }
     this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
     this.noteContext(usage.input_tokens + usage.output_tokens)
+  }
+
+  /**
+   * The request in flight reported its usage (M82): its reservation closes,
+   * and it becomes the base the next estimate starts from. A request sent
+   * without a reservation (no cap) leaves no base, so a cap set later
+   * estimates the whole of its first request. An output that used every
+   * token the budget allowed may be cut short, and the transcript says so.
+   */
+  private settleReservation(usage: Usage): void {
+    const reservation = this.openReservation
+    this.openReservation = undefined
+    this.budgetBase =
+      reservation === undefined
+        ? undefined
+        : { inputTokens: usage.input_tokens, parts: reservation.parts }
+    if (
+      reservation !== undefined &&
+      reservation.maxOutputTokens < MODEL_API_MAX_OUTPUT_TOKENS &&
+      usage.output_tokens >= reservation.maxOutputTokens
+    ) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.sessionBudgetOutputLimited, {
+          tokens: formatNumber(reservation.maxOutputTokens),
+        }),
+      })
+    }
   }
 
   private noteContext(usedTokens: number): void {
@@ -2114,7 +2255,10 @@ export class ModelApiSession implements AgentSession {
   ): Promise<StreamedCall> {
     const requestId = this.deps.newId()
     const attempt = budget.retriesUsed + 1
-    await this.beforeModelCall(turnId, this.body(), requestId, attempt, step, signal)
+    // A request that cannot fit the session budget left is never sent (M82),
+    // nor shown to the hooks; the body sent is reserved afresh below, since
+    // what it carries can change while the hooks run.
+    await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
       throw requiredAfterPreHook
@@ -2134,7 +2278,8 @@ export class ModelApiSession implements AgentSession {
         reason: notice.reason,
       })
     }
-    const body = this.body()
+    const body = this.budgeted(this.body())
+    const reservation = this.sendingReserved()
     const requestReplay = [...this.replay]
     let final: ResponseObject | undefined
     const admitAttempt = this.responseAttemptGuard(body)
@@ -2146,21 +2291,30 @@ export class ModelApiSession implements AgentSession {
       admitAttempt,
       confirmedRequest,
     )
-    for await (const event of responseStream) {
-      final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
+    let calls: readonly FunctionCallItem[]
+    let wasFitted: boolean
+    try {
+      for await (const event of responseStream) {
+        if (reservation !== undefined) {
+          reservation.hasStarted = true
+        }
+        final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
+      }
+      if (final === undefined) {
+        throw new ModelApiError(
+          'The stream ended without a completed response',
+          0,
+          undefined,
+          undefined,
+        )
+      }
+      this.markReadFileMediaDelivered(turnId, body.input)
+      wasFitted = this.commitFittedReplay(requestReplay, body.input)
+      this.markOutputMediaDelivered(requestReplay, body.input)
+      calls = this.adoptOutput(turnId, final, open, chargedGoalId)
+    } finally {
+      this.closeReservation()
     }
-    if (final === undefined) {
-      throw new ModelApiError(
-        'The stream ended without a completed response',
-        0,
-        undefined,
-        undefined,
-      )
-    }
-    this.markReadFileMediaDelivered(turnId, body.input)
-    const wasFitted = this.commitFittedReplay(requestReplay, body.input)
-    this.markOutputMediaDelivered(requestReplay, body.input)
-    const calls = this.adoptOutput(turnId, final, open, chargedGoalId)
     if (wasFitted) {
       this.touch()
     }
@@ -2184,6 +2338,39 @@ export class ModelApiSession implements AgentSession {
       throw new HookStoppedError(post.blockedReason)
     }
     return { calls, goalCommandRevision, postContexts: post.contexts }
+  }
+
+  /**
+   * The tokens and dollars under a reply (M82), while the setting is on:
+   * the response's last message carries what every request of this turn
+   * since the previous line used, tool steps and failed attempts included,
+   * so the lines of a turn add up to what it cost. A response with no
+   * message leaves its usage to the next one.
+   */
+  private noteReplyUsage(
+    response: ResponseObject,
+    open: Map<string, OpenItem>,
+    turnId: string,
+  ): void {
+    const tally = this.unshownUsage
+    if (tally === undefined || !this.deps.showReplyUsage()) {
+      return
+    }
+    let lastMessageWireId: string | undefined
+    for (const [index, item] of response.output.entries()) {
+      if (isMessageItem(item)) {
+        lastMessageWireId = item.id ?? String(index)
+      }
+    }
+    const entry = lastMessageWireId === undefined ? undefined : open.get(lastMessageWireId)
+    if (entry === undefined || !entry.isCompleted || entry.kind !== 'agentMessage') {
+      return
+    }
+    this.unshownUsage = undefined
+    const { costUsd, ...usage } = tally
+    const item: ItemSnapshot = { ...this.completedSnapshot(entry, turnId), usage, costUsd }
+    this.emit({ type: 'itemUpdated', item })
+    this.rerecordTranscript(item)
   }
 
   /**
@@ -2261,6 +2448,7 @@ export class ModelApiSession implements AgentSession {
       })
     }
     this.noteUsage(response.usage, chargedGoalId)
+    this.noteReplyUsage(response, open, turnId)
     return calls
   }
 
@@ -2895,11 +3083,19 @@ export class ModelApiSession implements AgentSession {
       const latest = child.session.usage
       const inputDelta = latest.inputTokens - child.usage.inputTokens
       const outputDelta = latest.outputTokens - child.usage.outputTokens
+      const cachedDelta = latest.cachedTokens - child.usage.cachedTokens
       this.chargeChildGoal(child, inputDelta + outputDelta)
+      // The conversation's spend includes its children's, after the fact:
+      // a child task was priced and allowed on its own (D48), so it is
+      // never reserved, but what it spent leaves less for the parent (M82).
+      this.budgetSpentUsd += estimateCostUsd(
+        { inputTokens: inputDelta, outputTokens: outputDelta, cachedTokens: cachedDelta },
+        child.session.modelId,
+      )
       this.usage = {
         inputTokens: this.usage.inputTokens + inputDelta,
         outputTokens: this.usage.outputTokens + outputDelta,
-        cachedTokens: this.usage.cachedTokens + latest.cachedTokens - child.usage.cachedTokens,
+        cachedTokens: this.usage.cachedTokens + cachedDelta,
         reasoningTokens:
           this.usage.reasoningTokens + latest.reasoningTokens - child.usage.reasoningTokens,
       }
@@ -4358,6 +4554,9 @@ export class ModelApiSession implements AgentSession {
     this.settleNotes(turn.turnId)
     this.touch()
     const startedAt = this.deps.now()
+    const turnStartSpentUsd = this.budgetSpentUsd
+    // A reply line counts this turn's requests only (M82).
+    this.unshownUsage = undefined
     let terminal = COMPLETED
     let reason: string | undefined
     let errorKind: string | undefined
@@ -4469,6 +4668,20 @@ export class ModelApiSession implements AgentSession {
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
+    // The turn's cost against the cap, said once afterwards (M82).
+    const budgetCapUsd = this.isSubagent ? 0 : this.deps.sessionBudgetUsd()
+    const turnCostUsd = this.budgetSpentUsd - turnStartSpentUsd
+    if (budgetCapUsd > 0 && turnCostUsd > 0) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'info',
+        text: fill(UI_TEXT.budgetTurnCost, {
+          cost: formatUsd(turnCostUsd),
+          spent: formatUsd(this.budgetSpentUsd),
+          cap: formatUsd(budgetCapUsd),
+        }),
+      })
+    }
     this.emit({
       type: 'turnCompleted',
       turnId: turn.turnId,
@@ -4551,6 +4764,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<{ readonly text: string; readonly response: ResponseObject }> {
     let text = ''
     let response: ResponseObject | undefined
+    const reservation = this.sendingReserved()
     const admitAttempt = this.responseAttemptGuard(body)
     const responseStream = this.deps.client.streamResponse(
       body,
@@ -4559,11 +4773,18 @@ export class ModelApiSession implements AgentSession {
       undefined,
       admitAttempt,
     )
-    for await (const event of responseStream) {
-      if (event.type === 'response.completed') {
-        response = event.response
+    try {
+      for await (const event of responseStream) {
+        if (reservation !== undefined) {
+          reservation.hasStarted = true
+        }
+        if (event.type === 'response.completed') {
+          response = event.response
+        }
+        text += this.collectedText(event, chargedGoalId)
       }
-      text += this.collectedText(event, chargedGoalId)
+    } finally {
+      this.closeReservation()
     }
     if (response === undefined) {
       throw new ModelApiError(
@@ -4578,21 +4799,25 @@ export class ModelApiSession implements AgentSession {
 
   /** The summary call of `compact`, and the replay it leaves behind. */
   private async runCompaction(signal: AbortSignal): Promise<CompactOutcome> {
+    // The compaction is a request like any other: the session budget
+    // reserves it too, and refuses it when it cannot fit (M82).
     const compactionBody = (): CreateResponseBody =>
-      this.keyed({
-        ...this.body(),
-        // Within Meta's image budget too (M54): a conversation past it can still be compacted.
-        input: this.budget.fit([
-          ...this.replay.map((entry) => entry.item),
-          {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: MODEL_TEXT.compactionPrompt }],
-          },
-        ]),
-        tools: [],
-        include: ['reasoning.encrypted_content'],
-      })
+      this.budgeted(
+        this.keyed({
+          ...this.body(),
+          // Within Meta's image budget too (M54): a conversation past it can still be compacted.
+          input: this.budget.fit([
+            ...this.replay.map((entry) => entry.item),
+            {
+              type: 'message',
+              role: 'user',
+              content: [{ type: 'input_text', text: MODEL_TEXT.compactionPrompt }],
+            },
+          ]),
+          tools: [],
+          include: ['reasoning.encrypted_content'],
+        }),
+      )
     const turnId = this.turnIds.at(-1) ?? COMPACTION_TURN_ID
     const requestId = this.deps.newId()
     await this.beforeModelCall(turnId, compactionBody(), requestId, 1, 0, signal)
@@ -4629,10 +4854,21 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemCompleted', item })
     this.recordTranscript(COMPACTION_TURN_ID, item)
     this.touch()
+    // The summary replaced what the compaction request carried, so that
+    // request is no base for the next estimate; Meta's count of the new
+    // context is, when it comes (M82).
+    this.budgetBase = undefined
     // The new context size is a courtesy: the compaction stands if it cannot be counted.
     const { stream: _stream, ...countable } = this.body()
     try {
-      this.noteContext(await this.deps.client.countInputTokens(countable))
+      const counted = await this.deps.client.countInputTokens(countable)
+      this.noteContext(counted)
+      if (!this.isSubagent && this.deps.sessionBudgetUsd() > 0) {
+        this.budgetBase = {
+          inputTokens: counted,
+          parts: estimateInput(requestParts(countable), undefined).parts,
+        }
+      }
     } catch (error: unknown) {
       this.deps.log.warn(`The compacted context could not be counted: ${describe(error)}`)
     }
@@ -4995,6 +5231,8 @@ export class ModelApiSession implements AgentSession {
 
   public setModel(modelId: string): Promise<void> {
     this.modelId = modelId
+    // Another model may count the same request differently (M82).
+    this.budgetBase = undefined
     this.emit({ type: 'modelChanged', modelId })
     this.touch()
     return Promise.resolve()
@@ -5509,6 +5747,7 @@ export class ModelApiSession implements AgentSession {
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
+      ...(this.budgetSpentUsd > 0 && { budgetSpentUsd: this.budgetSpentUsd }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: [...this.pendingChildResults],
@@ -5561,6 +5800,7 @@ export class ModelApiSession implements AgentSession {
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
+    this.budgetSpentUsd = stored.budgetSpentUsd ?? 0
     this.status = IDLE
     this.pendingChildResults.push(...(stored.pendingChildResults ?? []))
     const savedCommands = Object.entries(stored.spawnCommands ?? {})

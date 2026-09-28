@@ -49,6 +49,7 @@ export const SCENARIOS = [
   'agents',
   'agents-off',
   'usage-api',
+  'reply-usage',
   'banner',
   'jump',
   'thinking',

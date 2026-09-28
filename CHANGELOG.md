@@ -7,6 +7,31 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Awareness and budgets** (M82, PLAN.md D49).
+  - While the VS Code window is unfocused, a VS Code notification says when
+    a turn of a minute or more ends, or a turn waits for your approval or
+    answer, with **Show conversation**; nothing shows while the window is
+    focused, and two panels on one conversation raise it once. Off with
+    `museSpark.notifyOnBackgroundTurn`.
+  - On the Model API, `museSpark.modelApiReplyUsage` (off by default) prints
+    the tokens and dollar estimate under each reply, counting every request
+    since the previous line in that turn. Muse Code reports no per-reply
+    totals, so its replies carry none.
+  - The machine-scoped `museSpark.modelApiSessionBudgetUsd` caps what each
+    Model API conversation may spend. Each request's input is estimated high
+    (the last reported input plus what was added since, one token per byte)
+    and `max_output_tokens` is lowered so it fits what is left; a request
+    that cannot fit is not sent and the turn says why. A response that
+    began and never reported counts at its whole reservation; a paid
+    subagent task counts once it has spent; a model with no published price
+    is refused while a cap is set. The transcript shows each turn's cost
+    against the cap, and warns when a reply used all the output it was left.
+  - Account & usage shows what the prompt cache saved in dollars. Its value
+    (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
+    the localization gate lets it stay the same in every language.
+
 ### Changed
 
 - **Every paid use asks first, in a popup** (M58, PLAN.md D48): **Allow

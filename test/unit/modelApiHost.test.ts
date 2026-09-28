@@ -9,6 +9,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CLARIFICATION_MAX_CHARS,
   HOOK_MAX_STOP_CONTINUATIONS,
+  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
   GOAL_OBJECTIVE_MAX_CHARS,
@@ -29,8 +30,16 @@ import {
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, fill, formatNumber, setUiText } from '../../src/shared/l10n/text'
+import {
+  estimateInput,
+  requestParts,
+  reserveRequest,
+  SessionBudgetExceededError,
+} from '../../src/core/backends/modelapi/sessionBudget'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
@@ -57,7 +66,7 @@ import { parseHookConfig, type HookDefinition } from '../../src/core/backends/mo
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { type FakeMcpSource, fakeMcpSource } from './helpers/fakeMcpSource'
 import type { McpCallOutcome } from '../../src/core/backends/modelapi/mcp/functions'
-import { countLogged } from './helpers/logText'
+import { countLogged, logLines } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
 
@@ -192,6 +201,10 @@ function setup(
     io?: MemoryToolIo
     /** `museSpark.modelApiPromptCacheRetention` (M56); in memory unless a test says so. */
     retention?: PromptCacheRetention
+    /** `museSpark.modelApiSessionBudgetUsd` (M82); no cap unless a test says so. */
+    sessionBudgetUsd?: number
+    /** `museSpark.modelApiReplyUsage` (M82); off unless a test says so. */
+    showReplyUsage?: boolean
     mediaBudgetMaxEncodedChars?: number
     scheduleStore?: ScheduleStore
     getAccountId?: () => Promise<string | undefined>
@@ -275,6 +288,8 @@ function setup(
       paidUses.push({ feature, units })
     },
     promptCacheRetention: () => options.retention ?? 'in_memory',
+    sessionBudgetUsd: () => options.sessionBudgetUsd ?? 0,
+    showReplyUsage: () => options.showReplyUsage ?? false,
     ...(options.mediaBudgetMaxEncodedChars !== undefined && {
       mediaBudgetMaxEncodedChars: options.mediaBudgetMaxEncodedChars,
     }),
@@ -1709,6 +1724,431 @@ describe('ModelApiHost: usage (M8)', () => {
     })
     expect(typeof stop).toBe('function')
     stop()
+  })
+})
+
+/** One answered "hi" turn with priced usage on the fake Model API (M82). */
+async function answerPricedHi(t: ReturnType<typeof setup>) {
+  const watched = await startSession(t)
+  t.api.script({ text: 'Hello there', usage: { input: 1000, output: 200, cached: 100 } })
+  await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+  await watched.turnDone()
+  return watched
+}
+
+/** One turn on a watched session: its replies scripted, its prompt sent, its end awaited (M82). */
+async function budgetTurn(
+  t: ReturnType<typeof setup>,
+  watched: Awaited<ReturnType<typeof startSession>>,
+  text: string,
+  ...replies: ScriptedReply[]
+): Promise<void> {
+  t.api.script(...replies)
+  await watched.session.sendTurn([{ type: 'text', text }])
+  await watched.turnDone()
+}
+
+/** Why the last turn failed, or '' (M82). */
+function lastReason(events: readonly AgentEvent[]): string {
+  const completed = events.findLast((event) => event.type === 'turnCompleted')
+  return completed?.type === 'turnCompleted' ? (completed.reason ?? '') : ''
+}
+
+const TODO_CALL = {
+  name: 'todo_write',
+  arguments: '{"items":[{"text":"First","status":"completed"}]}',
+}
+const RESERVED_LINE = /Session budget: request reserved for (\d+) input and (\d+) output tokens/
+
+/** Each reservation the log holds, in order: the estimated input and the output allowance. */
+function reservations(t: ReturnType<typeof setup>) {
+  return logLines(t.log).flatMap((line) => {
+    const match = RESERVED_LINE.exec(line)
+    return match === null ? [] : [{ input: Number(match[1]), output: Number(match[2]) }]
+  })
+}
+
+/** The request body as Meta counts its input: the instructions, the tools and the items. */
+function sentParts(body: Readonly<Record<string, unknown>> | undefined) {
+  return requestParts(body as unknown as CreateResponseBody)
+}
+
+function standardCost(inputTokens: number, outputTokens: number, cachedTokens = 0): number {
+  return estimateCostUsd({ inputTokens, outputTokens, cachedTokens }, 'muse-spark-1.3')
+}
+
+describe('ModelApiSession: per-reply usage (M82)', () => {
+  it('puts a reply’s tokens and cost under it while the setting is on', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ showReplyUsage: true })
+    const { events } = await answerPricedHi(t)
+    const updates = events.filter(
+      (event) =>
+        event.type === 'itemUpdated' &&
+        event.item.kind === 'agentMessage' &&
+        event.item.usage !== undefined,
+    )
+    expect(updates).toEqual([
+      {
+        type: 'itemUpdated',
+        item: expect.objectContaining({
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'Hello there',
+          usage: { inputTokens: 1000, outputTokens: 200, cachedTokens: 100, reasoningTokens: 1 },
+          costUsd: standardCost(1000, 200, 100),
+        }),
+      },
+    ])
+  })
+
+  it('counts every request of the turn since the last line, tool steps included', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      { calls: [TODO_CALL], usage: { input: 1000, output: 50 } },
+      { text: 'All done.', usage: { input: 1200, output: 30, cached: 1000 } },
+    )
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined ? [event.item] : [],
+    )
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({
+      text: 'All done.',
+      usage: { inputTokens: 2200, outputTokens: 80, cachedTokens: 1000, reasoningTokens: 2 },
+    })
+    expect(lines[0]?.costUsd).toBeCloseTo(standardCost(1000, 50) + standardCost(1200, 30, 1000), 12)
+  })
+
+  it('gives commentary before a tool call its own requests, and the reply the rest', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      {
+        text: 'Planning first.',
+        phase: 'commentary',
+        calls: [TODO_CALL],
+        usage: { input: 100, output: 10 },
+      },
+      { text: 'Done.', usage: { input: 200, output: 20 } },
+    )
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined
+        ? [{ text: event.item.text, input: event.item.usage.inputTokens }]
+        : [],
+    )
+    expect(lines).toEqual([
+      { text: 'Planning first.', input: 100 },
+      { text: 'Done.', input: 200 },
+    ])
+  })
+
+  it('leaves a failed turn’s usage out of the next turn’s line', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'first', {
+      text: 'partial',
+      failed: { code: 'server_error', message: 'failed' },
+      usage: { input: 900, output: 90 },
+    })
+    await budgetTurn(t, watched, 'second', { text: 'Fine.', usage: { input: 100, output: 10 } })
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined ? [event.item.usage] : [],
+    )
+    expect(lines).toEqual([
+      { inputTokens: 100, outputTokens: 10, cachedTokens: 0, reasoningTokens: 1 },
+    ])
+  })
+
+  it('attaches nothing while the setting is off', async () => {
+    const t = setup()
+    const { events } = await answerPricedHi(t)
+    expect(
+      events.filter(
+        (event) =>
+          (event.type === 'itemUpdated' || event.type === 'itemCompleted') &&
+          (event.item.usage !== undefined || event.item.costUsd !== undefined),
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('ModelApiSession: session budget (M82)', () => {
+  it('estimates the first request from its bytes and fits its output to what is left', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'ok', usage: { input: 1000, output: 10 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const [body] = t.api.responseBodies()
+    const estimated = estimateInput(sentParts(body), undefined).inputTokens
+    const expected = reserveRequest({
+      capUsd: 0.1,
+      spentUsd: 0,
+      estimatedInputTokens: estimated,
+      modelId: 'muse-spark-1.3',
+    })
+    // Every byte of the instructions, the tools and the message, at least.
+    expect(estimated).toBeGreaterThanOrEqual(
+      Buffer.byteLength(String(body?.['instructions'])) + Buffer.byteLength('hi'),
+    )
+    expect(expected.maxOutputTokens).toBeLessThan(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(body?.['max_output_tokens']).toBe(expected.maxOutputTokens)
+  })
+
+  it('sends the usual maximum when no cap is set', async () => {
+    const t = setup()
+    await answerPricedHi(t)
+    expect(t.api.responseBodies()[0]?.['max_output_tokens']).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservations(t)).toEqual([])
+  })
+
+  it('estimates a later request from the reported tokens plus only what was added', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ calls: [TODO_CALL], usage: { input: 5, output: 1 } }, { text: 'Done.' })
+    await session.sendTurn([{ type: 'text', text: 'plan it' }])
+    await turnDone()
+    const [first, second] = t.api.responseBodies()
+    const firstParts = estimateInput(sentParts(first), undefined).parts
+    const expected = estimateInput(sentParts(second), { inputTokens: 5, parts: firstParts })
+    expect(reservations(t).map((reservation) => reservation.input)).toEqual([
+      estimateInput(sentParts(first), undefined).inputTokens,
+      expected.inputTokens,
+    ])
+    // The instructions and tools the first request carried were not counted again.
+    const addedItems = (second?.['input'] as unknown[]).slice(1)
+    expect(expected.inputTokens).toBe(
+      5 +
+        addedItems.reduce<number>((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)), 0),
+    )
+  })
+
+  it('never shows the PreLLMCall hooks a request the cap cannot fit', async () => {
+    for (const [capUsd, calls] of [
+      [10, 1],
+      [0.000001, 0],
+    ] as const) {
+      const runHook = vi.fn(() => hookReply())
+      const t = setup({
+        sessionBudgetUsd: capUsd,
+        hooks: hooksFor('PreLLMCall', 'observe'),
+        runHook,
+      })
+      await budgetTurn(t, await startSession(t), 'hi', { text: 'answer' })
+      expect(runHook).toHaveBeenCalledTimes(calls)
+    }
+  })
+
+  it('never sends a request the cap cannot fit, and the turn says why', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.000001 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+    expect(lastReason(watched.events)).toContain('It was not sent.')
+  })
+
+  it('stops a turn at the request that no longer fits, after the ones that did', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 2.5 })
+    const watched = await startSession(t)
+    // The first request reports a million input tokens ($1.25): the next
+    // one carries them again, and $1.25 is all that is left.
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      { calls: [TODO_CALL], usage: { input: 1_000_000, output: 0 } },
+      { text: 'no' },
+    )
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(watched.session.history().items.some((item) => item.tool === 'todo_write')).toBe(true)
+    const reason = lastReason(watched.events)
+    expect(reason).toContain(`${formatUsd(2.5)} (${formatUsd(1.25)} used)`)
+    expect(reason).toContain('It was not sent.')
+    expect(watched.events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.budgetTurnCost, {
+        cost: formatUsd(1.25),
+        spent: formatUsd(1.25),
+        cap: formatUsd(2.5),
+      }),
+    })
+  })
+
+  it('refuses a model with no known price rather than guess what fits', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 100 })
+    const watched = await startSession(t)
+    await watched.session.setModel('muse-spark-9')
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(lastReason(watched.events)).toBe(
+      fill(UI_TEXT.sessionBudgetUnpriced, { model: 'muse-spark-9' }),
+    )
+  })
+
+  it('counts a response that began and never reported at its whole reservation', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'partial', streamError: { code: 'boom', message: 'lost' } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await t.host.close()
+    const [reserved] = reservations(t)
+    expect(reserved).toBeDefined()
+    const reservedUsd =
+      standardCost(reserved?.input ?? 0, 0) + standardCost(0, reserved?.output ?? 0)
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(reservedUsd, 12)
+  })
+
+  it('counts nothing for a request Meta refused before its response began', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ httpError: { status: 400, body: { error: { message: 'bad' } } } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await t.host.close()
+    expect(reservations(t)).toHaveLength(1)
+    expect(store.saved.get(session.sessionId)).toBeDefined()
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeUndefined()
+  })
+
+  it('says when a response used every output token the budget left it', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'cut', usage: { input: 10, output: 1_000_000 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const limit = Number(t.api.responseBodies()[0]?.['max_output_tokens'])
+    expect(limit).toBeLessThan(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.sessionBudgetOutputLimited, { tokens: formatNumber(limit) }),
+    })
+  })
+
+  it('stays quiet about output that stayed under the allowance', async () => {
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'short', usage: { input: 10, output: 3 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    expect(
+      events.some((event) => event.type === 'backendNotice' && event.level === 'warning'),
+    ).toBe(false)
+  })
+
+  it('reserves a compaction, and never sends one the cap cannot fit', async () => {
+    const t = setup({ sessionBudgetUsd: 2.5 })
+    const { session, turnDone } = await startSession(t)
+    // $1.25 spent on a million reported tokens, which the summary call carries again.
+    t.api.script({ text: 'Start', usage: { input: 1_000_000, output: 0 } })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    t.api.script({ text: 'SUMMARY' })
+    await expect(session.compact()).rejects.toThrow(SessionBudgetExceededError)
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(session.history().items.some((item) => item.kind === 'compaction')).toBe(false)
+  })
+
+  it('estimates after a compaction from Meta’s count of the new context', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'go', { text: 'Start' })
+    t.api.script({ text: 'SUMMARY' })
+    await watched.session.compact()
+    await budgetTurn(t, watched, 'next request', { text: 'Next' })
+    const last = t.api.responseBodies().at(-1)
+    const userMessage = (last?.['input'] as unknown[]).at(-1)
+    // The fake counts 42 tokens for the compacted context; only the new message is added.
+    expect(reservations(t).at(-1)?.input).toBe(
+      t.api.inputTokens + Buffer.byteLength(JSON.stringify(userMessage)),
+    )
+  })
+
+  it('estimates the whole request again after the model changes', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'go', { text: 'Start' })
+    await watched.session.setModel('muse-spark-1.2')
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    expect(reservations(t).at(-1)?.input).toBe(
+      estimateInput(sentParts(t.api.responseBodies().at(-1)), undefined).inputTokens,
+    )
+  })
+
+  it('shows the turn’s cost against the cap afterwards', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 10 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'ok', usage: { input: 1000, output: 200, cached: 100 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const turnCost = standardCost(1000, 200, 100)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.budgetTurnCost, {
+        cost: formatUsd(turnCost),
+        spent: formatUsd(turnCost),
+        cap: formatUsd(10),
+      }),
+    })
+  })
+
+  it('keeps the spend across windows, so a resumed session still cannot overspend', async () => {
+    const store = memorySessionStore()
+    const first = setup({ store, sessionBudgetUsd: 10 })
+    const { session, turnDone } = await startSession(first)
+    first.api.script({ text: 'ok', usage: { input: 1_000_000, output: 1_000_000 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await first.host.close()
+    // Standard tier: $1.25 + $4.25.
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(5.5, 10)
+
+    const second = setup({ store, sessionBudgetUsd: 5.5 })
+    await second.host.load()
+    const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    const watched = watchTurns(resumed.session)
+    second.api.script({ text: 'never sent' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+    await watched.turnDone()
+    expect(second.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+  })
+
+  it('counts what a child task spent, after the fact, against its parent’s cap', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store, sessionBudgetUsd: 10 })
+    const { session } = await startApprovedSubagentSession(t)
+    await completePaidChild(t, session, 'spawn_budget')
+    await t.host.close()
+    // Every reply here reports the fake's default usage, the child's included.
+    expect(t.subagentUsage.length).toBeGreaterThan(0)
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      t.api.responseBodies().length * standardCost(10, 5),
+      12,
+    )
   })
 })
 

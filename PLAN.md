@@ -2741,6 +2741,7 @@ only the extension-side uses reach it.
 | Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                                          |
 | Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Publishing ran by hand from the CI artifact with a clipboard PAT for 0.1.0–0.5.0; since 2026-09-23 the `VSCE_PAT` repository secret lets `release.yml` publish every `v*` tag.                                                                                                                                                                                                                                                                                                                                              | Closed.                                                                          |
 | Q9  | The Muse Code user rules file: `/rules import` writes one into the config root and the model is told "if user and project rules conflict, project rules win", but its file name is not printed by `muse --help`, `muse skills`, the settings skill or the binary's strings. The Model API backend cannot mirror what it cannot name.                                                                                                                                                                                                                                                                | Not loaded on the Model API backend; the CLI backend loads it itself.            |
+| Q10 | M82's background notice is VS Code's own notification: VS Code gives extensions no operating-system notification. An OS-level toast when the window is unfocused would need a helper process per OS (a WinRT toast from PowerShell on Windows, the macOS helper, `notify-send` on Linux), a new process boundary for text the panel already shows. Build it?                                                                                                                                                                                                                                        | VS Code's notification only, raised while the window is unfocused.               |
 
 ## 4. Architecture
 
@@ -7053,6 +7054,69 @@ harness scenario, which is what the accessibility gate checks (D32).
 
 ### M82 — Awareness and budgets (D49)
 
+**Status 2026-09-28: built** (`docs/certification/m82.md`). Drafted by a
+Muse Code instance, reviewed and finished by Claude; the record holds the
+rig gate, 27 red drills, and a live check on the contributor model (two
+requests) that found each request's estimate above what Meta counted.
+
+- **Decisions.**
+  - **Notifications are VS Code's own.** VS Code gives extensions no
+    operating-system notification (its chat's OS toasts are internal), so
+    the notice is `showInformationMessage`, raised only while
+    `vscode.window.state.focused` is false; it waits in the window's corner.
+    An OS-level toast would need a helper process per OS (§3).
+  - A turn counts as long at 60 s (`BACKGROUND_TURN_NOTIFICATION_MIN_MS`).
+    A turn whose length the backend did not report notifies; a cancelled
+    one never does. The message names the terminal: completed, failed, or
+    "ended" for a word the wire adds later (D36). Approvals and questions
+    notify; a pending card replayed to a later surface does not.
+  - One `BackgroundNotifier` per window raises each notice once by key
+    (session and turn, approval or question), so two surfaces on one
+    session do not both notify; the keys it remembers are bounded
+    (`BACKGROUND_NOTICE_KEYS_MAX`).
+  - `museSpark.notifyOnBackgroundTurn` is not machine-scoped: it chooses
+    nothing that runs or is billed (D15), so a workspace may set it.
+    `museSpark.modelApiReplyUsage` is display only.
+  - **Per-reply usage** accumulates every request of the turn (tool steps,
+    failed attempts that reported usage) and is told on the last message of
+    the next response that has one, so a turn's lines add up to its cost.
+    The host attaches it while the setting is on; Muse Code attaches nothing
+    (D26).
+  - **The budget's estimate** (`sessionBudget.ts`): the last reported
+    request's input tokens, plus each part of this request (the
+    instructions, the tools, each input item, as JSON) that the reported
+    one did not carry, at one token per UTF-8 byte
+    (`SESSION_BUDGET_MIN_BYTES_PER_TOKEN`), since a byte-level tokenizer
+    never makes a token of less than a byte. Parts are matched by SHA-256,
+    and a part the base carried and this request does not is never
+    subtracted, so older media left out or a compaction can only raise the
+    estimate. With no base (the first request, a model change, a cap set
+    mid-conversation) every part counts; after a compaction, Meta's count
+    of the new context is the base. The live check measured the estimate at
+    3.6 and 2.2 times what Meta counted.
+  - **The reservation** prices input and the whole output allowance at the
+    model's verified list price (`modelApiPaidTier`), no cache discount; a
+    model with no verified price is refused while a cap is set rather than
+    priced by guess. `max_output_tokens` is the most that fits, capped at
+    the usual maximum; with room for less than one output token the request
+    is not sent. Every request is reserved (turns, retries, compactions),
+    checked before the PreLLMCall hooks see it and again on the body sent.
+  - **Settling.** A response's reported usage replaces its reservation. A
+    response that began (a stream event arrived) but never reported (a
+    Stop, a dropped stream) counts at its whole reservation; one refused
+    before it began counts nothing. A reply that used every output token
+    the budget left is marked as possibly cut short.
+  - **Child tasks** are not reserved (each is priced and asked for on its
+    own, D48), but their usage counts toward the parent's spend as it
+    reports, as it already counts toward the parent's goal (M45). With
+    estimate errors, they are the only way past the cap, and the setting's
+    description says so.
+  - Spend persists with the session; a fork or side chat is a conversation
+    of its own and starts at zero. The turn's cost against the cap is shown
+    after each turn with a cap.
+  - Cache savings is the uncached price minus the priced one, with its
+    share; its value template is a pre-formatted amount and percentage,
+    allow-listed by the localization gate as such.
 - **Goal.** The user knows what happened and what it cost.
 - **Scope.**
   - An OS notification when a long turn ends or waits for approval while

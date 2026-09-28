@@ -19,6 +19,7 @@ import {
   type PickedFile,
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
+import type { AttentionNotice } from '../../src/host/conversation/turnNotifications'
 import type { DictationListener } from '../../src/core/voice/dictation'
 import type { DictationSetup } from '../../src/host/voice/dictationHost'
 import {
@@ -377,6 +378,7 @@ function setup(
     museVoice: options.museVoice ?? (() => undefined),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
     forgetPaidUse: vi.fn(() => Promise.resolve()),
+    notifyAttention: vi.fn<(notice: AttentionNotice) => void>(),
     auth: auth.service,
     accountFacts: (backend) =>
       Promise.resolve(
@@ -3828,6 +3830,73 @@ describe('ConversationController: session history (M6)', () => {
     await settle()
     expect(t.surface.markUnread).toHaveBeenCalledTimes(2)
   })
+
+  it('names a turn that needs the user, so the host can notify while unfocused (M82)', async () => {
+    const t = withHistory()
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
+    expect(t.deps.notifyAttention).not.toHaveBeenCalled()
+    t.server.notify('userInput/requested', {
+      sessionId: 's1',
+      userInputId: 'q',
+      itemId: 'i',
+      questions: [],
+      viewCursor: 'v',
+    })
+    await settle()
+    expect(t.deps.notifyAttention).toHaveBeenCalledTimes(1)
+    expect(t.deps.notifyAttention).toHaveBeenLastCalledWith({
+      key: 's1:question:q',
+      message: UI_TEXT.notifyQuestionWaiting,
+    })
+    // A turn of unknown length ended: it may have been long.
+    t.finishTurn()
+    await settle()
+    expect(t.deps.notifyAttention).toHaveBeenCalledTimes(2)
+    expect(t.deps.notifyAttention).toHaveBeenLastCalledWith({
+      key: 's1:turn:t1',
+      message: UI_TEXT.notifyTurnDone,
+    })
+    // A turn the user stopped names nothing.
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'cancelled' })
+    await settle()
+    expect(t.deps.notifyAttention).toHaveBeenCalledTimes(2)
+  })
+
+  it('names a fresh approval wait but not a replayed card (M82)', async () => {
+    const t = setup({ hasApprovalUi: true })
+    const io = heldShellToolIo({}, '/ws')
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    try {
+      await startShellApproval(t, controller, api)
+      expect(t.deps.notifyAttention).toHaveBeenCalledTimes(1)
+      // A later surface replays the waiting card: still waiting, but not newly so.
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected the live Model API session')
+      }
+      const second = new ConversationController({
+        ...t.deps,
+        ensureHost: () => Promise.resolve(host),
+      })
+      try {
+        await second.handle({ type: 'resumeSession', sessionId })
+        await vi.waitFor(() => {
+          expect(agentEvents(t).filter((event) => event.type === 'approvalRequested')).toHaveLength(
+            2,
+          )
+        })
+        expect(t.deps.notifyAttention).toHaveBeenCalledTimes(1)
+      } finally {
+        second.dispose()
+      }
+    } finally {
+      controller.dispose()
+      await host.close()
+    }
+  })
 })
 
 describe('ConversationController: backends and tiers (M7)', () => {
@@ -4367,6 +4436,8 @@ function modelApiController(
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...disabledPaidFeatures,
     promptCacheRetention: () => 'in_memory',
+    sessionBudgetUsd: () => 0,
+    showReplyUsage: () => false,
     memory: undefined,
   })
   const controller = new ConversationController({
@@ -4382,6 +4453,35 @@ function modelApiControllerWithIo(t: ReturnType<typeof setup>, io: MemoryToolIo)
     io,
     contextIo: memoryContextIo(io.files),
     newId: () => `id${String(++nextId)}`,
+  })
+}
+
+/** A shell call waiting on its approval, and the card asking for it. */
+async function startShellApproval(
+  t: ReturnType<typeof setup>,
+  controller: ConversationController,
+  api: ReturnType<typeof fakeModelApi>,
+): Promise<void> {
+  api.script(
+    {
+      calls: [
+        {
+          name: 'bash',
+          arguments: '{"command":"npm run dev","description":"Start the dev server"}',
+          callId: 'call_dev',
+        },
+      ],
+    },
+    { text: 'Done.' },
+  )
+  await controller.handle({
+    type: 'sendMessage',
+    localId: 'l1',
+    text: 'start the dev server',
+    attachmentIds: [],
+  })
+  await vi.waitFor(() => {
+    expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
   })
 }
 
@@ -6442,27 +6542,7 @@ describe('ConversationController: background work (M46)', () => {
       ensureHost: () => Promise.resolve(host),
     })
     try {
-      api.script(
-        {
-          calls: [
-            {
-              name: 'bash',
-              arguments: '{"command":"npm run dev","description":"Start the dev server"}',
-              callId: 'call_dev',
-            },
-          ],
-        },
-        { text: 'Done.' },
-      )
-      await controller.handle({
-        type: 'sendMessage',
-        localId: 'l1',
-        text: 'start the dev server',
-        attachmentIds: [],
-      })
-      await vi.waitFor(() => {
-        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
-      })
+      await startShellApproval(t, controller, api)
       const approval = agentEvents(t).find((event) => event.type === 'approvalRequested')
       if (approval?.type !== 'approvalRequested') {
         throw new Error('expected shell approval')
@@ -6685,6 +6765,8 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       isWorkspaceTrusted: () => true,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       promptCacheRetention: () => 'in_memory',
+      sessionBudgetUsd: () => 0,
+      showReplyUsage: () => false,
       isPaidFeatureOn: () => isPaidOn,
       notePaidUse: () => undefined,
       allowsPaidUse: () => Promise.resolve(false),

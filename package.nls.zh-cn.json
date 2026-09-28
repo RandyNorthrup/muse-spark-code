@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "命令可以完全访问网络。",
   "config.modelApiPromptCacheRetention.description": "请求 Meta 保留你的 Model API 请求中已缓存的开头部分（指令、工具和目前为止的对话）多长时间；这部分按较低的缓存输入费率计费。这只是提示：Meta 可能会更早将其移除。",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "最多 24 小时，因此暂停后回到的对话仍可从缓存读取。价格与保留在内存中相同。",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta 的默认值：保留在内存中，在负载较高或一段时间不活动后会更早移除。"
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta 的默认值：保留在内存中，在负载较高或一段时间不活动后会更早移除。",
+  "config.notifyOnBackgroundTurn.description": "当 VS Code 窗口未获得焦点时，如果一轮较长的对话结束，或某一轮正在等待您的批准或答复，则显示通知。窗口获得焦点时绝不显示任何内容。",
+  "config.modelApiReplyUsage.description": "默认关闭。在每条 Model API 回复下方显示其输入和输出 token 数量及美元费用估算。",
+  "config.modelApiSessionBudgetUsd.description": "每个 Model API 对话的会话预算上限（美元）；0 表示不设上限。每次请求前都会偏高估算输入，并降低 max_output_tokens，使请求不超出剩余预算；放不下的请求不会发送，本轮随即停止。只有该输入估算的误差，或运行前会询问、花费后才计入的付费子代理任务，才可能使支出超过上限。"
 }

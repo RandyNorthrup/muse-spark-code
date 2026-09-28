@@ -785,6 +785,8 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         text: item.text ?? '',
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
+        usage: item.usage,
+        costUsd: item.costUsd,
       }
     }
     case 'reasoning': {
@@ -831,6 +833,8 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         text: item.text ?? entry.text,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
+        usage: item.usage ?? entry.usage,
+        costUsd: item.costUsd ?? entry.costUsd,
       }
     }
     case 'reasoning': {

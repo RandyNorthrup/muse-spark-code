@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "コマンドはネットワークに完全にアクセスできます。",
   "config.modelApiPromptCacheRetention.description": "Model API 要求のキャッシュされた先頭部分 (指示、ツール、これまでの会話) を Meta に保持してもらう期間。この部分は低いキャッシュ入力料金で請求されます。これはヒントであり、Meta はより早く削除することがあります。",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "最大 24 時間。休憩後に戻った会話でも、引き続きキャッシュから読み取れます。料金はメモリ内と同じです。",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta の既定値: メモリ内に保持され、負荷時や非アクティブ後に早めに削除されます。"
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta の既定値: メモリ内に保持され、負荷時や非アクティブ後に早めに削除されます。",
+  "config.notifyOnBackgroundTurn.description": "VS Code ウィンドウにフォーカスがないときに、長いターンが終了した場合や、ターンの承認・回答待ちの場合に通知を表示します。ウィンドウにフォーカスがあるときは何も表示されません。",
+  "config.modelApiReplyUsage.description": "既定ではオフ。各 Model API の返答の入力・出力トークンとドル換算の見積もりを返答の下に表示します。",
+  "config.modelApiSessionBudgetUsd.description": "Model API の会話ごとのセッション予算の上限 (米ドル)。0 は上限なしです。各リクエストの前に入力を多めに見積もり、残りに収まるよう max_output_tokens を下げます。収まらないリクエストは送信されず、ターンは停止します。支出が上限を超えうるのは、この入力見積もりの誤差と、実行前に確認し消費後に計上される有料のサブエージェントのタスクだけです。"
 }

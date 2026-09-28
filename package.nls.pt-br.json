@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "Acesso total à rede para os comandos.",
   "config.modelApiPromptCacheRetention.description": "Por quanto tempo a Meta deve manter o início em cache das suas solicitações à Model API (as instruções, as ferramentas e a conversa até aqui), cobrado pela tarifa menor de entrada em cache. É uma sugestão: a Meta pode descartá-lo antes.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "Até 24 horas, para que uma conversa retomada após uma pausa continue lendo do cache. Mesmo preço que em memória.",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Padrão da Meta: mantido em memória e descartado antes, sob carga ou após inatividade."
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Padrão da Meta: mantido em memória e descartado antes, sob carga ou após inatividade.",
+  "config.notifyOnBackgroundTurn.description": "Mostrar uma notificação quando um turno longo termina, ou um turno aguarda sua aprovação ou resposta, enquanto a janela do VS Code não está em foco. Nada é exibido enquanto a janela está em foco.",
+  "config.modelApiReplyUsage.description": "Desativado por padrão. Mostra os tokens de entrada e saída de cada resposta da API de modelos com sua estimativa em dólares abaixo da resposta.",
+  "config.modelApiSessionBudgetUsd.description": "Limite do orçamento de sessão em dólares americanos para cada conversa da Model API; 0 significa sem limite. Antes de cada solicitação, a entrada é estimada para cima e max_output_tokens é reduzido para que a solicitação caiba no que resta; uma solicitação que não cabe não é enviada e o turno para. O gasto só pode ultrapassar o limite por um erro nessa estimativa da entrada ou por uma tarefa paga de subagente, que pergunta antes de rodar e é contada depois de gastar."
 }

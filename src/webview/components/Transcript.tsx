@@ -11,7 +11,9 @@
 import { memo, type ReactNode, useDeferredValue, useRef, useState } from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
-import { plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
+import { formatTokenWindow } from '../../shared/palette'
+import { formatUsd } from '../../core/usage/insights'
 import { hasFileAttachment } from '../state/transcriptEntries'
 import {
   forkCutBefore,
@@ -75,6 +77,8 @@ export interface TranscriptProps {
   readonly activeTurnId?: string | undefined
   /** A reply's actions menu (M17); absent while no session exists. */
   readonly onReply?: ((entryId: string) => void) | undefined
+  /** Tokens and the dollar estimate under each reply (M82, Model API only). */
+  readonly showReplyUsage: boolean
   /** The row whose highlighted text has the Copy / Ask / Comment menu open (M17). */
   readonly quoteMenuEntryId?: string | undefined
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
@@ -313,6 +317,8 @@ interface AssistantRowProps {
   readonly onApply: (text: string) => void
   /** The actions menu's "Reply to this output" (M17); absent while no session exists. */
   readonly onReply: ((entryId: string) => void) | undefined
+  /** Tokens and the dollar estimate under the reply (M82); hidden while off. */
+  readonly showReplyUsage: boolean
   /** The highlighted-text menu when it belongs to this row (M17). */
   readonly quoteMenu: ReactNode
 }
@@ -326,6 +332,7 @@ const AssistantRow = memo(function AssistantRow({
   onInsert,
   onApply,
   onReply,
+  showReplyUsage,
   quoteMenu,
 }: AssistantRowProps) {
   const text = useDeferredValue(entry.text)
@@ -373,6 +380,15 @@ const AssistantRow = memo(function AssistantRow({
             onRefuseLink={onRefuseLink}
           />
         )}
+        {showReplyUsage && entry.usage !== undefined && entry.costUsd !== undefined ? (
+          <div className="response-usage">
+            {fill(UI_TEXT.replyUsage, {
+              input: formatTokenWindow(entry.usage.inputTokens),
+              output: formatTokenWindow(entry.usage.outputTokens),
+              cost: formatUsd(entry.costUsd),
+            })}
+          </div>
+        ) : null}
       </div>
       {entry.isStreaming ? null : (
         <div ref={menuArea} className="response-actions" onBlur={onMenuBlur}>
@@ -550,6 +566,7 @@ function TranscriptList(props: TranscriptProps) {
     onRewindConversation,
     activeTurnId,
     onReply,
+    showReplyUsage,
     quoteMenuEntryId,
     onQuote,
     onCopyQuote,
@@ -622,6 +639,7 @@ function TranscriptList(props: TranscriptProps) {
             onInsert={onInsert}
             onApply={onApply}
             onReply={onReply}
+            showReplyUsage={showReplyUsage}
             quoteMenu={quoteMenuFor(entry.id)}
           />
         )

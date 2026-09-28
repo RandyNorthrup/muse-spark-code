@@ -48,6 +48,10 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
+  /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
+  readonly sessionBudgetUsd: () => number
+  /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
+  readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
   /**
@@ -180,6 +184,8 @@ export class ModelApiBackendManager {
         isPaidFeatureOn: this.deps.isPaidFeatureOn,
         notePaidUse: this.deps.notePaidUse,
         promptCacheRetention: this.deps.promptCacheRetention,
+        sessionBudgetUsd: this.deps.sessionBudgetUsd,
+        showReplyUsage: this.deps.showReplyUsage,
         ideTools: this.deps.ideTools,
         allowsPaidUse: this.deps.allowsPaidUse,
         isPaidUseRemembered: this.deps.isPaidUseRemembered,

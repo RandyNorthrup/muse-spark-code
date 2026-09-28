@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "Komutlar için tam ağ erişimi.",
   "config.modelApiPromptCacheRetention.description": "Model API isteklerinizin önbelleğe alınmış başlangıcının (yönergeler, araçlar ve şimdiye kadarki konuşma) Meta tarafından ne kadar süre tutulmasının isteneceği; bu kısım daha düşük önbelleğe alınmış girdi ücretiyle faturalandırılır. Yalnızca bir ipucudur: Meta bunu daha erken çıkarabilir.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "24 saate kadar; böylece bir aradan sonra döndüğünüz konuşma önbellekten okumaya devam eder. Bellekte tutmayla aynı fiyattır.",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta'nın varsayılanı: bellekte tutulur ve yük altında veya bir süre işlem yapılmadığında daha erken çıkarılır."
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta'nın varsayılanı: bellekte tutulur ve yük altında veya bir süre işlem yapılmadığında daha erken çıkarılır.",
+  "config.notifyOnBackgroundTurn.description": "VS Code penceresi odakta değilken uzun bir tur bittiğinde ya da bir tur onayınızı veya yanıtınızı beklediğinde bildirim göster. Pencere odaktayken hiçbir şey gösterilmez.",
+  "config.modelApiReplyUsage.description": "Varsayılan olarak kapalı. Her Model API yanıtının giriş ve çıkış jetonlarını dolar tahminiyle birlikte yanıtın altında gösterir.",
+  "config.modelApiSessionBudgetUsd.description": "Her Model API konuşması için ABD doları cinsinden oturum bütçesi sınırı; 0 sınır yok demektir. Her istekten önce giriş yüksek tahmin edilir ve istek kalana sığsın diye max_output_tokens düşürülür; sığmayan istek gönderilmez ve tur durur. Harcama sınırı yalnızca bu giriş tahminindeki bir hatayla ya da çalışmadan önce soran ve harcadıktan sonra sayılan ücretli bir alt ajan göreviyle aşabilir."
 }

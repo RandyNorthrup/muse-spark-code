@@ -103,6 +103,7 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
+import { type AttentionNotice, attentionNotice } from './turnNotifications'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -280,6 +281,11 @@ export interface ConversationDeps {
   readonly allowsPaidUse: (request: PaidUseRequest) => Promise<boolean>
   /** Account & usage's "Ask again": every paid feature asks again in this workspace (M58). */
   readonly forgetPaidUse: () => Promise<void>
+  /**
+   * A turn of this surface's session needs the user (M82): the controller
+   * names what, the window's `BackgroundNotifier` decides whether it shows.
+   */
+  readonly notifyAttention: (notice: AttentionNotice) => void
   readonly now: () => number
   readonly log: Logger
 }
@@ -915,6 +921,11 @@ export class ConversationController {
     }
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
+    }
+    const sessionId = this.session?.sessionId
+    const notice = sessionId === undefined ? undefined : attentionNotice(sessionId, event)
+    if (notice !== undefined) {
+      this.deps.notifyAttention(notice)
     }
   }
 

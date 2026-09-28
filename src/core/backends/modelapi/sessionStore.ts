@@ -89,6 +89,8 @@ export interface StoredSession {
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
+  /** Dollars the session's own requests spent (M82); absent when none. */
+  readonly budgetSpentUsd?: number
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -216,6 +218,8 @@ const storedSessionFields = {
     cachedTokens: z.number(),
     reasoningTokens: z.number(),
   }),
+  // Optional, so a session saved before M82 still reads.
+  budgetSpentUsd: z.optional(z.number()),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -269,6 +273,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     children,
     pendingChildResults,
     spawnCommands,
+    budgetSpentUsd,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -308,6 +313,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(firstPrompt !== undefined && { firstPrompt }),
       ...(compactedThroughTurnId !== undefined && { compactedThroughTurnId }),
       ...(goal !== undefined && { goal }),
+      ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
       ...(sideChat === true && { sideChat: true }),
       ...(children !== undefined && { children: restoredChildren }),
       ...(pendingChildResults !== undefined && { pendingChildResults }),

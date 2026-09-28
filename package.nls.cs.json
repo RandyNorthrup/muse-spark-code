@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "Příkazy mají plný přístup k síti.",
   "config.modelApiPromptCacheRetention.description": "Jak dlouho má Meta uchovávat uložený začátek vašich požadavků na Model API (pokyny, nástroje a dosavadní konverzaci), který se účtuje nižší sazbou za vstup z mezipaměti. Jde o doporučení: Meta ho může odstranit dříve.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "Až 24 hodin, takže konverzace, ke které se po přestávce vrátíte, stále čte z mezipaměti. Cena je stejná jako při uchování v paměti.",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Výchozí nastavení Meta: uchovává se v paměti a odstraní se dříve, při zátěži nebo po nečinnosti."
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Výchozí nastavení Meta: uchovává se v paměti a odstraní se dříve, při zátěži nebo po nečinnosti.",
+  "config.notifyOnBackgroundTurn.description": "Zobrazit oznámení, když skončí dlouhý tah nebo tah čeká na vaše schválení či odpověď, zatímco okno VS Code není aktivní. Když je okno aktivní, nezobrazuje se nikdy nic.",
+  "config.modelApiReplyUsage.description": "Ve výchozím nastavení vypnuto. Zobrazit u každé odpovědi Model API její vstupní a výstupní tokeny s odhadem ceny v dolarech.",
+  "config.modelApiSessionBudgetUsd.description": "Limit rozpočtu relace v amerických dolarech pro každou konverzaci přes Model API; 0 znamená bez limitu. Před každým požadavkem se vstup odhadne nahoru a max_output_tokens se sníží tak, aby se požadavek vešel do zbytku; požadavek, který se nevejde, se neodešle a kolo se zastaví. Útrata může limit překročit jen chybou tohoto odhadu vstupu nebo placenou úlohou podagenta, která se před spuštěním zeptá a započítá se, jakmile utratí."
 }

@@ -1318,6 +1318,7 @@ export function App({
               : onRewindConversation
           }
           onReply={onReply}
+          showReplyUsage={state.settings.modelApiReplyUsage}
           quoteMenuEntryId={quoteMenu?.entryId}
           onQuote={onQuote}
           onCopyQuote={onCopyQuote}

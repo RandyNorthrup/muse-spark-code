@@ -1866,6 +1866,13 @@ body {
   top: 24px;
 }
 
+/* A reply's tokens and dollar estimate under it (M82, Model API only). */
+.response-usage {
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
 /* The Agent map's owner controls and note box (M18). */
 .agent-controls {
   display: flex;

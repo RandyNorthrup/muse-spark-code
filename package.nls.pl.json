@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "Pełny dostęp do sieci dla poleceń.",
   "config.modelApiPromptCacheRetention.description": "Jak długo Meta ma przechowywać zapisany w pamięci podręcznej początek Twoich żądań Model API (instrukcje, narzędzia i dotychczasową rozmowę), rozliczany według niższej stawki za dane wejściowe z pamięci podręcznej. To tylko wskazówka: Meta może usunąć go wcześniej.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "Do 24 godzin, więc rozmowa, do której wracasz po przerwie, nadal korzysta z pamięci podręcznej. Cena taka sama jak przy przechowywaniu w pamięci.",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Ustawienie domyślne Meta: przechowywany w pamięci i usuwany wcześniej, przy obciążeniu lub po okresie bezczynności."
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Ustawienie domyślne Meta: przechowywany w pamięci i usuwany wcześniej, przy obciążeniu lub po okresie bezczynności.",
+  "config.notifyOnBackgroundTurn.description": "Pokaż powiadomienie, gdy długi ruch się zakończy albo ruch czeka na Twoją zgodę lub odpowiedź, podczas gdy okno VS Code nie jest aktywne. Gdy okno jest aktywne, nic nie jest nigdy wyświetlane.",
+  "config.modelApiReplyUsage.description": "Domyślnie wyłączone. Pokazuje tokeny wejściowe i wyjściowe każdej odpowiedzi Model API wraz z jej szacunkiem w dolarach pod odpowiedzią.",
+  "config.modelApiSessionBudgetUsd.description": "Limit budżetu sesji w dolarach amerykańskich dla każdej rozmowy przez Model API; 0 oznacza brak limitu. Przed każdym żądaniem wejście jest szacowane z zapasem, a max_output_tokens obniżane tak, aby żądanie zmieściło się w pozostałej kwocie; żądanie, które się nie mieści, nie jest wysyłane, a tura się zatrzymuje. Wydatki mogą przekroczyć limit tylko przez błąd tego szacunku wejścia albo przez płatne zadanie podagenta, które pyta przed uruchomieniem i jest liczone po tym, jak coś wyda."
 }

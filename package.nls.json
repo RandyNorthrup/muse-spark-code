@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "Full network access for commands.",
   "config.modelApiPromptCacheRetention.description": "How long Meta is asked to keep the cached start of your Model API requests (the instructions, tools and conversation so far), which is billed at the lower cached-input rate. A hint: Meta may evict it sooner.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "Up to 24 hours, so a conversation you come back to after a pause still reads from the cache. Priced the same as in memory.",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta's default: kept in memory and evicted sooner, under load or after inactivity."
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta's default: kept in memory and evicted sooner, under load or after inactivity.",
+  "config.notifyOnBackgroundTurn.description": "Show a notification when a long turn ends, or a turn waits for your approval or answer, while the VS Code window is unfocused. Nothing is ever shown while the window is focused.",
+  "config.modelApiReplyUsage.description": "Off by default. Show each Model API reply's input and output tokens with its dollar estimate under the reply.",
+  "config.modelApiSessionBudgetUsd.description": "Session budget cap in US dollars for each Model API conversation; 0 means no cap. Before each request the input is estimated high and max_output_tokens is lowered so the request fits what is left; a request that cannot fit is not sent and the turn stops. Spending can pass the cap only through an error in that input estimate, or through a paid subagent task, which asks before it runs and counts once it has spent."
 }

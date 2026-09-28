@@ -103,6 +103,11 @@ export const itemSnapshotFields = {
   depth: z.optional(z.number()),
   durationMs: z.optional(z.number()),
   controlStatus: z.optional(z.string()),
+  /**
+   * `agentMessage`: the response's tokens (M82, Model API only, and only
+   * while its setting is on; Muse Code reports no per-reply totals on its
+   * protocol, PLAN.md D26).
+   */
   usage: z.optional(tokenUsageSchema),
   result: z.optional(subagentResultSchema),
   /** `toolCall`: durably backgrounded, and by whom (M14). */
@@ -128,6 +133,12 @@ export const itemSnapshotFields = {
   modelVisibleContent: z.optional(z.array(z.unknown())),
   /** `agentMessage`: the sources the reply cites (`url_citation`, M33), each once. */
   citations: z.optional(z.array(citationSchema)),
+  /**
+   * `agentMessage`: the response's dollar estimate (M82, Model API only,
+   * and only while its setting is on). Muse Code reports no per-reply
+   * totals on its protocol, and its cost is never invented (PLAN.md D26).
+   */
+  costUsd: z.optional(z.number()),
   /**
    * `workflow` (M47, captured live 2026-09-25): the run as above, and the
    * reconciled message it ends with. Its `children` are taken as they come

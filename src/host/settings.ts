@@ -44,6 +44,12 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiSubagents: boolean
   /** Explicit machine opt-in for external hook commands (M51). */
   readonly modelApiHooks: boolean
+  /** Notify when a turn needs attention while the window is unfocused (M82). */
+  readonly notifyOnBackgroundTurn: boolean
+  /** Tokens and the dollar estimate under each Model API reply (M82). */
+  readonly modelApiReplyUsage: boolean
+  /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
+  readonly modelApiSessionBudgetUsd: number
 }
 
 /**
@@ -75,6 +81,9 @@ const settingSchemas = {
   modelApiScheduledPrompts: z.boolean(),
   modelApiSubagents: z.boolean(),
   modelApiHooks: z.boolean(),
+  notifyOnBackgroundTurn: z.boolean(),
+  modelApiReplyUsage: z.boolean(),
+  modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -142,6 +151,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
+    notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
+    modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
+    modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
   }
 }
 
@@ -159,5 +171,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     confidentialWorkspace: settings.confidentialWorkspace,
     allowDangerouslySkipPermissions: settings.allowDangerouslySkipPermissions,
     archiveInactiveSessions: settings.archiveInactiveSessions,
+    modelApiReplyUsage: settings.modelApiReplyUsage,
   }
 }

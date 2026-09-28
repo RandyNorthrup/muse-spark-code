@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "A parancsok teljes hálózati hozzáféréssel rendelkeznek.",
   "config.modelApiPromptCacheRetention.description": "Mennyi ideig őrizze meg a Meta a Model API-kérések gyorsítótárazott elejét (az utasításokat, az eszközöket és az eddigi beszélgetést), amelyet az alacsonyabb, gyorsítótárazott bemeneti díjjal számláznak. Csak javaslat: a Meta korábban is eltávolíthatja.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "Legfeljebb 24 óráig, így egy szünet után folytatott beszélgetés is a gyorsítótárból olvas. Ugyanannyiba kerül, mint a memóriában tartás.",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "A Meta alapértelmezése: memóriában tartja, és hamarabb eltávolítja, terhelés alatt vagy tétlenség után."
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "A Meta alapértelmezése: memóriában tartja, és hamarabb eltávolítja, terhelés alatt vagy tétlenség után.",
+  "config.notifyOnBackgroundTurn.description": "Értesítés megjelenítése, ha egy hosszú kör véget ér, vagy egy kör jóváhagyásra vagy válaszra vár, miközben a VS Code ablaka nincs fókuszban. Amíg az ablak fókuszban van, soha semmi sem jelenik meg.",
+  "config.modelApiReplyUsage.description": "Alapértelmezés szerint kikapcsolva. Az egyes Model API-válaszok bemeneti és kimeneti tokenjeinek megjelenítése a dollárbecsléssel együtt a válasz alatt.",
+  "config.modelApiSessionBudgetUsd.description": "Munkamenet-keret amerikai dollárban minden Model API-beszélgetéshez; a 0 azt jelenti, hogy nincs keret. Minden kérés előtt a bemenetet felfelé becsüli, és a max_output_tokens értékét úgy csökkenti, hogy a kérés beleférjen a maradékba; a bele nem férő kérést nem küldi el, és a kör leáll. A költés csak ennek a bemeneti becslésnek a hibája miatt vagy egy fizetős alügynök-feladat miatt lépheti túl a keretet, amely futás előtt rákérdez, és a költése után számít bele."
 }

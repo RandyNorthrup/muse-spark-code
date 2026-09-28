@@ -91,5 +91,8 @@
   "config.sandboxNetwork.enumDescriptions.enabled": "명령에 전체 네트워크 액세스를 허용합니다.",
   "config.modelApiPromptCacheRetention.description": "Model API 요청의 캐시된 앞부분(지침, 도구, 지금까지의 대화)을 Meta가 보관하도록 요청하는 기간입니다. 이 부분은 더 낮은 캐시 입력 요금으로 청구됩니다. 힌트일 뿐이며 Meta가 더 일찍 제거할 수 있습니다.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "최대 24시간입니다. 잠시 쉬었다가 돌아온 대화도 계속 캐시에서 읽습니다. 메모리 내 보관과 가격이 같습니다.",
-  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta의 기본값입니다. 메모리에 보관되며 부하가 있거나 비활성 상태가 지나면 더 일찍 제거됩니다."
+  "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta의 기본값입니다. 메모리에 보관되며 부하가 있거나 비활성 상태가 지나면 더 일찍 제거됩니다.",
+  "config.notifyOnBackgroundTurn.description": "VS Code 창에 포커스가 없을 때 긴 턴이 끝나거나 턴이 승인 또는 답변을 기다리면 알림을 표시합니다. 창에 포커스가 있는 동안에는 아무것도 표시되지 않습니다.",
+  "config.modelApiReplyUsage.description": "기본적으로 꺼져 있습니다. 각 Model API 응답의 입력·출력 토큰과 달러 추정치를 응답 아래에 표시합니다.",
+  "config.modelApiSessionBudgetUsd.description": "Model API 대화마다 적용되는 세션 예산 한도(미국 달러)입니다. 0은 한도 없음을 뜻합니다. 각 요청 전에 입력을 높게 추정하고, 요청이 남은 금액에 맞도록 max_output_tokens를 낮춥니다. 맞지 않는 요청은 전송되지 않고 턴이 중지됩니다. 지출이 한도를 넘을 수 있는 경우는 이 입력 추정의 오차, 그리고 실행 전에 묻고 지출한 뒤에 집계되는 유료 하위 에이전트 작업뿐입니다."
 }
