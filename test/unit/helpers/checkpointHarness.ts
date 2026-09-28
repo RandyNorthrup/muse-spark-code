@@ -12,6 +12,7 @@ import {
   CheckpointStore,
   type RestoreOutcome,
   type Snapshot,
+  type StoreTiming,
 } from '../../../src/host/checkpoints/checkpointStore'
 import { type GitProcess, processGitProcess } from '../../../src/host/git'
 import { FakeLogOutputChannel } from './fakes'
@@ -56,8 +57,8 @@ export interface HarnessOptions {
   readonly now?: () => number
   /** Whether a window's process still runs (every one does, by default). */
   readonly isProcessAlive?: (pid: number) => boolean
-  /** How long an operation waits for another window's (the product's wait by default). */
-  readonly lockWaitMs?: number
+  /** The store's waits (the product's by default). */
+  readonly timing?: Partial<StoreTiming>
 }
 
 export interface Harness {
@@ -103,7 +104,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
       newId: () => randomUUID(),
       pid,
       isProcessAlive: options.isProcessAlive ?? (() => true),
-      ...(options.lockWaitMs !== undefined && { lockWaitMs: options.lockWaitMs }),
+      ...(options.timing !== undefined && { timing: options.timing }),
       log,
     })
     stores.push(store)
@@ -197,6 +198,19 @@ export async function redoRestore(
   restoreId: string | undefined,
 ): Promise<Extract<RestoreOutcome, { ok: true }>> {
   return done(await store.redo({ restoreId: restoreId ?? '', unsavedPaths: () => [] }))
+}
+
+/** How many captures are pinned, and how many windows have staged tool copies. */
+export async function leftovers(
+  storage: string,
+): Promise<{ readonly pins: number; readonly staging: number }> {
+  const pins = shadowRefs(storage).filter((ref) => ref.includes('/pin/')).length
+  try {
+    const staging = await readdir(path.join(storage, 'staging'))
+    return { pins, staging: staging.length }
+  } catch {
+    return { pins, staging: 0 }
+  }
 }
 
 /** The refs the shadow repository holds under `refs/muse-spark/`. */

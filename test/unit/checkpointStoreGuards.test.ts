@@ -19,10 +19,12 @@ import {
   CHECKPOINT_STORAGE_MODE,
 } from '../../src/shared/constants'
 import { GitMissingError, type GitProcess, processGitProcess } from '../../src/host/git'
+import { turnKey } from '../../src/host/checkpoints/checkpointStore'
 import {
   captured,
   harness,
   isPresent,
+  leftovers,
   namesIn,
   read,
   REAL_GIT_TIMEOUT_MS,
@@ -43,6 +45,7 @@ afterEach(async () => {
 })
 
 const realGit = processGitProcess()
+const GONE_PID = 424_242
 const WRITE_BATCH = 500
 const SHA256_HEX_LENGTH = 64
 
@@ -290,11 +293,11 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       await turn(h, 't1', async () => {
         await write(h.root, 'a.txt', 'a1\n')
       })
-      h.store.markTurn('s2', 'other', true)
+      await h.store.markTurn(turnKey('s2', 'other'), true)
       expect(
         await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }),
       ).toEqual({ ok: false, reason: 'turnRunning' })
-      h.store.markTurn('s2', 'other', false)
+      await h.store.markTurn(turnKey('s2', 'other'), false)
       await restoreTurn(h.store, 't1')
     },
     REAL_GIT_TIMEOUT_MS,
@@ -364,23 +367,23 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
   )
 
   it(
-    'when a window opens, drops the refs no record names, and every tool copy and pin',
+    'when a window opens, drops the refs no record names, and a crashed window’s pins and copies',
     async () => {
-      const h = await harness()
-      await turn(h, 't1', async () => {
+      const h = await harness({ isProcessAlive: (pid) => pid !== GONE_PID })
+      const crashed = h.reopen(GONE_PID)
+      await turn({ store: crashed }, 't1', async () => {
         await write(h.root, 'a.txt', 'a1\n')
       })
-      await captured(h.store)
-      await h.store.record('s1', 't2', await captured(h.store))
-      await h.store.beforeToolWrite(path.join(h.root, 'a.txt'))
-      expect(shadowRefs(h.storage).some((ref) => ref.includes('/pin/'))).toBe(true)
-      expect(shadowRefs(h.storage).some((ref) => ref.includes('/journal/'))).toBe(true)
-      // The window closed, and its records are lost (it closed between a ref
-      // and its record, say).
-      h.store.dispose()
+      await captured(crashed)
+      await crashed.record('s1', 't2', await captured(crashed))
+      await crashed.beforeToolWrite(path.join(h.root, 'a.txt'))
+      expect(await leftovers(h.storage)).toEqual({ pins: 1, staging: 1 })
+      // The window's process ended without closing it, and its records are
+      // lost (it ended between a ref and its record, say).
       await unlink(path.join(h.storage, 'records.json'))
-      await h.reopen().maintain()
+      await h.store.maintain()
       expect(shadowRefs(h.storage).filter((ref) => !ref.endsWith('/index'))).toEqual([])
+      expect(await leftovers(h.storage)).toEqual({ pins: 0, staging: 0 })
     },
     REAL_GIT_TIMEOUT_MS,
   )

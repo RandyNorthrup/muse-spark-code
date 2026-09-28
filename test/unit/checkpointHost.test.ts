@@ -23,8 +23,6 @@ import {
   GitMissingError,
   processGitProcess,
 } from '../../src/host/git'
-import { FakeLogOutputChannel } from './helpers/fakes'
-import { countLogged } from './helpers/logText'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -48,9 +46,7 @@ function fakeStore() {
     },
     release: () => done('release'),
     record: (sessionId) => done(`record ${sessionId}`),
-    markTurn: (sessionId, turnId, isRunning) => {
-      calls.push(`mark ${sessionId} ${turnId} ${String(isRunning)}`)
-    },
+    markTurn: (key, isRunning) => done(`mark ${key} ${String(isRunning)}`),
     endTurn: (sessionId) => done(`end ${sessionId}`),
     turns: () => {
       calls.push('turns')
@@ -69,7 +65,7 @@ function fakeStore() {
     maintain: () => done('maintain'),
     beforeToolWrite: (absolutePath) => {
       calls.push(`copy ${absolutePath}`)
-      return Promise.reject(new Error('the shadow repository is busy'))
+      return Promise.reject(new Error('the staging folder is full'))
     },
   }
   return { store, calls }
@@ -91,7 +87,6 @@ function portOver(posture: { isTrusted: boolean; isEnabled: boolean; hasGit: boo
     isWorkspaceTrusted: () => posture.isTrusted,
     isEnabled: () => posture.isEnabled,
     hasGit: () => posture.hasGit,
-    log: new FakeLogOutputChannel(),
   })
   return { port, calls }
 }
@@ -121,8 +116,8 @@ describe('createCheckpointPort (M72)', () => {
     await port.endTurn('s1', 't1')
     await port.maintain()
     await port.forgetSession('s1')
-    port.markTurn('s1', 't1', true)
-    expect(calls).toEqual(['queue s1', 'mark s1 t1 true'])
+    await port.markTurn('k1', true)
+    expect(calls).toEqual(['queue s1', 'mark k1 true'])
   })
 
   it('with the setting off takes and offers nothing new, but finishes what is under way', async () => {
@@ -160,7 +155,6 @@ describe('createCheckpointPort (M72)', () => {
       isWorkspaceTrusted: () => true,
       isEnabled: () => true,
       hasGit: () => true,
-      log: new FakeLogOutputChannel(),
     })
     expect(port.availability()).toBe('noFolder')
     expect(await port.capture()).toBeUndefined()
@@ -168,15 +162,13 @@ describe('createCheckpointPort (M72)', () => {
 })
 
 describe('withCheckpointCopies (M72)', () => {
-  it('copies before each tool write, and a failed copy never fails the write', async () => {
+  it('copies before each tool write, and a copy that fails fails the write', async () => {
     const { store, calls } = fakeStore()
-    const log = new FakeLogOutputChannel()
     const port = createCheckpointPort({
       store,
       isWorkspaceTrusted: () => true,
       isEnabled: () => true,
       hasGit: () => true,
-      log,
     })
     const writes: string[] = []
     const io: ToolIo = {
@@ -188,10 +180,12 @@ describe('withCheckpointCopies (M72)', () => {
       },
     }
     const wrapped = withCheckpointCopies(io, port)
-    await wrapped.writeFile('/ws/.env', 'KEY=1')
-    expect(calls).toEqual(['copy /ws/.env', 'write /ws/.env'])
-    expect(writes).toEqual(['/ws/.env'])
-    expect(countLogged(log, 'the shadow repository is busy')).toBe(1)
+    await expect(wrapped.writeFile('/ws/.env', 'KEY=1')).rejects.toThrow(
+      'the staging folder is full',
+    )
+    await expect(wrapped.reserveFile('/ws/image.png')).rejects.toThrow('the staging folder is full')
+    expect(calls).toEqual(['copy /ws/.env', 'copy /ws/image.png'])
+    expect(writes).toEqual([])
   })
 })
 

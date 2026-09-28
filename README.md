@@ -815,14 +815,23 @@ the panel say git was not found.
   while any turn runs in the window. When a turn's end was never recorded
   (the window closed mid-turn), the notice names the restored files that turn
   may not have changed itself. A folder that was there before the turn, even
-  an empty one, is never removed; only the folders the turns made go.
+  an empty one, is never removed. A folder the turns made is removed once
+  empty, except inside a folder that held no tracked or untracked file at the
+  checkpoint (an empty one, or one holding only ignored files): there it is
+  left, empty.
 - **Two windows on one folder.** They share its checkpoints, one operation
-  at a time under a lock in that storage. Each sees the other's
-  conversations, so a restore is refused while a turn runs in the other
-  window, and what the other window's turns changed is left and named. An
-  operation that waits more than 15 seconds for the other window is refused
-  and the panel says so. A lock left by a window that has exited is taken
-  over.
+  at a time under a lock in that storage, and each sees the other's
+  conversations. A turn, and a message about to start one, is marked as
+  running before it can change a file, even when its checkpoint could not be
+  taken; a restore waits while a turn runs in either window, and what the
+  other window's turns changed is left and named. When the other window
+  holds the checkpoints for more than 15 seconds, taking a checkpoint,
+  restoring and redoing are refused and the panel says so. A turn's end, an
+  archive, letting go of an unused checkpoint and cleanup wait and happen
+  later on their own (a turn whose end waited counts its changes as unsure).
+  The checkpoint list and the copy a tool takes before writing never wait;
+  if that copy cannot be made, the write fails and says why. A lock left by
+  a window that has exited is taken over.
 - **Ignored files.** They are not copied wholesale. A file the Model API's
   edit and write tools (or the image tools) are about to change is copied
   first, so a restore brings it back. A shell command's changes are found

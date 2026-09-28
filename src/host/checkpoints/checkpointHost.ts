@@ -10,7 +10,6 @@
 
 import type { FileReservation, ToolIo } from '../../core/backends/modelapi/tools'
 import type { CheckpointAvailability } from '../../shared/constants'
-import { errorDetail, type Logger } from '../logger'
 import type {
   CaptureResult,
   CheckpointStore,
@@ -27,8 +26,12 @@ export interface CheckpointPort {
   /** A capture no turn took. */
   release(snapshot: Snapshot): Promise<void>
   record(sessionId: string, turnId: string, snapshot: Snapshot): Promise<void>
-  /** A turn started or ended in the window (no git): no restore runs meanwhile. */
-  markTurn(sessionId: string, turnId: string, isRunning: boolean): void
+  /**
+   * A turn (or a message about to start one) begins or stops running in the
+   * window, published at once with no lock or git: no restore runs meanwhile,
+   * here or in another window on the folder.
+   */
+  markTurn(key: string, isRunning: boolean): Promise<void>
   endTurn(sessionId: string, turnId: string): Promise<void>
   turns(sessionId: string): Promise<readonly string[]>
   restore(request: RestoreRequest): Promise<RestoreOutcome>
@@ -36,7 +39,7 @@ export interface CheckpointPort {
   forgetSession(sessionId: string): Promise<void>
   /** The window opened or was trusted: cleanup and retention, whatever the setting. */
   maintain(): Promise<void>
-  /** Copies a file the extension's tools are about to write; never fails the write. */
+  /** Copies a file the extension's tools are about to write; a failed copy fails the write. */
   beforeToolWrite(absolutePath: string): Promise<void>
 }
 
@@ -64,7 +67,6 @@ export interface CheckpointHostDeps {
   readonly isEnabled: () => boolean
   /** Whether git is on the absolute entries of PATH (D24). */
   readonly hasGit: () => boolean
-  readonly log: Logger
 }
 
 const UNAVAILABLE: RestoreOutcome = { ok: false, reason: 'unavailable' }
@@ -102,8 +104,8 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
         ? gitStore()?.release(snapshot)
         : store.record(sessionId, turnId, snapshot))
     },
-    markTurn: (sessionId, turnId, isRunning) => {
-      deps.store?.markTurn(sessionId, turnId, isRunning)
+    markTurn: async (key, isRunning) => {
+      await deps.store?.markTurn(key, isRunning)
     },
     endTurn: async (sessionId, turnId) => {
       await gitStore()?.endTurn(sessionId, turnId)
@@ -121,11 +123,7 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await gitStore()?.maintain()
     },
     beforeToolWrite: async (absolutePath) => {
-      try {
-        await onStore()?.beforeToolWrite(absolutePath)
-      } catch (error: unknown) {
-        deps.log.warn(`Checkpoint copy before a tool write failed: ${errorDetail(error)}`)
-      }
+      await onStore()?.beforeToolWrite(absolutePath)
     },
   }
 }

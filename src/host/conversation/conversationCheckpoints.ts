@@ -8,7 +8,13 @@
 // for their turns go to them oldest first. A turn no message of this panel
 // started (a queued message, a scheduled run) is captured when it starts,
 // which the backend does not wait for. A capture no turn takes is let go.
+//
+// Before that capture, the message is published as running (the store's
+// presence file, no lock), so another window on the folder refuses a
+// restore from then on, whether or not the capture or its record succeeds;
+// the turn it starts takes over the mark until it ends.
 
+import { randomUUID } from 'node:crypto'
 import type { Coverage, RefusalReason } from '../../core/checkpoints/restorePlan'
 import {
   BYTES_PER_MIB,
@@ -23,22 +29,30 @@ import type { PluralForms } from '../../shared/l10n/forms'
 import { fill, plural } from '../../shared/l10n/text'
 import type { HostToWebviewMessage } from '../../shared/protocol'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
-import type {
-  CaptureRefusal,
-  RestoreFailure,
-  RestoreOutcome,
-  Snapshot,
+import {
+  type CaptureRefusal,
+  type RestoreFailure,
+  type RestoreOutcome,
+  type Snapshot,
+  turnKey,
 } from '../checkpoints/checkpointStore'
 import { StoreBusyError } from '../checkpoints/storeLock'
 import { errorDetail, type Logger } from '../logger'
 
 export type NoticeLevel = 'info' | 'warning' | 'error'
 
-/** The capture before a message was sent, until the turn it starts takes it. */
+/**
+ * A message about to start a turn: its running mark, published before it
+ * was sent, and the capture its checkpoint will hold (none when refused),
+ * until the turn it starts takes them.
+ */
 export interface PendingCapture {
   readonly sessionId: string
-  readonly snapshot: Snapshot
+  readonly snapshot: Snapshot | undefined
+  readonly marker: string
 }
+
+const PENDING_MARKER = 'pending:'
 
 /**
  * A restore's result: whether it ran, whether every file it meant to
@@ -148,7 +162,7 @@ export class ConversationCheckpoints {
   >()
   /** Turns ending (their end captures), which a restore waits for. */
   private readonly endings = new Set<Promise<void>>()
-  /** This panel's turns the store counts as running, by turn, with their conversation. */
+  /** This panel's turns published as running, by turn, with their conversation. */
   private readonly running = new Map<string, string>()
   /** The captures before messages sent, oldest first: the next turn to start takes the first. */
   private readonly pending: PendingCapture[] = []
@@ -165,9 +179,16 @@ export class ConversationCheckpoints {
     this.recordings.set(turnId, { sessionId, recording: this.record(sessionId, turnId, snapshot) })
   }
 
+  /** Publishes a running mark (or its end); a failure is logged. */
+  private publish(key: string, isRunning: boolean): void {
+    void this.deps.port.markTurn(key, isRunning).catch((error: unknown) => {
+      this.deps.log.warn(`A running turn was not published: ${errorDetail(error)}`)
+    })
+  }
+
   private markRunning(sessionId: string, turnId: string): void {
     this.running.set(turnId, sessionId)
-    this.deps.port.markTurn(sessionId, turnId, true)
+    this.publish(turnKey(sessionId, turnId), true)
   }
 
   private markEnded(turnId: string): void {
@@ -176,14 +197,26 @@ export class ConversationCheckpoints {
       return
     }
     this.running.delete(turnId)
-    this.deps.port.markTurn(sessionId, turnId, false)
+    this.publish(turnKey(sessionId, turnId), false)
   }
 
-  /** Lets go of a capture no turn will take (its pin in the shadow repository). */
+  /** Lets go of a message's mark and a capture no turn will take (its pin). */
   private release(capture: PendingCapture): void {
+    this.publish(capture.marker, false)
+    if (capture.snapshot === undefined) {
+      return
+    }
     void this.deps.port.release(capture.snapshot).catch((error: unknown) => {
       this.deps.log.warn(`A checkpoint capture was not let go: ${errorDetail(error)}`)
     })
+  }
+
+  /** A turn takes a message's capture (when there is one); the message's mark goes. */
+  private take(capture: PendingCapture, sessionId: string, turnId: string): void {
+    if (capture.snapshot !== undefined) {
+      this.bind(sessionId, turnId, capture.snapshot)
+    }
+    this.publish(capture.marker, false)
   }
 
   /**
@@ -421,13 +454,20 @@ export class ConversationCheckpoints {
     })
   }
 
-  /** Before a message that may start a turn: the capture its checkpoint will hold. */
+  /**
+   * Before a message that may start a turn: the message is published as
+   * running (awaited, so no edit of its turn can come first), then the
+   * capture its checkpoint will hold is taken.
+   */
   public async beforeTurn(sessionId: string): Promise<PendingCapture | undefined> {
-    const snapshot = await this.capture()
-    if (snapshot === undefined) {
-      return undefined
+    const marker = `${PENDING_MARKER}${randomUUID()}`
+    try {
+      await this.deps.port.markTurn(marker, true)
+    } catch (error: unknown) {
+      this.deps.log.warn(`A running turn was not published: ${errorDetail(error)}`)
+      this.sayRefusal('failed')
     }
-    const capture = { sessionId, snapshot }
+    const capture = { sessionId, snapshot: await this.capture(), marker }
     if (this.sessionId !== sessionId) {
       this.release(capture)
       return undefined
@@ -458,7 +498,7 @@ export class ConversationCheckpoints {
     this.pending.splice(index, 1)
     if (isNewTurn && capture.sessionId === this.sessionId && !this.turns.has(turnId)) {
       this.markRunning(capture.sessionId, turnId)
-      this.bind(capture.sessionId, turnId, capture.snapshot)
+      this.take(capture, capture.sessionId, turnId)
       return
     }
     this.release(capture)
@@ -475,7 +515,7 @@ export class ConversationCheckpoints {
     }
     const capture = this.pending.shift()
     if (capture !== undefined) {
-      this.bind(sessionId, turnId, capture.snapshot)
+      this.take(capture, sessionId, turnId)
       return
     }
     this.turns.add(turnId)

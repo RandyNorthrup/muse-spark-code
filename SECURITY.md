@@ -80,7 +80,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   its records, refs and index runs inside it with the records read afresh,
   a write is refused if the lock was taken over, the lock is taken over only
   from a process that has exited or gone silent for five minutes, and a live
-  window's pinned captures and tool copies are never pruned as orphans.
+  window's pinned captures and staged tool copies are never pruned as
+  orphans. A window's running turns are published in its own presence file
+  (replaced whole, no lock) before any of them can write, and a tool write
+  whose copy could not be staged is not made.
   Git for Windows walks into junctions, so a capture
   leaves out, and names, any path under a folder link or junction, and a
   restore refuses a path whose canonical form is not the workspace's

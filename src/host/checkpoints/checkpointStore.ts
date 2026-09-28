@@ -23,18 +23,31 @@
 //   to what was done at the end, so a restore that stops part way still
 //   says what it changed and keeps its Redo. A partial redo keeps what it
 //   could not do for another try.
-// - Every operation runs in one queue, and under the store's lock
-//   (storeLock.ts): two windows on the same folder share the store, so each
-//   operation reads the records afresh inside the lock and saves them before
-//   letting go, and one that cannot take the lock in time is refused with
-//   the reason. Pinned captures and tool copies are named by the window's
-//   instance, and only a window that is gone loses them. No restore or redo
-//   runs while any turn runs, in this window or in another live one.
+// - Every operation that reads or writes the shared store (records, refs,
+//   the private index) runs in one queue and under the store's lock
+//   (storeLock.ts): two windows on the same folder share it, so each reads
+//   the records afresh inside the lock and saves them before letting go.
+// - What must not wait for the lock does not take it: a turn (or a message
+//   about to start one) is published as running in the window's presence
+//   file before it may edit a file; a tool's copy of a file it is about to
+//   write goes to the window's own staging folder; the checkpoint list is
+//   read from the records file as it stands. In memory, a turn's end, an
+//   archive and a refused record take effect at once.
+// - Work the lock refused is told or kept: a capture, a record, a restore
+//   and a redo say so in the panel; a turn's end, an archive, letting go of
+//   a pinned capture and cleanup are kept and done at the next locked
+//   operation, or by a bounded retry. A turn whose end waited has no end
+//   capture: its changes count as unsure.
+// - Pinned captures and staged copies are named by the window's instance,
+//   and only a window that is gone loses them. No restore or redo runs while
+//   any turn runs, in this window or in another live one.
 // - Git trees hold no empty folder, so a capture before a turn also records
 //   the folders it holds no file of: a restore removes only the folders the
 //   turns made.
 
 import type { Buffer } from 'node:buffer'
+import { rmSync } from 'node:fs'
+import { copyFile, mkdir, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   type BlobRef,
@@ -68,11 +81,15 @@ import {
   CHECKPOINT_LOCK_WAIT_MS,
   CHECKPOINT_MAX_FILES,
   CHECKPOINT_PRUNE_INTERVAL_MS,
+  CHECKPOINT_RETRY_MAX,
+  CHECKPOINT_RETRY_MS,
   CHECKPOINT_STALE_LOCK_MS,
+  CHECKPOINT_STORAGE_MODE,
   GIT_MISSING_OBJECT,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
 } from '../../shared/constants'
+import { isMissingPath } from '../canonicalPath'
 import { GitExitError, GitMissingError, type GitProcess } from '../git'
 import { errorDetail, type Logger } from '../logger'
 import {
@@ -91,13 +108,14 @@ import {
   type CheckpointRecords,
   emptyRecords,
   loadRecords,
+  parseRecords,
   type RestoreEntry,
   type RestoreRecord,
   saveRecords,
 } from './checkpointRecords'
 import { retainRecords } from './checkpointRetention'
 import { type IgnoredInventory, ignoredChanges, regularFileStat, scanIgnored } from './ignoredScan'
-import { ShadowGit, withoutGitVariables } from './shadowGit'
+import { readOptionalText, ShadowGit, withoutGitVariables } from './shadowGit'
 import { StoreBusyError, StoreLock } from './storeLock'
 
 /** A capture's result, before it is recorded against a turn. */
@@ -182,23 +200,49 @@ export interface CheckpointStoreDeps {
   /** This extension host's process, and whether another window's still runs. */
   readonly pid: number
   readonly isProcessAlive: (pid: number) => boolean
-  /** How long an operation waits for another window's; CHECKPOINT_LOCK_WAIT_MS by default. */
-  readonly lockWaitMs?: number
+  /** The store's waits; the product's constants unless a test shortens them. */
+  readonly timing?: Partial<StoreTiming>
   readonly log: Logger
 }
 
-/** A copy of a file taken just before the extension wrote it. */
+export interface StoreTiming {
+  /** How long an operation waits for another window's (CHECKPOINT_LOCK_WAIT_MS). */
+  readonly lockWaitMs: number
+  /** How often the window's presence, and a lock it holds, beat (CHECKPOINT_HEARTBEAT_MS). */
+  readonly heartbeatMs: number
+  /** How long before work the lock refused is tried again (CHECKPOINT_RETRY_MS). */
+  readonly retryMs: number
+}
+
+/** A copy of a file taken, with no lock, just before the extension wrote it. */
 interface JournalEntry {
   readonly at: number
-  /** null: there was no file; undefined: none taken (over the limit, a link). */
-  readonly preImage: BlobRef | null | undefined
+  /** The staged copy; null: there was no file; undefined: none taken (over the limit, a link). */
+  readonly staged: string | null | undefined
+  readonly isExecutable: boolean
   readonly stat: FileStat | null
 }
 
+/** A tool copy a turn took, with the file's state when the turn ended. */
+interface TurnCopy {
+  readonly entry: JournalEntry
+  readonly endStat: FileStat | null
+}
+
+/** A recorded turn running in this window: its record and its start scan. */
 interface OpenTurn {
+  readonly id: string
   readonly createdAt: number
   readonly inventory: IgnoredInventory
 }
+
+/**
+ * Work the lock refused, done at the next locked operation or a retry:
+ * records work needs no git (Restricted Mode), git work needs the shadow.
+ */
+type Deferred =
+  | { readonly kind: 'records'; readonly apply: (records: CheckpointRecords) => void }
+  | { readonly kind: 'git'; readonly run: (setup: Setup) => Promise<void> }
 
 /** The shadow repository and the workspace's place in its work tree, set up once. */
 interface Opened {
@@ -207,10 +251,10 @@ interface Opened {
   readonly prefix: string
 }
 
-/** One operation's view: the records read afresh under the lock, and the live windows. */
+/** One operation's view: the records read afresh under the lock, and each live window's running turns. */
 interface Setup extends Opened {
   readonly records: CheckpointRecords
-  readonly live: ReadonlySet<string>
+  readonly live: ReadonlyMap<string, readonly string[]>
 }
 
 /** A step of a restore or a redo, with what it replaces (for the redo record). */
@@ -231,6 +275,7 @@ const KEEP_REF_PREFIX = `${REF_ROOT}keep/`
 const JOURNAL_REF_PREFIX = `${REF_ROOT}journal/`
 const PIN_REF_PREFIX = `${REF_ROOT}pin/`
 const INDEX_REF = `${REF_ROOT}index`
+const STAGING_DIR = 'staging'
 const IGNORE_FILE = '.gitignore'
 const CURRENT_PATH_PREFIX = './'
 const TREE_MODE = '040000'
@@ -287,6 +332,16 @@ function pause(ms: number): Promise<void> {
   })
 }
 
+/** What names a turn in the window's running list and among its open turns. */
+export function turnKey(sessionId: string, turnId: string): string {
+  return `${sessionId}${NUL}${turnId}`
+}
+
+/** A failure's own words, for a message a person reads. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /** Drops a conversation's records (their refs go with the next orphan sweep). */
 function withoutSession(records: CheckpointRecords, sessionId: string): void {
   records.checkpoints = records.checkpoints.filter((record) => record.sessionId !== sessionId)
@@ -314,22 +369,38 @@ function refusalFor(result: Exclude<StepResult, 'done'>): RefusalReason {
 export class CheckpointStore {
   private queue: Promise<unknown> = Promise.resolve()
   private opened: Opened | undefined
-  /** The start scan of each recorded turn still running, by checkpoint id. */
+  private place: { readonly top: string; readonly prefix: string } | undefined
+  /** Each recorded turn still running in this window, by turn key. */
   private readonly openTurns = new Map<string, OpenTurn>()
-  /** Every turn running in the window, recorded or not (a refused capture included). */
+  /** Every turn running in the window, and every message about to start one, as published. */
   private readonly runningTurns = new Set<string>()
   private readonly journal = new Map<string, JournalEntry[]>()
+  /** Staged copies a turn's put-off end still needs. */
+  private readonly held = new Set<string>()
+  /** Conversations archived in this window, and when (before the records may say so). */
+  private readonly forgottenAt = new Map<string, number>()
+  /** Work the lock refused, by what it is for. */
+  private readonly deferred = new Map<string, Deferred>()
   private readonly stopping = new AbortController()
-  /** This store's id: its pins and tool copies are named by it. */
+  /** This store's id: its pins and staged copies are named by it. */
   private readonly instance: string
   private readonly lock: StoreLock
+  private readonly timing: StoreTiming
   private heartbeat: ReturnType<typeof setInterval> | undefined
+  private retryTimer: ReturnType<typeof setTimeout> | undefined
+  private retries = 0
   private emptyTree: string | undefined
   private lastPruneAt = 0
   private isPruneDue = false
 
   public constructor(private readonly deps: CheckpointStoreDeps) {
     this.instance = deps.newId()
+    this.timing = {
+      lockWaitMs: CHECKPOINT_LOCK_WAIT_MS,
+      heartbeatMs: CHECKPOINT_HEARTBEAT_MS,
+      retryMs: CHECKPOINT_RETRY_MS,
+      ...deps.timing,
+    }
     this.lock = new StoreLock({
       storageDir: deps.storageDir,
       instance: this.instance,
@@ -337,7 +408,7 @@ export class CheckpointStore {
       isProcessAlive: deps.isProcessAlive,
       clock: () => Date.now(),
       sleep: pause,
-      waitMs: deps.lockWaitMs ?? CHECKPOINT_LOCK_WAIT_MS,
+      waitMs: this.timing.lockWaitMs,
       signal: this.stopping.signal,
       log: deps.log,
     })
@@ -347,8 +418,8 @@ export class CheckpointStore {
     return `${PIN_REF_PREFIX}${this.instance}${SEPARATOR}`
   }
 
-  private get journalPrefix(): string {
-    return `${JOURNAL_REF_PREFIX}${this.instance}${SEPARATOR}`
+  private get stagingDir(): string {
+    return path.join(this.deps.storageDir, STAGING_DIR, this.instance)
   }
 
   private get target(): RestoreTarget {
@@ -359,26 +430,122 @@ export class CheckpointStore {
     }
   }
 
+  /** The window's presence, and a lock it holds, beat while the store is in use. */
+  private startHeartbeat(): void {
+    if (this.stopping.signal.aborted) {
+      return
+    }
+    this.heartbeat ??= setInterval(() => {
+      void this.lock.beat().catch((error: unknown) => {
+        this.deps.log.warn(`The checkpoint store's heartbeat failed: ${errorDetail(error)}`)
+      })
+    }, this.timing.heartbeatMs).unref()
+  }
+
   /**
-   * Runs the task after the ones before it, holding the store's lock (the
-   * window's presence and the lock beat while it is open). A lock not taken
-   * in time throws StoreBusyError.
+   * Runs the task after the ones before it, holding the store's lock. A lock
+   * not taken in time throws StoreBusyError.
    */
   private serial<T>(task: () => Promise<T>): Promise<T> {
     const guarded = async (): Promise<T> => {
       if (this.stopping.signal.aborted) {
         throw new Error(DISPOSED)
       }
-      this.heartbeat ??= setInterval(() => {
-        void this.lock.beat().catch((error: unknown) => {
-          this.deps.log.warn(`The checkpoint store's heartbeat failed: ${errorDetail(error)}`)
-        })
-      }, CHECKPOINT_HEARTBEAT_MS).unref()
+      this.startHeartbeat()
       return await this.lock.run(task)
     }
     const run = afterSettled(this.queue, guarded)
     this.queue = settled(run)
     return run
+  }
+
+  /** A records-only change (or none) under the lock, with no git (Restricted Mode). */
+  private serialRecords(change?: (records: CheckpointRecords) => void): Promise<void> {
+    return this.serial(async () => {
+      const records = await this.recordsNow()
+      await this.runDeferred(records, undefined)
+      change?.(records)
+      await this.save({ records })
+    })
+  }
+
+  /** Whether any put-off work needs git. */
+  private hasGitWork(): boolean {
+    for (const work of this.deferred.values()) {
+      if (work.kind === 'git') {
+        return true
+      }
+    }
+    return false
+  }
+
+  /** Keeps work the lock refused, to be done at the next locked operation or a retry. */
+  private defer(key: string, work: Deferred, error: StoreBusyError): void {
+    this.deferred.set(key, work)
+    this.deps.log.warn(`Checkpoint work put off, to be tried again: ${error.message}`)
+    this.scheduleRetry()
+  }
+
+  /** Tries the put-off work again later, a bounded number of times. */
+  private scheduleRetry(): void {
+    if (this.retryTimer !== undefined || this.deferred.size === 0 || this.stopping.signal.aborted) {
+      return
+    }
+    if (this.retries >= CHECKPOINT_RETRY_MAX) {
+      this.deps.log.warn('Checkpoint work is put off until the next checkpoint operation')
+      return
+    }
+    this.retries += 1
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = undefined
+      void this.retryDeferred().catch(() => {
+        this.scheduleRetry()
+      })
+    }, this.timing.retryMs).unref()
+  }
+
+  private async retryDeferred(): Promise<void> {
+    await (this.hasGitWork()
+      ? this.serial(async () => {
+          await this.ready()
+        })
+      : this.serialRecords())
+  }
+
+  /**
+   * Does the put-off work (git work only with `setup`); true when any ran.
+   * Work that fails for another reason than the lock is logged and dropped.
+   */
+  private async runDeferred(
+    records: CheckpointRecords,
+    setup: Setup | undefined,
+  ): Promise<boolean> {
+    let isAny = false
+    const works = [...this.deferred]
+    for (const [key, work] of works) {
+      if (setup === undefined && work.kind === 'git') {
+        continue
+      }
+      this.deferred.delete(key)
+      isAny = true
+      try {
+        if (work.kind === 'records') {
+          work.apply(records)
+        } else if (setup !== undefined) {
+          await work.run(setup)
+        }
+      } catch (error: unknown) {
+        if (error instanceof StoreBusyError) {
+          this.deferred.set(key, work)
+          throw error
+        }
+        this.deps.log.warn(`Checkpoint work put off earlier failed: ${errorDetail(error)}`)
+      }
+    }
+    if (isAny) {
+      this.retries = 0
+    }
+    return isAny
   }
 
   private get recordsPath(): string {
@@ -392,14 +559,34 @@ export class CheckpointStore {
     })
   }
 
-  /** The shadow repository, set up the first time; refs no live window needs go then. */
+  /** The work tree's top and the workspace's place in it (no git). */
+  private async placeOf(): Promise<{ readonly top: string; readonly prefix: string }> {
+    if (this.place === undefined) {
+      const top = await repositoryTop(this.deps.workspaceRoot)
+      const prefix = path.relative(top, this.deps.workspaceRoot).split(path.sep).join(SEPARATOR)
+      this.place = { top, prefix }
+    }
+    return this.place
+  }
+
+  /** The records for this workspace as they stand on disk (under the lock), or none yet. */
+  private async recordsNow(): Promise<CheckpointRecords> {
+    const { top, prefix } = await this.placeOf()
+    const loaded = await this.loadRecords()
+    const isSameWorkspace = loaded?.top === top && loaded.prefix === prefix
+    if (loaded !== undefined && !isSameWorkspace) {
+      this.deps.log.info('The workspace moved: its checkpoints start afresh')
+    }
+    return isSameWorkspace ? loaded : emptyRecords(top, prefix)
+  }
+
+  /** The shadow repository, set up the first time. */
   private async open(): Promise<{ readonly opened: Opened; readonly isFirst: boolean }> {
     if (this.opened !== undefined) {
       return { opened: this.opened, isFirst: false }
     }
-    const { workspaceRoot, storageDir, platform } = this.deps
-    const top = await repositoryTop(workspaceRoot)
-    const prefix = path.relative(top, workspaceRoot).split(path.sep).join(SEPARATOR)
+    const { storageDir, platform } = this.deps
+    const { top, prefix } = await this.placeOf()
     const shadow = new ShadowGit(
       { storageDir, top, platform },
       { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
@@ -412,35 +599,54 @@ export class CheckpointStore {
 
   /**
    * One operation's setup, under the lock: the records read afresh from disk
-   * (never an earlier copy, which another window may have outdated) and the
-   * live windows. The first time, the refs no live window needs go.
+   * (never an earlier copy, which another window may have outdated) and each
+   * live window's running turns; the put-off work is done first. The first
+   * time, the refs and staged copies no live window needs go.
    */
   private async ready(): Promise<Setup> {
     const { opened, isFirst } = await this.open()
-    const loaded = await this.loadRecords()
-    const isSameWorkspace = loaded?.top === opened.top && loaded.prefix === opened.prefix
-    if (loaded !== undefined && !isSameWorkspace) {
-      this.deps.log.info('The workspace moved: its checkpoints start afresh')
-    }
     const setup: Setup = {
       ...opened,
-      records: isSameWorkspace ? loaded : emptyRecords(opened.top, opened.prefix),
-      live: await this.lock.liveInstances(),
+      records: await this.recordsNow(),
+      live: await this.lock.liveWindows(),
     }
+    const isDeferredDone = await this.runDeferred(setup.records, setup)
     if (isFirst) {
       await this.dropOrphanRefs(setup)
+    }
+    if (isFirst || isDeferredDone) {
       await this.save(setup)
     }
     return setup
   }
 
+  /** The staging folders of windows that are gone. */
+  private async dropGoneStaging(setup: Setup): Promise<void> {
+    const root = path.join(this.deps.storageDir, STAGING_DIR)
+    let names: string[]
+    try {
+      names = await readdir(root)
+    } catch (error: unknown) {
+      if (isMissingPath(error)) {
+        return
+      }
+      throw error
+    }
+    const gone = names.filter((name) => !setup.live.has(name))
+    for (const name of gone) {
+      await rm(path.join(root, name), { recursive: true, force: true })
+    }
+  }
+
   /**
    * Refs no live need names: keep refs no record names (a record file set
-   * aside, a window that closed between a ref and its record), and the tool
-   * copies and pinned captures of windows that are gone. Their copies are
-   * pruned. A live window's pins and copies stay.
+   * aside, a window that closed between a ref and its record), the pinned
+   * captures of windows that are gone, and tool-copy refs of earlier builds.
+   * Their copies are pruned; the staging folders of gone windows go. A live
+   * window's pins and staged copies stay.
    */
   private async dropOrphanRefs(setup: Setup): Promise<void> {
+    await this.dropGoneStaging(setup)
     const named = new Set(
       [...setup.records.checkpoints, ...setup.records.restores].map(
         (record) => `${KEEP_REF_PREFIX}${record.id}`,
@@ -453,7 +659,7 @@ export class CheckpointStore {
       .split(LINE_FEED)
       .filter(
         (ref) =>
-          isGoneWindows(ref, JOURNAL_REF_PREFIX) ||
+          ref.startsWith(JOURNAL_REF_PREFIX) ||
           isGoneWindows(ref, PIN_REF_PREFIX) ||
           (ref.startsWith(KEEP_REF_PREFIX) && !named.has(ref)),
       )
@@ -537,30 +743,41 @@ export class CheckpointStore {
     return this.runningTurns.size > 0 || this.openTurns.size > 0
   }
 
-  /** A turn another live window recorded and has not ended. */
+  /** A turn another live window publishes as running. */
   private isRunningElsewhere(setup: Setup, record: CheckpointRecord): boolean {
-    return (
-      record.endedAt === undefined &&
-      record.owner !== undefined &&
-      record.owner !== this.instance &&
-      setup.live.has(record.owner)
-    )
+    const { owner } = record
+    const running = owner === this.instance ? undefined : setup.live.get(owner ?? '')
+    return running?.includes(turnKey(record.sessionId, record.turnId)) === true
   }
 
   /** A turn still running here, or in another live window. */
   private isOpen(setup: Setup, record: CheckpointRecord): boolean {
-    return this.openTurns.has(record.id) || this.isRunningElsewhere(setup, record)
+    const open = this.openTurns.get(turnKey(record.sessionId, record.turnId))
+    return open?.id === record.id || this.isRunningElsewhere(setup, record)
   }
 
-  /** Why no restore or redo may run now: a turn running here, or in another live window. */
+  /**
+   * Why no restore or redo may run now: a turn running here, or a turn (or a
+   * message about to start one) another live window publishes.
+   */
   private turnBlocking(setup: Setup): RestoreFailure | undefined {
     if (this.isAnyTurnRunning()) {
       return 'turnRunning'
     }
-    const isElsewhere = setup.records.checkpoints.some((record) =>
-      this.isRunningElsewhere(setup, record),
+    const isElsewhere = [...setup.live].some(
+      ([instance, running]) => instance !== this.instance && running.length > 0,
     )
     return isElsewhere ? 'turnElsewhere' : undefined
+  }
+
+  /** Drops this window's open turns of a conversation (archived). */
+  private dropOpenTurns(sessionId: string): void {
+    const prefix = turnKey(sessionId, '')
+    for (const key of this.openTurns.keys()) {
+      if (key.startsWith(prefix)) {
+        this.openTurns.delete(key)
+      }
+    }
   }
 
   /** A restore or a redo, refused with the reason when another window held the store too long. */
@@ -791,55 +1008,107 @@ export class CheckpointStore {
     return { preImage: { mode: isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE, oid }, stat }
   }
 
-  /** Adds the copies the tool writes of this turn took to its ignored changes. */
+  /**
+   * A copy of the file now in this window's staging folder, with no lock
+   * and no git; null when absent, undefined when too big or a link.
+   */
+  private async stage(relative: string): Promise<Omit<JournalEntry, 'at'>> {
+    const absolute = this.absoluteOf(relative)
+    const stats = await lstatOrUndefined(absolute)
+    if (stats === undefined) {
+      return { staged: null, isExecutable: false, stat: null }
+    }
+    const stat = { size: stats.size, mtimeMs: stats.mtimeMs }
+    const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
+    if (!stats.isFile() || stats.size > CHECKPOINT_FILE_MAX_BYTES) {
+      return { staged: undefined, isExecutable, stat }
+    }
+    await mkdir(this.stagingDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
+    const staged = path.join(this.stagingDir, this.deps.newId())
+    await copyFile(absolute, staged)
+    return { staged, isExecutable, stat }
+  }
+
+  /** The first copy the tools took of each file since the turn began, and each file's state now. */
+  private async copiesSince(createdAt: number): Promise<ReadonlyMap<string, TurnCopy>> {
+    const copies = new Map<string, TurnCopy>()
+    for (const [relative, entries] of this.journal) {
+      const entry = entries.find((candidate) => candidate.at >= createdAt)
+      if (entry === undefined) {
+        continue
+      }
+      const endStat = (await regularFileStat(this.absoluteOf(relative))) ?? null
+      copies.set(relative, { entry, endStat })
+    }
+    return copies
+  }
+
+  /**
+   * Adds the copies the tools took during this turn to its ignored changes,
+   * their staged bytes brought into the shadow repository.
+   */
   private async withToolCopies(
     setup: Setup,
     record: CheckpointRecord,
     scanned: readonly IgnoredChange[],
+    copies: ReadonlyMap<string, TurnCopy>,
   ): Promise<readonly IgnoredChange[]> {
-    const copies = new Map<string, JournalEntry>()
-    for (const [relative, entries] of this.journal) {
-      const first = entries.find((entry) => entry.at >= record.createdAt)
-      if (first !== undefined) {
-        copies.set(relative, first)
-      }
-    }
     if (copies.size === 0) {
       return scanned
     }
     // A file in the start capture is restored from it; the copies matter for the rest.
-    const copied = [...copies].map(([relative]) => relative)
-    const inStart = await this.presentIn(setup.shadow, record.start.tree, copied)
-    const changes = new Map(scanned.map((change) => [change.path, change]))
-    for (const [relative, copy] of copies) {
-      if (inStart.has(relative)) {
+    const inStart = await this.presentIn(
+      setup.shadow,
+      record.start.tree,
+      [...copies].map(([relative]) => relative),
+    )
+    const wanted = [...copies].filter(([relative]) => !inStart.has(relative))
+    const staged = wanted.flatMap(([relative, copy]) =>
+      typeof copy.entry.staged === 'string' ? [{ relative, copy, file: copy.entry.staged }] : [],
+    )
+    const hashed =
+      staged.length === 0
+        ? ''
+        : await setup.shadow.text(['hash-object', '-w', '--no-filters', '--stdin-paths'], {
+            input: staged.map((entry) => `${entry.file}${LINE_FEED}`).join(''),
+          })
+    const oids = hashed.split(LINE_FEED)
+    const imported = new Map<string, BlobRef>()
+    for (const [index, entry] of staged.entries()) {
+      const oid = oids[index]
+      if (oid === undefined || oid === '') {
         continue
       }
+      const mode = entry.copy.entry.isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE
+      imported.set(entry.relative, { mode, oid })
+    }
+    const changes = new Map(scanned.map((change) => [change.path, change]))
+    for (const [relative, copy] of wanted) {
+      const preImage = copy.entry.staged === null ? null : imported.get(relative)
       const scannedChange = changes.get(relative)
-      const endStat = (await regularFileStat(this.absoluteOf(relative))) ?? null
       if (scannedChange !== undefined) {
         changes.set(relative, {
           ...scannedChange,
-          kind: copy.preImage === null ? 'created' : scannedChange.kind,
-          preImage: copy.preImage,
+          kind: preImage === null ? 'created' : scannedChange.kind,
+          preImage,
         })
         continue
       }
-      if (endStat === null && copy.preImage === null) {
+      if (preImage === null && copy.endStat === null) {
         continue
       }
       let kind: IgnoredChange['kind'] = 'changed'
-      if (copy.preImage === null) {
+      if (preImage === null) {
         kind = 'created'
-      } else if (endStat === null) {
+      } else if (copy.endStat === null) {
         kind = 'deleted'
       }
       changes.set(relative, {
         path: relative,
         kind,
-        ...(copy.preImage !== undefined && { preImage: copy.preImage }),
-        startStat: copy.stat,
-        endStat,
+        ...(preImage !== undefined && { preImage }),
+        startStat: copy.entry.stat,
+        endStat: copy.endStat,
       })
     }
     return [...changes]
@@ -847,22 +1116,19 @@ export class CheckpointStore {
       .toSorted((left, right) => byText(left.path, right.path))
   }
 
-  /** Journal copies no running turn can need any more, and their refs, go. */
-  private async trimJournal(setup: Setup): Promise<void> {
+  /** Staged copies no running turn (nor a put-off end) can need any more go. */
+  private async trimJournal(): Promise<void> {
     const oldestOpen = Math.min(
       Infinity,
       ...Array.from(this.openTurns.values(), (turn) => turn.createdAt),
     )
-    const released = new Set<string>()
-    const kept = new Set<string>()
+    const released: string[] = []
     for (const [relative, entries] of this.journal) {
       const remaining = entries.filter((entry) => entry.at >= oldestOpen)
       for (const entry of entries) {
-        if (entry.preImage === undefined || entry.preImage === null) {
-          continue
+        if (typeof entry.staged === 'string' && !remaining.includes(entry)) {
+          released.push(entry.staged)
         }
-        const bucket = remaining.includes(entry) ? kept : released
-        bucket.add(entry.preImage.oid)
       }
       if (remaining.length === 0) {
         this.journal.delete(relative)
@@ -870,13 +1136,27 @@ export class CheckpointStore {
         this.journal.set(relative, remaining)
       }
     }
-    const refs: string[] = []
-    for (const oid of released) {
-      if (!kept.has(oid)) {
-        refs.push(`${this.journalPrefix}${oid}`)
+    const unheld = released.filter((file) => !this.held.has(file))
+    for (const file of unheld) {
+      await rm(file, { force: true })
+    }
+  }
+
+  /** A put-off end no longer needs its staged copies: they go unless the journal still has them. */
+  private async letGoOfCopies(copies: ReadonlyMap<string, TurnCopy>): Promise<void> {
+    const inJournal = new Set(
+      [...this.journal].flatMap(([, entries]) => entries.map((entry) => entry.staged)),
+    )
+    for (const copy of copies.values()) {
+      const { staged } = copy.entry
+      if (typeof staged !== 'string') {
+        continue
+      }
+      this.held.delete(staged)
+      if (!inJournal.has(staged)) {
+        await rm(staged, { force: true })
       }
     }
-    await this.deleteRefs(setup.shadow, refs)
   }
 
   /** Which of these workspace paths the tree holds. */
@@ -1178,16 +1458,6 @@ export class CheckpointStore {
     this.isPruneDue = false
   }
 
-  /** Drops a conversation's records and its turns running here (the refs go with the next orphan sweep). */
-  private dropSession(setup: Setup, sessionId: string): void {
-    for (const record of setup.records.checkpoints) {
-      if (record.sessionId === sessionId) {
-        this.openTurns.delete(record.id)
-      }
-    }
-    withoutSession(setup.records, sessionId)
-  }
-
   /**
    * One step, if it may still run: a file with unsaved editor changes is
    * left as it is, and so is one no longer as the restore expects.
@@ -1338,6 +1608,105 @@ export class CheckpointStore {
   }
 
   /**
+   * Records a turn's end: the end capture, the ignored files it changed and
+   * the tools' copies. Called when the turn ended; it leaves this window's
+   * running turns at once. When another window holds the lock, the end is
+   * kept and written later with the time it ended but no end capture (one
+   * taken later would count later changes as the turn's), so its changes
+   * count as unsure.
+   */
+  private async finishTurn(
+    setup: Setup,
+    start: OpenTurn,
+    endedAt: number,
+    copies: ReadonlyMap<string, TurnCopy>,
+    isCapturing: boolean,
+  ): Promise<void> {
+    const record = setup.records.checkpoints.find((candidate) => candidate.id === start.id)
+    if (record === undefined || record.endedAt !== undefined) {
+      await this.trimJournal()
+      return
+    }
+    const capture = isCapturing ? await this.captureNow(setup, false) : undefined
+    if (capture?.ok === false) {
+      this.deps.log.warn(`Checkpoint at the end of turn ${record.turnId}: ${capture.detail}`)
+    }
+    const ended = capture?.ok === true ? capture.snapshot : undefined
+    const scanned = ended === undefined ? [] : ignoredChanges(start.inventory, ended.inventory)
+    const changes = await this.withToolCopies(setup, record, scanned, copies)
+    const kept = changes.slice(0, CHECKPOINT_IGNORED_CHANGES_MAX)
+    const preImages = kept.flatMap((change) =>
+      change.preImage === undefined || change.preImage === null ? [] : [change.preImage],
+    )
+    const trees = [
+      { name: 'start', tree: record.start.tree },
+      ...(ended === undefined ? [] : [{ name: 'end', tree: ended.tree }]),
+    ]
+    const keep = await this.keepTree(setup.shadow, trees, preImages)
+    await setup.shadow.run(['update-ref', `${KEEP_REF_PREFIX}${record.id}`, keep])
+    const isScanWhole =
+      ended !== undefined && !start.inventory.isPartial && !ended.inventory.isPartial
+    const index = setup.records.checkpoints.indexOf(record)
+    setup.records.checkpoints[index] = {
+      ...record,
+      ...(ended !== undefined && {
+        end: { tree: ended.tree, coverage: storedCoverage(ended.coverage) },
+      }),
+      endedAt,
+      ignored: { changes: [...kept], isComplete: isScanWhole && kept.length === changes.length },
+      keep,
+    }
+    await this.trimJournal()
+    await this.retain(setup, false)
+    await this.save(setup)
+  }
+
+  /** Drops an archived conversation's records, refs and copies, and remembers the archive. */
+  private async forget(setup: Setup, sessionId: string, at: number): Promise<void> {
+    const refs = [...setup.records.checkpoints, ...setup.records.restores]
+      .filter((record) => record.sessionId === sessionId)
+      .map((record) => `${KEEP_REF_PREFIX}${record.id}`)
+    markForgotten(setup.records, sessionId, at)
+    withoutSession(setup.records, sessionId)
+    await this.deleteRefs(setup.shadow, refs)
+    await this.save(setup)
+    if (refs.length > 0) {
+      await this.prune(setup.shadow)
+    }
+  }
+
+  /** Drops the refs no live window needs, applies retention and prunes. */
+  private async tidy(setup: Setup): Promise<void> {
+    await this.dropOrphanRefs(setup)
+    await this.retain(setup, true)
+    await this.save(setup)
+  }
+
+  /** A pinned capture no longer needed goes, now or when the lock is free. */
+  private async dropPin(pin: string): Promise<void> {
+    try {
+      await this.serial(async () => {
+        const { shadow } = await this.ready()
+        await this.deleteRefs(shadow, [pin])
+      })
+    } catch (error: unknown) {
+      if (!(error instanceof StoreBusyError)) {
+        throw error
+      }
+      this.defer(
+        `release ${pin}`,
+        {
+          kind: 'git',
+          run: async (setup) => {
+            await this.deleteRefs(setup.shadow, [pin])
+          },
+        },
+        error,
+      )
+    }
+  }
+
+  /**
    * A capture of the workspace now, with the folders it holds no file of,
    * pinned until `record` or `release`.
    */
@@ -1373,161 +1742,183 @@ export class CheckpointStore {
     }
   }
 
-  /** A capture no turn took: its pin goes. */
-  public release(snapshot: Snapshot): Promise<void> {
-    return this.serial(async () => {
-      if (snapshot.pin === undefined) {
-        return
-      }
-      const { shadow } = await this.ready()
-      await this.deleteRefs(shadow, [snapshot.pin])
-    })
+  /** A capture no turn took: its pin goes (when the lock is held, later). */
+  public async release(snapshot: Snapshot): Promise<void> {
+    if (snapshot.pin !== undefined) {
+      await this.dropPin(snapshot.pin)
+    }
   }
 
   /**
    * Ties a capture to the turn it precedes, unless the turn has one already
    * (another window's) or its conversation was archived since the capture,
-   * in any window.
+   * in any window. The turn counts as open here only once its record is
+   * saved; a refused record leaves nothing behind in memory, and its pin
+   * goes when the lock is free.
    */
-  public record(sessionId: string, turnId: string, snapshot: Snapshot): Promise<void> {
-    return this.serial(async () => {
-      const setup = await this.ready()
-      const pins = snapshot.pin === undefined ? [] : [snapshot.pin]
-      const forgotten = setup.records.forgotten?.find((entry) => entry.sessionId === sessionId)
-      if (
-        this.find(setup, sessionId, turnId) !== undefined ||
-        (forgotten !== undefined && snapshot.createdAt <= forgotten.at)
-      ) {
+  public async record(sessionId: string, turnId: string, snapshot: Snapshot): Promise<void> {
+    try {
+      await this.serial(async () => {
+        const setup = await this.ready()
+        const pins = snapshot.pin === undefined ? [] : [snapshot.pin]
+        const forgotten = Math.max(
+          this.forgottenAt.get(sessionId) ?? -Infinity,
+          setup.records.forgotten?.find((entry) => entry.sessionId === sessionId)?.at ?? -Infinity,
+        )
+        if (this.find(setup, sessionId, turnId) !== undefined || snapshot.createdAt <= forgotten) {
+          await this.deleteRefs(setup.shadow, pins)
+          return
+        }
+        const id = this.deps.newId()
+        const keep = await this.keepTree(setup.shadow, [{ name: 'start', tree: snapshot.tree }], [])
+        await setup.shadow.run(['update-ref', `${KEEP_REF_PREFIX}${id}`, keep])
         await this.deleteRefs(setup.shadow, pins)
-        return
-      }
-      const id = this.deps.newId()
-      const keep = await this.keepTree(setup.shadow, [{ name: 'start', tree: snapshot.tree }], [])
-      await setup.shadow.run(['update-ref', `${KEEP_REF_PREFIX}${id}`, keep])
-      await this.deleteRefs(setup.shadow, pins)
-      setup.records.checkpoints.push({
-        id,
-        sessionId,
-        turnId,
-        createdAt: snapshot.createdAt,
-        start: {
-          tree: snapshot.tree,
-          coverage: storedCoverage(snapshot.coverage),
-          ...(snapshot.folders !== undefined && { folders: [...snapshot.folders] }),
-        },
-        owner: this.instance,
-        keep,
+        setup.records.checkpoints.push({
+          id,
+          sessionId,
+          turnId,
+          createdAt: snapshot.createdAt,
+          start: {
+            tree: snapshot.tree,
+            coverage: storedCoverage(snapshot.coverage),
+            ...(snapshot.folders !== undefined && { folders: [...snapshot.folders] }),
+          },
+          owner: this.instance,
+          keep,
+        })
+        await this.retain(setup, false)
+        await this.save(setup)
+        this.openTurns.set(turnKey(sessionId, turnId), {
+          id,
+          createdAt: snapshot.createdAt,
+          inventory: snapshot.inventory,
+        })
       })
-      this.openTurns.set(id, { createdAt: snapshot.createdAt, inventory: snapshot.inventory })
-      await this.retain(setup, false)
-      await this.save(setup)
-    })
-  }
-
-  /** The window's turns, running or not (no git): no restore runs while one does. */
-  public markTurn(sessionId: string, turnId: string, isRunning: boolean): void {
-    const key = `${sessionId}${NUL}${turnId}`
-    if (isRunning) {
-      this.runningTurns.add(key)
-    } else {
-      this.runningTurns.delete(key)
+    } catch (error: unknown) {
+      if (error instanceof StoreBusyError && snapshot.pin !== undefined) {
+        const { pin } = snapshot
+        this.defer(
+          `release ${pin}`,
+          {
+            kind: 'git',
+            run: async (setup) => {
+              await this.deleteRefs(setup.shadow, [pin])
+            },
+          },
+          error,
+        )
+      }
+      throw error
     }
   }
 
-  /** The turn ended: capture again and record the ignored files it changed. */
-  public endTurn(sessionId: string, turnId: string): Promise<void> {
-    return this.serial(async () => {
-      const setup = await this.ready()
-      const record = this.find(setup, sessionId, turnId)
-      const isOthers = record?.owner !== undefined && record.owner !== this.instance
-      if (isOthers || record === undefined || record.endedAt !== undefined) {
-        return
-      }
-      const start = this.openTurns.get(record.id)
-      this.openTurns.delete(record.id)
-      const capture = await this.captureNow(setup, false)
-      if (!capture.ok) {
-        this.deps.log.warn(`Checkpoint at the end of turn ${turnId}: ${capture.detail}`)
-      }
-      const scanned =
-        start === undefined || !capture.ok
-          ? []
-          : ignoredChanges(start.inventory, capture.snapshot.inventory)
-      const changes = await this.withToolCopies(setup, record, scanned)
-      const kept = changes.slice(0, CHECKPOINT_IGNORED_CHANGES_MAX)
-      const preImages = kept.flatMap((change) =>
-        change.preImage === undefined || change.preImage === null ? [] : [change.preImage],
-      )
-      const trees = [
-        { name: 'start', tree: record.start.tree },
-        ...(capture.ok ? [{ name: 'end', tree: capture.snapshot.tree }] : []),
-      ]
-      const keep = await this.keepTree(setup.shadow, trees, preImages)
-      await setup.shadow.run(['update-ref', `${KEEP_REF_PREFIX}${record.id}`, keep])
-      const isScanWhole =
-        start !== undefined &&
-        capture.ok &&
-        !start.inventory.isPartial &&
-        !capture.snapshot.inventory.isPartial
-      const index = setup.records.checkpoints.indexOf(record)
-      setup.records.checkpoints[index] = {
-        ...record,
-        ...(capture.ok && {
-          end: {
-            tree: capture.snapshot.tree,
-            coverage: storedCoverage(capture.snapshot.coverage),
-          },
-        }),
-        endedAt: this.deps.now(),
-        ignored: {
-          changes: [...kept],
-          isComplete: isScanWhole && kept.length === changes.length,
-        },
-        keep,
-      }
-      await this.trimJournal(setup)
-      await this.retain(setup, false)
-      await this.save(setup)
-    })
+  /**
+   * A turn (or a message about to start one, under its own key) begins or
+   * stops running in this window. It is published at once in the window's
+   * presence file, with no lock, so another window refuses a restore
+   * meanwhile; this resolves once the file says so.
+   */
+  public async markTurn(key: string, isRunning: boolean): Promise<void> {
+    this.runningTurns.delete(key)
+    if (isRunning) {
+      this.runningTurns.add(key)
+    }
+    this.startHeartbeat()
+    await this.lock.publish([...this.runningTurns])
   }
 
-  /** The turns of a conversation that have a checkpoint. */
-  public turns(sessionId: string): Promise<readonly string[]> {
-    return this.serial(async () => {
-      const setup = await this.ready()
-      return setup.records.checkpoints
-        .filter((record) => record.sessionId === sessionId)
-        .map((record) => record.turnId)
-    })
+  /**
+   * The turn ended: it stops being open here at once, and its end is
+   * recorded, now or (when another window holds the lock) later.
+   */
+  public async endTurn(sessionId: string, turnId: string): Promise<void> {
+    const key = turnKey(sessionId, turnId)
+    const start = this.openTurns.get(key)
+    if (start === undefined) {
+      return
+    }
+    this.openTurns.delete(key)
+    const endedAt = this.deps.now()
+    const copies = await this.copiesSince(start.createdAt)
+    try {
+      await this.serial(async () => {
+        const setup = await this.ready()
+        await this.finishTurn(setup, start, endedAt, copies, true)
+      })
+    } catch (error: unknown) {
+      if (!(error instanceof StoreBusyError)) {
+        throw error
+      }
+      for (const copy of copies.values()) {
+        if (typeof copy.entry.staged === 'string') {
+          this.held.add(copy.entry.staged)
+        }
+      }
+      this.defer(
+        `end ${key}`,
+        {
+          kind: 'git',
+          run: async (setup) => {
+            try {
+              await this.finishTurn(setup, start, endedAt, copies, false)
+            } finally {
+              await this.letGoOfCopies(copies)
+            }
+          },
+        },
+        error,
+      )
+    }
+  }
+
+  /**
+   * The turns of a conversation that have a checkpoint, read from the
+   * records file as it stands (replaced whole on every save), with no lock.
+   */
+  public async turns(sessionId: string): Promise<readonly string[]> {
+    if (this.forgottenAt.has(sessionId)) {
+      return []
+    }
+    const text = await readOptionalText(this.recordsPath)
+    const records = text === undefined ? undefined : parseRecords(text)
+    const { top, prefix } = await this.placeOf()
+    return records?.top === top && records.prefix === prefix
+      ? records.checkpoints
+          .filter((record) => record.sessionId === sessionId)
+          .map((record) => record.turnId)
+      : []
   }
 
   /**
    * The extension is about to write `absolutePath` for a running turn (the
-   * Model API's tools, the image tools): copy what is there first, once per
-   * turn, so a restore can put an ignored file back.
+   * Model API's tools, the image tools): what is there is copied first, once
+   * per turn, into this window's staging folder, with no lock, so a restore
+   * can put an ignored file back. A copy that cannot be made fails the
+   * write: nothing is written without it.
    */
-  public beforeToolWrite(absolutePath: string): Promise<void> {
-    return this.serial(async () => {
-      if (this.openTurns.size === 0) {
-        return
-      }
-      const setup = await this.ready()
-      const relative = this.relativeOf(absolutePath)
-      if (relative === undefined) {
-        return
-      }
-      const latestStart = Math.max(...Array.from(this.openTurns.values(), (turn) => turn.createdAt))
-      const entries = this.journal.get(relative) ?? []
-      if ((entries.at(-1)?.at ?? -1) >= latestStart) {
-        return
-      }
-      const copy = await this.copyOf(setup, relative)
-      if (copy.preImage !== undefined && copy.preImage !== null) {
-        const ref = `${this.journalPrefix}${copy.preImage.oid}`
-        await setup.shadow.run(['update-ref', ref, copy.preImage.oid])
-      }
-      this.journal.set(relative, [...entries, { at: this.deps.now(), ...copy }])
-    })
+  public async beforeToolWrite(absolutePath: string): Promise<void> {
+    if (this.openTurns.size === 0) {
+      return
+    }
+    const relative = this.relativeOf(absolutePath)
+    if (relative === undefined) {
+      return
+    }
+    const latestStart = Math.max(...Array.from(this.openTurns.values(), (turn) => turn.createdAt))
+    const entries = this.journal.get(relative) ?? []
+    if ((entries.at(-1)?.at ?? -1) >= latestStart) {
+      return
+    }
+    let copy: Omit<JournalEntry, 'at'>
+    try {
+      copy = await this.stage(relative)
+    } catch (error: unknown) {
+      throw new Error(
+        `not written: no copy of it could be kept for its turn's checkpoint (${messageOf(error)})`,
+        { cause: error },
+      )
+    }
+    this.journal.set(relative, [...entries, { at: this.deps.now(), ...copy }])
   }
 
   /** Puts the workspace's files back as they were before the turn. */
@@ -1656,41 +2047,59 @@ export class CheckpointStore {
     })
   }
 
-  /** The conversation was archived: its checkpoints and copies go now. */
-  public forgetSession(sessionId: string): Promise<void> {
-    return this.serial(async () => {
-      const setup = await this.ready()
-      const refs = [...setup.records.checkpoints, ...setup.records.restores]
-        .filter((record) => record.sessionId === sessionId)
-        .map((record) => `${KEEP_REF_PREFIX}${record.id}`)
-      markForgotten(setup.records, sessionId, this.deps.now())
-      this.dropSession(setup, sessionId)
-      await this.deleteRefs(setup.shadow, refs)
-      await this.save(setup)
-      if (refs.length > 0) {
-        await this.prune(setup.shadow)
+  /**
+   * The conversation was archived: in this window at once (its turns stop
+   * being open, its list empties, no capture taken before now is recorded
+   * for it), and its checkpoints and copies go now or when the lock is free.
+   */
+  public async forgetSession(sessionId: string): Promise<void> {
+    const at = this.deps.now()
+    this.forgottenAt.set(sessionId, at)
+    this.dropOpenTurns(sessionId)
+    try {
+      await this.serial(async () => {
+        const setup = await this.ready()
+        await this.forget(setup, sessionId, at)
+      })
+    } catch (error: unknown) {
+      if (!(error instanceof StoreBusyError)) {
+        throw error
       }
-    })
+      this.defer(
+        `forget ${sessionId}`,
+        {
+          kind: 'git',
+          run: async (setup) => {
+            await this.forget(setup, sessionId, at)
+          },
+        },
+        error,
+      )
+    }
   }
 
   /**
    * The conversation was archived while no git may run (Restricted Mode):
-   * its records go now, with no git; its refs and copies go the next time a
-   * trusted window opens the store (`maintain`).
+   * the archive is written to the records now (or when the lock is free),
+   * with no git, even before any checkpoint exists; its refs and copies go
+   * the next time a trusted window opens the store (`maintain`).
    */
   public async queueForget(sessionId: string): Promise<void> {
-    if ((await lstatOrUndefined(this.recordsPath)) === undefined) {
-      return
-    }
-    await this.serial(async () => {
-      const records = await this.loadRecords()
-      if (records === undefined) {
-        return
-      }
-      markForgotten(records, sessionId, this.deps.now())
+    const at = this.deps.now()
+    this.forgottenAt.set(sessionId, at)
+    this.dropOpenTurns(sessionId)
+    const archive = (records: CheckpointRecords) => {
+      markForgotten(records, sessionId, at)
       withoutSession(records, sessionId)
-      await this.save({ records })
-    })
+    }
+    try {
+      await this.serialRecords(archive)
+    } catch (error: unknown) {
+      if (!(error instanceof StoreBusyError)) {
+        throw error
+      }
+      this.defer(`forget ${sessionId}`, { kind: 'records', apply: archive }, error)
+    }
   }
 
   /**
@@ -1703,12 +2112,25 @@ export class CheckpointStore {
     if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) === undefined) {
       return
     }
-    await this.serial(async () => {
-      const setup = await this.ready()
-      await this.dropOrphanRefs(setup)
-      await this.retain(setup, true)
-      await this.save(setup)
-    })
+    try {
+      await this.serial(async () => {
+        await this.tidy(await this.ready())
+      })
+    } catch (error: unknown) {
+      if (!(error instanceof StoreBusyError)) {
+        throw error
+      }
+      this.defer(
+        'maintain',
+        {
+          kind: 'git',
+          run: async (setup) => {
+            await this.tidy(setup)
+          },
+        },
+        error,
+      )
+    }
   }
 
   /**
@@ -1719,6 +2141,12 @@ export class CheckpointStore {
   public dispose(): void {
     this.stopping.abort()
     clearInterval(this.heartbeat)
+    clearTimeout(this.retryTimer)
     this.lock.leave()
+    try {
+      rmSync(this.stagingDir, { recursive: true, force: true })
+    } catch {
+      // Its folder goes with the next window's cleanup.
+    }
   }
 }

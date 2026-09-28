@@ -29,12 +29,18 @@ happened, not what was planned; superseded entries are kept.
   and rewinds it only when every file was restored. A folder that was there
   before the turn, even an empty one, is never removed.
 - **Two windows on one folder share its checkpoints safely.** Every
-  operation runs under a lock in the checkpoint storage and reads the
-  records afresh, so neither window overwrites the other's. A restore waits
-  while a turn runs in the other window and leaves what that window's turns
-  changed; an operation that waits over 15 seconds is refused with the
-  reason; a lock left by an exited window is taken over; a live window's
-  pending captures and copies are never cleaned up as leftovers.
+  operation on the shared store runs under a lock in the checkpoint storage
+  and reads the records afresh, so neither window overwrites the other's. A
+  turn, and a message about to start one, is marked as running before it can
+  change a file, whatever the lock; a restore waits while a turn runs in
+  either window and leaves what the other window's turns changed. When the
+  other window holds the checkpoints over 15 seconds, a checkpoint, a
+  restore and a redo are refused and the panel says so; a turn's end, an
+  archive, letting go of an unused checkpoint and cleanup happen later on
+  their own. The checkpoint list and a tool's copy before a write never
+  wait, and a copy that cannot be made fails the write. A lock left by an
+  exited window is taken over; a live window's pending captures and copies
+  are never cleaned up as leftovers.
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository in VS Code's storage for the workspace, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,

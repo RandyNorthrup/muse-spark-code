@@ -593,6 +593,11 @@ export const CHECKPOINT_LOCK_WAIT_MS = 15_000
 export const CHECKPOINT_LOCK_RETRY_MS = 100
 export const CHECKPOINT_HEARTBEAT_MS = 15_000
 export const CHECKPOINT_OWNER_STALE_MS = 5 * 60 * 1000
+// Work the lock refused (a turn's end, an archive, letting go of a pinned
+// capture, cleanup) is tried again this often, this many times, and then at
+// the next checkpoint operation.
+export const CHECKPOINT_RETRY_MS = 30_000
+export const CHECKPOINT_RETRY_MAX = 10
 // How long an archived conversation is remembered, so a capture taken
 // before the archive (in any window) is not recorded for it.
 export const CHECKPOINT_FORGOTTEN_KEEP_MS = 24 * 60 * 60 * 1000

@@ -102,6 +102,18 @@ export function emptyRecords(top: string, prefix: string): CheckpointRecords {
  * The records on disk, or undefined when there are none or they do not
  * parse (the unreadable file is renamed aside, and `onUnreadable` says why).
  */
+/** Records from their file's text; undefined when it does not parse. */
+export function parseRecords(text: string): CheckpointRecords | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return undefined
+  }
+  const result = recordsSchema.safeParse(parsed)
+  return result.success ? result.data : undefined
+}
+
 export async function loadRecords(
   filePath: string,
   onUnreadable: (reason: string) => void,

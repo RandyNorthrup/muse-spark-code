@@ -6879,26 +6879,44 @@ repository in the extension's workspace storage, never the workspace's
     holds no file of (`ls-files --others --directory`, an untracked folder
     listed whole standing for everything below it, plus the ignored and
     linked ones; up to 10,000, past which, or for a record without the
-    list, a restore removes no folder). HEAD, the index, the stash and
+    list, a restore removes no folder). Limit: a folder the turns made
+    inside a listed folder counts as there (the listing collapses an
+    untracked folder), so it is left, empty. HEAD, the index, the stash and
     branches are never touched.
-  - **Windows sharing a store** (Codex review of PR #55). Two windows on
-    one folder share `context.storageUri`. Every store operation runs under
-    an exclusive lock file (`store.lock`: process id and store instance,
-    created with `wx`, its time kept fresh by a 15-second heartbeat) and
-    reads `records.json` afresh inside it, so no window overwrites another's
-    records; a write (records, ref deletion, prune) first checks the lock is
-    still its own. An operation that waits 15 seconds is refused with the
-    reason (a capture: no checkpoint for the turn; a restore or redo: "try
-    again"). A lock is taken over only when its process has exited or it has
-    been silent for five minutes; a lock taken by another window during the
-    takeover is put back. Each window keeps a presence file
-    (`windows/<instance>.json`) beating while open, removed on close: pins
-    and tool copies are named by instance (`pin/<instance>/…`,
-    `journal/<instance>/…`) and are orphans only once their window is gone.
-    Records carry their window (`owner`): a restore is refused while a live
-    window's turn runs, only a turn's own window ends it, and retention keeps
-    a live window's running turn. Archives are remembered in the records
-    for a day (`forgotten`), so no window records a capture older than one.
+  - **Windows sharing a store** (Codex review of PR #55; Grok review of
+    `4c43fb11`). Two windows on one folder share `context.storageUri`.
+    Every store operation on the shared state runs under an exclusive lock
+    file (`store.lock`: process id and store instance, created with `wx`,
+    its time kept fresh by a heartbeat) and reads `records.json` afresh
+    inside it; a write (records, ref deletion, prune) first checks the lock
+    is still its own. A lock is taken over only when its process has exited
+    or it has been silent for five minutes; a lock taken by another window
+    during the takeover is put back. One policy for the lock (15-second
+    wait):
+    - **What never waits.** A turn, and a message about to start one, is
+      published as running in the window's presence file
+      (`windows/<instance>.json`, replaced whole, no lock) before the
+      message is sent, whether or not its capture or record succeeds, and
+      stays until the turn ends; another window refuses a restore while
+      any is published. A tool's copy before a write goes to the window's
+      `staging/<instance>/` with no lock and is taken into the shadow at
+      the turn's end; a copy that cannot be made fails the write. The
+      checkpoint list reads `records.json` as it stands.
+    - **What is told.** A capture, a record, a restore and a redo refused
+      by the lock say so in the panel. A refused record leaves nothing in
+      memory (a turn is open here only once its record is saved).
+    - **What waits.** A turn's end, an archive, letting go of a pinned
+      capture and cleanup take effect in memory at once (the turn is no
+      longer open, the archive is honoured here) and are kept and done at
+      the next locked operation or by a retry every 30 seconds (ten times,
+      then at the next operation). A turn whose end waited is recorded with
+      its end time and no end capture, so its changes are unsure.
+      Pins and staged copies are named by window and are orphans only once
+      it is gone. Records carry their window (`owner`); only a turn's own
+      window ends it, and retention keeps a live window's running turn.
+      Archives are remembered in the records for a day (`forgotten`), even
+      before any checkpoint exists, so no window records a capture older than
+      one.
   - **Each step** (review of 4ce27cb8): the redo record of every step is
     saved, with its keep ref, before the first file changes; `.gitignore`
     files are written first, then the ignore check (paths given as `./…`,

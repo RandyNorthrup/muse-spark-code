@@ -6,9 +6,10 @@
 // instance id), its time kept fresh by a heartbeat while held. A lock is
 // taken over only when its owner is gone: the process has exited, or it has
 // not beaten for CHECKPOINT_OWNER_STALE_MS (a reused process id, a hung
-// host). Each open store also keeps a presence file beating, so another
-// window can tell a live window's pinned captures, tool copies and running
-// turns from those of a window that is gone.
+// host). Each open store also keeps a presence file beating, with the turns
+// running in it (published with no lock, before a turn may edit a file), so
+// another window can tell a live window's pinned captures and running turns
+// from those of a window that is gone.
 
 import { rmSync } from 'node:fs'
 import {
@@ -32,6 +33,7 @@ import {
   CHECKPOINT_STORAGE_MODE,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
+import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
 
 const LOCK_FILE = 'store.lock'
@@ -43,7 +45,12 @@ const ALREADY_THERE = 'EEXIST'
 const BUSY_CODES: ReadonlySet<string> = new Set([ALREADY_THERE, 'EPERM', 'EBUSY'])
 const NO_SUCH_PROCESS = 'ESRCH'
 
-const ownerSchema = z.object({ pid: z.number(), instance: z.string() })
+// A presence file also lists the window's running turns (opaque keys).
+const ownerSchema = z.object({
+  pid: z.number(),
+  instance: z.string(),
+  running: z.optional(z.array(z.string())),
+})
 type Owner = z.infer<typeof ownerSchema>
 
 /** The lock was not taken in time, or another window took it over: the action is refused. */
@@ -99,6 +106,10 @@ export class StoreLock {
   private readonly presenceDir: string
   private isHeld = false
   private isPresent = false
+  /** The turns this window last published as running. */
+  private running: readonly string[] = []
+  /** Presence writes, one after another: the last one carries the latest turns. */
+  private publishing: Promise<unknown> = Promise.resolve()
 
   public constructor(private readonly deps: StoreLockDeps) {
     this.lockPath = path.join(deps.storageDir, LOCK_FILE)
@@ -230,27 +241,46 @@ export class StoreLock {
     }
   }
 
-  /** Marks this window present, so its pins, copies and running turns count as live. */
-  private async markPresent(): Promise<void> {
-    if (this.isPresent) {
+  private async writePresence(): Promise<void> {
+    if (this.deps.signal.aborted) {
       return
     }
-    await mkdir(this.presenceDir, { recursive: true })
-    await rm(this.presencePath, { force: true })
-    const handle = await open(this.presencePath, 'wx', CHECKPOINT_FILE_MODE)
-    try {
-      await handle.writeFile(JSON.stringify(this.self))
-    } finally {
-      await handle.close()
-    }
+    await mkdir(this.presenceDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
+    await writeFileAtomically(
+      this.presencePath,
+      JSON.stringify({ ...this.self, running: this.running }),
+      { sleep: this.deps.sleep },
+    )
     this.isPresent = true
+  }
+
+  /**
+   * Publishes this window as present with these turns running. No lock: only
+   * this window writes its presence file, replaced whole, so another window
+   * reads one version or the next. Resolves once the file says so.
+   */
+  public async publish(running: readonly string[]): Promise<void> {
+    this.running = [...running]
+    const previous = this.publishing
+    const write = (async () => {
+      try {
+        await previous
+      } catch {
+        // That write failed for its own caller; this one carries the latest turns.
+      }
+      await this.writePresence()
+    })()
+    this.publishing = write
+    await write
   }
 
   /** Runs the task holding the lock; StoreBusyError when it was not taken in time. */
   public async run<T>(task: () => Promise<T>): Promise<T> {
     await this.acquire()
     try {
-      await this.markPresent()
+      if (!this.isPresent) {
+        await this.publish(this.running)
+      }
       return await task()
     } finally {
       await this.release()
@@ -288,11 +318,12 @@ export class StoreLock {
   }
 
   /**
-   * The instances of the windows open on this store, this one included; the
-   * presence files of windows that are gone are removed (held lock only).
+   * The windows open on this store and the turns running in each, this one
+   * included; the presence files of windows that are gone are removed (held
+   * lock only).
    */
-  public async liveInstances(): Promise<ReadonlySet<string>> {
-    const live = new Set([this.deps.instance])
+  public async liveWindows(): Promise<ReadonlyMap<string, readonly string[]>> {
+    const live = new Map<string, readonly string[]>([[this.deps.instance, this.running]])
     let names: string[]
     try {
       names = await readdir(this.presenceDir)
@@ -312,7 +343,7 @@ export class StoreLock {
       if (this.isGone(seen)) {
         await rm(filePath, { force: true })
       } else {
-        live.add(seen.owner.instance)
+        live.set(seen.owner.instance, seen.owner.running ?? [])
       }
     }
     return live

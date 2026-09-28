@@ -166,8 +166,8 @@ describe('StoreLock (M72)', () => {
       JSON.stringify({ pid: process.pid, instance: 'silent' }),
     )
     await age(path.join(windows, 'silent.json'))
-    const live = await lock.run(() => lock.liveInstances())
-    expect([...live].toSorted(byName)).toEqual(['live', 'self'])
+    const live = await lock.run(() => lock.liveWindows())
+    expect([...live].map(([instance]) => instance).toSorted(byName)).toEqual(['live', 'self'])
     const left = await readdir(windows)
     expect(left.toSorted(byName)).toEqual(['live.json', 'self.json'])
   })

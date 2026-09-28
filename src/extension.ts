@@ -879,7 +879,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
     isEnabled: () => currentSettings().turnCheckpoints,
     hasGit: processGitLocator(),
-    log,
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
   // What the extension's own tools write is copied first, so a restore can

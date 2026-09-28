@@ -428,7 +428,7 @@ function setup(
       checkpointTurns.add(turnId)
       return Promise.resolve()
     },
-    markTurn: () => undefined,
+    markTurn: () => Promise.resolve(),
     endTurn: (sessionId, turnId) => {
       checkpointCalls.push(`end ${sessionId} ${turnId}`)
       return Promise.resolve()

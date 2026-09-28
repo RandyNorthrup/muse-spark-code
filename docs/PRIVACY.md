@@ -283,11 +283,14 @@ fields, never raw configuration or failed-command output.
   conversation, for 50 conversations, are kept within
   `museSpark.cleanupPeriodDays`, and those bounds are applied each time the
   window opens, with the setting on or off. Copies no record or open window
-  names (a window that closed mid-turn) are deleted then too. Two windows on
-  the same folder share the folder, one at a time: a lock file there names
-  the window's process id, and each open window keeps a small presence file
-  (its process id and a random window id) while it is open. Deleting the
-  directory removes them all. In Restricted Mode none are taken.
+  names (a window that closed mid-turn) are deleted then too. A tool's copy
+  of a file it is about to write is first kept in a `staging` folder there,
+  per window, and deleted once the turn's end has taken it in (or when that
+  window is gone). Two windows on the same folder share the folder, one at a
+  time: a lock file there names the window's process id, and each open
+  window keeps a small presence file (its process id, a random window id and
+  the ids of its running turns) while it is open. Deleting the directory
+  removes them all. In Restricted Mode none are taken.
 - Settings (`museSpark.*`), the archived-session list, the "last session"
   memory per panel, which paid features' prices you accepted, which paid
   features you allowed always in a workspace (kept in that workspace's

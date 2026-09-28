@@ -47,11 +47,14 @@ function harness(options: HarnessOptions = {}) {
   const calls: string[] = []
   const released: string[] = []
   const marks: string[] = []
+  // Marks and captures in the order they happened.
+  const order: string[] = []
   let captures = 0
   const port: CheckpointPort = {
     availability: options.availability ?? (() => 'on'),
     capture: () => {
       captures += 1
+      order.push('capture')
       return (
         options.capture?.(captures) ??
         Promise.resolve({ ok: true, snapshot: snapshot(`c${String(captures)}`) })
@@ -65,8 +68,11 @@ function harness(options: HarnessOptions = {}) {
       calls.push(`record ${sessionId} ${turnId} ${taken.tree}`)
       return options.record?.() ?? Promise.resolve()
     },
-    markTurn: (sessionId, turnId, isRunning) => {
-      marks.push(`${sessionId} ${turnId} ${String(isRunning)}`)
+    markTurn: (key, isRunning) => {
+      const name = key.startsWith('pending:') ? 'message' : key.replace('\0', ' ')
+      marks.push(`${name} ${String(isRunning)}`)
+      order.push(`mark ${name} ${String(isRunning)}`)
+      return Promise.resolve()
     },
     endTurn: (sessionId, turnId) => {
       calls.push(`end ${sessionId} ${turnId}`)
@@ -93,7 +99,7 @@ function harness(options: HarnessOptions = {}) {
     unsavedPaths: () => [],
     log: new FakeLogOutputChannel(),
   })
-  return { checkpoints, calls, released, marks, posted, notices }
+  return { checkpoints, calls, released, marks, order, posted, notices }
 }
 
 const restored = (overrides: Partial<Extract<RestoreOutcome, { ok: true }>> = {}) =>
@@ -131,6 +137,27 @@ describe('ConversationCheckpoints (M72)', () => {
     })
   })
 
+  it('publishes a message as running before its capture, and its turn until it ends, checkpoint or not', async () => {
+    const { checkpoints, calls, order, notices } = harness({
+      capture: () => Promise.resolve({ ok: false, reason: 'busy', detail: 'x' }),
+    })
+    await checkpoints.sessionChanged('s1')
+    const capture = await checkpoints.beforeTurn('s1')
+    checkpoints.accepted(capture, 't1', true)
+    checkpoints.turnCompleted('t1')
+    expect(order).toEqual([
+      'mark message true',
+      'capture',
+      'mark s1 t1 true',
+      'mark message false',
+      'mark s1 t1 false',
+    ])
+    expect(calls).toEqual([])
+    expect(notices.map(([, text]) => text)).toEqual([
+      fill(UI_TEXT.checkpointUnavailable, { reason: UI_TEXT.checkpointBusy }),
+    ])
+  })
+
   it('lets go of the capture of a message that was not sent', async () => {
     const { checkpoints, calls, released } = harness()
     await checkpoints.sessionChanged('s1')
@@ -157,7 +184,16 @@ describe('ConversationCheckpoints (M72)', () => {
         'record s2 t9 c2',
       ])
     })
-    expect(marks).toEqual(['s1 t1 true', 's1 t1 false', 's2 t9 true', 's2 t9 false'])
+    expect(marks).toEqual([
+      'message true',
+      's1 t1 true',
+      'message false',
+      's1 t1 false',
+      'message true',
+      's2 t9 true',
+      'message false',
+      's2 t9 false',
+    ])
     // Each end came after its own record.
     expect(calls.indexOf('end s1 t1')).toBeGreaterThan(calls.indexOf('record s1 t1 c1'))
     expect(calls.indexOf('end s2 t9')).toBeGreaterThan(calls.indexOf('record s2 t9 c2'))
@@ -205,7 +241,8 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
     })
     await checkpoints.sessionChanged('s1')
     for (const _reason of reasons) {
-      expect(await checkpoints.beforeTurn('s1')).toBeUndefined()
+      const pending = await checkpoints.beforeTurn('s1')
+      expect(pending?.snapshot).toBeUndefined()
     }
     const unavailable = (reason: string) => fill(UI_TEXT.checkpointUnavailable, { reason })
     expect(notices.map(([, text]) => text)).toEqual([
