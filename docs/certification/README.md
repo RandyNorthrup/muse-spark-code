@@ -72,4 +72,5 @@ The PNGs beside the records are that day's harness renders.
 - [0.9.1](release-0.9.1.md): Muse Code 1.4.0 on Windows: rename, fork and the sandbox warning limited for every version; known 1.4.0 schema fingerprints (PLAN.md D26 amendment)
 - [M57](m57.md): the Model API backend out of the activation bundle into `dist/modelApi.js`, the identity audit and the bundle-split gate (PLAN.md D6)
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
+- [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and a first live run (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
 - [Sign-in detection](sign-in-detection.md): the CLI's sign-in read from its credential file's structure and confirmed by the CLI, sign-out through `account/logout`, and every way a browser sign-in ends (PLAN.md D26 amendment)

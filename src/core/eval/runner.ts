@@ -1,0 +1,231 @@
+// The M75 paired runner (PLAN.md D49): every task runs once per arm, the
+// baseline first and then each mechanism, task by task so both arms of a
+// pair run under the same conditions. Each run gets a fresh workspace, a
+// fresh harness and its own trace; the verifier then judges the files the
+// turn left. Each arm's pass rate per split is held against the capability
+// floors fixed in advance, and an arm below either floor fails the run.
+
+import { ModelApiClient, type ModelApiClientDeps } from '../backends/modelapi/client'
+import type { ToolIo } from '../backends/modelapi/tools'
+import type { ContextIo } from '../context/contextFiles'
+import type { CoreLogger } from '../logging'
+import {
+  EVAL_FLOOR_ACCEPT_PASS_RATE,
+  EVAL_FLOOR_HELDOUT_PASS_RATE,
+  EVAL_MODEL_ID,
+  EVAL_REPORT_VERSION,
+  EVAL_SPLITS,
+  EVAL_TURN_COMPLETED,
+  EVAL_TURN_NOT_RUN,
+  EVAL_ROOT_MASK,
+  type EvalSplit,
+} from '../../shared/constants'
+import { runEvalTurn, type EvalHostChange, type EvalTurnOutcome } from './driver'
+import type {
+  EvalArmReport,
+  EvalFloorResult,
+  EvalReport,
+  EvalSplitSummary,
+  EvalTaskResult,
+} from './report'
+import type { EvalTask } from './tasks'
+import { createEvalWire, wireTotals, type EvalBudget } from './wire'
+import {
+  createEvalWorkspace,
+  removeEvalWorkspace,
+  runEvalVerifier,
+  type EvalVerdict,
+} from './workspace'
+
+export interface EvalArm {
+  readonly name: string
+  /** What the arm changes, for the report; absent on the baseline. */
+  readonly mechanism?: string | undefined
+  readonly change?: EvalHostChange | undefined
+}
+
+export interface EvalRunDeps {
+  /** The network: the live `fetch`, or the fake Model API's. */
+  readonly fetch: typeof fetch
+  /** The client's settings but its `fetch`, which is each run's trace. */
+  readonly client: Omit<ModelApiClientDeps, 'fetch'>
+  /** The tools' file and shell access for one task's workspace. */
+  readonly toolIo: (workspace: string) => ToolIo
+  readonly contextIo: ContextIo
+  readonly platform: NodeJS.Platform
+  /** The key's SHA-256 digest; never the key. */
+  readonly accountId: string
+  readonly log: CoreLogger
+  readonly now: () => number
+  readonly newId: () => string
+  readonly generatedAt: string
+  readonly turnTimeoutMs?: number | undefined
+  /** Looks at a run's folder before it is removed (the live run's key scan). */
+  readonly inspect?: ((root: string) => Promise<void>) | undefined
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function turnFailures(outcome: EvalTurnOutcome | undefined, runError: string | undefined) {
+  if (outcome === undefined) {
+    return [`the turn could not run: ${String(runError)}`]
+  }
+  const failures = [...outcome.problems]
+  if (outcome.terminal !== EVAL_TURN_COMPLETED) {
+    const reason = outcome.reason === undefined ? '' : `: ${outcome.reason}`
+    failures.unshift(`the turn ended ${outcome.terminal}${reason}`)
+  }
+  if (outcome.paidUses > 0) {
+    failures.push(`${String(outcome.paidUses)} paid uses happened`)
+  }
+  return failures
+}
+
+async function runTask(
+  task: EvalTask,
+  arm: EvalArm,
+  deps: EvalRunDeps,
+  budget: EvalBudget,
+): Promise<EvalTaskResult> {
+  const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
+  const folders = await createEvalWorkspace(task)
+  let outcome: EvalTurnOutcome | undefined
+  let runError: string | undefined
+  let verdict: EvalVerdict | undefined
+  try {
+    try {
+      outcome = await runEvalTurn({
+        deps: {
+          client: new ModelApiClient({ ...deps.client, fetch: wire.fetch }),
+          io: deps.toolIo(folders.workspace),
+          contextIo: deps.contextIo,
+          platform: deps.platform,
+          accountId: deps.accountId,
+          log: deps.log,
+          now: deps.now,
+          newId: deps.newId,
+          turnTimeoutMs: deps.turnTimeoutMs,
+        },
+        workspace: folders.workspace,
+        prompt: task.prompt,
+        change: arm.change,
+      })
+    } catch (error: unknown) {
+      runError = describe(error)
+    }
+    await wire.settle()
+    verdict = outcome === undefined ? undefined : await runEvalVerifier(task, folders)
+    await deps.inspect?.(folders.root)
+  } finally {
+    await removeEvalWorkspace(folders.root)
+  }
+  // The report is committed: the temporary path (under the owner's
+  // profile) is masked wherever a reason carries it.
+  const failures = [
+    ...turnFailures(outcome, runError),
+    ...(verdict === undefined || verdict.passed ? [] : [`the verifier failed: ${verdict.detail}`]),
+    ...wire.refusals.map((reason) => `refused: ${reason}`),
+    ...wire.problems,
+  ].map((failure) => failure.replaceAll(folders.root, () => EVAL_ROOT_MASK))
+  const totals = wireTotals(wire)
+  const isPassed = failures.length === 0
+  deps.log.info(
+    `Evaluation ${arm.name} ${task.id}: ${isPassed ? 'passed' : 'failed'} after ${String(totals.attempts)} attempts`,
+  )
+  return {
+    taskId: task.id,
+    title: task.title,
+    split: task.split,
+    passed: isPassed,
+    terminal: outcome?.terminal ?? EVAL_TURN_NOT_RUN,
+    failures,
+    attempts: totals.attempts,
+    requests: totals.requests,
+    inputTokens: totals.inputTokens,
+    cachedTokens: totals.cachedTokens,
+    outputTokens: totals.outputTokens,
+    costUsd: totals.costUsd,
+    toolCalls: outcome?.tools.length ?? 0,
+    approvals: outcome?.approvals ?? 0,
+  }
+}
+
+function sum(results: readonly EvalTaskResult[], pick: (result: EvalTaskResult) => number) {
+  let total = 0
+  for (const result of results) {
+    total += pick(result)
+  }
+  return total
+}
+
+function summarize(split: EvalSplit, results: readonly EvalTaskResult[]): EvalSplitSummary {
+  const sliced = results.filter((result) => result.split === split)
+  const passed = sliced.filter((result) => result.passed).length
+  return {
+    split,
+    tasks: sliced.length,
+    passed,
+    passRate: sliced.length === 0 ? 0 : passed / sliced.length,
+    attempts: sum(sliced, (result) => result.attempts),
+    requests: sum(sliced, (result) => result.requests),
+    inputTokens: sum(sliced, (result) => result.inputTokens),
+    cachedTokens: sum(sliced, (result) => result.cachedTokens),
+    outputTokens: sum(sliced, (result) => result.outputTokens),
+    costUsd: sum(sliced, (result) => result.costUsd),
+  }
+}
+
+function floorFor(split: EvalSplit): number {
+  return split === 'accept' ? EVAL_FLOOR_ACCEPT_PASS_RATE : EVAL_FLOOR_HELDOUT_PASS_RATE
+}
+
+function verdictOf(floors: readonly EvalFloorResult[]): EvalReport['verdict'] {
+  if (floors.some((floor) => floor.tasks > 0 && !floor.held)) {
+    return 'fail'
+  }
+  return floors.some((floor) => floor.tasks === 0) ? 'incomplete' : 'pass'
+}
+
+/** Runs the tasks on every arm (the first is the baseline) and builds the report. */
+export async function runPairedEval(
+  tasks: readonly EvalTask[],
+  arms: readonly [EvalArm, ...EvalArm[]],
+  deps: EvalRunDeps,
+): Promise<EvalReport> {
+  const budget: EvalBudget = { spentUsd: 0 }
+  const runs = arms.map((arm) => ({ arm, results: [] as EvalTaskResult[] }))
+  for (const task of tasks) {
+    for (const run of runs) {
+      run.results.push(await runTask(task, run.arm, deps, budget))
+    }
+  }
+  const reports: EvalArmReport[] = runs.map(({ arm, results }) => ({
+    name: arm.name,
+    ...(arm.mechanism !== undefined && { mechanism: arm.mechanism }),
+    results,
+    summaries: EVAL_SPLITS.map((split) => summarize(split, results)),
+  }))
+  const floors: EvalFloorResult[] = reports.flatMap((arm) =>
+    arm.summaries.map((summary) => {
+      const floor = floorFor(summary.split)
+      return {
+        arm: arm.name,
+        split: summary.split,
+        tasks: summary.tasks,
+        passRate: summary.passRate,
+        floor,
+        held: summary.tasks > 0 && summary.passRate >= floor,
+      }
+    }),
+  )
+  return {
+    version: EVAL_REPORT_VERSION,
+    model: EVAL_MODEL_ID,
+    generatedAt: deps.generatedAt,
+    arms: reports,
+    floors,
+    verdict: verdictOf(floors),
+  }
+}

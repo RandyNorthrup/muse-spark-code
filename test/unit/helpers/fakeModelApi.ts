@@ -5,7 +5,7 @@
 // (dev.meta.ai/docs/protocols/responses), so the parser and the client run
 // exactly as they do against the service.
 
-import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
+import { ModelApiClient, type ModelApiClientDeps } from '../../../src/core/backends/modelapi/client'
 import { createHash } from 'node:crypto'
 import type { CoreLogger } from '../../../src/core/logging'
 
@@ -361,16 +361,22 @@ function urlOf(input: string | URL | Request): URL {
 const FAKE_API_KEY = 'LLM|1|secret'
 export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256').update(FAKE_API_KEY).digest('hex')
 
-export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
-  return new ModelApiClient({
-    fetch: api.fetch,
-    baseUrl: 'https://api.example.test/v1',
+export const FAKE_MODEL_API_BASE_URL = 'https://api.example.test/v1'
+
+/** Everything a client on the fake API needs but its `fetch` (M75 wraps that in its trace). */
+export function fakeModelApiClientSettings(log: CoreLogger): Omit<ModelApiClientDeps, 'fetch'> {
+  return {
+    baseUrl: FAKE_MODEL_API_BASE_URL,
     apiKey: () => Promise.resolve(FAKE_API_KEY),
     sleep: () => Promise.resolve(),
     now: () => 0,
     random: () => 0,
     log,
-  })
+  }
+}
+
+export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
+  return new ModelApiClient({ ...fakeModelApiClientSettings(log), fetch: api.fetch })
 }
 
 export function fakeModelApi(): FakeModelApi {

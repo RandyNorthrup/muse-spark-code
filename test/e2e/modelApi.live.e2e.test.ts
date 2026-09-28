@@ -35,7 +35,6 @@
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -50,6 +49,7 @@ import { type Usage, usageSchema } from '../../src/core/backends/modelapi/schema
 import { parseSse } from '../../src/core/backends/modelapi/sse'
 import { personalSkillsRoot } from '../../src/core/context/skills'
 import { diagnosticsTool } from '../../src/core/diagnostics'
+import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import { readImageInfo } from '../../src/core/imageDimensions'
 import { memoryDataRoot } from '../../src/core/memory/memoryLocation'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
@@ -104,7 +104,7 @@ import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 import { readJobSource } from '../unit/helpers/jobSource'
 import { logLines } from '../unit/helpers/logText'
 import { FAKE_MCP_SERVER, fixtureJobLifecycle } from '../unit/helpers/mcpFixtures'
-import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
 const KEY_VARIABLE = 'MUSE_LIVE_MODEL_API_KEY'
@@ -613,15 +613,6 @@ async function paidFeatures(
   return { gate, usage: new PaidUsage(log) }
 }
 
-async function listWorkspace(workspace: string): Promise<readonly string[]> {
-  const entries = await readdir(workspace, { recursive: true, withFileTypes: true })
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) =>
-      path.relative(workspace, path.join(entry.parentPath, entry.name)).split(path.sep).join('/'),
-    )
-}
-
 async function openRig(options: RigOptions): Promise<Rig> {
   const root = mkdtempSync(path.join(tmpdir(), 'muse-live-modelapi-'))
   const workspace = path.join(root, 'workspace')
@@ -648,7 +639,7 @@ async function openRig(options: RigOptions): Promise<Rig> {
   const toolIo = createToolIo({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
-    listFiles: () => listWorkspace(workspace),
+    listFiles: () => listWorkspaceFiles(workspace),
     env: () => process.env,
     // Built by `npm run build:dev`; no case here needs the search tool.
     searchWorkerPath: path.join(process.cwd(), 'dist', SEARCH_WORKER_FILE),
@@ -816,12 +807,6 @@ function mediaAfterOutput(calls: readonly WireCall[]): string {
     }
   }
   return found.join(' ')
-}
-
-function filesUnder(folder: string): readonly string[] {
-  return readdirSync(folder, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => path.join(entry.parentPath, entry.name))
 }
 
 /** Where the key turned up: a log line, an event, a file the case left. Names only. */

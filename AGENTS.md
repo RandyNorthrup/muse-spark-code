@@ -117,7 +117,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client and tools, the MCP client,
                       context, Muse Code's memory, export, worktrees, usage,
-                      dictation, Muse Voice, the paid gate, network failures)
+                      dictation, Muse Voice, the paid gate, network failures,
+                      the paired efficiency evaluation (M75))
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
@@ -136,7 +137,8 @@ resources/            the walkthrough
 test/unit/**          vitest (node + jsdom via docblock); `vscode` is mocked
 test/e2e/**           the fake Muse Code CLI driven through the real backend;
                       the opt-in live drills (the Muse Code CLI; the Model
-                      API sweep, which bills the owner's key)
+                      API sweep and the M75 evaluation, which bill the
+                      owner's key)
 test/integration/**   @vscode/test-cli, runs inside VS Code
 test/harness/         the webview behind a fake host, for screenshots and the
                       accessibility gate; themes/ holds VS Code's four themes

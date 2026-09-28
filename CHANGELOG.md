@@ -7,6 +7,20 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
+  token-saving mechanism must pass before it ships (M73, M74). Ten small
+  repository fixtures (six accept, four held-out), each judged by a
+  verifier that runs the fixed code, so any correct fix passes however it
+  is spelled. Each task runs on the extension's own Model API harness in
+  an empty temporary workspace, on the contributor model only; attempts,
+  tokens and cost are counted from the requests actually sent, and each
+  arm is held against capability floors fixed in advance (0.75 per
+  split). `npm run test:e2e:live:eval` runs it, opt-in and never in CI;
+  a first live run of two accept tasks passed both for $0.0009
+  (`docs/certification/m75-baseline.md`).
+
 ### Changed
 
 - **Every paid use asks first, in a popup** (M58, PLAN.md D48): **Allow

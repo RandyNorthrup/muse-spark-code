@@ -6798,6 +6798,61 @@ harness scenario, which is what the accessibility gate checks (D32).
 - **Tests.** The runner and its verifiers against the fake Model API; the
   live runs are the evidence.
 - **Size.** M.
+- **Status.** Built on `feature/m75-eval` (2026-09-28). A first draft
+  (Muse Code, contributor model) drove a small tool loop of its own with
+  three file tools and in-memory fixtures, judged by string matching, and
+  committed a fake-API run as the baseline; the review replaced all
+  three, since a mechanism M73 or M74 adds lives in the extension's
+  harness and the draft's loop could not carry it. What landed:
+  - `src/core/eval/`: the task set (`tasks.ts`), a task's folders and its
+    verifier (`workspace.ts`), the trace (`wire.ts`), one turn on the
+    harness (`driver.ts`), the paired runner (`runner.ts`) and the report
+    (`report.ts`); the `EVAL_*` constants and `MODEL_TEXT.evalClarification`.
+  - `test/unit/eval/` (60 tests on the fake Model API, the real
+    `ModelApiHost`, the real tool I/O on disk and real verifier
+    processes) and 15 red drills (docs/certification/m75.md).
+  - `npm run test:e2e:live:eval` (`test/e2e/eval.live.e2e.test.ts`),
+    opt-in like the Model API sweep; a first live run of two accept tasks
+    passed both in 6 model calls for $0.0009
+    (`docs/certification/m75-baseline.json` and `.md`, verdict
+    `incomplete` since the held-out split did not run). The full
+    ten-task baseline is the next live run.
+- **Decisions.**
+  - **The harness under test is the extension's own.** Each task runs a
+    `ModelApiHost` (the system prompt, tools, permission engine and loop
+    users run) with the task's prompt as the user's message. A mechanism
+    is a change to the host's dependencies (`EvalHostChange`), so the two
+    arms of a pair differ in that alone; M73 and M74 add their arm to the
+    live file with their runs. Only the panel is replaced: a card is
+    allowed once (Auto mode, so only shell commands and protected writes
+    ask), a question is answered "proceed", and no paid feature is on or
+    allowed (D48): a paid use that happens anyway fails the task.
+  - **An empty workspace per task.** A fresh folder under the system's
+    temporary folder per task and arm, holding the fixture files only
+    (each fixture is an ES module package), removed afterwards. Nothing
+    from the owner's profile (personal skills, memory, hooks) reaches the
+    prompt.
+  - **Verifiers judge behaviour.** Each is a Node module run after the
+    turn beside the workspace (the model never sees it), in its own
+    process with an empty environment and a time limit; it imports the
+    fixed files and asserts what they do, so any correct fix passes.
+    Every verifier is proved to fail its defect and to pass two
+    spellings of the fix.
+  - **Attempts from the trace.** Every request goes through the run's
+    `fetch`, which records method, path, model, status and the usage
+    Meta returned; attempts are the `POST /responses` sent, retries and
+    any call a mechanism adds included. It refuses, without sending, a
+    model call on any model but `muse-spark-1.3-contributor`, any other
+    host, and everything once the run's estimate passes $0.50.
+  - **Floors 0.75 / 0.75**, fixed in advance: 5 of 6 accept and 3 of 4
+    held-out tasks must pass, on every arm, the baseline included (a
+    task set the baseline cannot pass detects nothing). A split that did
+    not run holds no floor: such a run is `incomplete`, never `pass`.
+  - **Paired task by task**: each task runs on every arm before the next,
+    so both arms of a pair share the conditions of the moment.
+  - No new setting, command, panel string or paid feature: the
+    evaluation is developer tooling. M73 and M74 add their own
+    off-by-default settings with their passing runs.
 
 ### M73 — Observation packing (D49)
 
