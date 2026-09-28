@@ -11,6 +11,7 @@
 // another window can tell a live window's pinned captures and running turns
 // from those of a window that is gone.
 
+import { randomUUID } from 'node:crypto'
 import { rmSync } from 'node:fs'
 import {
   copyFile,
@@ -39,10 +40,16 @@ import type { Logger } from '../logger'
 const LOCK_FILE = 'store.lock'
 const PRESENCE_DIR = 'windows'
 const PRESENCE_SUFFIX = '.json'
-const SET_ASIDE_SUFFIX = '.taken'
+const SET_ASIDE_SUFFIX = '.aside'
 const ALREADY_THERE = 'EEXIST'
-// Windows answers EPERM for a file whose deletion is still pending.
-const BUSY_CODES: ReadonlySet<string> = new Set([ALREADY_THERE, 'EPERM', 'EBUSY'])
+// Windows answers EPERM for a file whose deletion is still pending, or one
+// another process has open.
+const IN_USE_CODES: ReadonlySet<string> = new Set(['EPERM', 'EBUSY', 'EACCES'])
+const BUSY_CODES: ReadonlySet<string> = new Set([ALREADY_THERE, ...IN_USE_CODES])
+// Letting go of the lock tries this many times, a short wait apart, while the
+// file is in use.
+const RELEASE_ATTEMPTS = 5
+const RELEASE_RETRY_MS = 50
 const NO_SUCH_PROCESS = 'ESRCH'
 
 // A presence file also lists the window's running turns (opaque keys).
@@ -105,7 +112,10 @@ export class StoreLock {
   private readonly lockPath: string
   private readonly presenceDir: string
   private isHeld = false
+  /** Whether this window keeps a presence file (from its first use until it closes). */
   private isPresent = false
+  /** Whether the presence file says what `running` says. */
+  private isWritten = false
   /** The turns this window last published as running. */
   private running: readonly string[] = []
   /** Presence writes, one after another: the last one carries the latest turns. */
@@ -171,36 +181,51 @@ export class StoreLock {
     }
   }
 
+  /** A name to move the lock to that no other move uses. */
+  private asidePath(): string {
+    return `${this.lockPath}.${randomUUID()}${SET_ASIDE_SUFFIX}`
+  }
+
+  /** Puts a lock moved aside back, unless another has been taken by then. */
+  private async putBack(aside: string): Promise<void> {
+    try {
+      await copyFile(aside, this.lockPath, fsConstants.COPYFILE_EXCL)
+    } catch (error: unknown) {
+      if (errorCode(error) !== ALREADY_THERE) {
+        throw error
+      }
+    }
+  }
+
   /**
-   * Takes a gone owner's lock away: it is moved aside, and deleted only if
-   * it is still the one judged gone. A lock taken in between is put back,
-   * unless yet another has been taken by then.
+   * Takes a gone owner's lock away: it is moved aside (under a name no other
+   * move uses), and deleted only if it is still the one judged gone. A lock
+   * taken in between is put back, unless yet another has been taken by
+   * then. False when the lock could not be moved yet (in use): try later.
    */
-  private async takeOver(seen: Seen): Promise<void> {
-    const aside = `${this.lockPath}.${this.deps.instance}${SET_ASIDE_SUFFIX}`
+  private async takeOver(seen: Seen): Promise<boolean> {
+    const aside = this.asidePath()
     try {
       await rename(this.lockPath, aside)
     } catch (error: unknown) {
       if (isMissingPath(error)) {
-        return
+        return true
+      }
+      if (IN_USE_CODES.has(errorCode(error) ?? '')) {
+        return false
       }
       throw error
     }
     const moved = await this.read(aside)
     if (moved !== undefined && !isSameOwner(moved.owner, seen.owner)) {
-      try {
-        await copyFile(aside, this.lockPath, fsConstants.COPYFILE_EXCL)
-      } catch (error: unknown) {
-        if (errorCode(error) !== ALREADY_THERE) {
-          throw error
-        }
-      }
+      await this.putBack(aside)
     } else {
       this.deps.log.warn(
         `Took over the checkpoint lock of a window that is gone (process ${String(seen.owner?.pid ?? 'unknown')})`,
       )
     }
     await rm(aside, { force: true })
+    return true
   }
 
   private async acquire(): Promise<void> {
@@ -217,12 +242,13 @@ export class StoreLock {
       }
       const seen = await this.read(this.lockPath)
       if (seen !== undefined && isSameOwner(seen.owner, this.self)) {
-        // Ours, left behind by a task that could not let go of it.
+        // Ours, left behind by a task that could not let go of it: fresh again.
+        const now = new Date(this.deps.clock())
+        await utimes(this.lockPath, now, now)
         this.isHeld = true
         return
       }
-      if (seen !== undefined && this.isGone(seen)) {
-        await this.takeOver(seen)
+      if (seen !== undefined && this.isGone(seen) && (await this.takeOver(seen))) {
         continue
       }
       holder = seen?.owner ?? holder
@@ -233,34 +259,67 @@ export class StoreLock {
     }
   }
 
+  /** Moves the lock aside to let go of it, trying again while it is in use. */
+  private async moveAside(aside: string): Promise<boolean> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        await rename(this.lockPath, aside)
+        return true
+      } catch (error: unknown) {
+        if (isMissingPath(error)) {
+          return false
+        }
+        if (!IN_USE_CODES.has(errorCode(error) ?? '') || attempt >= RELEASE_ATTEMPTS) {
+          throw error
+        }
+        await this.deps.sleep(RELEASE_RETRY_MS)
+      }
+    }
+  }
+
+  /**
+   * Lets go of the lock: it is moved aside, so what is deleted is exactly
+   * the file this window checked is its own; another window's lock (it took
+   * this one over meanwhile) is put back. A lock that cannot be let go is
+   * logged and left: this window takes it again next time, fresh.
+   */
   private async release(): Promise<void> {
     this.isHeld = false
-    const seen = await this.read(this.lockPath)
-    if (seen !== undefined && isSameOwner(seen.owner, this.self)) {
-      await rm(this.lockPath, { force: true })
+    const aside = this.asidePath()
+    try {
+      if (!(await this.moveAside(aside))) {
+        return
+      }
+      const moved = await this.read(aside)
+      if (moved !== undefined && !isSameOwner(moved.owner, this.self)) {
+        await this.putBack(aside)
+      }
+      await rm(aside, { force: true })
+    } catch (error: unknown) {
+      this.deps.log.warn(`The checkpoint lock was not let go: ${String(error)}`)
     }
   }
 
   private async writePresence(): Promise<void> {
-    if (this.deps.signal.aborted) {
+    if (this.deps.signal.aborted || !this.isPresent) {
       return
     }
-    await mkdir(this.presenceDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
-    await writeFileAtomically(
-      this.presencePath,
-      JSON.stringify({ ...this.self, running: this.running }),
-      { sleep: this.deps.sleep },
-    )
-    this.isPresent = true
+    try {
+      await mkdir(this.presenceDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
+      await writeFileAtomically(
+        this.presencePath,
+        JSON.stringify({ ...this.self, running: this.running }),
+        { sleep: this.deps.sleep },
+      )
+    } catch (error: unknown) {
+      this.isWritten = false
+      throw error
+    }
+    this.isWritten = true
   }
 
-  /**
-   * Publishes this window as present with these turns running. No lock: only
-   * this window writes its presence file, replaced whole, so another window
-   * reads one version or the next. Resolves once the file says so.
-   */
-  public async publish(running: readonly string[]): Promise<void> {
-    this.running = [...running]
+  /** Writes the presence file from memory, after any write before it. */
+  private async writeInTurn(): Promise<void> {
     const previous = this.publishing
     const write = (async () => {
       try {
@@ -274,12 +333,24 @@ export class StoreLock {
     await write
   }
 
+  /**
+   * Publishes this window as present with these turns running. No lock: only
+   * this window writes its presence file, replaced whole, so another window
+   * reads one version or the next. Resolves once the file says so.
+   */
+  public async publish(running: readonly string[]): Promise<void> {
+    this.isPresent = true
+    this.running = [...running]
+    await this.writeInTurn()
+  }
+
   /** Runs the task holding the lock; StoreBusyError when it was not taken in time. */
   public async run<T>(task: () => Promise<T>): Promise<T> {
     await this.acquire()
     try {
-      if (!this.isPresent) {
-        await this.publish(this.running)
+      this.isPresent = true
+      if (!this.isWritten) {
+        await this.writeInTurn()
       }
       return await task()
     } finally {
@@ -299,21 +370,24 @@ export class StoreLock {
     }
   }
 
-  /** The heartbeat: the presence file, and the lock while held, get a fresh time. */
+  /**
+   * The heartbeat: a lock this window holds gets a fresh time, and the
+   * presence file is written again from memory, so a missing file (removed
+   * by a window that thought this one gone) or a failed write heals.
+   */
   public async beat(): Promise<void> {
-    const now = new Date(this.deps.clock())
-    const beaten = [
-      ...(this.isPresent ? [this.presencePath] : []),
-      ...(this.isHeld ? [this.lockPath] : []),
-    ]
-    for (const filePath of beaten) {
+    if (this.isHeld) {
+      const now = new Date(this.deps.clock())
       try {
-        await utimes(filePath, now, now)
+        await utimes(this.lockPath, now, now)
       } catch (error: unknown) {
         if (!isMissingPath(error)) {
           throw error
         }
       }
+    }
+    if (this.isPresent) {
+      await this.writeInTurn()
     }
   }
 
@@ -355,6 +429,7 @@ export class StoreLock {
       return
     }
     this.isPresent = false
+    this.isWritten = false
     try {
       rmSync(this.presencePath, { force: true })
     } catch {

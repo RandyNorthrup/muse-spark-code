@@ -811,8 +811,8 @@ the panel say git was not found.
   changed only letter case, or a file that became a folder, comes back. A
   file or folder reached through a link or junction is never written or
   deleted: a folder link a turn made is left out of the checkpoint and named.
-  Restore never touches HEAD, the index, the stash or a branch, and it waits
-  while any turn runs in the window. When a turn's end was never recorded
+  Restore never touches HEAD, the index, the stash or a branch, and while any
+  turn runs in the window it is refused until that turn ends. When a turn's end was never recorded
   (the window closed mid-turn), the notice names the restored files that turn
   may not have changed itself. A folder that was there before the turn, even
   an empty one, is never removed. A folder the turns made is removed once
@@ -823,8 +823,10 @@ the panel say git was not found.
   at a time under a lock in that storage, and each sees the other's
   conversations. A turn, and a message about to start one, is marked as
   running before it can change a file, even when its checkpoint could not be
-  taken; a restore waits while a turn runs in either window, and what the
-  other window's turns changed is left and named. When the other window
+  taken (if even that mark cannot be written, the message is not sent and
+  the panel says why); while a turn runs in either window a restore is
+  refused until it ends, and what the other window's turns changed is left
+  and named. When the other window
   holds the checkpoints for more than 15 seconds, taking a checkpoint,
   restoring and redoing are refused and the panel says so. A turn's end, an
   archive, letting go of an unused checkpoint and cleanup wait and happen

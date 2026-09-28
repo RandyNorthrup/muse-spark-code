@@ -372,8 +372,8 @@ export class CheckpointStore {
   private place: { readonly top: string; readonly prefix: string } | undefined
   /** Each recorded turn still running in this window, by turn key. */
   private readonly openTurns = new Map<string, OpenTurn>()
-  /** Every turn running in the window, and every message about to start one, as published. */
-  private readonly runningTurns = new Set<string>()
+  /** Every turn running in the window, and every message about to start one, as published, with when. */
+  private readonly runningTurns = new Map<string, number>()
   private readonly journal = new Map<string, JournalEntry[]>()
   /** Staged copies a turn's put-off end still needs. */
   private readonly held = new Set<string>()
@@ -498,7 +498,8 @@ export class CheckpointStore {
     this.retries += 1
     this.retryTimer = setTimeout(() => {
       this.retryTimer = undefined
-      void this.retryDeferred().catch(() => {
+      void this.retryDeferred().catch((error: unknown) => {
+        this.deps.log.warn(`Put-off checkpoint work failed again: ${errorDetail(error)}`)
         this.scheduleRetry()
       })
     }, this.timing.retryMs).unref()
@@ -741,6 +742,18 @@ export class CheckpointStore {
 
   private isAnyTurnRunning(): boolean {
     return this.runningTurns.size > 0 || this.openTurns.size > 0
+  }
+
+  /**
+   * When each turn running here began: its record's capture, or the time it
+   * (or its message) was published as running, so a tool's copy is taken
+   * and kept even before the turn's record is saved.
+   */
+  private runningSince(): readonly number[] {
+    return [
+      ...Array.from(this.openTurns.values(), (turn) => turn.createdAt),
+      ...this.runningTurns.values(),
+    ]
   }
 
   /** A turn another live window publishes as running. */
@@ -1118,10 +1131,7 @@ export class CheckpointStore {
 
   /** Staged copies no running turn (nor a put-off end) can need any more go. */
   private async trimJournal(): Promise<void> {
-    const oldestOpen = Math.min(
-      Infinity,
-      ...Array.from(this.openTurns.values(), (turn) => turn.createdAt),
-    )
+    const oldestOpen = Math.min(Infinity, ...this.runningSince())
     const released: string[] = []
     for (const [relative, entries] of this.journal) {
       const remaining = entries.filter((entry) => entry.at >= oldestOpen)
@@ -1821,10 +1831,13 @@ export class CheckpointStore {
   public async markTurn(key: string, isRunning: boolean): Promise<void> {
     this.runningTurns.delete(key)
     if (isRunning) {
-      this.runningTurns.add(key)
+      this.runningTurns.set(key, this.deps.now())
     }
     this.startHeartbeat()
-    await this.lock.publish([...this.runningTurns])
+    await this.lock.publish([...this.runningTurns].map(([key]) => key))
+    if (!isRunning) {
+      await this.trimJournal()
+    }
   }
 
   /**
@@ -1897,14 +1910,14 @@ export class CheckpointStore {
    * write: nothing is written without it.
    */
   public async beforeToolWrite(absolutePath: string): Promise<void> {
-    if (this.openTurns.size === 0) {
+    if (!this.isAnyTurnRunning()) {
       return
     }
     const relative = this.relativeOf(absolutePath)
     if (relative === undefined) {
       return
     }
-    const latestStart = Math.max(...Array.from(this.openTurns.values(), (turn) => turn.createdAt))
+    const latestStart = Math.max(...this.runningSince())
     const entries = this.journal.get(relative) ?? []
     if ((entries.at(-1)?.at ?? -1) >= latestStart) {
       return
@@ -2110,6 +2123,17 @@ export class CheckpointStore {
    */
   public async maintain(): Promise<void> {
     if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) === undefined) {
+      // No shadow repository yet: only records work (an archive in
+      // Restricted Mode) can be waiting, and it needs no git.
+      if (this.deferred.size > 0 && !this.hasGitWork()) {
+        try {
+          await this.serialRecords()
+        } catch (error: unknown) {
+          if (!(error instanceof StoreBusyError)) {
+            throw error
+          }
+        }
+      }
       return
     }
     try {

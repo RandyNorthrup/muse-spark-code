@@ -457,15 +457,21 @@ export class ConversationCheckpoints {
   /**
    * Before a message that may start a turn: the message is published as
    * running (awaited, so no edit of its turn can come first), then the
-   * capture its checkpoint will hold is taken.
+   * capture its checkpoint will hold is taken. When the mark cannot be
+   * published, this throws and the message is not sent.
    */
   public async beforeTurn(sessionId: string): Promise<PendingCapture | undefined> {
     const marker = `${PENDING_MARKER}${randomUUID()}`
     try {
       await this.deps.port.markTurn(marker, true)
     } catch (error: unknown) {
-      this.deps.log.warn(`A running turn was not published: ${errorDetail(error)}`)
-      this.sayRefusal('failed')
+      // Another window could not be told: the message is not sent, so no
+      // restore there can land on what its turn edits.
+      this.publish(marker, false)
+      throw new Error(
+        `the message was not sent, as the turn it starts could not be marked as running (${error instanceof Error ? error.message : String(error)})`,
+        { cause: error },
+      )
     }
     const capture = { sessionId, snapshot: await this.capture(), marker }
     if (this.sessionId !== sessionId) {

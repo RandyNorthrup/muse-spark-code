@@ -33,6 +33,18 @@ const GONE_PID = 424_242
 const SHORT_WAIT_MS = 300
 const SHORT_RETRY_MS = 100
 const SHORT_HEARTBEAT_MS = 50
+const HOUR_MS = 60 * 60 * 1000
+
+/** How many tool copies are staged, in every window's staging folder. */
+async function stagedFiles(storage: string): Promise<number> {
+  const folders = await readdir(path.join(storage, 'staging'))
+  let count = 0
+  for (const folder of folders) {
+    const files = await readdir(path.join(storage, 'staging', folder))
+    count += files.length
+  }
+  return count
+}
 
 /** Another live window takes the store's lock (and keeps it until `freeLock`). */
 async function holdLock(storage: string): Promise<void> {
@@ -346,6 +358,33 @@ describe('CheckpointStore while another window holds the lock (M72)', () => {
       await expect(blocked.store.beforeToolWrite(path.join(blocked.root, 'b.txt'))).rejects.toThrow(
         /not written/,
       )
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'copies a file for a turn marked running before its record exists, until the mark ends',
+    async () => {
+      const h = await harness()
+      await h.store.markTurn(turnKey('s1', 't1'), true)
+      await write(h.root, '.env', 'KEY=1\n')
+      await h.store.beforeToolWrite(path.join(h.root, '.env'))
+      expect(await stagedFiles(h.storage)).toBe(1)
+      await h.store.markTurn(turnKey('s1', 't1'), false)
+      expect(await stagedFiles(h.storage)).toBe(0)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'writes a Restricted Mode archive the lock refused when the window next opens',
+    async () => {
+      const h = await harness({ timing: { lockWaitMs: SHORT_WAIT_MS, retryMs: HOUR_MS } })
+      await holdLock(h.storage)
+      await h.store.queueForget('s1')
+      await freeLock(h.storage)
+      await h.store.maintain()
+      expect(await forgottenIds(h.storage)).toEqual(['s1'])
     },
     REAL_GIT_TIMEOUT_MS,
   )

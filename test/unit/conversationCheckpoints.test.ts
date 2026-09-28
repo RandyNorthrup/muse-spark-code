@@ -40,6 +40,8 @@ interface HarnessOptions {
   readonly turns?: () => Promise<readonly string[]>
   readonly restore?: () => Promise<RestoreOutcome>
   readonly redo?: () => Promise<RestoreOutcome>
+  /** A running mark that cannot be written (the presence file). */
+  readonly isMarkFailing?: boolean
 }
 
 /** A port that hands out numbered captures and records what it was asked (M72). */
@@ -72,7 +74,9 @@ function harness(options: HarnessOptions = {}) {
       const name = key.startsWith('pending:') ? 'message' : key.replace('\0', ' ')
       marks.push(`${name} ${String(isRunning)}`)
       order.push(`mark ${name} ${String(isRunning)}`)
-      return Promise.resolve()
+      return isRunning && options.isMarkFailing === true
+        ? Promise.reject(new Error('disk full'))
+        : Promise.resolve()
     },
     endTurn: (sessionId, turnId) => {
       calls.push(`end ${sessionId} ${turnId}`)
@@ -156,6 +160,13 @@ describe('ConversationCheckpoints (M72)', () => {
     expect(notices.map(([, text]) => text)).toEqual([
       fill(UI_TEXT.checkpointUnavailable, { reason: UI_TEXT.checkpointBusy }),
     ])
+  })
+
+  it('does not send a message whose running mark cannot be written', async () => {
+    const { checkpoints, order } = harness({ isMarkFailing: true })
+    await checkpoints.sessionChanged('s1')
+    await expect(checkpoints.beforeTurn('s1')).rejects.toThrow(/not sent.*disk full/)
+    expect(order).toEqual(['mark message true', 'mark message false'])
   })
 
   it('lets go of the capture of a message that was not sent', async () => {

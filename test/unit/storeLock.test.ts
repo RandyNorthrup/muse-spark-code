@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
-import { mkdir, readdir, readFile, stat, utimes, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -185,6 +185,38 @@ describe('StoreLock (M72)', () => {
     for (const since of ages) {
       expect(since).toBeLessThan(CHECKPOINT_OWNER_STALE_MS)
     }
+  })
+
+  it('writes its presence again from memory when the file has gone', async () => {
+    const { lock, storageDir } = lockIn()
+    await lock.publish(['turn'])
+    const presence = path.join(storageDir, 'windows', 'self.json')
+    await rm(presence)
+    await lock.beat()
+    expect(JSON.parse(await readFile(presence, 'utf8'))).toEqual({
+      pid: process.pid,
+      instance: 'self',
+      running: ['turn'],
+    })
+  })
+
+  it('takes back its own lock left behind, with a fresh time', async () => {
+    const { lock, lockPath } = lockIn()
+    await heldBy(lockPath, process.pid, 'self')
+    await age(lockPath)
+    const since = await lock.run(async () => {
+      const held = await stat(lockPath)
+      return Date.now() - held.mtimeMs
+    })
+    expect(since).toBeLessThan(CHECKPOINT_OWNER_STALE_MS)
+  })
+
+  it('takes over a gone window’s lock whatever an earlier move left behind', async () => {
+    const { lock, lockPath } = lockIn({ isProcessAlive: (pid) => pid !== OTHER_PID })
+    await heldBy(lockPath, OTHER_PID, 'other')
+    // A folder where a fixed name for the moved lock would go.
+    await mkdir(`${lockPath}.self.aside`)
+    expect(await lock.run(() => Promise.resolve('ran'))).toBe('ran')
   })
 
   it('starts nothing once the window is closing', async () => {

@@ -32,8 +32,9 @@ happened, not what was planned; superseded entries are kept.
   operation on the shared store runs under a lock in the checkpoint storage
   and reads the records afresh, so neither window overwrites the other's. A
   turn, and a message about to start one, is marked as running before it can
-  change a file, whatever the lock; a restore waits while a turn runs in
-  either window and leaves what the other window's turns changed. When the
+  change a file, whatever the lock (a message whose mark cannot be written
+  is not sent); while a turn runs in either window a restore is refused
+  until it ends, and it leaves what the other window's turns changed. When the
   other window holds the checkpoints over 15 seconds, a checkpoint, a
   restore and a redo are refused and the panel says so; a turn's end, an
   archive, letting go of an unused checkpoint and cleanup happen later on

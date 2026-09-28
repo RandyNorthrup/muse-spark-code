@@ -6897,11 +6897,18 @@ repository in the extension's workspace storage, never the workspace's
       published as running in the window's presence file
       (`windows/<instance>.json`, replaced whole, no lock) before the
       message is sent, whether or not its capture or record succeeds, and
-      stays until the turn ends; another window refuses a restore while
-      any is published. A tool's copy before a write goes to the window's
-      `staging/<instance>/` with no lock and is taken into the shadow at
-      the turn's end; a copy that cannot be made fails the write. The
-      checkpoint list reads `records.json` as it stands.
+      stays until the turn ends; a message whose mark cannot be written is
+      not sent. Another window refuses a restore while any is published.
+      The heartbeat writes the presence file again from memory, so a file
+      removed by a window that thought this one gone, or a failed write,
+      heals. A tool's copy before a write is taken whenever a turn (or its
+      message) is published as running, before its record exists, goes to
+      the window's `staging/<instance>/` with no lock, and is taken into
+      the shadow at the turn's end; a copy that cannot be made fails the
+      write. The checkpoint list reads `records.json` as it stands. The
+      lock is let go by moving it aside under a unique name and checking
+      the moved file is this window's (another window's is put back); a
+      takeover moves it under a unique name too.
     - **What is told.** A capture, a record, a restore and a redo refused
       by the lock say so in the panel. A refused record leaves nothing in
       memory (a turn is open here only once its record is saved).
