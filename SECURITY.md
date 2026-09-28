@@ -61,11 +61,19 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   ref or index change, so a push cannot carry one). That git runs with the
   host's `GIT_*` variables removed, no system or global configuration, hooks
   pointed at an empty folder, fsmonitor off, and every conversion attribute
-  unset, so no clean or smudge filter a repository names ever runs. A
-  restore confines each path by its canonical form before writing or
-  deleting, deletes only regular files, and leaves a file changed outside
-  the conversation's turns or with unsaved editor changes as it is. None
-  are taken in Restricted Mode.
+  unset, so no clean or smudge filter a repository names ever runs; its
+  folder is 0700 on macOS and Linux, and every git it started is ended when
+  the window closes. Git for Windows walks into junctions, so a capture
+  leaves out, and names, any path under a folder link or junction, and a
+  restore refuses a path whose canonical form is not the workspace's
+  canonical root plus the path (a link or junction on the way) before each
+  write or delete. A restore deletes only regular files, checks each file's
+  content against what it expects just before changing it, writes through a
+  temporary file whose permissions are the old file's with only the
+  execute bits set from the checkpoint, and leaves a file changed outside
+  the conversation's turns, by another conversation's overlapping turn, or
+  with unsaved editor or notebook changes as it is. File names reach git as
+  literal paths, never as pathspec magic. None are taken in Restricted Mode.
 - **Path confinement (Model API backend).** Every path a tool names is
   resolved through the file system (links, junctions and short names)
   before it is read or written, and refused when it leaves the workspace;

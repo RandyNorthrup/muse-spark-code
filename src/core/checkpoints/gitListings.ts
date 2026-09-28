@@ -4,6 +4,7 @@
 // and plumbing output. Pure: no git, no file system.
 
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import { GIT_MISSING_OBJECT } from '../../shared/constants'
 
 const NUL = '\0'
@@ -17,6 +18,10 @@ const SPACE = ' '
 const RAW_MARK = ':'
 const ABSENT_MODE = '000000'
 const LINE_FEED = 0x0a
+// The shadow repository's object format (git's default; it runs with no
+// global or system config that could change it).
+const BLOB_HASH = 'sha1'
+const BLOB_TYPE = 'blob'
 
 /** The non-empty fields of `-z` output. */
 export function splitNul(output: string): readonly string[] {
@@ -92,6 +97,34 @@ export function parseDiffTree(output: string): readonly TreeChange[] {
     })
   }
   return changes
+}
+
+/**
+ * `git cat-file --batch-check`: `<oid> <type> <size>` per object asked, or
+ * `<name> missing`. Object name to size; a missing object is absent.
+ */
+export function parseBatchCheck(output: string): ReadonlyMap<string, number> {
+  const sizes = new Map<string, number>()
+  for (const line of output.split('\n')) {
+    const [name = '', type = '', sizeText = ''] = line.split(SPACE)
+    const size = Number(sizeText)
+    if (name !== '' && type !== GIT_MISSING_OBJECT && Number.isSafeInteger(size)) {
+      sizes.set(name, size)
+    }
+  }
+  return sizes
+}
+
+/**
+ * The object name git gives these bytes as a blob (SHA-1 of `blob <size>`,
+ * NUL and the bytes): the shadow repository's object format, so a file can
+ * be compared with what a capture holds without running git.
+ */
+export function gitBlobOid(bytes: Uint8Array): string {
+  return createHash(BLOB_HASH)
+    .update(`${BLOB_TYPE}${SPACE}${String(bytes.length)}${NUL}`)
+    .update(bytes)
+    .digest('hex')
 }
 
 /**

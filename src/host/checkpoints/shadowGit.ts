@@ -13,11 +13,14 @@
 //   filter runs and every file is copied byte for byte.
 // The workspace's ignore rules still apply: its `.gitignore` files, its
 // `info/exclude` (copied in) and the user's global excludes file.
+// The storage folder is the user's alone (0700), since it holds copies of
+// untracked and ignored files.
 
-import type { Buffer } from 'node:buffer'
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { Buffer } from 'node:buffer'
+import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { CHECKPOINT_GIT_TIMEOUT_MS } from '../../shared/constants'
+import { gitBlobOid } from '../../core/checkpoints/gitListings'
+import { CHECKPOINT_GIT_TIMEOUT_MS, CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import type { GitProcess } from '../git'
 
@@ -32,6 +35,9 @@ const NO_INDEX = path.join('listing', 'none.index')
 const ATTRIBUTES = path.join('info', 'attributes')
 const EXCLUDE = path.join('info', 'exclude')
 const LOCK_SUFFIX = '.lock'
+const REFS_DIR = 'refs'
+// The shadow repository's own lock files besides its refs' (git's names).
+const SHADOW_LOCKS = ['packed-refs.lock', 'HEAD.lock', 'config.lock', 'shallow.lock'] as const
 // Unsets every attribute that converts content between work tree and object.
 const NO_CONVERSION = '* -text -eol -filter -ident -working-tree-encoding -diff -merge\n'
 const GIT_VARIABLE_PREFIX = 'git_'
@@ -51,6 +57,8 @@ export interface ShadowGitDeps {
   readonly git: GitProcess
   /** The extension host's environment: PATH and the like pass, `GIT_*` does not. */
   readonly env: NodeJS.ProcessEnv
+  /** Aborted when the window closes: every git still running is ended. */
+  readonly signal: AbortSignal
 }
 
 export interface ShadowCommand {
@@ -112,6 +120,10 @@ export class ShadowGit {
     globalExcludesFile: string | undefined,
   ): Promise<void> {
     const { storageDir } = this.layout
+    await mkdir(storageDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
+    if (this.layout.platform !== 'win32') {
+      await chmod(storageDir, CHECKPOINT_STORAGE_MODE)
+    }
     await mkdir(path.join(storageDir, HOOKS_DIR), { recursive: true })
     await mkdir(this.homeDir, { recursive: true })
     await mkdir(path.dirname(this.indexPath('none')), { recursive: true })
@@ -123,20 +135,42 @@ export class ShadowGit {
         cwd: storageDir,
         env: this.baseEnv,
         timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
+        signal: this.deps.signal,
       })
     }
     await mkdir(path.join(this.shadowDir, 'info'), { recursive: true })
     await writeFile(path.join(this.shadowDir, ATTRIBUTES), NO_CONVERSION)
     await writeFile(path.join(this.shadowDir, EXCLUDE), userExclude ?? '')
     this.excludesFile = globalExcludesFile ?? path.join(storageDir, EMPTY_EXCLUDES)
+    // A restore compares files with captures by hashing them here; the
+    // repository must name objects as `gitBlobOid` does.
+    const probe = await this.text(['hash-object', '--stdin'], { input: '' })
+    if (probe !== gitBlobOid(Buffer.alloc(0))) {
+      throw new Error('the checkpoint repository does not use SHA-1 object names')
+    }
   }
 
-  /** Removes an index lock older than `staleMs` (a crash mid-command). */
-  public async clearStaleLock(index: ShadowIndex, now: number, staleMs: number): Promise<void> {
-    const lock = `${this.indexPath(index)}${LOCK_SUFFIX}`
-    const since = await modifiedAt(lock)
-    if (since !== undefined && now - since > staleMs) {
-      await rm(lock, { force: true })
+  /**
+   * Removes the lock files older than `staleMs` that a git ended mid-command
+   * left in the shadow repository and beside its indexes (a crash, a window
+   * closed): with none of this window's git running, every one is stale.
+   */
+  public async clearStaleLocks(now: number, staleMs: number): Promise<void> {
+    const refsDir = path.join(this.shadowDir, REFS_DIR)
+    const refs = (await isPresent(refsDir)) ? await readdir(refsDir, { recursive: true }) : []
+    const candidates = [
+      `${this.indexPath('work')}${LOCK_SUFFIX}`,
+      ...SHADOW_LOCKS.map((name) => path.join(this.shadowDir, name)),
+      ...refs.map((entry) => path.join(refsDir, entry)),
+    ]
+    for (const lock of candidates) {
+      if (!lock.endsWith(LOCK_SUFFIX)) {
+        continue
+      }
+      const since = await modifiedAt(lock)
+      if (since !== undefined && now - since >= staleMs) {
+        await rm(lock, { force: true })
+      }
     }
   }
 
@@ -177,6 +211,7 @@ export class ShadowGit {
         cwd: this.layout.top,
         env,
         timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
+        signal: this.deps.signal,
         ...(command.input !== undefined && { input: command.input }),
       },
     )

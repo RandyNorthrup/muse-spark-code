@@ -70,6 +70,8 @@ export interface TranscriptProps {
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
+  /** "Fork conversation and rewind code": one host action, the rewind then the fork (M72). */
+  readonly onForkRewind?: ((entryId: string) => void) | undefined
   readonly onRewindConversation?: ((entryId: string) => void) | undefined
   /**
    * Turn checkpoints (M72): the turns with one, their card's "Restore files"
@@ -175,6 +177,7 @@ const UserCard = memo(function UserCard({
   entry,
   onFork,
   onRewind,
+  onForkRewind,
   onRewindConversation,
   onRestoreFiles,
   onRestoreBoth,
@@ -185,6 +188,7 @@ const UserCard = memo(function UserCard({
   readonly entry: Extract<TranscriptEntry, { kind: 'user' }>
   readonly onFork: ((entryId: string) => void) | undefined
   readonly onRewind: ((entryId: string) => void) | undefined
+  readonly onForkRewind: ((entryId: string) => void) | undefined
   readonly onRewindConversation: ((entryId: string) => void) | undefined
   readonly onRestoreFiles: ((entryId: string) => void) | undefined
   readonly onRestoreBoth: ((entryId: string) => void) | undefined
@@ -210,7 +214,7 @@ const UserCard = memo(function UserCard({
     restore: onRestoreFiles !== undefined,
     rewind: true,
     restoreBoth: onRestoreBoth !== undefined,
-    forkRewind: onFork !== undefined && onRestoreFiles === undefined,
+    forkRewind: onForkRewind !== undefined && onRestoreFiles === undefined,
   }
   const menuRows = rewindMenu().filter((row) => offered[row.id])
   const notes = [restoreNote, conversationNote].filter((note) => note !== undefined)
@@ -238,8 +242,7 @@ const UserCard = memo(function UserCard({
         break
       }
       case 'forkRewind': {
-        onRewind?.(entry.id)
-        onFork?.(entry.id)
+        onForkRewind?.(entry.id)
         break
       }
     }
@@ -593,7 +596,10 @@ function OtherRow({
 
 const MemoOtherRow = memo(OtherRow)
 
-/** A file restore's notice with its Redo (M72), offered once. */
+/**
+ * A file restore's notice with its Redo (M72): unavailable while the host
+ * answers, gone once spent, kept when a file could not be put back yet.
+ */
 const RestoreNotice = memo(function RestoreNotice({
   entry,
   restoreId,
@@ -612,6 +618,7 @@ const RestoreNotice = memo(function RestoreNotice({
           className="notice-action"
           title={UI_TEXT.redoLabel}
           aria-label={UI_TEXT.redoLabel}
+          disabled={entry.isRedoPending === true}
           onClick={() => {
             onRedo(entry.id, restoreId)
           }}
@@ -649,6 +656,7 @@ function TranscriptList(props: TranscriptProps) {
     onRefuseLink,
     onFork,
     onRewind,
+    onForkRewind,
     onRewindConversation,
     checkpointTurnIds,
     onRestoreFiles,
@@ -716,6 +724,7 @@ function TranscriptList(props: TranscriptProps) {
             entry={entry}
             onFork={canForkHere ? onFork : undefined}
             onRewind={onRewind}
+            onForkRewind={canForkHere ? onForkRewind : undefined}
             onRewindConversation={canRewindHere ? onRewindConversation : undefined}
             onRestoreFiles={hasCheckpoint ? onRestoreFiles : undefined}
             onRestoreBoth={hasCheckpoint && canRewindHere ? onRestoreBoth : undefined}

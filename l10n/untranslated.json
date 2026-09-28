@@ -36,7 +36,8 @@
       "onboardingShortcuts.shell",
       "onboardingShortcuts.moveToBackground",
       "pdfLabel",
-      "loopItem"
+      "loopItem",
+      "namedFilesMore"
     ],
     "cs": [
       "groupModel",

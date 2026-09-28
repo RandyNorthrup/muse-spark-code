@@ -1,6 +1,8 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
 import {
+  gitBlobOid,
+  parseBatchCheck,
   parseCatFileBatch,
   parseDiffTree,
   parseStatusListing,
@@ -11,6 +13,7 @@ import {
   isCovered,
   planRestore,
   type RestoreInput,
+  type RestorePlan,
 } from '../../src/core/checkpoints/restorePlan'
 
 const blob = (oid: string) => ({ mode: '100644', oid })
@@ -21,6 +24,7 @@ function input(overrides: Partial<RestoreInput> = {}): RestoreInput {
   return {
     changes: [],
     changedOutsideTurns: new Set(),
+    uncertain: new Set(),
     ignoredTurns: [],
     coverage: { checkpoint: none, current: none },
     currentStat: new Map(),
@@ -81,6 +85,13 @@ describe('git listings (M72)', () => {
     expect(() => parseCatFileBatch(Buffer.from('aaaa blob 99\nshort\n'))).toThrow(/malformed/)
   })
 
+  it('names bytes as git names a blob, and reads a batch-check answer', () => {
+    // `git hash-object` of the empty blob and of "hello\n".
+    expect(gitBlobOid(Buffer.alloc(0))).toBe('e69de29bb2d1d6434b8b29ae775ad8c2e48c5391')
+    expect(gitBlobOid(Buffer.from('hello\n'))).toBe('ce013625030ba8dba906f756967f9e9ca394464a')
+    expect(parseBatchCheck('aaaa blob 12\nbbbb missing\n')).toEqual(new Map([['aaaa', 12]]))
+  })
+
   it('splits NUL-separated fields and drops the empty tail', () => {
     expect(splitNul('a\0b\0')).toEqual(['a', 'b'])
     expect(splitNul('')).toEqual([])
@@ -99,13 +110,42 @@ describe('planRestore (M72)', () => {
       }),
     )
     expect(plan).toEqual({
-      writes: [
-        { path: 'changed.ts', blob: blob('b1') },
-        { path: 'deleted.ts', blob: blob('b2') },
+      steps: [
+        {
+          path: 'changed.ts',
+          target: blob('b1'),
+          expect: { kind: 'blob', oid: 'a1' },
+          isIgnoreChecked: false,
+        },
+        {
+          path: 'deleted.ts',
+          target: blob('b2'),
+          expect: { kind: 'absent' },
+          isIgnoreChecked: false,
+        },
+        {
+          path: 'added.ts',
+          target: null,
+          expect: { kind: 'blob', oid: 'a3' },
+          isIgnoreChecked: true,
+        },
       ],
-      deletes: ['added.ts'],
       refused: [],
+      unsure: [],
     })
+  })
+
+  it('names the restored paths a turn with no recorded end may not have changed itself', () => {
+    const plan = planRestore(
+      input({
+        changes: [
+          { path: 'a.ts', before: blob('b1'), after: blob('a1') },
+          { path: 'b.ts', before: blob('b2'), after: blob('a2') },
+        ],
+        uncertain: new Set(['b.ts', 'c.ts']),
+      }),
+    )
+    expect(plan.unsure).toEqual(['b.ts'])
   })
 
   it('refuses a file changed outside the turns, one with unsaved changes, and one left out', () => {
@@ -125,8 +165,7 @@ describe('planRestore (M72)', () => {
         },
       }),
     )
-    expect(plan.writes).toEqual([])
-    expect(plan.deletes).toEqual([])
+    expect(plan.steps).toEqual([])
     expect(plan.refused).toEqual([
       { path: 'user.ts', reason: 'changedAfter' },
       { path: 'open.ts', reason: 'unsaved' },
@@ -176,13 +215,38 @@ describe('planRestore (M72)', () => {
       }),
     )
     expect(plan).toEqual({
-      writes: [{ path: '.env', blob: blob('env0') }],
-      deletes: ['dist/new.js'],
+      steps: [
+        {
+          path: 'dist/new.js',
+          target: null,
+          expect: { kind: 'stat', stat: stat(5) },
+          isIgnoreChecked: false,
+        },
+        {
+          path: '.env',
+          target: blob('env0'),
+          expect: { kind: 'stat', stat: stat(4) },
+          isIgnoreChecked: false,
+        },
+      ],
       refused: [
         { path: 'app.log', reason: 'noEarlierCopy' },
         { path: 'cache.db', reason: 'noEarlierCopy' },
       ],
-    })
+      unsure: [],
+    } satisfies RestorePlan)
+  })
+
+  it('refuses an ignored file another conversation changed meanwhile', () => {
+    const plan = planRestore(
+      input({
+        ignoredTurns: [[{ path: 'out.js', kind: 'created', startStat: null, endStat: stat(5) }]],
+        currentStat: new Map([['out.js', stat(5)]]),
+        changedOutsideTurns: new Set(['out.js']),
+      }),
+    )
+    expect(plan.steps).toEqual([])
+    expect(plan.refused).toEqual([{ path: 'out.js', reason: 'changedAfter' }])
   })
 
   it('refuses an ignored file changed after the last turn, or between two turns that changed it', () => {
@@ -235,7 +299,14 @@ describe('planRestore (M72)', () => {
         currentStat: new Map([['a.log', stat(3)]]),
       }),
     )
-    expect(plan.writes).toEqual([{ path: 'a.log', blob: blob('a0') }])
+    expect(plan.steps).toEqual([
+      {
+        path: 'a.log',
+        target: blob('a0'),
+        expect: { kind: 'stat', stat: stat(3) },
+        isIgnoreChecked: false,
+      },
+    ])
   })
 
   it('leaves an ignored file alone when the work-tree change already covers it', () => {
@@ -248,15 +319,18 @@ describe('planRestore (M72)', () => {
         currentStat: new Map([['now-ignored.txt', stat(2)]]),
       }),
     )
-    expect(plan.writes).toEqual([{ path: 'now-ignored.txt', blob: blob('b') }])
+    expect(plan.steps.map((step) => [step.path, step.target])).toEqual([
+      ['now-ignored.txt', blob('b')],
+    ])
     expect(plan.refused).toEqual([])
   })
 
-  it('says whether a capture holds a path', () => {
-    const coverage = { skipped: ['big.bin'], repositories: ['vendor'] }
+  it('says whether a capture holds a path, a linked folder covering everything below it', () => {
+    const coverage = { skipped: ['big.bin', 'linked'], repositories: ['vendor'] }
     expect(isCovered(coverage, 'src/a.ts')).toBe(true)
     expect(isCovered(coverage, 'big.bin')).toBe(false)
     expect(isCovered(coverage, 'vendor/lib.c')).toBe(false)
+    expect(isCovered(coverage, 'linked/deep/x.txt')).toBe(false)
     expect(isCovered(coverage, 'vendor-other/lib.c')).toBe(true)
   })
 })

@@ -10,6 +10,7 @@ import {
 } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
 import {
+  type CheckpointAvailability,
   type DictationAction,
   type EffortLevel,
   GOAL_SLASH_COMMAND,
@@ -117,10 +118,12 @@ function rewindRequest(current: UiState, entryId: string): RewindConversationReq
 
 /** Why the user card's menu offers no file restore (M72), or undefined when it can. */
 function restoreNoteOf(state: UiState): string | undefined {
-  if (state.checkpoints.availability === 'restricted') {
-    return UI_TEXT.checkpointsRestricted
+  const notes: Readonly<Partial<Record<CheckpointAvailability, string>>> = {
+    restricted: UI_TEXT.checkpointsRestricted,
+    off: UI_TEXT.checkpointsOff,
+    noGit: UI_TEXT.checkpointsNoGit,
   }
-  return state.checkpoints.availability === 'off' ? UI_TEXT.checkpointsOff : undefined
+  return notes[state.checkpoints.availability]
 }
 
 /** What floats above the composer: a palette view, a menu or the History dialog. */
@@ -890,6 +893,30 @@ export function App({
     },
     [store, onNewConversation, dispatch, postMessage],
   )
+  // "Fork conversation and rewind code" (M72): one host action, so the fork
+  // cannot overtake the rewind's confirmation; a fork before the first
+  // message is a new conversation.
+  const onForkRewind = useCallback(
+    (entryId: string) => {
+      const current = store.getState()
+      const cut = forkCutBefore(current.transcript, entryId)
+      if (cut === undefined) {
+        return
+      }
+      const edits = [...editsAfter(current, entryId)]
+      if (cut.type === 'fresh') {
+        postMessage({ type: 'rewindCode', edits, fork: {} })
+        return
+      }
+      dispatch({ type: 'sessionChangeRequested' })
+      postMessage({
+        type: 'rewindCode',
+        edits,
+        fork: { lastTurnId: cut.lastTurnId, attachmentEpoch: store.getState().attachmentEpoch },
+      })
+    },
+    [store, dispatch, postMessage],
+  )
   // "Rewind code to here": the host reverts the edits after that message,
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
@@ -1377,6 +1404,9 @@ export function App({
           onOpenFile={onOpenFile}
           onRefuseLink={onRefuseLink}
           onFork={state.sessionId === undefined || !state.canEditSessions ? undefined : onFork}
+          onForkRewind={
+            state.sessionId === undefined || !state.canEditSessions ? undefined : onForkRewind
+          }
           onRewind={state.sessionId === undefined ? undefined : onRewind}
           onRewindConversation={
             state.sessionId === undefined || !state.canEditSessions

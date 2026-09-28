@@ -755,8 +755,11 @@ rewind button on any sent message (on hover):
   tools or its shell commands changed them. It asks first, then says what it
   restored and names every file it left as it is. See **Turn checkpoints**
   below.
-- **Rewind conversation and restore files** does both: the files first, then
-  the conversation rewind below.
+- **Rewind conversation and restore files** does both, after one
+  confirmation that names both: it checks the conversation can be rewound,
+  restores the files, then rewinds the conversation below. When a file was
+  left short (unsaved, changed since, could not be changed) the conversation
+  stays as it is, and the panel says so.
 - **Rewind conversation to here** starts a branch before that message and
   puts its prompt back in the composer. The original conversation stays in
   History. Images return when the backend still has their bytes; the panel
@@ -776,7 +779,8 @@ rewind button on any sent message (on hover):
   landed. A file the edit created goes to the trash, unless you have added
   to it since, in which case your lines stay.
 - **Fork conversation and rewind code** (offered where the turn has no
-  checkpoint).
+  checkpoint) is one action: the confirmation, the reverts, then the fork.
+  Declining the confirmation does neither.
 
 Both **Rewind code to here** and **Restore files to here** ask first, in the
 same confirmation.
@@ -786,7 +790,8 @@ when it starts and when it ends: the tracked files and the untracked ones,
 byte for byte, but not the ones `.gitignore` names. (`.gitignore` files, the
 repository's `info/exclude` and your global excludes file decide what is
 ignored.) Checkpoints work in a folder that is not a repository too, and in a
-repository with no commits.
+repository with no commits. They need git on `PATH`; without it the menu and
+the panel say git was not found.
 
 - **Where they live.** A shadow git repository in VS Code's storage for this
   workspace. Nothing is written into the workspace's `.git`: no object, no
@@ -794,10 +799,18 @@ repository with no commits.
   with hooks and fsmonitor off, none of your git configuration, and none of
   the workspace's attribute filters.
 - **What a restore does.** It undoes what the conversation's turns changed
-  from that message on. A file changed outside those turns (by you, another
-  conversation, a build you ran) is left as it is and named, as is a file
-  with unsaved changes in an editor. Restore never touches HEAD, the index,
-  the stash or a branch.
+  from that message on. A file changed outside those turns (by you, a build
+  you ran, or another conversation whose turn overlapped them) is left as it
+  is and named, as is a file with unsaved changes in an editor or notebook.
+  Each file is checked again just before it changes, so one edited while the
+  restore runs is left too. Deletions come before writes, so a rename that
+  changed only letter case, or a file that became a folder, comes back. A
+  file or folder reached through a link or junction is never written or
+  deleted: a folder link a turn made is left out of the checkpoint and named.
+  Restore never touches HEAD, the index, the stash or a branch, and it waits
+  while any turn runs in the window. When a turn's end was never recorded
+  (the window closed mid-turn), the notice names the restored files that turn
+  may not have changed itself.
 - **Ignored files.** They are not copied wholesale. A file the Model API's
   edit and write tools (or the image tools) are about to change is copied
   first, so a restore brings it back. A shell command's changes are found
@@ -807,19 +820,27 @@ repository with no commits.
   never claims to have undone them. Muse Code runs its own tools, so on that
   backend changed ignored files are listed the same way.
 - **Redo.** A restore's notice has **Redo**, which puts back what the
-  restore replaced (itself refusing a file you changed since); a redo offers
-  its own Redo.
-- **Limits.** A file over 16 MiB, a link, and a folder that is a repository
-  of its own are left out and named. A workspace with more than 50,000 files
+  restore replaced, leaving any file you changed since. What it could not
+  put back stays on the button for another try; a redo offers its own Redo.
+  The redo record is saved before the first file changes, so a restore that
+  stops part way still says what it changed and keeps its Redo. To make Redo
+  possible, a restore copies what it overwrites or deletes, an ignored file
+  included.
+- **Limits.** A file over 16 MiB, a link, a folder link or junction, and a
+  folder that is a repository of its own are left out and named. A workspace with more than 50,000 files
   outside its ignore rules gets no checkpoints, and a turn that would copy
   more than 512 MiB of changed files gets none; the panel says why. The
   ignored-file scan looks at 5,000 files at most, and an ignored folder with
   more than 1,000 files (`node_modules`) is left out whole.
-- **Cleanup.** Archiving a conversation deletes its checkpoints. A
-  conversation keeps its 100 newest, the 50 most recent conversations keep
-  theirs, and records older than `museSpark.cleanupPeriodDays` go.
+- **Cleanup.** Archiving a conversation deletes its checkpoints (in
+  Restricted Mode, the next time the folder is trusted). A conversation keeps
+  its 100 newest checkpoints and 20 newest redo records, the 50 most recent
+  conversations keep theirs, and records older than
+  `museSpark.cleanupPeriodDays` go. The bounds are applied each time the
+  window opens, with the setting on or off.
 - **Off.** Checkpoints are off in Restricted Mode, where the extension runs
-  no git, and with `museSpark.turnCheckpoints` off; the menu says so.
+  no git, and with `museSpark.turnCheckpoints` off; the menu says so. A turn
+  already under way when the setting goes off still gets its end.
   Muse Code on Windows cannot fork, so there a message offers **Restore
   files to here** but no conversation rewind, and the menu says why.
 
@@ -1442,11 +1463,13 @@ stopped and the next message resumes the same session.
   subagents and scheduled prompts) are off until you turn one on and accept
   its price; a repository's settings cannot turn one on.
 - Turn checkpoints copy the workspace's files (and an ignored file such as
-  `.env` only when the extension's own tools are about to change it) into a
-  shadow repository in VS Code's storage directory for this workspace, never
-  into the repository's `.git`; they stay on the machine and are deleted
-  with the conversation, by the retention bounds, or by removing that
-  directory. See **Turn checkpoints** in [The panel](#the-panel).
+  `.env` only when the extension's own tools are about to change it, or when
+  a restore overwrites or deletes it, for Redo) into a shadow repository in
+  VS Code's storage directory for this workspace, never into the
+  repository's `.git`; that folder is readable by your user only (on macOS
+  and Linux). They stay on the machine and are deleted with the conversation,
+  by the retention bounds, or by removing that directory. See **Turn
+  checkpoints** in [The panel](#the-panel).
 - Model API conversations are stored, per workspace, in VS Code's storage
   directory for the extension (not in the repository); ones idle longer than
   `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and

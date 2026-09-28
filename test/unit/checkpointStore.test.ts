@@ -1,135 +1,28 @@
-import { execFileSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
-import { mkdtempSync, realpathSync } from 'node:fs'
-import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CHECKPOINT_FILE_MAX_BYTES } from '../../src/shared/constants'
-import { CheckpointStore, type RestoreOutcome } from '../../src/host/checkpoints/checkpointStore'
-import { processGitProcess } from '../../src/host/git'
-import { FakeLogOutputChannel } from './helpers/fakes'
-import { removeFolder } from './helpers/temporaryFolders'
+import {
+  captured,
+  done,
+  entryCount,
+  harness,
+  isPresent,
+  read,
+  REAL_GIT_TIMEOUT_MS,
+  removeCheckpointFolders,
+  runGit,
+  treeListing,
+  turn,
+  write,
+} from './helpers/checkpointHarness'
 
 // Real git over throwaway folders (M72): each test makes its own workspace
 // and storage folder, so nothing is shared and every restore is checked
 // against the bytes on disk.
-const REAL_GIT_TIMEOUT_MS = 120_000
-const git = processGitProcess()
-const folders: string[] = []
-
 afterEach(async () => {
-  for (const folder of folders.splice(0)) {
-    await removeFolder(folder)
-  }
+  await removeCheckpointFolders()
 })
-
-function makeBase(): string {
-  const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-checkpoints-')))
-  folders.push(base)
-  return base
-}
-
-function runGit(cwd: string, args: readonly string[]): string {
-  return execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@e.x', ...args], {
-    cwd,
-    encoding: 'utf8',
-  })
-}
-
-interface Harness {
-  readonly root: string
-  readonly storage: string
-  readonly store: CheckpointStore
-  readonly log: FakeLogOutputChannel
-}
-
-async function harness(
-  options: {
-    git?: 'commit' | 'empty' | 'none'
-    subfolder?: string
-    /** The extension host's environment, given the work tree's top. */
-    env?: (top: string) => NodeJS.ProcessEnv
-  } = {},
-) {
-  const base = makeBase()
-  const top = path.join(base, 'ws')
-  await mkdir(top)
-  if (options.git !== 'none') {
-    runGit(top, ['init', '-q', '-b', 'main'])
-  }
-  const root = options.subfolder === undefined ? top : path.join(top, options.subfolder)
-  await mkdir(root, { recursive: true })
-  const storage = path.join(base, 'storage')
-  const log = new FakeLogOutputChannel()
-  let clock = 1_000_000
-  const store = new CheckpointStore({
-    workspaceRoot: root,
-    storageDir: storage,
-    platform: process.platform,
-    git,
-    env: options.env?.(top) ?? process.env,
-    retentionDays: () => 30,
-    now: () => {
-      clock += 1000
-      return clock
-    },
-    newId: () => randomUUID(),
-    log,
-  })
-  return { root, top, storage, store, log }
-}
-
-const write = async (root: string, relative: string, content: string | Uint8Array) => {
-  await mkdir(path.dirname(path.join(root, relative)), { recursive: true })
-  await writeFile(path.join(root, relative), content)
-}
-const read = (root: string, relative: string) => readFile(path.join(root, relative), 'utf8')
-const isPresent = async (root: string, relative: string) => {
-  try {
-    await stat(path.join(root, relative))
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Every path under a folder, sorted: what a test compares before and after. */
-async function treeListing(folder: string): Promise<string> {
-  const entries = await readdir(folder, { recursive: true })
-  return entries
-    .map(String)
-    .toSorted((a, b) => a.localeCompare(b))
-    .join('\n')
-}
-
-async function entryCount(folder: string): Promise<number> {
-  const entries = await readdir(folder, { recursive: true })
-  return entries.length
-}
-
-/** One turn: a checkpoint before it, `act` as the turn, the turn's end. */
-async function turn(
-  h: Pick<Harness, 'store'>,
-  turnId: string,
-  act: () => Promise<void>,
-  sessionId = 's1',
-): Promise<void> {
-  const capture = await h.store.capture()
-  if (!capture.ok) {
-    throw new Error(`capture refused: ${capture.detail}`)
-  }
-  await h.store.record(sessionId, turnId, capture.snapshot)
-  await act()
-  await h.store.endTurn(sessionId, turnId)
-}
-
-function done(outcome: RestoreOutcome) {
-  if (!outcome.ok) {
-    throw new Error(`restore failed: ${outcome.reason}`)
-  }
-  return outcome
-}
 
 describe('CheckpointStore over a git repository (M72)', () => {
   it(
@@ -153,7 +46,7 @@ describe('CheckpointStore over a git repository (M72)', () => {
         await write(h.root, 'notes.txt', 'the turn changed it\n')
       })
       const outcome = done(
-        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }),
+        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }),
       )
       expect(outcome.refused).toEqual([])
       expect(await read(h.root, 'a.txt')).toBe('one\r\n')
@@ -166,11 +59,7 @@ describe('CheckpointStore over a git repository (M72)', () => {
       expect(await read(h.root, 'notes.txt')).toBe('untracked before the turn\n')
 
       const redo = done(
-        await h.store.redo({
-          sessionId: 's1',
-          restoreId: outcome.restoreId ?? '',
-          unsavedPaths: [],
-        }),
+        await h.store.redo({ restoreId: outcome.restoreId ?? '', unsavedPaths: () => [] }),
       )
       expect(redo.refused).toEqual([])
       expect(await read(h.root, 'a.txt')).toBe('two\n')
@@ -180,15 +69,14 @@ describe('CheckpointStore over a git repository (M72)', () => {
       expect([...(await readFile(path.join(h.root, 'image.bin')))]).toEqual([9, 9, 9])
       // The redo is itself redoable: back to the restored state.
       const again = done(
-        await h.store.redo({ sessionId: 's1', restoreId: redo.restoreId ?? '', unsavedPaths: [] }),
+        await h.store.redo({ restoreId: redo.restoreId ?? '', unsavedPaths: () => [] }),
       )
       expect(again.refused).toEqual([])
       expect(await read(h.root, 'a.txt')).toBe('one\r\n')
       // A spent redo is gone.
       const spent = await h.store.redo({
-        sessionId: 's1',
         restoreId: outcome.restoreId ?? '',
-        unsavedPaths: [],
+        unsavedPaths: () => [],
       })
       expect(spent).toEqual({ ok: false, reason: 'redoGone' })
     },
@@ -228,7 +116,7 @@ describe('CheckpointStore over a git repository (M72)', () => {
         await write(h.root, 'untracked.txt', 'new\n')
         await write(h.root, 'a.txt', 'two\n')
       })
-      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }))
+      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }))
       expect(await listing()).toBe(before.files)
       expect(runGit(h.root, ['for-each-ref'])).toBe(before.refs)
       expect(await readFile(path.join(dotGit, 'index'))).toEqual(before.index)
@@ -256,7 +144,7 @@ describe('CheckpointStore over a git repository (M72)', () => {
         await write(h.root, 'crlf.txt', 'changed\n')
         await write(h.root, 'lf.txt', 'changed\r\n')
       })
-      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }))
+      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }))
       expect(await read(h.root, 'crlf.txt')).toBe('one\r\ntwo\r\n')
       expect(await read(h.root, 'lf.txt')).toBe('lf only\n')
     },
@@ -272,7 +160,7 @@ describe('CheckpointStore over a git repository (M72)', () => {
         await write(h.root, 'draft.md', 'second draft\n')
         await write(h.root, 'extra.md', 'extra\n')
       })
-      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }))
+      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }))
       expect(await read(h.root, 'draft.md')).toBe('first draft\n')
       expect(await isPresent(h.root, 'extra.md')).toBe(false)
     },
@@ -296,7 +184,7 @@ describe('CheckpointStore over a git repository (M72)', () => {
         await h.store.restore({
           sessionId: 's1',
           turnId: 't1',
-          unsavedPaths: [path.join(h.root, 'open.ts')],
+          unsavedPaths: () => [path.join(h.root, 'open.ts')],
         }),
       )
       expect(outcome.refused.toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
@@ -324,7 +212,7 @@ describe('CheckpointStore over a git repository (M72)', () => {
         await write(h.root, 'a.txt', 'a2\n')
       })
       const outcome = done(
-        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }),
+        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }),
       )
       expect(outcome.refused).toEqual([{ path: 'b.txt', reason: 'changedAfter' }])
       expect(await read(h.root, 'a.txt')).toBe('a0\n')
@@ -352,7 +240,7 @@ describe('CheckpointStore and ignored files (M72)', () => {
         await write(h.root, 'server.log', 'old log\nappended by the command\n')
       })
       const outcome = done(
-        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }),
+        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }),
       )
       expect(await read(h.root, '.env')).toBe('KEY=before\n')
       expect(await isPresent(h.root, 'build/new-chunk.js')).toBe(false)
@@ -360,13 +248,7 @@ describe('CheckpointStore and ignored files (M72)', () => {
       expect(await read(h.root, 'server.log')).toBe('old log\nappended by the command\n')
       expect(outcome.refused).toEqual([{ path: 'server.log', reason: 'noEarlierCopy' }])
       // Redo brings the turn's ignored changes back too.
-      done(
-        await h.store.redo({
-          sessionId: 's1',
-          restoreId: outcome.restoreId ?? '',
-          unsavedPaths: [],
-        }),
-      )
+      done(await h.store.redo({ restoreId: outcome.restoreId ?? '', unsavedPaths: () => [] }))
       expect(await read(h.root, '.env')).toBe('KEY=after\n')
       expect(await read(h.root, 'build/new-chunk.js')).toBe('made by the build\n')
     },
@@ -387,7 +269,7 @@ describe('CheckpointStore and ignored files (M72)', () => {
         await write(h.root, 'src.ts', 'code\n')
       })
       await write(h.root, 'cache/user.txt', 'changed by the user after the turn\n')
-      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }))
+      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }))
       expect(await isPresent(h.root, 'src.ts')).toBe(false)
       expect(await isPresent(h.root, 'node_modules/pkg/added-by-install.js')).toBe(true)
       expect(await read(h.root, 'cache/user.txt')).toBe('changed by the user after the turn\n')
@@ -408,7 +290,7 @@ describe('CheckpointStore beyond a plain repository (M72)', () => {
         await write(h.root, 'helper.py', 'pass\n')
         await write(h.root, 'out/result.txt', 'generated\n')
       })
-      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }))
+      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }))
       expect(await read(h.root, 'main.py')).toBe('print(1)\n')
       expect(await isPresent(h.root, 'helper.py')).toBe(false)
       expect(await isPresent(h.root, 'out/result.txt')).toBe(false)
@@ -429,7 +311,7 @@ describe('CheckpointStore beyond a plain repository (M72)', () => {
         await write(h.root, 'node_modules/dep/x.js', 'ignored by the top .gitignore\n')
         await write(h.top, 'outside.txt', 'changed outside\n')
       })
-      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }))
+      done(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }))
       expect(await read(h.root, 'index.ts')).toBe('v1\n')
       expect(await read(h.top, 'outside.txt')).toBe('changed outside\n')
     },
@@ -444,11 +326,7 @@ describe('CheckpointStore beyond a plain repository (M72)', () => {
       await mkdir(path.join(h.root, 'vendor'))
       runGit(path.join(h.root, 'vendor'), ['init', '-q'])
       await write(h.root, 'vendor/lib.c', 'int x;\n')
-      const capture = await h.store.capture()
-      if (!capture.ok) {
-        throw new Error(capture.detail)
-      }
-      await h.store.record('s1', 't1', capture.snapshot)
+      await h.store.record('s1', 't1', await captured(h.store))
       await write(h.root, 'small.txt', 'v2\n')
       await write(h.root, 'huge.bin', new Uint8Array(CHECKPOINT_FILE_MAX_BYTES + 1))
       await write(h.root, 'vendor/lib.c', 'int y;\n')
@@ -459,7 +337,7 @@ describe('CheckpointStore beyond a plain repository (M72)', () => {
         repositories: ['vendor'],
       })
       const outcome = done(
-        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] }),
+        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }),
       )
       expect(await read(h.root, 'small.txt')).toBe('v1\n')
       expect(await isPresent(h.root, 'huge.bin')).toBe(true)
@@ -497,7 +375,9 @@ describe('CheckpointStore lifecycle (M72)', () => {
       expect(await h.store.turns('s1')).toEqual([])
       expect(await h.store.turns('s2')).toEqual(['other-turn'])
       expect(await objects()).toBeLessThan(before)
-      expect(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] })).toEqual({
+      expect(
+        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }),
+      ).toEqual({
         ok: false,
         reason: 'noCheckpoint',
       })
@@ -510,12 +390,10 @@ describe('CheckpointStore lifecycle (M72)', () => {
     async () => {
       const h = await harness()
       await write(h.root, 'a.txt', 'v1\n')
-      const capture = await h.store.capture()
-      if (!capture.ok) {
-        throw new Error(capture.detail)
-      }
-      await h.store.record('s1', 't1', capture.snapshot)
-      expect(await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: [] })).toEqual({
+      await h.store.record('s1', 't1', await captured(h.store))
+      expect(
+        await h.store.restore({ sessionId: 's1', turnId: 't1', unsavedPaths: () => [] }),
+      ).toEqual({
         ok: false,
         reason: 'turnRunning',
       })

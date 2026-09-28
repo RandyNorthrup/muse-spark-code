@@ -540,8 +540,9 @@ export const GIT_STDERR_MAX_CHARS = 4096
 export const CHECKPOINTS_DIR = 'checkpoints'
 export const TURN_CHECKPOINTS_SETTING = 'museSpark.turnCheckpoints'
 // Whether this window takes checkpoints: on; off in Restricted Mode (no git,
-// D24); off by `museSpark.turnCheckpoints`; no folder to take them of.
-export const CHECKPOINT_AVAILABILITIES = ['on', 'restricted', 'off', 'noFolder'] as const
+// D24); off by `museSpark.turnCheckpoints`; no git on PATH; no folder to
+// take them of.
+export const CHECKPOINT_AVAILABILITIES = ['on', 'restricted', 'off', 'noGit', 'noFolder'] as const
 export type CheckpointAvailability = (typeof CHECKPOINT_AVAILABILITIES)[number]
 // What a panel assumes until the host says otherwise: no file restore offered.
 export const CHECKPOINT_INITIAL_AVAILABILITY: CheckpointAvailability = 'noFolder'
@@ -571,11 +572,19 @@ export const CHECKPOINT_IGNORED_CHANGES_MAX = 500
 export const CHECKPOINTS_PER_SESSION_MAX = 100
 export const CHECKPOINT_SESSIONS_MAX = 50
 export const CHECKPOINT_RESTORES_PER_SESSION_MAX = 20
-// Unreferenced copies are pruned at most this often, and at once when a
-// conversation's checkpoints are dropped.
+// Unreferenced copies are pruned at most this often, at once when a
+// conversation's checkpoints are dropped, and when the window opens.
 export const CHECKPOINT_PRUNE_INTERVAL_MS = 10 * 60 * 1000
-// A lock file older than this was left by a crash and is removed.
-export const CHECKPOINT_STALE_LOCK_MS = 60 * 1000
+// A lock file older than this was left by a git that ended mid-command and
+// is removed. Well over CHECKPOINT_GIT_TIMEOUT_MS, so no running git of a
+// window that closed without stopping its own can lose its lock.
+export const CHECKPOINT_STALE_LOCK_MS = 5 * 60 * 1000
+// The checkpoint folder holds copies of untracked and ignored files: it is
+// the user's alone.
+export const CHECKPOINT_STORAGE_MODE = 0o700
+// A restore reads the copies it writes back in batches of at most this many
+// bytes (one `git cat-file`'s output is capped at GIT_OUTPUT_MAX_BYTES).
+export const CHECKPOINT_BLOB_BATCH_MAX_BYTES = 32 * 1024 * 1024
 // A capture reads the listed files' sizes this many at a time.
 export const CHECKPOINT_STAT_CONCURRENCY = 64
 // How many file names a restore or skip notice spells out before "and N more".

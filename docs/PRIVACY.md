@@ -226,12 +226,18 @@ fields, never raw configuration or failed-command output.
   workspace's files at each turn's start and end (tracked and untracked
   files outside the ignore rules), the sizes and times of ignored files
   (never their content), and a copy of an ignored file (a `.env`, say) only
-  when the extension's own tools are about to change it. Nothing is written
-  into the workspace's `.git`, and nothing is sent anywhere. Archiving a
-  conversation deletes its checkpoints; the newest 100 per conversation,
-  for 50 conversations, are kept within `museSpark.cleanupPeriodDays`, and
-  deleting the directory removes them all. In Restricted Mode none are
-  taken.
+  when the extension's own tools are about to change it, or when a restore
+  overwrites or deletes it (kept for that restore's Redo). The folder is
+  readable by your user only (mode 0700 on macOS and Linux). Nothing is
+  written into the workspace's `.git`, and nothing is sent anywhere.
+  Archiving a conversation deletes its checkpoints and redo copies (one
+  archived in Restricted Mode is queued, with no git run, and deleted the
+  next time the folder is trusted); the newest 100 checkpoints and 20 redo
+  records per conversation, for 50 conversations, are kept within
+  `museSpark.cleanupPeriodDays`, and those bounds are applied each time the
+  window opens, with the setting on or off. Copies no record names (a
+  window that closed mid-turn) are deleted then too. Deleting the directory
+  removes them all. In Restricted Mode none are taken.
 - Settings (`museSpark.*`), the archived-session list, the "last session"
   memory per panel, which paid features' prices you accepted, which paid
   features you allowed always in a workspace (kept in that workspace's

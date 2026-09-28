@@ -16,8 +16,17 @@ happened, not what was planned; superseded entries are kept.
   here** and **Rewind conversation and restore files**. A restore undoes
   what the conversation's turns changed from that message on, including
   what shell commands changed. It names every file it left as it is:
-  changed since the turn, unsaved in an editor, or not in the checkpoint.
-  Its notice has **Redo**, which puts back what the restore replaced.
+  changed since the turn (by you, a build, or another conversation's
+  overlapping turn), unsaved in an editor or notebook, not in the
+  checkpoint, or could not be changed. Each file is checked again just
+  before it changes, deletions come before writes (a case-only rename or a
+  file that became a folder comes back), and no file is written or deleted
+  through a link or junction. Its notice has **Redo**, which puts back what
+  the restore replaced; the redo record is saved before the first file
+  changes, so a restore that stops part way still reports what it changed
+  and keeps Redo, and a redo that could not do everything keeps its button.
+  **Rewind conversation and restore files** checks the conversation first
+  and rewinds it only when every file was restored.
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository in VS Code's storage for the workspace, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -29,22 +38,25 @@ happened, not what was planned; superseded entries are kept.
   found by a bounded scan and deleted by a restore. Ones a command changed
   are listed as not restorable; the restore never claims to have undone
   them.
-- **Limits and cleanup.** A file over 16 MiB, a link and a nested
-  repository are left out and named, and a workspace with more than 50,000
-  files outside its ignore rules gets no checkpoints; the panel says why.
-  Archiving a conversation deletes its checkpoints, and retention keeps the
-  100 newest per conversation for 50 conversations, within
-  `museSpark.cleanupPeriodDays`.
+- **Limits and cleanup.** A file over 16 MiB, a link, a folder link or
+  junction and a nested repository are left out and named, and a workspace
+  with more than 50,000 files outside its ignore rules gets no checkpoints;
+  the panel says why. Archiving a conversation deletes its checkpoints (in
+  Restricted Mode, once the folder is trusted), and retention keeps the 100
+  newest checkpoints and 20 redo records per conversation for 50
+  conversations, within `museSpark.cleanupPeriodDays`, applied each time the
+  window opens. The checkpoint folder is 0700 on macOS and Linux.
 - **`museSpark.turnCheckpoints`** (machine-scoped, on by default) turns them
   off. They are off in Restricted Mode, where the extension runs no git,
-  and the menu says so; with Muse Code on Windows, which cannot fork, the
-  menu offers **Restore files to here** and says why the conversation rewind
-  is missing.
+  and without git on `PATH`; the menu says which. With Muse Code on
+  Windows, which cannot fork, the menu offers **Restore files to here** and
+  says why the conversation rewind is missing.
 
 ### Changed
 
 - **Rewind code to here asks first** (M72), in the same confirmation as a
-  file restore.
+  file restore. **Fork conversation and rewind code** is now one action:
+  the confirmation, the reverts, then the fork; declining does neither.
 
 - **Every paid use asks first, in a popup** (M58, PLAN.md D48): **Allow
   once**, **Allow always in this workspace**, or **Deny**, in every

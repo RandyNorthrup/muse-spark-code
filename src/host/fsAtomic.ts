@@ -35,10 +35,26 @@ export interface AtomicWriteOptions {
   /** Model API tools require the operation to keep its approved canonical target. */
   readonly expectedCanonicalPath?: string
   readonly platform?: NodeJS.Platform
+  /**
+   * A checkpoint restore (M72): whether the file is executable. The file's
+   * own permissions are kept (a new file's are the default ones) and only
+   * the execute bits follow, set where the read bits are; unset: the
+   * permissions are kept as they are.
+   */
+  readonly executable?: boolean
 }
 
 // The bits `chmod` sets: setuid, setgid, sticky and the three rwx triads.
 const PERMISSION_BITS = 0o7777
+const EXECUTE_BITS = 0o111
+const READ_BITS = 0o444
+// A read bit two places left of its triad's execute bit.
+const READ_TO_EXECUTE_SHIFT = 2
+
+/** The permissions with the execute bits set where readable, or all cleared. */
+function withExecuteBits(mode: number, isExecutable: boolean): number {
+  return isExecutable ? mode | ((mode & READ_BITS) >> READ_TO_EXECUTE_SHIFT) : mode & ~EXECUTE_BITS
+}
 
 interface Destination {
   readonly path: string
@@ -153,7 +169,10 @@ export async function writeFileAtomically(
       await (typeof content === 'string'
         ? handle.writeFile(content, 'utf8')
         : handle.writeFile(content))
-      if (destination.mode !== undefined) {
+      const mode = destination.mode ?? held.mode & PERMISSION_BITS
+      if (options.executable !== undefined && (options.platform ?? process.platform) !== 'win32') {
+        await handle.chmod(withExecuteBits(mode, options.executable))
+      } else if (destination.mode !== undefined) {
         await handle.chmod(destination.mode)
       }
     } finally {

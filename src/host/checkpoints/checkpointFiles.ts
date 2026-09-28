@@ -1,14 +1,22 @@
 // The file system side of turn checkpoints (M72, PLAN.md D51): where the
-// workspace's repository starts, its own `info/exclude`, and the writes and
-// deletions of a restore, each confined to the workspace (D24) and written
-// atomically (D27).
+// workspace's repository starts, its own `info/exclude`, the folders a
+// capture must leave out because a link leads through them, and each step
+// of a restore: confined to the workspace (D24) with no link on the way,
+// checked against what the file must still be just before it changes, and
+// written atomically (D27).
 
 import type { Buffer } from 'node:buffer'
 import type { Stats } from 'node:fs'
-import { chmod, lstat, readFile, rm, rmdir } from 'node:fs/promises'
+import { lstat, readFile, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
+import { type BlobRef, gitBlobOid } from '../../core/checkpoints/gitListings'
+import { type Expectation, isSameStat } from '../../core/checkpoints/restorePlan'
 import { confineWorkspacePath } from '../../core/workspacePath'
-import { CHECKPOINT_STAT_CONCURRENCY, GIT_MODE_EXECUTABLE } from '../../shared/constants'
+import {
+  CHECKPOINT_FILE_MAX_BYTES,
+  CHECKPOINT_STAT_CONCURRENCY,
+  GIT_MODE_EXECUTABLE,
+} from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { writeFileAtomically } from '../fsAtomic'
 import { errorDetail, type Logger } from '../logger'
@@ -20,16 +28,23 @@ const COMMONDIR_FILE = 'commondir'
 const INFO_EXCLUDE = path.join('info', 'exclude')
 const SEPARATOR = '/'
 const CURRENT_FOLDER = '.'
-const EXECUTABLE_PERMISSIONS = 0o755
-const FILE_PERMISSIONS = 0o644
 // What `rmdir` says about a folder that still holds something.
 const FOLDER_NOT_EMPTY: ReadonlySet<string> = new Set(['ENOTEMPTY', 'EEXIST', 'EPERM', 'EBUSY'])
+// Platforms whose usual file systems ignore letter case in names.
+const CASE_FOLDING_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(['win32', 'darwin'])
 
 export interface RestoreTarget {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly log: Logger
 }
+
+/**
+ * What became of one step: done; the file was not as the restore expected
+ * (changed while it ran, or an unsaved editor); a link or the workspace's
+ * edge was on the way; or the change itself failed.
+ */
+export type StepResult = 'done' | 'changed' | 'linked' | 'failed'
 
 function errorCode(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'code' in error
@@ -41,6 +56,13 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+}
+
+/** Whether two workspace-relative paths name the same file on this platform. */
+export function isSameRelative(left: string, right: string, platform: NodeJS.Platform): boolean {
+  return CASE_FOLDING_PLATFORMS.has(platform)
+    ? left.toLowerCase() === right.toLowerCase()
+    : left === right
 }
 
 /** What is at the path, links not followed; undefined when nothing is. */
@@ -67,6 +89,41 @@ export async function mapInBatches<T, R>(
     results.push(...done)
   }
   return results
+}
+
+/**
+ * The folders under the workspace, among those holding these paths, that
+ * are links or junctions (the outermost of each chain). Git for Windows
+ * walks into a junction as if it were a folder, so a capture leaves out
+ * every path below one: a restore through it would change the files where
+ * it leads, which no turn touched.
+ */
+export async function linkedFolders(
+  workspaceRoot: string,
+  relatives: readonly string[],
+): Promise<readonly string[]> {
+  const folders = new Set<string>()
+  for (const relative of relatives) {
+    for (
+      let folder = path.posix.dirname(relative);
+      folder !== CURRENT_FOLDER && !folders.has(folder);
+      folder = path.posix.dirname(folder)
+    ) {
+      folders.add(folder)
+    }
+  }
+  const ordered = [...folders].toSorted((a, b) => a.length - b.length || a.localeCompare(b))
+  const stats = await mapInBatches(ordered, (folder) =>
+    lstatOrUndefined(path.join(workspaceRoot, ...folder.split(SEPARATOR))),
+  )
+  const linked: string[] = []
+  for (const [index, folder] of ordered.entries()) {
+    const isBelowLinked = linked.some((outer) => folder.startsWith(`${outer}${SEPARATOR}`))
+    if (!isBelowLinked && stats[index]?.isSymbolicLink() === true) {
+      linked.push(folder)
+    }
+  }
+  return linked
 }
 
 async function hasGit(folder: string): Promise<boolean> {
@@ -113,51 +170,40 @@ export async function userExclude(top: string): Promise<string | undefined> {
 }
 
 /**
- * The path inside the workspace, and its canonical form, or undefined (and
- * a log line) when it leaves the workspace by its text or through a link.
+ * The path inside the workspace with no link or junction on the way (its
+ * canonical form is the canonical root plus the path), or undefined with a
+ * log line.
  */
-async function confined(
+async function unlinked(
   target: RestoreTarget,
   relative: string,
 ): Promise<{ readonly absolute: string; readonly checkedAbsolute: string } | undefined> {
   const resolution = await confineWorkspacePath(target.workspaceRoot, relative, target.platform, {
     realPath: canonicalPath,
   })
-  if (resolution.ok) {
-    return resolution
+  if (!resolution.ok) {
+    target.log.warn(`Checkpoint restore refused ${relative}: ${resolution.reason}`)
+    return undefined
   }
-  target.log.warn(`Checkpoint restore refused ${relative}: ${resolution.reason}`)
-  return undefined
+  if (!isSameRelative(resolution.canonical, resolution.relative, target.platform)) {
+    target.log.warn(`Checkpoint restore refused ${relative}: a link or junction is on the way`)
+    return undefined
+  }
+  return resolution
 }
 
-/** Writes the bytes where the path resolves inside the workspace; false when it may not. */
-export async function didWriteRestoredFile(
-  target: RestoreTarget,
-  relative: string,
-  content: Buffer,
-  mode: string,
-): Promise<boolean> {
-  const destination = await confined(target, relative)
-  if (destination === undefined) {
+/** Whether the file is still what the restore expects it to be. */
+async function isAsExpected(absolute: string, expect: Expectation): Promise<boolean> {
+  const stats = await lstatOrUndefined(absolute)
+  if (expect.kind === 'absent') {
+    return stats === undefined
+  }
+  if (stats?.isFile() !== true) {
     return false
   }
-  try {
-    await writeFileAtomically(destination.absolute, content, {
-      sleep: pause,
-      expectedCanonicalPath: destination.checkedAbsolute,
-      platform: target.platform,
-    })
-    if (target.platform !== 'win32') {
-      await chmod(
-        destination.absolute,
-        mode === GIT_MODE_EXECUTABLE ? EXECUTABLE_PERMISSIONS : FILE_PERMISSIONS,
-      )
-    }
-    return true
-  } catch (error: unknown) {
-    target.log.warn(`Checkpoint restore could not write ${relative}: ${errorDetail(error)}`)
-    return false
-  }
+  return expect.kind === 'stat'
+    ? isSameStat({ size: stats.size, mtimeMs: stats.mtimeMs }, expect.stat)
+    : stats.size <= CHECKPOINT_FILE_MAX_BYTES && gitBlobOid(await readFile(absolute)) === expect.oid
 }
 
 /** Removes the folders a deletion left empty, up to one the checkpoint had. */
@@ -184,33 +230,52 @@ async function removeEmptiedFolders(
   }
 }
 
+export interface FileStep {
+  readonly path: string
+  /** What the file becomes; `null` deletes it (a regular file, never a link or folder). */
+  readonly target: BlobRef | null
+  readonly expect: Expectation
+}
+
 /**
- * Deletes a regular file inside the workspace (never a link, never a
- * folder); with the checkpoint's folders, also each folder it leaves empty
- * that the checkpoint did not have. False when it may not.
+ * One step of a restore or a redo: the file changed only when it is inside
+ * the workspace with no link on the way and still as expected. With
+ * `foldersThen`, a deletion also removes each folder it leaves empty that
+ * the checkpoint did not have.
  */
-export async function didDeleteRestoredFile(
+export async function applyFileStep(
   target: RestoreTarget,
-  relative: string,
+  step: FileStep,
+  content: Buffer | undefined,
   foldersThen: ReadonlySet<string> | undefined,
-): Promise<boolean> {
-  const destination = await confined(target, relative)
+): Promise<StepResult> {
+  const destination = await unlinked(target, step.path)
   if (destination === undefined) {
-    return false
+    return 'linked'
   }
   try {
-    // The name itself, never what a link there leads to.
-    const stats = await lstatOrUndefined(destination.absolute)
-    if (stats !== undefined && !stats.isFile()) {
-      return false
+    if (!(await isAsExpected(destination.absolute, step.expect))) {
+      return 'changed'
     }
-    await rm(destination.absolute, { force: true })
-    if (foldersThen !== undefined) {
-      await removeEmptiedFolders(target, relative, foldersThen)
+    if (step.target === null) {
+      await rm(destination.absolute, { force: true })
+      if (foldersThen !== undefined) {
+        await removeEmptiedFolders(target, step.path, foldersThen)
+      }
+      return 'done'
     }
-    return true
+    if (content === undefined) {
+      return 'failed'
+    }
+    await writeFileAtomically(destination.absolute, content, {
+      sleep: pause,
+      expectedCanonicalPath: destination.checkedAbsolute,
+      platform: target.platform,
+      executable: step.target.mode === GIT_MODE_EXECUTABLE,
+    })
+    return 'done'
   } catch (error: unknown) {
-    target.log.warn(`Checkpoint restore could not delete ${relative}: ${errorDetail(error)}`)
-    return false
+    target.log.warn(`Checkpoint restore could not change ${step.path}: ${errorDetail(error)}`)
+    return 'failed'
   }
 }

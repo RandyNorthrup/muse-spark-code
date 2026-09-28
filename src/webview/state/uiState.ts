@@ -318,7 +318,7 @@ export type UiAction =
   | { readonly type: 'taskRequested'; readonly itemId: string; readonly request: TaskRequest }
   /** A line for the transcript the webview itself has to say (M25). */
   | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
-  /** A restore notice's Redo was pressed (M72): it is offered once. */
+  /** A restore notice's Redo was pressed (M72): it waits for the host's answer. */
   | { readonly type: 'redoRequested'; readonly entryId: string }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
@@ -1809,6 +1809,16 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
       }
     }
+    case 'restoreRedone': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'notice' && entry.redoRestoreId === message.restoreId
+            ? { ...entry, isRedoPending: false, isRedoUsed: message.isSpent }
+            : entry,
+        ),
+      }
+    }
     case 'checkpointState': {
       return {
         ...state,
@@ -2210,7 +2220,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ...state,
         transcript: state.transcript.map((entry) =>
           entry.kind === 'notice' && entry.id === action.entryId
-            ? { ...entry, isRedoUsed: true }
+            ? { ...entry, isRedoPending: true }
             : entry,
         ),
       }

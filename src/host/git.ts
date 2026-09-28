@@ -16,6 +16,29 @@ import { GIT_OUTPUT_MAX_BYTES, GIT_STDERR_MAX_CHARS, GIT_TIMEOUT_MS } from '../s
 const GIT = 'git'
 const PATH_VARIABLE = 'PATH'
 const GIT_MISSING = 'git was not found on the absolute entries of PATH'
+const CONFIG_OPTION = '-c'
+const OPTION_MARK = '-'
+
+/** git is not on the absolute entries of PATH (D24): nothing ran. */
+export class GitMissingError extends Error {
+  public constructor() {
+    super(GIT_MISSING)
+    this.name = 'GitMissingError'
+  }
+}
+
+/** The subcommand of an argument list, past `-c name=value` pairs and other options. */
+function subcommandOf(args: readonly string[]): string {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? ''
+    if (arg === CONFIG_OPTION) {
+      index += 1
+    } else if (!arg.startsWith(OPTION_MARK)) {
+      return arg
+    }
+  }
+  return GIT
+}
 
 /**
  * git's absolute path, found once per PATH value; a miss is not cached, so
@@ -67,7 +90,7 @@ export function createGitRunner(
   return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS) => {
     const git = gitPath()
     if (git === undefined) {
-      throw new Error(GIT_MISSING)
+      throw new GitMissingError()
     }
     return await deps.execFile(git, args, {
       cwd,
@@ -120,6 +143,8 @@ export interface GitProcessOptions {
   /** Written to stdin, which is then closed; stdin is empty without it. */
   readonly input?: string | Uint8Array
   readonly timeoutMs: number
+  /** Aborting ends the command (the window closing). */
+  readonly signal?: AbortSignal
 }
 
 /** One git command's stdout as bytes; rejects on a failure, a timeout or a non-zero exit. */
@@ -146,10 +171,14 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
     new Promise<Buffer>((resolve, reject) => {
       const git = gitPath()
       if (git === undefined) {
-        reject(new Error(GIT_MISSING))
+        reject(new GitMissingError())
         return
       }
-      const [command = GIT] = args
+      const command = subcommandOf(args)
+      if (options.signal?.aborted === true) {
+        reject(new Error(`git ${command} was not started: the window is closing`))
+        return
+      }
       const child = deps.spawn(git, [...args], {
         cwd: options.cwd,
         env: options.env,
@@ -167,6 +196,10 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       const timer = setTimeout(() => {
         fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
       }, options.timeoutMs)
+      const onAbort = () => {
+        fail(new Error(`git ${command} was stopped: the window is closing`))
+      }
+      options.signal?.addEventListener('abort', onAbort, { once: true })
       child.stdout.on('data', (chunk: Buffer) => {
         size += chunk.length
         if (size > GIT_OUTPUT_MAX_BYTES) {
@@ -191,6 +224,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       })
       child.on('close', (code) => {
         clearTimeout(timer)
+        options.signal?.removeEventListener('abort', onAbort)
         if (failure !== undefined) {
           reject(failure)
         } else if (code === 0) {
@@ -201,6 +235,16 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       })
       child.stdin.end(options.input ?? '')
     })
+}
+
+/** Whether git is on the absolute entries of this process's PATH (M72's availability). */
+export function processGitLocator(): () => boolean {
+  const locate = gitLocator({
+    platform: process.platform,
+    env: process.env,
+    fileExists: existsSync,
+  })
+  return () => locate() !== undefined
 }
 
 /** The process runner over this process's PATH and Node's `spawn` (M72). */

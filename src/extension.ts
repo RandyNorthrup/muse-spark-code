@@ -78,7 +78,7 @@ import { usablePaidFeatures } from './shared/paid'
 import { createCliFeatures } from './host/cliFeatures'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { createMemoryFeatures } from './host/memoryFeatures'
-import { processGitProcess, processGitRunner } from './host/git'
+import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import { createCheckpointPort, withCheckpointCopies } from './host/checkpoints/checkpointHost'
 import { CheckpointStore } from './host/checkpoints/checkpointStore'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
@@ -791,26 +791,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ),
   })
   // Turn checkpoints (M72, PLAN.md D51): a shadow repository in this
-  // workspace's storage, used only while it is trusted and the setting is on.
+  // workspace's storage, taken only while it is trusted, git is on PATH and
+  // the setting is on. Closing the window ends any git it still runs;
+  // opening it (or trusting the workspace) applies cleanup and retention.
+  const checkpointStore =
+    workspaceRoot === undefined || context.storageUri === undefined
+      ? undefined
+      : new CheckpointStore({
+          workspaceRoot,
+          storageDir: path.join(context.storageUri.fsPath, CHECKPOINTS_DIR),
+          platform: process.platform,
+          git: processGitProcess(),
+          env: process.env,
+          retentionDays: () => currentSettings().cleanupPeriodDays,
+          now: () => Date.now(),
+          newId: () => crypto.randomUUID(),
+          log,
+        })
+  if (checkpointStore !== undefined) {
+    context.subscriptions.push({
+      dispose: () => {
+        checkpointStore.dispose()
+      },
+    })
+  }
   const checkpoints = createCheckpointPort({
-    store:
-      workspaceRoot === undefined || context.storageUri === undefined
-        ? undefined
-        : new CheckpointStore({
-            workspaceRoot,
-            storageDir: path.join(context.storageUri.fsPath, CHECKPOINTS_DIR),
-            platform: process.platform,
-            git: processGitProcess(),
-            env: process.env,
-            retentionDays: () => currentSettings().cleanupPeriodDays,
-            now: () => Date.now(),
-            newId: () => crypto.randomUUID(),
-            log,
-          }),
+    store: checkpointStore,
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
     isEnabled: () => currentSettings().turnCheckpoints,
+    hasGit: processGitLocator(),
     log,
   })
+  void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
   // What the extension's own tools write is copied first, so a restore can
   // put back an ignored file they changed (M72).
   const checkpointedIo = withCheckpointCopies(toolIo, checkpoints)
@@ -1381,9 +1393,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           await paid.consent.forget()
         },
         checkpoints,
-        // Workspace files open with unsaved changes, by absolute path (M72).
+        // Text files and notebooks open with unsaved changes, by absolute path (M72).
         unsavedPaths: () =>
-          vscode.workspace.textDocuments
+          [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
             .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
             .map((document) => document.uri.fsPath),
         confirmFileAction: async (title, detail, action) =>
@@ -1586,7 +1598,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
       // "Allow always in this workspace" counts only in a trusted one (M58).
       broadcastPaidState()
-      // Checkpoints run from now on (M72).
+      // Checkpoints run from now on, and what was queued while untrusted is cleaned up (M72).
+      void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
       for (const controller of controllers.values()) {
         controller.checkpointsChanged()
       }

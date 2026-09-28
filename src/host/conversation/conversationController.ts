@@ -23,6 +23,7 @@ import {
   type SessionHistoryOutcome,
   type SessionListEvent,
   type SessionMcpHttpServer,
+  type SentImage,
   type SessionRecord,
   type TurnPart,
   type TurnSubmission,
@@ -84,7 +85,6 @@ import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type {
   ChatReference,
-  EditRef,
   HostAction,
   HostToWebviewMessage,
   LineRange,
@@ -459,6 +459,17 @@ function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
     empty: { level: 'info', text: UI_TEXT.exportNothing },
   }
   return notices[outcome]
+}
+
+type RewindConversationMessage = Extract<ConversationMessage, { type: 'rewindConversation' }>
+
+/** A conversation rewind that passed its checks, ready to fork (M53, M72). */
+interface PreparedRewind {
+  readonly message: RewindConversationMessage
+  readonly source: AgentSession
+  readonly host: AgentHost
+  readonly generation: number
+  readonly images: readonly SentImage[]
 }
 
 /** How a session came to this surface, for the log (M39). */
@@ -1663,31 +1674,47 @@ export class ConversationController {
 
   /**
    * "Rewind code to here": the edits after a message, reverted newest first
-   * (M13), after the same confirmation as a file restore (M72).
+   * (M13), after the same confirmation as a file restore (M72). With `fork`
+   * ("Fork conversation and rewind code") the fork follows the rewind in
+   * this one action, so neither can overtake the other; declining the
+   * confirmation does neither.
    */
-  private async rewindCode(edits: readonly EditRef[]): Promise<void> {
+  private async rewindCode(
+    message: Extract<ConversationMessage, { type: 'rewindCode' }>,
+  ): Promise<void> {
+    const { edits, fork } = message
+    const generation = this.sendInvalidationEpoch
     if (edits.length === 0) {
       this.notice('info', UI_TEXT.rewindNothing)
-      return
-    }
-    const generation = this.sendInvalidationEpoch
-    const isConfirmed = await this.deps.confirmFileAction(
-      UI_TEXT.rewindCodeConfirmTitle,
-      UI_TEXT.rewindCodeConfirmDetail,
-      UI_TEXT.rewindCodeConfirmAction,
-    )
-    if (!isConfirmed) {
-      return
-    }
-    for (const edit of edits) {
+    } else {
+      const isConfirmed = await this.deps.confirmFileAction(
+        UI_TEXT.rewindCodeConfirmTitle,
+        UI_TEXT.rewindCodeConfirmDetail,
+        UI_TEXT.rewindCodeConfirmAction,
+      )
+      if (!isConfirmed) {
+        return
+      }
+      for (const edit of edits) {
+        if (generation !== this.sendInvalidationEpoch || this.accountStopsInFlight > 0) {
+          return
+        }
+        await this.reviewEdit('revert', edit.itemId, edit.outputRef)
+      }
       if (generation !== this.sendInvalidationEpoch || this.accountStopsInFlight > 0) {
         return
       }
-      await this.reviewEdit('revert', edit.itemId, edit.outputRef)
-    }
-    if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
       this.notice('info', plural(UI_TEXT.rewindDone, edits.length))
     }
+    if (fork === undefined) {
+      return
+    }
+    if (fork.lastTurnId === undefined) {
+      this.clear()
+      return
+    }
+    this.beginBrowserSessionChange(fork.attachmentEpoch)
+    await this.forkSession(fork.lastTurnId)
   }
 
   private async reviewEdit(
@@ -2346,21 +2373,34 @@ export class ConversationController {
   }
 
   /** Branch before a user turn, then put its prompt back in the composer (M53). */
-  private async rewindConversation(
-    message: Extract<ConversationMessage, { type: 'rewindConversation' }>,
-  ): Promise<void> {
+  private async rewindConversation(message: RewindConversationMessage): Promise<void> {
+    const prepared = await this.prepareRewind(message)
+    if (prepared !== undefined) {
+      await this.applyRewind(prepared)
+    }
+  }
+
+  /**
+   * Every check a conversation rewind makes before it changes anything
+   * (M53): the source still shown, no file card, the served card and its
+   * cut, its images at hand. Undefined, with the reason said, when it cannot
+   * go on; a restore that comes with it (M72) runs only after this passed.
+   */
+  private async prepareRewind(
+    message: RewindConversationMessage,
+  ): Promise<PreparedRewind | undefined> {
     if (message.turnId === this.activeTurnId) {
-      return
+      return undefined
     }
     const generation = this.sendInvalidationEpoch
     try {
       const forkable = await this.forkableSource(message.sourceSessionId, generation)
       if (forkable === undefined) {
-        return
+        return undefined
       }
       const { source, host } = forkable
       if (message.turnId === this.activeTurnId) {
-        return
+        return undefined
       }
       // Model API replay may hold PDF bytes, but a named text file is stored
       // only as model-facing text. Muse Code echoes file metadata without
@@ -2368,14 +2408,14 @@ export class ConversationController {
       // restored exactly in both paths.
       if (this.fileMessageIds.has(message.itemId)) {
         this.notice('warning', UI_TEXT.attachmentUnreadable)
-        return
+        return undefined
       }
       const history = await host.readSession(source.sessionId)
       if (
         !this.isCurrentSessionAction(source, generation) ||
         message.turnId === this.activeTurnId
       ) {
-        return
+        return undefined
       }
       // A webview request may be forged or stale. Bind every field and the
       // fork cut to one served user card before discarding any conversation.
@@ -2400,7 +2440,7 @@ export class ConversationController {
       const hasEarlierTurn = preceding.some((item) => item.turnId !== undefined)
       if (selected === undefined || !REWIND_HISTORY_MODES.has(history.mode)) {
         this.notice('warning', UI_TEXT.attachmentUnreadable)
-        return
+        return undefined
       }
       if (
         selected.turnId !== message.turnId ||
@@ -2410,14 +2450,30 @@ export class ConversationController {
         selected.attachments?.some((attachment) => attachment.type === 'file')
       ) {
         this.notice('warning', UI_TEXT.attachmentUnreadable)
-        return
+        return undefined
       }
       const images = source.sentImages?.(message.turnId, message.itemId) ?? []
       const recordedImageCount =
         selected.attachments?.filter((attachment) => attachment.type === 'image').length ?? 0
       if (images.length < Math.max(recordedImageCount, message.imageCount)) {
         this.notice('warning', UI_TEXT.rewindImagesUnavailable)
-        return
+        return undefined
+      }
+      return { message, source, host, generation, images }
+    } catch (error: unknown) {
+      if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
+        this.notice('error', `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`)
+      }
+      return undefined
+    }
+  }
+
+  /** The fork (or a fresh conversation) and the prompt back in the composer; true when done. */
+  private async applyRewind(prepared: PreparedRewind): Promise<boolean> {
+    const { message, source, host, generation, images } = prepared
+    try {
+      if (!this.isCurrentSessionAction(source, generation)) {
+        return false
       }
       if (message.lastTurnId === undefined) {
         this.clear()
@@ -2425,10 +2481,10 @@ export class ConversationController {
         const loaded = await host.forkSession(source.sessionId, this.modelId, message.lastTurnId)
         if (!this.isCurrentSessionAction(source, generation)) {
           loaded.session.dispose()
-          return
+          return false
         }
         if (!(await this.adopt(host, loaded, UI_TEXT.forkedNotice, 'forked'))) {
-          return
+          return false
         }
         this.attachments.clear()
         this.post({ type: 'attachmentsCleared' })
@@ -2440,10 +2496,12 @@ export class ConversationController {
         }
       }
       this.post({ type: 'restoreDraft', text: message.text })
+      return true
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice('error', `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`)
       }
+      return false
     }
   }
 
@@ -2547,13 +2605,58 @@ export class ConversationController {
       this.notice('info', UI_TEXT.restoreTurnRunning)
       return
     }
-    const isRestored = await this.checkpoints.restoreFiles(session.sessionId, message.turnId)
-    if (!(isRestored && message.rewind !== undefined && this.session === session)) {
+    const { rewind } = message
+    if (!(await this.checkpoints.confirmRestore(rewind !== undefined))) {
       return
     }
+    // A turn may have started while the confirmation was open.
+    if (this.session !== session) {
+      return
+    }
+    if (this.isTurnRunning()) {
+      this.notice('info', UI_TEXT.restoreTurnRunning)
+      return
+    }
+    // The conversation's checks run before any file changes.
+    let prepared: PreparedRewind | undefined
+    if (rewind !== undefined) {
+      this.beginBrowserSessionChange(rewind.attachmentEpoch)
+      prepared = await this.prepareRewind(rewind)
+      if (prepared === undefined) {
+        return
+      }
+    }
+    const report = await this.checkpoints.restore(session.sessionId, message.turnId)
+    if (prepared === undefined) {
+      report.post()
+      return
+    }
+    const canRewind = report.isComplete && this.session === session && !this.isTurnRunning()
+    // Posted after the fork, so the conversation shown carries the report and its Redo.
+    const isRewound = canRewind && (await this.applyRewind(prepared))
+    report.post()
+    if (!isRewound) {
+      this.notice('warning', UI_TEXT.rewindNotDone)
+    }
+  }
 
-    this.beginBrowserSessionChange(message.rewind.attachmentEpoch)
-    await this.rewindConversation(message.rewind)
+  /**
+   * Whether a turn runs in this conversation now: read afresh after an
+   * await (a turn may start while a confirmation is open), which a
+   * narrowed `activeTurnId` would not be.
+   */
+  private isTurnRunning(): boolean {
+    return this.activeTurnId !== undefined
+  }
+
+  /** A restore's Redo (M72): never while a turn runs here. */
+  private async redoRestore(restoreId: string): Promise<void> {
+    if (this.activeTurnId !== undefined) {
+      this.notice('info', UI_TEXT.restoreTurnRunning)
+      this.post({ type: 'restoreRedone', restoreId, isSpent: false })
+      return
+    }
+    await this.checkpoints.redo(restoreId)
   }
 
   private buildParts(text: string, attachmentIds: readonly string[]): readonly TurnPart[] {
@@ -3898,7 +4001,7 @@ export class ConversationController {
         break
       }
       case 'rewindCode': {
-        await this.rewindCode(message.edits)
+        await this.rewindCode(message)
         break
       }
       case 'rewindConversation': {
@@ -3911,7 +4014,7 @@ export class ConversationController {
         break
       }
       case 'redoRestore': {
-        await this.checkpoints.redo(message.restoreId)
+        await this.redoRestore(message.restoreId)
         break
       }
       case 'openSideChat': {

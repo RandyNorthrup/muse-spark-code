@@ -2618,11 +2618,18 @@ workspace's prefix).
   and end finds what the turn created, changed or deleted; the Model API's
   write tools and the image tools copy a file just before they write it
   (`withCheckpointCopies`). A restore deletes created ignored files,
-  restores copied ones and lists the rest as not restorable.
+  restores copied ones and lists the rest as not restorable; what it
+  overwrites or deletes is copied for its Redo.
+- **Links.** Git for Windows walks into junctions (checked with git
+  2.52.0.windows.1), so git's own listing cannot be trusted there: a
+  capture leaves out every path under a folder link or junction and names
+  the link, and a restore refuses any path whose canonical form is not the
+  canonical root plus the path.
 - **Restricted Mode.** No checkpoints: the extension runs no git in an
   untrusted workspace (D24), and a copy store without git would still read
   and duplicate an untrusted tree's files for no gain the user asked for.
-  The menu says so.
+  The menu says so. Archiving there queues the conversation in a JSON file
+  (no git); the next trusted window deletes its checkpoints.
 
 ## 3. Open questions (need the owner)
 
@@ -6685,24 +6692,61 @@ repository in the extension's workspace storage, never the workspace's
     closed. A steered message takes none.
   - **What a restore undoes.** The difference between the chosen turn's
     start capture and a capture taken now, less every path that changed
-    between the conversation's turns or after the last (another
-    conversation's or the user's work), refused as "changed since the turn".
-    Ignored files follow the turns' recorded changes, with the stat
-    continuity check between turns. A path added since the checkpoint that
-    the restored ignore rules name was an ignored file then and stays. A
-    link, a file over 16 MiB and a nested repository are left out and
-    named. Folders a restore empties are removed only if the checkpoint did
-    not have them. HEAD, the index, the stash and branches are never
-    touched.
+    between the conversation's turns or after the last (the user's work)
+    and every path another conversation's turn changed while one of these
+    ran (their times overlap), refused as "changed by something else in the
+    meantime". Ignored files follow the turns' recorded changes, with the
+    stat continuity check between turns. A path added since the checkpoint
+    that the restored ignore rules name was an ignored file then and stays.
+    A link, a folder link or junction (Git for Windows walks into one, so a
+    capture drops every path under it), a file over 16 MiB and a nested
+    repository are left out and named. Folders a restore empties are
+    removed only if the checkpoint did not have them. HEAD, the index, the
+    stash and branches are never touched.
+  - **Each step** (review of 4ce27cb8): the redo record of every step is
+    saved, with its keep ref, before the first file changes; `.gitignore`
+    files are written first, then the ignore check (paths given as `./…`,
+    never pathspec magic), then deletions, then writes, so a case-only
+    rename and a file↔folder swap come back. Just before its step each file
+    is re-checked: unsaved in an editor or notebook (asked again), its
+    canonical path equal to the canonical root plus the path (no link or
+    junction on the way), and its content the blob (SHA-1 computed in
+    process), absence or size-and-time the plan expects. A step that fails
+    or throws is reported as "could not be changed"; the record is then cut
+    to what was done. Blobs are read in batches of at most 32 MiB. Writes
+    keep the file's permissions and set only its execute bits.
   - **Redo** records what the restore replaced and what it left, and puts
     back only files still as the restore left them. A redo is recorded the
-    same way, so it can be redone, and a spent record is deleted.
+    same way, so it can be redone. What a redo could not do stays in its
+    record (the button stays); a spent record is deleted. The button waits
+    for the host's answer.
+  - **Turns running.** A restore or redo waits for no turn: it is refused
+    while any turn of the window runs (recorded or not, checked again after
+    the confirmation). A turn whose end was never recorded makes its
+    restored paths "unsure", named in the notice.
+  - **Rewind conversation and restore files** is one action: one modal that
+    names both, the conversation's checks (M53) before any file changes,
+    the restore, and the rewind only when every file was restored; the
+    report is posted after the fork so the new transcript carries it and
+    its Redo (tied to the restore's id, not the conversation). **Fork
+    conversation and rewind code** is one `rewindCode` message with `fork`:
+    confirm, revert, fork.
+  - **Cleanup.** Every window open (activation and trust granted) runs
+    `maintain`: stale locks older than five minutes (more than git's
+    two-minute timeout) are cleared, archives queued in Restricted Mode
+    (`forgotten.json`, written with no git) applied, refs no record names
+    (journal, pin, keep) dropped and pruned, and retention applied with the
+    setting on or off. Captures are pinned (`refs/muse-spark/pin/<id>`)
+    until recorded or let go; a capture older than its conversation's
+    archive is not recorded. Closing the window ends every git still
+    running. The folder is 0700 on POSIX.
   - **The menu.** A turn with a checkpoint (its first card) offers **Restore
     files to here** and **Rewind conversation and restore files** beside
     M6's fork, M53's rewind and M13's code rewind; a turn without one keeps
     M13's **Fork conversation and rewind code**. Disabled rows say why a
-    choice is missing (Restricted Mode, the setting off, Muse Code on
-    Windows). **Rewind code to here** now asks in the same modal.
+    choice is missing (Restricted Mode, the setting off, git not on `PATH`,
+    Muse Code on Windows); a turn offers **Restore** only while checkpoints
+    are on. **Rewind code to here** now asks in the same modal.
   - **Bounds.** 50,000 files outside the ignore rules and 512 MiB of changed
     files per capture (beyond them the turn has no checkpoint and the panel
     says why, once per conversation and reason); 16 MiB per file; the
@@ -6715,12 +6759,16 @@ repository in the extension's workspace storage, never the workspace's
   - **Setting.** `museSpark.turnCheckpoints`, machine-scoped, on by
     default.
   - **Limits.** A queued or scheduled turn's capture races its start (the
-    backend does not wait). Another conversation's running turn can still
-    write while a restore runs. On Muse Code the extension cannot copy an
-    ignored file before the CLI's own tools write it, so such a change is
-    listed as not restorable. A turn whose end capture failed counts every
-    change up to the next turn as its own. The first capture of a large
-    workspace hashes all of it once.
+    backend does not wait). Another window's turn (a second VS Code window
+    on the same files) is not seen; this window's are refused. On Muse Code
+    the extension cannot copy an ignored file before the CLI's own tools
+    write it, so such a change is listed as not restorable. A turn whose end
+    capture failed counts every change up to the next turn as its own, and
+    the notice names those files as unsure. A file swapped between its
+    re-check and its write is the same residual as the Model API tools'.
+    Dirty notebooks are read from VS Code's notebook documents, which the
+    unit tests do not reach (extension wiring). The first capture of a
+    large workspace hashes all of it once.
 
 ### M75 — Paired efficiency evaluation (D49)
 
@@ -7310,13 +7358,16 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
   project, so a model's write asks in Manual (Muse Code's does not).
 - Turn checkpoints (M72, D51) copy the workspace's files into the
   extension's workspace storage, and an ignored file (a `.env`) only when
-  the extension's own tools are about to write it. The copies never enter
-  the workspace's `.git`, stay on the machine, and go with the
-  conversation, the retention bounds or the storage directory. Residual
-  risk: whoever can read VS Code's storage directory can read them, as they
-  can the workspace itself. A restore confines every path by its canonical
-  form before writing or deleting; a file swapped for a link between that
-  check and the write is the same residual as the Model API tools'.
+  the extension's own tools are about to write it or a restore overwrites
+  or deletes it (for Redo). The copies never enter the workspace's `.git`,
+  stay on the machine in a folder that is 0700 on POSIX, and go with the
+  conversation, the retention bounds (applied at every window open) or the
+  storage directory. Residual risk: whoever can read VS Code's storage
+  directory as the user can read them, as they can the workspace itself. A
+  restore refuses any path with a link or junction on the way and
+  re-checks each file's content just before changing it; a file swapped
+  for a link between that check and the write is the same residual as the
+  Model API tools'.
 
 - M50's Windows stdio server inherits the extension's three binary pipes
   unchanged. A hidden helper creates it suspended, assigns it to a fresh

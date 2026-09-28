@@ -368,7 +368,19 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     endLine: z.optional(z.number()),
   }),
   // Rewind code to a message: revert every edit after it, newest first (M13).
-  z.object({ type: z.literal('rewindCode'), edits: z.array(editRefSchema) }),
+  // With `fork` ("Fork conversation and rewind code", M72) the host forks
+  // after the rewind, in one action: before `lastTurnId`, or a fresh
+  // conversation without one.
+  z.object({
+    type: z.literal('rewindCode'),
+    edits: z.array(editRefSchema),
+    fork: z.optional(
+      z.object({
+        lastTurnId: z.optional(z.string()),
+        attachmentEpoch: z.optional(z.number()),
+      }),
+    ),
+  }),
   rewindConversationSchema,
   // "Restore files to here" (M72): the workspace's files back to the
   // checkpoint before this turn; with `rewind`, the conversation rewinds as
@@ -609,6 +621,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     level: z.enum(NOTICE_LEVELS),
     text: z.string(),
     redoRestoreId: z.optional(z.string()),
+  }),
+  // A Redo was answered (M72): spent, its button goes; otherwise it stays
+  // for another try (a file left as it is, a turn running).
+  z.object({
+    type: z.literal('restoreRedone'),
+    restoreId: z.string(),
+    isSpent: z.boolean(),
   }),
   // Turn checkpoints (M72): whether this window takes them, and which turns
   // of the conversation shown have one (their cards offer "Restore files").

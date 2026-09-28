@@ -1522,10 +1522,12 @@ describe('App session history (M6)', () => {
     })
     fireEvent.click(menus[1]!)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation and rewind code' }))
-    expect(postMessage.mock.calls.slice(-2).map(([message]) => message)).toEqual([
-      { type: 'rewindCode', edits: [{ itemId: 'e2', outputRef: 'p2' }] },
-      { type: 'forkSession', lastTurnId: 't1', attachmentEpoch: 2 },
-    ])
+    // One host action: the rewind, then the fork (M72), never two racing messages.
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'rewindCode',
+      edits: [{ itemId: 'e2', outputRef: 'p2' }],
+      fork: { lastTurnId: 't1', attachmentEpoch: 2 },
+    })
     fireEvent.click(menus[0]!)
     expect(screen.getByRole('menu')).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
@@ -2514,6 +2516,17 @@ describe('App turn checkpoints (M72)', () => {
     expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
   })
 
+  it('says git is missing where a file restore would be', () => {
+    renderReady()
+    loadHistory([historyUser('u1', 't1', 'first')])
+    checkpointed([], 'noGit')
+    openMenu(0)
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.checkpointsNoGit })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+
   it('offers Restore files but not Both where the conversation cannot rewind', () => {
     renderReady()
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
@@ -2532,7 +2545,7 @@ describe('App turn checkpoints (M72)', () => {
     ])
   })
 
-  it("puts a Redo on the restore's notice, pressed once", () => {
+  it("puts a Redo on the restore's notice, held while it runs and kept when it could not do everything", () => {
     const postMessage = renderReady()
     loadHistory([historyUser('u1', 't1', 'first')])
     deliver({
@@ -2543,6 +2556,11 @@ describe('App turn checkpoints (M72)', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'redoRestore', restoreId: 'r1' })
+    expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeDisabled()
+    deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: false })
+    expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
+    deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: true })
     expect(screen.queryByRole('button', { name: UI_TEXT.redoLabel })).toBeNull()
     expect(screen.getByText('Restored 2 files to before this message.')).toBeInTheDocument()
   })

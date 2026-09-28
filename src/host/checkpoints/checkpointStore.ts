@@ -3,10 +3,12 @@
 // storage (shadowGit.ts), never in the workspace's `.git`.
 //
 // - A capture holds every file outside the ignore rules, untracked ones
-//   included, byte for byte; a file over CHECKPOINT_FILE_MAX_BYTES or a
-//   link is left out and named, and a folder that is a repository of its
-//   own is left out whole. A private index keeps the files' stat data, so a
-//   capture hashes only what changed since the last one.
+//   included, byte for byte. A file over CHECKPOINT_FILE_MAX_BYTES, a link,
+//   a folder reached through a link or junction (everything below it) and a
+//   folder that is a repository of its own are left out and named. A
+//   private index keeps the files' stat data, so a capture hashes only what
+//   changed since the last one; a capture waiting for its turn is pinned by
+//   a ref of its own until it is recorded or let go.
 // - Ignored files are not copied wholesale: a bounded scan records their
 //   size and time at each end of a turn (ignoredScan.ts), and a file the
 //   extension itself is about to write (the Model API's tools, the image
@@ -14,17 +16,22 @@
 //   files the turn created, puts back the ones it copied first, and lists
 //   the rest as not restorable.
 // - A restore undoes the conversation's turns from the chosen one on, file
-//   by file (restorePlan.ts): a file changed outside those turns, or with
-//   unsaved editor changes, is refused and listed. What a restore replaces
-//   is recorded, so a redo puts it back, and a redo can be redone.
+//   by file (restorePlan.ts). A file changed outside those turns (between
+//   them, after them, by another conversation's overlapping turn), with
+//   unsaved editor changes, or changed while the restore runs is refused and
+//   listed. The redo record is saved before the first file changes and cut
+//   to what was done at the end, so a restore that stops part way still
+//   says what it changed and keeps its Redo. A partial redo keeps what it
+//   could not do for another try.
 // - Every operation runs in one queue: a capture, a restore and a tool
-//   write never interleave in the shadow repository.
+//   write never interleave in the shadow repository. No restore or redo runs
+//   while any turn of the window runs.
 
 import type { Buffer } from 'node:buffer'
-import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   type BlobRef,
+  parseBatchCheck,
   parseCatFileBatch,
   parseDiffTree,
   parseStatusListing,
@@ -33,50 +40,55 @@ import {
 } from '../../core/checkpoints/gitListings'
 import {
   type Coverage,
+  type Expectation,
   type FileStat,
   type IgnoredChange,
   planRestore,
   type Refusal,
+  type RefusalReason,
+  type RestoreStep,
 } from '../../core/checkpoints/restorePlan'
 import { isSamePath } from '../../core/paths'
 import {
+  CHECKPOINT_BLOB_BATCH_MAX_BYTES,
   CHECKPOINT_CAPTURE_MAX_BYTES,
   CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_GIT_TIMEOUT_MS,
   CHECKPOINT_IGNORED_CHANGES_MAX,
   CHECKPOINT_MAX_FILES,
   CHECKPOINT_PRUNE_INTERVAL_MS,
-  CHECKPOINT_RESTORES_PER_SESSION_MAX,
-  CHECKPOINT_SESSIONS_MAX,
   CHECKPOINT_STALE_LOCK_MS,
-  CHECKPOINTS_PER_SESSION_MAX,
   GIT_MISSING_OBJECT,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
-  MILLISECONDS_PER_DAY,
 } from '../../shared/constants'
-import { GitExitError, type GitProcess } from '../git'
+import { GitExitError, GitMissingError, type GitProcess } from '../git'
 import { errorDetail, type Logger } from '../logger'
 import {
-  didDeleteRestoredFile,
+  applyFileStep,
+  type FileStep,
+  linkedFolders,
   lstatOrUndefined,
   mapInBatches,
   repositoryTop,
   type RestoreTarget,
+  type StepResult,
   userExclude,
-  didWriteRestoredFile,
 } from './checkpointFiles'
 import {
   type CheckpointRecord,
   type CheckpointRecords,
   emptyRecords,
+  loadForgotten,
   loadRecords,
   type RestoreEntry,
   type RestoreRecord,
+  saveForgotten,
   saveRecords,
 } from './checkpointRecords'
+import { retainRecords } from './checkpointRetention'
 import { type IgnoredInventory, ignoredChanges, regularFileStat, scanIgnored } from './ignoredScan'
-import { ShadowGit, withoutGitVariables } from './shadowGit'
+import { readOptionalText, ShadowGit, withoutGitVariables } from './shadowGit'
 
 /** A capture's result, before it is recorded against a turn. */
 export interface Snapshot {
@@ -84,15 +96,23 @@ export interface Snapshot {
   readonly coverage: Coverage
   readonly inventory: IgnoredInventory
   readonly createdAt: number
+  /** The ref that keeps the capture from pruning until it is recorded or let go. */
+  readonly pin: string | undefined
 }
 
-export type CaptureRefusal = 'tooManyFiles' | 'tooLarge' | 'failed'
+export type CaptureRefusal = 'tooManyFiles' | 'tooLarge' | 'noGit' | 'failed'
 
 export type CaptureResult =
   | { readonly ok: true; readonly snapshot: Snapshot }
   | { readonly ok: false; readonly reason: CaptureRefusal; readonly detail: string }
 
-export type RestoreFailure = 'noCheckpoint' | 'turnRunning' | 'captureFailed' | 'redoGone'
+/**
+ * Why a restore or a redo did nothing: no checkpoint (any more); a turn is
+ * running in the window; the capture it starts with was refused; the redo
+ * record is gone; checkpoints are not available here.
+ */
+export type RestoreFailure =
+  'noCheckpoint' | 'turnRunning' | 'captureFailed' | 'redoGone' | 'unavailable'
 
 export type RestoreOutcome =
   | {
@@ -101,22 +121,30 @@ export type RestoreOutcome =
       readonly restoreId: string | undefined
       readonly changed: readonly string[]
       readonly refused: readonly Refusal[]
+      /** Restored paths a turn with no recorded end may not have changed itself. */
+      readonly unsure: readonly string[]
       /** Some turn's ignored files were not fully tracked (a reload mid-turn, the scan's limit). */
       readonly isIgnoredIncomplete: boolean
+      /** A redo: whether its record is spent (false: what it could not do can be tried again). */
+      readonly isRedoSpent: boolean
     }
-  | { readonly ok: false; readonly reason: RestoreFailure; readonly detail?: string }
+  | {
+      readonly ok: false
+      readonly reason: RestoreFailure
+      readonly captureRefusal?: CaptureRefusal
+      readonly detail?: string
+    }
 
 export interface RestoreRequest {
   readonly sessionId: string
   readonly turnId: string
-  /** Files open with unsaved changes, absolute. */
-  readonly unsavedPaths: readonly string[]
+  /** Files open with unsaved changes, absolute, asked again before each file changes. */
+  readonly unsavedPaths: () => readonly string[]
 }
 
 export interface RedoRequest {
-  readonly sessionId: string
   readonly restoreId: string
-  readonly unsavedPaths: readonly string[]
+  readonly unsavedPaths: () => readonly string[]
 }
 
 export interface CheckpointStoreDeps {
@@ -142,16 +170,38 @@ interface JournalEntry {
   readonly stat: FileStat | null
 }
 
+interface OpenTurn {
+  readonly createdAt: number
+  readonly inventory: IgnoredInventory
+}
+
 interface Setup {
   readonly shadow: ShadowGit
   readonly prefix: string
   readonly records: CheckpointRecords
 }
 
+/** A step of a restore or a redo, with what it replaces (for the redo record). */
+interface PlannedStep extends FileStep {
+  readonly before: BlobRef | null
+  readonly isIgnoreChecked: boolean
+}
+
+interface Applied {
+  readonly entries: readonly RestoreEntry[]
+  readonly refused: readonly Refusal[]
+}
+
 const RECORDS_FILE = 'records.json'
-const KEEP_REF_PREFIX = 'refs/muse-spark/keep/'
-const JOURNAL_REF_PREFIX = 'refs/muse-spark/journal/'
-const INDEX_REF = 'refs/muse-spark/index'
+const FORGOTTEN_FILE = 'forgotten.json'
+const SHADOW_HEAD = path.join('shadow.git', 'HEAD')
+const REF_ROOT = 'refs/muse-spark/'
+const KEEP_REF_PREFIX = `${REF_ROOT}keep/`
+const JOURNAL_REF_PREFIX = `${REF_ROOT}journal/`
+const PIN_REF_PREFIX = `${REF_ROOT}pin/`
+const INDEX_REF = `${REF_ROOT}index`
+const IGNORE_FILE = '.gitignore'
+const CURRENT_PATH_PREFIX = './'
 const TREE_MODE = '040000'
 const SEPARATOR = '/'
 const NUL = '\0'
@@ -162,6 +212,7 @@ const NONE_EXIT = 1
 // Where git looks for the global excludes file when core.excludesFile is unset.
 const DEFAULT_EXCLUDES = path.join('git', 'ignore')
 const CONFIG_HOME = '.config'
+const DISPOSED = 'the checkpoint store was closed with the window'
 
 /** A coverage as the records keep it (plain arrays). */
 function storedCoverage(coverage: Coverage): { skipped: string[]; repositories: string[] } {
@@ -199,32 +250,32 @@ async function settled(promise: Promise<unknown>): Promise<void> {
   }
 }
 
-/** Keeps the records the per-group count allows, newest first. */
-function newestPerGroup<T extends { readonly createdAt: number; readonly sessionId: string }>(
-  records: readonly T[],
-  limit: number,
-  isKept: (record: T) => boolean,
-): readonly T[] {
-  const counts = new Map<string, number>()
-  return records
-    .toSorted((left, right) => right.createdAt - left.createdAt)
-    .filter((record) => {
-      const count = (counts.get(record.sessionId) ?? 0) + 1
-      counts.set(record.sessionId, count)
-      return count <= limit && isKept(record)
-    })
+/** What a step's result means for the file list of the report. */
+function refusalFor(result: Exclude<StepResult, 'done'>): RefusalReason {
+  const reasons: Readonly<Record<Exclude<StepResult, 'done'>, RefusalReason>> = {
+    changed: 'changedAfter',
+    linked: 'notInCheckpoint',
+    failed: 'failed',
+  }
+  return reasons[result]
 }
 
 export class CheckpointStore {
   private queue: Promise<unknown> = Promise.resolve()
   private setup: Setup | undefined
-  /** The start scan of each turn still running, by checkpoint id. */
-  private readonly openTurns = new Map<string, { createdAt: number; inventory: IgnoredInventory }>()
+  /** The start scan of each recorded turn still running, by checkpoint id. */
+  private readonly openTurns = new Map<string, OpenTurn>()
+  /** Every turn running in the window, recorded or not (a refused capture included). */
+  private readonly runningTurns = new Set<string>()
   private readonly journal = new Map<string, JournalEntry[]>()
+  /** When each conversation was forgotten: a capture taken before then is not recorded. */
+  private readonly forgottenAt = new Map<string, number>()
+  private readonly stopping = new AbortController()
   private emptyTree: string | undefined
   /** The private index's tree its ref last named. */
   private indexTree: string | undefined
   private lastPruneAt = 0
+  private isPruneDue = false
 
   public constructor(private readonly deps: CheckpointStoreDeps) {}
 
@@ -237,7 +288,13 @@ export class CheckpointStore {
   }
 
   private serial<T>(task: () => Promise<T>): Promise<T> {
-    const run = afterSettled(this.queue, task)
+    const guarded = async (): Promise<T> => {
+      if (this.stopping.signal.aborted) {
+        throw new Error(DISPOSED)
+      }
+      return await task()
+    }
+    const run = afterSettled(this.queue, guarded)
     this.queue = settled(run)
     return run
   }
@@ -251,20 +308,16 @@ export class CheckpointStore {
     const prefix = path.relative(top, workspaceRoot).split(path.sep).join(SEPARATOR)
     const shadow = new ShadowGit(
       { storageDir, top, platform },
-      { git: this.deps.git, env: this.deps.env },
+      { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
     )
-    await mkdir(storageDir, { recursive: true })
     await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
+    await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
     const loaded = await loadRecords(path.join(storageDir, RECORDS_FILE), (reason) => {
       this.deps.log.warn(`Checkpoint records were unreadable and were set aside: ${reason}`)
     })
     const isSameWorkspace = loaded?.top === top && loaded.prefix === prefix
-    if (!isSameWorkspace) {
-      if (loaded !== undefined) {
-        this.deps.log.info('The workspace moved: its checkpoints start afresh')
-        await this.dropRefs(shadow, [...loaded.checkpoints, ...loaded.restores])
-      }
-      await rm(shadow.indexPath('work'), { force: true })
+    if (loaded !== undefined && !isSameWorkspace) {
+      this.deps.log.info('The workspace moved: its checkpoints start afresh')
     }
     const setup: Setup = {
       shadow,
@@ -272,8 +325,53 @@ export class CheckpointStore {
       records: isSameWorkspace ? loaded : emptyRecords(top, prefix),
     }
     this.setup = setup
+    await this.applyForgotten(setup)
+    await this.dropOrphanRefs(setup)
     await this.save(setup)
     return setup
+  }
+
+  /** The conversations archived while no git could run: their records go now. */
+  private async applyForgotten(setup: Setup): Promise<void> {
+    const filePath = path.join(this.deps.storageDir, FORGOTTEN_FILE)
+    const queued = await loadForgotten(filePath, (reason) => {
+      this.deps.log.warn(
+        `The archived-conversation queue was unreadable and was set aside: ${reason}`,
+      )
+    })
+    for (const sessionId of queued) {
+      this.dropSession(setup, sessionId)
+    }
+    if (queued.length > 0) {
+      await saveForgotten(filePath, [])
+    }
+  }
+
+  /**
+   * Refs no record names: a record file set aside or a window that closed
+   * between a ref and its record, every tool copy and every pinned capture
+   * of an earlier window. Their copies are pruned.
+   */
+  private async dropOrphanRefs(setup: Setup): Promise<void> {
+    const named = new Set(
+      [...setup.records.checkpoints, ...setup.records.restores].map(
+        (record) => `${KEEP_REF_PREFIX}${record.id}`,
+      ),
+    )
+    const listed = await setup.shadow.text(['for-each-ref', '--format=%(refname)', REF_ROOT])
+    const orphans = listed
+      .split(LINE_FEED)
+      .filter(
+        (ref) =>
+          ref.startsWith(JOURNAL_REF_PREFIX) ||
+          ref.startsWith(PIN_REF_PREFIX) ||
+          (ref.startsWith(KEEP_REF_PREFIX) && !named.has(ref)),
+      )
+    if (orphans.length === 0) {
+      return
+    }
+    await this.deleteRefs(setup.shadow, orphans)
+    this.isPruneDue = true
   }
 
   private async save(setup: Setup): Promise<void> {
@@ -287,7 +385,12 @@ export class CheckpointStore {
     try {
       const answer = await this.deps.git(
         ['config', '--global', '--path', '--get', 'core.excludesFile'],
-        { cwd: this.deps.storageDir, env, timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS },
+        {
+          cwd: this.deps.workspaceRoot,
+          env,
+          timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
+          signal: this.stopping.signal,
+        },
       )
       configured = answer.toString('utf8').trim()
     } catch (error: unknown) {
@@ -325,9 +428,9 @@ export class CheckpointStore {
     return setup.prefix === '' ? topPath : topPath.slice(setup.prefix.length + SEPARATOR.length)
   }
 
-  private unsavedTest(unsavedPaths: readonly string[]): (relative: string) => boolean {
+  private unsavedTest(unsavedPaths: () => readonly string[]): (relative: string) => boolean {
     return (relative) =>
-      unsavedPaths.some((unsaved) =>
+      unsavedPaths().some((unsaved) =>
         isSamePath(unsaved, this.absoluteOf(relative), this.deps.platform),
       )
   }
@@ -336,6 +439,10 @@ export class CheckpointStore {
     return setup.records.checkpoints.find(
       (record) => record.sessionId === sessionId && record.turnId === turnId,
     )
+  }
+
+  private isAnyTurnRunning(): boolean {
+    return this.runningTurns.size > 0 || this.openTurns.size > 0
   }
 
   /** The files `git status` lists outside the ignore rules: kept (with sizes) or left out. */
@@ -413,10 +520,13 @@ export class CheckpointStore {
     }
   }
 
-  /** The workspace's files now: the private index brought up to date, and the ignored scan. */
+  /**
+   * The workspace's files now: the private index brought up to date, and
+   * the ignored scan. Paths below a link or junction are left out.
+   */
   private async captureNow(setup: Setup): Promise<CaptureResult> {
     try {
-      await setup.shadow.clearStaleLock('work', this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
+      await setup.shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
       const spec = setup.prefix === '' ? [] : ['--', setup.prefix]
       const statusText = await setup.shadow.text(
         [
@@ -431,16 +541,31 @@ export class CheckpointStore {
         { index: 'none' },
       )
       const listing = parseStatusListing(statusText)
-      if (listing.files.length > CHECKPOINT_MAX_FILES) {
+      const inWorkspace = (paths: readonly string[]) =>
+        paths.map((topPath) => this.inWorkspace(setup, topPath))
+      const files = inWorkspace(listing.files)
+      const ignoredFiles = inWorkspace(listing.ignoredFiles)
+      const ignoredFolders = inWorkspace(listing.ignoredFolders)
+      const repositories = inWorkspace(listing.repositories)
+      const linked = await linkedFolders(this.deps.workspaceRoot, [
+        ...files,
+        ...ignoredFiles,
+        ...ignoredFolders.map((folder) => `${folder}${SEPARATOR}${CURRENT_PATH_PREFIX}`),
+        ...repositories,
+      ])
+      const isReachable = (relative: string) =>
+        linked.every(
+          (folder) => relative !== folder && !relative.startsWith(`${folder}${SEPARATOR}`),
+        )
+      const reachableFiles = files.filter((relative) => isReachable(relative))
+      if (reachableFiles.length > CHECKPOINT_MAX_FILES) {
         return {
           ok: false,
           reason: 'tooManyFiles',
-          detail: `${String(listing.files.length)} files outside the ignore rules`,
+          detail: `${String(reachableFiles.length)} files outside the ignore rules`,
         }
       }
-      const inWorkspace = (paths: readonly string[]) =>
-        paths.map((topPath) => this.inWorkspace(setup, topPath))
-      const { wanted, skipped } = await this.sortListed(inWorkspace(listing.files))
+      const { wanted, skipped } = await this.sortListed(reachableFiles)
       const synced = await this.syncIndex(setup, wanted)
       if ('bytes' in synced) {
         return {
@@ -451,23 +576,28 @@ export class CheckpointStore {
       }
       const inventory = await scanIgnored(
         this.deps.workspaceRoot,
-        inWorkspace(listing.ignoredFiles),
-        inWorkspace(listing.ignoredFolders),
+        ignoredFiles.filter((relative) => isReachable(relative)),
+        ignoredFolders.filter((relative) => isReachable(relative)),
       )
       return {
         ok: true,
         snapshot: {
           tree: synced.tree,
           coverage: {
-            skipped: skipped.toSorted(byText),
-            repositories: inWorkspace(listing.repositories).toSorted(byText),
+            skipped: [...skipped, ...linked].toSorted(byText),
+            repositories: repositories.filter((relative) => isReachable(relative)).toSorted(byText),
           },
           inventory,
           createdAt: this.deps.now(),
+          pin: undefined,
         },
       }
     } catch (error: unknown) {
-      return { ok: false, reason: 'failed', detail: errorDetail(error) }
+      return {
+        ok: false,
+        reason: error instanceof GitMissingError ? 'noGit' : 'failed',
+        detail: errorDetail(error),
+      }
     }
   }
 
@@ -500,20 +630,6 @@ export class CheckpointStore {
     ])
     const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
     return { preImage: { mode: isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE, oid }, stat }
-  }
-
-  /** What is at `relative` before a restore replaces it: the current capture's blob, or a copy. */
-  private async beforeOf(
-    setup: Setup,
-    relative: string,
-    inCurrent: ReadonlyMap<string, BlobRef>,
-  ): Promise<BlobRef | null | undefined> {
-    const captured = inCurrent.get(relative)
-    if (captured !== undefined) {
-      return captured
-    }
-    const copy = await this.copyOf(setup, relative)
-    return copy.preImage
   }
 
   /** Adds the copies the tool writes of this turn took to its ignored changes. */
@@ -598,12 +714,10 @@ export class CheckpointStore {
     const refs: string[] = []
     for (const oid of released) {
       if (!kept.has(oid)) {
-        refs.push(`delete ${JOURNAL_REF_PREFIX}${oid}${LINE_FEED}`)
+        refs.push(`${JOURNAL_REF_PREFIX}${oid}`)
       }
     }
-    if (refs.length > 0) {
-      await setup.shadow.run(['update-ref', '--stdin'], { input: refs.join('') })
-    }
+    await this.deleteRefs(setup.shadow, refs)
   }
 
   /** Which of these workspace paths the tree holds. */
@@ -631,23 +745,62 @@ export class CheckpointStore {
       : parseDiffTree(await shadow.text(['diff-tree', '-r', '-z', '--no-renames', from, to]))
   }
 
-  /** Paths changed between the turns and after the last one: not these turns' doing. */
+  /**
+   * Paths these turns did not change themselves: between them and after the
+   * last, and every path another conversation's turn changed while one of
+   * them ran. A turn whose end was not seen counts everything up to the next
+   * capture as its own; those paths are `uncertain`.
+   */
   private async changedOutside(
-    shadow: ShadowGit,
+    setup: Setup,
     turns: readonly CheckpointRecord[],
     currentTree: string,
-  ): Promise<ReadonlySet<string>> {
+  ): Promise<{ readonly changed: ReadonlySet<string>; readonly uncertain: ReadonlySet<string> }> {
     const changed = new Set<string>()
+    const uncertain = new Set<string>()
     for (const [index, turn] of turns.entries()) {
       const next = turns[index + 1]?.start.tree ?? currentTree
-      // A turn whose end was not seen counts everything up to the next as its own.
-      const end = turn.end?.tree ?? next
-      const gap = await this.diff(shadow, end, next)
-      for (const change of gap) {
+      if (turn.end === undefined) {
+        const sinceStart = await this.diff(setup.shadow, turn.start.tree, next)
+        for (const change of sinceStart) {
+          uncertain.add(change.path)
+        }
+        continue
+      }
+      const sinceEnd = await this.diff(setup.shadow, turn.end.tree, next)
+      for (const change of sinceEnd) {
         changed.add(change.path)
       }
     }
-    return changed
+    const now = this.deps.now()
+    // A turn's time: from its start capture to its end; to now while it
+    // runs; an end an earlier window never saw is taken as its start.
+    const windowOf = (record: CheckpointRecord) => ({
+      start: record.createdAt,
+      end: record.endedAt ?? (this.openTurns.has(record.id) ? now : record.createdAt),
+    })
+    const sessionId = turns[0]?.sessionId
+    const overlapping = setup.records.checkpoints.filter((other) => {
+      if (other.sessionId === sessionId) {
+        return false
+      }
+      const theirs = windowOf(other)
+      return turns.some((turn) => {
+        const ours = windowOf(turn)
+        return theirs.start < ours.end && theirs.end > ours.start
+      })
+    })
+    for (const other of overlapping) {
+      const otherEnd = other.end?.tree ?? currentTree
+      const theirChanges = [
+        ...(await this.diff(setup.shadow, other.start.tree, otherEnd)),
+        ...(other.ignored?.changes ?? []),
+      ]
+      for (const change of theirChanges) {
+        changed.add(change.path)
+      }
+    }
+    return { changed, uncertain }
   }
 
   /** The blobs' bytes, by object name; a missing one is absent from the map. */
@@ -671,28 +824,46 @@ export class CheckpointStore {
     return blobs
   }
 
-  /** The object names of these files as they are now (nothing written). */
-  private async currentOids(
-    setup: Setup,
-    relatives: readonly string[],
-  ): Promise<ReadonlyMap<string, string>> {
-    const oids = new Map<string, string>()
-    for (const relative of relatives) {
-      if ((await regularFileStat(this.absoluteOf(relative))) === undefined) {
-        continue
-      }
-      const oid = await setup.shadow.text([
-        'hash-object',
-        '--no-filters',
-        '--',
-        this.topOf(setup, relative),
-      ])
-      oids.set(relative, oid)
+  /**
+   * The writes in batches whose blobs together stay under
+   * CHECKPOINT_BLOB_BATCH_MAX_BYTES (one `cat-file` each), in order.
+   */
+  private async blobBatches(
+    shadow: ShadowGit,
+    steps: readonly PlannedStep[],
+  ): Promise<readonly (readonly PlannedStep[])[]> {
+    const oids = [
+      ...new Set(steps.flatMap((step) => (step.target === null ? [] : [step.target.oid]))),
+    ]
+    if (oids.length === 0) {
+      return []
     }
-    return oids
+    const answer = await shadow.text(['cat-file', '--batch-check'], {
+      input: oids.map((oid) => `${oid}${LINE_FEED}`).join(''),
+    })
+    const sizes = parseBatchCheck(answer)
+    const batches: PlannedStep[][] = []
+    let current: PlannedStep[] = []
+    let bytes = 0
+    for (const step of steps) {
+      const size = step.target === null ? 0 : (sizes.get(step.target.oid) ?? 0)
+      if (current.length > 0 && bytes + size > CHECKPOINT_BLOB_BATCH_MAX_BYTES) {
+        batches.push(current)
+        current = []
+        bytes = 0
+      }
+      current.push(step)
+      bytes += size
+    }
+    batches.push(current)
+    return batches
   }
 
-  /** Which of these paths the ignore rules (as restored) name. */
+  /**
+   * Which of these added paths the ignore rules (as restored) name. Each is
+   * given as `./path`, so a name that looks like pathspec magic is only a
+   * name (`check-ignore` refuses literal pathspecs).
+   */
   private async ignoredAmong(
     setup: Setup,
     relatives: readonly string[],
@@ -704,9 +875,20 @@ export class CheckpointStore {
       const answer = await setup.shadow.text(['check-ignore', '--no-index', '-z', '--stdin'], {
         index: 'none',
         literalPathspecs: false,
-        input: nulInput(relatives.map((relative) => this.topOf(setup, relative))),
+        input: nulInput(
+          relatives.map((relative) => `${CURRENT_PATH_PREFIX}${this.topOf(setup, relative)}`),
+        ),
       })
-      return new Set(splitNul(answer).map((topPath) => this.inWorkspace(setup, topPath)))
+      return new Set(
+        splitNul(answer).map((topPath) =>
+          this.inWorkspace(
+            setup,
+            topPath.startsWith(CURRENT_PATH_PREFIX)
+              ? topPath.slice(CURRENT_PATH_PREFIX.length)
+              : topPath,
+          ),
+        ),
+      )
     } catch (error: unknown) {
       if (error instanceof GitExitError && error.exitCode === NONE_EXIT) {
         return new Set()
@@ -721,15 +903,12 @@ export class CheckpointStore {
     return new Set(splitNul(answer))
   }
 
-  /** A redo record for the files a restore changed; undefined when it changed none. */
+  /** A redo record for these entries, saved with a ref keeping every blob it names. */
   private async recordRestore(
     setup: Setup,
     sessionId: string,
     entries: readonly RestoreEntry[],
-  ): Promise<string | undefined> {
-    if (entries.length === 0) {
-      return undefined
-    }
+  ): Promise<RestoreRecord> {
     const blobs = entries.flatMap((entry) =>
       [entry.before, entry.after].filter((blob) => blob !== null),
     )
@@ -744,9 +923,30 @@ export class CheckpointStore {
       keep,
     }
     setup.records.restores.push(record)
-    await this.retain(setup)
     await this.save(setup)
-    return id
+    return record
+  }
+
+  /** Cuts a redo record to these entries; drops it (and its ref) when none is left. */
+  private async trimRestore(
+    setup: Setup,
+    record: RestoreRecord,
+    entries: readonly RestoreEntry[],
+  ): Promise<boolean> {
+    const index = setup.records.restores.findIndex((candidate) => candidate.id === record.id)
+    if (index === -1) {
+      return false
+    }
+    if (entries.length === 0) {
+      setup.records.restores.splice(index, 1)
+      await this.deleteRefs(setup.shadow, [`${KEEP_REF_PREFIX}${record.id}`])
+      this.isPruneDue = true
+      await this.save(setup)
+      return false
+    }
+    setup.records.restores[index] = { ...record, entries: [...entries] }
+    await this.save(setup)
+    return true
   }
 
   /** One tree holding trees and blobs, so one ref keeps all of them from pruning. */
@@ -762,130 +962,260 @@ export class CheckpointStore {
     return await shadow.text(['mktree', '-z'], { input: nulInput(lines) })
   }
 
-  /** Drops what the retention bounds exclude; prunes when anything went. */
-  private async retain(setup: Setup): Promise<void> {
-    const now = this.deps.now()
-    const days = this.deps.retentionDays()
-    const cutoff = days > 0 ? now - days * MILLISECONDS_PER_DAY : -Infinity
-    const sessions: string[] = []
-    const newestFirst = setup.records.checkpoints.toSorted(
-      (left, right) => right.createdAt - left.createdAt,
+  /** Drops what the retention bounds exclude; prunes when due and not done lately. */
+  private async retain(setup: Setup, isPruneForced: boolean): Promise<void> {
+    const kept = retainRecords(
+      setup.records,
+      this.deps.now(),
+      this.deps.retentionDays(),
+      (record) => this.openTurns.has(record.id),
     )
-    for (const record of newestFirst) {
-      if (!sessions.includes(record.sessionId)) {
-        sessions.push(record.sessionId)
-      }
+    setup.records.checkpoints = kept.checkpoints
+    setup.records.restores = kept.restores
+    if (kept.dropped.length > 0) {
+      await this.deleteRefs(
+        setup.shadow,
+        kept.dropped.map((record) => `${KEEP_REF_PREFIX}${record.id}`),
+      )
+      this.isPruneDue = true
     }
-    const keptSessions = new Set(sessions.slice(0, CHECKPOINT_SESSIONS_MAX))
-    const keptCheckpoints = newestPerGroup(
-      setup.records.checkpoints,
-      CHECKPOINTS_PER_SESSION_MAX,
-      (record) =>
-        this.openTurns.has(record.id) ||
-        (keptSessions.has(record.sessionId) && record.createdAt >= cutoff),
-    )
-    const keptRestores = newestPerGroup(
-      setup.records.restores,
-      CHECKPOINT_RESTORES_PER_SESSION_MAX,
-      (record) => record.createdAt >= cutoff,
-    )
-    const dropped = [
-      ...setup.records.checkpoints.filter((record) => !keptCheckpoints.includes(record)),
-      ...setup.records.restores.filter((record) => !keptRestores.includes(record)),
-    ]
-    setup.records.checkpoints = oldestFirst(keptCheckpoints)
-    setup.records.restores = oldestFirst(keptRestores)
-    if (dropped.length === 0) {
-      return
-    }
-    await this.dropRefs(setup.shadow, dropped)
-    if (now - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS) {
+    const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
+    if (this.isPruneDue && (isPruneForced || isIntervalOver)) {
       await this.prune(setup.shadow)
     }
   }
 
-  private async dropRefs(
-    shadow: ShadowGit,
-    records: readonly { readonly id: string }[],
-  ): Promise<void> {
-    if (records.length === 0) {
+  private async deleteRefs(shadow: ShadowGit, refs: readonly string[]): Promise<void> {
+    if (refs.length === 0) {
       return
     }
     await shadow.run(['update-ref', '--stdin'], {
-      input: records.map((record) => `delete ${KEEP_REF_PREFIX}${record.id}${LINE_FEED}`).join(''),
+      input: refs.map((ref) => `delete ${ref}${LINE_FEED}`).join(''),
     })
   }
 
-  /** Deletes every copy no record, running turn or the private index still needs. */
+  /** Deletes every copy no record, pinned capture, running turn or the private index needs. */
   private async prune(shadow: ShadowGit): Promise<void> {
     await shadow.run(['prune', '--expire=now'])
     this.lastPruneAt = this.deps.now()
+    this.isPruneDue = false
   }
 
-  /** The restore's writes and deletions; what changed, for the redo record. */
-  private async applyRestore(
-    setup: Setup,
-    plan: ReturnType<typeof planRestore>,
-    inCurrent: ReadonlyMap<string, BlobRef>,
-    checkpointTree: string,
-  ): Promise<{ readonly entries: readonly RestoreEntry[]; readonly refused: Refusal[] }> {
-    const refused = [...plan.refused]
-    const entries: RestoreEntry[] = []
-    const blobs = await this.blobsOf(
-      setup.shadow,
-      plan.writes.map((write) => write.blob.oid),
-    )
-    for (const write of plan.writes) {
-      const before = await this.beforeOf(setup, write.path, inCurrent)
-      const content = blobs.get(write.blob.oid)
-      if (before === undefined || content === undefined) {
-        refused.push({ path: write.path, reason: 'notInCheckpoint' })
-      } else if (await didWriteRestoredFile(this.target, write.path, content, write.blob.mode)) {
-        entries.push({ path: write.path, before, after: write.blob })
-      } else {
-        refused.push({ path: write.path, reason: 'failed' })
+  /** Drops a conversation's records from memory (the refs go with the next orphan sweep). */
+  private dropSession(setup: Setup, sessionId: string): void {
+    for (const record of setup.records.checkpoints) {
+      if (record.sessionId === sessionId) {
+        this.openTurns.delete(record.id)
       }
     }
-    // An added file the restored ignore rules name was an ignored file at
-    // the checkpoint: it may have been there then, so it stays.
-    const ignoredNow = await this.ignoredAmong(
-      setup,
-      plan.deletes.filter((deleted) => inCurrent.has(deleted)),
+    setup.records.checkpoints = setup.records.checkpoints.filter(
+      (record) => record.sessionId !== sessionId,
     )
-    const foldersThen = await this.foldersOf(setup.shadow, checkpointTree)
-    for (const deleted of plan.deletes) {
-      const before = ignoredNow.has(deleted)
-        ? undefined
-        : await this.beforeOf(setup, deleted, inCurrent)
-      if (before === undefined) {
-        refused.push({ path: deleted, reason: 'notInCheckpoint' })
-        continue
-      }
-      const folders = inCurrent.has(deleted) ? foldersThen : undefined
-      if (await didDeleteRestoredFile(this.target, deleted, folders)) {
-        entries.push({ path: deleted, before, after: null })
+    setup.records.restores = setup.records.restores.filter(
+      (record) => record.sessionId !== sessionId,
+    )
+  }
+
+  /**
+   * One step, if it may still run: a file with unsaved editor changes is
+   * left as it is, and so is one no longer as the restore expects.
+   */
+  private async runStep(
+    step: PlannedStep,
+    content: Buffer | undefined,
+    foldersThen: ReadonlySet<string> | undefined,
+    isUnsaved: (relative: string) => boolean,
+  ): Promise<Refusal | undefined> {
+    if (isUnsaved(step.path)) {
+      return { path: step.path, reason: 'unsaved' }
+    }
+    const result = await applyFileStep(this.target, step, content, foldersThen)
+    return result === 'done' ? undefined : { path: step.path, reason: refusalFor(result) }
+  }
+
+  /**
+   * Runs the steps: ignore files first (so the rules as restored can judge
+   * the added files), then deletions (a case-only rename or a file swapped
+   * for a folder of the same name must go before the file comes back), then
+   * the other writes, their blobs read in bounded batches. Whatever fails,
+   * the entries done and the refusals are returned; a step never begun is
+   * refused as failed.
+   */
+  private async runSteps(
+    setup: Setup,
+    steps: readonly PlannedStep[],
+    foldersThen: ReadonlySet<string> | undefined,
+    isUnsaved: (relative: string) => boolean,
+  ): Promise<Applied> {
+    const entries: RestoreEntry[] = []
+    const refused: Refusal[] = []
+    const settledPaths = new Set<string>()
+    const note = (step: PlannedStep, refusal: Refusal | undefined) => {
+      settledPaths.add(step.path)
+      if (refusal === undefined) {
+        entries.push({ path: step.path, before: step.before, after: step.target })
       } else {
-        refused.push({ path: deleted, reason: 'failed' })
+        refused.push(refusal)
+      }
+    }
+    const runWrites = async (writes: readonly PlannedStep[]) => {
+      const batches = await this.blobBatches(setup.shadow, writes)
+      for (const batch of batches) {
+        const blobs = await this.blobsOf(
+          setup.shadow,
+          batch.flatMap((step) => (step.target === null ? [] : [step.target.oid])),
+        )
+        for (const step of batch) {
+          const content = step.target === null ? undefined : blobs.get(step.target.oid)
+          note(step, await this.runStep(step, content, undefined, isUnsaved))
+        }
+      }
+    }
+    try {
+      const isIgnoreFile = (step: PlannedStep) =>
+        step.target !== null && path.posix.basename(step.path) === IGNORE_FILE
+      await runWrites(steps.filter((step) => isIgnoreFile(step)))
+      const checked = steps.filter((step) => step.isIgnoreChecked).map((step) => step.path)
+      const ignoredNow = await this.ignoredAmong(setup, checked)
+      const deletes = steps.filter((candidate) => candidate.target === null)
+      for (const step of deletes) {
+        note(
+          step,
+          ignoredNow.has(step.path)
+            ? { path: step.path, reason: 'notInCheckpoint' }
+            : await this.runStep(
+                step,
+                undefined,
+                step.isIgnoreChecked ? foldersThen : undefined,
+                isUnsaved,
+              ),
+        )
+      }
+      await runWrites(steps.filter((step) => step.target !== null && !isIgnoreFile(step)))
+    } catch (error: unknown) {
+      this.deps.log.warn(`A checkpoint restore stopped part way: ${errorDetail(error)}`)
+      for (const step of steps) {
+        if (!settledPaths.has(step.path)) {
+          refused.push({ path: step.path, reason: 'failed' })
+        }
       }
     }
     return { entries, refused }
   }
 
-  /** A capture of the workspace now; `record` ties it to a turn. */
-  public capture(): Promise<CaptureResult> {
-    return this.serial(async () => await this.captureNow(await this.ready()))
+  /**
+   * Saves the redo record of every step before the first file changes, runs
+   * them, then cuts the record to what was done: a restore that stops part
+   * way keeps its Redo and says what it changed.
+   */
+  private async runRecorded(
+    setup: Setup,
+    sessionId: string,
+    steps: readonly PlannedStep[],
+    foldersThen: ReadonlySet<string> | undefined,
+    isUnsaved: (relative: string) => boolean,
+  ): Promise<Applied & { readonly restoreId: string | undefined }> {
+    if (steps.length === 0) {
+      return { entries: [], refused: [], restoreId: undefined }
+    }
+    const pending = await this.recordRestore(
+      setup,
+      sessionId,
+      steps.map((step) => ({ path: step.path, before: step.before, after: step.target })),
+    )
+    const applied = await this.runSteps(setup, steps, foldersThen, isUnsaved)
+    const isKept = await this.trimRestore(setup, pending, applied.entries)
+    await this.retain(setup, false)
+    await this.save(setup)
+    return { ...applied, restoreId: isKept ? pending.id : undefined }
   }
 
-  /** Ties a capture to the turn it precedes. */
+  /** The restore's steps with what each replaces; a step whose file cannot be kept for Redo is refused. */
+  private async plannedSteps(
+    setup: Setup,
+    steps: readonly RestoreStep[],
+    inCurrent: ReadonlyMap<string, BlobRef>,
+  ): Promise<{ readonly planned: readonly PlannedStep[]; readonly refused: readonly Refusal[] }> {
+    const planned: PlannedStep[] = []
+    const refused: Refusal[] = []
+    for (const step of steps) {
+      const before = await this.beforeOf(setup, step, inCurrent)
+      if (before === undefined) {
+        refused.push({ path: step.path, reason: 'notInCheckpoint' })
+      } else {
+        planned.push({ ...step, before })
+      }
+    }
+    return { planned, refused }
+  }
+
+  /** What a step replaces: the current capture's blob, nothing, or a copy taken now. */
+  private async beforeOf(
+    setup: Setup,
+    step: RestoreStep,
+    inCurrent: ReadonlyMap<string, BlobRef>,
+  ): Promise<BlobRef | null | undefined> {
+    if (step.expect.kind === 'absent') {
+      return null
+    }
+    if (step.expect.kind === 'blob') {
+      return inCurrent.get(step.path)
+    }
+    const copy = await this.copyOf(setup, step.path)
+    return copy.preImage
+  }
+
+  /** A capture of the workspace now, pinned until `record` or `release`. */
+  public capture(): Promise<CaptureResult> {
+    return this.serial(async (): Promise<CaptureResult> => {
+      let setup: Setup
+      try {
+        setup = await this.ready()
+      } catch (error: unknown) {
+        return {
+          ok: false,
+          reason: error instanceof GitMissingError ? 'noGit' : 'failed',
+          detail: errorDetail(error),
+        }
+      }
+      const result = await this.captureNow(setup)
+      if (!result.ok) {
+        return result
+      }
+      const pin = `${PIN_REF_PREFIX}${this.deps.newId()}`
+      await setup.shadow.run(['update-ref', pin, result.snapshot.tree])
+      return { ok: true, snapshot: { ...result.snapshot, pin } }
+    })
+  }
+
+  /** A capture no turn took: its pin goes. */
+  public release(snapshot: Snapshot): Promise<void> {
+    return this.serial(async () => {
+      if (snapshot.pin === undefined) {
+        return
+      }
+      const { shadow } = await this.ready()
+      await this.deleteRefs(shadow, [snapshot.pin])
+    })
+  }
+
+  /** Ties a capture to the turn it precedes, unless its conversation was forgotten since. */
   public record(sessionId: string, turnId: string, snapshot: Snapshot): Promise<void> {
     return this.serial(async () => {
       const setup = await this.ready()
-      if (this.find(setup, sessionId, turnId) !== undefined) {
+      const pins = snapshot.pin === undefined ? [] : [snapshot.pin]
+      const forgotten = this.forgottenAt.get(sessionId)
+      if (
+        this.find(setup, sessionId, turnId) !== undefined ||
+        (forgotten !== undefined && snapshot.createdAt <= forgotten)
+      ) {
+        await this.deleteRefs(setup.shadow, pins)
         return
       }
       const id = this.deps.newId()
       const keep = await this.keepTree(setup.shadow, [{ name: 'start', tree: snapshot.tree }], [])
       await setup.shadow.run(['update-ref', `${KEEP_REF_PREFIX}${id}`, keep])
+      await this.deleteRefs(setup.shadow, pins)
       setup.records.checkpoints.push({
         id,
         sessionId,
@@ -895,9 +1225,19 @@ export class CheckpointStore {
         keep,
       })
       this.openTurns.set(id, { createdAt: snapshot.createdAt, inventory: snapshot.inventory })
-      await this.retain(setup)
+      await this.retain(setup, false)
       await this.save(setup)
     })
+  }
+
+  /** The window's turns, running or not (no git): no restore runs while one does. */
+  public markTurn(sessionId: string, turnId: string, isRunning: boolean): void {
+    const key = `${sessionId}${NUL}${turnId}`
+    if (isRunning) {
+      this.runningTurns.add(key)
+    } else {
+      this.runningTurns.delete(key)
+    }
   }
 
   /** The turn ended: capture again and record the ignored files it changed. */
@@ -905,7 +1245,7 @@ export class CheckpointStore {
     return this.serial(async () => {
       const setup = await this.ready()
       const record = this.find(setup, sessionId, turnId)
-      if (record === undefined || record.end !== undefined) {
+      if (record === undefined || record.endedAt !== undefined) {
         return
       }
       const start = this.openTurns.get(record.id)
@@ -929,6 +1269,11 @@ export class CheckpointStore {
       ]
       const keep = await this.keepTree(setup.shadow, trees, preImages)
       await setup.shadow.run(['update-ref', `${KEEP_REF_PREFIX}${record.id}`, keep])
+      const isScanWhole =
+        start !== undefined &&
+        capture.ok &&
+        !start.inventory.isPartial &&
+        !capture.snapshot.inventory.isPartial
       const index = setup.records.checkpoints.indexOf(record)
       setup.records.checkpoints[index] = {
         ...record,
@@ -938,13 +1283,15 @@ export class CheckpointStore {
             coverage: storedCoverage(capture.snapshot.coverage),
           },
         }),
+        endedAt: this.deps.now(),
         ignored: {
           changes: [...kept],
-          isComplete: start !== undefined && capture.ok && kept.length === changes.length,
+          isComplete: isScanWhole && kept.length === changes.length,
         },
         keep,
       }
       await this.trimJournal(setup)
+      await this.retain(setup, false)
       await this.save(setup)
     })
   }
@@ -996,35 +1343,42 @@ export class CheckpointStore {
       if (checkpoint === undefined) {
         return { ok: false, reason: 'noCheckpoint' }
       }
+      if (this.isAnyTurnRunning()) {
+        return { ok: false, reason: 'turnRunning' }
+      }
       const turns = oldestFirst(
         setup.records.checkpoints.filter(
           (record) =>
             record.sessionId === request.sessionId && record.createdAt >= checkpoint.createdAt,
         ),
       )
-      if (turns.some((record) => this.openTurns.has(record.id))) {
-        return { ok: false, reason: 'turnRunning' }
-      }
       const capture = await this.captureNow(setup)
       if (!capture.ok) {
-        return { ok: false, reason: 'captureFailed', detail: capture.detail }
+        return {
+          ok: false,
+          reason: 'captureFailed',
+          captureRefusal: capture.reason,
+          detail: capture.detail,
+        }
       }
       const current = capture.snapshot
       const changes = await this.diff(setup.shadow, checkpoint.start.tree, current.tree)
-      const changedOutsideTurns = await this.changedOutside(setup.shadow, turns, current.tree)
+      const outside = await this.changedOutside(setup, turns, current.tree)
       const ignoredTurns = turns.map((record) => record.ignored?.changes ?? [])
       const currentStat = new Map<string, FileStat | null>()
       for (const change of ignoredTurns.flat()) {
         const stat = await regularFileStat(this.absoluteOf(change.path))
         currentStat.set(change.path, stat ?? null)
       }
+      const isUnsaved = this.unsavedTest(request.unsavedPaths)
       const plan = planRestore({
         changes,
-        changedOutsideTurns,
+        changedOutsideTurns: outside.changed,
+        uncertain: outside.uncertain,
         ignoredTurns,
         coverage: { checkpoint: checkpoint.start.coverage, current: current.coverage },
         currentStat,
-        isUnsaved: this.unsavedTest(request.unsavedPaths),
+        isUnsaved,
       })
       const inCurrent = new Map<string, BlobRef>()
       for (const change of changes) {
@@ -1032,104 +1386,138 @@ export class CheckpointStore {
           inCurrent.set(change.path, change.after)
         }
       }
-      const applied = await this.applyRestore(setup, plan, inCurrent, checkpoint.start.tree)
-      const restoreId = await this.recordRestore(setup, request.sessionId, applied.entries)
+      const { planned, refused } = await this.plannedSteps(setup, plan.steps, inCurrent)
+      const foldersThen = await this.foldersOf(setup.shadow, checkpoint.start.tree)
+      const applied = await this.runRecorded(
+        setup,
+        request.sessionId,
+        planned,
+        foldersThen,
+        isUnsaved,
+      )
+      const changed = applied.entries.map((entry) => entry.path)
       return {
         ok: true,
-        restoreId,
-        changed: applied.entries.map((entry) => entry.path),
-        refused: applied.refused,
+        restoreId: applied.restoreId,
+        changed,
+        refused: [...plan.refused, ...refused, ...applied.refused],
+        unsure: plan.unsure.filter((unsurePath) => changed.includes(unsurePath)),
         isIgnoredIncomplete: turns.some((record) => record.ignored?.isComplete !== true),
+        isRedoSpent: false,
       }
     })
   }
 
-  /** Puts back what a restore (or a redo) replaced; the redo can be redone in turn. */
+  /**
+   * Puts back what a restore (or a redo) replaced, file by file where each
+   * is still as the restore left it; the redo can be redone in turn, and
+   * what it could not do stays in the record for another try.
+   */
   public redo(request: RedoRequest): Promise<RestoreOutcome> {
     return this.serial(async (): Promise<RestoreOutcome> => {
       const setup = await this.ready()
-      const record = setup.records.restores.find(
-        (candidate) =>
-          candidate.id === request.restoreId && candidate.sessionId === request.sessionId,
-      )
+      const record = setup.records.restores.find((candidate) => candidate.id === request.restoreId)
       if (record === undefined) {
         return { ok: false, reason: 'redoGone' }
       }
-      const isUnsaved = this.unsavedTest(request.unsavedPaths)
-      const nowOids = await this.currentOids(
+      if (this.isAnyTurnRunning()) {
+        return { ok: false, reason: 'turnRunning' }
+      }
+      const steps: PlannedStep[] = record.entries.map((entry) => {
+        const expect: Expectation =
+          entry.after === null ? { kind: 'absent' } : { kind: 'blob', oid: entry.after.oid }
+        return {
+          path: entry.path,
+          target: entry.before,
+          expect,
+          before: entry.after,
+          isIgnoreChecked: false,
+        }
+      })
+      const applied = await this.runRecorded(
         setup,
-        record.entries.flatMap((entry) => (entry.after === null ? [] : [entry.path])),
+        record.sessionId,
+        steps,
+        undefined,
+        this.unsavedTest(request.unsavedPaths),
       )
-      const refused: Refusal[] = []
-      const ready: RestoreEntry[] = []
-      for (const entry of record.entries) {
-        const isAsLeft =
-          entry.after === null
-            ? (await regularFileStat(this.absoluteOf(entry.path))) === undefined
-            : nowOids.get(entry.path) === entry.after.oid
-        if (!isAsLeft) {
-          refused.push({ path: entry.path, reason: 'changedAfter' })
-        } else if (isUnsaved(entry.path)) {
-          refused.push({ path: entry.path, reason: 'unsaved' })
-        } else {
-          ready.push(entry)
-        }
-      }
-      const blobs = await this.blobsOf(
-        setup.shadow,
-        ready.flatMap((entry) => (entry.before === null ? [] : [entry.before.oid])),
+      const donePaths = new Set(applied.entries.map((entry) => entry.path))
+      const isStillKept = await this.trimRestore(
+        setup,
+        record,
+        record.entries.filter((entry) => !donePaths.has(entry.path)),
       )
-      const entries: RestoreEntry[] = []
-      for (const entry of ready) {
-        const content = entry.before === null ? undefined : blobs.get(entry.before.oid)
-        let isDone = false
-        if (entry.before === null) {
-          isDone = await didDeleteRestoredFile(this.target, entry.path, undefined)
-        } else if (content !== undefined) {
-          isDone = await didWriteRestoredFile(this.target, entry.path, content, entry.before.mode)
-        }
-        if (isDone) {
-          entries.push({ path: entry.path, before: entry.after, after: entry.before })
-        } else {
-          refused.push({ path: entry.path, reason: 'failed' })
-        }
-      }
-      setup.records.restores = setup.records.restores.filter((candidate) => candidate !== record)
-      await setup.shadow.run(['update-ref', '-d', `${KEEP_REF_PREFIX}${record.id}`])
-      const restoreId = await this.recordRestore(setup, request.sessionId, entries)
       return {
         ok: true,
-        restoreId,
-        changed: entries.map((entry) => entry.path),
-        refused,
+        restoreId: applied.restoreId,
+        changed: applied.entries.map((entry) => entry.path),
+        refused: applied.refused,
+        unsure: [],
         isIgnoredIncomplete: false,
+        isRedoSpent: !isStillKept,
       }
     })
   }
 
-  /** The conversation was archived or deleted: its checkpoints and copies go. */
+  /** The conversation was archived: its checkpoints and copies go now. */
   public forgetSession(sessionId: string): Promise<void> {
     return this.serial(async () => {
+      this.forgottenAt.set(sessionId, this.deps.now())
       const setup = await this.ready()
-      const dropped = [
-        ...setup.records.checkpoints.filter((record) => record.sessionId === sessionId),
-        ...setup.records.restores.filter((record) => record.sessionId === sessionId),
-      ]
-      if (dropped.length === 0) {
+      const refs = [...setup.records.checkpoints, ...setup.records.restores]
+        .filter((record) => record.sessionId === sessionId)
+        .map((record) => `${KEEP_REF_PREFIX}${record.id}`)
+      if (refs.length === 0) {
         return
       }
-      for (const record of dropped) {
-        this.openTurns.delete(record.id)
-      }
-      setup.records.checkpoints = setup.records.checkpoints.filter(
-        (record) => record.sessionId !== sessionId,
-      )
-      setup.records.restores = setup.records.restores.filter(
-        (record) => record.sessionId !== sessionId,
-      )
-      await this.dropRefs(setup.shadow, dropped)
+      this.dropSession(setup, sessionId)
+      await this.deleteRefs(setup.shadow, refs)
       await this.save(setup)
       await this.prune(setup.shadow)
     })
+  }
+
+  /**
+   * The conversation was archived while no git may run (Restricted Mode):
+   * it is queued, and its checkpoints go the next time the store opens.
+   */
+  public queueForget(sessionId: string): Promise<void> {
+    return this.serial(async () => {
+      this.forgottenAt.set(sessionId, this.deps.now())
+      const filePath = path.join(this.deps.storageDir, FORGOTTEN_FILE)
+      if ((await readOptionalText(path.join(this.deps.storageDir, RECORDS_FILE))) === undefined) {
+        return
+      }
+      const queued = await loadForgotten(filePath, (reason) => {
+        this.deps.log.warn(
+          `The archived-conversation queue was unreadable and was set aside: ${reason}`,
+        )
+      })
+      if (!queued.includes(sessionId)) {
+        await saveForgotten(filePath, [...queued, sessionId])
+      }
+    })
+  }
+
+  /**
+   * The window opened (or the workspace was trusted): when checkpoints were
+   * ever taken here, the queued forgets, the orphan refs and the retention
+   * bounds are applied and the unneeded copies pruned, whether or not
+   * checkpoints are on now.
+   */
+  public maintain(): Promise<void> {
+    return this.serial(async () => {
+      if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) === undefined) {
+        return
+      }
+      const setup = await this.ready()
+      await this.retain(setup, true)
+      await this.save(setup)
+    })
+  }
+
+  /** The window is closing: every git still running is ended, and nothing new starts. */
+  public dispose(): void {
+    this.stopping.abort()
   }
 }
