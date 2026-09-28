@@ -1729,6 +1729,49 @@ published.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 
+### How this extension is built
+
+The extension is developed by a small team of AI agents under one human
+owner. The process below has been in use since 2026-09-28. Each milestone's
+record in `docs/certification/` says what was actually run for it; the
+records of milestones before that date describe their own checks, which
+sometimes differed (for example, M7 was certified against a fake server and
+M44 took a response shape from Meta's documentation).
+
+- **The owner** sets the plan (`PLAN.md`), makes the product decisions, and
+  approves anything that spends money, signs in or publishes.
+- **Claude Code** is the lead engineer: it turns the plan into briefs,
+  builds the harder milestones itself (security-sensitive and stateful
+  work), verifies every review finding in the code, and merges.
+- **Muse Code, the product's own backend, builds too.** Up to four
+  headless `muse exec` instances draft well-scoped milestones in their own
+  git worktrees, on the Muse Spark contributor model; a Claude Code agent
+  checks and finishes each draft, and it goes through the same review and
+  gates.
+- **Reviewers.** A change is reviewed before it is pushed, one defect class
+  at a time (concurrency and lifecycle; wire evidence, validation and
+  security; failure paths, honesty and docs), by **Grok Build** on a test
+  machine (reading files and inspecting git only) or by Claude Code review
+  agents. On the pull request, **Codex** reviews again. A finding is fixed
+  with every sibling of its class in one commit, and a change that reaches
+  a third review round is redesigned instead of patched.
+- **Gates.** AGENTS.md requires `npm run quality` to exit 0 before a
+  commit is proposed. Every commit is gated before it is pushed: one
+  complete `npm run quality` run (formatting, lint, types, tests with
+  coverage, the accessibility suite, the secret scan and semgrep) on one of
+  three dedicated test machines (a Windows 11 virtual machine, a Kubuntu
+  virtual machine and a Mac mini), so it never competes with the owner's
+  workstation. The PowerShell lint runs only on Windows, so a change to a
+  PowerShell script gets its run there. CI then runs `quality:gates` on
+  Ubuntu, Windows and macOS, and the other gates as the jobs listed above.
+  A milestone's new guards get red drills: each guard is broken on purpose,
+  its test must fail, and the file is restored byte for byte; the record
+  lists the drills and anything not drilled.
+- **Evidence.** Under AGENTS.md rule 13, a shape parsed from Muse Code or
+  the Model API is written from a live capture, and the record names it or
+  says it did not have one. Live checks run on the contributor model in
+  throwaway workspaces and record their model-call counts.
+
 ## Support this project
 
 If Muse Spark Code saves you time, you can
