@@ -78,7 +78,10 @@ them, the milestone plan, and the certification checklist.
     `PaidUseConsent` in `src/core/paid/paidConsent.ts`, Allow once / Allow
     always in this workspace / Deny), in every mode, Bypass included; a
     paid call never gets an approval card or a session rule. The
-    subscription never pays for one.
+    subscription never pays for one. One exception to the key is planned
+    (PLAN.md D50, M85, experimental): the TypeSafe assist is billed to the
+    user's own TypeSafe key instead of the Model API key; every other part
+    of this rule applies to it unchanged.
 13. **Wire shapes come from a live capture.** A row, parser or schema for
     something Muse Code or the Model API sends is written from a captured
     frame (the certification record names the capture, its workspace and its
