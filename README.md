@@ -814,7 +814,15 @@ the panel say git was not found.
   Restore never touches HEAD, the index, the stash or a branch, and it waits
   while any turn runs in the window. When a turn's end was never recorded
   (the window closed mid-turn), the notice names the restored files that turn
-  may not have changed itself.
+  may not have changed itself. A folder that was there before the turn, even
+  an empty one, is never removed; only the folders the turns made go.
+- **Two windows on one folder.** They share its checkpoints, one operation
+  at a time under a lock in that storage. Each sees the other's
+  conversations, so a restore is refused while a turn runs in the other
+  window, and what the other window's turns changed is left and named. An
+  operation that waits more than 15 seconds for the other window is refused
+  and the panel says so. A lock left by a window that has exited is taken
+  over.
 - **Ignored files.** They are not copied wholesale. A file the Model API's
   edit and write tools (or the image tools) are about to change is copied
   first, so a restore brings it back. A shell command's changes are found
@@ -837,7 +845,8 @@ the panel say git was not found.
   ignored-file scan looks at 5,000 files at most, and an ignored folder with
   more than 1,000 files (`node_modules`) is left out whole.
 - **Cleanup.** Archiving a conversation deletes its checkpoints (in
-  Restricted Mode, the next time the folder is trusted). A conversation keeps
+  Restricted Mode, its records at once and its copies the next time the
+  folder is trusted). A conversation keeps
   its 100 newest checkpoints and 20 newest redo records, the 50 most recent
   conversations keep theirs, and records older than
   `museSpark.cleanupPeriodDays` go. The bounds are applied each time the

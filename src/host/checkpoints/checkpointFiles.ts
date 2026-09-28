@@ -206,15 +206,15 @@ async function isAsExpected(absolute: string, expect: Expectation): Promise<bool
     : stats.size <= CHECKPOINT_FILE_MAX_BYTES && gitBlobOid(await readFile(absolute)) === expect.oid
 }
 
-/** Removes the folders a deletion left empty, up to one the checkpoint had. */
+/** Removes the folders a deletion left empty, up to one that was there at the checkpoint. */
 async function removeEmptiedFolders(
   target: RestoreTarget,
   relative: string,
-  foldersThen: ReadonlySet<string>,
+  wasFolderThere: (folder: string) => boolean,
 ): Promise<void> {
   for (
     let folder = path.posix.dirname(relative);
-    folder !== CURRENT_FOLDER && !foldersThen.has(folder);
+    folder !== CURRENT_FOLDER && !wasFolderThere(folder);
     folder = path.posix.dirname(folder)
   ) {
     try {
@@ -240,14 +240,14 @@ export interface FileStep {
 /**
  * One step of a restore or a redo: the file changed only when it is inside
  * the workspace with no link on the way and still as expected. With
- * `foldersThen`, a deletion also removes each folder it leaves empty that
- * the checkpoint did not have.
+ * `wasFolderThere`, a deletion also removes each folder it leaves empty that
+ * was not there at the checkpoint.
  */
 export async function applyFileStep(
   target: RestoreTarget,
   step: FileStep,
   content: Buffer | undefined,
-  foldersThen: ReadonlySet<string> | undefined,
+  wasFolderThere: ((folder: string) => boolean) | undefined,
 ): Promise<StepResult> {
   const destination = await unlinked(target, step.path)
   if (destination === undefined) {
@@ -259,8 +259,8 @@ export async function applyFileStep(
     }
     if (step.target === null) {
       await rm(destination.absolute, { force: true })
-      if (foldersThen !== undefined) {
-        await removeEmptiedFolders(target, step.path, foldersThen)
+      if (wasFolderThere !== undefined) {
+        await removeEmptiedFolders(target, step.path, wasFolderThere)
       }
       return 'done'
     }

@@ -26,7 +26,15 @@ happened, not what was planned; superseded entries are kept.
   changes, so a restore that stops part way still reports what it changed
   and keeps Redo, and a redo that could not do everything keeps its button.
   **Rewind conversation and restore files** checks the conversation first
-  and rewinds it only when every file was restored.
+  and rewinds it only when every file was restored. A folder that was there
+  before the turn, even an empty one, is never removed.
+- **Two windows on one folder share its checkpoints safely.** Every
+  operation runs under a lock in the checkpoint storage and reads the
+  records afresh, so neither window overwrites the other's. A restore waits
+  while a turn runs in the other window and leaves what that window's turns
+  changed; an operation that waits over 15 seconds is refused with the
+  reason; a lock left by an exited window is taken over; a live window's
+  pending captures and copies are never cleaned up as leftovers.
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository in VS Code's storage for the workspace, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -42,7 +50,8 @@ happened, not what was planned; superseded entries are kept.
   junction and a nested repository are left out and named, and a workspace
   with more than 50,000 files outside its ignore rules gets no checkpoints;
   the panel says why. Archiving a conversation deletes its checkpoints (in
-  Restricted Mode, once the folder is trusted), and retention keeps the 100
+  Restricted Mode its records at once, its copies once the folder is
+  trusted), and retention keeps the 100
   newest checkpoints and 20 redo records per conversation for 50
   conversations, within `museSpark.cleanupPeriodDays`, applied each time the
   window opens. The checkpoint folder is 0700 on macOS and Linux.

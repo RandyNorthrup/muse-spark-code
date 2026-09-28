@@ -375,7 +375,9 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       await h.store.beforeToolWrite(path.join(h.root, 'a.txt'))
       expect(shadowRefs(h.storage).some((ref) => ref.includes('/pin/'))).toBe(true)
       expect(shadowRefs(h.storage).some((ref) => ref.includes('/journal/'))).toBe(true)
-      // The records are lost (a window closed between a ref and its record, say).
+      // The window closed, and its records are lost (it closed between a ref
+      // and its record, say).
+      h.store.dispose()
       await unlink(path.join(h.storage, 'records.json'))
       await h.reopen().maintain()
       expect(shadowRefs(h.storage).filter((ref) => !ref.endsWith('/index'))).toEqual([])
@@ -410,6 +412,7 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       await h.store.record('s1', 't1', await captured(h.store))
       await write(h.root, 'a.txt', 'a1\n')
       // The window closed before the turn's end was recorded.
+      h.store.dispose()
       const outcome = await restoreTurn(h.reopen(), 't1')
       expect(outcome.changed).toEqual(['a.txt'])
       expect(outcome.unsure).toEqual(['a.txt'])

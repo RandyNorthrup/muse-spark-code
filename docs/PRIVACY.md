@@ -275,14 +275,19 @@ fields, never raw configuration or failed-command output.
   overwrites or deletes it (kept for that restore's Redo). The folder is
   readable by your user only (mode 0700 on macOS and Linux). Nothing is
   written into the workspace's `.git`, and nothing is sent anywhere.
-  Archiving a conversation deletes its checkpoints and redo copies (one
-  archived in Restricted Mode is queued, with no git run, and deleted the
-  next time the folder is trusted); the newest 100 checkpoints and 20 redo
-  records per conversation, for 50 conversations, are kept within
+  Archiving a conversation deletes its checkpoints and redo copies (in
+  Restricted Mode its records go at once, with no git run, and its copies
+  the next time the folder is trusted); the records also remember the
+  archived conversation's id for a day, so no window records a checkpoint
+  for it afterwards. The newest 100 checkpoints and 20 redo records per
+  conversation, for 50 conversations, are kept within
   `museSpark.cleanupPeriodDays`, and those bounds are applied each time the
-  window opens, with the setting on or off. Copies no record names (a
-  window that closed mid-turn) are deleted then too. Deleting the directory
-  removes them all. In Restricted Mode none are taken.
+  window opens, with the setting on or off. Copies no record or open window
+  names (a window that closed mid-turn) are deleted then too. Two windows on
+  the same folder share the folder, one at a time: a lock file there names
+  the window's process id, and each open window keeps a small presence file
+  (its process id and a random window id) while it is open. Deleting the
+  directory removes them all. In Restricted Mode none are taken.
 - Settings (`museSpark.*`), the archived-session list, the "last session"
   memory per panel, which paid features' prices you accepted, which paid
   features you allowed always in a workspace (kept in that workspace's

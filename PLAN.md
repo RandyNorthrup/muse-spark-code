@@ -2788,8 +2788,12 @@ workspace's prefix).
 - **Restricted Mode.** No checkpoints: the extension runs no git in an
   untrusted workspace (D24), and a copy store without git would still read
   and duplicate an untrusted tree's files for no gain the user asked for.
-  The menu says so. Archiving there queues the conversation in a JSON file
-  (no git); the next trusted window deletes its checkpoints.
+  The menu says so. Archiving there drops the conversation's records at
+  once (no git); the next trusted window deletes their refs and copies.
+- **Windows.** Two windows on one folder share the store: one operation at
+  a time under a lock file with the records read afresh, pins and tool
+  copies named by window, and a live window's never treated as orphans
+  (M72 Built, "Windows sharing a store").
 
 ## 3. Open questions (need the owner)
 
@@ -6870,8 +6874,31 @@ repository in the extension's workspace storage, never the workspace's
     A link, a folder link or junction (Git for Windows walks into one, so a
     capture drops every path under it), a file over 16 MiB and a nested
     repository are left out and named. Folders a restore empties are
-    removed only if the checkpoint did not have them. HEAD, the index, the
-    stash and branches are never touched.
+    removed only if they were not there at the checkpoint: git trees hold no
+    empty folder, so the capture before a turn also records the folders it
+    holds no file of (`ls-files --others --directory`, an untracked folder
+    listed whole standing for everything below it, plus the ignored and
+    linked ones; up to 10,000, past which, or for a record without the
+    list, a restore removes no folder). HEAD, the index, the stash and
+    branches are never touched.
+  - **Windows sharing a store** (Codex review of PR #55). Two windows on
+    one folder share `context.storageUri`. Every store operation runs under
+    an exclusive lock file (`store.lock`: process id and store instance,
+    created with `wx`, its time kept fresh by a 15-second heartbeat) and
+    reads `records.json` afresh inside it, so no window overwrites another's
+    records; a write (records, ref deletion, prune) first checks the lock is
+    still its own. An operation that waits 15 seconds is refused with the
+    reason (a capture: no checkpoint for the turn; a restore or redo: "try
+    again"). A lock is taken over only when its process has exited or it has
+    been silent for five minutes; a lock taken by another window during the
+    takeover is put back. Each window keeps a presence file
+    (`windows/<instance>.json`) beating while open, removed on close: pins
+    and tool copies are named by instance (`pin/<instance>/…`,
+    `journal/<instance>/…`) and are orphans only once their window is gone.
+    Records carry their window (`owner`): a restore is refused while a live
+    window's turn runs, only a turn's own window ends it, and retention keeps
+    a live window's running turn. Archives are remembered in the records
+    for a day (`forgotten`), so no window records a capture older than one.
   - **Each step** (review of 4ce27cb8): the redo record of every step is
     saved, with its keep ref, before the first file changes; `.gitignore`
     files are written first, then the ignore check (paths given as `./…`,
@@ -6901,14 +6928,15 @@ repository in the extension's workspace storage, never the workspace's
     conversation and rewind code** is one `rewindCode` message with `fork`:
     confirm, revert, fork.
   - **Cleanup.** Every window open (activation and trust granted) runs
-    `maintain`: stale locks older than five minutes (more than git's
-    two-minute timeout) are cleared, archives queued in Restricted Mode
-    (`forgotten.json`, written with no git) applied, refs no record names
-    (journal, pin, keep) dropped and pruned, and retention applied with the
-    setting on or off. Captures are pinned (`refs/muse-spark/pin/<id>`)
-    until recorded or let go; a capture older than its conversation's
-    archive is not recorded. Closing the window ends every git still
-    running. The folder is 0700 on POSIX.
+    `maintain`: stale git locks older than five minutes (more than git's
+    two-minute timeout) are cleared, keep refs no record names and the pins
+    and tool copies of windows that are gone dropped and pruned, and
+    retention applied with the setting on or off. Archiving in Restricted
+    Mode drops the conversation's records at once with no git (under the
+    store lock); its refs go at the next trusted `maintain`. Captures are
+    pinned until recorded or let go; a capture older than its
+    conversation's archive is not recorded. Closing the window ends every
+    git still running and removes its presence. The folder is 0700 on POSIX.
   - **The menu.** A turn with a checkpoint (its first card) offers **Restore
     files to here** and **Rewind conversation and restore files** beside
     M6's fork, M53's rewind and M13's code rewind; a turn without one keeps
@@ -6928,8 +6956,10 @@ repository in the extension's workspace storage, never the workspace's
   - **Setting.** `museSpark.turnCheckpoints`, machine-scoped, on by
     default.
   - **Limits.** A queued or scheduled turn's capture races its start (the
-    backend does not wait). Another window's turn (a second VS Code window
-    on the same files) is not seen; this window's are refused. On Muse Code
+    backend does not wait). A window on the same files but another folder
+    (a different workspace storage) is not seen. A crashed window's turn
+    that never ended counts as not overlapping; a reused process id is
+    caught only by the five-minute silence. On Muse Code
     the extension cannot copy an ignored file before the CLI's own tools
     write it, so such a change is listed as not restorable. A turn whose end
     capture failed counts every change up to the next turn as its own, and

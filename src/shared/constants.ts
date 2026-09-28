@@ -580,8 +580,26 @@ export const CHECKPOINT_PRUNE_INTERVAL_MS = 10 * 60 * 1000
 // window that closed without stopping its own can lose its lock.
 export const CHECKPOINT_STALE_LOCK_MS = 5 * 60 * 1000
 // The checkpoint folder holds copies of untracked and ignored files: it is
-// the user's alone.
+// the user's alone, and so are the lock and presence files in it.
 export const CHECKPOINT_STORAGE_MODE = 0o700
+export const CHECKPOINT_FILE_MODE = 0o600
+// Two windows on one folder share its checkpoint store: each operation waits
+// this long for the other window's to finish (checking this often), then is
+// refused with the reason. A window beats its presence (and a lock it holds)
+// this often; one silent for the stale time, or whose process is gone, is
+// gone: its lock may be taken over and its pinned captures and tool copies
+// are dropped.
+export const CHECKPOINT_LOCK_WAIT_MS = 15_000
+export const CHECKPOINT_LOCK_RETRY_MS = 100
+export const CHECKPOINT_HEARTBEAT_MS = 15_000
+export const CHECKPOINT_OWNER_STALE_MS = 5 * 60 * 1000
+// How long an archived conversation is remembered, so a capture taken
+// before the archive (in any window) is not recorded for it.
+export const CHECKPOINT_FORGOTTEN_KEEP_MS = 24 * 60 * 60 * 1000
+// The folders a capture holds no file of (empty, or only ignored or
+// left-out content) are recorded, up to this many, so a restore never
+// removes a folder that was there before; past it, a restore removes none.
+export const CHECKPOINT_FOLDERS_MAX = 10_000
 // A restore reads the copies it writes back in batches of at most this many
 // bytes (one `git cat-file`'s output is capped at GIT_OUTPUT_MAX_BYTES).
 export const CHECKPOINT_BLOB_BATCH_MAX_BYTES = 32 * 1024 * 1024

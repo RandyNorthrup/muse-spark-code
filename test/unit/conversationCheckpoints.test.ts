@@ -18,6 +18,7 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { fill, plural } from '../../src/shared/l10n/text'
+import { StoreBusyError } from '../../src/host/checkpoints/storeLock'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -28,6 +29,7 @@ function snapshot(tree: string, skipped: readonly string[] = []): Snapshot {
     inventory: { files: new Map(), skippedFolders: [], isPartial: false },
     createdAt: 0,
     pin: `refs/muse-spark/pin/${tree}`,
+    folders: [],
   }
 }
 
@@ -271,6 +273,31 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
       ['info', plural(UI_TEXT.restoreDone, 1), 'r1'],
       ['warning', fill(UI_TEXT.restoreUnsure, { files: 'a.ts' }), undefined],
       ['warning', fill(UI_TEXT.restoreRefusedFailed, { files: 'b.ts' }), undefined],
+    ])
+  })
+
+  it('says when another window on the folder holds its checkpoints, or runs a turn', async () => {
+    const outcomes: RestoreOutcome[] = [
+      { ok: false, reason: 'busy' },
+      { ok: false, reason: 'turnElsewhere' },
+    ]
+    const { checkpoints, notices } = harness({
+      record: () => Promise.reject(new StoreBusyError('process 1 held it')),
+      restore: () => Promise.resolve(outcomes.shift() ?? { ok: false, reason: 'noCheckpoint' }),
+    })
+    await checkpoints.sessionChanged('s1')
+    checkpoints.accepted(await checkpoints.beforeTurn('s1'), 't1', true)
+    await vi.waitFor(() => {
+      expect(notices).toHaveLength(1)
+    })
+    const busy = await checkpoints.restore('s1', 't1')
+    busy.post()
+    const elsewhere = await checkpoints.restore('s1', 't1')
+    elsewhere.post()
+    expect(notices.map(([, text]) => text)).toEqual([
+      fill(UI_TEXT.checkpointUnavailable, { reason: UI_TEXT.checkpointBusy }),
+      UI_TEXT.restoreBusy,
+      UI_TEXT.restoreTurnElsewhere,
     ])
   })
 

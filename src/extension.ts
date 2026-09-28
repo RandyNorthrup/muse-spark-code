@@ -84,6 +84,7 @@ import { createMemoryFeatures } from './host/memoryFeatures'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import { createCheckpointPort, withCheckpointCopies } from './host/checkpoints/checkpointHost'
 import { CheckpointStore } from './host/checkpoints/checkpointStore'
+import { isProcessAlive } from './host/checkpoints/storeLock'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
   liveFetch,
@@ -847,8 +848,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   // Turn checkpoints (M72, PLAN.md D51): a shadow repository in this
   // workspace's storage, taken only while it is trusted, git is on PATH and
-  // the setting is on. Closing the window ends any git it still runs;
-  // opening it (or trusting the workspace) applies cleanup and retention.
+  // the setting is on. Another window on the same folder shares the store,
+  // under its lock. Closing the window ends any git it still runs; opening
+  // it (or trusting the workspace) applies cleanup and retention.
   const checkpointStore =
     workspaceRoot === undefined || context.storageUri === undefined
       ? undefined
@@ -861,6 +863,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           retentionDays: () => currentSettings().cleanupPeriodDays,
           now: () => Date.now(),
           newId: () => crypto.randomUUID(),
+          pid: process.pid,
+          isProcessAlive,
           log,
         })
   if (checkpointStore !== undefined) {

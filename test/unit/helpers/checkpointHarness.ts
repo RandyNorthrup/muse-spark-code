@@ -20,9 +20,13 @@ import { removeFolder } from './temporaryFolders'
 export const REAL_GIT_TIMEOUT_MS = 120_000
 const realGit = processGitProcess()
 const folders: string[] = []
+const stores: CheckpointStore[] = []
 
-/** Removes every folder the tests made (an `afterEach`). */
+/** Closes every store and removes every folder the tests made (an `afterEach`). */
 export async function removeCheckpointFolders(): Promise<void> {
+  for (const store of stores.splice(0)) {
+    store.dispose()
+  }
   for (const folder of folders.splice(0)) {
     await removeFolder(folder)
   }
@@ -50,6 +54,10 @@ export interface HarnessOptions {
   readonly gitProcess?: GitProcess
   /** The store's clock; by default one that starts in 1970 and ticks a second a call. */
   readonly now?: () => number
+  /** Whether a window's process still runs (every one does, by default). */
+  readonly isProcessAlive?: (pid: number) => boolean
+  /** How long an operation waits for another window's (the product's wait by default). */
+  readonly lockWaitMs?: number
 }
 
 export interface Harness {
@@ -58,8 +66,12 @@ export interface Harness {
   readonly storage: string
   readonly store: CheckpointStore
   readonly log: FakeLogOutputChannel
-  /** A second store over the same workspace and storage (a window reopened). */
-  readonly reopen: () => CheckpointStore
+  /**
+   * Another store over the same workspace and storage: a second window on
+   * the folder, or the window reopened (dispose the first), in the process
+   * `pid` names (this one's by default).
+   */
+  readonly reopen: (pid?: number) => CheckpointStore
 }
 
 export async function harness(options: HarnessOptions = {}): Promise<Harness> {
@@ -74,8 +86,8 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const storage = path.join(base, 'storage')
   const log = new FakeLogOutputChannel()
   let clock = 1_000_000
-  const open = () =>
-    new CheckpointStore({
+  const open = (pid = process.pid) => {
+    const store = new CheckpointStore({
       workspaceRoot: root,
       storageDir: storage,
       platform: process.platform,
@@ -89,8 +101,14 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
           return clock
         }),
       newId: () => randomUUID(),
+      pid,
+      isProcessAlive: options.isProcessAlive ?? (() => true),
+      ...(options.lockWaitMs !== undefined && { lockWaitMs: options.lockWaitMs }),
       log,
     })
+    stores.push(store)
+    return store
+  }
   return { root, top, storage, store: open(), log, reopen: open }
 }
 

@@ -51,7 +51,7 @@ describe('applyFileStep (M72)', () => {
       target,
       { path: 'a/x.txt', target: null, expect: { kind: 'blob', oid: oidOf('the user’s file\n') } },
       undefined,
-      new Set(),
+      () => false,
     )
     expect(result).toBe('linked')
     expect(await readFile(path.join(root, 'c', 'x.txt'), 'utf8')).toBe('the user’s file\n')
@@ -106,7 +106,7 @@ describe('applyFileStep (M72)', () => {
       target,
       { path: 'made/deeper/n.txt', target: null, expect: { kind: 'blob', oid: oidOf('new\n') } },
       undefined,
-      new Set(),
+      () => false,
     )
     const written = await applyFileStep(
       target,

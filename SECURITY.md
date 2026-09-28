@@ -75,7 +75,13 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   pointed at an empty folder, fsmonitor off, and every conversion attribute
   unset, so no clean or smudge filter a repository names ever runs; its
   folder is 0700 on macOS and Linux, and every git it started is ended when
-  the window closes. Git for Windows walks into junctions, so a capture
+  the window closes. Two windows on one folder share that store under an
+  exclusive lock file (process id, heartbeat): every read-modify-write of
+  its records, refs and index runs inside it with the records read afresh,
+  a write is refused if the lock was taken over, the lock is taken over only
+  from a process that has exited or gone silent for five minutes, and a live
+  window's pinned captures and tool copies are never pruned as orphans.
+  Git for Windows walks into junctions, so a capture
   leaves out, and names, any path under a folder link or junction, and a
   restore refuses a path whose canonical form is not the workspace's
   canonical root plus the path (a link or junction on the way) before each

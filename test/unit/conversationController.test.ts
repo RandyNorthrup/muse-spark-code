@@ -76,6 +76,7 @@ const FAKE_SNAPSHOT: Snapshot = {
   inventory: { files: new Map(), skippedFolders: [], isPartial: false },
   createdAt: 0,
   pin: undefined,
+  folders: [],
 }
 
 interface FakeAuth {

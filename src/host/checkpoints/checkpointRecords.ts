@@ -18,7 +18,17 @@ const coverageSchema = z.object({
   skipped: z.array(z.string()),
   repositories: z.array(z.string()),
 })
-const captureSchema = z.object({ tree: z.string(), coverage: coverageSchema })
+const captureSchema = z.object({
+  tree: z.string(),
+  coverage: coverageSchema,
+  /**
+   * The folders the capture holds no file of (empty, or only ignored or
+   * left-out content), a folder listed whole standing for everything below
+   * it; absent when unknown (over the limit), and then a restore removes no
+   * folder.
+   */
+  folders: z.optional(z.array(z.string())),
+})
 const ignoredChangeSchema = z.object({
   path: z.string(),
   kind: z.enum(['created', 'changed', 'deleted']),
@@ -37,6 +47,8 @@ const checkpointRecordSchema = z.object({
   end: z.optional(captureSchema),
   /** When the turn's end was seen (with or without a capture): other conversations' overlap. */
   endedAt: z.optional(z.number()),
+  /** The store (one per window) that recorded it: a running turn of a live window counts. */
+  owner: z.optional(z.string()),
   /**
    * The ignored files the turn changed. `isComplete` is false when the turn's
    * start scan was not at hand (a window reload mid-turn) or the list was cut.
@@ -72,6 +84,13 @@ const recordsSchema = z.object({
   prefix: z.string(),
   checkpoints: z.array(checkpointRecordSchema),
   restores: z.array(restoreRecordSchema),
+  /**
+   * Conversations archived lately, and when: a capture taken before then,
+   * in any window, is not recorded for them. Archiving in Restricted Mode
+   * drops the records here with no git; their copies go at the next
+   * trusted open.
+   */
+  forgotten: z.optional(z.array(z.object({ sessionId: z.string(), at: z.number() }))),
 })
 export type CheckpointRecords = z.infer<typeof recordsSchema>
 
@@ -116,39 +135,4 @@ function pause(ms: number): Promise<void> {
 
 export async function saveRecords(filePath: string, records: CheckpointRecords): Promise<void> {
   await writeFileAtomically(filePath, JSON.stringify(records), { sleep: pause })
-}
-
-// The conversations archived while the workspace was untrusted (no git
-// runs then): their checkpoints go the next time the store opens.
-const forgottenSchema = z.array(z.string())
-
-/** The queued conversation ids; an unreadable queue is set aside and treated as empty. */
-export async function loadForgotten(
-  filePath: string,
-  onUnreadable: (reason: string) => void,
-): Promise<readonly string[]> {
-  const text = await readOptionalText(filePath)
-  if (text === undefined) {
-    return []
-  }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch (error: unknown) {
-    parsed = error instanceof Error ? error.message : String(error)
-  }
-  const result = forgottenSchema.safeParse(parsed)
-  if (result.success) {
-    return result.data
-  }
-  onUnreadable(typeof parsed === 'string' ? parsed : z.prettifyError(result.error))
-  await rename(filePath, `${filePath}${SET_ASIDE_SUFFIX}`)
-  return []
-}
-
-export async function saveForgotten(
-  filePath: string,
-  sessionIds: readonly string[],
-): Promise<void> {
-  await writeFileAtomically(filePath, JSON.stringify(sessionIds), { sleep: pause })
 }

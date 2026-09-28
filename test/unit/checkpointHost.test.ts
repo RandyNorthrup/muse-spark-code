@@ -81,6 +81,7 @@ const NO_SNAPSHOT = {
   inventory: { files: new Map(), skippedFolders: [], isPartial: false },
   createdAt: 0,
   pin: 'refs/muse-spark/pin/1',
+  folders: [],
 }
 
 function portOver(posture: { isTrusted: boolean; isEnabled: boolean; hasGit: boolean }) {

@@ -29,6 +29,7 @@ import type {
   RestoreOutcome,
   Snapshot,
 } from '../checkpoints/checkpointStore'
+import { StoreBusyError } from '../checkpoints/storeLock'
 import { errorDetail, type Logger } from '../logger'
 
 export type NoticeLevel = 'info' | 'warning' | 'error'
@@ -118,6 +119,7 @@ function captureRefusalText(reason: CaptureRefusal): string {
     tooLarge: () =>
       fill(UI_TEXT.checkpointTooLarge, { size: CHECKPOINT_CAPTURE_MAX_BYTES / BYTES_PER_MIB }),
     noGit: () => UI_TEXT.checkpointNoGit,
+    busy: () => UI_TEXT.checkpointBusy,
     failed: () => UI_TEXT.checkpointFailed,
   }
   return texts[reason]()
@@ -217,7 +219,7 @@ export class ConversationCheckpoints {
     } catch (error: unknown) {
       this.turns.delete(turnId)
       this.deps.log.warn(`Checkpoint of turn ${turnId} was not recorded: ${errorDetail(error)}`)
-      this.sayRefusal('failed')
+      this.sayRefusal(error instanceof StoreBusyError ? 'busy' : 'failed')
     }
     if (this.sessionId === sessionId) {
       this.postState()
@@ -306,8 +308,10 @@ export class ConversationCheckpoints {
     const texts: Readonly<Record<Exclude<RestoreFailure, 'unavailable'>, string>> = {
       noCheckpoint: UI_TEXT.restoreNoCheckpoint,
       turnRunning: UI_TEXT.restoreTurnRunning,
+      turnElsewhere: UI_TEXT.restoreTurnElsewhere,
       captureFailed: UI_TEXT.restoreFailed,
       redoGone: UI_TEXT.redoGone,
+      busy: UI_TEXT.restoreBusy,
     }
     return texts[reason]
   }

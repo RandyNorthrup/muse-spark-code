@@ -601,6 +601,10 @@ export const EN = {
     'Some ignored files these turns changed were not tracked and are left as they are.',
   restoreNoCheckpoint: 'This message has no file checkpoint any more.',
   restoreTurnRunning: 'Wait until no turn is running in this window, then try again.',
+  restoreTurnElsewhere:
+    'A turn is running in another VS Code window on this folder. Try again when it has finished.',
+  restoreBusy:
+    'Another VS Code window on this folder is using its checkpoints. Try again in a moment.',
   restoreFailed: 'Could not restore the files',
   checkpointLeftOut: 'The file checkpoint left out: {files}',
   checkpointUnavailable: 'No file checkpoint for this turn: {reason}',
@@ -608,6 +612,7 @@ export const EN = {
   checkpointTooLarge: 'over {size} MiB of changed files to copy',
   checkpointFailed: 'the checkpoint failed',
   checkpointNoGit: 'git was not found on PATH',
+  checkpointBusy: 'another VS Code window on this folder was using its checkpoints',
   resumedNotice: 'Resumed',
   historyUnavailable: 'The conversation history could not be loaded',
   historyNotServed: 'The earlier messages of this conversation could not be shown',
