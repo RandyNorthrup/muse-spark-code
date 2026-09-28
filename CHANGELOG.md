@@ -17,8 +17,8 @@ happened, not what was planned; superseded entries are kept.
   an empty temporary workspace, on the contributor model only; attempts,
   tokens and cost are counted from the requests actually sent, and each
   arm is held against capability floors fixed in advance (0.75 per
-  split). `npm run test:e2e:live:eval` runs it, opt-in and never in CI;
-  a first live run of two accept tasks passed both for $0.0009
+  split). `npm run test:e2e:live:eval` runs it, opt-in and never in CI.
+  The baseline passed all ten tasks in 39 model calls for $0.0041
   (`docs/certification/m75-baseline.md`).
 
 ### Changed

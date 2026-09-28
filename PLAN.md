@@ -6812,11 +6812,10 @@ harness scenario, which is what the accessibility gate checks (D32).
     `ModelApiHost`, the real tool I/O on disk and real verifier
     processes) and 15 red drills (docs/certification/m75.md).
   - `npm run test:e2e:live:eval` (`test/e2e/eval.live.e2e.test.ts`),
-    opt-in like the Model API sweep; a first live run of two accept tasks
-    passed both in 6 model calls for $0.0009
-    (`docs/certification/m75-baseline.json` and `.md`, verdict
-    `incomplete` since the held-out split did not run). The full
-    ten-task baseline is the next live run.
+    opt-in like the Model API sweep. The baseline, all ten tasks on
+    the contributor model, passed 10/10 in 39 model calls for $0.0041,
+    verdict `pass` (`docs/certification/m75-baseline.json` and `.md`),
+    after a first run of two accept tasks (6 calls, $0.0009).
 - **Decisions.**
   - **The harness under test is the extension's own.** Each task runs a
     `ModelApiHost` (the system prompt, tools, permission engine and loop
