@@ -2401,3 +2401,149 @@ describe('App: Model API scheduled prompts (M52)', () => {
     )
   })
 })
+
+/** The host says which turns of conversation `old` have a checkpoint (M72). */
+function checkpointed(turnIds: readonly string[], availability = 'on') {
+  deliver({ type: 'checkpointState', availability, sessionId: 'old', turnIds })
+}
+
+function openMenu(cardIndex: number) {
+  fireEvent.click(screen.getAllByLabelText('Fork or rewind')[cardIndex]!)
+}
+
+function rowNames() {
+  return within(screen.getByRole('menu'))
+    .getAllByRole('menuitem')
+    .map((row) => row.textContent)
+}
+
+describe('App turn checkpoints (M72)', () => {
+  it('offers Restore files and Both on a turn with a checkpoint, the old rows on one without', () => {
+    renderReady()
+    loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
+    checkpointed(['t2'])
+    openMenu(1)
+    expect(rowNames()).toEqual([
+      'Fork conversation from here',
+      'Rewind conversation to here',
+      'Restore files to here',
+      'Rewind code to here',
+      'Rewind conversation and restore files',
+    ])
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    openMenu(0)
+    expect(rowNames()).toEqual([
+      'Fork conversation from here',
+      'Rewind conversation to here',
+      'Rewind code to here',
+      'Fork conversation and rewind code',
+    ])
+  })
+
+  it('asks the host to restore the files, or the files and the conversation', () => {
+    const postMessage = renderReady()
+    loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
+    checkpointed(['t2'])
+    openMenu(1)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Restore files to here' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'restoreFiles',
+      sourceSessionId: 'old',
+      turnId: 't2',
+    })
+    openMenu(1)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind conversation and restore files' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'restoreFiles',
+      sourceSessionId: 'old',
+      turnId: 't2',
+      rewind: {
+        type: 'rewindConversation',
+        sourceSessionId: 'old',
+        itemId: 'u2',
+        turnId: 't2',
+        lastTurnId: 't1',
+        text: 'second',
+        imageCount: 0,
+        attachmentEpoch: 2,
+      },
+    })
+  })
+
+  it('offers the restore on the first card of a turn only', () => {
+    renderReady()
+    loadHistory([historyUser('u1', 't1', 'first'), historyUser('u1b', 't1', 'a steer')])
+    checkpointed(['t1'])
+    openMenu(1)
+    expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    openMenu(0)
+    expect(screen.getByRole('menuitem', { name: 'Restore files to here' })).toBeInTheDocument()
+  })
+
+  it('ignores the checkpoints of another conversation', () => {
+    renderReady()
+    loadHistory([historyUser('u1', 't1', 'first')])
+    deliver({
+      type: 'checkpointState',
+      availability: 'on',
+      sessionId: 'elsewhere',
+      turnIds: ['t1'],
+    })
+    openMenu(0)
+    expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
+  })
+
+  it('says why there is no file restore in Restricted Mode, and no conversation rewind on Windows', () => {
+    renderReady()
+    loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
+    checkpointed([], 'restricted')
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'muse-spark-1.3',
+      sessionId: 'old',
+      canEditSessions: false,
+    })
+    openMenu(1)
+    const note = screen.getByRole('menuitem', { name: UI_TEXT.checkpointsRestricted })
+    expect(note).toHaveAttribute('aria-disabled', 'true')
+    expect(
+      screen.getByRole('menuitem', { name: UI_TEXT.conversationRewindUnavailable }),
+    ).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
+  })
+
+  it('offers Restore files but not Both where the conversation cannot rewind', () => {
+    renderReady()
+    loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
+    checkpointed(['t2'])
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'muse-spark-1.3',
+      sessionId: 'old',
+      canEditSessions: false,
+    })
+    openMenu(1)
+    expect(rowNames()).toEqual([
+      'Restore files to here',
+      'Rewind code to here',
+      UI_TEXT.conversationRewindUnavailable,
+    ])
+  })
+
+  it("puts a Redo on the restore's notice, pressed once", () => {
+    const postMessage = renderReady()
+    loadHistory([historyUser('u1', 't1', 'first')])
+    deliver({
+      type: 'notice',
+      level: 'info',
+      text: 'Restored 2 files to before this message.',
+      redoRestoreId: 'r1',
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'redoRestore', restoreId: 'r1' })
+    expect(screen.queryByRole('button', { name: UI_TEXT.redoLabel })).toBeNull()
+    expect(screen.getByText('Restored 2 files to before this message.')).toBeInTheDocument()
+  })
+})

@@ -118,13 +118,14 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
 }
 
 /**
- * Replaces `target` with `content` (UTF-8) in one step, its folder created.
- * The temporary file's name is unique, so two windows writing the same
- * target never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
+ * Replaces `target` with `content` (text as UTF-8, or bytes as they are:
+ * a checkpoint restore, M72) in one step, its folder created. The
+ * temporary file's name is unique, so two windows writing the same target
+ * never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
  */
 export async function writeFileAtomically(
   target: string,
-  content: string,
+  content: string | Uint8Array,
   options: AtomicWriteOptions,
 ): Promise<void> {
   await assertBoundPath(target, options.expectedCanonicalPath ?? target, options)
@@ -149,7 +150,9 @@ export async function writeFileAtomically(
         }
       }
       temporaryIdentity = { dev: held.dev, ino: held.ino }
-      await handle.writeFile(content, 'utf8')
+      await (typeof content === 'string'
+        ? handle.writeFile(content, 'utf8')
+        : handle.writeFile(content))
       if (destination.mode !== undefined) {
         await handle.chmod(destination.mode)
       }

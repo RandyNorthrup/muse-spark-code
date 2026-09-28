@@ -232,6 +232,9 @@ export const SETTING_DEFAULTS = {
   // Hook commands are user code outside the agent sandbox (M51). A machine
   // setting must explicitly enable them on the Model API backend.
   modelApiHooks: false,
+  // A checkpoint of the workspace's files at each turn boundary (M72): it
+  // runs git on every turn and copies files into the extension's storage.
+  turnCheckpoints: true,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -254,6 +257,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiScheduledPrompts',
   'modelApiSubagents',
   'modelApiHooks',
+  // What runs on every turn (git) and what is copied out of the workspace (M72).
+  'turnCheckpoints',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -526,6 +531,60 @@ export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 export const GIT_TIMEOUT_MS = 15_000
 // `git worktree add` checks a whole tree out, and `remove` deletes one (M32).
 export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
+// What a failed git call's error keeps of its stderr (M72's process runner).
+export const GIT_STDERR_MAX_CHARS = 4096
+
+// --- Turn checkpoints (M72, PLAN.md D51) ---
+
+// Under the workspace storage folder: the shadow repository and its records.
+export const CHECKPOINTS_DIR = 'checkpoints'
+export const TURN_CHECKPOINTS_SETTING = 'museSpark.turnCheckpoints'
+// Whether this window takes checkpoints: on; off in Restricted Mode (no git,
+// D24); off by `museSpark.turnCheckpoints`; no folder to take them of.
+export const CHECKPOINT_AVAILABILITIES = ['on', 'restricted', 'off', 'noFolder'] as const
+export type CheckpointAvailability = (typeof CHECKPOINT_AVAILABILITIES)[number]
+// What a panel assumes until the host says otherwise: no file restore offered.
+export const CHECKPOINT_INITIAL_AVAILABILITY: CheckpointAvailability = 'noFolder'
+// One git call of a capture or a restore: hashing a large change takes time.
+export const CHECKPOINT_GIT_TIMEOUT_MS = 2 * 60 * 1000
+// A file larger than this is not copied into a checkpoint; the checkpoint
+// names it, and a restore leaves it as it is.
+export const CHECKPOINT_FILE_MAX_BYTES = 16 * 1024 * 1024
+// A workspace with more files outside .gitignore than this gets no
+// checkpoints (the reason says so): listing and checking them every turn
+// would hold up every message.
+export const CHECKPOINT_MAX_FILES = 50_000
+// One capture copies at most this much new content; a bigger change gets no
+// checkpoint for that turn, with the reason.
+export const CHECKPOINT_CAPTURE_MAX_BYTES = 512 * 1024 * 1024
+// The bounded scan of ignored files (size and modification time only): at
+// most this many files in all, and an ignored folder with more files than
+// the second number (node_modules) is left out whole.
+export const CHECKPOINT_IGNORED_SCAN_MAX_FILES = 5000
+export const CHECKPOINT_IGNORED_FOLDER_MAX_FILES = 1000
+// Ignored files one turn is recorded to have created or changed; more are
+// counted, not kept.
+export const CHECKPOINT_IGNORED_CHANGES_MAX = 500
+// Retention: the newest checkpoints of each conversation, the conversations
+// with checkpoints, and the redo records of each conversation. Age follows
+// `museSpark.cleanupPeriodDays` (0: no age limit).
+export const CHECKPOINTS_PER_SESSION_MAX = 100
+export const CHECKPOINT_SESSIONS_MAX = 50
+export const CHECKPOINT_RESTORES_PER_SESSION_MAX = 20
+// Unreferenced copies are pruned at most this often, and at once when a
+// conversation's checkpoints are dropped.
+export const CHECKPOINT_PRUNE_INTERVAL_MS = 10 * 60 * 1000
+// A lock file older than this was left by a crash and is removed.
+export const CHECKPOINT_STALE_LOCK_MS = 60 * 1000
+// A capture reads the listed files' sizes this many at a time.
+export const CHECKPOINT_STAT_CONCURRENCY = 64
+// How many file names a restore or skip notice spells out before "and N more".
+export const CHECKPOINT_NAMED_FILES_MAX = 8
+// Git's mode for a regular file and an executable one.
+export const GIT_MODE_FILE = '100644'
+export const GIT_MODE_EXECUTABLE = '100755'
+// What git calls an object it does not have in a `cat-file --batch` answer.
+export const GIT_MISSING_OBJECT = 'missing'
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Muse Code CLI / Muse Session Protocol (PLAN.md D1a, §5.4) ---

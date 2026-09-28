@@ -78,7 +78,9 @@ import { usablePaidFeatures } from './shared/paid'
 import { createCliFeatures } from './host/cliFeatures'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { createMemoryFeatures } from './host/memoryFeatures'
-import { processGitRunner } from './host/git'
+import { processGitProcess, processGitRunner } from './host/git'
+import { createCheckpointPort, withCheckpointCopies } from './host/checkpoints/checkpointHost'
+import { CheckpointStore } from './host/checkpoints/checkpointStore'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
   liveFetch,
@@ -119,6 +121,8 @@ import {
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
+  CHECKPOINTS_DIR,
+  TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
   PERSONAL_SKILLS_GLOB,
@@ -786,6 +790,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           isSamePath(document.uri.fsPath, absolutePath, process.platform),
       ),
   })
+  // Turn checkpoints (M72, PLAN.md D51): a shadow repository in this
+  // workspace's storage, used only while it is trusted and the setting is on.
+  const checkpoints = createCheckpointPort({
+    store:
+      workspaceRoot === undefined || context.storageUri === undefined
+        ? undefined
+        : new CheckpointStore({
+            workspaceRoot,
+            storageDir: path.join(context.storageUri.fsPath, CHECKPOINTS_DIR),
+            platform: process.platform,
+            git: processGitProcess(),
+            env: process.env,
+            retentionDays: () => currentSettings().cleanupPeriodDays,
+            now: () => Date.now(),
+            newId: () => crypto.randomUUID(),
+            log,
+          }),
+    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isEnabled: () => currentSettings().turnCheckpoints,
+    log,
+  })
+  // What the extension's own tools write is copied first, so a restore can
+  // put back an ignored file they changed (M72).
+  const checkpointedIo = withCheckpointCopies(toolIo, checkpoints)
   const diagnostics = diagnosticsTool({
     getDiagnostics: collectDiagnostics,
     workspaceRoot,
@@ -816,7 +844,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         workspace:
           workspaceRoot === undefined
             ? undefined
-            : { workspaceRoot, platform: process.platform, io: toolIo },
+            : { workspaceRoot, platform: process.platform, io: checkpointedIo },
         client: keyClient,
         confirm: async (plan) => await paid.consent.allows(imageUseRequest(plan)),
         onBilled: () => {
@@ -946,7 +974,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
-    io: toolIo,
+    io: checkpointedIo,
     contextIo: fileContextIo,
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
@@ -1352,6 +1380,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         forgetPaidUse: async () => {
           await paid.consent.forget()
         },
+        checkpoints,
+        // Workspace files open with unsaved changes, by absolute path (M72).
+        unsavedPaths: () =>
+          vscode.workspace.textDocuments
+            .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+            .map((document) => document.uri.fsPath),
+        confirmFileAction: async (title, detail, action) =>
+          (await vscode.window.showWarningMessage(title, { modal: true, detail }, action)) ===
+          action,
         now: () => Date.now(),
         log,
       })
@@ -1495,6 +1532,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
       }
+      // Checkpoints on or off: every panel's menus follow (M72).
+      if (event.affectsConfiguration(TURN_CHECKPOINTS_SETTING)) {
+        for (const controller of controllers.values()) {
+          controller.checkpointsChanged()
+        }
+      }
       // A paid feature turned on anywhere asks for its price once (D30).
       if (paid.affects(event)) {
         void paid.gate.review().catch(logRejection(log, 'paid feature review'))
@@ -1543,6 +1586,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
       // "Allow always in this workspace" counts only in a trusted one (M58).
       broadcastPaidState()
+      // Checkpoints run from now on (M72).
+      for (const controller of controllers.values()) {
+        controller.checkpointsChanged()
+      }
     }),
     // Editor-tab conversations come back after a window reload (D15).
     vscode.window.registerWebviewPanelSerializer(CHAT_PANEL_VIEW_TYPE, {

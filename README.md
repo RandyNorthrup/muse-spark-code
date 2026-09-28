@@ -750,6 +750,13 @@ change, and **Click to expand** opens the diff editor. To undo, use the
 rewind button on any sent message (on hover):
 
 - **Fork conversation from here**.
+- **Restore files to here** (a message whose turn has a checkpoint) puts the
+  workspace's files back as they were before that turn, whether Muse's edit
+  tools or its shell commands changed them. It asks first, then says what it
+  restored and names every file it left as it is. See **Turn checkpoints**
+  below.
+- **Rewind conversation and restore files** does both: the files first, then
+  the conversation rewind below.
 - **Rewind conversation to here** starts a branch before that message and
   puts its prompt back in the composer. The original conversation stays in
   History. Images return when the backend still has their bytes; the panel
@@ -768,7 +775,53 @@ rewind button on any sent message (on hover):
   conversation's and its subagents', in the reverse of the order they
   landed. A file the edit created goes to the trash, unless you have added
   to it since, in which case your lines stay.
-- **Fork conversation and rewind code**.
+- **Fork conversation and rewind code** (offered where the turn has no
+  checkpoint).
+
+Both **Rewind code to here** and **Restore files to here** ask first, in the
+same confirmation.
+
+**Turn checkpoints.** Each turn gets a checkpoint of the workspace's files
+when it starts and when it ends: the tracked files and the untracked ones,
+byte for byte, but not the ones `.gitignore` names. (`.gitignore` files, the
+repository's `info/exclude` and your global excludes file decide what is
+ignored.) Checkpoints work in a folder that is not a repository too, and in a
+repository with no commits.
+
+- **Where they live.** A shadow git repository in VS Code's storage for this
+  workspace. Nothing is written into the workspace's `.git`: no object, no
+  ref, no index change, so a push can never carry a checkpoint. That git runs
+  with hooks and fsmonitor off, none of your git configuration, and none of
+  the workspace's attribute filters.
+- **What a restore does.** It undoes what the conversation's turns changed
+  from that message on. A file changed outside those turns (by you, another
+  conversation, a build you ran) is left as it is and named, as is a file
+  with unsaved changes in an editor. Restore never touches HEAD, the index,
+  the stash or a branch.
+- **Ignored files.** They are not copied wholesale. A file the Model API's
+  edit and write tools (or the image tools) are about to change is copied
+  first, so a restore brings it back. A shell command's changes are found
+  afterwards by comparing the ignored files' sizes and times at the turn's
+  start and end. A restore deletes the ignored files the turn created and
+  lists the ones it changed without an earlier copy as **Not restorable**; it
+  never claims to have undone them. Muse Code runs its own tools, so on that
+  backend changed ignored files are listed the same way.
+- **Redo.** A restore's notice has **Redo**, which puts back what the
+  restore replaced (itself refusing a file you changed since); a redo offers
+  its own Redo.
+- **Limits.** A file over 16 MiB, a link, and a folder that is a repository
+  of its own are left out and named. A workspace with more than 50,000 files
+  outside its ignore rules gets no checkpoints, and a turn that would copy
+  more than 512 MiB of changed files gets none; the panel says why. The
+  ignored-file scan looks at 5,000 files at most, and an ignored folder with
+  more than 1,000 files (`node_modules`) is left out whole.
+- **Cleanup.** Archiving a conversation deletes its checkpoints. A
+  conversation keeps its 100 newest, the 50 most recent conversations keep
+  theirs, and records older than `museSpark.cleanupPeriodDays` go.
+- **Off.** Checkpoints are off in Restricted Mode, where the extension runs
+  no git, and with `museSpark.turnCheckpoints` off; the menu says so.
+  Muse Code on Windows cannot fork, so there a message offers **Restore
+  files to here** but no conversation rewind, and the menu says why.
 
 **Side chat.** Use **Side chat** in the header to open a separate Plan-mode
 conversation with the completed turns as reference. Its inherited goal is
@@ -1264,7 +1317,7 @@ All settings live under `museSpark.*`; changes apply to open panels
 immediately. The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
-`modelApiHooks`, `modelApiPromptCacheRetention` and the five paid features,
+`modelApiHooks`, `modelApiPromptCacheRetention`, `turnCheckpoints` and the five paid features,
 `modelApiWebSearch`, `modelApiImageGeneration`, `modelApiVoice`,
 `modelApiSubagents` and `modelApiScheduledPrompts`) are machine-scoped: they
 take effect from your user settings only, never from a repository's
@@ -1301,6 +1354,7 @@ Bypass at once.
 | `modelApiSubagents`               | `false`     | [Paid](#paid-features): Model API child tasks, with a model-rate confirmation and a fresh four-request popup for every task                                                                                                                                                                                                                 |
 | `modelApiScheduledPrompts`        | `false`     | [Paid](#scheduled-prompts-model-api): a due prompt can run only after this machine-scoped gate and a separate confirmation of that occurrence's Model API token rates; never unattended                                                                                                                                                     |
 | `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, outside the agent's sandbox, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                         |
+| `turnCheckpoints`                 | `true`      | A checkpoint of the workspace's files at each turn's start and end, for **Restore files to here** and its Redo (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                           |
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process (an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too). Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                      |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
@@ -1387,6 +1441,12 @@ stopped and the next message resumes the same session.
 - The paid features (web search, image generation, Muse Voice, Model API
   subagents and scheduled prompts) are off until you turn one on and accept
   its price; a repository's settings cannot turn one on.
+- Turn checkpoints copy the workspace's files (and an ignored file such as
+  `.env` only when the extension's own tools are about to change it) into a
+  shadow repository in VS Code's storage directory for this workspace, never
+  into the repository's `.git`; they stay on the machine and are deleted
+  with the conversation, by the retention bounds, or by removing that
+  directory. See **Turn checkpoints** in [The panel](#the-panel).
 - Model API conversations are stored, per workspace, in VS Code's storage
   directory for the extension (not in the repository); ones idle longer than
   `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and
@@ -1503,8 +1563,8 @@ stopped and the next message resumes the same session.
   and 1.4.0; [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
-  a release is verified to fix them; **Rewind code to here** still works,
-  and the Model API backend offers all of them.
+  a release is verified to fix them; **Rewind code to here** and **Restore
+  files to here** still work, and the Model API backend offers all of them.
 - **A warning that "Muse Code reported an error for the decision (the tool
   may have run anyway): … approval ledger durability fence …"** — Muse Code
   on Windows (seen on 1.3.0) sometimes fails its own ledger write after applying your

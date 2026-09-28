@@ -16,6 +16,7 @@ import {
 } from './agentEvents'
 import {
   CHAT_REFERENCE_INTENTS,
+  CHECKPOINT_AVAILABILITIES,
   CLARIFICATION_MAX_CHARS,
   DICTATION_ACTIONS,
   DICTATION_ENGINES,
@@ -60,6 +61,19 @@ const settingsSnapshotSchema = z.object(settingsSnapshotShape)
 /** One applied edit the host can revert: the tool item and its patch document. */
 const editRefSchema = z.object({ itemId: z.string(), outputRef: z.string() })
 export type EditRef = z.infer<typeof editRefSchema>
+
+// Rewind the conversation to before a user card (M53): a fork cut just
+// before its turn, its prompt back in the composer.
+const rewindConversationSchema = z.object({
+  type: z.literal('rewindConversation'),
+  sourceSessionId: z.string().check(z.minLength(1)),
+  itemId: z.string().check(z.minLength(1)),
+  turnId: z.string(),
+  lastTurnId: z.optional(z.string()),
+  text: z.string(),
+  imageCount: z.number(),
+  attachmentEpoch: z.optional(z.number()),
+})
 
 // What the host reads from VS Code's webview state (`setState`): the
 // session the panel shows, so a panel rebuilt after a window reload resumes
@@ -355,16 +369,18 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   // Rewind code to a message: revert every edit after it, newest first (M13).
   z.object({ type: z.literal('rewindCode'), edits: z.array(editRefSchema) }),
+  rewindConversationSchema,
+  // "Restore files to here" (M72): the workspace's files back to the
+  // checkpoint before this turn; with `rewind`, the conversation rewinds as
+  // well once the files are restored ("Rewind conversation and restore files").
   z.object({
-    type: z.literal('rewindConversation'),
+    type: z.literal('restoreFiles'),
     sourceSessionId: z.string().check(z.minLength(1)),
-    itemId: z.string().check(z.minLength(1)),
-    turnId: z.string(),
-    lastTurnId: z.optional(z.string()),
-    text: z.string(),
-    imageCount: z.number(),
-    attachmentEpoch: z.optional(z.number()),
+    turnId: z.string().check(z.minLength(1)),
+    rewind: z.optional(rewindConversationSchema),
   }),
+  // A restore's Redo (M72): what it replaced goes back.
+  z.object({ type: z.literal('redoRestore'), restoreId: z.string().check(z.minLength(1)) }),
   // Session history (M6).
   z.object({ type: z.literal('listSessions') }),
   // The Agent map reads a subagent's own session (M14).
@@ -587,7 +603,21 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('attachmentsCleared') }),
   // A one-line message for the transcript (failed host command, warnings).
-  z.object({ type: z.literal('notice'), level: z.enum(NOTICE_LEVELS), text: z.string() }),
+  // `redoRestoreId` (M72): a file restore's Redo, offered on its notice.
+  z.object({
+    type: z.literal('notice'),
+    level: z.enum(NOTICE_LEVELS),
+    text: z.string(),
+    redoRestoreId: z.optional(z.string()),
+  }),
+  // Turn checkpoints (M72): whether this window takes them, and which turns
+  // of the conversation shown have one (their cards offer "Restore files").
+  z.object({
+    type: z.literal('checkpointState'),
+    availability: z.enum(CHECKPOINT_AVAILABILITIES),
+    sessionId: z.optional(z.string()),
+    turnIds: z.array(z.string()),
+  }),
   // One page of a stored tool output / patch document (answer to readOutput).
   z.object({
     type: z.literal('outputPage'),

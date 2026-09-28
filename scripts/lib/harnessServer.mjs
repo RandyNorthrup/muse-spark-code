@@ -46,6 +46,8 @@ export const SCENARIOS = [
   'usage',
   'dictation',
   'rewind',
+  'checkpoint-restore',
+  'checkpoint-restricted',
   'agents',
   'agents-off',
   'usage-api',

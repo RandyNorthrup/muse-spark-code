@@ -15,6 +15,8 @@ import {
 } from '../../shared/agentEvents'
 import {
   CHAT_REFERENCE_LABEL_CHARS,
+  type CheckpointAvailability,
+  CHECKPOINT_INITIAL_AVAILABILITY,
   DEFAULT_EFFORT,
   type DictationEngine,
   type DictationUiStatus,
@@ -125,6 +127,13 @@ export interface PendingRestore {
   readonly isTranscriptOmitted: boolean
 }
 
+/** Turn checkpoints (M72): whether they run here, and the shown conversation's turns with one. */
+export interface CheckpointView {
+  readonly availability: CheckpointAvailability
+  readonly sessionId: string | undefined
+  readonly turnIds: readonly string[]
+}
+
 export interface UiState {
   readonly phase: 'connecting' | 'ready'
   readonly isSideChat: boolean
@@ -137,6 +146,7 @@ export interface UiState {
   readonly sessionId: string | undefined
   /** False where the host refuses rename and fork (D26: Muse Code 1.3.0 on Windows). */
   readonly canEditSessions: boolean
+  readonly checkpoints: CheckpointView
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
@@ -308,6 +318,8 @@ export type UiAction =
   | { readonly type: 'taskRequested'; readonly itemId: string; readonly request: TaskRequest }
   /** A line for the transcript the webview itself has to say (M25). */
   | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
+  /** A restore notice's Redo was pressed (M72): it is offered once. */
+  | { readonly type: 'redoRequested'; readonly entryId: string }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
@@ -322,6 +334,7 @@ export const initialUiState: UiState = {
   title: undefined,
   sessionId: undefined,
   canEditSessions: true,
+  checkpoints: { availability: CHECKPOINT_INITIAL_AVAILABILITY, sessionId: undefined, turnIds: [] },
   sessions: undefined,
   archivedIds: [],
   draft: '',
@@ -677,14 +690,25 @@ function withInsert(state: UiState, text: string): UiState {
   }
 }
 
-function withNotice(state: UiState, level: NoticeLevel, text: string): UiState {
+function withNotice(
+  state: UiState,
+  level: NoticeLevel,
+  text: string,
+  redoRestoreId?: string,
+): UiState {
   const localSequence = state.localSequence + 1
   return {
     ...state,
     localSequence,
     transcript: [
       ...state.transcript,
-      { kind: 'notice', id: `notice:${String(localSequence)}`, level, text },
+      {
+        kind: 'notice',
+        id: `notice:${String(localSequence)}`,
+        level,
+        text,
+        ...(redoRestoreId !== undefined && { redoRestoreId }),
+      },
     ],
   }
 }
@@ -1596,6 +1620,7 @@ function clearedAccountView(state: UiState): UiState {
     ...clearedConversation(state),
     auth: initialUiState.auth,
     canEditSessions: initialUiState.canEditSessions,
+    checkpoints: initialUiState.checkpoints,
     sessions: [],
     archivedIds: [],
     model: undefined,
@@ -1781,6 +1806,16 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           hasCli: message.hasCli,
           hasCliSession: message.hasCliSession,
           installState: message.installState,
+        },
+      }
+    }
+    case 'checkpointState': {
+      return {
+        ...state,
+        checkpoints: {
+          availability: message.availability,
+          sessionId: message.sessionId,
+          turnIds: message.turnIds,
         },
       }
     }
@@ -2057,7 +2092,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // The host reports a refused answer or cancel only with an error notice,
       // so an error unlocks the question cards waiting on the host (M25): the
       // user can try again instead of facing a card locked for good.
-      const noticed = withNotice(state, message.level, message.text)
+      const noticed = withNotice(state, message.level, message.text, message.redoRestoreId)
       return announce(
         message.level === 'error'
           ? { ...noticed, transcript: unlockQuestions(noticed.transcript) }
@@ -2169,6 +2204,16 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'insertApplied': {
       return { ...state, pendingInsert: undefined }
+    }
+    case 'redoRequested': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'notice' && entry.id === action.entryId
+            ? { ...entry, isRedoUsed: true }
+            : entry,
+        ),
+      }
     }
     case 'focusRequested': {
       return { ...state, focusRequests: state.focusRequests + 1 }

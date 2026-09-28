@@ -220,6 +220,18 @@ fields, never raw configuration or failed-command output.
   beside them, one JSON file per prompt with the same digest, plus a small
   receipt for each run you confirmed. Archiving a conversation in the
   History dialog hides it; deleting the directory removes them all.
+- Turn checkpoints (M72, on by default, `museSpark.turnCheckpoints`) are
+  kept in the same per-workspace storage directory, in a `checkpoints`
+  folder: a git repository of the extension's own holding copies of the
+  workspace's files at each turn's start and end (tracked and untracked
+  files outside the ignore rules), the sizes and times of ignored files
+  (never their content), and a copy of an ignored file (a `.env`, say) only
+  when the extension's own tools are about to change it. Nothing is written
+  into the workspace's `.git`, and nothing is sent anywhere. Archiving a
+  conversation deletes its checkpoints; the newest 100 per conversation,
+  for 50 conversations, are kept within `museSpark.cleanupPeriodDays`, and
+  deleting the directory removes them all. In Restricted Mode none are
+  taken.
 - Settings (`museSpark.*`), the archived-session list, the "last session"
   memory per panel, which paid features' prices you accepted, which paid
   features you allowed always in a workspace (kept in that workspace's

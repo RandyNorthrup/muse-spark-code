@@ -253,6 +253,9 @@ const noticeEntrySchema = z.object({
   id: z.string(),
   level: z.enum(NOTICE_LEVELS),
   text: z.string(),
+  /** A file restore's Redo (M72), and whether it was pressed. */
+  redoRestoreId: z.optional(z.string()),
+  isRedoUsed: z.optional(z.boolean()),
 })
 
 export const transcriptEntrySchema = z.discriminatedUnion('kind', [

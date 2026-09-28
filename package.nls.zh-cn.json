@@ -83,6 +83,7 @@
   "config.modelApiVoice.description": "付费，默认关闭。麦克风会将你录制的内容发送到 Meta 的 Muse Voice Transcribe，而不是使用你计算机自带的识别器，每小时音频 US$0.18，计费到你的 Model API 密钥：用于 Model API 后端，以及存储了密钥时的 Muse Code 后端。打开时会请你确认价格，并且除非你在此工作区中始终允许 Muse Voice，否则每次录音前都会先询问你；使用付费引擎时，麦克风会注明这一点。",
   "config.modelApiSubagents.description": "付费功能，默认关闭。在 Model API 后端，子代理使用您的 Model API 密钥。启用时会请您接受令牌价格。除非您在此工作区中始终允许子代理，否则每项新子任务均需批准，包括 绕过权限 模式；每项任务最多四次请求，包含重试。子代理令牌费用已包含在会话估算中。",
   "config.modelApiHooks.description": "在 Model API 后端运行 Muse Code 钩子命令。默认关闭。命令仅在受信任的工作区中以您的权限在代理沙盒之外运行。启用前请在 Muse Spark: Hooks 中检查命令。Model API 密钥不会传给钩子进程。",
+  "config.turnCheckpoints.description": "在每轮开始和结束时为工作区文件创建检查点，以便从该轮的消息还原其更改（“还原文件”，然后“重做”）。副本保存在扩展自己的存储中，绝不放在工作区的 .git 中。每轮都会运行 git；受限模式下关闭。",
   "config.modelApiScheduledPrompts.description": "付费功能，默认关闭。到期的 /loop 提示词只有在您接受令牌价格并允许本次运行后，或者您在此工作区中始终允许计划运行时，才能通过 Model API 后端运行。已计划的提示词绝不会在无人确认时运行；每次运行均按模型公布的令牌费率向您的 Model API 密钥计费。",
   "config.sandboxNetwork.description": "Muse Code 的 shell 沙盒给予命令的网络。仅在沙盒开启时适用（museSpark.shellSandbox）；没有沙盒时，命令使用你的网络。更改此设置会重启 Muse Code 宿主。",
   "config.sandboxNetwork.enumDescriptions.default": "不传递任何内容：使用 Muse Code 自身的默认值（proxy-only），或管理员的托管配置所设置的值。",

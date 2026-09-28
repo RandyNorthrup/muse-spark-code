@@ -7,7 +7,44 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Turn checkpoints: restore files, the conversation, or both, then redo**
+  (M72, PLAN.md D51). Each turn gets a checkpoint of the workspace's files at
+  its start and end, on both backends, untracked files included and
+  ignored files left out. A sent message's menu offers **Restore files to
+  here** and **Rewind conversation and restore files**. A restore undoes
+  what the conversation's turns changed from that message on, including
+  what shell commands changed. It names every file it left as it is:
+  changed since the turn, unsaved in an editor, or not in the checkpoint.
+  Its notice has **Redo**, which puts back what the restore replaced.
+- **Checkpoints never touch the workspace's `.git`.** They live in a shadow
+  repository in VS Code's storage for the workspace, run with hooks,
+  fsmonitor, your git configuration and the workspace's filters all off,
+  and copy bytes as they are. A folder that is not a repository, and a
+  repository with no commits, get checkpoints too.
+- **Ignored files the turn itself touched.** A file the Model API's edit
+  and write tools (or the image tools) are about to change is copied first,
+  so a restore brings it back. Ignored files a shell command created are
+  found by a bounded scan and deleted by a restore. Ones a command changed
+  are listed as not restorable; the restore never claims to have undone
+  them.
+- **Limits and cleanup.** A file over 16 MiB, a link and a nested
+  repository are left out and named, and a workspace with more than 50,000
+  files outside its ignore rules gets no checkpoints; the panel says why.
+  Archiving a conversation deletes its checkpoints, and retention keeps the
+  100 newest per conversation for 50 conversations, within
+  `museSpark.cleanupPeriodDays`.
+- **`museSpark.turnCheckpoints`** (machine-scoped, on by default) turns them
+  off. They are off in Restricted Mode, where the extension runs no git,
+  and the menu says so; with Muse Code on Windows, which cannot fork, the
+  menu offers **Restore files to here** and says why the conversation rewind
+  is missing.
+
 ### Changed
+
+- **Rewind code to here asks first** (M72), in the same confirmation as a
+  file restore.
 
 - **Every paid use asks first, in a popup** (M58, PLAN.md D48): **Allow
   once**, **Allow always in this workspace**, or **Deny**, in every

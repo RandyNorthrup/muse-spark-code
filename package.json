@@ -531,6 +531,12 @@
           "default": false,
           "description": "%config.modelApiHooks.description%",
           "scope": "machine"
+        },
+        "museSpark.turnCheckpoints": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.turnCheckpoints.description%",
+          "scope": "machine"
         }
       }
     },

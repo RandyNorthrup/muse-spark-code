@@ -94,10 +94,16 @@ import type {
 } from '../../shared/protocol'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import type { AuthPort } from '../auth/authService'
+import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { ReviewNotice } from '../editor/editReview'
 import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/webviewSetup'
 import type { DictationSetup } from '../voice/dictationHost'
+import {
+  ConversationCheckpoints,
+  type NoticeLevel,
+  type PendingCapture,
+} from './conversationCheckpoints'
 import {
   type ConversationExports,
   exportConversation,
@@ -278,6 +284,12 @@ export interface ConversationDeps {
   readonly isScheduledPaidOn?: () => boolean
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
   readonly allowsPaidUse: (request: PaidUseRequest) => Promise<boolean>
+  /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
+  readonly checkpoints: CheckpointPort
+  /** Files open with unsaved changes, absolute (M72: a restore leaves them). */
+  readonly unsavedPaths: () => readonly string[]
+  /** The one modal before a file restore or a code rewind (M72): true to go ahead. */
+  readonly confirmFileAction: (title: string, detail: string, action: string) => Promise<boolean>
   /** Account & usage's "Ask again": every paid feature asks again in this workspace (M58). */
   readonly forgetPaidUse: () => Promise<void>
   readonly now: () => number
@@ -336,6 +348,8 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'clarifyQuestion',
   'moveToBackground',
   'rewindConversation',
+  'restoreFiles',
+  'redoRestore',
   'openSideChat',
   'setModel',
   'setEffort',
@@ -360,6 +374,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'setPaidFeature',
 ])
 const QUEUED_DISPOSITION = 'queued'
+const STEERED_DISPOSITION = 'steered'
 const TOOL_CALL_KIND = 'toolCall'
 const SUBAGENT_ITEM_KIND = 'subagent'
 const IN_PROGRESS_STATUS = 'inProgress'
@@ -588,6 +603,8 @@ export class ConversationController {
   /** A shell's row can start before its approval is granted (Model API). */
   private readonly pendingShellApprovals = new Set<string>()
   private readonly pausedForegroundShells = new Set<string>()
+  /** This conversation's turn checkpoints (M72). */
+  private readonly checkpoints: ConversationCheckpoints
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -611,6 +628,18 @@ export class ConversationController {
       this.startupNotice = UI_TEXT.bypassRemoteStartedManual
     }
     this.attachments = new AttachmentStore(deps.newAttachmentId)
+    this.checkpoints = new ConversationCheckpoints({
+      port: deps.checkpoints,
+      post: (message) => {
+        this.post(message)
+      },
+      notice: (level, text, redoRestoreId) => {
+        this.notice(level, text, redoRestoreId)
+      },
+      confirm: deps.confirmFileAction,
+      unsavedPaths: deps.unsavedPaths,
+      log: deps.log,
+    })
   }
 
   private post(message: HostToWebviewMessage): void {
@@ -654,18 +683,26 @@ export class ConversationController {
    * Says `text` in the panel. A warning or an error goes to the log as well
    * (M39): "Open log" and a support report hold every failure the user saw.
    */
-  private notice(level: 'info' | 'warning' | 'error', text: string): void {
+  private notice(level: NoticeLevel, text: string, redoRestoreId?: string): void {
     if (level === 'error') {
       this.deps.log.error(`${NOTICE_PREFIX}${text}`)
     } else if (level === 'warning') {
       this.deps.log.warn(`${NOTICE_PREFIX}${text}`)
     }
-    this.say(level, text)
+    this.say(level, text, redoRestoreId)
   }
 
-  /** Says `text` in the panel only: for a failure already logged in more detail. */
-  private say(level: 'info' | 'warning' | 'error', text: string): void {
-    this.post({ type: 'notice', level, text })
+  /**
+   * Says `text` in the panel only: for a failure already logged in more
+   * detail. A file restore's notice carries its Redo (M72).
+   */
+  private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
+    this.post({
+      type: 'notice',
+      level,
+      text,
+      ...(redoRestoreId !== undefined && { redoRestoreId }),
+    })
   }
 
   private contextLimitFor(modelId: string): number | undefined {
@@ -683,6 +720,7 @@ export class ConversationController {
       // Said only where it is so (D26): the panel then offers neither.
       ...(!this.canEditSessions && { canEditSessions: false }),
     })
+    void this.checkpoints.sessionChanged(this.session?.sessionId)
   }
 
   private postSessionList(): void {
@@ -817,6 +855,7 @@ export class ConversationController {
     const event = { type: 'turnCompleted', turnId, terminal, reason } as const
     // The same end line and clock as a turn the host ended (the review of PR #20).
     this.endTurnClock(event)
+    this.checkpoints.turnCompleted(turnId)
     this.forward(event)
   }
 
@@ -1044,6 +1083,9 @@ export class ConversationController {
         }
         this.activeTurnId = event.turnId
         this.turnClocks.set(event.turnId, { startedAt: this.deps.now(), firstOutputAt: undefined })
+        if (this.session !== undefined && !this.isSideChat) {
+          this.checkpoints.turnStarted(this.session.sessionId, event.turnId)
+        }
         this.deps.log.info(
           `Turn ${event.turnId} started in session ${this.session?.sessionId ?? '(none)'}`,
         )
@@ -1066,6 +1108,7 @@ export class ConversationController {
       case 'turnCompleted': {
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
+        this.checkpoints.turnCompleted(event.turnId)
         // Another turn completing (a subagent's) leaves this one running.
         if (this.activeTurnId === event.turnId) {
           this.activeTurnId = undefined
@@ -1618,13 +1661,24 @@ export class ConversationController {
     throw new Error(`stored output ${outputRef} is larger than expected`)
   }
 
-  /** "Rewind code to here": the edits after a message, reverted newest first (M13). */
+  /**
+   * "Rewind code to here": the edits after a message, reverted newest first
+   * (M13), after the same confirmation as a file restore (M72).
+   */
   private async rewindCode(edits: readonly EditRef[]): Promise<void> {
     if (edits.length === 0) {
       this.notice('info', UI_TEXT.rewindNothing)
       return
     }
     const generation = this.sendInvalidationEpoch
+    const isConfirmed = await this.deps.confirmFileAction(
+      UI_TEXT.rewindCodeConfirmTitle,
+      UI_TEXT.rewindCodeConfirmDetail,
+      UI_TEXT.rewindCodeConfirmAction,
+    )
+    if (!isConfirmed) {
+      return
+    }
     for (const edit of edits) {
       if (generation !== this.sendInvalidationEpoch || this.accountStopsInFlight > 0) {
         return
@@ -2471,6 +2525,35 @@ export class ConversationController {
     const others = this.deps.sessions.archivedIds().filter((id) => id !== sessionId)
     await this.deps.sessions.setArchivedIds(isArchived ? [...others, sessionId] : others)
     this.postSessionList()
+    if (!isArchived) {
+      return
+    }
+    // An archived conversation's checkpoints go with it (M72).
+    await this.checkpoints.forget(sessionId)
+  }
+
+  /**
+   * "Restore files to here" (M72), and with `rewind` the conversation too
+   * ("Rewind conversation and restore files"), once the files are restored.
+   */
+  private async restoreFiles(
+    message: Extract<ConversationMessage, { type: 'restoreFiles' }>,
+  ): Promise<void> {
+    const { session } = this
+    if (session?.sessionId !== message.sourceSessionId) {
+      return
+    }
+    if (this.activeTurnId !== undefined) {
+      this.notice('info', UI_TEXT.restoreTurnRunning)
+      return
+    }
+    const isRestored = await this.checkpoints.restoreFiles(session.sessionId, message.turnId)
+    if (!(isRestored && message.rewind !== undefined && this.session === session)) {
+      return
+    }
+
+    this.beginBrowserSessionChange(message.rewind.attachmentEpoch)
+    await this.rewindConversation(message.rewind)
   }
 
   private buildParts(text: string, attachmentIds: readonly string[]): readonly TurnPart[] {
@@ -2580,6 +2663,8 @@ export class ConversationController {
     isEditorContextIncluded: boolean,
     reference: ChatReference | undefined,
   ): Promise<void> {
+    // The capture this message's turn takes (M72), dropped if it is not sent.
+    let checkpoint: PendingCapture | undefined
     try {
       const sendEpoch = this.sendInvalidationEpoch
       const session = await this.sessionForAction(localId)
@@ -2640,6 +2725,12 @@ export class ConversationController {
             ? textFileDisplay(text, textFileNames)
             : [text, ...textFileNames].filter((line) => line !== '').join('\n')
       }
+      // The checkpoint before a turn this message starts (M72); a message
+      // that steers or queues behind a running turn takes none.
+      if (this.activeTurnId === undefined && !this.isSideChat) {
+        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
+        requireCurrent(session)
+      }
       const submission = await this.runResuming(host, session, (current) => {
         // runResuming may replace a not-loaded session itself; that recovery
         // owns the new generation. An unrelated restart still fails admission.
@@ -2667,6 +2758,12 @@ export class ConversationController {
         return
       }
       const { turnId } = submission
+      this.checkpoints.accepted(
+        checkpoint,
+        turnId,
+        submission.disposition !== QUEUED_DISPOSITION &&
+          submission.disposition !== STEERED_DISPOSITION,
+      )
       this.acceptedUserCards.set(localId, { turnId, text })
       if (submission.userMessageId !== undefined) {
         this.acceptedUserCards.set(submission.userMessageId, { turnId, text })
@@ -2689,6 +2786,7 @@ export class ConversationController {
       })
       this.noteActivity()
     } catch (error: unknown) {
+      this.checkpoints.dropPending(checkpoint)
       const reason = describe(error)
       this.deps.log.error(`sendMessage failed: ${reason}`)
       // Nothing was released: the composer gets the images back for another try.
@@ -3808,6 +3906,14 @@ export class ConversationController {
         await this.rewindConversation(message)
         break
       }
+      case 'restoreFiles': {
+        await this.restoreFiles(message)
+        break
+      }
+      case 'redoRestore': {
+        await this.checkpoints.redo(message.restoreId)
+        break
+      }
       case 'openSideChat': {
         await this.openSideChat(message.sourceSessionId)
         break
@@ -3972,6 +4078,11 @@ export class ConversationController {
     })
   }
 
+  /** Whether checkpoints run changed (trust granted, the setting): the panel is told (M72). */
+  public checkpointsChanged(): void {
+    void this.checkpoints.refresh()
+  }
+
   public surfaceReady(attachmentEpoch?: number): void {
     if (attachmentEpoch !== undefined) {
       // Saved webview state may lag an in-flight session change.
@@ -4002,6 +4113,7 @@ export class ConversationController {
     if (this.session !== undefined) {
       this.postSessionInfo(this.session.modelId)
     }
+    this.checkpoints.panelReady()
     this.postSkills()
     for (const attachment of this.attachments.list()) {
       this.post({ type: 'attachmentAdded', attachment })
@@ -4229,5 +4341,6 @@ export class ConversationController {
     this.dictation = undefined
     this.retiredDictation?.dispose()
     this.retiredDictation = undefined
+    this.checkpoints.dispose()
   }
 }

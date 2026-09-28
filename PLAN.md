@@ -2501,6 +2501,62 @@ only the extension-side uses reach it.
   a documented weak spot, so at most a warning signal.
 - Any use as the coding model.
 
+### D51 — Turn checkpoints live in a shadow repository (M72, 2026-09-28)
+
+M72 needs a checkpoint of the workspace's files at each turn boundary that
+a restore can put back byte for byte, on both backends, in a git repository
+or not. The plan review of PR #50 and the security review added three
+constraints: nothing may land in the workspace's `.git` (a `push --mirror`
+would carry an untracked or ignored secret such as `.env`); the git that
+takes checkpoints runs with hooks and fsmonitor off and none of the user's
+configuration or the workspace's filters; and ignored files are covered
+only as far as the extension saw the change coming.
+
+**Considered: hidden refs in the workspace repository.** Trees built with
+`write-tree` on a temporary index (`GIT_INDEX_FILE`) and kept by refs under
+`refs/muse-spark/checkpoints/…`. It shares the user's objects and stat
+cache, but it writes objects and refs into the user's `.git`, where
+`push --mirror`, `for-each-ref` and `log --all` see them, and it runs under
+the user's repository config and attributes (autocrlf, LFS and other clean
+and smudge filters). Refused on both counts.
+
+**Taken: a shadow repository in the extension's workspace storage.**
+`<workspace storage>/checkpoints/shadow.git`, a bare repository whose work
+tree is the workspace (or the repository top when the workspace is a folder
+of one, so its `.gitignore` files apply, with every path kept to the
+workspace's prefix).
+
+- **Isolation.** Every command runs with an environment stripped of the
+  host's `GIT_*` variables, `GIT_CONFIG_NOSYSTEM`, an empty
+  `GIT_CONFIG_GLOBAL`, a `HOME` in storage, `GIT_ATTR_NOSYSTEM`,
+  `GIT_OPTIONAL_LOCKS=0`, `core.hooksPath` at an empty folder,
+  `core.fsmonitor=false` and `core.untrackedCache=false`. The shadow's
+  `info/attributes`, which outranks every `.gitattributes`, unsets `text`,
+  `eol`, `filter`, `ident` and `working-tree-encoding`, so no filter runs
+  and bytes are copied as they are (CRLF files, LFS files, `text=auto`).
+  git is found by absolute path (D24). Only the workspace's
+  `info/exclude` and the user's global excludes file are read, as ignore
+  patterns.
+- **Objects.** No alternates: the shadow keeps its own copies, so the
+  user's `gc` can never break a checkpoint and nothing of ours is written
+  or freshened in `.git`. A private index keeps stat data, so a capture
+  hashes only what changed since the last one; the first capture of a
+  workspace hashes everything outside its ignore rules, within the caps.
+- **Records.** Checkpoint and redo records are JSON beside the shadow,
+  parsed with zod. Each record's trees and copies are kept from `git prune`
+  by one `mktree` tree under `refs/muse-spark/keep/<id>` in the shadow; the
+  private index and the tool copies of running turns have refs of their
+  own. Trees, not commits: no author identity is needed.
+- **Ignored files.** A bounded scan of sizes and times at each turn's start
+  and end finds what the turn created, changed or deleted; the Model API's
+  write tools and the image tools copy a file just before they write it
+  (`withCheckpointCopies`). A restore deletes created ignored files,
+  restores copied ones and lists the rest as not restorable.
+- **Restricted Mode.** No checkpoints: the extension runs no git in an
+  untrusted workspace (D24), and a copy store without git would still read
+  and duplicate an untrusted tree's files for no gain the user asked for.
+  The menu says so.
+
 ## 3. Open questions (need the owner)
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default until answered                                                           |
@@ -6421,17 +6477,103 @@ full gate. A paid item follows D30/D48.
 
 ### M72 — Turn checkpoints (D49)
 
-- **Goal.** Undo is complete and cheap.
+**Status 2026-09-28: built** on `feature/m72-checkpoints` (D51,
+`docs/certification/m72.md`); not yet merged. The mechanism is a shadow
+repository in the extension's workspace storage, never the workspace's
+`.git`.
+
+- **Goal.** Undo is cheap, and complete wherever the extension saw the
+  change coming; where it could not, it says exactly what it left.
 - **Scope.**
-  - A checkpoint at each turn boundary, as a hidden git ref (or a shadow
-    repository outside git), including untracked files and excluding
-    ignored ones.
-  - Restore files, conversation, or both.
+  - A checkpoint at each turn boundary, kept in a shadow repository in
+    the extension's own storage, never in the workspace's git objects or
+    refs, where a push could carry an untracked or ignored secret
+    (`.env`). It runs with hooks and fsmonitor off and none of the
+    workspace's filters. It includes untracked files.
+  - Ignored files the turn itself created or changed are handled too:
+    - a file the agent's own edit and write tools change is copied before
+      the write, so a restore brings it back;
+    - a shell command's changes are found afterwards by a bounded scan of
+      size and modification time, when the old content is already gone
+      (and Muse Code cannot be paused before its commands). A restore
+      deletes the ignored files the turn created and lists the ones it
+      changed as not restorable. It never claims more than it did.
+  - Other ignored content is left out. Everything is subject to the size
+    limits, and the checkpoint names any file it skipped.
+  - Restricted Mode, where the extension runs no git, has no checkpoints,
+    and the panel says so.
+  - Restore files, conversation, or both. A restore goes through Edit
+    Review's checks (D27): a file the user changed after the turn, or one
+    with unsaved changes, is refused with the reason and listed, never
+    overwritten.
   - Redo after a restore.
   - Size limits, and cleanup with the conversation.
 - **Backends.** Both. It lives in the extension. Conversation restore
-  follows M53, and Muse Code on Windows still cannot fork (sdk #31).
+  follows M53, and Muse Code on Windows still cannot fork (sdk #31), so
+  there it restores files only and says so.
+- **Relation to D46.** D46's rewind stays the conversation's own rewind of
+  the edits it recorded; a checkpoint restore also covers what shell
+  commands changed, and both use the same confirmation.
+- **Acceptance.** Nothing lands in the workspace's `.git`; a restore puts
+  back tracked, untracked and pre-copied ignored files, deletes ignored
+  files the turn created, and lists what it could not restore; redo
+  returns to the state before the restore.
+- **Tests.** A temporary repository per test, with drills for the
+  workspace `.git` guard and the not-restorable list.
 - **Size.** M.
+- **Built (2026-09-28).**
+  - **Where.** `src/host/checkpoints/` (the shadow repository, the store,
+    the ignored scan, the records, the port and the tool-write wrapper),
+    `src/core/checkpoints/` (git output parsers and the pure restore plan),
+    `src/host/conversation/conversationCheckpoints.ts` (a conversation's
+    captures, restore, redo and notices), the protocol's `restoreFiles`,
+    `redoRestore` and `checkpointState`, and the user card's menu.
+  - **When a capture is taken.** Before a message that starts a turn is
+    sent, so the turn's first edit cannot precede it; the turn takes the
+    oldest waiting capture, whichever of its start and its acknowledgement
+    comes first. A turn no message of the panel started (a queued message,
+    a scheduled run) is captured when it starts, which the backend does not
+    wait for. Each turn's end is captured too, including a turn the backend
+    stopped (D25), a conversation that left the panel and a panel that
+    closed. A steered message takes none.
+  - **What a restore undoes.** The difference between the chosen turn's
+    start capture and a capture taken now, less every path that changed
+    between the conversation's turns or after the last (another
+    conversation's or the user's work), refused as "changed since the turn".
+    Ignored files follow the turns' recorded changes, with the stat
+    continuity check between turns. A path added since the checkpoint that
+    the restored ignore rules name was an ignored file then and stays. A
+    link, a file over 16 MiB and a nested repository are left out and
+    named. Folders a restore empties are removed only if the checkpoint did
+    not have them. HEAD, the index, the stash and branches are never
+    touched.
+  - **Redo** records what the restore replaced and what it left, and puts
+    back only files still as the restore left them. A redo is recorded the
+    same way, so it can be redone, and a spent record is deleted.
+  - **The menu.** A turn with a checkpoint (its first card) offers **Restore
+    files to here** and **Rewind conversation and restore files** beside
+    M6's fork, M53's rewind and M13's code rewind; a turn without one keeps
+    M13's **Fork conversation and rewind code**. Disabled rows say why a
+    choice is missing (Restricted Mode, the setting off, Muse Code on
+    Windows). **Rewind code to here** now asks in the same modal.
+  - **Bounds.** 50,000 files outside the ignore rules and 512 MiB of changed
+    files per capture (beyond them the turn has no checkpoint and the panel
+    says why, once per conversation and reason); 16 MiB per file; the
+    ignored scan at 5,000 files, and an ignored folder over 1,000 files left
+    out whole; 500 ignored changes per turn. Retention: 100 checkpoints per
+    conversation, 50 conversations, 20 redo records per conversation, and
+    `museSpark.cleanupPeriodDays`. Archiving a conversation deletes its
+    checkpoints and prunes at once; retention prunes at most every ten
+    minutes.
+  - **Setting.** `museSpark.turnCheckpoints`, machine-scoped, on by
+    default.
+  - **Limits.** A queued or scheduled turn's capture races its start (the
+    backend does not wait). Another conversation's running turn can still
+    write while a restore runs. On Muse Code the extension cannot copy an
+    ignored file before the CLI's own tools write it, so such a change is
+    listed as not restorable. A turn whose end capture failed counts every
+    change up to the next turn as its own. The first capture of a large
+    workspace hashes all of it once.
 
 ### M73 — Observation packing (D49)
 
@@ -6838,6 +6980,15 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
   the extension writing the same note in the same instant keep only one of
   the two writes. Notes reach every later session, the personal scope every
   project, so a model's write asks in Manual (Muse Code's does not).
+- Turn checkpoints (M72, D51) copy the workspace's files into the
+  extension's workspace storage, and an ignored file (a `.env`) only when
+  the extension's own tools are about to write it. The copies never enter
+  the workspace's `.git`, stay on the machine, and go with the
+  conversation, the retention bounds or the storage directory. Residual
+  risk: whoever can read VS Code's storage directory can read them, as they
+  can the workspace itself. A restore confines every path by its canonical
+  form before writing or deleting; a file swapped for a link between that
+  check and the write is the same residual as the Model API tools'.
 
 - M50's Windows stdio server inherits the extension's three binary pipes
   unchanged. A hidden helper creates it suspended, assigns it to a fresh

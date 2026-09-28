@@ -44,6 +44,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiSubagents: boolean
   /** Explicit machine opt-in for external hook commands (M51). */
   readonly modelApiHooks: boolean
+  /** A checkpoint of the workspace's files at each turn boundary (M72). */
+  readonly turnCheckpoints: boolean
 }
 
 /**
@@ -75,6 +77,7 @@ const settingSchemas = {
   modelApiScheduledPrompts: z.boolean(),
   modelApiSubagents: z.boolean(),
   modelApiHooks: z.boolean(),
+  turnCheckpoints: z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -142,6 +145,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
+    turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
   }
 }
 

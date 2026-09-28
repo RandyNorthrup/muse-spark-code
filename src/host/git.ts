@@ -5,15 +5,39 @@
 // and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never takes the
 // index lock out from under the user's own git.
 
-import { type ExecFileOptions, execFile } from 'node:child_process'
+import { type ExecFileOptions, execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
 import { promisify } from 'node:util'
 import { resolveExecutable } from '../core/executables'
 import { environmentValue } from '../core/backends/musecode/launch'
-import { GIT_OUTPUT_MAX_BYTES, GIT_TIMEOUT_MS } from '../shared/constants'
+import { GIT_OUTPUT_MAX_BYTES, GIT_STDERR_MAX_CHARS, GIT_TIMEOUT_MS } from '../shared/constants'
 
 const GIT = 'git'
 const PATH_VARIABLE = 'PATH'
+const GIT_MISSING = 'git was not found on the absolute entries of PATH'
+
+/**
+ * git's absolute path, found once per PATH value; a miss is not cached, so
+ * git installed while the window is open is found on the next call.
+ */
+function gitLocator(
+  deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists'>,
+): () => string | undefined {
+  let cache: { readonly pathValue: string | undefined; readonly git: string } | undefined
+  return () => {
+    const pathValue = environmentValue(deps.env, deps.platform, PATH_VARIABLE)
+    if (cache === undefined || cache.pathValue !== pathValue) {
+      const git = resolveExecutable(GIT, {
+        platform: deps.platform,
+        pathVariable: pathValue,
+        fileExists: deps.fileExists,
+      })
+      cache = git === undefined ? undefined : { pathValue, git }
+    }
+    return cache?.git
+  }
+}
 
 export interface GitRunnerDeps {
   readonly platform: NodeJS.Platform
@@ -39,25 +63,11 @@ export function createGitRunner(
     GIT_OPTIONAL_LOCKS: '0',
     GIT_TERMINAL_PROMPT: '0',
   }
-  // Found once per PATH value; a miss is not cached, so git installed while
-  // the window is open is found on the next call.
-  let cache: { readonly pathValue: string | undefined; readonly git: string } | undefined
-  const gitPath = (): string | undefined => {
-    const pathValue = environmentValue(deps.env, deps.platform, PATH_VARIABLE)
-    if (cache === undefined || cache.pathValue !== pathValue) {
-      const git = resolveExecutable(GIT, {
-        platform: deps.platform,
-        pathVariable: pathValue,
-        fileExists: deps.fileExists,
-      })
-      cache = git === undefined ? undefined : { pathValue, git }
-    }
-    return cache?.git
-  }
+  const gitPath = gitLocator(deps)
   return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS) => {
     const git = gitPath()
     if (git === undefined) {
-      throw new Error('git was not found on the absolute entries of PATH')
+      throw new Error(GIT_MISSING)
     }
     return await deps.execFile(git, args, {
       cwd,
@@ -88,5 +98,117 @@ export function processGitRunner(): (
       const { stdout } = await execFileAsync(file, [...args], { ...options, encoding: 'utf8' })
       return stdout
     },
+  })
+}
+
+/** git ended with a non-zero exit code: the code and what it said (capped). */
+export class GitExitError extends Error {
+  public constructor(
+    public readonly exitCode: number,
+    public readonly stderr: string,
+    command: string,
+  ) {
+    super(`git ${command} exited with code ${String(exitCode)}: ${stderr.trim()}`)
+    this.name = 'GitExitError'
+  }
+}
+
+export interface GitProcessOptions {
+  readonly cwd: string
+  /** The child's whole environment: nothing else is inherited. */
+  readonly env: NodeJS.ProcessEnv
+  /** Written to stdin, which is then closed; stdin is empty without it. */
+  readonly input?: string | Uint8Array
+  readonly timeoutMs: number
+}
+
+/** One git command's stdout as bytes; rejects on a failure, a timeout or a non-zero exit. */
+export type GitProcess = (args: readonly string[], options: GitProcessOptions) => Promise<Buffer>
+
+export interface GitProcessDeps {
+  readonly platform: NodeJS.Platform
+  /** Where git is looked for: this environment's PATH, absolute entries only (D24). */
+  readonly env: NodeJS.ProcessEnv
+  readonly fileExists: (filePath: string) => boolean
+  readonly spawn: typeof spawn
+}
+
+/**
+ * git with stdin and binary stdout (M72's checkpoints): found as the other
+ * runner finds it, no console window, stdout capped at GIT_OUTPUT_MAX_BYTES
+ * and stderr at GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
+ * passes the complete environment, so nothing of the extension host's own
+ * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
+ */
+export function createGitProcess(deps: GitProcessDeps): GitProcess {
+  const gitPath = gitLocator(deps)
+  return (args, options) =>
+    new Promise<Buffer>((resolve, reject) => {
+      const git = gitPath()
+      if (git === undefined) {
+        reject(new Error(GIT_MISSING))
+        return
+      }
+      const [command = GIT] = args
+      const child = deps.spawn(git, [...args], {
+        cwd: options.cwd,
+        env: options.env,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
+      })
+      const chunks: Buffer[] = []
+      let size = 0
+      let stderr = ''
+      let failure: Error | undefined
+      const fail = (error: Error) => {
+        failure ??= error
+        child.kill()
+      }
+      const timer = setTimeout(() => {
+        fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
+      }, options.timeoutMs)
+      child.stdout.on('data', (chunk: Buffer) => {
+        size += chunk.length
+        if (size > GIT_OUTPUT_MAX_BYTES) {
+          fail(new Error(`git ${command} wrote more than ${String(GIT_OUTPUT_MAX_BYTES)} bytes`))
+          return
+        }
+        chunks.push(chunk)
+      })
+      child.stderr.setEncoding('utf8')
+      child.stderr.on('data', (chunk: string) => {
+        if (stderr.length < GIT_STDERR_MAX_CHARS) {
+          stderr = `${stderr}${chunk}`.slice(0, GIT_STDERR_MAX_CHARS)
+        }
+      })
+      // A command that exits before reading all of stdin closes the pipe
+      // under the write; its exit code says what went wrong.
+      child.stdin.on('error', () => {
+        // Nothing to add: the exit code reports it.
+      })
+      child.on('error', (error) => {
+        fail(error)
+      })
+      child.on('close', (code) => {
+        clearTimeout(timer)
+        if (failure !== undefined) {
+          reject(failure)
+        } else if (code === 0) {
+          resolve(Buffer.concat(chunks))
+        } else {
+          reject(new GitExitError(code ?? -1, stderr, command))
+        }
+      })
+      child.stdin.end(options.input ?? '')
+    })
+}
+
+/** The process runner over this process's PATH and Node's `spawn` (M72). */
+export function processGitProcess(): GitProcess {
+  return createGitProcess({
+    platform: process.platform,
+    env: process.env,
+    fileExists: existsSync,
+    spawn,
   })
 }

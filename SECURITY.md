@@ -46,7 +46,8 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   billed (`museBinaryPath`, `environmentVariables`, `backend`,
   `shellSandbox`, `sandboxNetwork`, `initialPermissionMode`,
   `allowDangerouslySkipPermissions`, `modelApiHooks`,
-  `modelApiPromptCacheRetention` and the five paid `modelApi*` features)
+  `modelApiPromptCacheRetention`, `turnCheckpoints` and the five paid
+  `modelApi*` features)
   are machine-scoped in every workspace, trusted or not: a repository's
   `.vscode/settings.json` cannot point the extension at its own executable. In a remote window a dev container
   definition can write machine settings, so there Bypass permissions is
@@ -55,6 +56,16 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   Code CLI are found by absolute path only: an empty or relative `PATH`
   entry (which means the working directory, the workspace) is never
   searched, and `museBinaryPath` must be absolute.
+- **Turn checkpoints.** They live in a git repository of the extension's
+  own in its workspace storage, never in the workspace's `.git` (no object,
+  ref or index change, so a push cannot carry one). That git runs with the
+  host's `GIT_*` variables removed, no system or global configuration, hooks
+  pointed at an empty folder, fsmonitor off, and every conversion attribute
+  unset, so no clean or smudge filter a repository names ever runs. A
+  restore confines each path by its canonical form before writing or
+  deleting, deletes only regular files, and leaves a file changed outside
+  the conversation's turns or with unsaved editor changes as it is. None
+  are taken in Restricted Mode.
 - **Path confinement (Model API backend).** Every path a tool names is
   resolved through the file system (links, junctions and short names)
   before it is read or written, and refused when it leaves the workspace;
