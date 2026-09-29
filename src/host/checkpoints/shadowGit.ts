@@ -15,13 +15,21 @@
 // `info/exclude` (copied in) and the user's global excludes file.
 // The storage folder is the user's alone (0700), since it holds copies of
 // untracked and ignored files.
+//
+// Two windows on one folder share the repository with no lock: git writes
+// objects and refs atomically, each window has its own index file (seeded
+// from the newest one there, as a stat cache), and the files written at set
+// up are replaced whole. `git prune` spares objects younger than
+// CHECKPOINT_PRUNE_GRACE_MS, so an object another window has just written
+// but not yet named by a ref is never deleted.
 
 import { Buffer } from 'node:buffer'
-import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, copyFile, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { gitBlobOid } from '../../core/checkpoints/gitListings'
 import { CHECKPOINT_GIT_TIMEOUT_MS, CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
+import { writeFileAtomically } from '../fsAtomic'
 import type { GitProcess } from '../git'
 
 const SHADOW_DIR = 'shadow.git'
@@ -29,7 +37,10 @@ const HOME_DIR = 'home'
 const HOOKS_DIR = 'hooks'
 const EMPTY_CONFIG = 'empty.gitconfig'
 const EMPTY_EXCLUDES = 'empty.gitignore'
-const WORK_INDEX = 'work.index'
+// Each window's own index: `work-<instance>.index`.
+const WORK_INDEX_PREFIX = 'work'
+const INDEX_SUFFIX = '.index'
+const MILLISECONDS_PER_SECOND = 1000
 // Never created: `git status` over it sees every file as untracked.
 const NO_INDEX = path.join('listing', 'none.index')
 const ATTRIBUTES = path.join('info', 'attributes')
@@ -51,6 +62,27 @@ export interface ShadowLayout {
   /** The work tree: the repository's top when the workspace is in one, else the workspace. */
   readonly top: string
   readonly platform: NodeJS.Platform
+  /** This window's store instance: its own index file. */
+  readonly instance: string
+}
+
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+/** The index file name of a window's store instance. */
+export function indexFileName(instance: string): string {
+  return `${WORK_INDEX_PREFIX}-${instance}${INDEX_SUFFIX}`
+}
+
+/** The instance an index file belongs to; undefined for another file. */
+export function indexFileInstance(name: string): string | undefined {
+  const prefix = `${WORK_INDEX_PREFIX}-`
+  return name.startsWith(prefix) && name.endsWith(INDEX_SUFFIX)
+    ? name.slice(prefix.length, -INDEX_SUFFIX.length)
+    : undefined
 }
 
 export interface ShadowGitDeps {
@@ -100,14 +132,55 @@ export class ShadowGit {
     }
   }
 
+  /**
+   * This window's index, when it has none yet, starts as a copy of the
+   * newest index there (a stat cache, so the first capture does not hash
+   * the whole workspace again). git replaces an index whole, so the copy is
+   * one version or another, never half of one.
+   */
+  private async seedIndex(): Promise<void> {
+    const own = this.indexPath('work')
+    if (await isPresent(own)) {
+      return
+    }
+    const names = await readdir(this.layout.storageDir)
+    const candidates = names.filter(
+      (name) => name.startsWith(WORK_INDEX_PREFIX) && name.endsWith(INDEX_SUFFIX),
+    )
+    let newest: { readonly file: string; readonly at: number } | undefined
+    for (const name of candidates) {
+      const file = path.join(this.layout.storageDir, name)
+      const at = await modifiedAt(file)
+      if (at !== undefined && (newest === undefined || at > newest.at)) {
+        newest = { file, at }
+      }
+    }
+    if (newest === undefined) {
+      return
+    }
+    try {
+      await copyFile(newest.file, own)
+    } catch (error: unknown) {
+      if (!isMissingPath(error)) {
+        throw error
+      }
+    }
+  }
+
   public get top(): string {
     return this.layout.top
   }
 
   /** The files a checkpoint holds, other than the shadow repository. */
   public indexPath(index: ShadowIndex): string {
-    const name = { work: WORK_INDEX, none: NO_INDEX }[index]
+    const name = { work: indexFileName(this.layout.instance), none: NO_INDEX }[index]
     return path.join(this.layout.storageDir, name)
+  }
+
+  /** Deletes objects no ref names, sparing any younger than `graceMs` (another window's in flight). */
+  public async prune(graceMs: number): Promise<void> {
+    const seconds = Math.ceil(graceMs / MILLISECONDS_PER_SECOND)
+    await this.run(['prune', `--expire=${String(seconds)}.seconds.ago`])
   }
 
   /**
@@ -128,8 +201,8 @@ export class ShadowGit {
     await mkdir(this.homeDir, { recursive: true })
     await mkdir(path.dirname(this.indexPath('none')), { recursive: true })
     await rm(this.indexPath('none'), { force: true })
-    await writeFile(path.join(storageDir, EMPTY_CONFIG), '')
-    await writeFile(path.join(storageDir, EMPTY_EXCLUDES), '')
+    await writeFileAtomically(path.join(storageDir, EMPTY_CONFIG), '', { sleep: pause })
+    await writeFileAtomically(path.join(storageDir, EMPTY_EXCLUDES), '', { sleep: pause })
     if (!(await isPresent(path.join(this.shadowDir, 'HEAD')))) {
       await this.deps.git(['init', '--bare', '--quiet', this.shadowDir], {
         cwd: storageDir,
@@ -139,9 +212,14 @@ export class ShadowGit {
       })
     }
     await mkdir(path.join(this.shadowDir, 'info'), { recursive: true })
-    await writeFile(path.join(this.shadowDir, ATTRIBUTES), NO_CONVERSION)
-    await writeFile(path.join(this.shadowDir, EXCLUDE), userExclude ?? '')
+    await writeFileAtomically(path.join(this.shadowDir, ATTRIBUTES), NO_CONVERSION, {
+      sleep: pause,
+    })
+    await writeFileAtomically(path.join(this.shadowDir, EXCLUDE), userExclude ?? '', {
+      sleep: pause,
+    })
     this.excludesFile = globalExcludesFile ?? path.join(storageDir, EMPTY_EXCLUDES)
+    await this.seedIndex()
     // A restore compares files with captures by hashing them here; the
     // repository must name objects as `gitBlobOid` does.
     const probe = await this.text(['hash-object', '--stdin'], { input: '' })
@@ -152,8 +230,9 @@ export class ShadowGit {
 
   /**
    * Removes the lock files older than `staleMs` that a git ended mid-command
-   * left in the shadow repository and beside its indexes (a crash, a window
-   * closed): with none of this window's git running, every one is stale.
+   * left in the shadow repository and beside this window's index (a crash, a
+   * window closed). `staleMs` is well over the time any git may run, so no
+   * live window's lock is removed.
    */
   public async clearStaleLocks(now: number, staleMs: number): Promise<void> {
     const refsDir = path.join(this.shadowDir, REFS_DIR)

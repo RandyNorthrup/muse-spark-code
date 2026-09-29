@@ -1,16 +1,11 @@
-// The checkpoint store's own records (M72, PLAN.md D51): which checkpoint
+// The checkpoint store's records (M72, PLAN.md D51): which checkpoint
 // belongs to which conversation and turn, what each capture left out, the
-// ignored files each turn changed, and what each restore can redo. Kept as
-// JSON beside the shadow repository and parsed with zod when read (rule 7):
-// a file that does not parse is set aside and the store starts afresh.
+// ignored files each turn changed, and what each restore can redo. Each
+// record is its own JSON blob in the shadow repository, under a ref of its
+// own (recordRefs.ts), parsed with zod when read (rule 7); a record that
+// does not parse is dropped.
 
-import { rename } from 'node:fs/promises'
 import * as z from 'zod/mini'
-import { writeFileAtomically } from '../fsAtomic'
-import { readOptionalText } from './shadowGit'
-
-const RECORDS_VERSION = 1
-const SET_ASIDE_SUFFIX = '.unreadable'
 
 const blobRefSchema = z.object({ mode: z.string(), oid: z.string() })
 const statSchema = z.object({ size: z.number(), mtimeMs: z.number() })
@@ -37,7 +32,12 @@ const ignoredChangeSchema = z.object({
   endStat: z.nullable(statSchema),
 })
 
+// Every record names the work tree and the workspace's place in it: a record
+// of another place (the workspace moved) is not this workspace's.
 const checkpointRecordSchema = z.object({
+  kind: z.literal('checkpoint'),
+  top: z.string(),
+  prefix: z.string(),
   id: z.string(),
   sessionId: z.string(),
   turnId: z.string(),
@@ -47,15 +47,13 @@ const checkpointRecordSchema = z.object({
   end: z.optional(captureSchema),
   /** When the turn's end was seen (with or without a capture): other conversations' overlap. */
   endedAt: z.optional(z.number()),
-  /** The store (one per window) that recorded it: a running turn of a live window counts. */
+  /** The store (one per window) that recorded it: only it ends the turn. */
   owner: z.optional(z.string()),
   /**
    * The ignored files the turn changed. `isComplete` is false when the turn's
    * start scan was not at hand (a window reload mid-turn) or the list was cut.
    */
   ignored: z.optional(z.object({ changes: z.array(ignoredChangeSchema), isComplete: z.boolean() })),
-  /** The tree object that keeps every copy this record needs from pruning. */
-  keep: z.string(),
 })
 export type CheckpointRecord = z.infer<typeof checkpointRecordSchema>
 
@@ -69,82 +67,36 @@ const restoreEntrySchema = z.object({
 export type RestoreEntry = z.infer<typeof restoreEntrySchema>
 
 const restoreRecordSchema = z.object({
+  kind: z.literal('restore'),
+  top: z.string(),
+  prefix: z.string(),
   id: z.string(),
   sessionId: z.string(),
   createdAt: z.number(),
   entries: z.array(restoreEntrySchema),
-  keep: z.string(),
 })
 export type RestoreRecord = z.infer<typeof restoreRecordSchema>
 
-const recordsSchema = z.object({
-  version: z.literal(RECORDS_VERSION),
-  /** The work tree and the workspace's place in it: a change starts afresh. */
-  top: z.string(),
-  prefix: z.string(),
-  checkpoints: z.array(checkpointRecordSchema),
-  restores: z.array(restoreRecordSchema),
-  /**
-   * Conversations archived lately, and when: a capture taken before then,
-   * in any window, is not recorded for them. Archiving in Restricted Mode
-   * drops the records here with no git; their copies go at the next
-   * trusted open.
-   */
-  forgotten: z.optional(z.array(z.object({ sessionId: z.string(), at: z.number() }))),
-})
-export type CheckpointRecords = z.infer<typeof recordsSchema>
+const storedRecordSchema = z.discriminatedUnion('kind', [
+  checkpointRecordSchema,
+  restoreRecordSchema,
+])
+export type StoredRecord = z.infer<typeof storedRecordSchema>
 
-export function emptyRecords(top: string, prefix: string): CheckpointRecords {
-  return { version: RECORDS_VERSION, top, prefix, checkpoints: [], restores: [] }
+/** A workspace's records, as the retention bounds see them. */
+export interface CheckpointRecords {
+  readonly checkpoints: readonly CheckpointRecord[]
+  readonly restores: readonly RestoreRecord[]
 }
 
-/**
- * The records on disk, or undefined when there are none or they do not
- * parse (the unreadable file is renamed aside, and `onUnreadable` says why).
- */
-/** Records from their file's text; undefined when it does not parse. */
-export function parseRecords(text: string): CheckpointRecords | undefined {
+/** A record from its JSON; undefined when it does not parse. */
+export function parseRecord(text: string): StoredRecord | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
   } catch {
     return undefined
   }
-  const result = recordsSchema.safeParse(parsed)
+  const result = storedRecordSchema.safeParse(parsed)
   return result.success ? result.data : undefined
-}
-
-export async function loadRecords(
-  filePath: string,
-  onUnreadable: (reason: string) => void,
-): Promise<CheckpointRecords | undefined> {
-  const text = await readOptionalText(filePath)
-  if (text === undefined) {
-    return undefined
-  }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch (error: unknown) {
-    onUnreadable(error instanceof Error ? error.message : String(error))
-    await rename(filePath, `${filePath}${SET_ASIDE_SUFFIX}`)
-    return undefined
-  }
-  const result = recordsSchema.safeParse(parsed)
-  if (!result.success) {
-    onUnreadable(z.prettifyError(result.error))
-    await rename(filePath, `${filePath}${SET_ASIDE_SUFFIX}`)
-    return undefined
-  }
-  return result.data
-}
-
-function pause(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-export async function saveRecords(filePath: string, records: CheckpointRecords): Promise<void> {
-  await writeFileAtomically(filePath, JSON.stringify(records), { sleep: pause })
 }

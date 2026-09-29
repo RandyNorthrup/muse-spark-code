@@ -36,7 +36,6 @@ import {
   type Snapshot,
   turnKey,
 } from '../checkpoints/checkpointStore'
-import { StoreBusyError } from '../checkpoints/storeLock'
 import { errorDetail, type Logger } from '../logger'
 
 export type NoticeLevel = 'info' | 'warning' | 'error'
@@ -133,7 +132,6 @@ function captureRefusalText(reason: CaptureRefusal): string {
     tooLarge: () =>
       fill(UI_TEXT.checkpointTooLarge, { size: CHECKPOINT_CAPTURE_MAX_BYTES / BYTES_PER_MIB }),
     noGit: () => UI_TEXT.checkpointNoGit,
-    busy: () => UI_TEXT.checkpointBusy,
     failed: () => UI_TEXT.checkpointFailed,
   }
   return texts[reason]()
@@ -224,24 +222,32 @@ export class ConversationCheckpoints {
    * panel, or the panel closed, so no end would come for them here.
    */
   private endAll(): void {
+    const ending = new Set(this.recordings.keys())
     for (const [turnId, entry] of this.recordings) {
       this.end(entry.sessionId, turnId, entry.recording)
     }
     this.recordings.clear()
     for (const turnId of this.running.keys()) {
-      this.markEnded(turnId)
+      if (!ending.has(turnId)) {
+        this.markEnded(turnId)
+      }
     }
     for (const capture of this.pending.splice(0)) {
       this.release(capture)
     }
   }
 
+  /**
+   * Records a turn's end once its start is recorded. The turn stays
+   * published as running until its end is recorded, so another window
+   * restores nothing meanwhile and its tool copies stay.
+   */
   private end(sessionId: string, turnId: string, recording: Promise<void>): void {
-    this.markEnded(turnId)
     const ending = this.endAfterRecording(sessionId, turnId, recording)
     this.endings.add(ending)
     void ending.finally(() => {
       this.endings.delete(ending)
+      this.markEnded(turnId)
     })
   }
 
@@ -252,7 +258,7 @@ export class ConversationCheckpoints {
     } catch (error: unknown) {
       this.turns.delete(turnId)
       this.deps.log.warn(`Checkpoint of turn ${turnId} was not recorded: ${errorDetail(error)}`)
-      this.sayRefusal(error instanceof StoreBusyError ? 'busy' : 'failed')
+      this.sayRefusal('failed')
     }
     if (this.sessionId === sessionId) {
       this.postState()
@@ -344,7 +350,6 @@ export class ConversationCheckpoints {
       turnElsewhere: UI_TEXT.restoreTurnElsewhere,
       captureFailed: UI_TEXT.restoreFailed,
       redoGone: UI_TEXT.redoGone,
-      busy: UI_TEXT.restoreBusy,
     }
     return texts[reason]
   }
@@ -467,11 +472,9 @@ export class ConversationCheckpoints {
     } catch (error: unknown) {
       // Another window could not be told: the message is not sent, so no
       // restore there can land on what its turn edits.
+      this.deps.log.warn(`A running turn was not published: ${errorDetail(error)}`)
       this.publish(marker, false)
-      throw new Error(
-        `the message was not sent, as the turn it starts could not be marked as running (${error instanceof Error ? error.message : String(error)})`,
-        { cause: error },
-      )
+      throw new Error(UI_TEXT.sendMarkFailed, { cause: error })
     }
     const capture = { sessionId, snapshot: await this.capture(), marker }
     if (this.sessionId !== sessionId) {

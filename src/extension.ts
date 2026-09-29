@@ -84,7 +84,7 @@ import { createMemoryFeatures } from './host/memoryFeatures'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import { createCheckpointPort, withCheckpointCopies } from './host/checkpoints/checkpointHost'
 import { CheckpointStore } from './host/checkpoints/checkpointStore'
-import { isProcessAlive } from './host/checkpoints/storeLock'
+import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
   liveFetch,

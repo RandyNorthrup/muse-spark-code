@@ -127,12 +127,18 @@ export function gitBlobOid(bytes: Uint8Array): string {
     .digest('hex')
 }
 
+/** One answer of `git cat-file --batch`: the name it gave and the bytes (undefined: missing). */
+export interface CatFileEntry {
+  readonly name: string
+  readonly content: Buffer | undefined
+}
+
 /**
  * `git cat-file --batch`: for each object asked, `<oid> <type> <size>` LF,
- * the bytes and LF; or `<name> missing` LF. Missing objects map to undefined.
+ * the bytes and LF; or `<name> missing` LF. The answers in the order asked.
  */
-export function parseCatFileBatch(output: Buffer): ReadonlyMap<string, Buffer | undefined> {
-  const objects = new Map<string, Buffer | undefined>()
+export function parseCatFileEntries(output: Buffer): readonly CatFileEntry[] {
+  const entries: CatFileEntry[] = []
   let offset = 0
   while (offset < output.length) {
     const lineEnd = output.indexOf(LINE_FEED, offset)
@@ -145,15 +151,20 @@ export function parseCatFileBatch(output: Buffer): ReadonlyMap<string, Buffer | 
       .split(SPACE)
     offset = lineEnd + 1
     if (type === GIT_MISSING_OBJECT) {
-      objects.set(name, undefined)
+      entries.push({ name, content: undefined })
       continue
     }
     const size = Number(sizeText)
     if (!Number.isSafeInteger(size) || offset + size > output.length) {
       throw new Error(`git cat-file answered a malformed header for ${name}`)
     }
-    objects.set(name, Buffer.from(output.subarray(offset, offset + size)))
+    entries.push({ name, content: Buffer.from(output.subarray(offset, offset + size)) })
     offset += size + 1
   }
-  return objects
+  return entries
+}
+
+/** `git cat-file --batch` by object name; missing objects map to undefined. */
+export function parseCatFileBatch(output: Buffer): ReadonlyMap<string, Buffer | undefined> {
+  return new Map(parseCatFileEntries(output).map((entry) => [entry.name, entry.content]))
 }
