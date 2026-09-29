@@ -16,7 +16,7 @@ import {
   EVAL_ROOT_MASK,
   EVAL_TEMP_PREFIX,
   EVAL_VERIFY_DETAIL_MAX_CHARS,
-  EVAL_VERIFY_DIR,
+  EVAL_VERIFY_PREFIX,
   EVAL_VERIFY_FILE,
   EVAL_VERIFY_TIMEOUT_MS,
   EVAL_WORKSPACE_DIR,
@@ -98,8 +98,9 @@ export async function runEvalVerifier(
   folders: EvalFolders,
   timeoutMs = EVAL_VERIFY_TIMEOUT_MS,
 ): Promise<EvalVerdict> {
-  const folder = path.join(folders.root, EVAL_VERIFY_DIR)
-  await mkdir(folder)
+  // A fresh folder of its own: whatever a shell command left beside the
+  // workspace cannot be in it or stand in its way.
+  const folder = await mkdtemp(path.join(folders.root, EVAL_VERIFY_PREFIX))
   const script = path.join(folder, EVAL_VERIFY_FILE)
   await writeFile(script, `${EVAL_VERIFY_PRELUDE}${task.verify}\n`)
   return await new Promise<EvalVerdict>((resolve) => {
@@ -120,9 +121,12 @@ export async function runEvalVerifier(
           resolve({ passed: false, detail: late })
           return
         }
-        const output = detailOf(`${stderr}\n${stdout}`, folders.root)
+        // The assertion is on stderr; what the model's code printed to
+        // stdout is the fallback, so it can never crowd the assertion out.
+        const failure = detailOf(stderr, folders.root)
+        const printed = detailOf(stdout, folders.root)
         const silent = `the verifier exited with code ${String(error.code)} and no output`
-        resolve({ passed: false, detail: output === '' ? silent : output })
+        resolve({ passed: false, detail: failure || printed || silent })
       },
     )
   })

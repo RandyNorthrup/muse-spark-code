@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -168,6 +168,32 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
     expect(verdict.detail.split('\n').some((line) => line.trimStart().startsWith('at '))).toBe(
       false,
     )
+  })
+
+  it('keeps the assertion however much the model’s code printed', async () => {
+    const verdict = await verdictOf(
+      probeTask("process.stdout.write('x'.repeat(5000))\nassert.equal(1, 2)"),
+    )
+    expect(verdict.passed).toBe(false)
+    expect(verdict.detail).toContain('Expected values to be strictly equal')
+    expect(verdict.detail).not.toContain('xxxx')
+  })
+
+  it('runs each verifier in a fresh folder of its own', async () => {
+    const task = probeTask(
+      "assert.equal(readFileSync(join(workspace, 'a.js'), 'utf8').length > 0, true)",
+    )
+    const folders = await createEvalWorkspace(task, temporary.parent)
+    try {
+      // What a shell command could leave beside the workspace.
+      mkdirSync(path.join(folders.root, 'verify'))
+      const firstRun = await runEvalVerifier(task, folders)
+      expect(firstRun.passed).toBe(true)
+      const secondRun = await runEvalVerifier(task, folders)
+      expect(secondRun.passed).toBe(true)
+    } finally {
+      await removeEvalWorkspace(folders.root)
+    }
   })
 
   it('names the exit code of a verifier that fails silently', async () => {

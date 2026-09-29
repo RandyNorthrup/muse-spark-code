@@ -1863,7 +1863,8 @@ export const EVAL_VERIFY_DETAIL_MAX_CHARS = 600
 // Each task gets a fresh folder under the system's temporary folder.
 export const EVAL_TEMP_PREFIX = 'muse-eval-'
 export const EVAL_WORKSPACE_DIR = 'workspace'
-export const EVAL_VERIFY_DIR = 'verify'
+// The verifier's own folder beside the workspace, made fresh for each run.
+export const EVAL_VERIFY_PREFIX = 'verify-'
 export const EVAL_VERIFY_FILE = 'verify.mjs'
 // What a report shows instead of a task's temporary folder, which sits
 // under the owner's profile.

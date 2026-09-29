@@ -111,14 +111,93 @@ describe('eval wire', () => {
     expect(wire.refusals).toHaveLength(3)
   })
 
-  it('refuses any other host without sending', async () => {
+  it('refuses any other origin without sending, a changed scheme included', async () => {
     const api = fakeModelApi()
     const wire = wireOn(api.fetch)
-    const request = new Request('https://elsewhere.example.test/v1/responses')
-    expect(await refusalOf(await wire.fetch(request, modelCall()))).toBe(
-      'the evaluation sends nothing to elsewhere.example.test',
+    const elsewhere = new Request('https://elsewhere.example.test/v1/responses')
+    expect(await refusalOf(await wire.fetch(elsewhere, modelCall()))).toBe(
+      'the evaluation sends nothing to https://elsewhere.example.test',
+    )
+    const plain = RESPONSES_URL.replace('https:', 'http:')
+    expect(await refusalOf(await wire.fetch(plain, modelCall()))).toBe(
+      // eslint-disable-next-line unicorn/prefer-https -- the refused address is plain http on purpose
+      'the evaluation sends nothing to http://api.example.test',
     )
     expect(api.requests).toEqual([])
+  })
+
+  it('reads a request as fetch does, whatever its shape', async () => {
+    const api = fakeModelApi()
+    const wire = wireOn(api.fetch)
+    // A Request carrying everything, with no init: still a model call.
+    const whole = new Request(RESPONSES_URL, modelCall('muse-spark-1.3'))
+    expect(await refusalOf(await wire.fetch(whole))).toContain('not muse-spark-1.3')
+    // A lower-case method, and a trailing slash on the path.
+    const lower = await wire.fetch(`${RESPONSES_URL}/`, {
+      ...modelCall('muse-spark-1.3'),
+      method: 'post',
+    })
+    expect(await refusalOf(lower)).toContain('not muse-spark-1.3')
+    // A body that is not a string.
+    const bytes = await wire.fetch(RESPONSES_URL, {
+      method: 'POST',
+      body: new TextEncoder().encode(JSON.stringify({ model: 'muse-spark-1.3' })),
+    })
+    expect(await refusalOf(bytes)).toContain('not muse-spark-1.3')
+    expect(api.requests).toEqual([])
+  })
+
+  it('sends a Request input with its body intact', async () => {
+    const seen: string[] = []
+    const recording: typeof fetch = async (input) => {
+      seen.push(input instanceof Request ? await input.text() : 'not a request')
+      return Response.json({ object: 'list', data: [] })
+    }
+    const wire = wireOn(recording)
+    const request = new Request(`${FAKE_MODEL_API_BASE_URL}/responses/input_tokens`, {
+      method: 'POST',
+      body: JSON.stringify({ model: EVAL_MODEL_ID, input: [] }),
+    })
+    const response = await wire.fetch(request)
+    expect(response.status).toBe(200)
+    expect(seen).toEqual([JSON.stringify({ model: EVAL_MODEL_ID, input: [] })])
+    // A token count is a request, not an attempt.
+    expect(wireTotals(wire)).toMatchObject({ attempts: 0, requests: 1 })
+  })
+
+  it('refuses every request the harness does not make without a paid feature', async () => {
+    const api = fakeModelApi()
+    const wire = wireOn(api.fetch)
+    const image = await wire.fetch(`${FAKE_MODEL_API_BASE_URL}/images/generations`, modelCall())
+    expect(await refusalOf(image)).toBe('the evaluation sends no POST /images/generations')
+    const counted = await wire.fetch(`${FAKE_MODEL_API_BASE_URL}/responses/input_tokens`, {
+      ...modelCall('muse-spark-1.3'),
+    })
+    expect(await refusalOf(counted)).toContain('not muse-spark-1.3')
+    expect(api.requests).toEqual([])
+  })
+
+  it('stops reading a reply the client stopped reading', async () => {
+    // eslint-disable-next-line unicorn/consistent-function-scoping -- WIP: move to module scope when resuming M75
+    const quiet: typeof fetch = () =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              // One frame, then silence: the stream never ends on its own.
+              controller.enqueue(new TextEncoder().encode('data: not json\n\n'))
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'text/event-stream' } },
+        ),
+      )
+    const wire = wireOn(quiet)
+    const response = await wire.fetch(RESPONSES_URL, modelCall())
+    const reader = response.body?.getReader()
+    await reader?.read()
+    await reader?.cancel()
+    await wire.settle()
+    expect(wire.problems).toEqual(['a reply ended without its usage'])
   })
 
   it('refuses everything once the budget is spent', async () => {
@@ -135,7 +214,9 @@ describe('eval wire', () => {
     const response = await wire.fetch(RESPONSES_URL, modelCall())
     await expect(response.text()).rejects.toThrow()
     await wire.settle()
-    expect(wire.problems).toEqual(['a reply stream ended early: the connection was reset'])
+    expect(wire.problems).toEqual([
+      'a reply stream failed before its usage: the connection was reset',
+    ])
     expect(wireTotals(wire).attempts).toBe(1)
   })
 })

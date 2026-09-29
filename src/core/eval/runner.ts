@@ -29,12 +29,12 @@ import type {
   EvalTaskResult,
 } from './report'
 import type { EvalTask } from './tasks'
-import { createEvalWire, wireTotals, type EvalBudget } from './wire'
+import { createEvalWire, wireTotals, type EvalBudget, type EvalWire } from './wire'
 import {
   createEvalWorkspace,
   removeEvalWorkspace,
   runEvalVerifier,
-  type EvalVerdict,
+  type EvalFolders,
 } from './workspace'
 
 export interface EvalArm {
@@ -68,10 +68,7 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function turnFailures(outcome: EvalTurnOutcome | undefined, runError: string | undefined) {
-  if (outcome === undefined) {
-    return [`the turn could not run: ${String(runError)}`]
-  }
+function turnFailures(outcome: EvalTurnOutcome): string[] {
   const failures = [...outcome.problems]
   if (outcome.terminal !== EVAL_TURN_COMPLETED) {
     const reason = outcome.reason === undefined ? '' : `: ${outcome.reason}`
@@ -83,6 +80,64 @@ function turnFailures(outcome: EvalTurnOutcome | undefined, runError: string | u
   return failures
 }
 
+/** One step of a task: an error fails that task, never the whole run. */
+async function step<T>(
+  what: string,
+  failures: string[],
+  run: () => Promise<T>,
+): Promise<T | undefined> {
+  try {
+    return await run()
+  } catch (error: unknown) {
+    failures.push(`${what}: ${describe(error)}`)
+    return undefined
+  }
+}
+
+/** The turn, the verifier, the key scan and the removal, each a step of its own. */
+async function runInFolders(
+  task: EvalTask,
+  arm: EvalArm,
+  deps: EvalRunDeps,
+  wire: EvalWire,
+  folders: EvalFolders,
+  failures: string[],
+): Promise<EvalTurnOutcome | undefined> {
+  const outcome = await step('the turn could not run', failures, () =>
+    runEvalTurn({
+      deps: {
+        client: new ModelApiClient({ ...deps.client, fetch: wire.fetch }),
+        io: deps.toolIo(folders.workspace),
+        contextIo: deps.contextIo,
+        platform: deps.platform,
+        accountId: deps.accountId,
+        log: deps.log,
+        now: deps.now,
+        newId: deps.newId,
+        turnTimeoutMs: deps.turnTimeoutMs,
+      },
+      workspace: folders.workspace,
+      prompt: task.prompt,
+      change: arm.change,
+    }),
+  )
+  await wire.settle()
+  if (outcome !== undefined) {
+    failures.unshift(...turnFailures(outcome))
+    const verdict = await step('the verifier could not run', failures, () =>
+      runEvalVerifier(task, folders),
+    )
+    if (verdict?.passed === false) {
+      failures.push(`the verifier failed: ${verdict.detail}`)
+    }
+  }
+  await step('the folder could not be inspected', failures, async () => {
+    await deps.inspect?.(folders.root)
+  })
+  await step('the folder could not be removed', failures, () => removeEvalWorkspace(folders.root))
+  return outcome
+}
+
 async function runTask(
   task: EvalTask,
   arm: EvalArm,
@@ -90,45 +145,22 @@ async function runTask(
   budget: EvalBudget,
 ): Promise<EvalTaskResult> {
   const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
-  const folders = await createEvalWorkspace(task)
-  let outcome: EvalTurnOutcome | undefined
-  let runError: string | undefined
-  let verdict: EvalVerdict | undefined
-  try {
-    try {
-      outcome = await runEvalTurn({
-        deps: {
-          client: new ModelApiClient({ ...deps.client, fetch: wire.fetch }),
-          io: deps.toolIo(folders.workspace),
-          contextIo: deps.contextIo,
-          platform: deps.platform,
-          accountId: deps.accountId,
-          log: deps.log,
-          now: deps.now,
-          newId: deps.newId,
-          turnTimeoutMs: deps.turnTimeoutMs,
-        },
-        workspace: folders.workspace,
-        prompt: task.prompt,
-        change: arm.change,
-      })
-    } catch (error: unknown) {
-      runError = describe(error)
-    }
-    await wire.settle()
-    verdict = outcome === undefined ? undefined : await runEvalVerifier(task, folders)
-    await deps.inspect?.(folders.root)
-  } finally {
-    await removeEvalWorkspace(folders.root)
-  }
+  const steps: string[] = []
+  const folders = await step('the workspace could not be made', steps, () =>
+    createEvalWorkspace(task),
+  )
+  const outcome =
+    folders === undefined ? undefined : await runInFolders(task, arm, deps, wire, folders, steps)
   // The report is committed: the temporary path (under the owner's
   // profile) is masked wherever a reason carries it.
+  const root = folders?.root
   const failures = [
-    ...turnFailures(outcome, runError),
-    ...(verdict === undefined || verdict.passed ? [] : [`the verifier failed: ${verdict.detail}`]),
+    ...steps,
     ...wire.refusals.map((reason) => `refused: ${reason}`),
     ...wire.problems,
-  ].map((failure) => failure.replaceAll(folders.root, () => EVAL_ROOT_MASK))
+  ].map((failure) =>
+    root === undefined ? failure : failure.replaceAll(root, () => EVAL_ROOT_MASK),
+  )
   const totals = wireTotals(wire)
   const isPassed = failures.length === 0
   deps.log.info(
@@ -149,6 +181,8 @@ async function runTask(
     costUsd: totals.costUsd,
     toolCalls: outcome?.tools.length ?? 0,
     approvals: outcome?.approvals ?? 0,
+    questions: outcome?.questions ?? 0,
+    paidRefusals: outcome?.paidRefusals ?? 0,
   }
 }
 

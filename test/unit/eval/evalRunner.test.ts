@@ -230,6 +230,70 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(JSON.stringify(report)).not.toContain(roots[0] ?? 'no root')
   })
 
+  it('fails one task, not the run, when a step of it throws', async () => {
+    const { api, deps } = rig()
+    const [first, second] = EVAL_TASKS
+    if (first === undefined || second === undefined) {
+      throw new Error('the task set is too small')
+    }
+    const broken: EvalTask = {
+      ...first,
+      id: 'broken-fixture',
+      files: [{ path: '../outside.js', content: 'x' }],
+    }
+    let isFirstScan = true
+    api.script(...canonical(first), ...canonical(second))
+    const report = await runPairedEval([broken, first, second], [BASELINE], {
+      ...deps,
+      inspect: () => {
+        if (!isFirstScan) {
+          return Promise.resolve()
+        }
+        isFirstScan = false
+        return Promise.reject(new Error('the file is busy'))
+      },
+    })
+    const [made, scanned, clean] = report.arms[0]?.results ?? []
+    expect(made).toMatchObject({ passed: false, terminal: EVAL_TURN_NOT_RUN, attempts: 0 })
+    expect(made?.failures[0]).toContain('the workspace could not be made: ')
+    expect(scanned).toMatchObject({ passed: false, terminal: 'completed' })
+    expect(scanned?.failures).toEqual(['the folder could not be inspected: the file is busy'])
+    expect(clean).toMatchObject({ passed: true, failures: [] })
+  })
+
+  it('records the questions it answered', async () => {
+    const { api, deps } = rig()
+    const [task] = EVAL_TASKS
+    if (task === undefined) {
+      throw new Error('the task set is empty')
+    }
+    const question: ScriptedReply = {
+      calls: [
+        {
+          name: 'ask_user',
+          arguments: JSON.stringify({
+            questions: [
+              {
+                id: 'q',
+                header: 'Which',
+                question: 'Which bound?',
+                selection: { mode: 'single' },
+                options: [{ label: 'The strict one' }],
+              },
+            ],
+          }),
+        },
+      ],
+    }
+    api.script(question, ...canonical(task))
+    const report = await runPairedEval([task], [BASELINE], deps)
+    expect(report.arms[0]?.results[0]).toMatchObject({
+      passed: true,
+      questions: 1,
+      paidRefusals: 0,
+    })
+  })
+
   it('counts a retried request as an attempt', async () => {
     const { api, deps } = rig()
     const [task] = EVAL_TASKS

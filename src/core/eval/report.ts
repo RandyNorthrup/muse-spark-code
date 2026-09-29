@@ -7,6 +7,8 @@ import * as z from 'zod/mini'
 import { EVAL_COST_DECIMALS, EVAL_SPLITS } from '../../shared/constants'
 
 export const EVAL_VERDICTS = ['pass', 'fail', 'incomplete'] as const
+// CommonMark's shortest code fence.
+const MIN_FENCE_LENGTH = 3
 
 /** What the trace counts, per task and per split. */
 const evalCountFields = {
@@ -31,7 +33,12 @@ export const evalTaskResultSchema = z.object({
   failures: z.array(z.string()),
   ...evalCountFields,
   toolCalls: z.number(),
+  /** Cards allowed once (shell commands, protected writes). */
   approvals: z.number(),
+  /** Questions the model asked, each answered "proceed". */
+  questions: z.number(),
+  /** Paid uses the harness asked for, each refused. */
+  paidRefusals: z.number(),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
@@ -108,18 +115,25 @@ function heldWord(floor: EvalFloorResult): string {
   return floor.held ? 'yes' : 'no'
 }
 
+/** Text in a code fence longer than any run of backticks inside it. */
+function fenced(text: string): string[] {
+  const longest = Math.max(0, ...(text.match(/`+/gu) ?? []).map((run) => run.length))
+  const fence = '`'.repeat(Math.max(MIN_FENCE_LENGTH, longest + 1))
+  return [`${fence}text`, text, fence]
+}
+
 function armLines(arm: EvalArmReport): string[] {
   const lines = [`## Arm: ${arm.name}`, ``]
   if (arm.mechanism !== undefined) {
     lines.push(`Mechanism: ${arm.mechanism}`, ``)
   }
   lines.push(
-    `| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards |`,
-    `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`,
+    `| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards | Questions | Paid refused |`,
+    `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`,
   )
   for (const result of arm.results) {
     lines.push(
-      `| ${result.taskId} | ${result.split} | ${result.passed ? 'yes' : 'no'} | ${result.terminal} | ${String(result.attempts)} | ${String(result.requests)} | ${String(result.inputTokens)} | ${String(result.cachedTokens)} | ${String(result.outputTokens)} | ${formatCost(result.costUsd)} | ${String(result.toolCalls)} | ${String(result.approvals)} |`,
+      `| ${result.taskId} | ${result.split} | ${result.passed ? 'yes' : 'no'} | ${result.terminal} | ${String(result.attempts)} | ${String(result.requests)} | ${String(result.inputTokens)} | ${String(result.cachedTokens)} | ${String(result.outputTokens)} | ${formatCost(result.costUsd)} | ${String(result.toolCalls)} | ${String(result.approvals)} | ${String(result.questions)} | ${String(result.paidRefusals)} |`,
     )
   }
   lines.push(``)
@@ -131,13 +145,14 @@ function armLines(arm: EvalArmReport): string[] {
     )
   }
   lines.push(``)
-  const failed = arm.results.filter((result) => !result.passed)
-  for (const result of failed) {
-    const reason = result.failures.join('; ')
-    lines.push(`- ${result.taskId} failed: ${reason === '' ? 'no detail' : reason}`)
-  }
-  if (failed.length > 0) {
-    lines.push(``)
+  for (const result of arm.results) {
+    if (result.passed) {
+      continue
+    }
+    // A reason can carry what the model's code printed: kept as text in a
+    // fence, never read as Markdown.
+    const reason = result.failures.join('\n')
+    lines.push(`${result.taskId} failed:`, ``, ...fenced(reason === '' ? 'no detail' : reason), ``)
   }
   return lines
 }

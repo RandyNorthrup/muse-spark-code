@@ -178,6 +178,32 @@ describe('runEvalTurn', () => {
     expect(changed.api.responseBodies()[0]?.['prompt_cache_retention']).toBe('24h')
   })
 
+  it('holds the trace, the workspace and the paid-use hooks fixed', async () => {
+    const api = fakeModelApi()
+    const other = fakeModelApiClient(api, new FakeLogOutputChannel())
+    await expect(
+      drive([{ text: 'ok' }], {
+        change: (deps) => ({ ...deps, client: other, workspaceRoot: '/elsewhere' }),
+      }),
+    ).rejects.toThrow(
+      'the mechanism changed client, workspaceRoot, which the evaluation holds fixed',
+    )
+    await expect(
+      drive([{ text: 'ok' }], {
+        change: (deps) => ({
+          ...deps,
+          allowsPaidUse: () => Promise.resolve(true),
+          isPaidUseRemembered: () => true,
+          notePaidUse: () => undefined,
+          noteSubagentUsage: () => undefined,
+        }),
+      }),
+    ).rejects.toThrow(
+      'the mechanism changed allowsPaidUse, isPaidUseRemembered, notePaidUse, noteSubagentUsage, which',
+    )
+    expect(api.requests).toEqual([])
+  })
+
   it('reports a turn that failed, with its reason', async () => {
     const { outcome } = await drive([
       { failed: { code: 'server_error', message: 'the backend fell over' } },

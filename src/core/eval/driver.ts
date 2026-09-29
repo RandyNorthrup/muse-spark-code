@@ -75,6 +75,33 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/**
+ * What a mechanism may not change: the client (every request must pass the
+ * trace), the workspace (the empty folder) and the paid-use hooks (the run
+ * refuses and counts every paid use).
+ */
+const HELD_DEPS = [
+  'client',
+  'workspaceRoot',
+  'allowsPaidUse',
+  'isPaidUseRemembered',
+  'notePaidUse',
+  'noteSubagentUsage',
+] as const satisfies readonly (keyof ModelApiHostDeps)[]
+
+/** The mechanism's harness; one that moves a held dependency does not run. */
+function applyChange(deps: ModelApiHostDeps, change: EvalHostChange | undefined): ModelApiHostDeps {
+  if (change === undefined) {
+    return deps
+  }
+  const changed = change(deps)
+  const moved = HELD_DEPS.filter((name) => changed[name] !== deps[name])
+  if (moved.length > 0) {
+    throw new Error(`the mechanism changed ${moved.join(', ')}, which the evaluation holds fixed`)
+  }
+  return changed
+}
+
 /** What the owner would click on a card: allow once. */
 function allowOnce(session: AgentSession, card: ApprovalRequested, problems: string[]): void {
   void session
@@ -127,7 +154,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
       counts.paidUses += 1
     },
   }
-  const host = new ModelApiHost(options.change === undefined ? hostDeps : options.change(hostDeps))
+  const host = new ModelApiHost(applyChange(hostDeps, options.change))
   try {
     const session = await host.startSession({
       workspaceRoot: options.workspace,
