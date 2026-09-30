@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { projectMemoryFolder } from '../../src/core/memory/memoryLocation'
 import {
+  type MemoryIo,
   type MemoryNotePlace,
-  type MemoryStore,
+  MemoryStore,
   memoryPathProblem,
 } from '../../src/core/memory/memoryStore'
 import { MEMORY_SNAPSHOT_MAX_NOTES, type MemoryScope } from '../../src/shared/constants'
-import { HOME_DATA, memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
+import { HOME_DATA, memoryIoOver, memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
 
 const PROJECT = '/ws/.agents/memory'
 const PERSONAL_PROJECT = `${HOME_DATA}/projects/${projectMemoryFolder([], '/ws', 'linux')}`
@@ -29,6 +30,22 @@ async function place(
     throw new Error(located.reason)
   }
   return located.value
+}
+
+/** A guard that never refuses; the store must hand this very function on. */
+const UNREFUSED = (): void => undefined
+
+/** A file map that tells when a file is written: the moment a guard is revoked in a race. */
+class WatchedFiles extends Map<string, string> {
+  public constructor(private readonly onWrite: (key: string) => void) {
+    super()
+  }
+
+  public override set(key: string, value: string): this {
+    super.set(key, value)
+    this.onWrite(key)
+    return this
+  }
 }
 
 describe('memoryPathProblem: Muse Code’s own checks', () => {
@@ -446,6 +463,108 @@ describe('MemoryStore: the view and the snapshot', () => {
     await t.store.forget(await place(t.store, 'personal', 'none.md'))
     expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('- [b](b.md) | B\n')
     expect(t.files.has(`${PERSONAL}/MEMORY.md`)).toBe(false)
+  })
+
+  it('carries the view’s guard to every step of a new note, so a revoked one writes nothing', async () => {
+    // Revoked before anything runs, and revoked as the exclusive creation starts.
+    for (const revoke of ['first', 'publication'] as const) {
+      const guard = { isRevoked: revoke === 'first' }
+      const t = setup(
+        {},
+        {
+          beforeCreate: () => {
+            guard.isRevoked = true
+          },
+        },
+      )
+      await expect(
+        t.store.create('personal', 'tabs.md', 'Indentation', () => {
+          if (guard.isRevoked) {
+            throw new Error('the window closed')
+          }
+        }),
+      ).rejects.toThrow('the window closed')
+      expect(t.files.size).toBe(0)
+    }
+  })
+
+  it('keeps the note a guard left published, reports its missing index line, and returns it', async () => {
+    const note = `${PERSONAL}/tabs.md`
+    const guard = { isRevoked: false }
+    const files = new WatchedFiles((key) => {
+      guard.isRevoked ||= key === note
+    })
+    const t = memoryStoreOver(files)
+    await expect(
+      t.store.create('personal', 'tabs.md', 'Indentation', () => {
+        if (guard.isRevoked) {
+          throw new Error('the window closed')
+        }
+      }),
+    ).resolves.toMatchObject({ absolute: note })
+    expect(files.get(note)).toBe('---\ndescription: Indentation\n---\n\n')
+    expect(files.has(`${PERSONAL}/MEMORY.md`)).toBe(false)
+    expect(t.warnings).toEqual([
+      `${note} was written, but its MEMORY.md line was not: the window closed`,
+    ])
+  })
+
+  it('hands the very guard it was given to the native note creation and to each index write', async () => {
+    const files = new Map<string, string>([[`${PROJECT}/MEMORY.md`, '- [old](old.md) | Old\n']])
+    const inner = memoryIoOver(files)
+    const creates: (() => void)[] = []
+    const writes: (() => void)[] = []
+    const io: MemoryIo = {
+      ...inner,
+      createFile: async (file, content, checked, guard) => {
+        if (guard !== undefined) {
+          creates.push(guard)
+        }
+        await inner.createFile(file, content, checked, guard)
+      },
+      writeFile: async (file, content, guard) => {
+        if (guard !== undefined) {
+          writes.push(guard)
+        }
+        await inner.writeFile(file, content, guard)
+      },
+    }
+    const store = new MemoryStore({
+      io,
+      platform: 'linux',
+      dataRoot: () => HOME_DATA,
+      workspaceRoot: '/ws',
+      systemPath: (absolutePath) => Promise.resolve(absolutePath),
+      warn: () => undefined,
+    })
+    const created = await store.create('project', 'tabs.md', 'Indentation', UNREFUSED)
+    await store.forget(created, UNREFUSED)
+    expect(creates).toEqual([UNREFUSED])
+    expect(writes).toEqual([UNREFUSED, UNREFUSED])
+  })
+
+  it('refuses the index write of a deleted note whichever guard call is the revoked one', async () => {
+    const index = `${PROJECT}/MEMORY.md`
+    const before = '- [a](a.md) | A\n- [b](b.md) | B\n'
+    let calls = 0
+    const counting = setup({ [index]: before })
+    await counting.store.forget(await place(counting.store, 'project', 'a.md'), () => {
+      calls += 1
+    })
+    expect(counting.files.get(index)).toBe('- [b](b.md) | B\n')
+    expect(calls).toBeGreaterThan(1)
+    for (let revoked = 1; revoked <= calls; revoked += 1) {
+      const t = setup({ [index]: before })
+      let seen = 0
+      const refused = t.store.forget(await place(t.store, 'project', 'a.md'), () => {
+        seen += 1
+        if (seen === revoked) {
+          throw new Error('the window closed')
+        }
+      })
+      await expect(refused).rejects.toThrow('the window closed')
+      expect(t.files.get(index)).toBe(before)
+    }
   })
 
   it('snapshots each scope that keeps notes: its index and the other notes’ paths', async () => {

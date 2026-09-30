@@ -19,6 +19,8 @@ import {
 } from '../../shared/constants'
 import type { Logger } from '../logger'
 import { turnKey } from '../../core/checkpoints/turnKey'
+import { isBelow } from '../../core/workspacePath'
+import { pathModule } from '../../core/workspaceRoot'
 import type {
   CaptureResult,
   CheckpointStore,
@@ -266,6 +268,37 @@ export async function withCheckpointEdit<T>(
   } finally {
     await checkpoints.markTurn(key, false)
   }
+}
+
+/** The workspace folder a restore writes under, and the platform whose path rules compare with it. */
+export interface EditWorkspace {
+  readonly root: string | undefined
+  readonly platform: NodeJS.Platform
+}
+
+/**
+ * An explicit edit of `absolutePath`, which may lie outside the workspace
+ * folder: inside it the pure lease is held until `work` settles; outside it
+ * (a personal data folder, a file the user exports elsewhere) or with no
+ * path no restore writes, so only the guard speaks, before the work starts.
+ */
+export async function withCheckpointEditAt<T>(
+  checkpoints: CheckpointPort,
+  check: () => void,
+  workspace: EditWorkspace,
+  absolutePath: string | undefined,
+  work: () => Promise<T>,
+): Promise<T> {
+  const p = pathModule(workspace.platform)
+  const isInside =
+    workspace.root !== undefined &&
+    absolutePath !== undefined &&
+    isBelow(p.relative(workspace.root, absolutePath), p)
+  if (!isInside) {
+    check()
+    return await work()
+  }
+  return await withCheckpointEdit(checkpoints, check, work)
 }
 
 /**

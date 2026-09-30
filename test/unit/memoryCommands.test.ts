@@ -13,6 +13,10 @@ interface HarnessOptions {
   readonly description?: string | undefined
   readonly isConfirmed?: boolean
   readonly workspaceRoot?: string | undefined
+  /** The edit guard is revoked once the description is asked (before the note is written). */
+  readonly revokeAfterDescription?: boolean
+  /** The edit guard is revoked once the trash has moved the note (before its index line goes). */
+  readonly revokeAfterTrash?: boolean
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -28,10 +32,28 @@ function harness(options: HarnessOptions = {}) {
   const errors: string[] = []
   const confirmations: string[] = []
   const validations: (string | undefined)[] = []
+  /** The lease and the trash, in the order they happened. */
+  const events: string[] = []
+  const guard = { isRevoked: false }
+  const held: { index?: string | undefined; note?: string | undefined } = {}
   let docs = 0
   const answers = [...(options.answers ?? [])]
   const deps: MemoryViewDeps = {
     store,
+    edit: async (scope, work) => {
+      events.push(`${scope}:open`)
+      try {
+        return await work(() => {
+          if (guard.isRevoked) {
+            throw new Error('the window closed')
+          }
+        })
+      } finally {
+        held.index = files.get(`${PROJECT}/MEMORY.md`)
+        held.note = files.get(`${PERSONAL}/tabs.md`)
+        events.push(`${scope}:closed`)
+      }
+    },
     pick: (items, title, placeholder) => {
       picks.push({ items, title, placeholder })
       return Promise.resolve(answers.shift())
@@ -42,7 +64,10 @@ function harness(options: HarnessOptions = {}) {
       }
       return options.name
     },
-    askDescription: () => Promise.resolve(options.description),
+    askDescription: () => {
+      guard.isRevoked = options.revokeAfterDescription === true
+      return Promise.resolve(options.description)
+    },
     confirm: (message) => {
       confirmations.push(message)
       return Promise.resolve(options.isConfirmed ?? true)
@@ -51,9 +76,12 @@ function harness(options: HarnessOptions = {}) {
       opened.push(fsPath)
       return Promise.resolve()
     },
-    trash: (fsPath) => {
+    trash: (fsPath, assertCanWrite) => {
+      assertCanWrite()
+      events.push('trash')
       trashed.push(fsPath)
       files.delete(fsPath)
+      guard.isRevoked = options.revokeAfterTrash === true
       return Promise.resolve()
     },
     openDocs: () => {
@@ -76,6 +104,8 @@ function harness(options: HarnessOptions = {}) {
     errors,
     confirmations,
     validations,
+    events,
+    held,
     docs: () => docs,
   }
 }
@@ -157,6 +187,58 @@ describe('showMemory (M49)', () => {
     const index = harness({ files: NOTES, answers: ['note:0', undefined] })
     await showMemory(index.deps)
     expect(index.picks[1]?.items[1]?.detail).toBe('Moves the index to the trash; the notes stay')
+  })
+
+  it('holds one lease around the trash and the index line, and leaves it when both are done', async () => {
+    const t = harness({ files: NOTES, answers: ['note:1', 'delete'] })
+    await showMemory(t.deps)
+    expect(t.events).toEqual(['project:open', 'trash', 'project:closed'])
+    expect(t.held.index).toBe('- [x](x.md) | X\n')
+  })
+
+  it('leaves the lease when the trash fails, and the index line stays', async () => {
+    const t = harness({ files: NOTES, answers: ['note:1', 'delete'] })
+    await showMemory({ ...t.deps, trash: () => Promise.reject(new Error('EPERM')) })
+    expect(t.events).toEqual(['project:open', 'project:closed'])
+    expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe(NOTES[`${PROJECT}/MEMORY.md`])
+  })
+
+  it('reports a guard revoked after the trash, which leaves the index line in place', async () => {
+    const t = harness({ files: NOTES, answers: ['note:1', 'delete'], revokeAfterTrash: true })
+    await showMemory(t.deps)
+    expect(t.trashed).toEqual([`${PROJECT}/deploy.md`])
+    expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe(NOTES[`${PROJECT}/MEMORY.md`])
+    expect(t.errors).toEqual(['The memory could not be changed: the window closed'])
+    expect(t.information).toEqual([])
+    expect(t.events).toEqual(['project:open', 'trash', 'project:closed'])
+  })
+
+  it('holds one lease around a new note and its index line, then opens it', async () => {
+    const t = harness({
+      files: NOTES,
+      answers: ['action:new', 'personal'],
+      name: 'tabs',
+      description: 'Indentation',
+    })
+    await showMemory(t.deps)
+    expect(t.events).toEqual(['personal:open', 'personal:closed'])
+    expect(t.held.note).toBe('---\ndescription: Indentation\n---\n\n')
+    expect(t.opened).toEqual([`${PERSONAL}/tabs.md`])
+  })
+
+  it('writes no note when the guard is revoked before the note is published', async () => {
+    const t = harness({
+      files: NOTES,
+      answers: ['action:new', 'personal'],
+      name: 'tabs',
+      description: 'Indentation',
+      revokeAfterDescription: true,
+    })
+    await showMemory(t.deps)
+    expect(t.files.has(`${PERSONAL}/tabs.md`)).toBe(false)
+    expect(t.files.has(`${PERSONAL}/MEMORY.md`)).toBe(false)
+    expect(t.opened).toEqual([])
+    expect(t.errors).toEqual(['The memory could not be changed: the window closed'])
   })
 
   it('creates a note in the chosen scope, checks the name as Muse Code would, and opens it', async () => {

@@ -646,12 +646,17 @@ export class MemoryStore {
     scope: MemoryScope,
     notePath: string,
     description: string,
+    assertCurrent?: () => void,
   ): Promise<MemoryNotePlace> {
+    assertCurrent?.()
     const place = await this.locate(scope, notePath)
+    assertCurrent?.()
     if (!place.ok) {
       throw new Error(place.reason)
     }
-    if (await this.hasNote(place.value)) {
+    const isPresent = await this.hasNote(place.value)
+    assertCurrent?.()
+    if (isPresent) {
       throw new Error(MODEL_TEXT.memoryNoteExists)
     }
     const hook = description.trim()
@@ -660,23 +665,27 @@ export class MemoryStore {
         place.value.absolute,
         hook === '' ? '' : newNoteText({ content: '', description: hook }),
         place.value.checked,
+        assertCurrent,
       )
     } catch (error: unknown) {
       throw new Error(isTaken(error) ? MODEL_TEXT.memoryNoteExists : describe(error), {
         cause: error,
       })
     }
-    await this.addIndexLine(place.value, hook)
+    await this.addIndexLine(place.value, hook, assertCurrent)
     return place.value
   }
 
   /** After the view deleted a note: its lines leave the scope's index. */
-  public async forget(place: MemoryNotePlace): Promise<void> {
+  public async forget(place: MemoryNotePlace, assertCurrent?: () => void): Promise<void> {
     if (isIndexPath(place.path)) {
       return
     }
+    assertCurrent?.()
     const index = await this.indexPlace(place.scope)
+    assertCurrent?.()
     const text = await this.deps.io.readFile(index.absolute)
+    assertCurrent?.()
     const updated = text === undefined ? undefined : withoutIndexLines(text, place.path)
     if (updated === undefined) {
       return
@@ -687,7 +696,7 @@ export class MemoryStore {
       )
       return
     }
-    await this.deps.io.writeFile(index.absolute, updated)
+    await this.deps.io.writeFile(index.absolute, updated, assertCurrent)
   }
 
   /**

@@ -11,6 +11,7 @@ import {
   createCheckpointPort,
   prepareCheckpointTurn,
   withCheckpointCopies,
+  withCheckpointEditAt,
 } from '../../src/host/checkpoints/checkpointHost'
 import { ignoredChanges, scanIgnored } from '../../src/host/checkpoints/ignoredScan'
 import {
@@ -344,6 +345,84 @@ describe('withCheckpointCopies (M72)', () => {
     expect(calls).toEqual(['copy /ws/.env', 'copy /ws/image.png', 'copy /ws/.env'])
     expect(writes).toEqual([])
   })
+})
+
+describe('withCheckpointEditAt (M72)', () => {
+  const linux = { root: '/ws', platform: 'linux' } as const
+
+  it('holds the pure lease around work inside the workspace, and lets it go when the work fails', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    const check = vi.fn()
+    const done = await withCheckpointEditAt(port, check, linux, '/ws/.agents/memory/a.md', () => {
+      calls.push('work')
+      return Promise.resolve('written')
+    })
+    expect(done).toBe('written')
+    const [opened, work, closed] = calls
+    expect(opened).toMatch(/^mark workspace-activity:\S+ true$/)
+    expect(work).toBe('work')
+    expect(closed).toMatch(/^mark workspace-activity:\S+ false$/)
+    expect(check).toHaveBeenCalledTimes(2)
+    calls.length = 0
+    await expect(
+      withCheckpointEditAt(port, check, linux, '/ws/a.md', () =>
+        Promise.reject(new Error('EPERM')),
+      ),
+    ).rejects.toThrow('EPERM')
+    expect(calls.map((call) => call.split(' ').at(-1))).toEqual(['true', 'false'])
+  })
+
+  it.each([
+    ['another folder beside it', linux, '/ws-other/a.md'],
+    ['a path that climbs out', linux, '/ws/../home/a.md'],
+    ['the folder itself', linux, '/ws'],
+    ['another letter case on a case-sensitive platform', linux, '/WS/a.md'],
+    ['another drive', { root: String.raw`C:\Ws`, platform: 'win32' }, String.raw`D:\ws\a.md`],
+    ['no workspace folder', { root: undefined, platform: 'linux' }, '/ws/a.md'],
+    ['no path at all', linux, undefined],
+  ] as const)('takes no lease for %s, and asks the guard first', async (_name, workspace, file) => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    const check = vi.fn()
+    await withCheckpointEditAt(port, check, workspace, file, () => {
+      calls.push('work')
+      return Promise.resolve()
+    })
+    expect(calls).toEqual(['work'])
+    expect(check).toHaveBeenCalledOnce()
+  })
+
+  it('folds the letter case of a Windows path, as the file system does', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    await withCheckpointEditAt(
+      port,
+      vi.fn(),
+      { root: String.raw`C:\Ws`, platform: 'win32' },
+      String.raw`c:\ws\notes\a.md`,
+      () => Promise.resolve(),
+    )
+    expect(calls).toHaveLength(2)
+  })
+
+  it.each(['/ws/a.md', '/elsewhere/a.md'])(
+    'runs no work once the guard refuses (%s)',
+    async (file) => {
+      const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+      const work = vi.fn(() => Promise.resolve())
+      await expect(
+        withCheckpointEditAt(
+          port,
+          () => {
+            throw new Error('the window closed')
+          },
+          linux,
+          file,
+          work,
+        ),
+      ).rejects.toThrow('the window closed')
+      expect(work).not.toHaveBeenCalled()
+      expect(calls).toEqual([])
+    },
+  )
 })
 
 describe('the ignored-file scan (M72)', () => {

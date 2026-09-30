@@ -7765,16 +7765,72 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M72 — Turn checkpoints (D49)
 
-**Whole-suite correction batch, 2026-09-30 (proof queued).** Four controller
-expectations predate the required checkpoint-state row. Preserve their exact
-old auth/composer/model/session/skills/attachment order, adding the explicit
-`noFolder`, blocked Restore/Redo, empty legacy/current turn lists and relevant
-session identity at the actual emission point. Side-session clearing must
-assert the complete new message sequence rather than assume a position from
-the end. Scan adjoining initialization/replay/history/resume and webview
-protocol consumers in the same batch; do not filter out the new state or
-weaken assertions. This is a fixture contract correction, not a product
-behavior change. Root collects all other failures before another full gate.
+**Actual memory composition and GUI admission batch, 2026-09-30 (built; aggregate
+gates and platform runs open).** Activation built Muse Code's
+memory over the raw tool I/O while the guarded owning fixture composed a
+checkpointed one, so a replacement of an ignored project note or of its
+`MEMORY.md` took no checkpoint copy, an exclusive creation (which has no
+ToolIo call) took none either, and the Memory view's creation and trash held
+no restore lease. One small composition, `createCheckpointedMemory`
+(`host/backend/checkpointedMemory.ts`), is now the only place activation
+builds the store, and the regression tests build it too:
+
+- Replacements (an existing note, an edit, `MEMORY.md`) go through
+  `withCheckpointCopies` with the original guard. An exclusive creation
+  awaits the same `beforeToolWrite` copy, then publishes with no-clobber and
+  the same guard. The accepted-first-write rule is kept: a note already
+  published stays when a later index guard refuses, with the honest index
+  warning.
+- The view's creation, trash and index line run under the pure edit lease
+  (`withCheckpointEditAt`) until their native promises settle, with one guard
+  captured when the action starts (`backend.workspaceActionGuard`, the same as
+  Create AGENTS.md and the review revert). The guard is handed through
+  `Store.create` and `Store.forget` to the atomic publication callbacks. A
+  note is copied before the trash (`beforeDelete`), and the guard speaks last
+  right before VS Code's delete, which has no callback seam. A trashed note
+  stays trashed when the index guard refuses, and the failure is reported.
+- Whether a scope takes the lease is decided by its folder, not its name:
+  only a scope under the workspace folder does (the project scope; Muse
+  Code's personal folders when the window is opened on the home). The rest
+  keep only the lifetime guard, so no project lease is taken for a path no
+  restore writes. The view has no trust gate, as before, so it still works
+  in Restricted Mode (the lease publishes its mark there too, with no git).
+- A conversation export the user places is written through the same lease
+  when its file lies in the workspace (`cliFeatures` `editFile`); the
+  writer inventory found no other raw workspace writer: the Model API tools,
+  the IDE image tools and memory copy first; plans, the review revert,
+  Create AGENTS.md and exports hold the lease; hooks and shell commands mark
+  activity; CLI commands, worktrees and terminals use the native startup
+  fence; sessions, schedules and the job helpers write the extension's own
+  storage; the ACP agent is an independent process outside the guarantee.
+- `src/extension.ts` has no unit run (its coverage is the integration
+  suite), so a wiring test holds it to the composition: no `new MemoryStore`
+  or `createMemoryIo` in activation, the view gets the composition's lease
+  and copy, and exports go through `withCheckpointEditAt`.
+
+Held-GUI controls run real git, real native I/O, the real store and a second
+window: a held creation or trash is refused a peer window's restore
+(`turnElsewhere`) and lets it through after settlement; a personal path
+outside the workspace takes no lease and a restore proceeds meanwhile; a
+revoked window refuses before the delete or the publication; a failed copy
+stops both; and a restore puts back the ignored note, its index and the
+trashed note. Eighteen on-purpose breaks of these guards each failed their
+intended tests and restored byte-exact (the certification record names the
+hashes). No new transaction, policy, dependency or native resolver framework.
+
+**Whole-suite correction batch, 2026-09-30 (verified).** Four controller
+expectations predated the required checkpoint-state row. Their exact old
+auth/composer/model/session/skills/attachment order is kept, with the
+explicit `noFolder`, blocked Restore/Redo, empty legacy/current turn lists
+and relevant session identity added at the actual emission point. The
+side-session clearing test asserts the complete new message sequence rather
+than a position from the end. The webview's `checkpointState` messages carry
+`legacyTurnIds`. Nothing filters the new row and no assertion was weakened.
+This is a fixture contract correction, not a product behavior change: the
+five owning files (controller, conversation checkpoints, App, UI state,
+protocol) pass 636 of 636, and removing the session id or the legacy turn
+ids from the emitted row fails four and five controller tests on the exact
+expectations.
 
 **Release-blocking memory-owner repair, 2026-09-30 (bounded proof complete).** The
 old memory-tool branch bypassed the captured call admission used by ordinary

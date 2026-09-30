@@ -61,6 +61,8 @@ export function createMemoryIo(
     readonly staged?: () => Promise<void>
     /** Runtime owners fence publication after asynchronous staging. */
     readonly assertCanWrite?: () => void
+    /** Exclusive creation has no ToolIo write call: the note's checkpoint copy is taken here. */
+    readonly beforeCreate?: (absolutePath: string) => Promise<void>
   },
 ): MemoryIo {
   const admission = (assertCanWrite?: () => void) => () => {
@@ -72,8 +74,9 @@ export function createMemoryIo(
     hasUnsavedChanges: (absolutePath) => files.hasUnsavedChanges(absolutePath),
     writeFile: (absolutePath, content, assertCanWrite) =>
       files.writeFile(absolutePath, content, undefined, admission(assertCanWrite)),
-    createFile: (absolutePath, content, checkedPath, assertCanWrite) =>
-      createFileExclusively(absolutePath, content, {
+    createFile: async (absolutePath, content, checkedPath, assertCanWrite) => {
+      await options.beforeCreate?.(absolutePath)
+      await createFileExclusively(absolutePath, content, {
         mode: MEMORY_STAGE_FILE_MODE,
         assertCanWrite: admission(assertCanWrite),
         // The folder `locate` checked (C2-4): one swapped for a link since is refused.
@@ -89,7 +92,8 @@ export function createMemoryIo(
         },
         ...(options.publish !== undefined && { publish: options.publish }),
         ...(options.staged !== undefined && { staged: options.staged }),
-      }),
+      })
+    },
     realPath: (absolutePath) => files.realPath(absolutePath),
     listEntries: listMemoryEntries,
   }

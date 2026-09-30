@@ -63,6 +63,7 @@ function startFamily(
         runCliInTerminal: () => false,
         museSettingsPath: () => '',
         workspaceRoot: h.root,
+        editFile: async (_fsPath, work) => await work(),
         restartBackend: () => Promise.resolve(),
         modelApiMcp: () => undefined,
         modelApiHooks: () => undefined,

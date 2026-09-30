@@ -99,6 +99,16 @@ const FAKE_SNAPSHOT: Snapshot = {
   folders: [],
 }
 
+/** Complete disabled checkpoint state emitted by a surface with no workspace store. */
+const NO_FOLDER_CHECKPOINT: Extract<HostToWebviewMessage, { type: 'checkpointState' }> = {
+  type: 'checkpointState',
+  availability: 'noFolder',
+  canRestore: false,
+  legacyTurnIds: [],
+  restoreBlocker: 'modelApiOnly',
+  turnIds: [],
+}
+
 interface FakeAuth {
   readonly service: AuthPort
   readonly calls: string[]
@@ -719,6 +729,7 @@ describe('ConversationController.surfaceReady', () => {
         reason: 'no helper in tests',
         engine: 'system',
       },
+      NO_FOLDER_CHECKPOINT,
     ])
     await t.send('l1', 'hi')
     await settle()
@@ -737,6 +748,7 @@ describe('ConversationController.surfaceReady', () => {
       },
       modelList,
       sessionInfo,
+      { ...NO_FOLDER_CHECKPOINT, sessionId: 's1' },
       skillList,
       {
         type: 'attachmentAdded',
@@ -773,6 +785,7 @@ describe('ConversationController.sendMessage', () => {
     expect(t.surface.posted).toEqual([
       modelList,
       sessionInfo,
+      { ...NO_FOLDER_CHECKPOINT, sessionId: 's1' },
       skillList,
       { type: 'turnAccepted', localId: 'l1', turnId: 't1' },
     ])
@@ -3275,6 +3288,7 @@ describe('ConversationController: session history (M6)', () => {
       { ...historyLoaded },
       { type: 'notice', level: 'info', text: 'Resumed Old prompt' },
       { type: 'sessionInfo', modelId: 'muse-spark-1.2', sessionId: 'old' },
+      { ...NO_FOLDER_CHECKPOINT, sessionId: 'old' },
       skillList,
     ])
     expect(t.server.requestsFor('session/setReasoningEffort')[0]?.params).toMatchObject({
@@ -3806,8 +3820,14 @@ describe('ConversationController: session history (M6)', () => {
       level: 'info',
       text: UI_TEXT.sideChatPlanOnly,
     })
+    t.surface.posted.length = 0
     await controller.handle({ type: 'clearConversation' })
-    expect(t.surface.posted.at(-2)).toMatchObject({ type: 'sessionInfo', sideChat: false })
+    expect(t.surface.posted).toEqual([
+      { type: 'conversationCleared' },
+      { type: 'sessionInfo', modelId: 'muse-spark-1.3', sideChat: false },
+      NO_FOLDER_CHECKPOINT,
+      { type: 'attachmentsCleared' },
+    ])
   })
 
   it('refuses an ordinary Model API session in a side surface on restore or History selection (M53)', async () => {

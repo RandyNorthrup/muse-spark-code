@@ -13,7 +13,6 @@ import { confineWorkspacePath } from './core/workspacePath'
 import { readBackendChoice } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
-import { MemoryStore } from './core/memory/memoryStore'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
 import { renderSupportReport } from './core/support/report'
@@ -45,7 +44,8 @@ import { createFileSessionStore } from './host/backend/fileSessionStore'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
 import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
-import { createMemoryIo, systemPath } from './host/backend/memoryIo'
+import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
+import { systemPath } from './host/backend/memoryIo'
 import {
   museSettingsPath,
   readDelegationMode,
@@ -98,6 +98,7 @@ import {
   prepareCheckpointTurn,
   withCheckpointCopies,
   withCheckpointEdit,
+  withCheckpointEditAt,
 } from './host/checkpoints/checkpointHost'
 import { turnKey } from './core/checkpoints/turnKey'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
@@ -735,6 +736,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Skills, imports and export (M30): the CLI by absolute path, in the
   // environment `muse serve` gets, from the workspace root.
   const cliFeatures = createCliFeatures({
+    editFile: async (fsPath, work) =>
+      await withCheckpointEditAt(
+        checkpoints,
+        backend.workspaceActionGuard(nativeStarts.signal),
+        { root: workspaceRoot, platform: process.platform },
+        fsPath,
+        work,
+      ),
     runCli: (args, timeoutMs) => {
       const resolution = backend.resolveLaunch()
       return resolution.ok
@@ -1162,13 +1171,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const skillsHome = personalSkillsRoot(museConfig())
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
-  // home `muse serve` sees (`museSpark.environmentVariables` included).
-  const memory = new MemoryStore({
-    io: createMemoryIo(toolIo, {
-      warn: (message) => {
-        log.warn(`Memory: ${message}`)
-      },
-    }),
+  // home `muse serve` sees (`museSpark.environmentVariables` included). Its
+  // writes keep checkpoint copies and the view's edits hold the restore lease (M72).
+  const memory = createCheckpointedMemory(toolIo, checkpoints, {
+    captureGuard: () => backend.workspaceActionGuard(nativeStarts.signal),
     platform: process.platform,
     dataRoot: () =>
       memoryDataRoot({
@@ -1186,7 +1192,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       log.warn(`Memory: ${message}`)
     },
   })
-  const memoryView = createMemoryFeatures({ store: memory, log })
+  const memoryView = createMemoryFeatures({
+    store: memory.store,
+    log,
+    edit: memory.edit,
+    beforeDelete: memory.beforeDelete,
+  })
   // Plans as files (M79): `.agents/plans/` of the workspace folder, when there is one.
   const plans =
     workspaceRoot === undefined
@@ -1324,7 +1335,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     noteSubagentUsage: (modelId, usage) => {
       paid.usage.addSubagentUsage(modelId, usage)
     },
-    memory,
+    memory: memory.store,
     // The settings are read at each use; a repository cannot set them (D15).
     verify: {
       isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,

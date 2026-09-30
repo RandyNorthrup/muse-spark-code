@@ -2409,6 +2409,7 @@ function checkpointed(turnIds: readonly string[], availability = 'on') {
   deliver({
     type: 'checkpointState',
     canRestore: availability === 'on' || availability === 'off',
+    legacyTurnIds: [],
     availability,
     sessionId: 'old',
     turnIds,
@@ -2495,6 +2496,7 @@ describe('App turn checkpoints (M72)', () => {
     deliver({
       type: 'checkpointState',
       canRestore: true,
+      legacyTurnIds: [],
       availability: 'on',
       sessionId: 'elsewhere',
       turnIds: ['t1'],
@@ -2583,6 +2585,7 @@ describe('App turn checkpoints (M72)', () => {
         type: 'checkpointState',
         availability: 'on',
         canRestore: false,
+        legacyTurnIds: [],
         restoreBlocker,
         sessionId: 'old',
         turnIds: ['t1'],
