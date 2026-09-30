@@ -312,6 +312,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Prepare compatible grouped development updates: ACP SDK 1.5.0, jsdom
+  30.1.1 and Prettier 3.9.9. TypeScript stays at 6.0.3 within the current
+  ESLint peer range; the grouped TypeScript 7 upgrade is excluded. Runtime
+  compatibility and full platform acceptance remain under verification.
 - **The diagnostics tool reads a file no editor shows.** VS Code's language
   servers report only on files an editor shows (TypeScript and JSON,
   measured in VS Code 1.139.1 and 1.125.0), so when the agent asks
