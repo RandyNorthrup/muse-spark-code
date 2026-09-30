@@ -6,6 +6,7 @@ import { createRulesFile } from '../../src/host/commands/createRulesFile'
 import type { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import type { ProcessResult } from '../../src/host/backend/sandboxSetup'
 import { UI_TEXT } from '../../src/shared/constants'
+import { inertAgentImport } from './helpers/agentImportDeps'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import {
   type Harness,
@@ -64,6 +65,8 @@ function startFamily(
         museSettingsPath: () => '',
         workspaceRoot: h.root,
         editFile: async (_fsPath, work) => await work(),
+        agentImport: inertAgentImport(),
+        openDocument: () => Promise.resolve(),
         restartBackend: () => Promise.resolve(),
         modelApiMcp: () => undefined,
         modelApiHooks: () => undefined,

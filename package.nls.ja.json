@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "チュートリアルを開く",
   "command.manageSkills.title": "スキルの管理",
   "command.importSkills.title": "Claude Code または Codex からスキルをインポート",
+  "command.importFromAgents.title": "他のエージェントからインポート",
   "command.exportConversation.title": "会話のエクスポート",
   "command.mcpServers.title": "MCP サーバー",
   "command.hooks.title": "フック",

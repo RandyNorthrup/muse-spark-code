@@ -1183,6 +1183,7 @@ export function App({
         }
         case 'manageSkills':
         case 'importSkills':
+        case 'importFromAgents':
         case 'showMcpServers':
         case 'showHooks':
         case 'showMemory':

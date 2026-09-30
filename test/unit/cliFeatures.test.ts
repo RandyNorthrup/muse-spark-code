@@ -7,6 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { env, Uri, window, workspace } from 'vscode'
 import type { ProcessResult } from '../../src/host/backend/sandboxSetup'
 import { type CliFeatureDeps, createCliFeatures } from '../../src/host/cliFeatures'
+import { inertAgentImport } from './helpers/agentImportDeps'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { inform, pickMany, pickOne } from './helpers/vscodeViews'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -54,6 +55,7 @@ function setup(
   const terminals: [readonly string[], string][] = []
   let restarts = 0
   const features = createCliFeatures({
+    agentImport: inertAgentImport(),
     runCli: (args, timeoutMs) => {
       if (cli === undefined) {
         return undefined
@@ -84,6 +86,7 @@ function setup(
     modelApiMcp: () => undefined,
     modelApiHooks: () => undefined,
     openLog: () => undefined,
+    openDocument: () => Promise.resolve(),
     log: new FakeLogOutputChannel(),
   })
   return { features, runs, terminals, edits, restarts: () => restarts }

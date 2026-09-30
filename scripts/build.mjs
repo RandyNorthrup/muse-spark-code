@@ -2,7 +2,8 @@
 // Bundles the extension host entry, the Model API backend, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
-// webview, and (in dev mode) the integration tests with esbuild.
+// import from other agents (M83: the scan, the converters, the file access and
+// smol-toml, loaded on the first import), the webview, and (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -10,6 +11,10 @@
 //
 // The extension host bundle is CommonJS because VS Code loads `main` with
 // require(). `vscode` is provided by the host and must stay external.
+//
+// The bundles that are handed the display table at their entry (the Model
+// API backend, the checkpoint store and the import) carry a stand-in for the
+// English table instead of a copy of it (scripts/lib/lazyBundleTable.mjs).
 //
 // The Model API backend is a second host bundle, dist/modelApi.js (M57,
 // PLAN.md D6), with the same format, platform and target: the activation
@@ -33,6 +38,7 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import { lazyBundleTable } from './lib/lazyBundleTable.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -44,6 +50,8 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
+const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
+const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
@@ -94,6 +102,7 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+  plugins: [lazyBundleTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -104,6 +113,17 @@ const planMarkdownOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const agentImportOptions = {
+  ...common,
+  entryPoints: [AGENT_IMPORT_ENTRY],
+  outfile: AGENT_IMPORT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+  plugins: [lazyBundleTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -124,6 +144,7 @@ const checkpointStoreOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+  plugins: [lazyBundleTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -188,6 +209,7 @@ if (isWatch) {
     esbuild.context(modelApiOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(agentImportOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
@@ -200,6 +222,7 @@ if (isWatch) {
     modelApi: esbuild.build(modelApiOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
+    agentImport: esbuild.build(agentImportOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
@@ -225,6 +248,7 @@ if (isWatch) {
   reportSize(MODEL_API_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
+  reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))

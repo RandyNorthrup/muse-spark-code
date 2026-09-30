@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "İzlenecek Yolu Aç",
   "command.manageSkills.title": "Becerileri Yönet",
   "command.importSkills.title": "Claude Code veya Codex'ten Becerileri İçeri Aktar",
+  "command.importFromAgents.title": "Diğer Aracılardan İçe Aktar",
   "command.exportConversation.title": "Konuşmayı Dışarı Aktar",
   "command.mcpServers.title": "MCP Sunucuları",
   "command.hooks.title": "Kancalar",

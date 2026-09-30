@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "Útmutató megnyitása",
   "command.manageSkills.title": "Képességek kezelése",
   "command.importSkills.title": "Képességek importálása Claude Code-ból vagy Codexből",
+  "command.importFromAgents.title": "Importálás más ügynökökből",
   "command.exportConversation.title": "Beszélgetés exportálása",
   "command.mcpServers.title": "MCP-kiszolgálók",
   "command.hooks.title": "Hookok",

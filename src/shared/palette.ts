@@ -55,6 +55,7 @@ export type PaletteAction =
   | { readonly type: 'compact' }
   | { readonly type: 'manageSkills' }
   | { readonly type: 'importSkills' }
+  | { readonly type: 'importFromAgents' }
   | { readonly type: 'showMcpServers' }
   | { readonly type: 'showHooks' }
   | { readonly type: 'showMemory' }
@@ -420,6 +421,13 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'toggleCtrlEnterToSend' },
         },
         ...museConfigItems(context.backend),
+        // From the other agents (M83): local files only, the same on both backends.
+        {
+          id: 'importFromAgents',
+          label: UI_TEXT.agentImportItem,
+          detail: UI_TEXT.agentImportDetail,
+          action: { type: 'importFromAgents' },
+        },
         // Muse Code's memory (M49): the same notes on both backends.
         {
           id: 'memory',

@@ -21,6 +21,10 @@ const BUDGETS = [
   // M72: real checkpoint store/legacy reader, 187.0 KiB when split out.
   // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/checkpointStore.js', budgetKiB: 225 },
+  // M83: the import from other agents (the scan, the converters, the file
+  // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
+  // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/agentImport.js', budgetKiB: 125 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.

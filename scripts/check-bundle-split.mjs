@@ -17,6 +17,12 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the import from other agents (M83: the scan, the converters, the file
+//   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
+//   or dist/acp.js, or missing from dist/agentImport.js.
+// - a bundle that is handed the display table at its entry (dist/modelApi.js,
+//   dist/checkpointStore.js, dist/agentImport.js) carries the real English
+//   table, or lacks its stand-in; the activation bundle carries the real one.
 //
 // Exits 1 on any problem.
 //
@@ -24,6 +30,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { LAZY_TABLE_REAL, LAZY_TABLE_STAND_IN } from './lib/lazyBundleTable.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -220,6 +227,21 @@ for (const file of CHECKPOINT_ONLY) {
     problems.push(`${CHECKPOINT_STORE.output} no longer carries ${file}`)
   }
 }
+// M83: the import from other agents loads on the first import.
+const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+const IMPORT_ONLY = [
+  'src/host/agentImportEntry.ts',
+  'src/host/commands/agentImportCommands.ts',
+  'src/host/importIo.ts',
+  'src/core/import/agentImport.ts',
+  'src/core/import/importConvert.ts',
+  'src/core/import/importMask.ts',
+  'node_modules/smol-toml/',
+]
+const agentImport = inputsOf(AGENT_IMPORT)
+// The bundles that are handed the display table, and the ones that keep the real one.
+const TABLE_INSTALLED = [BUNDLES.modelApi, CHECKPOINT_STORE, AGENT_IMPORT]
+const TABLE_REAL = [BUNDLES.activation, BUNDLES.acp]
 function hasPrefix(inputs, prefix) {
   for (const input of inputs.keys()) {
     if (input.startsWith(prefix)) {
@@ -238,6 +260,34 @@ for (const prefix of CONVERTER_ONLY) {
   }
   if (!hasPrefix(pageWorker, prefix)) {
     problems.push(`${PAGE_WORKER.output} no longer carries ${prefix}`)
+  }
+}
+
+for (const prefix of IMPORT_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (hasPrefix(inputsOf(bundle), prefix)) {
+      problems.push(`${bundle.output} carries ${prefix}, which loads only with the import`)
+    }
+  }
+  if (!hasPrefix(agentImport, prefix)) {
+    problems.push(`${AGENT_IMPORT.output} no longer carries ${prefix}`)
+  }
+}
+for (const bundle of TABLE_INSTALLED) {
+  const inputs = inputsOf(bundle)
+  if (inputs.has(LAZY_TABLE_REAL)) {
+    problems.push(
+      `${bundle.output} carries the English table, which it is handed at its entry (scripts/lib/lazyBundleTable.mjs)`,
+    )
+  }
+  if (!inputs.has(LAZY_TABLE_STAND_IN)) {
+    problems.push(`${bundle.output} lacks the English table's stand-in, ${LAZY_TABLE_STAND_IN}`)
+  }
+}
+for (const bundle of TABLE_REAL) {
+  const inputs = inputsOf(bundle)
+  if (!inputs.has(LAZY_TABLE_REAL) || inputs.has(LAZY_TABLE_STAND_IN)) {
+    problems.push(`${bundle.output} must carry the real English table and not its stand-in`)
   }
 }
 
@@ -280,4 +330,10 @@ console.log(
 )
 console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
+)
+console.log(
+  `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
+)
+console.log(
+  `ok   ${TABLE_INSTALLED.map((bundle) => bundle.output).join(', ')}: handed the display table, carry its stand-in, not a copy of the English one`,
 )

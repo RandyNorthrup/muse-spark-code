@@ -145,6 +145,8 @@ export const HOST_ACTIONS = [
   /** The palette's "Manage skills…" and "Import skills…" (M30). */
   'manageSkills',
   'importSkills',
+  /** The palette's "Import from other agents…" (M83). */
+  'importFromAgents',
   /** The palette's "MCP servers…" and "Hooks…" (M31). */
   'showMcpServers',
   'showHooks',
