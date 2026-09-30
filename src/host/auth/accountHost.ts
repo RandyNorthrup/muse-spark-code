@@ -38,8 +38,6 @@ export interface AccountSession {
 /** Starts one short-lived host; `signal` cancels the start. */
 export type ConnectAccountHost = (signal: AbortSignal) => Promise<AccountSession>
 
-const CANCELLED_CONNECT = Symbol('cancelled account host connection')
-
 /** The error's name only: a CLI message can carry a path or an account. */
 function errorName(error: unknown): string {
   return error instanceof Error ? error.name : 'unknown error'
@@ -225,16 +223,9 @@ export async function connectAccountSession(
       isStderrReported = true
     },
   })
-  const cancelledConnect = Promise.withResolvers<typeof CANCELLED_CONNECT>()
-  const onAbort = () => {
-    cancelledConnect.resolve(CANCELLED_CONNECT)
-  }
-  signal.addEventListener('abort', onAbort, { once: true })
-  if (isAborted()) {
-    onAbort()
-  }
   try {
-    const spawned = await Promise.race([
+    // Not `Promise.withResolvers`, which Node 20 lacks (PLAN.md M62).
+    const spawned = await unlessAborted(
       withDeadline(
         handshake.initialize({
           clientInfo: { name: MSP_CLIENT_NAME, version: extensionVersion },
@@ -243,9 +234,9 @@ export async function connectAccountSession(
         MSP_HANDSHAKE_TIMEOUT_MS,
         'The Muse Code account host did not start in time',
       ),
-      cancelledConnect.promise,
-    ])
-    if (spawned === CANCELLED_CONNECT || isAborted()) {
+      signal,
+    )
+    if (spawned === undefined || isAborted()) {
       throw new Error('The Muse Code account host was cancelled')
     }
     if (!spawned.initializeResult.experimentalApi) {
@@ -255,7 +246,5 @@ export async function connectAccountSession(
   } catch (error: unknown) {
     await handshake.close()
     throw error
-  } finally {
-    signal.removeEventListener('abort', onAbort)
   }
 }

@@ -17,8 +17,13 @@
     "src/extension.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
+    // The plan reader's own bundle (M79), required by path on the first plan action.
+    "src/host/planMarkdownEntry.ts",
     "src/host/backend/searchWorker.ts",
+    // Web fetch's page converter (M69), a worker bundle started by path.
+    "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
+    "src/runtime/main.ts",
     "test/unit/**/*.test.{ts,tsx}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",
@@ -33,6 +38,10 @@
     "test/unit/helpers/fakeMcpPrebindParent.mjs",
     "test/unit/helpers/fakeMcpStartMarker.mjs",
     "test/integration/**/*.test.ts",
+    // The TypeScript fixture VS Code's language service reads in the code
+    // intelligence integration test (M67); main.ts imports the rest.
+    "test/fixtures/workspace/code-intel/main.ts",
+    "test/hosts/*.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs"
   ],

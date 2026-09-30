@@ -1866,6 +1866,16 @@ body {
   top: 24px;
 }
 
+/* Save plan and Implement under the latest Plan-mode reply (M79): they wrap
+   on a narrow panel, and stay clear of the reply's copy button. */
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+  padding-right: 52px;
+}
+
 /* The Agent map's owner controls and note box (M18). */
 .agent-controls {
   display: flex;
@@ -2528,6 +2538,19 @@ body {
   margin: 0;
   color: var(--vscode-descriptionForeground);
   font-size: 0.9em;
+}
+
+/* M68: an edit's then_run under its diff. A run that did not pass is marked
+   with the error colour on the bar, the text in the text colour, as a failed
+   row is (WCAG 1.4.3, M37). */
+.then-run {
+  margin-top: 6px;
+}
+
+.then-run-failed {
+  padding-left: 6px;
+  border-left: 2px solid var(--vscode-errorForeground);
+  color: var(--vscode-foreground);
 }
 
 .goal-objective,

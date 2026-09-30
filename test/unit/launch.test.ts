@@ -198,6 +198,29 @@ describe('resolveMuseLaunch on POSIX', () => {
       reason: 'Muse Code is not installed in any known location.',
     })
   })
+
+  it('resolves on Android/Termux through PATH and the Termux home fallback', () => {
+    const home = '/data/data/com.termux/files/home'
+    const prefixBin = '/data/data/com.termux/files/usr/bin'
+    const termux = (existing: string[], overrides: Partial<LaunchProbe> = {}) =>
+      posixProbe(existing, {
+        platform: 'android',
+        pathEntries: [prefixBin, '/usr/bin'],
+        homeDir: home,
+        ...overrides,
+      })
+    expect(resolveMuseLaunch(termux([`${prefixBin}/muse`]))).toMatchObject({
+      launch: { command: `${prefixBin}/muse`, installDir: prefixBin, cliPath: `${prefixBin}/muse` },
+    })
+    expect(resolveMuseLaunch(termux([`${home}/.local/bin/muse`]))).toMatchObject({
+      launch: { command: `${home}/.local/bin/muse` },
+    })
+    expect(resolveMuseLaunch(termux([]))).toEqual({
+      ok: false,
+      searched: [`${prefixBin}/muse`, '/usr/bin/muse', `${home}/.local/bin/muse`],
+      reason: 'Muse Code is not installed in any known location.',
+    })
+  })
 })
 
 describe('buildChildEnvironment', () => {
@@ -324,5 +347,15 @@ describe('credentialFilePath', () => {
         xdgConfigHome: undefined,
       }),
     ).toBe(String.raw`C:\Users\randy\.config\muse\auth.json`)
+  })
+
+  it('uses the Termux home on Android, honouring XDG_CONFIG_HOME', () => {
+    const home = '/data/data/com.termux/files/home'
+    expect(
+      credentialFilePath({ platform: 'android', homeDir: home, xdgConfigHome: undefined }),
+    ).toBe(`${home}/.config/muse/auth.json`)
+    expect(
+      credentialFilePath({ platform: 'android', homeDir: home, xdgConfigHome: `${home}/.cfg` }),
+    ).toBe(`${home}/.cfg/muse/auth.json`)
   })
 })

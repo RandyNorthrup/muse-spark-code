@@ -10,6 +10,7 @@ const base = {
   today: '2026-09-22',
   environment: { git: undefined },
   hasMemory: false,
+  hasCodeIntel: false,
 }
 const noContext = { rules: undefined, skills: [], memory: [] }
 
@@ -136,5 +137,21 @@ describe('instructionsFor', () => {
     })
     expect(clean).toContain('- Git branch: main\n- Working tree at session start: clean.')
     expect(clean).not.toContain('Recent commits')
+  })
+
+  it('names the code intelligence tools and pins the repo map before the goal (M67)', () => {
+    const without = instructionsFor({ ...base, hasShell: true, context: noContext })
+    expect(without).not.toContain('find_definition')
+    const text = instructionsFor({
+      ...base,
+      hasShell: true,
+      hasCodeIntel: true,
+      context: noContext,
+      repoMap: '# Repo map\n\nsrc/a.ts',
+      goalSection: '# Session goal',
+    })
+    expect(text).toContain('prefer them to search when you look for where a symbol is defined')
+    expect(text.indexOf('# Repo map')).toBeGreaterThan(text.indexOf('# How to work'))
+    expect(text.indexOf('# Repo map')).toBeLessThan(text.indexOf('# Session goal'))
   })
 })

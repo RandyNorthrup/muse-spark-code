@@ -64,7 +64,7 @@ function setup(
     if (tool === undefined) {
       throw new Error(`no tool ${name}`)
     }
-    return await tool.call(args)
+    return await tool.call(args, new AbortController().signal)
   }
   return { api, io, asked, tools, call, billed: () => billed }
 }
@@ -139,9 +139,9 @@ describe('the ide server’s image tools (M44)', () => {
     const late = setup({ isOffered: () => isOn })
     const [generate] = late.tools()
     isOn = false
-    await expect(generate?.call({ prompt: 'x', path: 'late.png' })).rejects.toThrow(
-      'image generation is off',
-    )
+    await expect(
+      generate?.call({ prompt: 'x', path: 'late.png' }, new AbortController().signal),
+    ).rejects.toThrow('image generation is off')
     expect(late.api.requests).toEqual([])
     expect(late.billed()).toBe(0)
   })

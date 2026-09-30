@@ -3,6 +3,7 @@
 // touch a tool.
 
 import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
+import { fingerprint } from '../../../src/core/verify/fingerprint'
 
 export interface MemoryToolIo extends ToolIo {
   readonly files: Map<string, string>
@@ -21,6 +22,14 @@ export interface MemoryToolIo extends ToolIo {
 /** The map key of a path: forward slashes, as the memory files are keyed. */
 function keyOf(absolutePath: string): string {
   return absolutePath.replaceAll('\\', '/')
+}
+
+/** A `realPath` for a workspace opened through `link`, a link to `real`. */
+export function realPathThrough(link: string, real: string): (path: string) => Promise<string> {
+  return (path) =>
+    Promise.resolve(
+      path === link || path.startsWith(`${link}/`) ? real + path.slice(link.length) : path,
+    )
 }
 
 export function memoryToolIo(
@@ -67,6 +76,7 @@ export function memoryToolIo(
     shellCalls,
     unsaved,
     hasUnsavedChanges: (absolutePath) => unsaved.has(absolutePath.replaceAll('\\', '/')),
+    unsavedFiles: () => [...unsaved],
     realPath: (absolutePath) => {
       const forward = absolutePath.replaceAll('\\', '/')
       for (const [relative, target] of Object.entries(links)) {
@@ -87,6 +97,17 @@ export function memoryToolIo(
     writeFile: (absolutePath, content) => {
       files.set(absolutePath.replaceAll('\\', '/'), content)
       return Promise.resolve()
+    },
+    // The conditional write (M68): only over the expected text.
+    writeFileIfUnchanged: (absolutePath, expectedFingerprint, content, options) => {
+      const key = keyOf(absolutePath)
+      const current = files.get(key)
+      const isUnsaved = options.unsavedAt.some((path) => unsaved.has(keyOf(path)))
+      if (isUnsaved || current === undefined || fingerprint(current) !== expectedFingerprint) {
+        return Promise.resolve('changed')
+      }
+      files.set(key, content)
+      return Promise.resolve('written')
     },
     listFiles: () =>
       Promise.resolve(Array.from(files.keys(), (absolute) => absolute.slice(root.length + 1))),
@@ -122,10 +143,12 @@ export const noopToolIo: ToolIo = {
   readFile: () => Promise.resolve(undefined),
   readBytes: () => Promise.resolve(undefined),
   writeFile: () => Promise.resolve(),
+  writeFileIfUnchanged: () => Promise.resolve('changed'),
   pathExists: () => Promise.resolve(false),
   reserveFile: () =>
     Promise.resolve({ fill: () => Promise.resolve(), release: () => Promise.resolve() }),
   hasUnsavedChanges: () => false,
+  unsavedFiles: () => [],
   listFiles: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),
   runShell: () =>

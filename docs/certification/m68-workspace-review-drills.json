@@ -1,0 +1,96 @@
+{
+  "source": "bf0d23058ab78a2308b8a2e1257419f2dd5bb3a9",
+  "platform": "Windows",
+  "node": "v24.20.0",
+  "npm": "11.19.0",
+  "command": [
+    "vitest",
+    "run",
+    "test/unit/verifyLoop.test.ts",
+    "test/unit/verifyLedger.test.ts",
+    "-t",
+    "workspace writes and verify grants|before a workspace write|every pending write ends|newly live sessions"
+  ],
+  "selectedTests": 10,
+  "skippedTests": 77,
+  "inputs": [
+    {
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "20da7b21e94f5b8642a2b1fde6c4a2758693f412165574ca37bda7948297a44b"
+    },
+    {
+      "path": "src/core/backends/modelapi/verifyLedger.ts",
+      "sha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33"
+    },
+    {
+      "path": "test/unit/verifyLoop.test.ts",
+      "sha256": "5e0b1c6c43b7bc1472e96ed7507d9261c5ba411b0191b0be1279fd60952902ee"
+    },
+    {
+      "path": "test/unit/verifyLedger.test.ts",
+      "sha256": "dc67eabe0023dd7fd562b041dafeb181e103922b51e001fe1032c64040cc2ca0"
+    }
+  ],
+  "drills": [
+    {
+      "id": "R89",
+      "baselineExit": 0,
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "20da7b21e94f5b8642a2b1fde6c4a2758693f412165574ca37bda7948297a44b",
+      "mutatedSha256": "e38736c22dc32c2d5e703427821be04a4d4a29873c1bc393a11186bf5a958c0a",
+      "afterSha256": "20da7b21e94f5b8642a2b1fde6c4a2758693f412165574ca37bda7948297a44b",
+      "diagnostic": "AssertionError: expected [ '/ws/src/a.ts' ] to deeply equal []"
+    },
+    {
+      "id": "R90",
+      "baselineExit": 0,
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "mutatedSha256": "561ddc88e1a7683e33f81310b7d38bba350d82b109ca14cdecd623e82cfa48b0",
+      "afterSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "diagnostic": "AssertionError: expected false to be true // Object.is equality"
+    },
+    {
+      "id": "R91",
+      "baselineExit": 0,
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "mutatedSha256": "ddab0e56651220141745646c7fd8da352122b837ed6d436a63968e5a1037c0b7",
+      "afterSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "diagnostic": "AssertionError: expected false to be true // Object.is equality"
+    },
+    {
+      "id": "R92",
+      "baselineExit": 0,
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "mutatedSha256": "d693adb09ae064d5208297069cf1740c924a08ef11e40037f97fe2269e7b0732",
+      "afterSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "diagnostic": "AssertionError: expected true to be false // Object.is equality"
+    },
+    {
+      "id": "R93",
+      "baselineExit": 0,
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "20da7b21e94f5b8642a2b1fde6c4a2758693f412165574ca37bda7948297a44b",
+      "mutatedSha256": "75a2a888b7d2059e9616a9cb346059d3c258c91133095e95d54926d35d744cb7",
+      "afterSha256": "20da7b21e94f5b8642a2b1fde6c4a2758693f412165574ca37bda7948297a44b",
+      "diagnostic": "AssertionError: expected [ { type: 'approvalRequested', …(9) } ] to have a length of 2 but got 1"
+    },
+    {
+      "id": "R94",
+      "baselineExit": 0,
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "mutatedSha256": "e0d8f316be82d9e851030d3b034a2f6374d131848e88f9924e9698de0c697ccb",
+      "afterSha256": "56f2284bdda27f149ec8d8c3a444c0275670be866b2d1d6529f248c45d21ed33",
+      "diagnostic": "AssertionError: expected true to be false // Object.is equality"
+    }
+  ]
+}

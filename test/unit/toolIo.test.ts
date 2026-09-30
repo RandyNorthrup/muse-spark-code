@@ -240,9 +240,27 @@ const io = () =>
     env: () => process.env,
     searchWorkerPath: 'unused-here',
     log: () => undefined,
-    hasUnsavedChanges: () => false,
+    unsavedFiles: () => [],
     shellJobAssembly: jobAssembly,
   })
+
+describe('createToolIo: files with unsaved changes', () => {
+  it("lists the editors' files, and matches one by the platform's rules", () => {
+    const open = [String.raw`C:\Ws\A.ts`]
+    const windows = createToolIo({
+      platform: 'win32',
+      listFiles: () => Promise.resolve([]),
+      systemRoot: undefined,
+      env: () => ({}),
+      searchWorkerPath: 'unused-here',
+      log: () => undefined,
+      unsavedFiles: () => open,
+    })
+    expect(windows.unsavedFiles()).toEqual(open)
+    expect(windows.hasUnsavedChanges('c:/ws/a.ts')).toBe(true)
+    expect(windows.hasUnsavedChanges(String.raw`C:\Ws\B.ts`)).toBe(false)
+  })
+})
 
 describe('createToolIo (real file system and shell)', () => {
   let root = ''
@@ -594,7 +612,7 @@ describe('createToolIo (real file system and shell)', () => {
       env: () => process.env,
       searchWorkerPath: 'unused-here',
       log: () => undefined,
-      hasUnsavedChanges: () => false,
+      unsavedFiles: () => [],
     })
     const result = await broken.runShell('echo hi', root, SHELL_BUDGET_MS)
     expect(result.exitCode).toBeNull()

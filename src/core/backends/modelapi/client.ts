@@ -25,7 +25,11 @@ import {
 import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
-import { describeNetworkFailure, networkFailureMessage } from '../../networkFailure'
+import {
+  describeNetworkFailure,
+  type NetworkAdvice,
+  networkFailureMessage,
+} from '../../networkFailure'
 import {
   type CreateImageBody,
   type EditImageBody,
@@ -54,6 +58,11 @@ export interface ModelApiClientDeps {
   readonly log: CoreLogger
   /** How long a reply stream may send nothing; the constant unless a test shortens it. */
   readonly streamIdleMs?: number
+  /**
+   * Whose settings a request that never reached Meta names (M56): VS Code's
+   * unless the ACP agent says its own (PLAN.md D62, Q66).
+   */
+  readonly networkAdvice?: NetworkAdvice
 }
 
 export class ModelApiError extends Error {
@@ -324,7 +333,7 @@ export class ModelApiClient {
         }
         // Never reached the server: its causes say why, and the message
         // names the setting or store to check (M56, PLAN.md D43).
-        const reason = networkFailureMessage(error)
+        const reason = networkFailureMessage(error, this.deps.networkAdvice)
         if (isRateLimitOnly || attempt >= MODEL_API_MAX_RETRIES) {
           throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
         }

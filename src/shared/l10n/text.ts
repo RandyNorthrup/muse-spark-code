@@ -84,6 +84,30 @@ export function formatUsd(amount: number, fractionDigits: number): string {
   }).format(amount)
 }
 
+// Decimal sizes, as Intl's byte units are named (kB, MB).
+const BYTES_PER_KILOBYTE = 1000
+const BYTES_PER_MEGABYTE = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE
+const SIZE_FRACTION_DIGITS = 1
+
+/** A size as the language writes one, in the largest unit below it: 512 byte / 48.2 kB / 5.2 MB. */
+export function formatBytes(bytes: number): string {
+  let unit = 'byte'
+  let value = bytes
+  if (bytes >= BYTES_PER_MEGABYTE) {
+    unit = 'megabyte'
+    value = bytes / BYTES_PER_MEGABYTE
+  } else if (bytes >= BYTES_PER_KILOBYTE) {
+    unit = 'kilobyte'
+    value = bytes / BYTES_PER_KILOBYTE
+  }
+  return numberFormat(`bytes:${unit}`, {
+    style: 'unit',
+    unit,
+    unitDisplay: 'short',
+    maximumFractionDigits: SIZE_FRACTION_DIGITS,
+  }).format(value)
+}
+
 export type DurationUnit = 'second' | 'minute' | 'hour' | 'day'
 
 /** A short amount of time in one unit: 3s / 3 Sek. / 3秒. */

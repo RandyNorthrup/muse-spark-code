@@ -31,6 +31,8 @@
 // Measured 2026-09-27 on 0.9.0: a full run of the 18 cases is 59 requests
 // (58 HTTP, one WebSocket) and about $0.033, of which $0.02 is the two
 // images; a case alone is well under a tenth of a cent, case12 aside.
+// case20 (M79; case19 in its 2026-09-28 standalone capture) drives the panel's own ConversationController
+// over the rig's backend: 10 requests, about $0.0008.
 
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -43,7 +45,13 @@ import { crc32, deflateSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentSession, TurnPart } from '../../src/core/agent/agentBackend'
+import type {
+  CodeLocation,
+  CodeSymbol,
+  LanguageServiceHost,
+} from '../../src/core/codeIntel/languageService'
 import { APPROVAL_CHOICE_IDS } from '../../src/core/backends/modelapi/permissions'
+import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
 import { parseLoopPrompt } from '../../src/core/backends/modelapi/schedules'
 import { type Usage, usageSchema } from '../../src/core/backends/modelapi/schemas'
 import { parseSse } from '../../src/core/backends/modelapi/sse'
@@ -55,6 +63,8 @@ import { memoryDataRoot } from '../../src/core/memory/memoryLocation'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
 import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { pdfPageCount } from '../../src/core/pdf'
+import { planBody } from '../../src/core/plans/planDocument'
+import { listItems } from '../../src/core/plans/planMarkdown'
 import { estimateCostUsd } from '../../src/core/usage/insights'
 import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
 import { MuseVoiceDictation } from '../../src/core/voice/museVoice'
@@ -71,6 +81,10 @@ import { createToolIo } from '../../src/host/backend/toolIo'
 import { processGitRunner } from '../../src/host/git'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
+import { ConversationController } from '../../src/host/conversation/conversationController'
+import type { AuthSnapshot } from '../../src/host/auth/authService'
+import { createPlanFiles, createPlanIo } from '../../src/host/planFeatures'
+import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
 import { openWebSocket } from '../../src/host/voice/dictationHost'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import {
@@ -88,8 +102,10 @@ import {
   MUSE_VOICE_BYTES_PER_SECOND,
   MUSE_VOICE_REALTIME_URL,
   MUSE_VOICE_SAMPLE_RATE,
+  PLAN_MARKDOWN_BUNDLE_FILE,
   PAID_PRICES_USD,
   type PaidFeature,
+  PLAN_TODO_PENDING_STATUS,
   PNG_SIGNATURE,
   type PromptCacheRetention,
   SEARCH_WORKER_FILE,
@@ -98,9 +114,13 @@ import {
   SETTING_DEFAULTS,
   SHELL_TOOLS,
   THINKING_OFF_EFFORT,
+  type CheckCommandSetting,
+  UI_TEXT,
 } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import type { PaidTally } from '../../src/shared/paid'
-import { FakeLogOutputChannel } from '../unit/helpers/fakes'
+import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { FakeLogOutputChannel, fakeSurface } from '../unit/helpers/fakes'
 import { readJobSource } from '../unit/helpers/jobSource'
 import { logLines } from '../unit/helpers/logText'
 import { FAKE_MCP_SERVER, fixtureJobLifecycle } from '../unit/helpers/mcpFixtures'
@@ -561,6 +581,10 @@ interface RigOptions {
   readonly mcpJobPath?: string | undefined
   /** `museSpark.modelApiPromptCacheRetention`; the setting's default when absent. */
   readonly promptCacheRetention?: PromptCacheRetention
+  /** The verify loop (M68): its settings and a stand-in for the language servers. */
+  readonly verify?: VerifyHooks
+  /** Language services for the code intelligence tools (M67), over the rig's workspace. */
+  readonly codeIntel?: (workspace: string) => LanguageServiceHost
 }
 
 interface Rig {
@@ -643,7 +667,7 @@ async function openRig(options: RigOptions): Promise<Rig> {
     env: () => process.env,
     // Built by `npm run build:dev`; no case here needs the search tool.
     searchWorkerPath: path.join(process.cwd(), 'dist', SEARCH_WORKER_FILE),
-    hasUnsavedChanges: () => false,
+    unsavedFiles: () => [],
     log: (message) => {
       log.warn(message)
     },
@@ -747,6 +771,8 @@ async function openRig(options: RigOptions): Promise<Rig> {
         ),
       // Built by `npm run build:dev`, as in activate (M57).
       bundlePath: path.join(process.cwd(), 'dist', MODEL_API_BUNDLE_FILE),
+      ...(options.verify !== undefined && { verify: options.verify }),
+      codeIntel: options.codeIntel?.(workspace),
       ideTools: [
         diagnosticsTool({
           getDiagnostics: () => [],
@@ -888,6 +914,190 @@ function callsOf(name: string): readonly WireCall[] {
   return wire.filter((call) => call.caseName === name)
 }
 
+// --- the panel's controller on the rig (M79) ---
+
+/** What a live case never reaches: reaching it fails the case. */
+function unreached(): Promise<never> {
+  return Promise.reject(new Error('not reached by this case'))
+}
+
+interface LivePanel {
+  readonly controller: ConversationController
+  readonly posted: readonly HostToWebviewMessage[]
+  /** The tools whose cards the panel's automatic answerer allowed once, in order. */
+  readonly allowed: readonly string[]
+}
+
+/**
+ * One panel's `ConversationController` on the rig's first window, wired as
+ * `activate` wires it for the Model API, with the real plan files. Only the
+ * webview is replaced: each approval card it is sent is answered Allow once,
+ * and each modal (the protected `.agents/` save) is answered yes. What the
+ * case never reaches rejects, so reaching it fails the case.
+ */
+function livePanel(rig: Rig): LivePanel {
+  const allowed: string[] = []
+  const surface = fakeSurface('live')
+  const holder: { controller?: ConversationController } = {}
+  const signedIn: AuthSnapshot = { status: 'signedIn', detail: undefined, backend: 'modelApi' }
+  surface.post = (message) => {
+    surface.posted.push(message)
+    const event = message.type === 'agentEvent' ? message.event : undefined
+    if (event?.type !== 'approvalRequested' || event.isReplayed === true) {
+      return
+    }
+    allowed.push(event.toolName)
+    void holder.controller?.handle({
+      type: 'decideApproval',
+      approvalId: event.approvalId,
+      choiceId: APPROVAL_CHOICE_IDS.allowOnce,
+      requirementId: event.requirementId,
+    })
+  }
+  const controller = new ConversationController({
+    surface,
+    auth: {
+      current: signedIn,
+      backend: 'modelApi',
+      toMessage: () => ({ type: 'authState', status: 'signedIn' }),
+      signIn: unreached,
+      installMuseCode: unreached,
+      cancelSignIn: () => undefined,
+      signOut: unreached,
+      refresh: () => Promise.resolve(signedIn),
+      markAuthRequired: () => signedIn,
+      markBackendError: () => signedIn,
+      checkAgain: () => Promise.resolve(signedIn),
+    },
+    ensureHost: () => rig.manager.ensureHost(),
+    workspaceRoot: rig.workspace,
+    modelId: MODEL_ID,
+    initialPermissionMode: 'manual',
+    hasApprovalUi: true,
+    openExternal: () => undefined,
+    mentions: { search: () => Promise.resolve([]), contains: () => Promise.resolve(false) },
+    files: {
+      showOpenDialog: () => Promise.resolve([]),
+      readFile: unreached,
+      canonicalRelativePath: () => Promise.resolve(undefined),
+      pickMentionFile: () => Promise.resolve(undefined),
+      toRelativePath: () => undefined,
+    },
+    isBypassAllowed: () => false,
+    isRemoteWindow: false,
+    confirmRemoteBypass: () => Promise.resolve(false),
+    isConfidentialWorkspace: () => false,
+    // The live cases' model is the contributor one: its one yes (M7), given.
+    confirmContributor: () => Promise.resolve(true),
+    runHostAction: () => Promise.resolve(),
+    copyText: unreached,
+    insertCode: unreached,
+    onSandboxUnavailable: () => undefined,
+    platform: process.platform,
+    userProfileDir: undefined,
+    shellSandbox: () => ({ isSandboxed: false, reason: 'setting' }),
+    editorContext: () => undefined,
+    isAutosaveEnabled: () => false,
+    saveAll: () => Promise.resolve(),
+    unsavedFiles: () => [],
+    applyCode: unreached,
+    editReview: { openDiff: unreached, revert: unreached },
+    openDocument: unreached,
+    openFile: unreached,
+    readToolImage: unreached,
+    ideMcpEndpoint: () => Promise.resolve(undefined),
+    newAttachmentId: () => randomUUID(),
+    sessions: {
+      archivedIds: () => [],
+      setArchivedIds: () => Promise.resolve(),
+      lastSession: () => undefined,
+      setLastSession: () => Promise.resolve(),
+    },
+    accountFacts: () => Promise.resolve({ signInMethod: 'apiKey' as const }),
+    usageInsights: () => Promise.resolve(undefined),
+    isRestorable: false,
+    dictation: { isAvailable: false, reason: 'no microphone in the live sweep' },
+    museVoice: () => undefined,
+    exports: { saveMarkdown: unreached, saveSessionLog: unreached },
+    plans: createPlanFiles({
+      workspaceRoot: rig.workspace,
+      platform: process.platform,
+      io: createPlanIo({ log: rig.log, now: Date.now }),
+      pick: unreached,
+      confirm: () => Promise.resolve(true),
+      // Built by `npm run build:dev`, as in activate: the plan reader's own bundle.
+      markdown: planMarkdownLoader({
+        bundlePath: path.join(process.cwd(), 'dist', PLAN_MARKDOWN_BUNDLE_FILE),
+        log: rig.log,
+      }),
+    }),
+    setPaidFeature: unreached,
+    isWorkspaceTrusted: () => true,
+    onForegroundTasksChanged: () => undefined,
+    allowsPaidUse: () => Promise.resolve(false),
+    forgetPaidUse: unreached,
+    now: Date.now,
+    log: rig.log,
+  })
+  holder.controller = controller
+  return { controller, posted: surface.posted, allowed }
+}
+
+/** What the panel was told: its notices, for a failure's message. */
+function panelNotices(panel: LivePanel): string {
+  return JSON.stringify(
+    panel.posted.flatMap((message) => (message.type === 'notice' ? [message.text] : [])),
+  )
+}
+
+/** The panel's events of one kind, in order, from its `from`th message on. */
+function panelEvents<T extends AgentEvent['type']>(
+  panel: LivePanel,
+  type: T,
+  from = 0,
+): readonly Extract<AgentEvent, { type: T }>[] {
+  return panel.posted
+    .slice(from)
+    .flatMap((message) =>
+      message.type === 'agentEvent' && message.event.type === type
+        ? [message.event as Extract<AgentEvent, { type: T }>]
+        : [],
+    )
+}
+
+/** The turn the panel's message `localId` became, once finished, and its last reply. */
+async function panelTurn(
+  panel: LivePanel,
+  localId: string,
+): Promise<{ readonly terminal: string; readonly reply: ItemSnapshot | undefined }> {
+  const turnId = await vi.waitFor(
+    () => {
+      const accepted = panel.posted.find(
+        (message) => message.type === 'turnAccepted' && message.localId === localId,
+      )
+      if (accepted?.type !== 'turnAccepted') {
+        throw new Error(`no turn for ${localId} yet; notices ${panelNotices(panel)}`)
+      }
+      return accepted.turnId
+    },
+    { timeout: TURN_MS, interval: 250 },
+  )
+  const completed = await vi.waitFor(
+    () => {
+      const found = panelEvents(panel, 'turnCompleted').find((event) => event.turnId === turnId)
+      if (found === undefined) {
+        throw new Error(`turn ${turnId} still running; notices ${panelNotices(panel)}`)
+      }
+      return found
+    },
+    { timeout: TURN_MS, interval: 250 },
+  )
+  const replies = panelEvents(panel, 'itemCompleted')
+    .map((event) => event.item)
+    .filter((item) => item.turnId === turnId && item.kind === 'agentMessage')
+  return { terminal: completed.terminal, reply: replies.at(-1) }
+}
+
 // --- fixtures made in the test ---
 
 function pngChunk(type: string, data: Uint8Array): Buffer {
@@ -937,6 +1147,93 @@ function wordPdf(word: string): Uint8Array {
   document += `xref\n0 ${size}\n0000000000 65535 f \n${starts.join('')}`
   document += `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF\n`
   return new TextEncoder().encode(document)
+}
+
+// The code intelligence case's workspace (M67): one function, used twice.
+const CODE_FILES = {
+  'src/greet.ts': 'export function greet(name: string): string {\n  return `Hello, ${name}`\n}\n',
+  'src/main.ts':
+    "import { greet } from './greet'\n\nexport const pair = [greet('Ada'), greet('Grace')]\n",
+}
+const CODE_SYMBOL = 'greet'
+const CODE_SYMBOL_USE = /\bgreet\b/g
+// VS Code's `SymbolKind.Function`.
+const FUNCTION_KIND = 11
+// A quote that opens or closes a string literal in the case's files.
+const QUOTE = /['"`]/g
+
+/** Whether a column of a line is inside a string literal (the module path `'./greet'`). */
+function isInString(line: string, column: number): boolean {
+  return (line.slice(0, column).match(QUOTE)?.length ?? 0) % 2 === 1
+}
+
+/**
+ * VS Code's language services live only in the extension host. A stand-in
+ * that knows the case's one symbol answers from the files' text, so the
+ * model uses the code intelligence tools against Meta's real API; the real
+ * services' answers are the integration test's (test/integration).
+ */
+function textLanguageService(workspace: string): LanguageServiceHost {
+  const fileOf = (name: string) => path.join(workspace, ...name.split('/'))
+  const uses = (): CodeLocation[] =>
+    Object.keys(CODE_FILES).flatMap((name) =>
+      readFileSync(fileOf(name), 'utf8')
+        .split('\n')
+        .flatMap((line, index) => {
+          const found: CodeLocation[] = []
+          for (const match of line.matchAll(CODE_SYMBOL_USE)) {
+            // As TypeScript's service does, a name inside a string is no use of it.
+            if (!isInString(line, match.index)) {
+              found.push({
+                path: fileOf(name),
+                range: {
+                  start: { line: index, character: match.index },
+                  end: { line: index, character: match.index + CODE_SYMBOL.length },
+                },
+              })
+            }
+          }
+          return found
+        }),
+    )
+  const declaration = (): readonly CodeSymbol[] =>
+    uses()
+      .slice(0, 1)
+      .map((location) => ({
+        name: CODE_SYMBOL,
+        kind: FUNCTION_KIND,
+        detail: undefined,
+        container: undefined,
+        location,
+        selection: location.range,
+        children: [],
+      }))
+  return {
+    open: (file) =>
+      Promise.resolve({
+        languageId: 'typescript',
+        text: readFileSync(file, 'utf8'),
+        isDirty: false,
+      }),
+    definitions: () => Promise.resolve(declaration().map((symbol) => symbol.location)),
+    references: () => Promise.resolve(uses()),
+    hover: () => Promise.resolve(['function greet(name: string): string']),
+    documentSymbols: (file) =>
+      Promise.resolve(file === fileOf('src/greet.ts') ? declaration() : []),
+    workspaceSymbols: (query) => Promise.resolve(CODE_SYMBOL.includes(query) ? declaration() : []),
+    callHierarchy: () => Promise.resolve(undefined),
+    libraryRoots: () => [],
+    rename: (_file, _at, newName) =>
+      Promise.resolve({
+        files: Object.keys(CODE_FILES).map((name) => ({
+          path: fileOf(name),
+          edits: uses()
+            .filter((use) => use.path === fileOf(name))
+            .map((use) => ({ range: use.range, newText: newName })),
+        })),
+        fileOperations: 'none',
+      }),
+  }
 }
 
 function isPngFile(file: string): boolean {
@@ -1720,6 +2017,93 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
   )
 
   it(
+    'case21 verify loop: then_run, the automatic check and the diagnostics after an edit (M68)',
+    async () => {
+      const name = 'case21 verify loop'
+      // The check reads the file it is given after --, or value.txt, and
+      // fails while it still says BROKEN.
+      const files = {
+        'value.txt': 'BROKEN\n',
+        'check.js': [
+          "const fs = require('fs')",
+          "const file = process.argv[3] ?? 'value.txt'",
+          "if (!fs.readFileSync(file, 'utf8').includes('FIXED')) {",
+          "  console.log(file + ' still says BROKEN')",
+          '  process.exit(1)',
+          '}',
+          "console.log('CHECKOK ' + file)",
+          '',
+        ].join('\n'),
+      }
+      const checks: readonly CheckCommandSetting[] = [
+        { name: 'check', command: 'node check.js', changedFiles: true, timeoutSeconds: 60 },
+      ]
+      // No language server runs here: the stand-in reports an error while
+      // the file says BROKEN, as one would.
+      const verify: VerifyHooks = {
+        isDiagnosticsOn: () => true,
+        checkCommands: () => checks,
+        isFormatOnEdit: () => false,
+        diagnosticsAfterEdit: (edited) =>
+          Promise.resolve(
+            edited.map((file) => ({
+              file,
+              entries: readFileSync(file.absolute, 'utf8').includes('BROKEN')
+                ? [
+                    {
+                      path: file.relative,
+                      severity: 'error' as const,
+                      line: 1,
+                      column: 1,
+                      message: 'The value is still BROKEN.',
+                      source: 'live',
+                    },
+                  ]
+                : [],
+            })),
+          ),
+        formatAfterEdit: () => Promise.resolve(undefined),
+      }
+      await runCase(name, { files, verify }, async (rig) => {
+        // Auto: the edit runs, each command asks, and the answerer allows it once.
+        const driver = await startSession(rig)
+        const finished = await send(
+          driver,
+          'In value.txt, replace the word BROKEN with FIXED using edit_file, and set its then_run to: node check.js. Then reply DONE.',
+        )
+        expectCompleted(finished)
+        expect(readFileSync(path.join(rig.workspace, 'value.txt'), 'utf8')).toContain('FIXED')
+        const checked = finished.rows.find((row) => row.tool === 'verify_edits')
+        expect(checked?.verifySummary).toEqual({
+          files: ['value.txt'],
+          errors: 0,
+          warnings: 0,
+          checks: [{ name: 'check', outcome: 'passed' }],
+        })
+        const requests = callsOf(name).filter((call) => isBilledResponse(call))
+        expect(requests[0]?.tools).toEqual(expect.arrayContaining(['run_checks', 'edit_file']))
+        // The request after the edit round (the model may read first): the
+        // round's outputs, then the check as a note, and Meta took it.
+        const afterEdit = requests.filter(
+          (call) =>
+            call.inputKinds.at(-2) === 'function_call_output' &&
+            call.inputKinds.at(-1) === 'message:user',
+        )
+        expect(afterEdit).toHaveLength(1)
+        expect(afterEdit[0]?.status).toBe(HTTP_OK)
+        const edit = finished.rows.find((row) => row.tool === 'edit_file')
+        rig.notes.push(
+          `requests ${requests.map((call) => call.inputKinds.slice(-2).join('+')).join(' | ')}`,
+          `rows ${toolsRun(finished).join(' ')}`,
+          `then_run ${edit?.thenRun === undefined ? 'not used' : `${edit.thenRun.outcome} ${JSON.stringify(edit.thenRun.output)}`}`,
+          `cards ${driver.watch.approved.join(' ')}`,
+        )
+      })
+    },
+    CASE_MS,
+  )
+
+  it(
     'case18 a question, and Stop while a card is open, then the next turn (M16, D26)',
     async () => {
       const name = 'case18 question and stop'
@@ -1753,6 +2137,100 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
           `rows ${[...toolsRun(asked), ...toolsRun(stopped)].join(' ')}`,
           `replies ${JSON.stringify(asked.reply)} ${JSON.stringify(resumed.reply)}`,
         )
+      })
+    },
+    CASE_MS,
+  )
+
+  it(
+    'case20 plans as files: through the panel’s controller, a Plan-mode reply saved byte for byte, then implemented in a fresh conversation with its steps as the todo list (M79)',
+    async () => {
+      const name = 'case20 plans'
+      await runCase(name, {}, async (rig) => {
+        const panel = livePanel(rig)
+        const { controller } = panel
+        try {
+          await controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+          await controller.handle({
+            type: 'sendMessage',
+            localId: 'plan-1',
+            text: 'Plan how to create a file named hello.txt that contains the single word hi. Give the plan as exactly two numbered steps. Only the plan; do not carry it out.',
+            attachmentIds: [],
+          })
+          const planned = await panelTurn(panel, 'plan-1')
+          expect(planned.terminal).toBe('completed')
+          const reply = planned.reply
+          expect(reply?.text?.trim()).toBeTruthy()
+          const sessionInfo = panel.posted.findLast((message) => message.type === 'sessionInfo')
+          const sourceSessionId =
+            sessionInfo?.type === 'sessionInfo' ? String(sessionInfo.sessionId) : ''
+          const itemId = String(reply?.itemId)
+          // Save plan: the file holds the reply's plan, byte for byte.
+          await controller.handle({ type: 'savePlan', sourceSessionId, itemId })
+          const plansFolder = path.join(rig.workspace, '.agents', 'plans')
+          const saved = readdirSync(plansFolder)
+          expect(saved, panelNotices(panel)).toHaveLength(1)
+          const relativePath = `.agents/plans/${String(saved[0])}`
+          const text = planBody(String(reply?.text))
+          expect(readFileSync(path.join(plansFolder, String(saved[0])), 'utf8')).toBe(text)
+          // Implement: the same file found (no second one), a fresh conversation in Manual.
+          await controller.handle({ type: 'implementPlan', sourceSessionId, itemId })
+          expect(readdirSync(plansFolder)).toEqual(saved)
+          const brief = panel.posted.find((message) => message.type === 'briefSubmitted')
+          expect(brief?.type === 'briefSubmitted' && brief.text, panelNotices(panel)).toBe(
+            fill(UI_TEXT.planBriefText, { path: relativePath }),
+          )
+          const localId = brief?.type === 'briefSubmitted' ? brief.localId : ''
+          const built = await panelTurn(panel, localId)
+          expect(built.terminal).toBe('completed')
+          expect(readFileSync(path.join(rig.workspace, 'hello.txt'), 'utf8').trim()).toBe('hi')
+          const modes = panel.posted.flatMap((message) =>
+            message.type === 'composerState' ? [message.permissionMode] : [],
+          )
+          expect(modes.at(-1)).toBe('manual')
+          const briefAt = brief === undefined ? 0 : panel.posted.indexOf(brief)
+          const lists = panelEvents(panel, 'todoChanged', briefAt).map((event) =>
+            event.items.map((item) => item.status).join(','),
+          )
+          // The new conversation's first list is the plan's steps, set before the brief went.
+          expect(lists[0]).toBe(
+            listItems(text)
+              .map(() => PLAN_TODO_PENDING_STATUS)
+              .join(','),
+          )
+          rig.notes.push(
+            `plan ${relativePath} (${String(listItems(text).length)} steps)`,
+            `todo lists ${lists.join(' | ')}`,
+            `cards allowed ${panel.allowed.join(' ')}`,
+          )
+        } finally {
+          controller.dispose()
+        }
+      })
+    },
+    CASE_MS,
+  )
+
+  it(
+    'case19 code intelligence: references, then a rename through its card (M67, D49)',
+    async () => {
+      const options = { files: CODE_FILES, codeIntel: textLanguageService }
+      await runCase('case19 code intelligence', options, async (rig) => {
+        const driver = await startSession(rig, 'promptUnmatched')
+        const finished = await send(
+          driver,
+          'Use the find_references tool on the symbol greet to see where it is used, then use the rename_symbol tool to rename greet to welcome. Reply with how many references find_references listed.',
+        )
+        expectCompleted(finished)
+        const rows = toolsRun(finished)
+        expect(rows).toContain('find_references:completed')
+        expect(rows).toContain('rename_symbol:completed')
+        expect(driver.watch.approved).toContain('rename_symbol')
+        // The import names the new function; its module path is unchanged.
+        expect(readFileSync(path.join(rig.workspace, 'src', 'main.ts'), 'utf8')).toBe(
+          "import { welcome } from './greet'\n\nexport const pair = [welcome('Ada'), welcome('Grace')]\n",
+        )
+        rig.notes.push(`rows ${rows.join(' ')}`, `reply ${JSON.stringify(finished.reply)}`)
       })
     },
     CASE_MS,

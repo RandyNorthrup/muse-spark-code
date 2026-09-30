@@ -140,12 +140,16 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
 
   it('starts the verifier with none of the run’s environment', async () => {
     vi.stubEnv('MUSE_EVAL_PROBE', 'inherited')
+    vi.stubEnv('META_API_KEY', 'not-a-real-eval-credential')
     try {
-      const allowed = process.platform === 'win32' ? WINDOWS_REQUIRED_VARIABLES : []
+      // CoreFoundation generates this even with env:{} and no parent value.
+      const posixAllowed = process.platform === 'darwin' ? ['__CF_USER_TEXT_ENCODING'] : []
+      const allowed = process.platform === 'win32' ? WINDOWS_REQUIRED_VARIABLES : posixAllowed
       const verdict = await verdictOf(
         probeTask(
           [
             'assert.equal(process.env.MUSE_EVAL_PROBE, undefined)',
+            'assert.equal(process.env.META_API_KEY, undefined)',
             `const allowed = new Set(${JSON.stringify(allowed)})`,
             'const extra = Object.keys(process.env).filter((name) => !allowed.has(name.toUpperCase()))',
             'assert.deepEqual(extra, [])',

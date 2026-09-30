@@ -24,6 +24,8 @@ function result(overrides: Partial<EvalTaskResult>): EvalTaskResult {
     costUsd: 0.0001,
     toolCalls: 2,
     approvals: 0,
+    questions: 0,
+    paidRefusals: 0,
     ...overrides,
   }
 }
@@ -104,7 +106,7 @@ describe('eval report', () => {
       'accept: 1/1 passed (100%), 3 attempts in 3 requests, 600 input (0 cached) + 40 output tokens, $0.0001.',
     )
     expect(markdown).toContain(
-      '- heldout-sort-numbers failed: the turn ended failed: overloaded; the verifier failed: 1 !== 9',
+      'heldout-sort-numbers failed:\n\n```text\nthe turn ended failed: overloaded\nthe verifier failed: 1 !== 9\n```',
     )
     expect(markdown).toContain('| baseline | heldout | 1 | 0% | 75% | no |')
     expect(markdown.endsWith('\n')).toBe(true)
@@ -129,7 +131,7 @@ describe('eval report', () => {
       verdict: 'incomplete',
     })
     expect(markdown).toContain('accept: not run.')
-    expect(markdown).toContain('- heldout-sort-numbers failed: no detail')
+    expect(markdown).toContain('heldout-sort-numbers failed:\n\n```text\nno detail\n```')
     expect(markdown).toContain('| baseline | accept | 0 | 100% | 75% | not run |')
   })
 

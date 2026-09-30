@@ -4,7 +4,17 @@
 // and the store end to end over them.
 
 import { realpathSync } from 'node:fs'
-import { link, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+  link,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -82,6 +92,20 @@ describe('systemPath', () => {
 })
 
 describe('createMemoryIo unsaved changes', () => {
+  it('forwards the runtime owner fence to private note publication', async () => {
+    const guarded = createMemoryIo(fileTools(), {
+      warn: () => undefined,
+      assertCanWrite: () => {
+        throw new Error('workspace owner changed')
+      },
+    })
+    const target = path.join(paths.root, 'owner-private-note.md')
+    await expect(guarded.createFile(target, 'private bytes')).rejects.toThrow(
+      'workspace owner changed',
+    )
+    expect(await readIfPresent(target)).toBeUndefined()
+  })
+
   it('answers from the file tool for a path', () => {
     const open = path.join(paths.workspace, 'open.md')
     expect(io.hasUnsavedChanges(open)).toBe(false)
@@ -184,6 +208,38 @@ describe('MemoryStore on the file system', () => {
       reason: 'hard links unavailable',
     })
     expect(await readIfPresent(path.join(path.dirname(target), 'MEMORY.md'))).toBeUndefined()
+  })
+
+  it('refuses a new note whose folder was swapped for a junction after it was checked', async () => {
+    const workspace = path.join(paths.root, 'swap-ws')
+    const notes = path.join(workspace, '.agents', 'memory', 'notes')
+    const elsewhere = path.join(paths.root, 'swap-elsewhere')
+    await mkdir(notes, { recursive: true })
+    await mkdir(elsewhere, { recursive: true })
+    const store = new MemoryStore({
+      io,
+      platform: process.platform,
+      dataRoot: () => paths.data,
+      workspaceRoot: workspace,
+      systemPath,
+      warn: () => undefined,
+    })
+    const place = await store.locate('project', 'notes/x.md')
+    if (!place.ok) {
+      throw new Error(place.reason)
+    }
+    // Checked; then the folder is swapped for a junction before the note is written.
+    await rename(notes, `${notes}-moved`)
+    await symlink(elsewhere, notes, 'junction')
+    try {
+      await expect(store.add(place.value, { content: 'private' })).resolves.toMatchObject({
+        ok: false,
+        reason: expect.stringMatching(/now leads elsewhere/),
+      })
+      expect(await readdir(elsewhere)).toEqual([])
+    } finally {
+      await rm(notes, { force: true })
+    }
   })
 
   it('writes notes and their index lines, and refuses a note behind a link', async () => {

@@ -11,7 +11,13 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 
-const HOST_BUNDLES = ['dist/extension.js', 'dist/modelApi.js', 'dist/searchWorker.js']
+const HOST_BUNDLES = [
+  'dist/extension.js',
+  'dist/modelApi.js',
+  'dist/planMarkdown.js',
+  'dist/searchWorker.js',
+  'dist/pageWorker.js',
+]
 const NAVIGATOR = /\bnavigator\b/g
 
 let hasFailure = false

@@ -57,7 +57,7 @@ import type {
   SessionEventListener,
   SessionHistoryOutcome,
   SessionListEvent,
-  SessionMcpHttpServer,
+  SessionMcpServer,
   SessionPage,
   SkillSummary,
   StartSessionOptions,
@@ -1103,7 +1103,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   private mcpConfig(
-    mcpServers: Readonly<Record<string, SessionMcpHttpServer>> | undefined,
+    mcpServers: Readonly<Record<string, SessionMcpServer>> | undefined,
   ): Record<string, unknown> {
     if (mcpServers === undefined) {
       return {}
@@ -1114,12 +1114,20 @@ export class MuseCodeHost implements AgentHost {
           Object.entries(mcpServers).map(([name, server]) => [
             name,
             // `optional`: a tool-server hiccup never blocks the session.
-            {
-              transport: 'streamableHttp',
-              url: server.url,
-              headers: server.headers,
-              mode: 'optional',
-            },
+            'command' in server
+              ? {
+                  transport: 'stdio',
+                  command: server.command,
+                  args: server.args,
+                  env: server.env,
+                  mode: 'optional',
+                }
+              : {
+                  transport: 'streamableHttp',
+                  url: server.url,
+                  headers: server.headers,
+                  mode: 'optional',
+                },
           ]),
         ),
       },
@@ -1216,7 +1224,7 @@ export class MuseCodeHost implements AgentHost {
   public async resumeSession(
     sessionId: string,
     modelId: string,
-    mcpServers?: Readonly<Record<string, SessionMcpHttpServer>>,
+    mcpServers?: Readonly<Record<string, SessionMcpServer>>,
   ): Promise<LoadedSession> {
     const { loaded, hasPending } = await this.opened(async () => {
       const envelope = sessionEnvelopeSchema.parse(

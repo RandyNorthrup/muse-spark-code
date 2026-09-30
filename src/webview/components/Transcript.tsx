@@ -75,6 +75,11 @@ export interface TranscriptProps {
   readonly activeTurnId?: string | undefined
   /** A reply's actions menu (M17); absent while no session exists. */
   readonly onReply?: ((entryId: string) => void) | undefined
+  /** The latest Plan-mode reply, which carries the plan's actions (M79). */
+  readonly planReplyId?: string | undefined
+  readonly onSavePlan?: ((entryId: string) => void) | undefined
+  /** Absent where a plan cannot be implemented (a side chat). */
+  readonly onImplementPlan?: ((entryId: string) => void) | undefined
   /** The row whose highlighted text has the Copy / Ask / Comment menu open (M17). */
   readonly quoteMenuEntryId?: string | undefined
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
@@ -313,8 +318,47 @@ interface AssistantRowProps {
   readonly onApply: (text: string) => void
   /** The actions menu's "Reply to this output" (M17); absent while no session exists. */
   readonly onReply: ((entryId: string) => void) | undefined
+  /** The plan's actions under the latest Plan-mode reply (M79); absent elsewhere. */
+  readonly onSavePlan: ((entryId: string) => void) | undefined
+  readonly onImplementPlan: ((entryId: string) => void) | undefined
   /** The highlighted-text menu when it belongs to this row (M17). */
   readonly quoteMenu: ReactNode
+}
+
+/** "Save plan" and "Implement in a fresh conversation" under a Plan-mode reply (M79). */
+function PlanActions({
+  entryId,
+  onSavePlan,
+  onImplementPlan,
+}: {
+  readonly entryId: string
+  readonly onSavePlan: (entryId: string) => void
+  readonly onImplementPlan: ((entryId: string) => void) | undefined
+}) {
+  return (
+    <div className="plan-actions" role="group" aria-label={UI_TEXT.planActionsLabel}>
+      <button
+        type="button"
+        className="button-secondary"
+        onClick={() => {
+          onSavePlan(entryId)
+        }}
+      >
+        {UI_TEXT.savePlan}
+      </button>
+      {onImplementPlan === undefined ? null : (
+        <button
+          type="button"
+          className="button-primary"
+          onClick={() => {
+            onImplementPlan(entryId)
+          }}
+        >
+          {UI_TEXT.implementPlan}
+        </button>
+      )}
+    </div>
+  )
 }
 
 const AssistantRow = memo(function AssistantRow({
@@ -326,6 +370,8 @@ const AssistantRow = memo(function AssistantRow({
   onInsert,
   onApply,
   onReply,
+  onSavePlan,
+  onImplementPlan,
   quoteMenu,
 }: AssistantRowProps) {
   const text = useDeferredValue(entry.text)
@@ -352,7 +398,10 @@ const AssistantRow = memo(function AssistantRow({
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
       <div className="message-body">
         {head === '' ? null : <MarkdownView text={head} {...actions} />}
-        {closed === '' ? null : <MarkdownView text={closed} {...actions} />}
+        {closed === '' ? null : (
+          // The reply a plan action would save is shown as its brief would read (M79).
+          <MarkdownView text={closed} {...actions} isPlan={onSavePlan !== undefined} />
+        )}
         {open === undefined ? null : (
           <CodeBlock
             code={open.code}
@@ -371,6 +420,13 @@ const AssistantRow = memo(function AssistantRow({
             citations={entry.citations}
             onOpenLink={onOpenLink}
             onRefuseLink={onRefuseLink}
+          />
+        )}
+        {onSavePlan === undefined || entry.isStreaming ? null : (
+          <PlanActions
+            entryId={entry.id}
+            onSavePlan={onSavePlan}
+            onImplementPlan={onImplementPlan}
           />
         )}
       </div>
@@ -550,6 +606,9 @@ function TranscriptList(props: TranscriptProps) {
     onRewindConversation,
     activeTurnId,
     onReply,
+    planReplyId,
+    onSavePlan,
+    onImplementPlan,
     quoteMenuEntryId,
     onQuote,
     onCopyQuote,
@@ -611,6 +670,7 @@ function TranscriptList(props: TranscriptProps) {
         )
       }
       case 'assistant': {
+        const isPlanReply = entry.id === planReplyId
         return (
           <AssistantRow
             key={entry.id}
@@ -622,6 +682,8 @@ function TranscriptList(props: TranscriptProps) {
             onInsert={onInsert}
             onApply={onApply}
             onReply={onReply}
+            onSavePlan={isPlanReply ? onSavePlan : undefined}
+            onImplementPlan={isPlanReply ? onImplementPlan : undefined}
             quoteMenu={quoteMenuFor(entry.id)}
           />
         )

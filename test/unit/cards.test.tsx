@@ -128,6 +128,28 @@ describe('ApprovalCard', () => {
     expect(screen.getByText('mystery')).toBeInTheDocument()
     expect(screen.getByText('Escalated by the safety check')).toBeInTheDocument()
   })
+
+  it('names the page a web fetch will read (M69)', () => {
+    render(
+      <ApprovalCard
+        approval={{
+          ...approval,
+          subject: {
+            kind: 'webFetch',
+            target: 'https://docs.example.com/a?b=1',
+            toolName: 'web_fetch',
+          },
+          isProtectedWrite: false,
+        }}
+        toolName="web_fetch"
+        onDecide={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('group', { name: 'Muse wants to fetch https://docs.example.com/a?b=1' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('https://docs.example.com/a?b=1').tagName).toBe('CODE')
+  })
 })
 
 describe('TodoPanel', () => {

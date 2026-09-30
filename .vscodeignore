@@ -1,7 +1,9 @@
 **
 !dist/extension.js
 !dist/modelApi.js
+!dist/planMarkdown.js
 !dist/searchWorker.js
+!dist/pageWorker.js
 !dist/webview/main.js
 !dist/webview/main.css
 !media/icon.svg

@@ -61,6 +61,7 @@ describe('MemoryStore: where notes live', () => {
       path: 'deploy.md',
       absolute: `${PROJECT}/deploy.md`,
       display: '.agents/memory/deploy.md',
+      checked: `${PROJECT}/deploy.md`,
     })
     await expect(place(store, 'personal', 'prefs.md')).resolves.toMatchObject({
       absolute: `${PERSONAL}/prefs.md`,

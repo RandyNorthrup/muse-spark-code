@@ -1,7 +1,8 @@
-// One tool call: status dot, label, argument summary, change line, and a
-// collapsible body (shell IN/OUT, edit diff, read output, a memory note, a
-// goal, scheduled prompts, search results, a workflow's script and launch,
-// or generic args/output), the
+// One tool call: status dot, label, argument summary, change line (an
+// edit's lines, a fetched page's size), and a collapsible body (shell
+// IN/OUT, edit diff, read output, a fetched page, a memory note, a goal,
+// scheduled prompts, search results, a workflow's script and launch, or
+// generic args/output), the
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
@@ -12,6 +13,7 @@ import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
 import {
   failedOutcomeText,
+  hasLandedEdits,
   isFailedStatus,
   type OutputPage,
   type ToolImageState,
@@ -22,6 +24,7 @@ import { backgroundRun, readableText } from '../toolDetails'
 import {
   changeSummary,
   describeTool,
+  fetchedSize,
   type ToolPresentation,
   writtenContent,
 } from '../toolPresentation'
@@ -38,6 +41,8 @@ import {
   WebBody,
   WorkflowBody,
 } from './ToolBodies'
+import { verifySummaryText } from '../../shared/verifyText'
+import { ThenRunBlock, VerifyBody } from './VerifyParts'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
@@ -320,11 +325,18 @@ function ToolRowView({
   const [isOpen, setIsOpen] = useState(
     presentation.body === 'shell' || presentation.body === 'edit' || imagePaths.length > 0,
   )
-  const change = changeSummary(entry.patchSummary)
+  // An edit's lines, or a fetched page's size (M69).
+  const change =
+    changeSummary(entry.patchSummary) ??
+    (presentation.body === 'fetch' && entry.status === 'completed'
+      ? fetchedSize(entry.output)
+      : undefined)
+  const verified = verifySummaryText(entry.verifySummary)
   const isFailed = isFailedStatus(entry.status) || entry.status === TOOL_STATUS_INTERRUPTED
-  // A finished edit with a stored patch can be reviewed in the editor.
+  // An edit whose changes are on disk (a finished one, or a rename stopped
+  // partway, M67) can be reviewed and reverted in the editor.
   const reviewRef =
-    presentation.body === 'edit' && entry.status === 'completed' ? entry.patchRef : undefined
+    presentation.body === 'edit' && hasLandedEdits(entry) ? entry.patchRef : undefined
   usePatchPages(entry, isOpen, patchPage, onReadOutput)
   // Parsed once per page, not per render (M25); a partial document parses to nothing.
   const patchContent = patchPage?.isEof === true ? patchPage.content : undefined
@@ -363,10 +375,16 @@ function ToolRowView({
       break
     }
     case 'edit': {
-      body = <EditBody entry={entry} files={files} onExpand={openReview} />
+      body = (
+        <>
+          <EditBody entry={entry} files={files} onExpand={openReview} />
+          {entry.thenRun === undefined ? null : <ThenRunBlock result={entry.thenRun} />}
+        </>
+      )
       break
     }
-    case 'read': {
+    case 'read':
+    case 'fetch': {
       body =
         entry.output === '' ? null : (
           <Clipped text={entry.output} className="tool-output" onOpen={openOutput} />
@@ -399,6 +417,10 @@ function ToolRowView({
     }
     case 'workflow': {
       body = <WorkflowBody entry={entry} />
+      break
+    }
+    case 'verify': {
+      body = <VerifyBody output={entry.output} onOpen={openOutput} />
       break
     }
     case 'generic': {
@@ -488,6 +510,7 @@ function ToolRowView({
         ) : null}
       </div>
       {change === undefined ? null : <div className="tool-change">{change}</div>}
+      {verified === undefined ? null : <div className="tool-change">{verified}</div>}
       {isFailed ? (
         <div className="tool-failure">
           {outcomeText(entry.status)}

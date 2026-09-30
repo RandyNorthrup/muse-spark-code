@@ -4,11 +4,14 @@
 // relative link opens the workspace file it names, at the lines it names
 // (M25); every block takes its direction from its own first strong
 // character, so a right-to-left paragraph reads right to left beside a
-// left-to-right one.
+// left-to-right one. A plan reply (M79) is shown through `showPlanParts`:
+// every part of it the model would get is text here (a link's destination,
+// a picture's source, a definition, a footnote, a code fence's info string).
 
 import { type ComponentProps, memo, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { PLAN_CODE_INFO_ATTRIBUTE, showPlanParts } from '../../shared/planView'
 import type { LineRange } from '../../shared/protocol'
 import { linkHref, linkTarget } from '../links'
 import { CodeBlock } from './CodeBlock'
@@ -23,10 +26,13 @@ export interface MarkdownViewProps {
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
   readonly onApply: (text: string) => void
+  /** A plan reply (M79): shown with every part the brief would carry. */
+  readonly isPlan?: boolean
 }
 
 const LANGUAGE_CLASS = /language-([\w+#-]+)/
 const PLUGINS = [remarkGfm]
+const PLAN_PLUGINS = [remarkGfm, () => showPlanParts]
 
 function languageOf(className: string | undefined): string | undefined {
   return className === undefined ? undefined : LANGUAGE_CLASS.exec(className)?.[1]
@@ -47,6 +53,7 @@ function MarkdownViewInner({
   onCopy,
   onInsert,
   onApply,
+  isPlan = false,
 }: MarkdownViewProps) {
   const follow = (href: string) => {
     const target = linkTarget(href)
@@ -75,7 +82,7 @@ function MarkdownViewInner({
   return (
     <div className="markdown">
       <Markdown
-        remarkPlugins={PLUGINS}
+        remarkPlugins={isPlan ? PLAN_PLUGINS : PLUGINS}
         skipHtml
         urlTransform={linkHref}
         components={{
@@ -104,8 +111,10 @@ function MarkdownViewInner({
           th: ({ children }: ComponentProps<'th'>) => <th dir="auto">{children}</th>,
           img: ({ alt }: ComponentProps<'img'>) => <span className="markdown-image">{alt}</span>,
           pre: ({ children }: ComponentProps<'pre'>) => <>{children}</>,
-          code: ({ className, children }: ComponentProps<'code'>) => {
+          code: (props: ComponentProps<'code'>) => {
+            const { className, children } = props
             const language = languageOf(className)
+            const info: unknown = Reflect.get(props, PLAN_CODE_INFO_ATTRIBUTE)
             const code = textOf(children)
             // Inline code has no language class and no newline.
             if (language === undefined && !code.includes('\n')) {
@@ -115,6 +124,7 @@ function MarkdownViewInner({
               <CodeBlock
                 code={code.replace(/\n$/, '')}
                 language={language}
+                label={typeof info === 'string' ? info : undefined}
                 onCopy={onCopy}
                 onInsert={onInsert}
                 onApply={onApply}

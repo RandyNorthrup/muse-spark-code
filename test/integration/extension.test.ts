@@ -4,6 +4,7 @@ import * as assert from 'node:assert/strict'
 import * as vscode from 'vscode'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import type { Logger } from '../../src/host/logger'
+import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CHAT_PANEL_VIEW_TYPE,
@@ -11,6 +12,7 @@ import {
   COMMAND_IDS,
   EXTENSION_QUALIFIED_ID,
   MODEL_API_BUNDLE_FILE,
+  PLAN_MARKDOWN_BUNDLE_FILE,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
 } from '../../src/shared/constants'
@@ -191,5 +193,31 @@ suite('the Model API bundle', () => {
     } finally {
       await manager.dispose()
     }
+  })
+})
+
+// The plan reader (M79, PLAN.md D6) is dist/planMarkdown.js beside
+// dist/extension.js, loaded on the first plan action; this loads it from the
+// installed extension, as activate's loader does, and reads a plan with it.
+suite('the plan reader bundle', () => {
+  test('loads from the installed extension and finds text the panel hides', () => {
+    const extension = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)
+    assert.ok(extension, `extension ${EXTENSION_QUALIFIED_ID} not found`)
+    const errors: string[] = []
+    const reader = planMarkdownLoader({
+      bundlePath: vscode.Uri.joinPath(extension.extensionUri, 'dist', PLAN_MARKDOWN_BUNDLE_FILE)
+        .fsPath,
+      log: {
+        trace: () => undefined,
+        info: () => undefined,
+        warn: () => undefined,
+        error: (message) => {
+          errors.push(message)
+        },
+      },
+    })
+    assert.equal(reader().hasRawHtml('1. Do it.\n\n```js`\n<!-- hidden -->\n```'), true)
+    assert.deepEqual(reader().listItems('1. One.\n2. Two.'), ['One.', 'Two.'])
+    assert.deepEqual(errors, [])
   })
 })

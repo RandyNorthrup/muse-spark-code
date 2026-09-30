@@ -11,6 +11,11 @@
 //   node scripts/third-party-notices.mjs          check (the build runs this):
 //                                                 exit 1 when the file is stale
 //   node scripts/third-party-notices.mjs --write  regenerate it (npm run notices)
+//   node scripts/third-party-notices.mjs --acp <file>
+//                                                 the ACP agent's package (M63,
+//                                                 PLAN.md D62): its four bundles'
+//                                                 packages, written to <file>
+//                                                 by scripts/package-acp.mjs
 //
 // Versions are left out on purpose: a routine version bump changes no
 // licence and passes, while a package that enters a bundle, or a licence
@@ -22,6 +27,15 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const METAFILE_DIR = path.join('dist', 'meta')
+// The ACP agent ships acp.js, the Model API backend's bundle it loads (M57)
+// and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
+const ACP_METAFILES = [
+  path.join('dist', 'meta-acp', 'acp.json'),
+  path.join(METAFILE_DIR, 'modelApi.json'),
+  path.join(METAFILE_DIR, 'searchWorker.json'),
+  path.join(METAFILE_DIR, 'pageWorker.json'),
+]
+const ACP_FLAG = '--acp'
 const NODE_MODULES = 'node_modules/'
 const LICENCE_FILE = /^(licen[cs]e|copying)(\.(md|txt|markdown))?$/i
 const NOTICE_FILE = /^notice(\.(md|txt))?$/i
@@ -41,7 +55,9 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/searchWorker.js, dist/webview/main.js and dist/webview/main.css)
+dist/planMarkdown.js, dist/searchWorker.js, dist/pageWorker.js,
+dist/webview/main.js and
+dist/webview/main.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
@@ -49,6 +65,18 @@ script of this project; neither includes third-party code.
 
 Generated from the production build by scripts/third-party-notices.mjs;
 "npm run notices" regenerates this file.
+`
+
+const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
+muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
+Agent Client Protocol
+
+The agent's bundles (dist/acp.js, dist/modelApi.js, dist/searchWorker.js and
+dist/pageWorker.js) include code from the packages below, each under its
+own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
+beside it as a dependency, with its own licence.
+
+Generated from the production build by scripts/third-party-notices.mjs.
 `
 
 /** The package directory of an esbuild input under node_modules (the innermost one). */
@@ -59,13 +87,14 @@ function packageDirOf(input) {
   return input.slice(0, at) + packageName
 }
 
-function shippedPackageDirs() {
-  if (!existsSync(METAFILE_DIR)) {
-    throw new Error(`${METAFILE_DIR} is missing: run "node scripts/build.mjs --production" first`)
+function shippedPackageDirs(metafiles) {
+  const missing = metafiles.find((file) => !existsSync(file))
+  if (missing !== undefined) {
+    throw new Error(`${missing} is missing: run "node scripts/build.mjs --production" first`)
   }
   const dirs = new Set()
-  for (const file of readdirSync(METAFILE_DIR)) {
-    const metafile = JSON.parse(readFileSync(path.join(METAFILE_DIR, file), 'utf8'))
+  for (const file of metafiles) {
+    const metafile = JSON.parse(readFileSync(file, 'utf8'))
     for (const output of Object.values(metafile.outputs)) {
       const packageInputs = Object.keys(output.inputs).filter((input) =>
         input.includes(NODE_MODULES),
@@ -125,18 +154,37 @@ function describePackage(dir, problems) {
 }
 
 /** One block per distinct licence text, naming every package that ships it. */
-function render(packages) {
+function render(packages, isAcp) {
+  const header = isAcp ? ACP_HEADER : HEADER
   const sorted = packages.toSorted((a, b) => a.name.localeCompare(b.name, 'en'))
   const groups = Map.groupBy(sorted, (entry) => entry.text)
   const blocks = [...groups].map(([text, group]) => {
     const names = group.map((entry) => `${entry.name} (${entry.licence})\n  ${entry.url}`)
     return `${RULE}\n${names.join('\n')}\n${THIN_RULE}\n\n${text}\n`
   })
-  return `${HEADER}\n${blocks.join('\n')}`
+  return `${header}\n${blocks.join('\n')}`
 }
 
+/** The file `--acp` names; undefined without the flag. */
+function acpOutputFile() {
+  const index = process.argv.indexOf(ACP_FLAG)
+  if (index === -1) {
+    return
+  }
+  const file = process.argv[index + 1]
+  if (file === undefined) {
+    throw new Error(`${ACP_FLAG} needs the file to write`)
+  }
+  return file
+}
+
+const acpOutput = acpOutputFile()
+const metafiles =
+  acpOutput === undefined
+    ? readdirSync(METAFILE_DIR).map((file) => path.join(METAFILE_DIR, file))
+    : ACP_METAFILES
 const problems = []
-const packages = shippedPackageDirs().map((dir) => describePackage(dir, problems))
+const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
 if (problems.length > 0) {
   console.error(`third-party notices: ${String(problems.length)} package(s) need a review:`)
   for (const problem of problems) {
@@ -145,9 +193,12 @@ if (problems.length > 0) {
   process.exit(1)
 }
 const OUTPUT = 'THIRD_PARTY_NOTICES.txt'
-const expected = render(packages)
+const expected = render(packages, acpOutput !== undefined)
 
-if (process.argv.includes('--write')) {
+if (acpOutput !== undefined) {
+  writeFileSync(acpOutput, expected)
+  console.log(`${acpOutput}: ${String(packages.length)} packages written`)
+} else if (process.argv.includes('--write')) {
   writeFileSync(OUTPUT, expected)
   console.log(`${OUTPUT}: ${String(packages.length)} packages written`)
 } else {

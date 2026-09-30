@@ -1,15 +1,23 @@
 // The IDE tool server `muse serve` reaches from each session: MCP over
 // streamable HTTP on a loopback port, guarded by a bearer token minted per
 // extension host (never logged, never written to disk). Its tools are
-// `getDiagnostics` and, while paid image generation is on and a key is
-// stored, the image tools (M44); the list is read on every request, so a
-// session started after a change sees it. The JSON-RPC handling itself is
-// pure (src/core/mcp.ts).
+// `getDiagnostics`, web fetch in a trusted workspace (M69) and, while paid
+// image generation is on and a key is stored, the image tools (M44); the
+// list is read on every request, so a session started after a change sees
+// it. A call whose caller stops waiting (its request closed, or
+// `notifications/cancelled` naming it) is told through its signal. The
+// JSON-RPC handling itself is pure (src/core/mcp.ts).
 
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { handleMcpMessage, type McpTool } from '../../core/mcp'
+import {
+  handleMcpMessage,
+  type McpOutcome,
+  type McpRequestKey,
+  mcpRequestKeys,
+  type McpTool,
+} from '../../core/mcp'
 import {
   CLI_OUTPUT_MAX_BYTES,
   HTTP_STATUS,
@@ -62,12 +70,59 @@ export class IdeMcpServer {
   private endpoint: IdeMcpEndpoint | undefined
   /** A start in flight: concurrent callers share it instead of opening two ports. */
   private starting: Promise<IdeMcpEndpoint> | undefined
+  /** The calls being answered, by request id, so a cancellation can stop them (M69). */
+  private readonly inFlight = new Map<McpRequestKey, Set<AbortController>>()
 
   public constructor(
     /** The tools offered now, asked on every request. */
     private readonly tools: () => readonly McpTool[],
     private readonly log: Logger,
   ) {}
+
+  /**
+   * Stops every call in flight under the key (M69). Muse Code 1.4.0 sends
+   * `notifications/cancelled` for a stopped turn's call and closes its
+   * request; either one stops the tool. The server has no session identity,
+   * so two sessions' calls with the same id are both stopped: a stopped call
+   * fails, which no call takes as success.
+   */
+  private cancel(key: McpRequestKey): void {
+    const calls = this.inFlight.get(key) ?? []
+    for (const controller of calls) {
+      controller.abort()
+    }
+  }
+
+  /** The body handled with a signal that aborts when its caller stops waiting. */
+  private async handleInFlight(
+    body: string,
+    key: McpRequestKey | undefined,
+    response: ServerResponse,
+  ): Promise<McpOutcome> {
+    const controller = new AbortController()
+    const onClose = () => {
+      if (!response.writableFinished) {
+        controller.abort()
+      }
+    }
+    response.once('close', onClose)
+    const calls = key === undefined ? undefined : (this.inFlight.get(key) ?? new Set())
+    if (key !== undefined && calls !== undefined) {
+      calls.add(controller)
+      this.inFlight.set(key, calls)
+    }
+    try {
+      return await handleMcpMessage(body, this.tools(), IDE_MCP_SERVER_INFO, controller.signal)
+    } finally {
+      response.off('close', onClose)
+      if (key !== undefined && calls !== undefined) {
+        calls.delete(controller)
+        if (calls.size === 0) {
+          this.inFlight.delete(key)
+        }
+      }
+    }
+  }
 
   private isAuthorised(request: IncomingMessage): boolean {
     const header = request.headers[AUTHORIZATION_HEADER]
@@ -97,7 +152,14 @@ export class IdeMcpServer {
       response.writeHead(HTTP_STATUS.badRequest).end()
       return
     }
-    const outcome = await handleMcpMessage(body, this.tools(), IDE_MCP_SERVER_INFO)
+    const keys = mcpRequestKeys(body)
+    if (keys.cancelled !== undefined) {
+      this.cancel(keys.cancelled)
+    }
+    const outcome = await this.handleInFlight(body, keys.request, response)
+    if (response.destroyed) {
+      return
+    }
     if (outcome.kind === 'accepted') {
       response.writeHead(HTTP_STATUS.accepted).end()
       return

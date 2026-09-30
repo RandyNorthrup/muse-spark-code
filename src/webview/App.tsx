@@ -61,6 +61,7 @@ import {
   forkCutBefore,
   initialUiState,
   isRunningTask,
+  planReplyIdOf,
   referenceLabel,
   type UiState,
   userShellCommandOf,
@@ -769,6 +770,25 @@ export function App({
       postMessage({ type: 'openSideChat', sourceSessionId: sessionId })
     }
   }, [postMessage, store])
+  // Plans as files (M79): the host reads the reply back; the ids only name it.
+  const onSavePlan = useCallback(
+    (entryId: string) => {
+      const sessionId = store.getState().sessionId
+      if (sessionId !== undefined) {
+        postMessage({ type: 'savePlan', sourceSessionId: sessionId, itemId: entryId })
+      }
+    },
+    [postMessage, store],
+  )
+  const onImplementPlan = useCallback(
+    (entryId: string) => {
+      const sessionId = store.getState().sessionId
+      if (sessionId !== undefined) {
+        postMessage({ type: 'implementPlan', sourceSessionId: sessionId, itemId: entryId })
+      }
+    },
+    [postMessage, store],
+  )
   const onOpenAgents = useCallback(() => {
     setSelectedAgentId(undefined)
     toggleOverlay('agents')
@@ -1045,6 +1065,11 @@ export function App({
           closeOverlay()
           break
         }
+        case 'showPlans': {
+          postMessage({ type: 'showPlans' })
+          closeOverlay()
+          break
+        }
         case 'manageSkills':
         case 'importSkills':
         case 'showMcpServers':
@@ -1318,6 +1343,9 @@ export function App({
               : onRewindConversation
           }
           onReply={onReply}
+          planReplyId={planReplyIdOf(state)}
+          onSavePlan={onSavePlan}
+          onImplementPlan={state.isSideChat ? undefined : onImplementPlan}
           quoteMenuEntryId={quoteMenu?.entryId}
           onQuote={onQuote}
           onCopyQuote={onCopyQuote}

@@ -195,6 +195,12 @@ const composerStateSchema = z.object({
   permissionMode: z.enum(PERMISSION_MODES),
 })
 
+// The Plan-mode reply a plan action names (M79): its session and its item.
+const planReplyFields = {
+  sourceSessionId: z.string().check(z.minLength(1)),
+  itemId: z.string().check(z.minLength(1)),
+} as const
+
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(z.number()) }),
@@ -402,6 +408,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('openSideChat'),
     sourceSessionId: z.string().check(z.minLength(1)),
   }),
+  // Plans as files (M79): the latest Plan-mode reply saved under
+  // `.agents/plans/`, or implemented in a fresh conversation. The host reads
+  // the reply back itself; the ids only name it.
+  z.object({ type: z.literal('savePlan'), ...planReplyFields }),
+  z.object({ type: z.literal('implementPlan'), ...planReplyFields }),
+  // The palette's Plans… (M79): the host lists them in a pick.
+  z.object({ type: z.literal('showPlans') }),
   z.object({ type: z.literal('renameSession'), name: z.string() }),
   // Account & usage (M8): ask for the subscription window; answered by usageReport.
   z.object({ type: z.literal('readUsage') }),
@@ -510,6 +523,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     goal: z.optional(z.nullable(sessionGoalSchema)),
     // The turn still running in the session (D26): Stop and steering stay.
     activeTurnId: z.optional(z.string()),
+    // The turns of these items this panel sent in Plan mode (M79): their user
+    // cards keep `isPlanTurn`, so a reload keeps Save plan and Implement.
+    planTurnIds: z.optional(z.array(z.string())),
   }),
   // Account & usage (M8): the backend this window runs on and the
   // subscription window the CLI last observed (absent on a key, or before
@@ -543,6 +559,15 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // D30): the composer's badge, the palette's toggles and the usage dialog.
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
+  // A message the host sent itself (M79: a plan's brief): the pending card,
+  // as the composer's own Send would have made it. `turnAccepted` or
+  // `sendFailed` follows with the same `localId`.
+  z.object({
+    type: z.literal('briefSubmitted'),
+    localId: z.string().check(z.minLength(1)),
+    text: z.string(),
+    attachments: z.array(attachmentSchema),
+  }),
   // The host accepted a sendMessage. Model API also returns its durable user-item ID.
   z.object({
     type: z.literal('turnAccepted'),

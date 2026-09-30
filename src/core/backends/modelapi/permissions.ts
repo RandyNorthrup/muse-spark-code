@@ -33,12 +33,21 @@
 // a protected one, although the project's notes sit under `.agents`: the
 // tools write only Markdown notes under a memory root, so Manual asks, Auto
 // and Edit automatically write, and Plan refuses, as for any edit.
+//
+// A web fetch (M69, PLAN.md D49, the M44b design) is a network tool: it
+// changes nothing, but the URL it sends can carry anything the conversation
+// holds, so it asks per host in every mode but Bypass (Auto included, as a
+// shell command does), "always allow in this session" keyed on the host;
+// a PermissionRequest hook may deny it or ask, but its "allow" does not
+// replace the card (ModelApiHost.askApproval). Plan refuses it: its rules allow reads of the workspace, not of the
+// network. Restricted Mode refuses it before the engine is asked.
 
 import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 
-export type ToolClass = 'read' | 'edit' | 'shell' | 'interactive' | 'paid' | 'mcp' | 'spawn'
+export type ToolClass =
+  'read' | 'edit' | 'shell' | 'interactive' | 'paid' | 'mcp' | 'spawn' | 'network'
 
 export type PermissionVerdict = 'allow' | 'ask' | 'deny'
 
@@ -75,6 +84,22 @@ function mcpVerdict(mode: ApprovalMode, isReadOnly: boolean): PermissionVerdict 
   }
 }
 
+/** A web fetch: Bypass runs it, Plan refuses it, every other mode asks per host. */
+function networkVerdict(mode: ApprovalMode): PermissionVerdict {
+  switch (mode) {
+    case 'allowAll': {
+      return 'allow'
+    }
+    case 'denyUnmatched': {
+      return 'deny'
+    }
+    case 'onRequest':
+    case 'promptUnmatched': {
+      return 'ask'
+    }
+  }
+}
+
 /** What the mode says about a tool of this class, before session rules. */
 export function verdictFor(
   mode: ApprovalMode,
@@ -90,6 +115,9 @@ export function verdictFor(
   }
   if (toolClass === 'spawn') {
     return mode === 'denyUnmatched' ? 'deny' : 'ask'
+  }
+  if (toolClass === 'network') {
+    return networkVerdict(mode)
   }
   if (mode === 'allowAll' || toolClass === 'read' || toolClass === 'interactive') {
     return 'allow'
@@ -142,7 +170,10 @@ export function choicesFor(toolName: string, command?: string): readonly Approva
 export interface PermissionQuery {
   readonly toolName: string
   readonly toolClass: ToolClass
-  /** The exact command line of a shell call; session rules match it whole. */
+  /**
+   * What a session rule matches whole: a shell call's exact command line, a
+   * web fetch's host (M69).
+   */
   readonly command?: string | undefined
   /** An edit whose target is a protected path (D24). */
   readonly isProtected?: boolean

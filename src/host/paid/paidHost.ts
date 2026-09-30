@@ -6,7 +6,7 @@
 
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
-import { PaidUseConsent, type PaidUseAnswer } from '../../core/paid/paidConsent'
+import { PaidUseConsent, type PaidUseAnswer, paidUseQuestion } from '../../core/paid/paidConsent'
 import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../core/paid/paidFeatures'
 import {
   GLOBAL_STATE_KEYS,
@@ -23,8 +23,6 @@ import {
   modelApiPaidTier,
   paidFeatureName,
   paidFeaturePrice,
-  scheduledRunPrice,
-  subagentTaskPrice,
   type PaidState,
   type PaidUseRequest,
 } from '../../shared/paid'
@@ -89,59 +87,6 @@ async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
   return answer === accept
 }
 
-/** The popup's question and what it says about the use, in the display language. */
-function paidUseText(request: PaidUseRequest): { readonly title: string; readonly detail: string } {
-  switch (request.feature) {
-    case 'webSearch': {
-      return {
-        title: UI_TEXT.paidUseWebSearchTitle,
-        detail: fill(UI_TEXT.paidUseWebSearchDetail, { price: paidFeaturePrice('webSearch') }),
-      }
-    }
-    case 'voice': {
-      return {
-        title: UI_TEXT.paidUseVoiceTitle,
-        detail: fill(UI_TEXT.paidUseVoiceDetail, { price: paidFeaturePrice('voice') }),
-      }
-    }
-    case 'imageGeneration': {
-      // Every image, whatever the backend or permission mode: what is made,
-      // from what, and that the key pays for it (M34, M44).
-      const sources = request.sources.join(', ')
-      return {
-        title: fill(request.kind === 'edit' ? UI_TEXT.imageBuyEditTitle : UI_TEXT.imageBuyTitle, {
-          path: request.path,
-        }),
-        detail: [
-          fill(UI_TEXT.imageBuyPrompt, { prompt: request.prompt }),
-          ...(sources === '' ? [] : [fill(UI_TEXT.imageBuySources, { paths: sources })]),
-          fill(UI_TEXT.imageBuyBilling, { price: paidFeaturePrice('imageGeneration') }),
-        ].join('\n\n'),
-      }
-    }
-    case 'scheduledPrompts': {
-      return {
-        title: fill(UI_TEXT.scheduleRunConfirmTitle, { model: request.modelId }),
-        detail: [
-          fill(UI_TEXT.scheduleRunConfirmPrompt, { prompt: request.prompt }),
-          fill(UI_TEXT.scheduleRunConfirmPrice, { price: scheduledRunPrice(request.modelId) }),
-          UI_TEXT.scheduleRunConfirmExtras,
-        ].join('\n\n'),
-      }
-    }
-    case 'subagents': {
-      const { task } = request
-      return {
-        title: fill(UI_TEXT.paidSubagentTaskTitle, { role: task.role }),
-        detail: fill(UI_TEXT.paidSubagentTaskDetail, {
-          objective: task.objective,
-          price: subagentTaskPrice(task.modelId, task.attemptLimit),
-        }),
-      }
-    }
-  }
-}
-
 /**
  * The popup before a paid use (M58): Allow once, Allow always in this
  * workspace (only where it can be kept), or Deny, which is also what closing
@@ -155,7 +100,7 @@ export async function askPaidUse(
   if (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) {
     return 'deny'
   }
-  const { title, detail } = paidUseText(request)
+  const { title, detail } = paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
   const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }

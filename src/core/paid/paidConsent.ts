@@ -11,14 +11,78 @@
 // takes it back. A use that no longer asks is still loud: its row is marked
 // paid, the badge names the feature, and the tally counts it.
 //
-// No `vscode` here: the host injects the popup and the stores.
+// No `vscode` here: the host injects the popup and the stores. The popup's
+// words are here, so VS Code's modal and the ACP agent's permission request
+// (D62) say the same.
 
-import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
-import type { PaidUseRequest } from '../../shared/paid'
+import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import {
+  paidFeaturePrice,
+  type PaidUseRequest,
+  scheduledRunPrice,
+  subagentTaskPrice,
+} from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
+
+/** The popup's question and what it says about the use, in the display language. */
+export function paidUseQuestion(request: PaidUseRequest): {
+  readonly title: string
+  readonly detail: string
+} {
+  switch (request.feature) {
+    case 'webSearch': {
+      return {
+        title: UI_TEXT.paidUseWebSearchTitle,
+        detail: fill(UI_TEXT.paidUseWebSearchDetail, { price: paidFeaturePrice('webSearch') }),
+      }
+    }
+    case 'voice': {
+      return {
+        title: UI_TEXT.paidUseVoiceTitle,
+        detail: fill(UI_TEXT.paidUseVoiceDetail, { price: paidFeaturePrice('voice') }),
+      }
+    }
+    case 'imageGeneration': {
+      // Every image, whatever the backend or permission mode: what is made,
+      // from what, and that the key pays for it (M34, M44).
+      const sources = request.sources.join(', ')
+      return {
+        title: fill(request.kind === 'edit' ? UI_TEXT.imageBuyEditTitle : UI_TEXT.imageBuyTitle, {
+          path: request.path,
+        }),
+        detail: [
+          fill(UI_TEXT.imageBuyPrompt, { prompt: request.prompt }),
+          ...(sources === '' ? [] : [fill(UI_TEXT.imageBuySources, { paths: sources })]),
+          fill(UI_TEXT.imageBuyBilling, { price: paidFeaturePrice('imageGeneration') }),
+        ].join('\n\n'),
+      }
+    }
+    case 'scheduledPrompts': {
+      return {
+        title: fill(UI_TEXT.scheduleRunConfirmTitle, { model: request.modelId }),
+        detail: [
+          fill(UI_TEXT.scheduleRunConfirmPrompt, { prompt: request.prompt }),
+          fill(UI_TEXT.scheduleRunConfirmPrice, { price: scheduledRunPrice(request.modelId) }),
+          UI_TEXT.scheduleRunConfirmExtras,
+        ].join('\n\n'),
+      }
+    }
+    case 'subagents': {
+      const { task } = request
+      return {
+        title: fill(UI_TEXT.paidSubagentTaskTitle, { role: task.role }),
+        detail: fill(UI_TEXT.paidSubagentTaskDetail, {
+          objective: task.objective,
+          price: subagentTaskPrice(task.modelId, task.attemptLimit),
+        }),
+      }
+    }
+  }
+}
 
 export interface PaidUseConsentDeps {
   /** Whether the feature may be used at all: its setting on and its price accepted. */
@@ -41,6 +105,23 @@ export class PaidUseConsent {
   private notify(): void {
     for (const listener of this.listeners) {
       listener()
+    }
+  }
+
+  /**
+   * Keeps "always" for the feature. A store that cannot be written is
+   * logged and leaves this use allowed once, so the next one asks again
+   * instead of this one failing.
+   */
+  private async remember(feature: PaidFeature): Promise<boolean> {
+    try {
+      await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
+      return true
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `Paid use of ${feature}: "always" could not be kept, so it is allowed once: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      return false
     }
   }
 
@@ -86,8 +167,12 @@ export class PaidUseConsent {
       this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
       return false
     }
-    if (answer === 'always' && canRemember && this.deps.canRemember()) {
-      await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
+    if (
+      answer === 'always' &&
+      canRemember &&
+      this.deps.canRemember() &&
+      (await this.remember(feature))
+    ) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
     } else {

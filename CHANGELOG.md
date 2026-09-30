@@ -7,6 +7,23 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Regenerated the host inventory to include the paired evaluator's five
+  additional Node import counts, keeping the source inventory gate current.
+
+- Paired eval workspaces use the current editor-file inventory port, so
+  current-main conditional writes can apply real fixes before verification.
+  The isolated harness has no open editor files; production ToolIO stays intact.
+
+- Plan actions recheck current workspace trust and disposal after lookup
+  and confirmation; a plan may still be saved after a conversation change,
+  while its stale implementation is refused. No-clobber writes check their
+  canonical directory before mkdir and their owned stage before publishing
+  or cleanup. Stale plan stages that were replaced, moved or refreshed are
+  retained. Preliminary types, focused tests, lint, duplication and failure
+  proofs pass; final current-main integration and aggregate gates remain.
+
 ### Added
 
 - **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
@@ -21,8 +38,324 @@ happened, not what was planned; superseded entries are kept.
   The baseline passed all ten tasks in 39 model calls for $0.0041
   (`docs/certification/m75-baseline.md`).
 
+- **The agent checks its own edits** (M68, PLAN.md D49). On the Model API
+  backend, after each round of tool calls that edited files, the next
+  request carries the edited files' errors and warnings from VS Code's
+  language servers, with what changed since each file's previous check
+  (`museSpark.diagnosticsAfterEdits`, on by default), and the results of
+  your **check commands** (`museSpark.checkCommands`: lint, test or
+  type-check commands, none by default), within one 64,000-character
+  budget. A **Check edits** row shows the files, their problems, how many
+  were **not checked** (no report arrived, unsaved, or past the first 8;
+  never reported clean) and how each check ended.
+- **Check commands take the shell tool's hooks and permission path.** Your
+  PreToolUse, PostToolUse and PostToolUseFailure hooks see each check and
+  `then_run` command as a shell call (deny, rewrite, ask, add context, stop
+  the turn), and a hook's denial is shown apart from your Reject. Each asks
+  wherever a shell command would ask (every mode but Bypass permissions),
+  "Always allow in this session" allows that check (never the agent's own
+  shell call of the same command, nor the other way round) until the agent
+  edits a
+  file that decides what it runs (`package.json`, a `Makefile`, a config
+  the tools load, a file it names; any file, for a command with quotes,
+  variables or other shell syntax), and none runs in Plan mode or Restricted
+  Mode. `changedFiles` passes the edited files that still exist after `--`,
+  each quoted as one argument, and refuses a file name that starts with `-`
+  or `@`, or on Windows holds `"`, `&`, `|`, `<`, `>`, `^`, `%` or `!`;
+  `timeoutSeconds` caps each run. A rejected check is not asked again, and
+  after three failing rounds in a row the checks stop, until your next
+  message (a message you add while the agent works starts them again too);
+  the model and the panel say so. A round counts as failing only by checks
+  run on the files as they now are, and passes only when none of those
+  fails; an edit's `then_run` of the own command of a check that does not
+  take the changed files counts as that check (a pass only when the check's
+  time limit is no shorter than the shell's). No such check runs twice for
+  the same state of the files, and nothing runs after the turn's last
+  round.
+- **`run_checks`**, the model's own call of the checks (on files that exist
+  in the workspace, or those edited since your message), and **`then_run`**
+  on `write_file` and `edit_file`: one command run right after the edit,
+  asked for like any shell command, run only if the file still holds what
+  the edit wrote, and shown under the diff as the call's second result
+  (SoL-Pi's Action Fusion, reimplemented from its description).
+- **Format on edit** (`museSpark.formatOnEdit`, off by default): the file's
+  formatter runs on each file the Model API backend's edit tools write,
+  before anything checks it. The formatted text is written only while the
+  file still holds what the edit wrote and has no unsaved changes in an
+  editor; otherwise, or when it cannot be written, the edit stays as
+  written and the log says why.
+- **Code the editor runs is never opened or formatted by the loop**
+  (`eslint.config.js`, `.prettierrc.cjs`, `package.json`, `node_modules`),
+  and once the agent writes such a file nothing more is opened or formatted
+  until your next message.
+- **Muse Code** is told with each message to check the files it edits with
+  `mcp__ide__getDiagnostics` (when the session has the IDE tool server) and
+  to run your check commands.
+
+- **Plans as files** (M79, PLAN.md D49). In Plan mode the latest reply gets
+  two buttons, **Save plan** and **Implement in a fresh conversation**.
+  Pressing one is the approval: neither backend marks a plan or its approval
+  on the wire (Muse Code 1.4.0 was captured live).
+  - **Save plan** writes the plan byte for byte to
+    `.agents/plans/YYYY-MM-DD-<slug>.md`, Muse Code's own convention, with a
+    numeric suffix when the name is taken; an existing file is never
+    replaced. A Muse Code plan reply's two handoff lines ("Reply `go` to
+    execute this plan…") are left out. `.agents` is protected, so the save
+    asks first; Restricted Mode refuses it.
+  - **Implement in a fresh conversation** starts a new conversation on the
+    same backend. Its first message is the plan file, attached as named
+    text, and nothing else from the planning conversation, which stays in
+    History. Plan mode gives way to the starting mode.
+  - On the Model API backend, the plan's steps become the todo list before
+    the first request, and the brief names them. On Muse Code, which keeps
+    its todo list to the model, the brief asks Muse to list the steps.
+  - **Plans…** in the palette lists the saved plans, newest date first, to
+    open or implement. A plan file is untrusted content (PLAN.md D49): one
+    implemented from Plans… starts in Manual (Plan when that is the
+    starting mode) and is never presented to the model as approved.
+  - Only a reply to a message sent in Plan mode, in a turn that stayed in
+    it, counts as a plan. Save and Implement resume the conversation after
+    a restart, find a plan already saved instead of writing it twice, and
+    say why when they do nothing. What the model gets is what the user
+    saw: the reply is shown, and the brief written, from one rewritten
+    Markdown tree (a link's destination beside its text, a picture's
+    source, titles, definitions, footnotes and code-fence info as text), so
+    nothing in the brief is hidden in the panel. A plan with raw HTML is
+    saved with a warning and not started; one with a control or format
+    character (a direction override, a zero-width character) is neither
+    saved nor started. The log names a plan by a
+    verified date and a hash, or by the hash alone, never by its name.
+  - The plan reader (the panel's Markdown parser) is a bundle of its own,
+    `dist/planMarkdown.js` (budget 150 KiB), loaded on the first Save plan,
+    Implement or Plans…, so the activation bundle does not carry it. If it
+    cannot load, those actions are refused with the reason.
+  - A reload of the conversation (a delivery gap) keeps Save plan and
+    Implement under a plan reply. A plan that cannot open from Plans… says
+    why in the panel and logs only the kind of failure.
+  - Leaving Plan mode when the backend refuses the change keeps a running
+    Plan-mode turn a plan turn. A reasoning effort the session refuses is
+    no longer shown as applied.
+- **Memory and plans: folder re-check.** A new memory note or plan is
+  refused when its folder was swapped for a link or junction after it was
+  checked (`createFileExclusively` checks again after making the folder and
+  before publishing).
+- **Web fetch on both backends** (M69, PLAN.md D49; folds in M44b). The
+  model can read one public web page it found or you named: `web_fetch` on
+  the Model API backend, and `mcp__ide__webFetch` on Muse Code, whose own
+  `web_fetch` is switched off. The extension fetches the page from your
+  machine; it is free, not Meta's paid search.
+  - `https://` only, public internet addresses only: the name is resolved
+    here and refused when any answer is loopback, private, link-local,
+    carrier-grade NAT, cloud metadata or reserved (IPv4-mapped, NAT64 and
+    6to4 forms judged by the IPv4 inside), and local or reserved names are
+    refused before any lookup. The connection goes to the address that was
+    checked, never to a second lookup; TLS still verifies the name.
+  - Same-host redirects are checked and pinned again, at most five; a
+    redirect to another host is handed back to the model. 5 MiB after
+    decompression, 30 seconds, an allow-list of text types; HTML becomes
+    Markdown, text stays as it is, anything else is refused with the reason.
+  - Through VS Code's proxy and certificates: the proxy is asked to tunnel
+    to the checked address, and a proxy's own answer is refused as such,
+    never read as the page.
+  - On the Model API backend it asks per host in Manual, Edit automatically
+    and Auto ("Always allow in this session" covers that host), runs in
+    Bypass, and is refused in Plan and in Restricted Mode. On Muse Code the
+    tool is listed only in a trusted workspace whose
+    `museSpark.sandboxNetwork` is not `restricted`, declares itself
+    open-world and not read-only, and the extension asks in its own dialog
+    before every fetch.
+  - The model receives the page between random markers, with a note that it
+    is untrusted content; the row shows the URL, the size and type, and what
+    the model read. 23 new strings in fifteen languages.
+  - After review: Muse Code's Stop (a closed request, or
+    `notifications/cancelled`) stops the fetch and voids a later answer in
+    the dialog, which is also asked only once per URL at a time and checks
+    the workspace again after it; the checked addresses are raced as RFC 8305
+    says; failures name the page's host and the addresses tried instead of
+    M56's advice about Meta, and a network failure's detail only by its
+    error codes (never a certificate's names); a server's text reaches the
+    model outside the markers only as short tokens; the HTML converter is bounded; names with
+    trailing dots or empty labels are refused; a network's own NAT64 prefix
+    is discovered (RFC 7050), and while it cannot be learned no IPv6 answer
+    is used (only a DNS answer proves there is none); pages are parsed by
+    HTML's own rules (implied ends, misnested and self-closed tags, SVG and
+    MathML, comments and scripts), and the Markdown is the page's text as
+    served, which can include text a browser would not show (no stylesheet
+    or hiding attribute is read, since hiding cannot be worked out
+    completely and visible small print hides nothing), all of it between
+    the untrusted markers, as the tool's description and the note now say;
+    a hook's "allow" no longer replaces
+    the per-host card; trust
+    and the mode are asked again after the card, before each request and
+    before the page reaches the model; damaged compression and unknown charsets are
+    handled as a browser would; `museSpark.sandboxNetwork`'s description now
+    says it also hides web fetch from Muse Code. Fifteen more strings, one
+    changed and one dropped, and two changed setting descriptions, in
+    fifteen languages.
+- **Dependencies.** Web fetch parses HTML with `parse5` 8.0.1 (MIT)
+  and sniffs its encoding with `html-encoding-sniffer` 6.0.0 (MIT), both
+  already in the tree through the test tools. They load only in
+  `dist/pageWorker.js` (201 KiB, budget 300 KiB), on a worker thread started for each page (at
+  most two at once) and stopped at 10 seconds or 512 MiB; `dist/extension.js` does not carry
+  them. `entities` is no longer a direct dependency.
+- **Code intelligence** (M67, PLAN.md D49): the agent finds definitions,
+  references and symbols the way the editor does, from VS Code's own
+  language services, instead of searching text. `find_definition`,
+  `find_references`, `workspace_symbols`, `document_symbols`, `hover`,
+  `call_hierarchy` and `repo_map` are reads in every mode on the Model API
+  backend, Plan and Restricted Mode included; a symbol is named by path,
+  line and column, by its name on a line or in a file, or by name alone.
+  Answers are workspace-relative, sorted and capped, and say how many
+  results outside the workspace (a library's declarations, another folder)
+  they left out; a hover for a symbol defined only outside the workspace
+  (and outside the languages' own libraries) is held back. A file whose
+  language has no service, or that declares nothing, says so instead of
+  answering nothing, and an empty answer says that not every language
+  provides every kind. In a file with unsaved changes a line number is
+  refused and a name is found in the editor's text, said so, the editor
+  matched by the file's real path (a workspace opened through a link). A
+  call hierarchy names the file of each outgoing call site, and counts the
+  other functions a position names (overloads) that it did not ask. On the Muse
+  Code backend the same tools are served to Muse Code as
+  `mcp__ide__findDefinition` and the rest, each marked read-only; Muse Code
+  1.4.0 still shows its own card for them in its on-request mode.
+- **`rename_symbol`** renames a symbol everywhere it is used. On the Model
+  API backend it is an edit: the card names its files, a protected one
+  first (and is a protected write when one of them is); every file is
+  checked again after the card and once more right before its own write,
+  and Stop before the first write writes nothing; the row carries one
+  patch, so Revert and rewind undo it, a rename stopped partway included.
+  It refuses an edit that also creates, moves or deletes files, and one
+  whose ranges no longer cover the old name (made from an older version of
+  a file). A hook matching `Edit` runs for it, with the files it would
+  write, and the rename writes the plan the hook was shown. On Muse Code it changes nothing and hands Muse Code the diff to
+  apply with its own edit tool.
+- **A repo map in the Model API's prompt** (`museSpark.modelApiRepoMap`,
+  off by default, machine-scoped, trusted workspaces only): the files other
+  files use most, with their most used definitions, within about 1,000
+  tokens. It is kept once made, tried again on a later turn when a try finds
+  nothing (three tries at most), and shared with child tasks and forks. It
+  adds those tokens to every request, its heading and notes counted in
+  the budget. `repo_map` gives the same map on request either way, all of
+  its text within `max_tokens`; a budget too small for its own lead and
+  notes is refused with the size that would do.
+- **Groundwork for editors other than VS Code** (M60, M61, PLAN.md D60).
+  The owner's IDE compatibility plan is filed in `docs/ide-compatibility.md`.
+  A new gate, `npm run check:host-api`, keeps a record of what the
+  extension asks of its host (`docs/ide-compatibility/host-api.md`): the
+  initial 201 VS Code APIs and where, the 13 files that imported `vscode`,
+  the Node built-ins, and what the webview needs (`acquireVsCodeApi` and 57
+  theme variables); it fails when the record goes stale, and when the
+  engine, the protocol, the webview, the conversation controller, either
+  backend or the credential store reaches `vscode`. The webview now talks
+  to VS Code through one host bridge, and the chat surface, the log and the
+  dictation setup carry no VS Code types. Nothing changes in VS Code.
+- **Muse Spark for editors that speak ACP** (M63, PLAN.md D61, D62).
+  `muse-spark-code-acp`, an npm package attached to each GitHub Release,
+  runs Muse Code or the Model API as an Agent Client Protocol agent for
+  Zed, JetBrains IDEs, Neovim, Emacs and the other ACP editors: the chat,
+  tool calls with diffs, the plan, permission prompts (a cancelled or
+  unknown answer rejects), questions as forms, the modes, the model and
+  effort, skills as commands, and sessions listed, loaded and resumed. The
+  backend is chosen when the editor starts it and never switches.
+  `muse-spark-code-acp auth set` keeps a Model API key in the operating
+  system's credential store (Windows Credential Manager, the macOS
+  Keychain, the Secret Service on Linux, with no plaintext fallback); the
+  key is never read from the environment or passed to Muse Code. Paid
+  features (web search, image generation) are off unless the editor
+  starts the agent with `--web-search` or `--image-generation`, and then
+  each use asks first in the editor's permission prompt, naming the price,
+  as the panel's popup does (M58): Allow once, Allow always in this
+  workspace (only with `--trust-workspace`, kept in the agent's data
+  folder and forgotten when the agent starts without the flag) or Deny.
+  Subagents stay off in the agent. The agent loads the Model API backend
+  from the same `dist/modelApi.js` the extension ships (M57), which its
+  package carries. The editor's MCP
+  servers (stdio and HTTP) are passed to Muse Code, so Jupyter AI's
+  notebook tools and Zed's context servers reach it. See `docs/acp.md`;
+  which editors have been tried is tracked in
+  `docs/ide-compatibility/hosts.md` (Zed, Emacs
+  with agent-shell, Neovim with CodeCompanion and JupyterLab with Jupyter
+  AI so far). On the Model API backend, a trusted folder gets Muse Code's
+  memory tools as the panel does; subagents, which are paid, are not
+  offered, and the package carries the C# of the shell tool's Windows job.
+- **The ACP agent and proxies.** The agent runs outside VS Code, so VS
+  Code's proxy and certificate settings do not reach it, and Node's own
+  `fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21 or
+  later, or 24). The agent does not re-route by itself: on the Model API
+  backend it warns once in its log at start when a proxy variable is set
+  and would not be used (or this Node cannot use one), and a request that
+  never reaches Meta now names the variables to set in the agent's
+  environment instead of VS Code's `http.*` settings, in all 15 languages.
+  `docs/acp.md` has a new "Networks and proxies" section.
+- **The ACP agent's Muse Code sign-in is read as the panel reads it**
+  (PR #49): from the credential file's structure, and the CLI's
+  `account/read` where only it can say, so an agent after `muse logout`
+  asks for sign-in instead of failing its first turn. A Muse Code agent no
+  longer clears the Model API agent's "Allow always" when it starts, and a
+  Model API agent whose `dist/modelApi.js` is missing says to reinstall the
+  agent, not the extension.
+- **The ACP agent keeps credential variables to Muse Code.** A
+  `META_API_KEY` in the agent's environment still reaches Muse Code and
+  counts as its sign-in, as with the extension, but no shell command, hook
+  or git the agent runs sees it or any other `*_API_KEY` variable. A
+  loaded or resumed session now runs in the mode, model and effort the
+  editor shows (or fails to load), the model as Muse Code reports it; a
+  session the agent could not set up is let go rather than left running,
+  and closing or reloading a session ends its running prompt as
+  cancelled and stops that turn, with any answer still owed to it
+  ignored;
+  a question's form answer is used only
+  when it is one of the form's own options, in the allowed number; and the
+  agent's log names a backend failure by its kind, never its message.
+- **The key outside VS Code, in the rules** (AGENTS.md rule 8, PLAN.md
+  D61). Outside VS Code the operating system's credential store stands in
+  for SecretStorage: the ACP agent's key goes in only through `auth set`'s
+  standard input and never reaches a child process. The one named
+  exception is the planned CI bootstrap (M80), whose step shell pipes the
+  key to `auth set` and unsets it before the run.
+- **Open VSX and npm publishing** in the release workflow. A tag also
+  publishes the VSIX to Open VSX, for VS Code forks that install from
+  there, and the agent to npm, each only when its token is set in the
+  `marketplace` environment.
+- **Host checks in CI** (the Hosts workflow, `test/hosts/`). Every pull
+  request that touches the product runs development-extension integration
+  in VSCodium and packaged browser checks in code-server (the 1.99 floor
+  and the latest) and Eclipse Theia,
+  and the packaged ACP agent on Linux, macOS and Windows (its key through
+  each credential store) and in JupyterLab, Emacs and Neovim, all against
+  a fake Muse Code CLI; the latest releases are tried again every Monday.
+  A second workflow, Forks, installs the VSIX in the latest Linux builds
+  of Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron, then
+  runs development-extension integration there, weekly and by hand.
+
 ### Changed
 
+- **The diagnostics tool reads a file no editor shows.** VS Code's language
+  servers report only on files an editor shows (TypeScript and JSON,
+  measured in VS Code 1.139.1 and 1.125.0), so when the agent asks
+  `getDiagnostics` about one such file, on either backend, the extension
+  opens it in a tab beside your editor without taking focus, waits up to 10
+  seconds for its report, and closes the tab again; a file outside the
+  workspace by its real path, or code the editor runs, is not opened, and a
+  file no report arrived for is "not checked", never clean.
+- **VS Code 1.99 or newer** (was 1.125; M62, PLAN.md A8), so editors built
+  on VS Code 1.99 or later can install the extension. The extension uses
+  no VS Code API newer than 1.85, checked against every published
+  `@types/vscode` from 1.85 on, and its host bundles now need nothing
+  newer than Node 20.18, the Node of VS Code 1.99 and 1.100. Tested in
+  VSCodium 1.99.3 and 1.135 (the integration tests, 9 passing in each) and
+  in code-server 4.99.4 (VS Code 1.99.3: a conversation and an approval
+  in the browser), where the 1.125 floor was refused; and in the latest
+  Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron, which
+  install it and pass the integration tests. On 1.99 and 1.100 Muse Voice
+  says it is unavailable, as their Node has no WebSocket. VS Code routes an
+  extension's WebSocket through its proxy support only from 1.112, so on
+  1.101 to 1.111 Muse Voice's socket goes to Meta without it; **Muse Spark:
+  Diagnostics** now says whether this editor routes the extension's `fetch`
+  and WebSocket at all, instead of reading only the settings, and the
+  README's Proxies and certificates section says what to use. The Model
+  API's requests are routed on every supported version.
 - **README: How this extension is built** (Development): the owner, Claude
   Code as lead, up to four headless Muse Code builders on the contributor
   model, Grok Build and Codex as reviewers, and the gates on dedicated test
@@ -54,9 +387,80 @@ happened, not what was planned; superseded entries are kept.
   the activation bundle (`scripts/check-bundle-split.mjs`). The host-globals
   and third-party-notices checks cover the new bundle, `npm run cycles`
   follows it, and the `.vsix` ships it.
+- **Build: the ACP agent's budget is 850 KiB** (PLAN.md D6). `dist/acp.js`
+  is 713.2 KiB now that it loads the Model API backend from
+  `dist/modelApi.js` (it was 874.1 KiB, over its 800 KiB budget, before
+  M57 reached it); the budget is that plus about 15 %. The agent is
+  installed once and never loaded by VS Code, so the size is a download,
+  not a start-up cost. No other budget changed.
 
 ### Fixed
 
+- **Android/Termux regression coverage** (PR #51). Tests preserve PATH and
+  home-directory Muse launcher discovery, XDG credential paths, and explicit
+  unavailability of bundled dictation/recording helpers on Android. This is
+  simulated platform coverage; no Android device support claim is added.
+- **Web fetch rechecks permission before every address attempt.** A permission
+  withdrawal while the first connection waits or fails prevents fallback
+  connections, stops outstanding attempts and closes late answers.
+- **Standalone page-fetch proxy warnings distinguish Node transports.**
+  Node 24.0–24.4 can proxy Meta's `fetch` requests while HTTPS page requests
+  still go directly; startup now warns about that gap. The ACP package includes
+  the page-converter worker and its notices, and documents pinned-IP `NO_PROXY`
+  matching.
+- **Stop still prevents a rename's first write during its final file check.**
+  A cancellation after approval is checked again after the awaited recheck.
+  Once a write starts, the remaining rename keeps its existing completion path.
+- **ACP paid-grant race tests use canonical temporary paths.** Filesystem
+  aliases on macOS and Windows no longer leave the test waiting for a rename
+  under a different name. Native path resolution also expands Windows 8.3
+  names. The production grant storage and timeout stay intact.
+- **ACP sessions keep the newest owner while cancellation finishes.** A
+  concurrent reload or close waits for the old turn to stop; an older delayed
+  resume cannot replace the newest request. A backend exit while a turn starts
+  fails its prompt without an unobserved rejection terminating the agent.
+- **Late ACP answers affect only their owning prompt.** Cancelled or completed
+  prompts reject late paid-use, approval and question answers; a stale paid
+  answer cannot install an Allow always grant for a later prompt.
+- **ACP paid grants survive independent process updates safely.** Per-feature
+  revocation generations and generation-specific workspace records replace the
+  shared JSON map. A stale writer cannot restore revoked permission or replace
+  a newer explicit grant. Legacy grants ask again; storage that cannot publish
+  safely remembers nothing and retains only the explicit Allow once use.
+- **ACP packaging works from Windows paths containing spaces.** npm runs in
+  the staging directory with fixed relative arguments. Host documentation now
+  distinguishes development-extension integration tests from VSIX installation.
+- **Web fetch preserves picture fallback images** (M69). HTML conversion
+  now walks `<picture>` instead of discarding it, retaining the fallback
+  `<img>` and its alt text under the existing safe-source rules. Source
+  alternatives are not selected or fetched; images inside inert templates
+  or embedded media remain excluded.
+- The Model API verify loop hears about workspace writes before they write
+  or format, in every live conversation and subagent. A parent's, child's
+  or sibling's cached check grant cannot silently run a changed script
+  while its writer waits for formatting. Pending writes survive a new user
+  message, reach newly opened sessions, and release on failure; checks
+  that start during a write cannot certify its completed state. Project
+  memory notes and their index also invalidate checks that name them.
+- Symbol renames notify the verify loop before their rechecks, release pending
+  notices after Stop or failure, and check only the files actually written.
+  ACP conversations opened through native aliases share workspace notices
+  without changing their saved-session folder identity.
+
+- **Windows plan-store test stability** (M79). The complete numeric suffix
+  range is checked through the existing in-memory file port, with exact
+  attempts, unchanged occupied files, the last free name and same-plan reuse
+  at that boundary. This avoids 100 staged file flushes in one test on the
+  hosted Windows runner; the 5-second timeout and real-file-system
+  publication, collision, cleanup and confinement tests are retained.
+- **Evaluation stops when a sent model call cannot be priced.** Missing or
+  invalid usage and ambiguous request failures close its shared budget for
+  later tasks and arms. A held request body rechecks that budget before sending.
+  Token counts must be nonnegative safe integers, with cached tokens no greater
+  than input tokens; fractional, unsafe and nonfinite counts remain unpriced.
+- **Evaluation fixture portability:** the shared fake transport reads actual
+  Request snapshots, and the cleared-environment verifier fixture recognizes
+  macOS's generated encoding variable without inheriting run credentials.
 - **Signing out of Muse Code finishes, and a signed-out CLI no longer reads
   as signed in** (PLAN.md D26).
   - **The cause.** `muse logout` rewrites the CLI's `auth.json` with no

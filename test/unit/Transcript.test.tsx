@@ -481,6 +481,32 @@ describe('Transcript rows (M15, M16)', () => {
     expect(document.querySelectorAll('.diff tr')).toHaveLength(2 + 15 + 2)
     expect(screen.getAllByText('Click to expand')).toHaveLength(1)
   })
+
+  it('offers the editor for a rename stopped partway, and for no other failed edit (M67)', () => {
+    const diff = '--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new'
+    const props = renderTranscript([
+      tool({
+        id: 'r1',
+        tool: 'rename_symbol',
+        args: '{"path":"x.ts"}',
+        output: diff,
+        status: 'failed',
+        patchRef: { id: 'p1', byteLen: 10 },
+      }),
+      tool({
+        id: 'e1',
+        tool: 'edit_file',
+        args: '{"path":"y.ts"}',
+        output: diff,
+        status: 'failed',
+        patchRef: { id: 'p2', byteLen: 10 },
+      }),
+    ])
+    const offered = screen.getAllByText('Click to expand')
+    expect(offered).toHaveLength(1)
+    fireEvent.click(offered[0]!)
+    expect(props.onOpenEditDiff).toHaveBeenCalledWith('r1', 'p1')
+  })
 })
 
 describe('Transcript chat references (M17)', () => {

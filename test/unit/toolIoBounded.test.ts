@@ -34,7 +34,7 @@ const io = createToolIo({
   env: () => process.env,
   searchWorkerPath: 'unused-here',
   log: () => undefined,
-  hasUnsavedChanges: () => false,
+  unsavedFiles: () => [],
 })
 
 async function textLength(target: string): Promise<number | undefined> {

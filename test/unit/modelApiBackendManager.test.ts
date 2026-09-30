@@ -12,6 +12,8 @@ import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 
 interface HookFixture {
   readonly enabled: boolean
@@ -55,6 +57,84 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it('keeps host-origin writes pending before the lazy host and newly live ledger exist', async () => {
+    const m = manager('/ws')
+    const file = { relative: '.agents/plans/held.md', absolute: '/ws/.agents/plans/held.md' }
+    const complete = m.manager.beginExternalEdit(undefined, [file])
+    expect(m.manager.isRunning).toBe(false)
+    const added = vi.spyOn(m.manager.workspaceEdits, 'add')
+    const host = await m.manager.ensureHost()
+    await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'onRequest',
+    })
+    const ledger = added.mock.calls[0]?.[0]
+    if (!(ledger instanceof VerifyLedger)) {
+      throw new TypeError('new session did not join the shared ledger registry')
+    }
+    ledger.resetForMessage()
+    expect(ledger.changesWhatRuns('cat .agents/plans/held.md')).toBe(true)
+    const started = ledger.snapshot('lint', 'project')
+    ledger.record('passed', started)
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(false)
+    complete(false)
+    ledger.resetForMessage()
+    expect(ledger.changesWhatRuns('cat .agents/plans/held.md')).toBe(false)
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(false)
+    await m.manager.dispose()
+  })
+
+  it.each([false, true])(
+    'records a host-origin edit only for a true new-file result: %s',
+    async (written) => {
+      const m = manager('/ws')
+      const host = await m.manager.ensureHost()
+      const owner = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'onRequest',
+      })
+      if (!(owner instanceof ModelApiSession)) {
+        throw new TypeError('expected source-module Model API owner')
+      }
+      const note = vi.spyOn(owner, 'noteExternalEdit')
+      const file = { relative: '.agents/plans/held.md', absolute: '/ws/.agents/plans/held.md' }
+      m.manager.beginExternalEdit(m.manager.captureExternalEditOwner(owner), [file])(written)
+      expect(note).toHaveBeenCalledTimes(written ? 1 : 0)
+      if (written) {
+        expect(note).toHaveBeenCalledWith(file)
+      }
+      await m.manager.dispose()
+    },
+  )
+
+  it.each([true, false])(
+    'keeps the captured owner when the same id is revived (before begin: %s)',
+    async (isBeforeBegin) => {
+      const m = manager('/ws')
+      const host = await m.manager.ensureHost()
+      const options = { workspaceRoot: '/ws', modelId: 'muse-spark-1.3', approvalMode: 'onRequest' }
+      const owner = await host.startSession(options)
+      const captured = m.manager.captureExternalEditOwner(owner)
+      expect(captured).toBeDefined()
+      const file = { relative: '.agents/plans/held.md', absolute: '/ws/.agents/plans/held.md' }
+      let complete = isBeforeBegin ? undefined : m.manager.beginExternalEdit(captured, [file])
+      owner.dispose()
+      const replacement = await host.startSession(options)
+      if (!(replacement instanceof ModelApiSession)) {
+        throw new TypeError('expected replacement Model API owner')
+      }
+      // The fixture reuses its id: object ownership must still distinguish the new session.
+      expect(replacement.sessionId).toBe(owner.sessionId)
+      const note = vi.spyOn(replacement, 'noteExternalEdit')
+      complete ??= m.manager.beginExternalEdit(captured, [file])
+      complete(true)
+      expect(note).not.toHaveBeenCalled()
+      await m.manager.dispose()
+    },
+  )
+
   it('loads no hook command until the machine opt-in is on', async () => {
     const files = new Map([
       [

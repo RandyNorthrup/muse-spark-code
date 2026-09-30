@@ -68,6 +68,9 @@ describe('parseWebviewToHostMessage', () => {
       },
     ],
     ['openSideChat', { type: 'openSideChat', sourceSessionId: 's1' }],
+    ['savePlan', { type: 'savePlan', sourceSessionId: 's1', itemId: 'r1' }],
+    ['implementPlan', { type: 'implementPlan', sourceSessionId: 's1', itemId: 'r1' }],
+    ['showPlans', { type: 'showPlans' }],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -129,6 +132,9 @@ describe('parseWebviewToHostMessage', () => {
     ],
     ['side chat without source session', { type: 'openSideChat' }],
     ['side chat with empty source session', { type: 'openSideChat', sourceSessionId: '' }],
+    ['plan save without its reply', { type: 'savePlan', sourceSessionId: 's1' }],
+    ['plan save with an empty reply id', { type: 'savePlan', sourceSessionId: 's1', itemId: '' }],
+    ['implement without its session', { type: 'implementPlan', itemId: 'r1' }],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)
@@ -242,6 +248,17 @@ describe('parseHostToWebviewMessage', () => {
     ],
     ['attachmentsCleared', { type: 'attachmentsCleared' }],
     ['notice', { type: 'notice', level: 'warning', text: 'careful' }],
+    [
+      'briefSubmitted',
+      {
+        type: 'briefSubmitted',
+        localId: 'plan-brief-1',
+        text: 'Implement the plan in .agents/plans/x.md.',
+        attachments: [
+          { id: 'a1', name: '.agents/plans/x.md', mediaType: 'text/plain', sizeBytes: 3 },
+        ],
+      },
+    ],
   ])('accepts %s', (_label, message) => {
     expect(parseHostToWebviewMessage(message)).toEqual({ ok: true, message })
   })
@@ -267,6 +284,10 @@ describe('parseHostToWebviewMessage', () => {
       { type: 'goalCommandResult', requestId: 1, accepted: true },
     ],
     ['unknown type', { type: 'explode' }],
+    [
+      'briefSubmitted without its local id',
+      { type: 'briefSubmitted', localId: '', text: 'x', attachments: [] },
+    ],
   ])('rejects %s', (_label, input) => {
     expect(parseHostToWebviewMessage(input).ok).toBe(false)
   })

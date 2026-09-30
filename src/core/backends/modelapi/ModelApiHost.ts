@@ -16,6 +16,9 @@ import type {
 import {
   AUTH_REQUIRED_ERROR_KIND,
   BACKGROUND_INITIATOR_USER,
+  CHECK_FIX_MAX_ROUNDS,
+  type CheckCommandSetting,
+  type CheckSkip,
   CLARIFICATION_MAX_CHARS,
   BASE64_DATA_URL_OVERHEAD_CHARS,
   CONTEXT_PRESSURE_HIGH,
@@ -35,10 +38,13 @@ import {
   MODEL_API_EFFORT_OFF,
   ISO_DATE_LENGTH,
   MODEL_API_MAX_OUTPUT_TOKENS,
+  CODE_INTEL_TOOLS,
+  type CodeIntelTool,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MEMORY_INDEX_FILE,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_PDF_PAGE_IMAGES,
   MODEL_API_HOOK_PROVIDER,
@@ -50,9 +56,11 @@ import {
   MODEL_API_SCHEDULED_TOOL,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
+  WEB_FETCH_SUBJECT_KIND,
   MODEL_API_VERSION,
   MODEL_API_WEB_SEARCH_TOOL,
   MODEL_TEXT,
+  REPO_MAP_PROMPT_TRIES,
   OUTPUT_REF_PREFIX,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MAX_INTERVAL_MS,
@@ -60,6 +68,7 @@ import {
   SCHEDULE_MAX_PROMPT_CHARS,
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_POLL_INTERVAL_MS,
+  SHELL_DEFAULT_TIMEOUT_MS,
   type PaidFeature,
   QUESTION_OUTCOME_CLARIFIED,
   type PromptCacheRetention,
@@ -80,6 +89,10 @@ import {
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_TIMEOUT_MS,
+  VERIFY_COMMAND_RULE_KEY,
+  VERIFY_NOTE_MAX_CHARS,
+  VERIFY_SHOWN_FILES_MAX,
+  VERIFY_TOOLS,
 } from '../../../shared/constants'
 import { fill, plural } from '../../../shared/l10n/text'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
@@ -135,8 +148,29 @@ import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
 import { isProtectedPath } from '../../protectedPaths'
 import { confineWorkspacePath } from '../../workspacePath'
+import { pathModule } from '../../workspaceRoot'
+import { type CheckScope, type RunSnapshot, VerifyLedger } from './verifyLedger'
+import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../verify/workspaceEdits'
+import { fingerprint } from '../../verify/fingerprint'
 import type { McpTool } from '../../mcp'
+import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
+import type { WebFetchFailure } from '../../web/fetchFailure'
+import { approvalHost, checkPageUrl } from '../../web/pageUrl'
 import type { MemoryStore } from '../../memory/memoryStore'
+import type { CodeIntelDeps } from '../../codeIntel/codeIntelQuery'
+import { codeIntelToolOf } from '../../codeIntel/definitions'
+import type { LanguageServiceHost } from '../../codeIntel/languageService'
+import type { RenamePlanResult } from '../../codeIntel/rename'
+import { repoMapSection } from '../../codeIntel/repoMap'
+import {
+  applyRename,
+  isProtectedRename,
+  planRenameCall,
+  renameCardPath,
+  renameHookFiles,
+  renameRefused,
+  runCodeIntelRead,
+} from './codeIntelCalls'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -160,6 +194,7 @@ import type { GoalRecord } from './goalRecord'
 import { type EnvironmentFacts, instructionsFor } from './instructions'
 import {
   dispatchHooks,
+  matchingHooks,
   type HookDefinition,
   type HookDispatch,
   type HookEvent,
@@ -173,7 +208,7 @@ import { promptCacheKey } from './promptCache'
 import { MediaBudget } from './mediaBudget'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import type { McpPoolSnapshot, McpToolRef, McpToolSource } from './mcp/pool'
-import { isMemoryTool, placeMemoryCall, runMemoryCall } from './memoryTools'
+import { isMemoryTool, type PlacedMemoryCall, placeMemoryCall, runMemoryCall } from './memoryTools'
 import {
   APPROVAL_CHOICE_IDS,
   choicesFor,
@@ -182,6 +217,7 @@ import {
   type PermissionQuery,
   type PermissionVerdict,
   type ToolClass,
+  verdictFor,
 } from './permissions'
 import {
   headerOf,
@@ -214,9 +250,11 @@ import {
 } from './schemas'
 import {
   classifyTool,
+  type EditFormatter,
   executeTool,
   parseQuestions,
   readSkillArgs,
+  webFetchArgs,
   type ShellResult,
   shellOutcome,
   shellText,
@@ -237,6 +275,25 @@ import {
   targetArgs,
   waitArgs,
 } from './subagentTools'
+import {
+  authorizeThenGuard,
+  type CheckRun,
+  checksSection,
+  finishedCheck,
+  skippedCheck,
+  skipReason,
+  type VerifyHooks,
+  outcomeOf,
+} from './verifyLoop'
+import { parseRunChecks, thenRunOf } from './verifyTools'
+import { checkCommandLine, checkTimeoutMs } from '../../verify/checkCommands'
+import { isCodeLoading } from '../../verify/codeFiles'
+import {
+  DiagnosticsHistory,
+  type EditedFile,
+  type FileDiagnostics,
+  type PendingReport,
+} from '../../verify/diagnosticsReport'
 
 /** Paid state and usage are injected by the host, never read from workspace settings. */
 export interface ModelApiPaidHooks {
@@ -247,8 +304,15 @@ export interface ModelApiPaidHooks {
   /**
    * The popup before a paid use (M58, PLAN.md D48): true when it is allowed
    * always in this workspace or allowed now. `requiresAsking` asks even then.
+   * `sessionId` is the conversation the use is for (a child task's parent),
+   * so a host serving several conversations to one client, as the ACP
+   * agent's does (D62), asks in the right one.
    */
-  readonly allowsPaidUse: (request: PaidUseRequest, requiresAsking: boolean) => Promise<boolean>
+  readonly allowsPaidUse: (
+    request: PaidUseRequest,
+    requiresAsking: boolean,
+    sessionId: string,
+  ) => Promise<boolean>
   /** Whether the feature is allowed always in this workspace, asking nothing. */
   readonly isPaidUseRemembered: (feature: PaidFeature) => boolean
   /** Child token cost is a subset of the parent's conversation estimate. */
@@ -304,6 +368,27 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * session-start snapshot; undefined leaves them out.
    */
   readonly memory: MemoryStore | undefined
+  /**
+   * The verify loop (M68, PLAN.md D49): the settings and the editor's
+   * diagnostics and formatter; undefined leaves it out.
+   */
+  readonly verify?: VerifyHooks | undefined
+  /** Process/window-owned notices; tests constructing a host directly may leave this out. */
+  readonly workspaceEdits?: WorkspaceEdits | undefined
+  /** An alias's persisted/displayed workspace identity; runtime tool paths stay canonical. */
+  readonly sessionWorkspaceRoot?: string | undefined
+  /**
+   * The window's web fetch (M69, PLAN.md D49): resolved, checked and pinned
+   * in the activation bundle; undefined leaves `web_fetch` out.
+   */
+  readonly webFetch?: WebFetcher | undefined
+  /**
+   * VS Code's language services (M67, PLAN.md D49): the code intelligence
+   * tools; undefined leaves them out.
+   */
+  readonly codeIntel?: LanguageServiceHost | undefined
+  /** `museSpark.modelApiRepoMap`, read per turn: the repo map in the system prompt (M67). */
+  readonly isRepoMapInPrompt?: (() => boolean) | undefined
 }
 
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
@@ -463,7 +548,45 @@ type QuestionReply =
 interface Performed {
   readonly outcome: ToolOutcome
   readonly running?: Promise<ToolOutcome>
+  /**
+   * What the hooks of the shell commands a call ran (then_run, run_checks,
+   * M68) add: replayed after the call's output, a stop ending the turn.
+   */
+  readonly hookEffects?: HookEffects
 }
+
+/** What a check covers: the files passed to it, or the whole project (M68). */
+function checkScope(check: CheckCommandSetting, files: readonly EditedFile[]): CheckScope {
+  return check.changedFiles === true && files.length > 0 ? files : 'project'
+}
+
+/** What the user's tool hooks said about the commands a step ran (M68). */
+interface HookEffects {
+  readonly contexts: string[]
+  readonly messages: string[]
+  stopReason: string | undefined
+}
+
+function newHookEffects(): HookEffects {
+  return { contexts: [], messages: [], stopReason: undefined }
+}
+
+/** A check or then_run command, before its hooks and its permission path (M68). */
+interface VerifyCommand {
+  readonly line: string
+  /** What "always allow in this session" is keyed on. */
+  readonly ruleCommand: string
+  readonly description: string
+  readonly timeoutMs: number
+  /** A hook demanded a question for the call that carries it. */
+  readonly isForced: boolean
+  /** then_run's: the file still holds what the edit left. */
+  readonly guard?: () => Promise<boolean>
+}
+
+type CommandOutcome =
+  | { readonly kind: 'skipped'; readonly skip: CheckSkip; readonly detail?: string }
+  | { readonly kind: 'ran'; readonly line: string; readonly result: ShellResult }
 
 /** A permission check and the tool, or the refusal. */
 interface CallResult extends Performed {
@@ -606,6 +729,8 @@ function isAbortRequested(signal: AbortSignal): boolean {
   return signal.aborted
 }
 const TURN_RUNNING = 'a turn is running'
+// The description a `then_run` command's card and hooks see (M68).
+const THEN_RUN_DESCRIPTION = 'then_run: the command an edit runs right after it'
 const SUMMARY_FIELD_PREFIX = 'summary.'
 const TEXT_FIELD = 'text'
 const OUTPUT_TEXT = 'output_text'
@@ -618,6 +743,8 @@ const DECISION_APPROVED = 'approved'
 const DECISION_ABORT = 'abort'
 const RESOLVED_BY_USER = 'user'
 const NO_UNSUBSCRIBE = (): undefined => undefined
+// A verify report whose diagnostics could not be read moves no history (M68).
+const NOTHING_TO_COMMIT = (): undefined => undefined
 // A child is recorded inside its parent, not in the host's session map.
 const NO_CHILD_DISPOSAL = (): undefined => undefined
 
@@ -690,6 +817,37 @@ function pressureFor(used: number, window: number): string {
 
 function toolFailure(reason: string): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+}
+
+/** A web fetch that did not happen: the model's reason, the row's in the user's language. */
+function webFetchRefusal(failure: WebFetchFailure): ToolOutcome {
+  return {
+    output: `Error: ${failure.reason}`,
+    visibleOutput: failure.visibleReason,
+    failureReason: failure.visibleReason,
+  }
+}
+
+/** A web fetch refused in Restricted Mode: the model's reason, the row's in the user's language. */
+function webFetchRestricted(): CallResult {
+  return {
+    outcome: {
+      output: `Error: ${MODEL_TEXT.webFetchRestrictedMode}`,
+      visibleOutput: UI_TEXT.webFetchRestrictedMode,
+      failureReason: UI_TEXT.webFetchRestrictedMode,
+    },
+    isRejected: true,
+  }
+}
+
+/** What the model and the row receive for a web fetch (M69). */
+function webFetchOutcome(result: WebFetchResult): ToolOutcome {
+  return result.kind === 'failed'
+    ? webFetchRefusal(result.failure)
+    : {
+        output: result.text,
+        visibleOutput: result.kind === 'moved' ? result.visibleText : result.text,
+      }
 }
 
 /**
@@ -1149,6 +1307,14 @@ export class ModelApiSession implements AgentSession {
   private readonly context: WorkspaceContext
   /** The git facts of the prompt's environment section (D15), read on the first turn. */
   private environment: EnvironmentFacts | undefined
+  /**
+   * The repo map of the prompt (M67), made on a turn that has it on and kept
+   * for the session once it has text, so the prompt's prefix stays the same.
+   * A try that failed or came out empty is not kept; a few are made, on
+   * later turns, before the session goes without.
+   */
+  private repoMapText: string | undefined
+  private repoMapTries = 0
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   /** Live cards for a second surface joining while a decision is still pending. */
   private readonly pendingApprovalEvents = new Map<
@@ -1204,6 +1370,12 @@ export class ModelApiSession implements AgentSession {
   private active: ActiveTurn | undefined
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
   private readonly seenFiles = new Map<string, string>()
+  /** Each edited file's diagnostics at its last check, to say what changed (M68). */
+  private readonly diagnosticsHistory = new DiagnosticsHistory()
+  /** The verify loop's record since the user's last input (M68; `verifyLedger.ts`). */
+  private readonly ledger = new VerifyLedger()
+  /** Rename plans made for a call's PreToolUse hooks, which the call then writes (M67). */
+  private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
   private mediaNoticeSent = false
@@ -1266,7 +1438,9 @@ export class ModelApiSession implements AgentSession {
     private readonly hooks: readonly HookDefinition[] = [],
     private readonly hookStartSource: 'startup' | 'resume' | 'fork' = 'startup',
     private readonly isSideChat = false,
+    private readonly workspaceEdits = new WorkspaceEdits(),
   ) {
+    this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
     this.permissions = new PermissionEngine(approvalMode)
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
@@ -1336,6 +1510,46 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** The hooks that run for this session: none in a side chat or with the opt-in off (M51). */
+  private enabledHooks(): readonly HookDefinition[] {
+    return this.isSideChat || this.deps.isHooksEnabled?.() === false ? [] : this.hooks
+  }
+
+  /**
+   * A call's arguments as its PreToolUse hooks see them. A rename also names
+   * the files it would write (M67), planned only when a hook would run and
+   * the mode allows the edit at all; the call then writes that same plan
+   * (`decideAndRunRename`), so a hook never allows one set of files while
+   * another is written.
+   */
+  private async preToolInput(
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<Readonly<Record<string, unknown>>> {
+    const args = argumentsOf(call)
+    const deps = this.codeIntelDeps()
+    if (
+      deps === undefined ||
+      signal.aborted ||
+      call.name !== CODE_INTEL_TOOLS.renameSymbol ||
+      matchingHooks(this.enabledHooks(), 'PreToolUse', toolMatcherNames(call.name)).length === 0 ||
+      this.verdictWithHook({ toolName: call.name, toolClass: 'edit' }, false) === 'deny'
+    ) {
+      return toolHookInput(args)
+    }
+    const planning = planRenameCall(call.arguments, deps)
+    this.hookRenamePlans.set(call, planning)
+    try {
+      const planned = await unlessStopped(planning, signal)
+      return toolHookInput(planned.ok ? { ...args, files: renameHookFiles(planned.plan) } : args)
+    } catch {
+      // A Stop, or the provider's own refusal: the call itself then ends with
+      // its row and its output (a Stop's included), which a throw from here,
+      // before the row exists, would leave without one (D26).
+      return toolHookInput(args)
+    }
+  }
+
   private async runHooks(
     event: HookEvent,
     turnId: string | undefined,
@@ -1345,9 +1559,8 @@ export class ModelApiSession implements AgentSession {
     shouldReplayContext = true,
     shouldShowMessages = true,
   ): Promise<HookDispatch> {
-    const enabledHooks = this.isSideChat || this.deps.isHooksEnabled?.() === false ? [] : this.hooks
     const result = await dispatchHooks(
-      enabledHooks,
+      this.enabledHooks(),
       event,
       this.hookPayload(event, turnId, fields),
       matcher,
@@ -1417,6 +1630,73 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** What the code intelligence tools work with (M67); undefined without language services. */
+  private codeIntelDeps(): CodeIntelDeps | undefined {
+    const { codeIntel } = this.deps
+    return codeIntel === undefined
+      ? undefined
+      : {
+          service: codeIntel,
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+          io: this.deps.io,
+          now: this.deps.now,
+        }
+  }
+
+  /**
+   * Whether this request's prompt carries the repo map (M67): the setting
+   * on, now, in a trusted workspace only, since the map repeats the
+   * workspace's file paths and names in every request's instructions.
+   */
+  private isRepoMapOn(): boolean {
+    return (
+      this.deps.codeIntel !== undefined &&
+      this.deps.isWorkspaceTrusted() &&
+      this.deps.isRepoMapInPrompt?.() === true
+    )
+  }
+
+  /** The map this session's prompt carries: a child's is its parent's, never one of its own. */
+  private promptRepoMap(): string | undefined {
+    if (!this.isRepoMapOn()) {
+      return undefined
+    }
+    return this.isSubagent ? this.parentSession?.promptRepoMap() : this.repoMapText
+  }
+
+  /**
+   * The repo map for the prompt (M67) while the setting is on. Never throws:
+   * a map that cannot be made is logged and the prompt goes without it. Only
+   * a map with text is kept; a try that failed or came out empty counts, and
+   * after `REPO_MAP_PROMPT_TRIES` the session stops trying. A Stop ends the
+   * lookups at once and does not count. A child task never builds one.
+   */
+  private async loadRepoMap(signal: AbortSignal): Promise<void> {
+    const deps = this.codeIntelDeps()
+    if (
+      deps === undefined ||
+      this.isSubagent ||
+      this.repoMapText !== undefined ||
+      this.repoMapTries >= REPO_MAP_PROMPT_TRIES ||
+      !this.isRepoMapOn()
+    ) {
+      return
+    }
+    try {
+      const text = await repoMapSection(deps, signal)
+      if (!signal.aborted) {
+        this.repoMapTries += 1
+        this.repoMapText = text
+      }
+    } catch (error: unknown) {
+      if (!signal.aborted) {
+        this.repoMapTries += 1
+      }
+      this.deps.log.warn(`The repo map for the prompt could not be made: ${describe(error)}`)
+    }
+  }
+
   /** Never throws: a describer that fails leaves the section at "no git". */
   private async loadEnvironment(): Promise<EnvironmentFacts> {
     try {
@@ -1457,6 +1737,7 @@ export class ModelApiSession implements AgentSession {
     const hasMemory = hasShell && this.deps.memory !== undefined
     const context = this.context.sections()
     const goalSection = goalInstructions(this.goal, this.goalSteps)
+    const repoMap = this.promptRepoMap()
     const input = this.budget.fit(this.replay.map((entry) => entry.item))
     if (this.budget.omitted && !this.mediaNoticeSent) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
@@ -1472,9 +1753,16 @@ export class ModelApiSession implements AgentSession {
         shellName: shell.shellName,
         hasShell,
         hasMemory,
+        hasWebFetch: this.isWebFetchOffered(hasShell),
+        hasCodeIntel: this.deps.codeIntel !== undefined,
         today: new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH),
         environment: this.environment ?? NO_ENVIRONMENT,
         context,
+        verify: {
+          isDiagnosticsOn: this.deps.verify?.isDiagnosticsOn() === true,
+          checks: this.checkCommands(),
+        },
+        ...(repoMap !== undefined && { repoMap }),
         // Pinned while the goal is active (M45, PLAN.md D38).
         ...(goalSection !== undefined && { goalSection }),
       }),
@@ -1519,6 +1807,11 @@ export class ModelApiSession implements AgentSession {
     return hasChanged
   }
 
+  /** The user's check commands as they stand now (M68); none without the verify loop. */
+  private checkCommands(): readonly CheckCommandSetting[] {
+    return this.deps.verify?.checkCommands() ?? []
+  }
+
   /** In-process, IDE, MCP and paid search tools offered to this request. */
   private tools(
     hasShell: boolean,
@@ -1532,6 +1825,10 @@ export class ModelApiSession implements AgentSession {
       hasSubagents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents'),
       isSubagent: this.isSubagent,
       hasMemory,
+      checks: this.checkCommands(),
+      // Trusted workspaces only, as the shell (M69).
+      hasWebFetch: this.isWebFetchOffered(hasShell),
+      hasCodeIntel: this.deps.codeIntel !== undefined,
     })
     const ide = (this.deps.ideTools ?? []).map(
       (tool) => mcpFunctionDefinition(ideFunctionName(tool), tool).definition,
@@ -1539,6 +1836,14 @@ export class ModelApiSession implements AgentSession {
     const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
     const offered = [...own, ...ide, ...mcp]
     return this.isWebSearchOffered() ? [...offered, { type: MODEL_API_WEB_SEARCH_TOOL }] : offered
+  }
+
+  /**
+   * Web fetch (M69): in a trusted workspace (`hasShell`) with the window's
+   * fetch, and not in a side chat, whose Plan mode refuses every fetch.
+   */
+  private isWebFetchOffered(hasShell: boolean): boolean {
+    return hasShell && this.deps.webFetch !== undefined && !this.isSideChat
   }
 
   /**
@@ -1561,7 +1866,10 @@ export class ModelApiSession implements AgentSession {
     }
     return this.isSubagent
       ? this.childTaskGrant?.isWebSearchAllowed === true
-      : await unlessStopped(this.deps.allowsPaidUse({ feature: 'webSearch' }, false), signal)
+      : await unlessStopped(
+          this.deps.allowsPaidUse({ feature: 'webSearch' }, false, this.askingSessionId),
+          signal,
+        )
   }
 
   /** The IDE tool or MCP server tool a function name is, when it is one (M50). */
@@ -2304,8 +2612,10 @@ export class ModelApiSession implements AgentSession {
    * The user's decision on a call: an approval card, or for a paid call
    * (an image, a subagent task) the paid-use popup (M58, PLAN.md D48),
    * which asks in every mode unless the feature is allowed always in this
-   * workspace. A hook's "allow" never answers either for a protected write
-   * or a paid call; a hook that demands a question asks even then.
+   * workspace. A hook's "allow" never answers for a protected write, a web
+   * fetch (its URL can carry the conversation to the host; M69) or a paid
+   * call; a hook may still deny them, and one that demands a question asks
+   * even then.
    */
   private async askApproval(
     itemId: string,
@@ -2330,7 +2640,7 @@ export class ModelApiSession implements AgentSession {
       const stopNotifying = this.notifyWhileAsking(call, signal)
       try {
         const isAllowed = await unlessStopped(
-          this.deps.allowsPaidUse(question.paid, requiresUserApproval),
+          this.deps.allowsPaidUse(question.paid, requiresUserApproval, this.askingSessionId),
           signal,
         )
         return { isApproved: isAllowed, feedback: undefined }
@@ -2338,7 +2648,9 @@ export class ModelApiSession implements AgentSession {
         stopNotifying()
       }
     }
-    if (!requiresUserApproval && query.isProtected !== true && hook.approvalDecision === 'allow') {
+    const isHookAllowEnough =
+      !requiresUserApproval && query.isProtected !== true && query.toolClass !== 'network'
+    if (isHookAllowEnough && hook.approvalDecision === 'allow') {
       return { isApproved: true, feedback: undefined }
     }
     const approvalId = this.deps.newId()
@@ -2371,7 +2683,7 @@ export class ModelApiSession implements AgentSession {
       (choice) => choice.choiceId === decision.choiceId,
     )
     if (isOffered && decision.choiceId === APPROVAL_CHOICE_IDS.allowSession) {
-      this.permissions.allowForSession(call.name, query.command)
+      this.permissions.allowForSession(query.toolName, query.command)
     }
     // Only the two allow choices this card offered approve; anything else refuses.
     const isApproved =
@@ -2796,13 +3108,15 @@ export class ModelApiSession implements AgentSession {
       limit,
       seen: this.seenFiles,
     })
-    const moved = Promise.withResolvers<undefined>()
-    this.foregroundShells.set(itemId, () => {
-      moved.resolve(undefined)
+    // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
+    const moved = new Promise<undefined>((resolve) => {
+      this.foregroundShells.set(itemId, () => {
+        resolve(undefined)
+      })
     })
     let finished: ToolOutcome | undefined
     try {
-      finished = await Promise.race([running, moved.promise])
+      finished = await Promise.race([running, moved])
     } finally {
       this.foregroundShells.delete(itemId)
       turnSignal.removeEventListener('abort', onTurnStop)
@@ -2822,7 +3136,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     if (external.kind === 'ide') {
-      const text = clipOutput(await external.tool.call(argumentsOf(call)))
+      const text = clipOutput(await external.tool.call(argumentsOf(call), signal))
       return { output: text, visibleOutput: text }
     }
     const servers = this.deps.mcpServers
@@ -3077,6 +3391,7 @@ export class ModelApiSession implements AgentSession {
           },
         },
         false,
+        this.askingSessionId,
       )
       if (!isAccepted) {
         throw new ChildTaskRefusedError('consentDeclined')
@@ -3207,6 +3522,7 @@ export class ModelApiSession implements AgentSession {
       this.hooks,
       'startup',
       this.isSideChat,
+      this.workspaceEdits,
     )
     child.childTaskGrant = grant
     const record: ChildRecord = {
@@ -3496,7 +3812,15 @@ export class ModelApiSession implements AgentSession {
       case shellToolFor(this.deps.platform).name: {
         return await this.runShellCall(itemId, call, signal)
       }
+      case VERIFY_TOOLS.runChecks: {
+        return await this.runChecksCall(itemId, call, signal)
+      }
       default: {
+        const intelTool = codeIntelToolOf(call.name)
+        if (intelTool !== undefined && intelTool !== 'renameSymbol') {
+          return { outcome: await this.readCode(intelTool, call, signal) }
+        }
+        const formatter = this.formatter()
         return {
           outcome: await executeTool(call.name, call.arguments, {
             workspaceRoot: this.deps.workspaceRoot,
@@ -3505,9 +3829,426 @@ export class ModelApiSession implements AgentSession {
             signal,
             seen: this.seenFiles,
             ...(approvedTarget !== undefined && { approvedTarget }),
+            ...(formatter !== undefined && { formatter }),
           }),
         }
       }
+    }
+  }
+
+  /**
+   * Format on edit (M68), while it is on: the editor's formatter over what an
+   * edit wrote. Never over a file the editor's tools run as code, and not at
+   * all once the conversation wrote one since the user's message (the M68
+   * review). A formatter that fails leaves the edit as written and is
+   * logged; it never fails the edit.
+   */
+  private formatter(): EditFormatter | undefined {
+    const verify = this.deps.verify
+    if (verify?.isFormatOnEdit() !== true) {
+      return undefined
+    }
+    const warn = (message: string) => {
+      this.deps.log.warn(message)
+    }
+    return {
+      format: async (target, text) => {
+        if (
+          this.ledger.codeFile !== undefined ||
+          isCodeLoading(target.relative) ||
+          isCodeLoading(target.canonical)
+        ) {
+          return
+        }
+        try {
+          return await verify.formatAfterEdit(target.checkedAbsolute, text)
+        } catch (error: unknown) {
+          warn(`Format on edit failed; the edit stays as written: ${describe(error)}`)
+          return
+        }
+      },
+      warn,
+    }
+  }
+
+  /** Whether the conversation edited, since the user's message, a file that decides what `command` runs. */
+  private changesWhatRunsNow(command: string): boolean {
+    return this.ledger.changesWhatRuns(command)
+  }
+
+  /**
+   * Whether a command may run now, by the shell tool's own permission path
+   * (M68, PLAN.md D49): never where the mode refuses a shell command, and
+   * with the shell's approval card wherever a shell command would ask,
+   * "always allow in this session" keyed on `ruleCommand` under the verify
+   * loop's own key (`VERIFY_COMMAND_RULE_KEY`), apart from the shell tool's
+   * rules. A hook that demanded a question (`isForced`) gets one; a
+   * session rule does not answer once the conversation edited a file that
+   * may decide what `ruleCommand` runs, judged on the command the rule is
+   * keyed on, a hook's rewrite included (PR #54, fourth Codex round). A
+   * hook's denial is told apart from the user's Reject, each with its words
+   * (the M68 review). Undefined when it may run, else why not.
+   */
+  private async authorizeCommand(
+    itemId: string,
+    request: VerifyCommand,
+    signal: AbortSignal,
+  ): Promise<{ readonly skip: CheckSkip; readonly detail?: string } | undefined> {
+    const shell = shellToolFor(this.deps.platform)
+    // Keyed apart from the shell tool: a check's grant never answers for the
+    // model's own shell call of the same command (PR #54, fourth Codex round).
+    const query: PermissionQuery = {
+      toolName: VERIFY_COMMAND_RULE_KEY,
+      toolClass: 'shell',
+      command: request.ruleCommand,
+    }
+    const permitted = this.changesWhatRunsNow(request.ruleCommand)
+      ? verdictFor(this.permissions.currentMode, 'shell')
+      : this.permissions.verdict(query)
+    const verdict = permitted === 'allow' && request.isForced ? 'ask' : permitted
+    if (verdict === 'deny') {
+      return { skip: 'refused' }
+    }
+    if (verdict === 'allow') {
+      return undefined
+    }
+    // The card and the PermissionRequest hook see it as the shell call it is.
+    const call: FunctionCallItem = {
+      type: 'function_call',
+      call_id: this.deps.newId(),
+      name: shell.name,
+      arguments: JSON.stringify({ command: request.line, description: request.description }),
+    }
+    const approval = await this.askApproval(
+      itemId,
+      call,
+      signal,
+      query,
+      { card: { kind: 'shell', command: request.line } },
+      request.isForced,
+    )
+    if (approval.isApproved) {
+      return undefined
+    }
+    return {
+      skip: approval.deniedByHook === true ? 'hookDenied' : 'rejected',
+      ...(approval.feedback !== undefined && { detail: approval.feedback }),
+    }
+  }
+
+  /**
+   * A check or then_run command by the shell tool's own path (M68, the M68
+   * review): Restricted Mode refuses; the user's PreToolUse hooks see it as a
+   * call of the shell tool and may block it, demand a question or rewrite
+   * it; the permission path above; then_run's guard; the run; then the
+   * PostToolUse or PostToolUseFailure hooks. What the hooks add for the
+   * model, and a hook's stop, go into `effects` for the caller to place
+   * after the output they follow.
+   */
+  private async runVerifyCommand(
+    itemId: string,
+    request: VerifyCommand,
+    signal: AbortSignal,
+    effects: HookEffects,
+  ): Promise<CommandOutcome> {
+    if (!this.deps.isWorkspaceTrusted()) {
+      return { kind: 'skipped', skip: 'restricted' }
+    }
+    const shell = shellToolFor(this.deps.platform)
+    const turnId = this.active?.turnId
+    const toolUseId = this.deps.newId()
+    const matcher = toolMatcherNames(shell.name)
+    const pre = await this.runHooks(
+      'PreToolUse',
+      turnId,
+      {
+        tool_name: shell.name,
+        tool_input: toolHookInput({ command: request.line, description: request.description }),
+        tool_use_id: toolUseId,
+      },
+      matcher,
+      signal,
+      false,
+    )
+    effects.contexts.push(...pre.contexts)
+    if (pre.blockedReason !== undefined) {
+      return { kind: 'skipped', skip: 'hookDenied', detail: pre.blockedReason }
+    }
+    let { line, ruleCommand } = request
+    if (pre.updatedInput !== undefined) {
+      const updated = pre.updatedInput['command']
+      if (typeof updated !== 'string' || updated.trim() === '') {
+        return { kind: 'skipped', skip: 'hookDenied', detail: MODEL_TEXT.hookInputNoCommand }
+      }
+      line = updated
+      ruleCommand = updated
+    }
+    const authorized: VerifyCommand = {
+      ...request,
+      line,
+      ruleCommand,
+      isForced: request.isForced || pre.forceApproval,
+    }
+    const refusal = await authorizeThenGuard({
+      isRuleLapsed: () => this.changesWhatRunsNow(ruleCommand),
+      authorize: () => this.authorizeCommand(itemId, authorized, signal),
+      ...(request.guard !== undefined && { guard: request.guard }),
+    })
+    if (refusal !== undefined) {
+      return { kind: 'skipped', ...refusal }
+    }
+    const startedAt = this.deps.now()
+    const result = await this.runCommand(line, request.timeoutMs, signal)
+    const ran = shellOutcome(result, request.timeoutMs)
+    const input = toolHookInput({ command: line, description: request.description })
+    const post = await this.runHooks(
+      ran.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
+      turnId,
+      ran.failureReason === undefined
+        ? {
+            tool_name: shell.name,
+            tool_input: input,
+            tool_use_id: toolUseId,
+            tool_response: toolHookOutput(ran.output),
+          }
+        : {
+            tool_name: shell.name,
+            tool_input: input,
+            tool_use_id: toolUseId,
+            error: toolHookOutput(ran.failureReason),
+            is_interrupt: false,
+            duration_ms: this.deps.now() - startedAt,
+          },
+      matcher,
+      signal,
+      false,
+    )
+    effects.contexts.push(...post.contexts)
+    if (post.stopReason !== undefined) {
+      effects.stopReason ??= post.stopReason
+    } else if (post.blockedReason !== undefined) {
+      effects.messages.push(post.blockedReason)
+    }
+    return { kind: 'ran', line, result }
+  }
+
+  /**
+   * One check: skipped when the fix loop stopped the checks or the user
+   * rejected it since their message; its line (paths refused when they
+   * cannot be passed safely), the files by the canonical names confinement
+   * gave them; then the command's path above, a Reject remembered, and just
+   * before it runs each file must still be where confinement found it (the
+   * Codex review of PR #54). Its output takes `maxChars` of the note's
+   * budget.
+   */
+  private async runCheck(
+    itemId: string,
+    check: CheckCommandSetting,
+    files: readonly EditedFile[],
+    signal: AbortSignal,
+    effects: HookEffects,
+    maxChars: number,
+  ): Promise<CheckRun> {
+    if (this.ledger.isStopped) {
+      return skippedCheck(check, 'stopped')
+    }
+    if (this.ledger.isRejected(check.name)) {
+      return skippedCheck(check, 'rejected')
+    }
+    const built = checkCommandLine(
+      check,
+      files.map((file) => file.relative),
+      this.deps.platform,
+    )
+    if (!built.ok) {
+      return skippedCheck(check, 'unsafePath')
+    }
+    const timeoutMs = checkTimeoutMs(check)
+    // The state the check starts on: an edit made while it runs leaves it behind.
+    const startedOn = this.ledger.snapshot(check.name, checkScope(check, files))
+    const outcome = await this.runVerifyCommand(
+      itemId,
+      {
+        line: built.line,
+        ruleCommand: check.command,
+        description: check.name,
+        timeoutMs,
+        isForced: false,
+        ...(check.changedFiles === true &&
+          files.length > 0 && { guard: () => this.areStillWhereConfined(files) }),
+      },
+      signal,
+      effects,
+    )
+    if (outcome.kind === 'skipped') {
+      if (outcome.skip === 'rejected') {
+        this.ledger.reject(check.name)
+      }
+      return skippedCheck(check, outcome.skip, outcome.detail)
+    }
+    const run = finishedCheck(check, outcome.line, outcome.result, timeoutMs, maxChars)
+    this.ledger.record(run.summary.outcome, startedOn)
+    return run
+  }
+
+  /**
+   * A check or `then_run` command, as the shell tool runs one (M68). A shell
+   * that cannot start is a failed run the model is told about, as the user's
+   * own `!` command is (M46), not the end of the turn.
+   */
+  private async runCommand(
+    line: string,
+    timeoutMs: number,
+    signal: AbortSignal,
+  ): Promise<ShellResult> {
+    try {
+      return await this.deps.io.runShell(line, this.deps.workspaceRoot, timeoutMs, signal)
+    } catch (error: unknown) {
+      return {
+        stdout: '',
+        stderr: describe(error),
+        exitCode: null,
+        isTimedOut: false,
+        isCancelled: false,
+      }
+    }
+  }
+
+  /**
+   * The checks in order; a Stop ends the run, and a hook that ended the turn
+   * (`continue: false`) ends it with what finished (the Codex review of PR
+   * #54): the checks after it do not run.
+   */
+  private async runChecks(
+    itemId: string,
+    checks: readonly CheckCommandSetting[],
+    files: readonly EditedFile[],
+    signal: AbortSignal,
+    effects: HookEffects,
+    maxChars: number,
+  ): Promise<readonly CheckRun[]> {
+    const runs: CheckRun[] = []
+    for (const check of checks) {
+      if (isAbortRequested(signal)) {
+        throw new AbortedError()
+      }
+      if (effects.stopReason !== undefined) {
+        break
+      }
+      runs.push(await this.runCheck(itemId, check, files, signal, effects, maxChars))
+    }
+    return runs
+  }
+
+  /** The files that still exist: only those reach a check (the M68 review). */
+  private async existingFiles(files: readonly EditedFile[]): Promise<readonly EditedFile[]> {
+    const exists = await Promise.all(
+      files.map(async (file) => {
+        try {
+          return await this.deps.io.pathExists(file.absolute)
+        } catch (error: unknown) {
+          this.deps.log.warn(`Verify: ${file.relative} could not be looked up: ${describe(error)}`)
+          return false
+        }
+      }),
+    )
+    return files.filter((_file, index) => exists[index] === true)
+  }
+
+  /**
+   * Whether each file's canonical name still leads to the real path
+   * confinement gave it: a link or junction retargeted since, or a folder
+   * swapped for one, would hand the check another file (the Codex review of
+   * PR #54). Content may change (an earlier check may fix a file); the check
+   * then reports on the file as it is.
+   */
+  private async areStillWhereConfined(files: readonly EditedFile[]): Promise<boolean> {
+    const p = pathModule(this.deps.platform)
+    try {
+      const real = await Promise.all(
+        files.map((file) => this.deps.io.realPath(p.join(this.deps.workspaceRoot, file.relative))),
+      )
+      return files.every((file, index) => real[index] === file.absolute)
+    } catch (error: unknown) {
+      this.deps.log.warn(`Verify: a checked file could not be resolved again: ${describe(error)}`)
+      return false
+    }
+  }
+
+  /**
+   * `run_checks` (M68): the checks the model names (all of them by default)
+   * over the files it names (each must exist in the workspace), or those
+   * edited since the user's message, with the same ledger as the automatic
+   * step: the fix loop's stop and the user's rejections hold, a Reject is
+   * remembered, and each run is recorded against the state it ran on, so
+   * the round judges it and does not run it again while it is current.
+   */
+  private async runChecksCall(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<Performed> {
+    const configured = this.checkCommands()
+    if (configured.length === 0) {
+      return { outcome: toolFailure(MODEL_TEXT.runChecksNone) }
+    }
+    const parsed = parseRunChecks(call.arguments)
+    if (!parsed.ok) {
+      return { outcome: toolFailure(parsed.reason) }
+    }
+    const names = parsed.args.names ?? configured.map((check) => check.name)
+    const unknown = names.find((name) => configured.every((check) => check.name !== name))
+    if (unknown !== undefined) {
+      return {
+        outcome: toolFailure(
+          fill(MODEL_TEXT.runChecksUnknown, {
+            name: unknown,
+            names: configured.map((check) => check.name).join(', '),
+          }),
+        ),
+      }
+    }
+    const isEditedScope = parsed.args.paths === undefined
+    const files: EditedFile[] = []
+    if (isEditedScope) {
+      files.push(...(await this.existingFiles(this.ledger.editedFiles())))
+    } else {
+      const named = parsed.args.paths ?? []
+      for (const given of named) {
+        const resolved = await confineWorkspacePath(
+          this.deps.workspaceRoot,
+          given,
+          this.deps.platform,
+          this.deps.io,
+        )
+        if (!resolved.ok) {
+          return { outcome: toolFailure(resolved.reason) }
+        }
+        if (!(await this.deps.io.pathExists(resolved.checkedAbsolute))) {
+          return {
+            outcome: toolFailure(
+              fill(MODEL_TEXT.runChecksMissingPath, { path: resolved.relative }),
+            ),
+          }
+        }
+        files.push({ relative: resolved.canonical, absolute: resolved.checkedAbsolute })
+      }
+    }
+    const selected = configured.filter((check) => names.includes(check.name))
+    const effects = newHookEffects()
+    const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(selected.length, 1))
+    const runs = await this.runChecks(itemId, selected, files, signal, effects, share)
+    const section = checksSection(runs)
+    return {
+      outcome: {
+        output: `${MODEL_TEXT.runChecksLead}\n\n${section}`,
+        visibleOutput: section,
+        verifySummary: {
+          files: files.map((file) => file.relative),
+          checks: runs.map((run) => run.summary),
+        },
+      },
+      hookEffects: effects,
     }
   }
 
@@ -3603,12 +4344,217 @@ export class ModelApiSession implements AgentSession {
       const replaced = await placeMemoryCall(memory, call.name, call.arguments)
       return {
         outcome: replaced.ok
-          ? await runMemoryCall(memory, replaced.value)
+          ? await this.runPlacedMemoryCall(memory, replaced.value)
           : toolFailure(replaced.reason),
         isRejected: false,
       }
     }
-    return { outcome: await runMemoryCall(memory, placed.value), isRejected: false }
+    return { outcome: await this.runPlacedMemoryCall(memory, placed.value), isRejected: false }
+  }
+
+  /** Memory writes can change a check's named input, including a new note's index. */
+  private async runPlacedMemoryCall(
+    memory: MemoryStore,
+    placed: PlacedMemoryCall,
+  ): Promise<ToolOutcome> {
+    if (placed.call.tool === 'read') {
+      return await runMemoryCall(memory, placed)
+    }
+    const paths = [placed.place.absolute]
+    if (placed.call.tool === 'add') {
+      const index = await memory.locate(placed.place.scope, MEMORY_INDEX_FILE)
+      if (index.ok) {
+        paths.push(index.value.absolute)
+      }
+    }
+    const completions: (() => void)[] = []
+    try {
+      for (const path of paths) {
+        const target = await confineWorkspacePath(
+          this.deps.workspaceRoot,
+          path,
+          this.deps.platform,
+          this.deps.io,
+        )
+        if (target.ok) {
+          completions.push(
+            this.workspaceEdits.beginEdit(
+              { relative: target.canonical, absolute: target.checkedAbsolute },
+              [target.relative, target.canonical],
+            ),
+          )
+        }
+      }
+      return await runMemoryCall(memory, placed)
+    } finally {
+      for (const complete of completions) {
+        complete()
+      }
+    }
+  }
+
+  /**
+   * A web fetch (M69, PLAN.md D49): refused in Restricted Mode, and for a
+   * URL the fetch would refuse anyway, before any card; then judged as a
+   * network tool per host, its card naming the URL as it will be fetched.
+   * The fetch itself resolves, checks and pins every hop.
+   */
+  private async decideAndRunWebFetch(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    shouldForceApproval: boolean,
+  ): Promise<CallResult> {
+    const fetchPage = this.deps.webFetch
+    if (fetchPage === undefined) {
+      return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      return webFetchRestricted()
+    }
+    const parsed = webFetchArgs.safeParse(argumentsOf(call))
+    if (!parsed.success) {
+      return { outcome: toolFailure('invalid arguments: url is required'), isRejected: false }
+    }
+    const checked = checkPageUrl(parsed.data.url)
+    if (!checked.ok) {
+      return { outcome: webFetchRefusal(checked.failure), isRejected: false }
+    }
+    const url = checked.url.href
+    const query: PermissionQuery = {
+      toolName: call.name,
+      toolClass: 'network',
+      command: approvalHost(checked.url),
+    }
+    const refusal = await this.judge(
+      itemId,
+      call,
+      signal,
+      query,
+      { kind: WEB_FETCH_SUBJECT_KIND, target: url, toolName: call.name },
+      shouldForceApproval,
+    )
+    if (refusal !== undefined) {
+      return refusal
+    }
+    // The card or a hook was awaited: the turn may have stopped, the
+    // workspace lost its trust, or the mode turned to one that refuses.
+    const withdrawn = this.webFetchWithdrawn(call, query, signal)
+    if (withdrawn !== undefined) {
+      return withdrawn
+    }
+    const result = await fetchPage(url, signal, () => this.isWebFetchStillAllowed(query))
+    // Asked again once the page is in: it reaches the model only while web
+    // fetch is still allowed.
+    return (
+      this.webFetchWithdrawn(call, query, signal) ?? {
+        outcome: webFetchOutcome(result),
+        isRejected: false,
+      }
+    )
+  }
+
+  /** Whether what allowed a web fetch still holds: trust, and a mode that does not refuse it. */
+  private isWebFetchStillAllowed(query: PermissionQuery): boolean {
+    return this.deps.isWorkspaceTrusted() && this.permissions.verdict(query) !== 'deny'
+  }
+
+  /** The refusal for a web fetch no longer allowed after an await; throws when the turn stopped. */
+  private webFetchWithdrawn(
+    call: FunctionCallItem,
+    query: PermissionQuery,
+    signal: AbortSignal,
+  ): CallResult | undefined {
+    if (signal.aborted) {
+      throw new AbortedError()
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      return webFetchRestricted()
+    }
+    return this.permissions.verdict(query) === 'deny' ? this.refusedByMode(call) : undefined
+  }
+
+  /** A read-only code intelligence call (M67): a read in every mode, stopped by Stop. */
+  private async readCode(
+    tool: Exclude<CodeIntelTool, 'renameSymbol'>,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<ToolOutcome> {
+    const deps = this.codeIntelDeps()
+    return deps === undefined
+      ? toolFailure(`unknown tool ${call.name}`)
+      : await unlessStopped(runCodeIntelRead(tool, call.arguments, deps, signal), signal)
+  }
+
+  /**
+   * `rename_symbol` (M67, PLAN.md D49): the edit planned and checked before
+   * any card (a refused rename asks nothing), judged as an edit whose card
+   * names its files (protected if any file is, D24), then written file by
+   * file after every file is checked again.
+   */
+  private async decideAndRunRename(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    shouldForceApproval: boolean,
+  ): Promise<CallResult> {
+    const deps = this.codeIntelDeps()
+    if (deps === undefined) {
+      return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+    }
+    // Plan refuses every edit: the language service is not even asked then.
+    if (this.verdictWithHook({ toolName: call.name, toolClass: 'edit' }, false) === 'deny') {
+      return this.refusedByMode(call)
+    }
+    // The plan the PreToolUse hooks were shown, if they were: it is the one
+    // written, each file checked again for its content after the card. A
+    // hook's new arguments are a new call object, planned afresh.
+    const planning = this.hookRenamePlans.get(call) ?? planRenameCall(call.arguments, deps)
+    this.hookRenamePlans.delete(call)
+    const planned = await unlessStopped(planning, signal)
+    if (!planned.ok) {
+      return { outcome: renameRefused(planned), isRejected: false }
+    }
+    const { plan } = planned
+    const refusal = await this.judge(
+      itemId,
+      call,
+      signal,
+      { toolName: call.name, toolClass: 'edit', isProtected: isProtectedRename(plan) },
+      { kind: 'fileWrite', path: renameCardPath(plan), toolName: call.name },
+      shouldForceApproval,
+    )
+    if (refusal !== undefined) {
+      return refusal
+    }
+    // Every planned name lapses stale grants before the rechecks await I/O.
+    // Only successful native writes enter this session's automatic check round.
+    const completions: (() => void)[] = []
+    try {
+      for (const file of plan.files) {
+        completions.push(
+          this.workspaceEdits.beginEdit(
+            { relative: file.canonical, absolute: file.checkedAbsolute },
+            [file.relative, file.canonical],
+          ),
+        )
+      }
+      const outcome = await applyRename(plan, {
+        workspaceRoot: this.deps.workspaceRoot,
+        platform: this.deps.platform,
+        io: this.deps.io,
+        seen: this.seenFiles,
+        signal,
+        onWritten: (file) => {
+          this.noteEdited(file)
+        },
+      })
+      return { outcome, isRejected: false }
+    } finally {
+      for (const complete of completions) {
+        complete()
+      }
+    }
   }
 
   /** The permission check and, when it allows, the tool itself. May throw (an abort, an I/O error). */
@@ -3637,6 +4583,12 @@ export class ModelApiSession implements AgentSession {
     }
     if (isMemoryTool(call.name)) {
       return await this.decideAndRunMemory(itemId, call, signal, toolClass, shouldForceApproval)
+    }
+    if (toolClass === 'network') {
+      return await this.decideAndRunWebFetch(itemId, call, signal, shouldForceApproval)
+    }
+    if (call.name === CODE_INTEL_TOOLS.renameSymbol) {
+      return await this.decideAndRunRename(itemId, call, signal, shouldForceApproval)
     }
     if (
       this.isSubagent &&
@@ -3738,8 +4690,18 @@ export class ModelApiSession implements AgentSession {
         throw error
       }
     }
-    return {
-      ...(await this.perform(
+    // Every live session hears the names before perform can write or format.
+    // Completion advances their state again, including on a failed write.
+    const completeEdit =
+      target?.ok === true
+        ? this.workspaceEdits.beginEdit(
+            { relative: target.canonical, absolute: target.checkedAbsolute },
+            [target.relative, target.canonical],
+          )
+        : undefined
+    let performed: Performed
+    try {
+      performed = await this.perform(
         turnId,
         itemId,
         call,
@@ -3748,9 +4710,198 @@ export class ModelApiSession implements AgentSession {
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
+      )
+    } finally {
+      completeEdit?.()
+    }
+    if (target?.ok !== true) {
+      return { ...performed, isRejected: false }
+    }
+    const isEdited =
+      performed.outcome.patch !== undefined && performed.outcome.failureReason === undefined
+    if (isEdited) {
+      this.noteEdited(target)
+    }
+    const command = thenRunOf(call.arguments)
+    if (command === undefined) {
+      return { ...performed, isRejected: false }
+    }
+    if (!isEdited) {
+      return {
+        outcome: {
+          ...performed.outcome,
+          output: `${performed.outcome.output}\n${MODEL_TEXT.thenRunEditFailed}`,
+        },
+        isRejected: false,
+      }
+    }
+    return {
+      ...(await this.thenRun(
+        itemId,
+        target,
+        command,
+        performed.outcome,
+        signal,
+        shouldForceApproval,
       )),
       isRejected: false,
     }
+  }
+
+  /**
+   * A file an edit tool wrote (M68): a new state of it in the ledger, checked
+   * after this round, the runs on its earlier state no longer counting, and
+   * remembered since the user's input.
+   */
+  private noteEdited(target: {
+    readonly relative: string
+    readonly absolute: string
+    readonly canonical: string
+    readonly checkedAbsolute: string
+  }): void {
+    // By the real path and canonical name confinement found at the edit, with
+    // what the edit left: nothing later follows a link retargeted since, and
+    // the editor reads the file only while it still holds that (the Codex
+    // review of PR #54).
+    const fingerprint = this.seenFiles.get(target.absolute)
+    const file: EditedFile = {
+      relative: target.canonical,
+      absolute: target.checkedAbsolute,
+      ...(fingerprint !== undefined && { fingerprint }),
+    }
+    this.ledger.noteEdit(file, [target.relative, target.canonical])
+  }
+
+  /**
+   * A then_run that ran a configured check's own command, as the check itself
+   * would run it, is a run of that check on the state the edit left (M68;
+   * PR #54's reviews): it counts for the fix loop, and the round does not run
+   * the check again. Not for a check that takes the changed files (the
+   * then_run passed none). It ran under the shell's cap, not the check's: a
+   * pass counts only when the check's cap is no shorter, a time-out only
+   * when it is no longer (Grok's review); a failure is a failure either way.
+   */
+  private noteCheckCommandRun(
+    line: string,
+    result: ShellResult,
+    startedOn: ReadonlyMap<string, RunSnapshot>,
+  ): void {
+    const outcome = outcomeOf(result)
+    for (const check of this.checkCommands()) {
+      const cap = checkTimeoutMs(check)
+      const snapshot = startedOn.get(check.name)
+      const isSameRun =
+        snapshot !== undefined &&
+        check.command === line.trim() &&
+        check.changedFiles !== true &&
+        (outcome !== 'passed' || cap >= SHELL_DEFAULT_TIMEOUT_MS) &&
+        (outcome !== 'timedOut' || cap <= SHELL_DEFAULT_TIMEOUT_MS)
+      if (isSameRun) {
+        this.ledger.record(outcome, snapshot)
+      }
+    }
+  }
+
+  /**
+   * An edit's `then_run` (M68, SoL-Pi's Action Fusion, reimplemented): the
+   * command by the shell tool's path, hooks included (the M68 review), run
+   * only if the file still holds what the edit left (formatted, when format
+   * on edit is on); its result is the call's second one.
+   */
+  private async thenRun(
+    itemId: string,
+    target: { readonly absolute: string; readonly checkedAbsolute: string },
+    command: string,
+    edit: ToolOutcome,
+    signal: AbortSignal,
+    isForced: boolean,
+  ): Promise<Performed> {
+    const effects = newHookEffects()
+    // The state a check of the same command would start on, taken before it runs.
+    const startedOn = new Map(
+      this.checkCommands().map((check) => [
+        check.name,
+        this.ledger.snapshot(check.name, 'project'),
+      ]),
+    )
+    let ran: CommandOutcome
+    try {
+      ran = await this.runVerifyCommand(
+        itemId,
+        {
+          line: command,
+          ruleCommand: command,
+          description: THEN_RUN_DESCRIPTION,
+          timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
+          isForced,
+          guard: () => this.isAsEdited(target),
+        },
+        signal,
+        effects,
+      )
+    } catch (error: unknown) {
+      if (!(error instanceof AbortedError) && !isAbortRequested(signal)) {
+        throw error
+      }
+      // Stopped at its hooks or its card: the edit happened, so the call keeps
+      // its result and its diff; the turn ends when the loop sees the stop.
+      return {
+        outcome: {
+          ...edit,
+          output: `${edit.output}\n\n${fill(MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.toolCancelledByStop })}`,
+          thenRun: { command, outcome: 'cancelled', output: '' },
+        },
+        hookEffects: effects,
+      }
+    }
+    if (ran.kind === 'skipped') {
+      const reason = skipReason(ran.skip, ran.detail)
+      return {
+        outcome: {
+          ...edit,
+          output: `${edit.output}\n\n${fill(MODEL_TEXT.thenRunNotRun, { reason })}`,
+          thenRun: {
+            command,
+            outcome: 'notRun',
+            skip: ran.skip,
+            ...(ran.detail !== undefined && ran.detail.trim() !== '' && { detail: ran.detail }),
+            output: '',
+          },
+        },
+        hookEffects: effects,
+      }
+    }
+    const { line, result } = ran
+    this.noteCheckCommandRun(line, result, startedOn)
+    const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS)
+    return {
+      outcome: {
+        ...edit,
+        output: `${edit.output}\n\n${MODEL_TEXT.thenRunLead} $ ${line}\n${finished.output}`,
+        thenRun: {
+          command: line,
+          outcome: outcomeOf(result),
+          output: shellText(result),
+          ...(result.exitCode !== null && { exitCode: result.exitCode }),
+        },
+      },
+      hookEffects: effects,
+    }
+  }
+
+  /** Whether the file still holds what the edit left: `then_run`'s guard (M68). */
+  private async isAsEdited(target: {
+    readonly absolute: string
+    readonly checkedAbsolute: string
+  }): Promise<boolean> {
+    let current: string | undefined
+    try {
+      current = await this.deps.io.readFile(target.checkedAbsolute, target.checkedAbsolute)
+    } catch (error: unknown) {
+      this.deps.log.warn(`then_run's guard could not read the file: ${describe(error)}`)
+      return false
+    }
+    return current !== undefined && fingerprint(current) === this.seenFiles.get(target.absolute)
   }
 
   /**
@@ -3781,6 +4932,8 @@ export class ModelApiSession implements AgentSession {
           patchRef: { id: outputRef, byteLen: Buffer.byteLength(outcome.patch.document) },
           patchSummary: outcome.patch.summary,
         }),
+      ...(outcome.verifySummary !== undefined && { verifySummary: outcome.verifySummary }),
+      ...(outcome.thenRun !== undefined && { thenRun: outcome.thenRun }),
     }
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
@@ -3814,7 +4967,11 @@ export class ModelApiSession implements AgentSession {
     const pre = await this.runHooks(
       'PreToolUse',
       turnId,
-      { tool_name: call.name, tool_input: toolHookInput(argumentsOf(call)), tool_use_id: itemId },
+      {
+        tool_name: call.name,
+        tool_input: await this.preToolInput(call, signal),
+        tool_use_id: itemId,
+      },
       toolMatcherNames(call.name),
       signal,
       false,
@@ -3870,7 +5027,7 @@ export class ModelApiSession implements AgentSession {
       await this.touchPath(effectiveCall)
     }
     let { outcome } = result
-    const { isRejected, running } = result
+    const { isRejected, running, hookEffects } = result
     if (running === undefined) {
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
@@ -3887,7 +5044,7 @@ export class ModelApiSession implements AgentSession {
     } else {
       this.continueInBackground(turnId, started, effectiveCall, outcome, running)
     }
-    for (const context of pre.contexts) {
+    for (const context of [...pre.contexts, ...(hookEffects?.contexts ?? [])]) {
       this.replay.push({
         turnId,
         item: {
@@ -3918,13 +5075,19 @@ export class ModelApiSession implements AgentSession {
       toolMatcherNames(effectiveCall.name),
       signal,
     )
-    if (post.stopReason === undefined && post.blockedReason !== undefined) {
+    const blocked = [
+      ...(post.stopReason === undefined && post.blockedReason !== undefined
+        ? [post.blockedReason]
+        : []),
+      ...(hookEffects?.messages ?? []),
+    ]
+    for (const reason of blocked) {
       this.replay.push({
         turnId,
         item: {
           type: 'message',
           role: 'user',
-          content: [{ type: 'input_text', text: post.blockedReason }],
+          content: [{ type: 'input_text', text: reason }],
         },
       })
     }
@@ -3935,7 +5098,7 @@ export class ModelApiSession implements AgentSession {
         tool_use_id: itemId,
         tool_response: toolHookOutput(outcome.output),
       },
-      stopReason: post.stopReason,
+      stopReason: post.stopReason ?? hookEffects?.stopReason,
     }
   }
 
@@ -4100,6 +5263,12 @@ export class ModelApiSession implements AgentSession {
     // What ended or ran meanwhile first (M46), then what the user added.
     this.settleNotes(turn.turnId)
     for (const { parts, userMessageId: itemId } of turn.steered.splice(0)) {
+      // Admitted user input (M68): the fix loop, rejections and runs start
+      // afresh; what the conversation wrote stays until the next message. A
+      // subagent's steers come from its parent model, not the user.
+      if (!this.isSubagent) {
+        this.ledger.resetForSteer()
+      }
       const text = typedText(parts)
       this.replay.push({
         turnId: turn.turnId,
@@ -4150,6 +5319,188 @@ export class ModelApiSession implements AgentSession {
         role: 'user',
         content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
       },
+    })
+  }
+
+  /**
+   * The verify loop's automatic step (M68, PLAN.md D49), after a round that
+   * edited files and before the next request: the edited files' diagnostics
+   * once the language servers settle, then the user's check commands (those
+   * not already run since the round's last edit), each by the shell tool's
+   * path, its hooks included. Its row shows what ran, and the model reads it
+   * all as tool data, within one budget. After CHECK_FIX_MAX_ROUNDS failing
+   * rounds in a row the checks stop until the user's next message, and the
+   * model and the user are told. Nothing runs after the turn's last round
+   * (no request would read it) or a Stop (the M68 review). A hook's stop is
+   * returned.
+   */
+  private async verifyRound(turn: ActiveTurn, isLastRound: boolean): Promise<string | undefined> {
+    const edited = this.ledger.takeRoundEdits()
+    const { verify } = this.deps
+    const { signal } = turn.abort
+    if (verify === undefined || isAbortRequested(signal)) {
+      return undefined
+    }
+    if (isLastRound || edited.length === 0) {
+      // The round's runs are judged, edits or not (the Codex review of PR #54).
+      if (this.ledger.judgeRound()) {
+        this.noteFixLoopStopped(turn.turnId, [])
+      }
+      return undefined
+    }
+    const isDiagnosticsOn = verify.isDiagnosticsOn()
+    // Restricted Mode runs no shell (D13): the checks are left out, not refused
+    // one by one. A check already run on the latest state of what it covers
+    // (by run_checks, or an edit's then_run of its command) is not run again.
+    const checks =
+      this.ledger.isStopped || !this.deps.isWorkspaceTrusted()
+        ? []
+        : verify
+            .checkCommands()
+            .filter(
+              (check) =>
+                !this.ledger.isRejected(check.name) &&
+                !this.ledger.hasCurrentRun(check.name, checkScope(check, edited)),
+            )
+    if (!isDiagnosticsOn && checks.length === 0) {
+      if (this.ledger.judgeRound()) {
+        this.noteFixLoopStopped(turn.turnId, [])
+      }
+      return undefined
+    }
+    const paths = edited.map((file) => file.relative)
+    const parts = (isDiagnosticsOn ? 1 : 0) + checks.length
+    const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(parts, 1))
+    const started: ItemSnapshot = {
+      itemId: this.deps.newId(),
+      kind: 'toolCall',
+      status: IN_PROGRESS,
+      turnId: turn.turnId,
+      tool: VERIFY_TOOLS.verifyEdits,
+      args: JSON.stringify({ paths }),
+    }
+    this.recordTranscript(turn.turnId, started)
+    this.emit({ type: 'itemStarted', item: started })
+    const effects = newHookEffects()
+    let pending: PendingReport | undefined
+    let runs: readonly CheckRun[]
+    try {
+      pending = isDiagnosticsOn
+        ? await this.editDiagnostics(verify, edited, signal, share)
+        : undefined
+      // Looked up after the language servers' wait, so a file gone by now is not passed.
+      const existing = checks.length === 0 ? [] : await this.existingFiles(edited)
+      runs = await this.runChecks(started.itemId, checks, existing, signal, effects, share)
+      if (isAbortRequested(signal)) {
+        throw new AbortedError()
+      }
+    } catch (error: unknown) {
+      const isStopped = error instanceof AbortedError || isAbortRequested(signal)
+      const ended: ItemSnapshot = {
+        ...started,
+        status: isStopped ? CANCELLED : FAILED,
+        ...(!isStopped && { failureReason: describe(error) }),
+      }
+      this.emit({ type: 'itemCompleted', item: ended })
+      this.rerecordTranscript(ended)
+      throw isStopped ? new AbortedError() : error
+    }
+    const report = pending?.report
+    const sections = [
+      ...(report === undefined ? [] : [report.text]),
+      ...(runs.length === 0 ? [] : [checksSection(runs)]),
+    ]
+    const completed: ItemSnapshot = {
+      ...started,
+      status: COMPLETED,
+      visibleOutput: sections.join('\n\n'),
+      verifySummary: {
+        files: paths,
+        ...(report?.errors !== undefined && { errors: report.errors }),
+        ...(report?.warnings !== undefined && { warnings: report.warnings }),
+        ...(report?.unchecked !== undefined && { unchecked: report.unchecked }),
+        checks: runs.map((run) => run.summary),
+      },
+    }
+    this.emit({ type: 'itemCompleted', item: completed })
+    this.rerecordTranscript(completed)
+    if (this.ledger.judgeRound()) {
+      this.noteFixLoopStopped(turn.turnId, sections)
+    } else {
+      this.replay.push({
+        turnId: turn.turnId,
+        item: noteItem([MODEL_TEXT.verifyLead, ...sections].join('\n\n')),
+      })
+    }
+    // The model has the reads now: they become the baseline of the next check.
+    pending?.commit()
+    this.appendHookEffects(turn.turnId, effects)
+    return effects.stopReason
+  }
+
+  /** The verify note with the fix loop's stop at its end, and the panel's notice (M68). */
+  private noteFixLoopStopped(turnId: string, sections: readonly string[]): void {
+    const stopped = fill(MODEL_TEXT.checksStopped, { count: String(CHECK_FIX_MAX_ROUNDS) })
+    this.replay.push({
+      turnId,
+      item: noteItem([MODEL_TEXT.verifyLead, ...sections, stopped].join('\n\n')),
+    })
+    this.emit({
+      type: 'backendNotice',
+      level: 'warning',
+      text: plural(UI_TEXT.checksStoppedNotice, CHECK_FIX_MAX_ROUNDS),
+    })
+  }
+
+  /** What the checks' hooks added, after the verify note: their contexts, then their reasons. */
+  private appendHookEffects(turnId: string, effects: HookEffects): void {
+    for (const text of [...effects.contexts, ...effects.messages]) {
+      this.replay.push({ turnId, item: noteItem(text) })
+    }
+  }
+
+  /**
+   * The edited files' diagnostics, compared with their previous check (M68).
+   * At most VERIFY_SHOWN_FILES_MAX files are shown and read, none once the
+   * conversation wrote a file the editor's tools run as code (the M68
+   * review); the others are "not checked" with the reason. Diagnostics that
+   * cannot be read at all are said so, to the model and the log, rather than
+   * reported clean.
+   */
+  private async editDiagnostics(
+    verify: VerifyHooks,
+    edited: readonly EditedFile[],
+    signal: AbortSignal,
+    maxChars: number,
+  ): Promise<PendingReport> {
+    const { codeFile } = this.ledger
+    const shown = codeFile === undefined ? edited.slice(0, VERIFY_SHOWN_FILES_MAX) : []
+    const skipped: FileDiagnostics[] = edited.slice(shown.length).map((file) => ({
+      file,
+      entries: [],
+      unchecked: codeFile === undefined ? 'tooMany' : 'codeLoading',
+    }))
+    let read: readonly FileDiagnostics[] = []
+    if (shown.length > 0) {
+      try {
+        read = await unlessStopped(verify.diagnosticsAfterEdit(shown, signal), signal)
+      } catch (error: unknown) {
+        if (error instanceof AbortedError) {
+          throw error
+        }
+        this.deps.log.warn(`Verify: the diagnostics could not be read: ${describe(error)}`)
+        return {
+          report: {
+            text: fill(MODEL_TEXT.verifyDiagnosticsUnavailable, { reason: describe(error) }),
+            unchecked: edited.length,
+          },
+          commit: NOTHING_TO_COMMIT,
+        }
+      }
+    }
+    return this.diagnosticsHistory.report([...read, ...skipped], {
+      maxChars,
+      ...(codeFile !== undefined && { codeFile }),
     })
   }
 
@@ -4317,6 +5668,12 @@ export class ModelApiSession implements AgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
+      const verifyStop = await this.verifyRound(turn, round === MODEL_API_MAX_TOOL_ROUNDS - 1)
+      if (verifyStop !== undefined) {
+        // A check's hook stopped the turn after the round, as PostToolBatch can.
+        this.dropUndeliveredMedia(turn.turnId)
+        return
+      }
     }
     // Input accepted during the last permitted round still needs a request
     // that sees it. Steered messages belonged to this turn, so run them
@@ -4345,6 +5702,8 @@ export class ModelApiSession implements AgentSession {
         confirmedRequest: queued.confirmedRequest,
       }),
     }
+    // What a stopped turn left for its round is not checked in this one (M68).
+    this.ledger.beginTurn()
     this.active = turn
     this.status = RUNNING
     this.turnIds.push(turn.turnId)
@@ -4354,6 +5713,7 @@ export class ModelApiSession implements AgentSession {
     // it never throws, so the user message always follows.
     await this.context.load()
     this.environment ??= await this.loadEnvironment()
+    await this.loadRepoMap(turn.abort.signal)
     // Pending background output and user shell commands precede this turn.
     this.settleNotes(turn.turnId)
     this.touch()
@@ -4418,6 +5778,12 @@ export class ModelApiSession implements AgentSession {
             this.replay.splice(userIndex, 1)
           }
           throw new HookStoppedError(submitted.blockedReason)
+        }
+        // Admitted: a user's message starts the verify loop afresh (M68). A
+        // goal's wake carries on, and a parent model's message to a subagent
+        // is not user input.
+        if (!this.isSubagent) {
+          this.ledger.resetForMessage()
         }
       }
       await this.prepareMcp(turn.abort.signal)
@@ -4884,7 +6250,21 @@ export class ModelApiSession implements AgentSession {
     return submission
   }
 
+  /** The conversation a paid use is asked in (M58): a child task's is its parent's. */
+  private get askingSessionId(): string {
+    return this.parentSession?.askingSessionId ?? this.sessionId
+  }
+
   // --- AgentSession ---
+
+  /** A proven host-origin write: aliases reread instead of retaining old fingerprints. */
+  public noteExternalEdit(file: EditedFile): void {
+    if (this.isDisposed) {
+      return
+    }
+    this.seenFiles.clear()
+    this.ledger.noteEdit(file, [file.relative])
+  }
 
   /** SessionStart runs when the session opens; context enters its first turn. */
   public async startHooks(): Promise<void> {
@@ -5372,6 +6752,20 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve(name)
   }
 
+  /**
+   * The todo list set from outside a turn (M79): a plan's steps before the
+   * turn that implements it. Refused while a turn or a compaction holds the
+   * session, where `todo_write` may be replacing the list.
+   */
+  public setTodos(items: readonly TodoItem[]): void {
+    if (this.active !== undefined || this.compacting !== undefined) {
+      throw new Error(UI_TEXT.planWaitForTurn)
+    }
+    this.todos = [...items]
+    this.emit({ type: 'todoChanged', items: [...this.todos] })
+    this.touch()
+  }
+
   /** The exact user card's pictures, or unavailable without a durable replay link. */
   public sentImages(turnId: string, itemId: string): readonly SentImage[] | undefined {
     const card = this.transcript.find(
@@ -5424,6 +6818,7 @@ export class ModelApiSession implements AgentSession {
       return
     }
     this.isDisposed = true
+    this.workspaceEdits.delete(this.ledger)
     if (this.scheduleTimer !== undefined) {
       clearInterval(this.scheduleTimer)
       this.scheduleTimer = undefined
@@ -5469,7 +6864,7 @@ export class ModelApiSession implements AgentSession {
       status: this.status,
       turnCount: this.turnCount,
       forkedFrom: this.forkedFrom === undefined ? null : { sessionId: this.forkedFrom },
-      workspaceRoot: this.deps.workspaceRoot,
+      workspaceRoot: this.deps.sessionWorkspaceRoot ?? this.deps.workspaceRoot,
     }
   }
 
@@ -5490,7 +6885,7 @@ export class ModelApiSession implements AgentSession {
       version: STORED_SESSION_VERSION,
       sessionId: this.sessionId,
       ...(this.isSideChat && { sideChat: true }),
-      workspaceRoot: this.deps.workspaceRoot,
+      workspaceRoot: this.deps.sessionWorkspaceRoot ?? this.deps.workspaceRoot,
       modelId: this.modelId,
       approvalMode: this.permissions.currentMode,
       effort: this.effort,
@@ -5585,6 +6980,7 @@ export class ModelApiSession implements AgentSession {
         this.hooks,
         'resume',
         this.isSideChat,
+        this.workspaceEdits,
       )
       session.adopt(saved.session)
       const record: ChildRecord = {
@@ -5670,6 +7066,9 @@ export class ModelApiSession implements AgentSession {
     // The goal as it stands goes with the fork (M45): a goal has no history
     // to cut, so a fork from an earlier turn gets today's goal too.
     target.goal = target.isSideChat ? undefined : this.goal
+    // The prompt's repo map goes with the fork (M67), so it is not made again.
+    target.repoMapText = this.repoMapText
+    target.repoMapTries = this.repoMapTries
     for (const child of this.children.values()) {
       if (!kept.has(child.parentTurnId)) {
         continue
@@ -5691,6 +7090,7 @@ export class ModelApiSession implements AgentSession {
         target.hooks,
         'fork',
         target.isSideChat,
+        target.workspaceEdits,
       )
       session.adopt({ ...child.session.snapshot(), sessionId })
       const cloned: ChildRecord = {
@@ -5729,6 +7129,7 @@ export class ModelApiSession implements AgentSession {
 
 export class ModelApiHost implements AgentHost {
   private readonly sessions = new Map<string, ModelApiSession>()
+  private readonly workspaceEdits: WorkspaceEdits
   /** Pinned at first use; a host cannot serve a different stored-key account. */
   private accountIdValue: string | undefined
   /** What the store holds for this workspace, kept current as sessions change. */
@@ -5744,7 +7145,9 @@ export class ModelApiHost implements AgentHost {
     canEditSessions: true,
   }
 
-  public constructor(private readonly deps: ModelApiHostDeps) {}
+  public constructor(private readonly deps: ModelApiHostDeps) {
+    this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
+  }
 
   private async requireAccountId(): Promise<string> {
     const current = await this.deps.getAccountId()
@@ -5867,6 +7270,7 @@ export class ModelApiHost implements AgentHost {
       hooks,
       hookStartSource,
       isSideChat,
+      this.workspaceEdits,
     )
     this.sessions.set(sessionId, session)
     return session
@@ -5968,7 +7372,10 @@ export class ModelApiHost implements AgentHost {
     const sessions = await store.list()
     await this.requireAccountId()
     for (const stored of sessions) {
-      if (stored.workspaceRoot === this.deps.workspaceRoot && stored.accountId === accountId) {
+      if (
+        stored.workspaceRoot === (this.deps.sessionWorkspaceRoot ?? this.deps.workspaceRoot) &&
+        stored.accountId === accountId
+      ) {
         this.stored.set(stored.sessionId, stored)
       }
     }
@@ -5996,6 +7403,19 @@ export class ModelApiHost implements AgentHost {
         isDefault: id === DEFAULT_MODEL_ID,
         isActive: id === active,
       }))
+  }
+
+  /** Capture the live owner now; a later replacement with the same id is not this writer. */
+  public externalEditRecorder(session: AgentSession): WorkspaceEditRecorder | undefined {
+    const owner = this.sessions.get(session.sessionId)
+    if (owner === undefined || owner !== session) {
+      return undefined
+    }
+    return (file) => {
+      if (this.sessions.get(owner.sessionId) === owner) {
+        owner.noteExternalEdit(file)
+      }
+    }
   }
 
   public async startSession(options: StartSessionOptions): Promise<AgentSession> {

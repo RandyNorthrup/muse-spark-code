@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
-import { MODEL_API_SUBAGENT_TOOLS, UI_TEXT } from '../../shared/constants'
+import { MODEL_API_SUBAGENT_TOOLS, UI_TEXT, WEB_FETCH_SUBJECT_KIND } from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
 import type { PendingApproval } from '../state/uiState'
 
@@ -59,11 +59,22 @@ function spawnObjective(rawArgs: string): string | undefined {
   return 'message' in parsed && typeof parsed.message === 'string' ? parsed.message : undefined
 }
 
-/** The card's sentence: a command or path, or a tool. */
+/** The card's sentence: a command or path, a page to fetch (M69), or a tool. */
 function titleTemplate(approval: PendingApproval, stage: ApprovalStage | undefined): string {
-  return stage === undefined && approval.subject.kind === 'tool'
-    ? UI_TEXT.approvalUseTool
-    : UI_TEXT.approvalAction
+  if (stage !== undefined) {
+    return UI_TEXT.approvalAction
+  }
+  switch (approval.subject.kind) {
+    case 'tool': {
+      return UI_TEXT.approvalUseTool
+    }
+    case WEB_FETCH_SUBJECT_KIND: {
+      return UI_TEXT.approvalFetch
+    }
+    default: {
+      return UI_TEXT.approvalAction
+    }
+  }
 }
 
 export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps) {

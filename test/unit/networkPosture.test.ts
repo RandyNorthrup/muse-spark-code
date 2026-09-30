@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  hostRouting,
   liveFetch,
   managedConfiguration,
   type MuseNetworkPosture,
@@ -12,6 +13,25 @@ const MUSE: MuseNetworkPosture = {
   proxySource: () => 'none',
   hasCertificateOverride: () => false,
 }
+
+function unused(): undefined {
+  return undefined
+}
+
+// The extension host's globals as each VS Code leaves them (proxyResolver.ts
+// at each tag, M62): 1.112.0 on patches both and marks each; 1.101 to 1.111
+// patch `fetch` only, with Node 22's own WebSocket; 1.99 and 1.100 run Node
+// 20, which has no WebSocket; an editor without VS Code's extension host
+// marks neither.
+const VSCODE_1_112 = {
+  fetch: unused,
+  WebSocket: unused,
+  __vscodeOriginalFetch: unused,
+  __vscodeOriginalWebSocket: unused,
+}
+const VSCODE_1_101 = { fetch: unused, WebSocket: unused, __vscodeOriginalFetch: unused }
+const VSCODE_1_99 = { fetch: unused, __vscodeOriginalFetch: unused }
+const UNPATCHED_HOST = { fetch: unused, WebSocket: unused }
 
 /** VS Code's `http` section as a settings source. */
 function httpSettings(values: Record<string, unknown>) {
@@ -39,9 +59,35 @@ describe('readProxySettings (M56, PLAN.md D43)', () => {
   })
 })
 
+describe('hostRouting (M62, PLAN.md D43)', () => {
+  it('claims a route only where the extension host marked its proxy-aware global', () => {
+    expect(hostRouting(VSCODE_1_112, 'fetch')).toBe('routed')
+    expect(hostRouting(VSCODE_1_112, 'webSocket')).toBe('routed')
+    expect(hostRouting(VSCODE_1_101, 'fetch')).toBe('routed')
+    expect(hostRouting(VSCODE_1_101, 'webSocket')).toBe('notRouted')
+    expect(hostRouting(VSCODE_1_99, 'fetch')).toBe('routed')
+    expect(hostRouting(VSCODE_1_99, 'webSocket')).toBe('absent')
+    expect(hostRouting(UNPATCHED_HOST, 'fetch')).toBe('notRouted')
+    expect(hostRouting(UNPATCHED_HOST, 'webSocket')).toBe('notRouted')
+  })
+})
+
 describe('readNetworkFacts (M56, PLAN.md D43)', () => {
   it('reads VS Code’s defaults when nothing is set', () => {
-    expect(readNetworkFacts(httpSettings({}), {}, 'linux', MUSE)).toEqual(DEFAULT_NETWORK_FACTS)
+    expect(readNetworkFacts(httpSettings({}), {}, 'linux', MUSE, VSCODE_1_112)).toEqual(
+      DEFAULT_NETWORK_FACTS,
+    )
+  })
+
+  it('says which globals this editor routes, whatever the settings say', () => {
+    expect(readNetworkFacts(httpSettings({}), {}, 'linux', MUSE, VSCODE_1_101)).toMatchObject({
+      isWebSocketSupportOn: true,
+      fetchRouting: 'routed',
+      webSocketRouting: 'notRouted',
+    })
+    expect(readNetworkFacts(httpSettings({}), {}, 'linux', MUSE, VSCODE_1_99)).toMatchObject({
+      webSocketRouting: 'absent',
+    })
   })
 
   it('states a corporate setup as yes/no and counts, never the proxy itself', () => {
@@ -59,6 +105,7 @@ describe('readNetworkFacts (M56, PLAN.md D43)', () => {
       { https_proxy: 'https://proxy.corp:8443', NODE_EXTRA_CA_CERTS: '/etc/corp-root.pem' },
       'linux',
       { proxySource: () => 'vscode', hasCertificateOverride: () => true },
+      VSCODE_1_112,
     )
     expect(facts).toEqual({
       isProxySet: true,
@@ -69,6 +116,8 @@ describe('readNetworkFacts (M56, PLAN.md D43)', () => {
       isSystemCertificatesOn: false,
       isFetchSupportOn: false,
       isWebSocketSupportOn: false,
+      fetchRouting: 'routed',
+      webSocketRouting: 'routed',
       hasEnvironmentProxy: true,
       hasExtraCaCertificates: true,
       museProxySource: 'vscode',
@@ -88,6 +137,7 @@ describe('readNetworkFacts (M56, PLAN.md D43)', () => {
       { Https_Proxy: 'http://p:1', node_extra_ca_certs: String.raw`C:\corp.pem` },
       'win32',
       MUSE,
+      VSCODE_1_112,
     )
     expect(facts).toMatchObject({
       isProxySet: false,
@@ -98,7 +148,9 @@ describe('readNetworkFacts (M56, PLAN.md D43)', () => {
       hasExtraCaCertificates: true,
     })
     // An empty variable is not a proxy.
-    expect(readNetworkFacts(httpSettings({}), { HTTPS_PROXY: '' }, 'linux', MUSE)).toMatchObject({
+    expect(
+      readNetworkFacts(httpSettings({}), { HTTPS_PROXY: '' }, 'linux', MUSE, VSCODE_1_112),
+    ).toMatchObject({
       hasEnvironmentProxy: false,
     })
   })

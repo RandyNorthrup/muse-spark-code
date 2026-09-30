@@ -335,6 +335,20 @@ describe('buildPalette', () => {
     }
   })
 
+  it('offers the saved plans in the Context group on both backends (M79)', () => {
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      const row = buildPalette({ ...context, backend })
+        .find((group) => group.id === 'context')
+        ?.items.find((item) => item.id === 'plans')
+      expect(row, String(backend)).toEqual({
+        id: 'plans',
+        label: 'Plans…',
+        detail: 'Saved plans in .agents/plans: open one or implement it',
+        action: { type: 'showPlans' },
+      })
+    }
+  })
+
   it('offers skill management on Muse Code only, where the CLI owns skills (M30)', () => {
     expect(skillIdsOn('museCode')?.slice(0, 2)).toEqual(['manageSkills', 'importSkills'])
     expect(skillIdsOn('modelApi')).toEqual(['skill:fix-bug', 'skill:acme:deploy'])

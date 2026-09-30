@@ -105,7 +105,7 @@ function rig(): Rig {
           log: (message) => {
             log.warn(message)
           },
-          hasUnsavedChanges: () => false,
+          unsavedFiles: () => [],
         }),
       contextIo: fileContextIo,
       platform: process.platform,
@@ -300,7 +300,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     if (task === undefined) {
       throw new Error('the task set is empty')
     }
-    api.script({ httpError: { status: 500 } }, ...canonical(task))
+    api.script({ httpError: { status: 429 } }, ...canonical(task))
     const report = await runPairedEval([task], [BASELINE], deps)
     expect(report.arms[0]?.results[0]).toMatchObject({ passed: true, attempts: 4, requests: 4 })
   })

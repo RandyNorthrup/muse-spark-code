@@ -17,9 +17,12 @@ import {
   SCHEDULE_TOOLS,
   SHELL_TOOLS,
   UI_TEXT,
+  VERIFY_ROW_TOOLS,
+  WEB_FETCH_TOOLS,
   WORKFLOW_TOOL,
 } from '../shared/constants'
-import { fill, plural } from '../shared/l10n/text'
+import { fill, formatBytes, plural } from '../shared/l10n/text'
+import { parseWebPageHeader } from '../shared/webPage'
 import type { PatchSummary } from './state/transcriptEntries'
 
 export type ToolBody =
@@ -31,8 +34,10 @@ export type ToolBody =
   | 'goal'
   | 'schedule'
   | 'web'
+  | 'fetch'
   | 'image'
   | 'workflow'
+  | 'verify'
   | 'generic'
 
 export interface ToolPresentation {
@@ -64,6 +69,10 @@ interface ParsedArgs {
   readonly currentWork: string | undefined
   /** `cron_delete`'s job id (M43). */
   readonly id: string | undefined
+  /** The files a verify row checked (M68). */
+  readonly paths: readonly string[] | undefined
+  /** A code intelligence tool's symbol name (M67). */
+  readonly symbol: string | undefined
 }
 
 const NO_ARGS: ParsedArgs = {
@@ -79,12 +88,23 @@ const NO_ARGS: ParsedArgs = {
   status: undefined,
   currentWork: undefined,
   id: undefined,
+  paths: undefined,
+  symbol: undefined,
 }
 
 // `mcp__<server>__<tool>`: the name Muse Code gives an MCP server's tool.
 const MCP_TOOL = /^mcp__(.+?)__(.+)$/
 // A path's extension, for the picture check.
 const EXTENSION = /\.[^./\\]+$/
+
+/** A list of strings, or undefined for anything else. */
+function stringList(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+  const entries: readonly unknown[] = value
+  return entries.every((entry): entry is string => typeof entry === 'string') ? entries : undefined
+}
 
 function parseArgs(args: string): ParsedArgs {
   try {
@@ -107,6 +127,8 @@ function parseArgs(args: string): ParsedArgs {
       status: pick('status'),
       currentWork: pick('current_work'),
       id: pick('id'),
+      paths: stringList(record['paths']),
+      symbol: pick('symbol'),
     }
   } catch {
     return NO_ARGS
@@ -179,6 +201,10 @@ function otherPresentation(
   if (tool === MODEL_API_WEB_SEARCH_TOOL) {
     return { summary: parsed.query ?? parsed.url ?? '', body: 'web' }
   }
+  // The page a fetch read (M69): its URL beside the label, its size below.
+  if (WEB_FETCH_TOOLS.has(tool)) {
+    return { summary: parsed.url ?? '', body: 'fetch' }
+  }
   if (IMAGE_MAKING_TOOLS.has(tool)) {
     return { summary: parsed.path ?? '', body: 'image' }
   }
@@ -186,9 +212,14 @@ function otherPresentation(
   if (tool === WORKFLOW_TOOL) {
     return { summary: '', body: 'workflow' }
   }
+  // The verify loop's rows (M68) name the files they checked.
+  if (VERIFY_ROW_TOOLS.has(tool)) {
+    return { summary: parsed.paths?.join(', ') ?? '', body: 'verify' }
+  }
   return {
     summary:
       parsed.path ??
+      parsed.symbol ??
       parsed.pattern ??
       parsed.query ??
       parsed.url ??
@@ -217,6 +248,7 @@ export function describeTool(tool: string, args: string): ToolPresentation {
     }
   }
   if (FILE_EDIT_TOOLS.has(tool)) {
+    // Only a path: an edit row's summary is the file it opens.
     return { label, summary: parsed.path ?? '', body: 'edit', command: undefined, imagePath }
   }
   return FILE_READ_TOOLS.has(tool)
@@ -235,6 +267,17 @@ export function changeSummary(summary: PatchSummary | undefined): string | undef
   return summary.removed > 0 && summary.added === 0
     ? plural(UI_TEXT.removedLines, summary.removed)
     : UI_TEXT.modified
+}
+
+/**
+ * "Fetched 48.2 kB (text/html)" for a web fetch's row (M69), read from the
+ * first line of its result; undefined for a result that is not a page.
+ */
+export function fetchedSize(output: string): string | undefined {
+  const facts = parseWebPageHeader(output)
+  return facts === undefined
+    ? undefined
+    : fill(UI_TEXT.webFetchSize, { size: formatBytes(facts.bytes), type: facts.type })
 }
 
 /** The written file's content for a Write row without a fetched patch. */

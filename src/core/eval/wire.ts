@@ -20,6 +20,7 @@ import { usageSchema, type Usage } from '../backends/modelapi/schemas'
 import { estimateCostUsd } from '../usage/insights'
 
 const HTTP_BAD_REQUEST = 400
+const HTTP_RATE_LIMIT = 429
 const MODEL_CALL = 'POST /responses'
 /** The requests the harness makes with no paid feature on. */
 const ALLOWED_REQUESTS: ReadonlySet<string> = new Set([
@@ -46,6 +47,8 @@ export interface EvalWireCall {
 /** The run's spend so far, shared by every task's wire. */
 export interface EvalBudget {
   spentUsd: number
+  /** A sent model call whose bill cannot be measured stops every remaining arm. */
+  hasUnknownUsage?: boolean
 }
 
 export interface EvalWire {
@@ -118,6 +121,15 @@ function addUsage(call: EvalWireCall, usage: Usage): void {
   call.inputTokens += usage.input_tokens
   call.cachedTokens += usage.input_tokens_details?.cached_tokens ?? 0
   call.outputTokens += usage.output_tokens
+}
+
+function isValidUsage(usage: Usage): boolean {
+  const cached = usage.input_tokens_details?.cached_tokens ?? 0
+  return (
+    [usage.input_tokens, usage.output_tokens, cached].every(
+      (count) => Number.isSafeInteger(count) && count >= 0,
+    ) && cached <= usage.input_tokens
+  )
 }
 
 /**
@@ -193,6 +205,15 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     return refusal(reason)
   }
 
+  const checkBudget = (): Response | undefined => {
+    if (deps.budget.hasUnknownUsage === true) {
+      return refuse('the evaluation stopped because a sent model call has unknown usage')
+    }
+    return deps.budget.spentUsd >= EVAL_BUDGET_USD
+      ? refuse(`the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`)
+      : undefined
+  }
+
   /** The usage of a streamed reply, read from its copy. */
   const readUsage = async (stream: ReadableStream<Uint8Array>, call: EvalWireCall) => {
     let hasUsage = false
@@ -200,6 +221,11 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       for await (const frame of parseSse(stream)) {
         const usage = terminalFrameSchema.safeParse(parseJson(frame.data)).data?.response.usage
         if (usage == null) {
+          continue
+        }
+        if (!isValidUsage(usage)) {
+          deps.budget.hasUnknownUsage = true
+          problems.push('a reply reported invalid token counts')
           continue
         }
         addUsage(call, usage)
@@ -210,6 +236,9 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       return
     } finally {
       deps.budget.spentUsd += callCost(call)
+      if (!hasUsage) {
+        deps.budget.hasUnknownUsage = true
+      }
     }
     if (!hasUsage) {
       problems.push('a reply ended without its usage')
@@ -228,8 +257,9 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     if (url.origin !== base.origin) {
       return refuse(`the evaluation sends nothing to ${url.origin}`)
     }
-    if (deps.budget.spentUsd >= EVAL_BUDGET_USD) {
-      return refuse(`the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`)
+    const beforeBody = checkBudget()
+    if (beforeBody !== undefined) {
+      return beforeBody
     }
     const path = url.pathname.replace(TRAILING_SLASHES, '')
     const endpoint = `${request.method} ${path.startsWith(basePath) ? path.slice(basePath.length) : path}`
@@ -240,6 +270,11 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     const isModelCall = endpoint === MODEL_CALL
     if (model !== EVAL_MODEL_ID && (isModelCall || model !== undefined)) {
       return refuse(`the evaluation runs on ${EVAL_MODEL_ID} only, not ${String(model)}`)
+    }
+    // Reading a streamed request body can yield while the prior reply settles.
+    const afterBody = checkBudget()
+    if (afterBody !== undefined) {
+      return afterBody
     }
     const call: EvalWireCall = {
       method: request.method,
@@ -252,11 +287,30 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       outputTokens: 0,
     }
     calls.push(call)
-    // A `Request` given as the input lent its body to `request`: send that.
-    const response = await (input instanceof Request
-      ? deps.fetch(request)
-      : deps.fetch(input, init))
+    // Send the validated snapshot, including a streamed body and copied headers.
+    let response: Response
+    try {
+      response = await deps.fetch(request)
+    } catch (error: unknown) {
+      if (isModelCall) {
+        deps.budget.hasUnknownUsage = true
+      }
+      throw error
+    }
     call.status = response.status
+    if (
+      isModelCall &&
+      !response.ok &&
+      response.status !== HTTP_BAD_REQUEST &&
+      response.status !== HTTP_RATE_LIMIT
+    ) {
+      deps.budget.hasUnknownUsage = true
+      problems.push('a model call failed without measurable usage')
+    }
+    if (isModelCall && response.ok && response.body === null) {
+      deps.budget.hasUnknownUsage = true
+      problems.push('a reply ended without its usage')
+    }
     if (!isModelCall || !response.ok || response.body === null) {
       return response
     }

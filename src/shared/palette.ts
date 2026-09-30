@@ -58,6 +58,8 @@ export type PaletteAction =
   | { readonly type: 'showMcpServers' }
   | { readonly type: 'showHooks' }
   | { readonly type: 'showMemory' }
+  /** The saved plans (M79), listed by the host to open or implement. */
+  | { readonly type: 'showPlans' }
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
@@ -342,6 +344,13 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'openHistory' },
         },
         ...continueItems(context.skills),
+        // Saved plans (M79): the same on both backends.
+        {
+          id: 'plans',
+          label: UI_TEXT.plansItem,
+          detail: UI_TEXT.plansItemDetail,
+          action: { type: 'showPlans' },
+        },
         // git worktrees (M32): the same on both backends.
         {
           id: 'newWorktree',

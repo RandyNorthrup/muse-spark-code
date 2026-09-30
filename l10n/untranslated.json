@@ -36,7 +36,8 @@
       "onboardingShortcuts.shell",
       "onboardingShortcuts.moveToBackground",
       "pdfLabel",
-      "loopItem"
+      "loopItem",
+      "exportThenRunSkipped"
     ],
     "cs": [
       "groupModel",
@@ -85,9 +86,18 @@
       "imageBuyPrompt",
       "workflowRowLabel",
       "workflowChildUntitled",
-      "workflowsLabel"
+      "workflowsLabel",
+      "toolLabels.find_definition",
+      "toolLabels.mcp__ide__findDefinition"
     ],
-    "es": ["usagePlan", "agentTokens", "permissionModes.manual", "toolLabels.shell", "goalTokens"],
+    "es": [
+      "usagePlan",
+      "agentTokens",
+      "permissionModes.manual",
+      "toolLabels.shell",
+      "goalTokens",
+      "verifyErrors.one"
+    ],
     "pt-br": [
       "agentTokens",
       "permissionModes.manual",

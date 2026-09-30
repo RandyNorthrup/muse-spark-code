@@ -53,6 +53,24 @@ them, the milestone plan, and the certification checklist.
 8. **Secrets never leave SecretStorage.** No API keys in settings, logs,
    telemetry, tests, or fixtures. The pasted Model API key is never passed to
    any child process: the Muse Code CLI signs in on its own.
+   - **Outside VS Code (the ACP agent, PLAN.md D61).** The operating
+     system's credential store stands in for SecretStorage: it is the store
+     VS Code's SecretStorage itself rests on. The key goes in only through
+     `muse-spark-code-acp auth set`, from its standard input (the user's
+     terminal, or a pipe into it); never from an environment variable, an
+     argument or a file; and it is never passed to a child process
+     (`muse serve`, a tool, a check). A `META_API_KEY` the user sets in the
+     agent's own environment is theirs for Muse Code, not the stored key:
+     as the extension's `muse serve` inherits it (PLAN.md D1), it reaches
+     Muse Code's processes only, where it counts as Muse Code's credential.
+     The agent takes every credential variable (`*_API_KEY` and the named
+     ones hooks never get) out of its own environment at start, so no
+     shell command, hook, git or helper it starts sees one.
+   - **The one exception: M80's CI bootstrap** (PLAN.md M80, planned).
+     GitHub hands a secret to a step only through its environment or its
+     script, so the Action's own step shell is the one environment the key
+     is ever in: that shell pipes it to `auth set`'s standard input and
+     unsets it before `exec` starts. Nothing else is excepted.
    - **The CLI's credential file.** The extension reads only its structure
      (`src/core/backends/musecode/credentialFile.ts`): the schema version,
      which providers are named (only `meta` speaks for the sign-in), each
@@ -92,7 +110,9 @@ them, the milestone plan, and the certification checklist.
     `muse serve`). Every use asks first in the paid-use popup (M58, D48:
     `PaidUseConsent` in `src/core/paid/paidConsent.ts`, Allow once / Allow
     always in this workspace / Deny), in every mode, Bypass included; a
-    paid call never gets an approval card or a session rule. The
+    paid call never gets an approval card or a session rule. In the ACP
+    agent (D62) a feature is on only with its flag, and the same question
+    is the editor's permission prompt (`src/acp/paid.ts`). The
     subscription never pays for one. One exception to the key is planned
     (PLAN.md D50, M85, experimental): the TypeSafe assist is billed to the
     user's own TypeSafe key instead of the Model API key; every other part
@@ -110,15 +130,31 @@ them, the milestone plan, and the certification checklist.
 src/extension.ts      activation: the view, the panel, the commands, the openers
 src/host/**           VS Code adapters (views, conversation, backend managers,
                       the Model API bundle's entry (dist/modelApi.js, loaded
-                      when that backend first starts) and the search worker,
+                      when that backend first starts), the plan reader's
+                      (dist/planMarkdown.js, loaded on the first plan action),
+                      the search worker and web fetch's page converter worker
+                      (dist/pageWorker.js, started for each page),
                       commands, auth, settings, mentions,
-                      editor tracking, usage trace logs, voice, the diagnostics
-                      MCP server, the MCP servers' spawner, the network posture)
+                      editor tracking, usage trace logs, voice, the IDE tool
+                      MCP server (diagnostics, code intelligence, images, web
+                      fetch), VS Code's language services, the MCP servers'
+                      spawner, the network posture, web fetch's pinned
+                      transport and the verify loop's editor side: settled
+                      diagnostics and format on edit)
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client and tools, the MCP client,
                       context, Muse Code's memory, export, worktrees, usage,
                       dictation, Muse Voice, the paid gate, network failures,
-                      the paired efficiency evaluation (M75))
+                      code intelligence and the repo map, web fetch's
+                      public-address checks and HTML converter, the verify
+                      loop's check commands, diagnostics report and the files
+                      it never opens because tools run them, the paired efficiency
+                      evaluation and observation packing)
+src/acp/**            the ACP agent (D62): the ACP side of a session and the
+                      translation of the engine's events; must not import
+                      `vscode`
+src/runtime/**        the agent's process: arguments, backends outside VS Code,
+                      the OS credential store (D61), `auth` and `login`
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
@@ -139,15 +175,25 @@ test/e2e/**           the fake Muse Code CLI driven through the real backend;
                       the opt-in live drills (the Muse Code CLI; the Model
                       API sweep and the M75 evaluation, which bill the
                       owner's key)
-test/integration/**   @vscode/test-cli, runs inside VS Code
+test/integration/**   @vscode/test-cli, runs inside VS Code, over the workspace
+                      test/fixtures/workspace (code-intel/ is a TypeScript
+                      project its language service reads)
 test/harness/         the webview behind a fake host, for screenshots and the
                       accessibility gate; themes/ holds VS Code's four themes
+test/hosts/           the extension and the ACP agent in other editors
+                      against the fake CLI, one script per host (hosts.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
-                      notices, audit, PSScriptAnalyzer, semgrep, accessibility
-                      and localization gates; theme capture, the pseudo-locale,
-                      harness screenshots, image rendering, changelog notes,
-                      VS Code versions for CI
+                      notices, audit, PSScriptAnalyzer, semgrep, accessibility,
+                      localization and host API gates; theme capture, the
+                      pseudo-locale, harness screenshots, image rendering,
+                      changelog notes, VS Code versions for CI, the ACP
+                      agent's package
 docs/certification/   per-milestone gate-fire records and screenshots
+docs/ide-compatibility.md, docs/ide-compatibility/
+                      the plan for editors beyond VS Code (D60), the
+                      generated record of what the extension asks of its host,
+                      and hosts.md, what each editor was tested at
+docs/acp.md           the ACP agent's guide, shipped as its package's README
 media/                icons, banner, social preview, README screenshots
 ```
 
@@ -159,12 +205,15 @@ media/                icons, banner, social preview, README screenshots
 | The gates CI runs everywhere   | `npm run quality:gates`                  |
 | Accessibility gate             | `npm run test:a11y`                      |
 | Localization gate              | `npm run check:l10n`                     |
+| Host API record (D60)          | `npm run check:host-api` (`-- --write`)  |
 | Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo` |
 | Unit tests with coverage       | `npm run test:unit`                      |
 | Integration tests              | `npm run test:integration`               |
 | Dev build / watch              | `npm run build:dev` / `npm run watch`    |
 | Production build + size budget | `npm run build`                          |
 | Package `.vsix`                | `npm run package`                        |
+| Package the ACP agent (D62)    | `npm run package:acp`                    |
+| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`            |
 
 ## Toolchain pins that matter
 

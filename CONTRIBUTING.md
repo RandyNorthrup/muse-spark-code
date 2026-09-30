@@ -26,10 +26,14 @@ Use this order for a candidate branch:
 1. Integrate the planned milestones onto the current `main` in order. Resolve
    conflicts and stage the candidate with no unstaged changes. Record its
    `git write-tree` hash.
-2. Run `npm ci` and `npm run quality` on that exact staged tree. For Windows
-   behavior, exercise the same tree on Windows (the maintainer uses a
-   Windows 11 host and VM in parallel) and record the results; collect other
-   platform evidence where needed.
+2. Run `npm ci` and `npm run quality` on that exact staged tree. Before
+   pushing, test the same candidate on the maintainer's Mac mini, Kubuntu VM
+   and Windows 11 VM as well as the Windows host. Use isolated checkouts;
+   record the tree hash, OS and tool versions, commands and process exit
+   codes. Include full platform gates and the affected real filesystem,
+   process and packaging paths. Temporary-directory aliases and Windows
+   short names are part of those paths. An unavailable rig remains a named
+   blocker; hosted CI does not substitute for the missing local proof.
 3. Have an independent agent review the staged diff and acceptance evidence.
    Scan the staged changes for secrets too: local `security:secrets` scans
    committed history, so it cannot see the index before commit. Fix findings,
@@ -185,6 +189,15 @@ settings (PLAN.md D43). Code that makes a request uses the globals as they
 stand when it runs, never a copy taken at activation. Tests never need a
 proxy or a certificate: they use the failure shapes Node 24 was seen to
 throw (`docs/certification/m56.md`).
+
+Web fetch (PLAN.md M69) is the one exception to `fetch`: it must connect to
+the address it checked, which VS Code's patched `fetch` cannot do, so it
+uses Node's `https` (`src/host/web/pinnedRequest.ts`), which VS Code patches
+for its proxy and certificates too. Keep every destination check in
+`src/core/web/` and test it over the fake resolver and transport in
+`test/unit/webFetch.test.ts`; unit tests never reach the internet. What
+only VS Code can show (the proxy asked for the pinned address) is in
+`test/integration/webFetch.test.ts`, against a loopback proxy.
 
 ## Licence
 

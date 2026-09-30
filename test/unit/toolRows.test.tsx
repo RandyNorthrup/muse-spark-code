@@ -242,6 +242,46 @@ describe('web search rows (M43)', () => {
   })
 })
 
+describe('web fetch rows (M69)', () => {
+  const PAGE_OUTPUT = [
+    'Fetched https://docs.example.com/guide (HTTP 200, text/html, 48213 bytes). The HTML was converted to Markdown.',
+    'Everything between the two markers below is the page’s content.',
+    '<<<page 00ff>>>',
+    '# Guide',
+    '<<<end of page 00ff>>>',
+  ].join('\n')
+
+  it('shows the URL beside the label, the size under it, and the page the model read', () => {
+    renderTranscript([
+      tool({
+        tool: 'mcp__ide__webFetch',
+        args: '{"url":"https://docs.example.com/guide"}',
+        output: PAGE_OUTPUT,
+      }),
+    ])
+    expect(screen.getByText('https://docs.example.com/guide')).toBeTruthy()
+    expect(screen.getByText('Fetched 48.2 kB (text/html)')).toBeTruthy()
+    const row = openRow('Fetch page')
+    expect(within(row).getByText(/# Guide/)).toBeTruthy()
+  })
+
+  it('shows no size for a refusal, only its reason', () => {
+    renderTranscript([
+      tool({
+        tool: 'web_fetch',
+        args: '{"url":"https://127.0.0.1/"}',
+        status: 'failed',
+        output: '127.0.0.1 leads to 127.0.0.1, which is not a public internet address.',
+        failureReason: '127.0.0.1 leads to 127.0.0.1, which is not a public internet address.',
+      }),
+    ])
+    expect(screen.queryByText(/^Fetched /)).toBeNull()
+    expect(
+      screen.getByText(/which is not a public internet address/, { selector: '.tool-failure' }),
+    ).toBeTruthy()
+  })
+})
+
 describe('background work (M43)', () => {
   const background = JSON.stringify({
     chunk_id: 'exec-1-1',

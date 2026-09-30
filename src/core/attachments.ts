@@ -45,7 +45,8 @@ interface StoredAttachment {
 
 const FIRST_PRINTABLE_CODE_POINT = 0x20
 
-function hasBinaryControlCharacters(content: string): boolean {
+/** Whether text holds a control character other than a tab or a line break: not a text file. */
+export function hasBinaryControlCharacters(content: string): boolean {
   for (const character of content) {
     if ('\t\n\r'.includes(character)) {
       continue

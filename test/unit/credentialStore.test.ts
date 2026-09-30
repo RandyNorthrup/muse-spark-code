@@ -81,5 +81,21 @@ describe('CredentialStore', () => {
     await expect(store.getApiKey()).resolves.toBeUndefined()
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('no keyring')
+    expect(warnings[0]).toMatch(/^VS Code's secret storage could not be read/)
+    // The ACP agent names its own store (PLAN.md D61).
+    const agentWarnings: string[] = []
+    const agentStore = new CredentialStore(
+      {
+        get: () => Promise.reject(new Error('locked')),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      (message) => {
+        agentWarnings.push(message)
+      },
+      "the operating system's credential store",
+    )
+    await agentStore.getApiKey()
+    expect(agentWarnings[0]).toMatch(/^the operating system's credential store could not be read/)
   })
 })

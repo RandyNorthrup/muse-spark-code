@@ -1,4 +1,4 @@
-// The oldest VS Code the manifest accepts (`engines.vscode`, "^1.125.0"),
+// The oldest VS Code the manifest accepts (`engines.vscode`, "^1.99.0"),
 // for the integration tests' second run (.vscode-test.mjs) and the CI cache
 // key (scripts/vscode-versions.mjs). Read from package.json so the tested
 // floor moves with the declared one (M26, PLAN.md D29).

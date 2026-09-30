@@ -1,0 +1,33 @@
+{
+  "private": true,
+  "name": "muse-spark-theia-check",
+  "version": "0.0.0",
+  "description": "A browser Theia with VS Code extension support, for the host check in hosts.yml (PLAN.md M62)",
+  "theia": {
+    "target": "browser",
+    "frontend": {
+      "config": {
+        "applicationName": "Muse Spark host check"
+      }
+    }
+  },
+  "dependencies": {
+    "@theia/core": "1.75.0",
+    "@theia/editor": "1.75.0",
+    "@theia/filesystem": "1.75.0",
+    "@theia/markers": "1.75.0",
+    "@theia/messages": "1.75.0",
+    "@theia/monaco": "1.75.0",
+    "@theia/navigator": "1.75.0",
+    "@theia/output": "1.75.0",
+    "@theia/plugin-ext": "1.75.0",
+    "@theia/plugin-ext-vscode": "1.75.0",
+    "@theia/preferences": "1.75.0",
+    "@theia/process": "1.75.0",
+    "@theia/terminal": "1.75.0",
+    "@theia/workspace": "1.75.0"
+  },
+  "devDependencies": {
+    "@theia/cli": "1.75.0"
+  }
+}

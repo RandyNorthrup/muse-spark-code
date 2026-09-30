@@ -133,6 +133,14 @@ interface RunningHelper {
 /** What the conversation controller drives: the three calls, nothing else. */
 export type DictationHandle = Pick<Dictation, 'start' | 'stop' | 'dispose'>
 
+/** What the host found for a window: a way to start dictating, or why there is none. */
+export type DictationSetup =
+  | {
+      readonly isAvailable: true
+      readonly create: (listener: DictationListener) => DictationHandle
+    }
+  | { readonly isAvailable: false; readonly reason: string }
+
 export class Dictation {
   private helper: RunningHelper | undefined
   private status: DictationStatus = 'idle'

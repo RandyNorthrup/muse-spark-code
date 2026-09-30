@@ -9,6 +9,7 @@ import {
   agentsOf,
   backgroundTasksOf,
   editsAfter,
+  hasLandedEdits,
   forkCutBefore,
   hasPendingRequest,
   initialUiState,
@@ -73,6 +74,24 @@ function expectBoundReplayCard(state: UiState) {
 }
 
 const NOW = 1_000_000
+
+/** A tool row that finished, with the stored patch of its edit when `patch` names one. */
+function toolFinished(itemId: string, tool: string, status: string, patch?: string): UiAction {
+  return host({
+    type: 'agentEvent',
+    event: {
+      type: 'itemCompleted',
+      item: {
+        itemId,
+        kind: 'toolCall',
+        status,
+        tool,
+        args: '{}',
+        ...(patch !== undefined && { patchRef: { id: patch, byteLen: 10 } }),
+      },
+    },
+  })
+}
 
 function host(message: HostToWebviewMessage, at = NOW): UiAction {
   return { type: 'hostMessage', message, at }
@@ -1371,26 +1390,11 @@ describe('uiReducer: session history (M6)', () => {
   })
 
   it('lists the completed edits after a message newest first for a rewind (M13)', () => {
-    const edit = (itemId: string, status: string, patch: string) =>
-      host({
-        type: 'agentEvent',
-        event: {
-          type: 'itemCompleted',
-          item: {
-            itemId,
-            kind: 'toolCall',
-            status,
-            tool: 'edit_file',
-            args: '{}',
-            patchRef: { id: patch, byteLen: 10 },
-          },
-        },
-      })
     const state = reduceAll([
       { type: 'submitted', localId: 'l1', text: 'one', attachments: [], contextLabel: undefined },
       host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
-      edit('e1', 'completed', 'p1'),
-      edit('e2', 'completed', 'p2'),
+      toolFinished('e1', 'edit_file', 'completed', 'p1'),
+      toolFinished('e2', 'edit_file', 'completed', 'p2'),
       host({
         type: 'agentEvent',
         event: {
@@ -1406,7 +1410,7 @@ describe('uiReducer: session history (M6)', () => {
       }),
       { type: 'submitted', localId: 'l2', text: 'two', attachments: [], contextLabel: undefined },
       host({ type: 'turnAccepted', localId: 'l2', turnId: 't2' }),
-      edit('e3', 'failed', 'p3'),
+      toolFinished('e3', 'edit_file', 'failed', 'p3'),
     ])
     expect(editsAfter(state, 'l1')).toEqual([
       { itemId: 'e2', outputRef: 'p2' },
@@ -1414,6 +1418,28 @@ describe('uiReducer: session history (M6)', () => {
     ])
     expect(editsAfter(state, 'l2')).toEqual([])
     expect(editsAfter(state, 'ghost')).toEqual([])
+  })
+
+  it('counts a rename stopped partway among the edits on disk, and no other failed row (M67)', () => {
+    const state = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'one', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1' }),
+      toolFinished('n1', 'rename_symbol', 'failed', 'p2'),
+      toolFinished('n2', 'rename_symbol', 'failed'),
+      toolFinished('x1', 'apply_patch', 'failed', 'p3'),
+      toolFinished('e1', 'edit_file', 'completed', 'p1'),
+    ])
+    expect(editsAfter(state, 'l1')).toEqual([
+      { itemId: 'e1', outputRef: 'p1' },
+      { itemId: 'n1', outputRef: 'p2' },
+    ])
+    const patch = { id: 'p', byteLen: 1 }
+    expect(hasLandedEdits({ status: 'failed', tool: 'rename_symbol', patchRef: patch })).toBe(true)
+    expect(hasLandedEdits({ status: 'failed', tool: 'edit_file', patchRef: patch })).toBe(false)
+    expect(hasLandedEdits({ status: 'rejected', tool: 'rename_symbol', patchRef: patch })).toBe(
+      false,
+    )
+    expect(hasLandedEdits({ status: 'completed', tool: 'rename_symbol' })).toBe(false)
   })
 
   // M20: a subagent's edits live in its own transcript (M18), and before this

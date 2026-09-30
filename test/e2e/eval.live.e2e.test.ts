@@ -150,7 +150,7 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
               log: (message) => {
                 log.warn(message)
               },
-              hasUnsavedChanges: () => false,
+              unsavedFiles: () => [],
               shellJobAssembly: jobAssembly,
             }),
           contextIo: fileContextIo,

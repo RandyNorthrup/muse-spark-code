@@ -1,17 +1,21 @@
-// The extension's network posture (M56, PLAN.md D43). VS Code 1.125 and
-// later extend an extension's global `fetch` and `WebSocket` with its proxy
-// support (`http.proxy`, the system proxy or a PAC file, proxy
-// authentication, `http.noProxy`) and the operating system's certificates,
-// while `http.fetchAdditionalSupport`, `http.webSocketAdditionalSupport`,
+// The extension's network posture (M56, PLAN.md D43). VS Code extends an
+// extension's global `fetch` and `WebSocket` with its proxy support
+// (`http.proxy`, the system proxy or a PAC file, proxy authentication,
+// `http.noProxy`) and the operating system's certificates, while
+// `http.fetchAdditionalSupport`, `http.webSocketAdditionalSupport`,
 // `http.proxySupport` and `http.systemCertificates` allow it (read from VS
 // Code 1.125.0's `proxyResolver.ts` and 1.139.0's shipped extension host).
-// So the Model API client and the Muse Voice socket use the globals as they
-// stand at each call, and the Diagnostics report states the settings that
-// decide it, never a proxy's address (it can hold a password).
+// Not every version the manifest accepts does both (M62): `fetch` is routed
+// from the 1.99 floor on, `WebSocket` only from 1.112.0, and an editor that
+// does not run VS Code's extension host may route neither. So the Model API
+// client and the Muse Voice socket use the globals as they stand at each
+// call, and the Diagnostics report states whether this editor routes each
+// and the settings that decide it, never a proxy's address (it can hold a
+// password).
 
 import * as z from 'zod/mini'
 import { environmentValue } from '../core/backends/musecode/launch'
-import type { NetworkFacts, SupportFacts } from '../core/support/report'
+import type { HostRouting, NetworkFacts, SupportFacts } from '../core/support/report'
 import {
   HTTP_NO_PROXY_SETTING,
   HTTP_POSTURE_SETTINGS,
@@ -20,6 +24,7 @@ import {
   HTTP_PROXY_SUPPORT_MODES,
   NODE_EXTRA_CA_CERTS_VARIABLE,
   PROXY_VARIABLE_SPELLINGS,
+  VSCODE_ROUTED_GLOBALS,
 } from '../shared/constants'
 import type { ProxySettings } from './backend/museCodeBackendManager'
 import type { ProcessResult } from './backend/sandboxSetup'
@@ -66,12 +71,33 @@ function isTextSet(source: HttpSettingsSource, key: string): boolean {
   return parsed.success && parsed.data !== ''
 }
 
-/** VS Code's defaults stand for a value it does not report or that is malformed. */
+/**
+ * Whether the extension host put its proxy-aware `fetch` or `WebSocket` in
+ * place (M62), told by the global VS Code's `proxyResolver.ts` sets beside
+ * it. A host without the marker is not claimed to route the global.
+ */
+export function hostRouting(
+  globals: object,
+  global: keyof typeof VSCODE_ROUTED_GLOBALS,
+): HostRouting {
+  const { name, marker } = VSCODE_ROUTED_GLOBALS[global]
+  const value: unknown = Reflect.get(globals, name)
+  if (typeof value !== 'function') {
+    return 'absent'
+  }
+  return Object.hasOwn(globals, marker) ? 'routed' : 'notRouted'
+}
+
+/**
+ * VS Code's defaults stand for a value it does not report or that is
+ * malformed; `globals` is the extension host's `globalThis`.
+ */
 export function readNetworkFacts(
   http: HttpSettingsSource,
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   muse: MuseNetworkPosture,
+  globals: object,
 ): NetworkFacts {
   const isVariableSet = (name: string) => (environmentValue(env, platform, name) ?? '') !== ''
   const proxySupport = z
@@ -87,6 +113,8 @@ export function readNetworkFacts(
     isSystemCertificatesOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.systemCertificates, true),
     isFetchSupportOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.fetchAdditionalSupport, true),
     isWebSocketSupportOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.webSocketAdditionalSupport, true),
+    fetchRouting: hostRouting(globals, 'fetch'),
+    webSocketRouting: hostRouting(globals, 'webSocket'),
     hasEnvironmentProxy: PROXY_VARIABLE_SPELLINGS.some((name) => isVariableSet(name)),
     hasExtraCaCertificates: isVariableSet(NODE_EXTRA_CA_CERTS_VARIABLE),
     museProxySource: muse.proxySource(),

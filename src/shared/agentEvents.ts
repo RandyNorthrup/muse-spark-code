@@ -7,7 +7,45 @@
 
 import * as z from 'zod/mini'
 import { scheduleViewSchema } from './schedule'
-import { PAID_FEATURES } from './constants'
+import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES } from './constants'
+
+/**
+ * One check command as a row reports it (M68): its name, how it ended, why
+ * it did not run, and that reason's detail (the user's feedback on Reject,
+ * or a hook's words).
+ */
+export const checkSummarySchema = z.object({
+  name: z.string(),
+  outcome: z.enum(CHECK_OUTCOMES),
+  skip: z.optional(z.enum(CHECK_SKIPS)),
+  detail: z.optional(z.string()),
+})
+export type CheckSummary = z.infer<typeof checkSummarySchema>
+
+/**
+ * The verify loop's row (M68, PLAN.md D49): the files it checked, the errors
+ * and warnings of those it read (absent when the diagnostics are off or
+ * could not be read), how many files it could not read, and each check.
+ */
+export const verifySummarySchema = z.object({
+  files: z.array(z.string()),
+  errors: z.optional(z.number()),
+  warnings: z.optional(z.number()),
+  unchecked: z.optional(z.number()),
+  checks: z.array(checkSummarySchema),
+})
+export type VerifySummary = z.infer<typeof verifySummarySchema>
+
+/** An edit's `then_run` (M68): the second result of the same call. */
+export const thenRunResultSchema = z.object({
+  command: z.string(),
+  outcome: z.enum(CHECK_OUTCOMES),
+  skip: z.optional(z.enum(CHECK_SKIPS)),
+  detail: z.optional(z.string()),
+  output: z.string(),
+  exitCode: z.optional(z.number()),
+})
+export type ThenRunResult = z.infer<typeof thenRunResultSchema>
 
 /** A source a reply cites: the page's URL and, when Meta sent one, its title (M33). */
 export const citationSchema = z.object({ url: z.string(), title: z.optional(z.string()) })
@@ -137,6 +175,10 @@ export const itemSnapshotFields = {
   ...workflowRunFields,
   children: z.optional(z.array(z.unknown())),
   message: z.optional(z.string()),
+  /** `toolCall` of the verify loop (M68): its files, counts and checks. */
+  verifySummary: z.optional(verifySummarySchema),
+  /** `toolCall` of an edit with `then_run` (M68): the command's result beside the edit's. */
+  thenRun: z.optional(thenRunResultSchema),
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)

@@ -91,6 +91,32 @@ describe('readSettings', () => {
     expect(String(log.warn.mock.calls[0]?.[0])).not.toContain(value)
   })
 
+  // M68 (PLAN.md D49): the verify loop's settings.
+  it('reads the check commands, and refuses a list that does not validate whole', () => {
+    const lint = { name: 'lint', command: 'npm run lint', changedFiles: true, timeoutSeconds: 60 }
+    const valid = readSettings(
+      fakeSettingsSource({
+        checkCommands: [lint],
+        formatOnEdit: true,
+        diagnosticsAfterEdits: false,
+      }),
+      new FakeLogOutputChannel(),
+    )
+    expect(valid.checkCommands).toEqual([lint])
+    expect(valid.formatOnEdit).toBe(true)
+    expect(valid.diagnosticsAfterEdits).toBe(false)
+    const log = new FakeLogOutputChannel()
+    const invalid = readSettings(
+      fakeSettingsSource({
+        checkCommands: [lint, { name: 'lint', command: 'eslint .' }],
+      }),
+      log,
+    )
+    expect(invalid.checkCommands).toEqual([])
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.checkCommands')
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('each check needs a name of its own')
+  })
+
   // M39: the settings are read about seven times a message.
   it('warns about an invalid value once, and again when it changes', () => {
     const log = new FakeLogOutputChannel()

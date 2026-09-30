@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import {
   changeSummary,
   describeTool,
+  fetchedSize,
   toolLabel,
   writtenContent,
 } from '../../src/webview/toolPresentation'
@@ -262,6 +264,64 @@ describe('image edits and the ide server’s images (M44)', () => {
     expect(describeTool('mcp__ide__editImage', '{"path":"b.png"}')).toMatchObject({
       label: 'Edit image',
       imagePath: 'b.png',
+    })
+  })
+})
+
+describe('web fetch rows (M69)', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it('shows the URL on both backends, and the size a fetched page reports', () => {
+    for (const tool of ['web_fetch', 'mcp__ide__webFetch']) {
+      expect(describeTool(tool, '{"url":"https://docs.example.com/a"}')).toMatchObject({
+        label: 'Fetch page',
+        summary: 'https://docs.example.com/a',
+        body: 'fetch',
+      })
+    }
+    const output = [
+      fill(MODEL_TEXT.webFetchHeader, {
+        url: 'https://docs.example.com/a',
+        status: '200',
+        type: 'text/html',
+        bytes: '48213',
+      }),
+      MODEL_TEXT.webFetchUntrusted,
+    ].join(' ')
+    expect(fetchedSize(output)).toBe('Fetched 48.2 kB (text/html)')
+    expect(fetchedSize('Fetched 512 bytes of nothing')).toBeUndefined()
+    expect(fetchedSize('Error: the server answered HTTP 404')).toBeUndefined()
+    setUiText({ ...EN, webFetchSize: '{type}: {size}' }, 'de')
+    expect(fetchedSize(output)).toBe('text/html: 48,2 kB')
+  })
+})
+
+describe('code intelligence rows (M67)', () => {
+  it('label both backends alike, name the symbol, and show a rename as an edit', () => {
+    expect(describeTool('find_references', '{"symbol":"greet"}')).toMatchObject({
+      label: 'References',
+      summary: 'greet',
+      body: 'generic',
+    })
+    expect(describeTool('mcp__ide__findDefinition', '{"path":"src/a.ts","line":2}')).toMatchObject({
+      label: 'Definition',
+      summary: 'src/a.ts',
+    })
+    expect(describeTool('workspace_symbols', '{"query":"Parser"}').summary).toBe('Parser')
+    // An edit row's summary is the file it opens: a rename named by symbol alone has none.
+    expect(describeTool('rename_symbol', '{"symbol":"greet","new_name":"welcome"}')).toMatchObject({
+      label: 'Rename',
+      summary: '',
+      body: 'edit',
+    })
+    expect(describeTool('rename_symbol', '{"path":"src/a.ts","symbol":"greet"}').summary).toBe(
+      'src/a.ts',
+    )
+    expect(describeTool('mcp__ide__renameSymbol', '{}')).toMatchObject({
+      label: 'Rename',
+      body: 'generic',
     })
   })
 })

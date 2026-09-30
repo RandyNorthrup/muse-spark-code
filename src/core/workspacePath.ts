@@ -43,7 +43,7 @@ const WINDOWS_RESERVED_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)
 const WINDOWS_TRAILING_DOT_OR_SPACE = /[. ]$/
 
 /** Whether a `path.relative` result stays below its base. */
-function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
+export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
   return (
     relative !== '' &&
     relative !== PARENT_SEGMENT &&

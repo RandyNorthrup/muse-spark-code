@@ -18,6 +18,7 @@ const CLASSES: readonly ToolClass[] = [
   'paid',
   'mcp',
   'spawn',
+  'network',
 ]
 
 /** One PowerShell call as the engine judges it. */
@@ -36,6 +37,7 @@ describe('verdictFor', () => {
         paid: 'ask',
         mcp: 'allow',
         spawn: 'ask',
+        network: 'allow',
       },
       onRequest: {
         read: 'allow',
@@ -45,6 +47,7 @@ describe('verdictFor', () => {
         paid: 'ask',
         mcp: 'ask',
         spawn: 'ask',
+        network: 'ask',
       },
       promptUnmatched: {
         read: 'allow',
@@ -54,6 +57,7 @@ describe('verdictFor', () => {
         paid: 'ask',
         mcp: 'ask',
         spawn: 'ask',
+        network: 'ask',
       },
       denyUnmatched: {
         read: 'allow',
@@ -63,6 +67,7 @@ describe('verdictFor', () => {
         paid: 'deny',
         mcp: 'deny',
         spawn: 'deny',
+        network: 'deny',
       },
     }
     for (const mode of APPROVAL_MODES) {
@@ -207,6 +212,39 @@ describe('choicesFor / isKnownChoice', () => {
     expect(isKnownChoice('allow_once')).toBe(true)
     expect(isKnownChoice('abort')).toBe(true)
     expect(isKnownChoice('allow_local_prefix')).toBe(false)
+  })
+})
+
+/** One web fetch as the engine judges it: its session rule is the host. */
+function fetchFrom(host: string) {
+  return { toolName: 'web_fetch', toolClass: 'network', command: host } as const
+}
+
+describe('web fetch (M69, PLAN.md D49)', () => {
+  it('asks in every mode but Bypass, and Plan refuses it', () => {
+    expect(
+      Object.fromEntries(APPROVAL_MODES.map((mode) => [mode, verdictFor(mode, 'network')])),
+    ).toEqual({
+      allowAll: 'allow',
+      onRequest: 'ask',
+      promptUnmatched: 'ask',
+      denyUnmatched: 'deny',
+    })
+    // A server's read-only hint is an MCP notion; it never eases a fetch.
+    expect(verdictFor('onRequest', 'network', false, true)).toBe('ask')
+  })
+
+  it('keys "always allow in this session" on the host, and names it on the card', () => {
+    const engine = new PermissionEngine('onRequest')
+    expect(engine.verdict(fetchFrom('docs.example.com'))).toBe('ask')
+    engine.allowForSession('web_fetch', 'docs.example.com')
+    expect(engine.verdict(fetchFrom('docs.example.com'))).toBe('allow')
+    expect(engine.verdict(fetchFrom('evil.example.net'))).toBe('ask')
+    engine.setMode('denyUnmatched')
+    expect(engine.verdict(fetchFrom('docs.example.com'))).toBe('deny')
+    expect(choicesFor('web_fetch', 'docs.example.com')[1]).toMatchObject({
+      label: 'Always allow in this session: docs.example.com',
+    })
   })
 })
 

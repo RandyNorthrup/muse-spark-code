@@ -9,7 +9,8 @@ import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
-import type { ChatSurface, WebviewHostContext } from '../../../src/host/views/webviewSetup'
+import type { ChatSurface } from '../../../src/host/views/chatSurface'
+import type { WebviewHostContext } from '../../../src/host/views/webviewSetup'
 import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
 
 function acceptMessage(_message: unknown): Thenable<boolean> {
@@ -48,7 +49,7 @@ export class FakeWebviewView implements vscode.WebviewView {
 export class FakeWebviewPanel implements vscode.WebviewPanel {
   public readonly webview = new FakeWebview()
   public readonly options: vscode.WebviewPanelOptions = {}
-  public iconPath?: vscode.IconPath
+  public iconPath?: NonNullable<vscode.WebviewPanel['iconPath']>
   public viewColumn: vscode.ViewColumn | undefined = undefined
   public active = true
   public visible = true

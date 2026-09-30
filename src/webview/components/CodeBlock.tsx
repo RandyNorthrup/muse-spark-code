@@ -14,6 +14,8 @@ export interface CodeBlockProps {
   readonly language: string | undefined
   /** The fence is still open while the reply streams. */
   readonly isOpen?: boolean
+  /** The label as written (a plan's whole info string, M79) in place of the resolved language. */
+  readonly label?: string | undefined
   readonly onCopy: (text: string) => void
   readonly onInsert: (text: string) => void
   readonly onApply: (text: string) => void
@@ -23,6 +25,7 @@ export function CodeBlock({
   code,
   language,
   isOpen = false,
+  label,
   onCopy,
   onInsert,
   onApply,
@@ -38,7 +41,7 @@ export function CodeBlock({
   return (
     <div className="code-block">
       <div className="code-block-bar">
-        <span className="code-block-lang">{resolved ?? language ?? ''}</span>
+        <span className="code-block-lang">{label ?? resolved ?? language ?? ''}</span>
         <span className="code-block-actions">
           <button
             type="button"

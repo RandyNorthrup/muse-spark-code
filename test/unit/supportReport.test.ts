@@ -144,6 +144,8 @@ describe('renderSupportReport', () => {
         isSystemCertificatesOn: false,
         isFetchSupportOn: false,
         isWebSocketSupportOn: true,
+        fetchRouting: 'routed',
+        webSocketRouting: 'routed',
         hasEnvironmentProxy: true,
         hasExtraCaCertificates: true,
         museProxySource: 'vscode',
@@ -165,6 +167,28 @@ describe('renderSupportReport', () => {
         network: { ...base.network, museProxySource: 'environment' },
       }),
     ).toContain('muse serve: proxy from its environment;')
+  })
+
+  // M62 (PLAN.md D43): below VS Code 1.112 an extension's WebSocket is not
+  // routed, and on Node 20 there is none; the settings do not change that.
+  it('never claims a route the editor does not give a global', () => {
+    const olderVsCode = renderSupportReport({
+      ...base,
+      network: { ...base.network, webSocketRouting: 'notRouted' },
+    })
+    expect(olderVsCode).toContain(
+      "extension requests through VS Code's network support: fetch yes, WebSocket no (this editor does not route it; VS Code does from 1.112)",
+    )
+    const node20 = renderSupportReport({
+      ...base,
+      network: { ...base.network, webSocketRouting: 'absent' },
+    })
+    expect(node20).toContain('fetch yes, WebSocket none in this extension host')
+    const otherEditor = renderSupportReport({
+      ...base,
+      network: { ...base.network, fetchRouting: 'notRouted', webSocketRouting: 'notRouted' },
+    })
+    expect(otherEditor).toContain('fetch no (this editor does not route it), WebSocket no (')
   })
 
   it('shows captured status fields and omits unrecognized lines that may contain secrets', () => {

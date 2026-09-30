@@ -27,6 +27,7 @@ import {
   HOOK_CONTROL_CODE_LIMIT,
   HOOK_NEWLINE_CODE,
   HOOK_DELETE_CODE,
+  CODE_INTEL_TOOLS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_TOOLS,
   PROJECT_HOOKS_SEGMENTS,
@@ -529,7 +530,9 @@ export function toolMatcherNames(name: string): readonly string[] {
     case MODEL_API_TOOLS.writeFile: {
       return [name, 'Write']
     }
-    case MODEL_API_TOOLS.editFile: {
+    // A rename (M67) edits files as edit_file does: an `Edit` hook sees it too.
+    case MODEL_API_TOOLS.editFile:
+    case CODE_INTEL_TOOLS.renameSymbol: {
       return [name, 'Edit']
     }
     case MODEL_API_TOOLS.search: {

@@ -7,15 +7,25 @@
 // socket and the tool implementations.
 
 import * as z from 'zod/mini'
-import { JSON_RPC_ERRORS, MCP_PROTOCOL_VERSION } from '../shared/constants'
+import {
+  JSON_RPC_ERRORS,
+  MCP_CANCELLED_NOTIFICATION,
+  MCP_PROTOCOL_VERSION,
+} from '../shared/constants'
 
 export interface McpTool {
   readonly name: string
   readonly description: string
   /** JSON Schema for the arguments. */
   readonly inputSchema: Readonly<Record<string, unknown>>
-  /** The tool's text result; throw to report a tool error. */
-  readonly call: (args: Readonly<Record<string, unknown>>) => Promise<string>
+  /** MCP's behaviour hints (`readOnlyHint`, `openWorldHint`, …), listed when present (M69). */
+  readonly annotations?: Readonly<Record<string, unknown>>
+  /**
+   * The tool's text result; throw to report a tool error. `signal` aborts
+   * when the caller stops waiting for it (M69: its request closed, or
+   * `notifications/cancelled` named it).
+   */
+  readonly call: (args: Readonly<Record<string, unknown>>, signal: AbortSignal) => Promise<string>
 }
 
 export interface McpServerInfo {
@@ -55,6 +65,7 @@ function describe(error: unknown): string {
 async function callTool(
   tools: readonly McpTool[],
   params: Readonly<Record<string, unknown>> | undefined,
+  signal: AbortSignal,
 ): Promise<unknown> {
   const name = params?.['name']
   const tool = tools.find((candidate) => candidate.name === name)
@@ -65,20 +76,64 @@ async function callTool(
   const args =
     typeof rawArgs === 'object' && rawArgs !== null ? (rawArgs as Record<string, unknown>) : {}
   try {
-    return { content: [{ type: 'text', text: await tool.call(args) }] }
+    return { content: [{ type: 'text', text: await tool.call(args, signal) }] }
   } catch (error: unknown) {
     return { content: [{ type: 'text', text: describe(error) }], isError: true }
   }
 }
 
+/** A request id as a key: JSON-RPC allows a string or a number. */
+export type McpRequestKey = string
+
+const requestIdSchema = z.union([z.string(), z.number()])
+const cancelledSchema = z.object({
+  method: z.literal(MCP_CANCELLED_NOTIFICATION),
+  params: z.object({ requestId: requestIdSchema }),
+})
+
+function keyOf(id: string | number): McpRequestKey {
+  return typeof id === 'number' ? `n:${String(id)}` : `s:${id}`
+}
+
+/**
+ * What a body means for requests in flight (M69): the key of the request it
+ * makes, if any, and the key of a request `notifications/cancelled` names
+ * (the shape Muse Code 1.4.0 sent when a turn was stopped mid-call:
+ * `{"method":"notifications/cancelled","params":{"requestId":3,"reason":…}}`).
+ */
+export function mcpRequestKeys(raw: string): {
+  readonly request: McpRequestKey | undefined
+  readonly cancelled: McpRequestKey | undefined
+} {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return { request: undefined, cancelled: undefined }
+  }
+  const message = messageSchema.safeParse(parsed)
+  const cancelled = cancelledSchema.safeParse(parsed)
+  const id = message.success ? message.data.id : undefined
+  return {
+    request: id === undefined || id === null ? undefined : keyOf(id),
+    cancelled: cancelled.success ? keyOf(cancelled.data.params.requestId) : undefined,
+  }
+}
+
+/** A signal that never aborts: for a caller with nothing to stop. */
+const NEVER_ABORTED = new AbortController().signal
+
 /**
  * Handles one raw request body. A notification (no `id`) is accepted without
  * a body; anything else gets a JSON-RPC response, including parse errors.
+ * `signal` reaches a tool the body calls, aborting when its caller stops
+ * waiting.
  */
 export async function handleMcpMessage(
   raw: string,
   tools: readonly McpTool[],
   serverInfo: McpServerInfo,
+  signal: AbortSignal = NEVER_ABORTED,
 ): Promise<McpOutcome> {
   let parsed: unknown
   try {
@@ -108,15 +163,16 @@ export async function handleMcpMessage(
     }
     case 'tools/list': {
       return resultResponse(message.id, {
-        tools: tools.map(({ name, description, inputSchema }) => ({
+        tools: tools.map(({ name, description, inputSchema, annotations }) => ({
           name,
           description,
           inputSchema,
+          ...(annotations !== undefined && { annotations }),
         })),
       })
     }
     case 'tools/call': {
-      return resultResponse(message.id, await callTool(tools, message.params))
+      return resultResponse(message.id, await callTool(tools, message.params, signal))
     }
     default: {
       return errorResponse(

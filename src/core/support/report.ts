@@ -12,6 +12,7 @@ import {
   MUSE_CONFIG_STATUS_MAX_CHARS,
   MUSE_KEYCHAIN_SERVICE,
   PRODUCT_NAME,
+  VSCODE_WEBSOCKET_ROUTED_SINCE,
 } from '../../shared/constants'
 import type {
   CliSignIn,
@@ -20,9 +21,17 @@ import type {
 } from '../backends/musecode/credentialFile'
 
 /**
+ * Whether the editor's extension host installed its proxy-aware version of a
+ * global (M62): `absent` when the host has no such global at all, as Node 20
+ * (VS Code 1.99 and 1.100) has no WebSocket.
+ */
+export type HostRouting = 'routed' | 'notRouted' | 'absent'
+
+/**
  * The network the extension's own requests and Muse Code's run under (M56).
  * The extension's `fetch` and WebSocket go through VS Code's proxy support
- * and system certificates while VS Code's settings allow it.
+ * and system certificates where the editor routes them and VS Code's
+ * settings allow it.
  */
 export interface NetworkFacts {
   /** `http.proxy` is set; its value is not shown. */
@@ -36,6 +45,9 @@ export interface NetworkFacts {
   /** `http.fetchAdditionalSupport` and `http.webSocketAdditionalSupport`. */
   readonly isFetchSupportOn: boolean
   readonly isWebSocketSupportOn: boolean
+  /** Whether this editor routes each global at all; the settings above matter only then (M62). */
+  readonly fetchRouting: HostRouting
+  readonly webSocketRouting: HostRouting
   /** HTTPS_PROXY / HTTP_PROXY in the extension host's environment, in either case. */
   readonly hasEnvironmentProxy: boolean
   /** NODE_EXTRA_CA_CERTS names extra roots for the extension host. */
@@ -135,11 +147,39 @@ function yesNo(isTrue: boolean): string {
   return isTrue ? YES : NO
 }
 
+/**
+ * A global's route: its setting where the editor routes it, and otherwise
+ * why not, so the report never claims a proxy the request does not use (M62).
+ */
+function routeState(isSettingOn: boolean, routing: HostRouting, notRouted: string): string {
+  switch (routing) {
+    case 'routed': {
+      return yesNo(isSettingOn)
+    }
+    case 'notRouted': {
+      return notRouted
+    }
+    case 'absent': {
+      return 'none in this extension host'
+    }
+  }
+}
+
 function networkLines(network: NetworkFacts): readonly string[] {
+  const fetchRoute = routeState(
+    network.isFetchSupportOn,
+    network.fetchRouting,
+    'no (this editor does not route it)',
+  )
+  const webSocketRoute = routeState(
+    network.isWebSocketSupportOn,
+    network.webSocketRouting,
+    `no (this editor does not route it; VS Code does from ${VSCODE_WEBSOCKET_ROUTED_SINCE})`,
+  )
   return [
     `network: http.proxy set: ${yesNo(network.isProxySet)}; proxySupport: ${network.proxySupport}; proxyStrictSSL: ${yesNo(network.isProxyStrictSsl)}; proxyAuthorization set: ${yesNo(network.isProxyAuthorizationSet)}; noProxy entries: ${String(network.noProxyCount)}; proxy in environment: ${yesNo(network.hasEnvironmentProxy)}`,
     `certificates: system certificates: ${yesNo(network.isSystemCertificatesOn)}; NODE_EXTRA_CA_CERTS: ${yesNo(network.hasExtraCaCertificates)}`,
-    `extension requests through VS Code's network support: fetch ${yesNo(network.isFetchSupportOn)}, WebSocket ${yesNo(network.isWebSocketSupportOn)}`,
+    `extension requests through VS Code's network support: fetch ${fetchRoute}, WebSocket ${webSocketRoute}`,
     `muse serve: proxy from ${MUSE_PROXY_SOURCES[network.museProxySource]}; SSL_CERT_FILE or SSL_CERT_DIR: ${yesNo(network.hasMuseCertificateOverride)}`,
   ]
 }

@@ -2,8 +2,18 @@ import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { EVAL_BUDGET_USD, EVAL_MODEL_ID } from '../../../src/shared/constants'
 import { estimateCostUsd } from '../../../src/core/usage/insights'
-import { createEvalWire, wireTotals, type EvalBudget } from '../../../src/core/eval/wire'
-import { FAKE_MODEL_API_BASE_URL, fakeModelApi } from '../helpers/fakeModelApi'
+import {
+  createEvalWire,
+  wireTotals,
+  type EvalBudget,
+  type EvalWire,
+} from '../../../src/core/eval/wire'
+import {
+  FAKE_MODEL_API_BASE_URL,
+  fakeModelApi,
+  streamFor,
+  type FakeModelApi,
+} from '../helpers/fakeModelApi'
 
 const RESPONSES_URL = `${FAKE_MODEL_API_BASE_URL}/responses`
 const HEADERS = { Authorization: 'Bearer LLM|1|secret', 'content-type': 'application/json' }
@@ -40,11 +50,35 @@ const brokenStream: typeof fetch = () =>
     ),
   )
 
+/** One frame, then silence: the stream never ends on its own. */
+const quietStream: typeof fetch = () =>
+  Promise.resolve(
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('data: not json\n\n'))
+        },
+      }),
+      { status: 200, headers: { 'content-type': 'text/event-stream' } },
+    ),
+  )
+
 async function refusalOf(response: Response): Promise<string> {
   expect(response.status).toBe(400)
   const body = refusalSchema.parse(await response.json())
   expect(body.error.code).toBe('eval_refused')
   return body.error.message
+}
+
+async function expectUnpricedUsage(wire: EvalWire, budget: EvalBudget, api: FakeModelApi) {
+  await wire.settle()
+  expect(budget).toEqual({ spentUsd: 0, hasUnknownUsage: true })
+  expect(wireTotals(wire)).toMatchObject({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 })
+  const sent = api.requests.length
+  const later = wireOn(api.fetch, budget)
+  expect(await refusalOf(await later.fetch(RESPONSES_URL, modelCall()))).toContain('unknown usage')
+  expect(later.calls).toEqual([])
+  expect(api.requests).toHaveLength(sent)
 }
 
 describe('eval wire', () => {
@@ -85,13 +119,13 @@ describe('eval wire', () => {
 
   it('counts a refused and a failed model call as attempts, with no usage', async () => {
     const api = fakeModelApi()
-    api.script({ httpError: { status: 500 } }, { networkError: 'the network is down' })
+    api.script({ httpError: { status: 400 } }, { networkError: 'the network is down' })
     const wire = wireOn(api.fetch)
     const refused = await wire.fetch(RESPONSES_URL, modelCall())
-    expect(refused.status).toBe(500)
+    expect(refused.status).toBe(400)
     await expect(wire.fetch(RESPONSES_URL, modelCall())).rejects.toThrow('the network is down')
     await wire.settle()
-    expect(wire.calls.map((call) => call.status)).toEqual([500, 0])
+    expect(wire.calls.map((call) => call.status)).toEqual([400, 0])
     expect(wireTotals(wire)).toMatchObject({ attempts: 2, requests: 2, inputTokens: 0 })
   })
 
@@ -165,6 +199,44 @@ describe('eval wire', () => {
     expect(wireTotals(wire)).toMatchObject({ attempts: 0, requests: 1 })
   })
 
+  it('sends the admitted streamed body from a non-Request input', async () => {
+    const api = fakeModelApi()
+    api.script({ text: 'ok' })
+    const wire = wireOn(api.fetch)
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(JSON.stringify({ model: EVAL_MODEL_ID })))
+        controller.close()
+      },
+    })
+    const init = { ...modelCall(), body, duplex: 'half' }
+    const response = await wire.fetch(RESPONSES_URL, init)
+    await response.text()
+    await wire.settle()
+    expect(api.requests[0]).toMatchObject({ method: 'POST', body: { model: EVAL_MODEL_ID } })
+    expect(wire.problems).toEqual([])
+  })
+
+  it('sends the validated snapshot when the original init changes during its body read', async () => {
+    const api = fakeModelApi()
+    api.script({ text: 'ok' })
+    const wire = wireOn(api.fetch)
+    const init = modelCall()
+    const waiting = wire.fetch(RESPONSES_URL, init)
+    init.method = 'DELETE'
+    init.body = JSON.stringify({ model: 'another-model' })
+    init.headers = { Authorization: 'a later header' }
+    const response = await waiting
+    await response.text()
+    await wire.settle()
+    expect(api.requests[0]).toMatchObject({
+      method: 'POST',
+      body: { model: EVAL_MODEL_ID },
+      headers: { authorization: HEADERS.Authorization },
+    })
+    expect(wire.problems).toEqual([])
+  })
+
   it('refuses every request the harness does not make without a paid feature', async () => {
     const api = fakeModelApi()
     const wire = wireOn(api.fetch)
@@ -178,20 +250,7 @@ describe('eval wire', () => {
   })
 
   it('stops reading a reply the client stopped reading', async () => {
-    // eslint-disable-next-line unicorn/consistent-function-scoping -- WIP: move to module scope when resuming M75
-    const quiet: typeof fetch = () =>
-      Promise.resolve(
-        new Response(
-          new ReadableStream<Uint8Array>({
-            start(controller) {
-              // One frame, then silence: the stream never ends on its own.
-              controller.enqueue(new TextEncoder().encode('data: not json\n\n'))
-            },
-          }),
-          { status: 200, headers: { 'content-type': 'text/event-stream' } },
-        ),
-      )
-    const wire = wireOn(quiet)
+    const wire = wireOn(quietStream)
     const response = await wire.fetch(RESPONSES_URL, modelCall())
     const reader = response.body?.getReader()
     await reader?.read()
@@ -218,5 +277,114 @@ describe('eval wire', () => {
       'a reply stream failed before its usage: the connection was reset',
     ])
     expect(wireTotals(wire).attempts).toBe(1)
+  })
+
+  it.each([
+    { input: -1, output: 1, cached: 0 },
+    { input: 1, output: -1, cached: 0 },
+    { input: 1, output: 1, cached: -1 },
+    { input: 1, output: 1, cached: 2 },
+    { input: 0.5, output: 1, cached: 0 },
+    { input: 1, output: 0.5, cached: 0 },
+    { input: 1, output: 1, cached: 0.5 },
+    { input: Number.MAX_SAFE_INTEGER + 1, output: 1, cached: 0 },
+    { input: 1, output: Number.MAX_SAFE_INTEGER + 1, cached: 0 },
+    {
+      input: Number.MAX_SAFE_INTEGER + 1,
+      output: 1,
+      cached: Number.MAX_SAFE_INTEGER + 1,
+    },
+  ])('refuses later arms after invalid usage %j', async (usage) => {
+    const api = fakeModelApi()
+    api.script({ text: 'ok', usage }, { text: 'a later call must not be sent' })
+    const budget: EvalBudget = { spentUsd: 0 }
+    const first = wireOn(api.fetch, budget)
+    const response = await first.fetch(RESPONSES_URL, modelCall())
+    await response.text()
+    await expectUnpricedUsage(first, budget, api)
+    expect(first.problems).toContain('a reply reported invalid token counts')
+    expect(api.requests).toHaveLength(1)
+  })
+
+  it.each(['NaN', 'Infinity', '1e999', '-1e999'])(
+    'refuses later arms after raw nonfinite SSE usage %s',
+    async (count) => {
+      // Use the existing completed-response fixture; nonfinite JSON cannot
+      // survive JSON.stringify (NaN/Infinity become null).
+      const raw = streamFor({ text: 'ok', usage: { input: 1, output: 1 } }, 'nonfinite').replace(
+        '"input_tokens":1',
+        () => `"input_tokens":${count}`,
+      )
+      const send: typeof fetch = () =>
+        Promise.resolve(new Response(raw, { headers: { 'content-type': 'text/event-stream' } }))
+      const api = fakeModelApi()
+      const budget: EvalBudget = { spentUsd: 0 }
+      const first = wireOn(send, budget)
+      const response = await first.fetch(RESPONSES_URL, modelCall())
+      await response.text()
+      await expectUnpricedUsage(first, budget, api)
+      expect(first.problems).toContain('a reply ended without its usage')
+    },
+  )
+
+  it.each(['stream', 'network', 'server', 'body'])(
+    'stops the shared run after unknown %s usage',
+    async (kind) => {
+      const api = fakeModelApi()
+      api.script({ networkError: 'the network is down' })
+      const budget: EvalBudget = { spentUsd: 0 }
+      const nonStreamSend =
+        kind === 'network'
+          ? api.fetch
+          : () => Promise.resolve(new Response(null, { status: kind === 'server' ? 500 : 200 }))
+      const send = kind === 'stream' ? brokenStream : nonStreamSend
+      const first = wireOn(send, budget)
+      if (kind === 'network') {
+        await expect(first.fetch(RESPONSES_URL, modelCall())).rejects.toThrow('the network is down')
+      } else {
+        const response = await first.fetch(RESPONSES_URL, modelCall())
+        if (kind === 'stream') {
+          await expect(response.text()).rejects.toThrow('the connection was reset')
+        } else {
+          await response.text()
+        }
+      }
+      await first.settle()
+      expect(budget.hasUnknownUsage).toBe(true)
+      const later = wireOn(api.fetch, budget)
+      expect(await refusalOf(await later.fetch(RESPONSES_URL, modelCall()))).toContain(
+        'unknown usage',
+      )
+      expect(later.calls).toEqual([])
+      expect(api.requests).toHaveLength(kind === 'network' ? 1 : 0)
+    },
+  )
+
+  it.each(['unknown', 'spent'])('rechecks %s budget after a held request body', async (kind) => {
+    const api = fakeModelApi()
+    api.script({ text: 'ok' })
+    const budget: EvalBudget = { spentUsd: 0 }
+    const wire = wireOn(api.fetch, budget)
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        entered.resolve(undefined)
+        await held.promise
+        controller.enqueue(new TextEncoder().encode(JSON.stringify({ model: EVAL_MODEL_ID })))
+        controller.close()
+      },
+    })
+    const init = { ...modelCall(), body, duplex: 'half' }
+    const waiting = wire.fetch(RESPONSES_URL, init)
+    await entered.promise
+    if (kind === 'unknown') {
+      budget.hasUnknownUsage = true
+    } else {
+      budget.spentUsd = EVAL_BUDGET_USD
+    }
+    held.resolve(undefined)
+    expect(await refusalOf(await waiting)).toContain(kind === 'unknown' ? 'unknown usage' : 'spent')
+    expect(api.requests).toEqual([])
   })
 })

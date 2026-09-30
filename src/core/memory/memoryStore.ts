@@ -56,8 +56,13 @@ export interface MemoryIo {
   hasUnsavedChanges(absolutePath: string): boolean
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(absolutePath: string, content: string): Promise<void>
-  /** Atomically publishes a complete new note only if absent; never replaces another writer. */
-  createFile(absolutePath: string, content: string): Promise<void>
+  /**
+   * Atomically publishes a complete new note only if absent; never replaces
+   * another writer. With `checkedPath` (the note's canonical path as `locate`
+   * checked it), a folder that leads elsewhere by the time the note is
+   * written is refused.
+   */
+  createFile(absolutePath: string, content: string, checkedPath?: string): Promise<void>
   /** The canonical form (links resolved) of a path that may not exist yet. */
   realPath(absolutePath: string): Promise<string>
   /** A directory's entries; empty when it is missing. */
@@ -88,6 +93,8 @@ export interface MemoryNotePlace {
   readonly absolute: string
   /** What an approval card shows: `.agents/memory/…` for the project, else the absolute path. */
   readonly display: string
+  /** The canonical path `locate` checked; a new note is written only there. */
+  readonly checked?: string
 }
 
 export type Located<T> =
@@ -220,12 +227,18 @@ function written(place: MemoryNotePlace, operation: string, message: string): st
   return JSON.stringify({ success: true, scope: place.scope, path: place.path, operation, message })
 }
 
-function placeOf(scope: MemoryScope, notePath: string, absolute: string): MemoryNotePlace {
+function placeOf(
+  scope: MemoryScope,
+  notePath: string,
+  absolute: string,
+  checked?: string,
+): MemoryNotePlace {
   return {
     scope,
     path: notePath,
     absolute,
     display: scope === 'project' ? `${MEMORY_DIR}/${notePath}` : absolute,
+    ...(checked !== undefined && { checked }),
   }
 }
 
@@ -449,6 +462,7 @@ export class MemoryStore {
     if (!resolved.ok) {
       return resolved
     }
+    let checked: string
     try {
       const [realRoot, realTarget] = await Promise.all([
         this.deps.io.realPath(root.value),
@@ -459,10 +473,11 @@ export class MemoryStore {
       ) {
         return failed(MODEL_TEXT.memoryPathLink)
       }
+      checked = realTarget
     } catch (error: unknown) {
       return failed(describe(error))
     }
-    return { ok: true, value: placeOf(scope, relative, resolved.absolute) }
+    return { ok: true, value: placeOf(scope, relative, resolved.absolute, checked) }
   }
 
   /** `read_memory`: a window of lines, each with its own line break. */
@@ -513,7 +528,7 @@ export class MemoryStore {
     }
     try {
       if (existing === undefined) {
-        await this.deps.io.createFile(place.absolute, newNoteText(note))
+        await this.deps.io.createFile(place.absolute, newNoteText(note), place.checked)
       } else {
         await this.deps.io.writeFile(place.absolute, appendedText(existing, note.content))
       }
@@ -601,6 +616,7 @@ export class MemoryStore {
       await this.deps.io.createFile(
         place.value.absolute,
         hook === '' ? '' : newNoteText({ content: '', description: hook }),
+        place.value.checked,
       )
     } catch (error: unknown) {
       throw new Error(isTaken(error) ? MODEL_TEXT.memoryNoteExists : describe(error), {

@@ -65,6 +65,8 @@ export interface ScriptedReply {
   readonly garbage?: boolean
   /** Fail the fetch itself (network error) instead of answering. */
   readonly networkError?: string
+  /** The socket code under that error, as Node's fetch keeps it in `cause` (M56). */
+  readonly networkErrorCode?: string
   /** A keep-alive with empty data mid-stream and the OpenAI-style `data: [DONE]` at the end. */
   readonly doneSentinel?: boolean
 }
@@ -330,16 +332,23 @@ async function afterGate(
   if (signal?.aborted === true) {
     throw new DOMException('aborted', 'AbortError')
   }
-  const aborted = Promise.withResolvers<never>()
-  const onAbort = () => {
-    aborted.reject(new DOMException('aborted', 'AbortError'))
-  }
-  signal?.addEventListener('abort', onAbort, { once: true })
+  // Not `Promise.withResolvers`: the integration tests load this helper in
+  // VS Code 1.99, whose Node 20.18 lacks it (PLAN.md M62).
+  const listening = new AbortController()
+  const aborted = new Promise<never>((_resolve, reject) => {
+    signal?.addEventListener(
+      'abort',
+      () => {
+        reject(new DOMException('aborted', 'AbortError'))
+      },
+      { once: true, signal: listening.signal },
+    )
+  })
   try {
-    await Promise.race([gate, aborted.promise])
+    await Promise.race([gate, aborted])
     return response
   } finally {
-    signal?.removeEventListener('abort', onAbort)
+    listening.abort()
   }
 }
 
@@ -358,8 +367,10 @@ function urlOf(input: string | URL | Request): URL {
 }
 
 /** A client on the fake API with no waits and a fixed clock. */
-const FAKE_API_KEY = 'LLM|1|secret'
-export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256').update(FAKE_API_KEY).digest('hex')
+export const FAKE_MODEL_API_KEY = 'LLM|1|secret'
+export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256')
+  .update(FAKE_MODEL_API_KEY)
+  .digest('hex')
 
 export const FAKE_MODEL_API_BASE_URL = 'https://api.example.test/v1'
 
@@ -367,7 +378,7 @@ export const FAKE_MODEL_API_BASE_URL = 'https://api.example.test/v1'
 export function fakeModelApiClientSettings(log: CoreLogger): Omit<ModelApiClientDeps, 'fetch'> {
   return {
     baseUrl: FAKE_MODEL_API_BASE_URL,
-    apiKey: () => Promise.resolve(FAKE_API_KEY),
+    apiKey: () => Promise.resolve(FAKE_MODEL_API_KEY),
     sleep: () => Promise.resolve(),
     now: () => 0,
     random: () => 0,
@@ -403,6 +414,20 @@ export function fakeModelApi(): FakeModelApi {
     imageBodies: () => bodiesAt('/images/generations'),
     editBodies: () => bodiesAt('/images/edits'),
     fetch: (input, init) => {
+      if (input instanceof Request) {
+        // The eval wire sends its validated snapshot; read it as fetch does.
+        // Keep the legacy non-Request path synchronous for held-call tests.
+        const request = new Request(input, init)
+        return (async () => {
+          const text = await request.clone().text()
+          return await api.fetch(request.url, {
+            method: request.method,
+            headers: Object.fromEntries(request.headers),
+            ...(text !== '' && { body: text }),
+            signal: request.signal,
+          })
+        })()
+      }
       const url = urlOf(input)
       const method = init?.method ?? 'GET'
       const headers = Object.fromEntries(
@@ -410,7 +435,7 @@ export function fakeModelApi(): FakeModelApi {
       )
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
       requests.push({ path: url.pathname.replace(/^\/v1/, ''), method, headers, body })
-      if (headers['Authorization'] !== 'Bearer LLM|1|secret') {
+      if ((headers['Authorization'] ?? headers['authorization']) !== 'Bearer LLM|1|secret') {
         return Promise.resolve(
           json(
             {
@@ -464,7 +489,14 @@ export function fakeModelApi(): FakeModelApi {
       const reply = replies[Math.min(consumed, replies.length - 1)] ?? { text: 'ok' }
       consumed += 1
       if (reply.networkError !== undefined) {
-        return Promise.reject(new TypeError(reply.networkError))
+        const code = reply.networkErrorCode
+        return Promise.reject(
+          code === undefined
+            ? new TypeError(reply.networkError)
+            : new TypeError(reply.networkError, {
+                cause: Object.assign(new Error(`connect ${code}`), { code }),
+              }),
+        )
       }
       if (reply.httpError !== undefined) {
         return Promise.resolve(
