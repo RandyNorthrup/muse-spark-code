@@ -11,8 +11,6 @@
 // through the client (M63c).
 
 import { randomUUID } from 'node:crypto'
-import { statSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse } from '../acp/paid'
@@ -23,7 +21,6 @@ import { personalSkillsRoot } from '../core/context/skills'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
 import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
-import { canonicalPath } from '../host/canonicalPath'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -40,6 +37,7 @@ import type { Logger } from '../host/logger'
 import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
 import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
+import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   type EnvironmentVariable,
   MENTION_INDEX_LIMIT,
@@ -50,7 +48,6 @@ import {
   SECRET_KEYS,
   SETTING_DEFAULTS,
   UI_TEXT,
-  WORKSPACE_IDENTITY_ZERO,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
@@ -362,16 +359,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
-    const canonical = await canonicalPath(cwd)
-    const identity = await stat(canonical, { bigint: true })
-    if (
-      !identity.isDirectory() ||
-      identity.ino <= WORKSPACE_IDENTITY_ZERO ||
-      identity.dev < WORKSPACE_IDENTITY_ZERO
-    ) {
+    const identity = await captureWorkspaceIdentity(cwd)
+    if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
     }
-    const key = `${identity.dev.toString()}:${identity.ino.toString()}`
+    const { canonical, key } = identity
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
@@ -380,18 +372,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return await existing.manager.ensureHost()
     }
     const assertWorkspaceCurrent = () => {
-      try {
-        for (const root of [cwd, canonical]) {
-          const current = statSync(root, { bigint: true })
-          if (
-            !current.isDirectory() ||
-            current.dev !== identity.dev ||
-            current.ino !== identity.ino
-          ) {
-            throw new Error(MODEL_TEXT.pathChangedAfterApproval)
-          }
-        }
-      } catch {
+      if (!identity.isCurrent()) {
         throw new Error(MODEL_TEXT.pathChangedAfterApproval)
       }
     }

@@ -5,9 +5,6 @@
 // before every git invocation, including after a picker (D13).
 
 import { randomBytes } from 'node:crypto'
-import { type BigIntStats, statSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
-import * as z from 'zod/mini'
 import {
   baseChoices,
   branchMaterial,
@@ -22,53 +19,19 @@ import {
   uncommittedMaterial,
 } from '../../core/review/reviewMaterial'
 import {
-  REVIEW_GIT_CONFIG,
+  GIT_FILTER_NAMES_ARGS,
+  GIT_METADATA_OPTIONS,
   REVIEW_GIT_TIMEOUT_MS,
-  REVIEW_FILTER_NAMES_MAX,
-  REVIEW_FILTER_NAME_MAX_CHARS,
   REVIEW_MARKER_BYTES,
-  WORKSPACE_IDENTITY_ZERO,
   UI_TEXT,
 } from '../../shared/constants'
 import type { ReviewRequest } from '../../shared/reviewCommand'
 import type { PickOne } from '../commands/pickItem'
-import { canonicalPath } from '../canonicalPath'
+import { gitFilterOptions } from '../git'
+import { captureWorkspaceIdentity, type WorkspaceIdentity } from '../workspaceIdentity'
 
 // A failed git call that carried no exit code (git was not found, say).
 const UNKNOWN_EXIT = 'with no exit code'
-const CONFIG_SEPARATOR = '\u{0}'
-const FILTER_NAME = /^filter\.([^=\p{Cc}]+)\.(?:clean|process|required)$/u
-const FILTER_CONFIG_QUERY = [
-  'config',
-  '--null',
-  '--name-only',
-  '--get-regexp',
-  String.raw`^filter\..*\.(clean|process|required)$`,
-] as const
-const filterNamesSchema = z
-  .array(z.string().check(z.maxLength(REVIEW_FILTER_NAME_MAX_CHARS), z.regex(FILTER_NAME)))
-  .check(z.maxLength(REVIEW_FILTER_NAMES_MAX))
-
-/** Git's names only, never the filter commands, become per-call disabling options. */
-function filterOptions(output: string): readonly string[] {
-  const names = output === '' ? [] : output.split(CONFIG_SEPARATOR)
-  if (names.at(-1) === '') {
-    names.pop()
-  }
-  const parsed = filterNamesSchema.safeParse(names)
-  if (!parsed.success) {
-    throw new Error(UI_TEXT.reviewGitFailed)
-  }
-  const drivers = new Set(parsed.data.map((name) => name.slice(0, name.lastIndexOf('.'))))
-  return [...drivers].flatMap((driver) => [
-    '-c',
-    `${driver}.clean=`,
-    '-c',
-    `${driver}.process=`,
-    '-c',
-    `${driver}.required=false`,
-  ])
-}
 
 /** A request that reads git: every scope but custom instructions. */
 export type GitReviewRequest = Exclude<ReviewRequest, { readonly scope: 'custom' }>
@@ -202,40 +165,20 @@ export function createReviewCollector(
     if (!isStillAllowed() || deps.workspaceRoot.trim() === '') {
       return { kind: 'cancelled' }
     }
-    let canonicalRoot: string
-    let rootIdentity: BigIntStats
+    let root: WorkspaceIdentity | undefined
     try {
-      canonicalRoot = await canonicalPath(deps.workspaceRoot)
-      rootIdentity = await stat(canonicalRoot, { bigint: true })
+      root = await captureWorkspaceIdentity(deps.workspaceRoot)
     } catch {
       return { kind: 'cancelled' }
     }
-    if (
-      !rootIdentity.isDirectory() ||
-      rootIdentity.ino <= WORKSPACE_IDENTITY_ZERO ||
-      rootIdentity.dev < WORKSPACE_IDENTITY_ZERO
-    ) {
+    if (root === undefined) {
       return { kind: 'cancelled' }
     }
+    const { canonical: canonicalRoot } = root
+    // Once the folder was seen to have changed, or trust withdrawn, it stays lost.
     let hasLostRoot = false
     const isCurrentRoot = () => {
-      if (hasLostRoot || !isStillAllowed()) {
-        hasLostRoot = true
-        return false
-      }
-      try {
-        for (const root of [deps.workspaceRoot, canonicalRoot]) {
-          const current = statSync(root, { bigint: true })
-          if (
-            !current.isDirectory() ||
-            current.dev !== rootIdentity.dev ||
-            current.ino !== rootIdentity.ino
-          ) {
-            hasLostRoot = true
-            return false
-          }
-        }
-      } catch {
+      if (hasLostRoot || !isStillAllowed() || !root.isCurrent()) {
         hasLostRoot = true
         return false
       }
@@ -253,7 +196,7 @@ export function createReviewCollector(
       assertCurrentRoot()
       try {
         const output = await deps.runGit(
-          [...REVIEW_GIT_CONFIG, ...filters, ...args],
+          [...GIT_METADATA_OPTIONS, ...filters, ...args],
           canonicalRoot,
           REVIEW_GIT_TIMEOUT_MS,
         )
@@ -267,7 +210,7 @@ export function createReviewCollector(
     const readFilters = async () => {
       let output: string
       try {
-        output = await run(FILTER_CONFIG_QUERY)
+        output = await run(GIT_FILTER_NAMES_ARGS)
       } catch (error: unknown) {
         // `--get-regexp` exits 1 only when no matching names exist. Every
         // other failure keeps review closed, never as an empty inventory.
@@ -277,7 +220,7 @@ export function createReviewCollector(
         output = ''
       }
       assertCurrentRoot()
-      return filterOptions(output)
+      return gitFilterOptions(output)
     }
     let filters: readonly string[] = []
     const git: ReviewGit = async (args) => {

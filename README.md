@@ -758,6 +758,64 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
+## Review
+
+Review what the agent did before it lands, on both backends.
+
+- **`/review`** reviews the uncommitted changes (staged and unstaged,
+  against the last commit). `/review branch [base]` reviews the branch
+  against its base since they diverged, `/review commit [revision]` one
+  commit, and `/review <what to look at>` anything you describe, with no
+  git at all. Leave out the base or the commit and a picker asks, the
+  repository's default branch first. Put `security` first
+  (`/review security`, or **Security review** in the `/` menu) to look for
+  injection, secrets, authentication and unsafe APIs.
+- **What goes with it.** The extension reads the changes with git and sends
+  them marked as untrusted data: text in a diff, a file name or a commit
+  message that tries to give the reviewer orders is reported, not
+  followed. Environment files, keys and credentials are left out and only
+  named. A very long diff is cut, and the reviewer reads the rest of the
+  files itself. In Restricted Mode git does not run, so the git presets say
+  so; `/review <what to look at>` still works.
+  Review disables fsmonitor with an empty value, which also works with
+  older Git that treats `false` as a hook pathname. Configured clean and
+  process filters do not run during review: working-tree diffs compare
+  saved file text directly with stored Git text, without those conversions.
+  Ordinary Git operations keep their own filter configuration.
+- **On the Model API** the review is the Reviewer's turn in your
+  conversation: its own prompt, and tools that only read (read, search,
+  list files, VS Code's Problems). It cannot edit, run commands or reach
+  the network, in any permission mode. It is part of your own turn, so it
+  asks nothing extra; the model can also start the Reviewer as a subagent
+  (role `reviewer`), which is a paid child task like any other.
+  The review turn uses no external MCP server and is not blocked by one
+  being unavailable. Configured servers still start when the conversation
+  opens; ordinary turns keep their required-server checks.
+- **On Muse Code** the review turn runs in Plan mode and your permission
+  mode comes back when it ends (pick another mode meanwhile and that one
+  stays). Muse Code applies its own allow rules in Plan mode, so a review
+  there is not strictly read-only. Choosing a mode while Plan mode is being
+  set cancels that pending review; your latest choice takes effect after any
+  outstanding review mode change finishes.
+  Turning Bypass off invalidates an earlier pending confirmation, even if
+  turned on again. If it is revoked while a review restores the mode, the
+  backend is set to Manual before another turn starts. A refused safe
+  fallback retires that conversation's session; it cannot retire a newer
+  conversation that replaced it.
+- **Findings** end the reply as a list: severity, what is wrong, and the
+  file and line, which opens the file there.
+- **The review pane** (`/changes`, or **Review this conversation’s
+  changes**) lists every file this conversation changed, its agents'
+  included, change by change. **Accept** marks a change; **Revert** takes
+  that one change out of the file as it is now, or says why it cannot (the
+  file changed since, or its editor has unsaved changes). Save or discard
+  unsaved changes before trying Revert again. Overlapping reverts of the
+  same file run in order and rebuild from its latest saved bytes. The pane
+  lists at most 200 edits and 20,000 diff lines, counting omitted edits
+  even when the first patch exceeds the limit. **Comment on a line** sends your comment to the
+  agent with that line and the lines around it: into the running turn, or
+  as your next message.
+
 ## Scheduled prompts (Model API)
 
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
@@ -1061,14 +1119,16 @@ palette with a filter box of its own. Its groups:
   servers, hooks, memory, settings, keybindings.
 - **Account & usage** (with the paid features' toggles where the backend can
   use them), **Skills** (the session's own, plus Manage and Import on the CLI
-  backend), **Slash commands** and **Support**.
+  backend), **Slash commands**, **Review** (the review presets and the review
+  pane) and **Support**.
 
 Type a letter after the `/` and the palette gives way to a flat list of slash
-commands narrowed as you type: `/agents`, `/clear`, `/compact`, `/config`,
-`/cost`, `/export`, `/goal`, `/hooks`, `/logout`, `/mcp`, `/memory`,
-`/model`, `/permissions`, `/resume`, `/usage`, `/loop` (Model API backend),
+commands narrowed as you type: `/agents`, `/changes`, `/clear`, `/compact`,
+`/config`, `/cost`, `/export`, `/goal`, `/hooks`, `/logout`, `/mcp`,
+`/memory`, `/model`, `/permissions`, `/resume`, `/review`,
+`/security-review`, `/usage`, `/loop` (Model API backend),
 and the session's skills. Names that start with your letters come first. Up
-and Down move, `Enter` runs a command (a skill, or `/goal`, is completed so
+and Down move, `Enter` runs a command (a skill, `/goal` or `/review` is completed so
 you can add what follows it), `Tab` completes the name and `Esc` closes the
 list. With nothing matching, `Enter` sends the text as it is.
 
@@ -1947,6 +2007,10 @@ stopped and the next message resumes the same session.
   `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and
   removing that directory deletes them all. The History dialog archives, it
   does not delete.
+- A `/review` of git's changes sends their diff, the changed files' names
+  and, for one commit, its message with the review turn, as a message would
+  send them; environment files, keys and credentials are left out of the
+  diff and only named. The review pane and its Revert stay on this machine.
 - The log records what happened (sessions, turns and their times, approvals,
   failures) and never your prompts, files, dictated words or the model's
   output; keys are redacted.
@@ -2190,6 +2254,7 @@ helpers are Windows PowerShell and Swift with no dependencies.
 | `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `npm run test:e2e:live`                   | One real turn on the installed Muse Code CLI, opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60, counted from the CLI's trace log); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run test:e2e:live:modelapi`          | The Model API sweep: the production backend against Meta's real API in empty temporary workspaces, one case per feature (`-- -t case07` runs one); opt-in with `MUSE_LIVE_MODEL_API=1` and the key in `MUSE_LIVE_MODEL_API_KEY`, contributor tier only; bills the key (about $0.03 a full run, $0.02 of it two images; it stops sending past $0.50); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `npm run test:e2e:live:eval`              | The M75 paired efficiency evaluation: the ten fixture tasks (six accept, four held-out) on the extension's own Model API harness against Meta's real API, each in an empty temporary workspace, judged by a verifier that runs the fixed code; attempts counted from the requests sent, tokens, cost and pass rate per task, and the capability floors (0.75 per split). Opt-in with `MUSE_LIVE_MODEL_API=1` and the key in `MUSE_LIVE_MODEL_API_KEY`, contributor model only; `MUSE_EVAL_TASKS` picks tasks, `MUSE_EVAL_REPORT=<path>` writes `<path>.json` and `.md`; run `npm run build:dev` first. Bills the key (the ten tasks measured at 39 model calls and $0.0041; it stops sending past $0.50 or when a sent call has unknown usage); never in CI                                                                |
 | `npm run test:integration`                | Builds, downloads VS Code stable and the `engines.vscode` floor into `.vscode-test/`, runs `test/integration/**` in each; after `npm run build:dev`, `npm run test:integration:run -- --label stable` (or `minimum`) runs one                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `npm run test`                            | Unit then integration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `npm run security:audit`                  | `scripts/audit.mjs`: fails on a high or critical advisory without a dated, reviewed entry in `.github/audit-exceptions.json`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |

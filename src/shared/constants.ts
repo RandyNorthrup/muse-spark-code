@@ -747,25 +747,11 @@ export const REVIEW_FILES_LISTED_MAX = 500
 // A large repository's diff takes longer than the status the runner's
 // default is sized for.
 export const REVIEW_GIT_TIMEOUT_MS = 60_000
-// A names-only filter inventory is bounded before building review Git argv.
-export const REVIEW_FILTER_NAMES_MAX = 200
-export const REVIEW_FILTER_NAME_MAX_CHARS = 1024
 // What the base-branch and commit pickers offer.
 export const REVIEW_PICK_BRANCHES_MAX = 200
 export const REVIEW_PICK_COMMITS_MAX = 50
 // The bases tried, in order, when `origin/HEAD` names none.
 export const REVIEW_DEFAULT_BASES = ['main', 'master'] as const
-// Every review git call: no fsmonitor hook and no signature program the
-// repository configures runs (`log.showSignature` would start
-// `gpg.program`), and paths come back as they are rather than quoted.
-export const REVIEW_GIT_CONFIG = [
-  '-c',
-  'core.fsmonitor=',
-  '-c',
-  'log.showSignature=false',
-  '-c',
-  'core.quotePath=false',
-] as const
 // A diff with no external driver or text conversion the repository names.
 export const REVIEW_DIFF_OPTIONS = [
   '--no-color',

@@ -795,8 +795,12 @@ export class ConversationController {
         readonly bypassEpoch: number
       }
     | undefined
-  /** A `/review` on its way (git, the pickers, the session): one at a time. */
-  private isReviewStarting = false
+  /**
+   * A `/review` on its way (git, the pickers, the session): one at a time.
+   * A message sent meanwhile waits for it (`sessionForAction`), so it cannot
+   * start a turn the review's own turn would then queue or steer behind.
+   */
+  private reviewStart: Promise<void> | undefined
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -2298,17 +2302,20 @@ export class ConversationController {
     // the actual backend mode underneath the panel's temporary label.
     for (;;) {
       const held = this.planHold
+      const starting = this.reviewStart
       try {
         await this.reviewModeSettling
       } catch {
         // The mode owner handles the failure and may retire this session.
       }
+      await starting
       await held?.hold.waitForModeChange()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return undefined
       }
       if (
         this.reviewModeSettling === undefined &&
+        this.reviewStart === undefined &&
         (this.planHold === held || this.planHold === undefined)
       ) {
         break
@@ -3763,26 +3770,47 @@ export class ConversationController {
    * message's is: accepted, or failed with the reason.
    */
   private async startReview(localId: string, text: string, request: ReviewRequest): Promise<void> {
-    const refuse = (reason: string) => {
-      this.post({ type: 'sendFailed', localId, reason })
-    }
     // Says why when it refuses (signed out, no folder), as a message's card does.
     const refusal = this.refuseAction(localId)
     const { workspaceRoot } = this.deps
     if (refusal !== undefined || workspaceRoot === undefined) {
       return
     }
-    if (this.activeTurnId !== undefined || this.isReviewStarting || this.planHold !== undefined) {
-      refuse(UI_TEXT.reviewBusy)
+    if (
+      this.activeTurnId !== undefined ||
+      this.reviewStart !== undefined ||
+      this.planHold !== undefined
+    ) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.reviewBusy })
       return
     }
     if (isGitReview(request) && !this.deps.isWorkspaceTrusted()) {
-      refuse(UI_TEXT.reviewRestricted)
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.reviewRestricted })
       return
+    }
+    const running = this.runReview(localId, text, request, workspaceRoot)
+    this.reviewStart = running
+    try {
+      await running
+    } finally {
+      this.reviewStart = undefined
+    }
+  }
+
+  /** The review's asynchronous part: it answers its own failures on the card and never rejects. */
+  private async runReview(
+    localId: string,
+    text: string,
+    request: ReviewRequest,
+    workspaceRoot: string,
+  ): Promise<void> {
+    const refuse = (reason: string) => {
+      this.post({ type: 'sendFailed', localId, reason })
     }
     const generation = this.sendInvalidationEpoch
     const isStale = () => this.isDisposed || generation !== this.sendInvalidationEpoch
-    this.isReviewStarting = true
+    // The capture this review's turn takes (M72), dropped if it is not sent.
+    let checkpoint: PendingCapture | undefined
     try {
       // Git and the reviewer read the files on disk, as a turn does (D27).
       await this.autosave()
@@ -3829,8 +3857,16 @@ export class ConversationController {
         refuse(UI_TEXT.reviewRestricted)
         return
       }
-      // A turn may have started while the pickers were open.
+      // A review's turn is marked running before it is sent and takes the
+      // capture made just before it, as a message's does (M72): Muse Code's
+      // Plan mode is not strictly read-only, and another window must refuse
+      // a restore from the moment this one can change a file.
+      if (!this.isSideChat) {
+        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
+      }
+      // A turn may have started while the pickers were open or the capture was taken.
       if (this.isTurnRunning()) {
+        this.checkpoints.dropPending(checkpoint)
         refuse(UI_TEXT.reviewBusy)
         return
       }
@@ -3862,13 +3898,19 @@ export class ConversationController {
       if (material !== undefined) {
         this.noteReviewMaterial(material)
       }
+      this.checkpoints.accepted(
+        checkpoint,
+        submission.turnId,
+        submission.disposition !== QUEUED_DISPOSITION &&
+          submission.disposition !== STEERED_DISPOSITION,
+      )
       this.acceptSubmission(localId, text, submission)
     } catch (error: unknown) {
+      this.checkpoints.dropPending(checkpoint)
       const reason = describe(error)
-      this.deps.log.error(`startReview failed: ${reason}`)
+      // The user's card says why; the log keeps the kind, never text a backend chose.
+      this.deps.log.error(`startReview failed: ${errorKind(error)}`)
       refuse(reason)
-    } finally {
-      this.isReviewStarting = false
     }
   }
 

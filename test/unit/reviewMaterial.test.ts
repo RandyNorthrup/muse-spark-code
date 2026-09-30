@@ -17,12 +17,12 @@ import {
   reviewMarker,
 } from '../../src/host/review/reviewCollector'
 import {
+  GIT_METADATA_OPTIONS,
   REVIEW_DIFF_MAX_CHARS,
-  REVIEW_FILTER_NAME_MAX_CHARS,
-  REVIEW_FILTER_NAMES_MAX,
   REVIEW_MARKER_BYTES,
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
+import { hostileFilterListings } from './helpers/gitFilterNames'
 import { aliasedReviewRepositories } from './helpers/reviewRoots'
 
 const REAL_GIT_TIMEOUT_MS = 60_000
@@ -266,6 +266,31 @@ describe('one commit', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
         commit: 'deadbeef',
       }),
     ).toEqual({ kind: 'refused', refusal: 'unknownRevision', revision: 'deadbeef' })
+  })
+
+  it('shows the commit as history holds it, never what a replace ref in the repository substitutes', async () => {
+    const folder = await repository('replaced')
+    await commitFile(folder, 'src/a.ts', 'export const a = 1\n', 'first')
+    await commitFile(folder, 'src/a.ts', 'export const a = 2\n', 'the real change')
+    const real = git(folder, ['rev-parse', 'HEAD']).trim()
+    // A decoy commit with another change, swapped in for the real one by a
+    // replace ref, which ordinary git follows and a review must not.
+    git(folder, ['checkout', '-q', '--detach', 'HEAD~1'])
+    await writeFile(path.join(folder, 'src/a.ts'), 'export const a = 666 // the decoy\n')
+    git(folder, ['commit', '-q', '-am', 'the decoy'])
+    const decoy = git(folder, ['rev-parse', 'HEAD']).trim()
+    git(folder, ['checkout', '-q', 'main'])
+    git(folder, ['replace', real, decoy])
+    expect(git(folder, ['show', '--format=', real])).toContain('decoy')
+    const found = material(
+      await collector(folder, () => undefined).collect({
+        scope: 'commit',
+        focus: 'general',
+        commit: real,
+      }),
+    )
+    expect(found.diff).toContain('+export const a = 2')
+    expect(found.diff).not.toContain('decoy')
   })
 })
 
@@ -601,15 +626,7 @@ describe('bounded names-only filter discovery', () => {
     }
   })
 
-  it.each([
-    'filter.bad=name.clean\u{0}',
-    `filter.${'x'.repeat(REVIEW_FILTER_NAME_MAX_CHARS)}.clean\u{0}`,
-    Array.from(
-      { length: REVIEW_FILTER_NAMES_MAX + 1 },
-      (_, index) => `filter.p${String(index)}.clean\u{0}`,
-    ).join(''),
-    Object.assign(new Error('unreadable configuration'), { code: 'EACCES' }),
-  ])(
+  it.each(hostileFilterListings('unreadable configuration'))(
     'refuses malformed, excessive or unreadable filter discovery before a diff: %s',
     async (names) => {
       const t = namesOnlyCollector(names)
@@ -660,14 +677,9 @@ describe('a git failure', () => {
       refusal: 'gitFailed',
       failure: 'git diff exited 128',
     })
-    // Every call runs with the review's own configuration first.
-    expect(runGit.mock.calls[0]?.[0].slice(0, 6)).toEqual([
-      '-c',
-      'core.fsmonitor=',
-      '-c',
-      'log.showSignature=false',
-      '-c',
-      'core.quotePath=false',
+    // Every call runs with the extension's metadata-only git configuration first.
+    expect(runGit.mock.calls[0]?.[0].slice(0, GIT_METADATA_OPTIONS.length)).toEqual([
+      ...GIT_METADATA_OPTIONS,
     ])
   })
 })

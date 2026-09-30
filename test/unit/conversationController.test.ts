@@ -301,6 +301,8 @@ function setup(
     restoreOutcome?: RestoreOutcome
     /** The answer to the file restore / code rewind confirmation (M72). */
     confirmsFileAction?: boolean
+    /** Told each time the checkpoint port is asked to mark a turn running or ended (M72). */
+    onMarkTurn?: (key: string, isRunning: boolean) => void
     /** The edit review behind the review pane (M70). */
     editReview?: ConversationDeps['editReview']
     /** `/review`'s git material and markers (M70). */
@@ -481,7 +483,10 @@ function setup(
       checkpointTurns.add(turnId)
       return Promise.resolve()
     },
-    markTurn: () => Promise.resolve(),
+    markTurn: (key, isRunning) => {
+      options.onMarkTurn?.(key, isRunning)
+      return Promise.resolve()
+    },
     endTurn: (sessionId, turnId) => {
       checkpointCalls.push(`end ${sessionId} ${turnId}`)
       return Promise.resolve()
@@ -7544,6 +7549,40 @@ describe('ConversationController: review (M70)', () => {
     })
   })
 
+  it('marks a review turn running and takes its capture before it is sent, and ties the capture to the turn (M72)', async () => {
+    const marks: string[] = []
+    const holder: { t?: ReturnType<typeof reviewSetup> } = {}
+    const t = reviewSetup({
+      checkpointAvailability: 'on',
+      onMarkTurn: (_key, isRunning) => {
+        const sent = holder.t?.server.requestsFor('turn/start').length ?? 0
+        marks.push(`${isRunning ? 'running' : 'ended'} after ${String(sent)} turn/start`)
+      },
+    })
+    holder.t = t
+    await startReview(t)
+    expect(marks[0]).toBe('running after 0 turn/start')
+    expect(t.checkpointCalls).toEqual(['capture', 'record s1 t1'])
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  })
+
+  it('lets go of a review’s capture and running mark when its turn cannot be sent (M72)', async () => {
+    const marks: boolean[] = []
+    const t = reviewSetup({
+      checkpointAvailability: 'on',
+      onMarkTurn: (_key, isRunning) => {
+        marks.push(isRunning)
+      },
+    })
+    t.server.handle('turn/start', () => {
+      throw new Error('boom')
+    })
+    await startReview(t)
+    expect(t.checkpointCalls).toEqual(['capture', 'release'])
+    expect(marks).toEqual([true, false])
+    expect(t.surface.posted.filter((message) => message.type === 'sendFailed')).toHaveLength(1)
+  })
+
   it('keeps a mode the user chose during the review, and puts nothing back over it', async () => {
     const t = reviewSetup()
     await startReview(t)
@@ -7821,6 +7860,24 @@ describe('ConversationController: review (M70)', () => {
     expect(t.surface.posted).toContainEqual(
       expect.objectContaining({ type: 'turnAccepted', localId: 'r2' }),
     )
+  })
+
+  it('holds a message sent while a review starts until the review turn has started, then steers it in', async () => {
+    const t = reviewSetup()
+    const held = Promise.withResolvers<ReviewCollection>()
+    t.collect.mockReturnValueOnce(held.promise)
+    const starting = startReview(t)
+    const sending = t.send('m1', 'one more thing')
+    await settle()
+    // Neither a turn of the message's own nor a steer has been asked for yet.
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+    held.resolve(GIT_MATERIAL)
+    await starting
+    await sending
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(turnStartText(t)).toContain('review material')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
   })
 
   it('reviews on the Model API as the Reviewer: its tools only, no mode change, nothing paid', async () => {
