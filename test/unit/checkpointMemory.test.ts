@@ -563,8 +563,16 @@ describe('activation builds the memory through the checkpointed composition (M72
     expect(source).toMatch(/createCheckpointedMemory\(\s*toolIo,\s*checkpoints,/)
     expect(source).toMatch(/edit:\s*memory\.edit,\s*beforeDelete:\s*memory\.beforeDelete,/)
     expect(source).toMatch(/memory:\s*memory\.store,/)
-    // The exports the user places are written under the same lease.
-    expect(source).toMatch(/editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(/)
+    // The guard the memory captures for each mutation is the window's own
+    // native-start guard, not a no-op.
+    expect(source).toMatch(
+      /captureGuard:\s*\(\)\s*=>\s*backend\.workspaceActionGuard\(nativeStarts\.signal\)/,
+    )
+    // The exports the user places are written under the same lease, the same
+    // guard, and the workspace root and platform the restore compares with.
+    expect(source).toMatch(
+      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{ root: workspaceRoot, platform: process\.platform \},\s*fsPath,\s*work,\s*\)/,
+    )
     expect(source).not.toContain('new MemoryStore(')
     expect(source).not.toContain('createMemoryIo(')
   })
