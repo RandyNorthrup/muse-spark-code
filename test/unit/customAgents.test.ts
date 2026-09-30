@@ -12,7 +12,12 @@ import {
   resolveAgentModel,
 } from '../../src/core/context/customAgents'
 import {
+  AGENT_DESCRIPTION_MAX_CHARS,
   AGENT_FILE_MAX_BYTES,
+  AGENT_MAX_FILES,
+  AGENT_MODEL_MAX_CHARS,
+  AGENT_NAME_MAX_CHARS,
+  AGENT_TOOLS_MAX,
   BUILTIN_AGENT_EXPLORE_ID,
   BUILTIN_AGENT_SECOND_OPINION_ID,
   MODEL_API_SUBAGENT_TOOLS,
@@ -31,6 +36,9 @@ const agentFile = (name: string, description: string, extra = '', body = `# ${na
 function agentIds(load: AgentsLoad): string[] {
   return load.agents.map((agent) => `${agent.source}:${agent.id}`)
 }
+
+const parseWith = (name: string, description: string, extra = '') =>
+  parseAgentFile(agentFile(name, description, extra))
 
 describe('parseAgentFile', () => {
   it('reads the full front matter and the body', () => {
@@ -94,11 +102,96 @@ describe('parseAgentFile', () => {
     })
   })
 
-  it('ignores unknown keys and treats an empty tools list as absent', () => {
-    expect(parseAgentFile(agentFile('x', 'd', 'future: yes\ntools: " , "\n'))).toMatchObject({
+  it('ignores unknown keys, comments and blank lines, and keeps each tool once', () => {
+    const extra = '# a note\n\nfuture: yes\ntools: read_file, search, read_file\n'
+    expect(parseAgentFile(agentFile('x', 'd', extra))).toMatchObject({
       ok: true,
-      agent: { tools: undefined, model: undefined, effort: undefined, approvalMode: undefined },
+      agent: { tools: ['read_file', 'search'], model: undefined, effort: undefined },
     })
+  })
+
+  // A tools line that does not name tools must never read as "every tool":
+  // the file is refused, because what it could not say was a narrowing.
+  it.each([
+    ['an empty tools line', 'tools:\n'],
+    ['a blank list', 'tools: " , "\n'],
+    ['a trailing comma', 'tools: read_file,\n'],
+    ['a YAML flow list', 'tools: [read_file, search]\n'],
+    ['a tool name with a space', 'tools: read file\n'],
+    [
+      'too many tools',
+      `tools: ${Array.from({ length: AGENT_TOOLS_MAX + 1 }, (_, index) => `t${String(index)}`).join(',')}\n`,
+    ],
+  ])('refuses %s', (_name, extra) => {
+    expect(parseAgentFile(agentFile('x', 'd', extra))).toEqual({
+      ok: false,
+      reason: 'front matter has an invalid tools',
+    })
+  })
+
+  it('refuses a YAML block list or an indented value instead of dropping its lines', () => {
+    const reason =
+      'front matter has a line that is not "key: value" (lists and indented values are not supported)'
+    expect(parseAgentFile(agentFile('x', 'd', 'tools:\n  - read_file\n  - search\n'))).toEqual({
+      ok: false,
+      reason,
+    })
+    expect(parseAgentFile(agentFile('x', 'd', 'permission-mode: plan\n  extra\n'))).toEqual({
+      ok: false,
+      reason,
+    })
+  })
+
+  it('refuses a repeated key, whichever line would have won', () => {
+    expect(
+      parseAgentFile(agentFile('x', 'd', 'permission-mode: plan\npermission-mode: auto\n')),
+    ).toEqual({ ok: false, reason: 'front matter repeats permission-mode' })
+    expect(parseAgentFile(agentFile('x', 'd', 'tools: read_file\ntools: bash\n'))).toEqual({
+      ok: false,
+      reason: 'front matter repeats tools',
+    })
+  })
+
+  it('bounds every field that reaches a prompt', () => {
+    const parse = parseWith
+    expect(parse('n'.repeat(AGENT_NAME_MAX_CHARS), 'd')).toMatchObject({ ok: true })
+    expect(parse('n'.repeat(AGENT_NAME_MAX_CHARS + 1), 'd')).toEqual({
+      ok: false,
+      reason: 'front matter has an invalid name',
+    })
+    expect(parse('x', 'd'.repeat(AGENT_DESCRIPTION_MAX_CHARS))).toMatchObject({ ok: true })
+    expect(parse('x', 'd'.repeat(AGENT_DESCRIPTION_MAX_CHARS + 1))).toEqual({
+      ok: false,
+      reason: 'front matter has an invalid description',
+    })
+    expect(parse('x', 'd', `model: ${'m'.repeat(AGENT_MODEL_MAX_CHARS + 1)}\n`)).toEqual({
+      ok: false,
+      reason: 'front matter has an invalid model',
+    })
+  })
+
+  it.each([
+    ['a direction override', 'safe \u{202E}evil'],
+    ['a zero-width character', 'safe\u{200B}evil'],
+    ['a terminal escape', 'safe \u{1B}[2Jevil'],
+    ['a NUL', 'safe\u{0}evil'],
+  ])('refuses %s in a name, a description or a model', (_name, hidden) => {
+    expect(parseAgentFile(agentFile('x', hidden))).toEqual({
+      ok: false,
+      reason: 'front matter has an invalid description',
+    })
+    expect(parseAgentFile(agentFile(hidden, 'd'))).toEqual({
+      ok: false,
+      reason: 'front matter has an invalid name',
+    })
+    expect(parseAgentFile(agentFile('x', 'd', `model: ${hidden}\n`))).toEqual({
+      ok: false,
+      reason: 'front matter has an invalid model',
+    })
+  })
+
+  it('keeps a tab in a description', () => {
+    expect(parseAgentFile(agentFile('x', 'a\tb'))).toMatchObject({ ok: true })
   })
 })
 
@@ -209,9 +302,60 @@ describe('loadAgents', () => {
     ])
     expect(load.warnings).toEqual([
       'project agent BAD skipped: the directory name is not a valid agent id',
-      expect.stringMatching(/^project agent big skipped: AGENT\.md is \d+ bytes, over the/),
+      `project agent big skipped: AGENT.md is over the ${String(AGENT_FILE_MAX_BYTES)} byte limit`,
       'project agent broken skipped: front matter is missing',
       'project agent mismatched: front matter name other differs from the directory; the directory name is the selector',
+    ])
+  })
+
+  it('reads each agent file within its cap, never whole', async () => {
+    const requested: (number | undefined)[] = []
+    const inner = memoryIo({
+      '.agents/agents/huge/AGENT.md': 'x'.repeat(10 * AGENT_FILE_MAX_BYTES),
+    })
+    const io = {
+      ...inner,
+      readFile: (file: string, maxBytes?: number) => {
+        requested.push(maxBytes)
+        return inner.readFile(file, maxBytes)
+      },
+    }
+    const load = await loadAgents({ io, platform: 'linux' }, roots)
+    expect(requested).toEqual([AGENT_FILE_MAX_BYTES])
+    expect(load.warnings).toEqual([
+      `project agent huge skipped: AGENT.md is over the ${String(AGENT_FILE_MAX_BYTES)} byte limit`,
+    ])
+  })
+
+  it('loads at most AGENT_MAX_FILES files, naming each one left out', async () => {
+    const id = (index: number) => `a${String(index).padStart(3, '0')}`
+    const files: Record<string, string> = {}
+    for (let index = 0; index < AGENT_MAX_FILES + 2; index += 1) {
+      files[`.agents/agents/${id(index)}/AGENT.md`] = agentFile(id(index), 'Many')
+    }
+    files['.home/.config/muse/agents/mine/AGENT.md'] = agentFile('mine', 'Personal')
+    const load = await loadAgents({ io: memoryIo(files), platform: 'linux' }, roots)
+    const loaded = load.agents.filter((agent) => agent.source !== 'builtin')
+    expect(loaded).toHaveLength(AGENT_MAX_FILES)
+    expect(load.warnings).toEqual([
+      `project agent ${id(AGENT_MAX_FILES)} skipped: only the first ${String(AGENT_MAX_FILES)} agents are loaded`,
+      `project agent ${id(AGENT_MAX_FILES + 1)} skipped: only the first ${String(AGENT_MAX_FILES)} agents are loaded`,
+      `user agent mine skipped: only the first ${String(AGENT_MAX_FILES)} agents are loaded`,
+    ])
+  })
+
+  it('refuses a file whose front matter it cannot read whole, naming why', async () => {
+    const io = memoryIo({
+      '.agents/agents/listy/AGENT.md': agentFile(
+        'listy',
+        'Tools as a YAML list',
+        'tools:\n  - read_file\n',
+      ),
+    })
+    const load = await loadAgents({ io, platform: 'linux' }, roots)
+    expect(load.agents.map((agent) => agent.id)).toEqual(['explore', 'second-opinion'])
+    expect(load.warnings).toEqual([
+      'project agent listy skipped: front matter has a line that is not "key: value" (lists and indented values are not supported)',
     ])
   })
 

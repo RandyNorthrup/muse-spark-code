@@ -10,19 +10,33 @@
 // user's own turn is a paid subagent use like any child (D45, D48).
 //
 // The folder is the extension's own: the CLI names no agent folder
-// (`muse --help`, `muse skills --help` and `muse serve --help` list none,
-// verified 2026-09-28), recorded in PLAN.md D13. A repository's agent files
-// load only in a trusted workspace and can only narrow the tools and
-// permissions the session already has; a model one names passes the same
-// checks as the user's own choice. Muse Code reads its own agents, which the
-// Agent map already shows; this backend never sends it one.
+// (`muse --help`, `muse skills --help` and `muse serve --help` list none, and
+// its binary's strings hold `.agents/skills`, `.agents/memory` and
+// `.agents/plans` but no agent folder, re-checked 2026-09-30 on 1.4.0),
+// recorded in PLAN.md D13. A repository's agent files load only in a trusted
+// workspace and can only narrow the tools and permissions the session
+// already has; a model one names passes the same checks as the user's own
+// choice. Muse Code reads its own agents, which the Agent map already shows;
+// this backend never sends it one.
+//
+// An agent file is untrusted input (PLAN.md D49): it is read within a size
+// cap, parsed with zod, every field is bounded and free of characters that
+// hide, and a file whose front matter the line reader cannot take whole (a
+// YAML list, an indented value, a repeated key) is refused rather than
+// guessed at, because what it cannot read could have been a narrowing.
 
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
+  AGENT_DESCRIPTION_MAX_CHARS,
   AGENT_FILE_MAX_BYTES,
   AGENT_FILE_NAME,
   AGENT_ID_PATTERN,
+  AGENT_MAX_FILES,
+  AGENT_MODEL_MAX_CHARS,
+  AGENT_NAME_MAX_CHARS,
+  AGENT_TOOL_NAME_PATTERN,
+  AGENT_TOOLS_MAX,
   type AgentSource,
   BUILTIN_AGENT_EXPLORE_ID,
   BUILTIN_AGENT_SECOND_OPINION_ID,
@@ -88,14 +102,15 @@ export type AgentFileParse =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * A custom agent's narrowed run (M76): the resolved agent id, its prompt,
- * the offered tools the child keeps (undefined keeps the session's own
- * set), the effort it runs at, and the most it may do (undefined keeps the
- * session's approval mode). Plain data, so a stored or forked child keeps
- * the narrowing it was spawned with.
+ * A custom agent's narrowed run (M76): the resolved agent id and where its
+ * file came from, its prompt, the offered tools the child keeps (undefined
+ * keeps the session's own set), the effort it runs at, and the most it may
+ * do (undefined keeps the session's approval mode). Plain data, so a stored
+ * or forked child keeps the narrowing it was spawned with.
  */
 export interface AgentRuntime {
   readonly id: string
+  readonly source: AgentSource
   readonly prompt: string
   readonly toolAllowlist?: readonly string[] | undefined
   readonly effort: EffortLevel
@@ -104,32 +119,55 @@ export interface AgentRuntime {
 
 const PERMISSION_MODE_KEY = 'permission-mode'
 const LIST_SEPARATOR = ','
+// Control characters (other than a tab) and format characters (a direction
+// override, a zero-width character): text the model would read that no one
+// reviewing the file sees.
+const HIDDEN_CHARACTER = /[\p{Cc}\p{Cf}]/u
 
 const AGENT_CATALOG: CatalogKind = {
   kind: 'agent',
   fileName: AGENT_FILE_NAME,
   maxBytes: AGENT_FILE_MAX_BYTES,
   idPattern: AGENT_ID_PATTERN,
+  maxEntries: AGENT_MAX_FILES,
+}
+
+/** One visible line of bounded length: a name, a description, a model id. */
+function boundedLine(maxChars: number) {
+  return z.string().check(
+    z.trim(),
+    z.minLength(1),
+    z.maxLength(maxChars),
+    z.refine((value) => !HIDDEN_CHARACTER.test(value.replaceAll('\t', ' '))),
+  )
 }
 
 const agentFrontMatter = z.object({
-  name: z.string().check(z.trim(), z.minLength(1)),
-  description: z.string().check(z.trim(), z.minLength(1)),
-  tools: z.optional(z.string()),
-  model: z.optional(z.string().check(z.trim(), z.minLength(1))),
+  name: boundedLine(AGENT_NAME_MAX_CHARS),
+  description: boundedLine(AGENT_DESCRIPTION_MAX_CHARS),
+  tools: z.optional(z.string().check(z.trim(), z.minLength(1))),
+  model: z.optional(boundedLine(AGENT_MODEL_MAX_CHARS)),
   effort: z.optional(z.enum(EFFORT_LEVELS)),
   [PERMISSION_MODE_KEY]: z.optional(z.enum(PERMISSION_MODES)),
 })
 
-function toolsOf(value: string | undefined): readonly string[] | undefined {
+/**
+ * The allowlist a `tools` line names: each entry a function name, at most
+ * AGENT_TOOLS_MAX, none empty. A list that is not a list of names (YAML
+ * brackets, a sentence) is refused, never read as "all tools".
+ */
+function toolsOf(value: string | undefined): readonly string[] | 'invalid' | undefined {
   if (value === undefined) {
     return undefined
   }
-  const tools = value
-    .split(LIST_SEPARATOR)
-    .map((tool) => tool.trim())
-    .filter((tool) => tool !== '')
-  return tools.length === 0 ? undefined : tools
+  const tools = value.split(LIST_SEPARATOR).map((tool) => tool.trim())
+  const isValid =
+    tools.length <= AGENT_TOOLS_MAX && tools.every((tool) => AGENT_TOOL_NAME_PATTERN.test(tool))
+  return isValid ? [...new Set(tools)] : 'invalid'
+}
+
+function sortedUnique(keys: readonly string[]): string {
+  return [...new Set(keys)].toSorted((a, b) => a.localeCompare(b, 'en')).join(', ')
 }
 
 /** Splits an AGENT.md into its front matter (validated with zod) and body. */
@@ -138,13 +176,29 @@ export function parseAgentFile(text: string): AgentFileParse {
   if (!split.ok) {
     return split
   }
+  if (split.ignoredLines.length > 0) {
+    return {
+      ok: false,
+      reason:
+        'front matter has a line that is not "key: value" (lists and indented values are not supported)',
+    }
+  }
+  if (split.duplicateKeys.length > 0) {
+    return { ok: false, reason: `front matter repeats ${sortedUnique(split.duplicateKeys)}` }
+  }
   const parsed = agentFrontMatter.safeParse(Object.fromEntries(split.fields))
   if (!parsed.success) {
     const keys = parsed.error.issues.map((issue) => issue.path.map(String).join('.'))
-    const unique = [...new Set(keys)].toSorted((a, b) => a.localeCompare(b, 'en'))
-    return { ok: false, reason: `front matter has an invalid ${unique.join(', ') || 'shape'}` }
+    return {
+      ok: false,
+      reason: `front matter has an invalid ${sortedUnique(keys) || 'shape'}`,
+    }
   }
   const { data } = parsed
+  const tools = toolsOf(data.tools)
+  if (tools === 'invalid') {
+    return { ok: false, reason: 'front matter has an invalid tools' }
+  }
   const permissionMode = data[PERMISSION_MODE_KEY]
   return {
     ok: true,
@@ -152,7 +206,7 @@ export function parseAgentFile(text: string): AgentFileParse {
       name: data.name,
       description: data.description,
       body: split.body,
-      tools: toolsOf(data.tools),
+      tools,
       model: data.model,
       effort: data.effort,
       approvalMode: permissionMode === undefined ? undefined : mspApprovalMode(permissionMode),

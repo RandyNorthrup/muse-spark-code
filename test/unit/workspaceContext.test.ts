@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { builtinAgents } from '../../src/core/context/customAgents'
 import { WorkspaceContext } from '../../src/core/context/workspaceContext'
 import type { MemoryScopeSnapshot } from '../../src/core/memory/memoryStore'
 import { RULES_FILE_MAX_BYTES } from '../../src/shared/constants'
@@ -29,6 +30,7 @@ function setup(initial: Record<string, string>, isTrusted = true) {
     platform: 'linux',
     personalSkillsRoot: USER_ROOT,
     personalAgentsRoot: USER_AGENTS_ROOT,
+    hasAgents: true,
     isWorkspaceTrusted: () => isTrusted,
     loadMemory: () => {
       memoryLoads += 1
@@ -72,6 +74,38 @@ describe('WorkspaceContext', () => {
     expect(t.context.agent('scout')?.body).toBe('Prompt of scout')
     expect(t.context.agent('nope')).toBeUndefined()
     expect(t.warnings).toEqual([])
+  })
+
+  it('reads no agent directory for a child, which cannot spawn (M76)', async () => {
+    const files = memoryTree(
+      { '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting') },
+      ROOT,
+    )
+    const inner = memoryContextIo(files)
+    const touched: string[] = []
+    const context = new WorkspaceContext({
+      io: {
+        ...inner,
+        listDirectory: (directory) => {
+          touched.push(directory)
+          return inner.listDirectory(directory)
+        },
+      },
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      personalSkillsRoot: undefined,
+      personalAgentsRoot: USER_AGENTS_ROOT,
+      hasAgents: false,
+      isWorkspaceTrusted: () => true,
+      loadMemory: undefined,
+      warn: () => undefined,
+    })
+    await context.load()
+    expect(context.sections().agents).toEqual([])
+    expect(context.agent('scout')).toBeUndefined()
+    // The skill roots are listed; neither agent root is.
+    expect(touched.length).toBeGreaterThan(0)
+    expect(touched.filter((directory) => directory.endsWith('/agents'))).toEqual([])
   })
 
   it('adds a deeper rules file the first time a path beneath it is touched', async () => {
@@ -147,6 +181,7 @@ describe('WorkspaceContext: failing reads', () => {
       platform: 'linux',
       personalSkillsRoot: undefined,
       personalAgentsRoot: undefined,
+      hasAgents: true,
       isWorkspaceTrusted: () => true,
       loadMemory: () => Promise.reject(new Error('EACCES: permission denied')),
       warn: (message) => {
@@ -155,7 +190,13 @@ describe('WorkspaceContext: failing reads', () => {
     })
     await context.load()
     await expect(context.touch('src/a.ts')).resolves.toBe(false)
-    expect(context.sections()).toEqual({ rules: undefined, skills: [], agents: [], memory: [] })
+    // The built-in agents need no file, so a root that cannot be read leaves them.
+    expect(context.sections()).toEqual({
+      rules: undefined,
+      skills: [],
+      agents: builtinAgents(),
+      memory: [],
+    })
     expect(warnings).toEqual([
       'loading the rules failed: EACCES: permission denied',
       'loading the skills failed: EACCES: permission denied',
@@ -170,6 +211,7 @@ describe('WorkspaceContext: failing reads', () => {
       ...loaderDeps({}),
       personalSkillsRoot: undefined,
       personalAgentsRoot: undefined,
+      hasAgents: true,
       isWorkspaceTrusted: () => true,
       loadMemory: undefined,
       warn: () => undefined,

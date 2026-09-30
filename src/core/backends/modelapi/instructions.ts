@@ -8,6 +8,8 @@
 // has it and is trusted; and the session goal while one is active (M45).
 
 import {
+  AGENT_SOURCE_LABELS,
+  type AgentSource,
   type CheckCommandSetting,
   MEMORY_DIR,
   MEMORY_INDEX_FILE,
@@ -18,6 +20,7 @@ import {
   THEN_RUN_ARGUMENT,
   VERIFY_TOOLS,
 } from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
 import type { ContextSections } from '../../context/workspaceContext'
 import type { MemoryScopeSnapshot } from '../../memory/memoryStore'
 import { checkListText } from '../../verify/checkCommands'
@@ -65,10 +68,11 @@ export interface InstructionFacts {
    */
   readonly goalSection?: string
   /**
-   * A custom agent's own prompt (M76): the child runs with this as its role.
+   * A custom agent's own role (M76): the child runs with this prompt, named
+   * by its id and where its file came from, below the rules that outrank it.
    * Undefined on the parent conversation itself.
    */
-  readonly agentPrompt?: string
+  readonly agent?: { readonly id: string; readonly source: AgentSource; readonly prompt: string }
 }
 
 const PARAGRAPH = '\n\n'
@@ -145,7 +149,9 @@ function agentsText(context: ContextSections): string | undefined {
   if (context.agents.length === 0) {
     return undefined
   }
-  const rows = context.agents.map((agent) => `- ${agent.id}: ${agent.description}`)
+  const rows = context.agents.map(
+    (agent) => `- ${agent.id} (${AGENT_SOURCE_LABELS[agent.source]}): ${agent.description}`,
+  )
   return [
     '# Agents',
     `These custom agents are available in this workspace. To run one, call ${MODEL_API_SUBAGENT_TOOLS.spawn} with agent set to its id and the objective; its prompt, tools, model, effort and permissions narrow this session's, and the run is a paid child task like any subagent.`,
@@ -222,9 +228,19 @@ function verifyText(facts: InstructionFacts): string | undefined {
   return lines.length === 0 ? undefined : ['# Checking your work', lines.join(LINE)].join(PARAGRAPH)
 }
 
+/** A custom agent's role, labelled with whose words it is (M76): file content, never a higher authority. */
+function agentRoleText(agent: InstructionFacts['agent']): string | undefined {
+  if (agent === undefined) {
+    return undefined
+  }
+  const source = AGENT_SOURCE_LABELS[agent.source]
+  return ['# Agent role', fill(MODEL_TEXT.agentRole, { source, id: agent.id }), agent.prompt].join(
+    PARAGRAPH,
+  )
+}
+
 export function instructionsFor(facts: InstructionFacts): string {
   const sections = [
-    facts.agentPrompt === undefined ? undefined : `# Agent${PARAGRAPH}${facts.agentPrompt}`,
     baseText(facts).join(PARAGRAPH),
     environmentText(facts),
     WORKING_RULES,
@@ -234,6 +250,7 @@ export function instructionsFor(facts: InstructionFacts): string {
       : `# Workspace rules${PARAGRAPH}${facts.context.rules}`,
     skillsText(facts.context),
     agentsText(facts.context),
+    agentRoleText(facts.agent),
     memoryText(facts),
     facts.repoMap,
     facts.goalSection,

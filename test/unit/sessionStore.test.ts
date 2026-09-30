@@ -160,6 +160,7 @@ describe('parseStoredSession', () => {
   it('round-trips a child agent runtime and reads older files without one (M76 review)', () => {
     const agent = {
       id: 'reviewer',
+      source: 'project' as const,
       prompt: 'Prompt of reviewer',
       toolAllowlist: ['read_file', 'write_file'],
       effort: 'max' as const,
@@ -172,7 +173,12 @@ describe('parseStoredSession', () => {
     })
     const minimal: StoredSession = {
       ...full,
-      agent: { id: 'explore', prompt: 'Prompt', effort: 'high' as const },
+      agent: {
+        id: 'explore',
+        source: 'builtin' as const,
+        prompt: 'Prompt',
+        effort: 'high' as const,
+      },
     }
     expect(parseStoredSession(structuredClone(minimal))).toEqual({
       ok: true,
@@ -184,6 +190,13 @@ describe('parseStoredSession', () => {
     expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'ultra' } })).toMatchObject({
       ok: false,
     })
+    // A run whose source is unknown, or missing, is not read back as a trusted one.
+    expect(parseStoredSession({ ...full, agent: { ...agent, source: 'web' } })).toMatchObject({
+      ok: false,
+    })
+    const { source: omitted, ...withoutSource } = agent
+    expect(omitted).toBe('project')
+    expect(parseStoredSession({ ...full, agent: withoutSource })).toMatchObject({ ok: false })
   })
 })
 

@@ -10,7 +10,13 @@
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
-import { type AgentDefinition, type AgentRoot, loadAgents, projectAgentsRoot } from './customAgents'
+import {
+  type AgentDefinition,
+  type AgentRoot,
+  builtinAgents,
+  loadAgents,
+  projectAgentsRoot,
+} from './customAgents'
 import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
 import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
 
@@ -23,6 +29,11 @@ export interface WorkspaceContextDeps {
   readonly personalSkillsRoot: string | undefined
   /** The managed personal agent root (M76); undefined when the host has no home. */
   readonly personalAgentsRoot: string | undefined
+  /**
+   * Whether the agents are loaded (M76): a parent conversation lists them
+   * and spawns them; a child cannot spawn, so it reads none.
+   */
+  readonly hasAgents: boolean
   readonly isWorkspaceTrusted: () => boolean
   /** The memory snapshot (M49); undefined when the backend has no memory. */
   readonly loadMemory: (() => Promise<readonly MemoryScopeSnapshot[]>) | undefined
@@ -142,24 +153,33 @@ export class WorkspaceContext {
     await this.guarded('loading the rules', () => this.loadDirectory(ROOT_DIRECTORY), false)
     this.renderRulesSection()
     await this.refreshSkills()
-    // Agents load once per session with the rest of the context (M76): a
-    // repository's files only in a trusted workspace, like the skills.
-    const agents = await this.guarded(
-      'loading the agents',
-      () => loadAgents({ io: this.deps.io, platform: this.deps.platform }, this.agentRoots()),
-      { agents: this.agents, warnings: [] },
-    )
-    for (const warning of agents.warnings) {
-      this.deps.warn(warning)
+    if (this.deps.hasAgents) {
+      await this.loadAgentCatalogue()
     }
-    this.agents = agents.agents
     const { loadMemory } = this.deps
     if (loadMemory !== undefined) {
       this.memory = await this.guarded('loading the memory', loadMemory, [])
     }
   }
 
-  /** The root rules, the skills and the memory index, loaded once. */
+  /**
+   * Agents load once per session with the rest of the context (M76): a
+   * repository's files only in a trusted workspace, like the skills.
+   */
+  private async loadAgentCatalogue(): Promise<void> {
+    const agents = await this.guarded(
+      'loading the agents',
+      () => loadAgents({ io: this.deps.io, platform: this.deps.platform }, this.agentRoots()),
+      // A root that cannot be read leaves the built-ins, which need no file.
+      { agents: builtinAgents(), warnings: [] },
+    )
+    for (const warning of agents.warnings) {
+      this.deps.warn(warning)
+    }
+    this.agents = agents.agents
+  }
+
+  /** The root rules, the skills, the agents and the memory index, loaded once. */
   public load(): Promise<void> {
     this.loading ??= this.loadAll()
     return this.loading

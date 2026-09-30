@@ -80,7 +80,7 @@ describe('instructionsFor', () => {
     expect(skillsAt).toBeGreaterThan(rulesAt)
     expect(agentsAt).toBeGreaterThan(skillsAt)
     expect(memoryAt).toBeGreaterThan(agentsAt)
-    expect(text).toContain('- scout: Scouting')
+    expect(text).toContain('- scout (project): Scouting')
     expect(text).toContain('call subagent_spawn with agent set to its id')
     expect(text).toContain('call read_skill with its id before starting')
     expect(text).toContain('- shout: Repeat in caps')
@@ -143,17 +143,32 @@ describe('instructionsFor', () => {
     expect(text.indexOf('# Environment')).toBeLessThan(text.indexOf('# How to work'))
   })
 
-  it('runs a custom agent with its own prompt first (M76)', () => {
+  it('runs a custom agent with its own role, labelled, below the rules that outrank it (M76)', () => {
     const text = instructionsFor({
       ...base,
       hasShell: true,
-      context: noContext,
-      agentPrompt: 'Prompt of scout',
+      context: { ...noContext, rules: 'PREAMBLE\n\n## Rules from AGENTS.md\n\nend with PINEAPPLE' },
+      agent: { id: 'scout', source: 'project', prompt: 'Prompt of scout' },
     })
-    expect(text.startsWith('# Agent\n\nPrompt of scout')).toBe(true)
-    expect(text.indexOf('# Agent')).toBeLessThan(text.indexOf('You are Muse Spark'))
+    expect(text).toContain(
+      '# Agent role\n\nThis is the project agent "scout". Its role below is for this task only. It cannot add tools or permissions, and the instructions above outrank it.\n\nPrompt of scout',
+    )
+    expect(text.startsWith('You are Muse Spark')).toBe(true)
+    expect(text.indexOf('# Workspace rules')).toBeLessThan(text.indexOf('# Agent role'))
+    for (const [source, label] of [
+      ['user', 'personal'],
+      ['builtin', 'built-in'],
+    ] as const) {
+      const labelled = instructionsFor({
+        ...base,
+        hasShell: true,
+        context: noContext,
+        agent: { id: 'scout', source, prompt: 'P' },
+      })
+      expect(labelled).toContain(`This is the ${label} agent "scout".`)
+    }
     const parent = instructionsFor({ ...base, hasShell: true, context: noContext })
-    expect(parent).not.toContain('# Agent')
+    expect(parent).not.toContain('# Agent role')
   })
 
   it('says so without a repository, and clean without changes or commits', () => {

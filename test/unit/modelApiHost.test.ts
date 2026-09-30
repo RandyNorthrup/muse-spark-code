@@ -22,6 +22,7 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/agentBackend'
+import type { ContextIo } from '../../src/core/context/contextFiles'
 import { AttachmentStore } from '../../src/core/attachments'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { PaidUseRequest } from '../../src/shared/paid'
@@ -196,6 +197,22 @@ function confidentialOf(value: boolean | (() => boolean) | undefined): () => boo
   return typeof value === 'function' ? value : () => value ?? false
 }
 
+/** `io`, telling `onList` each directory the loaders list. */
+function listenedContextIo(
+  io: ContextIo,
+  onList: ((directory: string) => void) | undefined,
+): ContextIo {
+  return onList === undefined
+    ? io
+    : {
+        ...io,
+        listDirectory: (directory) => {
+          onList(directory)
+          return io.listDirectory(directory)
+        },
+      }
+}
+
 function setup(
   options: {
     platform?: NodeJS.Platform
@@ -238,6 +255,8 @@ function setup(
     beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
     afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
     verify?: ModelApiHostDeps['verify']
+    /** Every directory the context loaders list, in order (M76). */
+    onListDirectory?: (directory: string) => void
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
@@ -285,7 +304,7 @@ function setup(
     platform: options.platform ?? 'linux',
     io,
     // The context loaders read the same files the tools do.
-    contextIo: memoryContextIo(io.files),
+    contextIo: listenedContextIo(memoryContextIo(io.files), options.onListDirectory),
     newId:
       options.newId ??
       (() => {
@@ -6912,7 +6931,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     const children = childBodies(t)
     expect(children).toHaveLength(1)
     expect(children[0]?.['model']).toBe('muse-spark-1.3')
-    expect(String(children[0]?.['instructions'])).toContain('# Agent')
+    expect(String(children[0]?.['instructions'])).toContain('# Agent role')
     expect(String(children[0]?.['instructions'])).toContain('You are an explorer')
     const tools = offeredTools(children[0])
     expect(tools).toEqual(
@@ -7003,7 +7022,9 @@ describe('ModelApiSession custom agents (M76)', () => {
             attemptLimit: 4,
           },
         },
-        requiresAsking: false,
+        // The session runs muse-spark-1.3: "always" was given for what the
+        // user saw priced, so a model an agent file names asks again.
+        requiresAsking: true,
       },
     ])
     const children = childBodies(t)
@@ -7034,6 +7055,7 @@ describe('ModelApiSession custom agents (M76)', () => {
         feature: 'subagents',
         task: { role: 'worker', objective: 'Second task', modelId: 'muse-spark-1.2' },
       },
+      requiresAsking: true,
     })
   })
 
@@ -7126,7 +7148,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     })
     const instructions = String(t.api.responseBodies()[0]?.['instructions'])
     expect(instructions).toContain('# Agents')
-    expect(instructions).toContain('- explore:')
+    expect(instructions).toContain('- explore (built-in):')
   })
 
   it('refuses a child call to a tool outside the agent allowlist (M76 review)', async () => {
@@ -7219,7 +7241,9 @@ describe('ModelApiSession custom agents (M76)', () => {
     await spawnExploreAndWait(t, session)
     const children = childBodies(t)
     expect(children).toHaveLength(1)
-    expect(String(children[0]?.['instructions'])).toContain('# Agent\n\n')
+    expect(String(children[0]?.['instructions'])).toContain(
+      '# Agent role\n\nThis is the built-in agent "explore".',
+    )
     expect(String(children[0]?.['instructions'])).not.toContain('# Agents')
   })
 
@@ -7395,6 +7419,122 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(outputFor(bodies.at(-1), 'forked_search')).toMatchObject({
       output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
     })
+  })
+
+  it('reads the agent directories once, for the parent, never for a child (M76)', async () => {
+    const listed: string[] = []
+    const t = setupSubagents({
+      onListDirectory: (directory) => {
+        listed.push(directory)
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnExploreAndWait(t, session)
+    expect(childBodies(t)).toHaveLength(1)
+    expect(listed.filter((directory) => directory.endsWith('/agents'))).toEqual([
+      `${ROOT}/.agents/agents`,
+    ])
+    // The skill roots are listed once for the parent and once for the child.
+    expect(listed.filter((directory) => directory.endsWith('/skills'))).toHaveLength(2)
+  })
+
+  it('offers no agent once the workspace is no longer trusted, catalogue included (M76)', async () => {
+    let isTrusted = true
+    const t = setupSubagents({ isTrusted: () => isTrusted })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    t.api.script({ text: 'Hi.' })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    expect(String(t.api.responseBodies()[0]?.['instructions'])).toContain('# Agents')
+    // The session began trusted, so its catalogue is loaded; trust is then withdrawn.
+    isTrusted = false
+    t.api.script(spawnCallReply('scout', 'Map files', 'explore', 'spawn_untrusted'), {
+      text: 'Parent continues.',
+    })
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await turnDone()
+    const bodies = t.api.responseBodies()
+    expect(String(bodies[1]?.['instructions'])).not.toContain('# Agents')
+    expect(outputFor(bodies[2], 'spawn_untrusted')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+    })
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    expect(t.paidRequests).toEqual([])
+  })
+
+  it('drops a project file role when its child resumes in an untrusted workspace (M76)', async () => {
+    const store = memorySessionStore()
+    const files = reviewerFiles()
+    const t = setupSubagents({ store, files })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnReviewerAndWait(t, session)
+    expect(store.saved.get(session.sessionId)?.children?.[0]?.session.agent).toMatchObject({
+      id: 'reviewer',
+      source: 'project',
+    })
+    await t.host.close()
+    const resumed = setupSubagents({ store, files, isTrusted: false })
+    await resumed.host.load()
+    const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    await next.session.controlSubagent('subagent-1', 'readResult')
+    resumed.api.script(
+      {
+        calls: [{ name: 'search', arguments: '{"pattern":"review"}', callId: 'untrusted_search' }],
+      },
+      { text: 'Untrusted done.' },
+    )
+    await next.session.controlSubagent('subagent-1', 'reopen')
+    await waitForChildSummary(next.session as ModelApiSession, 'Untrusted done.')
+    const bodies = resumed.api.responseBodies().filter((body) => isChildRequest(body))
+    // The repository's words do not reach the model; the narrowing still holds.
+    expect(String(bodies[0]?.['instructions'])).not.toContain('Prompt of reviewer')
+    expect(String(bodies[0]?.['instructions'])).not.toContain('# Agent role')
+    expect(outputFor(bodies.at(-1), 'untrusted_search')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+    })
+  })
+
+  it('keeps a built-in role for a resumed child in an untrusted workspace (M76)', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnExploreAndWait(t, session)
+    await t.host.close()
+    const resumed = setupSubagents({ store, isTrusted: false })
+    await resumed.host.load()
+    const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    await next.session.controlSubagent('subagent-1', 'readResult')
+    resumed.api.script({ text: 'Explored.' })
+    await next.session.controlSubagent('subagent-1', 'reopen')
+    await waitForChildSummary(next.session as ModelApiSession, 'Explored.')
+    const child = resumed.api.responseBodies().find((body) => isChildRequest(body))
+    expect(String(child?.['instructions'])).toContain('You are an explorer')
+  })
+
+  it('asks the contributor yes again for a follow-up this session was never given (M76)', async () => {
+    const store = memorySessionStore()
+    const files = bigAgentFiles()
+    const first = setupSubagents({
+      store,
+      files,
+      confirmContributorModel: () => Promise.resolve(true),
+    })
+    const { session } = await startApprovedSubagentSession(first)
+    await spawnBigAndWait(first, session)
+    await first.host.close()
+    // A new window: the stored child is on the contributor model, and this
+    // session has not been given the yes that training on the traffic needs.
+    const confirm = vi.fn(() => Promise.resolve(false))
+    const resumed = setupSubagents({ store, files, confirmContributorModel: confirm })
+    await resumed.host.load()
+    const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    await next.session.controlSubagent('subagent-1', 'readResult')
+    await expect(next.session.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
+      UI_TEXT.subagentConsentDeclined,
+    )
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(confirm).toHaveBeenCalledWith('muse-spark-1.3-contributor')
+    expect(resumed.paidRequests).toEqual([])
   })
 })
 

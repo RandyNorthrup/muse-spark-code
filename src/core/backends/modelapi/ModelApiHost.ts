@@ -1383,6 +1383,8 @@ export class ModelApiSession implements AgentSession {
   private readonly children = new Map<string, ChildRecord>()
   private readonly spawnCommands = new Map<string, string>()
   private readonly pendingChildResults: string[] = []
+  /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
+  private readonly confirmedContributorModels = new Set<string>()
   private childTaskGrant: ChildTaskGrant | undefined
   private readonly admitChildAttempt = (
     keyDigest: string | undefined,
@@ -1495,6 +1497,8 @@ export class ModelApiSession implements AgentSession {
       platform: deps.platform,
       personalSkillsRoot: deps.personalSkillsRoot,
       personalAgentsRoot: deps.personalAgentsRoot,
+      // A child cannot spawn, so it reads no agents (M76).
+      hasAgents: !isSubagent,
       isWorkspaceTrusted: deps.isWorkspaceTrusted,
       loadMemory: memory === undefined ? undefined : () => memory.snapshot(),
       warn: (message) => {
@@ -1805,6 +1809,7 @@ export class ModelApiSession implements AgentSession {
     const context = this.context.sections()
     const goalSection = goalInstructions(this.goal, this.goalSteps)
     const repoMap = this.promptRepoMap()
+    const role = this.agentRole()
     const input = this.budget.fit(this.replay.map((entry) => entry.item))
     if (this.budget.omitted && !this.mediaNoticeSent) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
@@ -1825,11 +1830,11 @@ export class ModelApiSession implements AgentSession {
         today: new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH),
         environment: this.environment ?? NO_ENVIRONMENT,
         // The agents catalogue invites a spawn, which asks its paid popup:
-        // hidden while paid subagents are off, and from a child, which
-        // cannot spawn (M76 review).
+        // hidden while paid subagents are off, from a child, which cannot
+        // spawn, and once the workspace is no longer trusted (M76 review).
         context: {
           ...context,
-          agents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents') ? context.agents : [],
+          agents: this.isAgentCatalogueOffered() ? context.agents : [],
         },
         verify: {
           isDiagnosticsOn: this.deps.verify?.isDiagnosticsOn() === true,
@@ -1839,7 +1844,7 @@ export class ModelApiSession implements AgentSession {
         // Pinned while the goal is active (M45, PLAN.md D38).
         ...(goalSection !== undefined && { goalSection }),
         // A custom agent's own prompt runs as the child's role (M76).
-        ...(this.agent !== undefined && { agentPrompt: this.agent.prompt }),
+        ...(role !== undefined && { agent: role }),
       }),
       tools: this.tools(hasShell, flags.hasSkills, hasMemory),
       tool_choice: 'auto',
@@ -1880,6 +1885,25 @@ export class ModelApiSession implements AgentSession {
       hasChanged = true
     }
     return hasChanged
+  }
+
+  /** Whether the `# Agents` catalogue is shown: a spawn must be possible (M76). */
+  private isAgentCatalogueOffered(): boolean {
+    return (
+      !this.isSubagent && this.deps.isWorkspaceTrusted() && this.deps.isPaidFeatureOn('subagents')
+    )
+  }
+
+  /**
+   * The role a child agent runs with (M76). A project file's prompt is
+   * repository content: it reaches the model only while the workspace is
+   * trusted, a resumed child included; without it the child keeps its
+   * narrowed tools and mode and runs on the base prompt alone.
+   */
+  private agentRole(): AgentRuntime | undefined {
+    return this.agent?.source === 'project' && !this.deps.isWorkspaceTrusted()
+      ? undefined
+      : this.agent
   }
 
   /** The user's check commands as they stand now (M68); none without the verify loop. */
@@ -3384,6 +3408,11 @@ export class ModelApiSession implements AgentSession {
     if (parsed.data.agent === undefined) {
       return { agent: undefined }
     }
+    // Agent files load only in a trusted workspace; a session that began
+    // trusted and lost it offers none either (Restricted Mode, D13).
+    if (!this.deps.isWorkspaceTrusted()) {
+      return { error: MODEL_TEXT.agentRestrictedMode }
+    }
     const agent = this.context.agent(parsed.data.agent)
     return agent === undefined ? { error: `unknown agent "${parsed.data.agent}"` } : { agent }
   }
@@ -3465,7 +3494,7 @@ export class ModelApiSession implements AgentSession {
 
   private async prepareChildGrant(
     modelId: string,
-    shouldConfirmContributor: boolean,
+    isSpawn: boolean,
     signal?: AbortSignal,
   ): Promise<ChildTaskGrant> {
     if (!this.deps.isPaidFeatureOn('subagents')) {
@@ -3479,13 +3508,14 @@ export class ModelApiSession implements AgentSession {
     }
     // A model a custom agent names passes the same checks as the user's own
     // choice (M76): contributor models are blocked in a confidential
-    // workspace, and need one explicit yes per spawn. A follow-up rides the
-    // spawn's yes, and a Stop preempts the modal mid-turn like any wait.
+    // workspace, and need an explicit yes: one per spawn, and for a follow-up
+    // one when this session has not been given it (a child resumed in a new
+    // window). A Stop preempts the modal mid-turn like any wait.
     if (modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)) {
       if (this.deps.isConfidentialWorkspace()) {
         throw new ChildTaskRefusedError('contributorBlocked')
       }
-      if (shouldConfirmContributor) {
+      if (isSpawn || !this.confirmedContributorModels.has(modelId)) {
         const isConfirmed =
           signal === undefined
             ? await this.deps.confirmContributorModel(modelId)
@@ -3493,6 +3523,7 @@ export class ModelApiSession implements AgentSession {
         if (!isConfirmed) {
           throw new ChildTaskRefusedError('consentDeclined')
         }
+        this.confirmedContributorModels.add(modelId)
       }
     }
     return {
@@ -3528,7 +3559,6 @@ export class ModelApiSession implements AgentSession {
   ): Promise<ChildTaskGrant> {
     try {
       // A follow-up continues the child's own run: a custom agent's model, not the session's.
-      // No contributor modal: the spawn asked its one yes, and the popup below names the model.
       const grant = await this.prepareChildGrant(child.session.modelId, false)
       const isAccepted = await this.deps.allowsPaidUse(
         {
@@ -3540,7 +3570,9 @@ export class ModelApiSession implements AgentSession {
             attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
           },
         },
-        false,
+        // "Always" was given for the model the user saw priced: a child on
+        // another one (an agent file named it) asks again (M76, D48).
+        grant.modelId !== this.modelId,
         this.askingSessionId,
       )
       if (!isAccepted) {
@@ -3694,6 +3726,7 @@ export class ModelApiSession implements AgentSession {
         ? undefined
         : {
             id: spawnAgent.id,
+            source: spawnAgent.source,
             prompt: spawnAgent.body,
             toolAllowlist,
             effort: resolveAgentEffort(modelId, spawnAgent.effort),
@@ -4996,8 +5029,12 @@ export class ModelApiSession implements AgentSession {
           ? { card: subjectFor(call, this.deps.platform, toolClass === 'mcp') }
           : { paid },
         // A protected write never happens without a question (D24), even
-        // when its feature is allowed always.
-        shouldForceApproval || (paid !== undefined && query.isProtected === true),
+        // when its feature is allowed always; nor does a child task on a
+        // model other than the session's (an agent file named it): "always"
+        // was given for the model the user saw priced (M76, D48).
+        shouldForceApproval ||
+          (paid !== undefined && query.isProtected === true) ||
+          (childTask !== undefined && childTask.modelId !== this.modelId),
       )
       if (!approval.isApproved) {
         if (childTask !== undefined && approval.deniedByHook !== true) {
@@ -7336,6 +7373,7 @@ export class ModelApiSession implements AgentSession {
       ...(this.agent !== undefined && {
         agent: {
           id: this.agent.id,
+          source: this.agent.source,
           prompt: this.agent.prompt,
           ...(this.agent.toolAllowlist !== undefined && {
             toolAllowlist: [...this.agent.toolAllowlist],

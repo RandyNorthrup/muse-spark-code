@@ -30,6 +30,8 @@ export interface CatalogKind {
   readonly fileName: string
   readonly maxBytes: number
   readonly idPattern: RegExp
+  /** Entries kept across every root; the rest are skipped with one warning each. Undefined: no limit. */
+  readonly maxEntries?: number
 }
 
 export type CatalogParse<Entry> =
@@ -48,10 +50,22 @@ export interface CatalogLoad<Entry, Source> {
 }
 
 export type FrontMatterSplit =
-  | { readonly ok: true; readonly fields: ReadonlyMap<string, string>; readonly body: string }
+  | {
+      readonly ok: true
+      readonly fields: ReadonlyMap<string, string>
+      readonly body: string
+      /**
+       * What the line reader could not take as `key: value` (a list item, an
+       * indented continuation) and what it saw a second time: a format that
+       * narrows something must refuse such a file, not guess its meaning.
+       */
+      readonly ignoredLines: readonly string[]
+      readonly duplicateKeys: readonly string[]
+    }
   | { readonly ok: false; readonly reason: string }
 
 const FRONT_MATTER_FENCE = '---'
+const COMMENT_PREFIX = '#'
 const LINE_BREAK = /\r?\n/
 const KEY_VALUE = /^([A-Za-z][A-Za-z0-9_-]*):\s*(.*)$/
 const QUOTE_PAIRS = [
@@ -80,15 +94,24 @@ export function splitFrontMatter(text: string): FrontMatterSplit {
     return { ok: false, reason: 'front matter is not closed' }
   }
   const fields = new Map<string, string>()
+  const ignoredLines: string[] = []
+  const duplicateKeys: string[] = []
   for (const line of lines.slice(1, end)) {
     const match = KEY_VALUE.exec(line)
     if (match?.[1] !== undefined && match[2] !== undefined) {
+      if (fields.has(match[1])) {
+        duplicateKeys.push(match[1])
+      }
       fields.set(match[1], unquote(match[2]))
+    } else if (line.trim() !== '' && !line.trimStart().startsWith(COMMENT_PREFIX)) {
+      ignoredLines.push(line)
     }
   }
   return {
     ok: true,
     fields,
+    ignoredLines,
+    duplicateKeys,
     body: lines
       .slice(end + 1)
       .join('\n')
@@ -105,9 +128,10 @@ async function readCatalogFile(
   deps: CatalogLoaderDeps,
   file: string,
   confineTo: string | undefined,
+  maxBytes: number,
 ): Promise<ContextText | undefined> {
   try {
-    return await readContextText(deps, file, confineTo)
+    return await readContextText(deps, file, confineTo, maxBytes)
   } catch (error: unknown) {
     return { ok: false, reason: `could not be read: ${describe(error)}` }
   }
@@ -140,8 +164,14 @@ export async function loadCatalogFiles<Entry, Source extends string>(
         )
         continue
       }
+      if (kind.maxEntries !== undefined && entries.length >= kind.maxEntries) {
+        warnings.push(
+          `${label} skipped: only the first ${String(kind.maxEntries)} ${kind.kind}s are loaded`,
+        )
+        continue
+      }
       const file = pathModule.join(root.directory, id, kind.fileName)
-      const read = await readCatalogFile(deps, file, root.confineTo)
+      const read = await readCatalogFile(deps, file, root.confineTo, kind.maxBytes)
       if (read === undefined) {
         warnings.push(`${label} skipped: ${kind.fileName} is missing`)
         continue

@@ -11,8 +11,13 @@
 import { confineWorkspacePath } from '../workspacePath'
 
 export interface ContextIo {
-  /** The file's bytes; undefined when it does not exist. */
-  readFile(absolutePath: string): Promise<Uint8Array | undefined>
+  /**
+   * The file's bytes; undefined when it does not exist. With `maxBytes` (the
+   * catalogs' caps) it reads at most one byte more than that, so a file over
+   * the cap is seen to be over it without being read whole, and it reads only
+   * a regular file: a pipe or a device would block or never end.
+   */
+  readFile(absolutePath: string, maxBytes?: number): Promise<Uint8Array | undefined>
   /**
    * The names of the entries of an absolute directory that are directories
    * or links (symbolic links, junctions), whatever a link leads to, so a
@@ -100,12 +105,15 @@ export function decodeContextText(bytes: Uint8Array): ContextText {
 /**
  * One context file as text; undefined when it does not exist. With
  * `confineTo` (the workspace root, for the files a repository ships) a path
- * whose canonical form leaves that root is refused before it is read.
+ * whose canonical form leaves that root is refused before it is read. With
+ * `maxBytes` a file over that size is refused with its reason, after at most
+ * `maxBytes + 1` bytes were read.
  */
 export async function readContextText(
   deps: ContextReadDeps,
   absolutePath: string,
   confineTo: string | undefined,
+  maxBytes?: number,
 ): Promise<ContextText | undefined> {
   if (confineTo !== undefined) {
     const resolution = await confineWorkspacePath(confineTo, absolutePath, deps.platform, deps.io)
@@ -113,6 +121,11 @@ export async function readContextText(
       return { ok: false, reason: `is refused: ${resolution.reason}` }
     }
   }
-  const bytes = await deps.io.readFile(absolutePath)
-  return bytes === undefined ? undefined : decodeContextText(bytes)
+  const bytes = await deps.io.readFile(absolutePath, maxBytes)
+  if (bytes === undefined) {
+    return undefined
+  }
+  return maxBytes !== undefined && bytes.length > maxBytes
+    ? { ok: false, reason: `is over the ${String(maxBytes)} byte limit` }
+    : decodeContextText(bytes)
 }
