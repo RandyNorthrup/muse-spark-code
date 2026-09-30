@@ -6,6 +6,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2024", "ESNext.Array", "DOM", "DOM.Iterable"],
+    // A test imports the build's esbuild plugin (scripts/lib/injectedTable.mjs)
+    // and reads its types from its JSDoc; no other JavaScript is checked.
+    "allowJs": true,
+    "checkJs": false,
     "jsx": "react-jsx",
     "types": ["node", "vscode", "vscode-webview", "@testing-library/jest-dom"]
   },

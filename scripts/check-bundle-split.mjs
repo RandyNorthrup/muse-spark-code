@@ -17,6 +17,9 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - dist/modelApi.js carries the English table (PLAN.md D6: the activation
+//   bundle hands over the installed one; scripts/lib/injectedTable.mjs), or
+//   dist/extension.js lost it.
 //
 // Exits 1 on any problem.
 //
@@ -221,6 +224,17 @@ for (const file of CHECKPOINT_ONLY) {
     problems.push(`${CHECKPOINT_STORE.output} no longer carries ${file}`)
   }
 }
+// The Model API bundle is handed the display table (modelApiEntry.ts): its
+// copy of the English table would be 74 KiB of its budget, twice over.
+const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
+if ((modelApi.get(ENGLISH_TABLE) ?? 0) > 0) {
+  problems.push(
+    `${BUNDLES.modelApi.output} carries ${ENGLISH_TABLE}, which the activation bundle hands over (scripts/lib/injectedTable.mjs)`,
+  )
+}
+if ((activation.get(ENGLISH_TABLE) ?? 0) === 0) {
+  problems.push(`${BUNDLES.activation.output} no longer carries ${ENGLISH_TABLE}`)
+}
 function hasPrefix(inputs, prefix) {
   for (const input of inputs.keys()) {
     if (input.startsWith(prefix)) {
@@ -272,6 +286,9 @@ console.log(
 )
 console.log(
   `ok   ${BUNDLES.modelApi.output}: carries the ${String(lazy.size)} files that load only with the backend`,
+)
+console.log(
+  `ok   ${BUNDLES.modelApi.output}: carries no English table; ${BUNDLES.activation.output} hands it over`,
 )
 console.log(
   `ok   ${PLAN_READER.output}: carries the plan reader; ${BUNDLES.activation.output} carries none of its parser`,

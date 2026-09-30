@@ -278,6 +278,25 @@ instead.
   stops carrying one of them, or when a file of the folder is on neither the
   lazy list nor the allowed list above.
 
+**Amendment (M82, M77 and M78 joined, 2026-09-30): `dist/modelApi.js`
+carries no English table.** The bundle is handed the installed table and
+locale by whoever requires it (`createModelApiHost` installs them before
+it builds anything, M57), so the English table it carried as `UI_TEXT`'s
+starting value (74.3 KiB of its 400 KiB, and every new sentence twice) was
+dead weight: the candidate stood at 398.4 KiB, with 1.6 KiB left for three
+milestones that add 58 KiB. The esbuild plugin `scripts/lib/injectedTable.mjs`
+(used by `scripts/build.mjs` and by the test helper's
+`scripts/lib/buildModelApiBundle.mjs`) replaces the one import of `EN` in
+`src/shared/l10n/text.ts` with an empty table, and fails the build on any
+other value import of the English table, so nothing can read it empty. The
+budget is unchanged. The split gate fails when `dist/modelApi.js` carries
+`src/shared/l10n/en.ts` or when `dist/extension.js` loses it; the bundle
+tests build the real entry with the plugin and check the file holds no
+English sentence. A bundle that is never handed a table must not use the
+plugin: the page worker and the checkpoint store are built as before (the
+checkpoint store is handed one too, and could take it, with 74 KiB to spare
+against a 225 KiB budget it does not need to reclaim).
+
 **Amendment (M79, 2026-09-28): the plan reader is a bundle of its own.**
 Reading a plan with the panel's own Markdown grammar (PR #53 review) takes
 `mdast-util-from-markdown`, `micromark-extension-gfm` and `mdast-util-gfm`:

@@ -38,6 +38,18 @@ happened, not what was planned; superseded entries are kept.
     (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
     the localization gate lets it stay the same in every language.
 
+### Changed
+
+- **The Model API bundle carries no English table** (PLAN.md D6).
+  `dist/modelApi.js` is handed the installed display table and locale when it
+  starts (M57), so its own copy of the English table (74.3 KiB) was dead
+  weight. An esbuild plugin (`scripts/lib/injectedTable.mjs`) leaves it out
+  and fails the build on any other value import of the table; the split gate
+  fails when the bundle carries it or the activation bundle loses it.
+  `dist/modelApi.js` goes from 398.4 to about 324 KiB of its unchanged
+  400 KiB budget, which the joint M82, M77 and M78 work needs. The test
+  helper that builds the bundle now runs `scripts/lib/buildModelApiBundle.mjs`.
+
 ### Fixed
 
 - **Model API session budgets retain their open reservation before a

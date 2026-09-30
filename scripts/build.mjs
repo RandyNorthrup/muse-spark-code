@@ -15,7 +15,8 @@
 // PLAN.md D6), with the same format, platform and target: the activation
 // bundle requires it the first time that backend starts. Nothing it bundles
 // may import `vscode` (src/core must not), so `vscode` is not external there
-// and a stray import fails this build.
+// and a stray import fails this build. It carries no English table: the
+// activation bundle hands over the installed one (scripts/lib/injectedTable.mjs).
 //
 // A production build also writes each shipped bundle's esbuild metafile to
 // dist/meta/ (M26, PLAN.md D29): the list of every source file that went in,
@@ -33,6 +34,7 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import { injectedTable } from './lib/injectedTable.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -94,6 +96,9 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+  // The activation bundle hands over its display table (modelApiEntry.ts), so
+  // this bundle carries no English table of its own (PLAN.md D6).
+  plugins: [injectedTable()],
 }
 
 /** @type {import('esbuild').BuildOptions} */
