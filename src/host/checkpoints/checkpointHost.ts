@@ -273,6 +273,12 @@ export async function withCheckpointEdit<T>(
 /** The workspace folder a restore writes under, and the platform whose path rules compare with it. */
 export interface EditWorkspace {
   readonly root: string | undefined
+  /**
+   * The folder as VS Code spells it, when that differs from the canonical root
+   * (a link, a junction, a mapped drive). The store accepts both spellings, so
+   * a path a save dialog returns in either one is inside.
+   */
+  readonly displayRoot?: string | undefined
   readonly platform: NodeJS.Platform
 }
 
@@ -291,9 +297,10 @@ export async function withCheckpointEditAt<T>(
 ): Promise<T> {
   const p = pathModule(workspace.platform)
   const isInside =
-    workspace.root !== undefined &&
     absolutePath !== undefined &&
-    isBelow(p.relative(workspace.root, absolutePath), p)
+    [workspace.root, workspace.displayRoot].some(
+      (root) => root !== undefined && isBelow(p.relative(root, absolutePath), p),
+    )
   if (!isInside) {
     check()
     return await work()

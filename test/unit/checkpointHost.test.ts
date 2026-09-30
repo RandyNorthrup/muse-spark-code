@@ -482,6 +482,33 @@ describe('withCheckpointEditAt (M72)', () => {
     expect(check).toHaveBeenCalledOnce()
   })
 
+  it.each([
+    ['the display spelling of a linked workspace', '/link/ws/a.md'],
+    ['the canonical spelling', '/real/ws/a.md'],
+  ])('holds the lease for a path in %s', async (_name, file) => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    await withCheckpointEditAt(
+      port,
+      vi.fn(),
+      { root: '/real/ws', displayRoot: '/link/ws', platform: 'linux' },
+      file,
+      () => Promise.resolve(),
+    )
+    expect(calls).toHaveLength(2)
+  })
+
+  it('takes no lease for a path beside both spellings of the workspace', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    await withCheckpointEditAt(
+      port,
+      vi.fn(),
+      { root: '/real/ws', displayRoot: '/link/ws', platform: 'linux' },
+      '/link/ws-other/a.md',
+      () => Promise.resolve(),
+    )
+    expect(calls).toEqual([])
+  })
+
   it('folds the letter case of a Windows path, as the file system does', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     await withCheckpointEditAt(

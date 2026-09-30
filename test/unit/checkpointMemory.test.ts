@@ -571,7 +571,7 @@ describe('activation builds the memory through the checkpointed composition (M72
     // The exports the user places are written under the same lease, the same
     // guard, and the workspace root and platform the restore compares with.
     expect(source).toMatch(
-      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{ root: workspaceRoot, platform: process\.platform \},\s*fsPath,\s*work,\s*\)/,
+      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{ root: workspaceRoot, displayRoot, platform: process\.platform \},\s*fsPath,\s*work,\s*\)/,
     )
     expect(source).not.toContain('new MemoryStore(')
     expect(source).not.toContain('createMemoryIo(')

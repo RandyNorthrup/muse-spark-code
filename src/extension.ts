@@ -740,7 +740,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await withCheckpointEditAt(
         checkpoints,
         backend.workspaceActionGuard(nativeStarts.signal),
-        { root: workspaceRoot, platform: process.platform },
+        { root: workspaceRoot, displayRoot, platform: process.platform },
         fsPath,
         work,
       ),
