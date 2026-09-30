@@ -132,7 +132,7 @@ describe('package.json manifest', () => {
     expect(retention.enum).toEqual(['in_memory', '24h'])
   })
 
-  it('keeps the session budget a machine choice, and names its only overrun (M82)', () => {
+  it('keeps the session budget a machine choice, and claims no more than it keeps (M82)', () => {
     // A cloned .vscode/settings.json must not set what is billed.
     const properties = manifest.contributes.configuration.properties as Record<
       string,
@@ -141,18 +141,22 @@ describe('package.json manifest', () => {
     const budget = properties['museSpark.modelApiSessionBudgetUsd']
     expect(budget?.scope).toBe('machine')
     expect(budget?.default).toBe(0)
-    // The description resolves through package.nls.json: the only spending
-    // past the cap the budget allows is the input estimate's error.
+    // The description resolves through package.nls.json. It says what the
+    // cap does (a request that cannot fit is not sent) and what it cannot
+    // promise: billed usage can differ from the estimates, sent requests keep
+    // their reservation, and it makes no claim that the estimate's error is
+    // the only way past the cap (the review of PR #58's "overclaims").
     const here = path.dirname(fileURLToPath(import.meta.url))
     const nls = JSON.parse(
       readFileSync(path.join(here, '..', '..', 'package.nls.json'), 'utf8'),
     ) as Record<string, string>
     const description = nls[budget?.description?.replace(/^%(.+)%$/, '$1') ?? '']
     expect(description).toContain('0 means no cap')
-    expect(description).toContain('is not sent')
-    expect(description).toContain(
-      'Spending can pass the cap only through an error in that input estimate, a request Meta never answered, or a paid subagent task',
-    )
+    expect(description).toContain('a request that cannot fit what is left is not sent')
+    expect(description).toContain('input estimates may differ from billed usage')
+    expect(description).toContain('Unknown sent requests keep their reservation')
+    expect(description).toContain('Web search is unavailable while capped')
+    expect(description).not.toMatch(/only through|only overrun|only way/i)
   })
 
   it('notifies about background turns until turned off, a choice a workspace may make (M82)', () => {
