@@ -1348,6 +1348,7 @@
   "checkpointTooLarge": "mais de {size} MiB de arquivos alterados para copiar",
   "checkpointFailed": "o ponto de verificação falhou",
   "checkpointNoGit": "git não encontrado no PATH",
+  "checkpointPathTooLong": "o caminho do espaço de trabalho ou da pasta de armazenamento desta extensão é longo demais para o git",
   "checkpointsModelApiOnly": "A restauração de arquivos e Refazer exigem uma sessão conectada da Model API. Os checkpoints do Muse Code são somente leitura.",
   "checkpointsNativeUnsafe": "A restauração de arquivos e Refazer estão indisponíveis porque um processo nativo do espaço de trabalho ou uma janela desconhecida ainda podem editar arquivos. O encerramento dos processos não foi comprovado; é necessária recuperação confirmada.",
   "checkpointsLegacyReadOnly": "Esta mensagem tem um checkpoint antigo. Os registros salvos continuam legíveis; restaurar arquivos exige uma captura atual protegida com segurança.",

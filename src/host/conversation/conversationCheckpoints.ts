@@ -137,6 +137,7 @@ function captureRefusalText(reason: CaptureRefusal): string {
     tooLarge: () =>
       fill(UI_TEXT.checkpointTooLarge, { size: CHECKPOINT_CAPTURE_MAX_BYTES / BYTES_PER_MIB }),
     noGit: () => UI_TEXT.checkpointNoGit,
+    pathTooLong: () => UI_TEXT.checkpointPathTooLong,
     failed: () => UI_TEXT.checkpointFailed,
   }
   return texts[reason]()

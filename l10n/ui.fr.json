@@ -1348,6 +1348,7 @@
   "checkpointTooLarge": "plus de {size} Mio de fichiers modifiés à copier",
   "checkpointFailed": "le point de contrôle a échoué",
   "checkpointNoGit": "git est introuvable dans le PATH",
+  "checkpointPathTooLong": "le chemin de l’espace de travail ou du dossier de stockage de cette extension est trop long pour git",
   "checkpointsModelApiOnly": "La restauration des fichiers et Rétablir nécessitent une session Model API connectée. Les points de contrôle Muse Code sont en lecture seule.",
   "checkpointsNativeUnsafe": "La restauration des fichiers et Rétablir sont indisponibles car un processus natif de cet espace de travail ou une fenêtre inconnue pourrait encore modifier des fichiers. L’arrêt des processus n’est pas prouvé ; une récupération confirmée est nécessaire.",
   "checkpointsLegacyReadOnly": "Ce message a un ancien point de contrôle. Les données enregistrées restent lisibles ; restaurer les fichiers nécessite une capture actuelle protégée de façon sûre.",

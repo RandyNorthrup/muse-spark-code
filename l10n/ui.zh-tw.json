@@ -1276,6 +1276,7 @@
   "checkpointTooLarge": "需要複製的已變更檔案超過 {size} MiB",
   "checkpointFailed": "檢查點失敗",
   "checkpointNoGit": "在 PATH 中找不到 git",
+  "checkpointPathTooLong": "工作區或此擴充功能儲存資料夾的路徑對 git 來說太長",
   "checkpointsModelApiOnly": "檔案還原和重做需要已連線的 Model API 工作階段。Muse Code 檢查點僅供讀取。",
   "checkpointsNativeUnsafe": "原生工作區處理程序或未知視窗可能仍在編輯檔案，因此檔案還原和重做無法使用。尚未證明處理程序已完全停止；需要經確認的復原處理。",
   "checkpointsLegacyReadOnly": "此訊息具有舊檢查點。已儲存的記錄仍可讀取；檔案還原需要目前受到安全保護的快照。",

@@ -1,6 +1,5 @@
 import { mkdir, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs/promises'
 import * as atomic from '../../src/host/fsAtomic'
 import type { ShellResult, ToolIo } from '../../src/core/backends/modelapi/tools'
@@ -35,6 +34,7 @@ import {
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   restoreTurn,
+  shadowGit,
   shadowRefs,
   storedRecords,
   turn,
@@ -497,13 +497,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       if (pin === undefined) {
         throw new Error('expected owned pending-end pin')
       }
-      const pending = parseRecord(
-        execFileSync(
-          'git',
-          ['--git-dir', path.join(h.storage, 'shadow.git'), 'cat-file', '-p', `${pin}:record.json`],
-          { encoding: 'utf8' },
-        ),
-      )
+      const pending = parseRecord(shadowGit(h.storage, ['cat-file', '-p', `${pin}:record.json`]))
       if (pending?.kind !== 'checkpoint') {
         throw new Error('expected pending checkpoint metadata')
       }
@@ -524,13 +518,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       await other.record('s2', 'other', await captured(other))
       await other.endTurn('s2', 'other')
       await other.forgetSession('s2')
-      expect(
-        execFileSync(
-          'git',
-          ['--git-dir', path.join(h.storage, 'shadow.git'), 'cat-file', '-p', blob.oid],
-          { encoding: 'utf8' },
-        ),
-      ).toBe(original)
+      expect(shadowGit(h.storage, ['cat-file', '-p', blob.oid])).toBe(original)
       await h.store.endTurn('s1', 't1')
       await restoreTurn(other, 't1')
       expect(await read(h.root, '.env')).toBe(original)

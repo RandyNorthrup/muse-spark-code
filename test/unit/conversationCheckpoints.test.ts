@@ -266,7 +266,7 @@ describe('ConversationCheckpoints (M72)', () => {
 
 describe('ConversationCheckpoints when things go wrong (M72)', () => {
   it('says once per reason why a turn has no checkpoint', async () => {
-    const reasons = ['tooManyFiles', 'tooLarge', 'noGit', 'noGit'] as const
+    const reasons = ['tooManyFiles', 'tooLarge', 'noGit', 'noGit', 'pathTooLong'] as const
     const { checkpoints, notices } = harness({
       capture: (count) =>
         Promise.resolve({ ok: false, reason: reasons[count - 1] ?? 'failed', detail: 'x' }),
@@ -283,6 +283,7 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
         fill(UI_TEXT.checkpointTooLarge, { size: CHECKPOINT_CAPTURE_MAX_BYTES / BYTES_PER_MIB }),
       ),
       unavailable(UI_TEXT.checkpointNoGit),
+      unavailable(UI_TEXT.checkpointPathTooLong),
     ])
   })
 
@@ -383,6 +384,20 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
     report.post()
     expect(notices).toEqual([
       ['error', `${UI_TEXT.restoreFailed}: ${UI_TEXT.checkpointNoGit}`, undefined],
+    ])
+  })
+
+  it('names a path git cannot use as the reason a restore could not start', async () => {
+    const { checkpoints, notices } = harness({
+      backend: () => 'modelApi',
+      restore: () =>
+        Promise.resolve({ ok: false, reason: 'captureFailed', captureRefusal: 'pathTooLong' }),
+    })
+    await checkpoints.sessionChanged('s1')
+    const report = await checkpoints.restore('s1', 't1')
+    report.post()
+    expect(notices).toEqual([
+      ['error', `${UI_TEXT.restoreFailed}: ${UI_TEXT.checkpointPathTooLong}`, undefined],
     ])
   })
 

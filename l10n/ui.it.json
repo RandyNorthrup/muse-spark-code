@@ -1348,6 +1348,7 @@
   "checkpointTooLarge": "oltre {size} MiB di file modificati da copiare",
   "checkpointFailed": "il checkpoint non è riuscito",
   "checkpointNoGit": "git non trovato nel PATH",
+  "checkpointPathTooLong": "il percorso dell’area di lavoro o della cartella di archiviazione di questa estensione è troppo lungo per git",
   "checkpointsModelApiOnly": "Il ripristino dei file e Ripeti richiedono una sessione Model API connessa. I checkpoint Muse Code sono di sola lettura.",
   "checkpointsNativeUnsafe": "Il ripristino dei file e Ripeti non sono disponibili perché un processo nativo dello spazio di lavoro o una finestra sconosciuta potrebbero ancora modificare file. L’arresto dei processi non è provato; è necessario un recupero confermato.",
   "checkpointsLegacyReadOnly": "Questo messaggio ha un checkpoint precedente. I dati salvati restano leggibili; ripristinare i file richiede una cattura attuale protetta in modo sicuro.",

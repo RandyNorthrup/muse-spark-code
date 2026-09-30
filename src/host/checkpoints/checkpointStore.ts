@@ -131,7 +131,12 @@ import {
   refValue,
   writeRecord,
 } from './recordRefs'
-import { indexFileInstance, ShadowGit, withoutGitVariables } from './shadowGit'
+import {
+  indexFileInstance,
+  ShadowGit,
+  ShadowPathTooLongError,
+  withoutGitVariables,
+} from './shadowGit'
 import { WindowPresence } from './windowPresence'
 
 export { turnKey } from '../../core/checkpoints/turnKey'
@@ -148,12 +153,24 @@ export interface Snapshot {
   readonly folders: readonly string[] | undefined
 }
 
-/** Why no capture: the limits, no git, or a failure. */
-export type CaptureRefusal = 'tooManyFiles' | 'tooLarge' | 'noGit' | 'failed'
+/** Why no capture: the limits, no git, a path git cannot use, or a failure. */
+export type CaptureRefusal = 'tooManyFiles' | 'tooLarge' | 'noGit' | 'pathTooLong' | 'failed'
 
 export type CaptureResult =
   | { readonly ok: true; readonly snapshot: Snapshot }
   | { readonly ok: false; readonly reason: CaptureRefusal; readonly detail: string }
+
+/** What a failed step of a capture is called: no git, a path git cannot use, or a failure. */
+function captureFailure(error: unknown): Extract<CaptureResult, { ok: false }> {
+  if (error instanceof ShadowPathTooLongError) {
+    return { ok: false, reason: 'pathTooLong', detail: error.message }
+  }
+  return {
+    ok: false,
+    reason: isGitMissingError(error) ? 'noGit' : 'failed',
+    detail: failureForLog(error),
+  }
+}
 
 /**
  * Why a restore or a redo did nothing: no checkpoint (any more); a turn is
@@ -226,6 +243,8 @@ export interface CheckpointStoreDeps {
   readonly isProcessAlive: (pid: number) => boolean
   /** How often the window's presence is written again; CHECKPOINT_HEARTBEAT_MS unless a test shortens it. */
   readonly heartbeatMs?: number
+  /** The longest path git takes: the platform's own unless a test lowers it to reach the limits. */
+  readonly gitPathMax?: number
   readonly log: Logger
 }
 
@@ -543,9 +562,10 @@ export class CheckpointStore {
     const { storageDir, platform } = this.deps
     const { top, prefix } = await this.placeOf()
     const shadow = new ShadowGit(
-      { storageDir, top, platform, instance: this.instance },
+      { storageDir, top, platform, instance: this.instance, gitPathMax: this.deps.gitPathMax },
       { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
     )
+    shadow.assertFits()
     await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
     await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
     this.opened = { shadow, top, prefix }
@@ -1111,11 +1131,7 @@ export class CheckpointStore {
         },
       }
     } catch (error: unknown) {
-      return {
-        ok: false,
-        reason: isGitMissingError(error) ? 'noGit' : 'failed',
-        detail: failureForLog(error),
-      }
+      return captureFailure(error)
     }
   }
 
@@ -1144,7 +1160,7 @@ export class CheckpointStore {
       '-w',
       '--no-filters',
       '--',
-      this.topOf(setup, relative),
+      setup.shadow.fileArgument(this.topOf(setup, relative)),
     ])
     const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
     return { preImage: { mode: isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE, oid }, stat }
@@ -1951,11 +1967,7 @@ export class CheckpointStore {
       try {
         setup = await this.ready()
       } catch (error: unknown) {
-        return {
-          ok: false,
-          reason: isGitMissingError(error) ? 'noGit' : 'failed',
-          detail: failureForLog(error),
-        }
+        return captureFailure(error)
       }
       const result = await this.captureNow(setup, true)
       if (!result.ok) {
