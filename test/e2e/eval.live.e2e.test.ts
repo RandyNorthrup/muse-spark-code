@@ -7,9 +7,10 @@
 // with their runs (D49's "Measured first").
 //
 // Opt-in only, never in CI: it bills the owner's Model API key. It runs
-// when MUSE_LIVE_MODEL_API=1 with the key in MUSE_LIVE_MODEL_API_KEY, which
-// is taken out of the environment when this file loads, so neither a shell
-// command the model runs nor a verifier inherits it; the key is never
+// when MUSE_LIVE_MODEL_API=1, reading the ACP agent's existing operating
+// system credential entry in this process, inside the enabled test. The
+// legacy key environment variable is refused, never read or deleted. Neither
+// a shell command the model runs nor a verifier receives the stored key; it is never
 // printed or written, and the run checks that no log line, task folder or
 // report holds it. A shell command the model runs is allowed once, in the
 // task's folder, as the owner's user, as in the sweep; the verifier runs
@@ -22,7 +23,7 @@
 //                     <path>.json and <path>.md, prettier-formatted; the
 //                     Markdown is printed either way
 
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -35,7 +36,7 @@ import {
   formatEvalReportMarkdown,
   type EvalReport,
 } from '../../src/core/eval/report'
-import { runPairedEval } from '../../src/core/eval/runner'
+import { runPairedEval, type EvalArm } from '../../src/core/eval/runner'
 import { EVAL_TASKS, type EvalTask } from '../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import { fileContextIo } from '../../src/host/backend/contextIo'
@@ -43,22 +44,19 @@ import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { createToolIo } from '../../src/host/backend/toolIo'
 import { createLogger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
-import {
-  EVAL_TURN_TIMEOUT_MS,
-  EVAL_VERIFY_TIMEOUT_MS,
-  MODEL_API_BASE_URL,
-  SEARCH_WORKER_FILE,
-} from '../../src/shared/constants'
+import { MODEL_API_BASE_URL, SEARCH_WORKER_FILE } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 import { readJobSource } from '../unit/helpers/jobSource'
 import { logLines } from '../unit/helpers/logText'
 import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
+import {
+  assertNoLiveKeyEnvironment,
+  evalRunTimeoutMs,
+  loadEvalLiveCredentials,
+} from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
-const KEY_VARIABLE = 'MUSE_LIVE_MODEL_API_KEY'
-const LIVE_KEY = process.env[KEY_VARIABLE] ?? ''
-// Nothing this file starts inherits the key (AGENTS.md rule 8).
-Reflect.deleteProperty(process.env, KEY_VARIABLE)
+assertNoLiveKeyEnvironment(process.env)
 
 const selectionSchema = z.object({
   MUSE_EVAL_TASKS: z.optional(z.string()),
@@ -85,11 +83,6 @@ function selectedTasks(): readonly EvalTask[] {
   return wanted.length === 0 ? EVAL_TASKS : EVAL_TASKS.filter((task) => wanted.includes(task.id))
 }
 
-/** Anything this file prints goes through here: the key never reaches the output. */
-function report(text: string): void {
-  process.stderr.write(`${LIVE_KEY === '' ? text : text.replaceAll(LIVE_KEY, '[key]')}\n`)
-}
-
 async function writeReport(result: EvalReport, target: string): Promise<void> {
   mkdirSync(path.dirname(target), { recursive: true })
   for (const [extension, parser, text] of [
@@ -104,16 +97,16 @@ async function writeReport(result: EvalReport, target: string): Promise<void> {
 
 describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', () => {
   const tasks = selectedTasks()
+  const arms: readonly [EvalArm, ...EvalArm[]] = [{ name: 'baseline' }]
 
   it(
     'runs the task set on the contributor model and records the report',
     async () => {
-      expect(LIVE_KEY === '' ? 'no key in the environment' : 'key present').toBe('key present')
       expect(existsSync(SEARCH_WORKER) ? 'built' : 'run npm run build:dev first').toBe('built')
+      const credentials = await loadEvalLiveCredentials(IS_ENABLED)
       const channel = new FakeLogOutputChannel()
       const log = createLogger(channel)
       const leaks: string[] = []
-      const needle = Buffer.from(LIVE_KEY)
       // Each Windows command in a job object of its own (M27), as in activate;
       // the helper is compiled once for the run, outside every task's folder.
       const storage = mkdtempSync(path.join(tmpdir(), 'muse-eval-storage-'))
@@ -130,11 +123,11 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
           : undefined
       let result: EvalReport
       try {
-        result = await runPairedEval(tasks, [{ name: 'baseline' }], {
+        result = await runPairedEval(tasks, arms, {
           fetch: liveFetch,
           client: {
             baseUrl: MODEL_API_BASE_URL,
-            apiKey: () => Promise.resolve(LIVE_KEY),
+            apiKey: credentials.apiKey,
             sleep: (ms) => delay(ms),
             now: Date.now,
             random: Math.random,
@@ -155,14 +148,14 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
             }),
           contextIo: fileContextIo,
           platform: process.platform,
-          accountId: createHash('sha256').update(LIVE_KEY).digest('hex'),
+          accountId: credentials.accountId,
           log,
           now: Date.now,
           newId: () => randomUUID(),
           generatedAt: new Date().toISOString(),
           inspect: (root) => {
             for (const file of filesUnder(root)) {
-              if (readFileSync(file).includes(needle)) {
+              if (credentials.contains(readFileSync(file))) {
                 leaks.push(path.relative(root, file))
               }
             }
@@ -173,19 +166,19 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
         await removeFolder(storage)
       }
       const markdown = formatEvalReportMarkdown(result)
-      if (logLines(channel).some((line) => line.includes(LIVE_KEY))) {
+      if (logLines(channel).some((line) => credentials.contains(line))) {
         leaks.push('the log')
       }
-      if (`${formatEvalReportJson(result)}${markdown}`.includes(LIVE_KEY)) {
+      if (credentials.contains(`${formatEvalReportJson(result)}${markdown}`)) {
         leaks.push('the report')
       }
       expect(leaks).toEqual([])
-      report(markdown)
+      process.stderr.write(`${credentials.redact(markdown)}\n`)
       if (selection.MUSE_EVAL_REPORT !== undefined) {
         await writeReport(result, path.resolve(selection.MUSE_EVAL_REPORT))
       }
       expect(result.verdict).not.toBe('fail')
     },
-    tasks.length * (EVAL_TURN_TIMEOUT_MS + EVAL_VERIFY_TIMEOUT_MS) + RUN_MARGIN_MS,
+    evalRunTimeoutMs(tasks.length, arms.length, RUN_MARGIN_MS),
   )
 })

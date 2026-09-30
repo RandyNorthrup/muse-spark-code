@@ -4,7 +4,7 @@
 // docs/certification/.
 
 import * as z from 'zod/mini'
-import { EVAL_COST_DECIMALS, EVAL_SPLITS } from '../../shared/constants'
+import { EVAL_COST_DECIMALS, EVAL_REPORT_VERSION, EVAL_SPLITS } from '../../shared/constants'
 
 export const EVAL_VERDICTS = ['pass', 'fail', 'incomplete'] as const
 // CommonMark's shortest code fence.
@@ -22,7 +22,7 @@ const evalCountFields = {
   costUsd: z.number(),
 }
 
-export const evalTaskResultSchema = z.object({
+const evalTaskFields = {
   taskId: z.string(),
   title: z.string(),
   split: z.enum(EVAL_SPLITS),
@@ -35,12 +35,23 @@ export const evalTaskResultSchema = z.object({
   toolCalls: z.number(),
   /** Cards allowed once (shell commands, protected writes). */
   approvals: z.number(),
+}
+
+export const evalTaskResultSchema = z.object({
+  ...evalTaskFields,
   /** Questions the model asked, each answered "proceed". */
   questions: z.number(),
   /** Paid uses the harness asked for, each refused. */
   paidRefusals: z.number(),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
+
+// Version 1 never recorded these counts. A value cannot be relabelled as legacy.
+const legacyTaskResultSchema = z.object({
+  ...evalTaskFields,
+  questions: z.optional(z.never()),
+  paidRefusals: z.optional(z.never()),
+})
 
 export const evalSplitSummarySchema = z.object({
   split: z.enum(EVAL_SPLITS),
@@ -51,12 +62,16 @@ export const evalSplitSummarySchema = z.object({
 })
 export type EvalSplitSummary = z.infer<typeof evalSplitSummarySchema>
 
-export const evalArmReportSchema = z.object({
+const evalArmFields = {
   name: z.string(),
   /** What the mechanism arm changes; absent on the baseline arm. */
   mechanism: z.optional(z.string()),
-  results: z.array(evalTaskResultSchema),
   summaries: z.array(evalSplitSummarySchema),
+}
+
+export const evalArmReportSchema = z.object({
+  ...evalArmFields,
+  results: z.array(evalTaskResultSchema),
 })
 export type EvalArmReport = z.infer<typeof evalArmReportSchema>
 
@@ -71,16 +86,28 @@ export const evalFloorResultSchema = z.object({
 })
 export type EvalFloorResult = z.infer<typeof evalFloorResultSchema>
 
-export const evalReportSchema = z.object({
-  version: z.number(),
+const evalReportFields = {
   model: z.string(),
   generatedAt: z.string(),
-  arms: z.array(evalArmReportSchema),
   floors: z.array(evalFloorResultSchema),
   /** `incomplete`: every floor that ran held, but a split did not run. */
   verdict: z.enum(EVAL_VERDICTS),
-})
+}
+
+export const evalReportSchema = z.discriminatedUnion('version', [
+  z.object({
+    ...evalReportFields,
+    version: z.literal(1),
+    arms: z.array(z.object({ ...evalArmFields, results: z.array(legacyTaskResultSchema) })),
+  }),
+  z.object({
+    ...evalReportFields,
+    version: z.literal(EVAL_REPORT_VERSION),
+    arms: z.array(evalArmReportSchema),
+  }),
+])
 export type EvalReport = z.infer<typeof evalReportSchema>
+type ReportArm = EvalReport['arms'][number]
 
 /** The report as JSON: two-space indent and a trailing newline, as committed. */
 export function formatEvalReportJson(report: EvalReport): string {
@@ -122,7 +149,11 @@ function fenced(text: string): string[] {
   return [`${fence}text`, text, fence]
 }
 
-function armLines(arm: EvalArmReport): string[] {
+function recordedCount(value: number | undefined): string {
+  return value === undefined ? 'not recorded' : String(value)
+}
+
+function armLines(arm: ReportArm): string[] {
   const lines = [`## Arm: ${arm.name}`, ``]
   if (arm.mechanism !== undefined) {
     lines.push(`Mechanism: ${arm.mechanism}`, ``)
@@ -133,7 +164,7 @@ function armLines(arm: EvalArmReport): string[] {
   )
   for (const result of arm.results) {
     lines.push(
-      `| ${result.taskId} | ${result.split} | ${result.passed ? 'yes' : 'no'} | ${result.terminal} | ${String(result.attempts)} | ${String(result.requests)} | ${String(result.inputTokens)} | ${String(result.cachedTokens)} | ${String(result.outputTokens)} | ${formatCost(result.costUsd)} | ${String(result.toolCalls)} | ${String(result.approvals)} | ${String(result.questions)} | ${String(result.paidRefusals)} |`,
+      `| ${result.taskId} | ${result.split} | ${result.passed ? 'yes' : 'no'} | ${result.terminal} | ${String(result.attempts)} | ${String(result.requests)} | ${String(result.inputTokens)} | ${String(result.cachedTokens)} | ${String(result.outputTokens)} | ${formatCost(result.costUsd)} | ${String(result.toolCalls)} | ${String(result.approvals)} | ${recordedCount(result.questions)} | ${recordedCount(result.paidRefusals)} |`,
     )
   }
   lines.push(``)
@@ -157,7 +188,7 @@ function armLines(arm: EvalArmReport): string[] {
   return lines
 }
 
-function comparisonLines(baseline: EvalArmReport, mechanism: EvalArmReport): string[] {
+function comparisonLines(baseline: ReportArm, mechanism: ReportArm): string[] {
   const lines = [
     `## ${mechanism.name} against ${baseline.name}`,
     ``,

@@ -7727,6 +7727,20 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M75 — Paired efficiency evaluation (D49)
 
+**PR63 final review, 2026-09-30 (repairs pending):** close the four reported
+boundaries before merge. The opt-in live evaluator reads its credential from
+the existing secure credential-store API inside the enabled test; it never
+loads a key from its initial environment, arguments or a fixture. The same
+arms list determines both execution and the outer task-by-arm deadline;
+individual turn and verifier limits stay unchanged. Workspace-creation
+failures retain cleanup but expose only bounded fixed error information,
+including failures before a workspace object can be returned. Preserve the
+authentic version-1 baseline byte-for-byte; version the expanded report as 2,
+parse the legacy fields as genuinely unrecorded and render them truthfully.
+Add ordinary mocked regression controls and deliberate failure proofs, then
+repeat exact-tree local/platform/independent/hosted gates. No live or paid
+evaluation is authorized by these repairs.
+
 - **Main 327 update plan (2026-09-30; source only).** Preserve the f7
   candidate and original dirty source, then replay the approved continuation
   through a normal merge of `32709441`. Retain M68's actual-send guards,

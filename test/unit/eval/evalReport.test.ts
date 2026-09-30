@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { EVAL_REPORT_VERSION } from '../../../src/shared/constants'
 import {
   evalReportSchema,
   formatEvalReportJson,
@@ -72,9 +75,9 @@ const FAILED = result({
   attempts: 9,
 })
 
-function sample(): EvalReport {
+function sample(): Extract<EvalReport, { version: typeof EVAL_REPORT_VERSION }> {
   return {
-    version: 1,
+    version: EVAL_REPORT_VERSION,
     model: 'muse-spark-1.3-contributor',
     generatedAt: '2026-09-28T00:00:00.000Z',
     arms: [arm('baseline', [result({}), FAILED], 600)],
@@ -87,12 +90,78 @@ function sample(): EvalReport {
 }
 
 describe('eval report', () => {
+  it('parses the authentic version-one baseline without inventing missing counts', () => {
+    const bytes = readFileSync(
+      new URL('../../../docs/certification/m75-baseline.json', import.meta.url),
+    )
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      'dea9b0d980ee4b564e71d45807130413613b488502e4a9f12790e47b3ce8ffc4',
+    )
+    const original: unknown = JSON.parse(bytes.toString())
+    const captured = evalReportSchema.safeParse(original)
+    expect(captured.success).toBe(true)
+    if (!captured.success) throw new Error('the authentic baseline did not parse')
+    const parsed = captured.data
+    expect(parsed.version).toBe(1)
+    expect(parsed).toEqual(original)
+    for (const baseline of parsed.arms) {
+      for (const task of baseline.results) {
+        expect(Object.hasOwn(task, 'questions')).toBe(false)
+        expect(Object.hasOwn(task, 'paidRefusals')).toBe(false)
+      }
+    }
+    expect(JSON.parse(formatEvalReportJson(parsed))).toEqual(original)
+    const markdown = formatEvalReportMarkdown(parsed)
+    expect(markdown).toContain('| not recorded | not recorded |')
+    expect(markdown).not.toContain('undefined')
+  })
+
   it('round-trips through its schema', () => {
+    expect(EVAL_REPORT_VERSION).toBe(2)
     const rendered = formatEvalReportJson(sample())
     expect(rendered.endsWith('}\n')).toBe(true)
-    expect(evalReportSchema.parse(JSON.parse(rendered))).toEqual(sample())
+    expect(evalReportSchema.safeParse(JSON.parse(rendered))).toMatchObject({
+      success: true,
+      data: sample(),
+    })
     expect(evalReportSchema.safeParse({ ...sample(), verdict: 'maybe' }).success).toBe(false)
   })
+
+  it.each([0, 3, '1', '2', null])('refuses unsupported report version %s', (version) => {
+    expect(evalReportSchema.safeParse({ ...sample(), version }).success).toBe(false)
+  })
+
+  it('refuses expanded counts labelled as version one', () => {
+    expect(evalReportSchema.safeParse({ ...sample(), version: 1 }).success).toBe(false)
+  })
+
+  it.each(['questions', 'paidRefusals'] as const)(
+    'requires recorded %s in version two',
+    (field) => {
+      const report = sample()
+      const task = result({})
+      Reflect.deleteProperty(task, field)
+      expect(
+        evalReportSchema.safeParse({
+          ...report,
+          arms: [arm('baseline', [task], 600)],
+        }).success,
+      ).toBe(false)
+    },
+  )
+
+  it.each(['questions', 'paidRefusals'] as const)(
+    'refuses a nonnumeric recorded %s in version two',
+    (field) => {
+      const task = { ...result({}), [field]: 'not recorded' }
+      expect(
+        evalReportSchema.safeParse({
+          ...sample(),
+          arms: [{ ...arm('baseline', [], 600), results: [task] }],
+        }).success,
+      ).toBe(false)
+    },
+  )
 
   it('renders the tasks, the splits, the failures and the floors', () => {
     const markdown = formatEvalReportMarkdown(sample())

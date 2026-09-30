@@ -32,6 +32,7 @@ import type { EvalTask } from './tasks'
 import { createEvalWire, wireTotals, type EvalBudget, type EvalWire } from './wire'
 import {
   createEvalWorkspace,
+  evalWorkspaceFailureForReport,
   removeEvalWorkspace,
   runEvalVerifier,
   type EvalFolders,
@@ -85,11 +86,12 @@ async function step<T>(
   what: string,
   failures: string[],
   run: () => Promise<T>,
+  failureText: (error: unknown) => string = describe,
 ): Promise<T | undefined> {
   try {
     return await run()
   } catch (error: unknown) {
-    failures.push(`${what}: ${describe(error)}`)
+    failures.push(`${what}: ${failureText(error)}`)
     return undefined
   }
 }
@@ -146,8 +148,11 @@ async function runTask(
 ): Promise<EvalTaskResult> {
   const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
   const steps: string[] = []
-  const folders = await step('the workspace could not be made', steps, () =>
-    createEvalWorkspace(task),
+  const folders = await step(
+    'the workspace could not be made',
+    steps,
+    () => createEvalWorkspace(task),
+    evalWorkspaceFailureForReport,
   )
   const outcome =
     folders === undefined ? undefined : await runInFolders(task, arm, deps, wire, folders, steps)

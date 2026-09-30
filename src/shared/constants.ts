@@ -2729,7 +2729,7 @@ export const EVAL_BUDGET_USD = 0.5
 export const EVAL_FLOOR_ACCEPT_PASS_RATE = 0.75
 export const EVAL_FLOOR_HELDOUT_PASS_RATE = 0.75
 // The shape of the report the live run writes.
-export const EVAL_REPORT_VERSION = 1
+export const EVAL_REPORT_VERSION = 2
 // Decimals for the report's dollar amounts: a task costs a few
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4

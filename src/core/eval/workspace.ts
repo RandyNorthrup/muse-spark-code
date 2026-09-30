@@ -22,6 +22,7 @@ import {
   EVAL_WORKSPACE_DIR,
 } from '../../shared/constants'
 import { EVAL_VERIFY_PRELUDE, isEvalPath, type EvalTask } from './tasks'
+import { wireWordForLog } from '../logging'
 
 export interface EvalFolders {
   /** The task's own temporary folder; removing it removes everything. */
@@ -43,23 +44,37 @@ export interface EvalVerdict {
 export async function createEvalWorkspace(task: EvalTask, parent = tmpdir()): Promise<EvalFolders> {
   // The canonical path: the host confines the tools to it (D24), and on
   // macOS the temporary folder is reached through a link.
-  const root = await realpath(await mkdtemp(path.join(parent, EVAL_TEMP_PREFIX)))
-  const workspace = path.join(root, EVAL_WORKSPACE_DIR)
+  let root: string | undefined
   try {
+    root = await mkdtemp(path.join(parent, EVAL_TEMP_PREFIX))
+    root = await realpath(root)
+    const workspace = path.join(root, EVAL_WORKSPACE_DIR)
     await mkdir(workspace)
     for (const file of task.files) {
       if (!isEvalPath(file.path)) {
-        throw new Error(`the fixture path ${file.path} leaves the workspace`)
+        throw new Error('the fixture path leaves the workspace')
       }
       const target = path.join(workspace, ...file.path.split('/'))
       await mkdir(path.dirname(target), { recursive: true })
       await writeFile(target, file.content)
     }
+    return { root, workspace }
   } catch (error: unknown) {
-    await removeEvalWorkspace(root)
+    if (root !== undefined) await removeEvalWorkspace(root)
     throw error
   }
-  return { root, workspace }
+}
+
+/** Before a folder is returned, error messages cannot be safely masked by its root. */
+export function evalWorkspaceFailureForReport(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+  )
+    return wireWordForLog(error.code)
+  return error instanceof Error ? wireWordForLog(error.name) : 'an unknown failure'
 }
 
 /** A workspace's files, relative with forward slashes (the tools' `listFiles`). */

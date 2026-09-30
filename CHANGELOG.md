@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Live Model API test harnesses use the existing OS credential store instead
+  of accepting keys in their initial environment. The paired evaluation's
+  overall deadline accounts for every task and arm without changing each
+  turn or verifier limit.
+- Evaluation setup failures keep profile-backed temporary paths out of
+  reports and remove allocated workspaces when canonical resolution fails.
+- New evaluation reports use version 2; the authentic version-1 baseline
+  remains readable with its unrecorded counts absent rather than invented.
+
 - Regenerated the host inventory to include the paired evaluator's five
   additional Node import counts, keeping the source inventory gate current.
 
