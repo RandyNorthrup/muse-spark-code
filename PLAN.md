@@ -7785,10 +7785,11 @@ verified `9c4ac7d3` (`docs/certification/m72.md`, "Correction batch before
   activation wiring test now pins the exact guard expressions (a no-op
   `captureGuard` fails it), which the independent verifier found missing. Its
   other finding, that `withCheckpointEditAt` decides containment lexically
-  against the canonical root while the store also accepts the display root, is
-  declined for the project memory scope: that path is built from the same root
-  it is compared with, so it is inside by construction (an export saved through
-  a differing display spelling is a recorded limit).
+  against the canonical root while the store also accepts the display root, was
+  right for the export edit (a save dialog returns VS Code’s spelling) and is
+  fixed in `e78a949d`: containment holds for either spelling. The project memory
+  scope was never affected (its path is built from the root it is compared
+  with).
 - **The user's `!` and a shell that never started** (`e593ebe4`, `1fd98aaf`):
   see "Final admission for the user's `!` command" below.
 - **git's path limits** (`62c856d8`): see "Long storage paths" below.

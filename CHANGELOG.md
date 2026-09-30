@@ -499,7 +499,9 @@ happened, not what was planned; superseded entries are kept.
   restore brings them back. The view's new note, delete and index line hold
   the restore lease until they finish (personal notes outside the workspace
   take none), and so does a conversation export you save inside the
-  workspace: another window's Restore or Redo is refused while one runs.
+  workspace, whichever way the folder is spelled (a link, a junction or a
+  mapped drive included): another window's Restore or Redo is refused while
+  one runs.
 
 - **A `!` command is checked again at its real start** (M72). On the Model
   API backend, a `!` command you typed could still start after the workspace
