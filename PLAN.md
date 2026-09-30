@@ -8607,7 +8607,9 @@ joined with M57, M58 and PR #49's sign-in
 preserve Dependabot head `6155ada0` and integrate its SDK 1.5.0, jsdom 30.1.1
 and Prettier 3.9.9 updates in an isolated worktree on main `32709441`.
 Keep TypeScript 6.0.3: the rechecked `typescript-eslint@8.70.1` peer range is
-`>=4.8.4 <6.1.0`, so the grouped TypeScript 7.0.2 update is incompatible.
+`>=4.8.4 <6.1.0`, so the grouped TypeScript 7.0.2 update is incompatible:
+`.github/dependabot.yml` ignores TypeScript major updates (an entry to remove
+when typescript-eslint admits 7) and `test/unit/manifest.test.ts` holds it.
 SDK 1.5.0 accepts the pinned zod 4.6.5 and adds optional notice schemas;
 the existing ACP v1 connection implementation is unchanged. This change
 does not emit, advertise or implement those new notices or the v2 alpha

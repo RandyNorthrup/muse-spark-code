@@ -300,3 +300,18 @@ describe('packaging (M26)', () => {
     expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
   })
 })
+
+describe('toolchain pins (AGENTS.md)', () => {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+
+  it('keeps Dependabot from proposing TypeScript 7 while typescript-eslint cannot take it', () => {
+    // typescript-eslint accepts `>=4.8.4 <6.1.0`; a compiler outside that range
+    // silently turns off every type-aware lint rule. The grouped dev-dependency
+    // pull request carried TypeScript 7 (PR #61) until this ignore existed.
+    expect(manifest.devDependencies.typescript).toMatch(/^6\.0\.\d+$/)
+    const dependabot = readFileSync(path.join(root, '.github', 'dependabot.yml'), 'utf8')
+    expect(dependabot).toMatch(
+      /^ {6}- dependency-name: typescript\n {8}update-types: \['version-update:semver-major'\]$/m,
+    )
+  })
+})
