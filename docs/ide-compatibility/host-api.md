@@ -33,7 +33,7 @@ The VS Code adapter: 16 files. Everything else reaches VS Code only through them
 
 | File                                     | VS Code APIs used |
 | ---------------------------------------- | ----------------- |
-| `src/extension.ts`                       | 145               |
+| `src/extension.ts`                       | 146               |
 | `src/host/cliFeatures.ts`                | 26                |
 | `src/host/codeIntel/languageServices.ts` | 45                |
 | `src/host/editor/verifyEditor.ts`        | 55                |
@@ -319,7 +319,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `window.showSaveDialog`                                                              | `src/host/cliFeatures.ts`                                                                                                                                                                |
 | `window.showTextDocument`                                                            | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`                                                                           |
 | `window.showWarningMessage`                                                          | `src/extension.ts`, `src/host/memoryFeatures.ts`, `src/host/paid/paidHost.ts`, `src/host/popups.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`                   |
-| `window.state`                                                                       | `src/host/paid/paidHost.ts`                                                                                                                                                              |
+| `window.state`                                                                       | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                          |
 | `window.tabGroups`                                                                   | `src/host/editor/verifyEditor.ts`                                                                                                                                                        |
 | `window.visibleTextEditors`                                                          | `src/host/editor/verifyEditor.ts`                                                                                                                                                        |
 | `workspace.asRelativePath`                                                           | `src/extension.ts`                                                                                                                                                                       |
@@ -342,19 +342,19 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 24    |
+| `node:buffer`          | 25    |
 | `node:child_process`   | 8     |
-| `node:crypto`          | 21    |
+| `node:crypto`          | 24    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 17    |
-| `node:fs/promises`     | 25    |
+| `node:fs`              | 18    |
+| `node:fs/promises`     | 26    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 3     |
 | `node:os`              | 4     |
-| `node:path`            | 54    |
+| `node:path`            | 55    |
 | `node:process`         | 1     |
 | `node:stream`          | 6     |
 | `node:string_decoder`  | 1     |

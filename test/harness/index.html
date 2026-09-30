@@ -139,6 +139,7 @@
         confidentialWorkspace: false,
         allowDangerouslySkipPermissions: false,
         archiveInactiveSessions: 14,
+        modelApiReplyUsage: false,
       }
       const models = [
         {
@@ -1652,7 +1653,46 @@
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
         },
-        // --- M14: the usage modal on the Model API backend (a cost estimate) ---
+        // --- M82: a Model API reply with its tokens and cost under it, and
+        // the session budget's notices after it ---
+        'reply-usage': () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'settingsChanged', settings: { ...settings, modelApiReplyUsage: true } })
+          window.harnessSilent = true
+          setDraft('Which files set the session budget?')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'The cap is read in `src/host/settings.ts` and kept in `sessionBudget.ts`.',
+              usage: {
+                inputTokens: 23_410,
+                outputTokens: 912,
+                cachedTokens: 18_000,
+                reasoningTokens: 240,
+              },
+              costUsd: 0.0133,
+            },
+          })
+          // The controller posts a backend's notices as its own (D26).
+          send({
+            type: 'notice',
+            level: 'warning',
+            text: 'The response reached the output limit the session budget left it (max_output_tokens 912) and may be cut short.',
+          })
+          send({
+            type: 'notice',
+            level: 'info',
+            text: 'This turn cost $0.0133 ($0.4870 of $0.5000 used).',
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+        },
+        // --- M14: the usage modal on the Model API backend (a cost estimate;
+        // since M82 also what the prompt cache saved) ---
         'usage-api': () => {
           window.harnessBackend = 'modelApi'
           send({

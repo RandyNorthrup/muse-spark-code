@@ -100,5 +100,8 @@
   "config.checkCommands.command.description": "シェル ツールのシェル (Windows では PowerShell、それ以外では bash) がワークスペースのルートで実行するコマンド ライン。",
   "config.checkCommands.changedFiles.description": "まだ存在する編集済みファイルを -- の後に、それぞれ引用符付きの 1 つの引数として追加します。- または @ で始まるファイル名、または Windows で \" & | < > ^ % ! のいずれかを含むファイル名があると、チェックは実行されません。",
   "config.checkCommands.timeoutSeconds.description": "コマンドを停止するまでの秒数 (未設定なら 300)。",
-  "config.formatOnEdit.description": "Model API バックエンドの編集ツールが書き込んだファイルそれぞれに、チェックの前にファイルのフォーマッタを実行します。既定ではオフです。"
+  "config.formatOnEdit.description": "Model API バックエンドの編集ツールが書き込んだファイルそれぞれに、チェックの前にファイルのフォーマッタを実行します。既定ではオフです。",
+  "config.notifyOnBackgroundTurn.description": "VS Code ウィンドウにフォーカスがないときに、長いターンが終了した場合や、ターンの承認・回答待ちの場合に通知を表示します。ウィンドウにフォーカスがあるときは何も表示されません。",
+  "config.modelApiReplyUsage.description": "既定ではオフ。各 Model API の返答の入力・出力トークンとドル換算の見積もりを返答の下に表示します。",
+  "config.modelApiSessionBudgetUsd.description": "Model APIの各会話の支出上限を米ドルで設定します。0は上限なしです。共有の永続的な予約額で、送信前にトークンリクエスト、サブエージェントのリクエスト、画像料金を確保します。入力の見積もりは課金される使用量と異なる場合があります。課金されるクエリ数の上限が確認されていないため、上限が有効な間はウェブ検索を利用できません。結果が不明な送信済みリクエストの予約額は保持され、曖昧な失敗後の自動再試行は拒否されます。正常なセッションストレージが必要です。有料機能には引き続き別の同意が必要です。 課金される音声時間の上限が確認されていないため、支出上限が有効な間は有料の Muse Voice も利用できません。システムの音声入力を使用してください。"
 }

@@ -163,6 +163,8 @@ function setup(options: SetupOptions = {}) {
     isPaidFeatureOn: (feature) => options.hasSubagents === true && feature === 'subagents',
     notePaidUse: () => undefined,
     promptCacheRetention: () => 'in_memory',
+    sessionBudgetUsd: () => 0,
+    showReplyUsage: () => false,
     allowsPaidUse: () => Promise.resolve(options.hasSubagents === true),
     isPaidUseRemembered: () => false,
     noteSubagentUsage: () => undefined,

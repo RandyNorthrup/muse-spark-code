@@ -243,6 +243,9 @@ function modelApiManager(
     },
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // M82's cap and reply line are VS Code settings; ACP exposes neither.
+    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
     // are paid (M48, D45) and the agent's paid features are its two flags
     // (D62), so `subagents` is never on here and every task is denied.

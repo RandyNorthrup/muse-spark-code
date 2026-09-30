@@ -54,6 +54,33 @@ describe('readSettings', () => {
     expect(retentionOf('7')).toBe(30)
   })
 
+  it('reads the awareness and budget settings, 0 meaning no cap (M82)', () => {
+    const settings = readSettings(
+      fakeSettingsSource({
+        notifyOnBackgroundTurn: false,
+        modelApiReplyUsage: true,
+        modelApiSessionBudgetUsd: 2.5,
+      }),
+      new FakeLogOutputChannel(),
+    )
+    expect(settings.notifyOnBackgroundTurn).toBe(false)
+    expect(settings.modelApiReplyUsage).toBe(true)
+    expect(settings.modelApiSessionBudgetUsd).toBe(2.5)
+  })
+
+  it('falls back to no cap for a negative or non-numeric budget (M82)', () => {
+    const log = new FakeLogOutputChannel()
+    expect(
+      readSettings(fakeSettingsSource({ modelApiSessionBudgetUsd: -1 }), log)
+        .modelApiSessionBudgetUsd,
+    ).toBe(0)
+    expect(
+      readSettings(fakeSettingsSource({ modelApiSessionBudgetUsd: '5' }), log)
+        .modelApiSessionBudgetUsd,
+    ).toBe(0)
+    expect(log.warn).toHaveBeenCalledTimes(2)
+  })
+
   it('logs and falls back to the default for an invalid value', () => {
     const log = new FakeLogOutputChannel()
     const settings = readSettings(
@@ -145,6 +172,9 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('enableNewConversationShortcut')
     expect(snapshot).not.toHaveProperty('backend')
     expect(snapshot).not.toHaveProperty('modelApiHooks')
+    expect(snapshot).not.toHaveProperty('notifyOnBackgroundTurn')
+    expect(snapshot).not.toHaveProperty('modelApiSessionBudgetUsd')
+    expect(snapshot.modelApiReplyUsage).toBe(false)
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
   })
 })

@@ -8799,6 +8799,222 @@ independent review and the full candidate gates remain required.**
 
 ### M82 — Awareness and budgets (D49)
 
+**Resume review 2026-09-29.** The settled-spend, request-model pricing and
+replayed-question fixes in the existing branch are retained. Completion
+also requires the open request's reserved liability to survive a crash
+before usage arrives, including a snapshot whose replay cannot be saved.
+The reservation write must finish before fetch, and unavailable or failing
+storage refuses the capped request. Final key/account, model, goal, trust
+and paid admission checks stay synchronous after the write; a nonsent
+reservation is refunded durably under its original account. Final usage
+replaces the liability. A model change invalidates an
+older request's or token-count call's base even if the model switches back
+before it answers. Stored usage and reply spend must stay finite and
+nonnegative. A failed compacted-context token count logs a status and fixed
+words only. These paths are checked with held fake responses, a real
+session-file readback, model changes, reloads and red/restored drills; no
+new paid live run is authorized for this completion.
+
+**Shared spending and paid fees (resume owner decision, 2026-09-29).** The
+cap remains per conversation across hosts sharing its session store. A
+scoped budget journal owns each request's durable liability through actual
+settlement or refund; journal entries remain visible after crashes, and
+stale whole-session saves cannot lower authoritative spend. Every admission
+refreshes that spend, publishes its own liability and rechecks the total
+synchronously after key retrieval. Missing, corrupt or unreadable journal
+data refuses a capped request. Legacy spend is seeded once from the fresh
+account-owned session file; unverified historical paid fees are reported
+explicitly, never invented as zero.
+
+Known image-generation fees enter that same admission and settlement.
+Hosted search has no captured hard query bound, so it is unavailable while
+a finite cap is active, with a localized reason; cap-off search retains its
+paid consent. No unsupported wire field is added. This preserves the spend
+cap rather than redefining it as a token-only budget. Real shared-disk tests
+must cover two hosts publishing liabilities, a later publisher, stale
+saves, crash retention, model/key/cap changes and known paid fees.
+
+A capped response attempt that was sent but never reports usage keeps its
+whole liability. An ambiguous transport or server failure cannot retry with
+the same allowance; a new request needs a fresh admission. Explicit 429
+refusals may retry under the original claim because no work was admitted.
+Cap-off HTTP retries retain their existing behavior. Image calls already
+retry only explicit 429 refusals. These limits are surfaced and documented,
+without guessing a new billing field.
+
+A request begun with the cap off still publishes an open-unbounded claim
+when a shared journal exists. Finite admission refuses while that possible
+charge is unsettled, even when another host has a different current setting.
+Known actual usage clears that temporary uncertainty; an unverified tariff
+or earlier ambiguous retry retains a permanent unknown-cost marker. The
+final retry tail cannot certify earlier attempts as unbilled. Cap-off
+requests without session storage keep their existing behavior; a provided
+but unavailable journal fails closed. Known image fees have a hard flat
+bound and publish ordinary claims in either setting. This remains scoped
+owned-row metadata, with no election or shared configuration coordinator.
+
+The owned Model API host exposes a typed immutable parent budget scope for
+external trial attempts and paid voice. It contains only the session ID,
+account digest, journal, current-cap getter and final owner/context fence.
+An attempt host reserves and settles its own row in that parent scope;
+its temporary transcript is never saved or seeded under the parent's ID.
+The fence checks the originating lifetime, account, trust, model and goal
+context after async storage and actual key retrieval. Unknown sessions or
+managers fail closed. The backend manager already returns the typed Model
+API host, so this adds no generic agent API or runtime bundle identity test.
+
+An owned optional `ResponseAttemptGuard.onRequestStarted` observer runs
+after every key, admission, Stop and confirmed-run fence and request-init
+build, synchronously adjacent to fetch. It marks attempted sends and child
+request debits there; preflight alone never consumes an attempt or turns a
+known nonsent reservation into unknown spend. Context packing and external
+trial counters compose after that marker. Transport attempts still are not
+verified invoices: missing usage retains liability and uncertainty. This
+is internal callback metadata, with no new HTTP/MSP fields, call arguments,
+duplicate key read, body build or admission call.
+
+**Paid voice integration (owner-approved completion).** On an actual Model
+API conversation, a finite cap makes Muse Voice unavailable with a localized
+reason. Cap-off voice obtains the current owned parent scope, publishes an
+open-unbounded row before authentication/audio, and checks the actual key
+digest and parent lifetime/context before each send. The key is reread
+after the durable write; the controller fences attachment, auth admission,
+restart epoch and paid availability while cancellation awaits. A context
+change has its own localized reason instead of claiming the cap is on.
+Stop or owner changes
+before authentication refund only the proven nonsent row. Once
+authentication may have been sent, local PCM duration is an estimate, not a
+server billing receipt: settlement keeps an unknown-cost marker, including
+a final transcript, until supported billing-duration evidence exists. The
+earlier M35 record captured local recording and synthetic protocol tests,
+and explicitly lacked a live paid voice call. CLI voice and free system
+dictation retain their existing behavior. No new audio bound or wire usage
+field is guessed. A voice stream retains its original scope while another
+recording or surface begins; stale text cannot land on a replacement owner.
+Paid voice captures that scope and the controller's auth admission revision,
+attachment/send epochs, model and permission mode before the consent popup.
+An accepted popup cannot authorize a replacement account or recreate capture
+after disposal. Direct paid reviewers use their own explicit claim in the
+canonical response guard, never the preceding main response's settled claim.
+All owned session scopes inherit a host close-start fence, including during
+awaited SessionEnd hooks. Billable usage requires safe nonnegative integer
+counts and cached input no greater than total input; invalid reports retain
+unknown liability rather than reducing it.
+Per-reply dollar amounts are labeled estimated in every UI language. This
+also covers D36's future-model tier fallback; it must not read as a verified
+provider charge. The known-only turn-budget footer remains unchanged.
+Cap-off paid voice keeps its no-folder/no-store behavior. Each recording
+captures a separate consent fence before its popup, including the actual
+account digest and auth/model/mode/attachment/lifetime revisions, even when
+there is no journal. The fence is checked before authentication, audio and
+end sends; a later finite cap refuses those sends. Stop and the next press
+do not invalidate a finishing recording's original owner. A stale final
+transcript cannot enter a replacement owner. No shared-spend or verified
+audio-billing claim is made for this unshared path.
+A narrow controller revision fences local model/mode changes and observed
+model events, so a round trip cannot restore old no-journal consent.
+Current-main adapters use the existing defaults where M82 has no setting
+surface: ACP keeps the cap off and per-reply display off. The manual live
+panel fixture supplies the same owned voice/notification ports; its budget
+drill is case22, retaining the original case19 capture as historical evidence.
+The current-main focused run found Stop could skip a recording after a new
+cap made the next recording unavailable. Stop now reaches the existing
+driver before checking availability and never creates a driver of its own.
+
+**Status 2026-09-28: built** (`docs/certification/m82.md`). Drafted by a
+Muse Code instance, reviewed and finished by Claude; the record holds the
+rig gate, 27 red drills, and a live check on the contributor model (two
+requests) that found each request's estimate above what Meta counted.
+
+- **Decisions.**
+  - **Notifications are VS Code's own.** VS Code gives extensions no
+    operating-system notification (its chat's OS toasts are internal), so
+    the notice is `showInformationMessage`, raised only while
+    `vscode.window.state.focused` is false; it waits in the window's corner.
+    An OS-level toast would need a helper process per OS (§3).
+  - A turn counts as long at 60 s (`BACKGROUND_TURN_NOTIFICATION_MIN_MS`).
+    A turn whose length the backend did not report notifies; a cancelled
+    one never does. The message names the terminal: completed, failed, or
+    "ended" for a word the wire adds later (D36). Approvals and questions
+    notify; a pending card or question replayed to a later surface (or
+    pulled again by a resume) is marked `isReplayed` and does not.
+  - One `BackgroundNotifier` per window raises each notice once by key
+    (session and turn, approval or question), so two surfaces on one
+    session do not both notify; the keys it remembers are bounded
+    (`BACKGROUND_NOTICE_KEYS_MAX`).
+  - `museSpark.notifyOnBackgroundTurn` is not machine-scoped: it chooses
+    nothing that runs or is billed (D15), so a workspace may set it.
+    `museSpark.modelApiReplyUsage` is display only.
+  - **Per-reply usage** accumulates every request of the turn (tool steps,
+    failed attempts that reported usage) and is told on the last message of
+    the next response that has one, so a turn's lines add up to its cost.
+    The host attaches it while the setting is on; Muse Code attaches nothing
+    (D26).
+  - **The budget's estimate** (`sessionBudget.ts`): the last reported
+    request's input tokens, plus each part of this request (the
+    instructions, the tools, each input item, as JSON) that the reported
+    one did not carry, at one token per UTF-8 byte
+    (`SESSION_BUDGET_MIN_BYTES_PER_TOKEN`), since a byte-level tokenizer
+    never makes a token of less than a byte. Parts are matched by SHA-256,
+    and a part the base carried and this request does not is never
+    subtracted, so older media left out or a compaction can only raise the
+    estimate. With no base (the first request, a model change, a cap set
+    mid-conversation) every part counts; after a compaction, Meta's count
+    of the new context is the base. The live check measured the estimate at
+    3.6 and 2.2 times what Meta counted.
+  - **The reservation** prices input and the whole output allowance at the
+    model's verified list price (`modelApiPaidTier`), no cache discount; a
+    model with no verified price is refused while a cap is set rather than
+    priced by guess. `max_output_tokens` is the most that fits, capped at
+    the usual maximum; with room for less than one output token the request
+    is not sent. Every request is reserved (turns, retries, compactions),
+    checked before the PreLLMCall hooks see it and again on the body sent.
+  - **Settling.** A response's reported usage replaces its reservation,
+    priced at the model the request was sent to, even if the session
+    switched models meanwhile; a request counted for another model is no
+    base. A sent response that never reported usage (a Stop, a dropped
+    stream, a response timeout or a crash) retains its whole reservation.
+    This is possible liability, not verified billed spending. A nonsent
+    request, or an established 400/429 refusal before the response began,
+    counts nothing. Other unknown sent outcomes remain reserved. A negative
+    token count is no report. A reply that used every output token the
+    budget left is marked as possibly cut short.
+  - **Saved as it is spent.** Each reported usage saves the session. While
+    a call waits for its output the replay cannot be saved (a call without
+    its output cannot be replayed after a crash), so the token totals and
+    the spend are written onto the session's last saved snapshot instead.
+    Closing the window waits up to `MODEL_API_CLOSE_SETTLE_MS` for the turns
+    it stops to charge and save. A negative stored spend or a negative count
+    of the compacted context is refused.
+    The request's reservation is also saved before fetch, even before any
+    response frame. The save is awaited; a capped request without working
+    session storage is refused. A stop or an account, model, goal, trust
+    or web-search admission change during the write prevents the request
+    and releases its nonsent liability. The shared journal, initialized
+    once from the fresh account-owned file, supplies all subsequent spend;
+    old snapshots cannot lower it. Unknown sent attempts cannot repeat
+    under the same allowance; explicit rate-limit refusals can.
+  - **Child tasks** retain their separate paid confirmations (D48) and
+    reserve each request in the parent's shared journal. Their usage counts
+    toward that same conversation and its owning goal (M45).
+  - **Known flat fees** enter the same journal: image generation reserves
+    its published fee before sending, including a billed image that cannot
+    be saved. Search has no captured hard billed-query bound and is
+    unavailable with a finite cap. With no cap it keeps paid consent and
+    records reported search fees. Unverified historical paid fees prevent
+    a cap on that history; a fresh conversation can be capped.
+  - Spend persists with the session; a fork or side chat is a conversation
+    of its own and starts at zero. Its controlled initial snapshot carries
+    `budgetIsFreshFork: true`, `forkedFrom` and explicit zero spend so copied
+    paid and closed-child history does not become an unverified new charge.
+    The runtime marker clears after journal activation; the one-time intent
+    prevents a repeated load or stale save from seeding again. Legacy rows
+    never get this interpretation from a missing spend or a fork link alone.
+    The turn's cost against the cap is shown
+    after each turn with a cap.
+  - Cache savings is the uncached price minus the priced one, with its
+    share; its value template is a pre-formatted amount and percentage,
+    allow-listed by the localization gate as such.
 - **Goal.** The user knows what happened and what it cost.
 - **Scope.**
   - An OS notification when a long turn ends or waits for approval while
@@ -8812,9 +9028,10 @@ independent review and the full candidate gates remain required.**
       output at list price fits what is left;
     - a request that cannot fit is not sent, and the turn stops and says
       so;
-    - the only overrun possible is the error in that input estimate; the
-      setting's description says so, and the turn's cost after the fact
-      is shown against the cap.
+    - the cap uses conservative input estimates and published prices;
+      actual billing can differ, and the setting makes no exhaustive
+      overrun claim. The turn's reported cost and reserved unknown
+      liability are documented separately.
   - Cache savings shown in Account & usage, on the Model API only (D26:
     Muse Code reports no honest cache totals).
 - **Backends.** Both. Cost is for the Model API.

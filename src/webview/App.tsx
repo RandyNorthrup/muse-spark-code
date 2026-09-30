@@ -1470,6 +1470,7 @@ export function App({
               : undefined
           }
           onReply={onReply}
+          showReplyUsage={state.settings.modelApiReplyUsage}
           planReplyId={planReplyIdOf(state)}
           onSavePlan={onSavePlan}
           onImplementPlan={state.isSideChat ? undefined : onImplementPlan}

@@ -83,6 +83,120 @@ function untrusted(): Promise<Response> {
 }
 
 describe('ModelApiClient', () => {
+  it.each(['stop', 'confirmed'])(
+    'observes no actual attempt when final %s refuses after preflight',
+    async (refusal) => {
+      const t = setup()
+      const stop = new AbortController()
+      let isConfirmed = true
+      const started = vi.fn()
+      const guard = Object.assign(
+        () => {
+          if (refusal === 'stop') {
+            stop.abort()
+          } else {
+            isConfirmed = false
+          }
+        },
+        { onRequestStarted: started },
+      )
+      await expect(
+        collect(
+          t.client.streamResponse(body, stop.signal, undefined, undefined, guard, {
+            modelId: body.model,
+            keyDigest: createHash('sha256').update('LLM|1|secret').digest('hex'),
+            isStillAllowed: () => isConfirmed,
+            onRequestStarted: vi.fn(),
+          }),
+        ),
+      ).rejects.toThrow()
+      expect(t.api.responseBodies()).toEqual([])
+      expect(started).not.toHaveBeenCalled()
+    },
+  )
+
+  it('observes no attempt when request initialization throws after successful preflight', async () => {
+    const t = setup()
+    const started = vi.fn()
+    const admitted = vi.fn()
+    const confirmedStarted = vi.fn()
+    const guard = Object.assign(admitted, { onRequestStarted: started })
+    const invalidInit = {
+      ...body,
+      toJSON: () => {
+        throw new Error('request init refused')
+      },
+    }
+    await expect(
+      collect(
+        t.client.streamResponse(
+          invalidInit,
+          new AbortController().signal,
+          undefined,
+          undefined,
+          guard,
+          {
+            modelId: body.model,
+            keyDigest: createHash('sha256').update('LLM|1|secret').digest('hex'),
+            isStillAllowed: () => true,
+            onRequestStarted: confirmedStarted,
+          },
+        ),
+      ),
+    ).rejects.toThrow('request init refused')
+    expect(admitted).toHaveBeenCalledOnce()
+    expect(started).not.toHaveBeenCalled()
+    expect(confirmedStarted).not.toHaveBeenCalled()
+    expect(t.api.responseBodies()).toEqual([])
+  })
+
+  it('observes every actual fetch and retry after one preflight and body build each', async () => {
+    const api = fakeModelApi()
+    api.script({ httpError: { status: 502 } }, { text: 'tail' })
+    const sequence: string[] = []
+    const t = setup('LLM|1|secret', (input, init) => {
+      sequence.push('fetch')
+      return api.fetch(input, init)
+    })
+    const guard = Object.assign(
+      () => {
+        sequence.push('guard')
+      },
+      {
+        onRequestStarted: () => {
+          sequence.push('started')
+        },
+      },
+    )
+    const countedInit = {
+      ...body,
+      toJSON: () => {
+        sequence.push('init')
+        return body
+      },
+    }
+    await collect(
+      t.client.streamResponse(
+        countedInit,
+        new AbortController().signal,
+        undefined,
+        undefined,
+        guard,
+      ),
+    )
+    expect(sequence).toEqual([
+      'guard',
+      'init',
+      'started',
+      'fetch',
+      'guard',
+      'init',
+      'started',
+      'fetch',
+    ])
+    expect(api.responseBodies()).toHaveLength(2)
+  })
+
   it('rechecks a scheduled paid gate before retrying a request', async () => {
     const api = fakeModelApi()
     api.script({ httpError: { status: 429 } }, { text: 'should not run' })

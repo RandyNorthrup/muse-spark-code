@@ -75,6 +75,7 @@ import {
   type PickedFile,
   type SessionMemory,
 } from './host/conversation/conversationController'
+import { BackgroundNotifier } from './host/conversation/turnNotifications'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
 import { ModelApiClient } from './core/backends/modelapi/client'
@@ -1307,6 +1308,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       paid.usage.add(feature, units)
     },
     promptCacheRetention: () => currentSettings().modelApiPromptCacheRetention,
+    // The session budget cap and the per-reply usage line (M82), read per
+    // request and per reply so a changed setting applies at once.
+    sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
+    showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
     // the host.
@@ -1514,6 +1519,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
 
+  // One per window (M82): a notice two surfaces on one session receive is
+  // raised once, and only while the window is unfocused.
+  const backgroundNotifier = new BackgroundNotifier({
+    isEnabled: () => currentSettings().notifyOnBackgroundTurn,
+    isWindowFocused: () => vscode.window.state.focused,
+    show: async (message) =>
+      (await vscode.window.showInformationMessage(message, UI_TEXT.notifyShowConversation)) ===
+      UI_TEXT.notifyShowConversation,
+    log,
+  })
+
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -1562,6 +1578,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             UI_TEXT.contributorConfirm,
           )) === UI_TEXT.contributorConfirm,
         runHostAction,
+        // A turn needs the user while the VS Code window is unfocused
+        // (M82); the notice's button brings this surface into view, while
+        // it is still open.
+        notifyAttention: (notice) => {
+          backgroundNotifier.notify(notice, () => {
+            if (registry.has(surface)) {
+              surface.reveal()
+            }
+          })
+        },
         copyText: async (text) => {
           await vscode.env.clipboard.writeText(text)
         },
@@ -1657,6 +1683,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
             ? museVoiceSetup
             : undefined,
+        modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
+        voiceAccountId: () => modelApi.accountId(),
+        ownedVoiceBudgetScope: async (sessionId) => {
+          if (auth.current.backend !== 'modelApi') {
+            throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+          }
+          const host = await modelApi.ensureHost()
+          return await host.getOwnedBudgetScope(sessionId)
+        },
         exports: cliFeatures.exports,
         plans,
         // The palette's paid-feature toggles (M33): on goes through the price confirmation.
@@ -1837,6 +1872,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
+        for (const controller of controllers.values()) {
+          controller.refreshDictation()
+        }
       }
       // Checkpoints on or off: every panel's menus follow (M72).
       if (event.affectsConfiguration(TURN_CHECKPOINTS_SETTING)) {

@@ -7,6 +7,72 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Awareness and budgets** (M82, PLAN.md D49).
+  - While the VS Code window is unfocused, a VS Code notification says when
+    a turn of a minute or more ends, or a turn waits for your approval or
+    answer, with **Show conversation**; nothing shows while the window is
+    focused, and two panels on one conversation raise it once. Off with
+    `museSpark.notifyOnBackgroundTurn`.
+  - On the Model API, `museSpark.modelApiReplyUsage` (off by default) prints
+    the tokens and dollar estimate under each reply, counting every request
+    since the previous line in that turn. Muse Code reports no per-reply
+    totals, so its replies carry none. The dollar amount is labeled
+    estimated, including the unverified tier fallback for unfamiliar models.
+  - The machine-scoped `museSpark.modelApiSessionBudgetUsd` caps what each
+    Model API conversation may spend. Each request's input is estimated high
+    (the last reported input plus what was added since, one token per byte)
+    and `max_output_tokens` is lowered so it fits what is left; a request
+    that cannot fit is not sent and the turn says why. Each request is
+    priced at the model it was sent to, and the spend is saved as it is
+    spent, even while a call waits for approval. Shared durable liabilities
+    cover hosts reopening the same conversation, child requests and known
+    image fees. Unknown sent usage retains its whole reservation;
+    ambiguous failures cannot retry under that same allowance while capped.
+    Hosted search is unavailable with a cap until its billed query bound is
+    verified; cap-off search keeps its paid consent. A model with no published price
+    is refused while a cap is set. The transcript shows each turn's cost
+    against the cap, and warns when a reply used all the output it was left.
+  - Account & usage shows what the prompt cache saved in dollars. Its value
+    (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
+    the localization gate lets it stay the same in every language.
+
+### Fixed
+
+- **Model API session budgets retain their open reservation before a
+  response arrives.** Capped requests await a durable reservation write
+  before fetch and recheck final admission afterward; failed writes or
+  unavailable storage send no request. A stopped or superseded nonsent
+  request releases its reservation. Switching a model away and back, or
+  changing it during compacted-context counting, cannot restore a stale
+  budget base. Stored usage and reply costs refuse negative values,
+  overflowing usage reports are ignored, and token-count failures log a
+  status and fixed words instead of network text.
+  Stale session saves cannot lower the shared journal's spend, and crashes
+  retain unsettled claims. Unverified historical spending refuses a cap
+  rather than treating unknown amounts as zero. All new reasons and the
+  revised setting description are localized.
+  Shared uncapped requests publish pending uncertainty before HTTP, so a
+  capped host cannot admit around an unresolved earlier request. Verified
+  known usage clears that uncertainty; unknown tariffs or earlier ambiguous
+  retry attempts remain unknown despite a successful final response.
+  Fresh forks and side chats retain copied paid and closed-child history
+  while starting their own spend at verified zero; their first own request
+  is charged only to the new conversation.
+  Attempt observers run only after final admission and request building,
+  adjacent to fetch; Stop or confirmation refusal after preflight leaves
+  the request uncounted and refunds its known nonsent reservation.
+  Paid Muse Voice on the Model API backend is unavailable with a finite
+  cap. Uncapped shared recordings publish uncertainty before authentication
+  and fence the actual account and parent context before sends. Local audio
+  duration remains an estimate without a server billing receipt; CLI voice
+  and free system dictation retain their behavior.
+  Cap-off Model API voice also remains available without a folder or
+  journal, with its original consent account/context fenced before every
+  send. A later finite cap stops authentication, audio and end sends;
+  unshared window usage remains an estimate.
+
 ## [0.10.0] - 2026-09-30
 
 ### Fixed

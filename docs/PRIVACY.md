@@ -313,7 +313,13 @@ fields, never raw configuration or failed-command output.
   the edit patches, the task list, the model and the settings of that
   conversation, including attached image and PDF bytes, and a SHA-256
   digest of the Model API key that owns it (never the key itself), so
-  History opens only that key's conversations. Scheduled prompts are saved
+  History opens only that key's conversations. Shared budget records beside
+  these files keep the account digest, conversation and random request IDs,
+  reserved or settled amounts and whether historical fees are unverified.
+  They contain no prompt, attachment or key value. A request that crashed
+  without verified usage keeps its possible liability. Budget records are
+  retained even when an old conversation file is removed; deleting the
+  extension's workspace storage directory removes them all. Scheduled prompts are saved
   beside them, one JSON file per prompt with the same digest, plus a small
   receipt for each run you confirmed. Archiving a conversation in the
   History dialog hides it; deleting the directory removes them all.

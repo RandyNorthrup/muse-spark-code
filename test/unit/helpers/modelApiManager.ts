@@ -33,6 +33,8 @@ export function fakeManagerDeps(
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     ...disabledPaidFeatures,
     promptCacheRetention: () => '24h',
+    sessionBudgetUsd: () => 0,
+    showReplyUsage: () => false,
     hookSettingsPath: '/cfg/muse/settings.json',
     isHooksEnabled: () => false,
     memory: undefined,

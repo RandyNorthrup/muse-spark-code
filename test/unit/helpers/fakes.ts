@@ -112,6 +112,7 @@ export const testSettings: SettingsSnapshot = {
   confidentialWorkspace: false,
   allowDangerouslySkipPermissions: false,
   archiveInactiveSessions: 14,
+  modelApiReplyUsage: false,
 }
 
 export interface FakeHostContext extends WebviewHostContext {

@@ -51,7 +51,13 @@ import { chatReferenceText } from '../../core/chatReference'
 import { textFileDisplay } from '../../shared/textFileDisplay'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import type { ToolImageResult } from '../../core/toolImages'
-import type { DictationHandle, DictationSetup, DictationStatus } from '../../core/voice/dictation'
+import type {
+  DictationHandle,
+  DictationSetup,
+  DictationStatus,
+  VoiceConsentFence,
+} from '../../core/voice/dictation'
+import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
@@ -130,6 +136,7 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
+import { type AttentionNotice, attentionNotice } from './turnNotifications'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -314,6 +321,12 @@ export interface ConversationDeps {
    * the free engine is.
    */
   readonly museVoice: () => DictationSetup | undefined
+  readonly modelApiSessionBudgetUsd: () => number
+  /** Digest only; available before a conversation or workspace exists. */
+  readonly voiceAccountId: () => Promise<string | undefined>
+  readonly ownedVoiceBudgetScope: (
+    sessionId: string,
+  ) => Promise<OwnedSessionBudgetScope | undefined>
   /** "Export conversation…" (M30): the save dialog, the write, Muse Code's own log. */
   readonly exports: ConversationExports
   /** Saved plans (M79); undefined without a workspace folder. */
@@ -350,6 +363,11 @@ export interface ConversationDeps {
    * nothing to say.
    */
   readonly verifyGuidance?: (hasIdeServer: boolean) => string | undefined
+  /**
+   * A turn of this surface's session needs the user (M82): the controller
+   * names what, the window's `BackgroundNotifier` decides whether it shows.
+   */
+  readonly notifyAttention: (notice: AttentionNotice) => void
   readonly now: () => number
   readonly log: Logger
 }
@@ -725,6 +743,11 @@ export class ConversationController {
    * paid-use popup, and a stop pressed meanwhile cancels it.
    */
   private dictationPresses = 0
+  /** Read synchronously by the paid driver's start; each stream keeps that immutable scope. */
+  private startingVoiceBudgetScope: OwnedSessionBudgetScope | undefined
+  private startingVoiceConsentFence: VoiceConsentFence | undefined
+  /** Context changes stay changed for consent, including a model/mode round trip. */
+  private voiceContextRevision = 0
   /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
   /** The remote-window Bypass confirmation, given once per conversation (D24). */
@@ -1114,7 +1137,10 @@ export class ConversationController {
       this.queueDelta(event)
       return
     }
-    if (event.type === 'approvalRequested' && event.isReplayed !== undefined) {
+    if (
+      (event.type === 'approvalRequested' || event.type === 'questionRequested') &&
+      event.isReplayed !== undefined
+    ) {
       const shown = { ...event }
       delete shown.isReplayed
       this.post({ type: 'agentEvent', event: shown })
@@ -1123,6 +1149,11 @@ export class ConversationController {
     }
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
+    }
+    const sessionId = this.session?.sessionId
+    const notice = sessionId === undefined ? undefined : attentionNotice(sessionId, event)
+    if (notice !== undefined) {
+      this.deps.notifyAttention(notice)
     }
   }
 
@@ -1193,11 +1224,22 @@ export class ConversationController {
       this.onViewGap()
       return
     }
-    if (event.type === 'goalChanged') {
-      this.goalEventCount += 1
-    } else if (event.type === 'backendNotice') {
-      this.notice(event.level, event.text)
-      return
+    switch (event.type) {
+      case 'modelChanged': {
+        this.voiceContextRevision += 1
+        break
+      }
+      case 'goalChanged': {
+        this.goalEventCount += 1
+        break
+      }
+      case 'backendNotice': {
+        this.notice(event.level, event.text)
+        return
+      }
+      default: {
+        break
+      }
     }
     if (event.type === 'approvalRequested') {
       if (SHELL_TOOLS.has(event.toolName)) {
@@ -3916,6 +3958,9 @@ export class ConversationController {
       return
     }
     const previous = this.modelId
+    if (previous !== modelId) {
+      this.voiceContextRevision += 1
+    }
     this.modelId = modelId
     if (this.session !== undefined) {
       try {
@@ -3976,6 +4021,9 @@ export class ConversationController {
       return
     }
     const previous = this.permissionMode
+    if (previous !== mode) {
+      this.voiceContextRevision += 1
+    }
     this.permissionMode = mode
     // A turn running or queued when Plan mode is left may act, so its reply
     // is no plan (M79): dropped now, before the backend can apply the mode.
@@ -4545,9 +4593,74 @@ export class ConversationController {
   /** The engine the microphone uses now, and its setup (M35). */
   private dictationChoice(): { readonly engine: DictationEngine; readonly setup: DictationSetup } {
     const museVoice = this.deps.museVoice()
+    if (
+      museVoice !== undefined &&
+      this.voiceIsModelApi() &&
+      this.deps.modelApiSessionBudgetUsd() > 0
+    ) {
+      return {
+        engine: 'museVoice',
+        setup: { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable },
+      }
+    }
     return museVoice === undefined
       ? { engine: 'system', setup: this.deps.dictation }
       : { engine: 'museVoice', setup: museVoice }
+  }
+
+  private voiceIsModelApi(): boolean {
+    return (this.sessionKind ?? this.deps.auth.current.backend) === 'modelApi'
+  }
+
+  private isVoiceSessionCurrent(session: AgentSession): boolean {
+    return !this.isDisposed && this.session === session && this.sessionKind === 'modelApi'
+  }
+
+  private async ownedVoiceBudgetScope(): Promise<OwnedSessionBudgetScope | undefined> {
+    if (!this.voiceIsModelApi()) {
+      return undefined
+    }
+    if (this.deps.modelApiSessionBudgetUsd() > 0) {
+      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+    }
+    const workspaceRoot = this.deps.workspaceRoot
+    if (workspaceRoot === undefined) {
+      return undefined
+    }
+    const generation = this.attachmentGeneration
+    const sendEpoch = this.sendInvalidationEpoch
+    const authGeneration = this.deps.auth.admissionGeneration
+    const session = await this.ensureSession(workspaceRoot)
+    this.requireCurrentOpening(generation)
+    if (!this.isVoiceSessionCurrent(session)) {
+      throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    const scope = await this.deps.ownedVoiceBudgetScope(session.sessionId)
+    this.requireCurrentOpening(generation)
+    if (!this.isVoiceSessionCurrent(session)) {
+      throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    return scope === undefined
+      ? undefined
+      : Object.freeze({
+          ...scope,
+          isStillAllowed: (keyDigest: string | undefined) => {
+            const choice = this.dictationChoice()
+            return (
+              !this.isDisposed &&
+              this.isAuthAdmitted() &&
+              this.deps.auth.backend === 'modelApi' &&
+              authGeneration === this.deps.auth.admissionGeneration &&
+              generation === this.attachmentGeneration &&
+              sendEpoch === this.sendInvalidationEpoch &&
+              this.session === session &&
+              this.sessionKind === 'modelApi' &&
+              choice.engine === 'museVoice' &&
+              choice.setup.isAvailable &&
+              scope.isStillAllowed(keyDigest)
+            )
+          },
+        })
   }
 
   private postDictationState(): void {
@@ -4591,6 +4704,8 @@ export class ConversationController {
     }
     this.dictationEngine = engine
     this.dictation ??= setup.create({
+      ownedBudgetScope: () => Promise.resolve(this.startingVoiceBudgetScope),
+      voiceConsentFence: () => this.startingVoiceConsentFence,
       onStatus: (status) => {
         this.dictationStatus = status
         this.postDictationState()
@@ -4609,26 +4724,87 @@ export class ConversationController {
 
   private async handleDictation(action: DictationAction): Promise<void> {
     this.dictationPresses += 1
-    const press = this.dictationPresses
-    const choice = this.dictationChoice()
-    if (action === 'start' && choice.engine === 'museVoice' && choice.setup.isAvailable) {
-      // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
-      const isAllowed = await this.deps.allowsPaidUse({ feature: 'voice' })
-      if (!isAllowed || press !== this.dictationPresses) {
-        this.postDictationState()
-        return
-      }
-    }
-    const driver = this.dictationDriver()
-    if (driver === undefined) {
-      // The button is disabled with the reason; a stray press re-sends it.
+    // Stop owns the active driver even when a changed cap/setting made the
+    // next recording unavailable. It must not create a driver of its own.
+    if (action === 'stop') {
+      this.dictation?.stop()
       this.postDictationState()
       return
     }
-    if (action === 'start') {
+    const press = this.dictationPresses
+    const choice = this.dictationChoice()
+    let scope: OwnedSessionBudgetScope | undefined
+    let consentFence: VoiceConsentFence | undefined
+    if (choice.engine === 'museVoice' && choice.setup.isAvailable) {
+      const generation = this.attachmentGeneration
+      const sendEpoch = this.sendInvalidationEpoch
+      const authGeneration = this.deps.auth.admissionGeneration
+      const backend = this.deps.auth.backend
+      const modelId = this.modelId
+      const mode = this.permissionMode
+      const contextRevision = this.voiceContextRevision
+      const isModelApi = this.voiceIsModelApi()
+      const isContextCurrent = () =>
+        !this.isDisposed &&
+        this.isAuthAdmitted() &&
+        generation === this.attachmentGeneration &&
+        sendEpoch === this.sendInvalidationEpoch &&
+        authGeneration === this.deps.auth.admissionGeneration &&
+        backend === this.deps.auth.backend &&
+        contextRevision === this.voiceContextRevision &&
+        modelId === this.modelId &&
+        mode === this.permissionMode
+      const isCurrent = () => press === this.dictationPresses && isContextCurrent()
+      const prepared = await Promise.all([this.ownedVoiceBudgetScope(), this.deps.voiceAccountId()])
+      scope = prepared[0]
+      const accountId = prepared[1]
+      if (accountId === undefined) {
+        throw new Error(UI_TEXT.museVoiceNoKey)
+      }
+      consentFence = (actualDigest, isSending) => {
+        if (actualDigest !== accountId) {
+          throw new Error(UI_TEXT.notSignedInReason)
+        }
+        if (!isContextCurrent()) {
+          throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
+        }
+        if (!isSending) {
+          return
+        }
+        if (isModelApi && this.deps.modelApiSessionBudgetUsd() > 0) {
+          throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+        }
+        const current = this.dictationChoice()
+        if (current.engine !== 'museVoice' || !current.setup.isAvailable) {
+          throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
+        }
+      }
+      if (!isCurrent() || scope?.isStillAllowed(accountId) === false) {
+        this.postDictationState()
+        return
+      }
+      consentFence(accountId, true)
+      // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
+      const isAllowed = await this.deps.allowsPaidUse({ feature: 'voice' })
+      if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
+        this.postDictationState()
+        return
+      }
+      consentFence(accountId, true)
+    }
+    this.startingVoiceBudgetScope = scope
+    this.startingVoiceConsentFence = consentFence
+    try {
+      const driver = this.dictationDriver()
+      if (driver === undefined) {
+        // The button is disabled with the reason; a stray press re-sends it.
+        this.postDictationState()
+        return
+      }
       driver.start()
-    } else {
-      driver.stop()
+    } finally {
+      this.startingVoiceBudgetScope = undefined
+      this.startingVoiceConsentFence = undefined
     }
   }
 
@@ -5093,6 +5269,7 @@ export class ConversationController {
       return
     }
     this.permissionMode = FALLBACK_MODE
+    this.voiceContextRevision += 1
     if (this.session !== undefined) {
       try {
         await this.session.setApprovalMode(approvalModeFor(FALLBACK_MODE, this.deps.hasApprovalUi))
@@ -5110,8 +5287,8 @@ export class ConversationController {
    * idle driver of the other engine goes, and the microphone is told.
    */
   public refreshDictation(): void {
-    const { engine } = this.dictationChoice()
-    if (this.dictationEngine !== engine) {
+    const { engine, setup } = this.dictationChoice()
+    if (this.dictationEngine !== engine || !setup.isAvailable) {
       this.retireDictation()
     }
     this.postDictationState()

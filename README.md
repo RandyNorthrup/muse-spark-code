@@ -1474,9 +1474,9 @@ backend runs no workflows.
   Power/Maximum plan grants are separate from this CLI usage report.
 - **This conversation:** token totals (on Muse Code, prompt tokens as it
   counts them once). On the Model API also the cached tokens, the cache-hit
-  rate and a dollar estimate from Meta's published per-token prices
-  (standard versus contributor tier, read 2026-09-26; the dev.meta.ai
-  dashboard is the bill).
+  rate, what the cache saved in dollars, and a dollar estimate from Meta's
+  published per-token prices (standard versus contributor tier, read
+  2026-09-26; the dev.meta.ai dashboard is the bill).
 - **What's contributing to your usage**, over the last day or week, read from
   the Muse Code CLI's trace logs on this machine: the share of model attempts
   from Muse's reminder agents (which run after every reply), from subagents,
@@ -1489,6 +1489,88 @@ asks Meta for its shorter in-memory default, or up to 24 hours when you
 choose that machine-scoped setting. Either is a hint rather than a guaranteed
 lifetime. The modal shows the cache-hit
 rate instead of a "warm for N minutes" countdown.
+
+**Awareness and budgets.**
+
+- **Notifications.** While the VS Code window is unfocused, a VS Code
+  notification tells you when a turn of a minute or more ends, or when a
+  turn waits for your approval or answer; **Show conversation** brings it
+  into view. Nothing shows while the window is focused, and a notice two
+  panels on one conversation both see shows once. Turn them off with
+  `museSpark.notifyOnBackgroundTurn`. VS Code gives extensions no
+  operating-system notification, so the notice waits in VS Code's corner
+  until you come back.
+- **Tokens and cost per reply** (Model API, off by default):
+  `museSpark.modelApiReplyUsage` prints the input and output tokens and the
+  dollar estimate under each reply. A line covers every request since the
+  previous line in that turn, tool steps included, so a turn's lines add up
+  to the turn's estimated cost. The line labels dollars estimated; it is
+  not a provider billing receipt. An unfamiliar model uses a fallback
+  estimate with an unverified price and cannot use a spend cap. Muse Code reports no per-reply totals on its protocol,
+  so its replies never carry one.
+- **A session budget** (Model API): `museSpark.modelApiSessionBudgetUsd`
+  caps what each conversation may spend, in dollars at Meta's list prices
+  (`0`, the default, is no cap). Before each request the input is estimated
+  high: the last request's input as Meta counted it, plus everything added
+  since at one token per byte (so an attached image or file counts at its
+  encoded size, far above its real cost). `max_output_tokens` is then
+  lowered so input plus output fits what is left. A request that cannot fit
+  is not sent, and the turn stops and says so; a reply that used all the
+  output the budget left is marked as possibly cut short, and the
+  transcript shows what each turn cost against the cap. Each request is
+  priced at the model it was sent to, and what the conversation spent is
+  saved as it is spent, even while a call waits for your approval, so a
+  reload cannot forget it. A shared spend journal covers hosts opening the
+  same account-owned conversation from the same storage directory. Each
+  request publishes its own durable liability before HTTP; stale session
+  saves cannot erase another host's charge. A capped request needs working
+  session storage. If a stop, model, goal,
+  key, budget, workspace trust or paid permission changes while the reservation
+  is saved, final admission refuses the request and releases its nonsent
+  reservation. A sent request whose usage is unknown keeps its whole
+  reservation, including after a crash or a response timeout. This is
+  reserved possible spending, not a claim that Meta billed that amount.
+  Explicit 400 or 429 refusals before any response began release it.
+  Capped responses do not automatically retry an ambiguous transport or
+  server failure under the same allowance; send a new prompt for a fresh
+  admission. Explicit rate-limit refusals may retry. With the cap off,
+  the normal response retry policy still applies.
+  A request begun with no cap still marks its possible spending before
+  sending when shared session storage is available. Another window with a
+  cap waits for that request's verified usage; a known settlement clears
+  this temporary uncertainty. An earlier ambiguous retry or unknown model
+  price cannot be certified by the final successful reply, so that history
+  needs a new conversation before it can use a cap. Uncapped requests without
+  session storage keep their normal behavior and cannot share persisted
+  spending. A provided spend journal that cannot be read or saved blocks
+  new requests; repair the storage and reopen the conversation.
+  Each paid subagent request uses the parent's shared cap as well as its
+  separate paid confirmation. Image generation reserves its published flat
+  fee before buying the image and settles it even if saving the image fails.
+  Web search is unavailable while a cap is active: no hard bound on its
+  billed query count has been captured. With the cap off, its normal paid
+  consent applies and reported search fees count in saved spending.
+  Paid Muse Voice is also unavailable on a Model API conversation while a
+  cap is active; system dictation remains available, and voice on the CLI
+  backend is unchanged. An uncapped recording publishes pending uncertainty
+  before authentication or audio. Local sent PCM duration is an estimate,
+  not a Meta billed-duration receipt, so even a successful recording keeps
+  its history's spend unverified. Start a new conversation to use a cap
+  after such history. A change of owner or context stops further sends;
+  cancellation before authentication refunds only the known nonsent row.
+  With no folder or session journal and the cap off, paid voice keeps its
+  per-use confirmation and window usage estimate. Its recording retains
+  the consent's account and context; replacing them or enabling a cap
+  stops further sends. This path has no shared conversation spend ledger
+  and makes no verified audio-billing claim.
+  The cap depends on conservative input estimates and the published prices;
+  actual token billing can differ from the estimate. Unknown historical
+  token spending or paid fees cannot be invented as zero: start a new conversation to use a
+  cap on such history. A model without a published price here cannot be
+  capped, so its requests are refused while a cap is set. The budget is
+  machine-scoped, so a repository cannot set it.
+- **Cache savings** (Model API): Account & usage shows what the prompt
+  cache saved in dollars, and its share of the uncached price.
 
 **Diagnostics.** The agent can read the Problems panel through a
 `getDiagnostics` tool. On the CLI backend the extension serves it on a
@@ -1788,9 +1870,9 @@ immediately. The settings that choose what runs and what is billed
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiPromptCacheRetention`, `turnCheckpoints`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
-and the five paid features, `modelApiWebSearch`, `modelApiImageGeneration`,
-`modelApiVoice`, `modelApiSubagents` and `modelApiScheduledPrompts`) are
-machine-scoped: they
+`modelApiSessionBudgetUsd` and the five paid features, `modelApiWebSearch`,
+`modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents` and
+`modelApiScheduledPrompts`) are machine-scoped: they
 take effect from your user settings only, never from a repository's
 `.vscode/settings.json`. In a remote window (SSH, WSL, a dev
 container) machine settings live on the remote side, where a dev container
@@ -1831,6 +1913,9 @@ Bypass at once.
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
+| `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                          |
+| `modelApiReplyUsage`              | `false`     | Show the input and output tokens and the dollar estimate under each Model API reply, counting every request since the previous line in that turn                                                                                                                                                                                                                                                                                                                                                                    |
+| `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover token requests, child requests and image fees; working storage is required. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified. Input estimates and published prices may differ from actual billing. Machine-scoped                                                      |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust

@@ -15,6 +15,7 @@ import { STORED_SESSION_VERSION } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
+import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
@@ -89,6 +90,10 @@ export interface StoredSession {
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
+  /** Dollars the session's own requests spent (M82); absent when none. */
+  readonly budgetSpentUsd?: number
+  /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
+  readonly budgetIsFreshFork?: true
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -116,6 +121,8 @@ export interface StoredSessionHeader {
 
 /** Where sessions live between windows; the host supplies the files. */
 export interface SessionStore {
+  /** Shared request liabilities and spend; required for a finite cap. */
+  readonly budget?: SessionBudgetJournal
   /** Every readable session's header; a corrupt file is skipped (and logged), never fatal. */
   list(): Promise<readonly StoredSessionHeader[]>
   /** One session in full; undefined when it is gone or no longer reads. */
@@ -180,6 +187,13 @@ const storedInputItemSchema = z.union([
   webSearchCallReplaySchema,
 ])
 
+const storedUsageSchema = z.object({
+  inputTokens: z.number().check(z.nonnegative()),
+  outputTokens: z.number().check(z.nonnegative()),
+  cachedTokens: z.number().check(z.nonnegative()),
+  reasoningTokens: z.number().check(z.nonnegative()),
+})
+
 const storedSessionFields = {
   version: z.literal(STORED_SESSION_VERSION),
   sessionId: z.string(),
@@ -208,14 +222,22 @@ const storedSessionFields = {
       backgroundTaskId: z.optional(z.string()),
     }),
   ),
-  transcript: z.array(z.object({ turnId: z.string(), item: z.object(itemSnapshotFields) })),
+  transcript: z.array(
+    z.object({
+      turnId: z.string(),
+      item: z.object({
+        ...itemSnapshotFields,
+        usage: z.optional(storedUsageSchema),
+        costUsd: z.optional(z.number().check(z.nonnegative())),
+      }),
+    }),
+  ),
   outputs: z.record(z.string(), z.string()),
-  usage: z.object({
-    inputTokens: z.number(),
-    outputTokens: z.number(),
-    cachedTokens: z.number(),
-    reasoningTokens: z.number(),
-  }),
+  usage: storedUsageSchema,
+  // Optional, so a session saved before M82 still reads; never below zero,
+  // which would give the cap room it does not have.
+  budgetSpentUsd: z.optional(z.number().check(z.nonnegative())),
+  budgetIsFreshFork: z.optional(z.literal(true)),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -269,6 +291,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     children,
     pendingChildResults,
     spawnCommands,
+    budgetSpentUsd,
+    budgetIsFreshFork,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -308,6 +332,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(firstPrompt !== undefined && { firstPrompt }),
       ...(compactedThroughTurnId !== undefined && { compactedThroughTurnId }),
       ...(goal !== undefined && { goal }),
+      ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
+      ...(budgetIsFreshFork === true && { budgetIsFreshFork }),
       ...(sideChat === true && { sideChat: true }),
       ...(children !== undefined && { children: restoredChildren }),
       ...(pendingChildResults !== undefined && { pendingChildResults }),

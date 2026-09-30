@@ -543,6 +543,8 @@ export const EN = {
   /** Replying to an output and quoting a highlighted passage (M17). */
   messageActions: 'Message actions',
   replyToOutput: 'Reply to this output',
+  // Tokens and the dollar estimate under a Model API reply (M82).
+  replyUsage: '{input} in · {output} out · estimated {cost}',
   quoteMenuLabel: 'Highlighted text',
   askAboutThis: 'Ask about this',
   commentOnThis: 'Comment on this',
@@ -731,6 +733,14 @@ export const EN = {
   announceTurnCompleted: 'Muse finished responding',
   announceTurnFailed: 'The turn failed',
   announceTurnCancelled: 'The turn was stopped',
+  // A turn that needs attention while the VS Code window is unfocused (M82):
+  // completed, failed, or ended some other way the backend named.
+  notifyTurnDone: 'Muse finished responding.',
+  notifyTurnFailed: 'Muse’s turn failed.',
+  notifyTurnEnded: 'Muse’s turn ended.',
+  notifyApprovalWaiting: 'Muse is waiting for your approval.',
+  notifyQuestionWaiting: 'Muse asked a question and is waiting for your answer.',
+  notifyShowConversation: 'Show conversation',
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
   // Voice dictation (M9).
@@ -794,6 +804,29 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  // The Model API session budget (M82): a request that cannot fit is not
+  // sent, and the turn's cost is shown against the cap afterwards.
+  sessionBudgetStopped:
+    'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+  sessionBudgetStoreUnavailable:
+    'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
+  sessionBudgetLegacyFeesUnknown:
+    'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
+  sessionBudgetSearchUnavailable:
+    'Web search is unavailable while the session spend cap is on: its billed query count has no verified limit. Turn the cap off to allow web search.',
+  sessionBudgetRetryUnavailable:
+    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+  sessionBudgetUnknownCharge:
+    'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
+  sessionBudgetVoiceUnavailable:
+    'Muse Voice is unavailable while the session spend cap is on: its billed audio duration has no verified bound. Turn the cap off to allow paid voice, or use system dictation.',
+  sessionBudgetVoiceContextChanged:
+    'Muse Voice stopped because the conversation or its permissions changed. Start a new recording in the current conversation.',
+  sessionBudgetUnpriced:
+    'Stopped: the session budget cannot be kept on {model}, whose price this extension does not know. The request was not sent.',
+  sessionBudgetOutputLimited:
+    'The response reached the output limit the session budget left it (max_output_tokens {tokens}) and may be cut short.',
+  budgetTurnCost: 'This turn cost {cost} ({spent} of {cap} used).',
   resumeFailed: 'Could not resume the conversation',
   forkFailed: 'Could not fork the conversation',
   rewindConversationFailed: 'Could not rewind the conversation',
@@ -963,6 +996,9 @@ export const EN = {
   usageHeading: 'Usage',
   usageCost: 'Estimated cost',
   usageCacheHits: 'Cache hits',
+  // What the prompt cache saved, in dollars (M82, Model API only).
+  usageCacheSavings: 'Cache savings',
+  usageCacheSavingsValue: '{amount} ({percent})',
   usageCostNote:
     'Estimate from Meta’s published per-token prices for this model’s tier; the dev.meta.ai dashboard is the bill. Prices read on {date}.',
   usageContributing: 'What’s contributing to your usage?',

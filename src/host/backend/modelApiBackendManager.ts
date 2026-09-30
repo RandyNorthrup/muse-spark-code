@@ -55,6 +55,10 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
+  /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
+  readonly sessionBudgetUsd: () => number
+  /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
+  readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
   /**
@@ -192,14 +196,13 @@ export class ModelApiBackendManager {
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
         store: this.deps.store,
         scheduleStore: this.deps.scheduleStore,
-        getAccountId: async () => {
-          const key = await this.deps.getApiKey()
-          return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
-        },
+        getAccountId: () => this.accountId(),
         describeEnvironment: this.deps.describeEnvironment,
         isPaidFeatureOn: this.deps.isPaidFeatureOn,
         notePaidUse: this.deps.notePaidUse,
         promptCacheRetention: this.deps.promptCacheRetention,
+        sessionBudgetUsd: this.deps.sessionBudgetUsd,
+        showReplyUsage: this.deps.showReplyUsage,
         ideTools: this.deps.ideTools,
         webFetch: this.deps.webFetch,
         codeIntel: this.deps.codeIntel,
@@ -223,6 +226,12 @@ export class ModelApiBackendManager {
     })
     this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')
     return host
+  }
+
+  /** Hash-only identity, without starting the host or requiring a workspace. */
+  public async accountId(): Promise<string | undefined> {
+    const key = await this.deps.getApiKey()
+    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
   }
 
   /** The host, created on first use with the stored sessions read. Rejects without a workspace. */

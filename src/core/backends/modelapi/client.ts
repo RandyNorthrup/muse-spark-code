@@ -168,8 +168,12 @@ export interface ConfirmedModelRequest {
   readonly onRequestStarted: () => void
 }
 
-/** A child task's synchronous final admission, after reading the actual key. */
-export type ResponseAttemptGuard = (keyDigest: string | undefined) => void
+/** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
+export interface ResponseAttemptGuard {
+  (keyDigest: string | undefined): void
+  /** After every final fence and request build, adjacent to the actual fetch call. */
+  readonly onRequestStarted?: () => void
+}
 
 function isAborted(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true
@@ -310,16 +314,18 @@ export class ModelApiClient {
       if (confirmed !== undefined && !confirmed.isStillAllowed()) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
-      confirmed?.onRequestStarted()
       const headers = { ...credentials.values, Accept: init.accept }
+      const requestInit: RequestInit = {
+        method: init.method,
+        headers,
+        ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
+        ...(signal !== undefined && { signal }),
+      }
+      confirmed?.onRequestStarted()
+      admitAttempt?.onRequestStarted?.()
       let response: Response
       try {
-        response = await this.deps.fetch(url, {
-          method: init.method,
-          headers,
-          ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
-          ...(signal !== undefined && { signal }),
-        })
+        response = await this.deps.fetch(url, requestInit)
       } catch (error: unknown) {
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError

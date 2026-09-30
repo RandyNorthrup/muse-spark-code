@@ -29,11 +29,14 @@ import {
   GOAL_STATUS,
   type GoalCommandVerb,
   type SubagentAction,
+  HTTP_STATUS,
+  HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_SESSION_END_TIMEOUT_MS,
   IDE_MCP_SERVER_NAME,
+  MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
   ISO_DATE_LENGTH,
@@ -62,6 +65,8 @@ import {
   MODEL_TEXT,
   REPO_MAP_PROMPT_TRIES,
   OUTPUT_REF_PREFIX,
+  PAID_FEATURES,
+  PAID_PRICES_USD,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MAX_INTERVAL_MS,
   SCHEDULE_MAX_JOBS_PER_SESSION,
@@ -69,6 +74,7 @@ import {
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_POLL_INTERVAL_MS,
   SHELL_DEFAULT_TIMEOUT_MS,
+  SEARCHES_PER_PRICE_UNIT,
   type PaidFeature,
   QUESTION_OUTCOME_CLARIFIED,
   type PromptCacheRetention,
@@ -94,7 +100,7 @@ import {
   VERIFY_SHOWN_FILES_MAX,
   VERIFY_TOOLS,
 } from '../../../shared/constants'
-import { fill, plural } from '../../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../../shared/l10n/text'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import {
   modelApiPaidTier,
@@ -146,6 +152,7 @@ import { type SkillDefinition } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
+import { withDeadline } from '../../timeouts'
 import { isProtectedPath } from '../../protectedPaths'
 import { ShellEntryError } from '../../shellResult'
 import { confineWorkspacePath } from '../../workspacePath'
@@ -203,6 +210,17 @@ import {
 } from './hooks'
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
 import { nextScheduleFire } from './schedules'
+import {
+  type BudgetBase,
+  type BudgetReservation,
+  type OwnedSessionBudgetScope,
+  estimateInput,
+  requestParts,
+  reserveRequest,
+  type SessionBudgetClaim,
+  SessionBudgetExceededError,
+} from './sessionBudget'
+import { estimateCostUsd, formatUsd } from '../../usage/insights'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
 import { promptCacheKey } from './promptCache'
@@ -337,6 +355,10 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly isWorkspaceTrusted: () => boolean
   /** Sessions between windows (D14); undefined without workspace storage. */
   readonly store?: SessionStore | undefined
+  /** External trials share this parent's spending without saving their temporary DTO as its history. */
+  readonly budgetScope?: OwnedSessionBudgetScope
+  /** Extension-owned preflight/actual-attempt hooks, composed with budget and child admission. */
+  readonly admitResponseAttempt?: ResponseAttemptGuard
   /** The git facts for the prompt's environment section (D15), read once per session. */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
@@ -345,6 +367,10 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly notePaidUse: (feature: PaidFeature, units: number) => void
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
+  /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
+  readonly sessionBudgetUsd: () => number
+  /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
+  readonly showReplyUsage: () => boolean
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -532,6 +558,49 @@ interface StreamedCall {
   readonly calls: readonly FunctionCallItem[]
   readonly goalCommandRevision: number
   readonly postContexts: readonly string[]
+}
+
+/** A request's budget reservation while it runs (M82). */
+interface OpenReservation extends BudgetReservation {
+  /** The model the body names: a base only while the session still uses it. */
+  readonly modelId: string
+  /** Any intervening model change invalidates its base, including a switch back. */
+  readonly modelRevision: number
+  readonly goalRevision: number
+  readonly isWorkspaceTrusted: boolean
+  readonly paidFeatures: readonly PaidFeature[]
+  readonly hasCap: boolean
+  readonly hasUnknownCost: boolean
+  hasAmbiguousAttempt: boolean
+  /** The account whose reservation was saved before the final key admission. */
+  accountId: string | undefined
+  /** Held on disk, including before the request is actually sent. */
+  isReserved: boolean
+  claim: SessionBudgetClaim | undefined
+  /** Its parts: the next estimate's base once its usage is reported. */
+  readonly parts: ReadonlyMap<string, number>
+  /** Its response began: a request ending now without usage counts at the whole reservation. */
+  hasStarted: boolean
+  /** It went out with the key: stopped from here on, it may have run, so it counts too. */
+  isSent: boolean
+  /** An explicit refusal before any response began has no billable usage. */
+  isRefused: boolean
+}
+
+/** A direct paid response owns its claim instead of borrowing the main request's state. */
+interface DirectResponseBudget {
+  readonly scope: OwnedSessionBudgetScope | undefined
+  readonly claim: SessionBudgetClaim | undefined
+  isSent: boolean
+}
+
+/** The requests behind a reply line (M82): their tokens and dollars. */
+interface ReplyUsageTally {
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly cachedTokens: number
+  readonly reasoningTokens: number
+  readonly costUsd: number
 }
 
 interface Pending<T> {
@@ -768,6 +837,23 @@ function hasUnansweredCall(replay: readonly StoredReplayItem[]): boolean {
   )
   return replay.some(
     (entry) => entry.item.type === 'function_call' && !answered.has(entry.item.call_id),
+  )
+}
+
+/** A save's failure is logged by the save queue; its caller has nothing to add. */
+const IGNORE_SAVE_FAILURE = (): void => undefined
+
+/** Billable token counts must be safe integers; cached input cannot exceed input. */
+function isCountedUsage(usage: Usage): boolean {
+  return (
+    [
+      usage.input_tokens,
+      usage.output_tokens,
+      usage.input_tokens_details?.cached_tokens ?? 0,
+      usage.output_tokens_details?.reasoning_tokens ?? 0,
+      usage.total_tokens ?? 0,
+    ].every((count) => Number.isSafeInteger(count) && count >= 0) &&
+    (usage.input_tokens_details?.cached_tokens ?? 0) <= usage.input_tokens
   )
 }
 
@@ -1371,7 +1457,6 @@ export class ModelApiSession implements AgentSession {
     ) {
       throw new ChildTaskRefusedError('webSearchOff')
     }
-    grant.remainingAttempts -= 1
     this.deps.notePaidUse('subagents', 1)
   }
   private active: ActiveTurn | undefined
@@ -1409,6 +1494,35 @@ export class ModelApiSession implements AgentSession {
   private goalSteps = 0
   private scheduleTimer: ReturnType<typeof setInterval> | undefined
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
+  /**
+   * Dollars this conversation spent at list price (M82), kept with the
+   * session: every response that reported usage (a turn's, a failed one's,
+   * a compaction's), each child task's as it reports (their consent is
+   * separate, D48, so they are never reserved), and the whole reservation
+   * of a request whose response began but never reported. A child session
+   * keeps none of its own.
+   */
+  private budgetSpentUsd = 0
+  private hasUnknownBudgetCost = false
+  private budgetIsFreshFork = false
+  private budgetAccountId: string | undefined
+  private budgetWrites: Promise<void> = Promise.resolve()
+  private turnCostUsd = 0
+  /** The last reported request, which the next estimate starts from (M82). */
+  private budgetBase: BudgetBase | undefined
+  private modelRevision = 0
+  /** The reservation of the request in flight, until its usage is reported or it ends (M82). */
+  private openReservation: OpenReservation | undefined
+  /** What the requests since the last reply line used (M82), for the next line. */
+  private unshownUsage: ReplyUsageTally | undefined
+  /**
+   * The model the request in flight was sent to (M82): its usage is priced
+   * at that model's rates, whatever the session switched to meanwhile.
+   */
+  private sendingModelId: string | undefined
+  /** Turns and compactions still running, by id: a closing window waits for them to save (M82). */
+  private readonly unsettled = new Map<number, Promise<void>>()
+  private workCount = 0
   private firstPrompt: string | undefined
   private isDisposed = false
   /** The surfaces holding this session: closing one must not cancel another's turn. */
@@ -1437,7 +1551,7 @@ export class ModelApiSession implements AgentSession {
     approvalMode: ApprovalMode,
     private readonly deps: ModelApiHostDeps,
     private readonly onChanged: () => void,
-    private readonly onPersisted: () => Promise<void>,
+    private readonly onPersisted: (kind?: 'budget' | 'refund') => Promise<void>,
     private readonly onDispose: () => void,
     private readonly isHostClosing: () => boolean,
     private readonly isSubagent = false,
@@ -1737,6 +1851,267 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * The body as the session budget lets it be sent (M82): with a cap, its
+   * input estimated high from the last reported request and
+   * `max_output_tokens` lowered so input plus output at list price fits
+   * what is left, the reservation held open until the response reports.
+   * Throws `SessionBudgetExceededError` when it cannot fit: it is not sent,
+   * and the turn stops with the reason. Child requests reserve against
+   * their parent's shared spend, in addition to the task's paid consent.
+   */
+  private budgeted(body: CreateResponseBody): CreateResponseBody {
+    this.openReservation = undefined
+    const capUsd = this.currentBudgetCap()
+    if (capUsd <= 0 && this.budgetJournal() === undefined) {
+      return body
+    }
+    const estimate = estimateInput(requestParts(body), this.budgetBase)
+    const maxOutputTokens = body.max_output_tokens
+    const reservation =
+      capUsd > 0
+        ? reserveRequest({
+            capUsd,
+            spentUsd: this.budgetSpentUsd,
+            estimatedInputTokens: estimate.inputTokens,
+            modelId: body.model,
+          })
+        : {
+            estimatedInputTokens: estimate.inputTokens,
+            maxOutputTokens,
+            costUsd: estimateCostUsd(
+              { inputTokens: estimate.inputTokens, outputTokens: maxOutputTokens, cachedTokens: 0 },
+              body.model,
+            ),
+          }
+    this.openReservation = {
+      ...reservation,
+      modelId: body.model,
+      modelRevision: this.modelRevision,
+      goalRevision: this.goalCommandRevision,
+      isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
+      paidFeatures: PAID_FEATURES.filter((feature) => this.deps.isPaidFeatureOn(feature)),
+      hasCap: capUsd > 0,
+      hasUnknownCost: modelApiPaidTier(body.model) === undefined,
+      hasAmbiguousAttempt: false,
+      accountId: undefined,
+      isReserved: false,
+      claim: undefined,
+      parts: estimate.parts,
+      hasStarted: false,
+      isSent: false,
+      isRefused: false,
+    }
+    return capUsd > 0 ? { ...body, max_output_tokens: reservation.maxOutputTokens } : body
+  }
+
+  /**
+   * The request about to be sent (M82): its model, which prices its usage,
+   * and its reservation, as the log keeps it.
+   */
+  private sending(body: CreateResponseBody): OpenReservation | undefined {
+    this.sendingModelId = body.model
+    const reservation = this.openReservation
+    if (reservation?.hasCap === true) {
+      this.deps.log.info(
+        `Session budget: request reserved for ${String(reservation.estimatedInputTokens)} input and ${String(reservation.maxOutputTokens)} output tokens`,
+      )
+    }
+    return reservation
+  }
+
+  /** A capped request never reaches fetch before its possible charge is durable. */
+  private async persistReservation(reservation: OpenReservation | undefined): Promise<void> {
+    if (reservation === undefined) {
+      return
+    }
+    reservation.accountId = this.deps.budgetScope?.accountId ?? this.budgetOwner().budgetAccountId
+    if (reservation.accountId === undefined) {
+      throw new MissingApiKeyError()
+    }
+    const journal = this.budgetJournal()
+    if (journal === undefined) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    }
+    reservation.claim = await journal.reserve(
+      this.deps.budgetScope?.sessionId ?? this.budgetOwner().sessionId,
+      reservation.accountId,
+      reservation.costUsd,
+      {
+        isUnbounded: !reservation.hasCap,
+        hasUnknownCost: reservation.hasUnknownCost,
+      },
+    )
+    reservation.isReserved = true
+    if (this.deps.budgetScope === undefined) {
+      await this.onPersisted('budget')
+    }
+  }
+
+  private budgetOwner(): ModelApiSession {
+    return this.parentSession?.budgetOwner() ?? this
+  }
+
+  private currentBudgetCap(): number {
+    return this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd()
+  }
+
+  private budgetJournal(): SessionStore['budget'] {
+    return this.deps.budgetScope?.journal ?? this.deps.store?.budget
+  }
+
+  /** Read shared spending before computing any new request's allowance. */
+  private async refreshBudgetSpend(): Promise<void> {
+    await this.budgetWrites
+    const owner = this.budgetOwner()
+    const scope = this.deps.budgetScope
+    const accountId = await this.deps.getAccountId()
+    if (
+      accountId === undefined ||
+      (owner.budgetAccountId !== undefined && owner.budgetAccountId !== accountId) ||
+      (scope !== undefined && (scope.accountId !== accountId || !scope.isStillAllowed(accountId)))
+    ) {
+      throw new MissingApiKeyError()
+    }
+    owner.budgetAccountId = accountId
+    const journal = this.budgetJournal()
+    if (journal === undefined) {
+      if (this.currentBudgetCap() > 0) {
+        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      }
+      return
+    }
+    if (scope === undefined) {
+      await this.onPersisted('budget')
+    }
+    const total = await journal.read(scope?.sessionId ?? owner.sessionId, accountId)
+    owner.budgetIsFreshFork = false
+    if (this.currentBudgetCap() > 0 && total.hasUnknownHistoricalFees) {
+      throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    }
+    this.budgetSpentUsd = total.spentUsd
+    owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
+  }
+
+  /** Each charge owns its journal entry; another host's snapshot cannot erase it. */
+  private recordBudgetCost(
+    costUsd: number,
+    claim: SessionBudgetClaim | undefined,
+    hasUnknownCost = false,
+  ): void {
+    if (costUsd === 0 && claim === undefined && !hasUnknownCost) {
+      return
+    }
+    const owner = this.budgetOwner()
+    const journal = this.budgetJournal()
+    const scope = this.deps.budgetScope
+    const accountId = scope?.accountId ?? owner.budgetAccountId
+    if (journal === undefined || accountId === undefined) {
+      return
+    }
+    const previous = this.budgetWrites
+    const write = (async () => {
+      await previous
+      const total =
+        claim === undefined
+          ? await journal.record(
+              scope?.sessionId ?? owner.sessionId,
+              accountId,
+              costUsd,
+              hasUnknownCost,
+            )
+          : await claim.settle(costUsd, hasUnknownCost)
+      this.budgetSpentUsd = total.spentUsd
+      owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
+      this.touch()
+    })()
+    this.budgetWrites = write
+    // The request awaits this same rejection before any further admission;
+    // attach a handler now because stream events cannot await persistence.
+    void write.catch(() => {
+      this.deps.log.warn('Session spend was not saved')
+    })
+  }
+
+  /**
+   * A request ended (M82). One still reserved reported no usage: when its
+   * request went out, Meta may have run it, so its whole reservation counts
+   * as spent. One that never went out, or that Meta explicitly refused
+   * before its response began, cost nothing.
+   */
+  private async endRequest(): Promise<void> {
+    const reservation = this.openReservation
+    this.openReservation = undefined
+    this.sendingModelId = undefined
+    if (reservation === undefined) {
+      await this.budgetWrites
+      return
+    }
+    const costUsd =
+      reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused)
+        ? reservation.costUsd
+        : 0
+    if (costUsd > 0) {
+      this.budgetSpentUsd += reservation.costUsd
+      this.warnUnknownCharge(costUsd)
+      this.deps.log.warn(
+        `Session budget: a response ended without its usage; its reservation of ${String(reservation.costUsd)} USD counts as spent`,
+      )
+    }
+    this.recordBudgetCost(costUsd, reservation.claim, costUsd > 0 && !reservation.hasCap)
+    await this.budgetWrites
+    // The on-disk liability is now settled or released, even if this request failed before a frame.
+    if (this.deps.budgetScope === undefined) {
+      await this.onPersisted('refund')
+    }
+  }
+
+  /** A conservative liability is visible without presenting it as verified billing. */
+  private warnUnknownCharge(costUsd: number): void {
+    this.emit({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(costUsd) }),
+    })
+  }
+
+  private noteRequestRefusal(reservation: OpenReservation | undefined, error: unknown): void {
+    if (reservation !== undefined) {
+      reservation.isRefused =
+        !reservation.hasStarted &&
+        error instanceof ModelApiError &&
+        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+    }
+  }
+
+  /**
+   * Keeps `work` (a turn, a compaction) until it ends, so a closing window
+   * can wait for a stopped turn to charge and save what it spent (M82).
+   * `isFailureCallers`: its caller awaits it and sees a failure.
+   */
+  private track(work: Promise<unknown>, isFailureCallers: boolean): void {
+    this.workCount += 1
+    const id = this.workCount
+    this.unsettled.set(id, this.completion(work, id, isFailureCallers))
+  }
+
+  private async completion(
+    work: Promise<unknown>,
+    id: number,
+    isFailureCallers: boolean,
+  ): Promise<void> {
+    try {
+      await work
+    } catch (error: unknown) {
+      // A turn reports its own failures, so one that reaches here is a fault.
+      if (!isFailureCallers) {
+        this.deps.log.error(`A Model API turn failed unexpectedly: ${describe(error)}`)
+      }
+    } finally {
+      this.unsettled.delete(id)
+    }
+  }
+
   private body(): CreateResponseBody {
     this.drainChildResults()
     const shell = shellToolFor(this.deps.platform)
@@ -1859,7 +2234,11 @@ export class ModelApiSession implements AgentSession {
    * the feature is on and this prompt's popup allowed it (M58).
    */
   private isWebSearchOffered(): boolean {
-    return this.active?.isWebSearchAllowed === true && this.deps.isPaidFeatureOn('webSearch')
+    return (
+      this.currentBudgetCap() <= 0 &&
+      this.active?.isWebSearchAllowed === true &&
+      this.deps.isPaidFeatureOn('webSearch')
+    )
   }
 
   /**
@@ -1870,6 +2249,14 @@ export class ModelApiSession implements AgentSession {
    */
   private async webSearchConsent(signal: AbortSignal): Promise<boolean> {
     if (!this.deps.isPaidFeatureOn('webSearch')) {
+      return false
+    }
+    if (this.currentBudgetCap() > 0) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: UI_TEXT.sessionBudgetSearchUnavailable,
+      })
       return false
     }
     return this.isSubagent
@@ -1927,17 +2314,110 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Final synchronous check after key retrieval, before each response POST or retry. */
-  private responseAttemptGuard(body: CreateResponseBody): ResponseAttemptGuard | undefined {
-    if (this.deps.mcpServers === undefined && !this.isSubagent) {
-      return undefined
-    }
-    return (keyDigest) => {
+  private responseAttemptGuard(
+    body: CreateResponseBody,
+    directBudget?: DirectResponseBudget,
+  ): ResponseAttemptGuard {
+    const reservation = directBudget === undefined ? this.openReservation : undefined
+    const guard: ResponseAttemptGuard = (keyDigest) => {
+      if (this.isHostClosing() || this.isDisposed) {
+        this.active?.abort.abort()
+        this.compacting?.abort()
+        throw new AbortedError()
+      }
+      if (this.deps.budgetScope?.isStillAllowed(keyDigest) === false) {
+        this.active?.abort.abort()
+        this.compacting?.abort()
+        throw new AbortedError()
+      }
+      if (this.isSubagent) {
+        this.admitChildAttempt(keyDigest, body)
+      }
+      const ownerAccount = this.budgetOwner().budgetAccountId
+      if (ownerAccount !== undefined && keyDigest !== ownerAccount) {
+        throw new Error(UI_TEXT.notSignedInReason)
+      }
+      if (
+        body.tools.some((tool) => tool.type === MODEL_API_WEB_SEARCH_TOOL) &&
+        !this.isWebSearchOffered()
+      ) {
+        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+      }
+      // A cap enabled during key retrieval needs a new durable preflight.
+      if (directBudget !== undefined) {
+        if (directBudget.scope?.isStillAllowed(keyDigest) === false) {
+          throw new AbortedError()
+        }
+        const capUsd = directBudget.scope?.capUsd() ?? this.currentBudgetCap()
+        if (directBudget.claim === undefined && capUsd > 0) {
+          throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+        }
+        if (directBudget.isSent && capUsd > 0) {
+          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        }
+        directBudget.claim?.check(capUsd)
+      } else if (reservation === undefined && this.currentBudgetCap() > 0) {
+        this.active?.abort.abort()
+        this.compacting?.abort()
+        throw new AbortedError()
+      }
+      // The preflight awaited disk. This final key/account and revision
+      // check stays synchronous, immediately before the HTTP try.
+      if (reservation !== undefined) {
+        if (keyDigest !== reservation.accountId) {
+          throw new Error(UI_TEXT.notSignedInReason)
+        }
+        if (
+          reservation.modelRevision !== this.modelRevision ||
+          reservation.goalRevision !== this.goalCommandRevision ||
+          reservation.isWorkspaceTrusted !== this.deps.isWorkspaceTrusted() ||
+          PAID_FEATURES.some(
+            (feature) =>
+              reservation.paidFeatures.includes(feature) !== this.deps.isPaidFeatureOn(feature),
+          )
+        ) {
+          this.active?.abort.abort()
+          this.compacting?.abort()
+          throw new AbortedError()
+        }
+        if (reservation.claim === undefined) {
+          throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+        }
+        if (reservation.isSent && this.currentBudgetCap() > 0) {
+          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        }
+        reservation.claim.check(this.currentBudgetCap())
+      }
       const required = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
       if (required !== undefined) {
         throw required
       }
-      if (this.isSubagent) {
-        this.admitChildAttempt(keyDigest, body)
+      this.deps.admitResponseAttempt?.(keyDigest)
+    }
+    return Object.assign(guard, {
+      onRequestStarted: () => {
+        if (this.isSubagent && this.childTaskGrant !== undefined) {
+          this.childTaskGrant.remainingAttempts -= 1
+        }
+        if (reservation !== undefined) {
+          reservation.isSent = true
+        }
+        if (directBudget !== undefined) {
+          directBudget.isSent = true
+        }
+        this.deps.admitResponseAttempt?.onRequestStarted?.()
+      },
+    })
+  }
+
+  /** A client-generated 429 refusal admitted no work, so this claim can retry. */
+  private allowRateLimitedRetry(notice: RetryNotice): void {
+    const reservation = this.openReservation
+    if (reservation !== undefined) {
+      if (notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)) {
+        reservation.isSent = false
+      } else {
+        reservation.hasAmbiguousAttempt = true
       }
     }
   }
@@ -2065,7 +2545,7 @@ export class ModelApiSession implements AgentSession {
     }
     const queued = this.queuedGoalWake()
     if (this.compacting === undefined) {
-      void this.runTurn(queued)
+      this.track(this.runTurn(queued), false)
     } else {
       this.queuedTurns.push(queued)
     }
@@ -2089,6 +2569,39 @@ export class ModelApiSession implements AgentSession {
     if (usage === null || usage === undefined) {
       return
     }
+    // An invalid count can understate spend. It is no report, so a reserved
+    // request counts at its full reservation (M82).
+    if (!isCountedUsage(usage)) {
+      this.deps.log.warn('Model API usage with invalid token counts was ignored')
+      return
+    }
+    const billable = {
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+    }
+    const sentModelId = this.sendingModelId ?? this.modelId
+    const hasKnownPrice = modelApiPaidTier(sentModelId) !== undefined
+    const costUsd = estimateCostUsd(billable, sentModelId)
+    const nextUsage = {
+      inputTokens: this.usage.inputTokens + billable.inputTokens,
+      outputTokens: this.usage.outputTokens + billable.outputTokens,
+      cachedTokens: this.usage.cachedTokens + billable.cachedTokens,
+      reasoningTokens:
+        this.usage.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens ?? 0),
+    }
+    if (
+      [
+        ...Object.values(nextUsage),
+        nextUsage.inputTokens + nextUsage.outputTokens,
+        costUsd,
+        this.budgetSpentUsd + costUsd,
+        this.turnCostUsd + costUsd,
+      ].some((value) => !Number.isFinite(value))
+    ) {
+      this.deps.log.warn('Model API usage whose totals or cost are not finite was ignored')
+      return
+    }
     // What the goal used counts against its budget (M45); a budget spent
     // stops the goal, and the panel hears of that.
     if (chargedGoalId !== undefined && this.goal?.goal_id === chargedGoalId) {
@@ -2099,22 +2612,68 @@ export class ModelApiSession implements AgentSession {
       )
       this.replaceGoal(spent)
     }
-    this.usage = {
-      inputTokens: this.usage.inputTokens + usage.input_tokens,
-      outputTokens: this.usage.outputTokens + usage.output_tokens,
-      cachedTokens: this.usage.cachedTokens + (usage.input_tokens_details?.cached_tokens ?? 0),
-      reasoningTokens:
-        this.usage.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens ?? 0),
+    this.usage = nextUsage
+    const reservation = this.openReservation
+    const claim = reservation?.claim
+    this.budgetSpentUsd += costUsd
+    if (hasKnownPrice) {
+      this.turnCostUsd += costUsd
     }
+    this.recordBudgetCost(
+      costUsd,
+      claim,
+      !hasKnownPrice || reservation?.hasAmbiguousAttempt === true,
+    )
+    this.settleReservation(usage)
     if (this.isSubagent) {
-      this.deps.noteSubagentUsage(this.modelId, {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-      })
+      this.deps.noteSubagentUsage(this.sendingModelId ?? this.modelId, billable)
+    } else {
+      const shown = this.unshownUsage
+      this.unshownUsage = {
+        inputTokens: (shown?.inputTokens ?? 0) + billable.inputTokens,
+        outputTokens: (shown?.outputTokens ?? 0) + billable.outputTokens,
+        cachedTokens: (shown?.cachedTokens ?? 0) + billable.cachedTokens,
+        reasoningTokens:
+          (shown?.reasoningTokens ?? 0) + (usage.output_tokens_details?.reasoning_tokens ?? 0),
+        costUsd: (shown?.costUsd ?? 0) + costUsd,
+      }
+      // Saved now, even while a call waits for its output (M82).
+      this.touch()
     }
     this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
     this.noteContext(usage.input_tokens + usage.output_tokens)
+  }
+
+  /**
+   * The request in flight reported its usage (M82): its reservation closes,
+   * and it becomes the base the next estimate starts from. A request sent
+   * without a reservation (no cap) leaves no base, so a cap set later
+   * estimates the whole of its first request. An output that used every
+   * token the budget allowed may be cut short, and the transcript says so.
+   */
+  private settleReservation(usage: Usage): void {
+    const reservation = this.openReservation
+    this.openReservation = undefined
+    // A model changed mid-request may count differently: no base then.
+    this.budgetBase =
+      reservation?.hasCap === true &&
+      reservation.modelId === this.modelId &&
+      reservation.modelRevision === this.modelRevision
+        ? { inputTokens: usage.input_tokens, parts: reservation.parts }
+        : undefined
+    if (
+      reservation?.hasCap === true &&
+      reservation.maxOutputTokens < MODEL_API_MAX_OUTPUT_TOKENS &&
+      usage.output_tokens >= reservation.maxOutputTokens
+    ) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.sessionBudgetOutputLimited, {
+          tokens: formatNumber(reservation.maxOutputTokens),
+        }),
+      })
+    }
   }
 
   private noteContext(usedTokens: number): void {
@@ -2190,9 +2749,15 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemCompleted', item: completed })
     this.recordTranscript(turnId, completed)
     // A failed search is not counted: Meta bills the queries it ran.
-    if (!isFailed) {
-      this.deps.notePaidUse('webSearch', searchUnits(item))
+    if (isFailed) {
+      return
     }
+    const units = searchUnits(item)
+    this.deps.notePaidUse('webSearch', units)
+    const costUsd = (units * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
+    this.budgetSpentUsd += costUsd
+    this.turnCostUsd += costUsd
+    this.recordBudgetCost(costUsd, undefined)
   }
 
   private completedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
@@ -2430,7 +2995,11 @@ export class ModelApiSession implements AgentSession {
   ): Promise<StreamedCall> {
     const requestId = this.deps.newId()
     const attempt = budget.retriesUsed + 1
-    await this.beforeModelCall(turnId, this.body(), requestId, attempt, step, signal)
+    // A request that cannot fit the session budget left is never sent (M82),
+    // nor shown to the hooks; the body sent is reserved afresh below, since
+    // what it carries can change while the hooks run.
+    await this.refreshBudgetSpend()
+    await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
       throw requiredAfterPreHook
@@ -2441,6 +3010,7 @@ export class ModelApiSession implements AgentSession {
     const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
+      this.allowRateLimitedRetry(notice)
       this.emit({
         type: 'turnRetry',
         turnId,
@@ -2450,7 +3020,9 @@ export class ModelApiSession implements AgentSession {
         reason: notice.reason,
       })
     }
-    const body = this.body()
+    await this.refreshBudgetSpend()
+    const body = this.budgeted(this.body())
+    const reservation = this.sending(body)
     const requestReplay = [...this.replay]
     let final: ResponseObject | undefined
     const admitAttempt = this.responseAttemptGuard(body)
@@ -2462,21 +3034,34 @@ export class ModelApiSession implements AgentSession {
       admitAttempt,
       confirmedRequest,
     )
-    for await (const event of responseStream) {
-      final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
+    let calls: readonly FunctionCallItem[]
+    let wasFitted: boolean
+    try {
+      await this.persistReservation(reservation)
+      for await (const event of responseStream) {
+        if (reservation !== undefined) {
+          reservation.hasStarted = true
+        }
+        final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
+      }
+      if (final === undefined) {
+        throw new ModelApiError(
+          'The stream ended without a completed response',
+          0,
+          undefined,
+          undefined,
+        )
+      }
+      this.markReadFileMediaDelivered(turnId, body.input)
+      wasFitted = this.commitFittedReplay(requestReplay, body.input)
+      this.markOutputMediaDelivered(requestReplay, body.input)
+      calls = this.adoptOutput(turnId, final, open, chargedGoalId)
+    } catch (error: unknown) {
+      this.noteRequestRefusal(reservation, error)
+      throw error
+    } finally {
+      await this.endRequest()
     }
-    if (final === undefined) {
-      throw new ModelApiError(
-        'The stream ended without a completed response',
-        0,
-        undefined,
-        undefined,
-      )
-    }
-    this.markReadFileMediaDelivered(turnId, body.input)
-    const wasFitted = this.commitFittedReplay(requestReplay, body.input)
-    this.markOutputMediaDelivered(requestReplay, body.input)
-    const calls = this.adoptOutput(turnId, final, open, chargedGoalId)
     if (wasFitted) {
       this.touch()
     }
@@ -2500,6 +3085,39 @@ export class ModelApiSession implements AgentSession {
       throw new HookStoppedError(post.blockedReason)
     }
     return { calls, goalCommandRevision, postContexts: post.contexts }
+  }
+
+  /**
+   * The tokens and dollars under a reply (M82), while the setting is on:
+   * the response's last message carries what every request of this turn
+   * since the previous line used, tool steps and failed attempts included,
+   * so the lines of a turn add up to what it cost. A response with no
+   * message leaves its usage to the next one.
+   */
+  private noteReplyUsage(
+    response: ResponseObject,
+    open: Map<string, OpenItem>,
+    turnId: string,
+  ): void {
+    const tally = this.unshownUsage
+    if (tally === undefined || !this.deps.showReplyUsage()) {
+      return
+    }
+    let lastMessageWireId: string | undefined
+    for (const [index, item] of response.output.entries()) {
+      if (isMessageItem(item)) {
+        lastMessageWireId = item.id ?? String(index)
+      }
+    }
+    const entry = lastMessageWireId === undefined ? undefined : open.get(lastMessageWireId)
+    if (entry === undefined || !entry.isCompleted || entry.kind !== 'agentMessage') {
+      return
+    }
+    this.unshownUsage = undefined
+    const { costUsd, ...usage } = tally
+    const item: ItemSnapshot = { ...this.completedSnapshot(entry, turnId), usage, costUsd }
+    this.emit({ type: 'itemUpdated', item })
+    this.rerecordTranscript(item)
   }
 
   /**
@@ -2577,6 +3195,7 @@ export class ModelApiSession implements AgentSession {
       })
     }
     this.noteUsage(response.usage, chargedGoalId)
+    this.noteReplyUsage(response, open, turnId)
     return calls
   }
 
@@ -3048,15 +3667,96 @@ export class ModelApiSession implements AgentSession {
         return toolFailure(MODEL_TEXT.pathChangedAfterApproval)
       }
     }
-    return await runImageCall(plan, {
-      client: this.deps.client,
-      io: this.deps.io,
-      signal,
-      isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
-      onBilled: () => {
-        this.deps.notePaidUse('imageGeneration', 1)
-      },
-    })
+    await this.refreshBudgetSpend()
+    const price = PAID_PRICES_USD.imageGeneration
+    const capUsd = this.currentBudgetCap()
+    if (capUsd > 0 && price > capUsd - this.budgetSpentUsd) {
+      throw new SessionBudgetExceededError(
+        fill(UI_TEXT.sessionBudgetStopped, {
+          estimate: formatUsd(price),
+          cap: formatUsd(capUsd),
+          spent: formatUsd(this.budgetSpentUsd),
+        }),
+      )
+    }
+    const owner = this.budgetOwner()
+    const scope = this.deps.budgetScope
+    const accountId = scope?.accountId ?? owner.budgetAccountId
+    const journal = this.budgetJournal()
+    const claim =
+      accountId !== undefined && journal !== undefined
+        ? await journal.reserve(scope?.sessionId ?? owner.sessionId, accountId, price)
+        : undefined
+    const revision = this.modelRevision
+    const goalRevision = this.goalCommandRevision
+    const isTrusted = this.deps.isWorkspaceTrusted()
+    const imageState = { isSent: false, isBilled: false }
+    let isRefused = false
+    let hasReturned = false
+    try {
+      if (scope === undefined && capUsd > 0) {
+        await this.onPersisted('budget')
+      }
+      const outcome = await runImageCall(plan, {
+        client: this.deps.client,
+        io: this.deps.io,
+        signal,
+        isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
+        admitAttempt: Object.assign(
+          (keyDigest: string | undefined) => {
+            // Image transport retries only an explicit 429. The preceding
+            // attempt then admitted no work, including if this retry is refused.
+            imageState.isSent = false
+            if (
+              keyDigest !== accountId ||
+              signal.aborted ||
+              this.isDisposed ||
+              revision !== this.modelRevision ||
+              goalRevision !== this.goalCommandRevision ||
+              isTrusted !== this.deps.isWorkspaceTrusted() ||
+              !this.deps.isPaidFeatureOn('imageGeneration') ||
+              scope?.isStillAllowed(keyDigest) === false
+            ) {
+              throw new AbortedError()
+            }
+            if (claim === undefined && this.currentBudgetCap() > 0) {
+              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+            }
+            claim?.check(this.currentBudgetCap())
+          },
+          {
+            onRequestStarted: () => {
+              imageState.isSent = true
+            },
+          },
+        ),
+        onBilled: () => {
+          imageState.isBilled = true
+          this.deps.notePaidUse('imageGeneration', 1)
+        },
+      })
+      hasReturned = true
+      return outcome
+    } catch (error: unknown) {
+      isRefused =
+        error instanceof ModelApiError &&
+        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+      throw error
+    } finally {
+      const charged =
+        imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent) ? price : 0
+      this.budgetSpentUsd += charged
+      if (imageState.isBilled) {
+        this.turnCostUsd += charged
+      } else if (charged > 0) {
+        this.warnUnknownCharge(charged)
+      }
+      this.recordBudgetCost(charged, claim)
+      await this.budgetWrites
+      if (claim !== undefined && scope === undefined) {
+        await this.onPersisted('refund')
+      }
+    }
   }
 
   /** Where an edit-family call writes, confined (links resolved), or why it cannot. */
@@ -3222,14 +3922,38 @@ export class ModelApiSession implements AgentSession {
       const latest = child.session.usage
       const inputDelta = latest.inputTokens - child.usage.inputTokens
       const outputDelta = latest.outputTokens - child.usage.outputTokens
-      this.chargeChildGoal(child, inputDelta + outputDelta)
-      this.usage = {
+      const cachedDelta = latest.cachedTokens - child.usage.cachedTokens
+      // The child owns its charge in the parent's shared journal. Here its
+      // deltas update the parent's displayed totals, without charging twice.
+      const costUsd = estimateCostUsd(
+        { inputTokens: inputDelta, outputTokens: outputDelta, cachedTokens: cachedDelta },
+        child.session.sendingModelId ?? child.session.modelId,
+      )
+      const nextUsage = {
         inputTokens: this.usage.inputTokens + inputDelta,
         outputTokens: this.usage.outputTokens + outputDelta,
-        cachedTokens: this.usage.cachedTokens + latest.cachedTokens - child.usage.cachedTokens,
+        cachedTokens: this.usage.cachedTokens + cachedDelta,
         reasoningTokens:
           this.usage.reasoningTokens + latest.reasoningTokens - child.usage.reasoningTokens,
       }
+      if (
+        [
+          ...Object.values(nextUsage),
+          nextUsage.inputTokens + nextUsage.outputTokens,
+          this.budgetSpentUsd + costUsd,
+          this.turnCostUsd + costUsd,
+        ].some((value) => !(Number.isFinite(value) && value >= 0))
+      ) {
+        this.deps.log.warn('Child usage whose totals or cost are not finite was ignored')
+        child.usage = { ...latest }
+        return
+      }
+      this.budgetSpentUsd += costUsd
+      this.chargeChildGoal(child, inputDelta + outputDelta)
+      if (this.active?.turnId === child.parentTurnId) {
+        this.turnCostUsd += costUsd
+      }
+      this.usage = nextUsage
       child.usage = { ...latest }
       this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
       this.updateChild(child)
@@ -3527,7 +4251,7 @@ export class ModelApiSession implements AgentSession {
         this.touch()
       },
       // A child snapshot lives in its parent's stored session.
-      () => this.onPersisted(),
+      (kind) => this.onPersisted(kind),
       NO_CHILD_DISPOSAL,
       this.isHostClosing,
       true,
@@ -5926,6 +6650,9 @@ export class ModelApiSession implements AgentSession {
     this.settleNotes(turn.turnId)
     this.touch()
     const startedAt = this.deps.now()
+    this.turnCostUsd = 0
+    // A reply line counts this turn's requests only (M82).
+    this.unshownUsage = undefined
     let terminal = COMPLETED
     let reason: string | undefined
     let errorKind: string | undefined
@@ -6059,6 +6786,20 @@ export class ModelApiSession implements AgentSession {
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
+    // The turn's cost against the cap, said once afterwards (M82).
+    const budgetCapUsd = this.currentBudgetCap()
+    const turnCostUsd = this.turnCostUsd
+    if (budgetCapUsd > 0 && turnCostUsd > 0 && !this.budgetOwner().hasUnknownBudgetCost) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'info',
+        text: fill(UI_TEXT.budgetTurnCost, {
+          cost: formatUsd(turnCostUsd),
+          spent: formatUsd(this.budgetSpentUsd),
+          cap: formatUsd(budgetCapUsd),
+        }),
+      })
+    }
     this.emit({
       type: 'turnCompleted',
       turnId: turn.turnId,
@@ -6093,7 +6834,7 @@ export class ModelApiSession implements AgentSession {
         })
         continue
       }
-      void this.runTurn(next)
+      this.track(this.runTurn(next), false)
       return
     }
   }
@@ -6141,19 +6882,33 @@ export class ModelApiSession implements AgentSession {
   ): Promise<{ readonly text: string; readonly response: ResponseObject }> {
     let text = ''
     let response: ResponseObject | undefined
+    const reservation = this.sending(body)
     const admitAttempt = this.responseAttemptGuard(body)
     const responseStream = this.deps.client.streamResponse(
       body,
       signal,
-      undefined,
+      (notice) => {
+        this.allowRateLimitedRetry(notice)
+      },
       undefined,
       admitAttempt,
     )
-    for await (const event of responseStream) {
-      if (event.type === 'response.completed') {
-        response = event.response
+    try {
+      await this.persistReservation(reservation)
+      for await (const event of responseStream) {
+        if (reservation !== undefined) {
+          reservation.hasStarted = true
+        }
+        if (event.type === 'response.completed') {
+          response = event.response
+        }
+        text += this.collectedText(event, chargedGoalId)
       }
-      text += this.collectedText(event, chargedGoalId)
+    } catch (error: unknown) {
+      this.noteRequestRefusal(reservation, error)
+      throw error
+    } finally {
+      await this.endRequest()
     }
     if (response === undefined) {
       throw new ModelApiError(
@@ -6168,25 +6923,31 @@ export class ModelApiSession implements AgentSession {
 
   /** The summary call of `compact`, and the replay it leaves behind. */
   private async runCompaction(signal: AbortSignal): Promise<CompactOutcome> {
+    await this.refreshBudgetSpend()
+    // The compaction is a request like any other: the session budget
+    // reserves it too, and refuses it when it cannot fit (M82).
     const compactionBody = (): CreateResponseBody =>
-      this.keyed({
-        ...this.body(),
-        // Within Meta's image budget too (M54): a conversation past it can still be compacted.
-        input: this.budget.fit([
-          ...this.replay.map((entry) => entry.item),
-          {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: MODEL_TEXT.compactionPrompt }],
-          },
-        ]),
-        tools: [],
-        include: ['reasoning.encrypted_content'],
-      })
+      this.budgeted(
+        this.keyed({
+          ...this.body(),
+          // Within Meta's image budget too (M54): a conversation past it can still be compacted.
+          input: this.budget.fit([
+            ...this.replay.map((entry) => entry.item),
+            {
+              type: 'message',
+              role: 'user',
+              content: [{ type: 'input_text', text: MODEL_TEXT.compactionPrompt }],
+            },
+          ]),
+          tools: [],
+          include: ['reasoning.encrypted_content'],
+        }),
+      )
     const turnId = this.turnIds.at(-1) ?? COMPACTION_TURN_ID
     const requestId = this.deps.newId()
     await this.beforeModelCall(turnId, compactionBody(), requestId, 1, 0, signal)
     const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
+    await this.refreshBudgetSpend()
     const body = compactionBody()
     const { text: summary, response } = await this.collectText(body, signal, chargedGoalId)
     const post = await this.runHooks(
@@ -6219,12 +6980,28 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemCompleted', item })
     this.recordTranscript(COMPACTION_TURN_ID, item)
     this.touch()
+    // The summary replaced what the compaction request carried, so that
+    // request is no base for the next estimate; Meta's count of the new
+    // context is, when it comes (M82).
+    this.budgetBase = undefined
     // The new context size is a courtesy: the compaction stands if it cannot be counted.
     const { stream: _stream, ...countable } = this.body()
+    const countRevision = this.modelRevision
     try {
-      this.noteContext(await this.deps.client.countInputTokens(countable))
+      const counted = await this.deps.client.countInputTokens(countable)
+      if (countRevision === this.modelRevision) {
+        this.noteContext(counted)
+      }
+      if (!this.isSubagent && this.currentBudgetCap() > 0 && countRevision === this.modelRevision) {
+        this.budgetBase = {
+          inputTokens: counted,
+          parts: estimateInput(requestParts(countable), undefined).parts,
+        }
+      }
     } catch (error: unknown) {
-      this.deps.log.warn(`The compacted context could not be counted: ${describe(error)}`)
+      const status =
+        error instanceof ModelApiError ? `HTTP ${String(error.status)}` : 'request failed'
+      this.deps.log.warn(`The compacted context could not be counted: ${status}`)
     }
     return { status: ACCEPTED, reason: undefined }
   }
@@ -6474,6 +7251,57 @@ export class ModelApiSession implements AgentSession {
     return submission
   }
 
+  /** The body of `compact`, once it may run: tracked, so a closing window waits for it. */
+  private async compactNow(): Promise<CompactOutcome> {
+    this.mediaNoticeSent = false
+    // Running like a turn (D26): Stop ends it, and messages sent meanwhile queue.
+    const abort = new AbortController()
+    this.compacting = abort
+    this.status = RUNNING
+    this.emit({ type: 'sessionStatus', status: RUNNING })
+    try {
+      const before = await this.runHooks(
+        'PreCompact',
+        this.turnIds.at(-1),
+        { trigger: 'manual' },
+        'manual',
+        abort.signal,
+      )
+      if (before.stopReason !== undefined) {
+        return { status: NOOP, reason: before.stopReason }
+      }
+      const outcome = await this.runCompaction(abort.signal)
+      await this.runHooks(
+        'PostCompact',
+        this.turnIds.at(-1),
+        { trigger: 'manual' },
+        'manual',
+        abort.signal,
+      )
+      if (outcome.status === 'accepted') {
+        await this.collectStartHooks('compact', abort.signal)
+      }
+      return outcome
+    } catch (error: unknown) {
+      if (abort.signal.aborted) {
+        return { status: CANCELLED, reason: UI_TEXT.compactionStopped }
+      }
+      throw error
+    } finally {
+      this.compacting = undefined
+      // Notes that arrived during the summary follow it (M46), and are kept.
+      if (this.settleNotes(this.latestTurnId())) {
+        this.touch()
+      }
+      this.status = IDLE
+      this.emit({ type: 'sessionStatus', status: IDLE })
+      // A rejected compaction still spent tokens. Save after it settles;
+      // normal turns wait for every function call's output before saving.
+      this.touch()
+      this.startNextQueued()
+    }
+  }
+
   /** The conversation a paid use is asked in (M58): a child task's is its parent's. */
   private get askingSessionId(): string {
     return this.parentSession?.askingSessionId ?? this.sessionId
@@ -6497,6 +7325,41 @@ export class ModelApiSession implements AgentSession {
     }
     this.hookStarted = true
     await this.collectStartHooks(this.hookStartSource, undefined)
+  }
+
+  /** Shared parent liability, initialized from its own safe history before external paid work. */
+  public async ownedBudgetScope(): Promise<OwnedSessionBudgetScope | undefined> {
+    const modelRevision = this.modelRevision
+    const goalRevision = this.goalCommandRevision
+    const isTrusted = this.deps.isWorkspaceTrusted()
+    await this.refreshBudgetSpend()
+    const owner = this.budgetOwner()
+    const journal = this.budgetJournal()
+    const source = this.deps.budgetScope
+    const accountId = source?.accountId ?? owner.budgetAccountId
+    if (journal === undefined || accountId === undefined) {
+      return undefined
+    }
+    const scope: OwnedSessionBudgetScope = Object.freeze({
+      sessionId: source?.sessionId ?? owner.sessionId,
+      accountId,
+      journal,
+      capUsd: () => this.currentBudgetCap(),
+      isStillAllowed: (keyDigest: string | undefined) =>
+        !this.isHostClosing() &&
+        !this.isDisposed &&
+        !owner.isDisposed &&
+        keyDigest === accountId &&
+        owner.budgetAccountId === accountId &&
+        modelRevision === this.modelRevision &&
+        goalRevision === this.goalCommandRevision &&
+        isTrusted === this.deps.isWorkspaceTrusted() &&
+        source?.isStillAllowed(keyDigest) !== false,
+    })
+    if (!scope.isStillAllowed(accountId)) {
+      throw new AbortedError()
+    }
+    return scope
   }
 
   public onEvent(listener: SessionEventListener): () => void {
@@ -6543,7 +7406,7 @@ export class ModelApiSession implements AgentSession {
     }
     // A compaction is a turn too (D26): a message sent during one waits for it.
     if (this.active === undefined && this.compacting === undefined) {
-      void this.runTurn(queued)
+      this.track(this.runTurn(queued), false)
       return Promise.resolve({ turnId, disposition: 'started', userMessageId })
     }
     this.queuedTurns.push(queued)
@@ -6599,6 +7462,9 @@ export class ModelApiSession implements AgentSession {
 
   public setModel(modelId: string): Promise<void> {
     this.modelId = modelId
+    this.modelRevision += 1
+    // Another model may count the same request differently (M82).
+    this.budgetBase = undefined
     this.emit({ type: 'modelChanged', modelId })
     this.touch()
     return Promise.resolve()
@@ -6639,53 +7505,19 @@ export class ModelApiSession implements AgentSession {
     if (this.active !== undefined || this.compacting !== undefined) {
       throw new Error(TURN_RUNNING)
     }
-    this.mediaNoticeSent = false
-    // Running like a turn (D26): Stop ends it, and messages sent meanwhile queue.
-    const abort = new AbortController()
-    this.compacting = abort
-    this.status = RUNNING
-    this.emit({ type: 'sessionStatus', status: RUNNING })
-    try {
-      const before = await this.runHooks(
-        'PreCompact',
-        this.turnIds.at(-1),
-        { trigger: 'manual' },
-        'manual',
-        abort.signal,
-      )
-      if (before.stopReason !== undefined) {
-        return { status: NOOP, reason: before.stopReason }
-      }
-      const outcome = await this.runCompaction(abort.signal)
-      await this.runHooks(
-        'PostCompact',
-        this.turnIds.at(-1),
-        { trigger: 'manual' },
-        'manual',
-        abort.signal,
-      )
-      if (outcome.status === 'accepted') {
-        await this.collectStartHooks('compact', abort.signal)
-      }
-      return outcome
-    } catch (error: unknown) {
-      if (abort.signal.aborted) {
-        return { status: CANCELLED, reason: UI_TEXT.compactionStopped }
-      }
-      throw error
-    } finally {
-      this.compacting = undefined
-      // Notes that arrived during the summary follow it (M46), and are kept.
-      if (this.settleNotes(this.latestTurnId())) {
-        this.touch()
-      }
-      this.status = IDLE
-      this.emit({ type: 'sessionStatus', status: IDLE })
-      // A rejected compaction still spent tokens. Save after it settles;
-      // normal turns wait for every function call's output before saving.
-      this.touch()
-      this.startNextQueued()
-    }
+    const compacting = this.compactNow()
+    this.track(compacting, true)
+    return await compacting
+  }
+
+  /** Resolves once this session's running turns and compactions, and its children's, have ended. */
+  public async settled(): Promise<void> {
+    await Promise.all(this.unsettled.values())
+    await Promise.all(
+      Array.from(this.children.values(), async (child) => {
+        await child.session.settled()
+      }),
+    )
   }
 
   public decideApproval(decision: ApprovalDecision): Promise<void> {
@@ -7105,6 +7937,13 @@ export class ModelApiSession implements AgentSession {
 
   /** Everything a window needs to bring this session back (D14). */
   public snapshot(): StoredSession {
+    const budgetSpentUsd =
+      this.budgetSpentUsd +
+      (this.openReservation?.isReserved === true ? this.openReservation.costUsd : 0)
+    const freshFork: Pick<StoredSession, 'budgetIsFreshFork' | 'budgetSpentUsd'> = this
+      .budgetIsFreshFork
+      ? { budgetIsFreshFork: true, budgetSpentUsd: 0 }
+      : {}
     return {
       version: STORED_SESSION_VERSION,
       sessionId: this.sessionId,
@@ -7128,6 +7967,8 @@ export class ModelApiSession implements AgentSession {
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
+      ...(budgetSpentUsd > 0 && { budgetSpentUsd }),
+      ...freshFork,
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: [...this.pendingChildResults],
@@ -7180,6 +8021,8 @@ export class ModelApiSession implements AgentSession {
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
+    this.budgetSpentUsd = stored.budgetSpentUsd ?? 0
+    this.budgetAccountId = stored.accountId
     this.status = IDLE
     this.pendingChildResults.push(...(stored.pendingChildResults ?? []))
     const savedCommands = Object.entries(stored.spawnCommands ?? {})
@@ -7196,7 +8039,7 @@ export class ModelApiSession implements AgentSession {
         () => {
           this.touch()
         },
-        () => this.onPersisted(),
+        (kind) => this.onPersisted(kind),
         NO_CHILD_DISPOSAL,
         this.isHostClosing,
         true,
@@ -7287,6 +8130,7 @@ export class ModelApiSession implements AgentSession {
     target.turnCount = target.turnIds.length
     target.firstPrompt = this.firstPrompt
     target.forkedFrom = this.sessionId
+    target.budgetIsFreshFork = true
     target.effort = this.effort
     // The goal as it stands goes with the fork (M45): a goal has no history
     // to cut, so a fork from an earlier turn gets today's goal too.
@@ -7307,7 +8151,7 @@ export class ModelApiSession implements AgentSession {
         () => {
           target.touch()
         },
-        () => target.onPersisted(),
+        (kind) => target.onPersisted(kind),
         NO_CHILD_DISPOSAL,
         target.isHostClosing,
         true,
@@ -7364,6 +8208,12 @@ export class ModelApiHost implements AgentHost {
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
   /** Saves run one after another; failures are logged, and strict callers also see them. */
   private saving: Promise<void> = Promise.resolve()
+  /**
+   * Each session's last saved snapshot (M82): while a call waits for its
+   * output the replay cannot be saved, but what the session spent can,
+   * written onto this.
+   */
+  private readonly lastSaved = new Map<string, StoredSession>()
   public readonly info: HostInfo = {
     kind: 'modelApi',
     serverName: MODEL_API_SERVER_NAME,
@@ -7411,6 +8261,12 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
+  private assertBudgetHostOpen(): void {
+    if (this.isClosing) {
+      throw new Error(UI_TEXT.historyUnavailable)
+    }
+  }
+
   private queueSave(
     snapshot: StoredSession,
     store: SessionStore,
@@ -7420,6 +8276,7 @@ export class ModelApiHost implements AgentHost {
     if (!shouldSetHeaderAfterSave) {
       this.stored.set(snapshot.sessionId, header)
     }
+    this.lastSaved.set(snapshot.sessionId, snapshot)
     const previous = this.saving
     const saved = (async () => {
       await previous
@@ -7450,10 +8307,66 @@ export class ModelApiHost implements AgentHost {
     // A child's unsettled turn holds the parent's save the same way: its
     // replay is nested in this snapshot.
     if (hasUnansweredSessionCall(snapshot)) {
+      void this.persistSpend(snapshot, store).catch(IGNORE_SAVE_FAILURE)
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
     const saved = this.queueSave(snapshot, store, isStrict)
     return isStrict ? saved : this.saving
+  }
+
+  /**
+   * What a session spent while a call waits for its output (M82): the last
+   * saved snapshot with this one's token totals and budget spend, so a
+   * reload or a crash cannot forget a request's cost and let the next one
+   * pass the cap. Nothing is written for a session never saved: there is
+   * nothing to reload.
+   */
+  private persistSpend(
+    snapshot: StoredSession,
+    store: SessionStore,
+    isStrict = false,
+  ): Promise<void> {
+    const last = this.lastSaved.get(snapshot.sessionId)
+    if (last === undefined) {
+      return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
+    }
+    if (
+      !isStrict &&
+      last.budgetSpentUsd === snapshot.budgetSpentUsd &&
+      JSON.stringify(last.usage) === JSON.stringify(snapshot.usage)
+    ) {
+      return Promise.resolve()
+    }
+    const { budgetSpentUsd: _unsaved, ...saved } = last
+    return this.queueSave(
+      {
+        ...saved,
+        usage: snapshot.usage,
+        ...(snapshot.budgetSpentUsd !== undefined && { budgetSpentUsd: snapshot.budgetSpentUsd }),
+      },
+      store,
+      false,
+    )
+  }
+
+  /** Durable liability without ever writing an unanswered tool call to replay. */
+  private async persistBudgetReservation(
+    session: ModelApiSession,
+    isRefund = false,
+  ): Promise<void> {
+    const { store } = this.deps
+    if (store === undefined) {
+      throw new Error(UI_TEXT.historyUnavailable)
+    }
+    if (!isRefund) {
+      await this.requireAccountId()
+    }
+    // A nonsent request releases its original account's liability even if
+    // a different key caused admission to fail. No new account is written.
+    const snapshot = this.ownedSnapshot(session.snapshot())
+    await (hasUnansweredSessionCall(snapshot)
+      ? this.persistSpend(snapshot, store, true)
+      : this.queueSave(snapshot, store, false))
   }
 
   /** A schedule create needs proof its owning session was saved before success. */
@@ -7487,9 +8400,13 @@ export class ModelApiHost implements AgentHost {
         void this.persist(session)
         this.announce(session)
       },
-      () => this.persistStrict(session),
+      (kind) =>
+        kind === 'budget' || kind === 'refund'
+          ? this.persistBudgetReservation(session, kind === 'refund')
+          : this.persistStrict(session),
       () => {
         this.sessions.delete(sessionId)
+        this.lastSaved.delete(sessionId)
       },
       () => this.isClosing,
       false,
@@ -7732,6 +8649,27 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
+  /** Extension-owned callers bind only an already loaded, currently owned parent. */
+  public async getOwnedBudgetScope(
+    sessionId: string,
+  ): Promise<OwnedSessionBudgetScope | undefined> {
+    this.assertBudgetHostOpen()
+    await this.requireAccountId()
+    const session = this.sessions.get(sessionId)
+    if (session === undefined) {
+      throw new Error(UI_TEXT.historyUnavailable)
+    }
+    const scope = await session.ownedBudgetScope()
+    this.assertBudgetHostOpen()
+    return scope === undefined
+      ? undefined
+      : Object.freeze({
+          ...scope,
+          isStillAllowed: (keyDigest: string | undefined) =>
+            !this.isClosing && scope.isStillAllowed(keyDigest),
+        })
+  }
+
   public async resumeSession(
     sessionId: string,
     _modelId: string,
@@ -7847,9 +8785,21 @@ export class ModelApiHost implements AgentHost {
     } finally {
       clearTimeout(deadline)
     }
+    // A turn the close stops charges what it spent and saves as it ends
+    // (M82): wait for the sessions' running work, but never past a deadline.
+    const settling = Promise.all(
+      Array.from(this.sessions.values(), async (session) => {
+        await session.settled()
+      }),
+    )
     // Disposing removes the entry; a Map iterator tolerates that.
     for (const session of this.sessions.values()) {
       session.disposeAll()
+    }
+    try {
+      await withDeadline(settling, MODEL_API_CLOSE_SETTLE_MS, 'closing')
+    } catch (error: unknown) {
+      this.deps.log.warn(`Model API sessions still running at close: ${describe(error)}`)
     }
     // The MCP servers go with the host (M50): a stdio server's process tree is killed.
     await Promise.all([this.saving, this.deps.mcpServers?.close()])

@@ -60,6 +60,7 @@ const LAZY_ONLY = [
   'modelCallHooks.ts',
   'permissions.ts',
   'promptCache.ts',
+  'sessionBudget.ts',
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',

@@ -77,6 +77,22 @@ describe('Transcript', () => {
     expect(screen.getByText('Thinking…').closest('.status-line')).not.toBeNull()
   })
 
+  it('labels a reply’s dollar amount estimated and shows it only while the setting is on (M82)', () => {
+    setUiText(EN, 'en')
+    const reply: TranscriptEntry = {
+      kind: 'assistant',
+      id: 'a',
+      text: 'done',
+      isStreaming: false,
+      usage: { inputTokens: 12_300, outputTokens: 678, cachedTokens: 10_000, reasoningTokens: 0 },
+      costUsd: 0.018,
+    }
+    const { rerender } = mountTranscript([reply])
+    expect(screen.queryByText('12.3K in · 678 out · estimated $0.0180')).toBeNull()
+    rerender({ showReplyUsage: true })
+    expect(screen.getByText('12.3K in · 678 out · estimated $0.0180')).toBeInTheDocument()
+  })
+
   it('streams the summary while thinking and leaves a plain "Thought for" line after (M16)', () => {
     renderTranscript([
       {

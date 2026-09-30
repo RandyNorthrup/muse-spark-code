@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -9,11 +10,13 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CLARIFICATION_MAX_CHARS,
   HOOK_MAX_STOP_CONTINUATIONS,
+  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
   GOAL_OBJECTIVE_MAX_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MODEL_TEXT,
+  PAID_PRICES_USD,
   SCHEDULE_LIFETIME_MS,
   type PaidFeature,
   type PromptCacheRetention,
@@ -21,7 +24,7 @@ import {
 } from '../../src/shared/constants'
 import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/agentBackend'
 import { AttachmentStore } from '../../src/core/attachments'
-import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { ModelApiClient, ModelApiError } from '../../src/core/backends/modelapi/client'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import {
   ModelApiHost,
@@ -29,8 +32,16 @@ import {
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, fill, formatNumber, setUiText } from '../../src/shared/l10n/text'
+import {
+  estimateInput,
+  requestParts,
+  reserveRequest,
+  SessionBudgetExceededError,
+} from '../../src/core/backends/modelapi/sessionBudget'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
@@ -42,11 +53,13 @@ import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import {
   parseStoredSession,
+  type SessionStore,
   type StoredSession,
 } from '../../src/core/backends/modelapi/sessionStore'
 import { heldShellToolIo, type MemoryToolIo, memoryToolIo } from './helpers/fakeToolIo'
 import { pdfFixture } from './helpers/pdfFixture'
 import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStore'
+import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import type {
   ScheduledPrompt,
   ScheduleRunConfirmation,
@@ -71,7 +84,7 @@ import {
 } from './helpers/checkpointHarness'
 import { type FakeMcpSource, fakeMcpSource } from './helpers/fakeMcpSource'
 import type { McpCallOutcome } from '../../src/core/backends/modelapi/mcp/functions'
-import { countLogged } from './helpers/logText'
+import { countLogged, logLines } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
@@ -194,7 +207,11 @@ function setup(
     files?: Record<string, string>
     personalSkillsRoot?: string
     isTrusted?: boolean
-    store?: ReturnType<typeof memorySessionStore>
+    store?: SessionStore
+    budgetScope?: ModelApiHostDeps['budgetScope']
+    admitResponseAttempt?: ModelApiHostDeps['admitResponseAttempt']
+    /** A capped fixture usually keeps its reservation in memory; this tests an unavailable store. */
+    hasNoStore?: boolean
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
     /** The paid features that are on (M33–M35); none unless a test says so. */
     paid?: readonly PaidFeature[]
@@ -207,6 +224,10 @@ function setup(
     io?: MemoryToolIo
     /** `museSpark.modelApiPromptCacheRetention` (M56); in memory unless a test says so. */
     retention?: PromptCacheRetention
+    /** `museSpark.modelApiSessionBudgetUsd` (M82); no cap unless a test says so. */
+    sessionBudgetUsd?: number
+    /** `museSpark.modelApiReplyUsage` (M82); off unless a test says so. */
+    showReplyUsage?: boolean
     mediaBudgetMaxEncodedChars?: number
     scheduleStore?: ScheduleStore
     getAccountId?: () => Promise<string | undefined>
@@ -287,15 +308,27 @@ function setup(
     log,
     personalSkillsRoot: options.personalSkillsRoot,
     isWorkspaceTrusted: () => options.isTrusted ?? true,
-    store: options.store,
+    store:
+      options.hasNoStore === true
+        ? undefined
+        : (options.store ??
+          (options.sessionBudgetUsd !== undefined && options.sessionBudgetUsd > 0
+            ? memorySessionStore()
+            : undefined)),
     scheduleStore: options.scheduleStore,
     getAccountId: options.getAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
+    ...(options.budgetScope !== undefined && { budgetScope: options.budgetScope }),
+    ...(options.admitResponseAttempt !== undefined && {
+      admitResponseAttempt: options.admitResponseAttempt,
+    }),
     describeEnvironment: options.describeEnvironment ?? (() => Promise.resolve({ git: undefined })),
     isPaidFeatureOn: (feature) => options.paid?.includes(feature) === true,
     notePaidUse: (feature, units) => {
       paidUses.push({ feature, units })
     },
     promptCacheRetention: () => options.retention ?? 'in_memory',
+    sessionBudgetUsd: () => options.sessionBudgetUsd ?? 0,
+    showReplyUsage: () => options.showReplyUsage ?? false,
     ...(options.mediaBudgetMaxEncodedChars !== undefined && {
       mediaBudgetMaxEncodedChars: options.mediaBudgetMaxEncodedChars,
     }),
@@ -1369,8 +1402,166 @@ describe('Model API turn checkpoint admission (M72)', () => {
   })
 })
 
-const scheduleRoot = mkdtempSync(path.join(tmpdir(), 'muse-model-schedules-'))
+const scheduleRoot = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-model-schedules-')))
 afterAll(() => removeFolder(scheduleRoot))
+
+function budgetStoreIn(
+  directory: string,
+  renameFile?: Parameters<typeof createFileSessionStore>[0]['rename'],
+) {
+  return createFileSessionStore({
+    directory,
+    log: new FakeLogOutputChannel(),
+    retentionDays: () => 0,
+    now: () => 0,
+    sleep: () => Promise.resolve(),
+    ...(renameFile !== undefined && { rename: renameFile }),
+  })
+}
+
+/** Real session files with the first reservation's rename held or failed. */
+function heldBudgetStore(name: string, isFailure = false) {
+  const directory = path.join(scheduleRoot, name)
+  const blocked = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  let hasHeld = false
+  const store = budgetStoreIn(directory, async (from, to) => {
+    const saved = parseStoredSession(JSON.parse(readFileSync(from, 'utf8')))
+    if (!hasHeld && saved.ok && (saved.session.budgetSpentUsd ?? 0) > 0) {
+      hasHeld = true
+      if (isFailure) {
+        throw new Error('reservation write refused')
+      }
+      blocked.resolve(undefined)
+      await release.promise
+    }
+    await rename(from, to)
+  })
+  return { directory, store, blocked, release }
+}
+
+/** Independent stores and hosts reopening one real account-owned session file. */
+async function sharedBudgetHosts(name: string, capUsd: number, firstCapUsd = capUsd) {
+  const directory = path.join(scheduleRoot, name)
+  const firstStore = budgetStoreIn(directory)
+  const secondStore = budgetStoreIn(directory)
+  const first = setup({ store: firstStore, sessionBudgetUsd: firstCapUsd })
+  const firstWatched = await startSession(first)
+  await firstWatched.session.rename('shared budget fixture')
+  await first.host.flush()
+  const second = setup({ store: secondStore, sessionBudgetUsd: capUsd })
+  await second.host.load()
+  const resumed = await second.host.resumeSession(firstWatched.session.sessionId, 'muse-spark-1.3')
+  return {
+    directory,
+    firstStore,
+    secondStore,
+    first,
+    second,
+    firstWatched,
+    secondWatched: { session: resumed.session, ...watchTurns(resumed.session) },
+    close: async () => {
+      await first.host.close()
+      await second.host.close()
+    },
+  }
+}
+
+/** Both real claim files publish before either admission; refunds wait for both refusals. */
+function holdBothBudgetClaims(stores: readonly SessionStore[]) {
+  const planned = Promise.withResolvers<undefined>()
+  const published = Promise.withResolvers<undefined>()
+  const refunded = Promise.withResolvers<undefined>()
+  let claims = 0
+  let plans = 0
+  let refunds = 0
+  const failures: string[] = []
+  for (const store of stores) {
+    const journal = store.budget
+    if (journal === undefined) {
+      throw new Error('No shared budget journal')
+    }
+    const reserve = journal.reserve.bind(journal)
+    vi.spyOn(journal, 'reserve').mockImplementation(async (...args) => {
+      plans += 1
+      if (plans === stores.length) {
+        planned.resolve(undefined)
+      }
+      await planned.promise
+      const claim = await (async () => {
+        try {
+          return await reserve(...args)
+        } catch (error: unknown) {
+          failures.push(error instanceof Error ? error.message : String(error))
+          throw error
+        }
+      })()
+      claims += 1
+      if (claims === stores.length) {
+        published.resolve(undefined)
+      }
+      await published.promise
+      return {
+        ...claim,
+        settle: async (costUsd) => {
+          if (costUsd === 0) {
+            refunds += 1
+            if (refunds === stores.length) {
+              refunded.resolve(undefined)
+            }
+            await refunded.promise
+          }
+          return await claim.settle(costUsd)
+        },
+      }
+    })
+  }
+  return { planned, published, refunded, state: () => ({ plans, claims, refunds, failures }) }
+}
+
+/** A disposable host binds one real parent scope without sharing its history store. */
+async function scopedBudgetAttempt(name: string, capUsd = 0.1) {
+  const directory = path.join(scheduleRoot, name)
+  const store = budgetStoreIn(directory)
+  const parentOptions = { store, sessionBudgetUsd: capUsd, isTrusted: true }
+  const parent = setup(parentOptions)
+  const parentWatched = await startSession(parent)
+  const scope = await parent.host.getOwnedBudgetScope(parentWatched.session.sessionId)
+  if (scope === undefined) {
+    throw new Error('No owned parent budget scope')
+  }
+  let trialIds = 0
+  let attemptKey = 'LLM|1|secret'
+  const attemptOptions: NonNullable<Parameters<typeof setup>[0]> = {
+    budgetScope: scope,
+    hasNoStore: true,
+    apiKey: () => Promise.resolve(attemptKey),
+    newId: () => {
+      trialIds += 1
+      return `trial${String(trialIds)}`
+    },
+  }
+  const attempt = setup(attemptOptions)
+  const attemptWatched = await startSession(attempt)
+  return {
+    directory,
+    store,
+    parentOptions,
+    parent,
+    parentWatched,
+    scope,
+    attemptOptions,
+    attempt,
+    attemptWatched,
+    changeKey: (key: string) => {
+      attemptKey = key
+    },
+    close: async () => {
+      await attempt.host.close()
+      await parent.host.close()
+    },
+  }
+}
 
 function confirmedRun(job: ScheduledPrompt, session: AgentSession): ScheduleRunConfirmation {
   return { sessionId: session.sessionId, modelId: session.modelId, prompt: job.prompt }
@@ -1969,6 +2160,1408 @@ describe('ModelApiHost: usage (M8)', () => {
     })
     expect(typeof stop).toBe('function')
     stop()
+  })
+})
+
+/** One answered "hi" turn with priced usage on the fake Model API (M82). */
+async function answerPricedHi(t: ReturnType<typeof setup>) {
+  const watched = await startSession(t)
+  t.api.script({ text: 'Hello there', usage: { input: 1000, output: 200, cached: 100 } })
+  await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+  await watched.turnDone()
+  return watched
+}
+
+/** A real request paused before frames, with its own watched session and explicit release. */
+async function holdBudgetReply(t: ReturnType<typeof setup>, reply: Omit<ScriptedReply, 'hold'>) {
+  const watched = await startSession(t)
+  const held = Promise.withResolvers<undefined>()
+  t.api.script({ ...reply, hold: held.promise })
+  const before = t.api.responseBodies().length
+  await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(before + 1)
+  })
+  return {
+    ...watched,
+    release: () => {
+      held.resolve(undefined)
+    },
+  }
+}
+
+async function preparedBudgetCompaction(t: ReturnType<typeof setup>) {
+  const watched = await startSession(t)
+  await budgetTurn(t, watched, 'go', { text: 'Start' })
+  t.api.script({ text: 'SUMMARY' })
+  return watched
+}
+
+async function waitForBudgetWrite(
+  t: ReturnType<typeof setup>,
+  session: AgentSession,
+  disk: ReturnType<typeof heldBudgetStore>,
+): Promise<void> {
+  await session.sendTurn([{ type: 'text', text: 'hi' }])
+  await disk.blocked.promise
+  expect(t.api.responseBodies()).toEqual([])
+}
+
+/** One turn on a watched session: its replies scripted, its prompt sent, its end awaited (M82). */
+async function budgetTurn(
+  t: ReturnType<typeof setup>,
+  watched: { readonly session: AgentSession; readonly turnDone: () => Promise<void> },
+  text: string,
+  ...replies: ScriptedReply[]
+): Promise<void> {
+  t.api.script(...replies)
+  await watched.session.sendTurn([{ type: 'text', text }])
+  await watched.turnDone()
+}
+
+/** Why the last turn failed, or '' (M82). */
+function lastReason(events: readonly AgentEvent[]): string {
+  const completed = events.findLast((event) => event.type === 'turnCompleted')
+  return completed?.type === 'turnCompleted' ? (completed.reason ?? '') : ''
+}
+
+const TODO_CALL = {
+  name: 'todo_write',
+  arguments: '{"items":[{"text":"First","status":"completed"}]}',
+}
+// How long a stopped fake command takes to end (M82's close test).
+const STOPPED_COMMAND_EXIT_MS = 20
+const RESERVED_LINE = /Session budget: request reserved for (\d+) input and (\d+) output tokens/
+
+/** Each reservation the log holds, in order: the estimated input and the output allowance. */
+function reservations(t: ReturnType<typeof setup>) {
+  return logLines(t.log).flatMap((line) => {
+    const match = RESERVED_LINE.exec(line)
+    return match === null ? [] : [{ input: Number(match[1]), output: Number(match[2]) }]
+  })
+}
+
+/** The request body as Meta counts its input: the instructions, the tools and the items. */
+function sentParts(body: Readonly<Record<string, unknown>> | undefined) {
+  return requestParts(body as unknown as CreateResponseBody)
+}
+
+function standardCost(inputTokens: number, outputTokens: number, cachedTokens = 0): number {
+  return estimateCostUsd({ inputTokens, outputTokens, cachedTokens }, 'muse-spark-1.3')
+}
+
+function expectFullBudgetEstimate(t: ReturnType<typeof setup>): void {
+  const latestBody = t.api.responseBodies().at(-1)
+  const expected = estimateInput(sentParts(latestBody), undefined).inputTokens
+  expect(reservations(t).at(-1)?.input).toBe(expected)
+}
+
+function expectSavedBudget(
+  store: ReturnType<typeof memorySessionStore>,
+  sessionId: string,
+  costUsd: number,
+): void {
+  expect(store.saved.get(sessionId)?.budgetSpentUsd).toBeCloseTo(costUsd, 12)
+}
+
+async function storedBudget(store: SessionStore, sessionId: string): Promise<number | undefined> {
+  const session = await store.load(sessionId)
+  return session?.budgetSpentUsd
+}
+
+describe('ModelApiSession: per-reply usage (M82)', () => {
+  it('puts a reply’s tokens and cost under it while the setting is on', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ showReplyUsage: true })
+    const { events } = await answerPricedHi(t)
+    const updates = events.filter(
+      (event) =>
+        event.type === 'itemUpdated' &&
+        event.item.kind === 'agentMessage' &&
+        event.item.usage !== undefined,
+    )
+    expect(updates).toEqual([
+      {
+        type: 'itemUpdated',
+        item: expect.objectContaining({
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'Hello there',
+          usage: { inputTokens: 1000, outputTokens: 200, cachedTokens: 100, reasoningTokens: 1 },
+          costUsd: standardCost(1000, 200, 100),
+        }),
+      },
+    ])
+  })
+
+  it('counts every request of the turn since the last line, tool steps included', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      { calls: [TODO_CALL], usage: { input: 1000, output: 50 } },
+      { text: 'All done.', usage: { input: 1200, output: 30, cached: 1000 } },
+    )
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined ? [event.item] : [],
+    )
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({
+      text: 'All done.',
+      usage: { inputTokens: 2200, outputTokens: 80, cachedTokens: 1000, reasoningTokens: 2 },
+    })
+    expect(lines[0]?.costUsd).toBeCloseTo(standardCost(1000, 50) + standardCost(1200, 30, 1000), 12)
+  })
+
+  it('gives commentary before a tool call its own requests, and the reply the rest', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      {
+        text: 'Planning first.',
+        phase: 'commentary',
+        calls: [TODO_CALL],
+        usage: { input: 100, output: 10 },
+      },
+      { text: 'Done.', usage: { input: 200, output: 20 } },
+    )
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined
+        ? [{ text: event.item.text, input: event.item.usage.inputTokens }]
+        : [],
+    )
+    expect(lines).toEqual([
+      { text: 'Planning first.', input: 100 },
+      { text: 'Done.', input: 200 },
+    ])
+  })
+
+  it('leaves a failed turn’s usage out of the next turn’s line', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'first', {
+      text: 'partial',
+      failed: { code: 'server_error', message: 'failed' },
+      usage: { input: 900, output: 90 },
+    })
+    await budgetTurn(t, watched, 'second', { text: 'Fine.', usage: { input: 100, output: 10 } })
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined ? [event.item.usage] : [],
+    )
+    expect(lines).toEqual([
+      { inputTokens: 100, outputTokens: 10, cachedTokens: 0, reasoningTokens: 1 },
+    ])
+  })
+
+  it('attaches nothing while the setting is off', async () => {
+    const t = setup()
+    const { events } = await answerPricedHi(t)
+    expect(
+      events.filter(
+        (event) =>
+          (event.type === 'itemUpdated' || event.type === 'itemCompleted') &&
+          (event.item.usage !== undefined || event.item.costUsd !== undefined),
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('ModelApiSession: session budget (M82)', () => {
+  it('estimates the first request from its bytes and fits its output to what is left', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'ok', usage: { input: 1000, output: 10 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const [body] = t.api.responseBodies()
+    const estimated = estimateInput(sentParts(body), undefined).inputTokens
+    const expected = reserveRequest({
+      capUsd: 0.1,
+      spentUsd: 0,
+      estimatedInputTokens: estimated,
+      modelId: 'muse-spark-1.3',
+    })
+    // Every byte of the instructions, the tools and the message, at least.
+    expect(estimated).toBeGreaterThanOrEqual(
+      Buffer.byteLength(String(body?.['instructions'])) + Buffer.byteLength('hi'),
+    )
+    expect(expected.maxOutputTokens).toBeLessThan(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(body?.['max_output_tokens']).toBe(expected.maxOutputTokens)
+  })
+
+  it('sends the usual maximum when no cap is set', async () => {
+    const t = setup()
+    await answerPricedHi(t)
+    expect(t.api.responseBodies()[0]?.['max_output_tokens']).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservations(t)).toEqual([])
+  })
+
+  it('estimates a later request from the reported tokens plus only what was added', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ calls: [TODO_CALL], usage: { input: 5, output: 1 } }, { text: 'Done.' })
+    await session.sendTurn([{ type: 'text', text: 'plan it' }])
+    await turnDone()
+    const [first, second] = t.api.responseBodies()
+    const firstParts = estimateInput(sentParts(first), undefined).parts
+    const expected = estimateInput(sentParts(second), { inputTokens: 5, parts: firstParts })
+    expect(reservations(t).map((reservation) => reservation.input)).toEqual([
+      estimateInput(sentParts(first), undefined).inputTokens,
+      expected.inputTokens,
+    ])
+    // The instructions and tools the first request carried were not counted again.
+    const addedItems = (second?.['input'] as unknown[]).slice(1)
+    expect(expected.inputTokens).toBe(
+      5 +
+        addedItems.reduce<number>((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)), 0),
+    )
+  })
+
+  it('never shows the PreLLMCall hooks a request the cap cannot fit', async () => {
+    for (const [capUsd, calls] of [
+      [10, 1],
+      [0.000001, 0],
+    ] as const) {
+      const runHook = vi.fn(() => hookReply())
+      const t = setup({
+        sessionBudgetUsd: capUsd,
+        hooks: hooksFor('PreLLMCall', 'observe'),
+        runHook,
+      })
+      await budgetTurn(t, await startSession(t), 'hi', { text: 'answer' })
+      expect(runHook).toHaveBeenCalledTimes(calls)
+    }
+  })
+
+  it('never sends a request the cap cannot fit, and the turn says why', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.000001 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+    expect(lastReason(watched.events)).toContain('It was not sent.')
+  })
+
+  it('stops a turn at the request that no longer fits, after the ones that did', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 2.5 })
+    const watched = await startSession(t)
+    // The first request reports a million input tokens ($1.25): the next
+    // one carries them again, and $1.25 is all that is left.
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      { calls: [TODO_CALL], usage: { input: 1_000_000, output: 0 } },
+      { text: 'no' },
+    )
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(watched.session.history().items.some((item) => item.tool === 'todo_write')).toBe(true)
+    const reason = lastReason(watched.events)
+    expect(reason).toContain(`${formatUsd(2.5)} (${formatUsd(1.25)} used)`)
+    expect(reason).toContain('It was not sent.')
+    expect(watched.events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.budgetTurnCost, {
+        cost: formatUsd(1.25),
+        spent: formatUsd(1.25),
+        cap: formatUsd(2.5),
+      }),
+    })
+  })
+
+  it('refuses a model with no known price rather than guess what fits', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 100 })
+    const watched = await startSession(t)
+    await watched.session.setModel('muse-spark-9')
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(lastReason(watched.events)).toBe(
+      fill(UI_TEXT.sessionBudgetUnpriced, { model: 'muse-spark-9' }),
+    )
+  })
+
+  it('keeps an uncapped future model visible but refuses a later cap when that tariff was never verified', async () => {
+    const store = memorySessionStore()
+    const options = { store, sessionBudgetUsd: 0, showReplyUsage: true }
+    const t = setup(options)
+    const watched = await startSession(t)
+    await watched.session.setModel('muse-spark-future-contributor')
+    await budgetTurn(t, watched, 'future model', { text: 'still visible' })
+    expect(t.api.responseBodies()[0]?.['model']).toBe('muse-spark-future-contributor')
+    expect(watched.session.history().items.some((item) => item.text === 'still visible')).toBe(true)
+    const reply = watched.events.findLast(
+      (event) => event.type === 'itemUpdated' && event.item.text === 'still visible',
+    )
+    expect(reply).toMatchObject({
+      type: 'itemUpdated',
+      item: {
+        usage: { inputTokens: 10, outputTokens: 5 },
+        costUsd: estimateCostUsd(
+          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
+          'muse-spark-1.3-contributor',
+        ),
+      },
+    })
+    const scope = await watched.session.ownedBudgetScope()
+    if (scope === undefined) {
+      throw new Error('Expected future-model budget scope')
+    }
+    const total = await scope.journal.read(scope.sessionId, scope.accountId)
+    expect(total.hasUnknownHistoricalFees).toBe(true)
+    await watched.session.setModel('muse-spark-1.3')
+    options.sessionBudgetUsd = 0.1
+    await budgetTurn(t, watched, 'known model with old unverified spending', { text: 'not sent' })
+    await t.host.close()
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(lastReason(watched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    expect(
+      watched.events.some(
+        (event) => event.type === 'backendNotice' && event.text.includes('This turn cost'),
+      ),
+    ).toBe(false)
+  })
+
+  it('counts a response that began and never reported at its whole reservation', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'partial', streamError: { code: 'boom', message: 'lost' } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await t.host.close()
+    const [reserved] = reservations(t)
+    expect(reserved).toBeDefined()
+    const reservedUsd =
+      standardCost(reserved?.input ?? 0, 0) + standardCost(0, reserved?.output ?? 0)
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(reservedUsd, 12)
+  })
+
+  it('counts a request stopped after it was sent at its whole reservation', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const watched = await holdBudgetReply(t, { text: 'late' })
+    await watched.session.cancel()
+    await watched.turnDone()
+    watched.release()
+    await t.host.close()
+    const [reserved] = reservations(t)
+    expectSavedBudget(
+      store,
+      watched.session.sessionId,
+      standardCost(reserved?.input ?? 0, reserved?.output ?? 0),
+    )
+  })
+
+  it('counts nothing for a request Meta refused before its response began', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ httpError: { status: 400, body: { error: { message: 'bad' } } } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await t.host.close()
+    expect(reservations(t)).toHaveLength(1)
+    expect(store.saved.get(session.sessionId)).toBeDefined()
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeUndefined()
+  })
+
+  it('says when a response used every output token the budget left it', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'cut', usage: { input: 10, output: 1_000_000 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const limit = Number(t.api.responseBodies()[0]?.['max_output_tokens'])
+    expect(limit).toBeLessThan(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.sessionBudgetOutputLimited, { tokens: formatNumber(limit) }),
+    })
+  })
+
+  it('stays quiet about output that stayed under the allowance', async () => {
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'short', usage: { input: 10, output: 3 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    expect(
+      events.some((event) => event.type === 'backendNotice' && event.level === 'warning'),
+    ).toBe(false)
+  })
+
+  it('reserves a compaction, and never sends one the cap cannot fit', async () => {
+    const t = setup({ sessionBudgetUsd: 2.5 })
+    const { session, turnDone } = await startSession(t)
+    // $1.25 spent on a million reported tokens, which the summary call carries again.
+    t.api.script({ text: 'Start', usage: { input: 1_000_000, output: 0 } })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    t.api.script({ text: 'SUMMARY' })
+    await expect(session.compact()).rejects.toThrow(SessionBudgetExceededError)
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(session.history().items.some((item) => item.kind === 'compaction')).toBe(false)
+  })
+
+  it('estimates after a compaction from Meta’s count of the new context', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await preparedBudgetCompaction(t)
+    await watched.session.compact()
+    await budgetTurn(t, watched, 'next request', { text: 'Next' })
+    const last = t.api.responseBodies().at(-1)
+    const userMessage = (last?.['input'] as unknown[]).at(-1)
+    // The fake counts 42 tokens for the compacted context; only the new message is added.
+    expect(reservations(t).at(-1)?.input).toBe(
+      t.api.inputTokens + Buffer.byteLength(JSON.stringify(userMessage)),
+    )
+  })
+
+  it('estimates the whole request again after the model changes', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'go', { text: 'Start' })
+    await watched.session.setModel('muse-spark-1.2')
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    expectFullBudgetEstimate(t)
+  })
+
+  it('shows the turn’s cost against the cap afterwards', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 10 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'ok', usage: { input: 1000, output: 200, cached: 100 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const turnCost = standardCost(1000, 200, 100)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.budgetTurnCost, {
+        cost: formatUsd(turnCost),
+        spent: formatUsd(turnCost),
+        cap: formatUsd(10),
+      }),
+    })
+  })
+
+  it('keeps the spend across windows, so a resumed session still cannot overspend', async () => {
+    const store = memorySessionStore()
+    const first = setup({ store, sessionBudgetUsd: 10 })
+    const { session, turnDone } = await startSession(first)
+    first.api.script({ text: 'ok', usage: { input: 1_000_000, output: 1_000_000 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await first.host.close()
+    // Standard tier: $1.25 + $4.25.
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(5.5, 10)
+
+    const second = setup({ store, sessionBudgetUsd: 5.5 })
+    await second.host.load()
+    const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    const watched = watchTurns(resumed.session)
+    second.api.script({ text: 'never sent' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+    await watched.turnDone()
+    expect(second.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+  })
+
+  it('counts each child request once against its parent’s shared cap', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store, sessionBudgetUsd: 10 })
+    const { session } = await startApprovedSubagentSession(t)
+    await completePaidChild(t, session, 'spawn_budget')
+    await t.host.close()
+    // Every reply here reports the fake's default usage, the child's included.
+    expect(t.subagentUsage.length).toBeGreaterThan(0)
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      t.api.responseBodies().length * standardCost(10, 5),
+      12,
+    )
+  })
+
+  it('prices a child’s held request at its sent model even if the child model changes', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store, sessionBudgetUsd: 10 })
+    const watched = await startApprovedSubagentSession(t)
+    const held = Promise.withResolvers<undefined>()
+    const childStarted = Promise.withResolvers<ModelApiSession>()
+    const original = ModelApiSession.prototype.sendTurn
+    const observed = vi.spyOn(ModelApiSession.prototype, 'sendTurn').mockImplementation(function (
+      this: ModelApiSession,
+      ...args: Parameters<ModelApiSession['sendTurn']>
+    ) {
+      if (this.sessionId.includes(':')) {
+        childStarted.resolve(this)
+      }
+      return original.call(this, ...args)
+    })
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"First task"}',
+            callId: 'sent_child_model',
+          },
+        ],
+      },
+      { text: 'Done', hold: held.promise, usage: { input: 1_000_000, output: 0 } },
+      { text: 'Parent done', hold: held.promise, usage: { input: 1_000_000, output: 0 } },
+    )
+    try {
+      await watched.session.sendTurn([{ type: 'text', text: 'delegate' }])
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(3)
+      })
+      const liveChild = await childStarted.promise
+      await liveChild.setModel('muse-spark-1.3-contributor')
+      held.resolve(undefined)
+      await watched.turnDone()
+      await t.host.close()
+      expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+        standardCost(10, 5) + standardCost(1_000_000, 0) * 2,
+        12,
+      )
+      expect(t.subagentUsage[0]?.modelId).toBe('muse-spark-1.3')
+    } finally {
+      held.resolve(undefined)
+      await t.host.close()
+      observed.mockRestore()
+    }
+  })
+
+  it('saves what a request spent while its call waits for an approval', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 10 })
+    const { session, events } = await startSession(t)
+    t.api.script(
+      {
+        calls: [{ name: 'bash', arguments: '{"command":"ls","description":"list"}' }],
+        usage: { input: 1_000_000, output: 0 },
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'run' }])
+    await approvalRequest(events, 0)
+    await t.host.flush()
+    const saved = store.saved.get(session.sessionId)
+    // $1.25 spent; the call without its output is not in the file.
+    expect(saved?.budgetSpentUsd).toBeCloseTo(1.25, 10)
+    expect(saved?.usage.inputTokens).toBe(1_000_000)
+    expect(saved?.replay.some((entry) => entry.item.type === 'function_call')).toBe(false)
+    // A reload now cannot send what the real balance does not cover.
+    const reloaded = setup({ store, sessionBudgetUsd: 1.25 })
+    await reloaded.host.load()
+    const resumed = await reloaded.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    const watched = watchTurns(resumed.session)
+    reloaded.api.script({ text: 'never sent' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+    await watched.turnDone()
+    expect(reloaded.api.responseBodies()).toEqual([])
+    await t.host.close()
+  })
+
+  it('waits at close for a stopped turn to save what it spent', async () => {
+    const store = memorySessionStore()
+    const held = heldShellToolIo({}, ROOT)
+    // The stopped command ends a moment later, as a real process does.
+    const io: MemoryToolIo = {
+      ...held,
+      runShell: (command, cwd, timeoutMs, signal, limit) => {
+        const result = held.runShell(command, cwd, timeoutMs, undefined, limit)
+        signal?.addEventListener(
+          'abort',
+          () => {
+            setTimeout(() => {
+              held.runs.at(-1)?.finish({ exitCode: null, isCancelled: true })
+            }, STOPPED_COMMAND_EXIT_MS)
+          },
+          { once: true },
+        )
+        return result
+      },
+    }
+    const t = setup({ store, io, sessionBudgetUsd: 10 })
+    const { session } = await startSession(t, 'allowAll')
+    t.api.script({
+      calls: [{ name: 'bash', arguments: '{"command":"sleep 60","description":"wait"}' }],
+      usage: { input: 1_000_000, output: 0 },
+    })
+    await session.sendTurn([{ type: 'text', text: 'run' }])
+    await vi.waitFor(() => {
+      expect(held.runs).toHaveLength(1)
+    })
+    await t.host.close()
+    const saved = store.saved.get(session.sessionId)
+    // The stopped turn paired its call and saved it whole before close returned.
+    expect(saved?.replay.some((entry) => entry.item.type === 'function_call_output')).toBe(true)
+    expect(saved?.budgetSpentUsd).toBeCloseTo(1.25, 10)
+  })
+
+  it('prices a request at the model it was sent to, and keeps no base across a switch', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 10 })
+    const watched = await holdBudgetReply(t, { text: 'ok', usage: { input: 1_000_000, output: 0 } })
+    await watched.session.setModel('muse-spark-1.3-contributor')
+    watched.release()
+    await watched.turnDone()
+    // The standard model's $1.25, not the contributor tier's $0.10.
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    await t.host.close()
+    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      1.25 +
+        estimateCostUsd(
+          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
+          'muse-spark-1.3-contributor',
+        ),
+      10,
+    )
+    // The next request is estimated whole: the old model's count is no base.
+    expectFullBudgetEstimate(t)
+  })
+
+  it('saves an in-flight reservation to disk before the first response frame, so a crash reload cannot overspend', async () => {
+    const directory = path.join(scheduleRoot, 'budget-in-flight')
+    const store = budgetStoreIn(directory)
+    const first = setup({ store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(first)
+    const held = Promise.withResolvers<undefined>()
+    first.api.script({ text: 'waiting', hold: held.promise })
+    try {
+      await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+      await vi.waitFor(() => {
+        expect(first.api.responseBodies()).toHaveLength(1)
+      })
+      await first.host.flush()
+      const saved = parseStoredSession(
+        JSON.parse(readFileSync(path.join(directory, `${watched.session.sessionId}.json`), 'utf8')),
+      )
+      expect(saved.ok).toBe(true)
+      const [reserved] = reservations(first)
+      const liability = standardCost(reserved?.input ?? 0, reserved?.output ?? 0)
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(liability, 12)
+      const reloaded = setup({ store, sessionBudgetUsd: liability })
+      try {
+        await reloaded.host.load()
+        const resumed = await reloaded.host.resumeSession(
+          watched.session.sessionId,
+          'muse-spark-1.3',
+        )
+        const next = watchTurns(resumed.session)
+        await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+        await next.turnDone()
+        expect(reloaded.api.responseBodies()).toEqual([])
+      } finally {
+        await reloaded.host.close()
+      }
+    } finally {
+      await first.host.close()
+      held.resolve(undefined)
+    }
+  })
+
+  it('waits for a durable reservation before starting fetch, then replaces it with actual usage', async () => {
+    const disk = heldBudgetStore('durable-before-fetch')
+    const t = setup({ store: disk.store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(t)
+    try {
+      await waitForBudgetWrite(t, watched.session, disk)
+      expect(await storedBudget(disk.store, watched.session.sessionId)).toBeGreaterThan(0)
+      disk.release.resolve(undefined)
+      await watched.turnDone()
+      await t.host.flush()
+      expect(t.api.responseBodies()).toHaveLength(1)
+      const saved = parseStoredSession(
+        JSON.parse(
+          readFileSync(path.join(disk.directory, `${watched.session.sessionId}.json`), 'utf8'),
+        ),
+      )
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+    } finally {
+      disk.release.resolve(undefined)
+      await t.host.close()
+    }
+  })
+
+  it.each(['cancel', 'model', 'goal', 'key', 'trust', 'paid', 'budget'])(
+    'refuses final admission after %s changes during the reservation write, and refunds the nonsent request',
+    async (change) => {
+      const disk = heldBudgetStore(`durable-${change}`)
+      let key = 'LLM|1|secret'
+      const options: NonNullable<Parameters<typeof setup>[0]> = {
+        store: disk.store,
+        sessionBudgetUsd: 0.1,
+        isTrusted: true,
+        paid: ['webSearch'],
+        apiKey: () => Promise.resolve(key),
+        getAccountId: () => Promise.resolve(createHash('sha256').update(key).digest('hex')),
+      }
+      const t = setup(options)
+      const watched = await startSession(t)
+      try {
+        await waitForBudgetWrite(t, watched.session, disk)
+        switch (change) {
+          case 'cancel': {
+            await watched.session.cancel()
+
+            break
+          }
+          case 'model': {
+            await watched.session.setModel('muse-spark-1.3-contributor')
+
+            break
+          }
+          case 'goal': {
+            await watched.session.controlGoal({
+              verb: 'set',
+              objective: 'Changed while storage waits',
+            })
+            await watched.session.controlGoal({ verb: 'pause' })
+
+            break
+          }
+          case 'key': {
+            key = 'LLM|1|changed-before-fetch'
+
+            break
+          }
+          case 'trust': {
+            options.isTrusted = false
+
+            break
+          }
+          case 'paid': {
+            options.paid = []
+
+            break
+          }
+          default: {
+            options.sessionBudgetUsd = 0.01
+          }
+        }
+        disk.release.resolve(undefined)
+        await watched.turnDone()
+        await t.host.flush()
+        expect(t.api.responseBodies()).toEqual([])
+        expect((await storedBudget(disk.store, watched.session.sessionId)) ?? 0).toBe(0)
+      } finally {
+        disk.release.resolve(undefined)
+        await t.host.close()
+      }
+    },
+  )
+
+  it('sends no capped request when the reservation write fails', async () => {
+    const disk = heldBudgetStore('durable-write-failed', true)
+    const t = setup({ store: disk.store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+    await watched.turnDone()
+    await t.host.close()
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      reason: 'reservation write refused',
+    })
+    expect((await storedBudget(disk.store, watched.session.sessionId)) ?? 0).toBe(0)
+  })
+
+  it('sends no capped request when no session store is available', async () => {
+    const t = setup({ sessionBudgetUsd: 0.1, hasNoStore: true })
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+    await watched.turnDone()
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      reason: UI_TEXT.sessionBudgetStoreUnavailable,
+    })
+    await t.host.close()
+  })
+
+  it('refunds a proven nonsent capped request stopped by the final external preflight', async () => {
+    const store = memorySessionStore()
+    const started = vi.fn()
+    const t = setup({
+      store,
+      sessionBudgetUsd: 0.1,
+      admitResponseAttempt: Object.assign(
+        () => {
+          void watched.session.cancel()
+        },
+        { onRequestStarted: started },
+      ),
+    })
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'stop after preflight' }])
+    await watched.turnDone()
+    await t.host.close()
+    expect(t.api.responseBodies()).toEqual([])
+    expect(started).not.toHaveBeenCalled()
+    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd ?? 0).toBe(0)
+    expect(
+      watched.events.some(
+        (event) => event.type === 'backendNotice' && event.text.includes('possible charge'),
+      ),
+    ).toBe(false)
+  })
+
+  it('sends no unreserved request when a cap is enabled during final key retrieval', async () => {
+    const held = Promise.withResolvers<string | undefined>()
+    let hasAskedForKey = false
+    const options: NonNullable<Parameters<typeof setup>[0]> = {
+      store: memorySessionStore(),
+      sessionBudgetUsd: 0,
+      apiKey: () => {
+        hasAskedForKey = true
+        return held.promise
+      },
+    }
+    const t = setup(options)
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+    await vi.waitFor(() => {
+      expect(hasAskedForKey).toBe(true)
+    })
+    options.sessionBudgetUsd = 0.1
+    held.resolve('LLM|1|secret')
+    await watched.turnDone()
+    expect(t.api.responseBodies()).toEqual([])
+    await t.host.close()
+  })
+
+  it('admits no two-host overspend when both real claims publish before final admission', async () => {
+    const pair = await sharedBudgetHosts('two-host-publication-barrier', 0.1)
+    const barrier = holdBothBudgetClaims([pair.firstStore, pair.secondStore])
+    const firstDone = pair.firstWatched.turnDone()
+    const secondDone = pair.secondWatched.turnDone()
+    try {
+      await Promise.all([
+        pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }]),
+        pair.secondWatched.session.sendTurn([{ type: 'text', text: 'second host' }]),
+      ])
+      await vi.waitFor(() => {
+        expect(barrier.state()).toMatchObject({ plans: 2, claims: 2, failures: [] })
+      })
+      await Promise.all([firstDone, secondDone])
+      expect(pair.first.api.responseBodies()).toEqual([])
+      expect(pair.second.api.responseBodies()).toEqual([])
+      expect((await storedBudget(pair.firstStore, pair.firstWatched.session.sessionId)) ?? 0).toBe(
+        0,
+      )
+    } finally {
+      barrier.planned.resolve(undefined)
+      barrier.published.resolve(undefined)
+      barrier.refunded.resolve(undefined)
+      await pair.close()
+    }
+  })
+
+  it('binds a temporary host to immutable parent spend without saving its transcript under the parent ID', async () => {
+    const bound = await scopedBudgetAttempt('owned-attempt-scope')
+    try {
+      expect(Object.isFrozen(bound.scope)).toBe(true)
+      await budgetTurn(bound.attempt, bound.attemptWatched, 'temporary trial', {
+        text: 'temporary reply',
+      })
+      expect(bound.attempt.api.responseBodies()).toHaveLength(1)
+      const saved = await bound.store.load(bound.parentWatched.session.sessionId)
+      expect(saved?.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(JSON.stringify(saved?.transcript)).not.toContain('temporary')
+      expect(
+        existsSync(path.join(bound.directory, `${bound.attemptWatched.session.sessionId}.json`)),
+      ).toBe(false)
+      expect(bound.scope.sessionId).toBe(bound.parentWatched.session.sessionId)
+      const total = await bound.scope.journal.read(bound.scope.sessionId, bound.scope.accountId)
+      expect(total.spentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      const closing = bound.parent.host.close()
+      expect(bound.scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+      await expect(bound.parent.host.getOwnedBudgetScope(bound.scope.sessionId)).rejects.toThrow(
+        UI_TEXT.historyUnavailable,
+      )
+      await closing
+    } finally {
+      await bound.close()
+    }
+  })
+
+  it.each(['key', 'model', 'goal', 'trust', 'lifetime', 'cap'])(
+    'rechecks parent scope after durable storage and refunds a nonsent temporary call when %s changes',
+    async (change) => {
+      const bound = await scopedBudgetAttempt(`owned-scope-${change}`)
+      const held = Promise.withResolvers<undefined>()
+      const published = Promise.withResolvers<undefined>()
+      const reserve = bound.scope.journal.reserve.bind(bound.scope.journal)
+      const spy = vi.spyOn(bound.scope.journal, 'reserve').mockImplementation(async (...args) => {
+        const claim = await reserve(...args)
+        published.resolve(undefined)
+        await held.promise
+        return claim
+      })
+      try {
+        await bound.attemptWatched.session.sendTurn([{ type: 'text', text: 'temporary' }])
+        await published.promise
+        switch (change) {
+          case 'key': {
+            bound.changeKey('LLM|1|changed-scope-key')
+
+            break
+          }
+          case 'model': {
+            await bound.parentWatched.session.setModel('muse-spark-1.3-contributor')
+
+            break
+          }
+          case 'goal': {
+            await bound.parentWatched.session.controlGoal({
+              verb: 'set',
+              objective: 'new parent goal',
+            })
+            await bound.parentWatched.session.cancel()
+
+            break
+          }
+          case 'trust': {
+            bound.parentOptions.isTrusted = false
+
+            break
+          }
+          case 'lifetime': {
+            bound.parentWatched.session.dispose()
+
+            break
+          }
+          default: {
+            bound.parentOptions.sessionBudgetUsd = 0.01
+          }
+        }
+        held.resolve(undefined)
+        await bound.attemptWatched.turnDone()
+        await bound.parent.host.close()
+        expect(bound.attempt.api.responseBodies()).toEqual([])
+        const refunded = await bound.scope.journal.read(
+          bound.scope.sessionId,
+          bound.scope.accountId,
+        )
+        expect(refunded.spentUsd).toBe(0)
+      } finally {
+        held.resolve(undefined)
+        spy.mockRestore()
+        await bound.close()
+      }
+    },
+  )
+
+  it('fails closed for an unknown parent while cap-off valid no-store scope stays unshared', async () => {
+    const t = setup()
+    const watched = await startSession(t)
+    await expect(t.host.getOwnedBudgetScope('unknown-parent')).rejects.toThrow(
+      UI_TEXT.historyUnavailable,
+    )
+    await expect(t.host.getOwnedBudgetScope(watched.session.sessionId)).resolves.toBeUndefined()
+    expect(t.api.responseBodies()).toEqual([])
+    await t.host.close()
+  })
+
+  it('fences the direct session scope and a held final key read at host close-start while SessionEnd awaits', async () => {
+    const hookHeld = Promise.withResolvers<undefined>()
+    const hookStarted = Promise.withResolvers<undefined>()
+    const keyHeld = Promise.withResolvers<string | undefined>()
+    const keyStarted = Promise.withResolvers<undefined>()
+    const store = budgetStoreIn(path.join(scheduleRoot, 'host-closing-direct-scope'))
+    const t = setup({
+      store,
+      sessionBudgetUsd: 1,
+      hooks: hooksFor('SessionEnd', 'held-end'),
+      runHook: async () => {
+        hookStarted.resolve(undefined)
+        await hookHeld.promise
+        return await hookReply()
+      },
+      apiKey: () => {
+        keyStarted.resolve(undefined)
+        return keyHeld.promise
+      },
+    })
+    const watched = await startSession(t)
+    const scope = await watched.session.ownedBudgetScope()
+    if (scope === undefined) {
+      throw new Error('Expected direct owned session scope')
+    }
+    let closing: Promise<void> | undefined
+    try {
+      expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(true)
+      await watched.session.sendTurn([{ type: 'text', text: 'held final key' }])
+      await keyStarted.promise
+      closing = t.host.close()
+      await hookStarted.promise
+      expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+      keyHeld.resolve('LLM|1|secret')
+      await watched.turnDone()
+      expect(t.api.responseBodies()).toEqual([])
+      expect((await storedBudget(store, watched.session.sessionId)) ?? 0).toBe(0)
+    } finally {
+      keyHeld.resolve('LLM|1|secret')
+      hookHeld.resolve(undefined)
+      await (closing ?? t.host.close())
+    }
+  })
+
+  it.each([0.1, 0])(
+    'blocks a later capped host until an earlier held request settles, first cap %s',
+    async (firstCap) => {
+      const pair = await sharedBudgetHosts(`two-host-held-${String(firstCap)}`, 0.1, firstCap)
+      const held = Promise.withResolvers<undefined>()
+      pair.first.api.script({ text: 'first host', hold: held.promise })
+      try {
+        await pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }])
+        await vi.waitFor(() => {
+          expect(pair.first.api.responseBodies()).toHaveLength(1)
+        })
+        await pair.secondWatched.session.sendTurn([{ type: 'text', text: 'later capped host' }])
+        await pair.secondWatched.turnDone()
+        expect(pair.second.api.responseBodies()).toEqual([])
+        if (firstCap === 0) {
+          expect(lastReason(pair.secondWatched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+        }
+        expect(
+          await storedBudget(pair.secondStore, pair.firstWatched.session.sessionId),
+        ).toBeGreaterThan(standardCost(10, 5))
+        held.resolve(undefined)
+        await pair.firstWatched.turnDone()
+        await pair.secondWatched.session.sendTurn([
+          { type: 'text', text: 'after verified settlement' },
+        ])
+        await pair.secondWatched.turnDone()
+        expect(pair.second.api.responseBodies()).toHaveLength(1)
+        expect(
+          await storedBudget(pair.secondStore, pair.firstWatched.session.sessionId),
+        ).toBeCloseTo(standardCost(10, 5) * 2, 12)
+      } finally {
+        held.resolve(undefined)
+        await pair.close()
+      }
+    },
+  )
+
+  it.each([502, 429])(
+    'keeps earlier ambiguous uncapped retries unknown despite a successful tail, with 429 as established refusal: %s',
+    async (status) => {
+      const pair = await sharedBudgetHosts(`two-host-uncapped-retry-${String(status)}`, 0.1, 0)
+      try {
+        await budgetTurn(
+          pair.first,
+          pair.firstWatched,
+          'uncapped retry',
+          { httpError: { status } },
+          { text: 'known tail usage' },
+        )
+        expect(pair.first.api.responseBodies()).toHaveLength(2)
+        await pair.secondWatched.session.sendTurn([{ type: 'text', text: 'later capped request' }])
+        await pair.secondWatched.turnDone()
+        expect(pair.second.api.responseBodies()).toHaveLength(status === 429 ? 1 : 0)
+        if (status === 502) {
+          expect(lastReason(pair.secondWatched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+          const journal = pair.secondStore.budget
+          if (journal === undefined) {
+            throw new Error('No shared budget journal')
+          }
+          const total = await journal.read(
+            pair.firstWatched.session.sessionId,
+            FAKE_MODEL_API_ACCOUNT_ID,
+          )
+          expect(total.hasUnknownHistoricalFees).toBe(true)
+        }
+      } finally {
+        await pair.close()
+      }
+    },
+  )
+
+  it('never lowers the authoritative disk spend when a second host saves its stale snapshot', async () => {
+    const pair = await sharedBudgetHosts('two-host-stale-save', 10)
+    try {
+      const stale = await pair.secondStore.load(pair.firstWatched.session.sessionId)
+      if (stale === undefined) {
+        throw new Error('No initial shared session')
+      }
+      await budgetTurn(pair.first, pair.firstWatched, 'priced request', {
+        text: 'done',
+        usage: { input: 1_000_000, output: 0 },
+      })
+      await pair.first.host.flush()
+      await pair.secondStore.save({ ...stale, budgetSpentUsd: 0 })
+      const saved = parseStoredSession(
+        JSON.parse(readFileSync(path.join(pair.directory, `${stale.sessionId}.json`), 'utf8')),
+      )
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(1_000_000, 0), 12)
+    } finally {
+      await pair.close()
+    }
+  })
+
+  it.each([false, true])(
+    'starts a controlled fork with inherited paid and closed-child history at verified zero, including side chat: %s',
+    async (sideChat) => {
+      const directory = path.join(scheduleRoot, `fresh-fork-${String(sideChat)}`)
+      const store = budgetStoreIn(directory)
+      const t = setupSubagents({ store, sessionBudgetUsd: 10, paid: ['imageGeneration'] })
+      const watched = await startApprovedSubagentSession(t)
+      await completePaidChild(t, watched.session, 'fork_closed_child')
+      await vi.waitFor(() => {
+        expect(watched.session.activeTurnId).toBeUndefined()
+      })
+      await budgetTurn(
+        t,
+        watched,
+        'draw before forking',
+        { calls: [imageCall({ prompt: 'old image', path: 'parent.png' })] },
+        { text: 'parent done' },
+      )
+      await t.host.flush()
+      const fork = await t.host.forkSession(
+        watched.session.sessionId,
+        'muse-spark-1.3',
+        undefined,
+        { sideChat },
+      )
+      await t.host.flush()
+      const initial = await store.load(fork.session.sessionId)
+      expect(initial?.budgetSpentUsd).toBe(0)
+      expect(initial?.transcript.some(({ item }) => item.paid === 'imageGeneration')).toBe(true)
+      expect(initial?.children?.length).toBeGreaterThan(0)
+      expect(initial?.children?.every((child) => child.state === 'closed')).toBe(true)
+      const journal = store.budget
+      if (journal === undefined) {
+        throw new Error('No fork budget journal')
+      }
+      const initialTotal = await journal.read(fork.session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+      expect(initialTotal.hasUnknownHistoricalFees).toBe(false)
+      const forkWatched = { session: fork.session, ...watchTurns(fork.session) }
+      const before = t.api.responseBodies().length
+      await budgetTurn(t, forkWatched, 'first own request', { text: 'new scope reply' })
+      await t.host.flush()
+      expect(t.api.responseBodies()).toHaveLength(before + 1)
+      const saved = parseStoredSession(
+        JSON.parse(readFileSync(path.join(directory, `${fork.session.sessionId}.json`), 'utf8')),
+      )
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(saved.ok && saved.session.budgetIsFreshFork).toBeUndefined()
+      expect(await storedBudget(store, fork.session.sessionId)).toBeCloseTo(standardCost(10, 5), 12)
+      await t.host.close()
+    },
+  )
+
+  it.each([{ httpError: { status: 502 } }, { networkError: 'lost after send' }])(
+    'keeps unknown sent liability and refuses a same-claim automatic response retry: %j',
+    async (failure) => {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: 0.1 })
+      const watched = await startSession(t)
+      await budgetTurn(t, watched, 'hi', failure, { text: 'unsafe retry' })
+      await t.host.close()
+      expect(t.api.responseBodies()).toHaveLength(1)
+      expect(lastReason(watched.events)).toBe(UI_TEXT.sessionBudgetRetryUnavailable)
+      const [reserved] = reservations(t)
+      const liability = standardCost(reserved?.input ?? 0, reserved?.output ?? 0)
+      expectSavedBudget(store, watched.session.sessionId, liability)
+      expect(watched.events).toContainEqual({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(liability) }),
+      })
+      expect(
+        watched.events.some(
+          (event) => event.type === 'backendNotice' && event.text.includes('This turn cost'),
+        ),
+      ).toBe(false)
+    },
+  )
+
+  it('keeps a capped 429 retry under one claim because the first request was explicitly refused', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'hi', { httpError: { status: 429 } }, { text: 'allowed' })
+    await t.host.close()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      standardCost(10, 5),
+      12,
+    )
+  })
+
+  it('omits capped hosted search with a visible reason and keeps cap-off paid search unchanged', async () => {
+    for (const capUsd of [0.1, 0]) {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: capUsd, paid: ['webSearch'] })
+      const watched = await startSession(t)
+      await budgetTurn(t, watched, 'find it', { text: 'done' })
+      await t.host.close()
+      const tools = z
+        .array(z.object({ type: z.string() }))
+        .parse(t.api.responseBodies()[0]?.['tools'])
+      expect(tools.some((tool) => tool.type === 'web_search')).toBe(capUsd === 0)
+      expect(t.paidRequests.filter(({ request }) => request.feature === 'webSearch')).toHaveLength(
+        capUsd === 0 ? 1 : 0,
+      )
+      expect(
+        watched.events.some(
+          (event) =>
+            event.type === 'backendNotice' && event.text === UI_TEXT.sessionBudgetSearchUnavailable,
+        ),
+      ).toBe(capUsd > 0)
+    }
+  })
+
+  it.each([false, true])(
+    'charges the known image fee in shared spending, including an unsavable billed image: %s',
+    async (isInvalidImage) => {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: 0.1, paid: ['imageGeneration'] })
+      const watched = await startSession(t, 'allowAll')
+      if (isInvalidImage) {
+        t.api.images.push({ b64: Buffer.from('GIF89a…').toString('base64') })
+      }
+      await budgetTurn(
+        t,
+        watched,
+        'draw',
+        { calls: [imageCall({ prompt: 'a cat', path: 'budget.png' })] },
+        { text: 'done' },
+      )
+      await t.host.close()
+      expect(t.api.imageBodies()).toHaveLength(1)
+      expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
+      expectSavedBudget(
+        store,
+        watched.session.sessionId,
+        standardCost(10, 5) * 2 + PAID_PRICES_USD.imageGeneration,
+      )
+    },
+  )
+
+  it('buys no image whose known flat fee cannot fit the remaining cap', async () => {
+    const t = setup({ sessionBudgetUsd: 0.02, paid: ['imageGeneration'] })
+    const watched = await startSession(t, 'allowAll')
+    await budgetTurn(
+      t,
+      watched,
+      'draw',
+      {
+        calls: [imageCall({ prompt: 'a cat', path: 'too-expensive.png' })],
+        usage: { input: 8000, output: 5 },
+      },
+      { text: 'done' },
+    )
+    await t.host.close()
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(t.api.imageBodies()).toEqual([])
+    expect(t.paidUses).toEqual([])
+    expect(
+      watched.events.some(
+        (event) =>
+          event.type === 'itemCompleted' &&
+          event.item.tool === 'generate_image' &&
+          event.item.failureReason?.includes('session budget') === true,
+      ),
+    ).toBe(true)
+  })
+
+  it('keeps no old request base when the model changes away and back before usage arrives', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await holdBudgetReply(t, { text: 'ok', usage: { input: 1_000_000, output: 0 } })
+    await watched.session.setModel('muse-spark-1.3-contributor')
+    await watched.session.setModel('muse-spark-1.3')
+    watched.release()
+    await watched.turnDone()
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    expectFullBudgetEstimate(t)
+  })
+
+  it('keeps no compaction count base when the model changes while counting', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'go', { text: 'Start' })
+    const { counted, countStarted } = holdCompactionCount(t)
+    t.api.script({ text: 'SUMMARY' })
+    const compacting = watched.session.compact()
+    await countStarted.promise
+    await watched.session.setModel('muse-spark-1.3-contributor')
+    await watched.session.setModel('muse-spark-1.3')
+    counted.resolve(42)
+    await compacting
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    expectFullBudgetEstimate(t)
+  })
+
+  it.each([
+    {
+      name: 'overflow',
+      usage: { input: 0, output: Number.MAX_VALUE },
+    },
+    {
+      name: 'negative',
+      usage: { input: 10, output: -1_000_000 },
+    },
+    { name: 'fractional', usage: { input: 0.5, output: 1 } },
+    { name: 'unsafe', usage: { input: Number.MAX_SAFE_INTEGER + 1, output: 1 } },
+    { name: 'cached greater than input', usage: { input: 1, output: 1, cached: 2 } },
+  ])(
+    'keeps invalid $name usage out of totals and charges the conservative reservation',
+    async ({ usage }) => {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: 1, showReplyUsage: true })
+      const watched = await startSession(t)
+      await budgetTurn(t, watched, 'hi', { text: 'odd', usage })
+      await t.host.close()
+      const saved = store.saved.get(watched.session.sessionId)
+      expect(saved?.usage).toEqual({
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedTokens: 0,
+        reasoningTokens: 0,
+      })
+      expect(Number.isFinite(saved?.budgetSpentUsd)).toBe(true)
+      expect(
+        watched.session
+          .history()
+          .items.every((item) => item.costUsd === undefined || Number.isFinite(item.costUsd)),
+      ).toBe(true)
+      const [reserved] = reservations(t)
+      expectSavedBudget(
+        store,
+        watched.session.sessionId,
+        standardCost(reserved?.input ?? 0, reserved?.output ?? 0),
+      )
+      expect(countLogged(t.log, 'Model API usage with invalid token counts was ignored')).toBe(1)
+    },
+  )
+
+  it('keeps no base from a negative count of the compacted context', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await preparedBudgetCompaction(t)
+    t.api.inputTokens = -5
+    await watched.session.compact()
+    await budgetTurn(t, watched, 'next request', { text: 'Next' })
+    expectFullBudgetEstimate(t)
   })
 })
 
@@ -5333,7 +6926,9 @@ describe('ModelApiSession subagents (M48)', () => {
         })
         expect(session.status).toBe('idle')
       })
-      expect(t.api.responseBodies()).toHaveLength(variant === 'missingKey' ? 1 : 2)
+      // The parent also owns its original account; it cannot replay old
+      // history under a replacement key after the child was refused.
+      expect(t.api.responseBodies()).toHaveLength(['key', 'missingKey'].includes(variant) ? 1 : 2)
       expect(t.paidUses).toEqual([])
       expect(t.subagentUsage).toEqual([])
     },
@@ -7098,6 +8693,24 @@ describe('ModelApiSession: protocol semantics (D26)', () => {
     expect(t.log.warn).toHaveBeenCalledWith(
       expect.stringContaining('The compacted context could not be counted'),
     )
+  })
+
+  it('logs a token-count failure by status without the network message', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    t.api.script({ text: 'THE SUMMARY' })
+    vi.spyOn(t.client, 'countInputTokens').mockRejectedValue(
+      new ModelApiError(
+        'private account path from the network',
+        502,
+        'private-kind',
+        'private-code',
+      ),
+    )
+    await expect(session.compact()).resolves.toEqual({ status: 'accepted', reason: undefined })
+    expect(t.log.warn).toHaveBeenCalledWith('The compacted context could not be counted: HTTP 502')
+    expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('private')
   })
 
   it('pages a stored output on character boundaries', async () => {

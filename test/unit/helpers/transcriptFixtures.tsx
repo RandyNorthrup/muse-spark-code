@@ -72,6 +72,7 @@ export function transcriptProps(
     onApply: vi.fn(),
     onOpenEditDiff: vi.fn(),
     onOpenFile: vi.fn(),
+    showReplyUsage: false,
     ...overrides,
   }
 }

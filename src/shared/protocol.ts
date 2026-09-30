@@ -55,6 +55,8 @@ export const settingsSnapshotShape = {
   allowDangerouslySkipPermissions: z.boolean(),
   /** Days of inactivity after which the History dialog hides a session; 0 never. */
   archiveInactiveSessions: z.number(),
+  /** Tokens and the dollar estimate under each Model API reply (M82); off by default. */
+  modelApiReplyUsage: z.boolean(),
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)

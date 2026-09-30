@@ -306,6 +306,19 @@ export const SETTING_DEFAULTS = {
   // A checkpoint of the workspace's files at each turn boundary (M72): it
   // runs git on every turn and copies files into the extension's storage.
   turnCheckpoints: true,
+  // A VS Code notification when a turn needs attention while the window is
+  // unfocused (M82): a long turn that ended, or one waiting on an approval
+  // or a question. On until turned off; nothing shows while focused. It
+  // chooses nothing that runs or is billed, so a workspace may set it.
+  notifyOnBackgroundTurn: true,
+  // Tokens and the dollar estimate under each Model API reply (M82): off
+  // until turned on. Muse Code reports no per-reply totals on its protocol
+  // (PLAN.md D26), so its replies never carry one. Display only.
+  modelApiReplyUsage: false,
+  // A session budget cap in US dollars for each Model API conversation
+  // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
+  // scoped, since a repository must not set what is billed.
+  modelApiSessionBudgetUsd: 0,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -337,6 +350,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiRepoMap',
   // What runs on every turn (git) and what is copied out of the workspace (M72).
   'turnCheckpoints',
+  // A repository must not set what a conversation may spend (M82).
+  'modelApiSessionBudgetUsd',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -933,8 +948,9 @@ export const MODEL_API_VERSION = 'v1'
 export const MODEL_API_MODEL_PREFIX = 'muse-spark-'
 export const CONTRIBUTOR_MODEL_SUFFIX = '-contributor'
 // Meta's published Model API prices per million tokens (dev.meta.ai/docs/
-// pricing-rate-limits, read 2026-09-22): the standard tier for every plain
-// model, the contributor tier for the `-contributor` models.
+// pricing-rate-limits, read 2026-09-22). Finite admission uses only the
+// exact MODEL_API_PRICED_MODELS whitelist below. A suffix display fallback
+// for a future model is not a verified tariff or capped spending.
 export const MODEL_API_PRICES_PER_MILLION = {
   standard: { input: 1.25, cachedInput: 0.15, output: 4.25 },
   contributor: { input: 0.1, cachedInput: 0.002, output: 0.2 },
@@ -954,6 +970,22 @@ export const TOKENS_PER_MILLION = 1_000_000
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
+// A turn that ran this long earns a notification when it ends while the
+// VS Code window is unfocused (M82): shorter turns answer before the user
+// looks away.
+export const BACKGROUND_TURN_NOTIFICATION_MIN_MS = 60_000
+// The attention notices already raised in this window, remembered by key so
+// a second surface on the same session does not raise one again (M82).
+export const BACKGROUND_NOTICE_KEYS_MAX = 200
+// The session budget's input estimate (M82, sessionBudget.ts): what a
+// request adds to the last reported one is counted at one token per UTF-8
+// byte, the most a byte-level tokenizer can make of it, so the estimate
+// errs high. Its error is the only way spending can pass the cap (the
+// setting's description says so).
+export const SESSION_BUDGET_MIN_BYTES_PER_TOKEN = 1
+// How long closing the window waits for the Model API turns it stops to
+// end, so what they spent is saved (M82).
+export const MODEL_API_CLOSE_SETTLE_MS = 5000
 // Conservatively bound named text attachments by UTF-8 bytes. The reserve
 // covers output and leaves room for prompt/replay; already long replay still
 // needs the backend's request/context handling.

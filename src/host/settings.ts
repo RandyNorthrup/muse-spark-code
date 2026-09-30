@@ -54,6 +54,12 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepoMap: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
+  /** Notify when a turn needs attention while the window is unfocused (M82). */
+  readonly notifyOnBackgroundTurn: boolean
+  /** Tokens and the dollar estimate under each Model API reply (M82). */
+  readonly modelApiReplyUsage: boolean
+  /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
+  readonly modelApiSessionBudgetUsd: number
 }
 
 /**
@@ -90,6 +96,9 @@ const settingSchemas = {
   formatOnEdit: z.boolean(),
   modelApiRepoMap: z.boolean(),
   turnCheckpoints: z.boolean(),
+  notifyOnBackgroundTurn: z.boolean(),
+  modelApiReplyUsage: z.boolean(),
+  modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -162,6 +171,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
+    notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
+    modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
+    modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
   }
 }
 
@@ -179,5 +191,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     confidentialWorkspace: settings.confidentialWorkspace,
     allowDangerouslySkipPermissions: settings.allowDangerouslySkipPermissions,
     archiveInactiveSessions: settings.archiveInactiveSessions,
+    modelApiReplyUsage: settings.modelApiReplyUsage,
   }
 }

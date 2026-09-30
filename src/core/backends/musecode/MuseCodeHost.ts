@@ -308,6 +308,17 @@ function isRetryableRefusal(error: unknown): boolean {
   )
 }
 
+/**
+ * A card that waits on the user, an approval or a question: shown again to a
+ * later surface, it is marked replayed, so it is never approved on its own
+ * and raises no new notice (M82).
+ */
+function isPendingPrompt(
+  event: AgentEvent,
+): event is Extract<AgentEvent, { type: 'approvalRequested' | 'questionRequested' }> {
+  return event.type === 'approvalRequested' || event.type === 'questionRequested'
+}
+
 function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
@@ -508,7 +519,7 @@ export class MuseSession implements AgentSession {
     const backlog = this.early ?? this.prompts.open()
     this.early = undefined
     for (const event of backlog) {
-      listener(event.type === 'approvalRequested' ? { ...event, isReplayed: true } : event)
+      listener(isPendingPrompt(event) ? { ...event, isReplayed: true } : event)
     }
     return () => {
       this.listeners.delete(listener)
@@ -914,7 +925,7 @@ export class MuseCodeHost implements AgentHost {
       return false
     }
     const admitted: MappedNotification =
-      isReplay && 'event' in mapped && mapped.event.type === 'approvalRequested'
+      isReplay && 'event' in mapped && isPendingPrompt(mapped.event)
         ? { ...mapped, event: { ...mapped.event, isReplayed: true } }
         : mapped
     const session = this.sessions.get(admitted.sessionId)

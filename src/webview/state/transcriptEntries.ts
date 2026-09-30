@@ -104,6 +104,9 @@ const assistantEntrySchema = z.object({
   isStreaming: z.boolean(),
   /** The web pages the reply cites (M33), listed under it as links. */
   citations: z.optional(z.readonly(z.array(citationSchema))),
+  /** The response's tokens and dollar estimate (M82, Model API only). */
+  usage: z.optional(tokenUsageSchema),
+  costUsd: z.optional(z.number()),
 })
 
 const reasoningEntrySchema = z.object({

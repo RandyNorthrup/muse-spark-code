@@ -100,5 +100,8 @@
   "config.checkCommands.command.description": "The command line, run in the workspace root by the shell tool's shell (PowerShell on Windows, bash elsewhere).",
   "config.checkCommands.changedFiles.description": "Add the edited files that still exist after --, each as one quoted argument. A file name that starts with - or @, or on Windows one holding \" & | < > ^ % or !, keeps the check from running.",
   "config.checkCommands.timeoutSeconds.description": "Seconds before the command is stopped (300 unless set).",
-  "config.formatOnEdit.description": "Run the file's formatter on each file the Model API backend's edit tools write, before the file is checked. Off by default."
+  "config.formatOnEdit.description": "Run the file's formatter on each file the Model API backend's edit tools write, before the file is checked. Off by default.",
+  "config.notifyOnBackgroundTurn.description": "Show a notification when a long turn ends, or a turn waits for your approval or answer, while the VS Code window is unfocused. Nothing is ever shown while the window is focused.",
+  "config.modelApiReplyUsage.description": "Off by default. Show each Model API reply's input and output tokens with its dollar estimate under the reply.",
+  "config.modelApiSessionBudgetUsd.description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover token requests, child requests and image fees before sending; input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation."
 }

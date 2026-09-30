@@ -1895,6 +1895,13 @@ body {
   top: 24px;
 }
 
+/* A reply's tokens and dollar estimate under it (M82, Model API only). */
+.response-usage {
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
 /* Save plan and Implement under the latest Plan-mode reply (M79): they wrap
    on a narrow panel, and stay clear of the reply's copy button. */
 .plan-actions {

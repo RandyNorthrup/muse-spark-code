@@ -141,6 +141,8 @@ async function start(options: StartOptions = {}) {
     isWorkspaceTrusted: () => options.isTrusted ?? true,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     promptCacheRetention: () => 'in_memory',
+    sessionBudgetUsd: () => 0,
+    showReplyUsage: () => false,
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     memory: undefined,
     codeIntel: service,

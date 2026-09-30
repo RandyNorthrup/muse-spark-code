@@ -100,6 +100,41 @@ describe('parseStoredSession', () => {
     expect(parseStoredSession({ ...full, accountId: 'raw-key' })).toMatchObject({ ok: false })
   })
 
+  it('keeps a session budget spend, and refuses one below zero (M82)', () => {
+    const spent: StoredSession = { ...full, budgetSpentUsd: 0.25 }
+    expect(parseStoredSession(structuredClone(spent))).toEqual({ ok: true, session: spent })
+    expect(parseStoredSession({ ...full, budgetSpentUsd: -1 })).toMatchObject({ ok: false })
+    expect(parseStoredSession({ ...full, budgetSpentUsd: Infinity })).toMatchObject({ ok: false })
+    expect(parseStoredSession({ ...full, budgetSpentUsd: NaN })).toMatchObject({ ok: false })
+  })
+
+  it.each(['inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens'])(
+    'refuses a stored negative %s count',
+    (field) => {
+      expect(parseStoredSession({ ...full, usage: { ...full.usage, [field]: -1 } })).toMatchObject({
+        ok: false,
+      })
+    },
+  )
+
+  it('refuses negative reply usage and cost in a stored transcript', () => {
+    const item = { itemId: 'reply', kind: 'agentMessage', status: 'completed', text: 'done' }
+    expect(
+      parseStoredSession({
+        ...full,
+        transcript: [
+          { turnId: 't1', item: { ...item, usage: { ...full.usage, inputTokens: -1 } } },
+        ],
+      }),
+    ).toMatchObject({ ok: false })
+    expect(
+      parseStoredSession({
+        ...full,
+        transcript: [{ turnId: 't1', item: { ...item, costUsd: -1 } }],
+      }),
+    ).toMatchObject({ ok: false })
+  })
+
   it('accepts a full record unchanged after a JSON round trip', () => {
     const parsed = parseStoredSession(structuredClone(full))
     expect(parsed).toEqual({ ok: true, session: full })
