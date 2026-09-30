@@ -9,7 +9,7 @@
 // Opt-in only, never in CI: it bills the owner's Model API key. It runs
 // when MUSE_LIVE_MODEL_API=1, reading the ACP agent's existing operating
 // system credential entry in this process, inside the enabled test. The
-// legacy key environment variable is refused, never read or deleted. Neither
+// legacy key environment variable is refused when the run is enabled, never read or deleted. Neither
 // a shell command the model runs nor a verifier receives the stored key; it is never
 // printed or written, and the run checks that no log line, task folder or
 // report holds it. A shell command the model runs is allowed once, in the
@@ -56,7 +56,7 @@ import {
 } from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
-assertNoLiveKeyEnvironment(process.env)
+assertNoLiveKeyEnvironment(process.env, IS_ENABLED)
 
 const selectionSchema = z.object({
   MUSE_EVAL_TASKS: z.optional(z.string()),

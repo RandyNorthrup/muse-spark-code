@@ -15,9 +15,13 @@ const LEGACY_KEY_VARIABLE = 'MUSE_LIVE_MODEL_API_KEY'
 const STORE_UNAVAILABLE =
   'No Model API key is available from the operating system credential store. Use muse-spark-code-acp auth set before enabling live tests.'
 
-/** Reject the old transport without reading, echoing or deleting its value. */
-export function assertNoLiveKeyEnvironment(env: NodeJS.ProcessEnv): void {
-  if (Object.hasOwn(env, LEGACY_KEY_VARIABLE)) {
+/**
+ * Reject the old transport without reading, echoing or deleting its value.
+ * Only an enabled run starts processes the model steers, so only it refuses:
+ * a stale variable must not fail the default test run, which collects these files.
+ */
+export function assertNoLiveKeyEnvironment(env: NodeJS.ProcessEnv, isEnabled: boolean): void {
+  if (isEnabled && Object.hasOwn(env, LEGACY_KEY_VARIABLE)) {
     throw new Error(
       'MUSE_LIVE_MODEL_API_KEY is not supported. Remove that environment variable and use muse-spark-code-acp auth set for the operating system credential store.',
     )

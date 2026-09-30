@@ -16,7 +16,7 @@
 // Opt-in only, never in CI: it bills the owner's Model API key. It runs
 // when MUSE_LIVE_MODEL_API=1, reading the ACP agent's existing operating
 // system credential entry in this process, inside the enabled suite. The
-// legacy key environment variable is refused, never read or deleted. No
+// legacy key environment variable is refused when the run is enabled, never read or deleted. No
 // process it starts (shell, hook, MCP fixture or speech synthesizer) receives
 // the stored key; it is never printed or written, and each case checks
 // that no log line, event or file holds it. Every model call is on the
@@ -133,7 +133,7 @@ import {
 } from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
-assertNoLiveKeyEnvironment(process.env)
+assertNoLiveKeyEnvironment(process.env, IS_ENABLED)
 const live: { credentials: EvalLiveCredentials | undefined } = { credentials: undefined }
 
 function credentialsForLiveRun(): EvalLiveCredentials {

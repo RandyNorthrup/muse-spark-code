@@ -68,12 +68,24 @@ describe('secure live Model API credentials', () => {
     const env: NodeJS.ProcessEnv = {}
     Object.defineProperty(env, 'MUSE_LIVE_MODEL_API_KEY', { get: read })
     expect(() => {
-      assertNoLiveKeyEnvironment(env)
+      assertNoLiveKeyEnvironment(env, true)
     }).toThrow('Remove that environment variable')
     expect(read).not.toHaveBeenCalled()
     expect(() => {
-      assertNoLiveKeyEnvironment({})
+      assertNoLiveKeyEnvironment({}, true)
     }).not.toThrow()
+  })
+
+  it('lets a stale key variable pass while live tests are off, so the default run still collects', () => {
+    const read = vi.fn(() => {
+      throw new Error('the environment value must not be read')
+    })
+    const env: NodeJS.ProcessEnv = {}
+    Object.defineProperty(env, 'MUSE_LIVE_MODEL_API_KEY', { get: read })
+    expect(() => {
+      assertNoLiveKeyEnvironment(env, false)
+    }).not.toThrow()
+    expect(read).not.toHaveBeenCalled()
   })
 
   it('uses the existing OS entry in process, with Secret Service on Linux and no writes', async () => {
