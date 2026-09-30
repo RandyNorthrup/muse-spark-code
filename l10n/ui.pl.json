@@ -1261,6 +1261,7 @@
   "usagePaidNote": "Szacunek według opublikowanych przez Meta cen (odczytanych {date}) dla tego okna od jego otwarcia; rachunkiem jest pulpit dev.meta.ai.",
   "subagentPaidOff": "Płatni podagenci są wyłączeni. Włącz ich i zaakceptuj cenę przed rozpoczęciem zadania podrzędnego.",
   "subagentConsentDeclined": "Płatne zadanie podrzędne nie zostało zatwierdzone.",
+  "subagentContributorBlocked": "Agent niestandardowy wskazuje model w warstwie współtwórcy, który nie może działać, dopóki ten obszar roboczy jest poufny (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Zadanie podrzędne osiągnęło zatwierdzony limit {limit} żądań, łącznie z ponowieniami.",
   "subagentKeyChanged": "Klucz Model API zmienił się po zatwierdzeniu. Zatwierdź nowe zadanie podrzędne, aby kontynuować.",
   "subagentModelChanged": "Model zmienił się po zatwierdzeniu. Zatwierdź nowe zadanie podrzędne, aby kontynuować.",

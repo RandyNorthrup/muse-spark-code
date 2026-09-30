@@ -1162,6 +1162,7 @@
   "usagePaidNote": "このウィンドウを開いてからの、Meta が公開している価格に基づく推定値です。請求額は dev.meta.ai ダッシュボードで確認してください。価格の取得日: {date}。",
   "subagentPaidOff": "有料サブエージェントはオフです。子タスクを始める前に有効にして料金を承認してください。",
   "subagentConsentDeclined": "有料の子タスクは承認されませんでした。",
+  "subagentContributorBlocked": "カスタムエージェントがコントリビューターレベルのモデルを指定しています。このワークスペースが機密扱いの間は実行できません (museSpark.confidentialWorkspace)。",
   "subagentRequestLimit": "子タスクは、再試行を含む承認済み上限の{limit}リクエストに達しました。",
   "subagentKeyChanged": "承認後にModel APIキーが変更されました。続行するには新しい子タスクを承認してください。",
   "subagentModelChanged": "承認後にモデルが変更されました。続行するには新しい子タスクを承認してください。",

@@ -1261,6 +1261,7 @@
   "usagePaidNote": "Odhad podle zveřejněných cen Meta pro toto okno od jeho otevření; skutečné vyúčtování je na řídicím panelu dev.meta.ai. Ceny načteny {date}.",
   "subagentPaidOff": "Placení podagenti jsou vypnutí. Před spuštěním úkolu podagenta je zapněte a přijměte cenu.",
   "subagentConsentDeclined": "Placený úkol podagenta nebyl schválen.",
+  "subagentContributorBlocked": "Vlastní agent uvádí model přispěvatelské úrovně, který nemůže běžet, dokud je tento pracovní prostor důvěrný (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Úkol podagenta dosáhl schváleného limitu {limit} požadavků včetně opakování.",
   "subagentKeyChanged": "Klíč Model API se po schválení změnil. Pro pokračování schvalte nový úkol podagenta.",
   "subagentModelChanged": "Model se po schválení změnil. Pro pokračování schvalte nový úkol podagenta.",

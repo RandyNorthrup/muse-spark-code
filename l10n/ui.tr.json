@@ -1195,6 +1195,7 @@
   "usagePaidNote": "Bu pencere açıldığından beri, Meta'nın yayımladığı fiyatlara dayalı tahmin; asıl fatura dev.meta.ai panosundadır. Fiyatların okunduğu tarih: {date}.",
   "subagentPaidOff": "Ücretli alt ajanlar kapalı. Alt görevi başlatmadan önce etkinleştirip fiyatı kabul edin.",
   "subagentConsentDeclined": "Ücretli alt görev onaylanmadı.",
+  "subagentContributorBlocked": "Özel aracı, bu çalışma alanı gizliyken çalıştırılamayan bir katkıcı katmanı modeli adlandırıyor (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Alt görev, yeniden denemeler dahil onaylanan {limit} istek sınırına ulaştı.",
   "subagentKeyChanged": "Onaydan sonra Model API anahtarı değişti. Devam etmek için yeni bir alt görevi onaylayın.",
   "subagentModelChanged": "Onaydan sonra model değişti. Devam etmek için yeni bir alt görevi onaylayın.",

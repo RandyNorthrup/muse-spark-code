@@ -1546,6 +1546,8 @@ export const EN = {
   subagentPaidOff:
     'Paid subagents are off. Enable them and accept the price before starting a child task.',
   subagentConsentDeclined: 'The paid child task was not approved.',
+  subagentContributorBlocked:
+    'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
   subagentRequestLimit:
     'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:

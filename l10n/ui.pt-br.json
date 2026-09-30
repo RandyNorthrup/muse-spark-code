@@ -1228,6 +1228,7 @@
   "usagePaidNote": "Estimativa com base nos preços publicados pela Meta, consultados em {date}, para esta janela desde que ela foi aberta; a cobrança real é a do painel de dev.meta.ai.",
   "subagentPaidOff": "Os subagentes pagos estão desativados. Ative-os e aceite o preço antes de iniciar uma tarefa de subagente.",
   "subagentConsentDeclined": "A tarefa paga de subagente não foi aprovada.",
+  "subagentContributorBlocked": "O agente personalizado nomeia um modelo de nível de colaborador, que não pode ser executado enquanto este espaço de trabalho for confidencial (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "A tarefa de subagente atingiu o limite aprovado de {limit} solicitações, incluindo novas tentativas.",
   "subagentKeyChanged": "A chave da Model API mudou após a aprovação. Aprove uma nova tarefa de subagente para continuar.",
   "subagentModelChanged": "O modelo mudou após a aprovação. Aprove uma nova tarefa de subagente para continuar.",

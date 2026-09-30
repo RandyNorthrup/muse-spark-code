@@ -6,9 +6,13 @@ import { loaderDeps, memoryContextIo, memoryTree } from './helpers/fakeContextIo
 
 const ROOT = '/ws'
 const USER_ROOT = '/ws/.home/.config/muse/skills'
+const USER_AGENTS_ROOT = '/ws/.home/.config/muse/agents'
 
 const skillFile = (name: string, description: string) =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\nBody of ${name}\n`
+
+const agentFile = (name: string, description: string, extra = '') =>
+  `---\nname: ${name}\ndescription: ${description}\n${extra}---\n\nPrompt of ${name}\n`
 
 const MEMORY: readonly MemoryScopeSnapshot[] = [
   { scope: 'project', index: '- [A](a.md) | hook', notes: [], hasMoreNotes: false },
@@ -24,6 +28,7 @@ function setup(initial: Record<string, string>, isTrusted = true) {
     workspaceRoot: ROOT,
     platform: 'linux',
     personalSkillsRoot: USER_ROOT,
+    personalAgentsRoot: USER_AGENTS_ROOT,
     isWorkspaceTrusted: () => isTrusted,
     loadMemory: () => {
       memoryLoads += 1
@@ -37,11 +42,13 @@ function setup(initial: Record<string, string>, isTrusted = true) {
 }
 
 describe('WorkspaceContext', () => {
-  it('loads the root rules, the skills and the memory snapshot once', async () => {
+  it('loads the root rules, the skills, the agents and the memory snapshot once', async () => {
     const t = setup({
       'AGENTS.md': 'end with PINEAPPLE\n',
       '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
       '.home/.config/muse/skills/tidy/SKILL.md': skillFile('tidy', 'Tidy up'),
+      '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting'),
+      '.home/.config/muse/agents/helper/AGENT.md': agentFile('helper', 'Helping'),
     })
     await Promise.all([t.context.load(), t.context.load()])
     expect(t.memoryLoads()).toBe(1)
@@ -53,9 +60,17 @@ describe('WorkspaceContext', () => {
       'project:shout',
       'user:tidy',
     ])
+    expect(sections.agents.map((agent) => `${agent.source}:${agent.id}`)).toEqual([
+      'builtin:explore',
+      'builtin:second-opinion',
+      'project:scout',
+      'user:helper',
+    ])
     expect(sections.memory).toBe(MEMORY)
     expect(t.context.skill('tidy')?.body).toBe('Body of tidy')
     expect(t.context.skill('nope')).toBeUndefined()
+    expect(t.context.agent('scout')?.body).toBe('Prompt of scout')
+    expect(t.context.agent('nope')).toBeUndefined()
     expect(t.warnings).toEqual([])
   })
 
@@ -104,13 +119,15 @@ describe('WorkspaceContext', () => {
         'AGENTS.md': 'root\n',
         'src/AGENTS.md': 'src\n',
         '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
+        '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting'),
       },
       false,
     )
     await t.context.load()
     await expect(t.context.touch('src/a.ts')).resolves.toBe(false)
     await expect(t.context.refreshSkills()).resolves.toBe(false)
-    expect(t.context.sections()).toEqual({ rules: undefined, skills: [], memory: [] })
+    expect(t.context.sections()).toEqual({ rules: undefined, skills: [], agents: [], memory: [] })
+    expect(t.context.agent('scout')).toBeUndefined()
     expect(t.memoryLoads()).toBe(0)
   })
 })
@@ -129,6 +146,7 @@ describe('WorkspaceContext: failing reads', () => {
       workspaceRoot: ROOT,
       platform: 'linux',
       personalSkillsRoot: undefined,
+      personalAgentsRoot: undefined,
       isWorkspaceTrusted: () => true,
       loadMemory: () => Promise.reject(new Error('EACCES: permission denied')),
       warn: (message) => {
@@ -137,10 +155,11 @@ describe('WorkspaceContext: failing reads', () => {
     })
     await context.load()
     await expect(context.touch('src/a.ts')).resolves.toBe(false)
-    expect(context.sections()).toEqual({ rules: undefined, skills: [], memory: [] })
+    expect(context.sections()).toEqual({ rules: undefined, skills: [], agents: [], memory: [] })
     expect(warnings).toEqual([
       'loading the rules failed: EACCES: permission denied',
       'loading the skills failed: EACCES: permission denied',
+      'loading the agents failed: EACCES: permission denied',
       'loading the memory failed: EACCES: permission denied',
       'loading the rules failed: EACCES: permission denied',
     ])
@@ -150,6 +169,7 @@ describe('WorkspaceContext: failing reads', () => {
     const context = new WorkspaceContext({
       ...loaderDeps({}),
       personalSkillsRoot: undefined,
+      personalAgentsRoot: undefined,
       isWorkspaceTrusted: () => true,
       loadMemory: undefined,
       warn: () => undefined,

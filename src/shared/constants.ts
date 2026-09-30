@@ -1330,6 +1330,30 @@ export const SKILL_SOURCES = ['project', 'user'] as const
 // What the extension watches so the palette follows skill files (D13).
 export const PROJECT_SKILLS_GLOB = '**/.agents/skills/**'
 export const PERSONAL_SKILLS_GLOB = '*/SKILL.md'
+// Custom agents (M76, PLAN.md D49): Markdown definitions with front matter,
+// by Muse Code's skill layout. The CLI names no agent folder (`muse --help`,
+// `muse skills --help` and `muse serve --help` list none, verified
+// 2026-09-28), so the `.agents/agents` project folder and the managed
+// `muse/agents` personal folder are the extension's own (PLAN.md D13).
+export const PROJECT_AGENTS_DIR_SEGMENTS = ['.agents', 'agents'] as const
+export const PERSONAL_AGENTS_DIR_SEGMENTS = ['muse', 'agents'] as const
+export const AGENT_FILE_NAME = 'AGENT.md'
+export const AGENT_FILE_MAX_BYTES = 64 * 1024
+export const AGENT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/
+export const AGENT_SOURCES = ['project', 'user', 'builtin'] as const
+export type AgentSource = (typeof AGENT_SOURCES)[number]
+// Built-in agents (M76): Explore maps code without writing; Second opinion is
+// a high-effort consult. M70's Reviewer joins them in this same format.
+export const BUILTIN_AGENT_EXPLORE_ID = 'explore'
+export const BUILTIN_AGENT_SECOND_OPINION_ID = 'second-opinion'
+export const SECOND_OPINION_AGENT_EFFORT: EffortLevel = 'high'
+/** The read-only tools Explore may use; the session's own set narrows them further. */
+export const EXPLORE_AGENT_TOOLS: readonly string[] = [
+  MODEL_API_TOOLS.readFile,
+  MODEL_API_TOOLS.search,
+  MODEL_API_TOOLS.listFiles,
+  MODEL_API_TOOLS.readSkill,
+]
 // Memory (M49, PLAN.md D41, found on disk and in a live capture 2026-09-25):
 // Muse Code keeps Markdown notes in three scopes. `project` is the
 // repository's `.agents/memory`; `personal` is `<data>/muse/memory/personal`
@@ -2573,6 +2597,18 @@ export const MODEL_TEXT = {
   subagentTariffUnknown: 'No verified price is available for this model; no child task can start.',
   subagentPlanMode:
     'Plan mode refuses paid child tasks; the user must switch mode and approve a new task.',
+  subagentContributorBlocked:
+    'the agent names a contributor-tier model, which is blocked while the workspace is confidential',
+  agentToolNotOffered:
+    "that tool is not in this agent's allowlist; use only the tools your instructions offer",
+  exploreAgentDescription:
+    'Read-only reconnaissance: maps unfamiliar code and reports back with path:line references.',
+  exploreAgentPrompt:
+    'You are an explorer: map unfamiliar code quickly without changing anything. Read files, search and list to answer the objective, then report back concisely with path:line references: what you found, and where. You have no write, shell or network tools; do not ask the user anything, and keep the report short.',
+  secondOpinionAgentDescription:
+    'A high-effort consult on a hard question: gives its judgement as advice, not action.',
+  secondOpinionAgentPrompt:
+    'You are a second opinion on a hard question: think carefully, check the relevant code with your tools, then give your judgement plainly: what you would do, why, and what you are unsure of. The parent agent decides; your reply is advice, not action.',
   subagentWebSearchOff: 'Web search was turned off before this child request; no request was sent.',
   goalUnfinishedExists:
     'cannot create a new goal because this session has an unfinished goal; complete the existing goal first',

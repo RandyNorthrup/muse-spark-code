@@ -11,6 +11,7 @@ import {
   type CheckCommandSetting,
   MEMORY_DIR,
   MEMORY_INDEX_FILE,
+  MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
   MODEL_TEXT,
   type MemoryScope,
@@ -63,6 +64,11 @@ export interface InstructionFacts {
    * last, so the sections before it stay the same from call to call.
    */
   readonly goalSection?: string
+  /**
+   * A custom agent's own prompt (M76): the child runs with this as its role.
+   * Undefined on the parent conversation itself.
+   */
+  readonly agentPrompt?: string
 }
 
 const PARAGRAPH = '\n\n'
@@ -131,6 +137,18 @@ function skillsText(context: ContextSections): string | undefined {
   return [
     '# Skills',
     `These skills are available in this workspace. When a task matches one, call ${MODEL_API_TOOLS.readSkill} with its id before starting and follow its instructions. The user can also invoke one directly; its instructions then arrive with the message.`,
+    rows.join(LINE),
+  ].join(PARAGRAPH)
+}
+
+function agentsText(context: ContextSections): string | undefined {
+  if (context.agents.length === 0) {
+    return undefined
+  }
+  const rows = context.agents.map((agent) => `- ${agent.id}: ${agent.description}`)
+  return [
+    '# Agents',
+    `These custom agents are available in this workspace. To run one, call ${MODEL_API_SUBAGENT_TOOLS.spawn} with agent set to its id and the objective; its prompt, tools, model, effort and permissions narrow this session's, and the run is a paid child task like any subagent.`,
     rows.join(LINE),
   ].join(PARAGRAPH)
 }
@@ -206,6 +224,7 @@ function verifyText(facts: InstructionFacts): string | undefined {
 
 export function instructionsFor(facts: InstructionFacts): string {
   const sections = [
+    facts.agentPrompt === undefined ? undefined : `# Agent${PARAGRAPH}${facts.agentPrompt}`,
     baseText(facts).join(PARAGRAPH),
     environmentText(facts),
     WORKING_RULES,
@@ -214,6 +233,7 @@ export function instructionsFor(facts: InstructionFacts): string {
       ? undefined
       : `# Workspace rules${PARAGRAPH}${facts.context.rules}`,
     skillsText(facts.context),
+    agentsText(facts.context),
     memoryText(facts),
     facts.repoMap,
     facts.goalSection,

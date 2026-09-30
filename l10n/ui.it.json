@@ -1228,6 +1228,7 @@
   "usagePaidNote": "Stima basata sui prezzi pubblicati da Meta, rilevati il {date}, per questa finestra dalla sua apertura; per la fatturazione fa fede il dashboard di dev.meta.ai.",
   "subagentPaidOff": "I sottoagenti a pagamento sono disattivati. Attivali e accetta il prezzo prima di avviare un’attività secondaria.",
   "subagentConsentDeclined": "L’attività secondaria a pagamento non è stata approvata.",
+  "subagentContributorBlocked": "L’agente personalizzato indica un modello di livello collaboratore, che non può essere eseguito mentre quest’area di lavoro è riservata (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "L’attività secondaria ha raggiunto il limite approvato di {limit} richieste, inclusi i tentativi ripetuti.",
   "subagentKeyChanged": "La chiave Model API è cambiata dopo l’approvazione. Approva una nuova attività secondaria per continuare.",
   "subagentModelChanged": "Il modello è cambiato dopo l’approvazione. Approva una nuova attività secondaria per continuare.",

@@ -1162,6 +1162,7 @@
   "usagePaidNote": "이 창을 연 이후의 사용량을 Meta가 게시한 가격으로 계산한 추정치입니다. 실제 청구 금액은 dev.meta.ai 대시보드를 확인하세요. 가격 확인 날짜: {date}.",
   "subagentPaidOff": "유료 하위 에이전트가 꺼져 있습니다. 하위 작업을 시작하기 전에 활성화하고 가격을 승인하세요.",
   "subagentConsentDeclined": "유료 하위 작업이 승인되지 않았습니다.",
+  "subagentContributorBlocked": "사용자 지정 에이전트가 기여자 등급 모델을 지정했는데, 이 작업 영역이 기밀인 동안에는 실행할 수 없습니다(museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "하위 작업이 재시도를 포함한 승인 한도 {limit}회 요청에 도달했습니다.",
   "subagentKeyChanged": "승인 후 Model API 키가 변경되었습니다. 계속하려면 새 하위 작업을 승인하세요.",
   "subagentModelChanged": "승인 후 모델이 변경되었습니다. 계속하려면 새 하위 작업을 승인하세요.",

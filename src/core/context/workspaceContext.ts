@@ -10,6 +10,7 @@
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
+import { type AgentDefinition, type AgentRoot, loadAgents, projectAgentsRoot } from './customAgents'
 import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
 import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
 
@@ -20,6 +21,8 @@ export interface WorkspaceContextDeps {
   readonly platform: NodeJS.Platform
   /** Muse Code's personal skill root; undefined when the host has no home. */
   readonly personalSkillsRoot: string | undefined
+  /** The managed personal agent root (M76); undefined when the host has no home. */
+  readonly personalAgentsRoot: string | undefined
   readonly isWorkspaceTrusted: () => boolean
   /** The memory snapshot (M49); undefined when the backend has no memory. */
   readonly loadMemory: (() => Promise<readonly MemoryScopeSnapshot[]>) | undefined
@@ -31,6 +34,8 @@ export interface ContextSections {
   /** The rendered rules section with the preamble, or undefined without rules. */
   readonly rules: string | undefined
   readonly skills: readonly SkillDefinition[]
+  /** The custom agents the model may run through `subagent_spawn` (M76). */
+  readonly agents: readonly AgentDefinition[]
   /** The scopes that keep notes, as the session began; empty without any. */
   readonly memory: readonly MemoryScopeSnapshot[]
 }
@@ -49,6 +54,7 @@ export class WorkspaceContext {
   private readonly rules: RuleFile[] = []
   private readonly checkedDirectories = new Set<string>()
   private skills: readonly SkillDefinition[] = []
+  private agents: readonly AgentDefinition[] = []
   private memory: readonly MemoryScopeSnapshot[] = []
   private rulesText: string | undefined
   private loading: Promise<void> | undefined
@@ -69,6 +75,20 @@ export class WorkspaceContext {
     ]
     if (this.deps.personalSkillsRoot !== undefined) {
       roots.push({ directory: this.deps.personalSkillsRoot, source: 'user', confineTo: undefined })
+    }
+    return roots
+  }
+
+  private agentRoots(): readonly AgentRoot[] {
+    const roots: AgentRoot[] = [
+      {
+        directory: projectAgentsRoot(this.deps.workspaceRoot, this.deps.platform),
+        source: 'project',
+        confineTo: this.deps.workspaceRoot,
+      },
+    ]
+    if (this.deps.personalAgentsRoot !== undefined) {
+      roots.push({ directory: this.deps.personalAgentsRoot, source: 'user', confineTo: undefined })
     }
     return roots
   }
@@ -122,6 +142,17 @@ export class WorkspaceContext {
     await this.guarded('loading the rules', () => this.loadDirectory(ROOT_DIRECTORY), false)
     this.renderRulesSection()
     await this.refreshSkills()
+    // Agents load once per session with the rest of the context (M76): a
+    // repository's files only in a trusted workspace, like the skills.
+    const agents = await this.guarded(
+      'loading the agents',
+      () => loadAgents({ io: this.deps.io, platform: this.deps.platform }, this.agentRoots()),
+      { agents: this.agents, warnings: [] },
+    )
+    for (const warning of agents.warnings) {
+      this.deps.warn(warning)
+    }
+    this.agents = agents.agents
     const { loadMemory } = this.deps
     if (loadMemory !== undefined) {
       this.memory = await this.guarded('loading the memory', loadMemory, [])
@@ -178,7 +209,11 @@ export class WorkspaceContext {
     return this.skills.find((skill) => skill.id === id)
   }
 
+  public agent(id: string): AgentDefinition | undefined {
+    return this.agents.find((agent) => agent.id === id)
+  }
+
   public sections(): ContextSections {
-    return { rules: this.rulesText, skills: this.skills, memory: this.memory }
+    return { rules: this.rulesText, skills: this.skills, agents: this.agents, memory: this.memory }
   }
 }

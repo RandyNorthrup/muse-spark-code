@@ -1228,6 +1228,7 @@
   "usagePaidNote": "Estimation d’après les prix publiés par Meta, relevés le {date}, pour cette fenêtre depuis son ouverture ; le tableau de bord dev.meta.ai fait foi pour la facture.",
   "subagentPaidOff": "Les sous-agents payants sont désactivés. Activez-les et acceptez le prix avant de lancer une tâche enfant.",
   "subagentConsentDeclined": "La tâche enfant payante n’a pas été approuvée.",
+  "subagentContributorBlocked": "L’agent personnalisé nomme un modèle de niveau contributeur, qui ne peut pas s’exécuter tant que cet espace de travail est confidentiel (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "La tâche enfant a atteint sa limite approuvée de {limit} requêtes, nouvelles tentatives comprises.",
   "subagentKeyChanged": "La clé Model API a changé après l’approbation. Approuvez une nouvelle tâche enfant pour continuer.",
   "subagentModelChanged": "Le modèle a changé après l’approbation. Approuvez une nouvelle tâche enfant pour continuer.",
