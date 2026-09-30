@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
+  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
+  tentative; HTML meta declarations still win or trigger a later reparse. Valid
+  transport encodings without a runtime decoder remain explicit errors. Version
+  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
+  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
+  extension's floor), now in the integration run's `minimum` label too
+  (`docs/certification/pr60-sniffer7.md`).
+- Web fetch decodes a windows-1252 page by the Encoding standard's table on
+  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
+  so the euro sign, curly quotes and dashes of a page in that encoding (and of
+  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
+  windows-1252) came out as invisible control characters there.
+
 - Plan actions recheck current workspace trust and disposal after lookup
   and confirmation; a plan may still be saved after a conversation change,
   while its stale implementation is refused. No-clobber writes check their
