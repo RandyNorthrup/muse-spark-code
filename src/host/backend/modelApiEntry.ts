@@ -3,8 +3,11 @@
 // time that backend starts, so the host, its tools, hooks and MCP client stay
 // out of the bundle VS Code loads at activation. The bundle carries its own
 // copy of every module it shares with dist/extension.js, the display
-// language's table among them, so the factory installs the activation
-// bundle's table before it builds anything.
+// language's state among them, so the factory installs the activation
+// bundle's table before it builds anything. That is why the build leaves the
+// English table itself out of this bundle (scripts/build.mjs, PLAN.md D6,
+// M76): `UI_TEXT` here is empty until `setUiText` below fills it, and no code
+// reads it before.
 
 import { ModelApiClient } from '../../core/backends/modelapi/client'
 import { loadHookDefinitions } from '../../core/backends/modelapi/hooks'

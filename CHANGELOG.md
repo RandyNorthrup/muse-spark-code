@@ -45,6 +45,13 @@ happened, not what was planned; superseded entries are kept.
 
 - A skill file over its 64 KB cap is now refused before it is read whole, so
   its log line says "is over the 65536 byte limit" without the file's size.
+- **The Model API bundle carries no English table** (PLAN.md D6, M76). Its
+  entry installs the activation bundle's display table before anything reads
+  it, so the English copy the table starts from is left out of
+  `dist/modelApi.js`: 326.2 KiB on the release candidate instead of 398.4
+  (337.0 KiB with custom agents), with its 400 KiB budget unchanged. The
+  bundle-split gate fails if the copy comes back, and a bundle test proves
+  the host still speaks from the table it is handed.
 
 ## [0.10.0] - 2026-09-30
 

@@ -7180,7 +7180,7 @@ describe('ConversationController: the Model API bundle (M57, PLAN.md D6)', () =>
           ids += 1
           return `bundle-${String(ids)}`
         },
-        bundlePath: buildModelApiBundle(bundle.folder),
+        bundlePath: await buildModelApiBundle(bundle.folder),
       }),
     )
     const controller = new ConversationController({

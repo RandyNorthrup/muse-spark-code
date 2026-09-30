@@ -36,9 +36,9 @@ const ROOT = '/ws'
 const MODEL = 'muse-spark-1.3'
 const built = { folder: '', file: '' }
 
-beforeAll(() => {
+beforeAll(async () => {
   built.folder = mkdtempSync(path.join(tmpdir(), 'muse-model-api-bundle-'))
-  built.file = buildModelApiBundle(built.folder)
+  built.file = await buildModelApiBundle(built.folder)
 })
 
 afterAll(() => removeFolder(built.folder))
@@ -180,6 +180,21 @@ describe('the Model API bundle (M57)', () => {
     ).rejects.toThrow('goal/set: Das Ziel darf höchstens 4.000 Zeichen lang sein.')
     await expect(session.controlGoal({ verb: 'set', objective: ' ' })).rejects.toThrow(
       `goal/set: ${de.table.goalObjectiveMissing}`,
+    )
+    await t.manager.dispose()
+  })
+
+  it('leaves the English table out and speaks from the table it is handed (D6, M76)', async () => {
+    // The production build stubs the English table the entry replaces at
+    // start: none of its sentences is in the file, and the host's own
+    // sentences still come out, from the table the manager hands over.
+    const bundleText = readFileSync(built.file, 'utf8')
+    expect(bundleText).not.toContain(EN.goalObjectiveMissing)
+    expect(bundleText).not.toContain(EN.modelApiBundleUnavailable)
+    const t = managerFor(built.file)
+    const session = await startSession(t.manager)
+    await expect(session.controlGoal({ verb: 'set', objective: ' ' })).rejects.toThrow(
+      `goal/set: ${EN.goalObjectiveMissing}`,
     )
     await t.manager.dispose()
   })
