@@ -876,6 +876,120 @@
               })
               break
             }
+            // --- Review (M70): a review turn whose reply ends with its findings,
+            // and the review pane's changes and reverts.
+            case 'startReview': {
+              turn += 1
+              const turnId = `t${String(turn)}`
+              send({ type: 'turnAccepted', localId: message.localId, turnId })
+              send({ type: 'agentEvent', event: { type: 'turnStarted', turnId } })
+              const findings = {
+                findings: [
+                  {
+                    file: 'src/auth/login.ts',
+                    line: 42,
+                    endLine: 44,
+                    severity: 'high',
+                    title:
+                      'The password is compared with ==, which leaks its length through timing',
+                    detail: 'Compare the hashes with timingSafeEqual instead.',
+                  },
+                  {
+                    file: 'src/api/users.ts',
+                    line: 17,
+                    severity: 'medium',
+                    title: 'The user id reaches the SQL string unescaped',
+                    detail: 'Pass it as a query parameter.',
+                  },
+                  {
+                    file: 'README.md',
+                    severity: 'suggestion',
+                    title: 'The new setting is not documented',
+                  },
+                ],
+              }
+              later(200, () => {
+                send({
+                  type: 'agentEvent',
+                  event: {
+                    type: 'itemCompleted',
+                    item: {
+                      itemId: `rv${String(turn)}`,
+                      kind: 'agentMessage',
+                      status: 'completed',
+                      turnId,
+                      text: `Two security problems in the login change, and one gap in the docs.\n\n\`\`\`muse-review\n${JSON.stringify(findings, null, 2)}\n\`\`\``,
+                    },
+                  },
+                })
+                send({
+                  type: 'agentEvent',
+                  event: { type: 'turnCompleted', turnId, terminal: 'completed' },
+                })
+              })
+              break
+            }
+            case 'readReviewChanges': {
+              later(60, () =>
+                send({
+                  type: 'reviewChanges',
+                  requestId: message.requestId,
+                  omittedEdits: 0,
+                  files: [
+                    {
+                      itemId: 'ed1',
+                      outputRef: 'tool_patch-ed1',
+                      fileIndex: 0,
+                      path: 'notes.md',
+                      hunks: [
+                        {
+                          oldStart: 1,
+                          oldLines: 3,
+                          newStart: 1,
+                          newLines: 4,
+                          lines: [' # Notes', ' ', '-first line', '+second line', '+third line'],
+                        },
+                        {
+                          oldStart: 12,
+                          oldLines: 1,
+                          newStart: 13,
+                          newLines: 1,
+                          lines: ['-See the old guide.', '+See the new guide.'],
+                        },
+                      ],
+                    },
+                    {
+                      itemId: 'ed2',
+                      outputRef: 'tool_patch-ed2',
+                      fileIndex: 0,
+                      path: '../shared/config.json',
+                      refusal:
+                        harnessL10n.table?.editPathRefused?.replace(
+                          '{path}',
+                          '../shared/config.json',
+                        ) ??
+                        '../shared/config.json refused: the edited path is outside the workspace.',
+                      hunks: [
+                        { oldStart: 3, newStart: 3, lines: ['-  "retries": 1', '+  "retries": 3'] },
+                      ],
+                    },
+                  ],
+                }),
+              )
+              break
+            }
+            case 'revertReviewHunk': {
+              later(60, () =>
+                send({
+                  type: 'reviewHunkResult',
+                  itemId: message.itemId,
+                  fileIndex: message.fileIndex,
+                  hunkIndex: message.hunkIndex,
+                  isReverted: true,
+                }),
+              )
+              break
+            }
             default: {
               break
             }
@@ -2934,6 +3048,41 @@
           })
           later(200, () => {
             document.querySelectorAll('.message-assistant a')[1].click()
+          })
+        },
+        // --- M70: a review's findings, and the review pane over the changes ---
+        // `/review security` in the prompt; the fake host answers as a review turn.
+        'review-findings': () => {
+          textarea().focus()
+          setDraft('/review security')
+          key({ key: 'Enter' })
+        },
+        // The review pane: the edit rows of transcriptFixture, then `/changes`.
+        'review-pane': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () => {
+            textarea().focus()
+            setDraft('/changes')
+            later(200, () => key({ key: 'Enter' }))
+          })
+        },
+        'review-pane-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['review-pane']()
+        },
+        // A change accepted, one reverted, one refused, and a comment open on a line.
+        'review-comment': () => {
+          steps['review-pane']()
+          whenFound('.review-hunk', () => {
+            const buttons = document.querySelectorAll('.review-hunk .review-actions button')
+            buttons[0].click()
+            buttons[4].click()
+            later(200, () => {
+              document.querySelectorAll('.review-hunk .review-actions button')[2].click()
+              whenFound('.review-comment textarea', (box) => {
+                setValue(box, HTMLTextAreaElement.prototype, 'Keep the old name here.')
+              })
+            })
           })
         },
         // Muse Code reports no cached count (0.6.0): the Model API's view is usage-api.

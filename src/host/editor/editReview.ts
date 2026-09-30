@@ -7,9 +7,11 @@
 
 import path from 'node:path'
 import { revertHunks } from '../../core/patchApply'
+import { isSamePath } from '../../core/paths'
 import { MUSE_EDIT_SCHEME, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type PatchFile, parsePatchFiles } from '../../shared/patchDocument'
+import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import type { Logger } from '../logger'
 
 export interface EditReviewDeps {
@@ -21,6 +23,10 @@ export interface EditReviewDeps {
   readonly readFile: (fsPath: string) => Promise<string | undefined>
   /** The canonical form of a path, links resolved through the nearest existing ancestor. */
   readonly realPath: (fsPath: string) => Promise<string>
+  /** Dirty editor buffers must not be replaced or deleted by a disk revert (D27). */
+  readonly hasUnsavedChanges: (fsPath: string) => boolean
+  /** Manual writes invalidate all live verification without creating an own edit round. */
+  readonly beginEdit?: (file: EditedFile) => (wasWritten: boolean) => void
   readonly writeFile: (fsPath: string, content: string) => Promise<void>
   /** Move to the trash (a file the edit created). */
   readonly deleteFile: (fsPath: string) => Promise<void>
@@ -38,6 +44,18 @@ interface ResolvedFile {
   readonly file: PatchFile
   readonly relativePath: string
   readonly fsPath: string
+  readonly canonicalPath: string
+  readonly canonicalRelativePath: string
+}
+
+/** One file of a patch as the review pane lists it (M70). */
+export interface DescribedFile {
+  readonly fileIndex: number
+  readonly file: PatchFile
+  /** Workspace-relative with forward slashes; the tool's own path when refused. */
+  readonly path: string
+  /** Why its hunks cannot be reverted here; undefined when they can. */
+  readonly refusal: string | undefined
 }
 
 type Rebuilt =
@@ -71,8 +89,25 @@ export function stripExtendedLengthPrefix(filePath: string): string {
   return filePath.startsWith(EXTENDED_PREFIX) ? filePath.slice(EXTENDED_PREFIX.length) : filePath
 }
 
-export class EditReview {
+/** Edit review (M5): each call returns the notices to show in the transcript. */
+export interface EditReviewActions {
+  openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
+  revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
+  /** The review pane's files (M70): workspace-relative, or refused with the reason. */
+  describe(patchJson: string): Promise<readonly DescribedFile[]>
+  /** The review pane's Revert on one hunk (M70). */
+  revertHunk(
+    itemId: string,
+    patchJson: string,
+    fileIndex: number,
+    hunkIndex: number,
+  ): Promise<{ readonly isReverted: boolean; readonly notices: readonly ReviewNotice[] }>
+}
+
+export class EditReview implements EditReviewActions {
   private readonly originals = new Map<string, string>()
+  /** Whole edits and individual hunks share one read/rebuild/write lane per canonical file. */
+  private readonly pendingWrites = new Map<string, Promise<void>>()
   private readonly paths: path.PlatformPath
 
   public constructor(private readonly deps: EditReviewDeps) {
@@ -101,6 +136,8 @@ export class EditReview {
     if (!this.isBelow(relative)) {
       return undefined
     }
+    let canonicalPath: string
+    let canonicalRelativePath: string
     try {
       const [realRoot, realTarget] = await Promise.all([
         this.deps.realPath(root),
@@ -109,11 +146,19 @@ export class EditReview {
       if (!this.isBelow(this.paths.relative(realRoot, realTarget))) {
         return undefined
       }
+      canonicalPath = realTarget
+      canonicalRelativePath = this.paths.relative(realRoot, realTarget).replaceAll('\\', '/')
     } catch (error: unknown) {
       this.deps.log.warn(`Edit review could not resolve ${relative}: ${String(error)}`)
       return undefined
     }
-    return { file, relativePath: relative.replaceAll('\\', '/'), fsPath }
+    return {
+      file,
+      relativePath: relative.replaceAll('\\', '/'),
+      fsPath,
+      canonicalPath,
+      canonicalRelativePath,
+    }
   }
 
   /**
@@ -139,20 +184,20 @@ export class EditReview {
     }
   }
 
-  /** Resolves and rebuilds every file of the patch, collecting notices. */
-  private async prepare(patchJson: string): Promise<{
-    ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[]
+  /** Resolves each file once, collecting folder, patch and confinement refusals. */
+  private async resolvePatch(patchJson: string): Promise<{
+    resolved: ResolvedFile[]
     notices: ReviewNotice[]
   }> {
     const { workspaceRoot } = this.deps
     if (workspaceRoot === undefined) {
-      return { ready: [], notices: [{ level: 'warning', text: UI_TEXT.editReviewNeedsFolder }] }
+      return { resolved: [], notices: [{ level: 'warning', text: UI_TEXT.editReviewNeedsFolder }] }
     }
     const files = patchFilesOf(patchJson)
     if (files === undefined) {
-      return { ready: [], notices: [{ level: 'warning', text: UI_TEXT.editNoPatch }] }
+      return { resolved: [], notices: [{ level: 'warning', text: UI_TEXT.editNoPatch }] }
     }
-    const ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[] = []
+    const resolvedFiles: ResolvedFile[] = []
     const notices: ReviewNotice[] = []
     for (const file of files) {
       const resolved = await this.resolve(workspaceRoot, file)
@@ -163,14 +208,128 @@ export class EditReview {
         })
         continue
       }
-      const rebuilt = await this.rebuild(resolved)
+      resolvedFiles.push(resolved)
+    }
+    return { resolved: resolvedFiles, notices }
+  }
+
+  /** Resolves and rebuilds every file for the read-only diff preview. */
+  private async prepare(patchJson: string): Promise<{
+    ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[]
+    notices: ReviewNotice[]
+  }> {
+    const { resolved, notices } = await this.resolvePatch(patchJson)
+    const ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[] = []
+    for (const file of resolved) {
+      const rebuilt = await this.rebuild(file)
       if (rebuilt.ok) {
-        ready.push({ resolved, rebuilt })
+        ready.push({ resolved: file, rebuilt })
       } else {
         notices.push(rebuilt.notice)
       }
     }
     return { ready, notices }
+  }
+
+  /** The editor can become dirty while the saved text is read. */
+  private unsavedNotice(resolved: ResolvedFile): ReviewNotice | undefined {
+    return this.deps.hasUnsavedChanges(resolved.fsPath) ||
+      this.deps.hasUnsavedChanges(resolved.canonicalPath)
+      ? {
+          level: 'warning',
+          text: fill(UI_TEXT.editUnsavedChanges, { path: resolved.relativePath }),
+        }
+      : undefined
+  }
+
+  /** Queued writes and the final write both recheck the path and editor buffer. */
+  private async writeRefusal(resolved: ResolvedFile): Promise<ReviewNotice | undefined> {
+    const { workspaceRoot } = this.deps
+    const checked =
+      workspaceRoot === undefined ? undefined : await this.resolve(workspaceRoot, resolved.file)
+    if (
+      checked === undefined ||
+      !isSamePath(checked.canonicalPath, resolved.canonicalPath, this.deps.platform)
+    ) {
+      return {
+        level: 'warning',
+        text: fill(UI_TEXT.editPathRefused, { path: resolved.file.path }),
+      }
+    }
+    return this.unsavedNotice(resolved)
+  }
+
+  /** Rebuild from the bytes left by the preceding revert, then write once; failures free the lane. */
+  private async writeRevert(
+    itemId: string,
+    resolved: ResolvedFile,
+    hunkIndex?: number,
+  ): Promise<{ readonly isReverted: boolean; readonly notices: readonly ReviewNotice[] }> {
+    const canonical = this.paths.normalize(resolved.canonicalPath)
+    const key = this.deps.platform === 'win32' ? canonical.toLowerCase() : canonical
+    const previous = this.pendingWrites.get(key)
+    const ending = new AbortController()
+    // Node 20 hosts lack Promise.withResolvers; this lane is released in finally.
+    const finished = new Promise<void>((resolve) => {
+      ending.signal.addEventListener(
+        'abort',
+        () => {
+          resolve()
+        },
+        { once: true },
+      )
+    })
+    this.pendingWrites.set(key, finished)
+    try {
+      await previous
+      const refusal = await this.writeRefusal(resolved)
+      if (refusal !== undefined) {
+        return { isReverted: false, notices: [refusal] }
+      }
+      const rebuilt = await this.rebuild(resolved)
+      if (!rebuilt.ok) {
+        return { isReverted: false, notices: [rebuilt.notice] }
+      }
+      const nowRefusal = await this.writeRefusal(resolved)
+      if (nowRefusal !== undefined) {
+        return { isReverted: false, notices: [nowRefusal] }
+      }
+      const complete = this.deps.beginEdit?.({
+        relative: resolved.canonicalRelativePath,
+        absolute: resolved.canonicalPath,
+      })
+      let wasWritten = false
+      try {
+        if (rebuilt.isCreatedFile) {
+          await this.deps.deleteFile(resolved.canonicalPath)
+        } else {
+          await this.deps.writeFile(resolved.canonicalPath, rebuilt.content)
+        }
+        wasWritten = true
+      } finally {
+        complete?.(wasWritten)
+      }
+      this.originals.delete(originalUriPath(itemId, resolved.relativePath))
+      const hunk = hunkIndex === undefined ? '' : `hunk ${String(hunkIndex + 1)} of `
+      this.deps.log.info(`Reverted ${hunk}Muse edit ${itemId} on ${resolved.relativePath}`)
+      return {
+        isReverted: true,
+        notices: [
+          {
+            level: 'info',
+            text: fill(
+              rebuilt.isCreatedFile ? UI_TEXT.editCreatedRemovedPath : UI_TEXT.editRevertedPath,
+              { path: resolved.relativePath },
+            ),
+          },
+        ],
+      }
+    } finally {
+      ending.abort()
+      if (this.pendingWrites.get(key) === finished) {
+        this.pendingWrites.delete(key)
+      }
+    }
   }
 
   /** Content for a `muse-edit:` URI path; undefined when nothing was staged. */
@@ -193,25 +352,76 @@ export class EditReview {
     return notices
   }
 
+  /**
+   * The patch's files as the review pane lists them (M70): each by its
+   * workspace-relative path, or, for one that resolves outside the
+   * workspace, by the path the tool named and the reason it is refused.
+   */
+  public async describe(patchJson: string): Promise<readonly DescribedFile[]> {
+    const { workspaceRoot } = this.deps
+    const files = patchFilesOf(patchJson) ?? []
+    const described: DescribedFile[] = []
+    for (const [fileIndex, file] of files.entries()) {
+      const resolved =
+        workspaceRoot === undefined ? undefined : await this.resolve(workspaceRoot, file)
+      described.push(
+        resolved === undefined
+          ? {
+              fileIndex,
+              file,
+              path: file.path,
+              refusal:
+                workspaceRoot === undefined
+                  ? UI_TEXT.editReviewNeedsFolder
+                  : fill(UI_TEXT.editPathRefused, { path: file.path }),
+            }
+          : { fileIndex, file, path: resolved.relativePath, refusal: undefined },
+      )
+    }
+    return described
+  }
+
+  /**
+   * One hunk of one file taken out again (M70's review pane): the file as it
+   * is now with that hunk reverse-applied, the rest of the edit left alone.
+   * True when the file was written back; the notices say why when it was not.
+   */
+  public async revertHunk(
+    itemId: string,
+    patchJson: string,
+    fileIndex: number,
+    hunkIndex: number,
+  ): Promise<{ readonly isReverted: boolean; readonly notices: readonly ReviewNotice[] }> {
+    const { workspaceRoot } = this.deps
+    if (workspaceRoot === undefined) {
+      return {
+        isReverted: false,
+        notices: [{ level: 'warning', text: UI_TEXT.editReviewNeedsFolder }],
+      }
+    }
+    const file = patchFilesOf(patchJson)?.[fileIndex]
+    const hunk = file?.hunks[hunkIndex]
+    if (file === undefined || hunk === undefined) {
+      return { isReverted: false, notices: [{ level: 'warning', text: UI_TEXT.editNoPatch }] }
+    }
+    // Only the one hunk. A file the edit created goes only when nothing is
+    // left once the hunk is out (D27); lines still there are written back.
+    const resolved = await this.resolve(workspaceRoot, { ...file, hunks: [hunk] })
+    if (resolved === undefined) {
+      return {
+        isReverted: false,
+        notices: [{ level: 'warning', text: fill(UI_TEXT.editPathRefused, { path: file.path }) }],
+      }
+    }
+    return await this.writeRevert(itemId, resolved, hunkIndex)
+  }
+
   /** Writes the pre-edit text back (or trashes a created file); returns the notices. */
   public async revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]> {
-    const { ready, notices } = await this.prepare(patchJson)
-    for (const { resolved, rebuilt } of ready) {
-      if (rebuilt.isCreatedFile) {
-        await this.deps.deleteFile(resolved.fsPath)
-        notices.push({
-          level: 'info',
-          text: fill(UI_TEXT.editCreatedRemovedPath, { path: resolved.relativePath }),
-        })
-      } else {
-        await this.deps.writeFile(resolved.fsPath, rebuilt.content)
-        notices.push({
-          level: 'info',
-          text: fill(UI_TEXT.editRevertedPath, { path: resolved.relativePath }),
-        })
-      }
-      this.originals.delete(originalUriPath(itemId, resolved.relativePath))
-      this.deps.log.info(`Reverted Muse edit ${itemId} on ${resolved.relativePath}`)
+    const { resolved, notices } = await this.resolvePatch(patchJson)
+    for (const file of resolved) {
+      const result = await this.writeRevert(itemId, file)
+      notices.push(...result.notices)
     }
     return notices
   }

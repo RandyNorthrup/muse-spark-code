@@ -105,6 +105,10 @@ export const SCENARIOS = [
   'plan-brief',
   'plan-narrow',
   'code-intel',
+  'review-findings',
+  'review-pane',
+  'review-pane-narrow',
+  'review-comment',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

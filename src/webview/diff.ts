@@ -5,7 +5,7 @@
 // A file with Windows line ends keeps them in both; the row text drops the
 // carriage return (M25), so a CRLF file shows no stray blank rows or marks.
 
-import { ADD_MARKER, parsePatchFiles, REMOVE_MARKER } from '../shared/patchDocument'
+import { ADD_MARKER, type PatchHunk, parsePatchFiles, REMOVE_MARKER } from '../shared/patchDocument'
 
 export interface DiffRow {
   readonly kind: 'context' | 'add' | 'remove' | 'hunk'
@@ -56,6 +56,11 @@ function rowsOfHunk(lines: readonly string[], oldStart: number, newStart: number
   return rows
 }
 
+/** One hunk's rows with their line numbers, as the review pane lists them (M70). */
+export function hunkRows(hunk: PatchHunk): readonly DiffRow[] {
+  return rowsOfHunk(hunk.lines, hunk.oldStart, hunk.newStart)
+}
+
 /** The stored patch document as file diffs; undefined when it is not one. */
 export function parsePatchDocument(json: string): readonly FileDiff[] | undefined {
   const files = parsePatchFiles(json)
@@ -66,7 +71,7 @@ export function parsePatchDocument(json: string): readonly FileDiff[] | undefine
     path: file.path,
     rows: file.hunks.flatMap((hunk, index) => [
       ...(index === 0 ? [] : [HUNK_SEPARATOR]),
-      ...rowsOfHunk(hunk.lines, hunk.oldStart, hunk.newStart),
+      ...hunkRows(hunk),
     ]),
   }))
 }

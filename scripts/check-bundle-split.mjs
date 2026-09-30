@@ -17,6 +17,14 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the review (M70: git's material, the review turn's text, the Plan-mode
+//   hold and edit review) is in dist/extension.js, dist/modelApi.js or
+//   dist/acp.js, or missing from dist/review.js, which dist/extension.js
+//   requires the first time one is used.
+// - the English table (src/shared/l10n/en.ts, 72 KiB and growing) is in
+//   dist/modelApi.js or dist/review.js, which install the activation
+//   bundle's table before they run and so carry an empty one
+//   (scripts/lib/withoutEnglishTable.mjs), or is missing from dist/extension.js.
 //
 // Exits 1 on any problem.
 //
@@ -60,6 +68,8 @@ const LAZY_ONLY = [
   'modelCallHooks.ts',
   'permissions.ts',
   'promptCache.ts',
+  // The built-in Reviewer's prompt and tool list (M70).
+  'reviewer.ts',
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
@@ -220,6 +230,48 @@ for (const file of CHECKPOINT_ONLY) {
     problems.push(`${CHECKPOINT_STORE.output} no longer carries ${file}`)
   }
 }
+// M70: git's material, the review turn's text, the Plan-mode hold and edit
+// review live in a bundle the activation bundle requires on first use. Only
+// types and the loader (reviewBundle.ts) stay at activation.
+const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
+const REVIEW_ONLY = [
+  'src/host/review/reviewEntry.ts',
+  'src/host/review/reviewCollector.ts',
+  'src/core/review/reviewMaterial.ts',
+  'src/core/review/reviewPrompt.ts',
+  'src/core/review/planModeHold.ts',
+  'src/host/editor/editReview.ts',
+]
+const review = inputsOf(REVIEW)
+for (const file of REVIEW_ONLY) {
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the review bundle`)
+    }
+  }
+  if (!review.has(file)) {
+    problems.push(`${REVIEW.output} no longer carries ${file}`)
+  }
+}
+// The bundles that install the activation bundle's display table carry the
+// empty one the build's plugin loads, a few bytes; the activation bundle's
+// is the whole English table.
+const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
+const ENGLISH_STUB_MAX_BYTES = 64
+for (const [output, inputs] of [
+  [BUNDLES.modelApi.output, modelApi],
+  [REVIEW.output, review],
+]) {
+  const bytes = inputs.get(ENGLISH_TABLE) ?? 0
+  if (bytes > ENGLISH_STUB_MAX_BYTES) {
+    problems.push(
+      `${output} carries the English table (${String(bytes)} bytes of ${ENGLISH_TABLE}); it installs the activation bundle's (scripts/lib/withoutEnglishTable.mjs)`,
+    )
+  }
+}
+if ((activation.get(ENGLISH_TABLE) ?? 0) <= ENGLISH_STUB_MAX_BYTES) {
+  problems.push(`${BUNDLES.activation.output} does not carry the English table`)
+}
 function hasPrefix(inputs, prefix) {
   for (const input of inputs.keys()) {
     if (input.startsWith(prefix)) {
@@ -280,4 +332,7 @@ console.log(
 )
 console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
+)
+console.log(
+  `ok   ${REVIEW.output}: carries the review and edit review; ${BUNDLES.activation.output} keeps the loader; ${BUNDLES.modelApi.output} and ${REVIEW.output} carry no English table`,
 )

@@ -346,6 +346,13 @@ export interface AgentSession {
    * the prompt, used when the parts carry more than the user typed (M5).
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
+  /**
+   * A `/review` turn run as the built-in Reviewer, with its own prompt and
+   * only the tools that read (M70, PLAN.md D49). The Model API backend has
+   * one; Muse Code, which has no Reviewer the extension can pick, reviews
+   * with an ordinary turn held in Plan mode instead.
+   */
+  readonly review?: (parts: readonly TurnPart[], displayText: string) => Promise<TurnSubmission>
   /** Inject input into the running turn; rejects when it is no longer running. */
   steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission>
   cancel(): Promise<void>

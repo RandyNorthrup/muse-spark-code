@@ -21,6 +21,7 @@ import { effortLabel, effortLevelsFor } from './effort'
 import { fill, formatNumber } from './l10n/text'
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from './paid'
 import type { BackendKind, ModelOption, SkillOption } from './protocol'
+import type { ReviewRequest } from './reviewCommand'
 
 export type PaletteWidget =
   | { readonly kind: 'value'; readonly text: string }
@@ -66,6 +67,12 @@ export type PaletteAction =
   | { readonly type: 'openLog' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
+  /** `/review ` in the prompt, for what to review (M70). */
+  | { readonly type: 'startReview' }
+  /** A review preset (M70): the request as the host takes it. */
+  | { readonly type: 'review'; readonly request: ReviewRequest }
+  /** The review pane over the conversation's changes (M70). */
+  | { readonly type: 'openReviewPane' }
   | { readonly type: 'none' }
 
 export interface PaletteItem {
@@ -293,6 +300,55 @@ function scheduleItems(backend: BackendKind | undefined): readonly PaletteItem[]
         },
       ]
     : []
+}
+
+/**
+ * Review (M70, PLAN.md D49), the same on both backends: `/review` for what
+ * to look at, the git presets, the security preset and the review pane. The
+ * presets that read git say why when Restricted Mode refuses them (the host
+ * answers the request).
+ */
+function reviewItems(): readonly PaletteItem[] {
+  return [
+    {
+      id: 'review',
+      label: UI_TEXT.reviewItem,
+      detail: UI_TEXT.reviewItemDetail,
+      action: { type: 'startReview' },
+    },
+    {
+      id: 'reviewUncommitted',
+      label: UI_TEXT.reviewUncommittedItem,
+      detail: UI_TEXT.reviewUncommittedDetail,
+      action: { type: 'review', request: { scope: 'uncommitted', focus: 'general' } },
+    },
+    {
+      id: 'reviewBranch',
+      label: UI_TEXT.reviewBranchItem,
+      detail: UI_TEXT.reviewBranchDetail,
+      action: { type: 'review', request: { scope: 'branch', focus: 'general' } },
+    },
+    {
+      id: 'reviewCommit',
+      label: UI_TEXT.reviewCommitItem,
+      detail: UI_TEXT.reviewCommitDetail,
+      action: { type: 'review', request: { scope: 'commit', focus: 'general' } },
+    },
+    {
+      id: 'reviewSecurity',
+      label: UI_TEXT.reviewSecurityItem,
+      slashName: SLASH_COMMAND_NAMES.securityReview,
+      detail: UI_TEXT.reviewSecurityDetail,
+      action: { type: 'review', request: { scope: 'uncommitted', focus: 'security' } },
+    },
+    {
+      id: 'reviewChanges',
+      label: UI_TEXT.reviewChangesItem,
+      slashName: SLASH_COMMAND_NAMES.changes,
+      detail: UI_TEXT.reviewChangesDetail,
+      action: { type: 'openReviewPane' },
+    },
+  ]
 }
 
 function skillItems(skills: readonly SkillOption[] | undefined): readonly PaletteItem[] {
@@ -524,6 +580,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         },
       ],
     },
+    { id: 'review', title: UI_TEXT.groupReview, items: reviewItems() },
     {
       id: 'support',
       title: UI_TEXT.groupSupport,

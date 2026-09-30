@@ -206,6 +206,12 @@ import { nextScheduleFire } from './schedules'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
 import { promptCacheKey } from './promptCache'
+import {
+  isReviewerRole,
+  isReviewerTool,
+  reviewerInstructionsFor,
+  reviewerToolRefusal,
+} from './reviewer'
 import { MediaBudget } from './mediaBudget'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import type { McpPoolSnapshot, McpToolRef, McpToolSource } from './mcp/pool'
@@ -234,6 +240,7 @@ import {
   type CreateResponseBody,
   type FunctionCallItem,
   type FunctionOutputPart,
+  type FunctionToolDefinition,
   type IncludeField,
   type InputContentPart,
   type InputItem,
@@ -498,6 +505,8 @@ interface QueuedTurn {
   readonly isGoalWake: boolean
   /** The accepted user goal command this queued wake must still serve. */
   readonly goalCommandRevision?: number
+  /** A `/review` (M70): the turn runs as the Reviewer, its prompt and read-only tools. */
+  readonly isReview?: boolean
 }
 
 // MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
@@ -521,6 +530,8 @@ interface ActiveTurn {
   goalWakePending: boolean
   /** The prompt's answer to the web search popup (M58); false until it is asked. */
   isWebSearchAllowed: boolean
+  /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
+  readonly isReview: boolean
 }
 
 interface HookToolResult {
@@ -1447,6 +1458,8 @@ export class ModelApiSession implements AgentSession {
     private readonly hookStartSource: 'startup' | 'resume' | 'fork' = 'startup',
     private readonly isSideChat = false,
     private readonly workspaceEdits = new WorkspaceEdits(),
+    /** A child task whose role is `reviewer` (M70): every turn runs as the Reviewer. */
+    private readonly isReviewerChild = false,
   ) {
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
@@ -1737,23 +1750,42 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  private body(): CreateResponseBody {
-    this.drainChildResults()
+  /**
+   * Whether the model answers as the Reviewer now (M70): a `/review` turn, or
+   * a child task whose role is `reviewer`.
+   */
+  private isReviewing(): boolean {
+    return this.isReviewerChild || this.active?.isReview === true
+  }
+
+  /** The agent's own instructions and tools, or the Reviewer's. */
+  private promptAndTools(today: string): {
+    readonly instructions: string
+    readonly tools: readonly ToolDefinition[]
+  } {
+    const context = this.context.sections()
+    const environment = this.environment ?? NO_ENVIRONMENT
+    if (this.isReviewing()) {
+      const tools = this.reviewerTools()
+      return {
+        instructions: reviewerInstructionsFor({
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+          toolNames: tools.map((tool) => tool.name),
+          today,
+          environment,
+          rules: context.rules,
+        }),
+        tools,
+      }
+    }
     const shell = shellToolFor(this.deps.platform)
     const hasShell = this.deps.isWorkspaceTrusted()
     // Memory is the workspace context's (D13): offered in a trusted workspace only (D41).
     const hasMemory = hasShell && this.deps.memory !== undefined
-    const context = this.context.sections()
     const goalSection = goalInstructions(this.goal, this.goalSteps)
     const repoMap = this.promptRepoMap()
-    const input = this.budget.fit(this.replay.map((entry) => entry.item))
-    if (this.budget.omitted && !this.mediaNoticeSent) {
-      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
-      this.mediaNoticeSent = true
-    }
-    return this.keyed({
-      model: this.modelId,
-      input,
+    return {
       instructions: instructionsFor({
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
@@ -1763,8 +1795,8 @@ export class ModelApiSession implements AgentSession {
         hasMemory,
         hasWebFetch: this.isWebFetchOffered(hasShell),
         hasCodeIntel: this.deps.codeIntel !== undefined,
-        today: new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH),
-        environment: this.environment ?? NO_ENVIRONMENT,
+        today,
+        environment,
         context,
         verify: {
           isDiagnosticsOn: this.deps.verify?.isDiagnosticsOn() === true,
@@ -1775,6 +1807,21 @@ export class ModelApiSession implements AgentSession {
         ...(goalSection !== undefined && { goalSection }),
       }),
       tools: this.tools(hasShell, context.skills.length > 0, hasMemory),
+    }
+  }
+
+  private body(): CreateResponseBody {
+    this.drainChildResults()
+    const input = this.budget.fit(this.replay.map((entry) => entry.item))
+    if (this.budget.omitted && !this.mediaNoticeSent) {
+      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
+      this.mediaNoticeSent = true
+    }
+    const today = new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH)
+    return this.keyed({
+      model: this.modelId,
+      input,
+      ...this.promptAndTools(today),
       tool_choice: 'auto',
       reasoning: {
         effort: this.effort === THINKING_OFF_EFFORT ? MODEL_API_EFFORT_OFF : this.effort,
@@ -1838,12 +1885,30 @@ export class ModelApiSession implements AgentSession {
       hasWebFetch: this.isWebFetchOffered(hasShell),
       hasCodeIntel: this.deps.codeIntel !== undefined,
     })
-    const ide = (this.deps.ideTools ?? []).map(
+    const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
+    const offered = [...own, ...this.ideDefinitions(), ...mcp]
+    return this.isWebSearchOffered() ? [...offered, { type: MODEL_API_WEB_SEARCH_TOOL }] : offered
+  }
+
+  /** The extension's own IDE tools, as the model calls them (M50). */
+  private ideDefinitions(): readonly FunctionToolDefinition[] {
+    return (this.deps.ideTools ?? []).map(
       (tool) => mcpFunctionDefinition(ideFunctionName(tool), tool).definition,
     )
-    const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
-    const offered = [...own, ...ide, ...mcp]
-    return this.isWebSearchOffered() ? [...offered, { type: MODEL_API_WEB_SEARCH_TOOL }] : offered
+  }
+
+  /**
+   * The Reviewer's tools (M70): the workspace readers and VS Code's Problems
+   * panel. Nothing that writes, runs a command or reaches the network, and
+   * no web search, whatever is on.
+   */
+  private reviewerTools(): readonly FunctionToolDefinition[] {
+    const own = toolDefinitions(this.deps.platform, {
+      hasShell: false,
+      hasSkills: false,
+      isSubagent: true,
+    })
+    return [...own, ...this.ideDefinitions()].filter((tool) => isReviewerTool(tool.name))
   }
 
   /**
@@ -1856,7 +1921,8 @@ export class ModelApiSession implements AgentSession {
 
   /**
    * Meta's search, billed per search, rides on the turn's requests only while
-   * the feature is on and this prompt's popup allowed it (M58).
+   * the feature is on and this prompt's popup allowed it (M58). A Reviewer's
+   * turn is never allowed it (M70, `runTurn`).
    */
   private isWebSearchOffered(): boolean {
     return this.active?.isWebSearchAllowed === true && this.deps.isPaidFeatureOn('webSearch')
@@ -1897,7 +1963,7 @@ export class ModelApiSession implements AgentSession {
    */
   private async prepareMcp(signal: AbortSignal): Promise<void> {
     const servers = this.deps.mcpServers
-    if (servers === undefined) {
+    if (servers === undefined || this.isReviewing()) {
       return
     }
     await unlessStopped(servers.start(), signal)
@@ -1916,6 +1982,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   private requiredMcpFailure(snapshot: McpPoolSnapshot | undefined): Error | undefined {
+    // The Reviewer deliberately offers no external MCP tool (M70).
+    if (this.isReviewing()) {
+      return undefined
+    }
     const required = snapshot?.servers.find(
       (server) => server.isRequired && server.state.status === 'failed',
     )
@@ -3537,6 +3607,7 @@ export class ModelApiSession implements AgentSession {
       'startup',
       this.isSideChat,
       this.workspaceEdits,
+      isReviewerRole(parsed.data.role),
     )
     child.childTaskGrant = grant
     const record: ChildRecord = {
@@ -4699,6 +4770,14 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     shouldForceApproval = false,
   ): Promise<CallResult> {
+    // The Reviewer only reads (M70): a tool it names that is not one of its
+    // own is refused, offered or not, in every mode, Bypass included.
+    if (this.isReviewing() && !isReviewerTool(call.name)) {
+      return {
+        outcome: toolFailure(reviewerToolRefusal(call.name)),
+        isRejected: true,
+      }
+    }
     const isAllowed = this.verificationAdmission(signal)
     const external = this.externalTool(call.name)
     if (external !== undefined && this.isSideChat) {
@@ -5133,8 +5212,11 @@ export class ModelApiSession implements AgentSession {
       pre.updatedInput === undefined
         ? call
         : { ...call, arguments: JSON.stringify(pre.updatedInput) }
-    const paid =
-      this.childTaskFor(effectiveCall) === undefined ? paidFeatureOf(call.name) : 'subagents'
+    // The Reviewer's tools are never paid, and it is refused every other (M70).
+    let paid: PaidFeature | undefined
+    if (!this.isReviewing()) {
+      paid = this.childTaskFor(effectiveCall) === undefined ? paidFeatureOf(call.name) : 'subagents'
+    }
     const started: ItemSnapshot = {
       itemId,
       kind: 'toolCall',
@@ -5906,6 +5988,7 @@ export class ModelApiSession implements AgentSession {
       modelFailure: undefined,
       goalWakePending: false,
       isWebSearchAllowed: false,
+      isReview: queued.isReview === true,
       ...(queued.confirmedRequest !== undefined && {
         confirmedRequest: queued.confirmedRequest,
       }),
@@ -6004,7 +6087,9 @@ export class ModelApiSession implements AgentSession {
         }
       }
       await this.prepareMcp(turn.abort.signal)
-      turn.isWebSearchAllowed = await this.webSearchConsent(turn.abort.signal)
+      // The Reviewer never searches (M70): nothing to ask about.
+      turn.isWebSearchAllowed =
+        !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
       await this.loop(turn)
     } catch (error: unknown) {
       if (turn.abort.signal.aborted) {
@@ -6474,6 +6559,40 @@ export class ModelApiSession implements AgentSession {
     return submission
   }
 
+  private submitTurn(
+    parts: readonly TurnPart[],
+    displayText: string | undefined,
+    isReview: boolean,
+    requestFor?: (turnId: string) => ConfirmedModelRequest,
+  ): Promise<TurnSubmission> {
+    if (this.isDisposed) {
+      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
+    }
+    const textBudgetError = textAttachmentBudgetError(textAttachmentBytes(parts))
+    if (textBudgetError !== undefined) {
+      return Promise.reject(textBudgetError)
+    }
+    const turnId = this.isSubagent ? `${this.sessionId}:${this.deps.newId()}` : this.deps.newId()
+    const userMessageId = this.deps.newId()
+    const confirmedRequest = requestFor?.(turnId)
+    const queued: QueuedTurn = {
+      turnId,
+      parts,
+      displayText,
+      userMessageId,
+      isGoalWake: false,
+      ...(isReview && { isReview }),
+      ...(confirmedRequest !== undefined && { confirmedRequest }),
+    }
+    // A compaction is a turn too (D26): a message sent during one waits for it.
+    if (this.active === undefined && this.compacting === undefined) {
+      void this.runTurn(queued)
+      return Promise.resolve({ turnId, disposition: 'started', userMessageId })
+    }
+    this.queuedTurns.push(queued)
+    return Promise.resolve({ turnId, disposition: 'queued', userMessageId })
+  }
+
   /** The conversation a paid use is asked in (M58): a child task's is its parent's. */
   private get askingSessionId(): string {
     return this.parentSession?.askingSessionId ?? this.sessionId
@@ -6523,31 +6642,16 @@ export class ModelApiSession implements AgentSession {
     displayText?: string,
     requestFor?: (turnId: string) => ConfirmedModelRequest,
   ): Promise<TurnSubmission> {
-    if (this.isDisposed) {
-      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
-    }
-    const textBudgetError = textAttachmentBudgetError(textAttachmentBytes(parts))
-    if (textBudgetError !== undefined) {
-      return Promise.reject(textBudgetError)
-    }
-    const turnId = this.isSubagent ? `${this.sessionId}:${this.deps.newId()}` : this.deps.newId()
-    const userMessageId = this.deps.newId()
-    const confirmedRequest = requestFor?.(turnId)
-    const queued: QueuedTurn = {
-      turnId,
-      parts,
-      displayText,
-      userMessageId,
-      isGoalWake: false,
-      ...(confirmedRequest !== undefined && { confirmedRequest }),
-    }
-    // A compaction is a turn too (D26): a message sent during one waits for it.
-    if (this.active === undefined && this.compacting === undefined) {
-      void this.runTurn(queued)
-      return Promise.resolve({ turnId, disposition: 'started', userMessageId })
-    }
-    this.queuedTurns.push(queued)
-    return Promise.resolve({ turnId, disposition: 'queued', userMessageId })
+    return this.submitTurn(parts, displayText, false, requestFor)
+  }
+
+  /**
+   * A `/review` the user asked for (M70, PLAN.md D49): a turn of this
+   * conversation, run as the Reviewer with its own prompt and only the tools
+   * that read. It is part of the user's own turn, so it asks for no payment.
+   */
+  public review(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission> {
+    return this.submitTurn(parts, displayText, true)
   }
 
   public steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
@@ -7206,6 +7310,7 @@ export class ModelApiSession implements AgentSession {
         'resume',
         this.isSideChat,
         this.workspaceEdits,
+        isReviewerRole(saved.role),
       )
       session.adopt(saved.session)
       const record: ChildRecord = {
@@ -7317,6 +7422,7 @@ export class ModelApiSession implements AgentSession {
         'fork',
         target.isSideChat,
         target.workspaceEdits,
+        isReviewerRole(child.role),
       )
       session.adopt({ ...child.session.snapshot(), sessionId })
       const cloned: ChildRecord = {

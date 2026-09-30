@@ -591,6 +591,8 @@ export const EN = {
   noEditorForApply: 'Open a text editor to apply code into it.',
   diffTitleSuffix: 'Muse edit',
   editNotRebuildable: '{path} cannot be rebuilt: the file changed since this edit.',
+  editUnsavedChanges:
+    '{path} cannot be reverted: save or discard the unsaved editor changes, then try again.',
   editPathRefused: '{path} refused: the edited path is outside the workspace.',
   editNoPatch: 'This edit left no patch document.',
   // Session history (M6).
@@ -1599,6 +1601,110 @@ export const EN = {
   // Muse Code refused a permission mode above the ceiling its configuration sets.
   approvalModeCeiling:
     'Muse Code’s configuration (its default permission profile, or a policy your administrator manages) does not allow this permission mode. Choose a stricter one, such as Manual, and send again.',
+  // M70 (PLAN.md D49): review. The palette's rows.
+  groupReview: 'Review',
+  reviewItem: '/review',
+  reviewItemDetail: 'Review the uncommitted changes, a branch, a commit, or what you describe',
+  reviewUncommittedItem: 'Review uncommitted changes',
+  reviewUncommittedDetail: 'Staged and unstaged changes, against the last commit',
+  reviewBranchItem: 'Review this branch…',
+  reviewBranchDetail: 'Every change since it left the base branch you pick',
+  reviewCommitItem: 'Review a commit…',
+  reviewCommitDetail: 'One of the latest commits, which you pick',
+  reviewSecurityItem: 'Security review',
+  reviewSecurityDetail:
+    'The uncommitted changes, for injection, secrets, authentication and unsafe APIs',
+  reviewChangesItem: 'Review this conversation’s changes',
+  reviewChangesDetail: 'Accept or revert each change, and comment on a line',
+  // The base-branch and commit pickers.
+  reviewPickBase: 'The branch to compare this one with',
+  reviewPickCommit: 'The commit to review',
+  reviewDefaultBase: 'default base',
+  // Why a review did not start, on its card.
+  reviewBusy: 'A review starts once the current turn has ended.',
+  reviewRestricted:
+    'Reviewing git’s changes needs git, which does not run in Restricted Mode. Trust this workspace, or say what to review: /review <what to look at>.',
+  reviewNotRepository:
+    'This folder is not in a git repository, so there are no git changes to review. Say what to review instead: /review <what to look at>.',
+  reviewNoChanges: 'There are no changes to review.',
+  reviewOnlyPrivate:
+    'Only files that may hold secrets changed (environment files, keys, credentials), and they are not sent for review.',
+  reviewNoBase: 'No base branch was found to compare with. Name one: /review branch <base>.',
+  // {revision}: the branch or commit named after /review.
+  reviewUnknownRevision: 'Git does not know {revision} as a branch or commit.',
+  reviewNoCommits: 'This repository has no commits to review yet.',
+  reviewGitFailed: 'Git could not read the changes to review.',
+  reviewCancelled: 'Review cancelled.',
+  // The review's own module (dist/review.js) could not be loaded.
+  reviewUnavailable:
+    'The review could not be loaded, so no review can start; reinstall the extension and reload the window. The log has the details.',
+  reviewInstructionsTooLong: 'What to review is too long for one review; say it more briefly.',
+  // What went with a review, and the permission mode around a Muse Code review.
+  reviewTruncatedNotice:
+    'The diff is long, so only its first part went with the review; the reviewer reads the rest of the changed files itself.',
+  reviewPrivateLeftOut: forms({
+    one: '{count} changed file that may hold secrets was named but not sent for review.',
+    other: '{count} changed files that may hold secrets were named but not sent for review.',
+  }),
+  reviewPlanModeNotice:
+    'This review runs in Plan mode, and the permission mode you had comes back when it ends. Muse Code applies its own allow rules in Plan mode, so a review there is not strictly read-only.',
+  // {mode}: the permission mode's name.
+  reviewModeRestored: 'The review ended: the permission mode is {mode} again.',
+  reviewModeNotRestored:
+    'The permission mode could not be set back after the review, so the conversation stays in Plan mode',
+  reviewAlreadyReverted: 'This change was already reverted.',
+  // The review pane.
+  reviewPaneTitle: 'Changes in this conversation',
+  reviewPaneLoading: 'Reading the changes…',
+  reviewPaneEmpty: 'This conversation has not changed any files.',
+  reviewPaneFiles: forms({ one: '{count} file', other: '{count} files' }),
+  reviewPaneHunks: forms({ one: '{count} change', other: '{count} changes' }),
+  reviewPaneAccepted: forms({ one: '{count} accepted', other: '{count} accepted' }),
+  reviewPaneReverted: forms({ one: '{count} reverted', other: '{count} reverted' }),
+  reviewPaneOmitted: forms({
+    one: '{count} edit is not listed here (too many to show, or its change could not be read); its row in the transcript still opens it.',
+    other:
+      '{count} edits are not listed here (too many to show, or their changes could not be read); their rows in the transcript still open them.',
+  }),
+  // {index}: the change's number in its file; {start}, {end}: line numbers.
+  reviewHunkLines: 'Change {index}, lines {start}–{end}',
+  reviewHunkLine: 'Change {index}, line {start}',
+  // {path}: the file; names each change's buttons for a screen reader.
+  reviewHunkName: 'change {index} of {path}',
+  reviewAccept: 'Accept',
+  reviewAccepted: 'Accepted',
+  reviewRevert: 'Revert',
+  reviewReverting: 'Reverting…',
+  reviewReverted: 'Reverted',
+  reviewNotReverted: 'Not reverted',
+  reviewComment: 'Comment on a line…',
+  reviewCommentLine: 'Line',
+  reviewCommentLabel: 'Comment',
+  reviewCommentPlaceholder: 'What should the agent know or change here?',
+  reviewSendSteer: 'Send to the running turn',
+  reviewSendNext: 'Send as the next message',
+  reviewCommentCancel: 'Cancel',
+  // {line}: a line number; {text}: that line's code.
+  reviewLineOption: 'Line {line}: {text}',
+  reviewRemovedLineOption: 'Removed line {line}: {text}',
+  reviewOpenFile: 'Open file',
+  reviewCommentSent: 'Comment sent to the agent',
+  // What the live region says when a change's Revert settles; {name} is reviewHunkName.
+  reviewAnnounceReverted: '{name} reverted',
+  reviewAnnounceNotReverted: '{name} not reverted: {reason}',
+  // The findings list under a review's reply.
+  reviewFindingsLabel: 'Review findings',
+  reviewFindingsHeading: forms({ one: '{count} finding', other: '{count} findings' }),
+  reviewNoFindings: 'The review found nothing to report.',
+  reviewSeverities: {
+    critical: 'Critical',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    info: 'Info',
+  },
+  // {location}: a file and line, such as src/a.ts:12.
+  reviewOpenFinding: 'Open {location}',
   // M68 (PLAN.md D49): the verify loop's rows. {count}: the edited files'
   // errors or warnings.
   verifyErrors: forms({ one: '{count} error', other: '{count} errors' }),

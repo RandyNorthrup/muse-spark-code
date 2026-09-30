@@ -36,9 +36,9 @@ const ROOT = '/ws'
 const MODEL = 'muse-spark-1.3'
 const built = { folder: '', file: '' }
 
-beforeAll(() => {
+beforeAll(async () => {
   built.folder = mkdtempSync(path.join(tmpdir(), 'muse-model-api-bundle-'))
-  built.file = buildModelApiBundle(built.folder)
+  built.file = await buildModelApiBundle(built.folder)
 })
 
 afterAll(() => removeFolder(built.folder))

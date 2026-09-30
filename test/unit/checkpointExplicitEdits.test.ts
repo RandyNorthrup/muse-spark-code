@@ -95,6 +95,7 @@ async function startEdit(h: Harness, family: EditFamily, edit: NonNullable<PlanI
     platform: process.platform,
     readFile: async (file) => await readFile(file, 'utf8'),
     realPath: canonicalPath,
+    hasUnsavedChanges: () => false,
     writeFile: async (file, content) => {
       await edit(async () => {
         await writeFile(file, content)

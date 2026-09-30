@@ -5,6 +5,7 @@
 import * as z from 'zod/mini'
 import {
   MODEL_API_SUBAGENT_TOOLS,
+  REVIEWER_ROLE,
   SUBAGENT_CAPACITY,
   SUBAGENT_WAIT_DEFAULT_MS,
   SUBAGENT_WAIT_MAX_MS,
@@ -37,7 +38,7 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
     properties: {
       role: {
         type: 'string',
-        description: 'A short name for the agent, e.g. explorer or test-runner',
+        description: `A short name for the agent, e.g. explorer or test-runner. The role ${REVIEWER_ROLE} starts the built-in Reviewer: its own review prompt and tools that only read.`,
       },
       objective: {
         type: 'string',

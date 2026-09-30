@@ -14,6 +14,7 @@ import {
   SHELL_DEFAULT_TIMEOUT_MS,
   UI_TEXT,
   VERIFY_NOTE_MAX_CHARS,
+  VERIFY_TOOLS,
 } from '../../src/shared/constants'
 import { fill, plural } from '../../src/shared/l10n/text'
 import { type HookDefinition, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
@@ -383,6 +384,51 @@ const INITIAL_EDIT_ROUNDS: readonly ScriptedReply[] = [
 
 const SCRIPT_CHECK: CheckCommandSetting = { name: 'script', command: 'node scripts/check.js' }
 const RUN_CHECKS: ScriptedCall = { name: 'run_checks', arguments: '{}' }
+
+describe('Reviewer and ordinary verification (M70/M68)', () => {
+  it('keeps the Reviewer read-only and verifies the next ordinary edit on the same live session', async () => {
+    const t = setup({
+      files: { 'src/a.ts': 'const a = 1\n' },
+      checks: [LINT],
+      shell: () => passed(),
+    })
+    const current = await start(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_file', arguments: '{"path":"src/a.ts"}' },
+          writeCall('src/a.ts', 'forbidden\n'),
+        ],
+      },
+      { text: 'review complete' },
+    )
+    await current.untilTurnEnds(() =>
+      current.session.review([{ type: 'text', text: 'review the file' }], '/review'),
+    )
+    expect(t.io.files.get(`${ROOT}/src/a.ts`)).toBe('const a = 1\n')
+    expect(t.diagnosticsCalls).toEqual([])
+    expect(t.io.shellCalls).toEqual([])
+    t.api.script({ calls: [editCall('1', '2')] }, { text: 'fixed' })
+    await current.turn('now fix it')
+    expect(t.io.files.get(`${ROOT}/src/a.ts`)).toBe('const a = 2\n')
+    expect(t.diagnosticsCalls).toEqual([
+      [
+        {
+          relative: 'src/a.ts',
+          absolute: `${ROOT}/src/a.ts`,
+          fingerprint: fingerprint('const a = 2\n'),
+        },
+      ],
+    ])
+    expect(t.io.shellCalls).toHaveLength(1)
+    expect(
+      current.events.some(
+        (event) => event.type === 'itemCompleted' && event.item.tool === VERIFY_TOOLS.verifyEdits,
+      ),
+    ).toBe(true)
+    await t.host.close()
+  })
+})
 
 /** Acquire one verify grant, then hold the next check while another session writes. */
 async function holdAfterGrant(t: Setup, hold: Promise<unknown>) {

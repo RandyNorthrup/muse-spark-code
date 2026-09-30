@@ -14,6 +14,7 @@ import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
+import { EditReview } from '../../src/host/editor/editReview'
 
 interface HookFixture {
   readonly enabled: boolean
@@ -57,6 +58,58 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it('holds a manual revert across lazy startup and a same-id replacement without creating an own round', async () => {
+    const m = manager('/ws')
+    const entered = Promise.withResolvers<undefined>()
+    const writing = Promise.withResolvers<undefined>()
+    const added = vi.spyOn(m.manager.workspaceEdits, 'add')
+    const review = new EditReview({
+      workspaceRoot: '/ws',
+      platform: 'linux',
+      realPath: (file) => Promise.resolve(file),
+      readFile: () => Promise.resolve('after\n'),
+      hasUnsavedChanges: () => false,
+      beginEdit: (file) => m.manager.beginExternalEdit(undefined, [file]),
+      writeFile: () => {
+        entered.resolve(undefined)
+        return writing.promise
+      },
+      deleteFile: vi.fn(),
+      openDiff: vi.fn(),
+      log: m.log,
+    })
+    const patch =
+      '{"files":[{"path":"notes.md","hunks":[{"oldStart":1,"newStart":1,"lines":["-before","+after"]}]}]}'
+    const reverting = review.revert('i', patch)
+    await entered.promise
+    expect(m.manager.isRunning).toBe(false)
+    expect(m.api.responseBodies()).toEqual([])
+    const host = await m.manager.ensureHost()
+    const options = { workspaceRoot: '/ws', modelId: 'muse-spark-1.3', approvalMode: 'onRequest' }
+    const original = await host.startSession(options)
+    original.dispose()
+    const replacement = await host.startSession(options)
+    expect(replacement.sessionId).toBe(original.sessionId)
+    const ledger = added.mock.calls.at(-1)?.[0]
+    if (!(ledger instanceof VerifyLedger) || !(replacement instanceof ModelApiSession)) {
+      throw new TypeError('expected replacement source-module session and ledger')
+    }
+    const note = vi.spyOn(replacement, 'noteExternalEdit')
+    ledger.resetForMessage()
+    ledger.record('passed', ledger.snapshot('lint', 'project'))
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(false)
+    writing.resolve(undefined)
+    await reverting
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(false)
+    expect(note).not.toHaveBeenCalled()
+    expect(ledger.takeRoundEdits()).toEqual([])
+    ledger.resetForMessage()
+    ledger.record('passed', ledger.snapshot('lint', 'project'))
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(true)
+    expect(m.api.responseBodies()).toEqual([])
+    await m.manager.dispose()
+  })
+
   it('keeps host-origin writes pending before the lazy host and newly live ledger exist', async () => {
     const m = manager('/ws')
     const file = { relative: '.agents/plans/held.md', absolute: '/ws/.agents/plans/held.md' }

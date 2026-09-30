@@ -48,6 +48,10 @@ import {
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import { isProfileWorkspace, type ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
 import { chatReferenceText } from '../../core/chatReference'
+import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
+import type { ReviewMaterial } from '../../core/review/reviewMaterial'
+import { isPrivateFileName } from '../../shared/privateFiles'
+import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
 import { textFileDisplay } from '../../shared/textFileDisplay'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import type { ToolImageResult } from '../../core/toolImages'
@@ -73,8 +77,6 @@ import {
   PLAN_BRIEF_LOCAL_ID_PREFIX,
   PLAN_FILE_MAX_BYTES,
   PLAN_TODO_PENDING_STATUS,
-  PRIVATE_ATTACHMENT_EXTENSIONS,
-  PRIVATE_ATTACHMENT_NAMES,
   MENTION_RESULT_LIMIT,
   MODEL_TEXT,
   MSP_REQUESTED_CAPABILITIES,
@@ -84,6 +86,8 @@ import {
   PATCH_DOCUMENT_MAX_PAGES,
   type PaidFeature,
   type PermissionMode,
+  REVIEW_PANE_MAX_EDITS,
+  REVIEW_PANE_MAX_LINES,
   SANDBOX_FAILURE_MARKER,
   SESSION_LIST_LIMIT,
   SESSION_LIST_MAX_PAGES,
@@ -107,17 +111,21 @@ import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type {
   ChatReference,
+  EditRef,
   HostAction,
   HostToWebviewMessage,
   LineRange,
   MentionItem,
   ModelOption,
+  ReviewFile,
   SkillOption,
 } from '../../shared/protocol'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
-import type { ReviewNotice } from '../editor/editReview'
+import type { DescribedFile, EditReviewActions } from '../editor/editReview'
+import type { ReviewCollection } from '../review/reviewCollector'
+import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import {
@@ -191,12 +199,6 @@ export interface MentionSearch {
   search(query: string, limit: number): Promise<readonly MentionItem[]>
   /** Whether the file is in the index (excluded files share their path only). */
   contains(relativePath: string): Promise<boolean>
-}
-
-/** Edit review (M5): each call returns the notices to show in the transcript. */
-export interface EditReviewActions {
-  openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
-  revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
 }
 
 /** What Plans… does with the plan the user picked (M79). */
@@ -289,6 +291,8 @@ export interface ConversationDeps {
   /** Code block "Apply": replace the active editor's selection; false without an editor. */
   readonly applyCode: (text: string) => Promise<boolean>
   readonly editReview: EditReviewActions
+  /** `/review` (M70, PLAN.md D49): its parts, from the review's own bundle. */
+  readonly review: ReviewTurnFeatures
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -496,6 +500,16 @@ function goalRefusalText(verb: GoalCommandVerb, refusal: GoalRefusal): string {
     edit: UI_TEXT.goalCannotEdit,
   }
   return texts[verb] ?? UI_TEXT.goalCommandFailed
+}
+
+/** Why a review read nothing, for the log: the refusal and git's failure, never git's words. */
+function reviewOutcomeForLog(collection: Exclude<ReviewCollection, { kind: 'material' }>): string {
+  if (collection.kind === 'cancelled') {
+    return 'cancelled'
+  }
+  return collection.failure === undefined
+    ? collection.refusal
+    : `${collection.refusal} (${collection.failure})`
 }
 
 interface ExportNotice {
@@ -771,6 +785,26 @@ export class ConversationController {
   private readonly pendingShellApprovals = new Set<string>()
   private readonly pausedForegroundShells = new Set<string>()
   /**
+   * A Muse Code review turn holding the session in Plan mode (M70), and the
+   * mode the user had, which comes back when that turn ends.
+   */
+  private planHold:
+    | {
+        readonly hold: PlanModeHold
+        readonly previousMode: PermissionMode
+        readonly bypassEpoch: number
+      }
+    | undefined
+  /** A `/review` on its way (git, the pickers, the session): one at a time. */
+  private isReviewStarting = false
+  /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
+  private reviewModeSettling: Promise<void> | undefined
+  private permissionModeSelection = 0
+  /** Turning Bypass off invalidates prior popups and restores, even after off/on. */
+  private bypassRevocationEpoch = 0
+  /** The review pane's hunks reverted in this session (M70): each is taken out once. */
+  private readonly revertedHunks = new Set<string>()
+  /**
    * The turns this panel started in Plan mode that finished with the panel
    * in Plan mode throughout (M79): only their replies are plans. A restart
    * keeps them (the resumed session has the same turns); a new conversation
@@ -972,6 +1006,12 @@ export class ConversationController {
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
     this.attachmentGeneration += 1
     this.sessionOpening = undefined
+    // A review's Plan mode goes with its session (M70): the next session
+    // starts, resumes or is adopted in the mode the user had.
+    this.releasePlanHold(true)
+    this.reviewModeSettling = undefined
+    this.permissionModeSelection += 1
+    this.revertedHunks.clear()
     const didHaveModels = this.models !== undefined
     const didHaveSkills = this.skills !== undefined
     this.models = undefined
@@ -1272,12 +1312,15 @@ export class ConversationController {
         // It will never run: a late acceptance must not make it the running turn.
         this.finishedTurns.add(event.turnId)
         this.turnClocks.delete(event.turnId)
+        this.planHold?.hold.turnEnded(event.turnId)
         this.pendingPlanTurnIds.delete(event.turnId)
         break
       }
       case 'turnCompleted': {
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
+        // A review turn's end puts the user's mode back (M70).
+        this.planHold?.hold.turnEnded(event.turnId)
         // A Plan-mode turn that finished with the panel in Plan mode throughout (M79).
         if (this.pendingPlanTurnIds.delete(event.turnId)) {
           this.planTurnIds.add(event.turnId)
@@ -2250,6 +2293,26 @@ export class ConversationController {
     const refusal = this.refuseAction(localId, isComposerMessage)
     if (refusal !== undefined || this.deps.workspaceRoot === undefined) {
       return undefined
+    }
+    // A new turn must not race a restore or revocation that still changes
+    // the actual backend mode underneath the panel's temporary label.
+    for (;;) {
+      const held = this.planHold
+      try {
+        await this.reviewModeSettling
+      } catch {
+        // The mode owner handles the failure and may retire this session.
+      }
+      await held?.hold.waitForModeChange()
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return undefined
+      }
+      if (
+        this.reviewModeSettling === undefined &&
+        (this.planHold === held || this.planHold === undefined)
+      ) {
+        break
+      }
     }
     const session = await this.ensureSession(this.deps.workspaceRoot)
     return this.isCurrentSessionAction(session, generation) ? session : undefined
@@ -3585,10 +3648,6 @@ export class ConversationController {
         submission.disposition !== QUEUED_DISPOSITION &&
           submission.disposition !== STEERED_DISPOSITION,
       )
-      this.acceptedUserCards.set(localId, { turnId, text: shownText })
-      if (submission.userMessageId !== undefined) {
-        this.acceptedUserCards.set(submission.userMessageId, { turnId, text: shownText })
-      }
       if (typed.some((part) => part.type === 'file' || part.type === 'textFile')) {
         this.fileMessageIds.add(submission.userMessageId ?? localId)
       }
@@ -3604,20 +3663,7 @@ export class ConversationController {
           this.pendingPlanTurnIds.add(turnId)
         }
       }
-      // A queued turn is not the running one, and an ack that lands after its
-      // own turn completed must not mark it running again (D26).
-      if (submission.disposition !== QUEUED_DISPOSITION && !this.finishedTurns.has(turnId)) {
-        this.activeTurnId = turnId
-      }
-      this.post({
-        type: 'turnAccepted',
-        localId,
-        turnId,
-        ...(submission.userMessageId !== undefined && {
-          userMessageId: submission.userMessageId,
-        }),
-      })
-      this.noteActivity()
+      this.acceptSubmission(localId, shownText, submission)
       return { isAccepted: true, hasSetTodos: seededSession !== undefined }
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
@@ -3642,6 +3688,455 @@ export class ConversationController {
       session.setTodos?.([])
     } catch (error: unknown) {
       this.deps.log.warn(`The brief's todo list could not be taken back: ${errorKind(error)}`)
+    }
+  }
+
+  /** The host took the card's turn: the card is sent, and its turn runs unless it queued. */
+  private acceptSubmission(localId: string, text: string, submission: TurnSubmission): void {
+    const { turnId } = submission
+    this.acceptedUserCards.set(localId, { turnId, text })
+    if (submission.userMessageId !== undefined) {
+      this.acceptedUserCards.set(submission.userMessageId, { turnId, text })
+    }
+    // A queued turn is not the running one, and an ack that lands after its
+    // own turn completed must not mark it running again (D26).
+    if (submission.disposition !== QUEUED_DISPOSITION && !this.finishedTurns.has(turnId)) {
+      this.activeTurnId = turnId
+    }
+    this.post({
+      type: 'turnAccepted',
+      localId,
+      turnId,
+      ...(submission.userMessageId !== undefined && {
+        userMessageId: submission.userMessageId,
+      }),
+    })
+    this.noteActivity()
+  }
+
+  // --- Review (M70, PLAN.md D49) ---
+
+  /** Why a review's material could not be read, in words. */
+  private reviewRefusalText(collection: Extract<ReviewCollection, { kind: 'refused' }>): string {
+    switch (collection.refusal) {
+      case 'notRepository': {
+        return UI_TEXT.reviewNotRepository
+      }
+      case 'noChanges': {
+        return UI_TEXT.reviewNoChanges
+      }
+      case 'onlyPrivate': {
+        return UI_TEXT.reviewOnlyPrivate
+      }
+      case 'noBase': {
+        return UI_TEXT.reviewNoBase
+      }
+      case 'unknownRevision': {
+        return fill(UI_TEXT.reviewUnknownRevision, { revision: collection.revision ?? '' })
+      }
+      case 'noCommits': {
+        return UI_TEXT.reviewNoCommits
+      }
+      case 'gitFailed': {
+        return UI_TEXT.reviewGitFailed
+      }
+    }
+  }
+
+  /** What the panel says about material that went out in part: a cut diff, private files left out. */
+  private noteReviewMaterial(material: ReviewMaterial): void {
+    if (material.fullLength !== undefined) {
+      this.say('info', UI_TEXT.reviewTruncatedNotice)
+    }
+    if (material.privateFiles.length > 0) {
+      this.say('info', plural(UI_TEXT.reviewPrivateLeftOut, material.privateFiles.length))
+    }
+  }
+
+  /**
+   * `/review` (M70, PLAN.md D49). Git's changes need a trusted workspace
+   * (Restricted Mode runs no git); custom instructions do not. The material
+   * goes between markers that call it untrusted. On the Model API the turn
+   * runs as the Reviewer; on Muse Code it is an ordinary turn held in Plan
+   * mode. Either way it is a turn of this conversation, part of the user's
+   * own, so nothing asks for payment. Its card is the webview's own, as a
+   * message's is: accepted, or failed with the reason.
+   */
+  private async startReview(localId: string, text: string, request: ReviewRequest): Promise<void> {
+    const refuse = (reason: string) => {
+      this.post({ type: 'sendFailed', localId, reason })
+    }
+    // Says why when it refuses (signed out, no folder), as a message's card does.
+    const refusal = this.refuseAction(localId)
+    const { workspaceRoot } = this.deps
+    if (refusal !== undefined || workspaceRoot === undefined) {
+      return
+    }
+    if (this.activeTurnId !== undefined || this.isReviewStarting || this.planHold !== undefined) {
+      refuse(UI_TEXT.reviewBusy)
+      return
+    }
+    if (isGitReview(request) && !this.deps.isWorkspaceTrusted()) {
+      refuse(UI_TEXT.reviewRestricted)
+      return
+    }
+    const generation = this.sendInvalidationEpoch
+    const isStale = () => this.isDisposed || generation !== this.sendInvalidationEpoch
+    this.isReviewStarting = true
+    try {
+      // Git and the reviewer read the files on disk, as a turn does (D27).
+      await this.autosave()
+      if (isStale()) {
+        refuse(UI_TEXT.turnStoppedByRestart)
+        return
+      }
+      let material: ReviewMaterial | undefined
+      let isMaterialCurrent: (() => boolean) | undefined
+      if (request.scope !== 'custom') {
+        const collection = await this.deps.review.collect(
+          request,
+          () => !isStale() && this.deps.isWorkspaceTrusted(),
+        )
+        if (isStale()) {
+          refuse(UI_TEXT.turnStoppedByRestart)
+          return
+        }
+        if (collection.kind !== 'material') {
+          this.deps.log.info(`Review not started: ${reviewOutcomeForLog(collection)}`)
+          refuse(
+            collection.kind === 'refused'
+              ? this.reviewRefusalText(collection)
+              : UI_TEXT.reviewCancelled,
+          )
+          return
+        }
+        material = collection.material
+        isMaterialCurrent = collection.isCurrent
+      }
+      const session = await this.ensureSession(workspaceRoot)
+      if (isMaterialCurrent?.() === false) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      const host = await this.deps.ensureHost()
+      if (
+        !this.isCurrentSessionAction(session, generation) ||
+        this.sessionKind !== host.info.kind ||
+        isMaterialCurrent?.() === false
+      ) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      if (isGitReview(request) && !this.deps.isWorkspaceTrusted()) {
+        refuse(UI_TEXT.reviewRestricted)
+        return
+      }
+      // A turn may have started while the pickers were open.
+      if (this.isTurnRunning()) {
+        refuse(UI_TEXT.reviewBusy)
+        return
+      }
+      const parts: readonly TurnPart[] = [
+        {
+          type: 'text',
+          text: this.deps.review.turnText({
+            request,
+            material,
+            isRoleIncluded: session.review === undefined,
+            newMarker: this.deps.review.newMarker,
+          }),
+        },
+      ]
+      this.deps.log.info(`Review of the ${request.scope} scope (${request.focus}) starting`)
+      const submission = await this.runResuming(host, session, (current) =>
+        this.submitReview(
+          current,
+          parts,
+          text,
+          generation,
+          isGitReview(request),
+          isMaterialCurrent,
+        ),
+      )
+      if (this.isDisposed) {
+        return
+      }
+      if (material !== undefined) {
+        this.noteReviewMaterial(material)
+      }
+      this.acceptSubmission(localId, text, submission)
+    } catch (error: unknown) {
+      const reason = describe(error)
+      this.deps.log.error(`startReview failed: ${reason}`)
+      refuse(reason)
+    } finally {
+      this.isReviewStarting = false
+    }
+  }
+
+  /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
+  private async submitReview(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    text: string,
+    generation: number,
+    requiresWorkspaceTrust: boolean,
+    isMaterialCurrent: (() => boolean) | undefined,
+  ): Promise<TurnSubmission> {
+    const isCurrent = () =>
+      this.isCurrentSessionAction(session, generation) &&
+      isMaterialCurrent?.() !== false &&
+      (!requiresWorkspaceTrust || this.deps.isWorkspaceTrusted())
+    if (!isCurrent()) {
+      throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    if (session.review !== undefined) {
+      return await session.review(parts, text)
+    }
+    this.notice('info', UI_TEXT.reviewPlanModeNotice)
+    const previousMode = this.permissionMode
+    if (previousMode === 'plan') {
+      return await session.sendTurn(parts, text)
+    }
+    const bypassEpoch = this.bypassRevocationEpoch
+    const hold: PlanModeHold = this.deps.review.createHold({
+      planMode: approvalModeFor('plan', this.deps.hasApprovalUi),
+      restoreMode: () =>
+        approvalModeFor(this.restorableMode(previousMode, bypassEpoch), this.deps.hasApprovalUi),
+      onRestored: (outcome) => {
+        this.planModeRestored(hold, outcome, session, generation)
+      },
+    })
+    this.planHold = { hold, previousMode, bypassEpoch }
+    this.permissionMode = 'plan'
+    this.postComposerState()
+    try {
+      return await hold.send(session, parts, text, isCurrent)
+    } catch (error: unknown) {
+      // Plan mode was refused (nothing to put back), or the send failed and
+      // the hold put the mode back already.
+      if (this.isHeldBy(hold)) {
+        if (
+          previousMode === BYPASS_MODE &&
+          this.restorableMode(previousMode, bypassEpoch) === FALLBACK_MODE &&
+          this.isCurrentSessionAction(session, generation)
+        ) {
+          // A failed Plan admission may have left the preceding allowAll
+          // mode in place after revocation. Do not relabel it as Manual.
+          this.retireBypassSession()
+        } else {
+          this.releasePlanHold(true)
+        }
+      }
+      throw error
+    }
+  }
+
+  /** Read afresh after an await: whether the hold still holds the session's mode. */
+  private isHeldBy(hold: PlanModeHold): boolean {
+    return this.planHold?.hold === hold
+  }
+
+  /** The mode a review hands back: Bypass only while its setting still allows it (D24). */
+  private restorableMode(mode: PermissionMode, bypassEpoch: number): PermissionMode {
+    return mode === BYPASS_MODE &&
+      (!this.deps.isBypassAllowed() || bypassEpoch !== this.bypassRevocationEpoch)
+      ? FALLBACK_MODE
+      : mode
+  }
+
+  /** Called only after the failed mode request's live session/generation fence. */
+  private retireBypassSession(): void {
+    this.permissionMode = FALLBACK_MODE
+    this.dropSession()
+    this.notice('warning', UI_TEXT.bypassRevoked)
+    this.postComposerState()
+  }
+
+  /**
+   * The hold set the session's mode back, or could not (M70): after the
+   * review turn, or after a send that failed. A session the host no longer
+   * holds takes the user's mode when it is resumed; a live one left in Plan
+   * mode keeps the panel in Plan mode too, and says so.
+   */
+  private planModeRestored(
+    hold: PlanModeHold,
+    outcome: PlanModeRestore,
+    session: AgentSession,
+    generation: number,
+  ): void {
+    const held = this.planHold
+    if (held?.hold !== hold || !this.isCurrentSessionAction(session, generation)) {
+      return
+    }
+    this.planHold = undefined
+    if (!outcome.ok && !isSessionNotLoadedError(outcome.error)) {
+      if (
+        held.previousMode === BYPASS_MODE &&
+        this.restorableMode(held.previousMode, held.bypassEpoch) === FALLBACK_MODE
+      ) {
+        // A failed corrective restore may leave allowAll on this owned
+        // backend. Retire it instead of describing it as still in Plan.
+        this.retireBypassSession()
+        return
+      }
+      this.notice('warning', `${UI_TEXT.reviewModeNotRestored}: ${describe(outcome.error)}`)
+      return
+    }
+    const mode = this.restorableMode(held.previousMode, held.bypassEpoch)
+    this.permissionMode = mode
+    this.postComposerState()
+    if (outcome.ok && outcome.isAfterTurn) {
+      this.say('info', fill(UI_TEXT.reviewModeRestored, { mode: UI_TEXT.permissionModes[mode] }))
+    }
+    if (mode !== held.previousMode) {
+      this.notice('warning', UI_TEXT.bypassRevoked)
+    }
+  }
+
+  /**
+   * Ends a review's hold on Plan mode (M70). With `isModeRestored` the panel
+   * goes back to the mode the user had (the session went, or Plan mode was
+   * never set); without it the user has just chosen a mode themselves.
+   */
+  private releasePlanHold(isModeRestored: boolean): void {
+    const held = this.planHold
+    if (held === undefined) {
+      return
+    }
+    this.planHold = undefined
+    held.hold.release()
+    if (!isModeRestored) {
+      return
+    }
+    this.permissionMode = this.restorableMode(held.previousMode, held.bypassEpoch)
+    if (!this.isDisposed) {
+      this.postComposerState()
+    }
+  }
+
+  /**
+   * The review pane (M70): the conversation's edits, each patch read and its
+   * files placed in the workspace, within the pane's limits. An edit whose
+   * patch cannot be read is counted as left out, never guessed at.
+   */
+  private async readReviewChanges(requestId: string, edits: readonly EditRef[]): Promise<void> {
+    const session = this.session
+    const generation = this.sendInvalidationEpoch
+    const answer = (files: readonly ReviewFile[], omittedEdits: number, reason?: string) => {
+      this.post({
+        type: 'reviewChanges',
+        requestId,
+        files: [...files],
+        omittedEdits,
+        ...(reason !== undefined && { reason }),
+      })
+    }
+    if (!this.isCurrentSessionAction(session, generation)) {
+      answer([], 0, this.isAuthAdmitted() ? UI_TEXT.sessionRequired : UI_TEXT.notSignedInReason)
+      return
+    }
+    const files: ReviewFile[] = []
+    const read = edits.slice(0, REVIEW_PANE_MAX_EDITS)
+    let omitted = edits.length - read.length
+    let lines = 0
+    for (const [index, edit] of read.entries()) {
+      let described: readonly DescribedFile[] | undefined
+      try {
+        const patch = await this.fetchPatch(session, generation, edit.itemId, edit.outputRef)
+        described = patch === undefined ? undefined : await this.deps.editReview.describe(patch)
+      } catch {
+        // Named by its item only: the error may quote a path the host chose (AGENTS.md rule 8).
+        this.deps.log.warn(`Review pane: edit ${edit.itemId} not read`)
+        omitted += 1
+        continue
+      }
+      // The conversation changed meanwhile: what was read belongs to another.
+      if (described === undefined || !this.isCurrentSessionAction(session, generation)) {
+        answer([], 0, UI_TEXT.turnStoppedByRestart)
+        return
+      }
+      const editLines = described.reduce(
+        (sum, entry) =>
+          sum + entry.file.hunks.reduce((hunkSum, hunk) => hunkSum + hunk.lines.length, 0),
+        0,
+      )
+      if (lines + editLines > REVIEW_PANE_MAX_LINES) {
+        omitted += read.length - index
+        break
+      }
+      lines += editLines
+      for (const entry of described) {
+        files.push({
+          itemId: edit.itemId,
+          outputRef: edit.outputRef,
+          fileIndex: entry.fileIndex,
+          path: entry.path,
+          hunks: [...entry.file.hunks],
+          ...(entry.refusal !== undefined && { refusal: entry.refusal }),
+        })
+      }
+    }
+    answer(files, omitted)
+  }
+
+  /** The review pane's Revert on one hunk (M70): taken out once, answered in its owning session. */
+  private async revertReviewHunk(
+    message: Extract<ConversationMessage, { type: 'revertReviewHunk' }>,
+  ): Promise<void> {
+    const { itemId, outputRef, fileIndex, hunkIndex } = message
+    const answer = (isReverted: boolean, reason?: string) => {
+      this.post({
+        type: 'reviewHunkResult',
+        itemId,
+        fileIndex,
+        hunkIndex,
+        isReverted,
+        ...(reason !== undefined && { reason }),
+      })
+    }
+    const session = this.session
+    const generation = this.sendInvalidationEpoch
+    if (!this.isCurrentSessionAction(session, generation)) {
+      answer(false, this.isAuthAdmitted() ? UI_TEXT.sessionRequired : UI_TEXT.notSignedInReason)
+      return
+    }
+    const key = [itemId, String(fileIndex), String(hunkIndex)].join('\n')
+    if (this.revertedHunks.has(key)) {
+      answer(false, UI_TEXT.reviewAlreadyReverted)
+      return
+    }
+    // Taken before the first await: a second press cannot revert it twice.
+    this.revertedHunks.add(key)
+    try {
+      const patch = await this.fetchPatch(session, generation, itemId, outputRef)
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      if (patch === undefined) {
+        this.revertedHunks.delete(key)
+        answer(false, UI_TEXT.turnStoppedByRestart)
+        return
+      }
+      const outcome = await this.deps.editReview.revertHunk(itemId, patch, fileIndex, hunkIndex)
+      // A settled write still belongs to the conversation that requested it.
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      if (!outcome.isReverted) {
+        this.revertedHunks.delete(key)
+      }
+      const said = outcome.notices.map((notice) => notice.text).join(' ')
+      for (const notice of outcome.notices) {
+        this.notice(notice.level, notice.text)
+      }
+      answer(outcome.isReverted, outcome.isReverted ? undefined : said)
+    } catch (error: unknown) {
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      this.revertedHunks.delete(key)
+      const reason = `${UI_TEXT.editReviewFailed}: ${describe(error)}`
+      this.notice('error', reason)
+      answer(false, reason)
     }
   }
 
@@ -3953,7 +4448,7 @@ export class ConversationController {
   }
 
   /** Whether the user may enter Bypass now: the setting, and in a remote window one yes (D24). */
-  private async mayBypass(): Promise<boolean> {
+  private async mayBypass(isCurrent: () => boolean): Promise<boolean> {
     if (!this.deps.isBypassAllowed()) {
       this.notice('warning', UI_TEXT.bypassNotAllowed)
       return false
@@ -3961,8 +4456,25 @@ export class ConversationController {
     if (!this.deps.isRemoteWindow || this.hasConfirmedRemoteBypass) {
       return true
     }
-    this.hasConfirmedRemoteBypass = await this.deps.confirmRemoteBypass()
+    const isConfirmed = await this.deps.confirmRemoteBypass()
+    if (!isCurrent() || !this.deps.isBypassAllowed()) {
+      return false
+    }
+    this.hasConfirmedRemoteBypass = isConfirmed
     return this.hasConfirmedRemoteBypass
+  }
+
+  /** Keep mode writes ordered, including Bypass revoked during an ordinary choice. */
+  private async setSessionPermissionMode(session: AgentSession, mode: string): Promise<void> {
+    const changing = session.setApprovalMode(mode)
+    this.reviewModeSettling = changing
+    try {
+      await changing
+    } finally {
+      if (this.reviewModeSettling === changing) {
+        this.reviewModeSettling = undefined
+      }
+    }
   }
 
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
@@ -3971,8 +4483,48 @@ export class ConversationController {
       this.postComposerState()
       return
     }
-    if (mode === BYPASS_MODE && !(await this.mayBypass())) {
-      this.postComposerState()
+    const selection = ++this.permissionModeSelection
+    const session = this.session
+    const generation = this.sendInvalidationEpoch
+    const bypassEpoch = this.bypassRevocationEpoch
+    const isCurrent = () =>
+      !this.isDisposed &&
+      generation === this.sendInvalidationEpoch &&
+      session === this.session &&
+      selection === this.permissionModeSelection &&
+      (mode !== BYPASS_MODE || bypassEpoch === this.bypassRevocationEpoch)
+    if (mode === BYPASS_MODE && !(await this.mayBypass(isCurrent))) {
+      if (selection === this.permissionModeSelection) {
+        this.postComposerState()
+      }
+      return
+    }
+    if (!isCurrent() || (mode === BYPASS_MODE && !this.deps.isBypassAllowed())) {
+      return
+    }
+    // The user's own choice ends a review's hold on Plan mode (M70): the mode
+    // they had is not put back over it.
+    const held = this.planHold
+    this.releasePlanHold(false)
+    if (held !== undefined) {
+      this.reviewModeSettling = held.hold.waitForModeChange()
+    }
+    const settling = this.reviewModeSettling
+    if (settling !== undefined) {
+      try {
+        await settling
+      } catch {
+        // The preceding owner handles its failure; this user's choice is
+        // still checked against the live session before it can follow.
+      }
+      if (this.reviewModeSettling === settling) {
+        this.reviewModeSettling = undefined
+      }
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+    }
+    if (!isCurrent() || (mode === BYPASS_MODE && !this.deps.isBypassAllowed())) {
       return
     }
     const previous = this.permissionMode
@@ -3984,17 +4536,31 @@ export class ConversationController {
       this.pendingPlanTurnIds.clear()
     }
     const target = approvalModeFor(mode, this.deps.hasApprovalUi)
-    const { session } = this
-    if (session !== undefined && target !== approvalModeFor(previous, this.deps.hasApprovalUi)) {
+    if (
+      session !== undefined &&
+      (settling !== undefined || target !== approvalModeFor(previous, this.deps.hasApprovalUi))
+    ) {
       try {
-        await session.setApprovalMode(target)
+        await this.setSessionPermissionMode(session, target)
       } catch (error: unknown) {
+        if (!isCurrent()) {
+          return
+        }
+        if (
+          held?.previousMode === BYPASS_MODE &&
+          this.restorableMode(held.previousMode, held.bypassEpoch) === FALLBACK_MODE
+        ) {
+          this.retireBypassSession()
+          return
+        }
         this.permissionMode = previous
         this.restorePlanTurns(leftPlanTurns)
         this.notice('error', `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`)
       }
     }
-    this.postComposerState()
+    if (isCurrent()) {
+      this.postComposerState()
+    }
   }
 
   /**
@@ -4192,14 +4758,7 @@ export class ConversationController {
       return { kind: 'mention' }
     }
     const { canonical } = checked
-    const segments = canonical.toLowerCase().split('/')
-    const name = segments.at(-1) ?? ''
-    if (
-      isProtectedPath(canonical) ||
-      name.startsWith('.env.') ||
-      PRIVATE_ATTACHMENT_NAMES.has(name) ||
-      PRIVATE_ATTACHMENT_EXTENSIONS.has(path.extname(name))
-    ) {
+    if (isProtectedPath(canonical) || isPrivateFileName(canonical)) {
       this.post({ type: 'attachmentRejected', name: file.name, reason: UI_TEXT.textFilePrivate })
       return { kind: 'refuse' }
     }
@@ -4239,12 +4798,7 @@ export class ConversationController {
         return
       }
       const extension = path.extname(file.name).toLowerCase()
-      const lowerName = file.name.toLowerCase()
-      if (
-        lowerName.startsWith('.env.') ||
-        PRIVATE_ATTACHMENT_NAMES.has(lowerName) ||
-        PRIVATE_ATTACHMENT_EXTENSIONS.has(extension)
-      ) {
+      if (isPrivateFileName(file.name)) {
         this.post({ type: 'attachmentRejected', name: file.name, reason: UI_TEXT.textFilePrivate })
         continue
       }
@@ -4785,6 +5339,18 @@ export class ConversationController {
         await this.rewindCode(message)
         break
       }
+      case 'startReview': {
+        await this.startReview(message.localId, message.text, message.request)
+        break
+      }
+      case 'readReviewChanges': {
+        await this.readReviewChanges(message.requestId, message.edits)
+        break
+      }
+      case 'revertReviewHunk': {
+        await this.revertReviewHunk(message)
+        break
+      }
       case 'rewindConversation': {
         this.beginBrowserSessionChange(message.attachmentEpoch)
         await this.rewindConversation(message)
@@ -5089,17 +5655,44 @@ export class ConversationController {
    * turn runs without approvals under a setting that says otherwise.
    */
   public async revokeBypass(): Promise<void> {
+    this.bypassRevocationEpoch += 1
+    this.hasConfirmedRemoteBypass = false
+    this.permissionModeSelection += 1
     if (this.permissionMode !== BYPASS_MODE) {
       return
     }
+    const selection = this.permissionModeSelection
     this.permissionMode = FALLBACK_MODE
-    if (this.session !== undefined) {
+    const session = this.session
+    const generation = this.sendInvalidationEpoch
+    if (session !== undefined) {
       try {
-        await this.session.setApprovalMode(approvalModeFor(FALLBACK_MODE, this.deps.hasApprovalUi))
+        try {
+          await this.reviewModeSettling
+        } catch {
+          // A refused Bypass request still needs the live Manual fallback.
+        }
+        if (
+          !this.isCurrentSessionAction(session, generation) ||
+          selection !== this.permissionModeSelection
+        ) {
+          return
+        }
+        await this.setSessionPermissionMode(
+          session,
+          approvalModeFor(FALLBACK_MODE, this.deps.hasApprovalUi),
+        )
       } catch (error: unknown) {
+        if (!this.isCurrentSessionAction(session, generation)) {
+          return
+        }
         this.deps.log.warn(`Bypass revocation: the mode change failed (${describe(error)})`)
-        this.dropSession()
+        this.retireBypassSession()
+        return
       }
+    }
+    if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+      return
     }
     this.notice('warning', UI_TEXT.bypassRevoked)
     this.postComposerState()

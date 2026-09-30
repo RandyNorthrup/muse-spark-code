@@ -45,8 +45,6 @@ import {
   PDF_EXTENSION,
   PDF_HEADER_WINDOW_BYTES,
   PDF_MEDIA_TYPE,
-  PRIVATE_ATTACHMENT_EXTENSIONS,
-  PRIVATE_ATTACHMENT_NAMES,
   TEXT_ATTACHMENT_EXTENSIONS,
   TEXT_ATTACHMENT_MEDIA_TYPE,
   type PermissionMode,
@@ -60,6 +58,7 @@ import {
 } from '../../shared/mentions'
 import { fill } from '../../shared/l10n/text'
 import { hasPdfHeader } from '../../shared/pdfHeader'
+import { isPrivateFileName } from '../../shared/privateFiles'
 import { paidFeaturePrice } from '../../shared/paid'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
 import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands'
@@ -235,16 +234,6 @@ function keepMenuFocus(event: MouseEvent<HTMLButtonElement>): void {
 function fileExtension(name: string): string {
   const dot = name.lastIndexOf('.')
   return dot === -1 ? '' : name.slice(dot).toLowerCase()
-}
-
-function isPrivateAttachmentName(name: string): boolean {
-  const lower = name.toLowerCase()
-  return (
-    lower === '.env' ||
-    lower.startsWith('.env.') ||
-    PRIVATE_ATTACHMENT_NAMES.has(lower) ||
-    PRIVATE_ATTACHMENT_EXTENSIONS.has(fileExtension(lower))
-  )
 }
 
 function attachableFiles(list: FileList | undefined, shouldIncludeText = false): readonly File[] {
@@ -828,7 +817,7 @@ export function Composer(props: ComposerProps) {
     }
     for (const file of files) {
       const name = file.name === '' ? PASTED_IMAGE_NAME : file.name
-      if (isPrivateAttachmentName(name)) {
+      if (isPrivateFileName(name)) {
         onRefuseFile(name, UI_TEXT.textFilePrivate)
         continue
       }

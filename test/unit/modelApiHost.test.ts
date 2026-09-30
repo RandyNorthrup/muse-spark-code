@@ -14,6 +14,7 @@ import {
   GOAL_OBJECTIVE_MAX_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MODEL_TEXT,
+  REVIEW_MODEL_TEXT,
   SCHEDULE_LIFETIME_MS,
   type PaidFeature,
   type PromptCacheRetention,
@@ -10268,6 +10269,147 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     await vi.waitFor(() => {
       expect(countLogged(t.log, 'The MCP servers could not be started: nope')).toBe(1)
     })
+  })
+})
+
+// M70 (PLAN.md D49): the built-in Reviewer. A `/review` is a turn of the
+// conversation run with the Reviewer's prompt and tools that only read; a
+// child task whose role is `reviewer` runs the same way, and stays paid.
+/** A request's instructions, as the Model API received them. */
+function reviewInstructions(body: Record<string, unknown> | undefined): string {
+  const instructions = body?.['instructions']
+  return typeof instructions === 'string' ? instructions : ''
+}
+
+describe('ModelApiSession Reviewer (M70)', () => {
+  const PROBLEMS: McpTool = {
+    name: 'getDiagnostics',
+    description: 'Problems',
+    inputSchema: { type: 'object', properties: {} },
+    call: () => Promise.resolve('No diagnostics.'),
+  }
+  const READ_ONLY = ['read_file', 'search', 'list_files', 'mcp__ide__getDiagnostics']
+
+  it('offers only the tools that read, with its own prompt, and gives the next turn everything back', async () => {
+    const t = setup({
+      paid: ['webSearch', 'imageGeneration', 'subagents'],
+      remembered: ['webSearch'],
+      ideTools: [PROBLEMS],
+      mcpServers: fakeMcpSource([{ server: 'docs', tool: 'lookup', isReadOnly: true }]),
+      files: { 'AGENTS.md': 'Use tabs.' },
+    })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ text: 'Looks fine.' })
+    const submission = await session.review([{ type: 'text', text: 'review this' }], '/review')
+    expect(submission.disposition).toBe('started')
+    await turnDone()
+    const [review] = t.api.responseBodies()
+    expect(toolNames(review)).toEqual(READ_ONLY)
+    expect(reviewInstructions(review)).toContain(REVIEW_MODEL_TEXT.reviewerRole)
+    expect(reviewInstructions(review)).toContain(REVIEW_MODEL_TEXT.reviewMethod)
+    expect(reviewInstructions(review)).toContain('Use tabs.')
+    expect(review?.['include']).toEqual(['reasoning.encrypted_content'])
+    // Part of the user's own turn: nothing asked, nothing billed.
+    expect(t.paidRequests).toEqual([])
+    expect(t.paidUses).toEqual([])
+    expect(session.history().items.find((item) => item.kind === 'userMessage')?.text).toBe(
+      '/review',
+    )
+    await session.sendTurn([{ type: 'text', text: 'now fix it' }])
+    await turnDone()
+    const next = t.api.responseBodies()[1]
+    expect(toolNames(next)).toEqual(
+      expect.arrayContaining(['write_file', 'bash', 'subagent_spawn']),
+    )
+    expect(reviewInstructions(next)).not.toContain(REVIEW_MODEL_TEXT.reviewerRole)
+  })
+
+  it('refuses every tool that is not its own, in Bypass too, and changes nothing', async () => {
+    const t = setup({ files: { 'a.ts': 'const a = 1\n' } })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"a.ts","content":"x"}', callId: 'w' },
+          { name: 'bash', arguments: '{"command":"rm -rf .","description":"d"}', callId: 's' },
+          { name: 'read_file', arguments: '{"path":"a.ts"}', callId: 'r' },
+        ],
+      },
+      { text: 'Done.' },
+    )
+    await session.review([{ type: 'text', text: 'review' }], '/review')
+    await turnDone()
+    expect(t.files.get(`${ROOT}/a.ts`)).toBe('const a = 1\n')
+    expect(t.shellCalls).toEqual([])
+    const second = t.api.responseBodies()[1]
+    for (const callId of ['w', 's']) {
+      expect(outputFor(second, callId)).toMatchObject({
+        output: expect.stringContaining(REVIEW_MODEL_TEXT.reviewerToolRefused),
+      })
+    }
+    expect(outputFor(second, 'r')).toMatchObject({ output: expect.stringContaining('const a = 1') })
+    expect(hasApprovalCard(events)).toBe(false)
+  })
+
+  it('reviews without extra external MCP startup or required checks, while the next ordinary turn still requires it', async () => {
+    const mcp = fakeMcpSource([{ server: 'must', tool: 'lookup' }], {
+      isStarted: false,
+      servers: [
+        { name: 'must', isRequired: true, state: { status: 'failed', reason: 'unreachable' } },
+      ],
+    })
+    const t = setup({ mcpServers: mcp, ideTools: [PROBLEMS] })
+    const { session, events, turnDone } = await startSession(t)
+    // Conversation startup owns one MCP start; the Reviewer must not start it again.
+    const sessionStarts = mcp.starts
+    t.api.script(
+      { calls: [{ name: 'mcp__ide__getDiagnostics', arguments: '{}' }] },
+      { text: 'Reviewed.' },
+    )
+    await session.review([{ type: 'text', text: 'review' }], '/review')
+    await turnDone()
+    expect(mcp.starts).toBe(sessionStarts)
+    expect(mcp.calls).toEqual([])
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' }),
+    )
+    await session.sendTurn([{ type: 'text', text: 'now fix it' }])
+    await turnDone()
+    expect(mcp.starts).toBe(sessionStarts + 1)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        terminal: 'failed',
+        reason: fill(UI_TEXT.mcpRequiredFailed, { name: 'must', reason: 'unreachable' }),
+      }),
+    )
+  })
+
+  it('runs a child task whose role is reviewer as the Reviewer, and asks for it as a paid task', async () => {
+    const t = setupSubagents({ ideTools: [PROBLEMS] })
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"reviewer","objective":"Review src/a.ts"}',
+            callId: 'review_spawn',
+          },
+        ],
+      },
+      { text: 'Child review done.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'get a second opinion' }])
+    await waitForChildReady(t, session)
+    expect(t.paidRequests.map((entry) => entry.request.feature)).toEqual(['subagents'])
+    const child = t.api.responseBodies().find((body) => isChildRequest(body))
+    expect(toolNames(child)).toEqual(READ_ONLY)
+    expect(reviewInstructions(child)).toContain(REVIEW_MODEL_TEXT.reviewerRole)
+    expect(t.paidUses).toContainEqual({ feature: 'subagents', units: 1 })
   })
 })
 
