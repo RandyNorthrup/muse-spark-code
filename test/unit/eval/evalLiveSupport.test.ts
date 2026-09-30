@@ -53,6 +53,16 @@ function storedCredentials() {
   }
 }
 
+/** An environment naming the old variable whose value throws when read. */
+function environmentWithLegacyKey() {
+  const read = vi.fn(() => {
+    throw new Error('the environment value must not be read')
+  })
+  const env: NodeJS.ProcessEnv = {}
+  Object.defineProperty(env, 'MUSE_LIVE_MODEL_API_KEY', { get: read })
+  return { env, read }
+}
+
 describe('secure live Model API credentials', () => {
   it('does not open or read a credential entry while live tests are disabled', async () => {
     const { secrets, get } = storedCredentials()
@@ -62,11 +72,7 @@ describe('secure live Model API credentials', () => {
   })
 
   it('refuses legacy key environment presence without reading its value', () => {
-    const read = vi.fn(() => {
-      throw new Error('the environment value must not be read')
-    })
-    const env: NodeJS.ProcessEnv = {}
-    Object.defineProperty(env, 'MUSE_LIVE_MODEL_API_KEY', { get: read })
+    const { env, read } = environmentWithLegacyKey()
     expect(() => {
       assertNoLiveKeyEnvironment(env, true)
     }).toThrow('Remove that environment variable')
@@ -77,11 +83,7 @@ describe('secure live Model API credentials', () => {
   })
 
   it('lets a stale key variable pass while live tests are off, so the default run still collects', () => {
-    const read = vi.fn(() => {
-      throw new Error('the environment value must not be read')
-    })
-    const env: NodeJS.ProcessEnv = {}
-    Object.defineProperty(env, 'MUSE_LIVE_MODEL_API_KEY', { get: read })
+    const { env, read } = environmentWithLegacyKey()
     expect(() => {
       assertNoLiveKeyEnvironment(env, false)
     }).not.toThrow()
