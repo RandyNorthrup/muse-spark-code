@@ -93,6 +93,7 @@
   "config.modelApiPromptCacheRetention.description": "Model API 요청의 캐시된 앞부분(지침, 도구, 지금까지의 대화)을 Meta가 보관하도록 요청하는 기간입니다. 이 부분은 더 낮은 캐시 입력 요금으로 청구됩니다. 힌트일 뿐이며 Meta가 더 일찍 제거할 수 있습니다.",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "최대 24시간입니다. 잠시 쉬었다가 돌아온 대화도 계속 캐시에서 읽습니다. 메모리 내 보관과 가격이 같습니다.",
   "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta의 기본값입니다. 메모리에 보관되며 부하가 있거나 비활성 상태가 지나면 더 일찍 제거됩니다.",
+  "config.turnCheckpoints.description": "턴 경계에서 작업 영역 파일을 확장 저장소에 기록하며 .git에는 저장하지 않습니다. 복원/다시 실행에는 연결된 Model API 세션과 확인된 프로세스 안전성이 필요합니다. 종료가 검증되지 않은 네이티브 서버, 계정 확인, 명령 또는 훅이 있으면 사용할 수 없습니다. 각 턴마다 git을 실행하며 제한 모드에서는 꺼집니다.",
   "config.diagnosticsAfterEdits.description": "편집할 때마다 VS Code 언어 서버가 보고한 편집된 파일의 오류와 경고를 이전 검사 이후 바뀐 내용과 함께 모델에 전달하거나(Model API 백엔드), Muse Code에 직접 검사하라고 알립니다. 기본적으로 켜져 있습니다.",
   "config.checkCommands.description": "Model API 백엔드가 편집할 때마다 모델의 다음 요청 전에 실행하는 lint, 테스트, 형식 검사 명령입니다. 모델은 run_checks로도 실행할 수 있고, Muse Code에는 직접 실행하라고 알립니다. 각 명령은 도구 훅을 포함해 셸 도구가 명령을 실행하는 방식대로 실행됩니다. 셸 명령이 확인을 요청하는 곳(권한 우회를 제외한 모든 권한 모드)에서는 확인을 요청하고, 에이전트가 실행 내용을 결정하는 파일을 편집한 뒤에는 다시 확인을 요청하며, 계획 모드나 제한 모드에서는 실행되지 않고, 시간 제한에서 중지됩니다. 세 번 연속으로 실패하면 다음 메시지까지 중지됩니다.",
   "config.checkCommands.name.description": "검사의 짧은 이름(예: lint, test).",

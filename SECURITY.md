@@ -58,7 +58,7 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   billed (`museBinaryPath`, `environmentVariables`, `backend`,
   `shellSandbox`, `sandboxNetwork`, `initialPermissionMode`,
   `allowDangerouslySkipPermissions`, `modelApiHooks`, `modelApiRepoMap`,
-  `modelApiPromptCacheRetention`, the verify loop's `checkCommands`,
+  `modelApiPromptCacheRetention`, `turnCheckpoints`, the verify loop's `checkCommands`,
   `formatOnEdit` and `diagnosticsAfterEdits`, and the five paid
   `modelApi*` features) are machine-scoped in every workspace, trusted or
   not: a repository's
@@ -69,6 +69,58 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   Code CLI are found by absolute path only: an empty or relative `PATH`
   entry (which means the working directory, the workspace) is never
   searched, and `museBinaryPath` must be absolute.
+- **Turn checkpoints.** They live in a git repository of the extension's
+  own in a canonical-root namespace under extension global storage, never
+  in the workspace's `.git` (no object,
+  ref or index change, so a push cannot carry one). That git runs with the
+  host's `GIT_*` variables removed, no system or global configuration, hooks
+  pointed at an empty folder, fsmonitor off, and every conversion attribute
+  unset, so no clean or smudge filter a repository names ever runs; its
+  folder is 0700 on macOS and Linux. Each window owns its index, pinned
+  captures, staged copies and presence; records use Git compare-and-swap
+  refs, and a file restore/Redo claims one shared CAS ref before changes.
+  Cleanup preserves a live window's resources and recent unreferenced
+  objects, so another window can finish its ref writes. A stopped restore
+  completes its Redo metadata before removing presence and releasing its
+  reservation. Panel submissions and all Model API turns, including queued,
+  scheduled and child turns, await their running marks before edits.
+  Stored destructive Restore/Redo requires the actual attached Model API
+  session; backend/trust is rechecked before file mutation and atomic commit.
+  Every workspace-cwd Muse Code serve, including account-only probes, and
+  configured local stdio MCP server publishes
+  sticky unsafe presence before spawning. Extension-managed CLI commands, sandbox helpers and
+  interactive/auth/MCP/installer terminals await the same native marker
+  before process or terminal creation, then recheck application shutdown and
+  manager generation. Terminal closure does not prove every descendant stopped.
+  Shell/hook I/O retains an activity
+  mark until its actual promise settles; without locally owned full shutdown
+  proof it first publishes sticky unsafe presence. Current launched-process
+  runners provide no such proof: normal exit, pipe drain, native host/window
+  close and owner PID death do not prove all descendants stopped. Native,
+  active-on-crash and old/unknown presence never age-expire into safety.
+  Restoration is refused until explicit confirmed recovery removes only the
+  exact stale unsafe presence JSON; saved records/refs/history are preserved.
+  Current-version windows sharing the physical canonical root and this
+  global-storage namespace share these fences; old workspace-specific stores
+  remain read-only and unchanged. Older versions, different profiles/users/hosts,
+  independently managed editors/processes and remote HTTP MCP services are
+  outside that ownership guarantee. Pure file-tool Model API sessions can
+  remain eligible. Native pre-edit
+  exclusion and full shutdown still need upstream proof; their unsafe
+  destructive path is disabled. A tool write whose preimage cannot be staged fails with a
+  localized reason; failure logs contain error kinds rather than storage
+  paths.
+  Git for Windows walks into junctions, so a capture
+  leaves out, and names, any path under a folder link or junction, and a
+  restore refuses a path whose canonical form is not the workspace's
+  canonical root plus the path (a link or junction on the way) before each
+  write or delete. A restore deletes only regular files, checks each file's
+  content against what it expects just before changing it, writes through a
+  temporary file whose permissions are the old file's with only the
+  execute bits set from the checkpoint, and leaves a file changed outside
+  the conversation's turns, by another conversation's overlapping turn, or
+  with unsaved editor or notebook changes as it is. File names reach git as
+  literal paths, never as pathspec magic. None are taken in Restricted Mode.
 - **Path confinement (Model API backend).** Every path a tool names is
   resolved through the file system (links, junctions and short names)
   before it is read or written, and refused when it leaves the workspace;

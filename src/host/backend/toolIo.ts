@@ -28,6 +28,7 @@ import type {
   ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
+import { refusedShellEntry } from '../../core/shellResult'
 import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
@@ -543,15 +544,16 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
     },
-    async writeFile(absolutePath, content, expectedCanonicalPath) {
+    async writeFile(absolutePath, content, expectedCanonicalPath, assertCanWrite) {
       // A new file's folders are created (PLAN.md D26: `write_file` into a
       // missing folder failed); the caller confined the whole path first.
       // The write is atomic (D27): an interrupted one leaves the old file.
       await writeFileAtomically(absolutePath, content, {
         sleep: pause,
-        ...(deps.assertWorkspaceCurrent !== undefined && {
-          assertCanWrite: deps.assertWorkspaceCurrent,
-        }),
+        assertCanWrite: () => {
+          deps.assertWorkspaceCurrent?.()
+          assertCanWrite?.()
+        },
         ...(expectedCanonicalPath !== undefined && { expectedCanonicalPath }),
         platform: deps.platform,
       })
@@ -559,9 +561,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     async writeFileIfUnchanged(absolutePath, expectedFingerprint, content, options) {
       return await writeFileIfUnchanged(absolutePath, expectedFingerprint, content, {
         sleep: pause,
-        ...(deps.assertWorkspaceCurrent !== undefined && {
-          assertCanWrite: deps.assertWorkspaceCurrent,
-        }),
+        assertCanWrite: () => {
+          deps.assertWorkspaceCurrent?.()
+          options.assertCanWrite?.()
+        },
         expectedCanonicalPath: options.expectedCanonicalPath,
         platform: deps.platform,
         isReplaceable: () => options.unsavedAt.every((path) => !hasUnsavedChanges(path)),
@@ -645,7 +648,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     listFiles: deps.listFiles,
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
-    async runShell(command, cwd, timeoutMs, signal, limit) {
+    async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return {
@@ -659,6 +662,12 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
       deps.assertWorkspaceCurrent?.()
+      try {
+        assertCanRun?.()
+      } catch {
+        // No workspace process has started; cancellation is proven at this boundary.
+        return refusedShellEntry()
+      }
       return await runCommand({
         file: interpreter,
         args: shellArguments(deps.platform, command, job),
@@ -685,6 +694,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           exitCode: null,
           isTimedOut: false,
           isCancelled: false,
+          isWorkspaceShutdownProven: true,
         }
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
@@ -782,7 +792,14 @@ export interface CommandRun {
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {
-      resolve({ stdout: '', stderr: '', exitCode: null, isTimedOut: false, isCancelled: true })
+      resolve({
+        stdout: '',
+        stderr: '',
+        exitCode: null,
+        isTimedOut: false,
+        isCancelled: true,
+        isWorkspaceShutdownProven: true,
+      })
       return
     }
     const startedAt = Date.now()

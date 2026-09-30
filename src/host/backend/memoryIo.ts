@@ -57,18 +57,25 @@ export function createMemoryIo(
     readonly warn: (message: string) => void
     /** Replace the hard-link call in a deterministic publication test. */
     readonly publish?: (stage: string, target: string) => Promise<void>
+    /** Existing atomic staging seam for a deterministic publication test. */
+    readonly staged?: () => Promise<void>
     /** Runtime owners fence publication after asynchronous staging. */
     readonly assertCanWrite?: () => void
   },
 ): MemoryIo {
+  const admission = (assertCanWrite?: () => void) => () => {
+    options.assertCanWrite?.()
+    assertCanWrite?.()
+  }
   return {
     readFile: (absolutePath) => files.readFile(absolutePath),
     hasUnsavedChanges: (absolutePath) => files.hasUnsavedChanges(absolutePath),
-    writeFile: (absolutePath, content) => files.writeFile(absolutePath, content),
-    createFile: (absolutePath, content, checkedPath) =>
+    writeFile: (absolutePath, content, assertCanWrite) =>
+      files.writeFile(absolutePath, content, undefined, admission(assertCanWrite)),
+    createFile: (absolutePath, content, checkedPath, assertCanWrite) =>
       createFileExclusively(absolutePath, content, {
         mode: MEMORY_STAGE_FILE_MODE,
-        ...(options.assertCanWrite !== undefined && { assertCanWrite: options.assertCanWrite }),
+        assertCanWrite: admission(assertCanWrite),
         // The folder `locate` checked (C2-4): one swapped for a link since is refused.
         ...(checkedPath !== undefined && { expectedDirectory: path.dirname(checkedPath) }),
         // The stage is named after the note, which the model named: not logged (M39).
@@ -81,6 +88,7 @@ export function createMemoryIo(
           )
         },
         ...(options.publish !== undefined && { publish: options.publish }),
+        ...(options.staged !== undefined && { staged: options.staged }),
       }),
     realPath: (absolutePath) => files.realPath(absolutePath),
     listEntries: listMemoryEntries,

@@ -52,6 +52,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly formatOnEdit: boolean
   /** The repo map in the Model API's system prompt (M67). */
   readonly modelApiRepoMap: boolean
+  /** A checkpoint of the workspace's files at each turn boundary (M72). */
+  readonly turnCheckpoints: boolean
 }
 
 /**
@@ -87,6 +89,7 @@ const settingSchemas = {
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
   modelApiRepoMap: z.boolean(),
+  turnCheckpoints: z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -158,6 +161,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     checkCommands: readSetting(config, 'checkCommands', log),
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
+    turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
   }
 }
 

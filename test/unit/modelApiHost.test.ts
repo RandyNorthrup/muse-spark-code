@@ -55,6 +55,19 @@ import type {
 import { removeFolder } from './helpers/temporaryFolders'
 import { parseHookConfig, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ConversationCheckpoints } from '../../src/host/conversation/conversationCheckpoints'
+import {
+  createCheckpointPort,
+  prepareCheckpointTurn,
+} from '../../src/host/checkpoints/checkpointHost'
+import {
+  captured,
+  harness as checkpointHarness,
+  read as checkpointRead,
+  removeCheckpointFolders,
+  write as checkpointWrite,
+  REAL_GIT_TIMEOUT_MS,
+} from './helpers/checkpointHarness'
 import { type FakeMcpSource, fakeMcpSource } from './helpers/fakeMcpSource'
 import type { McpCallOutcome } from '../../src/core/backends/modelapi/mcp/functions'
 import { countLogged } from './helpers/logText'
@@ -210,6 +223,8 @@ function setup(
     memoryLinks?: Record<string, string>
     /** The window's web fetch (M69); none unless a test gives one. */
     webFetch?: ModelApiHostDeps['webFetch']
+    beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
+    afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
@@ -300,6 +315,8 @@ function setup(
     hookNotificationDelayMs: options.hookNotificationDelayMs,
     memory,
     webFetch: options.webFetch,
+    beforeTurnRuns: options.beforeTurnRuns,
+    afterTurnRuns: options.afterTurnRuns,
   })
   return {
     api,
@@ -1115,6 +1132,239 @@ describe('ModelApiHost: catalogue and sessions', () => {
     const input = JSON.stringify(t.api.responseBodies().at(-1)?.['input'])
     expect(input).toContain(`data:application/pdf;base64,${base64Data}`)
     expect(input).toContain('One more question')
+  })
+})
+
+describe('Model API turn checkpoint admission (M72)', () => {
+  it(
+    'keeps a retained Model API turn fenced after one of two surfaces closes',
+    async () => {
+      const h = await checkpointHarness()
+      const port = createCheckpointPort({
+        isNamespaceKnown: () => true,
+        store: h.store,
+        isWorkspaceTrusted: () => true,
+        hasGit: () => true,
+        isEnabled: () => true,
+      })
+      const t = setup({
+        beforeTurnRuns: (sessionId, turnId) =>
+          prepareCheckpointTurn(port, sessionId, turnId, h.log),
+        afterTurnRuns: async (sessionId, turnId) => {
+          await port.endTurn(sessionId, turnId)
+          await port.markTurn(`${sessionId}\0${turnId}`, false)
+        },
+      })
+      const { session, turnDone } = await startSession(t)
+      const { session: retained } = await t.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      const closing = new ConversationCheckpoints({
+        port,
+        backend: (id) => (id === session.sessionId ? 'modelApi' : undefined),
+        post: () => undefined,
+        notice: () => undefined,
+        confirm: () => Promise.resolve(true),
+        unsavedPaths: () => [],
+        log: h.log,
+      })
+      await closing.sessionChanged(session.sessionId)
+      await checkpointWrite(h.root, 'a.txt', 'a0\n')
+      await h.store.record(session.sessionId, 'earlier', await captured(h.store))
+      await checkpointWrite(h.root, 'a.txt', 'a1\n')
+      await h.store.endTurn(session.sessionId, 'earlier')
+      const hold = Promise.withResolvers<undefined>()
+      t.api.script({ hold: hold.promise, text: 'actual retained turn finished' })
+      const stop = session.onEvent((event) => {
+        if (event.type === 'turnStarted') {
+          closing.turnStarted(session.sessionId, event.turnId)
+        } else if (event.type === 'turnCompleted') {
+          closing.turnCompleted(event.turnId)
+        }
+      })
+      try {
+        const pending = await closing.beforeTurn(session.sessionId)
+        const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
+        closing.accepted(pending, started.turnId, true)
+        await vi.waitFor(() => {
+          expect(t.api.responseBodies()).toHaveLength(1)
+        })
+        await closing.sessionChanged(undefined)
+        session.dispose()
+        const other = h.reopen()
+        expect(
+          await other.restore({
+            backend: () => 'modelApi',
+            sessionId: retained.sessionId,
+            turnId: 'earlier',
+            unsavedPaths: () => [],
+          }),
+        ).toEqual({ ok: false, reason: 'turnElsewhere' })
+        expect(await checkpointRead(h.root, 'a.txt')).toBe('a1\n')
+        const done = turnDone()
+        hold.resolve(undefined)
+        await done
+        const afterTurn = await other.restore({
+          backend: () => 'modelApi',
+          sessionId: retained.sessionId,
+          turnId: 'earlier',
+          unsavedPaths: () => [],
+        })
+        expect(afterTurn.ok).toBe(true)
+      } finally {
+        hold.resolve(undefined)
+        stop()
+        retained.dispose()
+        await t.host.close()
+        await removeCheckpointFolders()
+      }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it('keeps a child outliving its parent marked under the parent checkpoint session', async () => {
+    const child = Promise.withResolvers<undefined>()
+    const active = new Map<string, string>()
+    const t = setupSubagents({
+      beforeTurnRuns: async (sessionId, turnId) => {
+        active.set(turnId, sessionId)
+        if (turnId.includes(':subagent-')) {
+          await child.promise
+        }
+      },
+      afterTurnRuns: (sessionId, turnId) => {
+        expect(active.get(turnId)).toBe(sessionId)
+        active.delete(turnId)
+        return Promise.resolve()
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"worker","objective":"Check files"}',
+            callId: 'spawn',
+          },
+        ],
+      },
+      { text: 'Parent finished' },
+      { text: 'Child finished' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await vi.waitFor(() => {
+      expect(session.status).toBe('idle')
+      expect(active.size).toBe(1)
+    })
+    const [held] = active
+    expect(held?.[0]).toContain(':subagent-')
+    expect(held?.[1]).toBe(session.sessionId)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    child.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(active.size).toBe(0)
+    })
+    expect(t.api.responseBodies()).toHaveLength(3)
+    await t.host.close()
+  })
+  it('awaits the queued turn’s mark before hooks or a model request', async () => {
+    const admission = Promise.withResolvers<undefined>()
+    const calls: string[] = []
+    const hook = vi.fn(() => permitHook())
+    const t = setup({
+      beforeTurnRuns: async (_sessionId, turnId) => {
+        calls.push(turnId)
+        if (calls.length === 2) {
+          await admission.promise
+        }
+      },
+      hooks: hooksFor('PreLLMCall', 'checked'),
+      runHook: hook,
+    })
+    const { session, events } = await startSession(t)
+    const firstReply = Promise.withResolvers<undefined>()
+    t.api.script({ hold: firstReply.promise, text: 'first' }, { text: 'queued' })
+    await session.sendTurn([{ type: 'text', text: 'first' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    const queued = await session.sendTurn([{ type: 'text', text: 'second' }])
+    expect(queued.disposition).toBe('queued')
+    const hookCount = hook.mock.calls.length
+    expect(hookCount).toBeGreaterThan(0)
+    firstReply.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(calls).toHaveLength(2)
+    })
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(hook.mock.calls).toHaveLength(hookCount)
+    admission.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+    })
+    expect(t.api.responseBodies()).toHaveLength(2)
+    await t.host.close()
+  })
+
+  it('awaits a scheduled turn’s mark before hooks or its model request', async () => {
+    const admission = Promise.withResolvers<undefined>()
+    const marked = vi.fn(() => admission.promise)
+    const hook = vi.fn(() => permitHook())
+    let now = 1_000_000
+    const disk = createFileScheduleStore({
+      directory: path.join(scheduleRoot, 'checkpoint-admission'),
+      now: () => now,
+      log: new FakeLogOutputChannel(),
+    })
+    const t = setup({
+      store: memorySessionStore(),
+      scheduleStore: disk,
+      paid: ['scheduledPrompts'],
+      beforeTurnRuns: marked,
+      hooks: hooksFor('PreLLMCall', 'checked'),
+      runHook: hook,
+    })
+    const { session, events } = await startSession(t)
+    const { schedules, job } = await dueSchedule(t, session)
+    now = job.nextFireAtMs + 1
+    t.api.script({ text: 'scheduled' })
+    await schedules.run(job.id, job.nextFireAtMs, confirmedRun(job, session))
+    await vi.waitFor(() => {
+      expect(marked).toHaveBeenCalledTimes(1)
+    })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(hook).not.toHaveBeenCalled()
+    admission.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+    })
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(hook).toHaveBeenCalled()
+    await t.host.close()
+  })
+
+  it('refuses a failed mark without hooks, model calls or arbitrary storage paths', async () => {
+    const stopped = vi.fn(() => Promise.resolve())
+    const hook = vi.fn(() => permitHook())
+    const t = setup({
+      beforeTurnRuns: () => Promise.reject(new Error('EACCES /private/profile/windows/store')),
+      afterTurnRuns: stopped,
+      hooks: hooksFor('PreLLMCall', 'checked'),
+      runHook: hook,
+    })
+    const { session, events } = await startSession(t)
+    t.api.script({ text: 'must not run' })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+    })
+    expect(events.find((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      reason: UI_TEXT.sendMarkFailed,
+    })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(hook).not.toHaveBeenCalled()
+    expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('/private/profile')
+    expect(stopped).toHaveBeenCalledTimes(1)
+    await t.host.close()
   })
 })
 

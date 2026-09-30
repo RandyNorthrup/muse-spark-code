@@ -46,6 +46,7 @@ import { crc32, deflateSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentSession, TurnPart } from '../../src/core/agent/agentBackend'
+import { createCheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import type {
   CodeLocation,
   CodeSymbol,
@@ -767,6 +768,8 @@ async function openRig(options: RigOptions): Promise<Rig> {
       createMcpServers: (workspaceRoot, newPool) =>
         newPool(
           modelApiMcpPoolDeps({
+            // Independent opt-in drill, without a shared VS Code checkpoint store.
+            beforeWorkspaceProcessStart: () => Promise.resolve(),
             workspaceRoot,
             settingsPath: () => settingsPath,
             isWorkspaceTrusted: isTrusted,
@@ -970,6 +973,16 @@ function livePanel(rig: Rig): LivePanel {
     })
   }
   const controller = new ConversationController({
+    checkpoints: createCheckpointPort({
+      store: undefined,
+      isNamespaceKnown: () => true,
+      isWorkspaceTrusted: () => true,
+      isEnabled: () => false,
+      hasGit: () => false,
+    }),
+    unsavedPaths: () => [],
+    // This editor-free live harness offers no stored-checkpoint file action.
+    confirmFileAction: () => Promise.resolve(false),
     surface,
     auth: {
       current: signedIn,

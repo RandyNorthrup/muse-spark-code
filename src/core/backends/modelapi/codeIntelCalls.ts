@@ -105,6 +105,7 @@ export interface RenameWriteContext {
   readonly seen: Map<string, string>
   /** The turn's: a Stop before the first write writes nothing. */
   readonly signal: AbortSignal
+  readonly beforeAccess?: (file: RenameFile) => void
   /** Synchronous bookkeeping for each actual write, including a partial outcome. */
   readonly onWritten?: (file: RenameFile) => void
 }
@@ -133,7 +134,9 @@ async function recheck(file: RenameFile, context: RenameWriteContext): Promise<R
   if ((await unsavedDocumentPath(io, file, context.platform)) !== undefined) {
     return { ok: false, outcome: failed(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`) }
   }
+  context.beforeAccess?.(file)
   const current = await io.readFile(file.checkedAbsolute, file.checkedAbsolute)
+  context.beforeAccess?.(file)
   return current === file.before
     ? { ok: true, key: resolved.absolute }
     : {
@@ -217,7 +220,11 @@ export async function applyRename(
       context.signal.throwIfAborted()
     }
     try {
-      await context.io.writeFile(file.checkedAbsolute, file.after, file.checkedAbsolute)
+      context.beforeAccess?.(file)
+      await context.io.writeFile(file.checkedAbsolute, file.after, file.checkedAbsolute, () => {
+        if (written.length === 0) context.signal.throwIfAborted()
+        context.beforeAccess?.(file)
+      })
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error)
       return partial(MODEL_TEXT.renamePartial, { path: file.relative, reason }, plan, written)

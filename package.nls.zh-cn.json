@@ -93,6 +93,7 @@
   "config.modelApiPromptCacheRetention.description": "请求 Meta 保留你的 Model API 请求中已缓存的开头部分（指令、工具和目前为止的对话）多长时间；这部分按较低的缓存输入费率计费。这只是提示：Meta 可能会更早将其移除。",
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "最多 24 小时，因此暂停后回到的对话仍可从缓存读取。价格与保留在内存中相同。",
   "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta 的默认值：保留在内存中，在负载较高或一段时间不活动后会更早移除。",
+  "config.turnCheckpoints.description": "在回合边界将工作区文件记录到扩展存储中，绝不写入工作区 .git。恢复/重做需要已连接的 Model API 会话及经确认的进程安全性；原生服务器、账户检查、命令或钩子的停止尚未得到证明时，这些功能不可用。每个回合运行 git；受限模式下关闭。",
   "config.diagnosticsAfterEdits.description": "每轮编辑后，把 VS Code 语言服务器报告的已编辑文件的错误和警告，连同自上次检查以来的变化，交给模型 (Model API 后端)，或提示 Muse Code 自行检查。默认开启。",
   "config.checkCommands.description": "Model API 后端在每轮编辑后、模型下一次请求之前运行的 lint、测试或类型检查命令；模型也可以用 run_checks 运行它们，并提示 Muse Code 自行运行。每条命令都像 shell 工具运行命令那样运行，包括你的工具钩子：在 shell 命令会询问的地方都会询问 (除“绕过权限”外的所有权限模式)，在代理编辑了决定其运行内容的文件后会再次询问，在规划模式和受限模式下从不运行，并在时间限制处停止。连续三轮失败后，在你发送下一条消息之前不再运行。",
   "config.checkCommands.name.description": "检查的简短名称，例如 lint 或 test。",

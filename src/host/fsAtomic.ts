@@ -57,6 +57,8 @@ import { canonicalPath } from './canonicalPath'
 import type { ConditionalWrite } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
+  /** A checkpoint's live admission, checked after awaits and before file mutations. */
+  readonly beforeCommit?: () => void
   /** The owner's final word immediately before filesystem mutations/publication. */
   readonly assertCanWrite?: () => void
   /** Waits between rename attempts; injectable so tests do not sleep. */
@@ -69,6 +71,13 @@ export interface AtomicWriteOptions {
   readonly expectedCanonicalPath?: string
   readonly platform?: NodeJS.Platform
   /**
+   * A checkpoint restore (M72): whether the file is executable. The file's
+   * own permissions are kept (a new file's are the default ones) and only
+   * the execute bits follow, set where the read bits are; unset: the
+   * permissions are kept as they are.
+   */
+  readonly executable?: boolean
+  /**
    * A conditional write's last word, asked right after the final comparison
    * before each rename: false leaves the target alone (format on edit asks
    * whether an editor now holds unsaved text for the file; Grok's review).
@@ -78,6 +87,15 @@ export interface AtomicWriteOptions {
 
 // The bits `chmod` sets: setuid, setgid, sticky and the three rwx triads.
 const PERMISSION_BITS = 0o7777
+const EXECUTE_BITS = 0o111
+const READ_BITS = 0o444
+// A read bit two places left of its triad's execute bit.
+const READ_TO_EXECUTE_SHIFT = 2
+
+/** The permissions with the execute bits set where readable, or all cleared. */
+function withExecuteBits(mode: number, isExecutable: boolean): number {
+  return isExecutable ? mode | ((mode & READ_BITS) >> READ_TO_EXECUTE_SHIFT) : mode & ~EXECUTE_BITS
+}
 
 interface Destination {
   readonly path: string
@@ -127,6 +145,8 @@ export async function renameReplacing(
   for (let attempt = 1; ; attempt += 1) {
     try {
       await beforeAttempt?.()
+      options.beforeCommit?.()
+      options.assertCanWrite?.()
       await renameFile(from, to)
       return
     } catch (error: unknown) {
@@ -187,7 +207,16 @@ function changedBeforeWrite(): ChangedBeforeWriteError {
 }
 
 /** Refuses a destination whose current text is not the expected text. */
-async function assertUnchanged(destination: string, expectedFingerprint: string): Promise<void> {
+async function assertUnchanged(
+  destination: string,
+  expectedFingerprint: string | (() => Promise<boolean>),
+): Promise<void> {
+  if (typeof expectedFingerprint === 'function') {
+    if (!(await expectedFingerprint())) {
+      throw changedBeforeWrite()
+    }
+    return
+  }
   let bytes: Uint8Array
   try {
     bytes = await readFile(destination)
@@ -203,13 +232,14 @@ async function assertUnchanged(destination: string, expectedFingerprint: string)
 }
 
 /**
- * Replaces `target` with `content` (UTF-8) in one step, its folder created.
- * The temporary file's name is unique, so two windows writing the same
- * target never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
+ * Replaces `target` with `content` (text as UTF-8, or bytes as they are:
+ * a checkpoint restore, M72) in one step, its folder created. The
+ * temporary file's name is unique, so two windows writing the same target
+ * never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
  */
 export async function writeFileAtomically(
   target: string,
-  content: string,
+  content: string | Uint8Array,
   options: AtomicWriteOptions,
 ): Promise<void> {
   await writeAtomically(target, content, options, undefined)
@@ -223,8 +253,8 @@ export async function writeFileAtomically(
  */
 export async function writeFileIfUnchanged(
   target: string,
-  expectedFingerprint: string,
-  content: string,
+  expectedFingerprint: string | (() => Promise<boolean>),
+  content: string | Uint8Array,
   options: AtomicWriteOptions,
 ): Promise<ConditionalWrite> {
   try {
@@ -240,12 +270,16 @@ export async function writeFileIfUnchanged(
 
 async function writeAtomically(
   target: string,
-  content: string,
+  content: string | Uint8Array,
   options: AtomicWriteOptions,
-  expectedFingerprint: string | undefined,
+  expectedFingerprint: string | (() => Promise<boolean>) | undefined,
 ): Promise<void> {
   await assertBoundPath(target, options.expectedCanonicalPath ?? target, options)
-  if (expectedFingerprint === undefined) {
+  if (expectedFingerprint === undefined || typeof expectedFingerprint === 'function') {
+    if (expectedFingerprint !== undefined) {
+      await assertUnchanged(target, expectedFingerprint)
+    }
+    options.beforeCommit?.()
     options.assertCanWrite?.()
     await mkdir(path.dirname(target), { recursive: true })
   } else {
@@ -260,6 +294,7 @@ async function writeAtomically(
   let temporaryIdentity: { readonly dev: number; readonly ino: number } | undefined
   try {
     await assertBoundPath(temporary, temporary, options)
+    options.beforeCommit?.()
     options.assertCanWrite?.()
     const handle = await open(temporary, 'wx')
     try {
@@ -274,9 +309,17 @@ async function writeAtomically(
         }
       }
       temporaryIdentity = { dev: held.dev, ino: held.ino }
+      options.beforeCommit?.()
       options.assertCanWrite?.()
-      await handle.writeFile(content, 'utf8')
-      if (destination.mode !== undefined) {
+      await (typeof content === 'string'
+        ? handle.writeFile(content, 'utf8')
+        : handle.writeFile(content))
+      const mode = destination.mode ?? held.mode & PERMISSION_BITS
+      options.beforeCommit?.()
+      options.assertCanWrite?.()
+      if (options.executable !== undefined && (options.platform ?? process.platform) !== 'win32') {
+        await handle.chmod(withExecuteBits(mode, options.executable))
+      } else if (destination.mode !== undefined) {
         await handle.chmod(destination.mode)
       }
     } finally {

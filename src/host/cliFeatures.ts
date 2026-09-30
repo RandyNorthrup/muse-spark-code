@@ -35,7 +35,10 @@ export interface CliFeatureDeps {
     timeoutMs: number,
   ) => Promise<ProcessResult> | undefined
   /** The CLI in a VS Code terminal the user watches; false when it is not installed. */
-  readonly runCliInTerminal: (args: readonly string[], terminalName: string) => boolean
+  readonly runCliInTerminal: (
+    args: readonly string[],
+    terminalName: string,
+  ) => boolean | Promise<boolean>
   /** Muse Code's settings file where `muse serve` reads it (`XDG_CONFIG_HOME` honoured). */
   readonly museSettingsPath: () => string
   readonly workspaceRoot: string | undefined

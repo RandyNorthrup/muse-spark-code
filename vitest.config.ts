@@ -12,6 +12,10 @@ const COVERAGE_THRESHOLDS = {
   lines: 90,
 } as const
 
+// V8 coverage and the native Git/process suites contend with large DOM/PDF
+// fixtures on macOS. Bound simultaneous files; deadlines and gates stay intact.
+const MACOS_TEST_WORKERS = 4
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -27,6 +31,7 @@ export default defineConfig({
     // Windows MCP process suites start PowerShell job helpers. On the small
     // hosted runner, concurrent files delayed launches past real MCP deadlines.
     fileParallelism: process.platform !== 'win32',
+    maxWorkers: process.platform === 'darwin' ? MACOS_TEST_WORKERS : undefined,
     coverage: {
       provider: 'v8',
       // Source files only: a bare `src/**` also feeds src/webview/tsconfig.json

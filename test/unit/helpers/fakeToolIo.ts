@@ -94,12 +94,14 @@ export function memoryToolIo(
         ? Promise.reject(new Error(`${absolutePath} is over ${String(maxBytes)} bytes`))
         : Promise.resolve(bytes)
     },
-    writeFile: (absolutePath, content) => {
+    writeFile: (absolutePath, content, _expectedCanonicalPath, assertCanWrite) => {
+      assertCanWrite?.()
       files.set(absolutePath.replaceAll('\\', '/'), content)
       return Promise.resolve()
     },
     // The conditional write (M68): only over the expected text.
     writeFileIfUnchanged: (absolutePath, expectedFingerprint, content, options) => {
+      options.assertCanWrite?.()
       const key = keyOf(absolutePath)
       const current = files.get(key)
       const isUnsaved = options.unsavedAt.some((path) => unsaved.has(keyOf(path)))

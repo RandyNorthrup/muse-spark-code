@@ -55,14 +55,19 @@ export interface MemoryIo {
   /** Whether the path is open with unsaved changes, which a replacement must not clobber. */
   hasUnsavedChanges(absolutePath: string): boolean
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
-  writeFile(absolutePath: string, content: string): Promise<void>
+  writeFile(absolutePath: string, content: string, assertCanWrite?: () => void): Promise<void>
   /**
    * Atomically publishes a complete new note only if absent; never replaces
    * another writer. With `checkedPath` (the note's canonical path as `locate`
    * checked it), a folder that leads elsewhere by the time the note is
    * written is refused.
    */
-  createFile(absolutePath: string, content: string, checkedPath?: string): Promise<void>
+  createFile(
+    absolutePath: string,
+    content: string,
+    checkedPath?: string,
+    assertCanWrite?: () => void,
+  ): Promise<void>
   /** The canonical form (links resolved) of a path that may not exist yet. */
   realPath(absolutePath: string): Promise<string>
   /** A directory's entries; empty when it is missing. */
@@ -285,9 +290,15 @@ export class MemoryStore {
   }
 
   /** The note's text (undefined when there is none), or why it cannot be read. */
-  private async readNote(place: MemoryNotePlace): Promise<Located<string | undefined>> {
+  private async readNote(
+    place: MemoryNotePlace,
+    assertCurrent?: () => void,
+  ): Promise<Located<string | undefined>> {
     try {
-      return { ok: true, value: await this.deps.io.readFile(place.absolute) }
+      assertCurrent?.()
+      const value = await this.deps.io.readFile(place.absolute)
+      assertCurrent?.()
+      return { ok: true, value }
     } catch (error: unknown) {
       return failed(describe(error))
     }
@@ -312,12 +323,18 @@ export class MemoryStore {
   }
 
   /** A new note's line in its scope's `MEMORY.md`, unless one already links to it (D41). */
-  private async addIndexLine(place: MemoryNotePlace, hook: string): Promise<void> {
+  private async addIndexLine(
+    place: MemoryNotePlace,
+    hook: string,
+    assertCurrent?: () => void,
+  ): Promise<void> {
     if (isIndexPath(place.path)) {
       return
     }
     try {
+      assertCurrent?.()
       const index = await this.indexPlace(place.scope)
+      assertCurrent?.()
       if (this.unsavedRefusal(index.absolute) !== undefined) {
         this.deps.warn(
           `${place.display}'s ${MEMORY_INDEX_FILE} line waits: the index has unsaved changes`,
@@ -325,12 +342,14 @@ export class MemoryStore {
         return
       }
       const text = await this.deps.io.readFile(index.absolute)
+      assertCurrent?.()
       if (text !== undefined && hasIndexLine(text, place.path)) {
         return
       }
       await this.deps.io.writeFile(
         index.absolute,
         withIndexLine(text, indexLineFor(place.path, hook)),
+        assertCurrent,
       )
     } catch (error: unknown) {
       this.deps.warn(
@@ -481,7 +500,11 @@ export class MemoryStore {
   }
 
   /** `read_memory`: a window of lines, each with its own line break. */
-  public async read(place: MemoryNotePlace, window: ReadWindow): Promise<MemoryOutcome> {
+  public async read(
+    place: MemoryNotePlace,
+    window: ReadWindow,
+    assertCurrent?: () => void,
+  ): Promise<MemoryOutcome> {
     const offset = window.offset ?? 1
     if (offset < 1) {
       return failed(MODEL_TEXT.memoryOffsetTooSmall)
@@ -490,7 +513,7 @@ export class MemoryStore {
     if (limit < 1) {
       return failed(MODEL_TEXT.memoryLimitTooSmall)
     }
-    const read = await this.readNote(place)
+    const read = await this.readNote(place, assertCurrent)
     if (!read.ok) {
       return read
     }
@@ -514,8 +537,12 @@ export class MemoryStore {
   }
 
   /** `add_memory`: a new note, or the content appended after a blank line. */
-  public async add(place: MemoryNotePlace, note: NoteAddition): Promise<MemoryOutcome> {
-    const read = await this.readNote(place)
+  public async add(
+    place: MemoryNotePlace,
+    note: NoteAddition,
+    assertCurrent?: () => void,
+  ): Promise<MemoryOutcome> {
+    const read = await this.readNote(place, assertCurrent)
     if (!read.ok) {
       return read
     }
@@ -527,26 +554,40 @@ export class MemoryStore {
       }
     }
     try {
+      assertCurrent?.()
       if (existing === undefined) {
-        await this.deps.io.createFile(place.absolute, newNoteText(note), place.checked)
+        await this.deps.io.createFile(
+          place.absolute,
+          newNoteText(note),
+          place.checked,
+          assertCurrent,
+        )
       } else {
-        await this.deps.io.writeFile(place.absolute, appendedText(existing, note.content))
+        await this.deps.io.writeFile(
+          place.absolute,
+          appendedText(existing, note.content),
+          assertCurrent,
+        )
       }
     } catch (error: unknown) {
       return failed(isTaken(error) ? MODEL_TEXT.memoryNoteExists : describe(error))
     }
     if (existing === undefined) {
-      await this.addIndexLine(place, note.description ?? noteSummary(note.content))
+      await this.addIndexLine(place, note.description ?? noteSummary(note.content), assertCurrent)
     }
     return { ok: true, value: written(place, OPERATION_ADD, MODEL_TEXT.memoryNoteWritten) }
   }
 
   /** `edit_memory`: one exact string replaced, refused unless it occurs exactly once. */
-  public async edit(place: MemoryNotePlace, change: NoteEdit): Promise<MemoryOutcome> {
+  public async edit(
+    place: MemoryNotePlace,
+    change: NoteEdit,
+    assertCurrent?: () => void,
+  ): Promise<MemoryOutcome> {
     if (change.old_str === '') {
       return failed(MODEL_TEXT.memoryOldStrEmpty)
     }
-    const read = await this.readNote(place)
+    const read = await this.readNote(place, assertCurrent)
     if (!read.ok) {
       return read
     }
@@ -566,9 +607,11 @@ export class MemoryStore {
       return failed(`${MODEL_TEXT.memoryOldStrAmbiguous} ${quoted(change.old_str)}`)
     }
     try {
+      assertCurrent?.()
       await this.deps.io.writeFile(
         place.absolute,
         text.replace(change.old_str, () => change.new_str),
+        assertCurrent,
       )
     } catch (error: unknown) {
       return failed(describe(error))

@@ -161,7 +161,7 @@ jobs:
       - run: npm ci
       - run: npm run package
       # What must be inside the package: the licence, the third-party
-      # notices, both dictation helpers and the six bundles (the webview
+      # notices, the native helpers and every runtime bundle (the webview
       # loads main.css beside main.js; the extension requires modelApi.js
       # when the Model API backend first starts, M57, and starts
       # pageWorker.js as a worker for each web page it converts, M69).
@@ -169,11 +169,13 @@ jobs:
         run: |
           listing="$(unzip -Z1 ./*.vsix)"
           for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
-            extension/native/windows/dictate.ps1 extension/native/darwin/muse-dictate \
+            extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
+            extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
+            extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
             extension/dist/extension.js extension/dist/modelApi.js extension/dist/searchWorker.js \
-            extension/dist/pageWorker.js \
+            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do
-            if ! grep -qx "$entry" <<< "$listing"; then
+            if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
               exit 1
             fi
@@ -190,9 +192,11 @@ jobs:
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
-          for entry in package/package.json package/dist/acp.js package/dist/searchWorker.js \
+          for entry in package/package.json package/dist/acp.js package/dist/modelApi.js \
+            package/dist/searchWorker.js package/dist/pageWorker.js \
+            package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md package/l10n/ui.de.json; do
-            if ! grep -qx "$entry" <<< "$listing"; then
+            if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the agent's package" >&2
               exit 1
             fi

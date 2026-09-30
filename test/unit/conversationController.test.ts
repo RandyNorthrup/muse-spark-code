@@ -26,6 +26,7 @@ import {
 } from '../../src/host/conversation/conversationController'
 import type { DictationListener, DictationSetup } from '../../src/core/voice/dictation'
 import {
+  type CheckpointAvailability,
   CHOICE_STEERING_NOTE,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
@@ -40,7 +41,14 @@ import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/p
 import { briefText, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
 import type { ConversationMessage } from '../../src/host/views/chatSurface'
 import { logLines } from './helpers/logText'
-import type { HostAction, LineRange, MentionItem } from '../../src/shared/protocol'
+import type { CheckpointPort } from '../../src/host/checkpoints/checkpointHost'
+import type { RestoreOutcome, Snapshot } from '../../src/host/checkpoints/checkpointStore'
+import type {
+  HostAction,
+  HostToWebviewMessage,
+  LineRange,
+  MentionItem,
+} from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
@@ -80,6 +88,16 @@ import {
   taskAck,
   USER_SHELL_SANDBOX_FAILED,
 } from './helpers/m46Capture'
+
+/** What the fake checkpoint port hands back for every capture (M72). */
+const FAKE_SNAPSHOT: Snapshot = {
+  tree: 'tree',
+  coverage: { skipped: [], repositories: [] },
+  inventory: { files: new Map(), skippedFolders: [], isPartial: false },
+  createdAt: 0,
+  pin: undefined,
+  folders: [],
+}
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -261,6 +279,13 @@ function setup(
     openSideChat?: (sessionId: string) => void
     /** Hold a host lookup after the action captured its source session. */
     hostGate?: { current: Promise<undefined> | undefined; onWait?: () => void }
+    /** Turn checkpoints (M72): whether they run, and what a restore or redo answers. */
+    checkpointAvailability?: CheckpointAvailability
+    /** Test-owned AgentHost facade kind; wire fixture remains captured MSP. */
+    backendKind?: 'museCode' | 'modelApi'
+    restoreOutcome?: RestoreOutcome
+    /** The answer to the file restore / code rewind confirmation (M72). */
+    confirmsFileAction?: boolean
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -354,6 +379,11 @@ function setup(
   const surface = fakeSurface('s', options.isSideChat)
   surface.takeRestoredSessionId.mockReturnValue(options.sideSessionId)
   const openExternal = vi.fn<(url: string) => void>()
+  if (options.backendKind !== undefined) {
+    // Test-only host facade identity exercises the controller's attached-kind
+    // contract; it does not certify the Model API wire or native exclusions.
+    Object.defineProperty(host, 'info', { value: { ...host.info, kind: options.backendKind } })
+  }
   const hostActions: HostAction[] = []
   let picked: PickedFile[] = []
   let mentionChoice: string | undefined = undefined
@@ -393,8 +423,75 @@ function setup(
       return Promise.resolve()
     },
   }
+  // Turn checkpoints (M72): a fake port that records what the controller asked.
+  const checkpointCalls: string[] = []
+  const checkpointTurns = new Set<string>()
+  const fileConfirmations: string[] = []
+  // What happens while the confirmation is open (a turn starting, say).
+  const whileConfirming: { current: (() => Promise<void>) | undefined } = { current: undefined }
+  const restored: RestoreOutcome = options.restoreOutcome ?? {
+    ok: true,
+    restoreId: 'r1',
+    changed: ['a.ts'],
+    refused: [],
+    unsure: [],
+    isIgnoredIncomplete: false,
+    isRedoSpent: true,
+  }
+  const checkpoints: CheckpointPort = {
+    isNativeUnsafe: () => false,
+    markNativeBackend: () => Promise.resolve(),
+    markUnprovenProcess: () => Promise.resolve(),
+    legacyTurns: () => Promise.resolve([]),
+    // Off unless a test turns them on, as in a window with no folder.
+    availability: () => options.checkpointAvailability ?? 'noFolder',
+    capture: () => {
+      checkpointCalls.push('capture')
+      return Promise.resolve(
+        (options.checkpointAvailability ?? 'noFolder') === 'on'
+          ? { ok: true as const, snapshot: FAKE_SNAPSHOT }
+          : undefined,
+      )
+    },
+    release: () => {
+      checkpointCalls.push('release')
+      return Promise.resolve()
+    },
+    record: (sessionId, turnId) => {
+      checkpointCalls.push(`record ${sessionId} ${turnId}`)
+      checkpointTurns.add(turnId)
+      return Promise.resolve()
+    },
+    markTurn: () => Promise.resolve(),
+    endTurn: (sessionId, turnId) => {
+      checkpointCalls.push(`end ${sessionId} ${turnId}`)
+      return Promise.resolve()
+    },
+    turns: () => Promise.resolve([...checkpointTurns]),
+    restore: (request) => {
+      checkpointCalls.push(`restore ${request.sessionId} ${request.turnId}`)
+      return Promise.resolve(restored)
+    },
+    redo: (request) => {
+      checkpointCalls.push(`redo ${request.restoreId}`)
+      return Promise.resolve(restored)
+    },
+    forgetSession: (sessionId) => {
+      checkpointCalls.push(`forget ${sessionId}`)
+      return Promise.resolve()
+    },
+    maintain: () => Promise.resolve(),
+    beforeToolWrite: () => Promise.resolve(),
+  }
   const deps: ConversationDeps = {
     surface,
+    checkpoints,
+    unsavedPaths: () => unsaved.files.map((file) => `/ws/${file}`),
+    confirmFileAction: async (title) => {
+      fileConfirmations.push(title)
+      await whileConfirming.current?.()
+      return options.confirmsFileAction ?? true
+    },
     setPaidFeature: vi.fn(() => Promise.resolve()),
     isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
     onForegroundTasksChanged: vi.fn<() => void>(),
@@ -584,6 +681,9 @@ function setup(
     setHasEditor: (isOpen: boolean) => {
       hasEditor = isOpen
     },
+    checkpointCalls,
+    fileConfirmations,
+    whileConfirming,
   }
 }
 
@@ -2313,6 +2413,74 @@ describe('ConversationController: editor integration (M5)', () => {
       level: 'info',
       text: 'No edits after this message to rewind.',
     })
+    // The same confirmation as a file restore (M72), asked once for the rewind above.
+    expect(t.fileConfirmations).toEqual([UI_TEXT.rewindCodeConfirmTitle])
+  })
+
+  it('forks after rewinding code in one action, and neither when not confirmed (M72)', async () => {
+    const t = withHistory()
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    let revertsBeforeFork = -1
+    t.server.handle('session/fork', () => {
+      revertsBeforeFork = t.reviews.length
+      return envelope({ ...storedSession, sessionId: 'forked', forkedFrom: { sessionId: 's1' } })
+    })
+    await t.controller.handle({
+      type: 'rewindCode',
+      edits: [{ itemId: 'c1', outputRef: 'tool_patch-1' }],
+      fork: { lastTurnId: 't1', attachmentEpoch: 1 },
+    })
+    expect(t.fileConfirmations).toEqual([UI_TEXT.rewindCodeConfirmTitle])
+    expect(revertsBeforeFork).toBe(1)
+    expect(t.server.requestsFor('session/fork')[0]?.params).toMatchObject({
+      cutPoint: { lastTurnId: 't1' },
+    })
+
+    const declined = withHistory({ confirmsFileAction: false })
+    await declined.send('l1', 'edit it')
+    declined.finishTurn()
+    await settle()
+    await declined.controller.handle({
+      type: 'rewindCode',
+      edits: [{ itemId: 'c1', outputRef: 'tool_patch-1' }],
+      fork: { lastTurnId: 't1', attachmentEpoch: 1 },
+    })
+    expect(declined.reviews).toEqual([])
+    expect(declined.server.requestsFor('session/fork')).toHaveLength(0)
+  })
+
+  it('forks with no edits to rewind, saying so, and starts afresh for a cut before the first turn (M72)', async () => {
+    const t = withHistory()
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({
+      type: 'rewindCode',
+      edits: [],
+      fork: { lastTurnId: 't1', attachmentEpoch: 1 },
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.rewindNothing,
+    })
+    expect(t.server.requestsFor('session/fork')).toHaveLength(1)
+    await t.controller.handle({ type: 'rewindCode', edits: [], fork: {} })
+    expect(t.surface.posted).toContainEqual({ type: 'conversationCleared' })
+    expect(t.server.requestsFor('session/fork')).toHaveLength(1)
+  })
+
+  it('reverts nothing when the code rewind is not confirmed (M72)', async () => {
+    const t = setup({ confirmsFileAction: false })
+    await t.send('l1', 'edit it')
+    await t.controller.handle({
+      type: 'rewindCode',
+      edits: [{ itemId: 'c1', outputRef: 'tool_patch-1' }],
+    })
+    expect(t.fileConfirmations).toEqual([UI_TEXT.rewindCodeConfirmTitle])
+    expect(t.reviews).toEqual([])
   })
 
   it('fetches the stored patch for a review and relays the notices', async () => {
@@ -7787,5 +7955,318 @@ describe('ConversationController: plans as files (M79)', () => {
     expect(t.planFiles.confirmSave).toHaveBeenCalledOnce()
     expect(t.server.requestsFor('session/start')).toHaveLength(2)
     expect(t.surface.posted.filter((message) => message.type === 'briefSubmitted')).toHaveLength(1)
+  })
+})
+
+/** "Rewind conversation and restore files" on the first turn of `s1` (M72). */
+const BOTH_REWIND = {
+  type: 'rewindConversation' as const,
+  sourceSessionId: 's1',
+  itemId: 'u1',
+  turnId: 't1',
+  text: 'edit it',
+  imageCount: 0,
+}
+
+/** A controller whose History serves the first turn of `s1`, so a rewind can go ahead. */
+function bothReady(options: Parameters<typeof setup>[0]) {
+  const t = withHistory(options)
+  serveHistoryItems(t, [historyUserItem('u1', 't1', 'edit it')])
+  return t
+}
+
+/** The checkpoint states the controller told the panel (M72). */
+function checkpointState(posted: readonly HostToWebviewMessage[]) {
+  return posted.filter((message) => message.type === 'checkpointState')
+}
+
+describe('ConversationController: turn checkpoints (M72)', () => {
+  it('refuses forged stored Restore and Redo on the attached Muse Code host despite panel availability', async () => {
+    const t = setup({ checkpointAvailability: 'on' })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 's1', turnId: 't1' })
+    await t.controller.handle({ type: 'redoRestore', restoreId: 'r1' })
+    expect(t.fileConfirmations).toEqual([])
+    expect(
+      t.checkpointCalls.filter((call) => call.startsWith('restore') || call.startsWith('redo')),
+    ).toEqual([])
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.checkpointsModelApiOnly,
+    })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'restoreRedone',
+      restoreId: 'r1',
+      isSpent: false,
+    })
+  })
+  it('captures before a message starts a turn, ties it to the turn, and ends it with the turn', async () => {
+    const t = setup({ checkpointAvailability: 'on' })
+    await t.send('l1', 'edit it')
+    expect(t.checkpointCalls).toEqual(['capture', 'record s1 t1'])
+    // The capture came before the turn was asked for.
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    t.finishTurn()
+    await vi.waitFor(() => {
+      expect(t.checkpointCalls).toContain('end s1 t1')
+    })
+    expect(checkpointState(t.surface.posted).at(-1)).toEqual({
+      type: 'checkpointState',
+      availability: 'on',
+      sessionId: 's1',
+      canRestore: false,
+      restoreBlocker: 'modelApiOnly',
+      turnIds: [],
+      legacyTurnIds: [],
+    })
+  })
+
+  it('takes no checkpoint for a message steered into a running turn', async () => {
+    const t = setup({ checkpointAvailability: 'on' })
+    await t.send('l1', 'first')
+    await t.send('l2', 'a steer while it runs')
+    expect(t.checkpointCalls.filter((call) => call === 'capture')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+  })
+
+  it('checkpoints a turn no message here started when it starts', async () => {
+    const t = setup({ checkpointAvailability: 'on' })
+    await t.send('l1', 'first')
+    t.finishTurn()
+    await settle()
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 'queued-turn' })
+    await vi.waitFor(() => {
+      expect(t.checkpointCalls).toContain('record s1 queued-turn')
+    })
+  })
+
+  it('takes none in Restricted Mode, and tells the panel why', async () => {
+    const t = setup({ checkpointAvailability: 'restricted' })
+    t.controller.surfaceReady()
+    await t.send('l1', 'edit it')
+    expect(t.checkpointCalls.filter((call) => call.startsWith('record'))).toEqual([])
+    expect(checkpointState(t.surface.posted).at(-1)).toMatchObject({
+      availability: 'restricted',
+      turnIds: [],
+    })
+  })
+
+  it('restores the files after the confirmation, with Redo on its notice', async () => {
+    const t = setup({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    t.unsaved.files = ['open.ts']
+    await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 's1', turnId: 't1' })
+    expect(t.fileConfirmations).toEqual([UI_TEXT.restoreConfirmTitle])
+    expect(t.checkpointCalls).toContain('restore s1 t1')
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Restored 1 file to before this message.',
+      redoRestoreId: 'r1',
+    })
+    await t.controller.handle({ type: 'redoRestore', restoreId: 'r1' })
+    expect(t.checkpointCalls).toContain('redo r1')
+    // The redo's own notice can undo it in turn; the pressed button learns it is spent.
+    expect(t.surface.posted.slice(-2)).toEqual([
+      { type: 'notice', level: 'info', text: 'Put 1 file back.', redoRestoreId: 'r1' },
+      { type: 'restoreRedone', restoreId: 'r1', isSpent: true },
+    ])
+  })
+
+  it('names what a restore left as it is, by reason', async () => {
+    const t = setup({
+      checkpointAvailability: 'on',
+      backendKind: 'modelApi',
+      restoreOutcome: {
+        ok: true,
+        restoreId: undefined,
+        changed: [],
+        refused: [
+          { path: 'later.ts', reason: 'changedAfter' },
+          { path: 'open.ts', reason: 'unsaved' },
+          { path: '.env.log', reason: 'noEarlierCopy' },
+        ],
+        unsure: [],
+        isIgnoredIncomplete: true,
+        isRedoSpent: false,
+      },
+    })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    const before = t.surface.posted.length
+    await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 's1', turnId: 't1' })
+    expect(t.surface.posted.slice(before)).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: fill(UI_TEXT.restoreRefusedUnsaved, { files: 'open.ts' }),
+      },
+      {
+        type: 'notice',
+        level: 'warning',
+        text: fill(UI_TEXT.restoreRefusedChanged, { files: 'later.ts' }),
+      },
+      {
+        type: 'notice',
+        level: 'warning',
+        text: fill(UI_TEXT.restoreRefusedNoCopy, { files: '.env.log' }),
+      },
+      { type: 'notice', level: 'warning', text: UI_TEXT.restoreIgnoredIncomplete },
+    ])
+  })
+
+  it('restores nothing when not confirmed, or while a turn runs', async () => {
+    const t = setup({
+      checkpointAvailability: 'on',
+      backendKind: 'modelApi',
+      confirmsFileAction: false,
+    })
+    await t.send('l1', 'edit it')
+    await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 's1', turnId: 't1' })
+    expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 's1', turnId: 't1' })
+    expect(t.fileConfirmations).toEqual([UI_TEXT.restoreConfirmTitle])
+    expect(t.checkpointCalls.filter((call) => call.startsWith('restore'))).toEqual([])
+  })
+
+  it('ignores a restore for a conversation no longer shown', async () => {
+    const t = setup({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 'other', turnId: 't1' })
+    expect(t.fileConfirmations).toEqual([])
+  })
+
+  it('checks the conversation, restores the files, then rewinds, all after one confirmation', async () => {
+    const t = bothReady({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    const before = t.surface.posted.length
+    await t.controller.handle({
+      type: 'restoreFiles',
+      sourceSessionId: 's1',
+      turnId: 't1',
+      rewind: BOTH_REWIND,
+    })
+    expect(t.fileConfirmations).toEqual([UI_TEXT.restoreBothConfirmTitle])
+    expect(t.checkpointCalls).toContain('restore s1 t1')
+    const after = t.surface.posted.slice(before)
+    const cleared = after.findIndex((message) => message.type === 'conversationCleared')
+    const report = after.findIndex(
+      (message) => message.type === 'notice' && message.redoRestoreId === 'r1',
+    )
+    // The report comes after the rewind, so the conversation shown carries it and its Redo.
+    expect(cleared).toBeGreaterThanOrEqual(0)
+    expect(report).toBeGreaterThan(cleared)
+    expect(after).toContainEqual({ type: 'restoreDraft', text: 'edit it' })
+  })
+
+  it('restores no file when the conversation cannot be rewound', async () => {
+    const t = bothReady({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({
+      type: 'restoreFiles',
+      sourceSessionId: 's1',
+      turnId: 't1',
+      rewind: { ...BOTH_REWIND, text: 'not what was sent' },
+    })
+    expect(t.checkpointCalls.filter((call) => call.startsWith('restore'))).toEqual([])
+    expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.attachmentUnreadable })
+  })
+
+  it('leaves the conversation when the restore failed or left files short', async () => {
+    const outcomes: readonly RestoreOutcome[] = [
+      { ok: false, reason: 'noCheckpoint' },
+      {
+        ok: true,
+        restoreId: 'r1',
+        changed: ['a.ts'],
+        refused: [{ path: 'b.ts', reason: 'changedAfter' }],
+        unsure: [],
+        isIgnoredIncomplete: false,
+        isRedoSpent: false,
+      },
+    ]
+    for (const restoreOutcome of outcomes) {
+      const t = bothReady({ checkpointAvailability: 'on', backendKind: 'modelApi', restoreOutcome })
+      await t.send('l1', 'edit it')
+      t.finishTurn()
+      await settle()
+      await t.controller.handle({
+        type: 'restoreFiles',
+        sourceSessionId: 's1',
+        turnId: 't1',
+        rewind: BOTH_REWIND,
+      })
+      expect(t.checkpointCalls).toContain('restore s1 t1')
+      expect(t.surface.posted).not.toContainEqual({ type: 'conversationCleared' })
+      expect(t.surface.posted.at(-1)).toEqual({
+        type: 'notice',
+        level: 'warning',
+        text: UI_TEXT.rewindNotDone,
+      })
+    }
+  })
+
+  it('restores nothing when a turn started while the confirmation was open', async () => {
+    const t = setup({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    t.whileConfirming.current = async () => {
+      t.server.notify('turn/started', { sessionId: 's1', turnId: 't2' })
+      await settle()
+    }
+    await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 's1', turnId: 't1' })
+    expect(t.checkpointCalls.filter((call) => call.startsWith('restore'))).toEqual([])
+    expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+  })
+
+  it('redoes nothing while a turn runs, and gives the Redo button back', async () => {
+    const t = setup({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    await t.send('l1', 'edit it')
+    await t.controller.handle({ type: 'redoRestore', restoreId: 'r1' })
+    expect(t.checkpointCalls.filter((call) => call.startsWith('redo'))).toEqual([])
+    expect(t.surface.posted.slice(-2)).toEqual([
+      { type: 'notice', level: 'info', text: UI_TEXT.restoreTurnRunning },
+      { type: 'restoreRedone', restoreId: 'r1', isSpent: false },
+    ])
+  })
+
+  it('ends the checkpoint of a turn the backend stopped (D25)', async () => {
+    const t = setup({ checkpointAvailability: 'on' })
+    await t.send('l1', 'edit it')
+    await t.controller.backendStopping(false)
+    await vi.waitFor(() => {
+      expect(t.checkpointCalls).toContain('end s1 t1')
+    })
+  })
+
+  it('ends the checkpoint of a turn still running when the panel closes', async () => {
+    const t = setup({ checkpointAvailability: 'on' })
+    await t.send('l1', 'edit it')
+    t.controller.dispose()
+    await vi.waitFor(() => {
+      expect(t.checkpointCalls).toContain('end s1 t1')
+    })
+  })
+
+  it("forgets an archived conversation's checkpoints", async () => {
+    const t = setup({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    await t.controller.handle({ type: 'setSessionArchived', sessionId: 'gone', isArchived: true })
+    await t.controller.handle({ type: 'setSessionArchived', sessionId: 'back', isArchived: false })
+    expect(t.checkpointCalls).toEqual(['forget gone'])
   })
 })
