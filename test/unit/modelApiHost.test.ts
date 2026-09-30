@@ -6876,6 +6876,73 @@ function scriptChildCall(t: ReturnType<typeof setup>, call: ScriptedCall, done: 
   t.api.script({ calls: [call] }, { text: done })
 }
 
+type SetupOptions = NonNullable<Parameters<typeof setup>[0]>
+
+/** A project agent `writer` that holds only `tools`, over a verify loop with one configured check. */
+async function spawnWriter(tools: string, callId: string) {
+  const t = setupSubagents({
+    files: {
+      '.agents/agents/writer/AGENT.md': agentFile('writer', 'Writes a file', `tools: ${tools}\n`),
+    },
+    verify: {
+      isDiagnosticsOn: () => false,
+      checkCommands: () => [{ name: 'agent-check', command: 'npm test' }],
+      isFormatOnEdit: () => false,
+      diagnosticsAfterEdit: () => Promise.resolve([]),
+      formatAfterEdit: () => Promise.resolve(undefined),
+    },
+  })
+  const { session } = await startApprovedSubagentSession(t)
+  await spawnAgentAndWait(
+    t,
+    session,
+    spawnCallReply('writer', 'Write a file', 'writer', callId),
+    'Writer ready.',
+  )
+  return { t, session }
+}
+
+/**
+ * A conversation whose first window spawns a child through `spawn` and closes,
+ * and which a second window resumes from the same store (M76): the stored
+ * child's agent runtime, and the resumed host and session.
+ */
+async function resumeWithChild(
+  files: Record<string, string>,
+  spawn: (t: ReturnType<typeof setup>, session: ModelApiSession) => Promise<void>,
+  windows: { readonly first?: SetupOptions; readonly resumed?: SetupOptions } = {},
+) {
+  const store = memorySessionStore()
+  const first = setupSubagents({ ...windows.first, store, files })
+  const { session } = await startApprovedSubagentSession(first)
+  await spawn(first, session)
+  const stored = store.saved.get(session.sessionId)?.children?.[0]?.session.agent
+  await first.host.close()
+  const resumed = setupSubagents({ ...windows.resumed, store, files })
+  await resumed.host.load()
+  const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+  await next.session.controlSubagent('subagent-1', 'readResult')
+  // The harness resumes Model API sessions, whose history the waits read.
+  return { stored, resumed, next: next.session as ModelApiSession }
+}
+
+/** Reopens the resumed child on scripted replies and returns the child's requests. */
+async function reopenResumedChild(
+  rig: Awaited<ReturnType<typeof resumeWithChild>>,
+  replies: readonly ScriptedReply[],
+  done: string,
+) {
+  rig.resumed.api.script(...replies)
+  await rig.next.controlSubagent('subagent-1', 'reopen')
+  await waitForChildSummary(rig.next, done)
+  return rig.resumed.api.responseBodies().filter((body) => isChildRequest(body))
+}
+
+/** A reply that calls `search`, a tool the reviewer's list leaves out. */
+function searchReply(callId: string): ScriptedReply {
+  return { calls: [{ name: 'search', arguments: '{"pattern":"review"}', callId }] }
+}
+
 describe('ModelApiSession custom agents (M76)', () => {
   it.each([
     { name: 'write-only', tools: 'write_file', revokesTrust: false, commands: 0 },
@@ -6942,29 +7009,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     },
     { name: 'no command tool', tools: 'write_file', ran: [], hasShell: false },
   ])('runs then_run only with the shell tool in the agent list: $name (M76)', async (testCase) => {
-    const t = setupSubagents({
-      files: {
-        '.agents/agents/writer/AGENT.md': agentFile(
-          'writer',
-          'Writes a file',
-          `tools: ${testCase.tools}\n`,
-        ),
-      },
-      verify: {
-        isDiagnosticsOn: () => false,
-        checkCommands: () => [{ name: 'agent-check', command: 'npm test' }],
-        isFormatOnEdit: () => false,
-        diagnosticsAfterEdit: () => Promise.resolve([]),
-        formatAfterEdit: () => Promise.resolve(undefined),
-      },
-    })
-    const { session } = await startApprovedSubagentSession(t)
-    await spawnAgentAndWait(
-      t,
-      session,
-      spawnCallReply('writer', 'Write a file', 'writer', 'spawn_then_run_writer'),
-      'Writer ready.',
-    )
+    const { t, session } = await spawnWriter(testCase.tools, 'spawn_then_run_writer')
     scriptChildCall(
       t,
       {
@@ -6997,29 +7042,7 @@ describe('ModelApiSession custom agents (M76)', () => {
   ])(
     'lists the check commands to a role only if it can run them: $name (M76)',
     async (testCase) => {
-      const t = setupSubagents({
-        files: {
-          '.agents/agents/writer/AGENT.md': agentFile(
-            'writer',
-            'Writes a file',
-            `tools: ${testCase.tools}\n`,
-          ),
-        },
-        verify: {
-          isDiagnosticsOn: () => false,
-          checkCommands: () => [{ name: 'agent-check', command: 'npm test' }],
-          isFormatOnEdit: () => false,
-          diagnosticsAfterEdit: () => Promise.resolve([]),
-          formatAfterEdit: () => Promise.resolve(undefined),
-        },
-      })
-      const { session } = await startApprovedSubagentSession(t)
-      await spawnAgentAndWait(
-        t,
-        session,
-        spawnCallReply('writer', 'Write a file', 'writer', 'spawn_check_writer'),
-        'Writer ready.',
-      )
+      const { t } = await spawnWriter(testCase.tools, 'spawn_check_writer')
       const instructions = String(childBodies(t).at(-1)?.['instructions'])
       expect(instructions.includes('agent-check')).toBe(testCase.isListed)
       expect(String(t.api.responseBodies()[0]?.['instructions']).includes('agent-check')).toBe(true)
@@ -7453,37 +7476,15 @@ describe('ModelApiSession custom agents (M76)', () => {
   })
 
   it('keeps an agent run narrowed across a resume (M76 review)', async () => {
-    const store = memorySessionStore()
-    const files = reviewerFiles()
-    const t = setupSubagents({ store, files })
-    const { session } = await startApprovedSubagentSession(t)
-    await spawnReviewerAndWait(t, session)
-    expect(store.saved.get(session.sessionId)?.children?.[0]?.session.agent).toMatchObject({
-      id: 'reviewer',
-    })
-    await t.host.close()
-    const resumed = setupSubagents({ store, files })
-    await resumed.host.load()
-    const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
-    await next.session.controlSubagent('subagent-1', 'readResult')
+    const rig = await resumeWithChild(reviewerFiles(), spawnReviewerAndWait)
+    expect(rig.stored).toMatchObject({ id: 'reviewer' })
     // search is outside the reviewer's allowlist: the resumed child refuses
     // it instead of running it.
-    resumed.api.script(
-      {
-        calls: [
-          {
-            name: 'search',
-            arguments: '{"pattern":"review"}',
-            callId: 'resumed_search',
-          },
-        ],
-      },
-      { text: 'Resumed done.' },
+    const bodies = await reopenResumedChild(
+      rig,
+      [searchReply('resumed_search'), { text: 'Resumed done.' }],
+      'Resumed done.',
     )
-    await next.session.controlSubagent('subagent-1', 'reopen')
-    // The harness resumes Model API sessions, whose history the waits read.
-    await waitForChildSummary(next.session as ModelApiSession, 'Resumed done.')
-    const bodies = resumed.api.responseBodies().filter((body) => isChildRequest(body))
     expect(bodies.length).toBeGreaterThan(0)
     expect(String(bodies[0]?.['instructions'])).toContain('Prompt of reviewer')
     expect(outputFor(bodies.at(-1), 'resumed_search')).toMatchObject({
@@ -7565,29 +7566,15 @@ describe('ModelApiSession custom agents (M76)', () => {
   })
 
   it('drops a project file role when its child resumes in an untrusted workspace (M76)', async () => {
-    const store = memorySessionStore()
-    const files = reviewerFiles()
-    const t = setupSubagents({ store, files })
-    const { session } = await startApprovedSubagentSession(t)
-    await spawnReviewerAndWait(t, session)
-    expect(store.saved.get(session.sessionId)?.children?.[0]?.session.agent).toMatchObject({
-      id: 'reviewer',
-      source: 'project',
+    const rig = await resumeWithChild(reviewerFiles(), spawnReviewerAndWait, {
+      resumed: { isTrusted: false },
     })
-    await t.host.close()
-    const resumed = setupSubagents({ store, files, isTrusted: false })
-    await resumed.host.load()
-    const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
-    await next.session.controlSubagent('subagent-1', 'readResult')
-    resumed.api.script(
-      {
-        calls: [{ name: 'search', arguments: '{"pattern":"review"}', callId: 'untrusted_search' }],
-      },
-      { text: 'Untrusted done.' },
+    expect(rig.stored).toMatchObject({ id: 'reviewer', source: 'project' })
+    const bodies = await reopenResumedChild(
+      rig,
+      [searchReply('untrusted_search'), { text: 'Untrusted done.' }],
+      'Untrusted done.',
     )
-    await next.session.controlSubagent('subagent-1', 'reopen')
-    await waitForChildSummary(next.session as ModelApiSession, 'Untrusted done.')
-    const bodies = resumed.api.responseBodies().filter((body) => isChildRequest(body))
     // The repository's words do not reach the model; the narrowing still holds.
     expect(String(bodies[0]?.['instructions'])).not.toContain('Prompt of reviewer')
     expect(String(bodies[0]?.['instructions'])).not.toContain('# Agent role')
@@ -7597,46 +7584,25 @@ describe('ModelApiSession custom agents (M76)', () => {
   })
 
   it('keeps a built-in role for a resumed child in an untrusted workspace (M76)', async () => {
-    const store = memorySessionStore()
-    const t = setupSubagents({ store })
-    const { session } = await startApprovedSubagentSession(t)
-    await spawnExploreAndWait(t, session)
-    await t.host.close()
-    const resumed = setupSubagents({ store, isTrusted: false })
-    await resumed.host.load()
-    const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
-    await next.session.controlSubagent('subagent-1', 'readResult')
-    resumed.api.script({ text: 'Explored.' })
-    await next.session.controlSubagent('subagent-1', 'reopen')
-    await waitForChildSummary(next.session as ModelApiSession, 'Explored.')
-    const child = resumed.api.responseBodies().find((body) => isChildRequest(body))
-    expect(String(child?.['instructions'])).toContain('You are an explorer')
+    const rig = await resumeWithChild({}, spawnExploreAndWait, { resumed: { isTrusted: false } })
+    const bodies = await reopenResumedChild(rig, [{ text: 'Explored.' }], 'Explored.')
+    expect(String(bodies[0]?.['instructions'])).toContain('You are an explorer')
   })
 
   it('asks the contributor yes again for a follow-up this session was never given (M76)', async () => {
-    const store = memorySessionStore()
-    const files = bigAgentFiles()
-    const first = setupSubagents({
-      store,
-      files,
-      confirmContributorModel: () => Promise.resolve(true),
-    })
-    const { session } = await startApprovedSubagentSession(first)
-    await spawnBigAndWait(first, session)
-    await first.host.close()
     // A new window: the stored child is on the contributor model, and this
     // session has not been given the yes that training on the traffic needs.
     const confirm = vi.fn(() => Promise.resolve(false))
-    const resumed = setupSubagents({ store, files, confirmContributorModel: confirm })
-    await resumed.host.load()
-    const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
-    await next.session.controlSubagent('subagent-1', 'readResult')
-    await expect(next.session.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
+    const rig = await resumeWithChild(bigAgentFiles(), spawnBigAndWait, {
+      first: { confirmContributorModel: () => Promise.resolve(true) },
+      resumed: { confirmContributorModel: confirm },
+    })
+    await expect(rig.next.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
       UI_TEXT.subagentConsentDeclined,
     )
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(confirm).toHaveBeenCalledWith('muse-spark-1.3-contributor')
-    expect(resumed.paidRequests).toEqual([])
+    expect(rig.resumed.paidRequests).toEqual([])
   })
 })
 
