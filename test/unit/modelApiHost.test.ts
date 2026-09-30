@@ -9352,6 +9352,186 @@ describe('ModelApiSession: the user’s own shell commands (M46)', () => {
   })
 })
 
+/**
+ * A held shell whose entry waits, as the checkpoint activity mark and the
+ * Windows job assembly do (M72), before the command's final admission.
+ */
+function preparingShell() {
+  const held = heldShellToolIo({}, ROOT)
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const io: typeof held = {
+    ...held,
+    runShell: async (...args: Parameters<ToolIo['runShell']>) => {
+      entered.resolve(undefined)
+      await release.promise
+      return await held.runShell(...args)
+    },
+  }
+  return { held, io, entered, release }
+}
+
+type EntryChange = 'trust' | 'stop' | 'dispose' | 'hostClose'
+
+/** A `!` command waiting to enter, and what the test changes before it does. */
+async function waitingUserShell(approvalMode = 'promptUnmatched') {
+  const prepared = preparingShell()
+  const options = { io: prepared.io, isTrusted: true }
+  const t = setup(options)
+  const started = await startSession(t, approvalMode)
+  await started.session.runUserShell('ls')
+  await prepared.entered.promise
+  const itemId = userShellStarts(started.events)[0]?.item.itemId ?? ''
+  const hostClose = Promise.withResolvers<undefined>()
+  const hostEnd = Promise.withResolvers<undefined>()
+  let closing: Promise<void> | undefined
+  const change = async (kind: EntryChange): Promise<void> => {
+    switch (kind) {
+      case 'trust': {
+        options.isTrusted = false
+        break
+      }
+      case 'stop': {
+        await started.session.stopTask(itemId)
+        break
+      }
+      case 'dispose': {
+        started.session.dispose()
+        break
+      }
+      case 'hostClose': {
+        // The Host is closing while SessionEnd is still held: the session is not yet disposed.
+        vi.spyOn(started.session, 'endHooks').mockImplementation(async () => {
+          hostClose.resolve(undefined)
+          await hostEnd.promise
+        })
+        closing = t.host.close()
+        await hostClose.promise
+        break
+      }
+    }
+  }
+  /** Lets the waiting entry go: the command is admitted or refused now. */
+  const enter = () => {
+    prepared.release.resolve(undefined)
+  }
+  /** Ends a held SessionEnd, after the row has settled, so the Host closes for real. */
+  const settle = async () => {
+    hostEnd.resolve(undefined)
+    await closing
+  }
+  return { ...prepared, ...started, t, options, itemId, change, enter, settle }
+}
+
+describe('ModelApiSession: the user’s own shell at its real entry (M72)', () => {
+  it.each(['trust', 'stop', 'dispose', 'hostClose'] as const)(
+    'runs nothing when %s changes while its entry waits, and says it did not run',
+    async (kind) => {
+      const r = await waitingUserShell()
+      await r.change(kind)
+      r.enter()
+      await vi.waitFor(() => {
+        expect(r.session.history().items.find((item) => item.itemId === r.itemId)?.status).not.toBe(
+          'inProgress',
+        )
+      })
+      expect(r.held.shellCalls).toHaveLength(0)
+      expect(r.held.runs).toHaveLength(0)
+      const row = r.session.history().items.find((item) => item.itemId === r.itemId)
+      expect(row).toMatchObject({ kind: 'userShell', commandText: 'ls' })
+      expect(row?.status).toBe(kind === 'stop' || kind === 'dispose' ? 'cancelled' : 'failed')
+      if (kind !== 'stop' && kind !== 'dispose') {
+        expect(row).toMatchObject({
+          visibleOutput: UI_TEXT.userShellFailed,
+          failureReason: UI_TEXT.userShellFailed,
+        })
+      }
+      expect(row?.exitCode).toBeUndefined()
+      await r.settle()
+    },
+  )
+
+  it('tells the model nothing about a command that never entered', async () => {
+    const r = await waitingUserShell()
+    await r.change('trust')
+    r.enter()
+    await completionOf(r.events, r.itemId)
+    r.options.isTrusted = true
+    r.t.api.script({ text: 'Nothing ran.' })
+    await r.session.sendTurn([{ type: 'text', text: 'what happened?' }])
+    await r.turnDone()
+    expect(
+      requestInput(r.t, 0).some((item) => noteText(item)?.startsWith(MODEL_TEXT.userShellLead)),
+    ).toBe(false)
+  })
+
+  it('refuses a command started on a session that was already disposed', async () => {
+    const held = heldShellToolIo({}, ROOT)
+    const t = setup({ io: held })
+    const { session } = await startSession(t)
+    session.dispose()
+    await session.runUserShell('ls')
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'userShell')).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.userShellFailed,
+      })
+    })
+    expect(held.shellCalls).toHaveLength(0)
+  })
+
+  it('enters with the owner unchanged and keeps its own outcome', async () => {
+    const r = await waitingUserShell()
+    r.enter()
+    await vi.waitFor(() => {
+      expect(r.held.runs).toHaveLength(1)
+    })
+    r.held.runs[0]?.finish({ stdout: 'listed', exitCode: 0 })
+    expect(await completionOf(r.events, r.itemId)).toMatchObject({
+      status: 'completed',
+      visibleOutput: 'listed',
+    })
+  })
+
+  it('keeps an entered command’s outcome when trust is withdrawn afterwards', async () => {
+    const r = await waitingUserShell()
+    r.enter()
+    await vi.waitFor(() => {
+      expect(r.held.runs).toHaveLength(1)
+    })
+    r.options.isTrusted = false
+    r.held.runs[0]?.finish({ stdout: 'already running', exitCode: 0 })
+    expect(await completionOf(r.events, r.itemId)).toMatchObject({
+      status: 'completed',
+      visibleOutput: 'already running',
+    })
+  })
+
+  it('enters after the running turn is stopped and Plan mode is on: a `!` is the user’s own', async () => {
+    const prepared = preparingShell()
+    const t = setup({ io: prepared.io })
+    const { session, events } = await startSession(t)
+    t.api.script({ calls: [{ name: 'write_file', arguments: '{"path":"n.txt","content":"x"}' }] })
+    await session.sendTurn([{ type: 'text', text: 'write n.txt' }])
+    await approvalRequest(events, 0)
+    await session.runUserShell('ls')
+    await prepared.entered.promise
+    await session.setApprovalMode('denyUnmatched')
+    await session.cancel()
+    prepared.release.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(prepared.held.runs).toHaveLength(1)
+    })
+    expect(prepared.held.runs[0]?.signal?.aborted).toBe(false)
+    prepared.held.runs[0]?.finish({ stdout: 'listed', exitCode: 0 })
+    const [started] = userShellStarts(events)
+    expect(await completionOf(events, started?.item.itemId ?? '')).toMatchObject({
+      status: 'completed',
+      visibleOutput: 'listed',
+    })
+  })
+})
+
 describe('ModelApiSession: an explanation instead of an answer (M46)', () => {
   it('settles the question clarified and hands the model the text, as Muse Code does', async () => {
     const t = setup()

@@ -5347,6 +5347,26 @@ export class ModelApiSession implements AgentSession {
     return notes.length > 0
   }
 
+  /**
+   * The final admission of the user's `!` command at its real entry, after
+   * the checkpoint mark and the native adapter's waits: the CURRENT trust,
+   * this session and the Host's closing state, and the user's own stop. It
+   * belongs to no turn, so neither the running turn, its Stop nor the
+   * permission mode (Plan included) decides it: the user typed it.
+   */
+  private userShellAdmission(stop: AbortController): () => void {
+    return () => {
+      if (
+        stop.signal.aborted ||
+        this.isDisposed ||
+        this.isHostClosing() ||
+        !this.deps.isWorkspaceTrusted()
+      ) {
+        throw new AbortedError()
+      }
+    }
+  }
+
   /** The user's `!` command (M46): run, shown as its row, and told to the model. */
   private async runUserShellCommand(
     started: ItemSnapshot,
@@ -5361,6 +5381,8 @@ export class ModelApiSession implements AgentSession {
         this.deps.workspaceRoot,
         USER_SHELL_TIMEOUT_MS,
         stop.signal,
+        undefined,
+        this.userShellAdmission(stop),
       )
     } catch (error: unknown) {
       result = {
@@ -5374,6 +5396,10 @@ export class ModelApiSession implements AgentSession {
       this.userShells.delete(started.itemId)
     }
     const outcome = shellOutcome(result, USER_SHELL_TIMEOUT_MS)
+    // A refused entry ran nothing: its row says so, and the model is told
+    // nothing about a command that never started.
+    const isRefused = result.isEntryRefused === true && !stop.signal.aborted
+    const failureReason = isRefused ? UI_TEXT.userShellFailed : outcome.failureReason
     // As Muse Code's rows read (captured 2026-09-25): exit 0 completed, any
     // other failed; one the user stopped reads stopped.
     let status = result.exitCode === 0 ? COMPLETED : FAILED
@@ -5383,14 +5409,16 @@ export class ModelApiSession implements AgentSession {
     const completed: ItemSnapshot = {
       ...started,
       status,
-      visibleOutput: shellText(result),
+      visibleOutput: isRefused ? UI_TEXT.userShellFailed : shellText(result),
       durationMs: this.deps.now() - startedAt,
       ...(result.exitCode !== null && { exitCode: result.exitCode }),
-      ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
+      ...(failureReason !== undefined && { failureReason }),
     }
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
-    this.noteForModel(`${MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
+    if (result.isEntryRefused !== true) {
+      this.noteForModel(`${MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
+    }
   }
 
   /** Calls kept from running still get an output for valid replay. */

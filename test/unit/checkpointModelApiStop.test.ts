@@ -33,6 +33,7 @@ import { turnKey } from '../../src/host/checkpoints/checkpointStore'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { fakeLanguageService, KIND, sym } from './helpers/fakeLanguageService'
+import { enteringShell } from './helpers/fakeToolIo'
 import { harness, removeCheckpointFolders, REAL_GIT_TIMEOUT_MS } from './helpers/checkpointHarness'
 
 const hosts: ModelApiHost[] = []
@@ -85,14 +86,19 @@ async function setup(hasMemory = false) {
     },
     shellJobAssembly: async () => await assembly?.(),
   })
-  const shell = vi.spyOn(native, 'runShell').mockResolvedValue({
-    stdout: 'passed',
-    stderr: '',
-    exitCode: 0,
-    isTimedOut: false,
-    isCancelled: false,
-    isWorkspaceShutdownProven: true,
-  })
+  // The native adapter's own entry check stays: a refusal there launches nothing.
+  const shell = vi.spyOn(native, 'runShell').mockImplementation(
+    enteringShell(() =>
+      Promise.resolve({
+        stdout: 'passed',
+        stderr: '',
+        exitCode: 0,
+        isTimedOut: false,
+        isCancelled: false,
+        isWorkspaceShutdownProven: true,
+      }),
+    ),
+  )
   const io = withCheckpointCopies(native, port)
   let memoryStage: (() => Promise<void>) | undefined
   const memoryIo = createMemoryIo(io, {
@@ -1063,6 +1069,109 @@ describe('M72 native common owner guards', () => {
       } finally {
         release.resolve(undefined)
       }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+// A mode change is not among them: the user's own command is not the model's.
+type UserShellChange = Exclude<OwnerChange, 'mode'> | 'dispose' | 'hostClose'
+
+/** The user's own `!` command, held at the real checkpoint activity mark. */
+async function heldUserShell(t: Awaited<ReturnType<typeof setup>>) {
+  if (!(t.session instanceof ModelApiSession)) throw new Error('Expected Model API session')
+  const session = t.session
+  const { entered, release } = holdActivity(t)
+  await session.runUserShell('printf owned')
+  await entered.promise
+  const itemId = t.events.find(
+    (event) => event.type === 'itemStarted' && event.item.kind === 'userShell',
+  )
+  if (itemId?.type !== 'itemStarted') throw new Error('Expected the actual user shell row')
+  const row = () => session.history().items.find((item) => item.itemId === itemId.item.itemId)
+  return { session, release, itemId: itemId.item.itemId, row }
+}
+
+describe('M72 native user-owned shell admission', () => {
+  it.each(['stop', 'trust', 'dispose', 'hostClose'] as const)(
+    'launches no user command after the held checkpoint mark and %s change',
+    async (change: UserShellChange) => {
+      const t = await setup()
+      const held = await heldUserShell(t)
+      const hostClosing = Promise.withResolvers<undefined>()
+      const hostEnd = Promise.withResolvers<undefined>()
+      let closing: Promise<void> | undefined
+      try {
+        switch (change) {
+          case 'stop': {
+            await held.session.stopTask(held.itemId)
+            break
+          }
+          case 'trust': {
+            t.settings.isTrusted = false
+            break
+          }
+          case 'dispose': {
+            held.session.dispose()
+            break
+          }
+          case 'hostClose': {
+            vi.spyOn(held.session, 'endHooks').mockImplementation(async () => {
+              hostClosing.resolve(undefined)
+              await hostEnd.promise
+            })
+            closing = t.host.close()
+            await hostClosing.promise
+            break
+          }
+        }
+        held.release.resolve(undefined)
+        await vi.waitFor(() => {
+          expect(held.row()?.status).not.toBe('inProgress')
+        })
+        expect(t.shell).not.toHaveBeenCalled()
+        expect(t.port.isNativeUnsafe()).toBe(false)
+      } finally {
+        held.release.resolve(undefined)
+        hostEnd.resolve(undefined)
+        await closing
+      }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'enters after the held mark when only the Plan mode or the running turn changed',
+    async () => {
+      const t = await setup()
+      const held = await heldUserShell(t)
+      try {
+        await t.session.setApprovalMode('denyUnmatched')
+        await t.session.cancel()
+        held.release.resolve(undefined)
+        await vi.waitFor(() => {
+          expect(held.row()?.status).toBe('completed')
+        })
+        expect(t.shell).toHaveBeenCalledOnce()
+        expect(t.port.isNativeUnsafe()).toBe(false)
+      } finally {
+        held.release.resolve(undefined)
+      }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'runs an unchanged user command through checkpoint and native admission',
+    async () => {
+      const t = await setup()
+      const held = await heldUserShell(t)
+      held.release.resolve(undefined)
+      await vi.waitFor(() => {
+        expect(held.row()).toMatchObject({ status: 'completed', visibleOutput: 'passed' })
+      })
+      expect(t.shell).toHaveBeenCalledOnce()
+      expect(t.port.isNativeUnsafe()).toBe(false)
     },
     REAL_GIT_TIMEOUT_MS,
   )

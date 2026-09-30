@@ -26,7 +26,7 @@ import {
   GitMissingError,
   processGitProcess,
 } from '../../src/host/git'
-import { noopToolIo } from './helpers/fakeToolIo'
+import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
 import { removeFolder } from './helpers/temporaryFolders'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -76,6 +76,15 @@ function fakeStore() {
     },
   }
   return { store, calls }
+}
+
+const PROVEN_SHELL = {
+  stdout: '',
+  stderr: '',
+  exitCode: 0,
+  isTimedOut: false,
+  isCancelled: false,
+  isWorkspaceShutdownProven: true as const,
 }
 
 const NO_SNAPSHOT = {
@@ -301,7 +310,10 @@ describe('withCheckpointCopies (M72)', () => {
         isWorkspaceShutdownProven: true as const,
       }),
     )
-    const io = withCheckpointCopies({ ...noopToolIo, runShell: work, runHook: work }, port)
+    const io = withCheckpointCopies(
+      { ...noopToolIo, runShell: enteringShell(work), runHook: work },
+      port,
+    )
     const running = io.runShell('owned no-process fixture', '/ws', 1000)
     try {
       await entered.promise
@@ -313,6 +325,44 @@ describe('withCheckpointCopies (M72)', () => {
     expect(work).toHaveBeenCalledOnce()
     expect(calls).not.toContain('unproved')
   })
+  // The wrapper asks once after its activity mark, and the wrapped adapter asks
+  // again at its own entry (the Windows assembly wait sits between them).
+  it.each([
+    ['the wrapper’s own check', 1],
+    ['the wrapped adapter’s entry', 2],
+  ] as const)(
+    'starts nothing when %s refuses, and records no uncertainty',
+    async (_name, refusal) => {
+      const { port, calls } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+      const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
+      const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+      let asked = 0
+      const result = await io.runShell('owned fixture', '/ws', 1000, undefined, undefined, () => {
+        asked += 1
+        if (asked === refusal) {
+          throw new Error('the owner changed')
+        }
+      })
+      expect(result).toMatchObject({ isEntryRefused: true, isWorkspaceShutdownProven: true })
+      expect(asked).toBe(refusal)
+      expect(work).not.toHaveBeenCalled()
+      expect(calls).not.toContain('unproved')
+      expect(calls.at(-1)).toMatch(/^mark workspace-activity:.* false$/)
+    },
+  )
+
+  it('runs the wrapped shell once when both entries admit it', async () => {
+    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
+    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+    const guard = vi.fn()
+    const result = await io.runShell('owned fixture', '/ws', 1000, undefined, undefined, guard)
+    expect(guard).toHaveBeenCalledTimes(2)
+    expect(work).toHaveBeenCalledOnce()
+    expect(result.isEntryRefused).toBeUndefined()
+    expect(result.exitCode).toBe(0)
+  })
+
   it('copies before each tool write, and a copy that fails fails the write', async () => {
     const { store, calls } = fakeStore()
     const port = createCheckpointPort({

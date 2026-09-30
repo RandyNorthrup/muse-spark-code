@@ -8,7 +8,7 @@ import {
   createCheckpointPort,
   withCheckpointCopies,
 } from '../../src/host/checkpoints/checkpointHost'
-import { noopToolIo } from './helpers/fakeToolIo'
+import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { turnKey } from '../../src/host/checkpoints/checkpointStore'
@@ -135,7 +135,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
         await resume.promise
         return shellResult(false)
       }
-      const io: ToolIo = { ...noopToolIo, runShell: work, runHook: work }
+      const io: ToolIo = { ...noopToolIo, runShell: enteringShell(work), runHook: work }
       const wrapped = withCheckpointCopies(io, port)
       const hook = wrapped.runHook
       if (hook === undefined) {
@@ -190,7 +190,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       })
       // This controlled I/O fixture creates no native process or descendant.
       const wrapped = withCheckpointCopies(
-        { ...noopToolIo, runShell: () => Promise.resolve(shellResult(true)) },
+        { ...noopToolIo, runShell: enteringShell(() => Promise.resolve(shellResult(true))) },
         port,
       )
       await wrapped.runShell('no process exists', h.root, REAL_GIT_TIMEOUT_MS)
@@ -225,7 +225,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
         isWorkspaceTrusted: () => false,
       })
       const work = vi.fn(() => Promise.resolve(shellResult(true)))
-      const io = withCheckpointCopies({ ...noopToolIo, runShell: work }, port)
+      const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
       await expect(io.runShell('must not start', h.root, REAL_GIT_TIMEOUT_MS)).rejects.toThrow(
         UI_TEXT.checkpointFailed,
       )

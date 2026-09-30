@@ -28,7 +28,7 @@ import type {
   ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
-import { refusedShellEntry } from '../../core/shellResult'
+import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
 import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
@@ -651,13 +651,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
-        return {
-          stdout: '',
-          stderr: `${missing} was not found on the absolute entries of PATH`,
-          exitCode: null,
-          isTimedOut: false,
-          isCancelled: false,
-        }
+        return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
@@ -688,14 +682,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       const file = deps.platform === 'win32' ? interpreter : hookProgram
       if (hookProgram === undefined || file === undefined) {
-        return {
-          stdout: '',
-          stderr: 'Hook shell is unavailable',
-          exitCode: null,
-          isTimedOut: false,
-          isCancelled: false,
-          isWorkspaceShutdownProven: true,
-        }
+        return unstartedShell('Hook shell is unavailable')
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
@@ -835,7 +822,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     run.limit?.bind(() => {
       clearTimeout(timer)
     })
-    const settle = (exitCode: number | null, failure = '') => {
+    const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
       if (isSettled) {
         return
       }
@@ -846,13 +833,14 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       // Our ends of the pipes; whatever still writes to them is not waited for.
       child.stdout.destroy()
       child.stderr.destroy()
-      const result = {
+      const result: ShellResult = {
         stdout: stdout.text(),
         stderr: `${stderr.text()}${failure}`,
         exitCode,
         isTimedOut,
         isCancelled,
         ...(isOutputTooLarge && { isOutputTooLarge }),
+        ...(isUnstarted && { isWorkspaceShutdownProven: true }),
       }
       // killTree never rejects: what it cannot do, it logs.
       void (kill ?? Promise.resolve()).then(() => {
@@ -883,7 +871,10 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       stderr.push(chunk)
     })
     child.on('error', (error) => {
-      settle(null, error.message)
+      // Node leaves the pid undefined only when the spawn itself failed: no
+      // process exists. Any other error (a failed kill, a broken pipe) is a
+      // process that did launch, so it proves nothing.
+      settle(null, error.message, child.pid === undefined)
     })
     child.on('exit', (code) => {
       drain = setTimeout(() => {

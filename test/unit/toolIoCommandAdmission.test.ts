@@ -108,6 +108,39 @@ describe('native command final owner admission', () => {
     expect(result.stdout.trim()).toBe('admitted')
   })
 
+  it('gives no proof to an error that arrives after the real process launched', async () => {
+    const root = rootDirectory()
+    const actual = await vi.importActual<typeof childProcess>('node:child_process')
+    let launched: childProcess.ChildProcess | undefined
+    vi.mocked(childProcess.spawn).mockImplementationOnce((...args) => {
+      launched = actual.spawn(...args)
+      // Node's own error event for a launched child (a failed kill, say): its
+      // pid is set, so the process exists and nothing proves it stopped.
+      launched.once('spawn', () => {
+        launched?.emit('error', new Error('a late error'))
+      })
+      return launched
+    })
+    const command = process.platform === 'win32' ? 'Start-Sleep -Seconds 2' : 'sleep 2'
+    try {
+      const result = await localIo().runShell(command, root, SHELL_DEFAULT_TIMEOUT_MS)
+      expect(launched?.pid).toBeDefined()
+      expect(result).toMatchObject({ exitCode: null, stderr: 'a late error' })
+      expect(result.isWorkspaceShutdownProven).toBeUndefined()
+    } finally {
+      // Ours to end: the folder cannot be removed while it still holds it.
+      const child = launched
+      if (child?.exitCode === null && child.signalCode === null) {
+        const exited = Promise.withResolvers<undefined>()
+        child.once('exit', () => {
+          exited.resolve(undefined)
+        })
+        child.kill()
+        await exited.promise
+      }
+    }
+  })
+
   it('keeps a real started-then-cancelled shell distinct from entry refusal', async () => {
     const root = rootDirectory()
     const started = Promise.withResolvers<undefined>()

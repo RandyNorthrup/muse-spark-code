@@ -4,9 +4,11 @@ export interface ShellResult {
   /** Local caller admission refused before native entry; never inferred from output or cancellation. */
   readonly isEntryRefused?: true
   /**
-   * Locally owned process provenance only: every workspace-capable descendant
-   * is positively observed stopped. Exit code/pipe close/drain never qualifies.
-   * Current runners provide no such proof; never read this from model/MSP data.
+   * Locally owned process provenance only: no workspace-capable process exists
+   * that could outlive the result. Only a command that could not start
+   * (`unstartedShell`) or was refused before entry carries it; a launched
+   * command never does, and exit code/pipe close/drain never qualify. Never
+   * read this from model/MSP data.
    */
   readonly isWorkspaceShutdownProven?: true
   readonly stdout: string
@@ -17,6 +19,22 @@ export interface ShellResult {
   readonly isCancelled: boolean
   /** The command exceeded its per-stream byte budget (M51 hooks). */
   readonly isOutputTooLarge?: boolean
+}
+
+/**
+ * A command that could not start at all (no interpreter, no program): the
+ * failure stays the caller's to report, and only this local fact, never a
+ * normal exit, proves no process exists to outlive it.
+ */
+export function unstartedShell(stderr: string): ShellResult {
+  return {
+    stdout: '',
+    stderr,
+    exitCode: null,
+    isTimedOut: false,
+    isCancelled: false,
+    isWorkspaceShutdownProven: true,
+  }
 }
 
 /** Proven no-entry outcome from a local caller guard, separate from a stopped running process. */

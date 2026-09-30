@@ -3,7 +3,29 @@
 // touch a tool.
 
 import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
+import { refusedShellEntry } from '../../../src/core/shellResult'
 import { fingerprint } from '../../../src/core/verify/fingerprint'
+
+/**
+ * The real adapter's final admission (the sixth `runShell` argument), asked at
+ * the fake's entry: a refusal is the proven no-entry result and the fake
+ * records and runs nothing, so a test sees what the real entry would refuse.
+ * A command already started keeps its own outcome: only the entry is asked.
+ */
+export function refusedAtEntry(assertCanRun: (() => void) | undefined): ShellResult | undefined {
+  try {
+    assertCanRun?.()
+  } catch {
+    return refusedShellEntry()
+  }
+  return undefined
+}
+
+/** A `runShell` that runs `work` once the final admission lets it in. */
+export function enteringShell(work: () => Promise<ShellResult>): ToolIo['runShell'] {
+  return async (_command, _cwd, _timeoutMs, _signal, _limit, assertCanRun) =>
+    refusedAtEntry(assertCanRun) ?? (await work())
+}
 
 export interface MemoryToolIo extends ToolIo {
   readonly files: Map<string, string>
@@ -133,7 +155,11 @@ export function memoryToolIo(
       }
       return Promise.resolve({ ok: true, hits })
     },
-    runShell: (command, cwd, timeoutMs) => {
+    runShell: (command, cwd, timeoutMs, _signal, _limit, assertCanRun) => {
+      const refused = refusedAtEntry(assertCanRun)
+      if (refused !== undefined) {
+        return Promise.resolve(refused)
+      }
       shellCalls.push({ command, cwd, timeoutMs })
       return Promise.resolve(shell(command))
     },
@@ -153,8 +179,9 @@ export const noopToolIo: ToolIo = {
   unsavedFiles: () => [],
   listFiles: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),
-  runShell: () =>
+  runShell: enteringShell(() =>
     Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }),
+  ),
 }
 
 /** One command a held shell runs (M46): until the test finishes it or its signal stops it. */
@@ -180,7 +207,11 @@ export function heldShellToolIo(
   return {
     ...io,
     runs,
-    runShell: (command, cwd, timeoutMs, signal, limit) => {
+    runShell: (command, cwd, timeoutMs, signal, limit, assertCanRun) => {
+      const refused = refusedAtEntry(assertCanRun)
+      if (refused !== undefined) {
+        return Promise.resolve(refused)
+      }
       io.shellCalls.push({ command, cwd, timeoutMs })
       return new Promise((resolve) => {
         const run: HeldRun = {

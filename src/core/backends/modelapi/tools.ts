@@ -190,6 +190,9 @@ export interface ToolIo {
   /**
    * A timeout or the signal kills the whole process tree (PLAN.md D25);
    * `limit` lets the caller lift the timeout while it runs (M46).
+   * `assertCanRun` is the owner's final admission, asked at the real entry
+   * after every wait of the adapter and the checkpoint wrapper: a throw
+   * refuses the command, which starts nothing (`isEntryRefused`).
    */
   runShell(
     command: string,
