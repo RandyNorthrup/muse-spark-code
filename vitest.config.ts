@@ -31,7 +31,8 @@ export default defineConfig({
     // Windows MCP process suites start PowerShell job helpers. On the small
     // hosted runner, concurrent files delayed launches past real MCP deadlines.
     fileParallelism: process.platform !== 'win32',
-    maxWorkers: process.platform === 'darwin' ? MACOS_TEST_WORKERS : undefined,
+    // Spread, not `maxWorkers: undefined`: exactOptionalPropertyTypes rejects it.
+    ...(process.platform === 'darwin' && { maxWorkers: MACOS_TEST_WORKERS }),
     coverage: {
       provider: 'v8',
       // Source files only: a bare `src/**` also feeds src/webview/tsconfig.json
