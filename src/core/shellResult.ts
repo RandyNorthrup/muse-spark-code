@@ -37,6 +37,14 @@ export function unstartedShell(stderr: string): ShellResult {
   }
 }
 
+/**
+ * A failure before the command could enter (the checkpoint could not be
+ * marked): no process exists and nothing ran, so a caller that would tell the
+ * model what the user ran stays silent. Only a failure AFTER the command ran
+ * is a plain Error.
+ */
+export class ShellEntryError extends Error {}
+
 /** Proven no-entry outcome from a local caller guard, separate from a stopped running process. */
 export function refusedShellEntry(): ShellResult {
   return {

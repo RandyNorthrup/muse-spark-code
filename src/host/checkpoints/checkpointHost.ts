@@ -9,7 +9,7 @@
 // run, and at the next trusted opening otherwise.
 
 import type { FileReservation, ShellResult, ToolIo } from '../../core/backends/modelapi/tools'
-import { refusedShellEntry } from '../../core/shellResult'
+import { refusedShellEntry, ShellEntryError } from '../../core/shellResult'
 import { randomUUID } from 'node:crypto'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import {
@@ -329,7 +329,7 @@ export function withCheckpointCopies(io: ToolIo, checkpoints: CheckpointPort): T
       } catch {
         // No work started; an uncertain mark remains closed to restores.
       }
-      throw new Error(UI_TEXT.checkpointFailed, { cause: error })
+      throw new ShellEntryError(UI_TEXT.checkpointFailed, { cause: error })
     }
     try {
       assertCanRun?.()

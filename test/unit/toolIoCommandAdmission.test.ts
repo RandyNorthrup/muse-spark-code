@@ -108,6 +108,28 @@ describe('native command final owner admission', () => {
     expect(result.stdout.trim()).toBe('admitted')
   })
 
+  it('proves no process exists when spawn itself throws, and keeps the failure', async () => {
+    const root = rootDirectory()
+    // A real NUL byte: Node refuses the argument before any process exists.
+    const nul = await localIo().runShell('a\0b', root, SHELL_DEFAULT_TIMEOUT_MS)
+    expect(nul).toMatchObject({
+      exitCode: null,
+      isTimedOut: false,
+      isCancelled: false,
+      isWorkspaceShutdownProven: true,
+    })
+    expect(nul.stderr).not.toBe('')
+    // A command line past the operating system's limit (ENAMETOOLONG, E2BIG).
+    vi.mocked(childProcess.spawn).mockImplementationOnce(() => {
+      throw Object.assign(new Error('spawn ENAMETOOLONG'), { code: 'ENAMETOOLONG' })
+    })
+    expect(await localIo().runShell('echo', root, SHELL_DEFAULT_TIMEOUT_MS)).toMatchObject({
+      stderr: 'spawn ENAMETOOLONG',
+      exitCode: null,
+      isWorkspaceShutdownProven: true,
+    })
+  })
+
   it('gives no proof to an error that arrives after the real process launched', async () => {
     const root = rootDirectory()
     const actual = await vi.importActual<typeof childProcess>('node:child_process')

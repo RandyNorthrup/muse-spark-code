@@ -769,6 +769,22 @@ export interface CommandRun {
   readonly maxOutputBytes?: number | undefined
 }
 
+/** The spawned process, or the Error spawn threw before any process existed. */
+function startProcess(run: CommandRun) {
+  try {
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
+    return spawn(run.file, [...run.args], {
+      cwd: run.cwd,
+      env: run.env,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      ...treeSpawnOptions(run.tree.platform),
+    })
+  } catch (error: unknown) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
 /**
  * Runs one process to its exit (PLAN.md D25). A timeout or an abort kills
  * the whole process tree, and the result waits for that kill to finish
@@ -790,14 +806,14 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       return
     }
     const startedAt = Date.now()
-    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
-    const child = spawn(run.file, [...run.args], {
-      cwd: run.cwd,
-      env: run.env,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      ...treeSpawnOptions(run.tree.platform),
-    })
+    const child = startProcess(run)
+    if (child instanceof Error) {
+      // spawn itself threw (a command line past the operating system's limit,
+      // a NUL in the command): no process was ever created, which is the one
+      // local fact that proves none exists to outlive the result.
+      resolve(unstartedShell(child.message))
+      return
+    }
     const stdout = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
     const stderr = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
     let isTimedOut = false

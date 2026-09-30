@@ -147,6 +147,7 @@ import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
 import { isProtectedPath } from '../../protectedPaths'
+import { ShellEntryError } from '../../shellResult'
 import { confineWorkspacePath } from '../../workspacePath'
 import { pathModule } from '../../workspaceRoot'
 import { type CheckScope, type RunSnapshot, VerifyLedger } from './verifyLedger'
@@ -5391,6 +5392,9 @@ export class ModelApiSession implements AgentSession {
         exitCode: null,
         isTimedOut: false,
         isCancelled: false,
+        // Failed before entry: nothing ran, so the row says so and the model
+        // is told nothing. A failure after the command ran is still told.
+        ...(error instanceof ShellEntryError && { isEntryRefused: true as const }),
       }
     } finally {
       this.userShells.delete(started.itemId)

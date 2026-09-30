@@ -55,6 +55,7 @@ import type {
 import { removeFolder } from './helpers/temporaryFolders'
 import { parseHookConfig, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ShellEntryError } from '../../src/core/shellResult'
 import { ConversationCheckpoints } from '../../src/host/conversation/conversationCheckpoints'
 import {
   createCheckpointPort,
@@ -9463,6 +9464,27 @@ describe('ModelApiSession: the user’s own shell at its real entry (M72)', () =
     expect(
       requestInput(r.t, 0).some((item) => noteText(item)?.startsWith(MODEL_TEXT.userShellLead)),
     ).toBe(false)
+  })
+
+  it.each([
+    { when: 'before it could enter', error: new ShellEntryError('no mark'), isTold: false },
+    { when: 'after it ran', error: new Error('no close'), isTold: true },
+  ])('a shell that throws $when: the model is told = $isTold', async ({ error, isTold }) => {
+    const io = { ...heldShellToolIo({}, ROOT), runShell: () => Promise.reject(error) }
+    const t = setup({ io })
+    const { session, turnDone } = await startSession(t)
+    await session.runUserShell('git commit -am x')
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'userShell')?.status).toBe(
+        'failed',
+      )
+    })
+    t.api.script({ text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'what happened?' }])
+    await turnDone()
+    expect(
+      requestInput(t, 0).some((item) => noteText(item)?.startsWith(MODEL_TEXT.userShellLead)),
+    ).toBe(isTold)
   })
 
   it('refuses a command started on a session that was already disposed', async () => {

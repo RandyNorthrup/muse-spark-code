@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ShellEntryError } from '../../src/core/shellResult'
 import {
   type CheckpointPort,
   type CheckpointStoreApi,
@@ -76,6 +77,16 @@ function fakeStore() {
     },
   }
   return { store, calls }
+}
+
+/** What the work throws, or undefined when it settles. */
+async function thrownBy(work: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await work()
+  } catch (error: unknown) {
+    return error
+  }
+  return undefined
 }
 
 const PROVEN_SHELL = {
@@ -350,6 +361,36 @@ describe('withCheckpointCopies (M72)', () => {
       expect(calls.at(-1)).toMatch(/^mark workspace-activity:.* false$/)
     },
   )
+
+  it('throws a ShellEntryError, and starts nothing, when the activity mark cannot be made', async () => {
+    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    const failing: CheckpointPort = {
+      ...port,
+      markTurn: (_key, isRunning) =>
+        isRunning ? Promise.reject(new Error('the store is gone')) : Promise.resolve(),
+    }
+    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
+    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
+    const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+    expect(error).toBeInstanceOf(ShellEntryError)
+    expect(error).toMatchObject({ message: UI_TEXT.checkpointFailed })
+    expect(work).not.toHaveBeenCalled()
+  })
+
+  it('throws a plain Error when the checkpoint cannot be closed after the command ran', async () => {
+    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    const failing: CheckpointPort = {
+      ...port,
+      markTurn: (_key, isRunning) =>
+        isRunning ? Promise.resolve() : Promise.reject(new Error('the store is gone')),
+    }
+    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
+    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
+    const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+    expect(error).toMatchObject({ message: UI_TEXT.checkpointFailed })
+    expect(error).not.toBeInstanceOf(ShellEntryError)
+    expect(work).toHaveBeenCalledOnce()
+  })
 
   it('runs the wrapped shell once when both entries admit it', async () => {
     const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
