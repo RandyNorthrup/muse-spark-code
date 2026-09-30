@@ -7,6 +7,45 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
+  agents with their own prompt, tools, model or effort, and permissions. The
+  model runs one through `subagent_spawn` with `agent` set to its id, and the
+  run is a paid child task like any subagent (asks in the paid-use popup,
+  off unless paid subagents are on, refused in Plan). The extension ships
+  `explore` (read-only reconnaissance) and `second-opinion` (a high-effort
+  consult); your own are `.agents/agents/<id>/AGENT.md` in the workspace or
+  `~/.config/muse/agents/<id>/AGENT.md` (`$XDG_CONFIG_HOME/muse/agents` when
+  set), with front matter (`name`, `description`; optional `tools` as a
+  comma-separated allowlist, `model`, `effort`, `permission-mode`) above a
+  Markdown prompt. The CLI names no agent folder, so the folder is this
+  extension's own (PLAN.md D13). On the CLI backend Muse Code reads its own
+  agents.
+- **What a custom agent may do.** An agent can only narrow the session: its
+  tool list binds every call (memory tools included), automatic check commands
+  need `run_checks` or the shell in it and `then_run`, which runs any
+  command line, needs the shell, and a mode switch keeps its ceiling. A model it names
+  passes the checks of your own choice: contributor models are blocked in a
+  confidential workspace and otherwise ask once for each spawn (and for a
+  follow-up this session was never given the yes for), and a model other
+  than the session's asks in the paid-use popup even when subagents are
+  allowed always in the workspace.
+- **Agent files are untrusted input.** A file is read only up to 64 KB and only
+  when it is a regular file; a skill file gets the same cap. Front matter
+  the reader cannot take whole (a YAML list, an indented value, a repeated
+  key, a `tools` line that names no tool) skips the file with a log line
+  instead of reading as "every tool"; names, descriptions and models are
+  bounded and free of control and direction characters; at most 32 agent
+  files load. A repository's files load only in a trusted workspace, no agent
+  is offered once it stops being trusted, and a child's role is labelled with
+  its source and sits below the workspace rules that outrank it.
+
+### Changed
+
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
+
 ## [0.10.0] - 2026-09-30
 
 ### Fixed
