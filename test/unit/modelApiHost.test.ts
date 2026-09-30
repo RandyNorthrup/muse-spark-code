@@ -6924,6 +6924,108 @@ describe('ModelApiSession custom agents (M76)', () => {
     }
   })
 
+  // then_run takes any command line the model writes: it is the shell by
+  // another name, so run_checks (which runs only the user's own commands)
+  // does not give it, and the role's prompt does not describe a shell it lacks.
+  it.each([
+    {
+      name: 'the shell tool',
+      tools: 'write_file, bash',
+      ran: ['echo then', 'npm test'],
+      hasShell: true,
+    },
+    {
+      name: 'only run_checks',
+      tools: 'write_file, run_checks',
+      ran: ['npm test'],
+      hasShell: false,
+    },
+    { name: 'no command tool', tools: 'write_file', ran: [], hasShell: false },
+  ])('runs then_run only with the shell tool in the agent list: $name (M76)', async (testCase) => {
+    const t = setupSubagents({
+      files: {
+        '.agents/agents/writer/AGENT.md': agentFile(
+          'writer',
+          'Writes a file',
+          `tools: ${testCase.tools}\n`,
+        ),
+      },
+      verify: {
+        isDiagnosticsOn: () => false,
+        checkCommands: () => [{ name: 'agent-check', command: 'npm test' }],
+        isFormatOnEdit: () => false,
+        diagnosticsAfterEdit: () => Promise.resolve([]),
+        formatAfterEdit: () => Promise.resolve(undefined),
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnAgentAndWait(
+      t,
+      session,
+      spawnCallReply('writer', 'Write a file', 'writer', 'spawn_then_run_writer'),
+      'Writer ready.',
+    )
+    scriptChildCall(
+      t,
+      {
+        name: 'write_file',
+        arguments: JSON.stringify({ path: 'owned.ts', content: 'x', then_run: 'echo then' }),
+        callId: 'child_then_run',
+      },
+      'Writer done.',
+    )
+    await session.messageSubagent('subagent-1', 'Write it', true)
+    await waitForChildSummary(session, 'Writer done.')
+    expect(t.files.get(`${ROOT}/owned.ts`)).toBe('x')
+    // The configured check runs wherever run_checks or the shell is held; the
+    // model's own then_run command only with the shell tool.
+    expect(t.io.shellCalls.map((call) => call.command)).toEqual(testCase.ran)
+    const last = childBodies(t).at(-1)
+    expect(JSON.stringify(last?.['tools']).includes('then_run')).toBe(testCase.hasShell)
+    const instructions = String(last?.['instructions'])
+    expect(instructions.includes(MODEL_TEXT.agentNoShell)).toBe(!testCase.hasShell)
+    expect(instructions.includes('Restricted Mode')).toBe(false)
+    expect(instructions.includes('take then_run')).toBe(testCase.hasShell)
+    if (!testCase.hasShell) {
+      expect(JSON.stringify(last?.['input'])).toContain(MODEL_TEXT.agentToolNotOffered)
+    }
+  })
+
+  it.each([
+    { name: 'no command tool', tools: 'write_file', isListed: false },
+    { name: 'run_checks', tools: 'write_file, run_checks', isListed: true },
+  ])(
+    'lists the check commands to a role only if it can run them: $name (M76)',
+    async (testCase) => {
+      const t = setupSubagents({
+        files: {
+          '.agents/agents/writer/AGENT.md': agentFile(
+            'writer',
+            'Writes a file',
+            `tools: ${testCase.tools}\n`,
+          ),
+        },
+        verify: {
+          isDiagnosticsOn: () => false,
+          checkCommands: () => [{ name: 'agent-check', command: 'npm test' }],
+          isFormatOnEdit: () => false,
+          diagnosticsAfterEdit: () => Promise.resolve([]),
+          formatAfterEdit: () => Promise.resolve(undefined),
+        },
+      })
+      const { session } = await startApprovedSubagentSession(t)
+      await spawnAgentAndWait(
+        t,
+        session,
+        spawnCallReply('writer', 'Write a file', 'writer', 'spawn_check_writer'),
+        'Writer ready.',
+      )
+      const instructions = String(childBodies(t).at(-1)?.['instructions'])
+      expect(instructions.includes('agent-check')).toBe(testCase.isListed)
+      expect(String(t.api.responseBodies()[0]?.['instructions']).includes('agent-check')).toBe(true)
+    },
+  )
+
   it('runs the Explore agent with its prompt and read-only tools, on the session model', async () => {
     const t = setupSubagents()
     const { session } = await startApprovedSubagentSession(t)

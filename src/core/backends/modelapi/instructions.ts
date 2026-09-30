@@ -45,6 +45,8 @@ export interface InstructionFacts {
   readonly shellName: string
   /** False in Restricted Mode: the shell tool is not offered. */
   readonly hasShell: boolean
+  /** False for a custom agent whose tool list holds no shell tool (M76); undefined is true. */
+  readonly isShellAllowed?: boolean
   /** True while the memory tools are offered (M49): trusted, with a memory store. */
   readonly hasMemory: boolean
   /** True while web_fetch is offered (M69): trusted, with the window's fetch. */
@@ -80,13 +82,21 @@ const LINE = '\n'
 const INDENT = '  '
 
 function baseText(facts: InstructionFacts): string[] {
-  const shell = facts.hasShell
-    ? `The shell tool (${facts.shellToolName}) runs one ${facts.shellName} command line in the workspace root. Give a one-line description with every command. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.`
-    : "There is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it."
+  // A custom agent's tool list may leave the shell out (M76): neither Restricted Mode nor a shell.
+  const hasShellTool = facts.hasShell && facts.isShellAllowed !== false
+  let shell: string
+  if (hasShellTool) {
+    shell = `The shell tool (${facts.shellToolName}) runs one ${facts.shellName} command line in the workspace root. Give a one-line description with every command. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.`
+  } else if (facts.hasShell) {
+    shell = MODEL_TEXT.agentNoShell
+  } else {
+    shell =
+      "There is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it."
+  }
   return [
     'You are Muse Spark, a coding agent working inside Visual Studio Code through the Muse Spark Code extension.',
     `The workspace root is ${facts.workspaceRoot} on ${facts.platform}. Every path you give a tool is relative to it (or absolute inside it); paths outside the workspace are refused.`,
-    `Use the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around${facts.hasShell ? ', and the shell tool to run commands' : ''}.`,
+    `Use the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around${hasShellTool ? ', and the shell tool to run commands' : ''}.`,
     ...(facts.hasCodeIntel ? [MODEL_TEXT.codeIntelInstructions] : []),
     shell,
     ...(facts.hasWebFetch === true
@@ -219,7 +229,7 @@ function verifyText(facts: InstructionFacts): string | undefined {
       : [
           `- The user's check commands run after each round of edits too, asking the user where a shell command would: ${checkListText(checks)}. When one fails, fix the cause; after a few failing rounds in a row they stop, and you tell the user what still fails. Run them yourself with ${VERIFY_TOOLS.runChecks}.`,
         ]),
-    ...(facts.hasShell
+    ...(facts.hasShell && facts.isShellAllowed !== false
       ? [
           `- ${MODEL_API_TOOLS.writeFile} and ${MODEL_API_TOOLS.editFile} take ${THEN_RUN_ARGUMENT}: one command to run right after the edit, such as the test of the code you changed. Its output comes back with the edit's result.`,
         ]

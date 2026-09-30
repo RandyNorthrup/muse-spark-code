@@ -1824,6 +1824,7 @@ export class ModelApiSession implements AgentSession {
         shellToolName: shell.name,
         shellName: shell.shellName,
         hasShell,
+        isShellAllowed: this.canRunShell(),
         hasMemory,
         hasWebFetch: this.isWebFetchOffered(hasShell),
         hasCodeIntel: this.deps.codeIntel !== undefined,
@@ -1838,7 +1839,7 @@ export class ModelApiSession implements AgentSession {
         },
         verify: {
           isDiagnosticsOn: this.deps.verify?.isDiagnosticsOn() === true,
-          checks: this.checkCommands(),
+          checks: this.canRunVerifyCommands() ? this.checkCommands() : [],
         },
         ...(repoMap !== undefined && { repoMap }),
         // Pinned while the goal is active (M45, PLAN.md D38).
@@ -1911,14 +1912,22 @@ export class ModelApiSession implements AgentSession {
     return this.deps.verify?.checkCommands() ?? []
   }
 
-  /** Automatic checks and then_run cannot give a narrowed agent a missing command tool. */
+  /**
+   * The shell tool, and `then_run`, which runs any command line the model
+   * writes, need the shell tool in a narrowed agent's list (M76).
+   */
+  private canRunShell(): boolean {
+    const allowed = this.agent?.toolAllowlist
+    return allowed === undefined || allowed.includes(shellToolFor(this.deps.platform).name)
+  }
+
+  /**
+   * Automatic checks and `run_checks` run only the user's configured check
+   * commands: a narrowed agent needs `run_checks` or the shell in its list (M76).
+   */
   private canRunVerifyCommands(): boolean {
     const allowed = this.agent?.toolAllowlist
-    return (
-      allowed === undefined ||
-      allowed.includes(VERIFY_TOOLS.runChecks) ||
-      allowed.includes(shellToolFor(this.deps.platform).name)
-    )
+    return this.canRunShell() || allowed?.includes(VERIFY_TOOLS.runChecks) === true
   }
 
   /** In-process, IDE, MCP and paid search tools offered to this request. */
@@ -1929,6 +1938,8 @@ export class ModelApiSession implements AgentSession {
   ): readonly ToolDefinition[] {
     const own = toolDefinitions(this.deps.platform, {
       hasShell,
+      // then_run runs any command: only where the shell tool is (M76).
+      hasThenRun: hasShell && this.canRunShell(),
       hasSkills,
       hasImageGeneration: this.deps.isPaidFeatureOn('imageGeneration'),
       hasSubagents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents'),
@@ -5196,20 +5207,23 @@ export class ModelApiSession implements AgentSession {
     )
     let ran: CommandOutcome
     try {
-      ran = await this.runVerifyCommand(
-        itemId,
-        {
-          line: command,
-          ruleCommand: command,
-          description: THEN_RUN_DESCRIPTION,
-          timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
-          isForced,
-          guard: () => this.isAsEdited(target, isAllowed),
-        },
-        signal,
-        effects,
-        isAllowed,
-      )
+      // then_run is the shell by another name: a narrowed agent without the shell tool has none.
+      ran = this.canRunShell()
+        ? await this.runVerifyCommand(
+            itemId,
+            {
+              line: command,
+              ruleCommand: command,
+              description: THEN_RUN_DESCRIPTION,
+              timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
+              isForced,
+              guard: () => this.isAsEdited(target, isAllowed),
+            },
+            signal,
+            effects,
+            isAllowed,
+          )
+        : { kind: 'skipped', skip: 'refused', detail: MODEL_TEXT.agentToolNotOffered }
     } catch (error: unknown) {
       if (!(error instanceof AbortedError) && !isAbortRequested(signal)) {
         throw error

@@ -55,6 +55,25 @@ describe('instructionsFor', () => {
     expect(text).not.toContain('and the shell tool to run commands')
   })
 
+  it('says a role without the shell has none, and not that the workspace is restricted (M76)', () => {
+    const verify = { isDiagnosticsOn: false, checks: [] }
+    const text = instructionsFor({
+      ...base,
+      hasShell: true,
+      isShellAllowed: false,
+      context: noContext,
+      verify,
+    })
+    expect(text).toContain('There is no shell tool for this role')
+    expect(text).not.toContain('Restricted Mode')
+    expect(text).not.toContain('runs one bash command line')
+    expect(text).not.toContain('and the shell tool to run commands')
+    expect(text).not.toContain('take then_run')
+    const withShell = instructionsFor({ ...base, hasShell: true, context: noContext, verify })
+    expect(withShell).toContain('write_file and edit_file take then_run')
+    expect(withShell).toContain('and the shell tool to run commands')
+  })
+
   it('appends the rules, the skill and agent catalogues and the memory as sections (M10, M49, M76)', () => {
     const text = instructionsFor({
       ...base,

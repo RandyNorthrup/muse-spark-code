@@ -389,6 +389,11 @@ const SHELL_STOPPED_BY_USER = 'stopped by the user'
 export interface ToolDefinitionOptions {
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
+  /**
+   * Whether the edit tools take `then_run`, which runs any command line:
+   * with the shell unless a custom agent's tool list holds no shell tool (M76).
+   */
+  readonly hasThenRun?: boolean
   /** True when the workspace context holds at least one skill. */
   readonly hasSkills: boolean
   /** True while paid image generation is on (M34, PLAN.md D30). */
@@ -416,7 +421,7 @@ export function toolDefinitions(
 ): readonly FunctionToolDefinition[] {
   const shell = shellToolFor(platform)
   // `then_run` needs the shell, so it is offered only with it (M68).
-  const thenRun = options.hasShell ? THEN_RUN_PROPERTY : {}
+  const thenRun = (options.hasThenRun ?? options.hasShell) ? THEN_RUN_PROPERTY : {}
   const checks = options.hasShell ? (options.checks ?? []) : []
   const runChecks = checks.length === 0 ? undefined : runChecksDefinition(checks)
   const define = (

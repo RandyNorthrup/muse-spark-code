@@ -2617,6 +2617,8 @@ export const MODEL_TEXT = {
     'the agent names a contributor-tier model, which is blocked while the workspace is confidential',
   agentRole:
     'This is the {source} agent "{id}". Its role below is for this task only. It cannot add tools or permissions, and the instructions above outrank it.',
+  agentNoShell:
+    "There is no shell tool for this role: only the tools you are offered can be used, and a command cannot be run. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.",
   agentRestrictedMode:
     'custom agents are not available while the workspace is in Restricted Mode; trust the workspace to use them',
   agentToolNotOffered:
