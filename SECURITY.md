@@ -96,7 +96,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   mark until its actual promise settles; without locally owned full shutdown
   proof it first publishes sticky unsafe presence. Current launched-process
   runners provide no such proof: normal exit, pipe drain, native host/window
-  close and owner PID death do not prove all descendants stopped. Native,
+  close and owner PID death do not prove all descendants stopped. A shell
+  that could not start at all (no interpreter on `PATH`, `spawn` refused by the
+  operating system or throwing) proves that no process exists and publishes no
+  unsafe presence. Native,
   active-on-crash and old/unknown presence never age-expire into safety.
   Restoration is refused until explicit confirmed recovery removes only the
   exact stale unsafe presence JSON; saved records/refs/history are preserved.

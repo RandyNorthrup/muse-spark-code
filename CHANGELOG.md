@@ -9,33 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [0.10.0] - 2026-09-30
 
-### Fixed
+### Highlights
 
-- **Checkpoint bundle budget** (M72). The checkpoint store and legacy reader
-  ship as `dist/checkpointStore.js`, loaded synchronously at the existing
-  activation construction point with the installed language. Startup safety,
-  maintenance, activity marks and disposal remain unchanged. A missing or
-  malformed store module refuses startup instead of offering unsafe work.
-
-- **Stop across checkpoint waits** (M68/M72). Ordinary writes, first rename
-  publication and late formatter writes retain captured owner admission
-  through preimage and atomic waits. Refused late formatting preserves the
-  completed edit and patch. Revoked diagnostic data is withheld, and check
-  commands recheck admission after checkpoint marks and native preparation;
-  a proven refusal starts no process and leaves no unknown activity mark.
-  Sequential and explicit checks retain their original admission and refusal
-  reasons; owned background commands preserve their separate Stop controls.
-  Memory reads and note/index writes retain the same original Stop,
-  permission-mode, trust and conversation lifetime through their waits.
-  Already published notes remain when a later index update is refused,
-  with the existing index warning.
-
-- Plan actions recheck current workspace trust and disposal after lookup
-  and confirmation; a plan may still be saved after a conversation change,
-  while its stale implementation is refused. No-clobber writes check their
-  canonical directory before mkdir and their owned stage before publishing
-  or cleanup. Stale plan stages that were replaced, moved or refreshed are
-  retained.
+- **Other editors.** The ACP agent (`muse-spark-code-acp`) brings Muse Spark to Zed, JetBrains IDEs, Neovim, Emacs and more (`docs/acp.md`).
+- **Code intelligence and rename.** The agent finds definitions, references and symbols through VS Code's language services, and renames a symbol everywhere it is used.
+- **The agent checks its own edits.** After edits, the language servers' errors and your check commands reach the next request (Model API backend).
+- **Web fetch.** The model reads one public HTTPS page on either backend, fetched from your machine and free.
+- **Plans as files.** Save a Plan-mode reply to `.agents/plans/` and implement it in a fresh conversation.
+- **Turn checkpoints.** Restore files, the conversation or both, then redo; the copies never touch your `.git` (stored restore needs a Model API session).
+- **Every paid use asks first.** A popup (Allow once, Allow always in this workspace, Deny) in every mode, Bypass included.
+- **A lighter start.** The Model API backend is a bundle of its own, loaded only when a conversation uses it.
+- **VS Code 1.99 or newer** (was 1.125), so editors built on VS Code 1.99 or later can install the extension.
+- **Open VSX and npm publishing.** A release tag also publishes the VSIX to Open VSX and the ACP agent to npm (each when its token is set).
 
 ### Added
 
@@ -459,8 +444,6 @@ happened, not what was planned; superseded entries are kept.
   Windows, which cannot fork, the menu offers **Restore files to here** and
   says why the conversation rewind is missing.
 
-### Changed
-
 - **Rewind code to here asks first** (M72), in the same confirmation as a
   file restore. **Fork conversation and rewind code** is now one action:
   the confirmation, the reverts, then the fork; declining does neither.
@@ -498,8 +481,78 @@ happened, not what was planned; superseded entries are kept.
   M57 reached it); the budget is that plus about 15 %. The agent is
   installed once and never loaded by VS Code, so the size is a download,
   not a start-up cost. No other budget changed.
+- **Development: test infrastructure.** On macOS and Linux the integration
+  tests use a short user-data folder under the temporary folder only when the
+  default would not fit a Unix socket path (macOS caps it at 104 bytes;
+  `scripts/lib/vscodeTestProfile.mjs`), so a rig's long checkout path no longer
+  stops VS Code with `listen EINVAL`; a path that fits, CI's included, and
+  Windows are untouched. Vitest's macOS worker cap is typed so that
+  `npm run typecheck:host` passes (it failed on TS2769).
 
 ### Fixed
+
+- **Memory notes keep restore copies, and the Memory view cannot overlap
+  another window's restore** (M72). The Model API's memory tools and the
+  Memory view now copy an ignored project note and its `MEMORY.md` before
+  they change them, a new note's creation takes the same copy first, and a
+  note is copied before the view moves it to the trash, so a checkpoint
+  restore brings them back. The view's new note, delete and index line hold
+  the restore lease until they finish (personal notes outside the workspace
+  take none), and so does a conversation export you save inside the
+  workspace: another window's Restore or Redo is refused while one runs.
+
+- **A `!` command is checked again at its real start** (M72). On the Model
+  API backend, a `!` command you typed could still start after the workspace
+  lost trust, after your Stop, or while the window was closing, when a
+  checkpoint safety step was waiting in between. It now checks again just
+  before it starts. A command refused there says "The command did not run",
+  and the agent is told nothing about a command that never ran (one that did
+  run is still told).
+
+- **A shell that could not start no longer blocks Restore.** A missing
+  PowerShell or bash, or a command the operating system refuses to start (a
+  NUL byte in it, a command line past the system's length limit), no longer
+  leaves checkpoint Restore and Redo closed as if a command had run: nothing
+  launched, so nothing can still be running. A command that did launch keeps
+  the existing safety rule.
+
+- **Turn checkpoints work with long Windows paths.** Git refuses a
+  repository path past its own limit however `core.longpaths` is set, so a
+  long extension storage path could stop the first checkpoint. The
+  repository is now made under a short name and moved into place in one
+  step, and long paths are given to git in the spelling it accepts. A path
+  git cannot use at all (the checkpoint folder over 240 characters, or a
+  workspace over 258, on Windows) now says so ("the path of the workspace
+  or of this extension's storage folder is too long for git", in all 14
+  translated languages, machine-made) instead of "the checkpoint failed".
+  A failed, cancelled or racing first start no longer leaves a half-made
+  repository in the storage folder.
+
+- **Checkpoint bundle budget** (M72). The checkpoint store and legacy reader
+  ship as `dist/checkpointStore.js`, loaded synchronously at the existing
+  activation construction point with the installed language. Startup safety,
+  maintenance, activity marks and disposal remain unchanged. A missing or
+  malformed store module refuses startup instead of offering unsafe work.
+
+- **Stop across checkpoint waits** (M68/M72). Ordinary writes, first rename
+  publication and late formatter writes retain captured owner admission
+  through preimage and atomic waits. Refused late formatting preserves the
+  completed edit and patch. Revoked diagnostic data is withheld, and check
+  commands recheck admission after checkpoint marks and native preparation;
+  a proven refusal starts no process and leaves no unknown activity mark.
+  Sequential and explicit checks retain their original admission and refusal
+  reasons; owned background commands preserve their separate Stop controls.
+  Memory reads and note/index writes retain the same original Stop,
+  permission-mode, trust and conversation lifetime through their waits.
+  Already published notes remain when a later index update is refused,
+  with the existing index warning.
+
+- Plan actions recheck current workspace trust and disposal after lookup
+  and confirmation; a plan may still be saved after a conversation change,
+  while its stale implementation is refused. No-clobber writes check their
+  canonical directory before mkdir and their owned stage before publishing
+  or cleanup. Stale plan stages that were replaced, moved or refreshed are
+  retained.
 
 - **Android/Termux regression coverage** (PR #51). Tests preserve PATH and
   home-directory Muse launcher discovery, XDG credential paths, and explicit
