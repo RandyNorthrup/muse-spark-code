@@ -31,8 +31,8 @@ security notes for contributors are in `PLAN.md` §9.
   the diff and only named. `/review <what to look at>` sends only your
   words. The review pane, its Accept and Revert, stay on your machine; a
   comment on a line is a message, with the changed lines around it. The
-  Reviewer is not a paid feature: it is your own turn on the Model API
-  (PLAN.md D49).
+  `/review` you request is part of your own Model API turn (PLAN.md D49);
+  a Reviewer child task remains a paid use under D48.
 - **Checks after the agent's edits (Model API backend).** After a round of
   edits, the edited files' errors and warnings from VS Code's language
   servers (`museSpark.diagnosticsAfterEdits`, on by default), and the

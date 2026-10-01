@@ -153,6 +153,8 @@ describe('the uncommitted changes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
       refusal: 'onlyPrivate',
     })
     const outside = await mkdtemp(path.join(tmpdir(), 'muse-review-outside-'))
+    // TEMP may be inside the checkout: this fixture must not discover its parent's repository.
+    vi.stubEnv('GIT_CEILING_DIRECTORIES', tmpdir())
     try {
       expect(
         await collector(outside, () => undefined).collect({
@@ -164,6 +166,7 @@ describe('the uncommitted changes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
         refusal: 'notRepository',
       })
     } finally {
+      vi.unstubAllEnvs()
       await removeFolder(outside)
     }
   })

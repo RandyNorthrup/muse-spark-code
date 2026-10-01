@@ -44,6 +44,9 @@ import { logLines } from './helpers/logText'
 const ROOT = '/ws'
 const LINT: CheckCommandSetting = { name: 'lint', command: 'npm run lint', changedFiles: true }
 const TEST: CheckCommandSetting = { name: 'test', command: 'npm test' }
+const CHECK_STOP_NOTE = fill(MODEL_API_MODEL_TEXT.checksStopped, {
+  count: String(CHECK_FIX_MAX_ROUNDS),
+})
 
 function passed(stdout = 'ok'): ShellResult {
   return { stdout, stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
@@ -840,11 +843,10 @@ describe('the verify loop after a round of edits (Model API)', () => {
     await turn()
     const lintRuns = t.io.shellCalls.filter((call) => call.command.startsWith(LINT.command))
     expect(lintRuns).toHaveLength(CHECK_FIX_MAX_ROUNDS)
-    const stopNote = fill(MODEL_API_MODEL_TEXT.checksStopped, {
-      count: String(CHECK_FIX_MAX_ROUNDS),
-    })
-    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS - 1])).not.toContain(stopNote)
-    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).toContain(stopNote)
+    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS - 1])).not.toContain(
+      CHECK_STOP_NOTE,
+    )
+    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).toContain(CHECK_STOP_NOTE)
     const notices = events.filter((event) => event.type === 'backendNotice')
     expect(notices).toEqual([
       {
@@ -883,13 +885,10 @@ describe('the verify loop after a round of edits (Model API)', () => {
     scriptWriteRounds(t, rounds, 'done')
     await turn()
     expect(lintRun).toBe(rounds)
-    const stopNote = fill(MODEL_API_MODEL_TEXT.checksStopped, {
-      count: String(CHECK_FIX_MAX_ROUNDS),
-    })
     // Without the reset the loop would have stopped after its third round.
-    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).not.toContain(stopNote)
-    expect(userText(t.api.responseBodies()[rounds - 1])).not.toContain(stopNote)
-    expect(userText(t.api.responseBodies()[rounds])).toContain(stopNote)
+    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).not.toContain(CHECK_STOP_NOTE)
+    expect(userText(t.api.responseBodies()[rounds - 1])).not.toContain(CHECK_STOP_NOTE)
+    expect(userText(t.api.responseBodies()[rounds])).toContain(CHECK_STOP_NOTE)
     expect(events.filter((event) => event.type === 'backendNotice')).toHaveLength(1)
   })
 
@@ -1994,12 +1993,9 @@ describe('the verify ledger in the loop', () => {
       { text: 'ok' },
     )
     await turn()
-    const stopNote = fill(MODEL_API_MODEL_TEXT.checksStopped, {
-      count: String(CHECK_FIX_MAX_ROUNDS),
-    })
     // The first round passed on its latest state; three failing rounds follow it.
-    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).not.toContain(stopNote)
-    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS + 1])).toContain(stopNote)
+    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).not.toContain(CHECK_STOP_NOTE)
+    expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS + 1])).toContain(CHECK_STOP_NOTE)
   })
 
   it('starts afresh on a steered message: a check rejected before it asks again', async () => {
