@@ -1793,10 +1793,10 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  /** The offered tool names, for a custom agent's allowlist to meet (M76). */
+  /** The effective child tool names, for a custom agent's allowlist to meet (M76). */
   private offeredToolNames(): readonly string[] {
     const flags = this.toolFlags()
-    return this.tools(flags.hasShell, flags.hasSkills, flags.hasMemory).map((tool) =>
+    return this.tools(flags.hasShell, flags.hasSkills, flags.hasMemory, true).map((tool) =>
       toolNameOf(tool),
     )
   }
@@ -1935,6 +1935,7 @@ export class ModelApiSession implements AgentSession {
     hasShell: boolean,
     hasSkills: boolean,
     hasMemory: boolean,
+    isSubagent = this.isSubagent,
   ): readonly ToolDefinition[] {
     const own = toolDefinitions(this.deps.platform, {
       hasShell,
@@ -1942,8 +1943,8 @@ export class ModelApiSession implements AgentSession {
       hasThenRun: hasShell && this.canRunShell(),
       hasSkills,
       hasImageGeneration: this.deps.isPaidFeatureOn('imageGeneration'),
-      hasSubagents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents'),
-      isSubagent: this.isSubagent,
+      hasSubagents: !isSubagent && this.deps.isPaidFeatureOn('subagents'),
+      isSubagent,
       hasMemory,
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).

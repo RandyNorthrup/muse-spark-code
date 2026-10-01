@@ -549,8 +549,10 @@ once, when the conversation starts.
   switch later keeps the ceiling. A child defined as `manual` still asks
   before ordinary writes when its parent uses Edit automatically; a child
   defined as `acceptEdits` cannot automate writes under a Manual parent.
-  This policy survives saving, resuming and forking. A list that names no tool the session
-  offers fails the spawn instead of running with every tool.
+  This policy survives saving, resuming and forking. Admission uses the tools
+  the child can actually use: questions, todos/goals and subagent controls
+  belong to the parent. A list with no usable child tool fails the spawn
+  before any paid child request.
 - **What it costs.** The run is a paid child task like any subagent (off
   unless paid subagents are on, asking in the paid-use popup before each use,
   Plan refuses it). An agent's `model` goes through the same checks as your

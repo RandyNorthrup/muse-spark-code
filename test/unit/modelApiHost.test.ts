@@ -6952,6 +6952,66 @@ function searchReply(callId: string): ScriptedReply {
 
 describe('ModelApiSession custom agents (M76)', () => {
   it.each([
+    MODEL_API_TOOLS.askUser,
+    MODEL_API_TOOLS.todoWrite,
+    MODEL_API_TOOLS.createGoal,
+    MODEL_API_TOOLS.getGoal,
+    MODEL_API_TOOLS.updateGoal,
+    MODEL_API_TOOLS.reportProgress,
+    ...Object.values(MODEL_API_SUBAGENT_TOOLS),
+  ])('refuses an agent listing only %s before any paid child request (RV76 P2)', async (tool) => {
+    const t = setupSubagents({
+      files: {
+        '.agents/agents/parent-only/AGENT.md': agentFile(
+          'parent-only',
+          'Requires a parent tool',
+          `tools: ${tool}\n`,
+        ),
+      },
+    })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    t.api.script(
+      spawnCallReply('parent-only', 'Use a parent tool', 'parent-only', 'spawn_parent_only'),
+      { text: 'Child tried.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await turnDone()
+    expect(childBodies(t)).toHaveLength(0)
+    expect(t.paidUses).toEqual([])
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    expect(outputFor(t.api.responseBodies().at(-1), 'spawn_parent_only')).toMatchObject({
+      output: expect.stringContaining('names no tools this session offers'),
+    })
+  })
+
+  it('keeps usable child tools when an agent also lists parent-only tools (RV76 P2)', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({
+      store,
+      files: {
+        '.agents/agents/reader/AGENT.md': agentFile(
+          'reader',
+          'Reads files',
+          'tools: ask_user, todo_write, subagent_spawn, read_file\n',
+        ),
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnAgentAndWait(
+      t,
+      session,
+      spawnCallReply('reader', 'Read files', 'reader', 'spawn_effective_tools'),
+      'Reader ready.',
+    )
+    await t.host.flush()
+    expect(offeredTools(childBodies(t)[0])).toEqual(['read_file'])
+    expect(store.saved.get(session.sessionId)?.children?.[0]?.session.agent).toMatchObject({
+      toolAllowlist: ['read_file'],
+    })
+  })
+
+  it.each([
     { parent: 'acceptEdits', child: 'manual' },
     { parent: 'manual', child: 'acceptEdits' },
   ] as const)(

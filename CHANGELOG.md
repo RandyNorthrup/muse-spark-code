@@ -48,6 +48,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Custom-agent spawn admission uses the effective child tool set, excluding
+  parent-only questions, todos/goals and subagent controls. An empty
+  intersection sends no paid child request; mixed lists retain usable tools.
+
 - Custom agents retain their Manual or Edit automatically policy through
   parsing, saving, resume, fork and approval routing. A Manual child's write
   asks even under an Edit automatically parent; the reverse remains Manual.
