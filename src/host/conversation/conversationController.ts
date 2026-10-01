@@ -1905,13 +1905,24 @@ export class ConversationController {
       if (!isConfirmed) {
         return
       }
+      let isRewound = true
       for (const edit of edits) {
         if (generation !== this.sendInvalidationEpoch || this.accountStopsInFlight > 0) {
           return
         }
-        await this.reviewEdit('revert', edit.itemId, edit.outputRef)
+        if (!(await this.reviewEdit('revert', edit.itemId, edit.outputRef))) {
+          isRewound = false
+        }
       }
       if (generation !== this.sendInvalidationEpoch || this.accountStopsInFlight > 0) {
+        return
+      }
+      if (!isRewound) {
+        // An edit that could not be reverted was said above: the code is not rewound,
+        // so the conversation is not forked away from the history it still matches.
+        if (fork !== undefined) {
+          this.notice('warning', UI_TEXT.rewindNotDone)
+        }
         return
       }
       this.notice('info', plural(UI_TEXT.rewindDone, edits.length))
@@ -1927,32 +1938,35 @@ export class ConversationController {
     await this.forkSession(fork.lastTurnId)
   }
 
+  /** Whether the action finished with nothing refused: a warning, an error or no patch is not. */
   private async reviewEdit(
     action: 'openDiff' | 'revert',
     itemId: string,
     outputRef: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const session = this.session
     const generation = this.sendInvalidationEpoch
     if (!this.isCurrentSessionAction(session, generation)) {
-      return
+      return false
     }
     try {
       const patch = await this.fetchPatch(session, generation, itemId, outputRef)
       if (patch === undefined || !this.isCurrentSessionAction(session, generation)) {
-        return
+        return false
       }
       const notices = await this.deps.editReview[action](itemId, patch)
       if (!this.isCurrentSessionAction(session, generation)) {
-        return
+        return false
       }
       for (const notice of notices) {
         this.notice(notice.level, notice.text)
       }
+      return notices.every((notice) => notice.level === 'info')
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`)
       }
+      return false
     }
   }
 

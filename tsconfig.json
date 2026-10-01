@@ -7,6 +7,6 @@
     "lib": ["ES2023"],
     "types": ["node", "vscode"]
   },
-  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "include": ["src/**/*.ts", "vitest.config.ts", "scripts/lib/withoutEnglishTable.d.mts"],
   "exclude": ["src/webview/**"]
 }

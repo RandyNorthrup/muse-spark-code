@@ -1277,6 +1277,7 @@
   "checkpointTooLarge": "コピーする変更済みファイルが {size} MiB を超えています",
   "checkpointFailed": "チェックポイントが失敗しました",
   "checkpointNoGit": "PATH に git が見つかりません",
+  "checkpointPathTooLong": "ワークスペースまたはこの拡張機能のストレージフォルダーのパスが長すぎて、git で扱えません",
   "checkpointsModelApiOnly": "ファイルの復元とやり直しには接続済みの Model API セッションが必要です。Muse Code のチェックポイントは読み取り専用です。",
   "checkpointsNativeUnsafe": "ネイティブのワークスペースプロセスまたは不明なウィンドウがファイルをまだ編集する可能性があるため、ファイルの復元とやり直しは利用できません。プロセスの停止は未確認で、確認済みの復旧が必要です。",
   "checkpointsLegacyReadOnly": "このメッセージには旧チェックポイントがあります。保存済みの記録は読み取り可能なままです。ファイルの復元には現在の安全に保護されたキャプチャが必要です。",

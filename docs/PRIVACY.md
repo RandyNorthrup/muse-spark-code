@@ -20,7 +20,8 @@ security notes for contributors are in `PLAN.md` §9.
   your machine, and the command with what it printed goes to Meta with the
   next request, so the model knows what you ran; Muse Code also keeps it in
   its session log. So does what a command moved to the background printed
-  when it ends.
+  when it ends. A command the Model API backend refused at its start (your
+  Stop, lost trust, a closing window) did not run and is not sent.
 - **A review (`/review`, M70).** A review of git's changes runs git on
   your machine and sends what it printed with the review turn, as your
   message would travel on the backend in use: the diff, the changed and
@@ -339,7 +340,8 @@ fields, never raw configuration or failed-command output.
   workspace's files at each turn's start and end (tracked and untracked
   files outside the ignore rules), the sizes and times of ignored files
   (never their content), and a copy of an ignored file (a `.env`, say) only
-  when the extension's own tools are about to change it, or when a restore
+  when the extension's own tools (file, image and memory tools, and the Memory
+  view's delete) are about to change it, or when a restore
   overwrites or deletes it (kept for that restore's Redo). The folder is
   readable by your user only (mode 0700 on macOS and Linux). Nothing is
   written into the workspace's `.git`, and nothing is sent anywhere.

@@ -21,6 +21,7 @@ import { fill, plural } from '../../src/shared/l10n/text'
 import { type HookDefinition, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { ModelApiHost, type ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import type { ShellResult, ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ShellEntryError } from '../../src/core/shellResult'
 import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
 import type { DiagnosticEntry } from '../../src/core/diagnostics'
 import type { MemoryStore } from '../../src/core/memory/memoryStore'
@@ -50,6 +51,20 @@ function passed(stdout = 'ok'): ShellResult {
 
 function failed(stdout: string): ShellResult {
   return { stdout, stderr: '', exitCode: 1, isTimedOut: false, isCancelled: false }
+}
+
+/** A turn whose one edit has a check whose shell throws `error`. */
+async function checkWhoseShellThrows(error: Error) {
+  const t = setup({
+    checks: [LINT],
+    shell: () => {
+      throw error
+    },
+  })
+  const { events, turn } = await start(t, 'allowAll')
+  t.api.script({ calls: [editCall('1', '2', 'npm test')] }, { text: 'ok' })
+  await turn()
+  return { events, next: t.api.responseBodies()[1] }
 }
 
 /** The fixture's shell: lint fails until `isFixed` says so; every other command passes. */
@@ -879,23 +894,25 @@ describe('the verify loop after a round of edits (Model API)', () => {
   })
 
   it('reports a shell that cannot start as a failed check, not a failed turn', async () => {
-    const t = setup({
-      checks: [LINT],
-      shell: () => {
-        throw new Error('spawn bash ENOENT')
-      },
-    })
-    const { events, turn } = await start(t, 'allowAll')
-    t.api.script({ calls: [editCall('1', '2', 'npm test')] }, { text: 'ok' })
-    await turn()
+    const { events, next } = await checkWhoseShellThrows(new Error('spawn bash ENOENT'))
     expect(events.find((event) => event.type === 'turnCompleted')).toMatchObject({
       terminal: 'completed',
     })
-    const next = t.api.responseBodies()[1]
     expect(userText(next)).toContain('lint: failed')
     expect(userText(next)).toContain('spawn bash ENOENT')
     expect(outputs(next)[0]).toContain('spawn bash ENOENT\n[exit code unknown]')
     expect(completedRows(events, 'edit_file')[0]?.thenRun?.outcome).toBe('failed')
+  })
+
+  it('reports a check that failed before its shell could be entered as not run, not as a failed command', async () => {
+    const { events, next } = await checkWhoseShellThrows(
+      new ShellEntryError('the checkpoint failed'),
+    )
+    expect(userText(next)).toContain(
+      fill(MODEL_TEXT.checkNotRun, { name: 'lint', reason: MODEL_TEXT.checkSkipRefused }),
+    )
+    expect(userText(next)).not.toContain('lint: failed')
+    expect(completedRows(events, 'edit_file')[0]?.thenRun?.outcome).not.toBe('failed')
   })
 
   it('refuses a scoped check whose path would read as an option, running nothing', async () => {
