@@ -92,6 +92,7 @@ function harness(options: HarnessOptions = {}) {
     forgetSession: () => Promise.resolve(),
     unforgetSession: () => Promise.resolve(),
     maintain: () => Promise.resolve(),
+    noteUserSave: () => undefined,
     beforeToolWrite: () => Promise.resolve(),
   }
   const posted: HostToWebviewMessage[] = []

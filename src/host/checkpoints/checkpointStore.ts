@@ -279,6 +279,8 @@ interface OpenTurn {
   readonly id: string
   readonly createdAt: number
   readonly inventory: IgnoredInventory
+  /** The files the user saved in this window while it ran: theirs, not the turn's. */
+  readonly userSaves: Set<string>
 }
 
 /** A completed end capture whose ref write can be retried without recapturing later user edits. */
@@ -459,6 +461,8 @@ export class CheckpointStore {
   private readonly openTurns = new Map<string, OpenTurn>()
   /** Every turn running in the window, and every message about to start one, as published, with when. */
   private readonly runningTurns = new Map<string, number>()
+  /** The user's saves while anything runs here, for a turn whose record comes next. */
+  private recentSaves: readonly { readonly relative: string; readonly at: number }[] = []
   private readonly journal = new Map<string, JournalEntry[]>()
   private readonly pendingEnds = new Map<string, PendingEnd>()
   private readonly stopping = new AbortController()
@@ -1546,6 +1550,11 @@ export class CheckpointStore {
       await gapAfter(closing.turn.record, currentTree)
     }
     const records = turns.map((turn) => turn.record)
+    // What the user saved while a turn ran is theirs, whatever the trees say.
+    const userSaves = records.flatMap((record) => record.userSaves ?? [])
+    for (const saved of userSaves) {
+      changed.add(saved)
+    }
     const now = this.deps.now()
     // A turn's time: from its start capture to its end; to now while it
     // runs; an end an earlier window never saw is taken as its start.
@@ -1960,6 +1969,7 @@ export class CheckpointStore {
       endedAt,
       endSequence: nextTurnNumber(setup.records.checkpoints, record.sessionId),
       ignored: { changes: [...kept], isComplete: isScanWhole && kept.length === changes.length },
+      ...(start.userSaves.size > 0 && { userSaves: [...start.userSaves].toSorted(byText) }),
     }
     const trees = [
       { name: 'start', tree: record.start.tree },
@@ -2170,6 +2180,29 @@ export class CheckpointStore {
     return this.openTurns.size > 0
   }
 
+  /**
+   * The user saved a file in this window: VS Code's save writes the user's own
+   * bytes (the tools write files directly and save no document). While a turn
+   * runs here the file is the user's, not the turn's: the turn's end record
+   * names it, and a restore leaves it as it is. A save between a turn's start
+   * capture and its record counts for that turn too.
+   */
+  public noteUserSave(absolutePath: string): void {
+    const relative = this.relativeOf(absolutePath)
+    const since = Math.min(Infinity, ...this.runningSince())
+    if (relative === undefined || since === Infinity) {
+      return
+    }
+    for (const turn of this.openTurns.values()) {
+      turn.userSaves.add(relative)
+    }
+    // Only what a turn not yet recorded could still need is kept.
+    this.recentSaves = [
+      ...this.recentSaves.filter((save) => save.at >= since),
+      { relative, at: this.deps.now() },
+    ]
+  }
+
   /** Actual I/O completion did not prove every workspace-capable descendant stopped. */
   public async markUnprovenProcess(): Promise<void> {
     this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())
@@ -2291,6 +2324,12 @@ export class CheckpointStore {
           id,
           createdAt: snapshot.createdAt,
           inventory: snapshot.inventory,
+          // Saved since its start capture, before this record existed.
+          userSaves: new Set(
+            this.recentSaves
+              .filter((save) => save.at >= snapshot.createdAt)
+              .map((save) => save.relative),
+          ),
         })
         await this.presence.publish(this.publishedTurns())
         await this.retain(setup)

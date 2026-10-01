@@ -60,6 +60,8 @@ export interface CheckpointPort {
   maintain(): Promise<void>
   /** Copies a file the extension's tools are about to write; a failed copy fails the write. */
   beforeToolWrite(absolutePath: string): Promise<void>
+  /** The user saved a file in this window: while a turn runs, a restore leaves it alone. */
+  noteUserSave(absolutePath: string): void
 }
 
 /** What the port uses of the store. */
@@ -78,6 +80,7 @@ export type CheckpointStoreApi = Pick<
   | 'queueForget'
   | 'maintain'
   | 'beforeToolWrite'
+  | 'noteUserSave'
   | 'isStoragePath'
   | 'isNativeUnsafe'
   | 'hasOpenTurn'
@@ -222,6 +225,10 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
     },
     maintain: async () => {
       await gitStore()?.maintain()
+    },
+    // Whatever the setting: a turn already under way still finishes its checkpoint.
+    noteUserSave: (absolutePath) => {
+      deps.store?.noteUserSave(absolutePath)
     },
     beforeToolWrite: async (absolutePath) => {
       // The store's own files (the repository's configuration among them) are never a

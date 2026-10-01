@@ -611,6 +611,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     hasGit: processGitLocator(),
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
+  // The user's saves while a turn runs are theirs: a restore leaves them alone (M72).
+  // The extension's own writes save no document, so every save here is the user's.
+  const noteUserSave = (document: { readonly uri: vscode.Uri }) => {
+    if (document.uri.scheme === FILE_SCHEME) {
+      checkpoints.noteUserSave(document.uri.fsPath)
+    }
+  }
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(noteUserSave),
+    vscode.workspace.onDidSaveNotebookDocument(noteUserSave),
+  )
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
   const credentials = new CredentialStore(context.secrets, (message) => {

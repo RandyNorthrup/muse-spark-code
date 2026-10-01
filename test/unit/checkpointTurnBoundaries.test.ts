@@ -179,3 +179,50 @@ describe('turns of one conversation the clock cannot order (M72)', () => {
     REAL_GIT_TIMEOUT_MS,
   )
 })
+
+describe('what the user saves while a turn runs (M72)', () => {
+  it(
+    "leaves a file the user saved during the turn as they saved it, and restores the turn's own",
+    async () => {
+      const h = await harness()
+      await write(h.root, 'model.txt', 'm0\n')
+      await write(h.root, 'mine.txt', 'u0\n')
+      await turn(h, 't1', async () => {
+        await write(h.root, 'model.txt', 'm1\n')
+        // The user saves in the editor while the turn runs.
+        await write(h.root, 'mine.txt', 'u1\n')
+        h.store.noteUserSave(path.join(h.root, 'mine.txt'))
+      })
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([{ path: 'mine.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'model.txt')).toBe('m0\n')
+      expect(await read(h.root, 'mine.txt')).toBe('u1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'counts a save between the start capture and the turn’s record, and none while nothing runs',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'early.txt', 'e0\n')
+      await write(h.root, 'idle.txt', 'i0\n')
+      // Nothing runs: this save is before any turn, and no turn's to keep.
+      await write(h.root, 'idle.txt', 'i1\n')
+      h.store.noteUserSave(path.join(h.root, 'idle.txt'))
+      await h.store.markTurn('pending:first', true, true)
+      const start = await captured(h.store)
+      await write(h.root, 'early.txt', 'e1\n')
+      h.store.noteUserSave(path.join(h.root, 'early.txt'))
+      await h.store.record('s1', 't1', start)
+      await write(h.root, 'idle.txt', 'i2\n')
+      await h.store.endTurn('s1', 't1')
+      await h.store.markTurn('pending:first', false, true)
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([{ path: 'early.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'early.txt')).toBe('e1\n')
+      expect(await read(h.root, 'idle.txt')).toBe('i1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})

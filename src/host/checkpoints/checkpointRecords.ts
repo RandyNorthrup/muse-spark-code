@@ -56,6 +56,12 @@ const checkpointRecordSchema = z.object({
   endedAt: z.optional(z.number()),
   /** Where the turn's end was seen, on the count `sequence` is on; absent when `endedAt` is. */
   endSequence: z.optional(z.number()),
+  /**
+   * The files the user saved in the turn's window while it ran: the user's
+   * bytes, which a restore leaves alone. Absent when there were none, and in a
+   * record a 0.10.0 candidate wrote.
+   */
+  userSaves: z.optional(z.array(z.string())),
   /** The store (one per window) that recorded it: only it ends the turn. */
   owner: z.optional(z.string()),
   /**

@@ -498,6 +498,7 @@ function setup(
     },
     maintain: () => Promise.resolve(),
     beforeToolWrite: () => Promise.resolve(),
+    noteUserSave: () => undefined,
   }
   const deps: ConversationDeps = {
     surface,
