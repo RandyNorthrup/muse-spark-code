@@ -27,7 +27,10 @@ const QUOTED_SECRET_FIELD =
   /((?:access_token|refresh_token|id_token|client_secret|api_?key|password)["']?\s*[:=]\s*)(["'])(?:\\.|[^\r\n\\])*?\2/gi
 const SECRET_FIELD =
   /((?:access_token|refresh_token|id_token|client_secret|api_?key|password)["']?\s*[:=]\s*["']?)[^\s"'&,;}]+/gi
-const URL_USER_INFO = /(\b[a-z][\w+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gi
+// The scheme is at most 32 characters: unbounded, a long line of dotted or
+// dashed words with no `://` made the scan quadratic (3.5 s for 40,000
+// characters), and every log line passes through here.
+const URL_USER_INFO = /(\b[a-z][\w+.-]{0,31}:\/\/)[^\s/@:]+:[^\s/@]+@/gi
 
 export function redactSecrets(text: string): string {
   return text

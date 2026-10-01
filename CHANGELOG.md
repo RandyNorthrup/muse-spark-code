@@ -511,6 +511,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A very long log line no longer stalls the extension.** Hiding
+  credentials in a log line took time that grew with the square of a long
+  run of dotted or dashed words with no URL in it (3.5 s for 40,000
+  characters); it is now linear.
 - **Memory notes keep restore copies, and the Memory view cannot overlap
   another window's restore** (M72). The Model API's memory tools and the
   Memory view now copy an ignored project note and its `MEMORY.md` before
