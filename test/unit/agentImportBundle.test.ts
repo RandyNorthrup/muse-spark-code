@@ -8,7 +8,6 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { lazyBundleTable } from '../../scripts/lib/lazyBundleTable.mjs'
 import {
   agentImportLoader,
   isAgentImportBundle,
@@ -23,7 +22,7 @@ import { SYNTHETIC } from './helpers/syntheticTokens'
 
 const built = { folder: '', file: '' }
 
-// Built as scripts/build.mjs builds it: the English table's stand-in, not a copy.
+// Built as scripts/build.mjs builds it.
 beforeAll(async () => {
   built.folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-import-bundle-')))
   built.file = path.join(built.folder, AGENT_IMPORT_BUNDLE_FILE)
@@ -41,7 +40,6 @@ beforeAll(async () => {
     external: ['vscode'],
     format: 'cjs',
     target: 'node20.18',
-    plugins: [lazyBundleTable],
     logLevel: 'silent',
   })
 })
@@ -123,12 +121,6 @@ describe('agentImportLoader', () => {
 })
 
 describe('the shipped import bundle', () => {
-  it('carries no copy of the English table: it is handed the activation’s', () => {
-    const text = readFileSync(built.file, 'utf8')
-    expect(text).not.toContain(UI_TEXT.crashTitle)
-    expect(text).not.toContain(UI_TEXT.agentImportPreviewIntro)
-  })
-
   it('is the module the loader accepts', () => {
     const loaded = agentImportLoader({
       bundlePath: built.file,

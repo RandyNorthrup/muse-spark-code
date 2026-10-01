@@ -26,6 +26,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Removed M83's temporary empty English-table stand-in and its build plugin.
+  The lead-approved shared `dist/uiText.js` contract replaces this approach
+  in the following integration commit.
 - The import picker, clipboard and editor code now load with the existing
   import bundle on first use, keeping activation within its 600 KiB budget.
   The loader checks both entry points; the installed language and captured

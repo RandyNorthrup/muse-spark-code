@@ -12,10 +12,6 @@
 // The extension host bundle is CommonJS because VS Code loads `main` with
 // require(). `vscode` is provided by the host and must stay external.
 //
-// The bundles that are handed the display table at their entry (the Model
-// API backend, the checkpoint store and the import) carry a stand-in for the
-// English table instead of a copy of it (scripts/lib/lazyBundleTable.mjs).
-//
 // The Model API backend is a second host bundle, dist/modelApi.js (M57,
 // PLAN.md D6), with the same format, platform and target: the activation
 // bundle requires it the first time that backend starts. Nothing it bundles
@@ -38,7 +34,6 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
-import { lazyBundleTable } from './lib/lazyBundleTable.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -102,7 +97,6 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
-  plugins: [lazyBundleTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -124,7 +118,6 @@ const agentImportOptions = {
   external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
-  plugins: [lazyBundleTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -145,7 +138,6 @@ const checkpointStoreOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
-  plugins: [lazyBundleTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */
