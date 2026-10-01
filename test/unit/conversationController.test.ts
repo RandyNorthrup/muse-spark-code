@@ -35,7 +35,7 @@ import {
   type GoalCommandVerb,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { fill } from '../../src/shared/l10n/text'
+import { fill, plural } from '../../src/shared/l10n/text'
 import { textFileDisplay } from '../../src/shared/textFileDisplay'
 import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/plans/planDocument'
 import { briefText, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
@@ -302,6 +302,8 @@ function setup(
     isWorktreeHeld?: boolean
     /** Git and GitHub as the fakes play them (M71). */
     git?: FakeGitWindowOptions
+    /** A revert that refuses (a stale patch): it answers with a warning. */
+    refusesRevert?: boolean
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -613,7 +615,11 @@ function setup(
       },
       revert: (itemId: string, patchJson: string) => {
         reviews.push(['revert', itemId, patchJson])
-        return Promise.resolve([{ level: 'info' as const, text: `reverted ${itemId}` }])
+        return Promise.resolve([
+          options.refusesRevert === true
+            ? { level: 'warning' as const, text: `could not revert ${itemId}` }
+            : { level: 'info' as const, text: `reverted ${itemId}` },
+        ])
       },
     },
     openDocument: (title: string, content: string) => {
@@ -1229,7 +1235,9 @@ describe('ConversationController: composer controls', () => {
     await t.controller.handle({ type: 'clearConversation' })
     expect(t.host.sessionCount).toBe(0)
     // M25: the webview drops its transcript too, however the clear came (a keybinding too).
-    expect(t.surface.posted).toContainEqual({ type: 'modelList', models: [] })
+    // The model catalogue is the backend's and stays: an emptied list left the picker
+    // with nothing to choose until the next send (0.9.1).
+    expect(t.surface.posted).not.toContainEqual({ type: 'modelList', models: [] })
     expect(t.surface.posted).toContainEqual({ type: 'conversationCleared' })
     expect(t.surface.posted.at(-1)).toEqual({ type: 'attachmentsCleared' })
     await t.controller.handle({ type: 'compact' })
@@ -2476,6 +2484,28 @@ describe('ConversationController: editor integration (M5)', () => {
     expect(declined.server.requestsFor('session/fork')).toHaveLength(0)
   })
 
+  it('does not fork, or call the code rewound, when an edit could not be reverted (M72)', async () => {
+    const t = withHistory({ refusesRevert: true })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({
+      type: 'rewindCode',
+      edits: [{ itemId: 'c1', outputRef: 'tool_patch-1' }],
+      fork: { lastTurnId: 't1', attachmentEpoch: 1 },
+    })
+    expect(t.reviews).toHaveLength(1)
+    expect(t.server.requestsFor('session/fork')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.rewindNotDone,
+    })
+    expect(t.surface.posted).not.toContainEqual(
+      expect.objectContaining({ text: plural(UI_TEXT.rewindDone, 1) }),
+    )
+  })
+
   it('forks with no edits to rewind, saying so, and starts afresh for a cut before the first turn (M72)', async () => {
     const t = withHistory()
     await t.send('l1', 'edit it')
@@ -3286,6 +3316,21 @@ describe('ConversationController: session history (M6)', () => {
     expect(t.log.warn).not.toHaveBeenCalled()
   })
 
+  it('keeps the model picker filled across a new, resumed or forked conversation, and empties it only when the backend goes', async () => {
+    const t = withHistory()
+    const lastModelList = () => t.surface.posted.findLast((message) => message.type === 'modelList')
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    await settle()
+    expect(lastModelList()).toEqual(modelList)
+    await t.controller.handle({ type: 'clearConversation' })
+    expect(lastModelList()).toEqual(modelList)
+    await t.controller.handle({ type: 'signOut' })
+    expect(lastModelList()).toEqual({ type: 'modelList', models: [] })
+  })
+
   it('resumes a stored session: history, model from the catalogue, composer state, title, memory', async () => {
     const t = withHistory()
     await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
@@ -3296,7 +3341,6 @@ describe('ConversationController: session history (M6)', () => {
     })
     expect(t.surface.posted).toEqual([
       modelList,
-      { type: 'modelList', models: [] },
       { ...historyLoaded },
       { type: 'notice', level: 'info', text: 'Resumed Old prompt' },
       { type: 'sessionInfo', modelId: 'muse-spark-1.2', sessionId: 'old' },
@@ -3369,7 +3413,7 @@ describe('ConversationController: session history (M6)', () => {
       sessionId: 's1',
       cutPoint: { lastTurnId: 't1' },
     })
-    expect(t.surface.posted).toContainEqual({ type: 'modelList', models: [] })
+    expect(t.surface.posted).not.toContainEqual({ type: 'modelList', models: [] })
     expect(t.surface.posted).toContainEqual({ ...historyLoaded, sessionId: 'forked' })
     expect(t.surface.posted).toContainEqual({
       type: 'notice',
@@ -3836,7 +3880,8 @@ describe('ConversationController: session history (M6)', () => {
     await controller.handle({ type: 'clearConversation' })
     expect(t.surface.posted).toEqual([
       { type: 'conversationCleared' },
-      { type: 'sessionInfo', modelId: 'muse-spark-1.3', sideChat: false },
+      // The kept catalogue still knows the model's window, so the context meter does too.
+      { type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_048_576, sideChat: false },
       NO_FOLDER_CHECKPOINT,
       { type: 'attachmentsCleared' },
     ])

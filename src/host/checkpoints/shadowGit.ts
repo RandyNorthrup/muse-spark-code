@@ -16,6 +16,19 @@
 // The storage folder is the user's alone (0700), since it holds copies of
 // untracked and ignored files.
 //
+// Long paths (PLAN.md M72, "Long storage paths"). `core.longpaths` lets git
+// open deep files, but only after it has read its configuration, so the
+// repository's own path must fit git's PATH_MAX as written: `GIT_DIR` may be
+// at most PATH_MAX - 40 characters as an absolute path, and `<git dir>/objects`
+// must fit even when it is given relative to the working directory. So the
+// repository is named relative to its own folder once the absolute spelling
+// would be refused, and a path beyond even that is refused before any file is
+// made, in words the user can act on. Both are decided by comparing lengths
+// with git's PATH_MAX (the platform supplies only that number). The
+// repository is made under a short name beside its
+// final place and published by one rename, so the name git is given is never
+// longer than the repository it makes.
+//
 // Two windows on one folder share the repository with no lock: git writes
 // objects and refs atomically, each window has its own index file (seeded
 // from the newest one there, as a stat cache), and the files written at set
@@ -24,15 +37,40 @@
 // but not yet named by a ref is never deleted.
 
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import { chmod, copyFile, mkdir, readdir, readFile, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { gitBlobOid } from '../../core/checkpoints/gitListings'
-import { CHECKPOINT_GIT_TIMEOUT_MS, CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
+import {
+  CHECKPOINT_GIT_TIMEOUT_MS,
+  CHECKPOINT_INITIALIZER_DIGITS,
+  CHECKPOINT_INITIALIZER_PREFIX,
+  CHECKPOINT_REMOVE_RETRIES,
+  CHECKPOINT_REMOVE_RETRY_MS,
+  CHECKPOINT_STORAGE_MODE,
+  GIT_CHANGE_DIRECTORY_MARGIN,
+  GIT_DIR_CONTENTS_MARGIN,
+  GIT_DIR_ENVIRONMENT_MARGIN,
+  GIT_PATH_MAX_DARWIN,
+  GIT_PATH_MAX_DEFAULT,
+  GIT_PATH_MAX_WINDOWS,
+} from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import { writeFileAtomically } from '../fsAtomic'
 import type { GitProcess } from '../git'
 
 const SHADOW_DIR = 'shadow.git'
+
+/**
+ * Whether a path runs through a checkpoint repository folder, of any install or
+ * namespace: a tool never writes into one, since a filter planted in its config
+ * would run as the user at a turn's end (Codex and Muse reviews of PR #55). The
+ * name is unusual enough that a real project folder of that name is not a concern;
+ * case is folded, as Windows and macOS folders fold it.
+ */
+export function isInShadowRepository(absolutePath: string): boolean {
+  return absolutePath.split(/[\\/]/u).some((segment) => segment.toLowerCase() === SHADOW_DIR)
+}
 const HOME_DIR = 'home'
 const HOOKS_DIR = 'hooks'
 const EMPTY_CONFIG = 'empty.gitconfig'
@@ -64,6 +102,82 @@ export interface ShadowLayout {
   readonly platform: NodeJS.Platform
   /** This window's store instance: its own index file. */
   readonly instance: string
+  /** The longest path git takes here; the platform's own unless a test lowers it. */
+  readonly gitPathMax?: number | undefined
+  /** The folder holding every window's checkpoint storage (this one's own folder by default). */
+  readonly storageRoot?: string | undefined
+}
+
+/**
+ * git's PATH_MAX on a platform, terminator included. Only Windows is ever
+ * near it; a test lowers it to reach the same decisions with short paths.
+ */
+export function gitPathMax(platform: NodeJS.Platform): number {
+  if (platform === 'win32') {
+    return GIT_PATH_MAX_WINDOWS
+  }
+  return platform === 'darwin' ? GIT_PATH_MAX_DARWIN : GIT_PATH_MAX_DEFAULT
+}
+
+/** A path git cannot use, named by which one; nothing was made or run. */
+export class ShadowPathTooLongError extends Error {
+  public constructor(
+    public readonly which: 'storage' | 'workspace',
+    length: number,
+    limit: number,
+  ) {
+    super(
+      `the ${which} path is ${String(length)} characters long and git takes at most ${String(limit)}`,
+    )
+    this.name = 'ShadowPathTooLongError'
+  }
+}
+
+/**
+ * The checkpoint storage and the workspace hold one another, so the model's file
+ * tools could rewrite the repository's own configuration (a clean filter runs as
+ * the user at the turn's end). Nothing was made or run.
+ */
+export class ShadowStorageInWorkspaceError extends Error {
+  public constructor() {
+    super('the checkpoint storage and the workspace overlap')
+    this.name = 'ShadowStorageInWorkspaceError'
+  }
+}
+
+/** Whether `candidate` is `folder` or below it, by path segment and the platform's own case rules. */
+export function isWithinFolder(candidate: string, folder: string): boolean {
+  const relative = path.relative(folder, candidate)
+  return (
+    relative === '' ||
+    (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  )
+}
+
+/** The folder a window's initializer is made in: a short name, unique to the window. */
+function initializerName(instance: string): string {
+  const digest = createHash('sha256').update(instance).digest('hex')
+  return `${CHECKPOINT_INITIALIZER_PREFIX}${digest.slice(0, CHECKPOINT_INITIALIZER_DIGITS)}`
+}
+
+/** Removes an initializer folder and what is in it; no folder is no error. */
+function removeInitializer(folder: string): Promise<void> {
+  return rm(folder, {
+    recursive: true,
+    force: true,
+    maxRetries: CHECKPOINT_REMOVE_RETRIES,
+    retryDelay: CHECKPOINT_REMOVE_RETRY_MS,
+  })
+}
+
+/** Whether a name in the storage folder is some window's initializer. */
+function isInitializerName(name: string): boolean {
+  const digits = name.slice(CHECKPOINT_INITIALIZER_PREFIX.length)
+  return (
+    name.startsWith(CHECKPOINT_INITIALIZER_PREFIX) &&
+    digits.length === CHECKPOINT_INITIALIZER_DIGITS &&
+    /^[0-9a-f]+$/u.test(digits)
+  )
 }
 
 function pause(ms: number): Promise<void> {
@@ -106,13 +220,27 @@ export class ShadowGit {
   private readonly shadowDir: string
   private readonly homeDir: string
   private readonly baseEnv: NodeJS.ProcessEnv
+  private readonly initializer: string
+  /** The longest repository path git opens, and the longest it accepts written absolute. */
+  private readonly repositoryMax: number
+  private readonly absoluteMax: number
+  /** The longest folder git changes into: the work tree, and the repository it makes. */
+  private readonly directoryMax: number
+  /** Whether the repository is named relative to its folder, which git then starts in. */
+  private readonly isRelative: boolean
   private excludesFile: string
 
   public constructor(
     private readonly layout: ShadowLayout,
     private readonly deps: ShadowGitDeps,
   ) {
+    const pathMax = layout.gitPathMax ?? gitPathMax(layout.platform)
+    this.repositoryMax = pathMax - GIT_DIR_CONTENTS_MARGIN
+    this.absoluteMax = pathMax - GIT_DIR_ENVIRONMENT_MARGIN
+    this.directoryMax = pathMax - GIT_CHANGE_DIRECTORY_MARGIN
     this.shadowDir = path.join(layout.storageDir, SHADOW_DIR)
+    this.isRelative = this.shadowDir.length > this.absoluteMax
+    this.initializer = initializerName(layout.instance)
     this.homeDir = path.join(layout.storageDir, HOME_DIR)
     this.excludesFile = path.join(layout.storageDir, EMPTY_EXCLUDES)
     const env: NodeJS.ProcessEnv = {}
@@ -169,6 +297,48 @@ export class ShadowGit {
     }
   }
 
+  /**
+   * Makes the repository in a short, unique folder beside its final place,
+   * then publishes it with one rename (atomic, and on the same volume by
+   * being in the same folder). Whatever the outcome, this window's own
+   * initializer folder is gone afterwards: a failed or cancelled `git init`
+   * leaves no half-made repository behind.
+   */
+  private async initialize(): Promise<void> {
+    const { storageDir } = this.layout
+    const initializing = path.join(storageDir, this.initializer)
+    try {
+      await this.deps.git(
+        [
+          '-c',
+          'core.longpaths=true',
+          'init',
+          '--bare',
+          '--quiet',
+          '--object-format=sha1',
+          `--template=${path.join(storageDir, HOOKS_DIR)}`,
+          this.initializer,
+        ],
+        {
+          cwd: storageDir,
+          env: this.baseEnv,
+          timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
+          signal: this.deps.signal,
+        },
+      )
+      try {
+        await rename(initializing, this.shadowDir)
+      } catch (error: unknown) {
+        if (!(await isPresent(path.join(this.shadowDir, 'HEAD')))) {
+          throw error
+        }
+      }
+    } finally {
+      // The name comes from this window's own id: the folder is this window's.
+      await removeInitializer(initializing)
+    }
+  }
+
   public get top(): string {
     return this.layout.top
   }
@@ -206,33 +376,7 @@ export class ShadowGit {
     await writeFileAtomically(path.join(storageDir, EMPTY_CONFIG), '', { sleep: pause })
     await writeFileAtomically(path.join(storageDir, EMPTY_EXCLUDES), '', { sleep: pause })
     if (!(await isPresent(path.join(this.shadowDir, 'HEAD')))) {
-      const initializing = path.join(storageDir, `shadow-${this.layout.instance}.initializing`)
-      await this.deps.git(
-        [
-          'init',
-          '--bare',
-          '--quiet',
-          '--object-format=sha1',
-          `--template=${path.join(storageDir, HOOKS_DIR)}`,
-          initializing,
-        ],
-        {
-          cwd: storageDir,
-          env: this.baseEnv,
-          timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
-          signal: this.deps.signal,
-        },
-      )
-      try {
-        await rename(initializing, this.shadowDir)
-      } catch (error: unknown) {
-        if (!(await isPresent(path.join(this.shadowDir, 'HEAD')))) {
-          throw error
-        }
-      } finally {
-        // This window created this unique initialization folder itself.
-        await rm(initializing, { recursive: true, force: true })
-      }
+      await this.initialize()
     }
     await mkdir(path.join(this.shadowDir, 'info'), { recursive: true })
     await writeFileAtomically(path.join(this.shadowDir, ATTRIBUTES), NO_CONVERSION, {
@@ -252,12 +396,60 @@ export class ShadowGit {
   }
 
   /**
+   * Refuses a layout git cannot open, before any file is made or git is
+   * run (the store asks first, then prepares). A longer repository path than
+   * git's `PATH_MAX` leaves is not reachable by any spelling (measured with
+   * git 2.52.0.windows.1), nor is a work tree beyond the folders it can
+   * change into.
+   */
+  public assertFits(): void {
+    const repository = this.shadowDir.length
+    if (repository > this.repositoryMax) {
+      throw new ShadowPathTooLongError('storage', repository, this.repositoryMax)
+    }
+    const top = this.layout.top.length
+    if (top > this.directoryMax) {
+      throw new ShadowPathTooLongError('workspace', top, this.directoryMax)
+    }
+  }
+
+  /**
+   * Refuses a workspace that holds the checkpoint storage (or is held by it): the
+   * model's file tools could then rewrite `shadow.git/config` and the like, and a
+   * filter they install runs as the user. Checked before any file is made.
+   */
+  public assertSeparate(): void {
+    const { storageDir, top } = this.layout
+    const root = this.layout.storageRoot ?? storageDir
+    // Any checkpoint storage inside the workspace, or the workspace inside this storage.
+    if (
+      isWithinFolder(root, top) ||
+      isWithinFolder(storageDir, top) ||
+      isWithinFolder(top, storageDir)
+    ) {
+      throw new ShadowStorageInWorkspaceError()
+    }
+  }
+
+  /**
    * Removes the lock files older than `staleMs` that a git ended mid-command
    * left in the shadow repository and beside this window's index (a crash, a
-   * window closed). `staleMs` is well over the time any git may run, so no
-   * live window's lock is removed.
+   * window closed), and initializer folders a window that died mid-`init`
+   * left. `staleMs` is well over the time any git may run, so no live
+   * window's lock or initializer is removed.
    */
   public async clearStaleLocks(now: number, staleMs: number): Promise<void> {
+    const names = await readdir(this.layout.storageDir)
+    for (const name of names) {
+      if (!isInitializerName(name)) {
+        continue
+      }
+      const folder = path.join(this.layout.storageDir, name)
+      const since = await modifiedAt(folder)
+      if (since !== undefined && now - since >= staleMs) {
+        await removeInitializer(folder)
+      }
+    }
     const refsDir = path.join(this.shadowDir, REFS_DIR)
     const refs = (await isPresent(refsDir)) ? await readdir(refsDir, { recursive: true }) : []
     const candidates = [
@@ -276,11 +468,18 @@ export class ShadowGit {
     }
   }
 
-  /** Runs one git command in the shadow repository over the work tree. */
+  /**
+   * Runs one git command in the shadow repository over the work tree. A
+   * repository path git would refuse as `GIT_DIR` (PATH_MAX - 40 or longer)
+   * is named relative to its own folder, which is then the working directory:
+   * git changes into the work tree itself, and the index and work tree stay
+   * absolute because they are read after that change.
+   */
   public async run(args: readonly string[], command: ShadowCommand = {}): Promise<Buffer> {
+    this.assertFits()
     const env: NodeJS.ProcessEnv = {
       ...this.baseEnv,
-      GIT_DIR: this.shadowDir,
+      GIT_DIR: this.isRelative ? SHADOW_DIR : this.shadowDir,
       GIT_WORK_TREE: this.layout.top,
       GIT_INDEX_FILE: this.indexPath(command.index ?? 'work'),
       ...(command.literalPathspecs !== false && { GIT_LITERAL_PATHSPECS: '1' }),
@@ -310,13 +509,23 @@ export class ShadowGit {
         ...args,
       ],
       {
-        cwd: this.layout.top,
+        cwd: this.isRelative ? this.layout.storageDir : this.layout.top,
         env,
         timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
         signal: command.signal ?? this.deps.signal,
         ...(command.input !== undefined && { input: command.input }),
       },
     )
+  }
+
+  /**
+   * A work tree file as a command's argument. Git changes into the work tree
+   * for most commands, but `hash-object` opens the file from where it was
+   * started: the work tree itself, unless the repository is named relative
+   * to its own folder (see `run`), when the file is named in full.
+   */
+  public fileArgument(topRelative: string): string {
+    return this.isRelative ? path.join(this.layout.top, topRelative) : topRelative
   }
 
   /** A command's output as text, trailing line break dropped. */

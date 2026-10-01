@@ -18,7 +18,8 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
   })
 
   it('gives the window the folder as selected, and its own closing as its activation', () => {
-    expect(source).toMatch(/createGitWindow\(\{\s*workspaceRoot:\s*displayRoot,/)
+    expect(source).toMatch(/createGitWindow\(\{\s*workspaceRoot,/)
+    expect(source).toMatch(/const workspaceRoot = firstFolderPath\(\)/)
     expect(source).toMatch(/isCurrent:\s*\(\)\s*=>\s*!nativeStarts\.signal\.aborted,/)
     expect(source).not.toContain('isClosing')
   })

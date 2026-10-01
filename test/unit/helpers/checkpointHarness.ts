@@ -43,6 +43,20 @@ function makeBase(): string {
   return base
 }
 
+/**
+ * git's own read of a shadow repository, independent of the store: from the
+ * storage folder, the repository named relative to it (as long paths need),
+ * with `core.longpaths` scoped to this command as the store scopes it. A deep
+ * temporary folder puts the refs' files past 260 characters, which git on
+ * Windows opens only with it.
+ */
+export function shadowGit(storage: string, args: readonly string[]): string {
+  return execFileSync('git', ['-c', 'core.longpaths=true', '--git-dir', 'shadow.git', ...args], {
+    cwd: storage,
+    encoding: 'utf8',
+  })
+}
+
 export function runGit(cwd: string, args: readonly string[]): string {
   return execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@e.x', ...args], {
     cwd,
@@ -77,7 +91,13 @@ export interface Harness {
    * `pid` names (this one's by default).
    */
   readonly reopen: (pid?: number) => CheckpointStore
-  readonly reopenAt: (storageDir: string, workspaceRoot?: string) => CheckpointStore
+  /** A store at another storage folder (and workspace), with git's path limit a test lowers. */
+  readonly reopenAt: (
+    storageDir: string,
+    workspaceRoot?: string,
+    gitPathMax?: number,
+    storageRoot?: string,
+  ) => CheckpointStore
 }
 
 /** Real store admission stays active even when checkpoint capture is disabled. */
@@ -107,7 +127,13 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const storage = path.join(base, 'storage')
   const log = new FakeLogOutputChannel()
   let clock = 1_000_000
-  const open = (pid = process.pid, storeDir = storage, storeRoot = root) => {
+  const open = (
+    pid = process.pid,
+    storeDir = storage,
+    storeRoot = root,
+    gitPathMax?: number,
+    storageRoot?: string,
+  ) => {
     const store = new CheckpointStore({
       workspaceRoot: storeRoot,
       storageDir: storeDir,
@@ -125,6 +151,8 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
       pid,
       isProcessAlive: options.isProcessAlive ?? (() => true),
       ...(options.heartbeatMs !== undefined && { heartbeatMs: options.heartbeatMs }),
+      ...(gitPathMax !== undefined && { gitPathMax }),
+      ...(storageRoot !== undefined && { storageRoot }),
       log,
     })
     stores.push(store)
@@ -137,7 +165,8 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     store: open(),
     log,
     reopen: open,
-    reopenAt: (storeDir, storeRoot) => open(process.pid, storeDir, storeRoot),
+    reopenAt: (storeDir, storeRoot, gitPathMax, storageRoot) =>
+      open(process.pid, storeDir, storeRoot, gitPathMax, storageRoot),
   }
 }
 
@@ -213,13 +242,7 @@ export async function changedFileTurn(h: Pick<Harness, 'root' | 'store'>): Promi
 /** Holds a real restore ref without running any file mutation. */
 export async function holdRestoreRef(h: Pick<Harness, 'store' | 'storage'>): Promise<void> {
   const snapshot = await captured(h.store)
-  execFileSync('git', [
-    '--git-dir',
-    path.join(h.storage, 'shadow.git'),
-    'update-ref',
-    'refs/muse-spark/restore-active',
-    snapshot.tree,
-  ])
+  shadowGit(h.storage, ['update-ref', 'refs/muse-spark/restore-active', snapshot.tree])
 }
 
 /** A standard Model API request, returning a refusal as well as success. */
@@ -281,17 +304,7 @@ export async function leftovers(
 
 /** The refs the shadow repository holds under `refs/muse-spark/`. */
 export function shadowRefs(storage: string): readonly string[] {
-  return execFileSync(
-    'git',
-    [
-      '--git-dir',
-      path.join(storage, 'shadow.git'),
-      'for-each-ref',
-      '--format=%(refname)',
-      'refs/muse-spark/',
-    ],
-    { encoding: 'utf8' },
-  )
+  return shadowGit(storage, ['for-each-ref', '--format=%(refname)', 'refs/muse-spark/'])
     .split('\n')
     .filter((ref) => ref !== '')
 }
@@ -301,11 +314,7 @@ export function storedRecords(storage: string): readonly StoredRecord[] {
   return shadowRefs(storage)
     .filter((ref) => ref.includes('/record/'))
     .map((ref) => {
-      const text = execFileSync(
-        'git',
-        ['--git-dir', path.join(storage, 'shadow.git'), 'cat-file', '-p', `${ref}:record.json`],
-        { encoding: 'utf8' },
-      )
+      const text = shadowGit(storage, ['cat-file', '-p', `${ref}:record.json`])
       const record = parseRecord(text)
       if (record === undefined) {
         throw new Error(`unreadable record: ${ref}`)

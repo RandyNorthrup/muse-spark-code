@@ -15,6 +15,7 @@ import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   type CheckpointAvailability,
+  MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -74,6 +75,7 @@ export type CheckpointStoreApi = Pick<
   | 'queueForget'
   | 'maintain'
   | 'beforeToolWrite'
+  | 'isStoragePath'
   | 'isNativeUnsafe'
   | 'markNativeBackend'
   | 'markUnprovenProcess'
@@ -208,6 +210,11 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await gitStore()?.maintain()
     },
     beforeToolWrite: async (absolutePath) => {
+      // The store's own files (the repository's configuration among them) are never a
+      // tool's to write, whatever the setting: a filter planted there runs as the user.
+      if (deps.store?.isStoragePath(absolutePath) === true) {
+        throw new Error(MODEL_TEXT.checkpointStorageWrite)
+      }
       await onStore()?.beforeToolWrite(absolutePath)
     },
   }
@@ -273,6 +280,12 @@ export async function withCheckpointEdit<T>(
 /** The workspace folder a restore writes under, and the platform whose path rules compare with it. */
 export interface EditWorkspace {
   readonly root: string | undefined
+  /**
+   * The folder as VS Code spells it, when that differs from the canonical root
+   * (a link, a junction, a mapped drive). The store accepts both spellings, so
+   * a path a save dialog returns in either one is inside.
+   */
+  readonly displayRoot?: string | undefined
   readonly platform: NodeJS.Platform
 }
 
@@ -291,9 +304,10 @@ export async function withCheckpointEditAt<T>(
 ): Promise<T> {
   const p = pathModule(workspace.platform)
   const isInside =
-    workspace.root !== undefined &&
     absolutePath !== undefined &&
-    isBelow(p.relative(workspace.root, absolutePath), p)
+    [workspace.root, workspace.displayRoot].some(
+      (root) => root !== undefined && isBelow(p.relative(root, absolutePath), p),
+    )
   if (!isInside) {
     check()
     return await work()

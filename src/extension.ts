@@ -538,7 +538,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .update(key, value, vscode.ConfigurationTarget.Global)
-  const displayRoot = firstFolderPath()
+  // The folder as VS Code spells it: what sessions, the CLI's working
+  // directory and memory have always been keyed by. Only the checkpoint store
+  // uses the canonical root (below), and it accepts both spellings.
+  const workspaceRoot = firstFolderPath()
   const nativeStarts = new AbortController()
   context.subscriptions.push({
     dispose: () => {
@@ -576,14 +579,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   let checkpointRoot: CheckpointLocation | undefined
   try {
     checkpointRoot = await checkpointLocation(
-      displayRoot,
+      workspaceRoot,
       context.globalStorageUri.fsPath,
       process.platform,
     )
   } catch {
     log.warn('Checkpoint workspace identity could not be established')
   }
-  const workspaceRoot = checkpointRoot?.canonicalRoot ?? displayRoot
   // Turn checkpoints (M72, PLAN.md D51): a shadow repository under global
   // storage, keyed by the canonical first folder. Current-version windows in
   // this namespace share per-record refs independently of workspace identity.
@@ -602,8 +604,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       : checkpointBundle().createCheckpointStore(
           {
             workspaceRoot: checkpointRoot.canonicalRoot,
-            displayRoot,
+            displayRoot: workspaceRoot,
             storageDir: checkpointRoot.storageDir,
+            // Every window's checkpoint storage: no tool writes below it (Codex, PR #55).
+            storageRoot: path.join(context.globalStorageUri.fsPath, CHECKPOINTS_DIR),
             platform: process.platform,
             git: processGitProcess(),
             env: process.env,
@@ -786,7 +790,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await withCheckpointEditAt(
         checkpoints,
         backend.workspaceActionGuard(nativeStarts.signal),
-        { root: workspaceRoot, platform: process.platform },
+        {
+          root: checkpointRoot?.canonicalRoot ?? workspaceRoot,
+          displayRoot: workspaceRoot,
+          platform: process.platform,
+        },
         fsPath,
         work,
       ),
@@ -1399,7 +1407,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // The selected folder as given, not its canonical form: an own pull request's worktree
   // sits beside it and its record names it (the owner capture resolves links itself).
   const gitFeatures = createGitWindow({
-    workspaceRoot: displayRoot,
+    workspaceRoot,
     storageRoot,
     hold: windowHold,
     registry: worktreeRegistry,

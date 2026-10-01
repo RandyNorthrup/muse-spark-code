@@ -44,7 +44,7 @@ import type { Buffer } from 'node:buffer'
 import type { BackendKind } from '../../core/agent/agentBackend'
 import { turnKey } from '../../core/checkpoints/turnKey'
 import { createHash } from 'node:crypto'
-import { rmSync } from 'node:fs'
+import { rmSync, type Stats } from 'node:fs'
 import { copyFile, mkdir, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -91,7 +91,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import { isMissingPath } from '../canonicalPath'
+import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { isGitExitError, isGitMissingError, type GitProcess } from '../git'
 import type { Logger } from '../logger'
 import {
@@ -131,7 +131,15 @@ import {
   refValue,
   writeRecord,
 } from './recordRefs'
-import { indexFileInstance, ShadowGit, withoutGitVariables } from './shadowGit'
+import {
+  indexFileInstance,
+  isInShadowRepository,
+  isWithinFolder,
+  ShadowGit,
+  ShadowPathTooLongError,
+  ShadowStorageInWorkspaceError,
+  withoutGitVariables,
+} from './shadowGit'
 import { WindowPresence } from './windowPresence'
 
 export { turnKey } from '../../core/checkpoints/turnKey'
@@ -148,12 +156,24 @@ export interface Snapshot {
   readonly folders: readonly string[] | undefined
 }
 
-/** Why no capture: the limits, no git, or a failure. */
-export type CaptureRefusal = 'tooManyFiles' | 'tooLarge' | 'noGit' | 'failed'
+/** Why no capture: the limits, no git, a path git cannot use, or a failure. */
+export type CaptureRefusal = 'tooManyFiles' | 'tooLarge' | 'noGit' | 'pathTooLong' | 'failed'
 
 export type CaptureResult =
   | { readonly ok: true; readonly snapshot: Snapshot }
   | { readonly ok: false; readonly reason: CaptureRefusal; readonly detail: string }
+
+/** What a failed step of a capture is called: no git, a path git cannot use, or a failure. */
+function captureFailure(error: unknown): Extract<CaptureResult, { ok: false }> {
+  if (error instanceof ShadowPathTooLongError) {
+    return { ok: false, reason: 'pathTooLong', detail: error.message }
+  }
+  return {
+    ok: false,
+    reason: isGitMissingError(error) ? 'noGit' : 'failed',
+    detail: failureForLog(error),
+  }
+}
 
 /**
  * Why a restore or a redo did nothing: no checkpoint (any more); a turn is
@@ -226,6 +246,13 @@ export interface CheckpointStoreDeps {
   readonly isProcessAlive: (pid: number) => boolean
   /** How often the window's presence is written again; CHECKPOINT_HEARTBEAT_MS unless a test shortens it. */
   readonly heartbeatMs?: number
+  /** The longest path git takes: the platform's own unless a test lowers it to reach the limits. */
+  readonly gitPathMax?: number
+  /**
+   * The folder that holds every window's checkpoint storage (the extension's
+   * `checkpoints` folder): no tool writes below it. This store's own folder by default.
+   */
+  readonly storageRoot?: string
   readonly log: Logger
 }
 
@@ -543,13 +570,44 @@ export class CheckpointStore {
     const { storageDir, platform } = this.deps
     const { top, prefix } = await this.placeOf()
     const shadow = new ShadowGit(
-      { storageDir, top, platform, instance: this.instance },
+      {
+        storageDir,
+        top,
+        platform,
+        instance: this.instance,
+        gitPathMax: this.deps.gitPathMax,
+        storageRoot: this.deps.storageRoot,
+      },
       { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
     )
+    shadow.assertFits()
+    shadow.assertSeparate()
     await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
     await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
     this.opened = { shadow, top, prefix }
     return { opened: this.opened }
+  }
+
+  /**
+   * The shadow repository for a turn's start, or undefined where none can ever
+   * exist: a path git cannot use, or storage and workspace holding one another.
+   * Every window of that folder meets the same refusal, so no restore can be
+   * running elsewhere and the message goes ahead with no checkpoint (a capture
+   * says so); any other failure still stops the message.
+   */
+  private async openIfUsable(): Promise<Opened | undefined> {
+    try {
+      const { opened } = await this.open()
+      return opened
+    } catch (error: unknown) {
+      if (
+        error instanceof ShadowPathTooLongError ||
+        error instanceof ShadowStorageInWorkspaceError
+      ) {
+        return undefined
+      }
+      throw error
+    }
   }
 
   /**
@@ -829,7 +887,12 @@ export class CheckpointStore {
         continue
       }
       const relative = path.relative(root, absolutePath)
-      const isOutside = relative === '' || relative.startsWith('..') || path.isAbsolute(relative)
+      // A segment, not a prefix: a file named `..cache` is inside the workspace.
+      const isOutside =
+        relative === '' ||
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative)
       if (!isOutside) {
         return relative.split(path.sep).join(SEPARATOR)
       }
@@ -1111,11 +1174,7 @@ export class CheckpointStore {
         },
       }
     } catch (error: unknown) {
-      return {
-        ok: false,
-        reason: isGitMissingError(error) ? 'noGit' : 'failed',
-        detail: failureForLog(error),
-      }
+      return captureFailure(error)
     }
   }
 
@@ -1144,7 +1203,7 @@ export class CheckpointStore {
       '-w',
       '--no-filters',
       '--',
-      this.topOf(setup, relative),
+      setup.shadow.fileArgument(this.topOf(setup, relative)),
     ])
     const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
     return { preImage: { mode: isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE, oid }, stat }
@@ -1167,8 +1226,39 @@ export class CheckpointStore {
     }
     await mkdir(this.stagingDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
     const staged = path.join(this.stagingDir, this.deps.newId())
-    await copyFile(absolute, staged)
+    await this.copyInsideWorkspace(absolute, staged, stats)
     return { staged, isExecutable, stat }
+  }
+
+  /**
+   * Copies a workspace file into staging, and keeps the copy only if it came from
+   * the workspace: a parent folder replaced by a link or a junction after the
+   * tool's own check would otherwise stage a file from outside it. The parent is
+   * resolved first and the copy is taken through that resolved path; afterwards the
+   * file and its parent are looked at again, and a copy that cannot be vouched for
+   * is deleted at once, so no outside bytes are retained.
+   */
+  private async copyInsideWorkspace(
+    absolute: string,
+    staged: string,
+    before: Stats,
+  ): Promise<void> {
+    const parent = await canonicalPath(path.dirname(absolute))
+    if (!isWithinFolder(parent, this.deps.workspaceRoot)) {
+      throw new Error(UI_TEXT.checkpointFailed)
+    }
+    await copyFile(path.join(parent, path.basename(absolute)), staged)
+    const after = await lstatOrUndefined(absolute)
+    const isSame =
+      after?.isFile() === true &&
+      after.ino === before.ino &&
+      after.dev === before.dev &&
+      (await canonicalPath(path.dirname(absolute))) === parent
+    if (isSame) {
+      return
+    }
+    await rm(staged, { force: true })
+    throw new Error(UI_TEXT.checkpointFailed)
   }
 
   /** The first copy the tools took of each file since the turn began, and each file's state now. */
@@ -1350,7 +1440,10 @@ export class CheckpointStore {
       const theirs = windowOf(other)
       return turns.some((turn) => {
         const ours = windowOf(turn)
-        return theirs.start < ours.end && theirs.end > ours.start
+        // Turns that touch at one tick count as overlapping: the clock is in
+        // milliseconds and two windows' clocks are not exact, so an edit may
+        // sit on either side of the shared tick.
+        return theirs.start <= ours.end && theirs.end >= ours.start
       })
     })
     for (const other of overlapping) {
@@ -1832,7 +1925,9 @@ export class CheckpointStore {
         )
         const owner = lease?.owner
         const live = await this.presence.liveWindows()
-        if (owner !== undefined && !live.has(owner)) {
+        // Its own lease while no restore runs here (they are serial) is a leftover
+        // of a release that failed; a gone window's lease is taken over as well.
+        if (owner !== undefined && (owner === this.instance || !live.has(owner))) {
           try {
             await shadow.run(['update-ref', '-d', RESTORE_REF, previous])
           } catch (error: unknown) {
@@ -1882,9 +1977,35 @@ export class CheckpointStore {
       keep = pinned
       return await task(fresh)
     } finally {
-      await shadow.run(['update-ref', '-d', RESTORE_REF, keep], {
-        signal: new AbortController().signal,
-      })
+      await this.releaseRestoreLease(shadow, keep)
+    }
+  }
+
+  /**
+   * Lets go of this window's restore lease. It runs after the files were
+   * restored, so a failure here (a ref lock held for a moment) must not replace
+   * the restore's outcome with a failure and hide its Redo: it is tried once
+   * more, then logged. A lease this window still holds is taken over by its next
+   * restore (see `withRestore`).
+   */
+  private async releaseRestoreLease(shadow: ShadowGit, keep: string): Promise<void> {
+    const release = () =>
+      shadow.run(['update-ref', '-d', RESTORE_REF, keep], { signal: new AbortController().signal })
+    try {
+      await release()
+      return
+    } catch {
+      // Tried once more below.
+    }
+    await new Promise<undefined>((resolve) => {
+      setTimeout(() => {
+        resolve(undefined)
+      }, CHECKPOINT_PUBLISH_RETRY_MS)
+    })
+    try {
+      await release()
+    } catch (error: unknown) {
+      this.deps.log.warn(`The restore lease could not be released: ${failureForLog(error)}`)
     }
   }
 
@@ -1905,6 +2026,16 @@ export class CheckpointStore {
         async (setup) => await work(setup, isAllowed),
       )
     })
+  }
+
+  /** Takes this window's native fence back after a startup that was refused, and says so. */
+  private async withdrawNativeFence(): Promise<void> {
+    this.runningTurns.delete(CHECKPOINT_NATIVE_WINDOW)
+    try {
+      await this.presence.publish(this.publishedTurns())
+    } catch (error: unknown) {
+      this.deps.log.warn(`The native fence could not be withdrawn: ${failureForLog(error)}`)
+    }
   }
 
   /** Native/process uncertainty in this window or a freshly observed peer. */
@@ -1928,6 +2059,8 @@ export class CheckpointStore {
     if (this.stopping.signal.aborted) {
       throw new Error(UI_TEXT.sendMarkFailed)
     }
+    // A fence an earlier start set stays: only the one this call sets is withdrawn.
+    const isFirstStart = !this.runningTurns.has(CHECKPOINT_NATIVE_WINDOW)
     this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())
     this.startHeartbeat()
     try {
@@ -1936,7 +2069,14 @@ export class CheckpointStore {
         throw new Error(UI_TEXT.restoreTurnElsewhere)
       }
     } catch (error: unknown) {
+      // A restore that refuses the start is proof nothing started (the callers start
+      // nothing after a rejection): leaving the fence would keep this window and its
+      // peers `nativeUnsafe`, across restarts, with nothing running. Any other
+      // failure (the presence could not be written) stays fenced: fail closed.
       if (error instanceof Error && error.message === UI_TEXT.restoreTurnElsewhere) {
+        if (isFirstStart) {
+          await this.withdrawNativeFence()
+        }
         throw error
       }
       this.deps.log.warn(`Native startup checkpoint admission failed: ${failureForLog(error)}`)
@@ -1951,11 +2091,7 @@ export class CheckpointStore {
       try {
         setup = await this.ready()
       } catch (error: unknown) {
-        return {
-          ok: false,
-          reason: isGitMissingError(error) ? 'noGit' : 'failed',
-          detail: failureForLog(error),
-        }
+        return captureFailure(error)
       }
       const result = await this.captureNow(setup, true)
       if (!result.ok) {
@@ -2060,8 +2196,8 @@ export class CheckpointStore {
     try {
       await this.presence.publish(this.publishedTurns())
       if (isRunning && canRunGit) {
-        const { opened } = await this.open()
-        if ((await refValue(opened.shadow, RESTORE_REF)) !== undefined) {
+        const opened = await this.openIfUsable()
+        if (opened !== undefined && (await refValue(opened.shadow, RESTORE_REF)) !== undefined) {
           throw new Error(UI_TEXT.restoreTurnElsewhere)
         }
       } else if (isRunning && (await this.hasReservedFiles())) {
@@ -2111,6 +2247,15 @@ export class CheckpointStore {
         .filter((record) => record.sessionId === sessionId)
         .map((record) => record.turnId)
     })
+  }
+
+  /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
+  public isStoragePath(absolutePath: string): boolean {
+    return (
+      isInShadowRepository(absolutePath) ||
+      isWithinFolder(absolutePath, this.deps.storageDir) ||
+      (this.deps.storageRoot !== undefined && isWithinFolder(absolutePath, this.deps.storageRoot))
+    )
   }
 
   /**

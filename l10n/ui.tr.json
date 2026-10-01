@@ -1312,6 +1312,7 @@
   "checkpointTooLarge": "kopyalanacak değişen dosyalar {size} MiB’ı aşıyor",
   "checkpointFailed": "denetim noktası başarısız oldu",
   "checkpointNoGit": "git PATH’te bulunamadı",
+  "checkpointPathTooLong": "çalışma alanının veya bu uzantının depolama klasörünün yolu git için çok uzun",
   "checkpointsModelApiOnly": "Dosya geri yükleme ve Yinele için bağlı bir Model API oturumu gerekir. Muse Code denetim noktaları salt okunurdur.",
   "checkpointsNativeUnsafe": "Yerel bir çalışma alanı işlemi veya bilinmeyen bir pencere dosyaları hâlâ düzenleyebileceğinden dosya geri yükleme ve Yinele kullanılamaz. İşlemlerin sonlanması kanıtlanmadı; doğrulanmış kurtarma gerekir.",
   "checkpointsLegacyReadOnly": "Bu iletinin eski bir denetim noktası var. Kaydedilen kayıtlar okunabilir kalır; dosya geri yükleme için güncel ve güvenle korunan bir yakalama gerekir.",
