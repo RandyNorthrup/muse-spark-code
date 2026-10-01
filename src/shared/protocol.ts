@@ -264,6 +264,17 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('clearConversation'), attachmentEpoch: z.optional(z.number()) }),
   // "/compact": ask the host to summarise older context.
   z.object({ type: z.literal('compact') }),
+  // "/handoff …": distil this conversation into a brief for a fresh one
+  // (M74). `requestId` correlates the brief's dialog; `goal` is the text
+  // after the command. The host cards the accepted request itself.
+  z.object({
+    type: z.literal('requestHandoff'),
+    requestId: z.string(),
+    goal: z.optional(z.string()),
+  }),
+  // The handoff dialog's Start: the brief as edited. Cancel only dismisses.
+  z.object({ type: z.literal('confirmHandoff'), requestId: z.string(), brief: z.string() }),
+  z.object({ type: z.literal('cancelHandoff'), requestId: z.string() }),
   // The session goal (M45, PLAN.md D38): `/goal …` in the prompt or the goal
   // strip's controls. `set` and `edit` carry the objective.
   z.object({
@@ -615,6 +626,20 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The command's admission result. Correlation protects a newer composer draft.
   z.object({ type: z.literal('goalCommandResult'), requestId: z.string(), accepted: z.boolean() }),
+  // `/handoff` (M74): the distilled brief is ready to review. Nothing starts
+  // until the user confirms it; the dialog sends the edited text back.
+  z.object({
+    type: z.literal('handoffReady'),
+    requestId: z.string(),
+    brief: z.string(),
+    goal: z.optional(z.string()),
+  }),
+  // The confirm's admission result. Correlation protects a newer dialog.
+  z.object({
+    type: z.literal('handoffCommandResult'),
+    requestId: z.string(),
+    accepted: z.boolean(),
+  }),
   // One backend-agnostic conversation event (see agentEvents.ts).
   z.object({ type: z.literal('agentEvent'), event: agentEventSchema }),
   // The host's model catalogue (for the picker and context-limit lookups).

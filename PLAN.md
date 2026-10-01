@@ -3239,6 +3239,39 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`). | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                             | The shell tool's rules keep answering; only the verify loop's lapse.                    |
 
+### Q-M74 — Remaining automatic work (2026-09-29)
+
+The handoff repair does not complete automatic compaction, memory flush or
+the hidden todo follow-up. The lead must choose the billable-call/consent
+contract before implementing them. Until then they stay unimplemented and
+off; no background or hidden paid call is authorised by a setting draft.
+
+Minimal completion design, pending that choice:
+
+1. Reuse the existing Model API tool-loop boundary after a completed todo
+   transition and the existing context/usage and compaction primitives.
+   Decide once at a settled boundary, using the supported model's existing
+   cache prices and window limit; do not create a scheduler or a second
+   compaction engine. No autonomous work after the user's turn ends.
+2. Snapshot the exact open todos, goal and untrusted-content provenance.
+   Preserve these separately from the generated summary, then restore the
+   exact list before another request. A hidden model restatement must have
+   an explicit cost/consent contract, run through the same M82 account/key,
+   cap, Stop and final-send checks, and may not replace the authoritative
+   list with a lossy model guess.
+3. A memory flush uses the existing MemoryStore and permission engine:
+   Manual asks, Plan and Restricted Mode refuse, and notes derived from
+   tool/fetched/imported content retain an untrusted label. If generating
+   those notes adds a model call beyond the user's turn, use the existing
+   paid gate and paid-use popup with its own explicit feature/price and
+   usage row; do not reuse another paid feature's grant or hide the cost.
+4. Build one M75 arm on the current verified harness. Freeze long-context
+   accept/held-out tasks before running it, exercise todo preservation,
+   provenance, memory refusals and Stop, and require actual compaction
+   evidence as well as both 0.75 capability floors. Only a passing current
+   pair permits an off-by-default production setting. Record paid attempts,
+   known/unknown usage, source hashes and the incomplete inventory honestly.
+
 ## 4. Architecture
 
 ```
@@ -8523,6 +8556,26 @@ extension's own storage, never the workspace's `.git`.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
+**Resume integration preparation, 2026-09-29:** join original `6fad2143`
+with main `24ff09bc` in a new worktree and applies main `f7db5715`'s PR51
+tests/docs delta before any new proof, preserving the original
+draft. Reuse the now-merged M79 brief route and its final trust/disposal
+admission. Reserve handoff ownership before preparation awaits, reject stale
+or busy ordinary turns, let Cancel invalidate Start until commit, and enforce
+the edited brief's UTF-8 byte bound before clearing or sending. Reconcile
+the existing handoff harness with current main. Only manual `/handoff` is
+implemented; automatic compaction, hidden follow-up and memory flush remain
+unbuilt and off. Source preparation is unverified; fresh types, focused tests,
+red/restored proof, accessibility and full current-tree gates remain required.
+The pending normal merge and later main ancestry join remain uncommitted.
+**Approved-M68 source join, 2026-09-30:** the `f7db5715` to `32709441`
+delta joins cleanly with the manual handoff feature. Shared workspace write
+notices, captured plan ownership, verify dependencies and native filesystem
+ownership are retained. The previous `d4402fee` tree and exact index/patches/
+archive/modes remain external. No verifier or formatter ran on this join;
+combined host-API regeneration and all required proof remain pending.
+Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
+
 - **Goal.** Hours-long tasks keep their thread without a manual
   `/compact`.
 - **Scope.**
@@ -8544,6 +8597,56 @@ extension's own storage, never the workspace's `.git`.
   label; `/handoff` shows the brief before the new conversation starts.
 - **Tests.** The fake Model API across a compaction, and its M75 run.
 - **Size.** M.
+- **Built 2026-09-28: `/handoff` only** (certification
+  `docs/certification/m74.md`). The rest of this section — automatic
+  compaction (when, what survives, which thread), the hidden todo-summary
+  follow-up, the memory flush — is NOT built: no code, setting or path for
+  any of them exists, and the section's own gate keeps them on an M75
+  paired-evaluation run. Decisions taken:
+  - **Continuation 2026-09-29, verification held:** give a handoff one
+    owned operation before any preparation await; keep its session and
+    conversation generation current through preparation, and refuse a
+    newly running ordinary turn instead of steering the distillation
+    into it. Cancel invalidates a Start until the existing shared brief
+    path commits the new conversation. Check the reviewed UTF-8 brief's
+    256 KB limit before clearing or sending. Held-host/read/cancel
+    regressions and fresh gates must prove these fixes before completion.
+  - `/handoff` (optionally with a goal after it) is the user's own command
+    and ships without the M75 gate: it asks the model, as the user's own
+    turn in the current conversation, for the distilled brief (goal,
+    decisions, files touched, open work, todo list), shows it in a dialog
+    before anything starts, and starts the new conversation on confirm
+    through M79's `startFromBrief` path (`ConversationBrief`, one path, no
+    duplicate) — or cancels and nothing starts.
+  - The brief is the reviewed text itself as the first message (no file
+    travels); the goal and the open items travel in the model's note, and
+    the open items (never completed or dropped ones) become the todo list
+    before the first request. The request turn's own card stays in the
+    transcript.
+  - Untrusted content stays labelled: the request makes the model mark
+    tool-output, fetched-page and imported-file content `[untrusted]` in
+    the brief, and the seeded note tells the new conversation what the
+    label means (D49).
+  - Model API backend only: on Muse Code the command says it is
+    unavailable there. Side chats are refused; one handoff runs at a time;
+    a running turn is waited for; an oversized (over 256 KB) or empty
+    brief is refused with the reason. No new setting: nothing automatic
+    runs.
+  - **Integrated 2026-09-30 on the release candidate**
+    (`feature/m74-handoff`, certification `docs/certification/m74.md`):
+    the prepared change ported with `git apply --3way temp/port.patch`;
+    all four conflicts resolved by keeping both sides — the candidate's
+    M72 checkpoints and M79 brief path beside the handoff (field,
+    `turnCompleted` handling and `send` plumbing; M72 + M74 test blocks
+    kept back to back). Merge fixes, none changing behaviour: the port's
+    duplicate post-staging currency re-check in `startFromBrief` removed
+    (the span is synchronous, so the kept top check with the new
+    `canStart` ownership callback covers it); the dead
+    `pending.session ?? session` fallback dropped; the port's duplicated
+    7-line confirm block extracted to a `confirmEdited` test helper
+    (duplication gate back to 0 clones); the palette test clears the
+    `/handoff ` draft before the `/fix-bug` step. No escape hatches added
+    (§8: nothing to record). Scope unchanged: manual `/handoff` only.
 
 ### M76 — Custom agents (D49)
 

@@ -265,6 +265,7 @@ describe('buildPalette', () => {
     expect(slash?.items.map((item) => item.label)).toEqual([
       '/agents',
       '/compact',
+      '/handoff',
       '/goal',
       '/export',
       'Export session log…',
@@ -273,6 +274,12 @@ describe('buildPalette', () => {
       '/usage',
       '/cost',
     ])
+    // M74: /handoff readies the prompt for the new conversation's goal.
+    expect(slash?.items.find((item) => item.id === 'handoff')).toMatchObject({
+      label: '/handoff',
+      detail: 'Distil this conversation into a brief for a fresh one',
+      action: { type: 'startHandoff' },
+    })
     expect(slash?.items.at(-2)?.action).toEqual({ type: 'openUsage' })
     expect(slash?.items.at(-1)?.action).toEqual({ type: 'openUsage' })
     expect(filterPalette(groups, '/cost').flatMap((group) => group.items.map((i) => i.id))).toEqual(
@@ -430,6 +437,7 @@ describe('slashCommandsOf', () => {
       'acme:deploy',
       'agents',
       'compact',
+      'handoff',
       'goal',
       'export',
       'clear',

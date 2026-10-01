@@ -75,6 +75,12 @@ two.
 - **Rewind the conversation, or take a side chat.** Any sent message can
   branch the conversation before itself; **Side chat** opens a Plan-mode
   branch without stopping the main one.
+- **Plans as files.** A Plan-mode reply can be saved to `.agents/plans/`,
+  or implemented in a fresh conversation, with the plan's steps as the
+  todo list ([Plans as files](#plans-as-files)).
+- **Handoff to a new conversation.** `/handoff` asks the model to distil the
+  conversation into a brief; you review and edit it, then start the new
+  conversation with it ([Handoff](#handoff-to-a-new-conversation)).
 - **More of Muse Code in the panel.** A row for every tool Muse Code runs,
   workflows as live cards, goals, and background tasks you can stop.
 - **Behind a corporate network.** Muse Code gets VS Code's proxy,
@@ -392,6 +398,28 @@ says why when it cannot.
 A side chat stays in Plan mode, so it offers only Save plan. Implementing a
 saved plan is refused in Restricted Mode, because its content goes to the
 model as workspace text.
+
+### Handoff to a new conversation
+
+`/handoff`, optionally with a goal after it, asks the model — as your own
+turn in the current conversation — for a distilled brief of it: the goal,
+the decisions, the files touched, the open work and the todo list. Anything
+drawn from tool output, fetched pages or imported files is marked
+`[untrusted]` in the brief, and the new conversation is told what that
+means. The brief opens in a dialog before anything starts: review it, edit
+it if you need to, then **Start new conversation**, or **Cancel** and
+nothing starts. Starting leaves the old conversation in History and seeds
+the new one with the brief alone — the goal and the open items travel in
+its note, and on the Model API backend the open items become the todo list
+before the first request. The generated or edited brief may be up to 256 KB
+in UTF-8. Cancel closes a handoff before the new conversation commits.
+
+Automatic compaction, the hidden follow-up and memory flush are not
+built: only manual `/handoff` is available.
+
+Handoff runs on the Model API backend only: on Muse Code the command says
+so, where Muse Code compacts its own conversations. It starts from the
+main conversation, never a side chat.
 
 ## Rules, skills and memory
 
@@ -1065,12 +1093,13 @@ palette with a filter box of its own. Its groups:
 
 Type a letter after the `/` and the palette gives way to a flat list of slash
 commands narrowed as you type: `/agents`, `/clear`, `/compact`, `/config`,
-`/cost`, `/export`, `/goal`, `/hooks`, `/logout`, `/mcp`, `/memory`,
-`/model`, `/permissions`, `/resume`, `/usage`, `/loop` (Model API backend),
-and the session's skills. Names that start with your letters come first. Up
-and Down move, `Enter` runs a command (a skill, or `/goal`, is completed so
-you can add what follows it), `Tab` completes the name and `Esc` closes the
-list. With nothing matching, `Enter` sends the text as it is.
+`/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
+`/memory`, `/model`, `/permissions`, `/resume`, `/usage`, `/loop` (Model API
+backend), and the session's skills. Names that start with your letters come
+first. Up and Down move, `Enter` runs a command (a skill, `/goal` or
+`/handoff` is completed so you can add what follows it), `Tab` completes
+the name and `Esc` closes the list. With nothing matching, `Enter` sends
+the text as it is.
 
 **Transcript.**
 

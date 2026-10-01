@@ -80,6 +80,7 @@ The PNGs beside the records are that day's harness renders.
 - [M57](m57.md): the Model API backend out of the activation bundle into `dist/modelApi.js`, the identity audit and the bundle-split gate (PLAN.md D6)
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
 - [M79](m79.md): plans as files: Save plan and Implement in a fresh conversation, Muse Code's `.agents/plans` convention, the plan's steps as the todo list (PLAN.md D49, D13)
+- [M74](m74.md): long tasks `/handoff` only: the distilled brief reviewed in a dialog before the new conversation starts (PLAN.md D49)
 - [M69](m69.md): web fetch on both backends: public HTTPS pages, every DNS answer checked and the connection pinned (through VS Code's proxy too), per-host approval, untrusted-content markers; Muse Code through the `ide` server (PLAN.md D49, folds in M44b)
 - [Sign-in detection](sign-in-detection.md): the CLI's sign-in read from its credential file's structure and confirmed by the CLI, sign-out through `account/logout`, and every way a browser sign-in ends (PLAN.md D26 amendment)
 - [M68](m68.md): the verify loop: diagnostics and check commands after edits, `run_checks`, `then_run`, format on edit, and the Muse Code note (PLAN.md D49; not pushed)

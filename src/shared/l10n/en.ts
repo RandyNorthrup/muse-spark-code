@@ -852,6 +852,26 @@ export const EN = {
   plansCount: forms({ one: '{count} saved plan', other: '{count} saved plans' }),
   plansNone: 'No saved plans yet. Save one from a reply in Plan mode.',
   plansFailed: 'Could not list the plans',
+  // M74 (PLAN.md D49): `/handoff` to a new conversation. {goal} is the goal
+  // typed after the command; {size} is the brief size limit in KB.
+  handoffItem: '/handoff',
+  handoffDetail: 'Distil this conversation into a brief for a fresh one',
+  handoffRequestCard: 'Hand off to a new conversation.',
+  handoffRequestCardWithGoal: 'Hand off to a new conversation: {goal}.',
+  handoffDialogTitle: 'Hand off to a new conversation',
+  handoffDialogBody:
+    'Review the brief, edit it if you need to, then start the new conversation. Nothing starts until you confirm.',
+  handoffConfirm: 'Start new conversation',
+  handoffUnavailable: 'Handoff runs on the Model API backend only.',
+  handoffEmpty: 'There is nothing to hand off yet.',
+  handoffBusy: 'A handoff is already running.',
+  handoffWaitTurn: 'Wait for the reply to finish, or stop it, first.',
+  handoffSideChat: 'Start a handoff from the main conversation.',
+  handoffInterrupted: 'The handoff request did not finish; nothing was started.',
+  handoffFailed: 'Could not prepare the handoff',
+  handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
+  handoffChangedNotStarted:
+    'The handoff was not started: the conversation changed in the meantime.',
   planOpenFailed: 'Could not open the plan',
   sideChatSessionOnly: 'This side chat can open only side-chat conversations.',
   renameFailed: 'Could not rename the conversation',

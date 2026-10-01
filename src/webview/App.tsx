@@ -14,6 +14,7 @@ import {
   type DictationAction,
   type EffortLevel,
   GOAL_SLASH_COMMAND,
+  HANDOFF_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
@@ -23,6 +24,7 @@ import {
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
+import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatPercent, templateParts } from '../shared/l10n/text'
 import {
@@ -44,6 +46,7 @@ import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
 import { UsageDialog } from './components/UsageDialog'
+import { HandoffDialog } from './components/HandoffDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
@@ -149,6 +152,8 @@ const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
 // What choosing `/goal` leaves in the prompt: the command, ready for the objective (M45).
 const GOAL_PROMPT_START = `/${GOAL_SLASH_COMMAND} `
 const LOOP_PROMPT_START = `/${LOOP_SLASH_COMMAND} `
+// What choosing `/handoff` leaves in the prompt: the command, ready for the goal (M74).
+const HANDOFF_PROMPT_START = `/${HANDOFF_SLASH_COMMAND} `
 const GATED_STATUSES = new Set(['noCli', 'installing', 'signedOut', 'signingIn', 'error'])
 const ATTACH_UPLOAD = 'upload'
 const ATTACH_CONTEXT = 'context'
@@ -267,6 +272,9 @@ function promptStartFor(action: PaletteAction): string | undefined {
     case 'startLoop': {
       return LOOP_PROMPT_START
     }
+    case 'startHandoff': {
+      return HANDOFF_PROMPT_START
+    }
     default: {
       return undefined
     }
@@ -298,6 +306,7 @@ export function App({
   const bodyRef = useRef<HTMLElement>(null)
   const [isPinnedToEnd, setIsPinnedToEnd] = useState(true)
   const nextGoalRequestId = useRef(0)
+  const nextHandoffRequestId = useRef(0)
   const nextAttachmentRequestId = useRef(0)
   const isPinnedRef = useRef(isPinnedToEnd)
   const [seenTranscript, setSeenTranscript] = useState(state.transcript)
@@ -431,6 +440,46 @@ export function App({
     },
     [store, onGoalCommand],
   )
+  // `/handoff …` is a command to the backend, not a message (M74): the
+  // host cards the accepted request itself, and the brief comes back as a
+  // dialog before anything starts. The draft clears on submit, as for
+  // `/loop` (M52).
+  const onHandoff = useCallback(
+    (goal: string | undefined) => {
+      const requestId = `handoff:${newLocalId()}:${String(++nextHandoffRequestId.current)}`
+      dispatch({ type: 'draftChanged', draft: '' })
+      postMessage({
+        type: 'requestHandoff',
+        requestId,
+        ...(goal !== undefined && { goal }),
+      })
+    },
+    [dispatch, newLocalId, postMessage],
+  )
+  const onHandoffChanged = useCallback(
+    (draft: string) => {
+      dispatch({ type: 'handoffChanged', draft })
+    },
+    [dispatch],
+  )
+  const onHandoffConfirm = useCallback(
+    (brief: string) => {
+      const pending = store.getState().handoff
+      if (pending === undefined || pending.isConfirming) {
+        return
+      }
+      dispatch({ type: 'handoffConfirming' })
+      postMessage({ type: 'confirmHandoff', requestId: pending.requestId, brief })
+    },
+    [store, dispatch, postMessage],
+  )
+  const onHandoffCancel = useCallback(() => {
+    const pending = store.getState().handoff
+    dispatch({ type: 'handoffDismissed' })
+    if (pending !== undefined) {
+      postMessage({ type: 'cancelHandoff', requestId: pending.requestId })
+    }
+  }, [store, dispatch, postMessage])
   const onScheduleRun = useCallback(
     (id: string, occurrenceMs: number) => {
       postMessage({ type: 'scheduleRun', id, occurrenceMs })
@@ -472,6 +521,14 @@ export function App({
         return
       }
       onGoalCommand(goal.verb, goal.objective, 'composer')
+      setIsPinnedToEnd(true)
+      return
+    }
+    // `/handoff …` distils the conversation for a fresh one (M74), on
+    // either backend (the host says where it cannot run).
+    const handoff = parseHandoffPrompt(text)
+    if (handoff !== undefined) {
+      onHandoff(handoff.goal)
       setIsPinnedToEnd(true)
       return
     }
@@ -526,7 +583,7 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, postMessage, onGoalCommand])
+  }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onHandoff])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [dispatch])
@@ -1171,6 +1228,12 @@ export function App({
           closeOverlay()
           break
         }
+        case 'startHandoff': {
+          // The prompt becomes `/handoff ` for the goal (M74).
+          dispatch({ type: 'draftChanged', draft: HANDOFF_PROMPT_START })
+          closeOverlay()
+          break
+        }
         case 'compact': {
           postMessage({ type: 'compact' })
           closeOverlay()
@@ -1620,9 +1683,24 @@ export function App({
         onClose={closeOverlay}
       />
     ) : null
+  const handoffDialog =
+    state.handoff === undefined ? null : (
+      <HandoffDialog
+        goal={state.handoff.goal}
+        draft={state.handoff.draft}
+        isConfirming={state.handoff.isConfirming}
+        onChange={onHandoffChanged}
+        onConfirm={onHandoffConfirm}
+        onCancel={onHandoffCancel}
+      />
+    )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = overlay === 'usage' || overlay === 'agents' || isInstallConfirmOpen
+  const isModalOpen =
+    overlay === 'usage' ||
+    overlay === 'agents' ||
+    isInstallConfirmOpen ||
+    state.handoff !== undefined
 
   return (
     <div className="app">
@@ -1648,6 +1726,7 @@ export function App({
         {history}
       </div>
       {usageDialog}
+      {handoffDialog}
       {agentMap}
       <main
         ref={bodyRef}

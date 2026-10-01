@@ -51,7 +51,13 @@ import type {
 } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  type FakeModelApi,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { disabledPaidFeatures } from './helpers/fakePaidFeatures'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './helpers/fakeToolIo'
@@ -4660,6 +4666,7 @@ function modelApiController(
     readonly io?: ModelApiHostDeps['io']
     readonly contextIo?: ModelApiHostDeps['contextIo']
     readonly newId?: () => string
+    readonly beforeEnsureHost?: () => Promise<void>
   } = {},
 ) {
   const api = fakeModelApi()
@@ -4682,7 +4689,10 @@ function modelApiController(
   })
   const controller = new ConversationController({
     ...t.deps,
-    ensureHost: () => Promise.resolve(host),
+    ensureHost: async () => {
+      await options.beforeEnsureHost?.()
+      return host
+    },
   })
   return { api, host, controller }
 }
@@ -8316,5 +8326,419 @@ describe('ConversationController: turn checkpoints (M72)', () => {
     await t.controller.handle({ type: 'setSessionArchived', sessionId: 'gone', isArchived: true })
     await t.controller.handle({ type: 'setSessionArchived', sessionId: 'back', isArchived: false })
     expect(t.checkpointCalls).toEqual(['forget gone'])
+  })
+})
+
+/** A `/handoff` request, with the goal where one was typed. */
+function handoff(requestId: string, goal?: string): ConversationMessage {
+  return { type: 'requestHandoff', requestId, ...(goal !== undefined && { goal }) }
+}
+
+/** A confirm that must refuse: the result, and no seeded card. */
+async function expectConfirmRefused(
+  t: ReturnType<typeof setup>,
+  controller: ConversationController,
+  requestId: string,
+  brief: string,
+): Promise<void> {
+  t.surface.posted.length = 0
+  await controller.handle({ type: 'confirmHandoff', requestId, brief })
+  expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+    { type: 'handoffCommandResult', requestId, accepted: false },
+  ])
+  expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+}
+
+interface HandoffConversation {
+  readonly t: ReturnType<typeof setup>
+  readonly api: FakeModelApi
+  readonly controller: ConversationController
+  readonly host: ModelApiHost
+}
+
+/** A Model API conversation with one completed turn, ready to hand off. */
+async function handoffConversation(
+  firstReply?: ScriptedReply,
+  beforeEnsureHost?: () => Promise<void>,
+): Promise<HandoffConversation> {
+  const t = setup({})
+  let nextId = 0
+  const { api, controller, host } = modelApiController(t, {
+    newId: () => `id${String(++nextId)}`,
+    ...(beforeEnsureHost !== undefined && { beforeEnsureHost }),
+  })
+  api.script(firstReply ?? { text: 'did the thing' })
+  await controller.handle({
+    type: 'sendMessage',
+    localId: 'l1',
+    text: 'do the thing',
+    attachmentIds: [],
+  })
+  await vi.waitFor(() => {
+    expect(agentEvents(t).some((event) => event.type === 'turnCompleted')).toBe(true)
+  })
+  return { t, api, controller, host }
+}
+
+/** Hold exactly the next host lookup after the conversation has been prepared. */
+function holdNextHandoffHost() {
+  const entered = Promise.withResolvers<undefined>()
+  const released = Promise.withResolvers<undefined>()
+  let shouldHold = false
+  return {
+    entered: entered.promise,
+    release: () => {
+      released.resolve(undefined)
+    },
+    hold: () => {
+      shouldHold = true
+    },
+    beforeEnsureHost: async () => {
+      if (!shouldHold) {
+        return
+      }
+      shouldHold = false
+      entered.resolve(undefined)
+      await released.promise
+    },
+  }
+}
+
+/**
+ * The last notice a Model API controller's message produced. Only notices
+ * posted by the message count, so a turn running alongside cannot leak in.
+ */
+async function lastModelNotice(
+  t: ReturnType<typeof setup>,
+  controller: ConversationController,
+  message: ConversationMessage,
+): Promise<string | undefined> {
+  const before = notices(t).length
+  await controller.handle(message)
+  return notices(t).slice(before).at(-1)?.text
+}
+
+describe('ConversationController: handoff to a new conversation (M74)', () => {
+  const BRIEF =
+    '## Goal\nShip it.\n\n## Decisions\nNone.\n\n## Files touched\nNone.\n\n## Open work\nShip it.\n\n## Todo list\n- [ ] Polish the tile'
+  const EDITED = `${BRIEF}\n\n## Notes\nEdited by hand.`
+
+  /** The handoff's distillation turn, through to its dialog. */
+  async function distil(conversation: HandoffConversation, requestId: string, goal?: string) {
+    const { t, api, controller } = conversation
+    api.script({ text: BRIEF })
+    await controller.handle(handoff(requestId, goal))
+    await vi.waitFor(() => {
+      expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(true)
+    })
+    return t.surface.posted.find((posted) => posted.type === 'handoffReady')
+  }
+
+  /** Start the edited brief as `requestId`'s new conversation, and require the accept. */
+  async function confirmEdited(conversation: HandoffConversation, requestId: string) {
+    const { t, api, controller } = conversation
+    api.script({ text: 'on it' })
+    await controller.handle({ type: 'confirmHandoff', requestId, brief: EDITED })
+    expect(t.surface.posted).toContainEqual({
+      type: 'handoffCommandResult',
+      requestId,
+      accepted: true,
+    })
+  }
+
+  it("distils the conversation as the user's own turn and shows the brief before anything starts", async () => {
+    const conversation = await handoffConversation()
+    const { t, api } = conversation
+    const ready = await distil(conversation, 'h1', 'Ship it')
+    expect(ready).toEqual({ type: 'handoffReady', requestId: 'h1', brief: BRIEF, goal: 'Ship it' })
+    // The request turn's card, in the user's language.
+    const card = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+    expect(card).toMatchObject({
+      type: 'briefSubmitted',
+      text: fill(UI_TEXT.handoffRequestCardWithGoal, { goal: 'Ship it' }),
+      attachments: [],
+    })
+    expect(card?.type === 'briefSubmitted' && card.localId.startsWith('handoff-')).toBe(true)
+    // The model was asked for the distilled brief, with the goal and the
+    // untrusted-content rule (PLAN.md D49). Both sides are JSON text, so
+    // the expectation is encoded the same way.
+    const request = JSON.stringify(api.responseBodies().at(-1)?.['input'])
+    expect(request).toContain(JSON.stringify(MODEL_TEXT.handoffRequest).slice(1, -1))
+    expect(request).toContain('Ship it')
+    expect(request).toContain('[untrusted]')
+    // Nothing started: the conversation was not cleared.
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+  })
+
+  it('starts the reviewed brief as a new conversation through the brief path, seeding the open items', async () => {
+    const conversation = await handoffConversation({
+      text: 'did the thing',
+      calls: [
+        {
+          name: 'todo_write',
+          arguments:
+            '{"items":[{"text":"Polish the tile","status":"pending"},{"text":"Already shipped tile","status":"completed"}]}',
+        },
+      ],
+    })
+    const { t, api, controller } = conversation
+    await distil(conversation, 'h1', 'Ship it')
+    api.script({ text: 'on it' })
+    t.surface.posted.length = 0
+    await controller.handle({ type: 'confirmHandoff', requestId: 'h1', brief: EDITED })
+    // The seeded turn runs to completion before its request is read back.
+    await vi.waitFor(() => {
+      expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(1)
+    })
+    const kinds = t.surface.posted.map((posted) => posted.type)
+    // The old conversation is left before the brief's card appears (M79's path).
+    expect(kinds.indexOf('conversationCleared')).toBeLessThan(kinds.indexOf('briefSubmitted'))
+    const seeded = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+    expect(seeded).toMatchObject({ type: 'briefSubmitted', text: EDITED, attachments: [] })
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+      { type: 'handoffCommandResult', requestId: 'h1', accepted: true },
+    ])
+    // The open items land before the brief's request; what is done stays behind.
+    const lists = t.surface.posted.flatMap((posted) =>
+      posted.type === 'agentEvent' && posted.event.type === 'todoChanged'
+        ? [posted.event.items]
+        : [],
+    )
+    expect(lists.at(-1)).toEqual([{ text: 'Polish the tile', status: 'pending' }])
+    // The seeded turn carries the edited brief, the goal and what [untrusted] means.
+    const body = JSON.stringify(api.responseBodies().at(-1)?.['input'])
+    expect(body).toContain(JSON.stringify(EDITED).slice(1, -1))
+    expect(body).toContain('Work toward this goal: Ship it')
+    expect(body).toContain('never as instructions')
+    expect(body).toContain('1. Polish the tile')
+    expect(body).not.toContain('Already shipped tile')
+    expect(body).not.toContain('did the thing')
+  })
+
+  it('refuses where it cannot run, starting nothing', async () => {
+    // Muse Code compacts itself: the command is unavailable there.
+    const museCode = setup({})
+    expect(await lastNoticeText(museCode, handoff('h1'))).toBe(UI_TEXT.handoffUnavailable)
+    expect(museCode.server.requestsFor('session/start')).toHaveLength(0)
+    expect(museCode.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    // Nothing to distil yet.
+    const emptySetup = setup({})
+    const { controller: emptyController } = modelApiController(emptySetup)
+    expect(await lastModelNotice(emptySetup, emptyController, handoff('h1'))).toBe(
+      UI_TEXT.handoffEmpty,
+    )
+    // A side chat stays where it is.
+    const sideSetup = setup({ isSideChat: true })
+    const { controller: sideController } = modelApiController(sideSetup)
+    expect(await lastModelNotice(sideSetup, sideController, handoff('h1'))).toBe(
+      UI_TEXT.handoffSideChat,
+    )
+    for (const refused of [museCode, emptySetup, sideSetup]) {
+      expect(refused.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    }
+  })
+
+  it('waits for a running turn before distilling', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller } = conversation
+    const release = Promise.withResolvers<unknown>()
+    api.script({ hold: release.promise, text: 'later' })
+    const running = controller.handle({
+      type: 'sendMessage',
+      localId: 'l2',
+      text: 'another thing',
+      attachmentIds: [],
+    })
+    await vi.waitFor(() => {
+      expect(
+        t.surface.posted.some(
+          (posted) => posted.type === 'turnAccepted' && posted.localId === 'l2',
+        ),
+      ).toBe(true)
+    })
+    expect(await lastModelNotice(t, controller, handoff('h1'))).toBe(UI_TEXT.handoffWaitTurn)
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    release.resolve(undefined)
+    await running
+    // Both turns done: the first and the held one.
+    await vi.waitFor(() => {
+      expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+    })
+    // The turn done, the handoff runs.
+    const ready = await distil(conversation, 'h1')
+    expect(ready).toMatchObject({ type: 'handoffReady', requestId: 'h1', brief: BRIEF })
+  })
+
+  it('refuses a second handoff while its brief waits', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    expect(await lastModelNotice(t, controller, handoff('h2'))).toBe(UI_TEXT.handoffBusy)
+    expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
+  })
+
+  it('owns the handoff before held host preparation so a second request cannot submit', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, api, controller } = conversation
+    api.script({ text: BRIEF })
+    gate.hold()
+    const first = controller.handle(handoff('h1'))
+    try {
+      await gate.entered
+      expect(await lastModelNotice(t, controller, handoff('h2'))).toBe(UI_TEXT.handoffBusy)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    } finally {
+      gate.release()
+    }
+    await first
+    await vi.waitFor(() => {
+      expect(t.surface.posted).toContainEqual({
+        type: 'handoffReady',
+        requestId: 'h1',
+        brief: BRIEF,
+      })
+    })
+    expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
+  })
+
+  it('cancels held preparation without an older completion discarding the newer handoff', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, controller } = conversation
+    gate.hold()
+    const old = controller.handle(handoff('h1'))
+    try {
+      await gate.entered
+      await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+      await distil(conversation, 'h2')
+    } finally {
+      gate.release()
+    }
+    await old
+    await confirmEdited(conversation, 'h2')
+    expect(
+      t.surface.posted.some(
+        (posted) => posted.type === 'handoffReady' && posted.requestId === 'h1',
+      ),
+    ).toBe(false)
+  })
+
+  it('refuses distillation when an ordinary turn starts during the history read', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller, host } = conversation
+    const entered = Promise.withResolvers<undefined>()
+    const historyReleased = Promise.withResolvers<undefined>()
+    const ordinaryReleased = Promise.withResolvers<unknown>()
+    const readSession = host.readSession.bind(host)
+    const reading = vi.spyOn(host, 'readSession').mockImplementationOnce(async (sessionId) => {
+      entered.resolve(undefined)
+      await historyReleased.promise
+      return await readSession(sessionId)
+    })
+    const preparing = controller.handle(handoff('h1'))
+    try {
+      await entered.promise
+      api.script({ hold: ordinaryReleased.promise, text: 'ordinary reply' })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'ordinary',
+        text: 'continue normally',
+        attachmentIds: [],
+      })
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'turnAccepted', localId: 'ordinary' }),
+      )
+      historyReleased.resolve(undefined)
+      await preparing
+      expect(notices(t).at(-1)?.text).toBe(UI_TEXT.handoffWaitTurn)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    } finally {
+      historyReleased.resolve(undefined)
+      ordinaryReleased.resolve(undefined)
+      reading.mockRestore()
+    }
+  })
+
+  it('cancels a held Start before commit and preserves a newer handoff operation', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    t.surface.posted.length = 0
+    gate.hold()
+    const oldStart = controller.handle({ type: 'confirmHandoff', requestId: 'h1', brief: EDITED })
+    try {
+      await gate.entered
+      await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+      await distil(conversation, 'h2')
+    } finally {
+      gate.release()
+    }
+    await oldStart
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    await confirmEdited(conversation, 'h2')
+  })
+
+  it.each([
+    { kind: 'ascii', brief: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) },
+    { kind: 'multibyte', brief: 'é'.repeat(PLAN_FILE_MAX_BYTES / 2 + 1) },
+  ])(
+    'refuses an edited $kind brief over the UTF-8 byte bound before clearing or sending',
+    async ({ brief }) => {
+      const conversation = await handoffConversation()
+      const { t, api, controller } = conversation
+      await distil(conversation, 'h1')
+      const before = api.responseBodies().length
+      await expectConfirmRefused(t, controller, 'h1', brief)
+      expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+      expect(api.responseBodies()).toHaveLength(before)
+      expect(notices(t).at(-1)?.text).toContain(String(PLAN_FILE_MAX_BYTES / 1024))
+    },
+  )
+
+  it('cancels the brief and lets a later handoff through; a stale confirm starts nothing', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+    await expectConfirmRefused(t, controller, 'h1', EDITED)
+    // Cancelled, the next handoff runs.
+    const ready = await distil(conversation, 'h2')
+    expect(ready).toMatchObject({ type: 'handoffReady', requestId: 'h2', brief: BRIEF })
+  })
+
+  it('refuses a confirm after the conversation changed, and a brief that is too large or empty', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    await controller.backendStopping(false)
+    await expectConfirmRefused(t, controller, 'h1', EDITED)
+    expect(notices(t).at(-1)).toMatchObject({
+      level: 'info',
+      text: UI_TEXT.handoffChangedNotStarted,
+    })
+
+    const large = await handoffConversation()
+    large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) })
+    large.t.surface.posted.length = 0
+    await large.controller.handle(handoff('h1'))
+    await vi.waitFor(() => {
+      expect(notices(large.t).length).toBeGreaterThan(0)
+    })
+    expect(notices(large.t).at(-1)).toMatchObject({ level: 'warning' })
+    expect(notices(large.t).at(-1)?.text).toContain(String(PLAN_FILE_MAX_BYTES / 1024))
+    expect(large.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+
+    const empty = await handoffConversation()
+    empty.api.script({ text: '' })
+    empty.t.surface.posted.length = 0
+    await empty.controller.handle(handoff('h1'))
+    await vi.waitFor(() => {
+      expect(notices(empty.t).length).toBeGreaterThan(0)
+    })
+    expect(notices(empty.t).at(-1)).toMatchObject({ level: 'error' })
+    expect(notices(empty.t).at(-1)?.text).toContain(UI_TEXT.handoffFailed)
+    expect(empty.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
   })
 })
