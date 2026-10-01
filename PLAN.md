@@ -8976,13 +8976,17 @@ independent review and the full candidate gates remain required.**
 
 ### M84 — Session export, import and share (D49)
 
-**Status 2026-09-30: approved-main source integration prepared, unverified.**
-Original `c2eb4da2` and every repair draft remain preserved. After the normal
-`f7db5715` join, approved M68 main `32709441` is applied as a three-way source
-delta. Captured workspace identity and imported markers are both retained in
-session summaries/snapshots. The actual ACP loader applies safe imported start
-mode before advertised-mode matching and replay. Focused tests, mutation proof,
-independent review, normal latest-main ancestry and complete gates remain pending.
+**Status 2026-10-01: independent review RV84 fixed on `feature/m84-export`;
+the four-machine gate remains the lead's.** The RV84 findings are fixed
+one commit each, with tests and red drills recorded from this tree in
+`docs/certification/m84.md`, as are the drills of the 2026-09-29 repairs
+that had not run (R1 to R6). Not run on this tree: `npm run quality`,
+the accessibility gate, the harness shots (the `m84-share.png` capture is
+missing) and the integration tests. Open: RV84 #10 (an import past the
+model's window is accepted, confirmed by reading) and #14 (the share view
+renders every item in one pass, confirmed in kind by a jsdom measurement),
+neither fixed. History: original `c2eb4da2` and the repair drafts are
+preserved; the port to the release candidate is described below.
 
 - **Goal.** A conversation can move between machines and people.
 - **Scope.**
@@ -9016,6 +9020,7 @@ independent review, normal latest-main ancestry and complete gates remain pendin
     no new identity format is needed. Extend the existing transfer/import
     tests and prove the four guards fail under mutations before relying
     on them; earlier certificates remain tied to their earlier trees.
+    (Done 2026-10-01: drills R1 to R6 in `docs/certification/m84.md`.)
     PR #32 integration must honor `record.imported` in ACP load/resume/fork
     before `matchAdvertised` sets a backend mode; reuse `untrustedStartMode`
     instead of advertising configured Auto/Bypass for imported history.
@@ -9069,6 +9074,10 @@ independent review, normal latest-main ancestry and complete gates remain pendin
       Draft real-file cases cover growth after metadata, opened-path
       replacement, oversize input, strict UTF-8 and unchanged source bytes.
       Tests and red drills remain queued until verifier allocation.
+      (Run 2026-10-01: drills R4a, R4b and R5 in
+      `docs/certification/m84.md`; a file gone before the read is now
+      reported as missing, RV84 #6, and one that is not UTF-8 gets the
+      translated `textFileInvalid`, RV84 #7.)
   - **Import** (`ModelApiHost.importSession`, Model API only): fresh
     session, turn and item ids (turns start at each user message), the
     user's current model (the file's model id is informational; D49: nothing
@@ -9131,7 +9140,8 @@ independent review, normal latest-main ancestry and complete gates remain pendin
     to-retake in `docs/certification/m84.md`). Four conflicts kept both
     sides: the candidate's 0.10.0/M72 entries and the patch's M84 entries in
     `CHANGELOG.md`; `editFile` (M72 checkpoint lease, kept: a workspace
-    export still goes through `withCheckpointEditAt`) beside `openPreview`
+    Markdown export still goes through `withCheckpointEditAt`; the JSON
+    export did not until RV84 #5) beside `openPreview`
     (M84) in `CliFeatureDeps`, its tests and their setups. Decisions taken
     in the port: `Promise.withResolvers<void>` became `<undefined>` with
     `resolve(undefined)` (the gate's `no-invalid-void-type`); the
@@ -9151,7 +9161,22 @@ independent review, normal latest-main ancestry and complete gates remain pendin
     `npm run build`/integration tests/`test:a11y`/harness shots (same cause,
     no browser), and seven unit tests that fail identically on pristine HEAD
     here: six real-git checkpoint captures plus the esbuild-bundled M57
-    goal test (environmental, unrelated to M84).
+    goal test (environmental, unrelated to M84). These checks ran on the
+    port tree in that sandbox; the record for the tree after RV84 is
+    `docs/certification/m84.md` (2026-10-01).
+  - **Independent review RV84, 2026-10-01.** Fourteen findings; the fixes
+    are one commit each on `feature/m84-export` (#1 credential shapes and
+    honest claims, #2 lead decision on plan briefs, #4 changelog, #5 JSON
+    export lease, #6 missing file, #7 UTF-8 refusal, #8 share-view claim,
+    #9 scrub cost, #11 Insert and Apply on imported history, #12 dead CSS),
+    #3 is the rewritten certification, and #13 needs no change: the D60
+    gate (`check:host-api`) holds only `src/core`, `src/shared`,
+    `src/webview`, `src/acp`, `src/runtime` and the `PORTABLE_HOST` files
+    to the boundary, so an adapter file in `src/host/conversation/` is
+    allowed and recorded (17 files, 0 problems). Sibling dialogs live in
+    `src/host/*Features.ts`; moving `transferDialogs.ts` beside the export
+    dialogs in `cliFeatures.ts` is a tidy-up for the lead to choose. #10
+    and #14 stay open (see the status above).
 
 ### M85 — TypeSafe assist, experimental and opt in (D50)
 
