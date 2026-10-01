@@ -375,6 +375,28 @@
   "webFetchNetwork": "要求失敗：{detail}",
   "webFetchMoved": "網頁重新導向到另一部主機上的 {location}。Muse 可以透過新的呼叫擷取它，屆時會再次詢問。",
   "webFetchRestrictedMode": "限制模式下網頁擷取已關閉。信任此工作區即可使用。",
+  "browserCheckConfirmTitle": "Muse Code 想要在無頭瀏覽器中開啟 {url}",
+  "browserCheckConfirmDetail": "頁面會在暫時的瀏覽器設定檔中載入，之後會刪除。它傳送到本電腦和 museSpark.browserCheckExtraHosts 中主機以外的要求都會遭到封鎖。",
+  "browserCheckConfirmDetailWiden": "{host} 不是本電腦。允許後，僅本次檢查可以連線到它。",
+  "browserCheckDone": "已檢查 {url}：{errors}，{failed}，{blocked}",
+  "browserCheckConsoleErrors": {
+    "other": "{count} 個主控台錯誤"
+  },
+  "browserCheckFailedRequests": {
+    "other": "{count} 個失敗的要求"
+  },
+  "browserCheckBlockedRequests": {
+    "other": "已封鎖 {count} 個傳送到本電腦以外的要求"
+  },
+  "browserCheckUrlRefused": "只能開啟使用簡單主機名稱或 IP 位址、且不含使用者名稱或密碼的 http:// 或 https:// 位址。",
+  "browserCheckNoBrowser": "在本電腦上找不到 Google Chrome 或 Microsoft Edge。請安裝其中之一以使用瀏覽器檢查。",
+  "browserCheckBrowserFailed": "瀏覽器發生錯誤：{detail}",
+  "browserCheckPageFailed": "頁面未載入：{detail}",
+  "browserCheckPageBlocked": "頁面未載入：它前往本電腦以外的位址，瀏覽器檢查會封鎖這類位址。",
+  "browserCheckTimedOut": "瀏覽器檢查未在 {duration} 內完成。",
+  "browserCheckNoElement": "頁面上沒有符合 {selector} 的元素，或該元素不接受文字。",
+  "browserCheckLeaked": "有連線到達了本電腦以外，因此瀏覽器檢查已停止，未傳回任何內容。",
+  "browserCheckRestrictedMode": "限制模式下瀏覽器檢查已關閉。信任此工作區即可使用。",
   "textFileTooLarge": "文字檔案不得超過 1 MB。",
   "textFilesOverBudget": "附件超過 Muse Code 訊息限制。請移除附件或縮短訊息。",
   "textFilesOverModelApiBudget": "附加的文字檔案超過 Model API 上下文限制。請移除檔案或附加較短的摘錄。",
@@ -405,6 +427,8 @@
   "approvalAction": "Muse 要求核准：{action}",
   "approvalUseTool": "Muse 想要使用 {action}",
   "approvalFetch": "Muse 想要擷取 {action}",
+  "approvalBrowserCheck": "Muse 想要在無頭瀏覽器中開啟 {action}",
+  "approvalBrowserCheckWiden": "Muse 想要在無頭瀏覽器中開啟本電腦以外的 {action}",
   "approvalStage": "第 {position} 步，共 {total} 步",
   "approvalProtectedWrite": "受保護的寫入",
   "approvalJudgeEscalated": "經安全檢查提報",
@@ -844,6 +868,8 @@
     "run_checks": "執行檢查",
     "verify_edits": "檢查編輯",
     "mcp__ide__webFetch": "擷取網頁",
+    "browser_check": "瀏覽器檢查",
+    "mcp__ide__browserCheck": "瀏覽器檢查",
     "find_definition": "定義",
     "find_references": "參考",
     "workspace_symbols": "符號",

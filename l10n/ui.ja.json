@@ -375,6 +375,28 @@
   "webFetchNetwork": "要求に失敗しました: {detail}",
   "webFetchMoved": "ページは別のホストの {location} にリダイレクトしました。Muse は新しい呼び出しで取得でき、その際に再度確認します。",
   "webFetchRestrictedMode": "制限モードではページの取得はオフです。使用するにはワークスペースを信頼してください。",
+  "browserCheckConfirmTitle": "Muse Code が {url} をヘッドレス ブラウザーで開こうとしています",
+  "browserCheckConfirmDetail": "ページは一時的なブラウザー プロファイルで読み込まれ、後で削除されます。このコンピューターと museSpark.browserCheckExtraHosts のホスト以外へのリクエストはブロックされます。",
+  "browserCheckConfirmDetailWiden": "{host} はこのコンピューターではありません。許可すると、今回のチェックに限りアクセスできます。",
+  "browserCheckDone": "{url} を確認しました: {errors}、{failed}、{blocked}",
+  "browserCheckConsoleErrors": {
+    "other": "コンソール エラー {count} 件"
+  },
+  "browserCheckFailedRequests": {
+    "other": "失敗したリクエスト {count} 件"
+  },
+  "browserCheckBlockedRequests": {
+    "other": "このコンピューター外へのリクエスト {count} 件をブロック"
+  },
+  "browserCheckUrlRefused": "開けるのは、単純なホスト名または IP アドレスで、ユーザー名やパスワードを含まない http:// または https:// のアドレスだけです。",
+  "browserCheckNoBrowser": "このコンピューターに Google Chrome も Microsoft Edge も見つかりませんでした。ブラウザー チェックを使うには、どちらかをインストールしてください。",
+  "browserCheckBrowserFailed": "ブラウザーでエラーが発生しました: {detail}",
+  "browserCheckPageFailed": "ページを読み込めませんでした: {detail}",
+  "browserCheckPageBlocked": "ページを読み込めませんでした: このコンピューター外のアドレスに移動したため、ブラウザー チェックがブロックしました。",
+  "browserCheckTimedOut": "ブラウザー チェックが {duration} 以内に完了しませんでした。",
+  "browserCheckNoElement": "ページ上に {selector} に一致する要素がないか、その要素はテキストを入力できません。",
+  "browserCheckLeaked": "このコンピューター外への接続が通ったため、ブラウザー チェックを停止しました。何も返していません。",
+  "browserCheckRestrictedMode": "制限モードではブラウザー チェックはオフです。使用するにはワークスペースを信頼してください。",
   "textFileTooLarge": "テキストファイルは 1 MB 以下である必要があります。",
   "textFilesOverBudget": "添付ファイルが Muse Code のメッセージ上限を超えています。添付ファイルを削除するか、メッセージを短くしてください。",
   "textFilesOverModelApiBudget": "添付したテキストファイルが Model API のコンテキスト上限を超えています。ファイルを削除するか、短い抜粋を添付してください。",
@@ -405,6 +427,8 @@
   "approvalAction": "Muse が許可を求めています: {action}",
   "approvalUseTool": "Muse が {action} の使用を求めています",
   "approvalFetch": "Muse が {action} の取得を求めています",
+  "approvalBrowserCheck": "Muse が {action} をヘッドレス ブラウザーで開こうとしています",
+  "approvalBrowserCheckWiden": "Muse がこのコンピューター外の {action} をヘッドレス ブラウザーで開こうとしています",
   "approvalStage": "ステップ {position}/{total}",
   "approvalProtectedWrite": "保護された書き込み",
   "approvalJudgeEscalated": "安全性チェックによりエスカレーション",
@@ -844,6 +868,8 @@
     "run_checks": "チェックを実行",
     "verify_edits": "編集をチェック",
     "mcp__ide__webFetch": "ページを取得",
+    "browser_check": "ブラウザー チェック",
+    "mcp__ide__browserCheck": "ブラウザー チェック",
     "find_definition": "定義",
     "find_references": "参照",
     "workspace_symbols": "シンボル",

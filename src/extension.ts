@@ -83,6 +83,10 @@ import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './hos
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { createWebFetcher } from './host/web/webFetcher'
+import { BrowserChecks } from './host/browser/browserChecks'
+import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
+import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
+import type { BrowserCheckHost } from './core/browser/browserTool'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
@@ -146,6 +150,7 @@ import {
   MODEL_API_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   CHECKPOINT_STORE_BUNDLE_FILE,
+  BROWSER_CHECK_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -1038,6 +1043,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     pageConverter(vscode.Uri.joinPath(context.extensionUri, 'dist', PAGE_WORKER_FILE).fsPath, log),
   )
   const askWebFetch = oneQuestionPerUrl(isWebFetchAllowed)
+  // The browser check (M81, PLAN.md D49): the Model API backend's
+  // `browser_check` and Muse Code's `mcp__ide__browserCheck`, run in the
+  // browser's own bundle, loaded on the first check; every check under way
+  // ends with the window. The widened hosts are the user's machine-scoped
+  // setting, read at each use.
+  const browserChecks = new BrowserChecks({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', BROWSER_CHECK_BUNDLE_FILE).fsPath,
+    log,
+  })
+  context.subscriptions.push(browserChecks)
+  const browserCheck: BrowserCheckHost = {
+    check: browserChecks.check,
+    extraHosts: () => currentSettings().browserCheckExtraHosts,
+  }
+  const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
   // native tools on the Model API backend, `ide` tools for Muse Code. Only
   // with a folder open, since every path is the workspace's.
@@ -1064,6 +1084,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
         fetchPage: webFetch,
         confirm: askWebFetch,
+        log,
+      }),
+      // The same rule for the browser check, text only for Muse Code (M81).
+      ...ideBrowserCheckTools({
+        isOffered: () =>
+          isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
+        extraHosts: browserCheck.extraHosts,
+        confirm: askBrowserCheck,
+        check: browserCheck.check,
         log,
       }),
       ...ideImageTools({
@@ -1335,6 +1364,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ),
     ideTools,
     webFetch,
+    browserCheck,
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     allowsPaidUse: async (request, requiresAsking) =>

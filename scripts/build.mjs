@@ -2,7 +2,8 @@
 // Bundles the extension host entry, the Model API backend, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
-// webview, and (in dev mode) the integration tests with esbuild.
+// browser check (M81, loaded on the first check), the webview, and (in dev
+// mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -50,6 +51,9 @@ const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+// The browser check's own bundle (M81): the pipe, the run, the browser's processes.
+const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
+const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -148,6 +152,17 @@ const checkpointStoreOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const browserCheckOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [BROWSER_CHECK_ENTRY],
+  outfile: BROWSER_CHECK_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -221,6 +236,7 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(uiTextOptions),
+    esbuild.context(browserCheckOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
@@ -234,6 +250,7 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     uiText: esbuild.build(uiTextOptions),
+    browserCheck: esbuild.build(browserCheckOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
@@ -260,6 +277,7 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
+  reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))

@@ -375,6 +375,28 @@
   "webFetchNetwork": "请求失败：{detail}",
   "webFetchMoved": "网页重定向到了另一台主机上的 {location}。Muse 可以通过新的调用获取它，届时会再次询问。",
   "webFetchRestrictedMode": "受限模式下网页获取已关闭。信任此工作区即可使用。",
+  "browserCheckConfirmTitle": "Muse Code 想要在无头浏览器中打开 {url}",
+  "browserCheckConfirmDetail": "页面在临时浏览器配置文件中加载，之后会被删除。它发往本计算机和 museSpark.browserCheckExtraHosts 中主机以外的请求都会被阻止。",
+  "browserCheckConfirmDetailWiden": "{host} 不是本计算机。允许后，仅本次检查可以访问它。",
+  "browserCheckDone": "已检查 {url}：{errors}，{failed}，{blocked}",
+  "browserCheckConsoleErrors": {
+    "other": "{count} 个控制台错误"
+  },
+  "browserCheckFailedRequests": {
+    "other": "{count} 个失败的请求"
+  },
+  "browserCheckBlockedRequests": {
+    "other": "已阻止 {count} 个发往本计算机以外的请求"
+  },
+  "browserCheckUrlRefused": "只能打开使用简单主机名或 IP 地址、且不含用户名或密码的 http:// 或 https:// 地址。",
+  "browserCheckNoBrowser": "在本计算机上未找到 Google Chrome 或 Microsoft Edge。请安装其中之一以使用浏览器检查。",
+  "browserCheckBrowserFailed": "浏览器出错：{detail}",
+  "browserCheckPageFailed": "页面未加载：{detail}",
+  "browserCheckPageBlocked": "页面未加载：它转到了本计算机以外的地址，浏览器检查会阻止这类地址。",
+  "browserCheckTimedOut": "浏览器检查未在 {duration} 内完成。",
+  "browserCheckNoElement": "页面上没有与 {selector} 匹配的元素，或该元素不接受文本。",
+  "browserCheckLeaked": "有连接到达了本计算机以外，因此浏览器检查已停止，未返回任何内容。",
+  "browserCheckRestrictedMode": "受限模式下浏览器检查已关闭。信任此工作区即可使用。",
   "textFileTooLarge": "文本文件不得超过 1 MB。",
   "textFilesOverBudget": "附件超出 Muse Code 消息限制。请移除附件或缩短消息。",
   "textFilesOverModelApiBudget": "附加的文本文件超出 Model API 上下文限制。请移除文件或附加更短的摘录。",
@@ -405,6 +427,8 @@
   "approvalAction": "Muse 请求批准：{action}",
   "approvalUseTool": "Muse 想要使用 {action}",
   "approvalFetch": "Muse 想要获取 {action}",
+  "approvalBrowserCheck": "Muse 想要在无头浏览器中打开 {action}",
+  "approvalBrowserCheckWiden": "Muse 想要在无头浏览器中打开本计算机以外的 {action}",
   "approvalStage": "第 {position} 步，共 {total} 步",
   "approvalProtectedWrite": "受保护的写入",
   "approvalJudgeEscalated": "经安全检查升级",
@@ -844,6 +868,8 @@
     "run_checks": "运行检查",
     "verify_edits": "检查编辑",
     "mcp__ide__webFetch": "获取网页",
+    "browser_check": "浏览器检查",
+    "mcp__ide__browserCheck": "浏览器检查",
     "find_definition": "定义",
     "find_references": "引用",
     "workspace_symbols": "符号",

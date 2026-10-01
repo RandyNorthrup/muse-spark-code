@@ -17,6 +17,9 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the browser check's pipe, run and processes (M81) are in
+//   dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
+//   their own bundle, dist/browserCheck.js, required on the first check.
 //
 // Exits 1 on any problem.
 //
@@ -63,6 +66,8 @@ const LAZY_ONLY = [
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
+  // M81: what a browser check hands the model and the row.
+  'browserCalls.ts',
   // The verify loop's session side and its tool surface (M68).
   'verifyLedger.ts',
   'verifyLoop.ts',
@@ -217,7 +222,34 @@ const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
 }
-for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, CHECKPOINT_STORE]) {
+// M81: the browser check's pipe, run and processes live in their own bundle,
+// required on the first check; activation keeps the loader and the tool.
+const BROWSER_CHECK = { output: 'dist/browserCheck.js', metafile: 'dist/meta/browserCheck.json' }
+const BROWSER_ONLY = [
+  'src/host/browser/browserCheckEntry.ts',
+  'src/host/browser/browserProcess.ts',
+  'src/core/browser/browserRun.ts',
+  'src/core/browser/browserLaunch.ts',
+  'src/core/browser/cdpPipe.ts',
+]
+const browserCheck = inputsOf(BROWSER_CHECK)
+for (const file of BROWSER_ONLY) {
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the browser check bundle`)
+    }
+  }
+  if (!browserCheck.has(file)) {
+    problems.push(`${BROWSER_CHECK.output} no longer carries ${file}`)
+  }
+}
+for (const bundle of [
+  BUNDLES.activation,
+  BUNDLES.modelApi,
+  BUNDLES.acp,
+  CHECKPOINT_STORE,
+  BROWSER_CHECK,
+]) {
   const inputs = inputsOf(bundle)
   if (inputs.has(ENGLISH_TABLE)) {
     problems.push(`${bundle.output} duplicates ${ENGLISH_TABLE}`)
@@ -299,5 +331,8 @@ console.log(
 )
 console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
+)
+console.log(
+  `ok   ${BROWSER_CHECK.output}: carries the browser check's pipe, run and processes; activation keeps the loader and the tool`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)

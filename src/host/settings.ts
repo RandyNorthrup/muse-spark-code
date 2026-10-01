@@ -4,10 +4,12 @@
 // documented default so one bad key cannot take the whole panel down.
 
 import * as z from 'zod/mini'
+import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
   type BackendMode,
+  BROWSER_CHECK_EXTRA_HOSTS_MAX,
   type CheckCommandSetting,
   type EnvironmentVariable,
   PROMPT_CACHE_RETENTIONS,
@@ -54,6 +56,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepoMap: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
+  /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
+  readonly browserCheckExtraHosts: readonly string[]
 }
 
 /**
@@ -90,6 +94,12 @@ const settingSchemas = {
   formatOnEdit: z.boolean(),
   modelApiRepoMap: z.boolean(),
   turnCheckpoints: z.boolean(),
+  // Each entry a plain host name or IP address (no port, path or wildcard):
+  // one that is not refuses the whole list, so a typo warns rather than
+  // widening something else.
+  browserCheckExtraHosts: z
+    .array(z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)))
+    .check(z.maxLength(BROWSER_CHECK_EXTRA_HOSTS_MAX)),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -162,6 +172,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
+    browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
   }
 }
 

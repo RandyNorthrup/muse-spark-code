@@ -150,6 +150,31 @@ describe('ApprovalCard', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('https://docs.example.com/a?b=1').tagName).toBe('CODE')
   })
+
+  it('names the page a browser check opens, and says when it is beyond this computer (M81)', () => {
+    for (const [kind, title] of [
+      ['browserCheck', 'Muse wants to open http://localhost:5173/ in a headless browser'],
+      [
+        'browserCheckWiden',
+        'Muse wants to open http://localhost:5173/ in a headless browser, beyond this computer',
+      ],
+    ] as const) {
+      const { unmount } = render(
+        <ApprovalCard
+          approval={{
+            ...approval,
+            subject: { kind, target: 'http://localhost:5173/', toolName: 'browser_check' },
+            isProtectedWrite: false,
+          }}
+          toolName="browser_check"
+          onDecide={vi.fn()}
+        />,
+      )
+      expect(screen.getByRole('group', { name: title })).toBeInTheDocument()
+      expect(screen.getByText('http://localhost:5173/').tagName).toBe('CODE')
+      unmount()
+    }
+  })
 })
 
 describe('TodoPanel', () => {

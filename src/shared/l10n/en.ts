@@ -465,6 +465,42 @@ export const EN = {
   webFetchMoved:
     'The page redirected to {location}, on another host. Muse can fetch it in a new call, which asks again.',
   webFetchRestrictedMode: 'Web fetch is off in Restricted Mode. Trust the workspace to use it.',
+  // M81 (PLAN.md D49): the browser check. Before each check Muse Code asks
+  // the extension for; the second sentence when the host is beyond loopback.
+  browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
+  browserCheckConfirmDetail:
+    'The page loads in a temporary browser profile that is deleted afterwards. Its requests to anything but this computer and the hosts in museSpark.browserCheckExtraHosts are blocked.',
+  browserCheckConfirmDetailWiden:
+    '{host} is not this computer. Allowing lets this one check reach it.',
+  // The Model API row: what the check found, then each entry under its count.
+  browserCheckDone: 'Checked {url}: {errors}, {failed}, {blocked}',
+  browserCheckConsoleErrors: forms({
+    one: '{count} console error',
+    other: '{count} console errors',
+  }),
+  browserCheckFailedRequests: forms({
+    one: '{count} failed request',
+    other: '{count} failed requests',
+  }),
+  browserCheckBlockedRequests: forms({
+    one: '{count} request blocked beyond this computer',
+    other: '{count} requests blocked beyond this computer',
+  }),
+  // Why a check did not happen or did not finish.
+  browserCheckUrlRefused:
+    'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
+  browserCheckNoBrowser:
+    'No Google Chrome or Microsoft Edge was found on this computer. Install one of them to use the browser check.',
+  browserCheckBrowserFailed: 'The browser failed: {detail}',
+  browserCheckPageFailed: 'The page did not load: {detail}',
+  browserCheckPageBlocked:
+    'The page did not load: it went to an address beyond this computer, which the browser check blocks.',
+  browserCheckTimedOut: 'The browser check did not finish within {duration}.',
+  browserCheckNoElement: 'No element on the page matches {selector}, or it takes no text.',
+  browserCheckLeaked:
+    'A connection beyond this computer got through, so the browser check was stopped and returned nothing.',
+  browserCheckRestrictedMode:
+    'The browser check is off in Restricted Mode. Trust the workspace to use it.',
   textFileTooLarge: 'Text files must be 1 MB or smaller.',
   textFilesOverBudget:
     'Attachments fill Muse Code’s message limit. Remove an attachment or shorten the message.',
@@ -499,6 +535,14 @@ export const EN = {
   approvalUseTool: 'Muse wants to use {action}',
   /** A web fetch on the Model API backend (M69): {action} is the URL, shown as code. */
   approvalFetch: 'Muse wants to fetch {action}',
+  /**
+   * A browser check on the Model API backend (M81): {action} is the URL. The
+   * second when its host is beyond loopback and the setting: allowing it
+   * widens the check to that host.
+   */
+  approvalBrowserCheck: 'Muse wants to open {action} in a headless browser',
+  approvalBrowserCheckWiden:
+    'Muse wants to open {action} in a headless browser, beyond this computer',
   // {paths} is the list of images an edit starts from, shown as code.
   approvalImageSources: 'Starting from {paths}',
   // M67: a rename's card names a few of its files ({files}) and counts the rest.
@@ -1057,6 +1101,9 @@ export const EN = {
     mcp__ide__editImage: 'Edit image',
     // The extension's web fetch for Muse Code, through the ide server (M69).
     mcp__ide__webFetch: 'Fetch page',
+    // The browser check on the Model API backend and for Muse Code (M81).
+    browser_check: 'Browser check',
+    mcp__ide__browserCheck: 'Browser check',
     // Muse Code's own tools (M43): captured live 2026-09-25, the rest named
     // from the CLI's tool list (PLAN.md D36).
     read_memory: 'Read memory',
