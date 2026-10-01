@@ -102,6 +102,8 @@ export const SCENARIOS = [
   'schedules',
   'schedules-narrow',
   'verify',
+  'board',
+  'bestofn',
   'plan',
   'plan-brief',
   'plan-narrow',

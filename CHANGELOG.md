@@ -27,7 +27,7 @@ happened, not what was planned; superseded entries are kept.
     that cannot fit is not sent and the turn says why. Each request is
     priced at the model it was sent to, and the spend is saved as it is
     spent, even while a call waits for approval. Shared durable liabilities
-    cover hosts reopening the same conversation, child requests and known
+    cover hosts reopening the same conversation, ordinary requests and known
     image fees. Unknown sent usage retains its whole reservation;
     ambiguous failures cannot retry under that same allowance while capped.
     Hosted search is unavailable with a cap until its billed query bound is
@@ -37,6 +37,34 @@ happened, not what was planned; superseded entries are kept.
   - Account & usage shows what the prompt cache saved in dollars. Its value
     (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
     the localization gate lets it stay the same in every language.
+
+- **Session board and best-of-N** (M77, PLAN.md D49). The header's board
+  button lists every conversation in the window, on either backend, with its
+  state, branch, changed files and waiting approvals; typing filters and
+  Enter resumes. The board queries the known worktree roots and includes the
+  attempts of a running best-of-N.
+  - Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model
+    API backend, behind the new off-by-default, machine-scoped
+    `museSpark.modelApiBestOfN` setting: one paid-use popup per run names the
+    prompt, the published token rates, the attempt count and the per-attempt
+    request ceiling, and the subscription never pays. Each attempt works on
+    its own `best-of-n/<run>/<index>` branch; attempts that would ask are
+    declined and counted. Needs a trusted workspace with a folder open.
+  - Successful attempts compare side by side, and **Apply and stage** takes
+    only that attempt's immutable preview: its uncommitted tracked and
+    unignored new files, binary changes included, applied and staged as exact
+    bytes, with no project commit. A failed, cancelled or unreadable attempt
+    cannot be selected; fresh checkout, editor, ownership and path checks
+    refuse a changed or linked target.
+  - The run reserves its window owner before the paid popup and rechecks
+    context and account after it; actual HTTP tries and retries are counted at
+    the final key-read boundary, and every attempt host binds the M82 parent
+    journal, so a finite session budget refuses when that scope is
+    unavailable. Account & usage shows reported attempt tokens and cost
+    separately, with unreported requests marked unknown. Automatic Git
+    operations run with no hooks, fsmonitor or maintenance and refuse a
+    repository that configures filters or hook commands.
+  - Strings ship in all 14 UI and manifest tables.
 
 ### Changed
 
@@ -51,6 +79,12 @@ happened, not what was planned; superseded entries are kept.
   helper that builds the bundle now runs `scripts/lib/buildModelApiBundle.mjs`.
 
 ### Fixed
+
+- **Voice Stop remains available after a cap or paid setting changes.** It
+  reaches the recording's existing driver instead of applying new-recording
+  availability. Child requests retain separate consent and ceilings; reported
+  cost is counted without reserving against the parent's cap, as decided for
+  M82. The setting and guide name that possible overrun in every language.
 
 - **Model API session budgets retain their open reservation before a
   response arrives.** Capped requests await a durable reservation write

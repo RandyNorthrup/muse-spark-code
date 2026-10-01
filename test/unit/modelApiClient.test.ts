@@ -356,6 +356,42 @@ describe('ModelApiClient', () => {
     })
   })
 
+  it('does not count a fetch when a final preflight refuses after key retrieval', async () => {
+    const t = setup()
+    const stop = new AbortController()
+    const sent = vi.fn()
+    const guard = Object.assign(
+      () => {
+        stop.abort()
+      },
+      { onRequestStarted: sent },
+    )
+    await expect(
+      collect(t.client.streamResponse(body, stop.signal, undefined, undefined, guard)),
+    ).rejects.toMatchObject({ status: 0 })
+    expect(sent).not.toHaveBeenCalled()
+    expect(t.api.responseBodies()).toEqual([])
+  })
+
+  it('observes every actual response fetch and retry once at the dispatch boundary', async () => {
+    const t = setup()
+    const admitted = vi.fn()
+    const sent = vi.fn()
+    t.api.script({ httpError: { status: 503 } }, { httpError: { status: 503 } }, { text: 'done' })
+    await collect(
+      t.client.streamResponse(
+        body,
+        new AbortController().signal,
+        undefined,
+        undefined,
+        Object.assign(admitted, { onRequestStarted: sent }),
+      ),
+    )
+    expect(admitted).toHaveBeenCalledTimes(3)
+    expect(sent).toHaveBeenCalledTimes(3)
+    expect(t.api.responseBodies()).toHaveLength(3)
+  })
+
   // M39: an event type the client does not use is logged once, not once a
   // frame, and each answer's time is traced.
   it('logs an ignored stream event type once and traces how long the answer took', async () => {

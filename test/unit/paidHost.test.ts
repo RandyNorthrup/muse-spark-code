@@ -106,6 +106,38 @@ describe('the paid-use popup (M58)', () => {
     expect(offeredButtons()).toEqual([UI_TEXT.allowOnce, UI_TEXT.paidDeny])
   })
 
+  it('refuses a best-of-N run on a model without verified rates before any popup', async () => {
+    await expect(
+      askPaidUse(
+        {
+          feature: 'bestOfN',
+          modelId: 'muse-spark-future',
+          prompt: 'Refactor this',
+          attempts: 3,
+          requestCeilingPerAttempt: 20,
+        },
+        true,
+      ),
+    ).resolves.toBe('deny')
+    expect(confirmModal).not.toHaveBeenCalled()
+  })
+
+  it('names a best-of-N run with its prompt, rates, N and ceiling', async () => {
+    const run = await details({
+      feature: 'bestOfN',
+      modelId: 'muse-spark-1.3',
+      prompt: 'Refactor this',
+      attempts: 3,
+      requestCeilingPerAttempt: 20,
+    })
+    expect(run.title).toContain('3')
+    expect(run.detail).toContain('Refactor this')
+    expect(run.detail).toContain('muse-spark-1.3')
+    expect(run.detail).toContain('$1.250')
+    expect(run.detail).toContain('3 attempts')
+    expect(run.detail).toContain('20 requests')
+  })
+
   it('names what each use is and what it costs', async () => {
     const search = await details({ feature: 'webSearch' })
     expect(search.title).toBe(UI_TEXT.paidUseWebSearchTitle)
@@ -257,5 +289,27 @@ describe('M52 scheduled feature acceptance', () => {
     expect(detail).toContain('$0.100/1M input')
     expect(detail).toContain('$0.002/1M cached input')
     expect(paid.gate.isOn('scheduledPrompts')).toBe(true)
+  })
+})
+
+describe('M77 best-of-N feature acceptance', () => {
+  it('shows the attempts and the ceiling with both tariff tiers before enabling', async () => {
+    const data = new Map<string, unknown>()
+    const { paid } = paidWithSettings(data, ['bestOfN'])
+    vi.mocked(confirmModal).mockResolvedValueOnce(UI_TEXT.paidConfirmAccept)
+    await paid.gate.review()
+    const detail = vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail
+    expect(detail).toContain('separate worktrees')
+    expect(detail).toContain('muse-spark-1.3:')
+    expect(detail).toContain('muse-spark-1.3-contributor:')
+    expect(detail).toContain('3 attempts')
+    expect(detail).toContain('20 requests')
+    expect(paid.gate.isOn('bestOfN')).toBe(true)
+  })
+
+  it('stays off until its own setting and price are accepted', () => {
+    const data = new Map<string, unknown>()
+    const { paid } = paidWithSettings(data, [])
+    expect(paid.gate.isOn('bestOfN')).toBe(false)
   })
 })

@@ -36,6 +36,8 @@ import {
 } from './constants'
 import { paidStateSchema } from './paid'
 import { scheduleCadenceSchema } from './schedule'
+import { bestOfNRunSchema } from './bestOfN'
+import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
 
@@ -404,6 +406,29 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('redoRestore'), restoreId: z.string().check(z.minLength(1)) }),
   // Session history (M6).
   z.object({ type: z.literal('listSessions') }),
+  // The session board (M77): every conversation in the window and its worktrees.
+  z.object({ type: z.literal('requestSessionBoard') }),
+  z.object({
+    type: z.literal('activateBoardSession'),
+    sessionId: z.string(),
+    backend: z.enum(BACKEND_KINDS),
+  }),
+  // Best-of-N on the Model API (M77): the same prompt in N worktrees. The
+  // host checks the bounds and answers with `bestOfNUpdate` or a notice.
+  z.object({
+    type: z.literal('startBestOfN'),
+    prompt: z.string(),
+    attempts: z.int(),
+    requestCeilingPerAttempt: z.int(),
+  }),
+  // "Take this one": apply and stage this attempt's frozen preview.
+  z.object({
+    type: z.literal('takeBestOfNAttempt'),
+    runId: z.string(),
+    attemptId: z.string(),
+  }),
+  z.object({ type: z.literal('openBestOfNAttempt'), runId: z.string(), attemptId: z.string() }),
+  z.object({ type: z.literal('cancelBestOfN'), runId: z.string() }),
   // The Agent map reads a subagent's own session (M14).
   z.object({ type: z.literal('readChildSession'), sessionId: z.string() }),
   // The Agent map's owner controls (M18, M48), including reopen and readResult.
@@ -534,6 +559,11 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     approvalId: z.optional(z.string()),
     userInputId: z.optional(z.string()),
   }),
+  // The session board (M77): every conversation's state for the board.
+  z.object({ type: z.literal('sessionBoard'), rows: z.array(boardRowSchema) }),
+  // Best-of-N (M77): the run after every change: attempts starting and
+  // finishing, their diff stats, the take and the end.
+  z.object({ type: z.literal('bestOfNUpdate'), run: bestOfNRunSchema }),
   // Session history (M6): the workspace's stored sessions for the dialog.
   z.object({
     type: z.literal('sessionList'),

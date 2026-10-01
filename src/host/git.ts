@@ -8,11 +8,12 @@
 import { type ExecFileOptions, execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { Buffer } from 'node:buffer'
-import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { resolveExecutable } from '../core/executables'
+import type { BestOfNGitGuard } from '../core/bestOfN/bestOfNRunner'
 import { environmentValue } from '../core/backends/musecode/launch'
 import {
+  BEST_OF_N_MIN_GIT_MINOR,
   GIT_FILTER_NAMES_MAX,
   GIT_FILTER_NAME_MAX_CHARS,
   GIT_OUTPUT_MAX_BYTES,
@@ -28,6 +29,20 @@ const CONFIG_OPTION = '-c'
 const OPTION_MARK = '-'
 const FILTER_SEPARATOR = '\u{0}'
 const FILTER_KEY = /^filter\.([^=\p{Cc}]+)\.(?:clean|process|required)$/u
+// Best-of-N's automatic snapshots run with no hook, no fsmonitor, no replace
+// refs and no maintenance, and refuse a repository that configures a program.
+const AUTOMATIC_ARGS = [
+  '--no-replace-objects',
+  '-c',
+  'core.hooksPath=/dev/null',
+  '-c',
+  'core.fsmonitor=false',
+  '-c',
+  'maintenance.auto=false',
+  '-c',
+  'gc.auto=0',
+]
+const PROGRAM_CONFIG = /^(?:filter\..+\.(?:clean|smudge|process)|hook\..+\.command)$/iu
 const filterKeys = z
   .array(z.string().check(z.maxLength(GIT_FILTER_NAME_MAX_CHARS), z.regex(FILTER_KEY)))
   .check(z.maxLength(GIT_FILTER_NAMES_MAX))
@@ -105,11 +120,14 @@ export interface GitRunnerDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
+  /** Best-of-N's automatic local snapshots, never ordinary user Git commands. */
+  readonly isAutomatic?: boolean
   /** `execFile` as a promise of stdout; rejects on a failure, a timeout or a non-zero exit. */
   readonly execFile: (
     file: string,
     args: readonly string[],
     options: ExecFileOptions,
+    input?: string,
   ) => Promise<string>
 }
 
@@ -123,7 +141,8 @@ export function createGitRunner(
   args: readonly string[],
   cwd: string,
   timeoutMs?: number,
-  beforeRun?: () => void,
+  input?: string,
+  beforeRun?: BestOfNGitGuard,
 ) => Promise<string> {
   const env: NodeJS.ProcessEnv = {
     ...deps.env,
@@ -131,42 +150,101 @@ export function createGitRunner(
     GIT_TERMINAL_PROMPT: '0',
   }
   const gitPath = gitLocator(deps)
-  return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, beforeRun) => {
+  let supportedVersion: { readonly git: string; readonly checked: Promise<void> } | undefined
+  return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, input, beforeRun) => {
     const git = gitPath()
     if (git === undefined) {
       throw new GitMissingError()
     }
-    beforeRun?.()
-    return await deps.execFile(git, args, {
+    const options: ExecFileOptions = {
       cwd,
       env,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       timeout: timeoutMs,
       windowsHide: true,
-    })
+    }
+    beforeRun?.()
+    if (deps.isAutomatic === true) {
+      if (supportedVersion?.git !== git) {
+        supportedVersion = {
+          git,
+          checked: (async () => {
+            const version = /^git version (\d+)\.(\d+)/u.exec(
+              await deps.execFile(git, ['--version'], options),
+            )
+            const major = Number(version?.[1])
+            const minor = Number(version?.[2])
+            if (
+              !Number.isSafeInteger(major) ||
+              !Number.isSafeInteger(minor) ||
+              major < 2 ||
+              (major === 2 && minor < BEST_OF_N_MIN_GIT_MINOR)
+            ) {
+              throw new Error(UI_TEXT.bestOfNGitProgramsUnavailable)
+            }
+          })(),
+        }
+      }
+      await supportedVersion.checked
+      beforeRun?.()
+      const location = args.filter(
+        (arg) => arg.startsWith('--git-dir=') || arg.startsWith('--work-tree='),
+      )
+      const names = await deps.execFile(
+        git,
+        [...AUTOMATIC_ARGS, ...location, 'config', '--null', '--name-only', '--list'],
+        options,
+      )
+      if (names.split('\0').some((name) => PROGRAM_CONFIG.test(name))) {
+        throw new Error(UI_TEXT.bestOfNGitProgramsUnavailable)
+      }
+    }
+    const invocation = deps.isAutomatic === true ? [...AUTOMATIC_ARGS, ...args] : args
+    await beforeRun?.prepare?.()
+    // Configuration/version reads can await. The owned caller rechecks
+    // synchronously here, with no await before the actual process entry.
+    beforeRun?.()
+    return input === undefined
+      ? await deps.execFile(git, invocation, options)
+      : await deps.execFile(git, invocation, options, input)
   }
 }
-
-const execFileAsync = promisify(execFile)
 
 /**
  * The runner over this process's own environment and Node's `execFile`: the
  * one the extension uses, and the one tests use to drive real git (M32).
  */
-export function processGitRunner(): (
+export function processGitRunner(
+  options: { readonly isAutomatic?: boolean; readonly env?: NodeJS.ProcessEnv } = {},
+): (
   args: readonly string[],
   cwd: string,
   timeoutMs?: number,
-  beforeRun?: () => void,
+  input?: string,
+  beforeRun?: BestOfNGitGuard,
 ) => Promise<string> {
   return createGitRunner({
     platform: process.platform,
-    env: process.env,
+    env: options.env ?? process.env,
     fileExists: existsSync,
-    execFile: async (file, args, options) => {
-      const { stdout } = await execFileAsync(file, [...args], { ...options, encoding: 'utf8' })
-      return stdout
-    },
+    isAutomatic: options.isAutomatic === true,
+    execFile: (file, args, options, input) =>
+      new Promise((resolve, reject) => {
+        const child = execFile(
+          file,
+          [...args],
+          { ...options, encoding: 'utf8' },
+          (error, stdout) => {
+            if (error === null) {
+              resolve(stdout)
+            } else {
+              reject(error instanceof Error ? error : new Error('Git process failed'))
+            }
+          },
+        )
+        child.stdin?.on('error', reject)
+        child.stdin?.end(input)
+      }),
   })
 }
 

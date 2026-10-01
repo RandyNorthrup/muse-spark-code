@@ -16,9 +16,10 @@
 // (D62) say the same.
 
 import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatNumber } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
+  bestOfNPrice,
   type PaidUseRequest,
   scheduledRunPrice,
   subagentTaskPrice,
@@ -78,6 +79,15 @@ export function paidUseQuestion(request: PaidUseRequest): {
         detail: fill(UI_TEXT.paidSubagentTaskDetail, {
           objective: task.objective,
           price: subagentTaskPrice(task.modelId, task.attemptLimit),
+        }),
+      }
+    }
+    case 'bestOfN': {
+      return {
+        title: fill(UI_TEXT.paidBestOfNTitle, { attempts: formatNumber(request.attempts) }),
+        detail: fill(UI_TEXT.paidBestOfNDetail, {
+          prompt: request.prompt,
+          price: bestOfNPrice(request.modelId, request.attempts, request.requestCeilingPerAttempt),
         }),
       }
     }

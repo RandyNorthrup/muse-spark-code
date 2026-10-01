@@ -44,6 +44,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPromptCacheRetention: PromptCacheRetention
   readonly modelApiScheduledPrompts: boolean
   readonly modelApiSubagents: boolean
+  /** Best-of-N parallel attempts (M77, PLAN.md D49): on only with the price accepted too. */
+  readonly modelApiBestOfN: boolean
   /** Explicit machine opt-in for external hook commands (M51). */
   readonly modelApiHooks: boolean
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
@@ -90,6 +92,7 @@ const settingSchemas = {
   modelApiPromptCacheRetention: z.enum(PROMPT_CACHE_RETENTIONS),
   modelApiScheduledPrompts: z.boolean(),
   modelApiSubagents: z.boolean(),
+  modelApiBestOfN: z.boolean(),
   modelApiHooks: z.boolean(),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
@@ -165,6 +168,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiPromptCacheRetention: readSetting(config, 'modelApiPromptCacheRetention', log),
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
+    modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     diagnosticsAfterEdits: readSetting(config, 'diagnosticsAfterEdits', log),
     checkCommands: readSetting(config, 'checkCommands', log),

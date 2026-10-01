@@ -73,6 +73,7 @@ function confirmationDetail(feature: PaidFeature): string {
     voice: UI_TEXT.paidConfirmVoice,
     scheduledPrompts: UI_TEXT.paidConfirmScheduled,
     subagents: UI_TEXT.paidConfirmSubagents,
+    bestOfN: UI_TEXT.paidConfirmBestOfN,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -98,6 +99,9 @@ export async function askPaidUse(
 ): Promise<PaidUseAnswer> {
   // No verified price, nothing to accept (M48): refused before any popup.
   if (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) {
+    return 'deny'
+  }
+  if (request.feature === 'bestOfN' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
   }
   const { title, detail } = paidUseQuestion(request)

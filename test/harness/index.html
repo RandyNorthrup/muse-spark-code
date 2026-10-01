@@ -946,6 +946,7 @@
         Model: ['modelPillLabel'],
         'Record voice': ['dictationLabel'],
         'Session history': ['historyTitle'],
+        'Session board': ['boardTitle'],
         // The permission-mode button reads "<title>: <mode>".
         'Permission mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
       }
@@ -3000,6 +3001,101 @@
           whenFound('.palette-filter', (filter) => {
             setValue(filter, HTMLInputElement.prototype, '/usage')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        // --- M77: the session board: every conversation's state, branch, changes ---
+        board: () => {
+          click('Session board')
+          send({
+            type: 'sessionBoard',
+            rows: [
+              {
+                sessionId: 's1',
+                title: 'Swap the precedence rows',
+                backend: 'modelApi',
+                status: 'running',
+                branch: 'bestofn/swap-precedence-a',
+                changedFiles: 3,
+                awaitingApproval: true,
+              },
+              {
+                sessionId: 's2',
+                title: 'Edit notes.md, then list the folder',
+                backend: 'museCode',
+                status: 'idle',
+                branch: 'main',
+                worktreePath: '/tmp/demo-notes',
+                changedFiles: 1,
+                awaitingApproval: false,
+              },
+              {
+                sessionId: 's3',
+                title: 'Review the workspace changes',
+                backend: 'modelApi',
+                status: 'idle',
+                awaitingApproval: false,
+              },
+            ],
+          })
+        },
+        // --- M77: best-of-N: parallel attempts, their diffs side by side, "take this one" ---
+        bestofn: () => {
+          // The run lands first: the dialog shows the run view only for a run
+          // it already knows when it opens.
+          send({
+            type: 'bestOfNUpdate',
+            run: {
+              runId: 'run1',
+              prompt: 'Swap the precedence rows',
+              modelId: 'muse-spark-1',
+              baseRef: 'abc123',
+              attempts: 3,
+              requestCeilingPerAttempt: 8,
+              status: 'running',
+              runAttempts: [
+                {
+                  attemptId: 'a1',
+                  branch: 'bestofn/swap-precedence-a',
+                  worktreePath: '/tmp/bestofn-a',
+                  status: 'completed',
+                  requestsMade: 4,
+                  ceilingReached: false,
+                  approvalsDenied: 0,
+                  files: [{ path: 'src/parser.ts', insertions: 2, deletions: 2 }],
+                  changedLines: 4,
+                  diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n+    ['??', 4],",
+                  isDiffClipped: false,
+                },
+                {
+                  attemptId: 'a2',
+                  branch: 'bestofn/swap-precedence-b',
+                  worktreePath: '/tmp/bestofn-b',
+                  status: 'completed',
+                  requestsMade: 8,
+                  ceilingReached: true,
+                  approvalsDenied: 1,
+                  files: [{ path: 'src/parser.ts', insertions: 3, deletions: 1 }],
+                  changedLines: 4,
+                  diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n-    ['??', 5],\n+    ['??', 4],\n+    ['||', 5],",
+                  isDiffClipped: true,
+                },
+                {
+                  attemptId: 'a3',
+                  branch: 'bestofn/swap-precedence-c',
+                  worktreePath: '/tmp/bestofn-c',
+                  status: 'running',
+                  requestsMade: 2,
+                  ceilingReached: false,
+                  approvalsDenied: 0,
+                  files: [],
+                  changedLines: 0,
+                },
+              ],
+            },
+          })
+          steps.board()
+          whenFound('#board-listbox', () => {
+            document.querySelector('.palette-header .button-secondary').click()
           })
         },
       }

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../src/core/paid/paidFeatures'
-import type { PaidFeature } from '../../src/shared/constants'
+import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
 import {
+  bestOfNPrice,
   EMPTY_PAID_TALLY,
   paidCostUsd,
   paidFeatureName,
@@ -183,6 +184,56 @@ describe('PaidUsage and the prices (M33)', () => {
     usage.add('subagents', 1)
     expect(listedPaidFeatures([], usage.current)).toEqual(['subagents'])
     expect(usage.current.subagentUnknownRequests).toBe(1)
+  })
+
+  it('counts best-of-N attempts before any usage estimate is reported (M77)', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('bestOfN', 3)
+    expect(usage.current).toMatchObject({ bestOfNAttempts: 3 })
+    // No reported usage means no invented cost; request counts retain unknowns.
+    expect(paidCostUsd('bestOfN', usage.current)).toBe(0)
+    expect(paidTotalUsd(usage.current)).toBe(0)
+    expect(listedPaidFeatures([], usage.current)).toEqual(['bestOfN'])
+    expect(paidFeatureName('bestOfN')).toBe(UI_TEXT.paidBestOfNName)
+  })
+
+  it('prices reported best-of-N deltas separately while failed HTTP tries stay unknown', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('bestOfN', 1)
+    usage.addBestOfNRequest()
+    usage.addBestOfNRequest()
+    usage.addBestOfNUsage('muse-spark-1.3', {
+      inputTokens: 1_000_000,
+      cachedTokens: 200_000,
+      outputTokens: 100_000,
+    })
+    expect(usage.current).toMatchObject({
+      bestOfNAttempts: 1,
+      bestOfNRequests: 2,
+      bestOfNUnknownRequests: 1,
+      bestOfNTokens: 1_100_000,
+    })
+    expect(paidCostUsd('bestOfN', usage.current)).toBeCloseTo(1.455)
+    expect(paidTotalUsd(usage.current)).toBeCloseTo(1.455)
+    expect(() => {
+      usage.addBestOfNUsage('muse-spark-1.3', { inputTokens: 1, cachedTokens: 2, outputTokens: 0 })
+    }).toThrow('valid nonnegative token counts')
+    expect(() => {
+      usage.addBestOfNUsage('unpriced', { inputTokens: 1, cachedTokens: 0, outputTokens: 0 })
+    }).toThrow('unpriced model')
+    expect(usage.current.bestOfNUnknownRequests).toBe(1)
+  })
+
+  it('quotes a best-of-N run with the rates, N and the ceiling (M77)', () => {
+    const price = bestOfNPrice('muse-spark-1.3', 3, 20)
+    expect(price).toContain('muse-spark-1.3')
+    expect(price).toContain('$1.250')
+    expect(price).toContain('$0.150')
+    expect(price).toContain('$4.250')
+    expect(price).toContain('3 attempts')
+    expect(price).toContain('20 requests')
+    expect(bestOfNPrice('muse-spark-future', 3, 20)).toBe(UI_TEXT.subagentTariffUnknown)
+    expect(paidFeaturePrice('bestOfN')).toContain('3 attempts')
   })
 
   it('reads older paid state and rejects invalid child counters at the panel boundary', () => {

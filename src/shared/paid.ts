@@ -6,6 +6,8 @@
 
 import * as z from 'zod/mini'
 import {
+  BEST_OF_N_DEFAULT_ATTEMPTS,
+  BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
   MUSE_CODE_PAID_FEATURES,
   DEFAULT_MODEL_ID,
   CONTRIBUTOR_MODEL_SUFFIX,
@@ -34,6 +36,12 @@ export const paidTallySchema = z.object({
   subagentUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   subagentTokens: z.optional(z.int().check(z.nonnegative())),
   subagentCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Best-of-N runs started this window (M77); absent means none.
+  bestOfNAttempts: z.optional(z.int().check(z.nonnegative())),
+  bestOfNRequests: z.optional(z.int().check(z.nonnegative())),
+  bestOfNUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  bestOfNTokens: z.optional(z.int().check(z.nonnegative())),
+  bestOfNCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -115,6 +123,13 @@ export type PaidUseRequest =
     }
   | { readonly feature: 'scheduledPrompts'; readonly prompt: string; readonly modelId: string }
   | { readonly feature: 'subagents'; readonly task: SubagentTaskConfirmation }
+  | {
+      readonly feature: 'bestOfN'
+      readonly modelId: string
+      readonly prompt: string
+      readonly attempts: number
+      readonly requestCeilingPerAttempt: number
+    }
 
 /**
  * The paid features a window can use (M44, PLAN.md D37): every one on the
@@ -151,6 +166,11 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
     case 'subagents': {
       return tally.subagentCostUsd ?? 0
     }
+    case 'bestOfN': {
+      // Separate worktree hosts do not contribute to the parent's token
+      // estimate. Count only reported costs here, not unknown HTTP tries.
+      return tally.bestOfNCostUsd ?? 0
+    }
   }
 }
 
@@ -168,7 +188,8 @@ export function listedPaidFeatures(
       usable.includes(feature) ||
       paidCostUsd(feature, tally) > 0 ||
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
-      (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0),
+      (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
+      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0),
   )
 }
 
@@ -195,6 +216,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     voice: UI_TEXT.paidVoiceName,
     scheduledPrompts: UI_TEXT.paidScheduledName,
     subagents: UI_TEXT.paidSubagentsName,
+    bestOfN: UI_TEXT.paidBestOfNName,
   }
   return names[feature]
 }
@@ -215,6 +237,31 @@ export function scheduledRunPrice(modelId: string): string {
     throw new Error(UI_TEXT.subagentTariffUnknown)
   }
   return scheduledRatePrice(tier)
+}
+
+/**
+ * What a best-of-N run may bill (M77, PLAN.md D49): the per-token rates of
+ * the model, the attempt count and the request ceiling per attempt. The
+ * total cannot be known in advance, so the popup quotes exactly these.
+ */
+export function bestOfNPrice(
+  modelId: string,
+  attempts: number,
+  requestCeilingPerAttempt: number,
+): string {
+  const tier = modelApiPaidTier(modelId)
+  if (tier === undefined) {
+    return UI_TEXT.subagentTariffUnknown
+  }
+  const rates = MODEL_API_PRICES_PER_MILLION[tier]
+  return fill(UI_TEXT.paidBestOfNRates, {
+    model: modelId,
+    input: formatUsd(rates.input, MODEL_API_PRICE_DECIMALS),
+    cached: formatUsd(rates.cachedInput, MODEL_API_PRICE_DECIMALS),
+    output: formatUsd(rates.output, MODEL_API_PRICE_DECIMALS),
+    attempts: formatNumber(attempts),
+    limit: formatNumber(requestCeilingPerAttempt),
+  })
 }
 
 /** The feature's price, as its setting, confirmation, badge and dialog state it. */
@@ -243,6 +290,20 @@ export function paidFeaturePrice(feature: PaidFeature): string {
         subagentTaskPrice(
           `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
           SUBAGENT_TASK_MAX_REQUESTS,
+        ),
+      ].join('\n')
+    }
+    case 'bestOfN': {
+      return [
+        bestOfNPrice(
+          DEFAULT_MODEL_ID,
+          BEST_OF_N_DEFAULT_ATTEMPTS,
+          BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
+        ),
+        bestOfNPrice(
+          `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
+          BEST_OF_N_DEFAULT_ATTEMPTS,
+          BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
         ),
       ].join('\n')
     }

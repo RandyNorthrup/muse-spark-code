@@ -1541,6 +1541,86 @@ export const EN = {
     'A due scheduled prompt waits for you to run it. Each run asks before any Model API call, unless you allow scheduled runs always in this workspace. {price}. Billed to your Model API key; total varies with tokens used.',
   paidConfirmSubagents:
     'Child agents make additional requests billed to your Model API key. {price} Each new task asks for approval in every permission mode, including Bypass, unless you allow subagents always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
+  paidBestOfNName: 'Best of N',
+  paidBestOfNRates:
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; {attempts} attempts with up to {limit} requests each, including retries.',
+  paidBestOfNTitle: 'Run {attempts} paid attempts?',
+  paidBestOfNDetail:
+    '{prompt}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Allow once covers this run only.',
+  paidConfirmBestOfN:
+    'The same prompt runs in separate worktrees, each billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow best-of-N always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
+  usagePaidBestOfNAttempts: forms({ one: '{count} attempt', other: '{count} attempts' }),
+  usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
+  // The session board (M77, PLAN.md D49).
+  boardTitle: 'Session board',
+  boardEmpty: 'No conversations yet. Send a message to start one.',
+  boardStatusRunning: 'Running',
+  boardStatusIdle: 'Idle',
+  boardAwaitingApproval: forms({
+    one: '{count} approval waiting',
+    other: '{count} approvals waiting',
+  }),
+  boardChanges: forms({ one: '{count} changed file', other: '{count} changed files' }),
+  boardChangesUnknown: 'changes unknown',
+  boardStartBestOfN: 'Best of N…',
+  // Best-of-N on the Model API (M77, PLAN.md D49).
+  bestOfNTitle: 'Best of N',
+  bestOfNPromptLabel: 'Prompt',
+  bestOfNAttemptsLabel: 'Attempts',
+  bestOfNCeilingLabel: 'Requests per attempt',
+  bestOfNStart: 'Start',
+  bestOfNCancelRun: 'Cancel run',
+  bestOfNTake: 'Apply and stage',
+  bestOfNTakeExplanation:
+    'Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.',
+  bestOfNContextChanged: 'The account, conversation or run changed. Start a new run.',
+  bestOfNTargetChanged:
+    'The checkout changed, has unsaved edits, or contains protected or linked targets. Nothing was applied.',
+  bestOfNBudgetUnavailable:
+    'Best-of-N cannot start under a session budget until its attempts share the originating budget.',
+  bestOfNGitProgramsUnavailable:
+    'Best-of-N requires Git 2.36 or newer and cannot run with configured filter or hook programs.',
+  bestOfNLeftPane: 'Left',
+  bestOfNRightPane: 'Right',
+  bestOfNStatusQueued: 'Queued',
+  bestOfNStatusRunning: 'Running',
+  bestOfNStatusCompleted: 'Done',
+  bestOfNStatusFailed: 'Failed',
+  bestOfNStatusCancelled: 'Cancelled',
+  bestOfNRunStatusRunning: 'Running…',
+  bestOfNRunStatusCompleted: 'Done',
+  bestOfNRunStatusFailed: 'Failed',
+  bestOfNRunStatusCancelled: 'Cancelled',
+  bestOfNCeilingReached: 'stopped at the request ceiling',
+  bestOfNRequests: forms({ one: '{count} request', other: '{count} requests' }),
+  bestOfNApprovalsDenied: forms({
+    one: '{count} approval declined',
+    other: '{count} approvals declined',
+  }),
+  bestOfNAttemptFailed: 'Failed: {reason}',
+  bestOfNTakenMark: 'Took {branch}',
+  bestOfNDiffClipped: 'Diff clipped.',
+  bestOfNInvalidPrompt: 'Describe what the attempts should do.',
+  bestOfNInvalidRequest: 'That best-of-N run is outside the attempt or ceiling bounds.',
+  bestOfNInvalidAttempts: 'Attempts must be between {min} and {max}.',
+  bestOfNInvalidCeiling: 'Requests per attempt must be between {min} and {max}.',
+  bestOfNNeedsTrust:
+    'Best-of-N needs a trusted workspace: worktrees run git, which Restricted Mode forbids.',
+  bestOfNModelApiOnly:
+    'Best-of-N runs on the Model API backend only; each attempt is billed to the key, never to the subscription.',
+  bestOfNPaidOff: 'Best-of-N is off. Enable it and accept the price before starting a run.',
+  bestOfNNoWorkspace: 'Best-of-N needs an open folder.',
+  bestOfNTariffUnknown: 'No verified price is available for this model. The run cannot start.',
+  bestOfNConsentDeclined: 'The paid run was not approved.',
+  bestOfNAlreadyRunning: 'A best-of-N run is already going in this window.',
+  bestOfNAlreadyTaken: 'This run already took {branch}.',
+  bestOfNNoRun: 'There is no best-of-N run.',
+  bestOfNUnknownAttempt: 'That attempt is not part of this run.',
+  bestOfNAttemptNotDone: 'Only a finished attempt can be taken.',
+  bestOfNWorktreeFailed: 'Could not create the attempt worktrees: {reason}',
+  bestOfNTaken: 'Applied and staged the preview from {branch}.',
+  bestOfNTakeFailed:
+    'Could not apply and stage {branch}. Check the checkout before retrying: {reason}',
   paidConfirmAccept: 'Turn on',
   // The composer's badge while a paid feature is on; {features} lists their names.
   paidBadge: 'Paid: {features}',

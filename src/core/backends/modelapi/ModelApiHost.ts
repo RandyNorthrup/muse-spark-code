@@ -358,7 +358,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   /** External trials share this parent's spending without saving their temporary DTO as its history. */
   readonly budgetScope?: OwnedSessionBudgetScope
   /** Extension-owned preflight/actual-attempt hooks, composed with budget and child admission. */
-  readonly admitResponseAttempt?: ResponseAttemptGuard
+  readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
   /** The git facts for the prompt's environment section (D15), read once per session. */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
@@ -377,6 +377,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */
   readonly getAccountId: () => Promise<string | undefined>
+  /** Owned attempt usage observer; receives a per-response delta, not transcript totals. */
+  readonly noteResponseUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
   /** A fresh snapshot at each session start (M51); disabled means empty. */
   readonly loadHooks?: () => Promise<readonly HookDefinition[]>
   /** Machine hook opt-in is checked again for every dispatch. */
@@ -1857,11 +1859,13 @@ export class ModelApiSession implements AgentSession {
    * `max_output_tokens` lowered so input plus output at list price fits
    * what is left, the reservation held open until the response reports.
    * Throws `SessionBudgetExceededError` when it cannot fit: it is not sent,
-   * and the turn stops with the reason. Child requests reserve against
-   * their parent's shared spend, in addition to the task's paid consent.
+   * and the turn stops with the reason. Child tokens are counted when
+   * reported, but their separately consented requests are not reserved
+   * against the parent's cap (M82 owner decision).
    */
   private budgeted(body: CreateResponseBody): CreateResponseBody {
     this.openReservation = undefined
+    if (this.isSubagent) return body
     const capUsd = this.currentBudgetCap()
     if (capUsd <= 0 && this.budgetJournal() === undefined) {
       return body
@@ -1953,7 +1957,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   private currentBudgetCap(): number {
-    return this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd()
+    return this.isSubagent ? 0 : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
   }
 
   private budgetJournal(): SessionStore['budget'] {
@@ -2640,6 +2644,9 @@ export class ModelApiSession implements AgentSession {
       // Saved now, even while a call waits for its output (M82).
       this.touch()
     }
+    // An attempt's tally prices the request at the model it was sent to, as the
+    // budget does, whatever the session switched to meanwhile (M82).
+    this.deps.noteResponseUsage?.(sentModelId, billable)
     this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
     this.noteContext(usage.input_tokens + usage.output_tokens)
   }

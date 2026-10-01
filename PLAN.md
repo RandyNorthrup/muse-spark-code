@@ -8478,6 +8478,19 @@ repository in the extension's own storage, never the workspace's
 
 ### M77 — Session board and best-of-N (D49)
 
+**Lane resume, 2026-09-30.** Retain the existing M82 commits and staged M77
+port. Compilation passed all five projects. The initial focused run found
+voice Stop was blocked by a newly enabled cap; Stop now reaches its existing
+driver even when a new recording is unavailable. Native shared-budget fixtures
+use the production rename backoff instead of exhausting retries during reads.
+Both affected suites then passed all 719 tests. The initial production build
+failed at 651.0 KiB against the unchanged 600 KiB activation limit.
+The lead's resumed-lane decision removes the controller split and keeps every
+feature. One shared English-table change will land separately; this lane
+records any remaining cap failure without adding a split, loader or cap change.
+The native skill ledger validator is deferred: this canonical plan predates its
+JSON ledger format; converting the project plan is outside this lane.
+
 - **Goal.** Run several agents at once and pick the best result.
 - **Scope.**
   - A board of every conversation in the window and its worktrees: state,
@@ -8493,11 +8506,95 @@ repository in the extension's own storage, never the workspace's
   - Worktrees need git, so best-of-N is unavailable in Restricted Mode.
 - **Backends.** The board: both. Best-of-N: the Model API.
 - **Acceptance.** Best-of-N asks once with the rates, N and the request
-  ceiling per attempt; "take this one" merges only that worktree's
-  changes; the board shows every conversation's state.
+  ceiling per attempt; each actual Model API HTTP attempt, including a
+  retry, must be admitted against that ceiling and the consented key.
+  "Take this one" applies and stages the selected immutable Git-tree
+  snapshot, including uncommitted tracked and unignored new files. It
+  creates no project commit; ignored files are outside the snapshot. The
+  target must still have the captured base HEAD, a clean index and working
+  tree, no dirty editors, and trusted, unchanged account/context ownership.
+  A failed, cancelled, or unreadable attempt is never takeable. The board
+  shows every conversation's state.
+- **Completion review (2026-09-29; verification queued).** The branch's
+  original reply-usage counter did not bound HTTP retries, discarded the
+  terminal outcome, acquired run ownership after consent, and compared and
+  merged branch commits even though normal file tools leave uncommitted
+  edits. Complete these existing behaviors with the window-owned run lease,
+  pre-HTTP admission, immutable `add`/`write-tree` capture, and ordinary
+  `git apply --index` of the captured binary patch. Recheck target paths,
+  symlink/protected-path confinement and ownership before applying. No
+  synthetic commits, force, or three-way application. Automatic snapshots
+  suppress repository programs; applying a patch creates no commit. M82's
+  cross-host attempts must use the originating account-owned budget journal;
+  bind the canonical M82 OwnedSessionBudgetScope before consent and to every
+  attempt host; finite-cap runs refuse when no owned scope exists. M82 must
+  integrate before this consumer draft is typechecked. Extend the
+  existing PaidUsage tally with each admitted attempt request, unknown
+  request costs, and validated per-response token/cost deltas from the owned
+  worktree host. Cumulative transcript frames are never billed twice, and
+  missing usage never becomes an invented zero-dollar estimate. Attempt
+  costs remain their own reported row until actually folded into a parent.
+  Source changes
+  and tests remain unverified until the scheduled host slot is released.
+  - **Independent completion repair:** Best-of-N automatic Git operations
+    reuse the bounded absolute executable runner with per-command hooks,
+    fsmonitor, replacement-ref and maintenance/GC controls. A bounded
+    names-only config read refuses executable filter drivers and configured
+    hook commands. Git 2.36 or newer is required for the documented
+    fsmonitor boolean behavior; other Git callers keep their normal policy.
+    Every actual invocation rechecks ownership/trust after preflight awaits.
+    Capture checks cancellation after worktree validation and between Git
+    awaits; Take repeats canonical targets after status/HEAD checks. Attempt
+    hosts bind the existing file-lister factory to their actual worktree
+    root, including uncommitted/new files and VS Code search fallback.
+    Real temporary repo program canaries, replacement refs, held validators
+    and production manager file-lister tests are required; proof is queued.
 - **Tests.** The fake Model API with N attempts, and the board in the
   harness and the accessibility gate.
 - **Size.** L.
+- **Files (built 2026-09-28).** `src/shared/{bestOfN,sessionBoard,paid,protocol,constants}.ts`,
+  `src/core/{sessionBoard.ts,bestOfN/bestOfN.ts,bestOfN/bestOfNRunner.ts,bestOfN/worktreeConversationHost.ts}`,
+  `src/host/{sessionBoard.ts,bestOfN/bestOfNManager.ts}`, the controller's
+  pending prompts and best-of-N wiring
+  (`src/host/conversation/conversationController.ts`,
+  `src/host/backend/modelApiBackendManager.ts`, `src/extension.ts`),
+  `src/webview/{App.tsx,state/uiState.ts,components/SessionBoardDialog.tsx,components/BestOfNDialog.tsx,components/Header.tsx,components/icons.tsx,components/UsageDialog.tsx,styles.css}`,
+  the `museSpark.modelApiBestOfN` setting (`package.json`,
+  `src/host/settings.ts`, `package.nls.json`), the 14 UI and manifest
+  tables, the harness (`board` and `bestofn` scenarios).
+- **Decisions taken.** Attempt branches are
+  `best-of-n/<run>/<index>` in folders beside the repository, like M32's
+  worktrees; the runner asks the one D48 popup only after the guards
+  (a live run, no folder, untrusted, wrong backend, off, out of bounds,
+  unpriced model) pass. An attempt that would ask the user (an approval or
+  a question) is declined and counted; retries count against its ceiling;
+  the comparison diff is clipped at 32,000 chars with the clip marked.
+  The board orders running, then waiting, then the rest; its waiting mark
+  comes from `PendingPrompts`, shared window-wide by every surface's
+  controller. Best-of-N is Model API only; the board serves both backends.
+- **Tests (built 2026-09-28).** `bestOfN.test.ts` (branches, folders, the
+  paid request, numstat, clipping), `bestOfNAttempts.test.ts`,
+  `bestOfNRunner.test.ts` (guards, consent, take, cancel),
+  `bestOfNManager.test.ts`, `worktreeConversationHost.test.ts` (ceiling,
+  declines), `sessionBoard.test.ts` (rows, ordering),
+  `sessionBoardHost.test.ts`, `SessionBoardDialog.test.tsx`,
+  `BestOfNDialog.test.tsx`, plus the touched `conversationController`,
+  `paidFeatures` and `paidHost` suites. The harness `board`/`bestofn`
+  scenarios run in the accessibility gate.
+- **Gates.** `npm run quality` and meaningful red/restored drills remain
+  queued for the completion draft; `docs/certification/m77.md` records this
+  explicit verification hold. The prior branch did not contain that record.
+- **Docs.** README (Session board and best-of-N, Paid features, settings
+  table), CHANGELOG, the 14 UI and manifest tables.
+- **Security.** Attempts run worktree-confined on the Model API backend
+  only; the paid gate (D30/D48) covers the setting and every run; the key
+  never reaches `muse serve`; "take" applies and stages only the captured
+  chosen tree, through ordinary Git apply with no force/three-way fallback.
+  The attempt index is pinned to its original absolute Git directory.
+- **Status.** Completion draft on `feature/m77-board` (2026-09-29),
+  verification queued; M82 external parent-budget binding remains an
+  integration dependency. No new model calls or verifiers were run during
+  the shared host verification hold.
 
 ### M78 — Auto, made safe (D49)
 
@@ -8936,9 +9033,6 @@ Current-main adapters use the existing defaults where M82 has no setting
 surface: ACP keeps the cap off and per-reply display off. The manual live
 panel fixture supplies the same owned voice/notification ports; its budget
 drill is case22, retaining the original case19 capture as historical evidence.
-The current-main focused run found Stop could skip a recording after a new
-cap made the next recording unavailable. Stop now reaches the existing
-driver before checking availability and never creates a driver of its own.
 
 **Status 2026-09-28: built** (`docs/certification/m82.md`). Drafted by a
 Muse Code instance, reviewed and finished by Claude; the record holds the
@@ -9014,8 +9108,11 @@ requests) that found each request's estimate above what Meta counted.
     old snapshots cannot lower it. Unknown sent attempts cannot repeat
     under the same allowance; explicit rate-limit refusals can.
   - **Child tasks** retain their separate paid confirmations (D48) and
-    reserve each request in the parent's shared journal. Their usage counts
-    toward that same conversation and its owning goal (M45).
+    request ceilings. Their reported usage counts toward that conversation
+    and its owning goal (M45), but their requests are not reserved against
+    the parent's cap and can exceed it (M82 owner decision, retained by the
+    M78 lane brief). Ordinary, best-of-N and direct reviewer reservations
+    remain enforced through their owned journal.
   - **Known flat fees** enter the same journal: image generation reserves
     its published fee before sending, including a billed image that cannot
     be saved. Search has no captured hard billed-query bound and is
@@ -9625,9 +9722,11 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
-| File                                            | Construct                        | Reason                                                                                                                                                  | Added      |
-| ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised. | 2026-09-30 |
+| File                                            | Construct                        | Reason                                                                                                                                                                                                | Added      |
+| ----------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                               | 2026-09-30 |
+| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`    | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports. | 2026-09-30 |
+| `src/core/bestOfN/bestOfN.ts`                   | `error is BestOfNError`          | Checks Error name, a known refusal and optional string detail across the controller and activation bundles; no constructor identity is assumed.                                                       | 2026-09-30 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

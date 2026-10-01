@@ -49,6 +49,8 @@ import { crc32, deflateSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentSession, TurnPart } from '../../src/core/agent/agentBackend'
+import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
+import { PendingPrompts } from '../../src/core/sessionBoard'
 import { createCheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import type {
   CodeLocation,
@@ -83,6 +85,7 @@ import { museSettingsPath } from '../../src/host/backend/museSettings'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { createToolIo } from '../../src/host/backend/toolIo'
 import { processGitRunner } from '../../src/host/git'
+import { canonicalPath } from '../../src/host/canonicalPath'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
 import { ConversationController } from '../../src/host/conversation/conversationController'
@@ -744,6 +747,7 @@ async function openRig(options: RigOptions): Promise<Rig> {
       sleep: (ms) => delay(ms),
       newId: () => randomUUID(),
       io: toolIo,
+      listAttemptFiles: listWorkspace,
       contextIo: fileContextIo,
       memory,
       personalSkillsRoot: personalSkillsRoot(config),
@@ -766,6 +770,14 @@ async function openRig(options: RigOptions): Promise<Rig> {
         describeEnvironment({
           runGit: processGitRunner(),
           workspaceRoot: workspace,
+          isWorkspaceTrusted: isTrusted,
+          now: Date.now,
+          log,
+        }),
+      describeAttemptEnvironment: (workspaceRoot) =>
+        describeEnvironment({
+          runGit: processGitRunner(),
+          workspaceRoot,
           isWorkspaceTrusted: isTrusted,
           now: Date.now,
           log,
@@ -1073,6 +1085,25 @@ function livePanel(rig: Rig): LivePanel {
       return await host.getOwnedBudgetScope(sessionId)
     },
     notifyAttention: () => undefined,
+    pendingPrompts: new PendingPrompts(),
+    bestOfNCoordinator: new BestOfNCoordinator(),
+    modelApiAccountId: () => rig.manager.accountId(),
+    openBestOfNWorktree: unreached,
+    noteBestOfNRequest: () => {
+      rig.usage.addBestOfNRequest()
+    },
+    noteBestOfNUsage: (modelId, usage) => {
+      rig.usage.addBestOfNUsage(modelId, usage)
+    },
+    runGit: processGitRunner(),
+    runBestOfNGit: processGitRunner({ isAutomatic: true }),
+    isPaidFeatureOn: (feature) => rig.gate.isOn(feature),
+    notePaidUse: (feature, units) => {
+      rig.usage.add(feature, units)
+    },
+    buildAttemptHost: (root, admit, noteUsage, budgetScope) =>
+      rig.manager.buildAttemptHost(root, admit, noteUsage, budgetScope),
+    realPath: canonicalPath,
     exports: { saveMarkdown: unreached, saveSessionLog: unreached },
     plans: createPlanFiles({
       workspaceRoot: rig.workspace,

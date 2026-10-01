@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
@@ -1414,7 +1415,9 @@ function budgetStoreIn(
     log: new FakeLogOutputChannel(),
     retentionDays: () => 0,
     now: () => 0,
-    sleep: () => Promise.resolve(),
+    // These are native concurrent reads/writes: exercise the production
+    // rename backoff rather than exhausting retries while a read is open.
+    sleep: delay,
     ...(renameFile !== undefined && { rename: renameFile }),
   })
 }
@@ -2518,8 +2521,8 @@ describe('ModelApiSession: session budget (M82)', () => {
     if (scope === undefined) {
       throw new Error('Expected future-model budget scope')
     }
-    const total = await scope.journal.read(scope.sessionId, scope.accountId)
-    expect(total.hasUnknownHistoricalFees).toBe(true)
+    const spending = await scope.journal.read(scope.sessionId, scope.accountId)
+    expect(spending.hasUnknownHistoricalFees).toBe(true)
     await watched.session.setModel('muse-spark-1.3')
     options.sessionBudgetUsd = 0.1
     await budgetTurn(t, watched, 'known model with old unverified spending', { text: 'not sent' })
@@ -2682,14 +2685,19 @@ describe('ModelApiSession: session budget (M82)', () => {
     })
   })
 
-  it('counts each child request once against its parent’s shared cap', async () => {
+  it('counts reported child cost once without reserving child requests against the parent cap', async () => {
     const store = memorySessionStore()
+    if (store.budget === undefined) throw new Error('Expected budget journal')
+    const reservations = vi.spyOn(store.budget, 'reserve')
     const t = setupSubagents({ store, sessionBudgetUsd: 10 })
     const { session } = await startApprovedSubagentSession(t)
     await completePaidChild(t, session, 'spawn_budget')
     await t.host.close()
     // Every reply here reports the fake's default usage, the child's included.
     expect(t.subagentUsage.length).toBeGreaterThan(0)
+    expect(reservations).toHaveBeenCalledTimes(
+      t.api.responseBodies().length - t.subagentUsage.length,
+    )
     expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(
       t.api.responseBodies().length * standardCost(10, 5),
       12,

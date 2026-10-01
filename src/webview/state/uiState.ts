@@ -51,6 +51,8 @@ import type {
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { ScheduleView } from '../../shared/schedule'
+import type { BestOfNRun } from '../../shared/bestOfN'
+import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
@@ -155,6 +157,10 @@ export interface UiState {
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
+  /** The session board's rows, once the board asked (M77). */
+  readonly board: readonly BoardRow[] | undefined
+  /** The best-of-N run this surface last heard of (M77). */
+  readonly bestOfN: BestOfNRun | undefined
   readonly draft: string
   /** Every local draft edit, including edits that return to the same text. */
   readonly draftRevision: number
@@ -349,6 +355,8 @@ export const initialUiState: UiState = {
   },
   sessions: undefined,
   archivedIds: [],
+  board: undefined,
+  bestOfN: undefined,
   draft: '',
   draftRevision: 0,
   pendingGoalCommand: undefined,
@@ -1742,6 +1750,8 @@ function clearedAccountView(state: UiState): UiState {
     checkpoints: initialUiState.checkpoints,
     sessions: [],
     archivedIds: [],
+    board: undefined,
+    bestOfN: undefined,
     model: undefined,
     models: [],
     skills: undefined,
@@ -1997,6 +2007,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'sessionList': {
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
+    }
+    case 'sessionBoard': {
+      return { ...state, board: message.rows }
+    }
+    case 'bestOfNUpdate': {
+      return { ...state, bestOfN: message.run }
     }
     case 'childTranscript': {
       const owner = childOwnerOf(state, message.sessionId)

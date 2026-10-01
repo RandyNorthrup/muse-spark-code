@@ -82,6 +82,7 @@
   "config.modelApiImageGeneration.description": "付費，預設為關閉。允許模型使用 muse-image-1.0 在工作區中建立 PNG 圖片檔案，或將工作區中的圖片編輯為新圖片，每張圖片 US$0.01，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端（絕不會向訂閱計費）。除非您在此工作區中一律允許圖片生成，否則在任何權限模式下，每張圖片產生前都會詢問您。開啟時會請您確認價格。",
   "config.modelApiVoice.description": "付費，預設為關閉。麥克風會將您錄製的內容傳送至 Meta 的 Muse Voice Transcribe，而不是使用您電腦本身的辨識器，每小時音訊 US$0.18，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端。開啟時會請您確認價格，且除非您在此工作區中一律允許 Muse Voice，否則每次錄音前都會先詢問您；使用付費引擎時，麥克風會加以標示。",
   "config.modelApiSubagents.description": "付費功能，預設關閉。在 Model API 後端，子代理程式使用您的 Model API 金鑰。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許子代理程式，否則每項新子工作都須核准，包括 略過權限 模式；每項工作最多四次請求，包含重試。子代理程式權杖費用已包含在對話估算中。",
+  "config.modelApiBestOfN.description": "付費功能，預設關閉。在 Model API 後端，相同的提示詞會同時在 2–5 個工作樹中執行，由您選用其中一個。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許 N 選最優，否則每次執行均須核准一次並註明嘗試次數和每次嘗試請求上限，在所有權限模式下皆然，包括 略過權限 模式。嘗試的權杖已包含在用量估算中，絕不計入訂閱。",
   "config.modelApiHooks.description": "在 Model API 後端執行 Muse Code 鉤子命令。預設關閉。命令僅在受信任的工作區中以您的權限在代理沙箱之外執行。啟用前請在 Muse Spark: Hooks 中檢查命令。Model API 金鑰不會傳給鉤子程序。",
   "config.modelApiRepoMap.description": "在 Model API 後端的系統提示詞中加入儲存庫地圖：用 VS Code 語言服務排序的工作區中最常用的檔案與定義，每次對話產生一次，約 1,000 個權杖。預設關閉：它會在每個請求中加入這些權杖，並向您的 Model API 金鑰計費。無論是否開啟，repo_map 工具都可依需求提供同一張地圖。",
   "config.modelApiScheduledPrompts.description": "付費功能，預設關閉。到期的 /loop 提示詞只有在您接受權杖價格並允許本次執行後，或您在此工作區中一律允許排程執行時，才能透過 Model API 後端執行。已排程的提示詞絕不會在無人確認時執行；每次執行均依模型公布的權杖費率向您的 Model API 金鑰計費。",
@@ -103,5 +104,5 @@
   "config.formatOnEdit.description": "對 Model API 後端編輯工具寫入的每個檔案，在檢查之前執行該檔案的格式器。預設關閉。",
   "config.notifyOnBackgroundTurn.description": "當 VS Code 視窗未取得焦點時，若一輪較長的對話結束，或某一輪正在等待您的核准或回覆，即顯示通知。視窗取得焦點時絕不顯示任何內容。",
   "config.modelApiReplyUsage.description": "預設為關閉。在每則 Model API 回覆下方顯示其輸入與輸出 token 數量及美元費用估算。",
-  "config.modelApiSessionBudgetUsd.description": "每個 Model API 對話的支出上限，以美元計；0 表示無上限。共用的持久預留金額在傳送前涵蓋權杖要求、子代理要求和圖片費用；無法放入剩餘額度的要求不會傳送，輸入估算可能與計費使用量不同。計費查詢數沒有經過驗證的上限，因此啟用支出上限時無法使用網頁搜尋。結果未知的已傳送要求會保留預留金額；不明確的失敗後將拒絕自動重試。需要正常運作的階段儲存空間。付費功能仍須個別同意。 計費時長上限尚未驗證，因此啟用支出上限時也無法使用付費 Muse Voice；請使用系統聽寫。"
+  "config.modelApiSessionBudgetUsd.description": "每個 Model API 對話的支出上限，以美元計；0 表示無上限。共用的持久預留金額在傳送前涵蓋一般權杖要求和圖片費用；無法放入剩餘額度的要求不會傳送，輸入估算可能與計費使用量不同。計費查詢數沒有經過驗證的上限，因此啟用支出上限時無法使用網頁搜尋。結果未知的已傳送要求會保留預留金額；不明確的失敗後將拒絕自動重試。需要正常運作的階段儲存空間。付費功能仍須個別同意。 計費時長上限尚未驗證，因此啟用支出上限時也無法使用付費 Muse Voice；請使用系統聽寫。 子代理要求在回報用量後計入支出，不從父階段上限中預留金額，因此可能超出該上限。"
 }

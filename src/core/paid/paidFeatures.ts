@@ -212,6 +212,10 @@ export class PaidUsage {
         }
         break
       }
+      case 'bestOfN': {
+        this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -240,6 +244,37 @@ export class PaidUsage {
     for (const listener of this.listeners) {
       listener()
     }
+  }
+
+  public addBestOfNRequest(): void {
+    this.tally = {
+      ...this.tally,
+      bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
+      bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** One owned host's per-response delta, never a cumulative/replayed frame. */
+  public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate best-of-N use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Best-of-N usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.bestOfNUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      bestOfNUnknownRequests: unknown - 1,
+      bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      bestOfNCostUsd: (this.tally.bestOfNCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+    }
+    for (const listener of this.listeners) listener()
   }
 }
 

@@ -9,7 +9,7 @@ import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
-import { confineWorkspacePath } from './core/workspacePath'
+import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
 import { readBackendChoice } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
@@ -89,6 +89,8 @@ import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { createCliFeatures } from './host/cliFeatures'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { PendingPrompts, type BoardSession } from './core/sessionBoard'
+import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
@@ -379,6 +381,7 @@ function findWorkspaceFiles(): Promise<readonly string[]> {
 
 // git by absolute path, with a timeout and no optional locks (PLAN.md D24).
 const runGit = processGitRunner()
+const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
 
 // A failed spawn or a timeout kill has no exit code; report it as negative so
 // the caller can tell "the CLI said no" from "the CLI never ran".
@@ -502,6 +505,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const registry = new SurfaceRegistry()
   const controllers = new Map<string, ConversationController>()
+  // Approvals and questions waiting on the user, shared by every surface's
+  // controller so the session board marks them window-wide (M77).
+  const boardPrompts = new PendingPrompts()
+  const bestOfNCoordinator = new BestOfNCoordinator()
   let isInputFocused = false
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
@@ -953,6 +960,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     findFiles: findWorkspaceFiles,
     log,
   })
+  const runBestOfNGit: typeof automaticBestOfNGit = (args, cwd, timeoutMs, input, beforeRun) =>
+    automaticBestOfNGit(
+      args,
+      cwd,
+      timeoutMs,
+      input,
+      Object.assign(
+        () => {
+          if (!vscode.workspace.isTrusted) throw new Error(UI_TEXT.bestOfNNeedsTrust)
+          beforeRun?.()
+        },
+        { prepare: beforeRun?.prepare },
+      ),
+    )
   // The C# of both Windows job helpers, shipped beside the bundle (PLAN.md D6).
   const readJobSource = jobSourceReader(context.extensionPath)
   const storageDir = context.globalStorageUri.fsPath
@@ -1240,6 +1261,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     io: checkpointedIo,
+    listAttemptFiles: (attemptRoot) =>
+      createWorkspaceFileLister({
+        workspaceRoot: attemptRoot,
+        respectGitIgnore: () => currentSettings().respectGitIgnore,
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        runGit: runBestOfNGit,
+        findFiles: () =>
+          findRootFiles({
+            search: () =>
+              vscode.workspace.findFiles(
+                new vscode.RelativePattern(attemptRoot, FIND_FILES_GLOB),
+                undefined,
+                MENTION_INDEX_LIMIT,
+              ),
+            relativePath: (uri) => {
+              const resolved = resolveWorkspacePath(attemptRoot, uri.fsPath, process.platform)
+              return resolved.ok ? resolved.relative : undefined
+            },
+          }),
+        log,
+      })(),
     contextIo: fileContextIo,
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
@@ -1294,7 +1336,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           return await withCheckpointEdit(
             checkpoints,
             owned,
-            async () => await runGit(args, cwd, undefined, owned),
+            async () => await runGit(args, cwd, undefined, undefined, owned),
           )
         },
         workspaceRoot,
@@ -1303,6 +1345,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         now: Date.now,
       })
     },
+    // An attempt's own branch and change counts, read in its worktree (M77).
+    describeAttemptEnvironment: (attemptRoot) =>
+      describeEnvironment({
+        runGit: runBestOfNGit,
+        workspaceRoot: attemptRoot,
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        log,
+        now: Date.now,
+      }),
     isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
     notePaidUse: (feature, units) => {
       paid.usage.add(feature, units)
@@ -1730,6 +1781,47 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.workspace.isTrusted ? settings.checkCommands : [],
           )
         },
+        // The session board's pending prompts, shared by every surface (M77).
+        pendingPrompts: boardPrompts,
+        boardSessions: () => {
+          const sessions: BoardSession[] = []
+          for (const active of controllers.values()) {
+            const session = active.boardSession()
+            if (session !== undefined) sessions.push(session)
+          }
+          return sessions
+        },
+        focusBoardSession: (sessionId, backendKind) => {
+          for (const active of controllers.values()) {
+            if (active.revealBoardSession(sessionId, backendKind)) return true
+          }
+          return false
+        },
+        bestOfNCoordinator,
+        modelApiAccountId: () => modelApi.accountId(),
+        noteBestOfNRequest: () => {
+          paid.usage.addBestOfNRequest()
+        },
+        noteBestOfNUsage: (modelId, usage) => {
+          paid.usage.addBestOfNUsage(modelId, usage)
+        },
+        bestOfNBudgetScope: (sessionId) => modelApi.bestOfNBudgetScope(sessionId),
+        openBestOfNWorktree: async (absolutePath) => {
+          await vscode.commands.executeCommand(
+            VSCODE_COMMANDS.openFolder,
+            vscode.Uri.file(absolutePath),
+            { forceNewWindow: true },
+          )
+        },
+        runGit,
+        runBestOfNGit,
+        isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
+        notePaidUse: (feature, units) => {
+          paid.usage.add(feature, units)
+        },
+        buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
+          modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
+        realPath: canonicalPath,
         now: () => Date.now(),
         log,
       })

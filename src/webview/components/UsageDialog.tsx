@@ -270,6 +270,9 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     case 'subagents': {
       return plural(UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0)
     }
+    case 'bestOfN': {
+      return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
+    }
   }
 }
 
@@ -330,27 +333,43 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
 
 function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
   const state = paidRowState(feature, paid)
-  const requests = paid.tally.subagentRequests ?? 0
-  const unknown = paid.tally.subagentUnknownRequests ?? 0
-  const isEntirelyUnknown = feature === 'subagents' && requests > 0 && requests === unknown
+  const isAttempt = feature === 'bestOfN'
+  const requests = (isAttempt ? paid.tally.bestOfNRequests : paid.tally.subagentRequests) ?? 0
+  const unknown =
+    (isAttempt ? paid.tally.bestOfNUnknownRequests : paid.tally.subagentUnknownRequests) ?? 0
+  const isTokenFeature = feature === 'subagents' || isAttempt
+  const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
+  const tokens = (isAttempt ? paid.tally.bestOfNTokens : paid.tally.subagentTokens) ?? 0
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost
-  if (feature === 'scheduledPrompts') {
-    costDetail = UI_TEXT.usageScheduledIncluded
-  } else if (feature === 'subagents') {
-    costDetail = fill(UI_TEXT.usagePaidSubagentReported, { cost })
+  switch (feature) {
+    case 'scheduledPrompts': {
+      costDetail = UI_TEXT.usageScheduledIncluded
+      break
+    }
+    case 'subagents': {
+      costDetail = fill(UI_TEXT.usagePaidSubagentReported, { cost })
+      break
+    }
+    case 'bestOfN': {
+      costDetail = fill(UI_TEXT.usagePaidBestOfNIncluded, { cost })
+      break
+    }
+    default: {
+      break
+    }
   }
   return (
     <>
       <dt>{`${paidFeatureName(feature)} (${state})`}</dt>
-      <dd className={feature === 'subagents' ? 'usage-paid-child' : undefined}>
+      <dd className={isTokenFeature ? 'usage-paid-child' : undefined}>
         {paidUseText(feature, paid.tally)}
         {isEntirelyUnknown ? null : ` · ${costDetail}`}
-        {feature === 'subagents' ? (
+        {isTokenFeature ? (
           <>
             {isEntirelyUnknown
               ? null
-              : ` · ${fill(UI_TEXT.agentTokens, { tokens: formatNumber(paid.tally.subagentTokens ?? 0) })}`}
+              : ` · ${fill(UI_TEXT.agentTokens, { tokens: formatNumber(tokens) })}`}
             {unknown > 0 ? (
               <p className="usage-row-meta">{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
             ) : null}

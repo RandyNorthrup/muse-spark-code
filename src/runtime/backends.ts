@@ -158,14 +158,16 @@ function modelApiManager(
   const warn = (message: string) => {
     log.warn(message)
   }
-  const listFiles = createWorkspaceFileLister({
-    workspaceRoot,
-    respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
-    isWorkspaceTrusted,
-    runGit: deps.runGit,
-    findFiles: () => walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log),
-    log,
-  })
+  const filesIn = (root: string) =>
+    createWorkspaceFileLister({
+      workspaceRoot: root,
+      respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
+      isWorkspaceTrusted,
+      runGit: deps.runGit,
+      findFiles: () => walkFiles(root, MENTION_INDEX_LIMIT, log),
+      log,
+    })
+  const listFiles = filesIn(workspaceRoot)
   const io = createToolIo({
     platform,
     listFiles,
@@ -209,6 +211,7 @@ function modelApiManager(
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
+    listAttemptFiles: (attemptRoot) => filesIn(attemptRoot)(),
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
@@ -233,6 +236,14 @@ function modelApiManager(
       describeEnvironment({
         runGit: deps.runGit,
         workspaceRoot,
+        isWorkspaceTrusted,
+        log,
+        now: () => Date.now(),
+      }),
+    describeAttemptEnvironment: (attemptRoot) =>
+      describeEnvironment({
+        runGit: deps.runGit,
+        workspaceRoot: attemptRoot,
         isWorkspaceTrusted,
         log,
         now: () => Date.now(),

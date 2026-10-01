@@ -47,6 +47,9 @@ import {
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import { isProfileWorkspace, type ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
+import { BestOfNError, type BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
+import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
+import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { chatReferenceText } from '../../core/chatReference'
 import { textFileDisplay } from '../../shared/textFileDisplay'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
@@ -136,6 +139,11 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
+import { BestOfNManager } from '../bestOfN/bestOfNManager'
+import { collectSessionBoard } from '../sessionBoard'
+import type { BestOfNRun } from '../../shared/bestOfN'
+import type { SubagentUsage } from '../../shared/paid'
+import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 import { type AttentionNotice, attentionNotice } from './turnNotifications'
 
 /**
@@ -356,6 +364,41 @@ export interface ConversationDeps {
   readonly confirmFileAction: (title: string, detail: string, action: string) => Promise<boolean>
   /** Account & usage's "Ask again": every paid feature asks again in this workspace (M58). */
   readonly forgetPaidUse: () => Promise<void>
+  /** Approvals and questions waiting on the user, shared by every surface (M77). */
+  readonly pendingPrompts: PendingPrompts
+  readonly boardSessions?: () => readonly BoardSession[]
+  readonly focusBoardSession?: (sessionId: string, backend: BackendKind) => boolean
+  readonly bestOfNCoordinator: BestOfNCoordinator
+  readonly modelApiAccountId: () => Promise<string | undefined>
+  readonly openBestOfNWorktree: (absolutePath: string) => Promise<void>
+  readonly noteBestOfNRequest: () => void
+  readonly noteBestOfNUsage: (modelId: string, usage: SubagentUsage) => void
+  readonly bestOfNBudgetScope?: (
+    sessionId: string | undefined,
+  ) => Promise<OwnedSessionBudgetScope | undefined>
+  /** git in `cwd`: its stdout, or a rejection with git's own words (M77). */
+  readonly runGit: (
+    args: readonly string[],
+    cwd: string,
+    timeoutMs?: number,
+    input?: string,
+    beforeRun?: BestOfNGitGuard,
+  ) => Promise<string>
+  /** Production supplies the automatic Best-of-N policy; injected test Git may use runGit. */
+  readonly runBestOfNGit?: ConversationDeps['runGit']
+  /** Whether a paid feature's setting is on and its price accepted (M77). */
+  readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
+  /** Counts a paid use in the window's tally (M77). */
+  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  /** A Model API host rooted in a best-of-N worktree (M77). */
+  readonly buildAttemptHost: (
+    worktreeRoot: string,
+    admitRequest: ResponseAttemptGuard,
+    noteUsage: (modelId: string, usage: SubagentUsage) => void,
+    budgetScope: OwnedSessionBudgetScope | undefined,
+  ) => Promise<AgentHost>
+  /** The file system's canonical read, for the worktree confinement (M77). */
+  readonly realPath: (absolutePath: string) => Promise<string>
   /**
    * The verify loop's note to Muse Code (M68, PLAN.md D49), read for each
    * message: check the diagnostics of what it edits (only when the session
@@ -432,6 +475,12 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'scheduleRun',
   'listSkills',
   'listSessions',
+  'requestSessionBoard',
+  'activateBoardSession',
+  'startBestOfN',
+  'takeBestOfNAttempt',
+  'openBestOfNAttempt',
+  'cancelBestOfN',
   'readChildSession',
   'subagentControl',
   'subagentMessage',
@@ -756,6 +805,10 @@ export class ConversationController {
   private startupNotice: string | undefined
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
+  /** Best-of-N runs (M77): one manager per surface, posting to it. */
+  private bestOfNManager: BestOfNManager | undefined
+  /** The latest run this surface heard of, for the take's branch names. */
+  private lastBestOfNRun: BestOfNRun | undefined
   /** Stops listening for the host closing this session. */
   private closedWatch: (() => void) | undefined
   /** The session the next message resumes after a restart or a crash (PLAN.md D25). */
@@ -1219,44 +1272,61 @@ export class ConversationController {
   }
 
   private onEvent(event: AgentEvent): void {
-    // The controller's own events (D26): never forwarded to the webview.
-    if (event.type === 'viewGap') {
+    if (event.type === 'modelChanged') {
+      this.voiceContextRevision += 1
+    } else if (event.type === 'viewGap') {
+      // The controller's own events (D26): never forwarded to the webview.
       this.onViewGap()
       return
     }
+    if (event.type === 'goalChanged') {
+      this.goalEventCount += 1
+    } else if (event.type === 'backendNotice') {
+      this.notice(event.level, event.text)
+      return
+    }
     switch (event.type) {
-      case 'modelChanged': {
-        this.voiceContextRevision += 1
+      case 'approvalRequested': {
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.track(this.session.sessionId, event.approvalId)
+        }
+        if (SHELL_TOOLS.has(event.toolName)) {
+          this.noteShellApprovalRequested(event.itemId)
+        }
+        // The tool, never its input (M39).
+        this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
+        const choice = this.autoApprovalChoice(event)
+        if (choice !== undefined) {
+          void this.autoApprove(event, choice)
+          return
+        }
         break
       }
-      case 'goalChanged': {
-        this.goalEventCount += 1
+      case 'approvalResolved': {
+        this.noteShellApprovalResolved(event)
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.resolve(this.session.sessionId, event.approvalId)
+        }
+        if (this.autoApproved.delete(event.approvalId)) {
+          this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
+          return
+        }
         break
       }
-      case 'backendNotice': {
-        this.notice(event.level, event.text)
-        return
+      case 'questionRequested': {
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.track(this.session.sessionId, event.userInputId)
+        }
+        break
+      }
+      case 'questionSettled': {
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.resolve(this.session.sessionId, event.userInputId)
+        }
+        break
       }
       default: {
         break
-      }
-    }
-    if (event.type === 'approvalRequested') {
-      if (SHELL_TOOLS.has(event.toolName)) {
-        this.noteShellApprovalRequested(event.itemId)
-      }
-      // The tool, never its input (M39).
-      this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
-      const choice = this.autoApprovalChoice(event)
-      if (choice !== undefined) {
-        void this.autoApprove(event, choice)
-        return
-      }
-    } else if (event.type === 'approvalResolved') {
-      this.noteShellApprovalResolved(event)
-      if (this.autoApproved.delete(event.approvalId)) {
-        this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
-        return
       }
     }
     this.forward(event)
@@ -2329,6 +2399,8 @@ export class ConversationController {
       if (record === undefined) {
         return
       }
+      // An unloaded session waits on nothing: its card died with its turn.
+      this.deps.pendingPrompts.drop(event.sessionId)
       this.sessionRecords.set(event.sessionId, { ...record, status: NOT_LOADED_STATUS })
     }
     this.postSessionList()
@@ -2369,6 +2441,197 @@ export class ConversationController {
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`)
       }
+    }
+  }
+
+  // --- Session board and best-of-N (M77) ---
+
+  private bestOfN(): BestOfNManager {
+    this.bestOfNManager ??= new BestOfNManager({
+      coordinator: this.deps.bestOfNCoordinator,
+      getAccountId: this.deps.modelApiAccountId,
+      getBudgetScope: async () => await this.deps.bestOfNBudgetScope?.(this.session?.sessionId),
+      openWorktree: this.deps.openBestOfNWorktree,
+      noteAttemptRequest: this.deps.noteBestOfNRequest,
+      noteAttemptUsage: this.deps.noteBestOfNUsage,
+      hasDirtyEditors: () => this.deps.unsavedFiles().length > 0,
+      contextId: () =>
+        `${String(this.sendInvalidationEpoch)}:${this.session?.sessionId ?? ''}:${String(this.isDisposed)}`,
+      isBestOfNOn: () => this.deps.isPaidFeatureOn('bestOfN'),
+      allowsPaidUse: (request) => this.deps.allowsPaidUse(request),
+      notePaidUse: (attempts) => {
+        this.deps.notePaidUse('bestOfN', attempts)
+      },
+      runGit: (args, cwd, timeoutMs, input, beforeRun) =>
+        (this.deps.runBestOfNGit ?? this.deps.runGit)(args, cwd, timeoutMs, input, beforeRun),
+      repositoryRoot: () => this.deps.workspaceRoot,
+      platform: this.deps.platform,
+      buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
+        this.deps.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
+      modelId: () => this.modelId,
+      wireApprovalMode: () => approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+      isTrusted: () => this.deps.isWorkspaceTrusted(),
+      realPath: (absolutePath) => this.deps.realPath(absolutePath),
+      onUpdate: (run) => {
+        this.lastBestOfNRun = run
+        this.post({ type: 'bestOfNUpdate', run })
+      },
+      log: this.deps.log,
+    })
+    return this.bestOfNManager
+  }
+
+  /** A settled best-of-N call's failure as a notice; the callers share it. */
+  private noticeBestOfNFailure(error: unknown, attemptId?: string): void {
+    if (error instanceof BestOfNError) {
+      this.notice('warning', this.bestOfNErrorText(error, attemptId))
+    } else {
+      this.notice('error', `${UI_TEXT.bestOfNTitle}: ${describe(error)}`)
+    }
+  }
+
+  /** Why a best-of-N command was refused, in the user's words. */
+  private bestOfNErrorText(error: BestOfNError, attemptId?: string): string {
+    const detail = error.detail ?? ''
+    switch (error.refusal) {
+      case 'noWorkspace': {
+        return UI_TEXT.bestOfNNoWorkspace
+      }
+      case 'untrusted': {
+        return UI_TEXT.bestOfNNeedsTrust
+      }
+      case 'wrongBackend': {
+        return UI_TEXT.bestOfNModelApiOnly
+      }
+      case 'paidOff': {
+        return UI_TEXT.bestOfNPaidOff
+      }
+      case 'invalid': {
+        return UI_TEXT.bestOfNInvalidRequest
+      }
+      case 'unknownModel': {
+        return UI_TEXT.bestOfNTariffUnknown
+      }
+      case 'consentDeclined': {
+        return UI_TEXT.bestOfNConsentDeclined
+      }
+      case 'worktreeFailed': {
+        // A take names the branch it could not merge; a start names git's words.
+        const branch =
+          attemptId === undefined
+            ? undefined
+            : this.lastBestOfNRun?.runAttempts.find((attempt) => attempt.attemptId === attemptId)
+                ?.branch
+        return branch === undefined
+          ? fill(UI_TEXT.bestOfNWorktreeFailed, { reason: detail })
+          : fill(UI_TEXT.bestOfNTakeFailed, { branch, reason: detail })
+      }
+      case 'alreadyRunning': {
+        return UI_TEXT.bestOfNAlreadyRunning
+      }
+      case 'noRun': {
+        return UI_TEXT.bestOfNNoRun
+      }
+      case 'unknownAttempt': {
+        return UI_TEXT.bestOfNUnknownAttempt
+      }
+      case 'attemptNotDone': {
+        return UI_TEXT.bestOfNAttemptNotDone
+      }
+      case 'alreadyTaken': {
+        return fill(UI_TEXT.bestOfNAlreadyTaken, { branch: detail })
+      }
+      case 'contextChanged': {
+        return UI_TEXT.bestOfNContextChanged
+      }
+      case 'targetChanged': {
+        return UI_TEXT.bestOfNTargetChanged
+      }
+      case 'budgetUnavailable': {
+        return UI_TEXT.bestOfNBudgetUnavailable
+      }
+    }
+  }
+
+  private async requestSessionBoard(): Promise<void> {
+    if (this.deps.workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    const generation = this.sendInvalidationEpoch
+    try {
+      const rows = await collectSessionBoard({
+        ensureHost: () => this.deps.ensureHost(),
+        backendOf: (host) => host.info.kind,
+        workspaceRoot: this.deps.workspaceRoot,
+        isWorkspaceTrusted: () => this.deps.isWorkspaceTrusted(),
+        runGit: (args, cwd, timeoutMs) => this.deps.runGit(args, cwd, timeoutMs),
+        platform: this.deps.platform,
+        currentSessionId: this.session?.sessionId,
+        currentTurnId: this.activeTurnId,
+        pendingPrompts: this.deps.pendingPrompts,
+        attemptRuns: this.deps.bestOfNCoordinator.snapshots(),
+        liveSessions: this.deps.boardSessions?.(),
+        log: this.deps.log,
+      })
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      this.post({ type: 'sessionBoard', rows: [...rows] })
+    } catch (error: unknown) {
+      if (generation === this.sendInvalidationEpoch) {
+        this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`)
+      }
+    }
+  }
+
+  private async startBestOfN(
+    prompt: string,
+    attempts: number,
+    requestCeilingPerAttempt: number,
+  ): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      const host = await this.deps.ensureHost()
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      await this.bestOfN().start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+    } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      this.noticeBestOfNFailure(error)
+    }
+  }
+
+  private async takeBestOfNAttempt(attemptId: string, runId: string): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      const run = await this.bestOfN().take(attemptId, runId)
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      if (run.takenBranch !== undefined) {
+        this.notice('info', fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch }))
+      }
+    } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      this.noticeBestOfNFailure(error, attemptId)
+    }
+  }
+
+  private async cancelBestOfN(runId: string): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      await this.bestOfN().cancel(runId)
+    } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      this.noticeBestOfNFailure(error)
     }
   }
 
@@ -4724,9 +4987,9 @@ export class ConversationController {
 
   private async handleDictation(action: DictationAction): Promise<void> {
     this.dictationPresses += 1
-    // Stop owns the active driver even when a changed cap/setting made the
-    // next recording unavailable. It must not create a driver of its own.
     if (action === 'stop') {
+      // Availability gates new recordings; Stop must still reach the owned
+      // driver after the cap, account or paid setting changes.
       this.dictation?.stop()
       this.postDictationState()
       return
@@ -4768,9 +5031,7 @@ export class ConversationController {
         if (!isContextCurrent()) {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
-        if (!isSending) {
-          return
-        }
+        if (!isSending) return
         if (isModelApi && this.deps.modelApiSessionBudgetUsd() > 0) {
           throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
         }
@@ -5097,6 +5358,60 @@ export class ConversationController {
         await this.listSessions()
         break
       }
+      case 'requestSessionBoard': {
+        await this.requestSessionBoard()
+        break
+      }
+      case 'activateBoardSession': {
+        const generation = this.sendInvalidationEpoch
+        try {
+          if (
+            this.deps.surface.isSideChat === true &&
+            !this.sideSessionIds.has(message.sessionId)
+          ) {
+            this.notice('warning', UI_TEXT.sideChatSessionOnly)
+            break
+          }
+          if (
+            message.backend === 'modelApi' &&
+            (await this.deps.bestOfNCoordinator.openSession(message.sessionId))
+          )
+            break
+          if (this.deps.focusBoardSession?.(message.sessionId, message.backend) === true) break
+          const host = await this.deps.ensureHost()
+          if (generation !== this.sendInvalidationEpoch || this.isDisposed) break
+          if (host.info.kind !== message.backend) {
+            this.notice('warning', `${UI_TEXT.resumeFailed}: ${message.backend}`)
+            break
+          }
+          this.beginBrowserSessionChange()
+          await this.resumeSession(message.sessionId)
+        } catch (error: unknown) {
+          if (generation === this.sendInvalidationEpoch && !this.isDisposed)
+            this.noticeBestOfNFailure(error)
+        }
+        break
+      }
+      case 'startBestOfN': {
+        await this.startBestOfN(message.prompt, message.attempts, message.requestCeilingPerAttempt)
+        break
+      }
+      case 'takeBestOfNAttempt': {
+        await this.takeBestOfNAttempt(message.attemptId, message.runId)
+        break
+      }
+      case 'openBestOfNAttempt': {
+        try {
+          await this.bestOfN().open(message.attemptId, message.runId)
+        } catch (error: unknown) {
+          this.noticeBestOfNFailure(error, message.attemptId)
+        }
+        break
+      }
+      case 'cancelBestOfN': {
+        await this.cancelBestOfN(message.runId)
+        break
+      }
       case 'readChildSession': {
         await this.readChildSession(message.sessionId)
         break
@@ -5304,6 +5619,42 @@ export class ConversationController {
     return this.foregroundShells.size > 0
   }
 
+  /** Board state comes from captured turn events, not a guessed native status. */
+  public boardSession(): BoardSession | undefined {
+    if (
+      this.isDisposed ||
+      this.accountStopsInFlight > 0 ||
+      this.session === undefined ||
+      this.sessionKind === undefined
+    ) {
+      return undefined
+    }
+    const record = this.sessionRecords?.get(this.session.sessionId)
+    const root = record?.workspaceRoot ?? this.deps.workspaceRoot
+    return {
+      sessionId: this.session.sessionId,
+      backend: this.sessionKind,
+      status: this.activeTurnId === undefined ? 'idle' : 'running',
+      ...(record?.name !== undefined && { name: record.name }),
+      ...(record?.title !== undefined && { title: record.title }),
+      ...(record?.branch !== undefined && { branch: record.branch }),
+      ...(typeof root === 'string' && { workspaceRoot: root }),
+    }
+  }
+
+  public revealBoardSession(sessionId: string, backend: BackendKind): boolean {
+    if (
+      this.isDisposed ||
+      this.accountStopsInFlight > 0 ||
+      this.sessionKind !== backend ||
+      this.session?.sessionId !== sessionId
+    ) {
+      return false
+    }
+    this.deps.surface.reveal()
+    return true
+  }
+
   /**
    * Ctrl+B (M46, the TUI's key): every shell command the running turn still
    * waits on goes on in the background, and the turn goes on without them.
@@ -5340,12 +5691,17 @@ export class ConversationController {
       if (isConversationEnding) {
         this.accountStopEpoch = this.sendInvalidationEpoch
       }
+      this.bestOfNManager?.dispose()
+      this.bestOfNManager = undefined
+      this.lastBestOfNRun = undefined
       this.gapReload = undefined
       this.unsubscribe?.()
       this.unsubscribe = undefined
       this.closedWatch?.()
       this.closedWatch = undefined
       this.historyWatchEpoch += 1
+      // The hosts are stopping: no tracked card can still wait on them.
+      this.deps.pendingPrompts.clear()
       if (isConversationEnding) {
         this.attachmentGeneration += 1
         this.webviewAttachmentEpoch += 1
@@ -5410,6 +5766,7 @@ export class ConversationController {
 
   public dispose(): void {
     this.isDisposed = true
+    this.bestOfNManager?.dispose()
     this.historyWatchEpoch += 1
     clearTimeout(this.deltaTimer)
     this.deltaTimer = undefined

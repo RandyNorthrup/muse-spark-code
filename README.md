@@ -903,6 +903,53 @@ workspace by its real path, never one that is code the editor runs. Checks
 that run automatically after Muse Code's own edits would need an event Muse
 Code does not send (an ask for Meta, PLAN.md M68).
 
+## Session board and best-of-N
+
+The header's board button lists every conversation in the window, on either
+backend. Each row names its state (**Running** or **Idle**), branch, changed
+files and waiting approvals, running conversations first. Type to filter,
+press Enter (or click) to resume a conversation. Ephemeral Best-of-N rows
+open their owned worktree instead: they have no saved conversation to resume.
+**Best of N…** opens the best-of-N dialog.
+
+Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model API
+backend, then you take one. It needs a trusted workspace with a folder open
+(worktrees run git, which Restricted Mode forbids). Turn on
+`museSpark.modelApiBestOfN` ([Paid](#paid-features)) and accept the token
+rates first. Each run asks once in the paid-use popup, naming the prompt, the
+published rates, the attempt count and the per-attempt request ceiling, in
+every permission mode, Bypass included; the subscription never pays.
+Automatic worktree creation, capture and apply require Git 2.36 or newer.
+They suppress repository hooks, fsmonitor, replacement refs and automatic
+maintenance, and refuse configured filter or hook programs. File tools list
+the attempt's actual worktree, including its new and uncommitted files.
+
+Each attempt works on its own `best-of-n/<run>/<index>` branch in a folder
+beside the repository, like a worktree of your own. An attempt that would ask
+you anything (an approval or a question) is declined instead and counted, and
+each actual Model API request attempt, including retries, counts before its
+HTTP request is sent. A changed key, account, conversation, trust or paid
+gate stops further requests. Attempt hosts share one captured, account-owned
+originating session budget. A finite cap refuses a run when no owned parent
+scope exists; separate attempt transcripts never create fresh allowances.
+When successful attempts finish, the
+dialog compares two at a time (**Left** and **Right**): their changed files
+and the diff, clipped past the cap with a note. The comparison captures an
+immutable Git tree of tracked edits and unignored new files, including
+uncommitted edits. Ignored files are excluded. **Apply and stage** applies
+the exact selected snapshot to your checkout and stages it; it creates no
+commit. Later edits in an attempt never silently replace the captured
+preview. The base HEAD, clean index and working files, unsaved editors and
+protected or linked targets are checked before application; a changed target
+refuses the action. Failed, cancelled or unreadable attempts cannot be taken.
+An apply failure is reported without claiming success; inspect your checkout
+before retrying. **Open** keeps an attempt's uncommitted work available in its
+owned worktree. Account & usage lists reported attempt tokens and their
+estimated cost separately; requests without usage reports remain unknown,
+even if they failed. They are not claimed as included in the parent estimate.
+**Cancel run** stops unfinished attempts, including
+setup waiting on consent, without deleting their work.
+
 ## Web fetch
 
 The model can read one public web page it found or you
@@ -1544,7 +1591,9 @@ rate instead of a "warm for N minutes" countdown.
   session storage keep their normal behavior and cannot share persisted
   spending. A provided spend journal that cannot be read or saved blocks
   new requests; repair the storage and reopen the conversation.
-  Each paid subagent request uses the parent's shared cap as well as its
+  Paid subagent requests have their own consent and request ceiling. Their
+  reported cost counts toward the conversation, but they are not reserved
+  against the parent's cap and can take it past that cap. Each task retains its
   separate paid confirmation. Image generation reserves its published flat
   fee before buying the image and settles it even if saving the image fails.
   Web search is unavailable while a cap is active: no hard bound on its
@@ -1662,9 +1711,9 @@ device is available", and step markers on stderr name where a start failed.
 
 ## Paid features
 
-Five settings gate what costs money on your Model API key beyond an ordinary
+Six settings gate what costs money on your Model API key beyond an ordinary
 chat turn. They are always billed to your Model API key, never to your Muse
-Code subscription, and all five are **off until you turn them on**. All five
+Code subscription, and all six are **off until you turn them on**. All six
 work on the Model API backend; images and Muse Voice also work on the Muse
 Code backend while a key is stored (web search is Muse Code's own there, on
 the subscription):
@@ -1675,6 +1724,7 @@ the subscription):
 | Image generation  | $0.01 per image                                                       | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time |
 | Muse Voice        | $0.18 per hour of audio                                               | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                            |
 | Subagents         | Selected model's published input, cached input and output token rates | Child tasks on the Model API backend; every task asks again and admits at most four response requests                                 |
+| Best-of-N         | Selected model's published input, cached input and output token rates | The same prompt runs in 2 to 5 worktrees at once on the Model API backend; you take one                                               |
 | Scheduled prompts | Selected model's published input, cached input and output token rates | A due `/loop` prompt runs only after you choose **Run now** and allow that run's model and rates                                      |
 
 Scheduled prompts use ordinary Model API tokens, rather than an extra
@@ -1688,7 +1738,7 @@ add their own charges during that confirmed turn.
 Turn one on from the palette (**Account & usage** group, where the backend
 can use it) or with its setting (`museSpark.modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
-`modelApiScheduledPrompts`). Either way a confirmation
+`modelApiBestOfN`, `modelApiScheduledPrompts`). Either way a confirmation
 names the price first; declining it turns the setting back off, and turning
 a setting off means the next time asks again. The settings are
 machine-scoped, so a repository cannot turn one on.
@@ -1723,6 +1773,11 @@ What asks, and when:
 - **Subagents**: before every new child task, with its objective, model,
   published rates and four-request ceiling; Plan refuses it. Retries count;
   a running note spends the same grant.
+- **Best-of-N**: once per run, with its prompt, published rates, attempt
+  count and per-attempt request ceiling. Retries count against the ceiling;
+  a run is refused before anything is asked while the feature is off, the
+  backend is not the Model API, the workspace is untrusted or closed, or a
+  run is already going.
 - **Scheduled prompts**: before each run, with its prompt, model and rates.
 
 While one is on, you can always tell, even when it no longer asks:
@@ -1745,10 +1800,12 @@ While one is on, you can always tell, even when it no longer asks:
   Voice (paid)" with the price in its tooltip.
 - **Account & usage keeps the tally** and names each feature allowed always
   in this workspace: this window's searches, images,
-  seconds of audio, child request attempts and scheduled runs, with estimated
-  cost when usage was reported. An attempt with no usage report has unknown
-  cost. Scheduled-run tokens are included in the session token estimate rather
-  than added to the extra-features total.
+  seconds of audio, child request attempts, best-of-N attempts and scheduled
+  runs, with estimated cost when usage was reported. An attempt with no usage
+  report has unknown cost. Scheduled-run tokens are included in their
+  conversation's estimate. Best-of-N's separate worktree hosts report their
+  tokens and cost in their own paid row and extra-feature total; unreported
+  HTTP tries remain unknown.
   The dev.meta.ai dashboard is the bill.
 
 Web search's count errs high: Meta does not say how it bills a search with
@@ -1870,9 +1927,9 @@ immediately. The settings that choose what runs and what is billed
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiPromptCacheRetention`, `turnCheckpoints`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
-`modelApiSessionBudgetUsd` and the five paid features, `modelApiWebSearch`,
-`modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents` and
-`modelApiScheduledPrompts`) are machine-scoped: they
+`modelApiSessionBudgetUsd` and the six paid features, `modelApiWebSearch`,
+`modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
+`modelApiBestOfN` and `modelApiScheduledPrompts`) are machine-scoped: they
 take effect from your user settings only, never from a repository's
 `.vscode/settings.json`. In a remote window (SSH, WSL, a dev
 container) machine settings live on the remote side, where a dev container
@@ -1913,6 +1970,7 @@ Bypass at once.
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
+| `modelApiBestOfN`                 | `false`     | [Paid](#paid-features): best-of-N on the Model API backend: the same prompt in 2 to 5 worktrees at once, one paid popup per run with the attempt count and per-attempt request ceiling, then take one                                                                                                                                                                                                                                                                                                               |
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiReplyUsage`              | `false`     | Show the input and output tokens and the dollar estimate under each Model API reply, counting every request since the previous line in that turn                                                                                                                                                                                                                                                                                                                                                                    |
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover token requests, child requests and image fees; working storage is required. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified. Input estimates and published prices may differ from actual billing. Machine-scoped                                                      |

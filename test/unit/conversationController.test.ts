@@ -62,6 +62,8 @@ import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStor
 import { readPickedFile } from '../../src/host/backend/toolIo'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { confineWorkspacePath } from '../../src/core/workspacePath'
+import { PendingPrompts } from '../../src/core/sessionBoard'
+import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
 import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
@@ -522,6 +524,17 @@ function setup(
     ownedVoiceBudgetScope: options.ownedVoiceBudgetScope ?? (() => Promise.resolve(undefined)),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
     forgetPaidUse: vi.fn(() => Promise.resolve()),
+    pendingPrompts: new PendingPrompts(),
+    bestOfNCoordinator: new BestOfNCoordinator(),
+    modelApiAccountId: () => Promise.resolve('account-1'),
+    openBestOfNWorktree: () => Promise.resolve(),
+    noteBestOfNRequest: () => undefined,
+    noteBestOfNUsage: () => undefined,
+    runGit: () => Promise.resolve(''),
+    isPaidFeatureOn: () => false,
+    notePaidUse: () => undefined,
+    buildAttemptHost: () => Promise.resolve(host),
+    realPath: (absolutePath: string) => Promise.resolve(absolutePath),
     notifyAttention: vi.fn<(notice: AttentionNotice) => void>(),
     auth: auth.service,
     accountFacts: (backend) =>
@@ -6565,29 +6578,23 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
     },
   )
 
-  it.each([
-    { change: 'finite cap', isTightened: true, sendingKey: 'LLM|1|secret' },
-    { change: 'external account', isTightened: false, sendingKey: 'LLM|1|replacement-key' },
-  ])(
-    'stops pending no-journal authentication after $change changes during key retrieval',
-    async ({ isTightened, sendingKey }) => {
-      const key = Promise.withResolvers<string | undefined>()
-      const voice = noFolderVoice({ apiKey: () => key.promise })
-      try {
-        await voice.controller.handle({ type: 'dictation', action: 'start' })
-        expect(voice.calls).toEqual(['create', 'start'])
-        voice.state.capUsd = isTightened ? 1 : 0
-        key.resolve(sendingKey)
-        await vi.waitFor(() => {
-          expect(voice.calls).toContain('stop')
-        })
-        expect(voice.sockets).toEqual([])
-      } finally {
-        key.resolve(undefined)
-        voice.controller.dispose()
-      }
-    },
-  )
+  it('stops a pending no-journal recording before socket authentication when the cap is enabled during key retrieval', async () => {
+    const key = Promise.withResolvers<string | undefined>()
+    const voice = noFolderVoice({ apiKey: () => key.promise })
+    try {
+      await voice.controller.handle({ type: 'dictation', action: 'start' })
+      expect(voice.calls).toEqual(['create', 'start'])
+      voice.state.capUsd = 1
+      key.resolve('LLM|1|secret')
+      await vi.waitFor(() => {
+        expect(voice.calls).toContain('stop')
+      })
+      expect(voice.sockets).toEqual([])
+    } finally {
+      key.resolve(undefined)
+      voice.controller.dispose()
+    }
+  })
 
   it.each(['auth', 'audio', 'end'] as const)(
     'tightening the cap refuses the next no-journal %s send',
@@ -6616,6 +6623,22 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
       }
     },
   )
+
+  it('checks the actual sending account even with no folder, journal or local auth revision change', async () => {
+    const key = Promise.withResolvers<string | undefined>()
+    const voice = noFolderVoice({ apiKey: () => key.promise })
+    try {
+      await voice.controller.handle({ type: 'dictation', action: 'start' })
+      key.resolve('LLM|1|replacement-key')
+      await vi.waitFor(() => {
+        expect(voice.calls).toContain('stop')
+      })
+      expect(voice.sockets).toEqual([])
+    } finally {
+      key.resolve(undefined)
+      voice.controller.dispose()
+    }
+  })
 })
 
 describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)', () => {

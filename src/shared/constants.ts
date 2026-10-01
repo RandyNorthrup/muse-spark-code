@@ -291,6 +291,9 @@ export const SETTING_DEFAULTS = {
   modelApiPromptCacheRetention: 'in_memory' as PromptCacheRetention,
   modelApiScheduledPrompts: false,
   modelApiSubagents: false,
+  // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
+  // conversations per run, each billed to the key.
+  modelApiBestOfN: false,
   // Hook commands are user code outside the agent sandbox (M51). A machine
   // setting must explicitly enable them on the Model API backend.
   modelApiHooks: false,
@@ -340,6 +343,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiPromptCacheRetention',
   'modelApiScheduledPrompts',
   'modelApiSubagents',
+  'modelApiBestOfN',
   'modelApiHooks',
   // M68 (PLAN.md D49): what runs after an edit, and what the model is sent
   // with each round, are the user's to choose, never a repository's.
@@ -410,6 +414,7 @@ export const PAID_FEATURES = [
   'voice',
   'subagents',
   'scheduledPrompts',
+  'bestOfN',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -424,6 +429,7 @@ export const PAID_FEATURE_SETTINGS = {
   voice: 'modelApiVoice',
   scheduledPrompts: 'modelApiScheduledPrompts',
   subagents: 'modelApiSubagents',
+  bestOfN: 'modelApiBestOfN',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -963,6 +969,20 @@ export const MODEL_API_PRICED_MODELS = {
 } as const
 /** A consent grant covers actual child HTTP attempts, including all retries. */
 export const SUBAGENT_TASK_MAX_REQUESTS = 4
+// Best-of-N parallel attempts (M77, PLAN.md D49): the same prompt runs in
+// this many worktrees, each attempt stopping after this many model requests.
+export const BEST_OF_N_MIN_ATTEMPTS = 2
+export const BEST_OF_N_MAX_ATTEMPTS = 5
+export const BEST_OF_N_DEFAULT_ATTEMPTS = 3
+export const BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT = 5
+export const BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT = 50
+export const BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT = 20
+// The branch each attempt works on: `best-of-n/<runId>/<index>`, beside the
+// repository like every worktree M32 makes.
+export const BEST_OF_N_BRANCH_PREFIX = 'best-of-n'
+// Full per-attempt diffs are capped for the side-by-side comparison.
+export const BEST_OF_N_DIFF_MAX_CHARS = 32_000
+export const BEST_OF_N_MIN_GIT_MINOR = 36
 /** Bump when the accepted rates or child-task limit changes. */
 export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-09-26:requests-4:v1'
 export const TOKENS_PER_MILLION = 1_000_000
