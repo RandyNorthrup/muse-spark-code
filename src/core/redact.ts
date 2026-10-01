@@ -78,6 +78,14 @@ const NAMED_SECRETS: readonly RegExp[] = [
   /([?&](?:token|key|secret|sig|signature|auth)=)[^&#\s"']{1,4096}/gi,
 ]
 
+// Every pattern above needs one of these (a literal of each, case
+// ignored), so text without any of them, which is most of a conversation
+// and most log lines, skips all the patterns in one linear scan instead of
+// one scan each (RV84 #9). A new pattern adds its literal here; its shape's
+// test in redact.test.ts fails otherwise.
+const MAY_HOLD_SECRET =
+  /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=/i
+
 /** The mark alone, in place of the whole match. */
 function mark(): string {
   return REDACTED_MARK
@@ -89,6 +97,9 @@ function markAfter(_match: string, lead: string): string {
 }
 
 export function redactSecrets(text: string): string {
+  if (!MAY_HOLD_SECRET.test(text)) {
+    return text
+  }
   let result = text
     .replaceAll(META_MODEL_API_KEY, () => mark())
     .replaceAll(BEARER_TOKEN, (match: string, lead: string) => markAfter(match, lead))

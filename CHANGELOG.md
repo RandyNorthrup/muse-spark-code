@@ -15,7 +15,8 @@ happened, not what was planned; superseded entries are kept.
   string including item ids and error labels (a secret in any other shape
   is not recognised); paths (your own folders included, spaces and all)
   and account ids are redacted by default, and the redacted file opens
-  read-only in the editor before anything is written. **Muse Spark: Import
+  read-only in the editor before anything is written. The scrub runs in
+  short slices, so a long conversation never freezes the window. **Muse Spark: Import
   Session** resumes such a file as a new conversation on the Model API
   backend, on your own model, in Manual (or Plan when that is the initial
   mode) every time it is opened, forked or restored, with no session rules,
@@ -45,7 +46,8 @@ happened, not what was planned; superseded entries are kept.
   such as `a.b.c.…` (its scheme is now bounded), and the JSON Web Token
   pattern on a long `eyJ-eyJ-…` run (it now starts only where no token
   character precedes). The session export runs them over whole
-  conversations.
+  conversations. Text with none of the credential literals (most log lines)
+  now skips the patterns in one scan.
 
 ## [0.10.0] - 2026-09-30
 

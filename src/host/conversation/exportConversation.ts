@@ -82,12 +82,12 @@ function titleOf(name: string | undefined, items: readonly ItemSnapshot[]): stri
 }
 
 /** The portable file's text; undefined when it is past what an import reads. */
-function portableFile(
+async function portableFile(
   source: SessionExportSource,
   shouldRedact: boolean,
   localRoots: readonly string[],
-): { readonly content: string; readonly built: BuiltSessionExport } | undefined {
-  const built = buildSessionExport(source, { redact: shouldRedact, localRoots })
+): Promise<{ readonly content: string; readonly built: BuiltSessionExport } | undefined> {
+  const built = await buildSessionExport(source, { redact: shouldRedact, localRoots })
   const content = JSON.stringify(built.doc, undefined, JSON_INDENT)
   return Buffer.byteLength(content) > SESSION_EXPORT_MAX_BYTES ? undefined : { content, built }
 }
@@ -117,7 +117,7 @@ async function exportJson(
     items: history.items,
   }
   const localRoots = exports.localRoots()
-  const redacted = portableFile(source, true, localRoots)
+  const redacted = await portableFile(source, true, localRoots)
   if (redacted === undefined) {
     return 'tooLarge'
   }
@@ -143,7 +143,7 @@ async function exportJson(
   if (choice === 'dismissed') {
     return 'dismissed'
   }
-  const chosen = choice === 'full' ? portableFile(source, false, localRoots) : redacted
+  const chosen = choice === 'full' ? await portableFile(source, false, localRoots) : redacted
   if (chosen === undefined) {
     return 'tooLarge'
   }

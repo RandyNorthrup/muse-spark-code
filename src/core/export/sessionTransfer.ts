@@ -32,6 +32,7 @@ import {
   SESSION_EXPORT_FIELD_PATH_MAX,
   SESSION_EXPORT_FORMAT,
   SESSION_EXPORT_MAX_ITEMS,
+  SESSION_EXPORT_SCRUB_SLICE_CHARS,
   SESSION_EXPORT_VERSION,
   STORED_SESSION_VERSION,
   UI_TEXT,
@@ -208,9 +209,11 @@ export function parseSessionExport(raw: unknown): SessionExportParse {
 
 // A SHA-256 digest such as the stored session's `accountId`, and any longer
 // hex run around one: cutting a run into 64-character pieces would leave
-// part of a digest behind. The credential shapes are the log redactor's
-// (`redactSecrets`), the one list the extension keeps.
-const KEY_DIGEST = /[A-Fa-f0-9]{64,}/g
+// part of a digest behind. It starts only where no hex digit precedes, so a
+// run is tried once, not once per digit in it (common in ordinary text). The
+// credential shapes are the log redactor's (`redactSecrets`), the one list
+// the extension keeps.
+const KEY_DIGEST = /(?<![A-Fa-f0-9])[A-Fa-f0-9]{64,}/g
 // Bounded as RFC 5321 bounds an address's parts, so a long run of word
 // characters (a base64 blob in a tool output) is scanned in linear time.
 const EMAIL_ADDRESS = /[\w.%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g
@@ -226,7 +229,6 @@ const WINDOWS_PATH = /(?<!\w)[A-Za-z]:[\\/][^\s"'<>|?*]+|\\\\[^\s"'<>|?*]+/g
 const PATH_PATTERNS: readonly RegExp[] = [FILE_URI, POSIX_PATH, WINDOWS_PATH]
 const PATH_SEPARATORS = /[\\/]+/
 const TRAILING_SEPARATORS = /[\\/]+$/
-const SEPARATOR = /[\\/]/
 // Where a path that starts at a local root ends.
 const PATH_END = /[\s"'<>|]/
 // A local root shorter than this many segments (`/`, `C:\`, `/root`) is left
@@ -253,10 +255,6 @@ export interface ExportRedaction {
   readonly localRoots: readonly string[]
 }
 
-function occurrences(text: string, pattern: RegExp): number {
-  return text.match(pattern)?.length ?? 0
-}
-
 /** The text with every known credential shape and key digest replaced by the mark. */
 function withoutCredentials(text: string): string {
   return redactSecrets(text).replaceAll(KEY_DIGEST, () => REDACTED_MARK)
@@ -274,26 +272,34 @@ interface FoldedText {
   readonly offsets: readonly number[]
 }
 
+// One pass with no allocation per character: a spread of a fresh array per
+// character made this half of a whole export's time (RV84 #9).
 function foldText(text: string): FoldedText {
-  let result = ''
+  const parts: string[] = []
   const offsets: number[] = []
   let at = 0
+  let isAfterSeparator = false
   for (const char of text) {
-    if (SEPARATOR.test(char)) {
-      if (!result.endsWith('/')) {
-        result += '/'
+    if (char === '/' || char === '\\') {
+      if (!isAfterSeparator) {
+        parts.push('/')
         offsets.push(at)
+        isAfterSeparator = true
       }
     } else {
       const lower = char.toLowerCase()
-      result += lower
-      // One offset per UTF-16 unit, not per code point.
-      offsets.push(...Array.from({ length: lower.length }, () => at))
+      parts.push(lower)
+      // One offset per UTF-16 unit, not per code point (`İ` lower-cases to two).
+      offsets.push(at)
+      for (let extra = 1; extra < lower.length; extra += 1) {
+        offsets.push(at)
+      }
+      isAfterSeparator = false
     }
     at += char.length
   }
   offsets.push(text.length)
-  return { text: result, offsets }
+  return { text: parts.join(''), offsets }
 }
 
 /**
@@ -356,38 +362,83 @@ function scrubText(
   roots: readonly string[],
   counts: ScrubCounts,
 ): string {
-  const before = text.split(REDACTED_MARK).length
   const clean = withoutCredentials(text)
-  counts.secrets += Math.max(0, clean.split(REDACTED_MARK).length - before)
+  if (clean !== text) {
+    counts.secrets += Math.max(
+      0,
+      clean.split(REDACTED_MARK).length - text.split(REDACTED_MARK).length,
+    )
+  }
   if (!redaction.redact) {
     return clean
   }
-  counts.accounts += occurrences(clean, EMAIL_ADDRESS)
-  let redacted = redactLocalRoots(
-    clean.replaceAll(EMAIL_ADDRESS, () => MODEL_TEXT.exportRedactedAccount),
-    roots,
-    counts,
-  )
+  // Each pattern runs once, counting as it replaces; an address needs an `@`.
+  const withoutAccounts = clean.includes('@')
+    ? clean.replaceAll(EMAIL_ADDRESS, () => {
+        counts.accounts += 1
+        return MODEL_TEXT.exportRedactedAccount
+      })
+    : clean
+  let redacted = redactLocalRoots(withoutAccounts, roots, counts)
   for (const pattern of PATH_PATTERNS) {
-    counts.paths += occurrences(redacted, pattern)
-    redacted = redacted.replaceAll(pattern, () => MODEL_TEXT.exportRedactedPath)
+    redacted = redacted.replaceAll(pattern, () => {
+      counts.paths += 1
+      return MODEL_TEXT.exportRedactedPath
+    })
   }
   return redacted
 }
 
+/** How much text has been scrubbed since the event loop last ran. */
+interface ScrubPace {
+  sinceYield: number
+}
+
+/**
+ * Lets the event loop run once a slice of text has been scrubbed: the scrub
+ * runs on the extension host, and a long conversation scrubbed in one go held
+ * every extension in the window for seconds (RV84 #9). One string is never
+ * cut, so a pattern always sees all of it. `setImmediate`, not a timer: on
+ * Windows a zero timer waits for the next ~15 ms clock tick, which made a
+ * 4 MiB export spend a second waiting.
+ */
+async function pace(scrubbed: ScrubPace, length: number): Promise<void> {
+  scrubbed.sinceYield += length
+  if (scrubbed.sinceYield < SESSION_EXPORT_SCRUB_SLICE_CHARS) {
+    return
+  }
+  scrubbed.sinceYield = 0
+  await new Promise((resolve) => {
+    setImmediate(resolve)
+  })
+}
+
 /** Every string scrubbed; ordinary protocol words and UUIDs do not match secret shapes. */
-function scrubValue(value: unknown, scrub: (text: string) => string): unknown {
+async function scrubValue(
+  value: unknown,
+  scrub: (text: string) => string,
+  scrubbed: ScrubPace,
+): Promise<unknown> {
   if (typeof value === 'string') {
-    return scrub(value)
+    const clean = scrub(value)
+    await pace(scrubbed, value.length)
+    return clean
   }
   if (Array.isArray(value)) {
-    return value.map((entry: unknown) => scrubValue(entry, scrub))
+    const entries: unknown[] = []
+    for (const entry of value) {
+      entries.push(await scrubValue(entry, scrub, scrubbed))
+    }
+    return entries
   }
-  return isRecord(value)
-    ? Object.fromEntries(
-        Object.entries(value).map(([name, entry]) => [name, scrubValue(entry, scrub)]),
-      )
-    : value
+  if (!isRecord(value)) {
+    return value
+  }
+  const fields: [string, unknown][] = []
+  for (const [name, entry] of Object.entries(value)) {
+    fields.push([name, await scrubValue(entry, scrub, scrubbed)])
+  }
+  return Object.fromEntries(fields)
 }
 
 // --- Export ---
@@ -422,12 +473,13 @@ function portableItem(item: ItemSnapshot): Record<string, unknown> {
  * The portable document for a conversation: credentials and the key digest
  * scrubbed from every string, account ids and paths too unless `redact` is
  * false. The result is parsed with the import's own schema, so a file this
- * writes is one an import reads.
+ * writes is one an import reads. The event loop runs between slices of the
+ * scrub (`pace`).
  */
-export function buildSessionExport(
+export async function buildSessionExport(
   source: SessionExportSource,
   redaction: ExportRedaction,
-): BuiltSessionExport {
+): Promise<BuiltSessionExport> {
   const counts: ScrubCounts = { secrets: 0, accounts: 0, paths: 0 }
   const roots = foldedRoots(redaction.localRoots)
   const document = {
@@ -440,7 +492,9 @@ export function buildSessionExport(
     modelId: source.modelId,
     transcript: source.items.map((item) => portableItem(item)),
   }
-  const scrubbed = scrubValue(document, (text) => scrubText(text, redaction, roots, counts))
+  const scrubbed = await scrubValue(document, (text) => scrubText(text, redaction, roots, counts), {
+    sinceYield: 0,
+  })
   return { ...counts, doc: sessionExportSchema.parse(scrubbed) }
 }
 

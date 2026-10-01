@@ -9095,6 +9095,21 @@ independent review, normal latest-main ancestry and complete gates remain pendin
       The controller knows such sessions from `adopt`
       (`importedSessionIds`). M74's `/handoff` must take the same flag when
       it lands.
+    - **Export scrub cost (RV84 #9).** The scrub ran synchronously on the
+      extension host. Measured 2026-10-01 on the Mac mini, a 4 MiB
+      conversation (paths under a local root) held the event loop 1.4 s in
+      one go, 0.35 ms/KiB (Windows 11 VM: 2.5 s), so 16 MiB was seconds of a
+      frozen window. Three changes: `foldText` stopped allocating an array
+      per character (half the time); a literal prefilter in `redactSecrets`
+      (`MAY_HOLD_SECRET`) lets text with no credential literal skip the 24
+      patterns in one scan, the e-mail pattern runs only on text with an
+      `@`, and the digest pattern starts only at a hex run's start; and
+      `buildSessionExport` is async and yields (`setImmediate`, not a timer:
+      Windows' ~15 ms tick) after each 64 KiB of text. The same 4 MiB now
+      takes 0.37 s, holding the loop at most 11 ms (Windows VM: 0.42 s, at
+      most 14 ms). One string is never cut, so a single huge string (a
+      pasted 16 MiB message) still holds the loop for its own scrub, about
+      0.5 s.
     - **No Insert or Apply on imported history (RV84 #11).** `historyLoaded`
       carries `imported: true` for such a session, and the panel offers Copy
       only on its code blocks, as the share view does. The mark is the

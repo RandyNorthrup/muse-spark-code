@@ -2377,6 +2377,11 @@ export const SESSION_EXPORT_VERSION = 1
 export const SESSION_EXPORT_MAX_BYTES = 16 * 1024 * 1024
 // The most transcript items a file may hold; a long agentic session has a few thousand.
 export const SESSION_EXPORT_MAX_ITEMS = 20_000
+// How many characters an export scrubs before it lets the extension host's
+// event loop run (RV84 #9). Measured 2026-10-01: a 4 MiB conversation held
+// the loop at most 11 ms (Mac mini) and 14 ms (Windows 11 VM) per slice,
+// where scrubbing it in one go held it 1.4 s and 2.5 s.
+export const SESSION_EXPORT_SCRUB_SLICE_CHARS = 64 * 1024
 // A refused file's unknown field is named by its path, cut to this many
 // characters: the key is the file's own text and reaches the notice and the log.
 export const SESSION_EXPORT_FIELD_PATH_MAX = 120

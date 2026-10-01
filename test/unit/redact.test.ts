@@ -73,7 +73,9 @@ describe('redactSecrets', () => {
   })
 
   // Synthetic values, built here so the secret scanner never sees a whole
-  // token; a PEM edge is split for the same reason (`pemEdge`).
+  // token; a PEM edge is split for the same reason (`pemEdge`). Each text
+  // holds only its own shape's literal, so each also proves that literal is
+  // in the prefilter (MAY_HOLD_SECRET): another one would let it through.
   it.each([
     ['a Google API key', `maps key AIza${'B'.repeat(35)} end`, 'maps key [redacted] end'],
     [
@@ -81,8 +83,34 @@ describe('redactSecrets', () => {
       `//registry.npmjs.org/:_authToken=npm_${'a1'.repeat(18)}`,
       '//registry.npmjs.org/:_authToken=[redacted]',
     ],
-    ['an npm token on its own', `token npm_${'a1'.repeat(18)} end`, 'token [redacted] end'],
+    ['an npm token on its own', `publish npm_${'a1'.repeat(18)} end`, 'publish [redacted] end'],
     ['a legacy .npmrc token', '_authToken=0f1e2d3c', '_authToken=[redacted]'],
+    ['an .npmrc basic credential', '_auth=dXNlcjpwYXNz', '_auth=[redacted]'],
+    [
+      'a bearer credential',
+      'Authorization: Bearer abc.def-123',
+      'Authorization: Bearer [redacted]',
+    ],
+    [
+      'a bare JSON Web Token',
+      'id eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl end',
+      'id [redacted] end',
+    ],
+    ['an apiKey field', 'apiKey=k4', 'apiKey=[redacted]'],
+    ['a credentials variable', 'DB_CREDENTIALS=abc123', 'DB_CREDENTIALS=[redacted]'],
+    ['an access key variable', 'MINIO_ACCESS_KEY=abc123', 'MINIO_ACCESS_KEY=[redacted]'],
+    [
+      'an Azure shared access key',
+      'SharedAccessKeyName=root;SharedAccessKey=abc123=',
+      'SharedAccessKeyName=root;SharedAccessKey=[redacted]',
+    ],
+    ['a fine-grained GitHub token', `github_pat_${'a'.repeat(22)}`, '[redacted]'],
+    ['an AWS temporary key id', `ASIA${'B'.repeat(16)}`, '[redacted]'],
+    ['an sk- key', `sk-${'a'.repeat(24)}`, '[redacted]'],
+    ['a test-mode key', `pk_test_${'a'.repeat(20)}`, '[redacted]'],
+    ['a key parameter', 'GET /maps?key=abc123', 'GET /maps?key=[redacted]'],
+    ['an auth parameter', 'GET /feed?auth=abc123', 'GET /feed?auth=[redacted]'],
+    ['a signature parameter', 'GET /f?v=1&signature=abc123', 'GET /f?v=1&signature=[redacted]'],
     [
       'an Azure storage connection string',
       `DefaultEndpointsProtocol=https;AccountName=box;AccountKey=${'q1w2'.repeat(22)}==;EndpointSuffix=core.windows.net`,
@@ -107,11 +135,7 @@ describe('redactSecrets', () => {
     ['an api-key header', 'x-api-key: abc123', 'x-api-key: [redacted]'],
     ['a token authorization', 'Authorization: token abc123', 'Authorization: token [redacted]'],
     ['a quoted JSON secret', '{"clientSecret": "abc123"}', '{"clientSecret": "[redacted]"}'],
-    [
-      'a signed URL',
-      'https://x.example/f?sig=abc123&v=1',
-      'https://x.example/f?sig=[redacted]&v=1',
-    ],
+    ['a signed URL', 'x.example/f?sig=abc123&v=1', 'x.example/f?sig=[redacted]&v=1'],
   ])('redacts %s', (_shape, text, expected) => {
     expect(redactSecrets(text)).toBe(expected)
   })

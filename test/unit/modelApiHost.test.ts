@@ -10273,8 +10273,8 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
 })
 
 /** A file as another machine's export wrote it. */
-function exportDoc(): SessionExport {
-  return buildSessionExport(
+async function exportDoc(): Promise<SessionExport> {
+  const built = await buildSessionExport(
     {
       backend: 'modelApi',
       name: 'Moved over',
@@ -10296,7 +10296,8 @@ function exportDoc(): SessionExport {
       ],
     },
     { redact: true, localRoots: [] },
-  ).doc
+  )
+  return built.doc
 }
 
 describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
@@ -10305,7 +10306,7 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
   it('saves a new asking session on the caller’s model, marked imported', async () => {
     const store = memorySessionStore()
     const t = setup({ store, newId: () => 'imported-1' })
-    const loaded = await t.host.importSession(exportDoc(), OPTIONS)
+    const loaded = await t.host.importSession(await exportDoc(), OPTIONS)
     expect(loaded.session.sessionId).toBe('imported-1')
     expect(loaded.session.modelId).toBe('muse-spark-1.3')
     expect(loaded.record.imported).toBe(true)
@@ -10334,7 +10335,7 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
 
   it('hands the model the imported turns as user-role data before the new message', async () => {
     const t = setup({ newId: () => 'imported-1' })
-    const loaded = await t.host.importSession(exportDoc(), OPTIONS)
+    const loaded = await t.host.importSession(await exportDoc(), OPTIONS)
     const { turnDone } = watchTurns(loaded.session)
     t.api.script({ text: 'I will check first.' })
     await loaded.session.sendTurn([{ type: 'text', text: 'Carry on' }])
@@ -10352,7 +10353,7 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
     const store = memorySessionStore()
     let ids = 0
     const t = setup({ store, newId: () => `id${String((ids += 1))}` })
-    const loaded = await t.host.importSession(exportDoc(), {
+    const loaded = await t.host.importSession(await exportDoc(), {
       ...OPTIONS,
       approvalMode: 'denyUnmatched',
     })
@@ -10366,7 +10367,7 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
     const resumed = await restarted.host.resumeSession(loaded.session.sessionId, 'muse-spark-1.3')
     expect(resumed.record.imported).toBe(true)
     const signedOut = setup({ getAccountId: () => Promise.resolve(undefined) })
-    await expect(signedOut.host.importSession(exportDoc(), OPTIONS)).rejects.toThrow()
+    await expect(signedOut.host.importSession(await exportDoc(), OPTIONS)).rejects.toThrow()
   })
 })
 

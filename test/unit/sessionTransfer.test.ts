@@ -11,6 +11,7 @@ import {
   DEFAULT_EFFORT,
   MODEL_TEXT,
   SESSION_EXPORT_MAX_ITEMS,
+  SESSION_EXPORT_SCRUB_SLICE_CHARS,
   UI_TEXT,
 } from '../../src/shared/constants'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
@@ -71,8 +72,9 @@ function source(items: readonly ItemSnapshot[], name?: string): SessionExportSou
   }
 }
 
-function exported(items: readonly ItemSnapshot[]): SessionExport {
-  return buildSessionExport(source(items), { redact: true, ...NO_ROOTS }).doc
+async function exported(items: readonly ItemSnapshot[]): Promise<SessionExport> {
+  const built = await buildSessionExport(source(items), { redact: true, ...NO_ROOTS })
+  return built.doc
 }
 
 function sanitize(doc: SessionExport) {
@@ -103,9 +105,9 @@ function turnItems(text: string): unknown {
 describe('buildSessionExport', () => {
   it.each([true, false])(
     'scrubs credential-bearing ids and error labels with redaction %s',
-    (redact) => {
+    async (redact) => {
       const uuid = '716a4460-7421-4acb-a4b7-3f9948fe247c'
-      const built = buildSessionExport(
+      const built = await buildSessionExport(
         source([
           userItem(KEY, 'Hello'),
           agentItem(DIGEST, 'Reply'),
@@ -136,8 +138,8 @@ describe('buildSessionExport', () => {
     },
   )
 
-  it('redacts paths and account ids by default, and keeps the conversation', () => {
-    const built = buildSessionExport(
+  it('redacts paths and account ids by default, and keeps the conversation', async () => {
+    const built = await buildSessionExport(
       source([
         userItem('u1', 'Refactor /home/alice/proj/auth.ts and mail maria@example.com'),
         agentItem('a1', String.raw`Done: C:\Users\alice\proj\auth.ts and C:/Users/alice/notes.md`),
@@ -152,8 +154,8 @@ describe('buildSessionExport', () => {
     expect(built.doc.redacted).toBe(true)
   })
 
-  it('scrubs credentials and key digests even from a full export', () => {
-    const built = buildSessionExport(
+  it('scrubs credentials and key digests even from a full export', async () => {
+    const built = await buildSessionExport(
       source(
         [
           userItem('u1', `key ${KEY} digest ${DIGEST} at /home/alice/x/y`),
@@ -177,7 +179,7 @@ describe('buildSessionExport', () => {
     expect(built.doc.redacted).toBe(false)
   })
 
-  it('scrubs the credential shapes a tool output shows: Google, npm, Azure, the AWS file, GitLab', () => {
+  it('scrubs the credential shapes a tool output shows: Google, npm, Azure, the AWS file, GitLab', async () => {
     // Synthetic values, built here so the secret scanner never sees a whole token.
     const secrets = [
       `AIza${'B'.repeat(35)}`,
@@ -194,7 +196,7 @@ describe('buildSessionExport', () => {
       `[default]\naws_secret_access_key = ${aws}`,
       `push with ${gitlab}`,
     ].join('\n')
-    const built = buildSessionExport(
+    const built = await buildSessionExport(
       source([{ itemId: 't1', kind: 'toolCall', status: 'completed', visibleOutput: output }]),
       { redact: true, ...NO_ROOTS },
     )
@@ -208,8 +210,8 @@ describe('buildSessionExport', () => {
     )
   })
 
-  it("redacts this machine's folders to the path's end, whatever the spaces, separators and case", () => {
-    const built = buildSessionExport(
+  it("redacts this machine's folders to the path's end, whatever the spaces, separators and case", async () => {
+    const built = await buildSessionExport(
       source([
         userItem(
           'u1',
@@ -227,8 +229,8 @@ describe('buildSessionExport', () => {
     expect(JSON.stringify(built.doc)).not.toContain('Northrup')
   })
 
-  it('leaves commands, relative paths and web URLs, and redacts file URIs and UNC paths', () => {
-    const built = buildSessionExport(
+  it('leaves commands, relative paths and web URLs, and redacts file URIs and UNC paths', async () => {
+    const built = await buildSessionExport(
       source([
         userItem(
           'u1',
@@ -243,7 +245,7 @@ describe('buildSessionExport', () => {
     expect(built.paths).toBe(2)
   })
 
-  it('scrubs every string field, nested ones too, and preserves ordinary words and ids', () => {
+  it('scrubs every string field, nested ones too, and preserves ordinary words and ids', async () => {
     const item: ItemSnapshot = {
       itemId: 'x1',
       kind: 'subagent',
@@ -259,7 +261,7 @@ describe('buildSessionExport', () => {
       failureReason: 'denied /root/secret/key',
       commandText: 'cat /etc/hosts',
     }
-    const built = buildSessionExport(source([item], 'Fix /home/a/b'), {
+    const built = await buildSessionExport(source([item], 'Fix /home/a/b'), {
       redact: true,
       ...NO_ROOTS,
     })
@@ -284,8 +286,8 @@ describe('buildSessionExport', () => {
     expect(kept?.result?.errorKind).toBe('none')
   })
 
-  it('leaves live state behind and writes a file the import reads', () => {
-    const { doc } = buildSessionExport(source([userItem('u1', 'hi'), liveToolItem()]), {
+  it('leaves live state behind and writes a file the import reads', async () => {
+    const { doc } = await buildSessionExport(source([userItem('u1', 'hi'), liveToolItem()]), {
       redact: true,
       ...NO_ROOTS,
     })
@@ -303,14 +305,28 @@ describe('buildSessionExport', () => {
     expect(parseSessionExport(written)).toEqual({ ok: true, doc: written })
   })
 
+  it('lets the event loop run while it scrubs a long conversation (RV84 #9)', async () => {
+    const order: string[] = []
+    setTimeout(() => {
+      order.push('timer')
+    }, 0)
+    // Eight slices of text, one per message: the scrub pauses between them.
+    const slice = 'x '.repeat(SESSION_EXPORT_SCRUB_SLICE_CHARS / 2)
+    const items = Array.from({ length: 8 }, (_, index) => userItem(`u${String(index)}`, slice))
+    await buildSessionExport(source(items), { redact: true, ...NO_ROOTS })
+    order.push('built')
+    // Scrubbed in one go, the timer could only run after the export.
+    expect(order).toEqual(['timer', 'built'])
+  })
+
   it('counts the messages, the user’s and the agent’s', () => {
     expect(messageCount([userItem('u', 'a'), liveToolItem(), agentItem('a', 'b')])).toBe(2)
   })
 })
 
 /** A valid file as plain data, for a test to break. */
-function valid(): Record<string, unknown> {
-  return { ...structuredClone(exported([userItem('u1', 'hi'), agentItem('a1', 'hello')])) }
+async function valid(): Promise<Record<string, unknown>> {
+  return { ...structuredClone(await exported([userItem('u1', 'hi'), agentItem('a1', 'hello')])) }
 }
 
 function transcriptOf(doc: Record<string, unknown>): Record<string, unknown>[] {
@@ -322,7 +338,7 @@ function transcriptOf(doc: Record<string, unknown>): Record<string, unknown>[] {
 }
 
 /** A file from someone else: thinking first, a repeated id, a reply that gives orders. */
-function importedDoc(): SessionExport {
+function importedDoc(): Promise<SessionExport> {
   return exported([
     { itemId: 'r0', kind: 'reasoning', status: 'completed', summary: ['thinking'] },
     userItem('dup', 'Read notes.md'),
@@ -334,8 +350,8 @@ function importedDoc(): SessionExport {
 }
 
 describe('parseSessionExport', () => {
-  it('scrubs a hostile unknown-field key before its bounded diagnostic is shown', () => {
-    const raw = valid()
+  it('scrubs a hostile unknown-field key before its bounded diagnostic is shown', async () => {
+    const raw = await valid()
     raw[`password=${KEY}\nowner@example.com /home/alice/key ${DIGEST}`] = true
     const parsed = parseSessionExport(raw)
     if (parsed.ok) {
@@ -361,16 +377,16 @@ describe('parseSessionExport', () => {
     }
   })
 
-  it('names a version it cannot read', () => {
+  it('names a version it cannot read', async () => {
     for (const version of [2, 0, 1.5]) {
-      expect(parseSessionExport({ ...valid(), version })).toEqual({
+      expect(parseSessionExport({ ...(await valid()), version })).toEqual({
         ok: false,
         reason: `This version of the extension cannot read format version ${String(version)}.`,
       })
     }
   })
 
-  it('refuses an unknown field anywhere, naming where it is', () => {
+  it('refuses an unknown field anywhere, naming where it is', async () => {
     const cases: readonly [string, (doc: Record<string, unknown>) => void][] = [
       [
         'approvalMode',
@@ -410,7 +426,7 @@ describe('parseSessionExport', () => {
       ],
     ]
     for (const [field, mutate] of cases) {
-      const doc = valid()
+      const doc = await valid()
       mutate(doc)
       expect(parseSessionExport(doc)).toEqual({
         ok: false,
@@ -419,20 +435,20 @@ describe('parseSessionExport', () => {
     }
   })
 
-  it('refuses a wrong shape, a date that is not ISO 8601, and too many items', () => {
-    expect(parseSessionExport({ ...valid(), transcript: 'nope' }).ok).toBe(false)
-    expect(parseSessionExport({ ...valid(), exportedAt: 'yesterday' }).ok).toBe(false)
-    expect(parseSessionExport({ ...valid(), redacted: 'yes' }).ok).toBe(false)
+  it('refuses a wrong shape, a date that is not ISO 8601, and too many items', async () => {
+    expect(parseSessionExport({ ...(await valid()), transcript: 'nope' }).ok).toBe(false)
+    expect(parseSessionExport({ ...(await valid()), exportedAt: 'yesterday' }).ok).toBe(false)
+    expect(parseSessionExport({ ...(await valid()), redacted: 'yes' }).ok).toBe(false)
     const item = userItem('u', 'x')
     const atCap = Array.from({ length: SESSION_EXPORT_MAX_ITEMS }, () => item)
-    expect(parseSessionExport({ ...valid(), transcript: atCap }).ok).toBe(true)
-    expect(parseSessionExport({ ...valid(), transcript: [...atCap, item] }).ok).toBe(false)
+    expect(parseSessionExport({ ...(await valid()), transcript: atCap }).ok).toBe(true)
+    expect(parseSessionExport({ ...(await valid()), transcript: [...atCap, item] }).ok).toBe(false)
   })
 })
 
 describe('sanitizeImportedSession', () => {
-  it('mints fresh ids and groups turns at each user message', () => {
-    const session = sanitize(importedDoc())
+  it('mints fresh ids and groups turns at each user message', async () => {
+    const session = sanitize(await importedDoc())
     expect(session.sessionId).toBe('session-new')
     expect(session.turnIds).toEqual(['imported-turn-0', 'imported-turn-1'])
     expect(session.transcript.map((entry) => [entry.turnId, entry.item.itemId])).toEqual([
@@ -448,8 +464,8 @@ describe('sanitizeImportedSession', () => {
     )
   })
 
-  it("takes the caller's mode and model, and starts with nothing privileged", () => {
-    const session = sanitize(importedDoc())
+  it("takes the caller's mode and model, and starts with nothing privileged", async () => {
+    const session = sanitize(await importedDoc())
     expect(session).toMatchObject({
       imported: true,
       workspaceRoot: '/work/here',
@@ -477,8 +493,8 @@ describe('sanitizeImportedSession', () => {
     expect(parseStoredSession(structuredClone(session))).toMatchObject({ ok: true })
   })
 
-  it('hands the model each turn as untrusted data in a user message, the note first', () => {
-    const session = sanitize(importedDoc())
+  it('hands the model each turn as untrusted data in a user message, the note first', async () => {
+    const session = sanitize(await importedDoc())
     expect(session.replay.map((entry) => entry.turnId)).toEqual([
       'imported-turn-0',
       'imported-turn-1',
@@ -514,12 +530,12 @@ describe('sanitizeImportedSession', () => {
     ])
   })
 
-  it('keeps an untitled file untitled, and a name as sent', () => {
-    expect(sanitize(importedDoc())).not.toHaveProperty('name')
-    const named = buildSessionExport(source([userItem('u', 'x')], 'Moved over'), {
+  it('keeps an untitled file untitled, and a name as sent', async () => {
+    expect(sanitize(await importedDoc())).not.toHaveProperty('name')
+    const named = await buildSessionExport(source([userItem('u', 'x')], 'Moved over'), {
       redact: true,
       ...NO_ROOTS,
-    }).doc
-    expect(sanitize(named).name).toBe('Moved over')
+    })
+    expect(sanitize(named.doc).name).toBe('Moved over')
   })
 })
