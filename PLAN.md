@@ -222,10 +222,23 @@ quality`) and as a CI job.
 | `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
 | `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
 | `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
 the script and changes with it, with a CHANGELOG entry.
+
+**Amendment (2026-09-30): one English fallback for the Node bundles.**
+The build emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
+the Model API backend, the checkpoint store and the ACP agent require it
+beside their bundles; each still owns its mutable installed-language state.
+The browser and integration-test bundles retain their inline fallback. The
+development build writes the table beside the extension, so the integration
+host needs no additional `.vscode-test.mjs` launch option. The VSIX allowlist,
+ACP packager and both CI member lists include it. Existing bundle caps stay
+unchanged; the table has its own 100 KiB cap and split checks. Runtime proof
+and every before/after size are in
+[`docs/certification/shared-ui-text.md`](docs/certification/shared-ui-text.md).
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and

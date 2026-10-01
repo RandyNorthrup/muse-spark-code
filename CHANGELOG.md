@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
+
 ## [0.10.0] - 2026-09-30
 
 ### Highlights
