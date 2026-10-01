@@ -328,8 +328,14 @@ describe('manual revert verification notices', () => {
           readFile: (file) => readFile(file, 'utf8'),
           hasUnsavedChanges: () => false,
           beginEdit: admitted,
-          writeFile,
-          deleteFile: unlink,
+          writeFile: async (file, content, assertCanWrite) => {
+            assertCanWrite()
+            await writeFile(file, content)
+          },
+          deleteFile: async (file, assertCanWrite) => {
+            assertCanWrite()
+            await unlink(file)
+          },
           openDiff: vi.fn(),
           log: new FakeLogOutputChannel(),
         })

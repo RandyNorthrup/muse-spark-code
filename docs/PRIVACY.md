@@ -28,7 +28,9 @@ security notes for contributors are in `PLAN.md` §9.
   untracked files' names, the branch name and, for one commit, its
   message. Environment files, keys and credentials (`.env*`, `*.pem`,
   `*.key`, `id_rsa`, `credentials.json` and the like) are left out of
-  the diff and only named. `/review <what to look at>` sends only your
+  the diff and only named. Git metadata is omitted from Reviewer system
+  instructions and remains in the review turn's untrusted material block.
+  `/review <what to look at>` sends only your
   words. The review pane, its Accept and Revert, stay on your machine; a
   comment on a line is a message, with the changed lines around it. The
   `/review` you request is part of your own Model API turn (PLAN.md D49);

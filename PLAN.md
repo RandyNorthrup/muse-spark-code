@@ -241,8 +241,8 @@ unchanged; the table has its own 100 KiB cap and split checks. Runtime proof
 and every before/after size are in
 [`docs/certification/shared-ui-text.md`](docs/certification/shared-ui-text.md).
 M70c also keeps `dist/review.js` lazy with its 50 KiB cap and checks its shared
-table import. Current M70c build: extension 522.4/600 KiB, Model API 331.8/400,
-review 40.8/50, checkpoint store 113.3/225, UI text 77.5/100, ACP 711.8/850;
+table import. Current M70c build: extension 522.6/600 KiB, Model API 331.9/400,
+review 41.0/50, checkpoint store 113.3/225, UI text 77.5/100, ACP 711.8/850;
 focused proof in `docs/certification/m70.md`.
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
@@ -7803,6 +7803,16 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   Sole and mixed corrupt patches are counted honestly; the real bundle test
   now requires refusal. Four before/mutated failures, 372 restored owning
   tests, byte-exact SHA-256. No new UI key or parser shape.
+- **M70c closure.** All five RV70 findings reproduced, repaired and drilled;
+  nine source/compiled guard mutations rejected with exact SHA-256 restoration
+  (two shared-table checks; mode wait, session fence, dirty predicate and its
+  two I/O callers; system metadata; malformed description). Required static gates/build pass,
+  plus passing evidence for all 840 tests in 11 owning files. The combined
+  run's native-picker timeout and UI worker startup failure are retained;
+  complete material/UI files pass alone after bounded fixture preparation.
+  No timeout, threshold, ignore, rule level or name filter changed. Full
+  quality, installed-editor/rig certification and the new M72 merge remain
+  the lead's work. Detailed receipts in `docs/certification/m70.md`.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:

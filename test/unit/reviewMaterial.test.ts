@@ -309,16 +309,21 @@ describe('review collection ownership and trust', () => {
     expect(runGit).not.toHaveBeenCalled()
   })
 
-  it.each([false, true])(
-    'checks actual git admission after a held base picker: allowed=%s',
-    async (isKeptAllowed) => {
+  describe.each([false, true])('held native base picker, allowed=%s', (isKeptAllowed) => {
+    const entered = Promise.withResolvers<undefined>()
+    const picked = Promise.withResolvers<string | undefined>()
+    const runGit = vi.fn(processGitRunner())
+    let isAllowed = true
+    let collecting: Promise<ReviewCollection> | undefined
+    let callsBeforeChoice = 0
+    let callsAfterChoice = 0
+    let found: ReviewCollection | undefined
+
+    beforeAll(async () => {
       const folder = await repository(`picker-owner-${String(isKeptAllowed)}`)
       await commitFile(folder, 'a.ts', 'export const a = 1\n', 'base')
       git(folder, ['checkout', '-q', '-b', 'feature'])
       await commitFile(folder, 'a.ts', 'export const a = 2\n', 'change')
-      const entered = Promise.withResolvers<undefined>()
-      const picked = Promise.withResolvers<string | undefined>()
-      const runGit = vi.fn(processGitRunner())
       const collect = createReviewCollector({
         workspaceRoot: folder,
         runGit,
@@ -327,23 +332,39 @@ describe('review collection ownership and trust', () => {
           return picked.promise
         },
       })
-      let isAllowed = true
-      const collecting = collect({ scope: 'branch', focus: 'general' }, () => isAllowed)
-      await entered.promise
-      const callsBeforeChoice = runGit.mock.calls.length
+      collecting = collect({ scope: 'branch', focus: 'general' }, () => isAllowed)
+      await Promise.race([
+        entered.promise,
+        (async () => {
+          await collecting
+          throw new Error('native review ended before its base picker')
+        })(),
+      ])
+      callsBeforeChoice = runGit.mock.calls.length
       isAllowed = isKeptAllowed
       picked.resolve('main')
-      const found = await collecting
+      found = await collecting
+      callsAfterChoice = runGit.mock.calls.length
+    })
+
+    afterAll(() => {
+      picked.resolve(undefined)
+    })
+
+    it('checks actual git admission after the held choice', () => {
+      if (found === undefined) {
+        throw new Error('native review did not finish')
+      }
       if (isKeptAllowed) {
         expect(found.kind).toBe('material')
         expect(material(found).diff).toContain('+export const a = 2')
-        expect(runGit.mock.calls.length).toBeGreaterThan(callsBeforeChoice)
+        expect(callsAfterChoice).toBeGreaterThan(callsBeforeChoice)
       } else {
         expect(found).toEqual({ kind: 'cancelled' })
-        expect(runGit).toHaveBeenCalledTimes(callsBeforeChoice)
+        expect(callsAfterChoice).toBe(callsBeforeChoice)
       }
-    },
-  )
+    })
+  })
 
   it('starts no subsequent git call after a running git query loses its owner', async () => {
     const query = Promise.withResolvers<string>()

@@ -7580,14 +7580,16 @@ describe('ConversationController: review (M70)', () => {
   it.each([false, true])(
     'counts an unreadable patch as omitted, valid sibling=%s (RV70 finding 5)',
     async (hasValidEdit) => {
+      const writes = vi.fn(() => Promise.resolve())
+      const deletions = vi.fn(() => Promise.resolve())
       const reader = new EditReview({
         platform: 'linux',
         workspaceRoot: '/ws',
         readFile: () => Promise.resolve(undefined),
         realPath: (file) => Promise.resolve(file),
         hasUnsavedChanges: () => false,
-        writeFile: () => Promise.resolve(),
-        deleteFile: () => Promise.resolve(),
+        writeFile: writes,
+        deleteFile: deletions,
         openDiff: () => Promise.resolve(),
         log: new FakeLogOutputChannel(),
       })
@@ -7625,6 +7627,8 @@ describe('ConversationController: review (M70)', () => {
         throw new Error('review pane did not answer')
       }
       expect(answer.files.map((file) => file.path)).toEqual(hasValidEdit ? ['notes.md'] : [])
+      expect(writes).not.toHaveBeenCalled()
+      expect(deletions).not.toHaveBeenCalled()
       t.controller.dispose()
     },
   )
