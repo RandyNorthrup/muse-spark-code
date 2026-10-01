@@ -365,8 +365,42 @@ function byText(left: string, right: string): number {
   return left.localeCompare(right)
 }
 
-function oldestFirst<T extends { readonly createdAt: number }>(records: readonly T[]): T[] {
-  return records.toSorted((left, right) => left.createdAt - right.createdAt)
+/** A turn of a conversation, with where its start and end fall among the conversation's turns. */
+interface TurnSpan {
+  readonly record: CheckpointRecord
+  readonly start: number
+  /** Undefined: its end was not seen. */
+  readonly end: number | undefined
+  /** Numbered (`sequence`), or a 0.10.0 candidate's record, which only its clock places. */
+  readonly isNumbered: boolean
+}
+
+/**
+ * A conversation's turns in the order they started. A 0.10.0 candidate's
+ * records have no number: those builds wrote them before this one ran, so
+ * they come first, in the order of their clock (all they have).
+ */
+function inTurnOrder(records: readonly CheckpointRecord[]): readonly TurnSpan[] {
+  const spans = records.map((record): TurnSpan =>
+    record.sequence === undefined
+      ? { record, start: record.createdAt, end: record.endedAt, isNumbered: false }
+      : { record, start: record.sequence, end: record.endSequence, isNumbered: true },
+  )
+  return spans.toSorted((left, right) =>
+    left.isNumbered === right.isNumbered
+      ? left.start - right.start
+      : Number(left.isNumbered) - Number(right.isNumbered),
+  )
+}
+
+/** The number the conversation's next turn start or end takes: one past every one recorded. */
+function nextTurnNumber(records: readonly CheckpointRecord[], sessionId: string): number {
+  const numbers = records.flatMap((record) =>
+    record.sessionId === sessionId
+      ? [record.sequence, record.endSequence].filter((value) => value !== undefined)
+      : [],
+  )
+  return Math.max(0, ...numbers) + 1
 }
 
 /** The task once the one before it settled, whichever way. */
@@ -1409,32 +1443,50 @@ export class CheckpointStore {
   }
 
   /**
-   * Paths these turns did not change themselves: between them and after the
-   * last, and every path another conversation's turn changed while one of
-   * them ran. A turn whose end was not seen counts everything up to the next
-   * capture as its own; those paths are `uncertain`.
+   * Paths these turns did not change themselves: in a gap between them and
+   * after the last, and every path another conversation's turn changed while
+   * one of them ran. Turns that overlap (a subagent's turn that started
+   * before its parent's ended) make one stretch, which ends where the last of
+   * them to end did; only a gap between stretches is outside them. A turn
+   * whose end was not seen counts everything up to the next capture as its
+   * own; when it closes a stretch, those paths are `uncertain`.
    */
   private async changedOutside(
     setup: Setup,
-    turns: readonly CheckpointRecord[],
+    turns: readonly TurnSpan[],
     currentTree: string,
   ): Promise<{ readonly changed: ReadonlySet<string>; readonly uncertain: ReadonlySet<string> }> {
     const changed = new Set<string>()
     const uncertain = new Set<string>()
-    for (const [index, turn] of turns.entries()) {
-      const next = turns[index + 1]?.start.tree ?? currentTree
-      if (turn.end === undefined) {
-        const sinceStart = await this.diff(setup.shadow, turn.start.tree, next)
-        for (const change of sinceStart) {
-          uncertain.add(change.path)
-        }
-        continue
-      }
-      const sinceEnd = await this.diff(setup.shadow, turn.end.tree, next)
-      for (const change of sinceEnd) {
-        changed.add(change.path)
+    const gapAfter = async (closing: CheckpointRecord, nextTree: string) => {
+      const found = closing.end === undefined ? uncertain : changed
+      const since = await this.diff(setup.shadow, closing.end?.tree ?? closing.start.tree, nextTree)
+      for (const change of since) {
+        found.add(change.path)
       }
     }
+    // The turn whose end closes the stretch so far, and where that end falls.
+    let closing: { readonly turn: TurnSpan; readonly end: number } | undefined
+    for (const [index, turn] of turns.entries()) {
+      // A turn that starts where the stretch ended follows it, and the gap is
+      // checked: an equal number means the end was numbered before the start
+      // was recorded, and a candidate's equal tick may hide an edit between.
+      const isInStretch = closing?.turn.isNumbered === turn.isNumbered && turn.start < closing.end
+      if (closing !== undefined && !isInStretch) {
+        await gapAfter(closing.turn.record, turn.record.start.tree)
+        closing = undefined
+      }
+      // An end not seen falls, as far as is known, at the next turn's start.
+      const next = turns[index + 1]
+      const end = turn.end ?? (next?.isNumbered === turn.isNumbered ? next.start : Infinity)
+      if (closing === undefined || end > closing.end) {
+        closing = { turn, end }
+      }
+    }
+    if (closing !== undefined) {
+      await gapAfter(closing.turn.record, currentTree)
+    }
+    const records = turns.map((turn) => turn.record)
     const now = this.deps.now()
     // A turn's time: from its start capture to its end; to now while it
     // runs; an end an earlier window never saw is taken as its start.
@@ -1442,13 +1494,13 @@ export class CheckpointStore {
       start: record.createdAt,
       end: record.endedAt ?? (this.isOpen(setup, record) ? now : record.createdAt),
     })
-    const sessionId = turns[0]?.sessionId
+    const sessionId = records[0]?.sessionId
     const overlapping = setup.records.checkpoints.filter((other) => {
       if (other.sessionId === sessionId) {
         return false
       }
       const theirs = windowOf(other)
-      return turns.some((turn) => {
+      return records.some((turn) => {
         const ours = windowOf(turn)
         // Turns that touch at one tick count as overlapping: the clock is in
         // milliseconds and two windows' clocks are not exact, so an edit may
@@ -1847,6 +1899,7 @@ export class CheckpointStore {
         end: { tree: ended.tree, coverage: storedCoverage(ended.coverage) },
       }),
       endedAt,
+      endSequence: nextTurnNumber(setup.records.checkpoints, record.sessionId),
       ignored: { changes: [...kept], isComplete: isScanWhole && kept.length === changes.length },
     }
     const trees = [
@@ -2158,6 +2211,7 @@ export class CheckpointStore {
           sessionId,
           turnId,
           createdAt: snapshot.createdAt,
+          sequence: nextTurnNumber(setup.records.checkpoints, sessionId),
           start: {
             tree: snapshot.tree,
             coverage: storedCoverage(snapshot.coverage),
@@ -2323,12 +2377,13 @@ export class CheckpointStore {
       if (blocking !== undefined) {
         return { ok: false, reason: blocking }
       }
-      const turns = oldestFirst(
-        setup.records.checkpoints.filter(
-          (record) =>
-            record.sessionId === request.sessionId && record.createdAt >= checkpoint.createdAt,
-        ),
+      // The checkpoint's turn and every turn that started after it, in the
+      // conversation's own order: the clock can give an earlier turn the
+      // same millisecond, or a later one an earlier time.
+      const ordered = inTurnOrder(
+        setup.records.checkpoints.filter((record) => record.sessionId === request.sessionId),
       )
+      const turns = ordered.slice(ordered.findIndex((turn) => turn.record.id === checkpoint.id))
       const capture = await this.captureNow(setup, false)
       if (!capture.ok) {
         return {
@@ -2341,7 +2396,7 @@ export class CheckpointStore {
       const current = capture.snapshot
       const changes = await this.diff(setup.shadow, checkpoint.start.tree, current.tree)
       const outside = await this.changedOutside(setup, turns, current.tree)
-      const ignoredTurns = turns.map((record) => record.ignored?.changes ?? [])
+      const ignoredTurns = turns.map((turn) => turn.record.ignored?.changes ?? [])
       const currentStat = new Map<string, FileStat | null>()
       for (const change of ignoredTurns.flat()) {
         const stat = await regularFileStat(this.absoluteOf(change.path))
@@ -2380,7 +2435,7 @@ export class CheckpointStore {
         changed,
         refused: [...plan.refused, ...refused, ...applied.refused],
         unsure: plan.unsure.filter((unsurePath) => changed.includes(unsurePath)),
-        isIgnoredIncomplete: turns.some((record) => record.ignored?.isComplete !== true),
+        isIgnoredIncomplete: turns.some((turn) => turn.record.ignored?.isComplete !== true),
         isRedoSpent: false,
       }
     })

@@ -1,15 +1,63 @@
+import { createHash } from 'node:crypto'
+import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   captured,
+  done,
+  type Harness,
   harness,
   read,
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   restoreOutcome,
+  shadowGit,
+  turn,
   write,
 } from './helpers/checkpointHarness'
 
 afterEach(removeCheckpointFolders)
+
+/**
+ * Rewrites a turn's stored record as a 0.10.0 candidate wrote it: the same
+ * record with no turn numbers.
+ */
+function asWrittenUnnumbered(storage: string, sessionId: string, turnId: string): void {
+  const id = createHash('sha256')
+    .update(JSON.stringify([sessionId, turnId]))
+    .digest('hex')
+  const ref = `refs/muse-spark/record/checkpoint-${id}`
+  const json = shadowGit(storage, ['cat-file', '-p', `${ref}:record.json`])
+  const unnumbered = JSON.stringify(JSON.parse(json), (key, value: unknown) =>
+    key === 'sequence' || key === 'endSequence' ? undefined : value,
+  )
+  const blob = shadowGit(storage, ['hash-object', '-w', '--stdin'], unnumbered).trim()
+  const entries = shadowGit(storage, ['ls-tree', ref])
+    .split('\n')
+    .filter((line) => line !== '')
+    .map((line) => (line.endsWith('\trecord.json') ? `100644 blob ${blob}\trecord.json` : line))
+  const tree = shadowGit(storage, ['mktree'], `${entries.join('\n')}\n`).trim()
+  shadowGit(storage, ['update-ref', ref, tree])
+}
+
+/**
+ * Two turns of one conversation with the user's edit between them, and
+ * `between` run before the second starts: restoring the first puts both
+ * turns' edits back and keeps the user's, named.
+ */
+async function expectUserEditKept(h: Harness, between: () => void): Promise<void> {
+  for (const name of ['a', 'b', 'gap']) {
+    await write(h.root, `${name}.txt`, `${name}0\n`)
+  }
+  await turn(h, 'first', () => write(h.root, 'a.txt', 'a1\n'))
+  await write(h.root, 'gap.txt', 'gap-user\n')
+  between()
+  await turn(h, 'second', () => write(h.root, 'b.txt', 'b1\n'))
+  const outcome = done(await restoreOutcome(h.store, 'first'))
+  expect(outcome.refused).toEqual([{ path: 'gap.txt', reason: 'changedAfter' }])
+  expect(await read(h.root, 'gap.txt')).toBe('gap-user\n')
+  expect(await read(h.root, 'a.txt')).toBe('a0\n')
+  expect(await read(h.root, 'b.txt')).toBe('b0\n')
+}
 
 describe('turns in two windows that touch at one clock tick (M72)', () => {
   it(
@@ -36,6 +84,97 @@ describe('turns in two windows that touch at one clock tick (M72)', () => {
       // B's own edit goes back; A's edit, which B's end capture holds, stays.
       expect(await read(h.root, 'y.txt')).toBe('y0\n')
       expect(await read(h.root, 'x.txt')).toBe('x1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+describe('turns of one conversation that overlap (M72)', () => {
+  it(
+    'restores a parent turn’s own edits made after its subagent’s turn started, and still guards the gap after both',
+    async () => {
+      let clock = 1000
+      const h = await harness({ now: () => clock })
+      for (const name of ['a', 'b', 'c', 'gap', 'n']) {
+        await write(h.root, `${name}.txt`, `${name}0\n`)
+      }
+      // The parent's turn starts and edits a.
+      await h.store.record('s1', 'parent', await captured(h.store))
+      await write(h.root, 'a.txt', 'a1\n')
+      // Its subagent's turn starts in the same conversation while the parent runs.
+      clock = 2000
+      await h.store.record('s1', 'child', await captured(h.store))
+      // The parent edits b after the subagent started, then ends.
+      await write(h.root, 'b.txt', 'b1\n')
+      clock = 3000
+      await h.store.endTurn('s1', 'parent')
+      // The subagent outlives its parent: it edits c, then ends.
+      await write(h.root, 'c.txt', 'c1\n')
+      clock = 4000
+      await h.store.endTurn('s1', 'child')
+      // The user edits a file between the turns; then the next turn runs.
+      await write(h.root, 'gap.txt', 'gap-user\n')
+      clock = 5000
+      await turn(h, 'next', () => write(h.root, 'n.txt', 'n1\n'))
+      const outcome = done(await restoreOutcome(h.store, 'parent'))
+      // Only the user's edit between the turns is outside them: it stays, named.
+      expect(outcome.refused).toEqual([{ path: 'gap.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'gap.txt')).toBe('gap-user\n')
+      for (const name of ['a', 'b', 'c', 'n']) {
+        expect(await read(h.root, `${name}.txt`)).toBe(`${name}0\n`)
+      }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+describe('turns of one conversation the clock cannot order (M72)', () => {
+  it.each([
+    { when: 'in the same millisecond', first: 1000, second: 1000 },
+    { when: 'after the clock went back', first: 5000, second: 1000 },
+  ])(
+    'restores only the later turn’s ignored-file change when the turns start $when',
+    async ({ first, second }) => {
+      let clock = first
+      const h = await harness({ now: () => clock })
+      await write(h.root, '.gitignore', '*.log\n')
+      await write(h.root, 'out.log', 'one\n')
+      await turn(h, 'first', async () => {
+        await h.store.beforeToolWrite(path.join(h.root, 'out.log'))
+        await write(h.root, 'out.log', 'two two\n')
+      })
+      clock = second
+      await turn(h, 'second', async () => {
+        await h.store.beforeToolWrite(path.join(h.root, 'out.log'))
+        await write(h.root, 'out.log', 'three three three\n')
+      })
+      const outcome = done(await restoreOutcome(h.store, 'second'))
+      // The file goes back to what the second turn found, not to what the first did.
+      expect(outcome.refused).toEqual([])
+      expect(await read(h.root, 'out.log')).toBe('two two\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'still guards a user’s edit between two turns when the clock went back between them',
+    async () => {
+      let clock = 5000
+      const h = await harness({ now: () => clock })
+      await expectUserEditKept(h, () => {
+        clock = 1000
+      })
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'orders a turn a 0.10.0 candidate recorded (no number) by its clock, before the numbered turns after it',
+    async () => {
+      const h = await harness()
+      await expectUserEditKept(h, () => {
+        asWrittenUnnumbered(h.storage, 's1', 'first')
+      })
     },
     REAL_GIT_TIMEOUT_MS,
   )
