@@ -86,21 +86,6 @@ const hostOptions = {
   external: ['vscode'],
 }
 
-// The Model API bundle's entry installs the activation bundle's display
-// table before anything reads it (`setUiText`, modelApiEntry.ts), so the
-// English copy `UI_TEXT` starts from is never read there: the bundle leaves
-// it out (PLAN.md D6, M76). 72 KiB of the bundle was that copy.
-/** @type {import('esbuild').Plugin} */
-const installedTable = {
-  name: 'installed-table',
-  setup(build) {
-    build.onLoad({ filter: /src[\\/]shared[\\/]l10n[\\/]en\.ts$/ }, () => ({
-      contents: 'export const EN = {}',
-      loader: 'ts',
-    }))
-  },
-}
-
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
@@ -109,7 +94,6 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
-  plugins: [installedTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */

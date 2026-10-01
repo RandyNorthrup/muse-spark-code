@@ -278,33 +278,6 @@ instead.
   stops carrying one of them, or when a file of the folder is on neither the
   lazy list nor the allowed list above.
 
-**Amendment (M76, 2026-09-30): the Model API bundle carries no English
-table.** At the M72 candidate (`1fd98aaf`) `dist/modelApi.js` was 398.4 KiB of
-its 400. M76's code adds 10.4 KiB (408.8 KiB), and making its catalogue loader
-a bundle of its own would have saved about 4 KiB of that, so the milestone did
-not fit. What did not need to be there is the English table
-(`src/shared/l10n/en.ts`, 72.2 KiB of this bundle): `UI_TEXT` starts as a copy
-of it, and the factory's first statement (`setUiText`, `modelApiEntry.ts`)
-replaces every key with the table the activation bundle, or the ACP agent,
-hands over, before anything reads it.
-
-- **What changed.** The build stubs `en.ts` for this bundle alone
-  (`installedTable` in `scripts/build.mjs`; the unit tests' bundle helper
-  builds the same), so `UI_TEXT` is empty there until the factory fills it.
-  The bundle is 326.2 KiB on the candidate and 337.0 KiB with M76. No budget
-  changes: 400 KiB stays, with 63 KiB of room for the milestones still to
-  come.
-- **What guards it.** `scripts/check-bundle-split.mjs` fails when the bundle
-  carries more than 64 bytes of `en.ts`, or when the activation bundle stops
-  carrying it; a bundle test proves that no English sentence is in the file
-  and that the host still speaks English from the table it is handed. A module
-  reading `UI_TEXT` at load would read nothing there, and the localization
-  gate already refuses that.
-- **Not taken.** The same stub for `dist/checkpointStore.js`, whose entry
-  installs a table the same way but which has room (189.1 of 225 KiB), and for
-  `dist/acp.js`, whose agent never installs a table and so needs the English
-  copy it carries.
-
 **Amendment (M79, 2026-09-28): the plan reader is a bundle of its own.**
 Reading a plan with the panel's own Markdown grammar (PR #53 review) takes
 `mdast-util-from-markdown`, `micromark-extension-gfm` and `mdast-util-gfm`:
@@ -8645,11 +8618,17 @@ extension's own storage, never the workspace's `.git`.
   Codex's formats through `parseAgentFile`; neither is part of this
   milestone.
 - **Decisions taken while building.**
+  - **Lead decision 2, resumed 2026-10-01.** Withdraw the empty English
+    table substitution and its test/gate/docs as a separate commit. Merge
+    `build/shared-ui-text` (`44d920fd`) and use its shared `dist/uiText.js`
+    runtime fallback for every Node bundle and the ACP package. No other
+    build-layout change or cap increase is authorized. Refresh the lane
+    checks after joining the current M72 candidate.
   - **Final lane verification 2026-09-30.** Merged the current candidate
     `8d59fb5c` in `486f33c2`. All required lane gates passed: five typecheck
     projects, changed-file lint/format, dead code, duplication, localization,
-    host API, build and 891 tests in 15 non-live files. Nineteen intentional
-    failures proved the guards and bundle gate; exact SHA-256 restoration
+    host API, build and 891 tests in 15 non-live files. Seventeen retained
+    intentional failures proved the feature guards; exact SHA-256 restoration
     and green reruns are in `docs/certification/m76.md`. Final sizes are
     extension 595.8/600 KiB, Model API 337.4/400 and checkpoint store
     192.7/225. The handoff was restored and read on resume; full quality,

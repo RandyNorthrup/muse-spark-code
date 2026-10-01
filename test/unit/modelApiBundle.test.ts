@@ -184,21 +184,6 @@ describe('the Model API bundle (M57)', () => {
     await t.manager.dispose()
   })
 
-  it('leaves the English table out and speaks from the table it is handed (D6, M76)', async () => {
-    // The production build stubs the English table the entry replaces at
-    // start: none of its sentences is in the file, and the host's own
-    // sentences still come out, from the table the manager hands over.
-    const bundleText = readFileSync(built.file, 'utf8')
-    expect(bundleText).not.toContain(EN.goalObjectiveMissing)
-    expect(bundleText).not.toContain(EN.modelApiBundleUnavailable)
-    const t = managerFor(built.file)
-    const session = await startSession(t.manager)
-    await expect(session.controlGoal({ verb: 'set', objective: ' ' })).rejects.toThrow(
-      `goal/set: ${EN.goalObjectiveMissing}`,
-    )
-    await t.manager.dispose()
-  })
-
   it('refuses a goal command with an error the controller’s guard knows, not its class', async () => {
     const t = managerFor(built.file)
     const session = await startSession(t.manager)
