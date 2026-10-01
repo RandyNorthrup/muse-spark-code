@@ -61,6 +61,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Review admission waits for an ordinary permission-mode request to settle;
+  a refused request cannot launch a review under the preceding backend mode.
+
 - The Node bundles share their English fallback as `dist/uiText.js`, while
   installed-language state stays local to each bundle. The VSIX and ACP
   tarball include it, and CI checks both package member lists. Existing

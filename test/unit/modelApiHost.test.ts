@@ -1150,9 +1150,15 @@ describe('Model API turn checkpoint admission (M72)', () => {
         hasGit: () => true,
         isEnabled: () => true,
       })
+      const admitted = Promise.withResolvers<undefined>()
       const t = setup({
-        beforeTurnRuns: (sessionId, turnId) =>
-          prepareCheckpointTurn(port, sessionId, turnId, h.log),
+        beforeTurnRuns: async (sessionId, turnId) => {
+          try {
+            await prepareCheckpointTurn(port, sessionId, turnId, h.log)
+          } finally {
+            admitted.resolve(undefined)
+          }
+        },
         afterTurnRuns: async (sessionId, turnId) => {
           await port.endTurn(sessionId, turnId)
           await port.markTurn(`${sessionId}\0${turnId}`, false)
@@ -1187,6 +1193,8 @@ describe('Model API turn checkpoint admission (M72)', () => {
         const pending = await closing.beforeTurn(session.sessionId)
         const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
         closing.accepted(pending, started.turnId, true)
+        // The native checkpoint must settle before polling the fake HTTP call.
+        await admitted.promise
         await vi.waitFor(() => {
           expect(t.api.responseBodies()).toHaveLength(1)
         })

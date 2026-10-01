@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync } from 'node:fs'
-import { mkdir, rename, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, rename, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -7440,21 +7440,34 @@ describe('ConversationController: review (M70)', () => {
     return { ...t, collect }
   }
 
-  it.each([
-    { phase: 'Host', willRetarget: false },
-    { phase: 'Host', willRetarget: true },
-    { phase: 'Plan', willRetarget: false },
-    { phase: 'Plan', willRetarget: true },
-  ] as const)(
-    'keeps native material ownership through held $phase admission, retarget=$willRetarget',
-    async ({ phase, willRetarget }) => {
-      const folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm70-send-root-')))
-      try {
-        const roots = await aliasedReviewRepositories(folder, 'admission')
-        const entered = Promise.withResolvers<undefined>()
-        const released = Promise.withResolvers<undefined>()
+  describe('native material admission', () => {
+    let folder: string
+    let roots: Awaited<ReturnType<typeof aliasedReviewRepositories>> | undefined
+    beforeAll(async () => {
+      folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm70-send-root-')))
+      roots = await aliasedReviewRepositories(folder, 'admission')
+    })
+    afterAll(async () => {
+      await removeFolder(folder)
+    })
+
+    describe.each([
+      { phase: 'Host', willRetarget: false },
+      { phase: 'Host', willRetarget: true },
+      { phase: 'Plan', willRetarget: false },
+      { phase: 'Plan', willRetarget: true },
+    ] as const)('held $phase admission, retarget=$willRetarget', ({ phase, willRetarget }) => {
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      let t: ReturnType<typeof reviewSetup> | undefined
+      let reviewing: Promise<void> | undefined
+
+      beforeAll(async () => {
+        if (roots === undefined) {
+          throw new Error('native admission repositories were not prepared')
+        }
         let shouldHold = false
-        const t = reviewSetup({
+        const current = reviewSetup({
           workspaceRoot: roots.alias,
           beforeEnsureHost: () => {
             if (phase !== 'Host' || !shouldHold) {
@@ -7464,65 +7477,88 @@ describe('ConversationController: review (M70)', () => {
             return released.promise
           },
         })
-        await t.send('warm', 'existing physical conversation')
-        t.finishTurn()
+        t = current
+        await current.send('warm', 'existing physical conversation')
+        current.finishTurn()
         await settle()
-        const native = createReviewCollector({
-          workspaceRoot: roots.alias,
-          runGit: processGitRunner(),
-          pickOne: vi.fn(),
-        })
-        t.collect.mockImplementationOnce(native)
+        current.collect.mockImplementationOnce(
+          createReviewCollector({
+            workspaceRoot: roots.alias,
+            runGit: processGitRunner(),
+            pickOne: vi.fn(),
+          }),
+        )
         shouldHold = true
         if (phase === 'Plan') {
-          t.server.silence('session/setApprovalMode')
-          const write = t.server.write.bind(t.server)
-          vi.spyOn(t.server, 'write').mockImplementation(async (frame) => {
+          current.server.silence('session/setApprovalMode')
+          const write = current.server.write.bind(current.server)
+          vi.spyOn(current.server, 'write').mockImplementation(async (frame) => {
             await write(frame)
-            if (approvalModes(t).length > 0) {
+            if (approvalModes(current).length > 0) {
               entered.resolve(undefined)
             }
           })
         }
-        const reviewing = startReview(t)
-        // Native Git can outlast a polling interval; await the actual held
-        // admission event within the existing test deadline before retargeting.
-        await entered.promise
+        // Arrange a real native review waiting at admission. The test's
+        // action retargets its folder and then releases that same request.
+        reviewing = startReview(current)
+        await Promise.race([
+          entered.promise,
+          (async () => {
+            await reviewing
+            throw new Error(`Review ended before ${phase} admission`)
+          })(),
+        ])
+      })
+
+      afterAll(async () => {
+        released.resolve(undefined)
+        t?.controller.dispose()
+        if (roots === undefined) {
+          return
+        }
+
+        await unlink(roots.alias)
+        await symlink(roots.first, roots.alias, process.platform === 'win32' ? 'junction' : 'dir')
+      })
+
+      it('keeps native material ownership through admission', async () => {
+        if (roots === undefined || t === undefined || reviewing === undefined) {
+          throw new Error('native review was not prepared')
+        }
+        const current = t
         if (phase === 'Plan') {
-          expect(approvalModes(t)).toEqual(['denyUnmatched'])
+          expect(approvalModes(current)).toEqual(['denyUnmatched'])
         }
         if (willRetarget) {
           roots.retarget()
         }
         released.resolve(undefined)
         if (phase === 'Plan') {
-          answerModeRequest(t, 0)
+          answerModeRequest(current, 0)
           if (willRetarget) {
             await vi.waitFor(() => {
-              expect(approvalModes(t)).toEqual(['denyUnmatched', 'promptUnmatched'])
+              expect(approvalModes(current)).toEqual(['denyUnmatched', 'promptUnmatched'])
             })
-            answerModeRequest(t, 1)
+            answerModeRequest(current, 1)
           }
         }
         await reviewing
-        expect(t.server.requestsFor('turn/start')).toHaveLength(willRetarget ? 1 : 2)
+        expect(current.server.requestsFor('turn/start')).toHaveLength(willRetarget ? 1 : 2)
         if (willRetarget) {
-          expect(t.surface.posted).toContainEqual({
+          expect(current.surface.posted).toContainEqual({
             type: 'sendFailed',
             localId: 'r1',
             reason: UI_TEXT.turnStoppedByRestart,
           })
         } else {
-          expect(JSON.stringify(t.server.requestsFor('turn/start')[1]?.params)).toContain(
+          expect(JSON.stringify(current.server.requestsFor('turn/start')[1]?.params)).toContain(
             'OWNED_A_EDIT',
           )
         }
-        t.controller.dispose()
-      } finally {
-        await removeFolder(folder)
-      }
-    },
-  )
+      })
+    })
+  })
 
   function paneSetup(
     describe: ConversationDeps['editReview']['describe'],
@@ -7538,6 +7574,35 @@ describe('ConversationController: review (M70)', () => {
       },
     })
   }
+
+  it.each([true, false])(
+    'waits for an ordinary Plan request before review admission, accepted=%s',
+    async (isAccepted) => {
+      const t = reviewSetup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: true })
+      await t.send('warm', 'hello')
+      t.finishTurn()
+      await settle()
+      t.server.requests.length = 0
+      t.server.silence('session/setApprovalMode')
+      const choosing = t.controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+      await vi.waitFor(() => {
+        expect(approvalModes(t)).toEqual(['denyUnmatched'])
+      })
+      const reviewing = startReview(t)
+      await settle()
+      const premature = t.server.requestsFor('turn/start').length
+      answerModeRequest(t, 0, isAccepted)
+      await Promise.all([choosing, reviewing])
+      expect(premature).toBe(0)
+      expect(t.server.requestsFor('turn/start')).toHaveLength(isAccepted ? 1 : 0)
+      if (!isAccepted) {
+        expect(t.surface.posted).toContainEqual(
+          expect.objectContaining({ type: 'sendFailed', localId: 'r1' }),
+        )
+      }
+      t.controller.dispose()
+    },
+  )
 
   /** Hold both restore writes, while recording the fake backend's applied mode. */
   async function heldBypassRestore() {

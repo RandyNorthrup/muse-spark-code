@@ -824,6 +824,8 @@ Review what the agent did before it lands, on both backends.
   checkpoint like a message, so another window refuses a file restore while
   it runs. A message you send while a review is starting waits for it and
   then goes into the review turn, and only one review starts at a time.
+  A pending permission-mode request settles before review admission; a refused
+  request refuses that review instead of trusting the panel's optimistic label.
 
 ## Scheduled prompts (Model API)
 

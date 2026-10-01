@@ -7770,6 +7770,12 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   byte-exact SHA-256 restoration. Run the two reported failing suites alone and
   resolve any isolated failures without changing deadlines. No M72 merge this
   round; full quality and installed-editor checks remain the lead's gates.
+- **RV70 finding 1 verified (M70c).** Reviews await the existing ordinary
+  mode-settlement lane, including refusal. Controller guard drill: 329 green,
+  two intended failures, 329 restored with matching SHA-256. Isolated native
+  controller fixtures now arrange held admission before the retarget action;
+  retained Model API checkpoint test waits for actual admission (331 pass).
+  Deadlines and assertions unchanged; proof in `docs/certification/m70.md`.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:

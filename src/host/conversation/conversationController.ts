@@ -3950,6 +3950,10 @@ export class ConversationController {
       this.isCurrentSessionAction(session, generation) &&
       isMaterialCurrent?.() !== false &&
       (!requiresWorkspaceTrust || this.deps.isWorkspaceTrusted())
+    // The panel's Plan label can precede its backend admission.
+    while (this.reviewModeSettling !== undefined) {
+      await this.reviewModeSettling
+    }
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
