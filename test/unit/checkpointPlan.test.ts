@@ -125,6 +125,21 @@ describe('planRestore (M72)', () => {
     )
   })
 
+  it('refuses, never deletes, a file a shell command changed before the turn made it visible to git', () => {
+    const plan = planRestore(
+      input({
+        changes: [{ path: 'cache.txt', before: undefined, after: blob('edited') }],
+        // A shell command changed it: the journal knows it existed, but kept no bytes.
+        ignoredTurns: [
+          [{ path: 'cache.txt', kind: 'changed', startStat: stat(3), endStat: stat(7) }],
+        ],
+        currentStat: new Map([['cache.txt', stat(7)]]),
+      }),
+    )
+    expect(plan.steps).toEqual([])
+    expect(plan.refused).toEqual([{ path: 'cache.txt', reason: 'noEarlierCopy' }])
+  })
+
   it('writes changed and deleted files back and deletes the added ones', () => {
     const plan = planRestore(
       input({

@@ -309,8 +309,18 @@ describe('CheckpointStore across independent windows (M72)', () => {
       } finally {
         resume.release()
       }
-      expect(await restoring).toEqual({ ok: false, reason: 'nativeUnsafe' })
-      expect(await read(h.root, 'a.txt')).toBe('a1\n')
+      if (phase === 'before') {
+        // The native start won the race: it runs, so the restore refuses.
+        expect(await restoring).toEqual({ ok: false, reason: 'nativeUnsafe' })
+        expect(await read(h.root, 'a.txt')).toBe('a1\n')
+      } else {
+        // The restore won: the start was refused and every caller then starts
+        // nothing, so its fence is withdrawn and the restore goes ahead (Codex,
+        // PR #55); the other window is not left unsafe.
+        expect(await restoring).toMatchObject({ ok: true })
+        expect(await read(h.root, 'a.txt')).toBe('a0\n')
+        expect(other.isNativeUnsafe).toBe(false)
+      }
       expect(shadowRefs(h.storage)).not.toContain('refs/muse-spark/restore-active')
     },
     REAL_GIT_TIMEOUT_MS,

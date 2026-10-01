@@ -96,6 +96,7 @@ export interface Harness {
     storageDir: string,
     workspaceRoot?: string,
     gitPathMax?: number,
+    storageRoot?: string,
   ) => CheckpointStore
 }
 
@@ -126,7 +127,13 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const storage = path.join(base, 'storage')
   const log = new FakeLogOutputChannel()
   let clock = 1_000_000
-  const open = (pid = process.pid, storeDir = storage, storeRoot = root, gitPathMax?: number) => {
+  const open = (
+    pid = process.pid,
+    storeDir = storage,
+    storeRoot = root,
+    gitPathMax?: number,
+    storageRoot?: string,
+  ) => {
     const store = new CheckpointStore({
       workspaceRoot: storeRoot,
       storageDir: storeDir,
@@ -145,6 +152,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
       isProcessAlive: options.isProcessAlive ?? (() => true),
       ...(options.heartbeatMs !== undefined && { heartbeatMs: options.heartbeatMs }),
       ...(gitPathMax !== undefined && { gitPathMax }),
+      ...(storageRoot !== undefined && { storageRoot }),
       log,
     })
     stores.push(store)
@@ -157,8 +165,8 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     store: open(),
     log,
     reopen: open,
-    reopenAt: (storeDir, storeRoot, gitPathMax) =>
-      open(process.pid, storeDir, storeRoot, gitPathMax),
+    reopenAt: (storeDir, storeRoot, gitPathMax, storageRoot) =>
+      open(process.pid, storeDir, storeRoot, gitPathMax, storageRoot),
   }
 }
 

@@ -60,6 +60,17 @@ import { writeFileAtomically } from '../fsAtomic'
 import type { GitProcess } from '../git'
 
 const SHADOW_DIR = 'shadow.git'
+
+/**
+ * Whether a path runs through a checkpoint repository folder, of any install or
+ * namespace: a tool never writes into one, since a filter planted in its config
+ * would run as the user at a turn's end (Codex and Muse reviews of PR #55). The
+ * name is unusual enough that a real project folder of that name is not a concern;
+ * case is folded, as Windows and macOS folders fold it.
+ */
+export function isInShadowRepository(absolutePath: string): boolean {
+  return absolutePath.split(/[\\/]/u).some((segment) => segment.toLowerCase() === SHADOW_DIR)
+}
 const HOME_DIR = 'home'
 const HOOKS_DIR = 'hooks'
 const EMPTY_CONFIG = 'empty.gitconfig'
@@ -93,6 +104,8 @@ export interface ShadowLayout {
   readonly instance: string
   /** The longest path git takes here; the platform's own unless a test lowers it. */
   readonly gitPathMax?: number | undefined
+  /** The folder holding every window's checkpoint storage (this one's own folder by default). */
+  readonly storageRoot?: string | undefined
 }
 
 /**
@@ -139,11 +152,6 @@ export function isWithinFolder(candidate: string, folder: string): boolean {
     relative === '' ||
     (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
   )
-}
-
-/** The folder of every checkpoint namespace this extension keeps: no tool writes there. */
-export function checkpointStorageRoot(storageDir: string): string {
-  return path.dirname(storageDir)
 }
 
 /** The folder a window's initializer is made in: a short name, unique to the window. */
@@ -412,8 +420,13 @@ export class ShadowGit {
    */
   public assertSeparate(): void {
     const { storageDir, top } = this.layout
-    // Any namespace's storage inside the workspace, or the workspace inside this storage.
-    if (isWithinFolder(checkpointStorageRoot(storageDir), top) || isWithinFolder(top, storageDir)) {
+    const root = this.layout.storageRoot ?? storageDir
+    // Any checkpoint storage inside the workspace, or the workspace inside this storage.
+    if (
+      isWithinFolder(root, top) ||
+      isWithinFolder(storageDir, top) ||
+      isWithinFolder(top, storageDir)
+    ) {
       throw new ShadowStorageInWorkspaceError()
     }
   }
