@@ -327,10 +327,11 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   fields are bounded and free of control and direction characters. It can
   only narrow the session: its tool list binds every call, its permission
   mode never exceeds the session's (and survives a mode switch), and a model
-  it names passes the contributor-tier checks of your own choice, asks the
-  paid-use popup even when subagents are allowed always, and is blocked in a
-  confidential workspace (`museSpark.confidentialWorkspace`). The agent's
-  prompt is labelled with its source and sits below the workspace rules; in
+  it names passes the contributor-tier checks of your own choice.
+  Contributor models are blocked in a confidential workspace
+  (`museSpark.confidentialWorkspace`); a model different from the parent's
+  asks the paid-use popup even when subagents are allowed always. The agent's
+  prompt is explicitly labelled as untrusted, with its source, below the workspace rules; in
   an untrusted workspace no agent is offered and a project file's prompt is
   left out of a resumed child's instructions. A model writing an agent file
   is a protected write (`.agents/**`) and asks in every mode but Bypass.

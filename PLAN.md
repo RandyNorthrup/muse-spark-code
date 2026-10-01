@@ -8637,7 +8637,18 @@ extension's own storage, never the workspace's `.git`.
     runtime fallback for every Node bundle and the ACP package. No other
     build-layout change or cap increase is authorized. Refresh the lane
     checks after joining the current M72 candidate.
-  - **Final lane verification 2026-09-30.** Merged the current candidate
+  - **Resumed lane verification 2026-10-01.** Removed the rejected approach
+    in `8f697aff`, merged the approved shared fallback in `2688de3f` and
+    the candidate `2ae4caf7` in `18f9262b`. All required lane checks passed;
+    897 tests in 16 files, two existing platform skips. The shared-layout
+    test fired red and restored byte-exact; an offline installed ACP tarball
+    and the actual Node bundles load English successfully. The joined
+    checkpoint fixture's two clones were removed by shared setup and
+    expected blob data, preserving assertions and platform conditions.
+    Current sizes: extension 523.4/600 KiB, Model API 337.4/400, checkpoint
+    store 120.4/225 and shared table 73.0/100. The candidate advanced to
+    `d09d472f` during tests; join and focused refresh follow before handoff.
+  - **Prior lane verification 2026-09-30.** Merged the current candidate
     `8d59fb5c` in `486f33c2`. All required lane gates passed: five typecheck
     projects, changed-file lint/format, dead code, duplication, localization,
     host API, build and 891 tests in 15 non-live files. Seventeen retained
