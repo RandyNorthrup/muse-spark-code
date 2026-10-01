@@ -8556,25 +8556,26 @@ extension's own storage, never the workspace's `.git`.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
-**Resume integration preparation, 2026-09-29:** join original `6fad2143`
-with main `24ff09bc` in a new worktree and applies main `f7db5715`'s PR51
-tests/docs delta before any new proof, preserving the original
-draft. Reuse the now-merged M79 brief route and its final trust/disposal
-admission. Reserve handoff ownership before preparation awaits, reject stale
-or busy ordinary turns, let Cancel invalidate Start until commit, and enforce
-the edited brief's UTF-8 byte bound before clearing or sending. Reconcile
-the existing handoff harness with current main. Only manual `/handoff` is
-implemented; automatic compaction, hidden follow-up and memory flush remain
-unbuilt and off. Source preparation is unverified; fresh types, focused tests,
-red/restored proof, accessibility and full current-tree gates remain required.
-The pending normal merge and later main ancestry join remain uncommitted.
-**Approved-M68 source join, 2026-09-30:** the `f7db5715` to `32709441`
-delta joins cleanly with the manual handoff feature. Shared workspace write
-notices, captured plan ownership, verify dependencies and native filesystem
-ownership are retained. The previous `d4402fee` tree and exact index/patches/
-archive/modes remain external. No verifier or formatter ran on this join;
-combined host-API regeneration and all required proof remain pending.
-Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
+**Status, 2026-10-01 (this tree, `feature/m74-handoff`).** Manual
+`/handoff` is built: ported onto the release candidate (`41ed14bf` on
+`8e9d3a1e`) and fixed for the ten findings of the RV74 review
+(certification `docs/certification/m74.md`, one commit per finding).
+Automatic compaction, the hidden todo follow-up and the memory flush are
+not built (see "Not built" below), so M74 is not complete. On this tree
+the M74 test files pass on the kubuntu and Mac mini rigs; every M74 guard
+was broken on purpose, seen red and restored byte for byte (sha256), or is
+recorded as backed by another check; and `typecheck`, `eslint`,
+`check:l10n`, `deadcode`, `jscpd` and the `handoff` accessibility scenario
+pass. `npm run build` fails its size budget, and no cap was raised:
+`dist/extension.js` is 601.3 KiB (budget 600) and `dist/modelApi.js`
+401.3 KiB (budget 400), against 592.0 and 398.7 on `8e9d3a1e` and 600.4
+and 401.0 on `41ed14bf`, so the handoff itself crosses both budgets; the
+lead decides (D6). The whole unit suite on the kubuntu rig: 3,843 passed,
+45 skipped, 12 failed in three M72 checkpoint files, and
+`checkpointModelApiStop.test.ts` hung, so the run was stopped; the same
+twelve fail and the same file hangs there on `8e9d3a1e`, before M74, so
+none is the handoff's. Not run here: `harness:shots`, the integration
+tests and `npm run quality` (the lead's four-machine gate).
 
 - **Goal.** Hours-long tasks keep their thread without a manual
   `/compact`.
@@ -8611,14 +8612,13 @@ Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
   M75 run") are not met, and M74 is not complete. `/handoff` ships
   without the gate, as the Gate says.
 - **Decisions taken for `/handoff`:**
-  - **Continuation 2026-09-29, verification held:** give a handoff one
-    owned operation before any preparation await; keep its session and
-    conversation generation current through preparation, and refuse a
-    newly running ordinary turn instead of steering the distillation
-    into it. Cancel invalidates a Start until the existing shared brief
-    path commits the new conversation. Check the reviewed UTF-8 brief's
-    256 KB limit before clearing or sending. Held-host/read/cancel
-    regressions and fresh gates must prove these fixes before completion.
+  - One owned operation per handoff, reserved before any preparation
+    await; its session and the conversation's generation stay current
+    through preparation, and an ordinary turn that starts meanwhile
+    refuses the handoff instead of the distillation steering into it.
+    Cancel invalidates a Start until the shared brief path commits the
+    new conversation. The reviewed brief's UTF-8 size (256 KB) is checked
+    before anything is cleared or sent.
   - `/handoff` (optionally with a goal after it) is the user's own command
     and ships without the M75 gate: it asks the model, as the user's own
     turn in the current conversation, for the distilled brief (goal,
@@ -8661,21 +8661,12 @@ Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
     finish, or stop it, first."; nothing waits or queues, RV74 finding 8);
     an oversized (over 256 KB) or empty brief is refused with the reason.
     No new setting: nothing automatic runs.
-  - **Integrated 2026-09-30 on the release candidate**
-    (`feature/m74-handoff`, certification `docs/certification/m74.md`):
-    the prepared change ported with `git apply --3way temp/port.patch`;
-    all four conflicts resolved by keeping both sides — the candidate's
-    M72 checkpoints and M79 brief path beside the handoff (field,
-    `turnCompleted` handling and `send` plumbing; M72 + M74 test blocks
-    kept back to back). Merge fixes, none changing behaviour: the port's
-    duplicate post-staging currency re-check in `startFromBrief` removed
-    (the span is synchronous, so the kept top check with the new
-    `canStart` ownership callback covers it); the dead
-    `pending.session ?? session` fallback dropped; the port's duplicated
-    7-line confirm block extracted to a `confirmEdited` test helper
-    (duplication gate back to 0 clones); the palette test clears the
-    `/handoff ` draft before the `/fix-bug` step. No escape hatches added
-    (§8: nothing to record). Scope unchanged: manual `/handoff` only.
+  - A built-in `/handoff` takes the name from a skill of the user's or the
+    project's own called `handoff`, as `/goal` does (RV74 finding 10; no
+    skill or command Muse Code 1.4.0 ships is named so). Which should win
+    for every built-in name is open for the lead.
+  - The port's history (the four conflicts, the merge fixes) is in the
+    certification. No escape hatches (§8: nothing to record).
 
 ### M76 — Custom agents (D49)
 
