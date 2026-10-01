@@ -45,9 +45,6 @@ happened, not what was planned; superseded entries are kept.
 
 - A skill file over its 64 KB cap is now refused before it is read whole, so
   its log line says "is over the 65536 byte limit" without the file's size.
-- Restored the Model API bundle's English fallback for use outside the
-  extension, withdrawing the empty-table build substitution rejected in
-  the M76 review. The approved shared-table build replaces it separately.
 
 ### Fixed
 
@@ -62,6 +59,11 @@ happened, not what was planned; superseded entries are kept.
 - The retained-surface checkpoint test waits for its real preparation hook
   before checking the model request. Request and test deadlines and restore
   assertions are unchanged; cold Git setup no longer races the observation.
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
 
 ## [0.10.0] - 2026-09-30
 
