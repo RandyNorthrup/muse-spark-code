@@ -212,7 +212,7 @@ describe('reviewTurnText', () => {
         isRoleIncluded: false,
         newMarker: () => 'taken',
       }),
-    ).toThrow()
+    ).toThrow(UI_TEXT.reviewCancelled)
   })
 
   it('says when the diff was cut', () => {

@@ -13,6 +13,7 @@ import {
   REVIEW_FINDINGS_LANGUAGE,
   REVIEW_MARKER_ATTEMPTS,
   REVIEW_SEVERITIES,
+  UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { ReviewRequest } from '../../shared/reviewCommand'
@@ -95,7 +96,7 @@ function fenced(material: ReviewMaterial, newMarker: () => string): string {
       )
     }
   }
-  throw new Error('the review material holds every marker tried for it')
+  throw new Error(UI_TEXT.reviewCancelled)
 }
 
 export interface ReviewTurnInput {

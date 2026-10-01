@@ -43,7 +43,7 @@ happened, not what was planned; superseded entries are kept.
 
 - **The review loads on first use** (M70, PLAN.md D6). Git's material, the
   review turn's text, the Plan-mode hold and edit review (Open diff and
-  Revert) are the new `dist/review.js` (40.6 KiB, budget 50), required the
+  Revert) are the new `dist/review.js` (40.8 KiB, budget 50), required the
   first time one is used; a module that cannot be loaded refuses the review
   with `reviewUnavailable` and the log has the cause.
 - **`dist/modelApi.js` and `dist/review.js` carry no English table.** They
@@ -59,6 +59,9 @@ happened, not what was planned; superseded entries are kept.
   history holds) and share their reader of configured filter names; the
   physical identity of a workspace folder is one helper for the review and
   the ACP agent's Model API hosts.
+- Model API session-only model text is a separate constants block, allowing
+  activation to discard it and fit Review under the unchanged 600 KiB cap.
+
 
 ### Fixed
 
@@ -70,6 +73,11 @@ happened, not what was planned; superseded entries are kept.
   write the checked canonical target; a failed write frees the next one.
   They tell live verification about the write without creating an edit
   round of the agent's own.
+- Pane reads that finish or fail after conversation replacement no longer
+  publish old results into the replacement conversation.
+- A review refused after exhausting its untrusted-material marker retries
+  now shows the installed display language's cancellation message.
+
 
 ## [0.10.0] - 2026-09-30
 

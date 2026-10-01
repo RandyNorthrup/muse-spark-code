@@ -4086,13 +4086,19 @@ export class ConversationController {
         const patch = await this.fetchPatch(session, generation, edit.itemId, edit.outputRef)
         described = patch === undefined ? undefined : await this.deps.editReview.describe(patch)
       } catch {
+        if (!this.isCurrentSessionAction(session, generation)) {
+          return
+        }
         // Named by its item only: the error may quote a path the host chose (AGENTS.md rule 8).
         this.deps.log.warn(`Review pane: edit ${edit.itemId} not read`)
         omitted += 1
         continue
       }
       // The conversation changed meanwhile: what was read belongs to another.
-      if (described === undefined || !this.isCurrentSessionAction(session, generation)) {
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      if (described === undefined) {
         answer([], 0, UI_TEXT.turnStoppedByRestart)
         return
       }

@@ -13,6 +13,7 @@ import {
   MODEL_API_MAX_TOOL_ROUNDS,
   GOAL_OBJECTIVE_MAX_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
   REVIEW_MODEL_TEXT,
   SCHEDULE_LIFETIME_MS,
@@ -86,7 +87,7 @@ function isChildRequest(body: unknown): boolean {
     body !== null &&
     'input' in body &&
     body.input !== undefined &&
-    JSON.stringify(body.input).includes(MODEL_TEXT.subagentObjective)
+    JSON.stringify(body.input).includes(MODEL_API_MODEL_TEXT.subagentObjective)
   )
 }
 
@@ -2975,7 +2976,7 @@ describe('ModelApiSession: turns', () => {
     const delivered = modelInputAt(t, 1)
     expect(delivered).toContain(imageUrl)
     expect(delivered).not.toContain(pdfData)
-    expect(delivered).toContain(MODEL_TEXT.toolMediaBudgetExceeded)
+    expect(delivered).toContain(MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded)
     const read = events.find(
       (event) => event.type === 'itemCompleted' && event.item.tool === 'read_file',
     )
@@ -3002,7 +3003,7 @@ describe('ModelApiSession: turns', () => {
     const delivered = modelInputAt(t, 1)
     expect(delivered.includes(firstUrl)).toBe(true)
     expect(delivered.includes(secondUrl)).toBe(false)
-    expect(delivered).toContain(MODEL_TEXT.toolMediaBudgetExceeded)
+    expect(delivered).toContain(MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded)
     expect(
       events.flatMap((event) =>
         event.type === 'itemCompleted' && event.item.tool === 'mcp__docs__picture'
@@ -3029,7 +3030,7 @@ describe('ModelApiSession: turns', () => {
     const delivered = modelInputAt(t, 1)
     expect(delivered.includes(firstUrl)).toBe(false)
     expect(delivered.includes(secondUrl)).toBe(false)
-    expect(delivered).toContain(MODEL_TEXT.toolMediaBudgetExceeded)
+    expect(delivered).toContain(MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded)
     expectFailedTool(events, 'mcp__docs__picture')
     expect(JSON.stringify(session.snapshot().replay).includes(firstUrl)).toBe(false)
   })
@@ -3051,7 +3052,7 @@ describe('ModelApiSession: turns', () => {
     const delivered = modelInputAt(t, 1)
     expect(delivered.includes(pdfData)).toBe(true)
     expect(delivered.includes(imageUrl)).toBe(false)
-    expect(delivered).toContain(MODEL_TEXT.toolMediaBudgetExceeded)
+    expect(delivered).toContain(MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded)
     expectFailedTool(events, 'mcp__docs__picture')
     expect(JSON.stringify(session.snapshot().replay).includes(pdfData)).toBe(true)
   })
@@ -3141,7 +3142,7 @@ describe('ModelApiSession: turns', () => {
     const delivered = JSON.stringify(t.api.responseBodies()[1]?.['input'])
     expect(delivered.includes(imageUrl)).toBe(false)
     expect(delivered).toContain(pdf.base64Data)
-    expect(delivered).toContain(MODEL_TEXT.toolMediaBudgetExceeded)
+    expect(delivered).toContain(MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded)
   })
 
   it('refuses a steer that would hide an already completed MCP image', async () => {
@@ -3309,7 +3310,7 @@ describe('ModelApiSession: turns', () => {
     const delivered = JSON.stringify(t.api.responseBodies()[1]?.['input'])
     expect(delivered).toContain(firstData)
     expect(delivered).not.toContain(secondData)
-    expect(delivered).toContain(MODEL_TEXT.toolMediaBudgetExceeded)
+    expect(delivered).toContain(MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded)
     const statuses = events.flatMap((event) =>
       event.type === 'itemCompleted' && event.item.tool === 'read_file' ? [event.item.status] : [],
     )
@@ -3334,7 +3335,7 @@ describe('ModelApiSession: turns', () => {
         expect.objectContaining({
           type: 'function_call_output',
           call_id: 'read_second',
-          output: expect.stringContaining(MODEL_TEXT.toolMediaBudgetExceeded),
+          output: expect.stringContaining(MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded),
         }),
         expect.objectContaining({
           type: 'message',
@@ -5204,7 +5205,7 @@ describe('ModelApiSession subagents (M48)', () => {
     answer.resolve(false)
     await expectRefusedSpawn(t, session, turnDone)
     expect(outputFor(t.api.responseBodies()[1], 'paid_spawn')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.subagentConsentDeclined}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.subagentConsentDeclined}`,
     })
   })
 
@@ -5250,7 +5251,7 @@ describe('ModelApiSession subagents (M48)', () => {
     expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
     expect(t.api.responseBodies()).toHaveLength(2)
     expect(outputFor(t.api.responseBodies()[1], 'spawn_before_plan')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.subagentPlanMode}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.subagentPlanMode}`,
     })
     expect(t.paidUses).toEqual([])
   })
@@ -5503,7 +5504,7 @@ describe('ModelApiSession subagents (M48)', () => {
       }
       const expected =
         action === 'resume'
-          ? `Retained note B\n\n${MODEL_TEXT.subagentResume}`
+          ? `Retained note B\n\n${MODEL_API_MODEL_TEXT.subagentResume}`
           : 'Retained note B\n\nFollow-up C'
       expect(second.paidRequests).toEqual([
         {
@@ -5807,7 +5808,9 @@ describe('ModelApiSession subagents (M48)', () => {
       expect(
         t.api
           .responseBodies()
-          .some((body) => JSON.stringify(body['input']).includes(MODEL_TEXT.subagentResult)),
+          .some((body) =>
+            JSON.stringify(body['input']).includes(MODEL_API_MODEL_TEXT.subagentResult),
+          ),
       ).toBe(true)
     })
   })
@@ -7023,7 +7026,7 @@ describe('ModelApiSession: protocol semantics (D26)', () => {
     expect(outputFor(t.api.responseBodies().at(-1), 'call_s')).toEqual({
       type: 'function_call_output',
       call_id: 'call_s',
-      output: `Error: ${MODEL_TEXT.toolCancelledByStop}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.toolCancelledByStop}`,
     })
   })
 
@@ -7585,7 +7588,9 @@ describe('ModelApiSession: image generation, paid and asked every time (M34)', (
     expect(t.api.imageBodies()).toEqual([])
     second.resolve(true)
     await turnDone()
-    expect(toolOutput(t, 'c1')).toContain(`generate_image ${MODEL_TEXT.toolRejectedByUser}`)
+    expect(toolOutput(t, 'c1')).toContain(
+      `generate_image ${MODEL_API_MODEL_TEXT.toolRejectedByUser}`,
+    )
     expect(t.api.imageBodies()).toHaveLength(1)
     expect(t.io.binaries.size).toBe(0)
     expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
@@ -8200,7 +8205,7 @@ function storeTrackingPendingCalls() {
 const GOAL_WAKE_MESSAGE = {
   type: 'message',
   role: 'user',
-  content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
+  content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.goalWake }],
 }
 
 describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
@@ -8572,10 +8577,10 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     await session.sendTurn([{ type: 'text', text: 'A separate question' }])
     await turnDone()
     expect(outputFor(t.api.responseBodies()[2], 'first')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.goalBudgetReached}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.goalBudgetReached}`,
     })
     expect(outputFor(t.api.responseBodies()[2], 'second')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.goalBudgetReached}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.goalBudgetReached}`,
     })
   })
 
@@ -9012,7 +9017,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     expect(requestInput(r.t, 1)).toContainEqual({
       type: 'function_call_output',
       call_id: 'call_dev',
-      output: MODEL_TEXT.shellMovedToBackground,
+      output: MODEL_API_MODEL_TEXT.shellMovedToBackground,
     })
   })
 
@@ -9046,13 +9051,13 @@ describe('ModelApiSession: background shell commands (M46)', () => {
       expect.objectContaining({
         hook_event_name: 'PostToolUse',
         tool_name: 'bash',
-        tool_response: MODEL_TEXT.shellMovedToBackground,
+        tool_response: MODEL_API_MODEL_TEXT.shellMovedToBackground,
       }),
     )
     expect(requestInput(t, 1)).toContainEqual({
       type: 'function_call_output',
       call_id: 'call_dev',
-      output: MODEL_TEXT.shellMovedToBackground,
+      output: MODEL_API_MODEL_TEXT.shellMovedToBackground,
     })
     expect(
       session.history().items.find((item) => item.itemId === started.item.itemId),
@@ -9089,7 +9094,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     await r.turnDone()
     const input = requestInput(r.t, 2)
     expect(noteText(input.at(-2))).toBe(
-      `${MODEL_TEXT.backgroundEndedLead}\n$ npm run dev\nlistening on 3000\n[exit code 0]`,
+      `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ npm run dev\nlistening on 3000\n[exit code 0]`,
     )
     expect(noteText(input.at(-1))).toBe('is it up?')
   })
@@ -9179,7 +9184,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     await resumed.session.sendTurn([{ type: 'text', text: 'is the server up?' }])
     await turnDone()
     const input = requestInput(next, 0)
-    expect(noteText(input.at(-2))).toBe(`${MODEL_TEXT.backgroundLostLead}\n$ npm run dev`)
+    expect(noteText(input.at(-2))).toBe(`${MODEL_API_MODEL_TEXT.backgroundLostLead}\n$ npm run dev`)
     expect(noteText(input.at(-1))).toBe('is the server up?')
   })
 
@@ -9194,7 +9199,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     await fork.session.sendTurn([{ type: 'text', text: 'is the server running?' }])
     await turnDone()
     const input = requestInput(r.t, r.t.api.responseBodies().length - 1)
-    expect(noteText(input.at(-2))).toBe(`${MODEL_TEXT.backgroundLostLead}\n$ npm run dev`)
+    expect(noteText(input.at(-2))).toBe(`${MODEL_API_MODEL_TEXT.backgroundLostLead}\n$ npm run dev`)
   })
 
   it('copies a background completion note into a fork cut before that note', async () => {
@@ -9210,7 +9215,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3', firstTurnId)
     const input = await forkInput(r.t, fork.session)
     expect(noteText(input.at(-2))).toBe(
-      `${MODEL_TEXT.backgroundEndedLead}\n$ npm run dev\nready\n[exit code 0]`,
+      `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ npm run dev\nready\n[exit code 0]`,
     )
   })
 
@@ -9223,7 +9228,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3')
     const input = await forkInput(r.t, fork.session)
     expect(
-      input.filter((item) => noteText(item)?.startsWith(MODEL_TEXT.backgroundEndedLead)),
+      input.filter((item) => noteText(item)?.startsWith(MODEL_API_MODEL_TEXT.backgroundEndedLead)),
     ).toHaveLength(1)
   })
 })
@@ -9292,7 +9297,9 @@ describe('ModelApiSession: the user’s own shell commands (M46)', () => {
     await session.sendTurn([{ type: 'text', text: 'what did I list?' }])
     await turnDone()
     const input = requestInput(t, 0)
-    expect(noteText(input.at(-2))).toBe(`${MODEL_TEXT.userShellLead}\n$ ls\na.txt\n[exit code 0]`)
+    expect(noteText(input.at(-2))).toBe(
+      `${MODEL_API_MODEL_TEXT.userShellLead}\n$ ls\na.txt\n[exit code 0]`,
+    )
     expect(noteText(input.at(-1))).toBe('what did I list?')
     expect(session.history().items.map((item) => item.kind)).toContain('userShell')
   })
@@ -9340,7 +9347,7 @@ describe('ModelApiSession: the user’s own shell commands (M46)', () => {
     })
     await turnDone()
     expect(noteText(requestInput(t, 1).at(-1))).toBe(
-      `${MODEL_TEXT.userShellLead}\n$ git status\nclean\n[exit code 0]`,
+      `${MODEL_API_MODEL_TEXT.userShellLead}\n$ git status\nclean\n[exit code 0]`,
     )
   })
 
@@ -9463,7 +9470,9 @@ describe('ModelApiSession: the user’s own shell at its real entry (M72)', () =
     await r.session.sendTurn([{ type: 'text', text: 'what happened?' }])
     await r.turnDone()
     expect(
-      requestInput(r.t, 0).some((item) => noteText(item)?.startsWith(MODEL_TEXT.userShellLead)),
+      requestInput(r.t, 0).some((item) =>
+        noteText(item)?.startsWith(MODEL_API_MODEL_TEXT.userShellLead),
+      ),
     ).toBe(false)
   })
 
@@ -9484,7 +9493,9 @@ describe('ModelApiSession: the user’s own shell at its real entry (M72)', () =
     await session.sendTurn([{ type: 'text', text: 'what happened?' }])
     await turnDone()
     expect(
-      requestInput(t, 0).some((item) => noteText(item)?.startsWith(MODEL_TEXT.userShellLead)),
+      requestInput(t, 0).some((item) =>
+        noteText(item)?.startsWith(MODEL_API_MODEL_TEXT.userShellLead),
+      ),
     ).toBe(isTold)
   })
 
@@ -9578,7 +9589,7 @@ describe('ModelApiSession: an explanation instead of an answer (M46)', () => {
     expect(requestInput(t, 1)).toContainEqual(
       expect.objectContaining({
         type: 'function_call_output',
-        output: `${MODEL_TEXT.clarificationLead}\nNeither: I prefer green.`,
+        output: `${MODEL_API_MODEL_TEXT.clarificationLead}\nNeither: I prefer green.`,
       }),
     )
   })
@@ -9925,7 +9936,9 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
       ['mcp__docs__lookup', 'completed'],
       ['mcp__ide__getDiagnostics', 'completed'],
     ])
-    expect(rows[0]?.failureReason).toBe(`mcp__docs__search ${MODEL_TEXT.toolRefusedByMode}`)
+    expect(rows[0]?.failureReason).toBe(
+      `mcp__docs__search ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`,
+    )
     expect(rows[2]?.visibleOutput).toBe('No diagnostics.')
     expect(mcp.calls.map((call) => call.name)).toEqual(['mcp__docs__lookup'])
   })
@@ -9949,7 +9962,7 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
     expect(toolRows(events)[0]).toMatchObject({
       status: 'rejected',
-      failureReason: MODEL_TEXT.mcpRestrictedMode,
+      failureReason: MODEL_API_MODEL_TEXT.mcpRestrictedMode,
     })
     expect(mcp.calls).toEqual([])
   })
@@ -10637,7 +10650,7 @@ describe('web fetch on the Model API backend (M69)', () => {
     await session.sendTurn([{ type: 'text', text: 'read' }])
     await turnDone()
     expect(answers).toEqual([true, false])
-    expect(toolOutput(t, 'fetch_0')).toBe(`Error: ${MODEL_TEXT.webFetchRestrictedMode}`)
+    expect(toolOutput(t, 'fetch_0')).toBe(`Error: ${MODEL_API_MODEL_TEXT.webFetchRestrictedMode}`)
     expect(fetchRows(events)[0]?.failureReason).toBe(UI_TEXT.webFetchRestrictedMode)
   })
 
@@ -10671,7 +10684,7 @@ describe('web fetch on the Model API backend (M69)', () => {
       status: 'rejected',
       failureReason: UI_TEXT.webFetchRestrictedMode,
     })
-    expect(toolOutput(t, 'fetch_0')).toBe(`Error: ${MODEL_TEXT.webFetchRestrictedMode}`)
+    expect(toolOutput(t, 'fetch_0')).toBe(`Error: ${MODEL_API_MODEL_TEXT.webFetchRestrictedMode}`)
   })
 
   it('shows a redirect to another host in the words of the user, and the model its own', async () => {

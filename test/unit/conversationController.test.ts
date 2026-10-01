@@ -7431,14 +7431,20 @@ describe('ConversationController: review (M70)', () => {
         shouldHold = true
         if (phase === 'Plan') {
           t.server.silence('session/setApprovalMode')
+          const write = t.server.write.bind(t.server)
+          vi.spyOn(t.server, 'write').mockImplementation(async (frame) => {
+            await write(frame)
+            if (approvalModes(t).length > 0) {
+              entered.resolve(undefined)
+            }
+          })
         }
         const reviewing = startReview(t)
-        if (phase === 'Host') {
-          await entered.promise
-        } else {
-          await vi.waitFor(() => {
-            expect(approvalModes(t)).toEqual(['denyUnmatched'])
-          })
+        // Native Git can outlast a polling interval; await the actual held
+        // admission event within the existing test deadline before retargeting.
+        await entered.promise
+        if (phase === 'Plan') {
+          expect(approvalModes(t)).toEqual(['denyUnmatched'])
         }
         if (willRetarget) {
           roots.retarget()
@@ -7955,6 +7961,36 @@ describe('ConversationController: review (M70)', () => {
       omittedEdits: 0,
     })
   })
+
+  it.each(['complete', 'fail'] as const)(
+    'drops a pane description that finishes with %s after its conversation is replaced',
+    async (outcome) => {
+      const held =
+        Promise.withResolvers<Awaited<ReturnType<ConversationDeps['editReview']['describe']>>>()
+      const describe = vi.fn<ConversationDeps['editReview']['describe']>(() => held.promise)
+      const t = paneSetup(describe)
+      await t.send('l1', 'edit it')
+      const reading = t.controller.handle({
+        type: 'readReviewChanges',
+        requestId: 'old-pane',
+        edits: [{ itemId: 'ed1', outputRef: 'tool_patch-ed1' }],
+      })
+      await vi.waitFor(() => {
+        expect(describe).toHaveBeenCalledTimes(1)
+      })
+      await t.controller.handle({ type: 'clearConversation' })
+      t.surface.posted.length = 0
+      if (outcome === 'fail') {
+        held.reject(new Error('old patch unavailable'))
+      } else {
+        held.resolve([])
+      }
+      await reading
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'reviewChanges' }),
+      )
+    },
+  )
 
   it('reverts a hunk once: a second press is refused, and a failed revert can be tried again', async () => {
     const revertHunk = vi.fn<ConversationDeps['editReview']['revertHunk']>(() =>

@@ -59,6 +59,7 @@ import {
   WEB_FETCH_SUBJECT_KIND,
   MODEL_API_VERSION,
   MODEL_API_WEB_SEARCH_TOOL,
+  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
   REPO_MAP_PROMPT_TRIES,
   OUTPUT_REF_PREFIX,
@@ -850,7 +851,7 @@ function webFetchRefusal(failure: WebFetchFailure): ToolOutcome {
 function webFetchRestricted(): CallResult {
   return {
     outcome: {
-      output: `Error: ${MODEL_TEXT.webFetchRestrictedMode}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.webFetchRestrictedMode}`,
       visibleOutput: UI_TEXT.webFetchRestrictedMode,
       failureReason: UI_TEXT.webFetchRestrictedMode,
     },
@@ -890,13 +891,13 @@ function noteItem(text: string): InputItem {
 function questionResultText(reply: QuestionReply): string {
   switch (reply.kind) {
     case 'answered': {
-      return `${MODEL_TEXT.answersPrefix}\n${JSON.stringify(reply.answers)}`
+      return `${MODEL_API_MODEL_TEXT.answersPrefix}\n${JSON.stringify(reply.answers)}`
     }
     case 'cancelled': {
-      return MODEL_TEXT.questionCancelledOutput
+      return MODEL_API_MODEL_TEXT.questionCancelledOutput
     }
     case 'clarified': {
-      return `${MODEL_TEXT.clarificationLead}\n${reply.text}`
+      return `${MODEL_API_MODEL_TEXT.clarificationLead}\n${reply.text}`
     }
   }
 }
@@ -928,35 +929,47 @@ function childTaskMessages(kind: ChildTaskRefusal): {
 } {
   switch (kind) {
     case 'paidOff': {
-      return { model: MODEL_TEXT.subagentPaidOff, visible: UI_TEXT.subagentPaidOff }
+      return { model: MODEL_API_MODEL_TEXT.subagentPaidOff, visible: UI_TEXT.subagentPaidOff }
     }
     case 'consentDeclined': {
-      return { model: MODEL_TEXT.subagentConsentDeclined, visible: UI_TEXT.subagentConsentDeclined }
+      return {
+        model: MODEL_API_MODEL_TEXT.subagentConsentDeclined,
+        visible: UI_TEXT.subagentConsentDeclined,
+      }
     }
     case 'requestLimit': {
       const limit = SUBAGENT_TASK_MAX_REQUESTS
       return {
-        model: fill(MODEL_TEXT.subagentRequestLimit, { limit }),
+        model: fill(MODEL_API_MODEL_TEXT.subagentRequestLimit, { limit }),
         visible: fill(UI_TEXT.subagentRequestLimit, { limit }),
       }
     }
     case 'keyChanged': {
-      return { model: MODEL_TEXT.subagentKeyChanged, visible: UI_TEXT.subagentKeyChanged }
+      return { model: MODEL_API_MODEL_TEXT.subagentKeyChanged, visible: UI_TEXT.subagentKeyChanged }
     }
     case 'modelChanged': {
-      return { model: MODEL_TEXT.subagentModelChanged, visible: UI_TEXT.subagentModelChanged }
+      return {
+        model: MODEL_API_MODEL_TEXT.subagentModelChanged,
+        visible: UI_TEXT.subagentModelChanged,
+      }
     }
     case 'goalEnded': {
-      return { model: MODEL_TEXT.subagentGoalEnded, visible: UI_TEXT.subagentGoalEnded }
+      return { model: MODEL_API_MODEL_TEXT.subagentGoalEnded, visible: UI_TEXT.subagentGoalEnded }
     }
     case 'tariffUnknown': {
-      return { model: MODEL_TEXT.subagentTariffUnknown, visible: UI_TEXT.subagentTariffUnknown }
+      return {
+        model: MODEL_API_MODEL_TEXT.subagentTariffUnknown,
+        visible: UI_TEXT.subagentTariffUnknown,
+      }
     }
     case 'planMode': {
-      return { model: MODEL_TEXT.subagentPlanMode, visible: UI_TEXT.subagentPlanMode }
+      return { model: MODEL_API_MODEL_TEXT.subagentPlanMode, visible: UI_TEXT.subagentPlanMode }
     }
     case 'webSearchOff': {
-      return { model: MODEL_TEXT.subagentWebSearchOff, visible: UI_TEXT.subagentWebSearchOff }
+      return {
+        model: MODEL_API_MODEL_TEXT.subagentWebSearchOff,
+        visible: UI_TEXT.subagentWebSearchOff,
+      }
     }
   }
 }
@@ -972,7 +985,7 @@ function refusedOutcome(
   feedback: string | undefined,
   isDeniedByHook = false,
 ): ToolOutcome {
-  const reason = `${call.name} ${isDeniedByHook ? MODEL_TEXT.toolRejectedByHook : MODEL_TEXT.toolRejectedByUser}`
+  const reason = `${call.name} ${isDeniedByHook ? MODEL_API_MODEL_TEXT.toolRejectedByHook : MODEL_API_MODEL_TEXT.toolRejectedByUser}`
   const withFeedback = feedback === undefined ? '' : `\nUser: ${feedback}`
   return {
     output: `Error: ${reason}${withFeedback}`,
@@ -1030,7 +1043,7 @@ function typedInvocation(selector: string, args: string | undefined): string {
  * body with the arguments, as Muse Code does for a `skill` input part.
  */
 function skillInvocationText(skill: SkillDefinition, args: string | undefined): string {
-  return `${MODEL_TEXT.skillInvoked} "${skill.id}". ${MODEL_TEXT.skillArguments} ${args ?? MODEL_TEXT.skillNoArguments}\n\n${skill.body}`
+  return `${MODEL_API_MODEL_TEXT.skillInvoked} "${skill.id}". ${MODEL_API_MODEL_TEXT.skillArguments} ${args ?? MODEL_API_MODEL_TEXT.skillNoArguments}\n\n${skill.body}`
 }
 
 /** An image or a PDF as Meta reads it: inline, as a data URL (M54 for the PDF). */
@@ -2107,7 +2120,7 @@ export class ModelApiSession implements AgentSession {
   private queuedGoalWake(): QueuedTurn {
     return {
       turnId: this.deps.newId(),
-      parts: [{ type: 'text', text: MODEL_TEXT.goalWake }],
+      parts: [{ type: 'text', text: MODEL_API_MODEL_TEXT.goalWake }],
       displayText: undefined,
       isGoalWake: true,
       goalCommandRevision: this.goalCommandRevision,
@@ -2560,7 +2573,7 @@ export class ModelApiSession implements AgentSession {
     )
     const requiredAfterPostHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPostHook !== undefined) {
-      this.skipCalls(turnId, calls, MODEL_TEXT.mcpRequiredUnavailable)
+      this.skipCalls(turnId, calls, MODEL_API_MODEL_TEXT.mcpRequiredUnavailable)
       throw requiredAfterPostHook
     }
     if (post.blockedReason !== undefined) {
@@ -2642,7 +2655,7 @@ export class ModelApiSession implements AgentSession {
         item: {
           type: 'message',
           role: 'assistant',
-          content: [{ type: OUTPUT_TEXT, text: MODEL_TEXT.reasoningOnlyReply }],
+          content: [{ type: OUTPUT_TEXT, text: MODEL_API_MODEL_TEXT.reasoningOnlyReply }],
         },
       })
     }
@@ -2874,7 +2887,7 @@ export class ModelApiSession implements AgentSession {
         return [
           {
             type: 'input_text',
-            text: fill(MODEL_TEXT.toolFileNotDelivered, { path: file.path }),
+            text: fill(MODEL_API_MODEL_TEXT.toolFileNotDelivered, { path: file.path }),
           },
         ]
       }
@@ -2884,7 +2897,7 @@ export class ModelApiSession implements AgentSession {
       }
       const lead: InputContentPart = {
         type: 'input_text',
-        text: fill(MODEL_TEXT.toolFileFollows, { path: file.path }),
+        text: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: file.path }),
       }
       pending.push({
         path: file.path,
@@ -2966,7 +2979,10 @@ export class ModelApiSession implements AgentSession {
         const filePath = leads.get(part)
         if (filePath !== undefined) {
           return [
-            { type: 'input_text', text: fill(MODEL_TEXT.toolFileNotDelivered, { path: filePath }) },
+            {
+              type: 'input_text',
+              text: fill(MODEL_API_MODEL_TEXT.toolFileNotDelivered, { path: filePath }),
+            },
           ]
         }
         return media.has(part) ? [] : [part]
@@ -2993,7 +3009,7 @@ export class ModelApiSession implements AgentSession {
         const media = new Set<FunctionOutputPart>(pending)
         const output = replay.item.output.map((part): FunctionOutputPart =>
           media.has(part)
-            ? { type: 'input_text', text: MODEL_TEXT.toolOutputImageNotDelivered }
+            ? { type: 'input_text', text: MODEL_API_MODEL_TEXT.toolOutputImageNotDelivered }
             : part,
         )
         this.replay[index] = { ...replay, item: { ...replay.item, output } }
@@ -3075,7 +3091,7 @@ export class ModelApiSession implements AgentSession {
     }
     const skill = this.context.skill(parsed.data.id)
     if (skill === undefined) {
-      return toolFailure(`${MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
+      return toolFailure(`${MODEL_API_MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
     }
     return {
       output: `Skill ${skill.id}: ${skill.description}\n\n${skill.body}`,
@@ -3209,7 +3225,10 @@ export class ModelApiSession implements AgentSession {
     }
     limit.lift()
     this.backgroundShells.set(itemId, stop)
-    return { outcome: { output: MODEL_TEXT.shellMovedToBackground, visibleOutput: '' }, running }
+    return {
+      outcome: { output: MODEL_API_MODEL_TEXT.shellMovedToBackground, visibleOutput: '' },
+      running,
+    }
   }
 
   /** The IDE tool in process, or the MCP server's tool over its connection (M50). */
@@ -3224,7 +3243,7 @@ export class ModelApiSession implements AgentSession {
     }
     const servers = this.deps.mcpServers
     if (servers === undefined) {
-      return toolFailure(`${call.name} ${MODEL_TEXT.mcpToolUnavailable}`)
+      return toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
     const outcome = await servers.call(call.name, call.arguments, signal)
     return {
@@ -3322,7 +3341,7 @@ export class ModelApiSession implements AgentSession {
       const isTaskRefusal = event.errorKind?.startsWith('subagent_') === true
       const text =
         (isTaskRefusal ? event.reason : (reply?.item.text ?? event.reason)) ??
-        MODEL_TEXT.subagentNoReply
+        MODEL_API_MODEL_TEXT.subagentNoReply
       const modelText = isTaskRefusal ? (modelChildFailure(event.errorKind, text) ?? text) : text
       child.result = {
         summary: text.slice(0, SUBAGENT_SUMMARY_MAX_CHARS),
@@ -3330,7 +3349,7 @@ export class ModelApiSession implements AgentSession {
         ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
       }
       this.pendingChildResults.push(
-        `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
+        `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
       )
       this.emit(event)
       this.updateChild(child)
@@ -3492,7 +3511,7 @@ export class ModelApiSession implements AgentSession {
   /** The exact task text sent after queued notes are added to a child turn. */
   private queuedChildTask(child: ChildRecord, additions: readonly string[]): string {
     const parts = child.session.turnCount === 0 ? [child.objective, ...additions] : additions
-    return parts.join('\n\n') || MODEL_TEXT.subagentResume
+    return parts.join('\n\n') || MODEL_API_MODEL_TEXT.subagentResume
   }
 
   /** Starts queued children in spawn order, bounded by the Model API capacity. */
@@ -3530,7 +3549,7 @@ export class ModelApiSession implements AgentSession {
         child.pendingMessages.length = 0
         child.session.childTaskGrant = undefined
         this.pendingChildResults.push(
-          `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ summary: messages.model, text: messages.model, errorKind: `subagent_${refusal}` })}`,
+          `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ summary: messages.model, text: messages.model, errorKind: `subagent_${refusal}` })}`,
         )
         this.updateChild(child)
         continue
@@ -3543,7 +3562,7 @@ export class ModelApiSession implements AgentSession {
       const task = this.queuedChildTask(child, additions)
       this.updateChild(child)
       void child.session.sendTurn(
-        [{ type: 'text', text: `${MODEL_TEXT.subagentObjective}\n\n${task}` }],
+        [{ type: 'text', text: `${MODEL_API_MODEL_TEXT.subagentObjective}\n\n${task}` }],
         task,
       )
     }
@@ -3884,7 +3903,7 @@ export class ModelApiSession implements AgentSession {
         if (goalCommandRevision !== this.goalCommandRevision) {
           return {
             outcome: {
-              output: `Error: ${MODEL_TEXT.goalRequestSuperseded}`,
+              output: `Error: ${MODEL_API_MODEL_TEXT.goalRequestSuperseded}`,
               visibleOutput: UI_TEXT.goalRequestSuperseded,
               failureReason: UI_TEXT.goalRequestSuperseded,
             },
@@ -3960,7 +3979,7 @@ export class ModelApiSession implements AgentSession {
 
   private refusedDiagnostics(files: readonly EditedFile[]): PendingReport {
     return {
-      report: { text: MODEL_TEXT.verifyAccessRefused, unchecked: files.length },
+      report: { text: MODEL_API_MODEL_TEXT.verifyAccessRefused, unchecked: files.length },
       commit: NOTHING_TO_COMMIT,
     }
   }
@@ -4109,7 +4128,11 @@ export class ModelApiSession implements AgentSession {
     if (pre.updatedInput !== undefined) {
       const updated = pre.updatedInput['command']
       if (typeof updated !== 'string' || updated.trim() === '') {
-        return { kind: 'skipped', skip: 'hookDenied', detail: MODEL_TEXT.hookInputNoCommand }
+        return {
+          kind: 'skipped',
+          skip: 'hookDenied',
+          detail: MODEL_API_MODEL_TEXT.hookInputNoCommand,
+        }
       }
       line = updated
       ruleCommand = updated
@@ -4139,7 +4162,7 @@ export class ModelApiSession implements AgentSession {
       return {
         kind: 'ran',
         line,
-        result: { ...result, stdout: MODEL_TEXT.verifyAccessRefused, stderr: '' },
+        result: { ...result, stdout: MODEL_API_MODEL_TEXT.verifyAccessRefused, stderr: '' },
       }
     const ran = shellOutcome(result, request.timeoutMs)
     const input = toolHookInput({ command: line, description: request.description })
@@ -4176,7 +4199,7 @@ export class ModelApiSession implements AgentSession {
       line,
       result: isCurrent()
         ? result
-        : { ...result, stdout: MODEL_TEXT.verifyAccessRefused, stderr: '' },
+        : { ...result, stdout: MODEL_API_MODEL_TEXT.verifyAccessRefused, stderr: '' },
     }
   }
 
@@ -4198,7 +4221,8 @@ export class ModelApiSession implements AgentSession {
     maxChars: number,
     isAllowed: () => boolean,
   ): Promise<CheckRun> {
-    if (!isAllowed()) return skippedCheck(check, 'refused', MODEL_TEXT.verifyAccessRefused)
+    if (!isAllowed())
+      return skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused)
     if (this.ledger.isStopped) {
       return skippedCheck(check, 'stopped')
     }
@@ -4298,7 +4322,7 @@ export class ModelApiSession implements AgentSession {
       runs.push(
         isAllowed()
           ? await this.runCheck(itemId, check, files, signal, effects, maxChars, isAllowed)
-          : skippedCheck(check, 'refused', MODEL_TEXT.verifyAccessRefused),
+          : skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused),
       )
     }
     return runs
@@ -4364,7 +4388,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<Performed> {
     const configured = this.checkCommands()
     if (configured.length === 0) {
-      return { outcome: toolFailure(MODEL_TEXT.runChecksNone) }
+      return { outcome: toolFailure(MODEL_API_MODEL_TEXT.runChecksNone) }
     }
     const parsed = parseRunChecks(call.arguments)
     if (!parsed.ok) {
@@ -4375,7 +4399,7 @@ export class ModelApiSession implements AgentSession {
     if (unknown !== undefined) {
       return {
         outcome: toolFailure(
-          fill(MODEL_TEXT.runChecksUnknown, {
+          fill(MODEL_API_MODEL_TEXT.runChecksUnknown, {
             name: unknown,
             names: configured.map((check) => check.name).join(', '),
           }),
@@ -4389,25 +4413,25 @@ export class ModelApiSession implements AgentSession {
     } else {
       const named = parsed.args.paths ?? []
       for (const given of named) {
-        if (!isAllowed()) return { outcome: toolFailure(MODEL_TEXT.verifyAccessRefused) }
+        if (!isAllowed()) return { outcome: toolFailure(MODEL_API_MODEL_TEXT.verifyAccessRefused) }
         const resolved = await confineWorkspacePath(
           this.deps.workspaceRoot,
           given,
           this.deps.platform,
           this.deps.io,
         )
-        if (!isAllowed()) return { outcome: toolFailure(MODEL_TEXT.verifyAccessRefused) }
+        if (!isAllowed()) return { outcome: toolFailure(MODEL_API_MODEL_TEXT.verifyAccessRefused) }
         if (!resolved.ok) {
           return { outcome: toolFailure(resolved.reason) }
         }
         if (!(await this.deps.io.pathExists(resolved.checkedAbsolute))) {
           return {
             outcome: toolFailure(
-              fill(MODEL_TEXT.runChecksMissingPath, { path: resolved.relative }),
+              fill(MODEL_API_MODEL_TEXT.runChecksMissingPath, { path: resolved.relative }),
             ),
           }
         }
-        if (!isAllowed()) return { outcome: toolFailure(MODEL_TEXT.verifyAccessRefused) }
+        if (!isAllowed()) return { outcome: toolFailure(MODEL_API_MODEL_TEXT.verifyAccessRefused) }
         files.push({ relative: resolved.canonical, absolute: resolved.checkedAbsolute })
       }
     }
@@ -4418,7 +4442,7 @@ export class ModelApiSession implements AgentSession {
     const section = checksSection(runs)
     return {
       outcome: {
-        output: `${MODEL_TEXT.runChecksLead}\n\n${section}`,
+        output: `${MODEL_API_MODEL_TEXT.runChecksLead}\n\n${section}`,
         visibleOutput: section,
         verifySummary: {
           files: files.map((file) => file.relative),
@@ -4472,7 +4496,7 @@ export class ModelApiSession implements AgentSession {
 
   private refusedByMode(call: FunctionCallItem): CallResult {
     return {
-      outcome: toolFailure(`${call.name} ${MODEL_TEXT.toolRefusedByMode}`),
+      outcome: toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`),
       isRejected: true,
     }
   }
@@ -4495,7 +4519,7 @@ export class ModelApiSession implements AgentSession {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
     }
     if (!this.deps.isWorkspaceTrusted()) {
-      return { outcome: toolFailure(MODEL_TEXT.memoryRestrictedMode), isRejected: true }
+      return { outcome: toolFailure(MODEL_API_MODEL_TEXT.memoryRestrictedMode), isRejected: true }
     }
     if (!isAllowed()) throw new AbortedError()
     const placed = await placeMemoryCall(memory, call.name, call.arguments)
@@ -4782,7 +4806,7 @@ export class ModelApiSession implements AgentSession {
     const external = this.externalTool(call.name)
     if (external !== undefined && this.isSideChat) {
       return {
-        outcome: toolFailure(`${call.name} ${MODEL_TEXT.toolRefusedByMode}`),
+        outcome: toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`),
         isRejected: true,
       }
     }
@@ -4830,7 +4854,9 @@ export class ModelApiSession implements AgentSession {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
       // that calls it anyway is refused, never prompted.
       const reason =
-        toolClass === 'mcp' ? MODEL_TEXT.mcpRestrictedMode : MODEL_TEXT.shellRestrictedMode
+        toolClass === 'mcp'
+          ? MODEL_API_MODEL_TEXT.mcpRestrictedMode
+          : MODEL_API_MODEL_TEXT.shellRestrictedMode
       return { outcome: toolFailure(reason), isRejected: true }
     }
     let approvedImagePlan: ImagePlan | undefined
@@ -4951,7 +4977,7 @@ export class ModelApiSession implements AgentSession {
       return {
         outcome: {
           ...performed.outcome,
-          output: `${performed.outcome.output}\n${MODEL_TEXT.thenRunEditFailed}`,
+          output: `${performed.outcome.output}\n${MODEL_API_MODEL_TEXT.thenRunEditFailed}`,
         },
         isRejected: false,
       }
@@ -5072,7 +5098,7 @@ export class ModelApiSession implements AgentSession {
       return {
         outcome: {
           ...edit,
-          output: `${edit.output}\n\n${fill(MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.toolCancelledByStop })}`,
+          output: `${edit.output}\n\n${fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_API_MODEL_TEXT.toolCancelledByStop })}`,
           thenRun: { command, outcome: 'cancelled', output: '' },
         },
         hookEffects: effects,
@@ -5083,7 +5109,7 @@ export class ModelApiSession implements AgentSession {
       return {
         outcome: {
           ...edit,
-          output: `${edit.output}\n\n${fill(MODEL_TEXT.thenRunNotRun, { reason })}`,
+          output: `${edit.output}\n\n${fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason })}`,
           thenRun: {
             command,
             outcome: 'notRun',
@@ -5101,7 +5127,7 @@ export class ModelApiSession implements AgentSession {
     return {
       outcome: {
         ...edit,
-        output: `${edit.output}\n\n${MODEL_TEXT.thenRunLead} $ ${line}\n${finished.output}`,
+        output: `${edit.output}\n\n${MODEL_API_MODEL_TEXT.thenRunLead} $ ${line}\n${finished.output}`,
         thenRun: {
           command: line,
           outcome: outcomeOf(result),
@@ -5247,7 +5273,7 @@ export class ModelApiSession implements AgentSession {
           turnId,
           started,
           effectiveCall,
-          toolFailure(MODEL_TEXT.toolCancelledByStop),
+          toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
           CANCELLED,
         )
         throw new AbortedError()
@@ -5266,7 +5292,7 @@ export class ModelApiSession implements AgentSession {
     if (running === undefined) {
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
-          output: `Error: ${MODEL_TEXT.toolMediaBudgetExceeded}`,
+          output: `Error: ${MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded}`,
           visibleOutput: UI_TEXT.mediaTotalTooLarge,
           failureReason: UI_TEXT.mediaTotalTooLarge,
         }
@@ -5386,7 +5412,7 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
     this.noteForModel(
-      `${MODEL_TEXT.backgroundEndedLead}\n$ ${commandOf(call.arguments)}\n${final.output}`,
+      `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ ${commandOf(call.arguments)}\n${final.output}`,
       moved.itemId,
     )
   }
@@ -5503,7 +5529,7 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
     if (result.isEntryRefused !== true) {
-      this.noteForModel(`${MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
+      this.noteForModel(`${MODEL_API_MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
     }
   }
 
@@ -5511,7 +5537,7 @@ export class ModelApiSession implements AgentSession {
   private skipCalls(
     turnId: string,
     calls: readonly FunctionCallItem[],
-    reason: string = MODEL_TEXT.toolCancelledByStop,
+    reason: string = MODEL_API_MODEL_TEXT.toolCancelledByStop,
   ): void {
     for (const call of calls) {
       this.replay.push({
@@ -5543,7 +5569,7 @@ export class ModelApiSession implements AgentSession {
           type: 'message',
           role: 'user',
           content: [
-            { type: 'input_text', text: MODEL_TEXT.steeredPrefix },
+            { type: 'input_text', text: MODEL_API_MODEL_TEXT.steeredPrefix },
             ...this.contentParts(parts),
           ],
         },
@@ -5583,7 +5609,7 @@ export class ModelApiSession implements AgentSession {
       item: {
         type: 'message',
         role: 'user',
-        content: [{ type: 'input_text', text: MODEL_TEXT.goalWake }],
+        content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.goalWake }],
       },
     })
   }
@@ -5660,7 +5686,9 @@ export class ModelApiSession implements AgentSession {
         checks.length === 0 || !isAllowed() ? [] : await this.existingFiles(edited, isAllowed)
       runs = isAllowed()
         ? await this.runChecks(started.itemId, checks, existing, signal, effects, share, isAllowed)
-        : checks.map((check) => skippedCheck(check, 'refused', MODEL_TEXT.verifyAccessRefused))
+        : checks.map((check) =>
+            skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused),
+          )
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
@@ -5672,7 +5700,7 @@ export class ModelApiSession implements AgentSession {
             outcome: run.summary.outcome,
             ...(run.summary.skip !== undefined && { skip: run.summary.skip }),
           },
-          text: MODEL_TEXT.verifyAccessRefused,
+          text: MODEL_API_MODEL_TEXT.verifyAccessRefused,
         }))
       }
     } catch (error: unknown) {
@@ -5710,7 +5738,7 @@ export class ModelApiSession implements AgentSession {
     } else {
       this.replay.push({
         turnId: turn.turnId,
-        item: noteItem([MODEL_TEXT.verifyLead, ...sections].join('\n\n')),
+        item: noteItem([MODEL_API_MODEL_TEXT.verifyLead, ...sections].join('\n\n')),
       })
     }
     // The model has the reads now: they become the baseline of the next check.
@@ -5721,10 +5749,12 @@ export class ModelApiSession implements AgentSession {
 
   /** The verify note with the fix loop's stop at its end, and the panel's notice (M68). */
   private noteFixLoopStopped(turnId: string, sections: readonly string[]): void {
-    const stopped = fill(MODEL_TEXT.checksStopped, { count: String(CHECK_FIX_MAX_ROUNDS) })
+    const stopped = fill(MODEL_API_MODEL_TEXT.checksStopped, {
+      count: String(CHECK_FIX_MAX_ROUNDS),
+    })
     this.replay.push({
       turnId,
-      item: noteItem([MODEL_TEXT.verifyLead, ...sections, stopped].join('\n\n')),
+      item: noteItem([MODEL_API_MODEL_TEXT.verifyLead, ...sections, stopped].join('\n\n')),
     })
     this.emit({
       type: 'backendNotice',
@@ -5775,7 +5805,9 @@ export class ModelApiSession implements AgentSession {
         this.deps.log.warn(`Verify: the diagnostics could not be read: ${describe(error)}`)
         return {
           report: {
-            text: fill(MODEL_TEXT.verifyDiagnosticsUnavailable, { reason: describe(error) }),
+            text: fill(MODEL_API_MODEL_TEXT.verifyDiagnosticsUnavailable, {
+              reason: describe(error),
+            }),
             unchecked: edited.length,
           },
           commit: NOTHING_TO_COMMIT,
@@ -5822,11 +5854,11 @@ export class ModelApiSession implements AgentSession {
       }
       const requiredAfterStream = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
       if (requiredAfterStream !== undefined) {
-        this.skipCalls(turn.turnId, calls, MODEL_TEXT.mcpRequiredUnavailable)
+        this.skipCalls(turn.turnId, calls, MODEL_API_MODEL_TEXT.mcpRequiredUnavailable)
         throw requiredAfterStream
       }
       if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
-        this.skipCalls(turn.turnId, calls, MODEL_TEXT.goalBudgetReached)
+        this.skipCalls(turn.turnId, calls, MODEL_API_MODEL_TEXT.goalBudgetReached)
         this.appendHookContexts(turn.turnId, postContexts)
         this.queuedTurns.unshift(...this.queuedSteered(turn))
         return
@@ -5897,7 +5929,11 @@ export class ModelApiSession implements AgentSession {
           }
           const requiredBeforeCall = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
           if (requiredBeforeCall !== undefined) {
-            this.skipCalls(turn.turnId, calls.slice(index), MODEL_TEXT.mcpRequiredUnavailable)
+            this.skipCalls(
+              turn.turnId,
+              calls.slice(index),
+              MODEL_API_MODEL_TEXT.mcpRequiredUnavailable,
+            )
             throw requiredBeforeCall
           }
           try {
@@ -6262,7 +6298,7 @@ export class ModelApiSession implements AgentSession {
           {
             type: 'message',
             role: 'user',
-            content: [{ type: 'input_text', text: MODEL_TEXT.compactionPrompt }],
+            content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.compactionPrompt }],
           },
         ]),
         tools: [],
@@ -6290,7 +6326,9 @@ export class ModelApiSession implements AgentSession {
       item: {
         type: 'message',
         role: 'user',
-        content: [{ type: 'input_text', text: `${MODEL_TEXT.compactionPrefix}\n\n${summary}` }],
+        content: [
+          { type: 'input_text', text: `${MODEL_API_MODEL_TEXT.compactionPrefix}\n\n${summary}` },
+        ],
       },
     })
     this.compactedThroughTurnId = this.turnIds.at(-1)
@@ -6908,20 +6946,22 @@ export class ModelApiSession implements AgentSession {
         const revisionBeforeConsent = child.revision
         const taskBeforeConsent = this.queuedChildTask(child, [
           ...child.pendingMessages,
-          MODEL_TEXT.subagentResume,
+          MODEL_API_MODEL_TEXT.subagentResume,
         ])
         const grant = await this.confirmOwnerChildTask(child, taskBeforeConsent)
         if (
           this.isDisposed ||
           child.state !== stateBeforeConsent ||
           child.revision !== revisionBeforeConsent ||
-          this.queuedChildTask(child, [...child.pendingMessages, MODEL_TEXT.subagentResume]) !==
-            taskBeforeConsent
+          this.queuedChildTask(child, [
+            ...child.pendingMessages,
+            MODEL_API_MODEL_TEXT.subagentResume,
+          ]) !== taskBeforeConsent
         ) {
           throw new Error(UI_TEXT.subagentConsentDeclined)
         }
         this.installChildGrant(child, grant)
-        child.pendingMessages.push(MODEL_TEXT.subagentResume)
+        child.pendingMessages.push(MODEL_API_MODEL_TEXT.subagentResume)
         child.state = 'queued'
         this.startQueuedChildren()
 
@@ -7266,7 +7306,9 @@ export class ModelApiSession implements AgentSession {
       if (item.status === IN_PROGRESS && item.background === true) {
         this.replay.push({
           turnId: this.latestTurnId(),
-          item: noteItem(`${MODEL_TEXT.backgroundLostLead}\n$ ${commandOf(item.args ?? '')}`),
+          item: noteItem(
+            `${MODEL_API_MODEL_TEXT.backgroundLostLead}\n$ ${commandOf(item.args ?? '')}`,
+          ),
           backgroundTaskId: item.itemId,
         })
       }
@@ -7380,8 +7422,8 @@ export class ModelApiSession implements AgentSession {
       const command = commandOf(item.args ?? '')
       const fallback =
         item.status === IN_PROGRESS
-          ? `${MODEL_TEXT.backgroundLostLead}\n$ ${command}`
-          : `${MODEL_TEXT.backgroundEndedLead}\n$ ${command}\n${item.visibleOutput ?? ''}`
+          ? `${MODEL_API_MODEL_TEXT.backgroundLostLead}\n$ ${command}`
+          : `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ ${command}\n${item.visibleOutput ?? ''}`
       target.replay.push({
         turnId: target.latestTurnId(),
         item: recorded?.item ?? noteItem(pending?.text ?? fallback),

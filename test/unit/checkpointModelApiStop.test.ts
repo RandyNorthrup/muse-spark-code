@@ -7,7 +7,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   type CheckCommandSetting,
-  MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
 } from '../../src/shared/constants'
 import {
   type ConditionalWrite,
@@ -846,7 +846,7 @@ describe('M72 native common owner guards', () => {
           (event) => event.type === 'itemCompleted' && event.item.tool === 'verify_edits',
         )
         if (row?.type !== 'itemCompleted') throw new Error('Expected automatic verification row')
-        expect(row.item.visibleOutput).toContain(MODEL_TEXT.verifyAccessRefused)
+        expect(row.item.visibleOutput).toContain(MODEL_API_MODEL_TEXT.verifyAccessRefused)
         expect(row.item.verifySummary).toMatchObject({ unchecked: 1 })
         expect(row.item.verifySummary?.errors).toBeUndefined()
       } finally {
@@ -1014,7 +1014,9 @@ describe('M72 native common owner guards', () => {
         await done(t)
         expect(t.shell).not.toHaveBeenCalled()
         expect(t.events.some((event) => event.type === 'approvalRequested')).toBe(false)
-        expect(JSON.stringify(t.api.responseBodies())).toContain(MODEL_TEXT.verifyAccessRefused)
+        expect(JSON.stringify(t.api.responseBodies())).toContain(
+          MODEL_API_MODEL_TEXT.verifyAccessRefused,
+        )
       } finally {
         release.resolve(undefined)
       }

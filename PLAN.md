@@ -333,24 +333,17 @@ every bundle that carries `MODEL_TEXT`).
   bundle does not. A bundle that reads `UI_TEXT` and loads after activation
   does the same; the checkpoint store's (`dist/checkpointStore.js`) and the
   ACP agent's keep theirs.
-- **Measured** (production): `dist/modelApi.js` 331.6 KiB (was 398.4, of
-  400), `dist/review.js` 40.8, `dist/checkpointStore.js` 191.7 (was 186.8, of
-  225: the strings), `dist/acp.js` 793.6 (was 788.6, of 850),
-  `dist/webview/main.js` 799.4 (was 777.2, of 900), and
-  **`dist/extension.js` 603.7 KiB against its unchanged 600**: M70 adds 12.1
-  KiB there after moving everything it could (edit review and the review's
-  code left it), of which the 70 strings are 4.75, the conversation
-  controller's review and permission-mode logic 8.5, and the message schemas
-  0.9. The build's size gate fails on it. A cap change is the owner's
-  decision (§3): the extension bundle's headroom at the M72 candidate, 8.4
-  KiB, cannot take M70 and the milestones after it. What would make room
-  without a cap change, each a change beyond M70: the controller's review
-  orchestration moved behind a port into `dist/review.js` (about 4 KiB, no
-  margin), the English table shipped as a generated `l10n/ui.en.json` the
-  host reads like every other language (about 75 KiB, for every milestone),
-  or the Model-API-only `MODEL_TEXT` strings split into a block of their own
-  as `REVIEW_MODEL_TEXT` is (110 of its 242 strings, about 10 of its 24 KB,
-  are read by no file of the activation bundle).
+- **Session-only model text** is `MODEL_API_MODEL_TEXT`, a separate block
+  beside `MODEL_TEXT`: 57 existing keys used only by `ModelApiHost` (one is
+  also read by the lazy MCP pool), with every word unchanged. Activation
+  and the ACP loader can discard this unused object. The split gate rejects
+  the session text's return to either loader. This repairs M70's initial
+  603.7 KiB activation overflow without raising any cap.
+- **Measured** (lane production build, before the final M72 merge):
+  `dist/extension.js` 598.7/600 KiB, `dist/modelApi.js` 331.6/400,
+  `dist/review.js` 40.8/50, `dist/checkpointStore.js` 186.7/225,
+  `dist/acp.js` 788.6/850, `dist/webview/main.js` 799.4/900.
+  These focused measurements do not certify the full aggregate or platforms.
 
 **Amendment (PR #32 joined with M57, 2026-09-27): the ACP agent loads the
 same `dist/modelApi.js`.** The agent's runtime (`src/runtime/backends.ts`,
@@ -7817,8 +7810,9 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     method, the workspace rules) and only `read_file`, `search`,
     `list_files` and `mcp__ide__getDiagnostics`: no write, shell, memory,
     MCP, subagent, image or web search, and a call to anything else is
-    refused in every mode, Bypass included. It starts no external MCP server
-    and is not stopped by one that is unavailable; the next ordinary turn
+    refused in every mode, Bypass included. It performs no additional external MCP startup
+    during the review turn and is not stopped by an unavailable server;
+    configured servers can still start when the conversation opens; the next ordinary turn
     keeps its required-server check. No payment is asked: it is the user's
     own turn (D49). A child task whose role is `reviewer` runs the same way
     and stays a paid child task (D45, D48).

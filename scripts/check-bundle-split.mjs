@@ -128,6 +128,14 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+// The session's model text is its own object (M70 budget repair). esbuild
+// keeps property names: these belong only to MODEL_API_MODEL_TEXT, which
+// the activation and ACP loaders must discard with the unused export.
+for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
+  if (/\bcompactionPrompt:/.test(readFileSync(bundle.output, 'utf8'))) {
+    problems.push(`${bundle.output} carries the Model API session's model text`)
+  }
+}
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
 const loaders = [
   [BUNDLES.activation.output, activation],

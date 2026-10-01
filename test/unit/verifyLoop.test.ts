@@ -10,6 +10,7 @@ import {
   CHECK_FIX_MAX_ROUNDS,
   type CheckCommandSetting,
   MODEL_API_MAX_TOOL_ROUNDS,
+  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
   SHELL_DEFAULT_TIMEOUT_MS,
   UI_TEXT,
@@ -645,7 +646,9 @@ describe('workspace writes and verify grants', () => {
           expect(t.io.shellCalls).toHaveLength(3)
         })
         const writerRequest = userText(t.api.responseBodies()[4 + writerIndex])
-        expect(writerRequest.includes(MODEL_TEXT.subagentObjective)).toBe(writerIndex === 0)
+        expect(writerRequest.includes(MODEL_API_MODEL_TEXT.subagentObjective)).toBe(
+          writerIndex === 0,
+        )
         // All three sessions hold their own grant before one writes.
         nextWrite.resolve(undefined)
         await formatting.promise
@@ -757,7 +760,7 @@ describe('the verify loop after a round of edits (Model API)', () => {
       ],
     ])
     const next = userText(t.api.responseBodies()[1])
-    expect(next).toContain(MODEL_TEXT.verifyLead)
+    expect(next).toContain(MODEL_API_MODEL_TEXT.verifyLead)
     expect(next).toContain('src/a.ts: errors 1, warnings 0')
     expect(next).toContain(
       "src/a.ts:1:7: error: Type 'string' is not assignable to type 'number'. [ts]",
@@ -807,7 +810,7 @@ describe('the verify loop after a round of edits (Model API)', () => {
     t.api.script({ calls: [editCall('1', '2')] }, { text: 'ok' })
     await turn()
     expect(userText(t.api.responseBodies()[1])).toContain(
-      fill(MODEL_TEXT.verifyDiagnosticsUnavailable, { reason: 'no language server' }),
+      fill(MODEL_API_MODEL_TEXT.verifyDiagnosticsUnavailable, { reason: 'no language server' }),
     )
     const [row] = completedRows(events, 'verify_edits')
     expect(row?.verifySummary).toEqual({ files: ['src/a.ts'], unchecked: 1, checks: [] })
@@ -822,7 +825,9 @@ describe('the verify loop after a round of edits (Model API)', () => {
     await turn()
     const lintRuns = t.io.shellCalls.filter((call) => call.command.startsWith(LINT.command))
     expect(lintRuns).toHaveLength(CHECK_FIX_MAX_ROUNDS)
-    const stopNote = fill(MODEL_TEXT.checksStopped, { count: String(CHECK_FIX_MAX_ROUNDS) })
+    const stopNote = fill(MODEL_API_MODEL_TEXT.checksStopped, {
+      count: String(CHECK_FIX_MAX_ROUNDS),
+    })
     expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS - 1])).not.toContain(stopNote)
     expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).toContain(stopNote)
     const notices = events.filter((event) => event.type === 'backendNotice')
@@ -863,7 +868,9 @@ describe('the verify loop after a round of edits (Model API)', () => {
     scriptWriteRounds(t, rounds, 'done')
     await turn()
     expect(lintRun).toBe(rounds)
-    const stopNote = fill(MODEL_TEXT.checksStopped, { count: String(CHECK_FIX_MAX_ROUNDS) })
+    const stopNote = fill(MODEL_API_MODEL_TEXT.checksStopped, {
+      count: String(CHECK_FIX_MAX_ROUNDS),
+    })
     // Without the reset the loop would have stopped after its third round.
     expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).not.toContain(stopNote)
     expect(userText(t.api.responseBodies()[rounds - 1])).not.toContain(stopNote)
@@ -1069,7 +1076,7 @@ describe('run_checks (the model’s own call)', () => {
       status: 'completed',
       verifySummary: { files: [], checks: [{ name: 'lint', outcome: 'passed' }] },
     })
-    expect(outputs(t.api.responseBodies()[1])[0]).toContain(MODEL_TEXT.runChecksLead)
+    expect(outputs(t.api.responseBodies()[1])[0]).toContain(MODEL_API_MODEL_TEXT.runChecksLead)
   })
 
   it('refuses unknown names, bad arguments, paths outside the workspace, and no checks', async () => {
@@ -1089,7 +1096,7 @@ describe('run_checks (the model’s own call)', () => {
     await turn()
     const [unknown, badShape, notJson, outside] = outputs(t.api.responseBodies()[1])
     expect(unknown).toBe(
-      `Error: ${fill(MODEL_TEXT.runChecksUnknown, { name: 'deploy', names: 'lint' })}`,
+      `Error: ${fill(MODEL_API_MODEL_TEXT.runChecksUnknown, { name: 'deploy', names: 'lint' })}`,
     )
     expect(badShape).toContain('Error: invalid arguments')
     expect(notJson).toBe('Error: arguments are not valid JSON')
@@ -1099,7 +1106,9 @@ describe('run_checks (the model’s own call)', () => {
     const second = await start(none, 'allowAll')
     none.api.script({ calls: [{ name: 'run_checks', arguments: '{}' }] }, { text: 'ok' })
     await second.turn()
-    expect(outputs(none.api.responseBodies()[1])[0]).toBe(`Error: ${MODEL_TEXT.runChecksNone}`)
+    expect(outputs(none.api.responseBodies()[1])[0]).toBe(
+      `Error: ${MODEL_API_MODEL_TEXT.runChecksNone}`,
+    )
   })
 })
 
@@ -1114,7 +1123,7 @@ describe('then_run: one call, two results', () => {
     ])
     const [output] = outputs(t.api.responseBodies()[1])
     expect(output).toBe(
-      `edited src/a.ts\n\n${MODEL_TEXT.thenRunLead} $ npm test -- a\n1 failing\n[exit code 1]`,
+      `edited src/a.ts\n\n${MODEL_API_MODEL_TEXT.thenRunLead} $ npm test -- a\n1 failing\n[exit code 1]`,
     )
     const [row] = completedRows(events, 'edit_file')
     expect(row).toMatchObject({
@@ -1149,7 +1158,7 @@ describe('then_run: one call, two results', () => {
       output: '',
     })
     expect(outputs(rejected.api.responseBodies()[1])[0]).toContain(
-      fill(MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.checkSkipRejected }),
+      fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.checkSkipRejected }),
     )
 
     const restricted = setup({ isDiagnosticsOn: false, isTrusted: false })
@@ -1181,7 +1190,7 @@ describe('then_run: one call, two results', () => {
     await turn()
     expect(t.io.shellCalls).toEqual([])
     expect(outputs(t.api.responseBodies()[1])[0]).toContain(
-      fill(MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.checkSkipChanged }),
+      fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.checkSkipChanged }),
     )
   })
 
@@ -1222,7 +1231,7 @@ describe('then_run: one call, two results', () => {
     await turn()
     expect(t.io.shellCalls).toEqual([])
     expect(outputs(t.api.responseBodies()[1])[0]).toBe(
-      `Error: find text not found in src/a.ts\n${MODEL_TEXT.thenRunEditFailed}`,
+      `Error: find text not found in src/a.ts\n${MODEL_API_MODEL_TEXT.thenRunEditFailed}`,
     )
   })
 })
@@ -1313,7 +1322,7 @@ describe('the user’s hooks see then_run and the checks as shell calls', () => 
       detail: 'no tests on main',
     })
     expect(outputs(t.api.responseBodies()[1])[0]).toContain(
-      fill(MODEL_TEXT.thenRunNotRun, { reason }),
+      fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason }),
     )
 
     // A rewrite with no command, then one whose command is blank.
@@ -1345,8 +1354,14 @@ describe('the user’s hooks see then_run and the checks as shell calls', () => 
     await second.turn()
     expect(blank.io.shellCalls).toEqual([])
     expect(completedRows(second.events, 'edit_file').map((row) => row.thenRun)).toEqual([
-      expect.objectContaining({ skip: 'hookDenied', detail: MODEL_TEXT.hookInputNoCommand }),
-      expect.objectContaining({ skip: 'hookDenied', detail: MODEL_TEXT.hookInputNoCommand }),
+      expect.objectContaining({
+        skip: 'hookDenied',
+        detail: MODEL_API_MODEL_TEXT.hookInputNoCommand,
+      }),
+      expect.objectContaining({
+        skip: 'hookDenied',
+        detail: MODEL_API_MODEL_TEXT.hookInputNoCommand,
+      }),
     ])
   })
 
@@ -1644,7 +1659,7 @@ describe('the checks’ state since the user’s message', () => {
       { text: 'goal done' },
     )
     await untilTurnEnds(() => session.controlGoal({ verb: 'set', objective: 'Ship it' }))
-    expect(userText(t.api.responseBodies().at(-2))).toContain(MODEL_TEXT.verifyLead)
+    expect(userText(t.api.responseBodies().at(-2))).toContain(MODEL_API_MODEL_TEXT.verifyLead)
     expect(lintRuns(t)).toBe(CHECK_FIX_MAX_ROUNDS)
     t.api.script({ calls: [writeCall('src/h.ts', 'x\n')] }, { text: 'again' })
     await turn('once more')
@@ -1712,7 +1727,7 @@ describe('what reaches a check and the editor (the M68 review)', () => {
     await turn()
     expect(t.io.shellCalls.map((call) => call.command)).toEqual(["npm run lint -- 'src/a.ts'"])
     expect(outputs(t.api.responseBodies()[2]).at(-1)).toBe(
-      `Error: ${fill(MODEL_TEXT.runChecksMissingPath, { path: 'src/gone.ts' })}`,
+      `Error: ${fill(MODEL_API_MODEL_TEXT.runChecksMissingPath, { path: 'src/gone.ts' })}`,
     )
   })
 
@@ -1962,7 +1977,9 @@ describe('the verify ledger in the loop', () => {
       { text: 'ok' },
     )
     await turn()
-    const stopNote = fill(MODEL_TEXT.checksStopped, { count: String(CHECK_FIX_MAX_ROUNDS) })
+    const stopNote = fill(MODEL_API_MODEL_TEXT.checksStopped, {
+      count: String(CHECK_FIX_MAX_ROUNDS),
+    })
     // The first round passed on its latest state; three failing rounds follow it.
     expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS])).not.toContain(stopNote)
     expect(userText(t.api.responseBodies()[CHECK_FIX_MAX_ROUNDS + 1])).toContain(stopNote)
