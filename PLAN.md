@@ -8501,6 +8501,13 @@ repository in the extension's own storage, never the workspace's
 - **Tests.** Front-matter parsing with zod, and drills for each narrowing
   rule.
 - **Size.** M.
+- **Lane review 2026-09-30.** Recheck workspace trust at child creation,
+  after contributor and paid consent waits; a revoked workspace must create
+  no custom-agent child or paid model request. Explicitly label role text
+  as untrusted in the model prompt. Recheck trust before agent loading and
+  discard a catalogue completed after trust withdrawal. Restore the missing certification record
+  with current lane checks and red/restored proofs; lead-owned aggregate and
+  platform gates remain open. The brief's handoff path is missing.
 - **Status 2026-09-30: built on `feature/m76-agents`** over the M72 release
   candidate (`1fd98aaf`), after a first build on 2026-09-28 (Muse Code) and
   a resume that ported it over main `32709441`; the record is

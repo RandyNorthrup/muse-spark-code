@@ -3668,6 +3668,11 @@ export class ModelApiSession implements AgentSession {
     if (grant === undefined) {
       return childTaskFailure('consentDeclined')
     }
+    // Contributor and paid consent awaited after the catalogue lookup: trust
+    // may have been withdrawn meanwhile. No custom-agent child starts then.
+    if (spawnAgent !== undefined && !this.deps.isWorkspaceTrusted()) {
+      return subagentFailure(MODEL_TEXT.agentRestrictedMode)
+    }
     const parsed = spawnArgs.safeParse(argumentsOf(call))
     if (!parsed.success) {
       return subagentFailure('invalid subagent_spawn arguments')

@@ -19,9 +19,20 @@ const MEMORY: readonly MemoryScopeSnapshot[] = [
   { scope: 'project', index: '- [A](a.md) | hook', notes: [], hasMoreNotes: false },
 ]
 
-function setup(initial: Record<string, string>, isTrusted = true) {
+function setup(
+  initial: Record<string, string>,
+  isTrusted: boolean | (() => boolean) = true,
+  onRead?: (file: string) => void,
+) {
   const files = memoryTree(initial, ROOT)
-  const io = memoryContextIo(files)
+  const inner = memoryContextIo(files)
+  const io = {
+    ...inner,
+    readFile: (file: string, maxBytes?: number) => {
+      onRead?.(file)
+      return inner.readFile(file, maxBytes)
+    },
+  }
   const warnings: string[] = []
   let memoryLoads = 0
   const context = new WorkspaceContext({
@@ -31,7 +42,7 @@ function setup(initial: Record<string, string>, isTrusted = true) {
     personalSkillsRoot: USER_ROOT,
     personalAgentsRoot: USER_AGENTS_ROOT,
     hasAgents: true,
-    isWorkspaceTrusted: () => isTrusted,
+    isWorkspaceTrusted: () => (typeof isTrusted === 'function' ? isTrusted() : isTrusted),
     loadMemory: () => {
       memoryLoads += 1
       return Promise.resolve(MEMORY)
@@ -164,6 +175,32 @@ describe('WorkspaceContext', () => {
     expect(t.context.agent('scout')).toBeUndefined()
     expect(t.memoryLoads()).toBe(0)
   })
+
+  it.each(['AGENTS.md', '.agents/agents/scout/AGENT.md'])(
+    'keeps no agents after trust is withdrawn while reading %s (M76)',
+    async (revokedAt) => {
+      let isTrusted = true
+      const reads: string[] = []
+      const t = setup(
+        {
+          'AGENTS.md': 'root\n',
+          '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting'),
+        },
+        () => isTrusted,
+        (file) => {
+          reads.push(file)
+          if (file === `${ROOT}/${revokedAt}`) isTrusted = false
+        },
+      )
+      await t.context.load()
+      expect(reads).toContain(`${ROOT}/${revokedAt}`)
+      expect(t.context.sections().agents).toEqual([])
+      expect(t.context.agent('scout')).toBeUndefined()
+      if (revokedAt === 'AGENTS.md') {
+        expect(reads.some((file) => file.endsWith('/AGENT.md'))).toBe(false)
+      }
+    },
+  )
 })
 
 describe('WorkspaceContext: failing reads', () => {

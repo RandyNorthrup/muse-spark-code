@@ -167,6 +167,8 @@ export class WorkspaceContext {
    * repository's files only in a trusted workspace, like the skills.
    */
   private async loadAgentCatalogue(): Promise<void> {
+    // Rules and skills awaited first; trust can change before agent loading.
+    if (!this.isTrusted) return
     const agents = await this.guarded(
       'loading the agents',
       () => loadAgents({ io: this.deps.io, platform: this.deps.platform }, this.agentRoots()),
@@ -176,7 +178,9 @@ export class WorkspaceContext {
     for (const warning of agents.warnings) {
       this.deps.warn(warning)
     }
-    this.agents = agents.agents
+    // An in-flight file read cannot be cancelled, but its catalogue must not
+    // survive trust withdrawal while the filesystem was answering.
+    this.agents = this.deps.isWorkspaceTrusted() ? agents.agents : []
   }
 
   /** The root rules, the skills, the agents and the memory index, loaded once. */

@@ -53,6 +53,14 @@ happened, not what was planned; superseded entries are kept.
   bundle-split gate fails if the copy comes back, and a bundle test proves
   the host still speaks from the table it is handed.
 
+### Fixed
+
+- Custom-agent creation rechecks workspace trust after contributor and paid
+  consent waits. Revoking trust while the popup is open creates no child
+  and makes no paid child-model request. The loader checks trust before it
+  starts and discards a catalogue completed after trust withdrawal. Agent
+  role prompts explicitly label their content as untrusted.
+
 ## [0.10.0] - 2026-09-30
 
 ### Fixed

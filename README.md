@@ -558,8 +558,9 @@ once, when the conversation starts.
 - **Whose words.** The model sees each agent's source (`project`,
   `personal` or `built-in`) in the catalogue, and a child's role below the
   workspace rules, labelled with its source and id, as text that cannot add
-  tools or permissions. A repository's files load only in a trusted
-  workspace: a session that loses trust offers no agent, and a resumed child's
+  tools or permissions, explicitly marked as untrusted text. A repository's
+  files load only in a trusted workspace: a session that loses trust offers
+  no agent, including when trust is revoked during the paid-use popup, and a resumed child's
   project role is left out while the workspace is untrusted.
 - **The model runs one** through `subagent_spawn` with `agent` set to its id;
   the catalogue appears in its instructions only while paid subagents are on.

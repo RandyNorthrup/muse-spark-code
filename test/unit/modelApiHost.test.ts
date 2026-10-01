@@ -7565,6 +7565,33 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(t.paidRequests).toEqual([])
   })
 
+  it.each(['explore', 'reviewer'])(
+    'refuses %s when trust is withdrawn during paid consent (M76)',
+    async (agent) => {
+      let isTrusted = true
+      const t = setupSubagents({
+        files: reviewerFiles(),
+        isTrusted: () => isTrusted,
+        allowsPaidUse: () => {
+          isTrusted = false
+          return Promise.resolve(true)
+        },
+      })
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('worker', 'Review files', agent, 'spawn_trust_withdrawn'),
+      )
+      expect(t.paidRequests).toHaveLength(1)
+      expect(childBodies(t)).toEqual([])
+      expect(outputFor(t.api.responseBodies()[1], 'spawn_trust_withdrawn')).toMatchObject({
+        output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+      })
+    },
+  )
+
   it('drops a project file role when its child resumes in an untrusted workspace (M76)', async () => {
     const rig = await resumeWithChild(reviewerFiles(), spawnReviewerAndWait, {
       resumed: { isTrusted: false },
