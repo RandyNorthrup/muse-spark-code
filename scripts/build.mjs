@@ -121,6 +121,7 @@ const agentImportOptions = {
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
+  external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
   plugins: [lazyBundleTable],

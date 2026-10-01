@@ -3,8 +3,8 @@
 // `smol-toml` for Codex's configuration. esbuild builds this file into
 // dist/agentImport.js, which `agentImportLoader` requires on the first
 // import, so none of it is in the bundle VS Code loads at activation. It
-// carries no `vscode` import: the VS Code side (pickers, the clipboard, the
-// editor) comes in as `host`, and the localized table as `table`.
+// also carries the pickers, clipboard and editor adapter; `vscode` is the
+// host's external module. Both entries receive the installed display table.
 
 import { AGENT_IMPORT_PATHS } from '../shared/constants'
 import type { UiText } from '../shared/l10n/en'
@@ -15,10 +15,20 @@ import {
   importFromAgents as runImport,
 } from './commands/agentImportCommands'
 import { fileImportIo, fileImportWriter, isPathPresent } from './importIo'
+import { type AgentImportHostDeps, runAgentImportUi } from './agentImportHost'
 
 // One gate for the extension host: a second import asked for while one is
 // open is told so, and starts nothing over the first one's questions.
 const importGate = createImportGate()
+
+export async function runAgentImport(
+  host: AgentImportHostDeps,
+  table: UiText,
+  locale: string,
+): Promise<void> {
+  setUiText(table, locale)
+  await runAgentImportUi(host)
+}
 
 export async function importFromAgents(
   host: AgentImportHost,

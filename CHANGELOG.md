@@ -26,6 +26,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The import picker, clipboard and editor code now load with the existing
+  import bundle on first use, keeping activation within its 600 KiB budget.
+  The loader checks both entry points; the installed language and captured
+  workspace-edit owner stay intact across loading.
 - **Import root stays bound through every question and publication** (M83).
   A workspace link changed during tool/candidate selection or rules staging
   cannot redirect the accepted import. Hooks destinations are checked before

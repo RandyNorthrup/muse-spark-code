@@ -76,14 +76,14 @@
       "baselineExit": 0,
       "mutatedExit": 1,
       "restoredExit": 0,
-      "beforeSha256": "acb337114857dbb32091eda656091e2a8ebd463c1c0cb02d30e564117f001245",
-      "mutatedSha256": "5ce26e0f36553752237a710f5d73998f302bebe10b1383ff93f002711d4f3eda",
-      "afterSha256": "acb337114857dbb32091eda656091e2a8ebd463c1c0cb02d30e564117f001245",
+      "beforeSha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9",
+      "mutatedSha256": "620e7e1d7a853e8244b35ff80150aa3d6b78903e1e4b852612835194e056ea58",
+      "afterSha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9",
       "redLog": "temp/m83-lane/editor-before-load-red.log",
       "restoredLog": "temp/m83-lane/editor-before-load-restored.log",
       "passed": true,
-      "redLogSha256": "be0b25546949a450028a75619c74336c5e9c64dfdfaad536783fdccd8b1c6a38",
-      "restoredLogSha256": "cd9a426dd6a7dc3ac730f6170302469bcaf48ce46874c3f51a463d270ba1e904"
+      "redLogSha256": "fe9ab9ac92412c476bf8d07624b4f0ecb625decc58a4767da22d210f010adab5",
+      "restoredLogSha256": "58640458c926330f3417359bb45010626c49131713101cae903fcadaf58e28d6"
     },
     {
       "id": "editor-after-load",
@@ -99,14 +99,14 @@
       "baselineExit": 0,
       "mutatedExit": 1,
       "restoredExit": 0,
-      "beforeSha256": "acb337114857dbb32091eda656091e2a8ebd463c1c0cb02d30e564117f001245",
-      "mutatedSha256": "ac9fb6ecd269407d80aa3178f5c79d3f3cabfc1f7f4f5fbd23f3791f8d67b902",
-      "afterSha256": "acb337114857dbb32091eda656091e2a8ebd463c1c0cb02d30e564117f001245",
+      "beforeSha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9",
+      "mutatedSha256": "89552d0edfc093270171a67a43c637983a3b7352a3bdb717a3683f7522278d95",
+      "afterSha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9",
       "redLog": "temp/m83-lane/editor-after-load-red.log",
       "restoredLog": "temp/m83-lane/editor-after-load-restored.log",
       "passed": true,
-      "redLogSha256": "c84eb5b73e48e8998e8715c94b15f3848278c88da5d3bd12f7b020de546de462",
-      "restoredLogSha256": "283251da2e277c2f9637a4fe214179c16aee808ff7129b6b4285856c773eaa80"
+      "redLogSha256": "9e6f29699e653b7cd14ba0fb6a0fcb91014d0b92f837f618982e86a89a8404fd",
+      "restoredLogSha256": "61464a80abd29498fea96a0f8e875934daec70671bafa71b1032eeeec552cb5f"
     },
     {
       "id": "busy-import",
@@ -439,7 +439,76 @@
       "passed": true,
       "redLogSha256": "79eb27dd898567e6a3631fcfa2ecba0ae9d35f2edb5530acb5ccbe2b7d0520db",
       "restoredLogSha256": "375ee06377862a5d9980472fac16d63fce3d2a3e2387c2198c6360b8f56fbf6d"
+    },
+    {
+      "id": "ui-runner-shape",
+      "file": "src/host/agentImportBundle.ts",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/agentImportBundle.test.ts"
+      ],
+      "expectedDiagnostic": "accepts a module that exports the import, and nothing else",
+      "observedDiagnostic": " FAIL  test/unit/agentImportBundle.test.ts > isAgentImportBundle > accepts a module that exports the import, and nothing else",
+      "baselineExit": 0,
+      "mutatedExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "e27a29a9f62d721396dff230acd13fa809f792831b0492a0f92aaa9ea065d590",
+      "mutatedSha256": "20c90e2b166d3e0d6b54d413fb148776e7d4661545ad2b5df5c627836a2dcd65",
+      "afterSha256": "e27a29a9f62d721396dff230acd13fa809f792831b0492a0f92aaa9ea065d590",
+      "redLog": "temp/m83-lane/ui-runner-shape-red.log",
+      "restoredLog": "temp/m83-lane/ui-runner-shape-restored.log",
+      "passed": true,
+      "redLogSha256": "7437f047a4282eea223ad9a51c1e6e56e845baed125e785b3158313730405078",
+      "restoredLogSha256": "914a5634e7e18cf4350cf1d3d11eb278f9599cde5af6bc1e7328660849f98acf"
+    },
+    {
+      "id": "ui-table-before-picker",
+      "file": "src/host/agentImportEntry.ts",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/agentImportBundle.test.ts"
+      ],
+      "expectedDiagnostic": "runs its shipped UI entry with the handed table and captures its owner before the picker",
+      "observedDiagnostic": " FAIL  test/unit/agentImportBundle.test.ts > the shipped import bundle > runs its shipped UI entry with the handed table and captures its owner before the picker",
+      "baselineExit": 0,
+      "mutatedExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "a9ca8a8e9ab244953adf353d7411668db1fed121335794a99e52d57ff0aede86",
+      "mutatedSha256": "7037d8ad294419e41641a1e231bfa5ffda1d83276ab435d2acf3e248c9398262",
+      "afterSha256": "a9ca8a8e9ab244953adf353d7411668db1fed121335794a99e52d57ff0aede86",
+      "redLog": "temp/m83-lane/ui-table-before-picker-red.log",
+      "restoredLog": "temp/m83-lane/ui-table-before-picker-restored.log",
+      "passed": true,
+      "redLogSha256": "3ce00c39a9b4e98e4560aa59fbaec352ac2f7b98509cfab5f90b5eee138e708a",
+      "restoredLogSha256": "c7ef38de2c30a15fcec3095ad6efb85c76fd21d108a57f8ffd5f1666a73edb4e"
+    },
+    {
+      "id": "ui-owner-before-await",
+      "file": "src/host/agentImportHost.ts",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/agentImportWorkspaceEdits.test.ts"
+      ],
+      "expectedDiagnostic": "captures its owner synchronously before the first queued picker await",
+      "observedDiagnostic": " FAIL  test/unit/agentImportWorkspaceEdits.test.ts > import workspace write notices > captures its owner synchronously before the first queued picker await",
+      "baselineExit": 0,
+      "mutatedExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9",
+      "mutatedSha256": "1eb6398a1d1d0e0955e37f80be52492c2fbffab9c66d0840e41bf3bb475a27a0",
+      "afterSha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9",
+      "redLog": "temp/m83-lane/ui-owner-before-await-red.log",
+      "restoredLog": "temp/m83-lane/ui-owner-before-await-restored.log",
+      "passed": true,
+      "redLogSha256": "4708fd2fefc23b0646d511fd88d1c543980eb9818ca95fb90aa2e052ccd23e05",
+      "restoredLogSha256": "63c236ffceb2f03a26c35b8a0e312a750ef82cd7525b3e104ca3e1aa3e1c6a4a"
     }
   ],
-  "scope": "Scoped Windows guard drills; full quality and other platforms remain lead-owned. Existing platform file-symlink skips are not certification."
+  "scope": "23 scoped guard drills on the import flow and shipped lazy UI; full quality and other platforms remain lead-owned."
 }

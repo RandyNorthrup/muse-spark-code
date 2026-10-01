@@ -16,7 +16,10 @@ import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import type { WorkspaceEditRecorder } from '../../src/core/verify/workspaceEdits'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
-import { importFromAgents } from '../../src/host/agentImportEntry'
+import {
+  importFromAgents,
+  runAgentImport as bundledAgentImport,
+} from '../../src/host/agentImportEntry'
 import { type AgentImportHostDeps, runAgentImport } from '../../src/host/agentImportHost'
 import { fileImportWriter, isPathPresent } from '../../src/host/importIo'
 import { AGENT_IMPORT_PATHS, ATOMIC_TEMPORARY_SUFFIX, UI_TEXT } from '../../src/shared/constants'
@@ -123,7 +126,7 @@ function hostDeps(
     beforeProjectWrite: () => Promise.resolve(),
     museSettingsPath: () => path.join(folders.root, 'settings.json'),
     openDocument: () => Promise.resolve(),
-    bundle: () => ({ importFromAgents }),
+    bundle: () => ({ importFromAgents, runAgentImport: bundledAgentImport }),
     log: new FakeLogOutputChannel(),
     ...overrides,
   }
@@ -164,6 +167,7 @@ describe('import workspace write notices', () => {
       await runAgentImport(
         hostDeps(undefined, {
           bundle: () => ({
+            runAgentImport: bundledAgentImport,
             importFromAgents: async (host) => {
               await host.openTarget(path.join(folders.root, 'hooks.json'), true, checkTarget)
             },

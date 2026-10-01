@@ -13,19 +13,27 @@ import type { UiText } from '../shared/l10n/en'
 import type { AgentImportHost } from './commands/agentImportCommands'
 import { lazyBundleLoader } from './lazyBundle'
 import type { Logger } from './logger'
+import type { AgentImportHostDeps } from './agentImportHost'
 
-/** The bundle's one export. */
+/** The injected flow and the VS Code UI entry, shipped and loaded together. */
 export interface AgentImportBundle {
   readonly importFromAgents: (host: AgentImportHost, table: UiText, locale: string) => Promise<void>
+  readonly runAgentImport: (
+    host: AgentImportHostDeps,
+    table: UiText,
+    locale: string,
+  ) => Promise<void>
 }
 
-/** Whether a required module is the bundle: it exports the import. */
+/** Whether a required module exports both import entries. */
 export function isAgentImportBundle(value: unknown): value is AgentImportBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
     'importFromAgents' in value &&
-    typeof value.importFromAgents === 'function'
+    typeof value.importFromAgents === 'function' &&
+    'runAgentImport' in value &&
+    typeof value.runAgentImport === 'function'
   )
 }
 

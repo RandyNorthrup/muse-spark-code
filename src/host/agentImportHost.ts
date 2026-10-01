@@ -1,8 +1,8 @@
 // The VS Code side of "Import from other agents" (M83, PLAN.md D49): the
 // pickers, the read-only preview, the modals, the clipboard and the editor.
-// The scan, the plan, the writes and the flow are the import's own bundle
-// (`agentImportEntry.ts`, loaded by `agentImportBundle.ts` on the first
-// import), so this file holds only what needs `vscode`.
+// Activation retains only `runAgentImport`, the loader shim. The UI entry
+// and the scan, plan and writes load together through `agentImportEntry.ts`
+// in the existing import bundle on the first import.
 
 import { homedir } from 'node:os'
 import * as vscode from 'vscode'
@@ -54,6 +54,12 @@ function sourceChoices(): readonly SourceChoice[] {
 }
 
 export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {
+  // Only this shim is retained by activation; the existing UI implementation
+  // is exported to the import bundle and is tree-shaken from the shim's caller.
+  await deps.bundle().runAgentImport(deps, UI_TEXT, uiLocale())
+}
+
+export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void> {
   // Load the bundle first: a window without it says so before any picker opens.
   const { importFromAgents } = deps.bundle()
   // Capture this exact live session before any queue, picker or filesystem await.

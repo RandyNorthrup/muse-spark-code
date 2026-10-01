@@ -15,7 +15,6 @@ import {
   type AgentImportBundle,
 } from '../../src/host/agentImportBundle'
 import type { AgentImportHost } from '../../src/host/commands/agentImportCommands'
-import { requireFile } from '../../src/host/lazyBundle'
 import { AGENT_IMPORT_BUNDLE_FILE, UI_TEXT } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -28,11 +27,18 @@ const built = { folder: '', file: '' }
 beforeAll(async () => {
   built.folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-import-bundle-')))
   built.file = path.join(built.folder, AGENT_IMPORT_BUNDLE_FILE)
+  const vscodeDirectory = path.join(built.folder, 'node_modules', 'vscode')
+  mkdirSync(vscodeDirectory, { recursive: true })
+  writeFileSync(
+    path.join(vscodeDirectory, 'index.js'),
+    `module.exports = { workspace: { isTrusted: true }, window: { showQuickPick: async (_items, options) => { require('node:fs').writeFileSync(${JSON.stringify(path.join(built.folder, 'picker.json'))}, JSON.stringify(options)); } } }\n`,
+  )
   await build({
     entryPoints: [path.resolve('src/host/agentImportEntry.ts')],
     outfile: built.file,
     bundle: true,
     platform: 'node',
+    external: ['vscode'],
     format: 'cjs',
     target: 'node20.18',
     plugins: [lazyBundleTable],
@@ -43,7 +49,16 @@ afterAll(() => removeFolder(built.folder))
 
 describe('isAgentImportBundle', () => {
   it('accepts a module that exports the import, and nothing else', () => {
-    expect(isAgentImportBundle({ importFromAgents: () => Promise.resolve() })).toBe(true)
+    expect(
+      isAgentImportBundle({
+        importFromAgents: () => Promise.resolve(),
+        runAgentImport: () => Promise.resolve(),
+      }),
+    ).toBe(true)
+    expect(isAgentImportBundle({ importFromAgents: () => Promise.resolve() })).toBe(false)
+    expect(
+      isAgentImportBundle({ importFromAgents: () => Promise.resolve(), runAgentImport: 1 }),
+    ).toBe(false)
     expect(isAgentImportBundle({ importFromAgents: 1 })).toBe(false)
     expect(isAgentImportBundle({})).toBe(false)
     expect(isAgentImportBundle(null)).toBe(false)
@@ -52,7 +67,10 @@ describe('isAgentImportBundle', () => {
 })
 
 describe('agentImportLoader', () => {
-  const bundle: AgentImportBundle = { importFromAgents: () => Promise.resolve() }
+  const bundle: AgentImportBundle = {
+    importFromAgents: () => Promise.resolve(),
+    runAgentImport: () => Promise.resolve(),
+  }
 
   it('loads the bundle once and keeps it', () => {
     const loadBundle = vi.fn(() => bundle)
@@ -117,6 +135,33 @@ describe('the shipped import bundle', () => {
       log: new FakeLogOutputChannel(),
     })()
     expect(typeof loaded.importFromAgents).toBe('function')
+    expect(typeof loaded.runAgentImport).toBe('function')
+  })
+
+  it('runs its shipped UI entry with the handed table and captures its owner before the picker', async () => {
+    const bundled = agentImportLoader({ bundlePath: built.file, log: new FakeLogOutputChannel() })()
+    const captureOwner = vi.fn(() => undefined)
+    const done = bundled.runAgentImport(
+      {
+        workspaceRoot: undefined,
+        currentRoot: () => undefined,
+        isActive: () => true,
+        captureOwner,
+        editProject: async (work) => await work(() => undefined),
+        beforeProjectWrite: () => Promise.resolve(),
+        museSettingsPath: () => path.join(built.folder, 'settings.json'),
+        openDocument: () => Promise.resolve(),
+        bundle: () => bundled,
+        log: new FakeLogOutputChannel(),
+      },
+      { ...UI_TEXT, agentImportSourceTitle: 'Marker choose.' },
+      uiLocale(),
+    )
+    expect(captureOwner).toHaveBeenCalledOnce()
+    await done
+    expect(JSON.parse(readFileSync(path.join(built.folder, 'picker.json'), 'utf8'))).toMatchObject({
+      title: 'Marker choose.',
+    })
   })
 
   it('imports Codex’s MCP servers with smol-toml inside the bundle, masked, and writes nothing to the settings', async () => {
@@ -171,7 +216,7 @@ describe('the shipped import bundle', () => {
       showWarning: () => undefined,
       log: new FakeLogOutputChannel(),
     }
-    const bundled = requireFile(built.file) as AgentImportBundle
+    const bundled = agentImportLoader({ bundlePath: built.file, log: new FakeLogOutputChannel() })()
     // The bundle reads the table it is handed, not one of its own.
     await bundled.importFromAgents(
       host,
