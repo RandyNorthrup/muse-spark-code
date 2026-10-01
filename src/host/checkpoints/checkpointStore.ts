@@ -1103,6 +1103,12 @@ export class CheckpointStore {
   private async captureNow(setup: Setup, shouldListFolders: boolean): Promise<CaptureResult> {
     try {
       await setup.shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
+      // Every capture (a turn's start and end, a restore's) goes through here: the
+      // user may have changed either excludes file since the repository was opened.
+      await setup.shadow.refreshExcludes(
+        await userExclude(setup.top),
+        await this.globalExcludesFile(),
+      )
       const spec = setup.prefix === '' ? [] : ['--', setup.prefix]
       const statusText = await setup.shadow.text(
         [

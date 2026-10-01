@@ -12,7 +12,8 @@
 //   eol, filter, ident and working-tree-encoding, so no smudge or clean
 //   filter runs and every file is copied byte for byte.
 // The workspace's ignore rules still apply: its `.gitignore` files, its
-// `info/exclude` (copied in) and the user's global excludes file.
+// `info/exclude` (copied in) and the user's global excludes file, both
+// looked up again before every capture.
 // The storage folder is the user's alone (0700), since it holds copies of
 // untracked and ignored files.
 //
@@ -382,10 +383,7 @@ export class ShadowGit {
     await writeFileAtomically(path.join(this.shadowDir, ATTRIBUTES), NO_CONVERSION, {
       sleep: pause,
     })
-    await writeFileAtomically(path.join(this.shadowDir, EXCLUDE), userExclude ?? '', {
-      sleep: pause,
-    })
-    this.excludesFile = globalExcludesFile ?? path.join(storageDir, EMPTY_EXCLUDES)
+    await this.refreshExcludes(userExclude, globalExcludesFile)
     await this.seedIndex()
     // A restore compares files with captures by hashing them here; the
     // repository must name objects as `gitBlobOid` does.
@@ -393,6 +391,26 @@ export class ShadowGit {
     if (probe !== gitBlobOid(Buffer.alloc(0))) {
       throw new Error('the checkpoint repository does not use SHA-1 object names')
     }
+  }
+
+  /**
+   * The workspace's `info/exclude` and the user's global excludes file as they
+   * are now: the store calls this before every capture, so a rule added or
+   * dropped since the repository was opened applies (Codex review of PR #55).
+   * The copy is replaced whole, and only when it differs: every window on the
+   * folder copies the same file into it.
+   */
+  public async refreshExcludes(
+    userExclude: string | undefined,
+    globalExcludesFile: string | undefined,
+  ): Promise<void> {
+    const copy = path.join(this.shadowDir, EXCLUDE)
+    // No `info/exclude` in the workspace is an empty copy: git reads the two alike.
+    const wanted = userExclude ?? ''
+    if ((await readOptionalText(copy)) !== wanted) {
+      await writeFileAtomically(copy, wanted, { sleep: pause })
+    }
+    this.excludesFile = globalExcludesFile ?? path.join(this.layout.storageDir, EMPTY_EXCLUDES)
   }
 
   /**

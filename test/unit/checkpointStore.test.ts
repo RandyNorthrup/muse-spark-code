@@ -14,6 +14,8 @@ import {
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   runGit,
+  shadowGit,
+  storedRecords,
   treeListing,
   turn,
   write,
@@ -25,6 +27,13 @@ import {
 afterEach(async () => {
   await removeCheckpointFolders()
 })
+
+/** The files a captured tree holds, as the shadow repository lists them. */
+function filesIn(storage: string, tree: string): readonly string[] {
+  return shadowGit(storage, ['ls-tree', '-r', '--name-only', '-z', tree])
+    .split('\0')
+    .filter((name) => name !== '')
+}
 
 describe('CheckpointStore over a git repository (M72)', () => {
   it(
@@ -344,6 +353,77 @@ describe('CheckpointStore and ignored files (M72)', () => {
       expect(await isPresent(h.root, 'src.ts')).toBe(false)
       expect(await isPresent(h.root, 'node_modules/pkg/added-by-install.js')).toBe(true)
       expect(await read(h.root, 'cache/user.txt')).toBe('changed by the user after the turn\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    "applies the repository's info/exclude as it is at each capture, not as it was at the first",
+    async () => {
+      const h = await harness()
+      await write(h.root, 'a.txt', 'one\n')
+      await write(h.root, 'secret.log', 'ordinary until excluded\n')
+      const start = await captured(h.store)
+      expect(filesIn(h.storage, start.tree)).toEqual(['a.txt', 'secret.log'])
+      await h.store.record('s1', 't1', start)
+      // Excluded mid-turn: the turn's end capture already treats it as ignored.
+      await write(h.top, '.git/info/exclude', 'secret.log\n')
+      await h.store.endTurn('s1', 't1')
+      const ends = storedRecords(h.storage).flatMap((record) =>
+        record.kind === 'checkpoint' && record.end !== undefined ? [record.end.tree] : [],
+      )
+      expect(ends.map((tree) => filesIn(h.storage, tree))).toEqual([['a.txt']])
+      const excluded = await captured(h.store)
+      expect(filesIn(h.storage, excluded.tree)).toEqual(['a.txt'])
+      expect(excluded.inventory.files.size).toBe(1)
+      expect(excluded.inventory.files.has('secret.log')).toBe(true)
+      // The exclude file gone: the file is ordinary again.
+      await rm(path.join(h.top, '.git', 'info', 'exclude'))
+      const ordinary = await captured(h.store)
+      expect(filesIn(h.storage, ordinary.tree)).toEqual(['a.txt', 'secret.log'])
+      expect(ordinary.inventory.files.size).toBe(0)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'applies the global excludes file the user configuration names at each capture',
+    async () => {
+      // A home of the test's own: `git config --global` reads its .gitconfig, never the user's.
+      const homeOf = (top: string) => path.join(path.dirname(top), 'home')
+      const h = await harness({
+        env: (top) => ({
+          ...process.env,
+          HOME: homeOf(top),
+          USERPROFILE: homeOf(top),
+          XDG_CONFIG_HOME: path.join(homeOf(top), '.config'),
+        }),
+      })
+      const home = homeOf(h.top)
+      const userConfig = path.join(home, '.gitconfig')
+      const capturedFiles = async () => {
+        const snapshot = await captured(h.store)
+        return filesIn(h.storage, snapshot.tree)
+      }
+      await write(h.root, 'a.txt', 'one\n')
+      await write(h.root, 'notes.tmp', 'scratch\n')
+      await write(home, 'global-ignore', '*.tmp\n')
+      expect(await capturedFiles()).toEqual(['a.txt', 'notes.tmp'])
+      // Named after the first capture.
+      runGit(h.top, [
+        'config',
+        '--file',
+        userConfig,
+        'core.excludesFile',
+        path.join(home, 'global-ignore'),
+      ])
+      expect(await capturedFiles()).toEqual(['a.txt'])
+      // Its content as it is now.
+      await write(home, 'global-ignore', 'a.txt\n')
+      expect(await capturedFiles()).toEqual(['notes.tmp'])
+      // The setting dropped: no global rule applies any more.
+      runGit(h.top, ['config', '--file', userConfig, '--unset', 'core.excludesFile'])
+      expect(await capturedFiles()).toEqual(['a.txt', 'notes.tmp'])
     },
     REAL_GIT_TIMEOUT_MS,
   )
