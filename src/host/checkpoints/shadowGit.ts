@@ -93,6 +93,8 @@ export interface ShadowLayout {
   readonly instance: string
   /** The longest path git takes here; the platform's own unless a test lowers it. */
   readonly gitPathMax?: number | undefined
+  /** The folder holding every window's checkpoint storage (this one's own folder by default). */
+  readonly storageRoot?: string | undefined
 }
 
 /**
@@ -139,11 +141,6 @@ export function isWithinFolder(candidate: string, folder: string): boolean {
     relative === '' ||
     (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
   )
-}
-
-/** The folder of every checkpoint namespace this extension keeps: no tool writes there. */
-export function checkpointStorageRoot(storageDir: string): string {
-  return path.dirname(storageDir)
 }
 
 /** The folder a window's initializer is made in: a short name, unique to the window. */
@@ -412,8 +409,13 @@ export class ShadowGit {
    */
   public assertSeparate(): void {
     const { storageDir, top } = this.layout
-    // Any namespace's storage inside the workspace, or the workspace inside this storage.
-    if (isWithinFolder(checkpointStorageRoot(storageDir), top) || isWithinFolder(top, storageDir)) {
+    const root = this.layout.storageRoot ?? storageDir
+    // Any checkpoint storage inside the workspace, or the workspace inside this storage.
+    if (
+      isWithinFolder(root, top) ||
+      isWithinFolder(storageDir, top) ||
+      isWithinFolder(top, storageDir)
+    ) {
       throw new ShadowStorageInWorkspaceError()
     }
   }
