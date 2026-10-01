@@ -47,6 +47,8 @@ export interface CliFeatureDeps {
    * workspace folder under the checkpoint lease (M72), elsewhere as it is.
    */
   readonly editFile: <T>(fsPath: string, work: () => Promise<T>) => Promise<T>
+  /** A read-only document that is never written to disk: an export's preview (M84). */
+  readonly openPreview: (title: string, content: string) => Promise<void>
   /** Stops the hosts; the next message starts them with the new settings (D25). */
   readonly restartBackend: () => Promise<void>
   /**
@@ -106,6 +108,17 @@ function firstLine(text: string): string {
 /** `muse export` writes the session's JSON log to a path it is given. */
 function sessionExportArgs(sessionId: string, outPath: string): readonly string[] {
   return ['export', '--session', sessionId, '--out', outPath]
+}
+
+/** A saved export: where it went, and Open. */
+async function offerToOpen(target: vscode.Uri): Promise<void> {
+  const choice = await vscode.window.showInformationMessage(
+    fill(UI_TEXT.exportSaved, { path: target.fsPath }),
+    UI_TEXT.exportOpen,
+  )
+  if (choice === UI_TEXT.exportOpen) {
+    await vscode.window.showTextDocument(target, { preview: false })
+  }
 }
 
 export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
@@ -216,6 +229,34 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
         deps.log.info(`Exported the conversation to ${target.toString()}`)
         await vscode.window.showTextDocument(target, { preview: false })
       },
+      saveJson: async (fileName, content) => {
+        const target = await saveTarget(fileName, JSON_FILTER, EXPORT_FILE_EXTENSIONS.json)
+        if (target === undefined) {
+          return
+        }
+        await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
+        deps.log.info(`Exported the session as JSON to ${target.toString()}`)
+        await offerToOpen(target)
+      },
+      // The redacted file opens first, read-only and in memory; the modal
+      // then asks. Closing it writes nothing.
+      previewExport: async ({ fileName, content, detail }) => {
+        await deps.openPreview(fileName, content)
+        const choice = await vscode.window.showInformationMessage(
+          UI_TEXT.exportPreviewTitle,
+          { modal: true, detail },
+          UI_TEXT.exportPreviewRedacted,
+          UI_TEXT.exportPreviewFull,
+        )
+        if (choice === UI_TEXT.exportPreviewFull) {
+          return 'full'
+        }
+        return choice === UI_TEXT.exportPreviewRedacted ? 'redacted' : 'dismissed'
+      },
+      localRoots: () => [
+        ...(vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+        homedir(),
+      ],
       saveSessionLog: async (sessionId, fileName) => {
         const target = await saveTarget(fileName, JSON_FILTER, EXPORT_FILE_EXTENSIONS.sessionLog)
         if (target === undefined) {
@@ -240,13 +281,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
           )
         }
         deps.log.info(`muse export wrote session ${sessionId} to ${target.fsPath}`)
-        const choice = await vscode.window.showInformationMessage(
-          fill(UI_TEXT.exportSaved, { path: target.fsPath }),
-          UI_TEXT.exportOpen,
-        )
-        if (choice === UI_TEXT.exportOpen) {
-          await vscode.window.showTextDocument(target, { preview: false })
-        }
+        await offerToOpen(target)
       },
     },
   }

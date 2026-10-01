@@ -19,6 +19,8 @@ import type {
   ScheduledPrompt,
   ScheduleRunConfirmation,
 } from '../../shared/schedule'
+import type { ApprovalMode } from '../../shared/permissionModes'
+import type { SessionExport } from '../export/sessionTransfer'
 
 export type BackendKind = 'museCode' | 'modelApi'
 
@@ -299,6 +301,11 @@ export interface SessionRecord {
   readonly turnCount: number
   readonly forkedFrom?: { readonly sessionId: string } | null | undefined
   readonly workspaceRoot?: string | null | undefined
+  /**
+   * Its history came from an imported file (M84, PLAN.md D49): the panel
+   * opens it in a mode that asks, whatever the initial mode.
+   */
+  readonly imported?: boolean
 }
 
 export interface SessionPage {
@@ -454,6 +461,18 @@ export interface AgentHost {
   readUsage(): Promise<SubscriptionUsage | undefined>
   /** A fresh observation arrived (MSP `usage/changed`). */
   onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void
+  /**
+   * Resume a parsed export as a new session (M84, PLAN.md D49): the host
+   * sanitizes it (fresh ids, the caller's asking mode and model, no rules,
+   * goals, schedules or patches, each imported turn untrusted data) and
+   * loads it. Only the Model API backend offers it.
+   */
+  readonly importSession?:
+    | ((
+        doc: SessionExport,
+        options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
+      ) => Promise<LoadedSession>)
+    | undefined
   readonly sessionCount: number
   close(): Promise<void>
 }

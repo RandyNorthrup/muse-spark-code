@@ -25,6 +25,11 @@ import {
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
 import type { DictationListener, DictationSetup } from '../../src/core/voice/dictation'
+import type {
+  ExportPreview,
+  ExportPreviewChoice,
+} from '../../src/host/conversation/exportConversation'
+import type { PickedTransferFile } from '../../src/host/conversation/sessionImport'
 import {
   type CheckpointAvailability,
   CHOICE_STEERING_NOTE,
@@ -298,6 +303,14 @@ function setup(
     confirmsFileAction?: boolean
     /** A revert that refuses (a stale patch): it answers with a warning. */
     refusesRevert?: boolean
+    /** A picked session-transfer file's text (M84); undefined dismisses the dialog. */
+    transferFileContent?: string | undefined
+    /** What the picker answers instead of the text (M84): too large, or a read that throws. */
+    transferFilePick?: PickedTransferFile | Error
+    /** The export preview's answer (M84); redacted unless the test says otherwise. */
+    exportPreviewChoice?: ExportPreviewChoice
+    /** The import preview's answer (M84); confirmed unless the test says otherwise. */
+    confirmImport?: boolean
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -414,10 +427,14 @@ function setup(
   const openedFiles: [string, LineRange | undefined][] = []
   const contributorPrompts: string[] = []
   let remoteBypassPrompts = 0
-  // What "Export conversation…" handed the save dialog (M30).
+  // What "Export conversation…" handed the save dialog (M30, portable JSON in M84).
   const exported = {
     markdown: [] as [string, string][],
     sessionLogs: [] as [string, string][],
+    json: [] as [string, string][],
+    previews: [] as ExportPreview[],
+    importsConfirmed: [] as [string, string][],
+    picks: [] as string[],
   }
   const memory = {
     archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
@@ -644,6 +661,32 @@ function setup(
       saveSessionLog: (sessionId: string, fileName: string) => {
         exported.sessionLogs.push([sessionId, fileName])
         return Promise.resolve()
+      },
+      saveJson: (fileName: string, content: string) => {
+        exported.json.push([fileName, content])
+        return Promise.resolve()
+      },
+      previewExport: (preview: ExportPreview) => {
+        exported.previews.push(preview)
+        return Promise.resolve(options.exportPreviewChoice ?? 'redacted')
+      },
+      localRoots: () => ['/ws'],
+    },
+    transferFiles: {
+      pickTransferFile: (title: string): Promise<PickedTransferFile> => {
+        exported.picks.push(title)
+        const pick = options.transferFilePick
+        if (pick instanceof Error) {
+          return Promise.reject(pick)
+        }
+        const content = options.transferFileContent
+        return Promise.resolve(
+          pick ?? (content === undefined ? { kind: 'dismissed' } : { kind: 'read', content }),
+        )
+      },
+      confirmImport: (title: string, detail: string) => {
+        exported.importsConfirmed.push([title, detail])
+        return Promise.resolve(options.confirmImport ?? true)
       },
     },
     plans:
@@ -2833,6 +2876,32 @@ async function pendingUsageRead(t: ReturnType<typeof setup>) {
   return { read, requestId: request.id }
 }
 
+/** A portable file as an export writes it (M84), from someone else's Muse Code. */
+function transferFile(overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    format: 'muse-spark-session-export',
+    version: 1,
+    exportedAt: '2026-09-28T12:00:00.000Z',
+    sourceBackend: 'museCode',
+    redacted: true,
+    name: 'Moved over',
+    modelId: 'someone-elses-model',
+    transcript: [
+      { itemId: 'u1', kind: 'userMessage', status: 'completed', text: 'Hi' },
+      { itemId: 'a1', kind: 'agentMessage', status: 'completed', text: 'Hello' },
+    ],
+    ...overrides,
+  })
+}
+
+function untrustedNotice(mode: string) {
+  return {
+    type: 'notice',
+    level: 'info',
+    text: `This conversation holds imported history, so it starts in ${mode}. Only you can change that.`,
+  }
+}
+
 function withHistory(
   options: Parameters<typeof setup>[0] = {},
   sessionOverrides: Record<string, unknown> = {},
@@ -4097,6 +4166,28 @@ describe('ConversationController: session history (M6)', () => {
     expect(t.exported.markdown).toHaveLength(1)
   })
 
+  it('exports portable JSON after the preview, and writes nothing when it is closed (M84)', async () => {
+    const t = withHistory()
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    t.server.handle('session/read', (params) =>
+      envelope({ ...storedSession, sessionId: params['sessionId'], name: 'Fix /ws/app/tests' }),
+    )
+    await t.controller.handle({ type: 'exportConversation', format: 'json' })
+    expect(t.exported.previews).toHaveLength(1)
+    const [written] = t.exported.json
+    expect(written?.[0]).toBe('muse-fix-redacted-path-2026-09-22.json')
+    expect(written?.[1]).toBe(t.exported.previews[0]?.content)
+    expect(written?.[1]).not.toContain('/ws/app')
+    const closed = withHistory({ exportPreviewChoice: 'dismissed' })
+    await closed.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    const posted = closed.surface.posted.length
+    await closed.controller.handle({ type: 'exportConversation', format: 'json' })
+    expect(closed.exported.json).toEqual([])
+    expect(closed.surface.posted.slice(posted)).not.toContainEqual(
+      expect.objectContaining({ type: 'notice' }),
+    )
+  })
+
   it('asks to wait while a reply runs, so an export never misses part of it (M30)', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -4107,6 +4198,161 @@ describe('ConversationController: session history (M6)', () => {
       text: 'Export once the reply has finished, so the file holds all of it.',
     })
     expect(t.exported.markdown).toEqual([])
+  })
+
+  it('imports a file on the user’s own model, in Manual or Plan whatever the initial mode (M84)', async () => {
+    const cases = [
+      ['auto', 'manual', 'promptUnmatched', 'Manual'],
+      ['acceptEdits', 'manual', 'promptUnmatched', 'Manual'],
+      ['bypassPermissions', 'manual', 'promptUnmatched', 'Manual'],
+      ['plan', 'plan', 'denyUnmatched', 'Plan'],
+    ] as const
+    for (const [initial, permissionMode, approvalMode, label] of cases) {
+      const t = setup({
+        initialPermissionMode: initial,
+        hasApprovalUi: true,
+        transferFileContent: transferFile(),
+      })
+      const { host, controller } = modelApiController(t, { newId: () => 'imported-1' })
+      const importing = vi.spyOn(host, 'importSession')
+      await controller.handle({ type: 'importSession' })
+      expect(t.exported.picks).toEqual(['Import session'])
+      const info = t.surface.posted.findLast((message) => message.type === 'sessionInfo')
+      const modelId = info?.type === 'sessionInfo' ? info.modelId : ''
+      expect(modelId).not.toBe('someone-elses-model')
+      expect(t.exported.importsConfirmed).toEqual([
+        [
+          'Import session',
+          `From Muse Code (your Muse subscription): 2 messages in this conversation. It continues on ${modelId} and starts in ${label}; session rules, goals, schedules and patches are dropped, and the imported history is treated as untrusted.`,
+        ],
+      ])
+      expect(importing.mock.calls[0]?.[1]).toEqual({ approvalMode, modelId })
+      expect(t.surface.posted).toContainEqual({ ...composerState, permissionMode })
+      expect(t.surface.posted).toContainEqual({
+        type: 'notice',
+        level: 'info',
+        text: 'Session imported Moved over',
+      })
+      expect(t.surface.posted).toContainEqual(untrustedNotice(label))
+      const history = t.surface.posted.find((message) => message.type === 'historyLoaded')
+      expect(history).toMatchObject({ items: [{ text: 'Hi' }, { text: 'Hello' }], goal: null })
+    }
+  })
+
+  it('opens an imported conversation asking every time, until the user relaxes it (M84)', async () => {
+    const t = setup({ hasApprovalUi: true, transferFileContent: transferFile() })
+    const { host, controller } = modelApiController(t, { newId: () => 'imported-1' })
+    await controller.handle({ type: 'importSession' })
+    // Another panel, or this window after a reload, starts in Auto.
+    const other = setup({ initialPermissionMode: 'auto', hasApprovalUi: true })
+    const reopened = new ConversationController({
+      ...other.deps,
+      ensureHost: () => Promise.resolve(host),
+    })
+    await reopened.handle({ type: 'resumeSession', sessionId: 'imported-1' })
+    expect(other.surface.posted).toContainEqual({ ...composerState, permissionMode: 'manual' })
+    expect(other.surface.posted).toContainEqual(untrustedNotice('Manual'))
+    await reopened.handle({ type: 'setPermissionMode', mode: 'auto' })
+    expect(other.surface.posted.findLast((message) => message.type === 'composerState')).toEqual({
+      ...composerState,
+      permissionMode: 'auto',
+    })
+  })
+
+  it('refuses a file it cannot use before asking anything (M84)', async () => {
+    const failed = 'The session could not be imported'
+    const cases: readonly [Parameters<typeof setup>[0], 'error' | 'info', string][] = [
+      [
+        { transferFileContent: '{"format":"nope"}' },
+        'error',
+        `${failed}: The file is not a Muse Spark session export.`,
+      ],
+      [
+        { transferFileContent: transferFile({ version: 2 }) },
+        'error',
+        `${failed}: This version of the extension cannot read format version 2.`,
+      ],
+      [
+        { transferFileContent: transferFile({ approvalMode: 'allowAll' }) },
+        'error',
+        `${failed}: The file holds a field this version does not know: approvalMode`,
+      ],
+      [
+        { transferFileContent: transferFile({ transcript: [] }) },
+        'info',
+        'The file holds no conversation.',
+      ],
+      [
+        { transferFilePick: { kind: 'tooLarge' } },
+        'error',
+        `${failed}: The file is larger than a session export can be.`,
+      ],
+      [{ transferFilePick: new Error('not UTF-8') }, 'error', `${failed}: not UTF-8`],
+    ]
+    for (const [options, level, text] of cases) {
+      const t = setup(options)
+      await modelApiController(t).controller.handle({ type: 'importSession' })
+      expect(t.surface.posted.at(-1)).toEqual({ type: 'notice', level, text })
+      expect(t.exported.importsConfirmed).toEqual([])
+    }
+    // Dismissed, or declined at the confirmation: nothing is imported, nothing said.
+    for (const options of [{}, { transferFileContent: transferFile(), confirmImport: false }]) {
+      const t = setup(options)
+      const { host, controller } = modelApiController(t)
+      const importing = vi.spyOn(host, 'importSession')
+      await controller.handle({ type: 'importSession' })
+      expect(importing).not.toHaveBeenCalled()
+      expect(t.surface.posted).not.toContainEqual(expect.objectContaining({ type: 'notice' }))
+    }
+  })
+
+  it('says an import needs the Model API backend, before any file is picked (M84)', async () => {
+    const t = setup({ transferFileContent: transferFile() })
+    await t.controller.handle({ type: 'importSession' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: 'Sessions can only be imported on the Model API backend.',
+    })
+    expect(t.exported.picks).toEqual([])
+  })
+
+  it('opens a share file read-only in the panel, and refuses one it cannot use (M84)', async () => {
+    const t = setup({ transferFileContent: transferFile({ redacted: false }) })
+    await t.controller.handle({ type: 'openShareFile' })
+    expect(t.exported.picks).toEqual(['Open share file'])
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'sharePreview',
+      title: 'Moved over',
+      exportedAt: '2026-09-28T12:00:00.000Z',
+      sourceBackend: 'museCode',
+      modelId: 'someone-elses-model',
+      redacted: false,
+      items: [
+        { itemId: 'u1', kind: 'userMessage', status: 'completed', text: 'Hi' },
+        { itemId: 'a1', kind: 'agentMessage', status: 'completed', text: 'Hello' },
+      ],
+    })
+    // Reading a share starts no session.
+    expect(t.server.requestsFor('session/start')).toEqual([])
+    const untitled = setup({ transferFileContent: transferFile({ name: undefined }) })
+    await untitled.controller.handle({ type: 'openShareFile' })
+    expect(untitled.surface.posted.at(-1)).toMatchObject({
+      type: 'sharePreview',
+      title: 'Muse conversation',
+    })
+    const broken = setup({ transferFileContent: 'not json' })
+    await broken.controller.handle({ type: 'openShareFile' })
+    expect(broken.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringMatching(/^The share file could not be opened: /),
+    })
+    const dismissed = setup()
+    await dismissed.controller.handle({ type: 'openShareFile' })
+    expect(dismissed.surface.posted).not.toContainEqual(
+      expect.objectContaining({ type: 'sharePreview' }),
+    )
   })
 
   it('remembers activity on sends and completed turns, and forgets it on clear', async () => {

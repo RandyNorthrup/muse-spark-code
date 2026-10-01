@@ -320,6 +320,21 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   design in a trusted workspace, and so do fetched web pages (marked as
   untrusted content); the permission modes and the approval cards are the
   control, and the Diagnostics report and the log show what ran.
+- **Imported sessions (M84).** A session-export file may come from anyone.
+  Parser failures do not quote the file, and field names are scrubbed before
+  bounded validation details reach notices or logs. Export scrubbing covers
+  every string value, including arbitrary ids and error labels; ordinary
+  UUIDs and protocol words stay intact. The share view's section keys include
+  their position and import remints ids, so redacted ids carry no live reference.
+  It is parsed whole before use: at most 16 MiB and 20,000 items, the known
+  format and version, and no field the schema does not name. An import
+  takes nothing privileged from it (no permission mode, model, session
+  rules, goals, schedules, patches or ids), hands the model each imported
+  turn as untrusted data in a user message, and opens the conversation in
+  Manual (or Plan) every time, whatever the initial mode; only the user's
+  own mode change relaxes it. A share file renders read-only: its code
+  blocks have no Insert or Apply, and its links go through the same
+  http, https and mailto filter as a reply's.
 - **Release pipeline.** A tag is released only when it names the manifest
   version and points at a commit on `main`; the Marketplace PAT reaches one
   step, after an install that runs no package scripts; no checkout keeps a

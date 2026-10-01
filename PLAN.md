@@ -8976,6 +8976,14 @@ independent review and the full candidate gates remain required.**
 
 ### M84 — Session export, import and share (D49)
 
+**Status 2026-09-30: approved-main source integration prepared, unverified.**
+Original `c2eb4da2` and every repair draft remain preserved. After the normal
+`f7db5715` join, approved M68 main `32709441` is applied as a three-way source
+delta. Captured workspace identity and imported markers are both retained in
+session summaries/snapshots. The actual ACP loader applies safe imported start
+mode before advertised-mode matching and replay. Focused tests, mutation proof,
+independent review, normal latest-main ancestry and complete gates remain pending.
+
 - **Goal.** A conversation can move between machines and people.
 - **Scope.**
   - Export a conversation as JSON. Credentials and the key digest are
@@ -8993,9 +9001,123 @@ independent review and the full candidate gates remain required.**
   an import starts in Manual (or Plan) even when the initial mode is Auto,
   Edit automatically or Bypass, with no session rules, goals, schedules
   or patches.
+  - **Completion review, 2026-09-29:** finish `transferInvalidField` in
+    all fourteen translations. JSON syntax failures expose only an
+    existing localized refusal; unknown/invalid field details scrub known
+    secrets, paths and account ids before their bounded display. Scrub
+    every exported string, including arbitrary item ids and error labels;
+    legitimate UUIDs and enum words stay intact. The share view already
+    keys items by position and id, and import already mints fresh ids, so
+    no new identity format is needed. Extend the existing transfer/import
+    tests and prove the four guards fail under mutations before relying
+    on them; earlier certificates remain tied to their earlier trees.
+    PR #32 integration must honor `record.imported` in ACP load/resume/fork
+    before `matchAdvertised` sets a backend mode; reuse `untrustedStartMode`
+    instead of advertising configured Auto/Bypass for imported history.
+    A source handoff against `muse-extension-m69-integrate`'s
+    `src/acp/agent.ts` is prepared outside the checkout. It passes the
+    loaded record's imported flag into adoption and uses the existing
+    `untrustedStartMode` before mode matching or replay. Draft tests cover
+    imported load/resume after explicit relaxation and ordinary configured
+    modes. ACP has no fork endpoint: verify M84's real backend fork/restart
+    marker preservation and then safe ACP load of the marked fork.
 - **Tests.** Round trips with zod on both ends, and drills for each
   dropped field.
 - **Size.** S.
+- **Status 2026-09-28: built on `feature/m84-export`; `docs/certification/m84.md`.**
+  A Muse Code instance drafted it (contributor model); Claude reviewed and
+  reworked the draft. Decisions taken:
+  - **One format** (`muse-spark-session-export`, version 1,
+    `src/core/export/sessionTransfer.ts`) for export, import and share. It
+    holds the history the Markdown export reads (`readSession`, both
+    backends) with only the fields a reader needs. Live state (stored
+    outputs and patches, child sessions, background and workflow handles,
+    `modelVisibleContent`, `children`) and the Model API replay stay out.
+  - **Scrubbing.** Every string in the document, ids included, goes
+    through `redactSecrets` and a 64-hex digest pattern,
+    always. By default paths and e-mail addresses are redacted too:
+    `file://` URIs, then this machine's own roots (workspace folders and the
+    home folder, matched in either separator and any case, to the path's
+    end, so a user name with a space goes), then absolute POSIX, drive and
+    UNC paths. Placeholders are English (`MODEL_TEXT`), since the model reads
+    them after an import. The e-mail pattern is bounded (RFC 5321 lengths)
+    and `redact.ts`'s URL user-info scheme is bounded, so a long run of
+    word characters scans in linear time.
+    Ordinary UUIDs and enum words remain unchanged. Share section keys
+    include their position; import remints ids, and live-state references
+    stay excluded, so redacting a sensitive id needs no identity mapping.
+  - **Preview first.** The redacted file opens as a read-only in-memory
+    document (the output-document scheme, never on disk), then a modal
+    names what was redacted and offers **Save redacted…**, **Save without
+    redaction…** or close. The suggested file name comes from the redacted
+    title. A file over the import cap is not written (`tooLarge`).
+  - **Every imported byte parsed.** The file is read only under 16 MiB
+    (bounded through one checked descriptor) and as strict UTF-8; the header
+    names another format or version by name; the schema caps the
+    transcript at 20,000 items and wants an ISO 8601 date; and any field
+    the schema does not keep, anywhere, refuses the whole file (the parse
+    is compared with what was read, as zod strips unknown keys).
+    - **Independent file-reader repair, 2026-09-29:** picker reads use the
+      existing checked descriptor reader on local `file:` URIs. The JSON
+      cap applies even when bytes resemble a PDF; other providers fail with
+      an explicit localized refusal instead of whole-file allocation.
+      Draft real-file cases cover growth after metadata, opened-path
+      replacement, oversize input, strict UTF-8 and unchanged source bytes.
+      Tests and red drills remain queued until verifier allocation.
+  - **Import** (`ModelApiHost.importSession`, Model API only): fresh
+    session, turn and item ids (turns start at each user message), the
+    user's current model (the file's model id is informational; D49: nothing
+    in it picks a model), the default effort, no goal, todos, outputs,
+    children or usage; session rules are per session in memory, so none
+    survive. The model is handed each imported turn as one user-role
+    message: a lead marking it untrusted (the first also carries the full
+    note) and the turn's items as JSON, never as assistant, developer,
+    reasoning or tool-call items, so nothing in the file speaks with more
+    authority than the user's data.
+  - **Asking every time.** The stored session keeps `imported: true`, and a
+    fork copies it. The controller's `adopt` opens such a session in
+    `untrustedStartMode`: the current mode when it already asks (Manual or
+    Plan), else Manual, or Plan when the initial mode is Plan. That covers
+    the import itself and every later resume, restore after a reload and
+    fork; the restart-recovery path keeps the panel's own mode, which the
+    user chose. A notice says why.
+  - **Share view.** The file's items render in a modal through the Markdown
+    export's per-item sections (`transcriptItemMarkdown`); `MarkdownView`
+    and `CodeBlock` take Insert and Apply as optional, and the share view
+    passes neither. Links go through the host's http, https and mailto
+    filter; relative links are refused.
+  - No paid call is involved (local files only), so D48 needs no consent.
+    No live model check was run: the import sends user-role `input_text`
+    messages, a shape the backend already sends (`noteItem`).
+  - **Port to the release candidate, 2026-10-01** (`feature/m84-export`,
+    from `temp/port.patch` against main `32709441`): applied with
+    `--exclude` for the six files `git apply --3way` cannot take (five new
+    files plus `docs/certification/m84.md`, applied directly; the
+    `m84-share.png` hunk is a content-less stub, so the capture is marked
+    to-retake in `docs/certification/m84.md`). Four conflicts kept both
+    sides: the candidate's 0.10.0/M72 entries and the patch's M84 entries in
+    `CHANGELOG.md`; `editFile` (M72 checkpoint lease, kept: a workspace
+    export still goes through `withCheckpointEditAt`) beside `openPreview`
+    (M84) in `CliFeatureDeps`, its tests and their setups. Decisions taken
+    in the port: `Promise.withResolvers<void>` became `<undefined>` with
+    `resolve(undefined)` (the gate's `no-invalid-void-type`); the
+    remote-provider refusal test uses a literal remote URI (the shared mock's
+    `Uri.parse` keeps `file`); the two new ACP load tests share a
+    `loadOldSession` helper (the duplication gate); and the `vscode`
+    dialogs moved to `src/host/conversation/transferDialogs.ts`, leaving
+    `sessionImport.ts` portable for the host-API gate (its tests split the
+    same way). `docs/ide-compatibility/host-api.md` regenerated: 26
+    commands, 17 adapter files, 264 APIs. No new escape hatches (PLAN.md
+    §8 needs no row). Checks that ran green: format, ESLint (incl. css),
+    PSScriptAnalyzer, all five typechecks, knip, jscpd, dpdm, check:host-api,
+    and the M84 unit suites. `check:l10n`'s own code reports 0 problems over
+    14 tables, 104 manifest strings and 328 sources when its l10n modules are
+    loaded via tsc instead of esbuild. Not runnable in this sandbox:
+    `npm run check:l10n` (the esbuild binary's file reads are denied),
+    `npm run build`/integration tests/`test:a11y`/harness shots (same cause,
+    no browser), and seven unit tests that fail identically on pristine HEAD
+    here: six real-git checkpoint captures plus the esbuild-bundled M57
+    goal test (environmental, unrelated to M84).
 
 ### M85 — TypeSafe assist, experimental and opt in (D50)
 

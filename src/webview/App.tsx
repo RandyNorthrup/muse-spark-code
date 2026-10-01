@@ -44,6 +44,7 @@ import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
 import { UsageDialog } from './components/UsageDialog'
+import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
@@ -783,6 +784,11 @@ export function App({
     setOverlay(undefined)
     dispatch({ type: 'focusRequested' })
   }, [dispatch])
+  // A local share file open read-only (M84): closing returns focus the same way.
+  const onCloseShare = useCallback(() => {
+    dispatch({ type: 'shareClosed' })
+    dispatch({ type: 'focusRequested' })
+  }, [dispatch])
   // Every composer button toggles what it opens: a second click closes.
   const toggleOverlay = useCallback(
     (view: Overlay) => {
@@ -1194,6 +1200,16 @@ export function App({
         }
         case 'exportConversation': {
           postMessage({ type: 'exportConversation', format: action.format })
+          closeOverlay()
+          break
+        }
+        case 'importSession': {
+          postMessage({ type: 'importSession' })
+          closeOverlay()
+          break
+        }
+        case 'openShareFile': {
+          postMessage({ type: 'openShareFile' })
           closeOverlay()
           break
         }
@@ -1622,7 +1638,8 @@ export function App({
     ) : null
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = overlay === 'usage' || overlay === 'agents' || isInstallConfirmOpen
+  const isModalOpen =
+    overlay === 'usage' || overlay === 'agents' || isInstallConfirmOpen || state.share !== undefined
 
   return (
     <div className="app">
@@ -1649,6 +1666,19 @@ export function App({
       </div>
       {usageDialog}
       {agentMap}
+      {state.share === undefined ? null : (
+        <ShareView
+          title={state.share.title}
+          exportedAt={state.share.exportedAt}
+          sourceBackend={state.share.sourceBackend}
+          modelId={state.share.modelId}
+          redacted={state.share.redacted}
+          items={state.share.items}
+          onClose={onCloseShare}
+          onOpenLink={onOpenExternal}
+          onCopy={onCopy}
+        />
+      )}
       <main
         ref={bodyRef}
         className={hasTranscript ? 'body body-transcript' : 'body'}

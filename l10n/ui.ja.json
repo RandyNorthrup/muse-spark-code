@@ -161,6 +161,48 @@
   "exportCliMissing": "セッション ログのエクスポートには Muse Code CLI が必要ですが、インストールされていません。",
   "exportOpen": "開く",
   "exportDefaultTitle": "Muse の会話",
+  "exportJsonItem": "セッションを JSON としてエクスポート…",
+  "exportJsonDetail": "インポートや共有に使えるポータブルファイル",
+  "importSessionItem": "セッションをインポート…",
+  "importSessionDetail": "エクスポートしたセッションファイルを Model API バックエンドで再開",
+  "openShareItem": "共有ファイルを開く…",
+  "openShareDetail": "共有セッションファイルを読み取り専用で読む",
+  "exportPreviewTitle": "セッションを JSON としてエクスポート",
+  "exportPreviewRedacted": "伏せ字にして保存…",
+  "exportPreviewFull": "伏せ字にせずに保存…",
+  "exportPreviewOpen": "伏せ字にしたファイルをエディターで開いています。選択するまで何も書き込まれません。",
+  "exportPreviewMessages": {
+    "other": "この会話のメッセージ {count} 件"
+  },
+  "exportPreviewPaths": {
+    "other": "伏せ字にしたパス {count} 件"
+  },
+  "exportPreviewAccounts": {
+    "other": "伏せ字にしたアカウント ID {count} 件"
+  },
+  "exportPreviewSecrets": {
+    "other": "削除した資格情報またはキーのダイジェスト {count} 件"
+  },
+  "exportPreviewCredentials": "資格情報とキーのダイジェストは含まれません。",
+  "exportTooLarge": "この会話はセッションのエクスポートファイルには長すぎます。",
+  "importPreviewTitle": "セッションをインポート",
+  "importPreviewDetail": "{source} から: {messages}。{model} で続行し、{mode} で開始します。セッションルール、目標、スケジュール、パッチは破棄され、インポートした履歴は信頼できないものとして扱われます。",
+  "importSessionFailed": "セッションをインポートできませんでした",
+  "importSessionUnavailable": "セッションは Model API バックエンドにのみインポートできます。",
+  "importedNotice": "セッションをインポートしました",
+  "importedUntrusted": "この会話にはインポートした履歴が含まれているため、{mode} で開始します。変更できるのはあなただけです。",
+  "openShareTitle": "共有ファイルを開く",
+  "shareFailed": "共有ファイルを開けませんでした",
+  "shareMetaLine": "{backend} から共有 · {time}",
+  "shareReadOnly": "読み取り専用: このファイルの内容がワークスペースに作用することはありません。",
+  "shareRedacted": "パスとアカウント ID は伏せ字になっています。",
+  "transferTooLarge": "ファイルがセッションのエクスポートの上限を超えています。",
+  "transferEmpty": "ファイルに会話がありません。",
+  "transferNotAnExport": "このファイルは Muse Spark のセッションエクスポートではありません。",
+  "transferLocalFileOnly": "セッションのインポートと共有には、拡張機能ホスト上のローカルファイルが必要です。",
+  "transferVersionUnsupported": "このバージョンの拡張機能は形式バージョン {version} を読み取れません。",
+  "transferUnknownField": "ファイルにこのバージョンが認識できないフィールドがあります: {field}",
+  "transferInvalidField": "ファイルに無効なフィールドがあります: {field}",
   "mcpItem": "MCP サーバー…",
   "mcpItemDetail": "Muse Code の接続先。サーバーへのサインインもここで行います",
   "hooksItem": "フック…",

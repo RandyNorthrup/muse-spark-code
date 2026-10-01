@@ -213,6 +213,65 @@ export const EN = {
   exportCliMissing: 'Exporting the session log needs the Muse Code CLI, which is not installed.',
   exportOpen: 'Open',
   exportDefaultTitle: 'Muse conversation',
+  // Session export, import and share (M84, PLAN.md D49).
+  exportJsonItem: 'Export session as JSON…',
+  exportJsonDetail: 'A portable file you can import or share',
+  importSessionItem: 'Import session…',
+  importSessionDetail: 'Resume an exported session file on the Model API backend',
+  openShareItem: 'Open share file…',
+  openShareDetail: 'Read a shared session file, read-only',
+  exportPreviewTitle: 'Export session as JSON',
+  exportPreviewRedacted: 'Save redacted…',
+  exportPreviewFull: 'Save without redaction…',
+  exportPreviewOpen:
+    'The redacted file is open in the editor. Nothing is written until you choose.',
+  exportPreviewMessages: forms({
+    one: '{count} message in this conversation',
+    other: '{count} messages in this conversation',
+  }),
+  exportPreviewPaths: forms({
+    one: '{count} path redacted',
+    other: '{count} paths redacted',
+  }),
+  exportPreviewAccounts: forms({
+    one: '{count} account id redacted',
+    other: '{count} account ids redacted',
+  }),
+  exportPreviewSecrets: forms({
+    one: '{count} credential or key digest removed',
+    other: '{count} credentials or key digests removed',
+  }),
+  exportPreviewCredentials: 'Credentials and the key digest are never included.',
+  exportTooLarge: 'This conversation is too long for a session export file.',
+  importPreviewTitle: 'Import session',
+  // {source}: the backend label; {messages}: a message-count line; {model}:
+  // the model id; {mode}: Manual or Plan in the display language.
+  importPreviewDetail:
+    'From {source}: {messages}. It continues on {model} and starts in {mode}; session rules, goals, schedules and patches are dropped, and the imported history is treated as untrusted.',
+  importSessionFailed: 'The session could not be imported',
+  importSessionUnavailable: 'Sessions can only be imported on the Model API backend.',
+  // Adopted into the panel, which appends the session's name.
+  importedNotice: 'Session imported',
+  // {mode}: Manual or Plan in the display language.
+  importedUntrusted:
+    'This conversation holds imported history, so it starts in {mode}. Only you can change that.',
+  openShareTitle: 'Open share file',
+  shareFailed: 'The share file could not be opened',
+  // {backend}: the backend label; {time}: a date and time.
+  shareMetaLine: 'Shared from {backend} · {time}',
+  shareReadOnly: 'Read-only: nothing in this file can act on your workspace.',
+  shareRedacted: 'Paths and account ids were redacted.',
+  // Why a picked file was refused, after "could not be imported/opened: ".
+  transferTooLarge: 'The file is larger than a session export can be.',
+  transferEmpty: 'The file holds no conversation.',
+  transferNotAnExport: 'The file is not a Muse Spark session export.',
+  transferLocalFileOnly: 'Session import and sharing require a local file on the extension host.',
+  // {version}: the file's format version, a number.
+  transferVersionUnsupported: 'This version of the extension cannot read format version {version}.',
+  // {field}: where in the file, as `transcript[2].outputRef`.
+  transferUnknownField: 'The file holds a field this version does not know: {field}',
+  // {field}: where in the file, as `transcript[2].status`.
+  transferInvalidField: 'The file holds a field that is not valid: {field}',
   // MCP servers and hooks, read-only (M31, D30).
   mcpItem: 'MCP servers…',
   mcpItemDetail: 'What Muse Code connects to; sign in to a server',

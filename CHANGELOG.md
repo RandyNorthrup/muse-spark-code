@@ -7,6 +7,22 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- ACP load/resume applies an imported session's safe start mode before
+  advertising its mode or replaying history; ordinary stored modes remain
+  unchanged. Session summaries and snapshots retain both the captured workspace
+  identity and the imported marker through the verify-loop integration.
+
+- Session import/share file reads use the existing bounded local descriptor
+  reader instead of allocating a provider's whole file after metadata.
+  Growth and path replacement are checked, PDF-shaped bytes keep the JSON
+  cap, and unsupported providers get a translated refusal.
+
+- Portable session exports now scrub credentials and digests from arbitrary
+  item ids and error labels as well as message text, preserving ordinary
+  UUIDs and protocol words. Malformed JSON reports a localized refusal;
+  hostile field names are scrubbed before validation details reach a notice
+  or log. The invalid-field refusal now has all fourteen translations.
+
 ## [0.10.0] - 2026-09-30
 
 ### Highlights
@@ -24,6 +40,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Session export, import and share** (M84, PLAN.md D49): **Export
+  session as JSON…** writes a portable file on either backend. Credentials
+  and the key digest are always scrubbed; paths (your own folders included,
+  spaces and all) and account ids are redacted by default, and the redacted
+  file opens read-only in the editor before anything is written. **Muse
+  Spark: Import Session** resumes such a file as a new conversation on the
+  Model API backend, on your own model, in Manual (or Plan when that is the
+  initial mode) every time it is opened, forked or restored, with no session
+  rules, goals, schedules, todos or patches; the model reads each imported
+  turn as untrusted data. **Muse Spark: Open Share File** reads such a file
+  read-only in the panel (Copy and links only). Every imported byte is
+  checked: a size cap, the format and its version, and no unknown field.
+  Nothing is uploaded: sharing is a file on your disk.
 - **The agent checks its own edits** (M68, PLAN.md D49). On the Model API
   backend, after each round of tool calls that edited files, the next
   request carries the edited files' errors and warnings from VS Code's
@@ -597,6 +626,11 @@ happened, not what was planned; superseded entries are kept.
   canonical directory before mkdir and their owned stage before publishing
   or cleanup. Stale plan stages that were replaced, moved or refreshed are
   retained.
+
+- **Secret redaction no longer stalls on long dotted text.** The URL
+  credentials pattern took quadratic time on a long run such as `a.b.c.…`;
+  its scheme is now bounded. The session export (M84) runs it over whole
+  conversations.
 
 - **Android/Termux regression coverage** (PR #51). Tests preserve PATH and
   home-directory Muse launcher discovery, XDG credential paths, and explicit

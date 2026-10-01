@@ -161,6 +161,48 @@
   "exportCliMissing": "세션 로그를 내보내려면 Muse Code CLI가 필요하지만 설치되어 있지 않습니다.",
   "exportOpen": "열기",
   "exportDefaultTitle": "Muse 대화",
+  "exportJsonItem": "세션을 JSON으로 내보내기…",
+  "exportJsonDetail": "가져오기나 공유에 사용할 수 있는 파일",
+  "importSessionItem": "세션 가져오기…",
+  "importSessionDetail": "내보낸 세션 파일을 Model API 백엔드에서 계속하기",
+  "openShareItem": "공유 파일 열기…",
+  "openShareDetail": "공유 세션 파일을 읽기 전용으로 읽기",
+  "exportPreviewTitle": "세션을 JSON으로 내보내기",
+  "exportPreviewRedacted": "가려서 저장…",
+  "exportPreviewFull": "가리지 않고 저장…",
+  "exportPreviewOpen": "가린 파일이 편집기에 열려 있습니다. 선택하기 전에는 아무것도 기록되지 않습니다.",
+  "exportPreviewMessages": {
+    "other": "이 대화의 메시지 {count}개"
+  },
+  "exportPreviewPaths": {
+    "other": "가려진 경로 {count}개"
+  },
+  "exportPreviewAccounts": {
+    "other": "가려진 계정 ID {count}개"
+  },
+  "exportPreviewSecrets": {
+    "other": "제거된 자격 증명 또는 키 다이제스트 {count}개"
+  },
+  "exportPreviewCredentials": "자격 증명과 키 다이제스트는 포함되지 않습니다.",
+  "exportTooLarge": "이 대화는 세션 내보내기 파일에 담기에는 너무 깁니다.",
+  "importPreviewTitle": "세션 가져오기",
+  "importPreviewDetail": "{source}에서: {messages}. {model}에서 이어지며 {mode}(으)로 시작하고, 세션 규칙, 목표, 일정, 패치가 삭제되며 가져온 기록은 신뢰할 수 없는 것으로 처리됩니다.",
+  "importSessionFailed": "세션을 가져오지 못했습니다",
+  "importSessionUnavailable": "세션은 Model API 백엔드에서만 가져올 수 있습니다.",
+  "importedNotice": "세션을 가져왔습니다",
+  "importedUntrusted": "이 대화에는 가져온 기록이 있으므로 {mode}(으)로 시작합니다. 이를 바꿀 수 있는 사람은 사용자뿐입니다.",
+  "openShareTitle": "공유 파일 열기",
+  "shareFailed": "공유 파일을 열지 못했습니다",
+  "shareMetaLine": "{backend}에서 공유 · {time}",
+  "shareReadOnly": "읽기 전용: 이 파일의 어떤 내용도 작업 영역에 영향을 줄 수 없습니다.",
+  "shareRedacted": "경로와 계정 ID는 가려졌습니다.",
+  "transferTooLarge": "파일이 세션 내보내기의 최대 크기보다 큽니다.",
+  "transferEmpty": "파일에 대화가 없습니다.",
+  "transferNotAnExport": "이 파일은 Muse Spark 세션 내보내기가 아닙니다.",
+  "transferLocalFileOnly": "세션 가져오기와 공유에는 확장 호스트의 로컬 파일이 필요합니다.",
+  "transferVersionUnsupported": "이 버전의 확장은 형식 버전 {version}을(를) 읽을 수 없습니다.",
+  "transferUnknownField": "파일에 이 버전이 알지 못하는 필드가 있습니다: {field}",
+  "transferInvalidField": "파일에 유효하지 않은 필드가 있습니다: {field}",
   "mcpItem": "MCP 서버…",
   "mcpItemDetail": "Muse Code의 연결 대상, 서버 로그인",
   "hooksItem": "후크…",

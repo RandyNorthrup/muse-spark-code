@@ -107,6 +107,17 @@ export interface MentionResults {
   readonly items: readonly MentionItem[]
 }
 
+/** A local share file open read-only (M84): the modal shows it, nothing acts on it. */
+export interface SharePreview {
+  readonly title: string
+  /** ISO 8601. */
+  readonly exportedAt: string
+  readonly sourceBackend: BackendKind
+  readonly modelId: string
+  readonly redacted: boolean
+  readonly items: readonly ItemSnapshot[]
+}
+
 export interface OutputPage {
   readonly content: string
   readonly isEof: boolean
@@ -277,6 +288,8 @@ export interface UiState {
   readonly pendingRestore: PendingRestore | undefined
   /** Clears this panel made whose host echo has not come back yet (M25). */
   readonly pendingClearEchoes: number
+  /** A local share file open read-only (M84); undefined when none is open. */
+  readonly share: SharePreview | undefined
 }
 
 export type UiAction =
@@ -329,6 +342,8 @@ export type UiAction =
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
   | { readonly type: 'attachmentsReleased'; readonly ids: readonly string[] }
+  /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
+  | { readonly type: 'shareClosed' }
 
 export const initialUiState: UiState = {
   phase: 'connecting',
@@ -396,6 +411,7 @@ export const initialUiState: UiState = {
   restoredSessionId: undefined,
   pendingRestore: undefined,
   pendingClearEchoes: 0,
+  share: undefined,
 }
 
 const SUMMARY_FIELD_PREFIX = 'summary.'
@@ -1726,6 +1742,7 @@ function clearedConversation(state: UiState): UiState {
     schedules: [],
     outputPages: {},
     toolImages: {},
+    share: undefined,
   }
 }
 
@@ -2015,6 +2032,19 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           subscription: message.subscription,
           account: message.account,
           insights: message.insights,
+        },
+      }
+    }
+    case 'sharePreview': {
+      return {
+        ...state,
+        share: {
+          title: message.title,
+          exportedAt: message.exportedAt,
+          sourceBackend: message.sourceBackend,
+          modelId: message.modelId,
+          redacted: message.redacted,
+          items: [...message.items],
         },
       }
     }
@@ -2428,6 +2458,9 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'bannerDismissed': {
       return { ...state, banner: undefined }
+    }
+    case 'shareClosed': {
+      return { ...state, share: undefined }
     }
     case 'conversationCleared': {
       return {

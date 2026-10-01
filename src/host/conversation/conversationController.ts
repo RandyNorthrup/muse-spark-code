@@ -101,10 +101,11 @@ import {
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
+import { backendLabel } from '../../shared/palette'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
-import { approvalModeFor } from '../../shared/permissionModes'
+import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type {
   ChatReference,
   HostAction,
@@ -130,6 +131,12 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
+import { messageCount, type SessionExport } from '../../core/export/sessionTransfer'
+import {
+  type PickedTransferFile,
+  readTransferDocument,
+  type SessionTransferFiles,
+} from './sessionImport'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -316,6 +323,8 @@ export interface ConversationDeps {
   readonly museVoice: () => DictationSetup | undefined
   /** "Export conversation…" (M30): the save dialog, the write, Muse Code's own log. */
   readonly exports: ConversationExports
+  /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
+  readonly transferFiles: SessionTransferFiles
   /** Saved plans (M79); undefined without a workspace folder. */
   readonly plans: PlanFiles | undefined
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
@@ -423,6 +432,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'renameSession',
   'readUsage',
   'setPaidFeature',
+  'importSession',
   'savePlan',
   'implementPlan',
 ])
@@ -503,12 +513,16 @@ interface ExportNotice {
   readonly text: string
 }
 
-/** What an export that wrote nothing tells the user (M30); `exported` says nothing. */
+/**
+ * What an export that wrote nothing tells the user (M30, M84); `exported`
+ * and a closed preview (`dismissed`) say nothing.
+ */
 function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
   const notices: Readonly<Partial<Record<ExportOutcome, ExportNotice>>> = {
     logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
     historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
     empty: { level: 'info', text: UI_TEXT.exportNothing },
+    tooLarge: { level: 'warning', text: UI_TEXT.exportTooLarge },
   }
   return notices[outcome]
 }
@@ -525,7 +539,7 @@ interface PreparedRewind {
 }
 
 /** How a session came to this surface, for the log (M39). */
-type SessionOrigin = 'started' | 'resumed' | 'forked' | 'continued after a restart'
+type SessionOrigin = 'started' | 'resumed' | 'forked' | 'imported' | 'continued after a restart'
 
 /** When a turn started and first streamed output, for its end line (M39). */
 interface TurnClock {
@@ -2423,6 +2437,14 @@ export class ConversationController {
       this.permissionMode = 'plan'
       this.postComposerState()
     }
+    // A conversation built on an imported file opens asking, every time and
+    // whatever the initial mode (M84, PLAN.md D49): only the user's own mode
+    // change relaxes it, and only until it is opened again.
+    const isImported = loaded.record.imported === true
+    if (isImported) {
+      this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
+      this.postComposerState()
+    }
     const models = await host.listModels(loaded.session.sessionId)
     if (generation !== this.sendInvalidationEpoch) {
       loaded.session.dispose()
@@ -2461,6 +2483,12 @@ export class ConversationController {
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
     this.notice('info', `${notice} ${loaded.history.name ?? toSessionRow(loaded.record).title}`)
+    if (isImported) {
+      this.notice(
+        'info',
+        fill(UI_TEXT.importedUntrusted, { mode: UI_TEXT.permissionModes[this.permissionMode] }),
+      )
+    }
     if (loaded.history.mode === HISTORY_MODE_NONE) {
       this.notice('warning', UI_TEXT.historyNotServed)
     }
@@ -4529,6 +4557,126 @@ export class ConversationController {
     }
   }
 
+  /**
+   * A picked session-export file, parsed (M84, PLAN.md D49); undefined, with
+   * the reason posted, when it was dismissed or cannot be used.
+   */
+  private async pickTransferDocument(
+    title: string,
+    failure: string,
+  ): Promise<SessionExport | undefined> {
+    let picked: PickedTransferFile
+    try {
+      picked = await this.deps.transferFiles.pickTransferFile(title)
+    } catch (error: unknown) {
+      this.notice('error', `${failure}: ${describe(error)}`)
+      return undefined
+    }
+    if (this.isDisposed || picked.kind === 'dismissed') {
+      return undefined
+    }
+    if (picked.kind === 'tooLarge') {
+      this.notice('error', `${failure}: ${UI_TEXT.transferTooLarge}`)
+      return undefined
+    }
+    const parsed = readTransferDocument(picked.content)
+    if (!parsed.ok) {
+      this.notice('error', `${failure}: ${parsed.reason}`)
+      return undefined
+    }
+    if (parsed.doc.transcript.length === 0) {
+      this.notice('info', UI_TEXT.transferEmpty)
+      return undefined
+    }
+    return parsed.doc
+  }
+
+  /**
+   * "Import session…" (M84, PLAN.md D49): a picked export file resumed as a
+   * new conversation on the Model API backend, on the user's own model, in a
+   * mode that asks (`adopt` applies it, as on every later opening).
+   */
+  private async importSession(): Promise<void> {
+    if (this.deps.surface.isSideChat === true) {
+      this.notice('warning', UI_TEXT.sideChatSessionOnly)
+      return
+    }
+    if (this.refuseAction() !== undefined) {
+      return
+    }
+    // Disposing drops the session, which moves the epoch on: each check
+    // after an await covers a closed panel too.
+    const generation = this.sendInvalidationEpoch
+    try {
+      const host = await this.deps.ensureHost()
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      if (host.importSession === undefined) {
+        this.notice('info', UI_TEXT.importSessionUnavailable)
+        return
+      }
+      const doc = await this.pickTransferDocument(
+        UI_TEXT.importPreviewTitle,
+        UI_TEXT.importSessionFailed,
+      )
+      if (doc === undefined || generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      await this.ensureModels(host)
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      const mode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
+      const isConfirmed = await this.deps.transferFiles.confirmImport(
+        UI_TEXT.importPreviewTitle,
+        fill(UI_TEXT.importPreviewDetail, {
+          source: backendLabel(doc.sourceBackend),
+          messages: plural(UI_TEXT.exportPreviewMessages, messageCount(doc.transcript)),
+          model: this.modelId,
+          mode: UI_TEXT.permissionModes[mode],
+        }),
+      )
+      if (!isConfirmed || generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      this.watchList(host)
+      const loaded = await host.importSession(doc, {
+        approvalMode: approvalModeFor(mode, this.deps.hasApprovalUi),
+        modelId: this.modelId,
+      })
+      if (generation !== this.sendInvalidationEpoch) {
+        loaded.session.dispose()
+        return
+      }
+      await this.adopt(host, loaded, UI_TEXT.importedNotice, 'imported')
+    } catch (error: unknown) {
+      if (generation === this.sendInvalidationEpoch) {
+        this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`)
+      }
+    }
+  }
+
+  /**
+   * "Open share file…" (M84): a picked export file shown read-only in the
+   * panel. Nothing reaches a session or a model; the panel only renders it.
+   */
+  private async openShareFile(): Promise<void> {
+    const doc = await this.pickTransferDocument(UI_TEXT.openShareTitle, UI_TEXT.shareFailed)
+    if (doc === undefined || this.isDisposed) {
+      return
+    }
+    this.post({
+      type: 'sharePreview',
+      title: doc.name ?? UI_TEXT.exportDefaultTitle,
+      exportedAt: doc.exportedAt,
+      sourceBackend: doc.sourceBackend,
+      modelId: doc.modelId,
+      redacted: doc.redacted,
+      items: doc.transcript,
+    })
+  }
+
   /** The Agent map asked for a subagent's own transcript (M14). */
   private async readChildSession(sessionId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
@@ -4885,6 +5033,14 @@ export class ConversationController {
       }
       case 'exportConversation': {
         await this.exportConversation(message.format)
+        break
+      }
+      case 'importSession': {
+        await this.importSession()
+        break
+      }
+      case 'openShareFile': {
+        await this.openShareFile()
         break
       }
       case 'listSkills': {

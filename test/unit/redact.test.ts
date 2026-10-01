@@ -52,6 +52,16 @@ describe('redactSecrets', () => {
     )
   })
 
+  it('scans a long dotted run in linear time (M84 exports whole conversations)', () => {
+    // Quadratic, 200 000 characters took about 20 s; linear, a few milliseconds.
+    const run = 'a.'.repeat(100_000)
+    const started = performance.now()
+    expect(redactSecrets(`${run} https://user:pw@example.com`)).toBe(
+      `${run} https://[redacted]@example.com`,
+    )
+    expect(performance.now() - started).toBeLessThan(2000)
+  })
+
   it('leaves ordinary text untouched', () => {
     const text = 'Activating Muse Spark 0.0.0 (VS Code 1.138.0, Node 24.20.0)'
     expect(redactSecrets(text)).toBe(text)

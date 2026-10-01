@@ -2710,6 +2710,22 @@ body {
   align-self: flex-start;
 }
 
+/* A local share file open read-only (M84): meta line and one section per item. */
+.share-meta {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.share-section {
+  border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  padding-top: var(--ms-gap);
+}
+
+.share-heading {
+  margin: 0 0 var(--ms-gap);
+  font-size: 1em;
+}
+
 /* Reduced motion (M25): every animation and transition in the panel stops,
    not only the microphone's pulse. */
 @media (prefers-reduced-motion: reduce) {

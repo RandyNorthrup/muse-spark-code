@@ -366,6 +366,17 @@ fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- A session export (M84) is written only where you save it, after its
+  redacted form opened read-only in the editor. It holds the conversation's
+  messages, thinking and tool calls with their arguments and visible output,
+  the session's name, the model's name and the backend; never a credential
+  or the key digest, and by default no path or e-mail address (they are
+  replaced), including in item ids and error labels. Ordinary UUIDs and
+  protocol words remain intact. **Save without redaction…** keeps paths and e-mail addresses.
+  Validation failures use localized refusals and scrubbed, bounded field
+  names instead of JSON parser snippets from the picked file.
+  Importing or opening a share file reads the one file you pick; nothing
+  is uploaded, and there is no hosted sharing.
 
 ## The agent for other editors
 

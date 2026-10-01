@@ -201,7 +201,11 @@ function agentSection(item: ItemSnapshot): string | undefined {
   return lines.join('\n')
 }
 
-function sectionOf(item: ItemSnapshot): string | undefined {
+/**
+ * One item as its section of the Markdown export; undefined for items the
+ * panel hides. The share view (M84) renders a shared file with it too.
+ */
+export function transcriptItemMarkdown(item: ItemSnapshot): string | undefined {
   switch (item.kind) {
     case USER_MESSAGE: {
       return userSection(item)
@@ -240,7 +244,7 @@ export function renderTranscriptMarkdown(input: TranscriptExport): string {
     `- ${fill(UI_TEXT.exportTimeLine, { time: input.exportedAt })}`,
   ].join('\n')
   const sections = input.items.flatMap((item) => {
-    const section = sectionOf(item)
+    const section = transcriptItemMarkdown(item)
     return section === undefined ? [] : [section]
   })
   return `${[header, '---', ...sections].join('\n\n')}\n`

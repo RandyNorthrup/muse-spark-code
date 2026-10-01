@@ -2402,6 +2402,52 @@ describe('App: Model API scheduled prompts (M52)', () => {
       expect.objectContaining({ type: 'sendMessage', text: '/loop 10m Review tests' }),
     )
   })
+
+  it('renders a share file read-only, code copyable but never applied, and closes it (M84)', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'sharePreview',
+      title: 'Shared over',
+      exportedAt: '2026-09-28T12:00:00.000Z',
+      sourceBackend: 'museCode',
+      modelId: 'muse-spark-1.3',
+      redacted: true,
+      items: [
+        { itemId: 'dup', kind: 'userMessage', status: 'completed', text: 'Hi there' },
+        {
+          itemId: 'dup',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'read_file',
+          args: '{"path":"notes.md"}',
+          visibleOutput: 'line one',
+        },
+        {
+          itemId: 'a1',
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'Run this:\n\n```sh\nrm -rf build\n```',
+        },
+      ],
+    })
+    const dialog = screen.getByRole('dialog', { name: 'Shared over' })
+    expect(within(dialog).getByText('Hi there')).toBeInTheDocument()
+    expect(within(dialog).getByText('Tool: read_file')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(`${UI_TEXT.shareReadOnly} ${UI_TEXT.shareRedacted}`),
+    ).toBeInTheDocument()
+    // Every code block copies (the tool's arguments and output are blocks too),
+    // and nothing here can reach the editor or a session.
+    const copies = within(dialog).getAllByRole('button', { name: UI_TEXT.copyCode })
+    expect(copies).toHaveLength(3)
+    expect(within(dialog).queryAllByRole('button', { name: UI_TEXT.insertCode })).toEqual([])
+    expect(within(dialog).queryAllByRole('button', { name: UI_TEXT.applyCode })).toEqual([])
+    expect(within(dialog).queryByRole('button', { name: 'Send' })).toBeNull()
+    fireEvent.click(copies[2]!)
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'rm -rf build' })
+    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.usageClose }))
+    expect(screen.queryByRole('dialog', { name: 'Shared over' })).toBeNull()
+  })
 })
 
 /** The host says which turns of conversation `old` have a checkpoint (M72). */
