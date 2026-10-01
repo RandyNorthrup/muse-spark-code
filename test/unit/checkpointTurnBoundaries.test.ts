@@ -90,6 +90,34 @@ function rewriteRecord(
 }
 
 /**
+ * One conversation in two windows: `early` starts in the first and `later` in
+ * the second while it runs; the earlier edits x after that start and ends,
+ * the later edits y and ends; `rewrite` then changes the stored records.
+ * Restoring `later` leaves the earlier turn's x, named, and puts y back.
+ */
+async function expectEarlierEditKept(
+  early: string,
+  later: string,
+  rewrite: (storage: string) => void,
+): Promise<void> {
+  const h = await harness()
+  const second = h.reopen()
+  await write(h.root, 'x.txt', 'x0\n')
+  await write(h.root, 'y.txt', 'y0\n')
+  await h.store.record('s1', early, await captured(h.store))
+  await second.record('s1', later, await captured(second))
+  await write(h.root, 'x.txt', 'x1\n')
+  await h.store.endTurn('s1', early)
+  await write(h.root, 'y.txt', 'y1\n')
+  await second.endTurn('s1', later)
+  rewrite(h.storage)
+  const outcome = done(await restoreOutcome(second, later))
+  expect(outcome.refused).toEqual([{ path: 'x.txt', reason: 'changedAfter' }])
+  expect(await read(h.root, 'x.txt')).toBe('x1\n')
+  expect(await read(h.root, 'y.txt')).toBe('y0\n')
+}
+
+/**
  * Rewrites a turn's stored record as a 0.10.0 candidate wrote it: the same
  * record with no turn numbers.
  */
@@ -196,30 +224,14 @@ describe('one conversation open in two windows (M72)', () => {
   ])(
     'refuses an earlier turn’s edit made after the restored turn started, its end numbered $numbered, and restores the restored turn’s own',
     async ({ endSequence }) => {
-      const h = await harness()
-      const second = h.reopen()
-      await write(h.root, 'x.txt', 'x0\n')
-      await write(h.root, 'y.txt', 'y0\n')
-      // The first window's turn starts; the conversation's next one starts
-      // in the second window while it runs.
-      await h.store.record('s1', 'early', await captured(h.store))
-      await second.record('s1', 'later', await captured(second))
-      // The earlier turn edits x after that start, then ends.
-      await write(h.root, 'x.txt', 'x1\n')
-      await h.store.endTurn('s1', 'early')
-      await write(h.root, 'y.txt', 'y1\n')
-      await second.endTurn('s1', 'later')
-      if (endSequence !== undefined) {
-        // Both windows read the conversation's records before either wrote.
-        rewriteRecord(h.storage, 's1', 'early', (key, value) =>
-          key === 'endSequence' ? endSequence : value,
-        )
-      }
-      const outcome = done(await restoreOutcome(second, 'later'))
-      // The earlier turn is not undone, so its edit stays, named.
-      expect(outcome.refused).toEqual([{ path: 'x.txt', reason: 'changedAfter' }])
-      expect(await read(h.root, 'x.txt')).toBe('x1\n')
-      expect(await read(h.root, 'y.txt')).toBe('y0\n')
+      await expectEarlierEditKept('early', 'later', (storage) => {
+        if (endSequence !== undefined) {
+          // Both windows read the conversation's records before either wrote.
+          rewriteRecord(storage, 's1', 'early', (key, value) =>
+            key === 'endSequence' ? endSequence : value,
+          )
+        }
+      })
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -483,23 +495,11 @@ describe('what a restore cannot know about another window’s turn (M72)', () =>
   it(
     'never undoes a turn numbered at once with the restored one, whichever the refs list first',
     async () => {
-      const h = await harness()
-      const second = h.reopen()
-      await write(h.root, 'x.txt', 'x0\n')
-      await write(h.root, 'y.txt', 'y0\n')
       // Ref names are hashes: "after" lists before "before", the order a tie is left to.
-      await h.store.record('s1', 'before', await captured(h.store))
-      await second.record('s1', 'after', await captured(second))
-      await write(h.root, 'x.txt', 'x1\n')
-      await h.store.endTurn('s1', 'before')
-      await write(h.root, 'y.txt', 'y1\n')
-      await second.endTurn('s1', 'after')
-      // Both windows read the conversation's records before either wrote: one number.
-      rewriteRecord(h.storage, 's1', 'after', (key, value) => (key === 'sequence' ? 1 : value))
-      const outcome = done(await restoreOutcome(second, 'after'))
-      expect(outcome.refused).toEqual([{ path: 'x.txt', reason: 'changedAfter' }])
-      expect(await read(h.root, 'x.txt')).toBe('x1\n')
-      expect(await read(h.root, 'y.txt')).toBe('y0\n')
+      await expectEarlierEditKept('before', 'after', (storage) => {
+        // Both windows read the conversation's records before either wrote: one number.
+        rewriteRecord(storage, 's1', 'after', (key, value) => (key === 'sequence' ? 1 : value))
+      })
     },
     REAL_GIT_TIMEOUT_MS,
   )

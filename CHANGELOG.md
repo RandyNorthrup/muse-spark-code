@@ -467,7 +467,10 @@ happened, not what was planned; superseded entries are kept.
   Markdown export, a saved plan, a Revert, a note the Memory view creates or
   trashes) is yours too. A restore leaves alone what an earlier turn of the
   same conversation, still running in another window, changed, and what a
-  turn of a window that closed mid-turn may have changed.
+  turn of a window that closed mid-turn may have changed. A file you save in
+  any window on the folder while a turn runs, even one with no turn of its
+  own and even while the turn's first checkpoint is being taken, is yours
+  too.
 
 - **Rewind code to here asks first** (M72), in the same confirmation as a
   file restore. **Fork conversation and rewind code** is now one action:
