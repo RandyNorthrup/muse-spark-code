@@ -26,6 +26,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M83 review repairs are implemented, with scoped regression/drill evidence.
+  Integration remains blocked by the importer's final 530.7/125 KiB build;
+  the lane stopped at the brief's hard-cap checkpoint. See
+  `docs/certification/m83b.md`; these repairs are not release certification.
 - Refused copy-only imports now count as not imported in notifications and logs.
   A fully refused import reports its counts as a warning without a success
   completion; native editor safety refusals also reach the result.
