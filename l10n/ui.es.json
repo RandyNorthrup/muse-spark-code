@@ -673,6 +673,7 @@
   "handoffSideChat": "Inicie un traspaso desde la conversación principal.",
   "handoffInterrupted": "La solicitud de traspaso no terminó; no se inició nada.",
   "handoffFailed": "No se pudo preparar el traspaso",
+  "handoffNoBrief": "El modelo no devolvió ningún resumen.",
   "handoffTooLarge": "El resumen supera los {size} KB; inicie la nueva conversación a mano.",
   "handoffChangedNotStarted": "El traspaso no se inició: la conversación cambió mientras tanto.",
   "handoffUnshownMode": "La nueva conversación empieza en {mode}: el resumen contiene un carácter de control o de formato (como un cambio de dirección del texto o un carácter de ancho cero) que el cuadro de diálogo no muestra, así que no lo vio entero.",

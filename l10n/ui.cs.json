@@ -686,6 +686,7 @@
   "handoffSideChat": "Spusťte předání z hlavní konverzace.",
   "handoffInterrupted": "Požadavek na předání nebyl dokončen; nic nebylo spuštěno.",
   "handoffFailed": "Předání se nepodařilo připravit",
+  "handoffNoBrief": "Model nevrátil žádné shrnutí.",
   "handoffTooLarge": "Shrnutí je větší než {size} KB; spusťte novou konverzaci ručně.",
   "handoffChangedNotStarted": "Předání nebylo spuštěno: konverzace se mezitím změnila.",
   "handoffUnshownMode": "Nová konverzace začíná v režimu {mode}: shrnutí obsahuje řídicí nebo formátovací znak (například přepnutí směru textu nebo znak nulové šířky), který dialog nezobrazuje, takže jste ho neviděli celé.",

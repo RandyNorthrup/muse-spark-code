@@ -673,6 +673,7 @@
   "handoffSideChat": "Avvia un passaggio dalla conversazione principale.",
   "handoffInterrupted": "La richiesta di passaggio non è andata a buon fine; non è stato avviato nulla.",
   "handoffFailed": "Impossibile preparare il passaggio",
+  "handoffNoBrief": "Il modello non ha restituito alcun riepilogo.",
   "handoffTooLarge": "Il riepilogo supera i {size} KB; avvia la nuova conversazione a mano.",
   "handoffChangedNotStarted": "Il passaggio non è stato avviato: la conversazione è cambiata nel frattempo.",
   "handoffUnshownMode": "La nuova conversazione parte in modalità {mode}: il riepilogo contiene un carattere di controllo o di formato (come un cambio di direzione del testo o un carattere a larghezza zero) che la finestra di dialogo non mostra, quindi non l’hai visto per intero.",

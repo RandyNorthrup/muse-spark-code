@@ -3538,7 +3538,7 @@ export class ConversationController {
       const text = reply?.text ?? ''
       if (reply === undefined || reply.status === IN_PROGRESS_STATUS || text.trim() === '') {
         this.pendingHandoff = undefined
-        this.handoffFailed(new Error('the distillation turn left no reply'))
+        this.handoffFailed(new Error(UI_TEXT.handoffNoBrief))
         return
       }
       if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {

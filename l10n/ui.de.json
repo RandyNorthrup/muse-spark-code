@@ -660,6 +660,7 @@
   "handoffSideChat": "Starten Sie eine Übergabe aus der Hauptunterhaltung.",
   "handoffInterrupted": "Die Übergabeanfrage wurde nicht abgeschlossen; nichts wurde gestartet.",
   "handoffFailed": "Die Übergabe konnte nicht vorbereitet werden",
+  "handoffNoBrief": "Das Modell hat keine Zusammenfassung geliefert.",
   "handoffTooLarge": "Die Zusammenfassung ist größer als {size} KB; starten Sie die neue Unterhaltung von Hand.",
   "handoffChangedNotStarted": "Die Übergabe wurde nicht gestartet: Die Unterhaltung hat sich inzwischen geändert.",
   "handoffUnshownMode": "Die neue Unterhaltung startet im Modus {mode}: Die Zusammenfassung enthält ein Steuer- oder Formatzeichen (etwa eine Richtungsumkehr oder ein Zeichen ohne Breite), das der Dialog nicht anzeigt; Sie haben sie also nicht vollständig gesehen.",

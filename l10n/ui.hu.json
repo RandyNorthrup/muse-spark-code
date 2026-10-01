@@ -660,6 +660,7 @@
   "handoffSideChat": "Indítson átadást a fő beszélgetésből.",
   "handoffInterrupted": "Az átadási kérés nem fejeződött be; semmi sem indult el.",
   "handoffFailed": "Az átadást nem sikerült előkészíteni",
+  "handoffNoBrief": "A modell nem adott vissza összefoglalót.",
   "handoffTooLarge": "Az összefoglaló nagyobb {size} KB-nál; indítsa el az új beszélgetést kézzel.",
   "handoffChangedNotStarted": "Az átadás nem indult el: a beszélgetés időközben megváltozott.",
   "handoffUnshownMode": "Az új beszélgetés {mode} módban indul: az összefoglaló olyan vezérlő- vagy formázókaraktert tartalmaz (például írásirány-felülbírálást vagy nulla szélességű karaktert), amelyet a párbeszédablak nem jelenít meg, így nem látta teljes egészében.",

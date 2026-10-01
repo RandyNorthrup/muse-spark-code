@@ -686,6 +686,7 @@
   "handoffSideChat": "Rozpocznij przekazanie z głównej rozmowy.",
   "handoffInterrupted": "Żądanie przekazania nie zostało ukończone; nic nie rozpoczęto.",
   "handoffFailed": "Nie udało się przygotować przekazania",
+  "handoffNoBrief": "Model nie zwrócił podsumowania.",
   "handoffTooLarge": "Podsumowanie jest większe niż {size} KB; rozpocznij nową rozmowę ręcznie.",
   "handoffChangedNotStarted": "Przekazanie nie zostało rozpoczęte: rozmowa w międzyczasie się zmieniła.",
   "handoffUnshownMode": "Nowa rozmowa zaczyna w trybie {mode}: podsumowanie zawiera znak sterujący lub formatujący (np. wymuszenie kierunku tekstu albo znak o zerowej szerokości), którego okno dialogowe nie pokazuje, więc nie było ono widoczne w całości.",

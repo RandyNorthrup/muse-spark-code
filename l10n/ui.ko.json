@@ -647,6 +647,7 @@
   "handoffSideChat": "기본 대화에서 인계를 시작하세요.",
   "handoffInterrupted": "인계 요청이 끝나지 않았습니다. 시작된 것이 없습니다.",
   "handoffFailed": "인계를 준비하지 못했습니다",
+  "handoffNoBrief": "모델이 요약을 반환하지 않았습니다.",
   "handoffTooLarge": "요약이 {size}KB를 초과합니다. 새 대화는 직접 시작하세요.",
   "handoffChangedNotStarted": "인계가 시작되지 않았습니다. 그 사이에 대화가 바뀌었습니다.",
   "handoffUnshownMode": "새 대화는 {mode} 모드로 시작합니다. 요약에 대화 상자가 표시하지 않는 제어 문자 또는 서식 문자(방향 재정의나 폭이 없는 문자 등)가 있어 전체를 확인하지 못했습니다.",

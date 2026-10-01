@@ -660,6 +660,7 @@
   "handoffSideChat": "Aktarmayı ana sohbetten başlatın.",
   "handoffInterrupted": "Aktarma isteği tamamlanamadı; hiçbir şey başlatılmadı.",
   "handoffFailed": "Aktarma hazırlanamadı",
+  "handoffNoBrief": "Model bir özet döndürmedi.",
   "handoffTooLarge": "Özet {size} KB’tan büyük; yeni sohbeti el ile başlatın.",
   "handoffChangedNotStarted": "Aktarma başlatılmadı: sohbet bu arada değişti.",
   "handoffUnshownMode": "Yeni sohbet {mode} modunda başlar: özet, iletişim kutusunun göstermediği bir denetim veya biçim karakteri (yön geçersiz kılma ya da sıfır genişlikli karakter gibi) içeriyor; bu yüzden özetin tamamını görmediniz.",

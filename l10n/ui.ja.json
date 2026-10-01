@@ -647,6 +647,7 @@
   "handoffSideChat": "引き継ぎはメインの会話から始めてください。",
   "handoffInterrupted": "引き継ぎ要求は完了しませんでした。何も開始していません。",
   "handoffFailed": "引き継ぎを準備できませんでした",
+  "handoffNoBrief": "モデルから要約が返されませんでした。",
   "handoffTooLarge": "要約が {size} KB を超えています。新しい会話は手動で始めてください。",
   "handoffChangedNotStarted": "引き継ぎは開始されませんでした。その間に会話が変わりました。",
   "handoffUnshownMode": "新しい会話は {mode} で開始します: 要約に、ダイアログに表示されない制御文字または書式文字 (文字方向の上書きやゼロ幅文字など) が含まれているため、すべてを確認できていません。",

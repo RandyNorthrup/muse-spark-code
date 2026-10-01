@@ -869,6 +869,8 @@ export const EN = {
   handoffSideChat: 'Start a handoff from the main conversation.',
   handoffInterrupted: 'The handoff request did not finish; nothing was started.',
   handoffFailed: 'Could not prepare the handoff',
+  // After handoffFailed: the distillation turn ended with no reply text.
+  handoffNoBrief: 'The model returned no brief.',
   handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
   handoffChangedNotStarted:
     'The handoff was not started: the conversation changed in the meantime.',

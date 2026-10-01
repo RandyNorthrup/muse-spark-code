@@ -8861,8 +8861,11 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     await vi.waitFor(() => {
       expect(notices(empty.t).length).toBeGreaterThan(0)
     })
-    expect(notices(empty.t).at(-1)).toMatchObject({ level: 'error' })
-    expect(notices(empty.t).at(-1)?.text).toContain(UI_TEXT.handoffFailed)
+    // The reason in the user's language too, from the table (M40).
+    expect(notices(empty.t).at(-1)).toMatchObject({
+      level: 'error',
+      text: `${UI_TEXT.handoffFailed}: ${UI_TEXT.handoffNoBrief}`,
+    })
     expect(empty.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
   })
 })

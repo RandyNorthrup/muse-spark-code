@@ -647,6 +647,7 @@
   "handoffSideChat": "請從主對話開始移交。",
   "handoffInterrupted": "移交要求未完成；未開始任何內容。",
   "handoffFailed": "無法準備移交",
+  "handoffNoBrief": "模型沒有傳回摘要。",
   "handoffTooLarge": "摘要超過 {size} KB；請手動開始新的對話。",
   "handoffChangedNotStarted": "移交未開始：對話在此期間發生了變化。",
   "handoffUnshownMode": "新的對話以{mode}模式開始：摘要包含對話方塊不顯示的控制字元或格式字元（如文字方向覆寫或零寬字元），因此您沒有看到它的全部內容。",
