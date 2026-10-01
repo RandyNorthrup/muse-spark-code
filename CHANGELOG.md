@@ -503,6 +503,28 @@ happened, not what was planned; superseded entries are kept.
   mapped drive included): another window's Restore or Redo is refused while
   one runs.
 
+- **A workspace opened through a link, a junction or a mapped drive keeps its
+  conversations** (M72). Sessions, the CLI’s working directory and memory are
+  keyed by the folder as VS Code spells it, as before; only the checkpoint store
+  uses the canonical path.
+
+- **A restore no longer reverts another window’s edit made at the same
+  instant** (M72). Turns in two windows that touch at one clock tick count as
+  overlapping, so the other window’s edit is protected.
+
+- **A file named `..something` is inside the workspace** (M72, and the ACP
+  agent’s mention links). It was treated as outside because its name begins with
+  two dots, so it got no restore copy.
+
+- **A completed restore keeps its Redo when its lease cannot be released**
+  (M72). The release is tried again and logged instead of replacing the result
+  with a failure; the window’s next restore takes over a lease it still holds.
+
+- **Restore and rewind stops when any file is left behind** (M72). A file with no
+  earlier copy, one that was never in the checkpoint, or ignored files that
+  could not all be put back now keep the conversation from being rewound, as the
+  confirmation says.
+
 - **A `!` command is checked again at its real start** (M72). On the Model
   API backend, a `!` command you typed could still start after the workspace
   lost trust, after your Stop, or while the window was closing, when a

@@ -3208,6 +3208,14 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
 - **M72 long storage paths:** should a checkpoint folder over 240 characters
   (Windows) be served by moving the repository? That would change the hashed
   namespace. Default: refuse with the `checkpointPathTooLong` message.
+- **M72 dirty buffers in other windows:** a restore refuses a file with unsaved
+  changes in the window that restores, but an idle peer window on the same folder
+  publishes only that it is open, so its unsaved buffer of a file the restore
+  overwrites or deletes is not known. VS Code keeps that buffer and reports the
+  file changed on disk at its next save (it asks before overwriting), so nothing
+  is silently lost. Should every window publish its unsaved paths in its
+  presence file, so a restore refuses them too? Default: unchanged, recorded as
+  a limit (Codex, `a424e526`).
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
