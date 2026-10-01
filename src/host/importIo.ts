@@ -351,11 +351,15 @@ export const fileImportWriter: ImportWriter = {
         await new Promise((resolve) => setTimeout(resolve, ms))
       },
       rename: async (from, to) => {
+        // The atomic writer names the canonical target; retain the original
+        // request path too, so a retargeted workspace link still revokes it.
+        await checkTarget(absolutePath, project)
         await checkTarget(to, canonicalProject)
         if (((await readImportText(to, canonicalProject)) ?? '') !== current) {
           throw refused(CHANGED)
         }
         await checkTarget(to, canonicalProject)
+        await checkTarget(absolutePath, project)
         options?.beforePublish?.()
         await rename(from, to)
       },

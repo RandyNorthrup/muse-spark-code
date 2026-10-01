@@ -544,22 +544,12 @@ async function hooksFileState(
 async function planFor(
   deps: AgentImportDeps,
   selected: readonly ImportCandidate[],
+  project: ImportProjectRoot | undefined,
 ): Promise<ImportPlan> {
   const p = pathModule(deps.platform)
   const [agentsFile] = RULES_FILE_NAMES
   const root = deps.workspaceRoot
   const hooksFile = root === undefined ? undefined : p.join(root, ...PROJECT_HOOKS_SEGMENTS)
-  // The folder is identified once, here; every write compares it again.
-  let project: ImportProjectRoot | undefined
-  if (root !== undefined) {
-    try {
-      project = { path: root, identity: await deps.writer.identifyRoot(root) }
-    } catch (error: unknown) {
-      deps.log.warn(
-        `${LOG_PREFIX} the workspace folder could not be identified (${importErrorCode(error)})`,
-      )
-    }
-  }
   return await planImportApply(
     selected,
     {
@@ -697,6 +687,19 @@ export async function importFromAgents(deps: AgentImportDeps): Promise<void> {
 
 /** The whole flow: pickers, preview, confirmation, writes and clipboard/editor actions. */
 async function runImport(deps: AgentImportDeps): Promise<void> {
+  // Bind the request before either picker waits; the scan and accepted plan
+  // must not acquire a replacement root after the user selected its entries.
+  let project: ImportProjectRoot | undefined
+  const root = deps.workspaceRoot
+  if (root !== undefined && deps.isWorkspaceTrusted()) {
+    try {
+      project = { path: root, identity: await deps.writer.identifyRoot(root) }
+    } catch (error: unknown) {
+      deps.log.warn(
+        `${LOG_PREFIX} the workspace folder could not be identified (${importErrorCode(error)})`,
+      )
+    }
+  }
   const choice = await deps.pickSource()
   if (choice === undefined || !deps.isActive()) {
     return
@@ -735,7 +738,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     return
   }
   const selected = scan.candidates.filter((candidate) => picked.includes(candidate.id))
-  const plan = await planFor(deps, selected)
+  const plan = await planFor(deps, selected, project)
   if (!deps.isActive()) {
     return
   }

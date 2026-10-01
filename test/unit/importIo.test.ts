@@ -542,6 +542,27 @@ describe('a workspace folder that changes after the plan (M83)', () => {
     expect(await readFile(path.join(`${workspace}-original`, 'AGENTS.md'), 'utf8')).toBe('Prior.\n')
   })
 
+  it('refuses a rules append when its root link is retargeted while canonical text is staged', async () => {
+    const first = path.join(folders.root, 'append-link-first')
+    const second = path.join(folders.root, 'append-link-second')
+    const root = path.join(folders.root, 'append-link-root')
+    await mkdir(first)
+    await mkdir(second)
+    await symlink(first, root, 'junction')
+    await writeFile(path.join(first, 'AGENTS.md'), 'Prior.\n')
+    await writeFile(path.join(second, 'AGENTS.md'), 'Other rules.\n')
+    const write = await projectWrite(root, path.join(root, 'AGENTS.md'))
+    beforeOpening(stagedBeside(path.join(first, 'AGENTS.md')), async () => {
+      await unlink(root)
+      await symlink(second, root, 'junction')
+    })
+    await expectRefusedAsChanged(write)
+    expect(await readFile(path.join(first, 'AGENTS.md'), 'utf8')).toBe('Prior.\n')
+    expect(await readFile(path.join(second, 'AGENTS.md'), 'utf8')).toBe('Other rules.\n')
+    expect(await readdir(first)).toEqual(['AGENTS.md'])
+    expect(await readdir(second)).toEqual(['AGENTS.md'])
+  })
+
   it('identifies a folder by its canonical path and compares it again on every write', async () => {
     const workspace = path.join(folders.root, 'identified-root')
     await mkdir(workspace)

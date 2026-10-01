@@ -11,6 +11,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Import root stays bound through every question and publication** (M83).
+  A workspace link changed during tool/candidate selection or rules staging
+  cannot redirect the accepted import. Hooks destinations are checked before
+  the editor loads their documents and after loading. Concurrent requests
+  report that an import is already open; a fully refused import reports its
+  reason instead of claiming completion.
+
+
 - **Checkpoint bundle budget** (M72). The checkpoint store and legacy reader
   ship as `dist/checkpointStore.js`, loaded synchronously at the existing
   activation construction point with the installed language. Startup safety,

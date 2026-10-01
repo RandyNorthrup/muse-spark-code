@@ -113,6 +113,9 @@ export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {
         await vscode.env.clipboard.writeText(text)
       },
       openTarget: async (absolutePath, isExisting, isStillSafe) => {
+        if (!(await isStillSafe())) {
+          return
+        }
         const file = vscode.Uri.file(absolutePath)
         // A missing file opens unsaved at its path: the user saves it, the extension never writes it.
         const document = await vscode.workspace.openTextDocument(

@@ -73,6 +73,8 @@ interface Options {
   readonly whileOpening?: (io: MemoryImportIo, path: string) => void
   /** Runs while the user reads the preview, before they answer. */
   readonly whilePreviewed?: (io: MemoryImportIo) => void
+  /** Runs after scanning, while the candidate picker is open. */
+  readonly whilePicking?: (io: MemoryImportIo) => void
   /** Runs when the user answers the copy prompt, before the file opens. */
   readonly whileCopying?: (io: MemoryImportIo) => void
   /** Runs during clipboard access, after the copy path's first check. */
@@ -142,6 +144,7 @@ function run(options: Options = {}) {
       (() => Promise.resolve('source' in options ? options.source : 'claudeCode')),
     pickCandidates: (list) => {
       items.push(...list)
+      options.whilePicking?.(io)
       const picked =
         options.pick === undefined
           ? list.filter((item) => item.picked).map((item) => item.id)
@@ -634,6 +637,20 @@ describe('importFromAgents confinement and order', () => {
     expect(flow.logged()).toContain('~/.config/muse/settings.json could not be read (tooLarge)')
   })
 
+  it('reports undecodable settings instead of treating them as a missing file', async () => {
+    const io = memoryImportIo({ files: FILES })
+    const readFile = io.readFile
+    io.readFile = async (...args) =>
+      args[0] === SETTINGS
+        ? { status: 'read', bytes: Buffer.from('invalid\0text') }
+        : await readFile(...args)
+    const flow = run({ io })
+    await flow.done
+    expect(flow.previews[0]).toContain(UI_TEXT.agentImportSkippedUnreadable)
+    expect(flow.opened.map(([file]) => file)).toEqual([`${WS}/.muse/hooks.json`])
+    expect(flow.logged()).toContain('~/.config/muse/settings.json could not be read (read)')
+  })
+
   it.each(['while the copy prompt is open', 'during the clipboard write'])(
     'does not open a hooks file whose folder was linked out %s',
     async (moment) => {
@@ -657,12 +674,23 @@ describe('importFromAgents confinement and order', () => {
 // for must still be the folder written to, and the project writes run under
 // the checkpoint lease with a copy taken before each.
 describe('importFromAgents: a folder that changes during the approval wait', () => {
-  it('does not publish into a folder the workspace path was retargeted to while the preview waited', async () => {
+  it.each([
+    {
+      title:
+        'does not publish into a folder the workspace path was retargeted to while the preview waited',
+      phase: 'preview',
+    },
+    {
+      title: 'keeps the request root when it is retargeted while candidates are picked',
+      phase: 'picker',
+    },
+  ])('$title', async ({ phase }) => {
+    const retarget = (io: MemoryImportIo): void => {
+      io.links.set(WS, '/other')
+    }
     const flow = run({
       pick: projectOnly,
-      whilePreviewed: (io) => {
-        io.links.set(WS, '/other')
-      },
+      ...(phase === 'preview' ? { whilePreviewed: retarget } : { whilePicking: retarget }),
     })
     await flow.done
     expect(flow.io.pathsUnder('/other')).toEqual([])

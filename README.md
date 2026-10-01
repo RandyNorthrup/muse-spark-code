@@ -586,7 +586,9 @@ agent folder.
 One import runs at a time in this extension host; a second request reports
 that the first is still open. Project destinations
 refuse symbolic links and junctions, even dangling ones, before reading,
-writing or opening them. Files publish whole without replacing anything;
+writing or opening them. The request binds its root before the pickers
+open and refuses a retargeted or replaced root through publication,
+clipboard access and editor loading. Files publish whole without replacing anything;
 rules updates stop if the prior file changed or the result would exceed
 64 KiB, preserving the existing rules. Settings that are unreadable,
 oversized or malformed offer no server or hook copies for that file and

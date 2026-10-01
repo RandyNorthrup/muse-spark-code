@@ -8848,6 +8848,11 @@ lane; independent review and full multi-platform gates belong to the lead.
 The named `muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is unavailable
 on this machine; the lane brief, prepared source and preserved evidence
 provide the recovery context. No model or network call is needed.
+Remaining root review covers the entire request: bind the folder before
+the tool/candidate pickers, retain that binding during rules staging even
+when the atomic writer uses a canonical path, and check a hooks target
+before the editor loads it as well as before showing it. Each repair gets
+a regression observed failing first and a byte-restored guard drill.
 The 2026-09-28 certification is historical (`docs/certification/m83.md`).
 
 - **Goal.** Switching to Muse Spark Code takes minutes.
@@ -8951,8 +8956,8 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
     built) shows every file whole, every appended section, every copy text
     and every entry left out with its reason, beside a non-modal
     notification that asks, so the preview stays readable; nothing is
-    written until Import. A file is created with `wx` (an exclusive
-    open), each destination confined again at the moment of writing, a
+    written until Import. Complete bytes are staged with `wx` and published
+    by an exclusive hard link, each destination confined again at publication, a
     project's to the workspace root itself (not its `.agents` folder, so a
     linked `.agents` is refused); a rules section is appended only if its
     heading is not in `AGENTS.md` when it is written.

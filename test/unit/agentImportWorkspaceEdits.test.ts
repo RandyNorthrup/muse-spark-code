@@ -9,7 +9,7 @@ import path from 'node:path'
 import type * as NodeFsPromises from 'node:fs/promises'
 import type * as NodeOs from 'node:os'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { window } from 'vscode'
+import { window, workspace } from 'vscode'
 import { applyImportWrites, type ImportWrite } from '../../src/core/import/agentImport'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
@@ -143,6 +143,42 @@ async function projectWrite(root: string, mode: ImportWrite['mode']): Promise<Im
 }
 
 describe('import workspace write notices', () => {
+  it.each([
+    {
+      title: 'refuses an unsafe copy target before the editor loads its document',
+      isInitiallySafe: false,
+      expectedChecks: 1,
+      expectedLoads: 0,
+    },
+    {
+      title: 'rechecks a copy target after the editor loads its document',
+      isInitiallySafe: true,
+      expectedChecks: 2,
+      expectedLoads: 1,
+    },
+  ])('$title', async ({ isInitiallySafe, expectedChecks, expectedLoads }) => {
+    const load = vi.spyOn(workspace, 'openTextDocument')
+    const show = vi.spyOn(window, 'showTextDocument')
+    const checkTarget = vi.fn(() => Promise.resolve(false)).mockResolvedValueOnce(isInitiallySafe)
+    try {
+      await runAgentImport(
+        hostDeps(undefined, {
+          bundle: () => ({
+            importFromAgents: async (host) => {
+              await host.openTarget(path.join(folders.root, 'hooks.json'), true, checkTarget)
+            },
+          }),
+        }),
+      )
+      expect(checkTarget).toHaveBeenCalledTimes(expectedChecks)
+      expect(load).toHaveBeenCalledTimes(expectedLoads)
+      expect(show).not.toHaveBeenCalled()
+    } finally {
+      load.mockRestore()
+      show.mockRestore()
+    }
+  })
+
   it('captures its owner synchronously before the first queued picker await', async () => {
     const selected = Promise.withResolvers<undefined>()
     const picker = vi.spyOn(window, 'showQuickPick').mockImplementationOnce(() => selected.promise)
