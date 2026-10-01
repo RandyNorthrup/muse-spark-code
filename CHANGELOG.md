@@ -26,6 +26,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Refused copy-only imports now count as not imported in notifications and logs.
+  A fully refused import reports its counts as a warning without a success
+  completion; native editor safety refusals also reach the result.
 - Copy-only imports recheck target existence before clipboard and editor actions.
   Newly created targets open for merging; deleted targets open unsaved. Settings
   copy text and instructions use the current whole-file or merge form.

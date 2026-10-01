@@ -418,7 +418,7 @@ async function readPlanFile(
   return { status: 'read', text: decoded.text }
 }
 
-function countLines(plan: ImportPlan): readonly string[] {
+function countLines(plan: ImportPlan, refusedCopyEntries = 0): readonly string[] {
   const creates = plan.writes.filter((write) => write.mode === 'create').length
   const sections = plan.writes
     .filter((write) => write.mode === 'append')
@@ -428,44 +428,80 @@ function countLines(plan: ImportPlan): readonly string[] {
     fill(UI_TEXT.agentImportCountFiles, { count: formatNumber(creates) }),
     fill(UI_TEXT.agentImportCountSections, { count: formatNumber(sections) }),
     fill(UI_TEXT.agentImportCountCopies, { count: formatNumber(copied) }),
-    fill(UI_TEXT.agentImportCountSkipped, { count: formatNumber(plan.skipped.length) }),
+    fill(UI_TEXT.agentImportCountSkipped, {
+      count: formatNumber(plan.skipped.length + refusedCopyEntries),
+    }),
   ]
 }
 
 /** Each copy text in turn: copied and its file opened, or only the file opened, or passed over. */
-async function offerCopies(deps: AgentImportDeps, plan: ImportPlan): Promise<void> {
+async function offerCopies(
+  deps: AgentImportDeps,
+  plan: ImportPlan,
+): Promise<{
+  readonly offered: readonly ImportCopy[]
+  readonly refused: readonly ImportCopy[]
+}> {
+  const offered: ImportCopy[] = []
+  const refused: ImportCopy[] = []
+  const outcomes = { offered, refused }
   for (const copy of plan.copies) {
     if (!deps.isActive()) {
-      return
+      return outcomes
     }
     const choice = await deps.offerCopy(
       fill(UI_TEXT.agentImportCopyPrompt, { path: shownPath(deps, copy.absolutePath) }),
     )
     if (choice === undefined) {
+      // The accepted preview remains available for this manual task.
+      offered.push(copy)
       continue
     }
     // Checked again now: a `.muse` linked out since the preview is neither copied for nor opened.
     if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
+      refused.push(copy)
       continue
     }
     const currentCopy = copyForCurrentFile(copy, !(await deps.isPresent(copy.absolutePath)))
     // Existence awaited too: keep the clipboard behind the live path/trust checks.
     if (!(await isCopyTargetSafe(deps, currentCopy, plan.projectRoot))) {
+      refused.push(copy)
       continue
     }
     // The awaited path check returned to this continuation: keep the
     // clipboard entry itself behind a fresh synchronous project guard.
     if (!deps.isActive()) {
-      return
+      return outcomes
     }
     if (copy.file === 'hooks' && !deps.isWorkspaceTrusted()) {
       deps.showWarning(UI_TEXT.agentImportUntrusted)
+      refused.push(copy)
       continue
     }
     if (choice === 'copy') {
       // The clipboard holds the masked text; the masked values are filled in by hand.
       await deps.copyText(currentCopy.text)
-      if (deps.isActive()) {
+    }
+    // Clipboard access awaits: the destination may have changed meanwhile.
+    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
+      refused.push(copy)
+      continue
+    }
+    const isExisting = await deps.isPresent(copy.absolutePath)
+    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
+      refused.push(copy)
+      continue
+    }
+    // The adapter checks again before/after loading; retain any refusal it observes.
+    const target = { isStillSafe: true }
+    await deps.openTarget(copy.absolutePath, isExisting, async () => {
+      const isSafe = await isCopyTargetSafe(deps, copy, plan.projectRoot)
+      target.isStillSafe &&= isSafe
+      return isSafe
+    })
+    if (target.isStillSafe) {
+      offered.push(currentCopy)
+      if (choice === 'copy' && deps.isActive()) {
         deps.showInformation(
           [
             UI_TEXT.agentImportCopied,
@@ -475,21 +511,11 @@ async function offerCopies(deps: AgentImportDeps, plan: ImportPlan): Promise<voi
           ].join(SENTENCE_SEPARATOR),
         )
       }
+    } else {
+      refused.push(copy)
     }
-    // Clipboard access awaits: the destination may have changed meanwhile.
-    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
-      continue
-    }
-    const isExisting = await deps.isPresent(copy.absolutePath)
-    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
-      continue
-    }
-    await deps.openTarget(
-      copy.absolutePath,
-      isExisting,
-      async () => await isCopyTargetSafe(deps, copy, plan.projectRoot),
-    )
   }
+  return outcomes
 }
 
 async function isCopyTargetSafe(
@@ -667,30 +693,43 @@ async function applyPlan(
       `${LOG_PREFIX} ${write.mode === 'create' ? 'created' : 'appended to'} ${shownPath(deps, write.absolutePath)}`,
     )
   }
-  await offerCopies(deps, plan)
+  const copies = await offerCopies(deps, plan)
   if (!deps.isActive()) {
     return
   }
   const result: ImportPlan = {
     ...plan,
     writes: applied.written,
+    copies: copies.offered,
     skipped: [...plan.skipped, ...applied.skipped],
   }
+  const refusedCopyEntries = copies.refused.reduce(
+    (total, copy) => total + copy.candidateIds.length,
+    0,
+  )
+  const notImported = result.skipped.length + refusedCopyEntries
   deps.log.info(
-    `${LOG_PREFIX} finished with ${String(applied.written.length)} write(s), ${String(plan.copies.length)} file(s) to paste into, ${String(result.skipped.length)} entr(ies) not imported`,
+    `${LOG_PREFIX} finished with ${String(applied.written.length)} write(s), ${String(result.copies.length)} file(s) to paste into, ${String(notImported)} entr(ies) not imported`,
   )
   const refused = applied.skipped.flatMap((skip) => {
     const candidate = selected.find((entry) => entry.id === skip.candidateId)
     return candidate === undefined ? [] : [`${candidate.label}: ${reasonLabel(skip.reason)}`]
   })
   // An import that wrote nothing and has nothing to paste says why, not that it finished.
-  if (applied.written.length === 0 && plan.copies.length === 0 && refused.length > 0) {
-    deps.showWarning(refused.join(LIST_SEPARATOR))
+  const counts = countLines(result, refusedCopyEntries).join(DETAIL_SEPARATOR)
+  if (
+    applied.written.length === 0 &&
+    result.copies.length === 0 &&
+    (refused.length > 0 || refusedCopyEntries > 0)
+  ) {
+    deps.showWarning(
+      refusedCopyEntries > 0
+        ? [...refused, counts].join(LIST_SEPARATOR)
+        : refused.join(LIST_SEPARATOR),
+    )
     return
   }
-  deps.showInformation(
-    [UI_TEXT.agentImportDone, countLines(result).join(DETAIL_SEPARATOR)].join(SENTENCE_SEPARATOR),
-  )
+  deps.showInformation([UI_TEXT.agentImportDone, counts].join(SENTENCE_SEPARATOR))
   if (refused.length > 0) {
     deps.showWarning(refused.join(LIST_SEPARATOR))
   }

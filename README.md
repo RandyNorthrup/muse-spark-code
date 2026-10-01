@@ -581,6 +581,10 @@ Your personal `CLAUDE.md` and Codex `AGENTS.md` are Muse Code's own
 listed, not converted, as are servers that are turned off or need SSE,
 WebSockets or OAuth.
 
+Copies refused by the safety checks count as **Not imported**. If every entry
+is refused, the final notification is a warning with the counts. Mixed imports
+count only the writes made and the manual entries still offered.
+
 Claude agents and commands include namespace folders up to three levels;
 an agent's directory prefixes stay in its selector. Agents need M76's
 `name` and `description`, and keep their supported prompt, tool allowlist,

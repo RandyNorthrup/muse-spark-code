@@ -232,6 +232,25 @@ function projectHooksOnly(items: readonly AgentImportPickItem[]): readonly strin
 }
 
 describe('importFromAgents', () => {
+  it('counts a refused project copy separately from an offered personal copy', async () => {
+    const flow = run({
+      pick: (items) => [
+        ...projectHooksOnly(items),
+        ...items.filter((item) => item.label === 'github').map((item) => item.id),
+      ],
+      whileCopying: (io) => {
+        io.links.set(WS, '/other')
+      },
+    })
+    await flow.done
+    expect(flow.opened).toEqual([[SETTINGS, false]])
+    expect(flow.clipboard).toHaveLength(1)
+    expect(flow.information.at(-1)).toBe(
+      'Import finished. New files: 0 · Sections for AGENTS.md: 0 · Entries to copy by hand: 1 · Not imported: 1',
+    )
+    expect(flow.logged()).toContain('1 file(s) to paste into, 1 entr(ies) not imported')
+  })
+
   it.each([
     { at: 1, change: 'root' },
     { at: 1, change: 'trust' },
@@ -272,6 +291,9 @@ describe('importFromAgents', () => {
       expect(flow.clipboard).toHaveLength(at === 1 ? 0 : 1)
       expect(opening).not.toHaveBeenCalled()
       expect(flow.opened).toEqual([])
+      expect(flow.information.some((message) => message.includes(UI_TEXT.agentImportDone))).toBe(
+        false,
+      )
     },
   )
 
@@ -1003,6 +1025,11 @@ describe('importFromAgents: a folder that changes during the approval wait', () 
     expect(flow.clipboard).toEqual([])
     expect(flow.opened).toEqual([])
     expect(flow.warnings).toContain(`.muse/hooks.json: ${UI_TEXT.agentImportSkippedChanged}`)
+    expect(flow.information).toEqual([])
+    expect(flow.warnings.at(-1)).toBe(
+      'New files: 0 · Sections for AGENTS.md: 0 · Entries to copy by hand: 0 · Not imported: 1',
+    )
+    expect(flow.logged()).toContain('0 file(s) to paste into, 1 entr(ies) not imported')
   })
 
   it('does not show a hooks file whose folder changed while the editor loaded it', async () => {
@@ -1015,6 +1042,8 @@ describe('importFromAgents: a folder that changes during the approval wait', () 
     })
     await flow.done
     expect(flow.opened).toEqual([])
+    expect(flow.information).toEqual([])
+    expect(flow.warnings.at(-1)).toContain('Not imported: 1')
   })
 })
 

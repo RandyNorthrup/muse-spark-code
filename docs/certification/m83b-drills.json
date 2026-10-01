@@ -438,5 +438,81 @@
       "temp/m83b/p3-editor-continuation-red.log",
       "temp/m83b/p3-editor-continuation-restored.log"
     ]
+  },
+  {
+    "name": "p4-copy-outcomes",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "return outcomes\n}\n\nasync function isCopyTargetSafe",
+    "replacement": "return { offered: plan.copies, refused: [] }\n}\n\nasync function isCopyTargetSafe",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "does not open the hooks file for a folder that changed while the preview waited",
+    "beforeSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "mutatedSha256": "8053063bee5860eebd3a01e7576648592c137d58111d20351956a7f315ab6c6a",
+    "afterSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "logs": [
+      "temp/m83b/p4-copy-outcomes-baseline.log",
+      "temp/m83b/p4-copy-outcomes-red.log",
+      "temp/m83b/p4-copy-outcomes-restored.log"
+    ]
+  },
+  {
+    "name": "p4-copy-count",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "formatNumber(plan.skipped.length + refusedCopyEntries)",
+    "replacement": "formatNumber(plan.skipped.length)",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "does not open the hooks file for a folder that changed while the preview waited",
+    "beforeSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "mutatedSha256": "0f1c5998a096b2e1b16e99213232f0bcce7e6063d877a0cfc357d060ecf65592",
+    "afterSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "logs": [
+      "temp/m83b/p4-copy-count-baseline.log",
+      "temp/m83b/p4-copy-count-red.log",
+      "temp/m83b/p4-copy-count-restored.log"
+    ]
+  },
+  {
+    "name": "p4-completion",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "(refused.length > 0 || refusedCopyEntries > 0)",
+    "replacement": "refused.length > 0",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "does not open the hooks file for a folder that changed while the preview waited",
+    "beforeSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "mutatedSha256": "29330541104a9ee2d0f3c60982f7b86de9cdedfc82fdf41d7a516938fc3b80f8",
+    "afterSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "logs": [
+      "temp/m83b/p4-completion-baseline.log",
+      "temp/m83b/p4-completion-red.log",
+      "temp/m83b/p4-completion-restored.log"
+    ]
+  },
+  {
+    "name": "p4-editor-outcome",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "target.isStillSafe &&= isSafe",
+    "replacement": "",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "does not show a hooks file whose folder changed while the editor loaded it",
+    "beforeSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "mutatedSha256": "d83d8df59d201b9a9c0c9c39e07458e9d6db3342a1fe99c7a8cc579e8bafc581",
+    "afterSha256": "82fe082074ddfbe6f307948ea296f2c7d7ca08773725a878f120cf20262a9bec",
+    "logs": [
+      "temp/m83b/p4-editor-outcome-baseline.log",
+      "temp/m83b/p4-editor-outcome-red.log",
+      "temp/m83b/p4-editor-outcome-restored.log"
+    ]
   }
 ]
