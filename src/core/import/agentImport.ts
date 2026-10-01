@@ -24,7 +24,7 @@
 //
 // Pure: every file access is injected. No model call.
 
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import {
   AGENT_FILE_MAX_BYTES,
   AGENT_FILE_NAME,
