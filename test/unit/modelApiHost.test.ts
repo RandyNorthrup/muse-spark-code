@@ -22,6 +22,7 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/agentBackend'
+import { editAutomaticallyChoice } from '../../src/core/agent/approvalRules'
 import type { ContextIo } from '../../src/core/context/contextFiles'
 import { AttachmentStore } from '../../src/core/attachments'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
@@ -6950,6 +6951,102 @@ function searchReply(callId: string): ScriptedReply {
 }
 
 describe('ModelApiSession custom agents (M76)', () => {
+  it.each([
+    { parent: 'acceptEdits', child: 'manual' },
+    { parent: 'manual', child: 'acceptEdits' },
+  ] as const)(
+    'requires a human write decision with parent $parent and child $child (RV76 P1)',
+    async ({ parent, child }) => {
+      const t = setupSubagents({
+        files: {
+          '.agents/agents/writer/AGENT.md': agentFile(
+            'writer',
+            'Writes files',
+            `tools: write_file\npermission-mode: ${child}\n`,
+          ),
+        },
+      })
+      const { session, events } = await startSession(t, 'promptUnmatched')
+      await spawnAgentAndWait(
+        t,
+        session,
+        spawnCallReply('writer', 'Write files', 'writer', 'spawn_policy'),
+        'Writer ready.',
+      )
+      scriptChildWrite(t, 'policy.txt', 'Written.', 'policy_write', 'Writer done.')
+      await session.messageSubagent('subagent-1', 'Write it', true)
+      const request = await approvalRequest(events, 0)
+      // Use the controller's real routing rule; reproduce an automatic write
+      // if the event lost the child's Manual policy, otherwise deny as a user.
+      const automatic = editAutomaticallyChoice(request, parent)
+      await session.decideApproval({
+        approvalId: request.approvalId,
+        requirementId: request.requirementId,
+        choiceId: automatic?.choiceId ?? 'abort',
+      })
+      await waitForChildSummary(session, 'Writer done.')
+      expect(automatic).toBeUndefined()
+      expect(t.files.has(`${ROOT}/policy.txt`)).toBe(false)
+    },
+  )
+
+  it.each(['resume', 'fork'] as const)(
+    'retains a Manual child policy across %s (RV76 P1)',
+    async (action) => {
+      const store = memorySessionStore()
+      const files = {
+        '.agents/agents/writer/AGENT.md': agentFile(
+          'writer',
+          'Writes files',
+          'tools: write_file\npermission-mode: manual\n',
+        ),
+      }
+      const t = setupSubagents({ store, files })
+      const { session } = await startSession(t, 'promptUnmatched')
+      await spawnAgentAndWait(
+        t,
+        session,
+        spawnCallReply('writer', 'Write files', 'writer', 'spawn_saved_policy'),
+        'Writer ready.',
+      )
+      await t.host.flush()
+      const stored = store.saved.get(session.sessionId)?.children?.[0]?.session.agent
+      let next: AgentSession
+      let active = t
+      if (action === 'resume') {
+        await t.host.close()
+        active = setupSubagents({ store, files })
+        await active.host.load()
+        const resumed = await active.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+        next = resumed.session
+        await next.controlSubagent('subagent-1', 'readResult')
+      } else {
+        const forked = await t.host.forkSession(session.sessionId, 'muse-spark-1.3')
+        next = forked.session
+      }
+      const { events } = watchTurns(next)
+      scriptChildWrite(active, 'saved-policy.txt', 'Written.', 'saved_policy_write', 'Writer done.')
+      await next.controlSubagent('subagent-1', 'reopen')
+      const request = await approvalRequest(events, 0)
+      const automatic = editAutomaticallyChoice(request, 'acceptEdits')
+      await next.decideApproval({
+        approvalId: request.approvalId,
+        requirementId: request.requirementId,
+        choiceId: automatic?.choiceId ?? 'abort',
+      })
+      await vi.waitFor(() => {
+        expect(
+          active.api
+            .responseBodies()
+            .some((body) => outputFor(body, 'saved_policy_write') !== undefined),
+        ).toBe(true)
+      })
+      expect(stored).toMatchObject({ permissionMode: 'manual' })
+      expect(automatic).toBeUndefined()
+      expect(active.files.has(`${ROOT}/saved-policy.txt`)).toBe(false)
+    },
+  )
+
   it.each([
     { name: 'write-only', tools: 'write_file', revokesTrust: false, commands: 0 },
     { name: 'allowed checks', tools: 'write_file, run_checks', revokesTrust: false, commands: 1 },

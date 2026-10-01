@@ -41,6 +41,18 @@ const parseWith = (name: string, description: string, extra = '') =>
   parseAgentFile(agentFile(name, description, extra))
 
 describe('parseAgentFile', () => {
+  it.each(['manual', 'acceptEdits'] as const)(
+    'retains the %s UI policy even though both modes map to promptUnmatched (RV76 P1)',
+    (permissionMode) => {
+      expect(
+        parseWith('writer', 'Writes files', `permission-mode: ${permissionMode}\n`),
+      ).toMatchObject({
+        ok: true,
+        agent: { approvalMode: 'promptUnmatched', permissionMode },
+      })
+    },
+  )
+
   it('reads the full front matter and the body', () => {
     expect(
       parseAgentFile(
@@ -60,6 +72,7 @@ describe('parseAgentFile', () => {
         model: 'muse-spark-1.3',
         effort: 'max',
         approvalMode: 'denyUnmatched',
+        permissionMode: 'plan',
       },
     })
   })

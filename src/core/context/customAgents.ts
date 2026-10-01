@@ -46,6 +46,7 @@ import {
   EXPLORE_AGENT_TOOLS,
   MODEL_TEXT,
   PERMISSION_MODES,
+  type PermissionMode,
   PERSONAL_AGENTS_DIR_SEGMENTS,
   PROJECT_AGENTS_DIR_SEGMENTS,
   SECOND_OPINION_AGENT_EFFORT,
@@ -78,6 +79,8 @@ export interface AgentDefinition {
   readonly effort: EffortLevel | undefined
   /** The most the agent may do; undefined keeps the session's approval mode. */
   readonly approvalMode: ApprovalMode | undefined
+  /** The UI policy, which distinguishes Manual from Edit automatically. */
+  readonly permissionMode?: PermissionMode | undefined
 }
 
 export type AgentRoot = CatalogRoot<'project' | 'user'>
@@ -95,6 +98,7 @@ export interface ParsedAgentFile {
   readonly model: string | undefined
   readonly effort: EffortLevel | undefined
   readonly approvalMode: ApprovalMode | undefined
+  readonly permissionMode?: PermissionMode | undefined
 }
 
 export type AgentFileParse =
@@ -115,6 +119,7 @@ export interface AgentRuntime {
   readonly toolAllowlist?: readonly string[] | undefined
   readonly effort: EffortLevel
   readonly approvalMode?: ApprovalMode | undefined
+  readonly permissionMode?: PermissionMode | undefined
 }
 
 const PERMISSION_MODE_KEY = 'permission-mode'
@@ -210,6 +215,7 @@ export function parseAgentFile(text: string): AgentFileParse {
       model: data.model,
       effort: data.effort,
       approvalMode: permissionMode === undefined ? undefined : mspApprovalMode(permissionMode),
+      ...(permissionMode !== undefined && { permissionMode }),
     },
   }
 }

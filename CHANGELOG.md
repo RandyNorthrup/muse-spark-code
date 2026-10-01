@@ -48,6 +48,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Custom agents retain their Manual or Edit automatically policy through
+  parsing, saving, resume, fork and approval routing. A Manual child's write
+  asks even under an Edit automatically parent; the reverse remains Manual.
+
 - Project context files read through the canonical path confinement approved.
   Replacing an agent/skill/rules alias with an outside link between check and
   read no longer redirects the read outside the workspace.

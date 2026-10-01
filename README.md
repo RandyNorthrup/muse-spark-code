@@ -546,7 +546,10 @@ once, when the conversation starts.
   `run_checks` or the platform shell in the list, and `then_run` (which
   runs any command line) needs the shell. A
   `permission-mode` wider than the session's gets the session's, and a mode
-  switch later keeps the ceiling. A list that names no tool the session
+  switch later keeps the ceiling. A child defined as `manual` still asks
+  before ordinary writes when its parent uses Edit automatically; a child
+  defined as `acceptEdits` cannot automate writes under a Manual parent.
+  This policy survives saving, resuming and forking. A list that names no tool the session
   offers fails the spawn instead of running with every tool.
 - **What it costs.** The run is a paid child task like any subagent (off
   unless paid subagents are on, asking in the paid-use popup before each use,

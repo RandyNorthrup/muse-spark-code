@@ -2793,6 +2793,9 @@ export class ModelApiSession implements AgentSession {
       availableChoices: [...choicesFor(call.name, query.command)],
       isJudgeEscalated: requiresUserApproval,
       isProtectedWrite: query.isProtected === true,
+      ...(this.agent?.permissionMode !== undefined && {
+        permissionMode: this.agent.permissionMode,
+      }),
     }
     let decision: ApprovalDecision
     const stopNotifying = this.notifyWhileAsking(call, signal)
@@ -3747,6 +3750,7 @@ export class ModelApiSession implements AgentSession {
             toolAllowlist,
             effort: resolveAgentEffort(modelId, spawnAgent.effort),
             approvalMode: spawnAgent.approvalMode,
+            permissionMode: spawnAgent.permissionMode,
           },
     )
     child.childTaskGrant = grant
@@ -7405,6 +7409,9 @@ export class ModelApiSession implements AgentSession {
           effort: this.agent.effort,
           ...(this.agent.approvalMode !== undefined && {
             approvalMode: this.agent.approvalMode,
+          }),
+          ...(this.agent.permissionMode !== undefined && {
+            permissionMode: this.agent.permissionMode,
           }),
         },
       }),

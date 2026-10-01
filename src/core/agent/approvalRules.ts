@@ -24,6 +24,7 @@ export function editAutomaticallyChoice(
 ): ApprovalChoice | undefined {
   if (
     mode !== EDIT_AUTOMATICALLY_MODE ||
+    event.permissionMode === 'manual' ||
     event.isReplayed === true ||
     event.isProtectedWrite ||
     event.isJudgeEscalated

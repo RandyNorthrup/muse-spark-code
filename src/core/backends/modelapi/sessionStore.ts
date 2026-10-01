@@ -11,7 +11,12 @@ import {
   type TodoItem,
   todoItemSchema,
 } from '../../../shared/agentEvents'
-import { AGENT_SOURCES, EFFORT_LEVELS, STORED_SESSION_VERSION } from '../../../shared/constants'
+import {
+  AGENT_SOURCES,
+  EFFORT_LEVELS,
+  PERMISSION_MODES,
+  STORED_SESSION_VERSION,
+} from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
@@ -206,6 +211,7 @@ const storedSessionFields = {
       toolAllowlist: z.optional(z.array(z.string())),
       effort: z.enum(EFFORT_LEVELS),
       approvalMode: z.optional(z.enum(APPROVAL_MODES)),
+      permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     }),
   ),
   name: z.optional(z.string()),

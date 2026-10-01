@@ -8578,6 +8578,17 @@ extension's own storage, never the workspace's `.git`.
 
 ### M76 — Custom agents (D49)
 
+- **Independent-review corrections, 2026-10-01 (M76b).** Reproduce RV76's
+  three findings on `eb606fcb` with fake HTTP, then commit each smallest fix:
+  preserve the child's Manual/Edit automatically policy through parsing,
+  persistence and approval routing while retaining the parent ceiling; admit
+  spawns against the effective child tools and refuse an empty set before a
+  paid request; localize allowlist refusals in all 14 tables while retaining
+  English model output. Drill each new guard with SHA-256 restoration.
+  No candidate merge this round. Focused tests run on rigs in slot `m76`;
+  serial local lane gates run before handoff. Full quality and editor/platform
+  certification remain lead-owned under `common.md`.
+
 - **Goal.** Specialised agents with their own prompt, tools, model or
   effort, and permissions.
 - **Scope.**

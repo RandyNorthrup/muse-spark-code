@@ -165,6 +165,7 @@ describe('parseStoredSession', () => {
       toolAllowlist: ['read_file', 'write_file'],
       effort: 'max' as const,
       approvalMode: 'denyUnmatched' as const,
+      permissionMode: 'manual' as const,
     }
     const narrowed: StoredSession = { ...full, agent }
     expect(parseStoredSession(structuredClone(narrowed))).toEqual({
@@ -188,6 +189,11 @@ describe('parseStoredSession', () => {
     expect(parsed).toEqual({ ok: true, session: full })
     expect(parsed.ok && 'agent' in parsed.session).toBe(false)
     expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'ultra' } })).toMatchObject({
+      ok: false,
+    })
+    expect(
+      parseStoredSession({ ...full, agent: { ...agent, permissionMode: 'unattended' } }),
+    ).toMatchObject({
       ok: false,
     })
     // A run whose source is unknown, or missing, is not read back as a trusted one.

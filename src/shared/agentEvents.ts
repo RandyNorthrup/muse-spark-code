@@ -7,7 +7,7 @@
 
 import * as z from 'zod/mini'
 import { scheduleViewSchema } from './schedule'
-import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES } from './constants'
+import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES, PERMISSION_MODES } from './constants'
 
 /**
  * One check command as a row reports it (M68): its name, how it ended, why
@@ -347,6 +347,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
     availableChoices: z.array(approvalChoiceSchema),
     isJudgeEscalated: z.boolean(),
     isProtectedWrite: z.boolean(),
+    /** A custom child's UI policy; the receiving parent may only narrow it. */
+    permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     /** A pending card shown to a later surface; joining never approves it automatically. */
     isReplayed: z.optional(z.boolean()),
   }),
