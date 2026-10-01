@@ -333,7 +333,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   returned; the last check before the turn is sent is synchronous and does
   not exclude an unrelated replacement after it (the residual every
   path-then-act check has). Files that may hold secrets are left out of every
-  diff. On the Model API the Reviewer has only tools that read, and any
+  diff. Repository branch names and recent commit subjects are omitted from
+  Reviewer system instructions: git material belongs in the untrusted turn
+  block. The date and trusted workspace rules remain. On the Model API the
+  Reviewer has only tools that read, and any
   other call is refused in every mode, Bypass included; on Muse Code the
   review turn runs in Plan mode, which Muse Code's own allow rules still
   apply to, so it is not claimed strictly read-only, and the mode the user

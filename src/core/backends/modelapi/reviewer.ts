@@ -12,7 +12,7 @@ import {
   REVIEWER_ROLE,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { type EnvironmentFacts, environmentText, rulesText } from './instructions'
+import { type EnvironmentFacts, rulesText } from './instructions'
 import { mcpFunctionName } from './mcp/functions'
 
 const PARAGRAPH = '\n\n'
@@ -70,7 +70,7 @@ export function reviewerInstructionsFor(facts: ReviewerFacts): string {
   ].join(PARAGRAPH)
   const sections = [
     role,
-    environmentText(facts),
+    fill(REVIEW_MODEL_TEXT.reviewerEnvironment, { today: facts.today }),
     REVIEW_MODEL_TEXT.reviewMethod,
     rulesText(facts.rules),
   ]

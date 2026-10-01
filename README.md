@@ -2039,7 +2039,10 @@ stopped and the next message resumes the same session.
 - A `/review` of git's changes sends their diff, the changed files' names
   and, for one commit, its message with the review turn, as a message would
   send them; environment files, keys and credentials are left out of the
-  diff and only named. The review pane and its Revert stay on this machine.
+  diff and only named. Reviewer system instructions omit git metadata; the
+  review turn carries that material inside its untrusted markers. Date and
+  workspace rules remain in the system prompt. The review pane and its Revert
+  stay on this machine.
 - The log records what happened (sessions, turns and their times, approvals,
   failures) and never your prompts, files, dictated words or the model's
   output; keys are redacted.

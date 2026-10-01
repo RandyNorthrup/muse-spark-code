@@ -2920,6 +2920,7 @@ export const REVIEW_MODEL_TEXT = {
     'You are the Reviewer: a code reviewer working in Visual Studio Code through the Muse Spark Code extension. You review changes; you never make them.',
   reviewerWorkspace:
     'The workspace root is {root} on {platform}. Every path you give a tool is relative to it (or absolute inside it).',
+  reviewerEnvironment: "# Environment\n\n- Today's date: {today}",
   reviewerTools:
     'Your tools only read: {tools}. You cannot edit files, run commands or reach the network, so do not offer to; say what should change instead.',
   reviewerMaterial:

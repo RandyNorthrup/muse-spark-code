@@ -7765,8 +7765,8 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   acknowledgements to their submitted session/generation; recheck dirty buffers
   inside checkpoint write/delete admission; omit git metadata from Reviewer
   system instructions; report unreadable pane patches as omitted edits.
-  Reuse existing mode settlement, session fences, dirty predicate, environment
-  formatter and pane omission path. One commit per finding, guard drills with
+  Reuse existing mode settlement, session fences, dirty predicate, date text
+  and pane omission path. One commit per finding, guard drills with
   byte-exact SHA-256 restoration. Run the two reported failing suites alone and
   resolve any isolated failures without changing deadlines. No M72 merge this
   round; full quality and installed-editor checks remain the lead's gates.
@@ -7790,6 +7790,14 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   a dirty buffer opened through a link. No new option or helper module.
   All four regression cases failed before repair. Predicate/write/delete
   guard drills each restored all 32 owning tests with matching SHA-256.
+- **RV70 finding 4 verified (M70c).** Omit git metadata from
+  Reviewer system instructions; repository material belongs only in its
+  untrusted turn block. Keep the existing date text in a date-only
+  `REVIEW_MODEL_TEXT` template: the ordinary environment formatter always
+  adds git facts, and passing it undefined git would falsely suggest that
+  the repository is absent or unavailable. Ordinary-turn formatting stays.
+  Commit-subject regression fails before repair and when system metadata is
+  reintroduced; 22 owning tests pass after SHA-256-exact restoration.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:
