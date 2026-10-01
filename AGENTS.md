@@ -44,6 +44,10 @@ them, the milestone plan, and the certification checklist.
      stays English. A feature that only a lazily loaded bundle reads has a
      block of its own beside it (`REVIEW_MODEL_TEXT`), so the activation
      bundle does not carry it.
+   - **Node bundles share English fallback** (`dist/uiText.js`, PLAN.md D6).
+     Each bundle keeps its own installed-language state; lazy factories install
+     the caller's table before use. Browser and integration-test bundles keep
+     their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
 6. **No dead code, no placeholders.** No commented-out code, unused exports,

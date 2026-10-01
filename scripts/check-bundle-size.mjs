@@ -25,6 +25,8 @@ const BUDGETS = [
   // M72: real checkpoint store/legacy reader, 187.0 KiB when split out.
   // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/checkpointStore.js', budgetKiB: 225 },
+  // Shared English fallback; existing host budgets stay unchanged.
+  { path: 'dist/uiText.js', budgetKiB: 100 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
