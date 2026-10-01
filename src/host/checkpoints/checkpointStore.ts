@@ -451,7 +451,8 @@ function refusalFor(result: Exclude<StepResult, 'done'>): RefusalReason {
 
 export class CheckpointStore {
   private queue: Promise<unknown> = Promise.resolve()
-  private opened: Opened | undefined
+  /** The shadow repository's setup: under way, or done. */
+  private opening: Promise<Opened> | undefined
   private hasTidied = false
   private place: { readonly top: string; readonly prefix: string } | undefined
   /** Each recorded turn of this window not yet ended, by turn key. */
@@ -596,11 +597,30 @@ export class CheckpointStore {
     return this.place
   }
 
-  /** The shadow repository, set up the first time. */
+  /**
+   * The shadow repository, set up the first time. A running mark opens it
+   * outside the queue, so the first read can be setting it up at that very
+   * moment (a window's first message starts both): every caller shares the
+   * one setup under way. Two would each `git init` in this window's one
+   * initializer folder, and the first to finish moves it away under the
+   * other. A setup that failed is not kept: the next caller tries again.
+   */
   private async open(): Promise<{ readonly opened: Opened }> {
-    if (this.opened !== undefined) {
-      return { opened: this.opened }
+    this.opening ??= this.setUpOnce()
+    return { opened: await this.opening }
+  }
+
+  /** `setUp`, forgotten when it fails, before any caller hears of it. */
+  private async setUpOnce(): Promise<Opened> {
+    try {
+      return await this.setUp()
+    } catch (error: unknown) {
+      this.opening = undefined
+      throw error
     }
+  }
+
+  private async setUp(): Promise<Opened> {
     const { storageDir, platform } = this.deps
     const { top, prefix } = await this.placeOf()
     const shadow = new ShadowGit(
@@ -618,8 +638,7 @@ export class CheckpointStore {
     shadow.assertSeparate()
     await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
     await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
-    this.opened = { shadow, top, prefix }
-    return { opened: this.opened }
+    return { shadow, top, prefix }
   }
 
   /**

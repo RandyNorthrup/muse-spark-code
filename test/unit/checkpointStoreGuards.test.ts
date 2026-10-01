@@ -10,6 +10,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   BYTES_PER_MIB,
@@ -48,6 +49,9 @@ const realGit = processGitProcess()
 const GONE_PID = 424_242
 const WRITE_BATCH = 500
 const SHA256_HEX_LENGTH = 64
+// How long the first `git init` waits for a second setup to reach its own:
+// one gets there in milliseconds when the setup is not shared.
+const SECOND_SETUP_WAIT_MS = 1000
 
 /** The real git, failing the commands `shouldFail` names. */
 function failingGit(shouldFail: (args: readonly string[]) => boolean): GitProcess {
@@ -496,6 +500,38 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       await captured(h.store)
       const folder = await stat(h.storage)
       expect(folder.mode & 0o777).toBe(CHECKPOINT_STORAGE_MODE)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+describe('CheckpointStore first setup (M72)', () => {
+  // A window's first message reads its conversation's checkpoints (in the
+  // queue) and publishes its running mark (outside it) together: the Theia
+  // host check's "the message was not sent" (PR #55).
+  it(
+    'sets the repository up once when a running mark meets the first read',
+    async () => {
+      let inits = 0
+      const second = Promise.withResolvers<undefined>()
+      const h = await harness({
+        git: 'none',
+        gitProcess: async (args, options) => {
+          if (args.includes('init')) {
+            inits += 1
+            if (inits === 1) {
+              await Promise.race([second.promise, sleep(SECOND_SETUP_WAIT_MS)])
+            } else {
+              second.resolve(undefined)
+            }
+          }
+          return await realGit(args, options)
+        },
+      })
+      await expect(
+        Promise.all([h.store.turns('s1'), h.store.markTurn('pending:message', true)]),
+      ).resolves.toEqual([[], undefined])
+      expect(inits).toBe(1)
     },
     REAL_GIT_TIMEOUT_MS,
   )
