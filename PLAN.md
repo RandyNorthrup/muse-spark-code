@@ -8579,15 +8579,18 @@ the M74 test files pass on the kubuntu and Mac mini rigs; every M74 guard
 was broken on purpose, seen red and restored byte for byte (sha256), or is
 recorded as backed by another check; and `typecheck`, `eslint`,
 `check:l10n`, `deadcode`, `jscpd` and the `handoff` accessibility scenario
-pass. `npm run build` fails its size budget, and no cap was raised:
-`dist/extension.js` is 601.3 KiB (budget 600) and `dist/modelApi.js`
-401.3 KiB (budget 400), against 592.0 and 398.7 on `8e9d3a1e` and 600.4
-and 401.0 on `41ed14bf`, so the handoff itself crosses both budgets; the
-lead decides (D6). The whole unit suite on the kubuntu rig: 3,843 passed,
-45 skipped, 12 failed in three M72 checkpoint files, and
-`checkpointModelApiStop.test.ts` hung, so the run was stopped; the same
-twelve fail and the same file hangs there on `8e9d3a1e`, before M74, so
-none is the handoff's. Not run here: `harness:shots`, the integration
+pass. The handoff had pushed `dist/extension.js` and `dist/modelApi.js`
+over their caps (601.3 and 401.3 KiB); the lead's fix, the shared English
+table (`build/shared-ui-text`, merged at `f5f9006f`), brings every bundle
+within its unchanged cap (`dist/extension.js` 527.9 of 600 KiB,
+`dist/modelApi.js` 327.7 of 400, `dist/uiText.js` 74.1 of 100); on the
+Windows host, whose `node_modules` is a junction, the build's split check
+still reports the page worker's parser packages missing, as it does for
+`44d920fd` alone there (the certification has why). After
+the merge the M74 test files and all 24 checkpoint test files pass on the
+kubuntu and Mac mini rigs (the twelve M72 checkpoint failures and the
+`checkpointModelApiStop.test.ts` hang seen before it, identical on
+`8e9d3a1e`, are gone). Not run here: `harness:shots`, the integration
 tests and `npm run quality` (the lead's four-machine gate).
 
 - **Goal.** Hours-long tasks keep their thread without a manual
@@ -8675,9 +8678,10 @@ tests and `npm run quality` (the lead's four-machine gate).
     an oversized (over 256 KB) or empty brief is refused with the reason.
     No new setting: nothing automatic runs.
   - A built-in `/handoff` takes the name from a skill of the user's or the
-    project's own called `handoff`, as `/goal` does (RV74 finding 10; no
-    skill or command Muse Code 1.4.0 ships is named so). Which should win
-    for every built-in name is open for the lead.
+    project's own called `handoff` (RV74 finding 10; no skill or command
+    Muse Code 1.4.0 ships is named so). The lead's rule, 2026-10-01:
+    built-in command names win over a user skill of the same name, as
+    `/goal` does; no code change.
   - The port's history (the four conflicts, the merge fixes) is in the
     certification. No escape hatches (§8: nothing to record).
 
