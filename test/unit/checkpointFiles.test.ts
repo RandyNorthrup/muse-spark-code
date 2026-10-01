@@ -33,6 +33,11 @@ async function linkedWorkspace() {
 
 const oidOf = (text: string) => gitBlobOid(Buffer.from(text))
 const blob = (text: string, mode = GIT_MODE_FILE) => ({ mode, oid: oidOf(text) })
+/** What a step expects of a file a capture held: these bytes, this mode. */
+const holding = (text: string, mode = GIT_MODE_FILE) => ({
+  kind: 'blob' as const,
+  ...blob(text, mode),
+})
 
 describe('linkedFolders (M72)', () => {
   it('names the outermost folder link on the way to each path, and no real folder', async () => {
@@ -49,7 +54,7 @@ describe('applyFileStep (M72)', () => {
     const { root, target } = await linkedWorkspace()
     const result = await applyFileStep(
       target,
-      { path: 'a/x.txt', target: null, expect: { kind: 'blob', oid: oidOf('the user’s file\n') } },
+      { path: 'a/x.txt', target: null, expect: holding('the user’s file\n') },
       undefined,
       () => false,
     )
@@ -64,7 +69,7 @@ describe('applyFileStep (M72)', () => {
       {
         path: 'a/x.txt',
         target: blob('overwritten\n'),
-        expect: { kind: 'blob', oid: oidOf('the user’s file\n') },
+        expect: holding('the user’s file\n'),
       },
       Buffer.from('overwritten\n'),
       undefined,
@@ -78,7 +83,7 @@ describe('applyFileStep (M72)', () => {
     const file = 'c/x.txt'
     const changed = await applyFileStep(
       target,
-      { path: file, target: blob('restored\n'), expect: { kind: 'blob', oid: oidOf('older\n') } },
+      { path: file, target: blob('restored\n'), expect: holding('older\n') },
       Buffer.from('restored\n'),
       undefined,
     )
@@ -104,7 +109,7 @@ describe('applyFileStep (M72)', () => {
     await writeFile(path.join(root, 'made', 'deeper', 'n.txt'), 'new\n')
     const deleted = await applyFileStep(
       target,
-      { path: 'made/deeper/n.txt', target: null, expect: { kind: 'blob', oid: oidOf('new\n') } },
+      { path: 'made/deeper/n.txt', target: null, expect: holding('new\n') },
       undefined,
       () => false,
     )
@@ -113,7 +118,7 @@ describe('applyFileStep (M72)', () => {
       {
         path: 'c/x.txt',
         target: blob('restored\n'),
-        expect: { kind: 'blob', oid: oidOf('the user’s file\n') },
+        expect: holding('the user’s file\n'),
       },
       Buffer.from('restored\n'),
       undefined,
@@ -134,7 +139,7 @@ describe('applyFileStep (M72)', () => {
         {
           path: 'c/x.txt',
           target: blob('script\n', GIT_MODE_EXECUTABLE),
-          expect: { kind: 'blob', oid: oidOf('the user’s file\n') },
+          expect: holding('the user’s file\n'),
         },
         Buffer.from('script\n'),
         undefined,
@@ -146,13 +151,69 @@ describe('applyFileStep (M72)', () => {
         {
           path: 'c/x.txt',
           target: blob('plain\n'),
-          expect: { kind: 'blob', oid: oidOf('script\n') },
+          // The restore above made it executable: the capture then would say so.
+          expect: holding('script\n', GIT_MODE_EXECUTABLE),
         },
         Buffer.from('plain\n'),
         undefined,
       )
       const plain = await stat(file)
       expect(plain.mode & 0o777).toBe(0o600)
+    },
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'leaves a file whose execute bit changed since the capture, its bytes the same',
+    async () => {
+      const { root, target } = await linkedWorkspace()
+      const file = path.join(root, 'c', 'x.txt')
+      const step = (mode: string) =>
+        applyFileStep(
+          target,
+          {
+            path: 'c/x.txt',
+            target: blob('restored\n'),
+            expect: holding('the user’s file\n', mode),
+          },
+          Buffer.from('restored\n'),
+          undefined,
+        )
+      // Captured plain, then made executable; captured executable, then made plain.
+      await chmod(file, 0o755)
+      const madeExecutable = await step(GIT_MODE_FILE)
+      const deleted = await applyFileStep(
+        target,
+        { path: 'c/x.txt', target: null, expect: holding('the user’s file\n') },
+        undefined,
+        undefined,
+      )
+      const executable = await stat(file)
+      await chmod(file, 0o644)
+      const madePlain = await step(GIT_MODE_EXECUTABLE)
+      const plain = await stat(file)
+      expect([madeExecutable, deleted, madePlain]).toEqual(['changed', 'changed', 'changed'])
+      expect([executable.mode & 0o777, plain.mode & 0o777]).toEqual([0o755, 0o644])
+      expect(await readFile(file, 'utf8')).toBe('the user’s file\n')
+    },
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'still restores an unchanged file on Windows, which keeps no execute bit',
+    async () => {
+      const { root, target } = await linkedWorkspace()
+      // A restore there sets no execute bit either, so only the bytes tell.
+      const result = await applyFileStep(
+        target,
+        {
+          path: 'c/x.txt',
+          target: blob('restored\n'),
+          expect: holding('the user’s file\n', GIT_MODE_EXECUTABLE),
+        },
+        Buffer.from('restored\n'),
+        undefined,
+      )
+      expect(result).toBe('done')
+      expect(await readFile(path.join(root, 'c', 'x.txt'), 'utf8')).toBe('restored\n')
     },
   )
 })
@@ -183,7 +244,7 @@ describe('a restore on a volume that tells letter case apart (M72)', () => {
         {
           path: 'foo/x.txt',
           target: blob('overwritten\n'),
-          expect: { kind: 'blob', oid: oidOf('the user’s file\n') },
+          expect: holding('the user’s file\n'),
         },
         Buffer.from('overwritten\n'),
         undefined,
@@ -209,7 +270,7 @@ describe('a restore on a volume that tells letter case apart (M72)', () => {
         {
           path: 'foo/X.TXT',
           target: blob('restored\n'),
-          expect: { kind: 'blob', oid: oidOf('the user’s file\n') },
+          expect: holding('the user’s file\n'),
         },
         Buffer.from('restored\n'),
         undefined,

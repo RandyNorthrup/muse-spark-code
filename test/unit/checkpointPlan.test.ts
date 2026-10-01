@@ -155,7 +155,7 @@ describe('planRestore (M72)', () => {
         {
           path: 'changed.ts',
           target: blob('b1'),
-          expect: { kind: 'blob', oid: 'a1' },
+          expect: { kind: 'blob', oid: 'a1', mode: '100644' },
           isIgnoreChecked: false,
         },
         {
@@ -167,13 +167,24 @@ describe('planRestore (M72)', () => {
         {
           path: 'added.ts',
           target: null,
-          expect: { kind: 'blob', oid: 'a3' },
+          expect: { kind: 'blob', oid: 'a3', mode: '100644' },
           isIgnoreChecked: true,
         },
       ],
       refused: [],
       unsure: [],
     })
+  })
+
+  it('expects a file’s captured execute bit with its bytes, so a chmod since is a change', () => {
+    const plan = planRestore(
+      input({
+        changes: [{ path: 'run.sh', before: blob('b1'), after: { mode: '100755', oid: 'a1' } }],
+      }),
+    )
+    expect(plan.steps.map((step) => step.expect)).toEqual([
+      { kind: 'blob', oid: 'a1', mode: '100755' },
+    ])
   })
 
   it('names the restored paths a turn with no recorded end may not have changed itself', () => {

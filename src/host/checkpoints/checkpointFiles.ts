@@ -17,6 +17,7 @@ import {
   CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_STAT_CONCURRENCY,
   GIT_MODE_EXECUTABLE,
+  GIT_MODE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
@@ -34,6 +35,8 @@ const CURRENT_FOLDER = '.'
 const FOLDER_NOT_EMPTY: ReadonlySet<string> = new Set(['ENOTEMPTY', 'EEXIST', 'EPERM', 'EBUSY'])
 // Platforms whose usual file systems ignore letter case in names.
 const CASE_FOLDING_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(['win32', 'darwin'])
+// Git records a file as executable (100755) when its owner may execute it.
+const OWNER_EXECUTE_BIT = 0o100
 
 export interface RestoreTarget {
   readonly workspaceRoot: string
@@ -230,8 +233,24 @@ async function unlinked(
   return resolution
 }
 
+/**
+ * Whether the file's execute bit is still the one the capture recorded.
+ * Windows keeps none: a capture there records none and a restore sets none
+ * (`writeFileIfUnchanged`), so only the bytes tell.
+ */
+function isSameMode(stats: Stats, mode: string, platform: NodeJS.Platform): boolean {
+  if (platform === 'win32') {
+    return true
+  }
+  return ((stats.mode & OWNER_EXECUTE_BIT) === 0 ? GIT_MODE_FILE : GIT_MODE_EXECUTABLE) === mode
+}
+
 /** Whether the file is still what the restore expects it to be. */
-async function isAsExpected(absolute: string, expect: Expectation): Promise<boolean> {
+async function isAsExpected(
+  absolute: string,
+  expect: Expectation,
+  platform: NodeJS.Platform,
+): Promise<boolean> {
   const stats = await lstatOrUndefined(absolute)
   if (expect.kind === 'absent') {
     return stats === undefined
@@ -241,7 +260,9 @@ async function isAsExpected(absolute: string, expect: Expectation): Promise<bool
   }
   return expect.kind === 'stat'
     ? isSameStat({ size: stats.size, mtimeMs: stats.mtimeMs }, expect.stat)
-    : stats.size <= CHECKPOINT_FILE_MAX_BYTES && gitBlobOid(await readFile(absolute)) === expect.oid
+    : stats.size <= CHECKPOINT_FILE_MAX_BYTES &&
+        isSameMode(stats, expect.mode, platform) &&
+        gitBlobOid(await readFile(absolute)) === expect.oid
 }
 
 /** Removes the folders a deletion left empty, up to one that was there at the checkpoint. */
@@ -312,7 +333,7 @@ export async function applyFileStep(
     throw new Error(UI_TEXT.restoreFailed)
   }
   const isCurrent = async () => {
-    if (!(await isAsExpected(destination.checkedAbsolute, step.expect))) {
+    if (!(await isAsExpected(destination.checkedAbsolute, step.expect, target.platform))) {
       refused = 'changed'
       return false
     }
@@ -324,7 +345,7 @@ export async function applyFileStep(
     return true
   }
   try {
-    if (!(await isAsExpected(destination.absolute, step.expect))) {
+    if (!(await isAsExpected(destination.absolute, step.expect, target.platform))) {
       return 'changed'
     }
     assertCurrent()
@@ -333,7 +354,7 @@ export async function applyFileStep(
       if (current === undefined) {
         return 'linked'
       }
-      if (!(await isAsExpected(current.checkedAbsolute, step.expect))) {
+      if (!(await isAsExpected(current.checkedAbsolute, step.expect, target.platform))) {
         return 'changed'
       }
       assertCurrent()
