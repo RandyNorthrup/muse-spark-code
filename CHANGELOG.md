@@ -7,6 +7,70 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Review** (M70, PLAN.md D49), on both backends:
+  - `/review` reviews the uncommitted changes; `/review branch [base]` the
+    branch against its base, `/review commit [revision]` one commit (a
+    picker asks when you leave either out), `/review <what to look at>`
+    anything you describe, with no git. `security` first, or **Security
+    review** (`/security-review`), looks for injection, secrets,
+    authentication and unsafe APIs. The palette's new **Review** group has
+    each preset.
+  - Git's changes go with the review marked as untrusted data, files that
+    may hold secrets left out and only named; in Restricted Mode the git
+    presets say why they cannot run.
+  - On the Model API the review runs as the built-in **Reviewer**: its own
+    prompt and tools that only read, in every permission mode, and no
+    extra charge (it is your own turn). The model can start it as a paid
+    subagent with the role `reviewer`. On Muse Code the review turn runs in
+    Plan mode and your permission mode comes back when it ends; Muse Code's
+    own allow rules still apply in Plan mode, so that review is not claimed
+    strictly read-only.
+  - Findings end the reply as a list with severity, file and line; each
+    location opens its file there.
+  - **The review pane** (`/changes`): every change this conversation made,
+    hunk by hunk, with **Accept**, **Revert** (that one hunk only, as the
+    file is now) and **Comment on a line**, which sends your comment with
+    the lines around it into the running turn or as your next message.
+  - A review is a turn: it is marked running and takes its turn checkpoint
+    like a message, and a message you send while a review is starting waits
+    for it and then goes into the review turn.
+  - 70 new strings in the 14 tables (the word for review in Simplified
+    Chinese is the table's existing 审阅).
+
+### Changed
+
+- **The review loads on first use** (M70, PLAN.md D6). Git's material, the
+  review turn's text, the Plan-mode hold and edit review (Open diff and
+  Revert) are the new `dist/review.js` (40.6 KiB, budget 50), required the
+  first time one is used; a module that cannot be loaded refuses the review
+  with `reviewUnavailable` and the log has the cause.
+- **`dist/modelApi.js` and `dist/review.js` carry no English table.** They
+  install the activation bundle's display table before they run (the Model
+  API bundle since M57), so the build gives them an empty one instead of a
+  second 72 KiB copy: `dist/modelApi.js` is 331.6 KiB (398.4 before M70, of
+  its 400), and the bundle-split gate fails the build if an English table
+  comes back into either. The review's model text is a block of its own
+  (`REVIEW_MODEL_TEXT`), so the bundles that never review do not carry it.
+- The review's git calls run as the prompt's git facts do
+  (`GIT_METADATA_OPTIONS`: no fsmonitor hook, no signature program, and
+  `--no-replace-objects`, so a replace ref cannot show other commits than
+  history holds) and share their reader of configured filter names; the
+  physical identity of a workspace folder is one helper for the review and
+  the ACP agent's Model API hosts.
+
+### Fixed
+
+- **Revert on an edit no longer overwrites unsaved editor changes** (M70).
+  Edit review's Revert and the pane's hunk Revert refuse a file whose editor
+  is dirty (the file itself or a link to it), recheck that and the
+  workspace confinement after the saved text is read, serialize writes to
+  one file so overlapping reverts rebuild from each other's bytes, and
+  write the checked canonical target; a failed write frees the next one.
+  They tell live verification about the write without creating an edit
+  round of the agent's own.
+
 ## [0.10.0] - 2026-09-30
 
 ### Fixed

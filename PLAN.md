@@ -215,6 +215,7 @@ quality`) and as a CI job.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                     |
 | `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                            |
+| `dist/review.js`          | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                 |
 | `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                        |
 | `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)      |
 | `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                  |
@@ -297,6 +298,60 @@ entry or any file of the parser's packages (`micromark*`, `mdast-util-*`,
 `dist/planMarkdown.js` stops carrying the reader. Since PR #53's third review
 the reader also writes the brief (`mdast-util-to-markdown`, the version
 remark-gfm's writer resolves to): 139.0 KiB.
+
+**Amendment (M70, 2026-09-30): the review is a bundle of its own, and the
+lazily loaded bundles carry no English table.** At the M72 candidate
+(`1fd98aaf`) `dist/extension.js` was 591.6 KiB of its 600 and
+`dist/modelApi.js` 398.4 of its 400. M70 as first ported added 30.1 KiB to
+the activation bundle and 9.9 KiB to the Model API bundle: the review's code
+(about 10 KiB in each of the host's two halves), its 70 strings (4.6 KiB in
+every bundle that carries the English table) and its model text (3.5 KiB in
+every bundle that carries `MODEL_TEXT`).
+
+- **`dist/review.js`** (budget 50 KiB, 40.8 KiB measured) is built from
+  `src/host/review/reviewEntry.ts` and required by `lazyReview`
+  (`reviewBundle.ts`) the first time a review, an Open diff or a Revert
+  needs it: the git collector, the material readers and the review turn's
+  text, the Plan-mode hold, and edit review (`EditReview`, which the pane's
+  hunks share a write lane with, so one instance serves both). Only types
+  and the loader stay at activation. A module that cannot be loaded refuses
+  with `reviewUnavailable` and the log has the cause; the next use tries
+  again. `check-bundle-split.mjs` fails when any of those files is in
+  `dist/extension.js`, `dist/modelApi.js` or `dist/acp.js`, or missing from
+  `dist/review.js`; `reviewBundle.test.ts` builds the real entry and loads it
+  with Node's `require`.
+- **`REVIEW_MODEL_TEXT`** is the review's model text as a block of its own
+  beside `MODEL_TEXT`, so a bundle that never reviews does not carry it (a
+  single object cannot be tree-shaken by key).
+- **No English table in the Model API and review bundles.** Their factories
+  already install the activation bundle's table before anything reads a
+  string (M57's audit), so the English one `text.ts` starts from is never
+  read there. `scripts/lib/withoutEnglishTable.mjs` is an esbuild plugin that
+  loads an empty `EN` in its place (72 KiB of `dist/modelApi.js`), used by the
+  production build and by the tests that build these bundles. The
+  bundle-split gate fails when either carries the table, or the activation
+  bundle does not. A bundle that reads `UI_TEXT` and loads after activation
+  does the same; the checkpoint store's (`dist/checkpointStore.js`) and the
+  ACP agent's keep theirs.
+- **Measured** (production): `dist/modelApi.js` 331.6 KiB (was 398.4, of
+  400), `dist/review.js` 40.8, `dist/checkpointStore.js` 191.7 (was 186.8, of
+  225: the strings), `dist/acp.js` 793.6 (was 788.6, of 850),
+  `dist/webview/main.js` 799.4 (was 777.2, of 900), and
+  **`dist/extension.js` 603.7 KiB against its unchanged 600**: M70 adds 12.1
+  KiB there after moving everything it could (edit review and the review's
+  code left it), of which the 70 strings are 4.75, the conversation
+  controller's review and permission-mode logic 8.5, and the message schemas
+  0.9. The build's size gate fails on it. A cap change is the owner's
+  decision (§3): the extension bundle's headroom at the M72 candidate, 8.4
+  KiB, cannot take M70 and the milestones after it. What would make room
+  without a cap change, each a change beyond M70: the controller's review
+  orchestration moved behind a port into `dist/review.js` (about 4 KiB, no
+  margin), the English table shipped as a generated `l10n/ui.en.json` the
+  host reads like every other language (about 75 KiB, for every milestone),
+  or the Model-API-only `MODEL_TEXT` strings split into a block of their own
+  as `REVIEW_MODEL_TEXT` is (110 of its 242 strings, about 10 of its 24 KB,
+  are read by no file of the activation bundle).
+
 **Amendment (PR #32 joined with M57, 2026-09-27): the ACP agent loads the
 same `dist/modelApi.js`.** The agent's runtime (`src/runtime/backends.ts`,
 D62) builds a `ModelApiBackendManager` per folder, which since M57 needs a
@@ -7715,6 +7770,123 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 - **Tests.** The fake Model API and the fake `muse serve`; the pane in the
   harness and the accessibility gate.
 - **Size.** L.
+- **As built** (`feature/m70-review`; written 2026-09-28, resumed and joined
+  to the M72 candidate `1fd98aaf` on 2026-09-30; `docs/certification/m70.md`).
+  - **`/review` grammar.** `/review` (uncommitted), `/review branch [base]`,
+    `/review commit [revision]`, `/review <text>` (custom, no git), each
+    with an optional leading `security`. A keyword counts only with at most
+    one revision word after it, so `/review branch naming in utils` is
+    custom text. A revision is one word that never starts with `-`, checked
+    by the wire schema and again before git sees it. The palette's Review
+    group has the presets, **Security review** (`/security-review`, Claude
+    Code's name) and the pane (`/changes`); a missing base or commit is
+    picked in a quick pick, the base suggested from `origin/HEAD`, else
+    `main` or `master`.
+  - **The material** comes from the extension's own git
+    (`src/core/review/reviewMaterial.ts`, `src/host/review/reviewCollector.ts`)
+    run as the prompt's git facts run: `GIT_METADATA_OPTIONS` (no fsmonitor
+    hook, disabled with an empty value because Git 2.25 and 2.35 read
+    `false` as a hook pathname; no signature program; `--no-replace-objects`,
+    so a replace ref cannot show other commits than history holds), every
+    configured clean and process filter overridden for the call (names read
+    with the shared `gitFilterOptions`, never commands; the working-tree
+    diff compares saved text), `--no-ext-diff`, `--no-textconv` and
+    `--relative`. It covers the uncommitted changes against `HEAD` (staged,
+    then unstaged, before a first commit), a branch from its merge base, and
+    one commit against its first parent (a root commit whole). Files that
+    may hold secrets (M54's attachment rule, now `shared/privateFiles.ts`)
+    are left out of every diff by pathspec and only named. The diff is cut
+    at 200,000 characters on a line end, and the reviewer is told so.
+    Everything git said, the branch name and commit message included, goes
+    between random markers under a sentence that calls it untrusted data
+    (D49's untrusted content); a marker the material already holds is
+    replaced, three tries. Restricted Mode refuses the git presets with the
+    reason; custom instructions still run.
+  - **A request owns its folder.** Each git request is bound to the
+    folder's canonical path and its device and inode
+    (`src/host/workspaceIdentity.ts`, shared with the ACP agent's Model API
+    hosts): git runs only at that canonical cwd, the lexical and canonical
+    path are compared before and after every call, after a picker and
+    before the material is released, and trust is re-read each time. A link
+    or junction retargeted, or a directory replaced, cancels the request;
+    once lost it stays lost. The last synchronous comparison before the
+    turn is sent does not exclude an unrelated replacement after it (the
+    residual every path-then-act check has).
+  - **The Model API's Reviewer** (`reviewer.ts`) is the conversation's own
+    turn run with its prompt (role, workspace, environment, the review
+    method, the workspace rules) and only `read_file`, `search`,
+    `list_files` and `mcp__ide__getDiagnostics`: no write, shell, memory,
+    MCP, subagent, image or web search, and a call to anything else is
+    refused in every mode, Bypass included. It starts no external MCP server
+    and is not stopped by one that is unavailable; the next ordinary turn
+    keeps its required-server check. No payment is asked: it is the user's
+    own turn (D49). A child task whose role is `reviewer` runs the same way
+    and stays a paid child task (D45, D48).
+  - **Muse Code** gets the same text with the role and the method at its
+    head, as the turn's text (`REVIEW_MODEL_TEXT`), no skill. The turn runs
+    in Plan mode (`denyUnmatched`) and `PlanModeHold` puts the user's mode
+    back when that turn ends. Muse Code applies its own allow rules in Plan
+    mode, so the review is not claimed strictly read-only (D46; the owner's
+    ruling). The mode logic is the careful part:
+    - a mode the user picks while the hold is being set cancels that
+      pending review; one picked during the review wins and nothing is put
+      back; the newest choice follows every outstanding mode request, and
+      a new turn waits for them rather than trusting the panel's label;
+    - Bypass comes back only while its setting still allows it (D24): a
+      restore revoked while it was in flight is corrected to Manual before
+      it is reported, off and on again does not revive an earlier pending
+      remote confirmation, and a fallback the backend refuses retires only
+      the session that owned the unsafe request, never a replacement;
+    - the session going releases the hold, and a review whose Plan
+      admission was refused after a revocation retires the old Bypass owner
+      rather than relabelling it Manual.
+  - **A review is a turn for checkpoints (M72, D51).** It is marked
+    running and takes the pre-turn capture before it is sent (released with
+    the mark when its turn cannot be sent), as a message does, because a
+    Plan-mode turn on Muse Code is not strictly read-only. One review starts
+    at a time, and a message sent while one starts waits for it, then goes
+    into the review turn as a steer.
+  - **Findings**: the review ends with a fenced `muse-review` JSON block
+    (the extension's own format, parsed with zod); the reply shows it as a
+    list with severity, title, detail and a `file:line` that opens the file
+    at those lines. A model-chosen severity is shown as it came; a location
+    outside the workspace is text, never opened. A block that does not
+    parse stays a code block.
+  - **The review pane** (`/changes`) lists the conversation's edits, its
+    agents' included, in the order they landed, file by file and hunk by
+    hunk (at most 200 edits and 20,000 diff lines, the first patch
+    included; the rest are counted). Accept marks a hunk; Revert takes that
+    one hunk out of the file as it is now (M36's exact reverse-apply), once,
+    or says why it could not. A comment on a line quotes the file, the line
+    and three lines around it as a `chat_reference` from `diff`, and goes as
+    a steer into the running turn or as the next message. Revert is an
+    explicit file edit of edit review: confined to the workspace by
+    canonical path (links and junctions), refused under an editor with
+    unsaved changes (checked after the saved text is read and again just
+    before the write), serialized per file so overlapping reverts rebuild
+    from each other's bytes, written to the checked canonical target through
+    the checkpointed edit guard (another window refuses a restore meanwhile),
+    and announced to live verification without an own edit round of the
+    agent's (`beginExternalEdit`).
+  - **Bundles** (D6 amendment): the review's code is `dist/review.js`, and
+    the Model API and review bundles carry no English table.
+    The lane's budget repair splits the existing model text used only by
+    `ModelApiHost` into `MODEL_API_MODEL_TEXT` beside the shared block,
+    following `REVIEW_MODEL_TEXT`. Its words and callers' behaviour stay
+    identical; activation can discard that unused object. The bundle-split
+    gate must reject its return to activation or the ACP loader. This is
+    required to fit M70 under the unchanged 600 KiB activation cap.
+  - **Wire evidence** (AGENTS.md rule 13): nothing new is read from Muse
+    Code or Meta. `session/setApprovalMode` and `session/approvalModeChanged`
+    are M4's captured shapes; the findings block is the extension's own
+    format and is parsed as untrusted model output.
+  - **Left to the owner** (not settled here): widening the list of files
+    that may hold secrets beyond M54's (`.npmrc`, `.netrc`, cloud
+    credential folders); offering the read-only code intelligence tools
+    (M67) to the Reviewer; whether Muse Code's review should refuse to run
+    at all while its Plan mode is not strictly read-only. The safest
+    default is built: the narrowest tool list, the current list of names,
+    and the honest notice.
 
 ### M71 — Git and pull requests (D49)
 
@@ -9389,9 +9561,19 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
+M70's `src/host/review/reviewBundle.ts` uses the type predicate
+`isReviewBundle` the same way: the required module is unknown; its
+`createReviewFeatures` must be a function, whose signature is trusted because
+entry, loader and package come from one source/build. `reviewBundle.test.ts`
+builds that actual entry (without the English table, as the production build
+does), loads it with Node require, and proves the activation table is the one
+it reads, the single load, and the refusal of a missing or malformed module
+before a repaired one loads (2026-09-30).
+
 | File                                            | Construct                        | Reason                                                                                                                                                  | Added      |
 | ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised. | 2026-09-30 |
+| `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`          | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.        | 2026-09-30 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

@@ -678,8 +678,12 @@ describe('a git failure', () => {
       failure: 'git diff exited 128',
     })
     // Every call runs with the extension's metadata-only git configuration first.
-    expect(runGit.mock.calls[0]?.[0].slice(0, GIT_METADATA_OPTIONS.length)).toEqual([
-      ...GIT_METADATA_OPTIONS,
-    ])
+    const [argv] = runGit.mock.calls[0] ?? []
+    expect(argv?.slice(0, GIT_METADATA_OPTIONS.length)).toEqual([...GIT_METADATA_OPTIONS])
+    // fsmonitor is disabled with an empty value, which Git 2.25 and 2.35 read as no hook
+    // (they read `false` as a hook pathname), and replace refs are not followed.
+    expect(argv).toContain('core.fsmonitor=')
+    expect(argv).not.toContain('core.fsmonitor=false')
+    expect(argv).toContain('--no-replace-objects')
   })
 })
