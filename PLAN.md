@@ -8998,8 +8998,12 @@ the accessibility gate, the harness shots (the `m84-share.png` capture is
 missing) and the integration tests. Open: RV84 #10 (an import past the
 model's window is accepted, confirmed by reading) and #14 (the share view
 renders every item in one pass, confirmed in kind by a jsdom measurement),
-neither fixed. History: original `c2eb4da2` and the repair drafts are
-preserved; the port to the release candidate is described below.
+neither fixed. The port had put `extension.js` and `modelApi.js` over
+their size budgets. They are back under after merging
+`build/shared-ui-text`, the shared English table (`15f847a4`). The
+redaction prefilter is proven a superset of every rule (`5df6d5c2`).
+History: original `c2eb4da2` and the repair drafts are preserved; the port
+to the release candidate is described below.
 
 - **Goal.** A conversation can move between machines and people.
 - **Scope.**
