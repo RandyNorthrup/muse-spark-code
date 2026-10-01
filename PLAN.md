@@ -341,9 +341,9 @@ every bundle that carries `MODEL_TEXT`).
   603.7 KiB activation overflow without raising any cap.
   The English-table plugin's declaration is included in the host compiler
   project so the normal type-aware lint gate also checks that boundary.
-- **Measured** (lane production build, after merging M72 candidate `8e9d3a1e`):
-  `dist/extension.js` 599.2/600 KiB, `dist/modelApi.js` 331.8/400,
-  `dist/review.js` 40.7/50, `dist/checkpointStore.js` 190.2/225,
+- **Measured** (lane production build, after merging M72 candidate `54a1eaf5`):
+  `dist/extension.js` 599.4/600 KiB, `dist/modelApi.js` 331.8/400,
+  `dist/review.js` 40.8/50, `dist/checkpointStore.js` 190.3/225,
   `dist/acp.js` 788.8/850, `dist/webview/main.js` 799.5/900.
   These focused measurements do not certify the full aggregate or platforms.
 
@@ -7816,6 +7816,8 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     (D49's untrusted content); a marker the material already holds is
     replaced, three tries. Restricted Mode refuses the git presets with the
     reason; custom instructions still run.
+    The branch scope's base and merge-base facts also live inside those
+    markers: a base chosen from git's picker is repository data too.
   - **A request owns its folder.** Each git request is bound to the
     folder's canonical path and its device and inode
     (`src/host/workspaceIdentity.ts`, shared with the ACP agent's Model API

@@ -62,6 +62,7 @@ function scopeText(subject: ReviewSubject): string {
 function materialBody(material: ReviewMaterial): string {
   const { subject } = material
   const sections = [
+    subject.kind === 'branch' ? scopeText(subject) : undefined,
     subject.kind === 'branch'
       ? fill(REVIEW_MODEL_TEXT.reviewBranchName, { branch: subject.branch })
       : undefined,
@@ -113,7 +114,9 @@ function scopeOf(request: ReviewRequest, material: ReviewMaterial | undefined): 
   if (request.scope === 'custom') {
     return `${REVIEW_MODEL_TEXT.reviewScopeCustom}${LINE}${request.instructions}`
   }
-  return material === undefined ? undefined : scopeText(material.subject)
+  return material === undefined || material.subject.kind === 'branch'
+    ? undefined
+    : scopeText(material.subject)
 }
 
 /** The review turn's text. */

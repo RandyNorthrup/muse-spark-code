@@ -43,7 +43,7 @@ happened, not what was planned; superseded entries are kept.
 
 - **The review loads on first use** (M70, PLAN.md D6). Git's material, the
   review turn's text, the Plan-mode hold and edit review (Open diff and
-  Revert) are the new `dist/review.js` (40.7 KiB, budget 50), required the
+  Revert) are the new `dist/review.js` (40.8 KiB, budget 50), required the
   first time one is used; a module that cannot be loaded refuses the review
   with `reviewUnavailable` and the log has the cause.
 - **`dist/modelApi.js` and `dist/review.js` carry no English table.** They
@@ -73,6 +73,8 @@ happened, not what was planned; superseded entries are kept.
   write the checked canonical target; a failed write frees the next one.
   They tell live verification about the write without creating an edit
   round of the agent's own.
+- Branch review base and merge-base facts now remain inside the untrusted
+  material block, including a base selected from the repository picker.
 - Pane reads that finish or fail after conversation replacement no longer
   publish old results into the replacement conversation.
 - A review refused after exhausting its untrusted-material marker retries
@@ -616,6 +618,13 @@ happened, not what was planned; superseded entries are kept.
 
 - **A file a turn made visible to git is put back from the copy kept** (M72),
   when a `.gitignore` change made an ignored file show up as new.
+
+- **The model picker lists the models again after a new, resumed or forked
+  conversation** (0.9.1 regression). Every conversation change threw away the
+  backend’s model list, so the picker showed nothing to choose (only the pill’s
+  current model) until the next message, and the context meter lost the model’s
+  window. The list now belongs to the backend: only a backend that stops or exits,
+  or a sign-in change, clears it.
 
 - **A `!` command is checked again at its real start** (M72). On the Model
   API backend, a `!` command you typed could still start after the workspace
