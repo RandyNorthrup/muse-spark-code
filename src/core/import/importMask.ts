@@ -35,20 +35,31 @@ const TOKEN_SHAPE = new RegExp(
   ].join('|'),
   'g',
 )
-const CREDENTIAL_FLAG = new RegExp(String.raw`^--?[\w.-]*${CREDENTIAL}[\w.-]*$`, 'i')
-const CREDENTIAL_FLAG_WITH_VALUE = new RegExp(String.raw`^(--?[\w.-]*${CREDENTIAL}[\w.-]*=).`, 'i')
+// An argument that is a flag, or a flag with its value attached; it is a
+// credential flag when it holds a credential word. Two checks, not one
+// pattern with `[\w.-]*` either side of the word, which backtracked
+// quadratically on a long argument.
+const FLAG = /^--?[\w.-]*$/u
+const FLAG_WITH_VALUE = /^(--?[\w.-]*=)./u
+const CREDENTIAL_WORD = new RegExp(CREDENTIAL, 'i')
 // A bare value ends at a space, a quote, or a separator of queries and commands.
 const VALUE = String.raw`("[^"]*"|'[^']*'|[^\s"'&;]+)`
+// In free text a flag's name holds at most 31 characters either side of its
+// credential word, and an assignment's name at most 31 after it (the name
+// before it stays as it was): unbounded, a long run of dashed or credential
+// words made these scans quadratic or worse (87 s for 10,000 characters).
 const COMMAND_FLAG_VALUE = new RegExp(
-  String.raw`(--?[\w.-]*${CREDENTIAL}[\w.-]*)(=|\s+)${VALUE}`,
+  String.raw`(--?[\w.-]{0,31}${CREDENTIAL}[\w.-]{0,31})(=|\s+)${VALUE}`,
   'gi',
 )
-const COMMAND_ASSIGNMENT = new RegExp(String.raw`\b(\w*${CREDENTIAL}\w*=)${VALUE}`, 'gi')
+const COMMAND_ASSIGNMENT = new RegExp(String.raw`(${CREDENTIAL}\w{0,31}=)${VALUE}`, 'gi')
 const QUERY_SEPARATOR = '&'
 const QUERY_ASSIGN = '='
 // A URL in text runs to whitespace, `<`, `>` or a quote mark or backtick, as
-// the close of a shell argument or a Markdown code span ends it...
-const URL_IN_TEXT = /\b[a-z][a-z\d+.-]*:\/\/[^\s<>"'`]+/giu
+// the close of a shell argument or a Markdown code span ends it... Its scheme
+// is at most 32 characters, as the log redactor's is: unbounded, a long run
+// of dotted or dashed words with no `://` made the scan quadratic.
+const URL_IN_TEXT = /\b[a-z][a-z\d+.-]{0,31}:\/\/[^\s<>"'`]+/giu
 // ...unless the mark quotes part of a value (`?signature='x'`), which a shell
 // joins into one word with the text either side (`'a'"b"`): a closed quote
 // goes on the URL, and so does one left open where a value starts, after `=`,
@@ -110,12 +121,14 @@ function maskPlainText(text: string, mask: string): string {
 /** Argument vectors: the value after a credential-like flag is masked whole. */
 export function maskArgs(args: readonly string[], mask: string): readonly string[] {
   return args.map((arg, index) => {
-    const withValue = CREDENTIAL_FLAG_WITH_VALUE.exec(arg)
-    if (withValue?.[1] !== undefined) {
-      return `${withValue[1]}${mask}`
+    const withValue = FLAG_WITH_VALUE.exec(arg)?.[1]
+    if (withValue !== undefined && CREDENTIAL_WORD.test(withValue)) {
+      return `${withValue}${mask}`
     }
     const previous = args[index - 1]
-    return previous !== undefined && CREDENTIAL_FLAG.test(previous) ? mask : maskText(arg, mask)
+    return previous !== undefined && FLAG.test(previous) && CREDENTIAL_WORD.test(previous)
+      ? mask
+      : maskText(arg, mask)
   })
 }
 

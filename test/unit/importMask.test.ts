@@ -6,6 +6,8 @@ import { maskArgs, maskText, maskUrl, maskValues } from '../../src/core/import/i
 import { SYNTHETIC } from './helpers/syntheticTokens'
 
 const MASK = '[masked]'
+// A linear scan of these lines takes milliseconds; the unbounded patterns took seconds.
+const LINEAR_SCAN_MS = 1000
 
 describe('maskText', () => {
   it('uses the URL field masker for URLs inside commands and Markdown, idempotently', () => {
@@ -95,6 +97,21 @@ describe('maskText', () => {
     ['an assignment', 'GITHUB_TOKEN=s3cr3t-value node x.js', 's3cr3t-value'],
     ['a quoted assignment', "MY_SECRET='s3cr3t value' node x.js", 's3cr3t value'],
     ['URL user-info', 'git clone https://me:s3cr3t-value@host/repo', 's3cr3t-value'],
+    [
+      'a long assignment name',
+      'MY_ORGANIZATION_PRODUCTION_DEPLOY_TOKEN=s3cr3t-value npm publish',
+      's3cr3t-value',
+    ],
+    [
+      'a long flag name',
+      './deploy --my-organization-production-deploy-token s3cr3t-value',
+      's3cr3t-value',
+    ],
+    [
+      'a URL with a 32-character scheme',
+      `${'x'.repeat(31)}://host/mcp?signature=s3cr3t-value`,
+      's3cr3t-value',
+    ],
   ])('masks %s', (_name, text, secret) => {
     const masked = maskText(text, MASK)
     expect(masked).not.toContain(secret)
@@ -116,6 +133,25 @@ describe('maskArgs', () => {
     expect(
       maskArgs(['-y', 'server', '--api-key', 'abc', '--token=def', '--port', '9'], MASK),
     ).toEqual(['-y', 'server', '--api-key', MASK, `--token=${MASK}`, '--port', '9'])
+  })
+})
+
+describe('maskText and maskArgs on long lines', () => {
+  it.each([
+    // The URL scheme, here and in the log redactor: quadratic unbounded.
+    ['dotted words', 'a.'.repeat(25_000)],
+    // A flag's name before its credential word: quadratic unbounded.
+    ['dashed words', 'a-'.repeat(25_000)],
+    // Both sides of a flag's credential word: cubic unbounded.
+    ['dashed credential words', '-key'.repeat(1250)],
+    // An assignment's name, and the argument checks: quadratic unbounded.
+    ['one long credential flag', `--${'key'.repeat(20_000)}`],
+  ])('reads a long line of %s in linear time', (_name, line) => {
+    const started = performance.now()
+    expect(maskText(line, MASK)).toBe(line)
+    // A trailing `!` makes the argument no flag, so each check reads it all.
+    expect(maskArgs([`${line}!`, 'value'], MASK)).toEqual([`${line}!`, 'value'])
+    expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
   })
 })
 

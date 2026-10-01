@@ -590,5 +590,119 @@
       "temp/m83b/p1b-open-value-red.log",
       "temp/m83b/p1b-open-value-restored.log"
     ]
+  },
+  {
+    "name": "p1b-linear-scheme",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts"],
+    "mutation": "[a-z\\d+.-]{0,31}:\\/\\/",
+    "replacement": "[a-z\\d+.-]*:\\/\\/",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "reads a long line of dotted words in linear time",
+    "beforeSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "mutatedSha256": "39e8d4e7820fcbac7dd7b4a4c2380b72c9334aa957a795f31acfd9faad9cec9e",
+    "afterSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "logs": [
+      "temp/m83b/p1b-linear-scheme-baseline.log",
+      "temp/m83b/p1b-linear-scheme-red.log",
+      "temp/m83b/p1b-linear-scheme-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-linear-redact-scheme",
+    "source": "src/core/redact.ts",
+    "tests": ["test/unit/importMask.test.ts", "test/unit/redact.test.ts"],
+    "mutation": "[\\w+.-]{0,31}:\\/\\/",
+    "replacement": "[\\w+.-]*:\\/\\/",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "reads a long line of dotted words in linear time",
+    "beforeSha256": "f27df521ce351dc0eb8104539bfc316a9eee6b1cba1e8a4e8bdc3adc5b6cce79",
+    "mutatedSha256": "c026950f381c1b30d9e89ec149b91281e143114a92a89dc760dc64b975ae4320",
+    "afterSha256": "f27df521ce351dc0eb8104539bfc316a9eee6b1cba1e8a4e8bdc3adc5b6cce79",
+    "logs": [
+      "temp/m83b/p1b-linear-redact-scheme-baseline.log",
+      "temp/m83b/p1b-linear-redact-scheme-red.log",
+      "temp/m83b/p1b-linear-redact-scheme-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-linear-flag",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts"],
+    "mutation": "(--?[\\w.-]{0,31}${CREDENTIAL}[\\w.-]{0,31})",
+    "replacement": "(--?[\\w.-]*${CREDENTIAL}[\\w.-]*)",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "reads a long line of dashed credential words in linear time",
+    "beforeSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "mutatedSha256": "c7c35c5bcb7c94eac777bffb83a911bde1c64195f46d57b433fa903bde7ee38b",
+    "afterSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "logs": [
+      "temp/m83b/p1b-linear-flag-baseline.log",
+      "temp/m83b/p1b-linear-flag-red.log",
+      "temp/m83b/p1b-linear-flag-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-linear-assignment",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts"],
+    "mutation": "(${CREDENTIAL}\\w{0,31}=)",
+    "replacement": "\\b(\\w*${CREDENTIAL}\\w*=)",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "reads a long line of one long credential flag in linear time",
+    "beforeSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "mutatedSha256": "c4e2de6dee70586d81bbe50781536d901a93e5c78ba6e39ad973fa23a1c7e286",
+    "afterSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "logs": [
+      "temp/m83b/p1b-linear-assignment-baseline.log",
+      "temp/m83b/p1b-linear-assignment-red.log",
+      "temp/m83b/p1b-linear-assignment-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-linear-flag-check",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts"],
+    "mutation": "const FLAG = /^--?[\\w.-]*$/u",
+    "replacement": "const FLAG = new RegExp(String.raw`^--?[\\w.-]*${CREDENTIAL}[\\w.-]*$`, 'i')",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "reads a long line of one long credential flag in linear time",
+    "beforeSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "mutatedSha256": "d01ef9e7ecfcff24dff5980b392a665eeee52fcbd3397f06cd74828d84414478",
+    "afterSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "logs": [
+      "temp/m83b/p1b-linear-flag-check-baseline.log",
+      "temp/m83b/p1b-linear-flag-check-red.log",
+      "temp/m83b/p1b-linear-flag-check-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-linear-flag-value-check",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts"],
+    "mutation": "const FLAG_WITH_VALUE = /^(--?[\\w.-]*=)./u",
+    "replacement": "const FLAG_WITH_VALUE = new RegExp(String.raw`^(--?[\\w.-]*${CREDENTIAL}[\\w.-]*=).`, 'i')",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "reads a long line of one long credential flag in linear time",
+    "beforeSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "mutatedSha256": "9a5f6dd651949f2d778c44ee575b835be24d18dfa71c875b8bfbb78d69cf455b",
+    "afterSha256": "8897538e923ef7ebef87563d6390c1d7dd76e2556e85ec21a733bdc07614d1bf",
+    "logs": [
+      "temp/m83b/p1b-linear-flag-value-check-baseline.log",
+      "temp/m83b/p1b-linear-flag-value-check-red.log",
+      "temp/m83b/p1b-linear-flag-value-check-restored.log"
+    ]
   }
 ]

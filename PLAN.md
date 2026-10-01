@@ -8981,7 +8981,13 @@ new regressions failed on `6db3cc9d` and pass now; four red drills are 0/1/0
 with byte-exact SHA-256 restores. Scoped checks pass: five type projects,
 changed-file ESLint/Prettier, zero jscpd clones, localization, and the build
 (importer 104.4/125 KiB). The eight import test files pass on Kubuntu
-(202 tests). Lead next action: full quality, native VS Code import UI, other
+(202 tests). A follow-up makes masking linear. The URL scheme is bounded to
+32 characters, as the release candidate's `16f1e908` bounds the log
+redactor's; `redact.ts` here is byte-identical to it. The masker's flag and
+assignment scans are bounded too, and the argument checks are split into
+linear tests. Long-line tests take 24–133 ms, against 30–47 s on
+`6db3cc9d`, and six drills are 0/1/0. With `redact.test.ts`, 222 tests pass
+on Kubuntu. Lead next action: full quality, native VS Code import UI, other
 platforms and M76 runtime admission. Details are in
 `docs/certification/m83b.md`.
 

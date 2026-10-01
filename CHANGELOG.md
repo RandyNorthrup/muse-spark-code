@@ -48,6 +48,12 @@ happened, not what was planned; superseded entries are kept.
   arguments, commands and rules; before, the value after the opening mark was
   shown. The mark a URL is wrapped in still ends it, so a closing quote, a
   Markdown link's parenthesis and the rest of the line are kept.
+- Masking imported text now takes linear time. A long run of dotted, dashed
+  or credential-like words with no URL in it took time that grew with the
+  square or cube of its length (35 s for 5,000 characters of `-key-key…`).
+  It now takes milliseconds. The masker's URL scheme is at most 32
+  characters, as the log redactor's is, and its credential flag and
+  assignment names at most 31 characters after the credential word.
 - Removed M83's temporary empty English-table stand-in and its build plugin.
   The lead-approved shared `dist/uiText.js` contract replaces this approach;
   the importer uses the same runtime fallback as the other Node bundles.
