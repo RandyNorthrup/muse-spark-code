@@ -2234,10 +2234,17 @@ through the `Intl` helpers beside them. Text for the model is `MODEL_TEXT`
 and stays English. Escape hatches
 (`eslint-disable`, `@ts-expect-error`, casts) need an inline reason and a row
 in `PLAN.md` §8. Bundle budgets: 600 KiB for the extension, 400 KiB for the
-Model API backend's own bundle, 225 KiB for the checkpoint store, 50 KiB for
+Model API backend's own bundle, 225 KiB for the checkpoint store, 100 KiB for
+the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
 web fetch's page converter worker, 900 KiB for the webview, and 850 KiB for
 the ACP agent (`dist/acp.js`).
+
+After a production build and an offline install of the ACP tarball,
+`node scripts/check-ui-text.mjs <installed-package-root>` checks runtime
+loading in the extension, Model API bundle and installed agent without
+starting an editor or making a model call. See the
+[build record](docs/certification/shared-ui-text.md).
 
 **Environment variables.** Credentials live in SecretStorage, never in
 files. `.env.example` documents `META_API_KEY`, which the Muse Code CLI
