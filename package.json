@@ -193,6 +193,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.openPullRequestInConversation",
+        "title": "%command.openPullRequestInConversation.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.moveToBackground",
         "title": "%command.moveToBackground.title%",
         "category": "%command.category%"
@@ -276,6 +281,10 @@
         },
         {
           "command": "museSpark.removeWorktree",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "museSpark.openPullRequestInConversation",
           "when": "workspaceFolderCount > 0"
         },
         {

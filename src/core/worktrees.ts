@@ -105,6 +105,11 @@ export function worktreeAddArgs(
   return ['worktree', 'add', '-b', branch, folder, baseRef]
 }
 
+/** A worktree at `commit` with no branch (M71: a pull request's head, read-only by default). */
+export function worktreeAddDetachedArgs(folder: string, commit: string): readonly string[] {
+  return ['worktree', 'add', '--detach', folder, commit]
+}
+
 export function worktreeRemoveArgs(folder: string, isForced: boolean): readonly string[] {
   return ['worktree', 'remove', ...(isForced ? ['--force'] : []), folder]
 }

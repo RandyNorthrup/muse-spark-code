@@ -33,12 +33,15 @@ import {
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
+import type { GitAction, GitDraftKind } from '../shared/git'
 import type { LineRange, SignInMethod, WebviewToHostMessage } from '../shared/protocol'
+import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AgentMap } from './components/AgentMap'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
+import { GitPanel } from './components/GitPanel'
 import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
@@ -430,6 +433,73 @@ export function App({
       onGoalCommand('edit', objective, 'inline')
     },
     [store, onGoalCommand],
+  )
+  // Git and pull requests (M71): the panel's buttons, forms and drafts.
+  const onGitAction = useCallback(
+    (action: GitAction) => {
+      postMessage({ type: 'gitAction', action })
+    },
+    [postMessage],
+  )
+  const onGitEdit = useCallback(
+    (edit: GitFormEdit) => {
+      dispatch({ type: 'gitFormEdited', edit })
+    },
+    [dispatch],
+  )
+  const onGitClose = useCallback(() => {
+    postMessage({ type: 'gitAction', action: 'cancel' })
+    dispatch({ type: 'gitFormClosed' })
+  }, [dispatch, postMessage])
+  const onGitCommit = useCallback(() => {
+    const { form } = store.getState().git
+    if (form?.kind !== 'commit') {
+      return
+    }
+    dispatch({ type: 'gitFormBusy' })
+    postMessage({
+      type: 'gitCommit',
+      message: form.message,
+      includeUnstaged: form.includeUnstaged,
+    })
+  }, [store, dispatch, postMessage])
+  const onGitCreatePullRequest = useCallback(() => {
+    const { form } = store.getState().git
+    if (form?.kind !== 'pullRequest') {
+      return
+    }
+    dispatch({ type: 'gitFormBusy' })
+    postMessage({
+      type: 'gitCreatePullRequest',
+      head: form.facts.head,
+      base: form.base,
+      title: form.title,
+      body: form.body,
+      isDraft: form.isDraft,
+    })
+  }, [store, dispatch, postMessage])
+  // The user's own message asks for the draft (PLAN.md D49: part of their turn).
+  const onGitGenerate = useCallback(
+    (kind: GitDraftKind) => {
+      const current = store.getState()
+      if (current.auth.status !== 'signedIn' || current.activeTurnId !== undefined) {
+        return
+      }
+      const localId = newLocalId()
+      const text =
+        kind === 'commitMessage' ? UI_TEXT.gitAskCommitMessage : UI_TEXT.gitAskPullRequest
+      dispatch({ type: 'gitDraftRequested', localId, text })
+      postMessage({
+        type: 'sendMessage',
+        localId,
+        text,
+        attachmentIds: [],
+        gitDraft: kind,
+        ...(current.git.form?.kind === 'pullRequest' && { gitDraftBase: current.git.form.base }),
+      })
+      setIsPinnedToEnd(true)
+    },
+    [store, dispatch, newLocalId, postMessage],
   )
   const onScheduleRun = useCallback(
     (id: string, occurrenceMs: number) => {
@@ -1187,13 +1257,19 @@ export function App({
         case 'showHooks':
         case 'showMemory':
         case 'newWorktree':
-        case 'removeWorktree': {
+        case 'removeWorktree':
+        case 'openPullRequestInConversation': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break
         }
         case 'exportConversation': {
           postMessage({ type: 'exportConversation', format: action.format })
+          closeOverlay()
+          break
+        }
+        case 'gitAction': {
+          postMessage({ type: 'gitAction', action: action.action })
           closeOverlay()
           break
         }
@@ -1669,6 +1745,18 @@ export function App({
           </button>
         ) : null}
       </main>
+      <GitPanel
+        git={state.git}
+        isInert={isModalOpen}
+        canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
+        onAction={onGitAction}
+        onEdit={onGitEdit}
+        onClose={onGitClose}
+        onCommit={onGitCommit}
+        onCreatePullRequest={onGitCreatePullRequest}
+        onGenerate={onGitGenerate}
+        onOpenLink={onOpenExternal}
+      />
       <GoalPanel
         key={state.sessionId}
         goal={state.goal}

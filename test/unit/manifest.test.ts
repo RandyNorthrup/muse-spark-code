@@ -203,6 +203,8 @@ describe('package.json manifest', () => {
       // git worktrees of the open folder's repository (M32).
       [COMMAND_IDS.newWorktree]: 'workspaceFolderCount > 0',
       [COMMAND_IDS.removeWorktree]: 'workspaceFolderCount > 0',
+      // A pull request of the open folder's repository, in a worktree (M71).
+      [COMMAND_IDS.openPullRequestInConversation]: 'workspaceFolderCount > 0',
       // Only while the conversation in view runs a command to move (M46).
       [COMMAND_IDS.moveToBackground]: CONTEXT_KEYS.canMoveToBackground,
       // The background tasks of the conversation in front of the user (M46).

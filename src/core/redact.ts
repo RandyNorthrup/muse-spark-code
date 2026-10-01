@@ -13,11 +13,21 @@
 //     `access_token`, `refresh_token`, `id_token`, `client_secret`,
 //     `api_key` / `apikey`, `password`
 //   - Credentials in a URL's user-info part: `https://user:secret@host`
+//   - Since M71, which signs in to GitHub and sends text there: GitHub's
+//     token shapes (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` and
+//     `github_pat_`, docs.github.com "About authentication to GitHub"),
+//     PEM private key blocks, AWS access key ids and Slack tokens, the
+//     shapes a generated commit message or pull request text could carry
 //
 // Replacement strings are literals on purpose: unicorn/no-unsafe-string-
 // replacement rejects computed replacements because `$` sequences in them are
 // interpreted by replaceAll.
 
+const GITHUB_TOKEN = /\bgh[pousr]_[A-Za-z\d]{36,255}\b|\bgithub_pat_\w{22,255}\b/g
+const PRIVATE_KEY_BLOCK =
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g
+const AWS_ACCESS_KEY_ID = /\b(?:AKIA|ASIA)[A-Z\d]{16}\b/g
+const SLACK_TOKEN = /\bxox[abeoprs]-[A-Za-z\d-]{10,}/g
 const META_MODEL_API_KEY = /LLM_[\w-]{16,}|LLM\|\d+\|[\w+./=-]+/g
 const BEARER_TOKEN = /(\bBearer\s+)[\w+./=~-]+/gi
 const BASIC_CREDENTIALS = /(\bBasic\s+)[\w+/=]{8,}/gi
@@ -31,6 +41,10 @@ const URL_USER_INFO = /(\b[a-z][\w+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gi
 
 export function redactSecrets(text: string): string {
   return text
+    .replaceAll(PRIVATE_KEY_BLOCK, '[redacted]')
+    .replaceAll(GITHUB_TOKEN, '[redacted]')
+    .replaceAll(AWS_ACCESS_KEY_ID, '[redacted]')
+    .replaceAll(SLACK_TOKEN, '[redacted]')
     .replaceAll(META_MODEL_API_KEY, '[redacted]')
     .replaceAll(BEARER_TOKEN, '$1[redacted]')
     .replaceAll(BASIC_CREDENTIALS, '$1[redacted]')

@@ -38,7 +38,8 @@
       "pdfLabel",
       "loopItem",
       "namedFilesMore",
-      "exportThenRunSkipped"
+      "exportThenRunSkipped",
+      "gitPullRequestName"
     ],
     "cs": [
       "groupModel",
@@ -51,9 +52,17 @@
       "agentRole",
       "agentsCount.one",
       "toolLabels.shell",
-      "workflowChildUntitled"
+      "workflowChildUntitled",
+      "gitChangeCounts"
     ],
-    "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
+    "tr": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "usagePlan",
+      "gitChangeCounts"
+    ],
     "pl": [
       "groupModel",
       "usageModel",
@@ -67,7 +76,8 @@
       "exportSubagentNoRole",
       "agentsCount.one",
       "imageBuyPrompt",
-      "workflowChildUntitled"
+      "workflowChildUntitled",
+      "gitChangeCounts"
     ],
     "de": [
       "groupSkills",
@@ -89,7 +99,13 @@
       "workflowChildUntitled",
       "workflowsLabel",
       "toolLabels.find_definition",
-      "toolLabels.mcp__ide__findDefinition"
+      "toolLabels.mcp__ide__findDefinition",
+      "gitCommitItem",
+      "gitPushBranchLine",
+      "gitCommitFormLabel",
+      "gitCommitTitle",
+      "gitChangeCounts",
+      "gitCommitAction"
     ],
     "es": [
       "usagePlan",
@@ -97,14 +113,17 @@
       "permissionModes.manual",
       "toolLabels.shell",
       "goalTokens",
-      "verifyErrors.one"
+      "verifyErrors.one",
+      "gitChangeCounts"
     ],
     "pt-br": [
       "agentTokens",
       "permissionModes.manual",
       "toolLabels.shell",
       "goalTokens",
-      "imageBuyPrompt"
+      "imageBuyPrompt",
+      "gitPushBranchLine",
+      "gitChangeCounts"
     ],
     "fr": [
       "modesTitle",
@@ -121,12 +140,22 @@
       "toolLabels.shell",
       "toolLabels.image_generation",
       "toolLabels.mcp__ide__generateImage",
-      "workflowChildUntitled"
+      "workflowChildUntitled",
+      "gitChangeCounts",
+      "gitPrBodyLabel"
     ],
-    "it": ["usageAccount", "exportOutputLabel", "toolLabels.shell", "imageBuyPrompt"],
+    "it": [
+      "usageAccount",
+      "exportOutputLabel",
+      "toolLabels.shell",
+      "imageBuyPrompt",
+      "gitChangeCounts"
+    ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt"]
+    "hu": ["toolLabels.shell", "imageBuyPrompt", "gitChangeCounts"],
+    "ko": ["gitChangeCounts"],
+    "ru": ["gitChangeCounts"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

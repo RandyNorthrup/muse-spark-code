@@ -19,6 +19,7 @@ import {
   GIT_STDERR_MAX_CHARS,
   GIT_TIMEOUT_MS,
   UI_TEXT,
+  UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
 } from '../shared/constants'
 
 const GIT = 'git'
@@ -28,6 +29,19 @@ const CONFIG_OPTION = '-c'
 const OPTION_MARK = '-'
 const FILTER_SEPARATOR = '\u{0}'
 const FILTER_KEY = /^filter\.([^=\p{Cc}]+)\.(?:clean|process|required)$/u
+const CHECKOUT_FILTER_KEY = /^filter\.(.+)\.(?:clean|smudge|process|required)$/iu
+const CHECKOUT_HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
+const SAFE_CHECKOUT_ARGS = [
+  '--no-replace-objects',
+  '-c',
+  'core.hooksPath=/dev/null',
+  '-c',
+  'core.fsmonitor=false',
+  '-c',
+  'maintenance.auto=false',
+  '-c',
+  'gc.auto=0',
+]
 const filterKeys = z
   .array(z.string().check(z.maxLength(GIT_FILTER_NAME_MAX_CHARS), z.regex(FILTER_KEY)))
   .check(z.maxLength(GIT_FILTER_NAMES_MAX))
@@ -105,12 +119,112 @@ export interface GitRunnerDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
+  /** Only a foreign PR's checkout before its separate trust confirmation. */
+  readonly isUntrustedCheckout?: boolean
   /** `execFile` as a promise of stdout; rejects on a failure, a timeout or a non-zero exit. */
   readonly execFile: (
     file: string,
     args: readonly string[],
     options: ExecFileOptions,
   ) => Promise<string>
+}
+
+type ExecFile = GitRunnerDeps['execFile']
+
+/** Git's configuration key parts come from a foreign repository: unusable ones refuse the checkout. */
+function checkoutRefusal(): Error {
+  // Configuration keys and exec errors may contain private details.
+  return new Error(UI_TEXT.openPullRequestFiltersUnavailable)
+}
+
+/** The per-command overrides that turn off hooks and filters need Git 2.36 or newer. */
+async function requireCheckoutSafeGit(
+  execFile: ExecFile,
+  git: string,
+  options: ExecFileOptions,
+): Promise<void> {
+  let output: string
+  try {
+    output = await execFile(git, ['--version'], options)
+  } catch {
+    throw checkoutRefusal()
+  }
+  const version = /^git version (\d+)\.(\d+)/u.exec(output)
+  const major = Number(version?.[1])
+  const minor = Number(version?.[2])
+  if (
+    !Number.isSafeInteger(major) ||
+    !Number.isSafeInteger(minor) ||
+    major < 2 ||
+    (major === 2 && minor < UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)
+  ) {
+    throw checkoutRefusal()
+  }
+}
+
+/**
+ * The options that keep a foreign pull request's checkout from running
+ * programs: no hooks, no fsmonitor, no replacement objects, no automatic
+ * maintenance, and every configured filter and named hook switched off.
+ * Only the configuration's names are read, never its values.
+ */
+async function checkoutOverrides(
+  execFile: ExecFile,
+  git: string,
+  options: ExecFileOptions,
+): Promise<readonly string[]> {
+  let names: readonly string[]
+  try {
+    const output = await execFile(
+      git,
+      [...SAFE_CHECKOUT_ARGS, 'config', '--null', '--name-only', '--list'],
+      options,
+    )
+    names = output.split('\0')
+  } catch {
+    throw checkoutRefusal()
+  }
+  const drivers = new Set(
+    names.flatMap((name) => {
+      const driver = CHECKOUT_FILTER_KEY.exec(name)?.[1]
+      return driver === undefined ? [] : [driver]
+    }),
+  )
+  // New Git can configure named hooks independently of core.hooksPath.
+  const hooks = new Set(
+    names.flatMap((name) => {
+      const hook = CHECKOUT_HOOK_KEY.exec(name)?.[1]
+      return hook === undefined ? [] : [hook]
+    }),
+  )
+  // -c splits at its first '='; such subsection names cannot be represented
+  // by these per-command overrides. Never guess an escape.
+  if (
+    [...drivers, ...hooks].some(
+      (name) => name.includes('=') || name.includes('\n') || name.includes('\r'),
+    )
+  ) {
+    throw checkoutRefusal()
+  }
+  return [
+    ...SAFE_CHECKOUT_ARGS,
+    ...[...drivers].flatMap((driver) => [
+      '-c',
+      `filter.${driver}.clean=`,
+      '-c',
+      `filter.${driver}.smudge=`,
+      '-c',
+      `filter.${driver}.process=`,
+      '-c',
+      `filter.${driver}.required=false`,
+    ]),
+    ...[...hooks].flatMap((hook) => [
+      '-c',
+      `hook.${hook}.enabled=false`,
+      '-c',
+      `hook.${hook}.event=`,
+    ]),
+  ]
 }
 
 /**
@@ -131,19 +245,35 @@ export function createGitRunner(
     GIT_TERMINAL_PROMPT: '0',
   }
   const gitPath = gitLocator(deps)
+  // The git whose version was accepted; a failed read is asked again next time.
+  let supportedGit: string | undefined
   return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, beforeRun) => {
     const git = gitPath()
     if (git === undefined) {
       throw new GitMissingError()
     }
-    beforeRun?.()
-    return await deps.execFile(git, args, {
+    const options: ExecFileOptions = {
       cwd,
       env,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       timeout: timeoutMs,
       windowsHide: true,
-    })
+    }
+    beforeRun?.()
+    let invocation = args
+    if (deps.isUntrustedCheckout === true) {
+      // The owner's last check runs outside each lookup's catch: a lost
+      // owner is reported as it is, never as a missing Git feature.
+      if (supportedGit !== git) {
+        await requireCheckoutSafeGit(deps.execFile, git, options)
+        supportedGit = git
+      }
+      beforeRun?.()
+      invocation = [...(await checkoutOverrides(deps.execFile, git, options)), ...args]
+    }
+    // Metadata discovery awaits; current trust/ownership checks directly precede process entry.
+    beforeRun?.()
+    return await deps.execFile(git, invocation, options)
   }
 }
 
@@ -153,7 +283,9 @@ const execFileAsync = promisify(execFile)
  * The runner over this process's own environment and Node's `execFile`: the
  * one the extension uses, and the one tests use to drive real git (M32).
  */
-export function processGitRunner(): (
+export function processGitRunner(
+  given: { readonly isUntrustedCheckout?: boolean; readonly env?: NodeJS.ProcessEnv } = {},
+): (
   args: readonly string[],
   cwd: string,
   timeoutMs?: number,
@@ -161,7 +293,8 @@ export function processGitRunner(): (
 ) => Promise<string> {
   return createGitRunner({
     platform: process.platform,
-    env: process.env,
+    env: given.env ?? process.env,
+    isUntrustedCheckout: given.isUntrustedCheckout === true,
     fileExists: existsSync,
     execFile: async (file, args, options) => {
       const { stdout } = await execFileAsync(file, [...args], { ...options, encoding: 'utf8' })

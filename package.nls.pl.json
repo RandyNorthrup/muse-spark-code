@@ -28,6 +28,7 @@
   "command.memory.title": "Pamięć",
   "command.newWorktree.title": "Nowe drzewo robocze…",
   "command.removeWorktree.title": "Usuń drzewo robocze…",
+  "command.openPullRequestInConversation.title": "Otwórz żądanie ściągnięcia w rozmowie…",
   "command.moveToBackground.title": "Przenieś uruchomione polecenie w tło",
   "command.stopBackgroundTasks.title": "Zatrzymaj zadania w tle",
   "config.title": "Muse Spark",

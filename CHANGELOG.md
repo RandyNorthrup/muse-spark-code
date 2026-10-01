@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Git and pull requests from the panel (M71): editable commit and PR drafts
+  written by the user's Muse turn, explicit commit/push consent, GitHub PR
+  creation and conversation-linked checks. Push never uses force. A foreign
+  PR opens in its own held worktree, with project configuration and shell
+  access off until the extension's trust card is confirmed. Native checkout
+  disables external filters and hooks; physical-owner and lifetime guards
+  refuse stale operations. Commit, push, PR fetch and checkout use checkpoint
+  process admission.
+
 ### Fixed
 
 - The Node bundles share their English fallback as `dist/uiText.js`, while
@@ -14,6 +25,11 @@ happened, not what was planned; superseded entries are kept.
   tarball include it, and CI checks both package member lists. Existing
   bundle caps remain unchanged; runtime smoke checks cover the extension,
   Model API bundle and the agent installed from its tarball.
+
+- Push rechecks trust and repository ownership before its first Git API call
+  after checkpoint admission.
+- The conversation controller keeps its Git adapter contract portable;
+  its type imports no longer reach the VS Code adapter.
 
 ## [0.10.0] - 2026-09-30
 

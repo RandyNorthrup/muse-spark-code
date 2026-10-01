@@ -868,3 +868,35 @@ describe('executeTool: search limits (D27)', () => {
     )
   })
 })
+
+// M71: a conversation in a worktree runs with the worktree as its root, so
+// its file tools cannot reach the main checkout beside it, by a relative or
+// an absolute path.
+describe('a conversation in a worktree (M71)', () => {
+  const MAIN = '/repos/app'
+  const WORKTREE = '/repos/app.worktrees/feature'
+
+  it('cannot read, write or edit the main checkout', async () => {
+    const io = memoryToolIo({ 'src/a.ts': 'worktree\n' }, WORKTREE)
+    io.files.set(`${MAIN}/src/a.ts`, 'main\n')
+    const ctx: ToolContext = { workspaceRoot: WORKTREE, platform: 'linux', io, seen: new Map() }
+    const run = (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx)
+    for (const target of ['../../app/src/a.ts', `${MAIN}/src/a.ts`]) {
+      expect(await run('read_file', { path: target })).toMatchObject({
+        failureReason: `path ${target} is outside the workspace`,
+      })
+      expect(await run('write_file', { path: target, content: 'x\n' })).toMatchObject({
+        failureReason: `path ${target} is outside the workspace`,
+      })
+      expect(await run('edit_file', { path: target, find: 'main', replace: 'x' })).toMatchObject({
+        failureReason: `path ${target} is outside the workspace`,
+      })
+    }
+    expect(io.files.get(`${MAIN}/src/a.ts`)).toBe('main\n')
+    // Its own files are its to change.
+    await run('read_file', { path: 'src/a.ts' })
+    const written = await run('write_file', { path: 'src/a.ts', content: 'changed\n' })
+    expect(written.failureReason).toBeUndefined()
+    expect(io.files.get(`${WORKTREE}/src/a.ts`)).toBe('changed\n')
+  })
+})

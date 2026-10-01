@@ -1525,6 +1525,137 @@ body {
   min-height: 24px;
 }
 
+/* --- git and pull requests (M71): the held card, the PR strip, the forms --- */
+
+.git-panel {
+  display: grid;
+  gap: 4px;
+  margin: 0 var(--ms-gap) 4px;
+  max-height: 50vh;
+  overflow-y: auto;
+  font-size: 0.9em;
+}
+
+.git-hold,
+.git-pr,
+.git-form {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px var(--ms-gap);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-editorWidget-background);
+}
+
+/* Someone else's code: the card carries the warning colour on its edge. */
+.git-hold {
+  border-left: 3px solid var(--vscode-editorWarning-foreground, var(--vscode-focusBorder));
+}
+
+.git-row,
+.git-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.git-actions-end {
+  margin-left: auto;
+}
+
+.git-muted {
+  color: var(--vscode-descriptionForeground);
+}
+
+.git-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.git-worktree {
+  padding: 0 2px;
+  overflow-wrap: anywhere;
+}
+
+.git-pr-title {
+  padding: 0;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.git-pr-state {
+  font-weight: 600;
+}
+
+.git-field {
+  display: grid;
+  gap: 2px;
+}
+
+.git-field input,
+.git-textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.git-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.git-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 8px;
+  margin: 0;
+}
+
+.git-facts dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.git-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.git-files summary {
+  cursor: pointer;
+}
+
+.git-file-list {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.git-file-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+/* Each control is a 24 px target (WCAG 2.5.8). */
+.git-actions .tool-more,
+.git-check input {
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.git-files summary:focus-visible,
+.git-check input:focus-visible,
+.git-pr-title:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
 /* --- context indicator --- */
 
 .context-label {
@@ -1681,6 +1812,12 @@ body {
 .code-block-button:hover,
 .tool-more:hover {
   color: var(--vscode-foreground);
+}
+
+/* A git form button that cannot act yet (M71). */
+.git-actions .tool-more:disabled {
+  color: var(--vscode-disabledForeground);
+  cursor: default;
 }
 
 /* --- editor integration (M5) --- */

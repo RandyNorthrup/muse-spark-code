@@ -28,6 +28,7 @@
   "command.memory.title": "Paměť",
   "command.newWorktree.title": "Nový pracovní strom…",
   "command.removeWorktree.title": "Odebrat pracovní strom…",
+  "command.openPullRequestInConversation.title": "Otevřít žádost o přijetí změn v konverzaci…",
   "command.moveToBackground.title": "Přesunout běžící příkaz na pozadí",
   "command.stopBackgroundTasks.title": "Zastavit úlohy na pozadí",
   "config.title": "Muse Spark",

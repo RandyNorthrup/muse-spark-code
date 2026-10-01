@@ -101,6 +101,7 @@ import {
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
+import type { GitAction, GitDraftKind } from '../../shared/git'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
@@ -120,6 +121,41 @@ import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { ReviewNotice } from '../editor/editReview'
 import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
+
+/** The controller's Git adapter contract, portable to hosts without VS Code. */
+export interface ConversationGitPort {
+  postState(isSurfaceReady?: boolean): void
+  sessionChanged(sessionId: string | undefined): void
+  handleAction(action: GitAction): Promise<void>
+  commit(message: string, isUnstagedIncluded: boolean): Promise<void>
+  createPullRequest(request: NewPullRequestRequest): Promise<void>
+  promptFor(kind: GitDraftKind, base?: string): Promise<string>
+  generationStarting(kind: GitDraftKind): number
+  isGenerationCurrent(id: number): boolean
+  generationSubmitted(turnId: string, id?: number): void
+  generationFailed(id?: number): void
+  onEvent(event: AgentEvent): void
+  dispose(): void
+}
+
+/** The controller's side of the injected Git adapter. */
+export interface GitSurface {
+  post(message: HostToWebviewMessage): void
+  /** Fixed words only: the notice can also reach the log. */
+  notice(level: 'info' | 'warning' | 'error', text: string): void
+  /** Dynamic program details stay in the panel. */
+  say(level: 'warning' | 'error', text: string): void
+  sessionId(): string | undefined
+}
+
+/** The pull request form as the user pressed Create on it. */
+export interface NewPullRequestRequest {
+  readonly head: string
+  readonly base: string
+  readonly title: string
+  readonly body: string
+  readonly isDraft: boolean
+}
 import {
   ConversationCheckpoints,
   type NoticeLevel,
@@ -322,6 +358,14 @@ export interface ConversationDeps {
   readonly setPaidFeature: (feature: PaidFeature, isOn: boolean) => Promise<void>
   /** VS Code workspace trust (PLAN.md D13): Restricted Mode runs no `!` command (M46). */
   readonly isWorkspaceTrusted: () => boolean
+  /**
+   * The window is held on someone else's pull request (M71): the
+   * conversation stays in Plan mode and runs no `!` command until the user
+   * trusts the worktree in the extension's card.
+   */
+  readonly isWorktreeHeld: () => boolean
+  /** Git and pull requests for this conversation (M71), given the controller's side. */
+  readonly createGit: (surface: GitSurface) => ConversationGitPort
   /**
    * A command that Ctrl+B can move to the background started or stopped
    * running here (M46): the keybinding's context key follows.
@@ -770,6 +814,8 @@ export class ConversationController {
   /** A shell's row can start before its approval is granted (Model API). */
   private readonly pendingShellApprovals = new Set<string>()
   private readonly pausedForegroundShells = new Set<string>()
+  /** Commit, push, pull requests and their generated drafts (M71). */
+  private readonly git: ConversationGitPort
   /**
    * The turns this panel started in Plan mode that finished with the panel
    * in Plan mode throughout (M79): only their replies are plans. A restart
@@ -794,7 +840,9 @@ export class ConversationController {
     if (restoredSideId !== undefined) {
       this.sideSessionIds.add(restoredSideId)
     }
-    this.permissionMode = this.isSideChat ? 'plan' : deps.initialPermissionMode
+    // A side chat, and a window held on someone else's pull request (M71), start in Plan.
+    this.permissionMode =
+      this.isSideChat || deps.isWorktreeHeld() ? 'plan' : deps.initialPermissionMode
     if (this.permissionMode === BYPASS_MODE && !deps.isBypassAllowed()) {
       // The initial-mode setting alone cannot switch approvals off; the
       // explicit allow setting must be on too, as in Claude Code.
@@ -824,6 +872,24 @@ export class ConversationController {
       confirm: deps.confirmFileAction,
       unsavedPaths: deps.unsavedPaths,
       log: deps.log,
+    })
+    this.git = deps.createGit({
+      post: (message) => {
+        if (!this.isDisposed) {
+          this.post(message)
+        }
+      },
+      notice: (level, text) => {
+        if (!this.isDisposed) {
+          this.notice(level, text)
+        }
+      },
+      say: (level, text) => {
+        if (!this.isDisposed) {
+          this.say(level, text)
+        }
+      },
+      sessionId: () => this.session?.sessionId,
     })
   }
 
@@ -1042,6 +1108,8 @@ export class ConversationController {
     this.endTurnClock(event)
     this.checkpoints.turnCompleted(turnId)
     this.forward(event)
+    // A draft asked for in this turn (M71) will not come: its form's button comes back.
+    this.git.onEvent(event)
   }
 
   /** A turn's end in the log, and its clock gone (M39). */
@@ -1219,6 +1287,7 @@ export class ConversationController {
     }
     this.forward(event)
     this.track(event)
+    this.git.onEvent(event)
   }
 
   /** The controller's own bookkeeping for an event the webview was sent. */
@@ -1647,6 +1716,10 @@ export class ConversationController {
       this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.userShellRestricted })
       return
     }
+    if (this.deps.isWorktreeHeld()) {
+      this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.worktreeHeldShell })
+      return
+    }
     if (!this.isAuthAdmitted()) {
       this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.notSignedInReason })
       return
@@ -2054,6 +2127,7 @@ export class ConversationController {
     })
     this.postSessionInfo(this.modelId)
     this.noteActivity()
+    this.git.sessionChanged(session.sessionId)
     await this.applyEffort(session)
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
@@ -2991,10 +3065,13 @@ export class ConversationController {
 
   /**
    * The mode an approved brief starts in: the configured starting mode,
-   * never Plan, and Bypass only where a conversation could start in it and
+   * Plan only while a PR worktree is held, and Bypass only where a conversation could start in it and
    * never in a remote window (D24); otherwise Manual.
    */
   private briefMode(): PermissionMode {
+    if (this.deps.isWorktreeHeld()) {
+      return PLAN_MODE
+    }
     const mode = this.deps.initialPermissionMode
     const isBypassRefused =
       mode === BYPASS_MODE && (!this.deps.isBypassAllowed() || this.deps.isRemoteWindow)
@@ -3006,7 +3083,9 @@ export class ConversationController {
    * asks, Manual, or Plan when that is the starting mode.
    */
   private untrustedBriefMode(): PermissionMode {
-    return this.deps.initialPermissionMode === PLAN_MODE ? PLAN_MODE : FALLBACK_MODE
+    return this.deps.isWorktreeHeld() || this.deps.initialPermissionMode === PLAN_MODE
+      ? PLAN_MODE
+      : FALLBACK_MODE
   }
 
   /**
@@ -3451,11 +3530,15 @@ export class ConversationController {
     isEditorContextIncluded: boolean,
     reference: ChatReference | undefined,
     brief?: BriefExtras,
+    gitDraft?: GitDraftKind,
+    gitDraftBase?: string,
   ): Promise<SendOutcome> {
     const isComposerMessage = brief === undefined
     let seededSession: AgentSession | undefined
     // The capture this message's turn takes (M72), dropped if it is not sent.
     let checkpoint: PendingCapture | undefined
+    const gitGeneration = gitDraft === undefined ? undefined : this.git.generationStarting(gitDraft)
+    let isGitSubmitted = false
     try {
       const sendEpoch = this.sendInvalidationEpoch
       const session = await this.sessionForAction(localId, isComposerMessage)
@@ -3464,12 +3547,15 @@ export class ConversationController {
       }
       let expectedGeneration = this.attachmentGeneration
       let submittedSession = session
-      const requireCurrent = (current: AgentSession): void => {
+      const requireCurrent = (current: AgentSession, shouldCheckGitDraft = true): void => {
         if (
           this.isDisposed ||
           this.sendInvalidationEpoch !== sendEpoch ||
           this.session !== current ||
-          this.attachmentGeneration !== expectedGeneration
+          this.attachmentGeneration !== expectedGeneration ||
+          (shouldCheckGitDraft &&
+            gitGeneration !== undefined &&
+            !this.git.isGenerationCurrent(gitGeneration))
         ) {
           throw new Error(UI_TEXT.turnStoppedByRestart)
         }
@@ -3491,6 +3577,13 @@ export class ConversationController {
       // before the editor context, like the ide_selection part of M5.
       const referenced: readonly TurnPart[] =
         reference === undefined ? [] : [{ type: 'text', text: chatReferenceText(reference) }]
+      // What the model needs to draft a commit message or a pull request
+      // (M71), beside the user's own message asking for it.
+      const drafting: readonly TurnPart[] =
+        gitDraft === undefined
+          ? []
+          : [{ type: 'text', text: await this.git.promptFor(gitDraft, gitDraftBase) }]
+      requireCurrent(session)
       const context = await this.contextPart(
         isEditorContextIncluded ? this.deps.editorContext() : undefined,
       )
@@ -3523,6 +3616,7 @@ export class ConversationController {
         ...typed,
         ...briefNote,
         ...referenced,
+        ...drafting,
         ...(context === undefined ? [] : [context]),
         ...note,
       ]
@@ -3572,7 +3666,10 @@ export class ConversationController {
             this.attachmentGeneration === expectedGeneration,
         )
       })
-      requireCurrent(submittedSession)
+      // A Git form may close while the submitted model call finishes. Its
+      // chat acknowledgement still belongs here; the generation id below
+      // prevents it from filling a later form.
+      requireCurrent(submittedSession, false)
       // The images go only once the host has the message (D26).
       this.attachments.release(attachmentIds)
       if (this.isDisposed) {
@@ -3585,6 +3682,9 @@ export class ConversationController {
         submission.disposition !== QUEUED_DISPOSITION &&
           submission.disposition !== STEERED_DISPOSITION,
       )
+      if (gitGeneration !== undefined) {
+        this.git.generationSubmitted(turnId, gitGeneration)
+      }
       this.acceptedUserCards.set(localId, { turnId, text: shownText })
       if (submission.userMessageId !== undefined) {
         this.acceptedUserCards.set(submission.userMessageId, { turnId, text: shownText })
@@ -3618,6 +3718,7 @@ export class ConversationController {
         }),
       })
       this.noteActivity()
+      isGitSubmitted = true
       return { isAccepted: true, hasSetTodos: seededSession !== undefined }
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
@@ -3633,6 +3734,10 @@ export class ConversationController {
       // them back for another try. A brief's go with its card.
       this.post({ type: 'sendFailed', localId, reason, attachmentsKept: isComposerMessage })
       return { isAccepted: false, hasSetTodos: false }
+    } finally {
+      if (gitGeneration !== undefined && !isGitSubmitted) {
+        this.git.generationFailed(gitGeneration)
+      }
     }
   }
 
@@ -3971,6 +4076,11 @@ export class ConversationController {
       this.postComposerState()
       return
     }
+    if (mode !== 'plan' && this.deps.isWorktreeHeld()) {
+      this.notice('info', UI_TEXT.worktreeHeldPlanOnly)
+      this.postComposerState()
+      return
+    }
     if (mode === BYPASS_MODE && !(await this.mayBypass())) {
       this.postComposerState()
       return
@@ -4032,6 +4142,7 @@ export class ConversationController {
     // New Conversation (it spends the echo) or a keybinding (M25, D28).
     this.post({ type: 'conversationCleared' })
     this.attachments.clear()
+    this.git.sessionChanged(undefined)
     this.setTitle(undefined)
     // No session any more: the webview forgets the id it keeps for the
     // reload serializer (D15).
@@ -4681,6 +4792,9 @@ export class ConversationController {
           message.attachmentIds,
           message.includeEditorContext === true,
           message.reference,
+          undefined,
+          message.gitDraft,
+          message.gitDraftBase,
         )
         break
       }
@@ -4967,6 +5081,18 @@ export class ConversationController {
         await this.deps.forgetPaidUse()
         break
       }
+      case 'gitAction': {
+        await this.git.handleAction(message.action)
+        break
+      }
+      case 'gitCommit': {
+        await this.git.commit(message.message, message.includeUnstaged)
+        break
+      }
+      case 'gitCreatePullRequest': {
+        await this.git.createPullRequest(message)
+        break
+      }
     }
   }
 
@@ -5023,6 +5149,7 @@ export class ConversationController {
     for (const attachment of this.attachments.list()) {
       this.post({ type: 'attachmentAdded', attachment })
     }
+    this.git.postState(true)
     void this.warmModels()
     this.postStartupNotice()
   }
@@ -5175,6 +5302,7 @@ export class ConversationController {
         this.attachments.clear()
         this.post({ type: 'conversationCleared', accountBoundary: true })
         this.post({ type: 'attachmentsCleared' })
+        this.git.sessionChanged(undefined)
       }
       this.sessionRecords = new Map()
       this.postSessionList()
@@ -5247,5 +5375,15 @@ export class ConversationController {
     this.retiredDictation?.dispose()
     this.retiredDictation = undefined
     this.checkpoints.dispose()
+    this.git.dispose()
+  }
+
+  /**
+   * The user trusted the held worktree in the card (M71): the card goes, and
+   * the conversation, still in Plan, may leave it now.
+   */
+  public worktreeHoldReleased(): void {
+    this.git.postState()
+    this.postComposerState()
   }
 }

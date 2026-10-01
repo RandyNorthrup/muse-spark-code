@@ -28,6 +28,7 @@
   "command.memory.title": "Memória",
   "command.newWorktree.title": "Nova Árvore de Trabalho…",
   "command.removeWorktree.title": "Remover Árvore de Trabalho…",
+  "command.openPullRequestInConversation.title": "Abrir uma Solicitação de Pull em uma Conversa…",
   "command.moveToBackground.title": "Mover Comando em Execução para Segundo Plano",
   "command.stopBackgroundTasks.title": "Parar Tarefas em Segundo Plano",
   "config.title": "Muse Spark",

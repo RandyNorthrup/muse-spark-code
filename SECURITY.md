@@ -65,6 +65,27 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   `.vscode/settings.json` cannot point the extension at its own executable. In a remote window a dev container
   definition can write machine settings, so there Bypass permissions is
   never the starting mode and needs an explicit confirmation.
+- **Git and pull requests (M71).** Commit and push go through VS Code's
+  built-in Git extension, never in Restricted Mode. A push always asks,
+  naming the remote (credentials in its address masked), the branch and the
+  commit count, and never forces: the extension passes the Git extension no
+  force mode, refuses a branch behind its upstream, and refuses a branch,
+  upstream or remote whose name git would read as an option or a force
+  (`+`, `-`, `:`, whitespace). Pull requests go to `api.github.com` only,
+  with VS Code's GitHub sign-in token read per call; every GitHub reply is
+  validated against a captured shape. Credential-shaped strings in a commit
+  message or pull request are masked and returned to the form before
+  anything is sent.
+- **Someone else's pull request.** "Open a pull request in a conversation"
+  checks a pull request by another author out under the extension's own
+  storage. A window whose folder is anywhere under that storage is held,
+  decided by location and not by VS Code's trust (which may already cover
+  the folder through a trusted parent, or be switched off): the
+  conversation stays in Plan mode, runs no `!` command, and the project's
+  rules, skills, hooks and MCP servers stay off (Muse Code without
+  `--trust-workspace`, the Model API backend without them), until the user
+  confirms trust for that worktree in the extension's card. Other
+  extensions follow VS Code's own trust, which the card says.
 - **Programs the extension starts.** git, PowerShell, bash and the Muse
   Code CLI are found by absolute path only: an empty or relative `PATH`
   entry (which means the working directory, the workspace) is never

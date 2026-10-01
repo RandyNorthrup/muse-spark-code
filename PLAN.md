@@ -7731,6 +7731,213 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M71 — Git and pull requests (D49)
 
+**Resumed lane review, 2026-09-30 (in progress).** The shared English table
+is isolated in build commit `28cd4876`; M71 source will follow separately.
+The named PR32 handoff was read and its eleven M72 findings were checked
+against the current candidate. Preserve its memory, final shell admission,
+no-launch provenance, canonical-root and native long-path repairs. The
+installed feature-delivery package was found through its junction target;
+stack inventory succeeded. Its separate structured ledger remains deferred
+under the existing no-extra-design-layer decision. One additional M71 seam
+needs correction before closure: PR fetch and worktree checkout start
+workspace-capable Git processes without the existing checkpoint admission.
+Pass that admission through the current checkout dependencies, check the
+captured trust/physical owner after its wait and before each writer entry,
+and prove admission loss starts neither fetch nor checkout. No new layer,
+dependency, bundle or loader is needed. Complete owning tests with the
+worktree's genuine short TEMP alias, restore-hash drills, current-candidate
+merge and all serial checks from `common.md`. Full quality, four-platform
+and publication gates belong to the lead.
+The repaired source passed five typechecks and all 824 owning cases in 29
+files with zero skips. Eight semantic source mutants failed for their
+intended reasons and restored green with exact source hashes. The current
+record is `docs/certification/m71.md`; final candidate join and serial
+static/build checks follow the M71 source commit.
+
+The host-API gate also found the recovered controller's type import reaches
+`vscode` through the Git adapter. Keep the controller portable: declare its
+existing Git surface and required method contract in the controller itself,
+then have the adapter implement that injected contract. Do not weaken the
+host-API gate or introduce another module. Existing controller/Git behavior
+tests and the normal host-API check must pass after this boundary repair.
+
+**Release-candidate lane, 2026-09-30 (verification in progress).** Continue
+the partial port on `feature/m71-git-prs`, based on `1fd98aaf`; preserve the
+prepared `754082e651` behavior and recorded owner decisions. Five typechecks
+and 811 owning tests passed on the recovered source; one existing genuine
+short-TEMP case requires an actual 8.3 TEMP alias before closure. The first
+production build failed: activation 648.4/600 KiB, Model API 409.3/400 KiB.
+M71's translated English fallback table is duplicated in each host bundle.
+Share that existing table as `dist/uiText.js` across the Node bundles,
+including the ACP package, using the build's existing manual splitting
+approach. Keep each bundle's mutable installed-language state separate and
+leave the browser's fallback bundled. Add a 100 KiB table budget and split
+checks; every existing cap stays unchanged. Recheck trust/owner/lifetime
+before push's first Git API entry after checkpoint admission. Prove both
+guards with semantic reds and exact byte restoration, merge the current
+release candidate, then run the brief's serial owning checks. The lane's
+explicit `common.md` forbids full quality, network/live calls and push;
+the lead owns complete quality, platform review and publication. The named
+`muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is absent; its external
+finding list cannot yet be reconciled. The installed feature-delivery skill
+contains only SKILL.md, so its supplemental inventory/validator resources
+are unavailable; no structured-validator pass is claimed.
+
+**Short-name compatibility review, 2026-09-30 (bounded proof complete).** Keep
+the existing async `canonicalPath` for owner capture: actual Host evidence
+shows it expands the genuine 8.3 alias just as `memoryIo.systemPath` does.
+JavaScript sync realpath retains the short spelling on Node 24.20.0; use it
+only to prove the fixture is genuine. The temporary native-port change is
+reverted because the original async resolver is not confirmed defective.
+Retain
+the directory/nonzero identity checks, both lexical/canonical stat fences,
+sticky loss and original own-PR location semantics. The existing filesystem
+fixture will exercise an actual short-TEMP alias against the API's long root
+when available; the allocated Windows runner must prove that case executes.
+Lean `5e4956f2` passed five types, 135 affected Git cases in 12 files, owned
+lint, whole-repository duplication and 14 localization tables. Real short-root
+and own-alias positives ran; omitted-owner, sticky-loss, lexical-location and
+raw-versus-canonical root comparison mutants each showed green → red → restored
+green with exact hashes restored. Fixture setup failures are retained, not
+counted as semantic reds. No fake alias rewriting or NTFS setting changes;
+independent final review, latest-main join and root's complete gates remain open.
+
+**Alias destination compatibility, 2026-09-30 (bounded proof complete).**
+Keep the selected lexical workspace root for an own-PR sibling folder's name
+and its stored `repositoryRoot`. Carry the captured canonical cwd separately
+for native Git execution and the existing physical-owner fences. No guard
+requires renaming the destination. A real unchanged-alias own-PR fixture must
+assert its lexical folder/record and canonical Git cwd before the next gates.
+Prior `5466687d` bounded proof remains valid only for its frozen source. The
+own-alias positive passed within Host `81df`'s 1,147 owning cases; its one
+test-arrow lint finding is repaired and lean `5e4956f2` subsequently passed
+the affected suites and static gates. That remains bounded evidence.
+
+**Confirmed physical-owner repair, 2026-09-30 (bounded proof complete).** A
+native junction witness retargeted the selected root during PR consent while
+HEAD, remotes and the cached Git API root stayed identical. Three subsequent
+Git calls reached the foreign repository, wrote its `FETCH_HEAD` and opened
+a worktree from it. Preserve that failing evidence. Bind the selected physical
+directory before repository lookup, validate the cached API root against it,
+and synchronously check both lexical and canonical directory identities before
+each API/native entry and after awaits. Observed ownership loss is permanent
+for that operation. Native calls use the captured canonical cwd. Reuse
+`canonicalPath`, bigint directory identity and the existing dependency ports;
+production always captures real identity, while virtual fixtures explicitly
+inject test-only owners. Real unchanged-link success, held-link refusal,
+commit/push consent and sticky-loss regressions passed. Exact source
+`5466687dacdd1959da9e07774fb6b54e7f198373` passed five typechecks,
+1,145 focused tests in 28 files, owned lint, whole-repository duplication and
+all 14 localization tables on the Windows fixture. Two physical-owner
+production mutants showed green → red → restored green with canonical hashes
+unchanged. The preceding 14 semantic receipts remain preserved. Independent
+current-source review, root's full quality and installed/platform gates are
+still required; these bounded results are not final certification.
+
+**Main integration, 2026-09-30:** exact `24ff09bc` to main
+`327094412dac315b1f8dcf971b014c6c69b27104` content joins the preserved
+M71 source through a three-way delta. Host, controller, ToolIO and Plan
+capture seams retain current M68 behavior; the Plan recorder stays bound to
+the original session before confirmation and reports only actual creation.
+M71 retains its generation/edited-base/trust/activation/native Git guards.
+Docs, translations, constants and harness scenarios keep both milestones.
+Early old-main evidence is preliminary: c316 has five types, 768 tests in
+23 files and 14 localization tables green, with two combined-guard lint
+findings repaired. Fresh current-main gates and semantic reds are required.
+
+**Independent current-source repairs, 2026-09-30 (verification queued).**
+M32 worktree actions recheck current project trust and their owning window
+after pickers and confirmations, and immediately before native Git entry.
+Untrusted PR checkout uses a scoped lane of the existing bounded Git runner:
+Git 2.36 or newer, names-only filter configuration discovery, empty external
+clean/smudge/process commands, non-required passthrough, and disabled hooks,
+fsmonitor, replacement objects, automatic maintenance and GC. Ordinary
+commit/push Git keeps its existing consent and configuration behavior.
+The confirmation explains that LFS pointers and other stored filter input
+stay unfiltered until explicitly trusted; normal built-in Git newline,
+ident and encoding conversions still apply. Primary Git gitattributes and
+convert.c confirm empty commands execute no filter. Real native positive
+and negative canaries remain required; no proof is inferred from source.
+Program subsection names containing equals/newlines cannot be represented
+by these `-c key=value` overrides and explicitly refuse before checkout.
+Native filter canaries and metadata tests cover that configuration boundary.
+WorktreeRegistry persistence reads validated raw records, separately from
+its existing-folder display view, and serializes local writes so a pending
+PR record cannot be erased by a concurrent M32 put. Cleanup removes only
+the explicitly owned record. Native held-trust and actual-state persistence
+regressions are drafted before the allocated gates and external red drills.
+
+**Status 2026-09-29: resumed** from unverified WIP `cfa2bc68` on
+`feature/m71-git-prs`; the older gate on `3af80e40` does not certify this
+tree. Current integration is isolated on `integrate/m71-resume-20260929`
+and normally joins approved main `24ff09bc`, preserving the original WIP.
+Its shared send path must retain M79's brief/todo rollback while admitting
+only the current M71 draft generation. Fresh focused/negative proofs and
+independent review precede root's complete exact-tree gates; all earlier
+evidence remains historical. Complete the existing three-class review before integration: bind
+commit and PR forms to their repository/branch/diffs, recheck trust and
+conversation lifetime after awaits, stop later steps when Cancel closes a
+form, name Git hooks/signers/credential helpers in consent, and require the
+fetched PR head to match GitHub before creating its worktree. Keep the
+existing API adapters, forms, GitHub captures and local Git fixtures;
+no new dependency or design layer. Focused tests and disposable red drills
+go in `docs/certification/m71.md`; latest-main integration, independent
+review and full local/hosted gates remain required. Decisions taken in the build:
+
+- **Where it lives.** `src/core/git/` (the push plan, the GitHub REST
+  client, remote parsing, the draft prompts), `src/core/worktreeConversations.ts`
+  (the worktree records and the hold, the piece M77 reuses),
+  `src/host/git/` (VS Code's Git extension API, its GitHub sign-in, the
+  pull request checkout, one `ConversationGit` per conversation) and
+  `GitPanel.tsx` above the composer.
+- **Push.** Three arguments to the Git extension's `push` (remote,
+  refspec, set-upstream); its fourth, force parameter is not in the typed
+  subset. Refused before anything asks: a detached HEAD, a branch behind its
+  upstream, and a branch, upstream or remote name starting with `+` or
+  `-` or holding `:` or whitespace. A first push goes to the only remote,
+  `origin`, or one the user picks, with `-u`.
+- **Commit.** `commit(message, { all?, postCommitCommand: null })`, so
+  `git.postCommitCommand` never pushes or syncs on its own.
+- **Drafts.** "Write with Muse" sends the user's own message (a
+  localized sentence the transcript shows) with one extra text part: the
+  instructions (`MODEL_TEXT`), a line saying what follows is data, and the
+  diff or the commit subjects in a fence longer than any run of backticks
+  in them, cut at 60,000 characters with a line saying so. The reply to
+  that turn fills the form; a turn that fails, is cancelled or is ended by a
+  restart gives the button back. It is the user's own turn (D49), so no
+  paid-use popup.
+- **Pull requests.** `POST /repos/{owner}/{repo}/pulls`, draft by default
+  in the form. From a fork (the repository's `parent`, captured) it opens
+  on the parent with `owner:branch` as the head. An open pull request for
+  the branch is linked instead of a second one. Title and description over
+  GitHub's limits, or holding a credential shape (`redactSecrets`, which
+  M71 extends with GitHub tokens, PEM private keys, AWS key ids and Slack
+  tokens), go back to the form masked. VS Code's GitHub sign-in with the
+  `repo` scope, read per call.
+- **Status.** The link (session id to number, address, title) in
+  workspace state, the newest 200 kept; state and checks read from GitHub
+  when the conversation shows and on Refresh, one page of 100 check runs
+  plus the commit statuses, counted into passed, failed (named), running,
+  skipped, cancelled, and anything else as it came (D36).
+- **A conversation in a worktree.** The new window's first folder is the
+  worktree, so both backends already run there (M32); the extension records
+  each worktree it makes in global state (`museSpark.worktreeConversations`)
+  and the panel names its branch or pull request.
+- **Someone else's pull request.** Fetched as `pull/<n>/head` through the
+  Git extension, checked that GitHub's head commit arrived, and added
+  detached under `<globalStorage>/pr-worktrees/<n>-<repo digest>`, recorded
+  before the folder exists. A window whose folder, as given or resolved
+  through links, is under that root is held at activation, by location
+  alone; only a record whose trust the user confirmed in the card
+  (`trustConfirmedAt`) lets it go. Held means: Plan mode (the Modes menu
+  and Shift+Tab refused), no `!` commands, and every place that loads the
+  project's configuration reads "untrusted" (Muse Code starts with
+  `--disable-shell` in place of `--trust-workspace`; the Model API backend
+  loads no rules, skills, hooks, MCP servers or memory and offers no shell
+  tool; `muse skills` and `muse init` are not run). Trusting restarts the
+  backends so the next message loads them. The user's own pull request
+  goes beside the repository as `pr-<n>`, not held.
+
 - **Goal.** From finished work to an open PR without leaving the panel.
 - **Scope.**
   - A generated commit message for the conversation's changes.
@@ -9406,24 +9613,25 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 | ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised. | 2026-09-30 |
 
-| File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
-| ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn` (`detect-child-process`)                    | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                                                                                                                                                                                                                                                                                                                                                                                    | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`       | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`        | `nosemgrep` on two `spawn` calls (`detect-child-process`)          | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
-| `native/darwin/Dictation.swift`          | `unsafeBitCast(symbol, to: SetDisclaim.self)`                      | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`           | `catch { }` in the join statement each Windows command starts with | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
-| `test/unit/App.test.tsx`                 | `as unknown as Selection` (four stubs)                             | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
-| `scripts/capture-themes.mjs`             | `nosemgrep` on `spawn` (`detect-child-process`)                    | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
-| `scripts/sast.mjs`                       | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)      | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
-| `src/host/backend/mcpProcess.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                    | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
-| `src/host/backend/mcpJobLaunch.ts`       | `nosemgrep` on `spawn` (`detect-child-process`)                    | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
-| `test/unit/helpers/fakeMcpOrphan.mjs`    | `nosemgrep` on `spawn` (`detect-child-process`)                    | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
-| `src/host/backend/modelApiBundle.ts`     | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)   | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
-| `src/host/codeIntel/languageServices.ts` | `Reflect.get(edit, '_allEntries')`, an undocumented member         | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
-| `src/runtime/main.ts`                    | `nosemgrep` on `spawn` (`detect-child-process`)                    | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
-| -------------------------------------    | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/verifyEditor.test.ts`         | `as unknown as` on five `vscode` stubs                             | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| File                                     | Construct                                                                                               | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                                                                                                                                                                                                                                                                                                                                                                                    | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`       | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)                                      | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`        | `nosemgrep` on two `spawn` calls (`detect-child-process`)                                               | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
+| `native/darwin/Dictation.swift`          | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                                           | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
+| `src/host/backend/shellJob.ts`           | `catch { }` in the join statement each Windows command starts with                                      | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `test/unit/App.test.tsx`                 | `as unknown as Selection` (four stubs)                                                                  | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
+| `scripts/capture-themes.mjs`             | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
+| `scripts/sast.mjs`                       | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                                           | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
+| `src/host/backend/mcpProcess.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
+| `src/host/backend/mcpJobLaunch.ts`       | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
+| `test/unit/helpers/fakeMcpOrphan.mjs`    | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
+| `src/host/backend/modelApiBundle.ts`     | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)                                        | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
+| `src/host/codeIntel/languageServices.ts` | `Reflect.get(edit, '_allEntries')`, an undocumented member                                              | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
+| `src/runtime/main.ts`                    | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
+| -------------------------------------    | ------------------------------------------------------------------                                      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/verifyEditor.test.ts`         | `as unknown as` on five `vscode` stubs                                                                  | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| `src/host/git/gitExtension.ts`           | `value is GitRepository` and two more type predicates (`isGitExtension`, `isGitApi`, `isGitRepository`) | VS Code's Git extension exports are `unknown` to this extension; the guards check that each member it calls is there (functions, the change lists as arrays), not the members' parameter and result types, which no run-time check can see. It is VS Code's own API (`git.d.ts` version 1, the same from 1.99 to 1.139), and `test/integration` commits and pushes through the real one on the floor version and the latest (M71).                                                                                                                                                     | 2026-09-28 |
 
 ## 9. Security assumptions and accepted residual risk
 

@@ -67,4 +67,35 @@ describe('redactSecrets', () => {
       '{"access_token":"[redacted]"}',
     )
   })
+
+  // Built at run time so the repository's secret scan sees no token shape.
+  const githubTokens = [
+    `ghp_${'0'.repeat(36)}`,
+    `gho_${'1'.repeat(36)}`,
+    `ghu_${'A'.repeat(40)}`,
+    `ghs_${'b'.repeat(36)}`,
+    `ghr_${'2'.repeat(76)}`,
+    `github_pat_${'3'.repeat(22)}_${'c'.repeat(59)}`,
+  ]
+
+  it.each(githubTokens)('redacts the GitHub token %j (M71)', (token) => {
+    expect(redactSecrets(`see ${token} here`)).toBe('see [redacted] here')
+  })
+
+  it('redacts private key blocks, AWS key ids and Slack tokens (M71)', () => {
+    const header = ['-----BEGIN', 'OPENSSH PRIVATE KEY-----'].join(' ')
+    const footer = ['-----END', 'OPENSSH PRIVATE KEY-----'].join(' ')
+    expect(redactSecrets(`a\n${header}\nb3BlbnNzaA\nAAAA\n${footer}\nz`)).toBe('a\n[redacted]\nz')
+    // A block cut short is redacted to the end.
+    expect(redactSecrets(`a ${header}\nb3BlbnNzaA`)).toBe('a [redacted]')
+    expect(redactSecrets(`id ${['AKIA', 'Z'.repeat(16)].join('')} end`)).toBe('id [redacted] end')
+    expect(redactSecrets(`slack ${['xoxb', '1'.repeat(12)].join('-')} end`)).toBe(
+      'slack [redacted] end',
+    )
+  })
+
+  it('leaves near misses alone', () => {
+    const text = 'ghp_short, github_pat_x, AKIA123 and xoxb-1 stay'
+    expect(redactSecrets(text)).toBe(text)
+  })
 })

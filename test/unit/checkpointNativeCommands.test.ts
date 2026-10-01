@@ -68,6 +68,7 @@ function startFamily(
         modelApiMcp: () => undefined,
         modelApiHooks: () => undefined,
         openLog: () => undefined,
+        isProjectTrusted: () => true,
         log: h.log,
       })
       return features.manageSkills()

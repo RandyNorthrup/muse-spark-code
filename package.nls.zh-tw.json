@@ -28,6 +28,7 @@
   "command.memory.title": "記憶",
   "command.newWorktree.title": "新增工作樹…",
   "command.removeWorktree.title": "移除工作樹…",
+  "command.openPullRequestInConversation.title": "在交談中開啟提取要求…",
   "command.moveToBackground.title": "將執行中的命令移至背景",
   "command.stopBackgroundTasks.title": "停止背景工作",
   "config.title": "Muse Spark",

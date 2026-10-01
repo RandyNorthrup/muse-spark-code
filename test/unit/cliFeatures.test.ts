@@ -84,6 +84,7 @@ function setup(
     modelApiMcp: () => undefined,
     modelApiHooks: () => undefined,
     openLog: () => undefined,
+    isProjectTrusted: () => true,
     log: new FakeLogOutputChannel(),
   })
   return { features, runs, terminals, edits, restarts: () => restarts }

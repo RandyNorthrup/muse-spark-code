@@ -1,5 +1,6 @@
 import type { ExecFileOptions } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import { createGitRunner } from '../../src/host/git'
 
 function runner(env: NodeJS.ProcessEnv, installed: ReadonlySet<string>) {
@@ -16,7 +17,137 @@ function runner(env: NodeJS.ProcessEnv, installed: ReadonlySet<string>) {
   return { run, calls }
 }
 
+/** Record the same native boundary while each case chooses its real response/hold. */
+function safeRunner(reply: (args: readonly string[]) => Promise<string>) {
+  const calls: (readonly string[])[] = []
+  const run = createGitRunner({
+    platform: 'linux',
+    env: { PATH: '/usr/bin' },
+    fileExists: () => true,
+    isUntrustedCheckout: true,
+    execFile: (_file, args) => {
+      calls.push(args)
+      return reply(args)
+    },
+  })
+  return { run, calls }
+}
+
 describe('createGitRunner (D24)', () => {
+  it.each(['filter.driver=unsafe.smudge', 'hook.driver=unsafe.command'])(
+    'refuses an unrepresentable program name %s before native checkout',
+    async (key) => {
+      const { run, calls } = safeRunner((args) =>
+        Promise.resolve(args[0] === '--version' ? 'git version 2.50.1\n' : `${key}\0`),
+      )
+      await expect(run(['worktree', 'add'], '/ws')).rejects.toThrow(
+        UI_TEXT.openPullRequestFiltersUnavailable,
+      )
+      expect(calls.some((args) => args.includes('worktree'))).toBe(false)
+    },
+  )
+
+  it('skips all discovered external filter lanes while retaining ordinary Git invocation policy', async () => {
+    const { run, calls } = safeRunner((args) => {
+      if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
+      return Promise.resolve(
+        args.includes('config')
+          ? 'filter.canary.clean\0filter.canary.smudge\0filter.canary.process\0filter.canary.required\0hook.checkout-canary.command\0hook.checkout-canary.event\0'
+          : '',
+      )
+    })
+    await run(['worktree', 'add', '--detach', '/held/pr', 'a'.repeat(40)], '/ws')
+    const checkout = calls.at(-1)
+    expect(checkout).toEqual(
+      expect.arrayContaining([
+        '--no-replace-objects',
+        'core.hooksPath=/dev/null',
+        'core.fsmonitor=false',
+        'maintenance.auto=false',
+        'gc.auto=0',
+        'filter.canary.clean=',
+        'filter.canary.smudge=',
+        'filter.canary.process=',
+        'filter.canary.required=false',
+        'hook.checkout-canary.enabled=false',
+        'hook.checkout-canary.event=',
+      ]),
+    )
+    expect(calls.find((args) => args.includes('config'))).toContain('--name-only')
+    expect(calls.find((args) => args.includes('config'))).not.toContain('--get')
+    const ordinary = runner({ PATH: '/usr/bin' }, new Set(['/usr/bin/git']))
+    await ordinary.run(['status'], '/ws')
+    expect(ordinary.calls[0]?.args).toEqual(['status'])
+  })
+
+  it('enters no checkout after trust ends during names-only configuration discovery', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const names = Promise.withResolvers<string>()
+    let isTrusted = true
+    const { run, calls } = safeRunner((args) => {
+      if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
+      entered.resolve(undefined)
+      return names.promise
+    })
+    const checking = run(
+      ['worktree', 'add', '--detach', '/held/pr', 'a'.repeat(40)],
+      '/ws',
+      undefined,
+      () => {
+        if (!isTrusted) throw new Error('trust ended')
+      },
+    )
+    await entered.promise
+    isTrusted = false
+    names.resolve('filter.canary.process\0')
+    await expect(checking).rejects.toThrow('trust ended')
+    expect(calls.some((args) => args.includes('worktree'))).toBe(false)
+  })
+
+  it('reports a lost owner as it is when it ends after the version check, never as a missing Git feature', async () => {
+    let isOwned = true
+    const { run, calls } = safeRunner((args) => {
+      if (args[0] === '--version') {
+        // The owner goes while the version read is in flight.
+        isOwned = false
+        return Promise.resolve('git version 2.50.1\n')
+      }
+      return Promise.resolve('')
+    })
+    await expect(
+      run(['worktree', 'add'], '/ws', undefined, () => {
+        if (!isOwned) throw new Error('the repository changed')
+      }),
+    ).rejects.toThrow('the repository changed')
+    expect(calls).toEqual([['--version']])
+  })
+
+  it('asks for the version again after a failed read instead of refusing every later checkout', async () => {
+    let isVersionFailing = true
+    const { run, calls } = safeRunner((args) => {
+      if (args[0] === '--version') {
+        return isVersionFailing
+          ? Promise.reject(new Error('spawn failed'))
+          : Promise.resolve('git version 2.50.1\n')
+      }
+      return Promise.resolve('')
+    })
+    await expect(run(['worktree', 'add'], '/ws')).rejects.toThrow(
+      UI_TEXT.openPullRequestFiltersUnavailable,
+    )
+    isVersionFailing = false
+    await expect(run(['worktree', 'add'], '/ws')).resolves.toBe('')
+    expect(calls.filter((args) => args[0] === '--version')).toHaveLength(2)
+  })
+
+  it('fails explicitly before checkout when safe program controls are unsupported', async () => {
+    const { run, calls } = safeRunner(() => Promise.resolve('git version 2.35.1\n'))
+    await expect(run(['worktree', 'add'], '/ws')).rejects.toThrow(
+      UI_TEXT.openPullRequestFiltersUnavailable,
+    )
+    expect(calls).toEqual([['--version']])
+  })
+
   it('runs git by absolute path with a timeout, no window, no prompt and no optional locks', async () => {
     const { run, calls } = runner({ PATH: '.:/usr/bin', HOME: '/h' }, new Set(['/usr/bin/git']))
     await expect(run(['status', '--porcelain'], '/ws')).resolves.toBe('ok\n')

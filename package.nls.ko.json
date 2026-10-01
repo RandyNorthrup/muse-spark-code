@@ -28,6 +28,7 @@
   "command.memory.title": "메모리",
   "command.newWorktree.title": "새 작업 트리…",
   "command.removeWorktree.title": "작업 트리 제거…",
+  "command.openPullRequestInConversation.title": "대화에서 끌어오기 요청 열기…",
   "command.moveToBackground.title": "실행 중인 명령을 백그라운드로 이동",
   "command.stopBackgroundTasks.title": "백그라운드 작업 중지",
   "config.title": "Muse Spark",

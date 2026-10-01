@@ -58,6 +58,11 @@ export interface CliFeatureDeps {
   readonly modelApiHooks: () => boolean | undefined
   /** Shows the extension's log, where an MCP server's stderr goes. */
   readonly openLog: () => void
+  /**
+   * VS Code trusts the workspace and the window is not held on someone
+   * else's pull request (M71): the project's skills and hooks may be read.
+   */
+  readonly isProjectTrusted: () => boolean
   readonly log: Logger
 }
 
@@ -112,7 +117,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
   const skillsDeps = (): SkillsCliDeps => ({
     runCli: (args) => deps.runCli(args, MUSE_SKILLS_TIMEOUT_MS),
     workspaceRoot: deps.workspaceRoot,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: deps.isProjectTrusted,
     showInformation: (message) => {
       void vscode.window.showInformationMessage(message)
     },
@@ -136,7 +141,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
           ? undefined
           : path.join(deps.workspaceRoot, ...PROJECT_HOOKS_SEGMENTS),
       fileExists: existsSync,
-      isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+      isWorkspaceTrusted: deps.isProjectTrusted,
       pick: showPickOne,
       openFile: async (fsPath) => {
         await vscode.window.showTextDocument(vscode.Uri.file(fsPath), { preview: false })
