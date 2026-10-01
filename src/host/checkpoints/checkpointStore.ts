@@ -2389,7 +2389,9 @@ export class CheckpointStore {
       }
       const steps: PlannedStep[] = record.entries.map((entry) => {
         const expect: Expectation =
-          entry.after === null ? { kind: 'absent' } : { kind: 'blob', oid: entry.after.oid }
+          entry.after === null
+            ? { kind: 'absent' }
+            : { kind: 'blob', oid: entry.after.oid, mode: entry.after.mode }
         return {
           path: entry.path,
           target: entry.before,

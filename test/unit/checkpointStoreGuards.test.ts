@@ -184,6 +184,26 @@ describe('CheckpointStore failures part way (M72)', () => {
     REAL_GIT_TIMEOUT_MS,
   )
 
+  it.skipIf(process.platform === 'win32')(
+    'keeps a file whose execute bit the user changed since the restore out of its redo',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'run.sh', 'echo one\n')
+      await turn(h, 't1', async () => {
+        await write(h.root, 'run.sh', 'echo two\n')
+      })
+      const restored = await restoreTurn(h.store, 't1')
+      // The bytes are as the restore left them; the execute bit is the user's.
+      await chmod(path.join(h.root, 'run.sh'), 0o755)
+      const redo = await redoRestore(h.store, restored.restoreId)
+      expect(redo.refused).toEqual([{ path: 'run.sh', reason: 'changedAfter' }])
+      const script = await stat(path.join(h.root, 'run.sh'))
+      expect(await read(h.root, 'run.sh')).toBe('echo one\n')
+      expect(script.mode & 0o777).toBe(0o755)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
   it(
     'keeps the redo record on disk before the first file changes',
     async () => {

@@ -56,9 +56,13 @@ export interface Refusal {
   readonly reason: RefusalReason
 }
 
-/** What a file must still be just before a step changes it. */
+/**
+ * What a file must still be just before a step changes it. A blob's mode
+ * counts as much as its bytes: the step writes the checkpoint's execute bit,
+ * so a chmod since the capture would be undone.
+ */
 export type Expectation =
-  | { readonly kind: 'blob'; readonly oid: string }
+  | { readonly kind: 'blob'; readonly oid: string; readonly mode: string }
   | { readonly kind: 'absent' }
   | { readonly kind: 'stat'; readonly stat: FileStat }
 
@@ -171,7 +175,9 @@ function workTreeStep(change: TreeChange): RestoreStep {
     path: change.path,
     target: change.before ?? null,
     expect:
-      change.after === undefined ? { kind: 'absent' } : { kind: 'blob', oid: change.after.oid },
+      change.after === undefined
+        ? { kind: 'absent' }
+        : { kind: 'blob', oid: change.after.oid, mode: change.after.mode },
     isIgnoreChecked: change.before === undefined,
   }
 }
