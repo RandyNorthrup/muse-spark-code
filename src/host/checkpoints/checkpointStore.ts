@@ -133,6 +133,7 @@ import {
 } from './recordRefs'
 import {
   indexFileInstance,
+  isInShadowRepository,
   isWithinFolder,
   ShadowGit,
   ShadowPathTooLongError,
@@ -2251,6 +2252,7 @@ export class CheckpointStore {
   /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
   public isStoragePath(absolutePath: string): boolean {
     return (
+      isInShadowRepository(absolutePath) ||
       isWithinFolder(absolutePath, this.deps.storageDir) ||
       (this.deps.storageRoot !== undefined && isWithinFolder(absolutePath, this.deps.storageRoot))
     )

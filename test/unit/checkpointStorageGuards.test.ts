@@ -90,6 +90,11 @@ describe('a tool writing into the checkpoint storage (M72)', () => {
       await expect(port.beforeToolWrite(own)).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
       await expect(port.beforeToolWrite(other)).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
       await expect(port.beforeToolWrite(path.join(h.root, 'a.txt'))).resolves.toBeUndefined()
+      // Another install's repository anywhere in the workspace (a second VS Code
+      // edition whose storage the workspace holds) is refused by its folder name.
+      await expect(
+        port.beforeToolWrite(path.join(h.root, 'Insiders', 'x', 'SHADOW.GIT', 'config')),
+      ).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
       // A folder that only begins with the same letters is not the storage.
       await expect(
         port.beforeToolWrite(path.join(`${checkpoints}-notes`, 'x.txt')),

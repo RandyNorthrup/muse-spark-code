@@ -60,6 +60,17 @@ import { writeFileAtomically } from '../fsAtomic'
 import type { GitProcess } from '../git'
 
 const SHADOW_DIR = 'shadow.git'
+
+/**
+ * Whether a path runs through a checkpoint repository folder, of any install or
+ * namespace: a tool never writes into one, since a filter planted in its config
+ * would run as the user at a turn's end (Codex and Muse reviews of PR #55). The
+ * name is unusual enough that a real project folder of that name is not a concern;
+ * case is folded, as Windows and macOS folders fold it.
+ */
+export function isInShadowRepository(absolutePath: string): boolean {
+  return absolutePath.split(/[\\/]/u).some((segment) => segment.toLowerCase() === SHADOW_DIR)
+}
 const HOME_DIR = 'home'
 const HOOKS_DIR = 'hooks'
 const EMPTY_CONFIG = 'empty.gitconfig'
