@@ -32,6 +32,7 @@ import {
   MAX_IMAGE_BYTES,
   MODEL_TEXT,
   PLAN_FILE_MAX_BYTES,
+  PLAN_STEP_MAX_CHARS,
   type GoalCommandVerb,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -8583,6 +8584,31 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     expect(body).toContain('1. Polish the tile')
     expect(body).not.toContain('Already shipped tile')
     expect(body).not.toContain('did the thing')
+  })
+
+  it('tells the model the open items whole, never claiming they were shortened', async () => {
+    // Longer than a plan's steps are cut to: a handoff's items are not cut.
+    const long = `Polish the tile ${'x'.repeat(PLAN_STEP_MAX_CHARS)}`
+    const conversation = await handoffConversation({
+      text: 'did the thing',
+      calls: [
+        {
+          name: 'todo_write',
+          arguments: JSON.stringify({ items: [{ text: long, status: 'pending' }] }),
+        },
+      ],
+    })
+    const { api } = conversation
+    await distil(conversation, 'h1')
+    const before = api.responseBodies().length
+    await confirmEdited(conversation, 'h1')
+    await vi.waitFor(() => {
+      expect(api.responseBodies().length).toBeGreaterThan(before)
+    })
+    const body = JSON.stringify(api.responseBodies().at(-1)?.['input'])
+    const note = fill(MODEL_TEXT.handoffTodosSet, { steps: `1. ${long}` })
+    expect(body).toContain(JSON.stringify(note).slice(1, -1))
+    expect(body).not.toContain('shortened')
   })
 
   it('starts a brief the dialog showed whole in the starting mode, and one hiding a character in a mode that asks (D49)', async () => {
