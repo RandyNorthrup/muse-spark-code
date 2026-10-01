@@ -81,6 +81,7 @@ function fakeStore() {
       return Promise.resolve({ ok: false as const, reason: 'redoGone' as const })
     },
     forgetSession: (sessionId) => done(`forget ${sessionId}`),
+    unforgetSession: (sessionId) => done(`unforget ${sessionId}`),
     queueForget: (sessionId) => done(`queue ${sessionId}`),
     maintain: () => done('maintain'),
     beforeToolWrite: (absolutePath) => {

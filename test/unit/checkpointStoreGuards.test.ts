@@ -368,6 +368,23 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
   )
 
   it(
+    'keeps the new checkpoints of a conversation unarchived after the clock went back',
+    async () => {
+      let clock = 5000
+      const h = await harness({ now: () => clock })
+      await h.store.forgetSession('s1')
+      // The clock goes back: everything from now on is "before" the archive.
+      clock = 1000
+      await h.store.unforgetSession('s1')
+      await turn(h, 't1', async () => {
+        await write(h.root, 'a.txt', 'a1\n')
+      })
+      expect(await h.store.turns('s1')).toEqual(['t1'])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
     'when a window opens, forgets the conversations archived while it was untrusted',
     async () => {
       const h = await harness()

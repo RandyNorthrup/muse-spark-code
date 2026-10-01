@@ -90,6 +90,7 @@ function harness(options: HarnessOptions = {}) {
     restore: options.restore ?? (() => Promise.resolve({ ok: false, reason: 'noCheckpoint' })),
     redo: options.redo ?? (() => Promise.resolve({ ok: false, reason: 'redoGone' })),
     forgetSession: () => Promise.resolve(),
+    unforgetSession: () => Promise.resolve(),
     maintain: () => Promise.resolve(),
     beforeToolWrite: () => Promise.resolve(),
   }

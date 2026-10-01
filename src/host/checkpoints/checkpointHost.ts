@@ -54,6 +54,8 @@ export interface CheckpointPort {
   restore(request: RestoreRequest): Promise<RestoreOutcome>
   redo(request: RedoRequest): Promise<RestoreOutcome>
   forgetSession(sessionId: string): Promise<void>
+  /** The conversation was unarchived: its archives go, whatever the setting. */
+  unforgetSession(sessionId: string): Promise<void>
   /** The window opened or was trusted: cleanup and retention, whatever the setting. */
   maintain(): Promise<void>
   /** Copies a file the extension's tools are about to write; a failed copy fails the write. */
@@ -72,6 +74,7 @@ export type CheckpointStoreApi = Pick<
   | 'restore'
   | 'redo'
   | 'forgetSession'
+  | 'unforgetSession'
   | 'queueForget'
   | 'maintain'
   | 'beforeToolWrite'
@@ -213,6 +216,9 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await (store === undefined
         ? deps.store?.queueForget(sessionId)
         : store.forgetSession(sessionId))
+    },
+    unforgetSession: async (sessionId) => {
+      await deps.store?.unforgetSession(sessionId)
     },
     maintain: async () => {
       await gitStore()?.maintain()

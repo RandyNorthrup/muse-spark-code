@@ -3275,11 +3275,9 @@ export class ConversationController {
     const others = this.deps.sessions.archivedIds().filter((id) => id !== sessionId)
     await this.deps.sessions.setArchivedIds(isArchived ? [...others, sessionId] : others)
     this.postSessionList()
-    if (!isArchived) {
-      return
-    }
-    // An archived conversation's checkpoints go with it (M72).
-    await this.checkpoints.forget(sessionId)
+    // An archived conversation's checkpoints go with it (M72); an unarchived
+    // one's archives go, so its new checkpoints are kept.
+    await (isArchived ? this.checkpoints.forget(sessionId) : this.checkpoints.unforget(sessionId))
   }
 
   /**

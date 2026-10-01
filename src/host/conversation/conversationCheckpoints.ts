@@ -691,6 +691,20 @@ export class ConversationCheckpoints {
     }
   }
 
+  /** The conversation was unarchived: its new checkpoints are kept again. */
+  public async unforget(sessionId: string): Promise<void> {
+    try {
+      await this.deps.port.unforgetSession(sessionId)
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `Archives of session ${sessionId} were not removed: ${failureForLog(error)}`,
+      )
+    }
+    if (sessionId === this.sessionId) {
+      await this.refresh()
+    }
+  }
+
   /** The panel closed: its running turns are ended, its captures let go. */
   public dispose(): void {
     this.endAll()

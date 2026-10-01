@@ -492,6 +492,10 @@ function setup(
       checkpointCalls.push(`forget ${sessionId}`)
       return Promise.resolve()
     },
+    unforgetSession: (sessionId) => {
+      checkpointCalls.push(`unforget ${sessionId}`)
+      return Promise.resolve()
+    },
     maintain: () => Promise.resolve(),
     beforeToolWrite: () => Promise.resolve(),
   }
@@ -8328,10 +8332,10 @@ describe('ConversationController: turn checkpoints (M72)', () => {
     })
   })
 
-  it("forgets an archived conversation's checkpoints", async () => {
+  it("forgets an archived conversation's checkpoints, and an unarchived one's archives", async () => {
     const t = setup({ checkpointAvailability: 'on', backendKind: 'modelApi' })
     await t.controller.handle({ type: 'setSessionArchived', sessionId: 'gone', isArchived: true })
     await t.controller.handle({ type: 'setSessionArchived', sessionId: 'back', isArchived: false })
-    expect(t.checkpointCalls).toEqual(['forget gone'])
+    expect(t.checkpointCalls).toEqual(['forget gone', 'unforget back'])
   })
 })

@@ -2541,6 +2541,22 @@ export class CheckpointStore {
   }
 
   /**
+   * The conversation was unarchived: its archive files go, so its new
+   * checkpoints are kept again whatever the clock did meanwhile (an archive
+   * hides what was made at or before its time). Plain files, no lock and no
+   * git, as the archive itself; records it hid and no window deleted yet are
+   * listed again with their conversation.
+   */
+  public async unforgetSession(sessionId: string): Promise<void> {
+    const archives = await readArchives(this.deps.storageDir)
+    for (const entry of archives) {
+      if (entry.archive.sessionId === sessionId) {
+        await removeArchive(entry)
+      }
+    }
+  }
+
+  /**
    * The conversation was archived while no git may run (Restricted Mode):
    * the archive is written to its own file (no git), even before any
    * checkpoint exists; the records and copies go the next time a window that
