@@ -96,6 +96,7 @@ const FAKE_SNAPSHOT: Snapshot = {
   inventory: { files: new Map(), skippedFolders: [], isPartial: false },
   createdAt: 0,
   startedAt: 0,
+  startedWallAt: 0,
   pin: undefined,
   folders: [],
 }

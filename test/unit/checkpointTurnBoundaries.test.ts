@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
+import { readdir, readFile, utimes, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { processGitProcess } from '../../src/host/git'
+import { CHECKPOINT_PEER_SAVE_KEEP_MS } from '../../src/shared/constants'
 import {
   captured,
   done,
@@ -22,6 +24,48 @@ const realGit = processGitProcess()
 
 /** A window whose extension host is gone: its presence no longer counts. */
 const GONE_PID = 424_242
+/** How long a test waits for a window's saves file, which the save does not wait for. */
+const SHARED_SAVE_WAIT_MS = 10_000
+
+/** The saves files of every window on the folder, as text. */
+async function savesFiles(storage: string): Promise<readonly string[]> {
+  const folder = path.join(storage, 'windows')
+  const names = await readdir(folder)
+  return await Promise.all(
+    names
+      .filter((name) => name.endsWith('.saves'))
+      .map((name) => readFile(path.join(folder, name), 'utf8')),
+  )
+}
+
+/**
+ * A turn edits model.txt while the user saves mine.txt, which `save` notes:
+ * restoring the turn puts the model's edit back and leaves the user's, named.
+ */
+async function expectSaveKept(h: Harness, save: (file: string) => Promise<void>): Promise<void> {
+  await write(h.root, 'model.txt', 'm0\n')
+  await write(h.root, 'mine.txt', 'u0\n')
+  await turn(h, 't1', async () => {
+    await write(h.root, 'model.txt', 'm1\n')
+    await write(h.root, 'mine.txt', 'u1\n')
+    await save(path.join(h.root, 'mine.txt'))
+  })
+  const outcome = done(await restoreOutcome(h.store, 't1'))
+  expect(outcome.refused).toEqual([{ path: 'mine.txt', reason: 'changedAfter' }])
+  expect(await read(h.root, 'model.txt')).toBe('m0\n')
+  expect(await read(h.root, 'mine.txt')).toBe('u1\n')
+}
+
+/** Waits until a window's saves file names the file. */
+async function sharedSave(storage: string, relative: string): Promise<void> {
+  await vi.waitFor(
+    async () => {
+      const files = await savesFiles(storage)
+      expect(files.join('')).toContain(JSON.stringify(relative))
+    },
+    { timeout: SHARED_SAVE_WAIT_MS },
+  )
+}
 
 /** Rewrites a turn's stored record, each field through `replace` (a JSON replacer). */
 function rewriteRecord(
@@ -357,18 +401,11 @@ describe('what the user saves while a turn runs (M72)', () => {
     "leaves a file the user saved during the turn as they saved it, and restores the turn's own",
     async () => {
       const h = await harness()
-      await write(h.root, 'model.txt', 'm0\n')
-      await write(h.root, 'mine.txt', 'u0\n')
-      await turn(h, 't1', async () => {
-        await write(h.root, 'model.txt', 'm1\n')
-        // The user saves in the editor while the turn runs.
-        await write(h.root, 'mine.txt', 'u1\n')
-        h.store.noteUserSave(path.join(h.root, 'mine.txt'))
+      // The user saves in the editor while the turn runs.
+      await expectSaveKept(h, (file) => {
+        h.store.noteUserSave(file)
+        return Promise.resolve()
       })
-      const outcome = done(await restoreOutcome(h.store, 't1'))
-      expect(outcome.refused).toEqual([{ path: 'mine.txt', reason: 'changedAfter' }])
-      expect(await read(h.root, 'model.txt')).toBe('m0\n')
-      expect(await read(h.root, 'mine.txt')).toBe('u1\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -398,9 +435,9 @@ describe('what the user saves while a turn runs (M72)', () => {
     REAL_GIT_TIMEOUT_MS,
   )
 
-  it(
-    'counts a save that lands while the start capture runs, after it read the file',
-    async () => {
+  it.each(['this window', 'another window on the folder'] as const)(
+    'counts a save in %s that lands while the start capture runs, after it read the file',
+    async (where) => {
       let duringCapture: (() => Promise<void>) | undefined
       const h = await harness({
         gitProcess: async (args, options) => {
@@ -416,10 +453,15 @@ describe('what the user saves while a turn runs (M72)', () => {
       })
       await write(h.root, 'model.txt', 'm0\n')
       await write(h.root, 'mine.txt', 'u0\n')
+      // The other window runs no turn: its saves reach this one through its saves file.
+      const saver = where === 'this window' ? h.store : h.reopen()
       await h.store.markTurn('pending:first', true, true)
       duringCapture = async () => {
         await write(h.root, 'mine.txt', 'saved by the user\n')
-        h.store.noteUserSave(path.join(h.root, 'mine.txt'))
+        saver.noteUserSave(path.join(h.root, 'mine.txt'))
+        if (saver !== h.store) {
+          await sharedSave(h.storage, 'mine.txt')
+        }
       }
       const start = await captured(h.store)
       // The start capture holds the bytes from before the save.
@@ -482,6 +524,107 @@ describe('what a restore cannot know about another window’s turn (M72)', () =>
       const outcome = done(await restoreOutcome(h.store, 't1'))
       expect(outcome.refused).toContainEqual({ path: '.env', reason: 'changedAfter' })
       expect(await read(h.root, '.env')).toBe('KEY=peer\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+describe('what the user saves in another window on the folder while a turn runs (M72)', () => {
+  it(
+    'leaves a file saved in a window that runs no turn as the user saved it',
+    async () => {
+      const h = await harness()
+      const idle = h.reopen()
+      // The user saves in the other window while this one's turn runs.
+      await expectSaveKept(h, async (file) => {
+        idle.noteUserSave(file)
+        await sharedSave(h.storage, 'mine.txt')
+      })
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'restores a file the user saved in another window before the turn started',
+    async () => {
+      const h = await harness()
+      const idle = h.reopen()
+      await write(h.root, 'model.txt', 'm0\n')
+      await turn(h, 't0', () => Promise.resolve())
+      await write(h.root, 'model.txt', 'u1\n')
+      idle.noteUserSave(path.join(h.root, 'model.txt'))
+      await sharedSave(h.storage, 'model.txt')
+      await turn(h, 't1', () => write(h.root, 'model.txt', 'm1\n'))
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([])
+      expect(await read(h.root, 'model.txt')).toBe('u1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'writes no saves file before the folder has a shadow repository',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'a.txt', 'a0\n')
+      h.store.noteUserSave(path.join(h.root, 'a.txt'))
+      // The capture sets the shadow repository up after the save.
+      await captured(h.store)
+      expect(await savesFiles(h.storage)).toEqual([])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it.each([
+    { written: 'while the turn ran', isDuring: true },
+    { written: 'before the turn started', isDuring: false },
+  ])(
+    'ends the turn past a saves file that cannot be read, written $written, leaving every file the turn changed alone only then',
+    async ({ isDuring }) => {
+      // The real clock: whether the file was written since the turn started is
+      // read from its modification time.
+      const h = await harness({ now: () => Date.now() })
+      await write(h.root, 'model.txt', 'm0\n')
+      await turn(h, 't0', () => Promise.resolve())
+      const unreadable = path.join(h.storage, 'windows', 'unreadable.saves')
+      if (!isDuring) {
+        await writeFile(unreadable, '{not json')
+        const before = new Date(Date.now() - CHECKPOINT_PEER_SAVE_KEEP_MS)
+        await utimes(unreadable, before, before)
+      }
+      await turn(h, 't1', async () => {
+        await write(h.root, 'model.txt', 'm1\n')
+        if (isDuring) {
+          await writeFile(unreadable, '{not json')
+        }
+      })
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      if (isDuring) {
+        expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('unreadable.saves'))
+        expect(outcome.refused).toEqual([{ path: 'model.txt', reason: 'changedAfter' }])
+        expect(await read(h.root, 'model.txt')).toBe('m1\n')
+      } else {
+        expect(h.log.warn).not.toHaveBeenCalledWith(expect.stringContaining('unreadable.saves'))
+        expect(outcome.refused).toEqual([])
+        expect(await read(h.root, 'model.txt')).toBe('m0\n')
+      }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'leaves every file a turn past the keep time changed alone',
+    async () => {
+      let clock = 1000
+      const h = await harness({ now: () => clock })
+      await write(h.root, 'model.txt', 'm0\n')
+      await turn(h, 't1', async () => {
+        await write(h.root, 'model.txt', 'm1\n')
+        clock += CHECKPOINT_PEER_SAVE_KEEP_MS + 1
+      })
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([{ path: 'model.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'model.txt')).toBe('m1\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )

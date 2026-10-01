@@ -28,6 +28,7 @@ function snapshot(tree: string, skipped: readonly string[] = []): Snapshot {
     inventory: { files: new Map(), skippedFolders: [], isPartial: false },
     createdAt: 0,
     startedAt: 0,
+    startedWallAt: 0,
     pin: `refs/muse-spark/pin/${tree}`,
     folders: [],
   }

@@ -30,9 +30,11 @@
 //   window's objects in flight survive. A turn (or a message about to start
 //   one) is published as running in the window's presence file before it may
 //   edit a file (windowPresence.ts), and stays published until its end is
-//   recorded; a tool's copy of a file goes to the window's own staging
-//   folder and is kept until the turn's end has it; an archive is a file of
-//   its own, written before the archive returns (checkpointArchives.ts).
+//   recorded; the user's saves in each window go to a saves file beside its
+//   presence, which every turn's end reads; a tool's copy of a file goes to
+//   the window's own staging folder and is kept until the turn's end has it;
+//   an archive is a file of its own, written before the archive returns
+//   (checkpointArchives.ts).
 //   Within a window, one operation runs at a time.
 // - No restore or redo runs while any turn runs, in this window or in
 //   another live one.
@@ -80,6 +82,7 @@ import {
   CHECKPOINT_FENCED_WINDOW,
   CHECKPOINT_NATIVE_WINDOW,
   CHECKPOINT_ACTIVITY_PREFIX,
+  CHECKPOINT_PEER_SAVE_KEEP_MS,
   CHECKPOINT_PRUNE_GRACE_MS,
   CHECKPOINT_PRUNE_INTERVAL_MS,
   CHECKPOINT_PUBLISH_RETRY_MS,
@@ -156,6 +159,11 @@ export interface Snapshot {
    * what it read. Never recorded: it means nothing to another window.
    */
   readonly startedAt: number
+  /**
+   * When the capture began on the wall clock the folder's windows share: the
+   * other windows' saves from then on count for the turn it starts.
+   */
+  readonly startedWallAt: number
   /** The ref that keeps the capture from pruning until it is recorded or let go. */
   readonly pin: string | undefined
   /** The folders it holds no file of (a capture before a turn); undefined when unknown. */
@@ -293,6 +301,8 @@ interface OpenTurn {
   readonly id: string
   /** When its start capture began, on the window's own clock (`monotonicNow`). */
   readonly startedAt: number
+  /** When its start capture began, on the wall clock: the other windows' saves since count. */
+  readonly startedWallAt: number
   readonly inventory: IgnoredInventory
   /** The files the user saved in this window while it ran: theirs, not the turn's. */
   readonly userSaves: Set<string>
@@ -773,8 +783,12 @@ export class CheckpointStore {
     )
   }
 
-  /** The staging folders and index files of windows that are gone, and files of earlier builds. */
+  /**
+   * The staging folders and index files of windows that are gone, their
+   * saves files once no turn can need them, and files of earlier builds.
+   */
   private async dropGoneFiles(): Promise<void> {
+    await this.presence.dropGoneSaves(this.deps.now())
     const stagingRoot = path.join(this.deps.storageDir, STAGING_DIR)
     let staged: string[] = []
     try {
@@ -1210,6 +1224,7 @@ export class CheckpointStore {
     // Taken before any file is read: a save that lands while the capture runs
     // may be missing from it, so it counts as made after the turn's start.
     const startedAt = this.monotonicNow()
+    const startedWallAt = this.deps.now()
     try {
       await setup.shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
       // Every capture (a turn's start and end, a restore's) goes through here: the
@@ -1289,6 +1304,7 @@ export class CheckpointStore {
           inventory: scan.inventory,
           createdAt: this.deps.now(),
           startedAt,
+          startedWallAt,
           pin: undefined,
           folders,
         },
@@ -2032,6 +2048,43 @@ export class CheckpointStore {
   }
 
   /**
+   * The files the user saved while a turn ran: in this window, and in the
+   * folder's other windows since its start capture (read after its end
+   * capture, so a save that capture holds is in). When the other windows'
+   * saves are not all known (a saves file that cannot be read, a save let go
+   * of, a turn past the keep time), every file the turn changed counts as
+   * saved: a restore leaves it alone rather than undo a save it cannot see.
+   */
+  private async userSavesOf(
+    shadow: ShadowGit,
+    record: CheckpointRecord,
+    start: OpenTurn,
+    end: { readonly at: number; readonly tree: string | undefined },
+    ignored: readonly IgnoredChange[],
+  ): Promise<string[]> {
+    const saved = new Set(start.userSaves)
+    const peers = await this.presence.peerSaves(start.startedWallAt)
+    for (const relative of peers.saved) {
+      saved.add(relative)
+    }
+    const isPastKeep = end.at - start.startedWallAt > CHECKPOINT_PEER_SAVE_KEEP_MS
+    if (isPastKeep || peers.unknown.length > 0) {
+      const unknown = isPastKeep
+        ? [...peers.unknown, 'the turn ran past the keep time']
+        : peers.unknown
+      this.deps.log.warn(
+        `Checkpoint at the end of turn ${record.turnId}: the other windows' saves are not all known (${unknown.join(', ')}); a restore leaves every file the turn changed alone`,
+      )
+      const changes =
+        end.tree === undefined ? [] : await this.diff(shadow, record.start.tree, end.tree)
+      for (const change of [...changes, ...ignored]) {
+        saved.add(change.path)
+      }
+    }
+    return [...saved].toSorted(byText)
+  }
+
+  /**
    * Records a turn's end: the end capture, the ignored files it changed and
    * the tools' copies, from the record as it was read (only this window
    * ends its turns). A record deleted meanwhile (archived, or dropped by
@@ -2067,6 +2120,13 @@ export class CheckpointStore {
     )
     const isScanWhole =
       ended !== undefined && !start.inventory.isPartial && !ended.inventory.isPartial
+    const userSaves = await this.userSavesOf(
+      setup.shadow,
+      record,
+      start,
+      { at: endedAt, tree: ended?.tree },
+      kept,
+    )
     const updated: CheckpointRecord = {
       ...record,
       ...(ended !== undefined && {
@@ -2075,7 +2135,7 @@ export class CheckpointStore {
       endedAt,
       endSequence: nextTurnNumber(setup.records.checkpoints, record.sessionId),
       ignored: { changes: [...kept], isComplete: isScanWhole && kept.length === changes.length },
-      ...(start.userSaves.size > 0 && { userSaves: [...start.userSaves].toSorted(byText) }),
+      ...(userSaves.length > 0 && { userSaves }),
     }
     const trees = [
       { name: 'start', tree: record.start.tree },
@@ -2277,6 +2337,17 @@ export class CheckpointStore {
     }
   }
 
+  /**
+   * Shares this window's saves with the folder's other windows, whose turns'
+   * ends read them. Before the shadow repository exists no turn has a start
+   * capture a save could follow, so nothing is written.
+   */
+  private async shareSaves(): Promise<void> {
+    if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) !== undefined) {
+      await this.presence.writeSaves()
+    }
+  }
+
   /** Native/process uncertainty in this window or a freshly observed peer. */
   public get isNativeUnsafe(): boolean {
     return this.hasUnprovedLocalWork() || this.isPeerUnsafe
@@ -2293,12 +2364,25 @@ export class CheckpointStore {
    * runs here the file is the user's, not the turn's: the turn's end record
    * names it, and a restore leaves it as it is. A save from the moment a
    * turn's start capture begins (the capture may have read the file before
-   * it) to the turn's record counts for that turn too.
+   * it) to the turn's record counts for that turn too. Every save is shared
+   * with the other windows on the folder (this one may run no turn at all),
+   * stamped by the wall clock they share; a write that fails is logged,
+   * never the caller's.
    */
   public noteUserSave(absolutePath: string): void {
     const relative = this.relativeOf(absolutePath)
+    if (relative === undefined) {
+      return
+    }
+    const at = this.deps.now()
+    if (!this.stopping.signal.aborted) {
+      this.presence.noteSave(relative, at)
+      void this.shareSaves().catch((error: unknown) => {
+        this.deps.log.warn(`A save was not shared with the other windows: ${failureForLog(error)}`)
+      })
+    }
     const since = Math.min(Infinity, ...this.runningSince())
-    if (relative === undefined || since === Infinity) {
+    if (since === Infinity) {
       return
     }
     for (const turn of this.openTurns.values()) {
@@ -2431,6 +2515,7 @@ export class CheckpointStore {
         this.openTurns.set(turnKey(sessionId, turnId), {
           id,
           startedAt: snapshot.startedAt,
+          startedWallAt: snapshot.startedWallAt,
           inventory: snapshot.inventory,
           // Saved since its start capture began, before this record existed.
           userSaves: new Set(
