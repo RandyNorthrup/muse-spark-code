@@ -148,6 +148,7 @@ const NO_SNAPSHOT = {
   coverage: { skipped: [], repositories: [] },
   inventory: { files: new Map(), skippedFolders: [], isPartial: false },
   createdAt: 0,
+  startedAt: 0,
   pin: 'refs/muse-spark/pin/1',
   folders: [],
 }

@@ -150,6 +150,12 @@ export interface Snapshot {
   readonly coverage: Coverage
   readonly inventory: IgnoredInventory
   readonly createdAt: number
+  /**
+   * When the capture began, before it read any file, on the window's own
+   * clock (`monotonicNow`): a save or a tool's copy from then on may postdate
+   * what it read. Never recorded: it means nothing to another window.
+   */
+  readonly startedAt: number
   /** The ref that keeps the capture from pruning until it is recorded or let go. */
   readonly pin: string | undefined
   /** The folders it holds no file of (a capture before a turn); undefined when unknown. */
@@ -240,6 +246,13 @@ export interface CheckpointStoreDeps {
   /** `museSpark.cleanupPeriodDays`: records older than this go; 0 keeps them by age. */
   readonly retentionDays: () => number
   readonly now: () => number
+  /**
+   * The window's own clock, which never goes back as `now` can (the wall
+   * clock set back): it orders the window's turn starts, tool copies and
+   * saves among themselves, and nothing else. `performance.now()` unless a
+   * test sets it.
+   */
+  readonly monotonicNow?: () => number
   readonly newId: () => string
   /** This extension host's process, and whether another window's still runs. */
   readonly pid: number
@@ -258,6 +271,7 @@ export interface CheckpointStoreDeps {
 
 /** A copy of a file taken, with no lock, just before the extension wrote it. */
 interface JournalEntry {
+  /** When, on the window's own clock (`monotonicNow`). */
   readonly at: number
   /** The staged copy; null: there was no file; undefined: none taken (over the limit, a link). */
   readonly staged: string | null | undefined
@@ -277,7 +291,8 @@ interface TurnCopy {
  */
 interface OpenTurn {
   readonly id: string
-  readonly createdAt: number
+  /** When its start capture began, on the window's own clock (`monotonicNow`). */
+  readonly startedAt: number
   readonly inventory: IgnoredInventory
   /** The files the user saved in this window while it ran: theirs, not the turn's. */
   readonly userSaves: Set<string>
@@ -286,6 +301,8 @@ interface OpenTurn {
 /** A completed end capture whose ref write can be retried without recapturing later user edits. */
 interface PendingEnd {
   readonly record: CheckpointRecord
+  /** Its turn's `startedAt`: the tools' copies since then stay until the end is written. */
+  readonly startedAt: number
   readonly kept: KeptObjects
   readonly previous: string
   readonly pin: string
@@ -478,9 +495,12 @@ export class CheckpointStore {
   private place: { readonly top: string; readonly prefix: string } | undefined
   /** Each recorded turn of this window not yet ended, by turn key. */
   private readonly openTurns = new Map<string, OpenTurn>()
-  /** Every turn running in the window, and every message about to start one, as published, with when. */
+  /**
+   * Every turn running in the window, and every message about to start one,
+   * as published, with when (on the window's own clock, `monotonicNow`).
+   */
   private readonly runningTurns = new Map<string, number>()
-  /** The user's saves while anything runs here, for a turn whose record comes next. */
+  /** The user's saves while anything runs here (when: `monotonicNow`), for a turn whose record comes next. */
   private recentSaves: readonly { readonly relative: string; readonly at: number }[] = []
   private readonly journal = new Map<string, JournalEntry[]>()
   private readonly pendingEnds = new Map<string, PendingEnd>()
@@ -506,6 +526,15 @@ export class CheckpointStore {
       sleep: pause,
       signal: this.presenceStopping.signal,
     })
+  }
+
+  /**
+   * Now on the window's own clock. Turn starts, tool copies and saves are
+   * compared with one another by it, never with `now`, so the wall clock
+   * set back cannot put one of them before an event it followed.
+   */
+  private monotonicNow(): number {
+    return this.deps.monotonicNow?.() ?? performance.now()
   }
 
   private publishedTurns(): readonly string[] {
@@ -1014,17 +1043,18 @@ export class CheckpointStore {
   }
 
   /**
-   * When each turn of this window began: its record's capture, or the time
-   * it (or its message) was published as running. A tool's copy is taken
-   * and kept for any of them, even before the turn's record exists.
+   * When each turn of this window began, on its own clock (`monotonicNow`):
+   * its start capture, or the time it (or its message) was published as
+   * running. A tool's copy is taken and kept for any of them, even before
+   * the turn's record exists.
    */
   private runningSince(): readonly number[] {
     return [
-      ...Array.from(this.openTurns.values(), (turn) => turn.createdAt),
+      ...Array.from(this.openTurns.values(), (turn) => turn.startedAt),
       ...Array.from(this.runningTurns, ([key, at]) =>
         key === CHECKPOINT_NATIVE_WINDOW ? Infinity : at,
       ),
-      ...Array.from(this.pendingEnds.values(), (pending) => pending.record.createdAt),
+      ...Array.from(this.pendingEnds.values(), (pending) => pending.startedAt),
     ]
   }
 
@@ -1177,6 +1207,9 @@ export class CheckpointStore {
    * `shouldListFolders` (a capture before a turn), the folders it holds no file of.
    */
   private async captureNow(setup: Setup, shouldListFolders: boolean): Promise<CaptureResult> {
+    // Taken before any file is read: a save that lands while the capture runs
+    // may be missing from it, so it counts as made after the turn's start.
+    const startedAt = this.monotonicNow()
     try {
       await setup.shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
       // Every capture (a turn's start and end, a restore's) goes through here: the
@@ -1255,6 +1288,7 @@ export class CheckpointStore {
           },
           inventory: scan.inventory,
           createdAt: this.deps.now(),
+          startedAt,
           pin: undefined,
           folders,
         },
@@ -1347,11 +1381,14 @@ export class CheckpointStore {
     throw new Error(UI_TEXT.checkpointFailed)
   }
 
-  /** The first copy the tools took of each file since the turn began, and each file's state now. */
-  private async copiesSince(createdAt: number): Promise<ReadonlyMap<string, TurnCopy>> {
+  /**
+   * The first copy the tools took of each file since the turn began (its
+   * `startedAt`), and each file's state now.
+   */
+  private async copiesSince(startedAt: number): Promise<ReadonlyMap<string, TurnCopy>> {
     const copies = new Map<string, TurnCopy>()
     for (const [relative, entries] of this.journal) {
-      const entry = entries.find((candidate) => candidate.at >= createdAt)
+      const entry = entries.find((candidate) => candidate.at >= startedAt)
       if (entry === undefined) {
         continue
       }
@@ -2046,6 +2083,7 @@ export class CheckpointStore {
     ]
     const ending = {
       record: updated,
+      startedAt: start.startedAt,
       kept: { trees, blobs: preImages },
       previous: keep,
       pin: `${this.pinPrefix}end-${start.id}`,
@@ -2253,8 +2291,9 @@ export class CheckpointStore {
    * The user saved a file in this window: VS Code's save writes the user's own
    * bytes (the tools write files directly and save no document). While a turn
    * runs here the file is the user's, not the turn's: the turn's end record
-   * names it, and a restore leaves it as it is. A save between a turn's start
-   * capture and its record counts for that turn too.
+   * names it, and a restore leaves it as it is. A save from the moment a
+   * turn's start capture begins (the capture may have read the file before
+   * it) to the turn's record counts for that turn too.
    */
   public noteUserSave(absolutePath: string): void {
     const relative = this.relativeOf(absolutePath)
@@ -2268,13 +2307,13 @@ export class CheckpointStore {
     // Only what a turn not yet recorded could still need is kept.
     this.recentSaves = [
       ...this.recentSaves.filter((save) => save.at >= since),
-      { relative, at: this.deps.now() },
+      { relative, at: this.monotonicNow() },
     ]
   }
 
   /** Actual I/O completion did not prove every workspace-capable descendant stopped. */
   public async markUnprovenProcess(): Promise<void> {
-    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())
+    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.monotonicNow())
     this.startHeartbeat()
     await this.presence.publish(this.publishedTurns())
   }
@@ -2290,7 +2329,7 @@ export class CheckpointStore {
     }
     // A fence an earlier start set stays: only the one this call sets is withdrawn.
     const isFirstStart = !this.runningTurns.has(CHECKPOINT_NATIVE_WINDOW)
-    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())
+    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.monotonicNow())
     this.startHeartbeat()
     try {
       await this.presence.publish(this.publishedTurns())
@@ -2391,12 +2430,12 @@ export class CheckpointStore {
         }
         this.openTurns.set(turnKey(sessionId, turnId), {
           id,
-          createdAt: snapshot.createdAt,
+          startedAt: snapshot.startedAt,
           inventory: snapshot.inventory,
-          // Saved since its start capture, before this record existed.
+          // Saved since its start capture began, before this record existed.
           userSaves: new Set(
             this.recentSaves
-              .filter((save) => save.at >= snapshot.createdAt)
+              .filter((save) => save.at >= snapshot.startedAt)
               .map((save) => save.relative),
           ),
         })
@@ -2426,7 +2465,7 @@ export class CheckpointStore {
     }
     this.runningTurns.delete(key)
     if (isRunning) {
-      this.runningTurns.set(key, this.deps.now())
+      this.runningTurns.set(key, this.monotonicNow())
     }
     this.startHeartbeat()
     try {
@@ -2464,7 +2503,7 @@ export class CheckpointStore {
       return
     }
     const endedAt = this.deps.now()
-    const copies = await this.copiesSince(start.createdAt)
+    const copies = await this.copiesSince(start.startedAt)
     await this.serial(async () => {
       await this.finishTurn(await this.ready(), start, endedAt, copies)
     })
@@ -2530,7 +2569,7 @@ export class CheckpointStore {
       }
       throw new Error(UI_TEXT.checkpointFailed)
     }
-    this.journal.set(relative, [...entries, { at: this.deps.now(), ...copy }])
+    this.journal.set(relative, [...entries, { at: this.monotonicNow(), ...copy }])
   }
 
   /** Puts the workspace's files back as they were before the turn. */

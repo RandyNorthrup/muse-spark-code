@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { processGitProcess } from '../../src/host/git'
 import {
   captured,
   done,
@@ -16,6 +17,8 @@ import {
 } from './helpers/checkpointHarness'
 
 afterEach(removeCheckpointFolders)
+
+const realGit = processGitProcess()
 
 /** A window whose extension host is gone: its presence no longer counts. */
 const GONE_PID = 424_242
@@ -306,6 +309,26 @@ describe('turns of one conversation the clock cannot order (M72)', () => {
   )
 
   it(
+    'keeps a tool’s copy of an ignored file taken after the clock went back during the turn, and restores the file',
+    async () => {
+      let clock = 5000
+      const h = await harness({ now: () => clock })
+      await write(h.root, '.gitignore', '*.log\n')
+      await write(h.root, 'out.log', 'one\n')
+      await turn(h, 't1', async () => {
+        // The wall clock is set back after the turn's start capture, before the tool's copy.
+        clock = 1000
+        await h.store.beforeToolWrite(path.join(h.root, 'out.log'))
+        await write(h.root, 'out.log', 'two two\n')
+      })
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([])
+      expect(await read(h.root, 'out.log')).toBe('one\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
     'still guards a user’s edit between two turns when the clock went back between them',
     async () => {
       let clock = 5000
@@ -371,6 +394,44 @@ describe('what the user saves while a turn runs (M72)', () => {
       expect(outcome.refused).toEqual([{ path: 'early.txt', reason: 'changedAfter' }])
       expect(await read(h.root, 'early.txt')).toBe('e1\n')
       expect(await read(h.root, 'idle.txt')).toBe('i1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'counts a save that lands while the start capture runs, after it read the file',
+    async () => {
+      let duringCapture: (() => Promise<void>) | undefined
+      const h = await harness({
+        gitProcess: async (args, options) => {
+          // A capture before a turn lists its folders last, after the index
+          // holds the files' bytes: the user saves just then.
+          const step = duringCapture
+          if (step !== undefined && args.includes('--directory')) {
+            duringCapture = undefined
+            await step()
+          }
+          return await realGit(args, options)
+        },
+      })
+      await write(h.root, 'model.txt', 'm0\n')
+      await write(h.root, 'mine.txt', 'u0\n')
+      await h.store.markTurn('pending:first', true, true)
+      duringCapture = async () => {
+        await write(h.root, 'mine.txt', 'saved by the user\n')
+        h.store.noteUserSave(path.join(h.root, 'mine.txt'))
+      }
+      const start = await captured(h.store)
+      // The start capture holds the bytes from before the save.
+      expect(shadowGit(h.storage, ['cat-file', '-p', `${start.tree}:mine.txt`])).toBe('u0\n')
+      await h.store.record('s1', 't1', start)
+      await write(h.root, 'model.txt', 'm1\n')
+      await h.store.endTurn('s1', 't1')
+      await h.store.markTurn('pending:first', false, true)
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([{ path: 'mine.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'mine.txt')).toBe('saved by the user\n')
+      expect(await read(h.root, 'model.txt')).toBe('m0\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
