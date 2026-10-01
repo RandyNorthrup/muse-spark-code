@@ -11,8 +11,9 @@ happened, not what was planned; superseded entries are kept.
 
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
-  and the key digest are always scrubbed, from every string including item
-  ids and error labels; paths (your own folders included, spaces and all)
+  of a known shape and the key digest are always scrubbed, from every
+  string including item ids and error labels (a secret in any other shape
+  is not recognised); paths (your own folders included, spaces and all)
   and account ids are redacted by default, and the redacted file opens
   read-only in the editor before anything is written. **Muse Spark: Import
   Session** resumes such a file as a new conversation on the Model API
@@ -30,6 +31,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **The log redacts more credential shapes.** The output channel's
+  redactor and the session export now share one list
+  (`src/core/redact.ts`), so the log also removes GitHub, GitLab, npm,
+  Google API and Slack tokens, AWS access key ids and `~/.aws/credentials`
+  lines (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
+  `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
+  upper-case variable, a header, a JSON field or a URL parameter.
 - **Secret redaction no longer stalls on long text.** Two log-redaction
   patterns took quadratic time: the URL credentials pattern on a long run
   such as `a.b.c.…` (its scheme is now bounded), and the JSON Web Token

@@ -369,10 +369,15 @@ fields, never raw configuration or failed-command output.
 - A session export (M84) is written only where you save it, after its
   redacted form opened read-only in the editor. It holds the conversation's
   messages, thinking and tool calls with their arguments and visible output,
-  the session's name, the model's name and the backend; never a credential
-  or the key digest, and by default no path or e-mail address (they are
-  replaced), including in item ids and error labels. Ordinary UUIDs and
-  protocol words remain intact. **Save without redaction…** keeps paths and e-mail addresses.
+  the session's name, the model's name and the backend. The key digest and
+  every credential of a shape the extension knows (the log redactor's list:
+  common services' keys and tokens, bearer credentials, private keys,
+  secrets named by their key) are removed, and by default no path or e-mail
+  address stays (they are replaced), including in item ids and error
+  labels. A secret in any other shape is not recognised and stays, which is
+  why the file is shown before it is saved. Ordinary UUIDs and protocol
+  words remain intact. **Save without redaction…** keeps paths and e-mail
+  addresses.
   Validation failures use localized refusals and scrubbed, bounded field
   names instead of JSON parser snippets from the picked file.
   Importing or opening a share file reads the one file you pick; nothing

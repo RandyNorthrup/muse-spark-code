@@ -8986,9 +8986,11 @@ independent review, normal latest-main ancestry and complete gates remain pendin
 
 - **Goal.** A conversation can move between machines and people.
 - **Scope.**
-  - Export a conversation as JSON. Credentials and the key digest are
-    always left out; account ids and paths are redacted by default. A
-    preview shows the file first.
+  - Export a conversation as JSON. Credentials of a known shape (the log
+    redactor's list, `src/core/redact.ts`) and the key digest are always
+    left out; account ids and paths are redacted by default. A preview
+    shows the file first, since a secret in another shape is not
+    recognised.
   - Import resumes on the Model API. It drops the permission mode, session
     rules, goals, schedules and patches, and marks the imported turns as
     untrusted. It starts in Manual, or in Plan when
@@ -8997,7 +8999,10 @@ independent review, normal latest-main ancestry and complete gates remain pendin
   - A local share file, rendered read-only in the panel.
   - No hosted sharing.
 - **Backends.** The Model API resumes; Muse Code exports its own log (M30).
-- **Acceptance.** An export never holds a credential or the key digest;
+- **Acceptance.** An export never holds the key digest or a credential of
+  a known shape (amended 2026-10-01 after RV84 #1: "never a credential" is
+  not something a pattern list can promise, so the UI and docs say which
+  shapes are removed and that the preview is the check for the rest);
   an import starts in Manual (or Plan) even when the initial mode is Auto,
   Edit automatically or Bypass, with no session rules, goals, schedules
   or patches.

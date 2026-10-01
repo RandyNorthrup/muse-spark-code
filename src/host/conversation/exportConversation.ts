@@ -3,8 +3,10 @@
 // JSON on either backend, or, on Muse Code, the CLI's JSON session log
 // (`muse export`). The JSON export is built from the same history as the
 // Markdown one; it is redacted by default and previewed before anything is
-// written, and credentials and the key digest never enter it. The controller
-// supplies its session and host; the dialogs and the file write are injected.
+// written, and known credential shapes and the key digest never enter it (a
+// secret in another shape is not recognised, hence the preview). The
+// controller supplies its session and host; the dialogs and the file write
+// are injected.
 
 import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
 import {
@@ -135,7 +137,7 @@ async function exportJson(
       plural(UI_TEXT.exportPreviewPaths, built.paths),
       plural(UI_TEXT.exportPreviewAccounts, built.accounts),
       plural(UI_TEXT.exportPreviewSecrets, built.secrets),
-      UI_TEXT.exportPreviewCredentials,
+      UI_TEXT.exportPreviewKnownCredentials,
     ].join('\n'),
   })
   if (choice === 'dismissed') {

@@ -183,7 +183,7 @@
   "exportPreviewSecrets": {
     "other": "削除した資格情報またはキーのダイジェスト {count} 件"
   },
-  "exportPreviewCredentials": "資格情報とキーのダイジェストは含まれません。",
+  "exportPreviewKnownCredentials": "既知の形式の資格情報 (API キー、トークン、パスワード、秘密鍵) とキーのダイジェストは常に削除されます。それ以外の形式の秘密は残るため、共有する前にファイルを確認してください。",
   "exportTooLarge": "この会話はセッションのエクスポートファイルには長すぎます。",
   "importPreviewTitle": "セッションをインポート",
   "importPreviewDetail": "{source} から: {messages}。{model} で続行し、{mode} で開始します。セッションルール、目標、スケジュール、パッチは破棄され、インポートした履歴は信頼できないものとして扱われます。",

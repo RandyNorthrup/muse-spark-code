@@ -191,7 +191,7 @@
     "many": "{count} identifiants ou empreintes de clé supprimés",
     "other": "{count} identifiants ou empreintes de clé supprimés"
   },
-  "exportPreviewCredentials": "Les identifiants et l’empreinte de la clé ne sont jamais inclus.",
+  "exportPreviewKnownCredentials": "Les formes connues d’identifiants (clés d’API, jetons, mots de passe, clés privées) et l’empreinte de la clé sont toujours retirées. Un secret sous une autre forme reste : lisez le fichier avant de le partager.",
   "exportTooLarge": "Cette conversation est trop longue pour un fichier d’export de session.",
   "importPreviewTitle": "Importer la session",
   "importPreviewDetail": "Depuis {source} : {messages}. Elle continue sur {model} et démarre en mode {mode} ; les règles de session, les objectifs, les planifications et les correctifs sont abandonnés, et l’historique importé est considéré comme non fiable.",

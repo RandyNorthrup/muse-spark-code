@@ -183,7 +183,7 @@
   "exportPreviewSecrets": {
     "other": "已移除 {count} 個認證或金鑰摘要"
   },
-  "exportPreviewCredentials": "認證和金鑰摘要絕不會包含在內。",
+  "exportPreviewKnownCredentials": "已知格式的認證（API 金鑰、權杖、密碼、私密金鑰）和金鑰摘要一律會移除。其他格式的機密會保留：分享前請檢查檔案。",
   "exportTooLarge": "此對話太長，無法寫入工作階段匯出檔案。",
   "importPreviewTitle": "匯入工作階段",
   "importPreviewDetail": "來自{source}：{messages}。它將在 {model} 上繼續，並在{mode}中開始；工作階段規則、目標、排程和補丁都會被捨棄，匯入的歷程記錄將被視為不可信。",

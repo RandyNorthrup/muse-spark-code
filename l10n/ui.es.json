@@ -191,7 +191,7 @@
     "many": "{count} credenciales o resúmenes de clave eliminados",
     "other": "{count} credenciales o resúmenes de clave eliminados"
   },
-  "exportPreviewCredentials": "Las credenciales y el resumen de la clave nunca se incluyen.",
+  "exportPreviewKnownCredentials": "Las formas conocidas de credenciales (claves de API, tokens, contraseñas, claves privadas) y el resumen de la clave se quitan siempre. Un secreto con otra forma se queda: lea el archivo antes de compartirlo.",
   "exportTooLarge": "Esta conversación es demasiado larga para un archivo de exportación de sesión.",
   "importPreviewTitle": "Importar sesión",
   "importPreviewDetail": "Desde {source}: {messages}. Continúa en {model} y comienza en {mode}; las reglas de sesión, los objetivos, las programaciones y los parches se descartan, y el historial importado se trata como no confiable.",

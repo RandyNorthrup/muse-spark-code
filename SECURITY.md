@@ -323,7 +323,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
 - **Imported sessions (M84).** A session-export file may come from anyone.
   Parser failures do not quote the file, and field names are scrubbed before
   bounded validation details reach notices or logs. Export scrubbing covers
-  every string value, including arbitrary ids and error labels; ordinary
+  every string value, including arbitrary ids and error labels, and removes
+  the credential shapes the log redactor knows (`src/core/redact.ts`, the
+  one list) and the key digest; a secret in any other shape is not
+  recognised, so the redacted file is shown before it is saved. Ordinary
   UUIDs and protocol words stay intact. The share view's section keys include
   their position and import remints ids, so redacted ids carry no live reference.
   It is parsed whole before use: at most 16 MiB and 20,000 items, the known

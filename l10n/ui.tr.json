@@ -187,7 +187,7 @@
     "one": "{count} kimlik bilgisi veya anahtar özeti kaldırıldı",
     "other": "{count} kimlik bilgisi veya anahtar özeti kaldırıldı"
   },
-  "exportPreviewCredentials": "Kimlik bilgileri ve anahtar özeti hiçbir zaman eklenmez.",
+  "exportPreviewKnownCredentials": "Bilinen biçimlerdeki kimlik bilgileri (API anahtarları, belirteçler, parolalar, özel anahtarlar) ve anahtar özeti her zaman kaldırılır. Başka biçimdeki bir gizli bilgi kalır: paylaşmadan önce dosyayı okuyun.",
   "exportTooLarge": "Bu konuşma bir oturum dışa aktarma dosyası için çok uzun.",
   "importPreviewTitle": "Oturumu içe aktar",
   "importPreviewDetail": "{source} kaynağından: {messages}. {model} ile devam eder ve {mode} kipinde başlar; oturum kuralları, hedefler, zamanlamalar ve yamalar atılır ve içe aktarılan geçmiş güvenilmez kabul edilir.",

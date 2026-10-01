@@ -187,7 +187,7 @@
     "one": "{count} hitelesítő adat vagy kulcskivonat eltávolítva",
     "other": "{count} hitelesítő adat vagy kulcskivonat eltávolítva"
   },
-  "exportPreviewCredentials": "A hitelesítő adatok és a kulcskivonat soha nem szerepelnek.",
+  "exportPreviewKnownCredentials": "Az ismert formájú hitelesítő adatok (API-kulcsok, tokenek, jelszavak, privát kulcsok) és a kulcskivonat mindig törlődnek. Más formájú titok megmarad: megosztás előtt olvassa át a fájlt.",
   "exportTooLarge": "Ez a beszélgetés túl hosszú egy munkamenet-exportfájlhoz.",
   "importPreviewTitle": "Munkamenet importálása",
   "importPreviewDetail": "Innen: {source}: {messages}. A(z) {model} modellel folytatódik, és {mode} módban indul; a munkamenetszabályok, célok, ütemezések és javítások eldobásra kerülnek, és az importált előzmények nem megbízhatóként kezelendők.",

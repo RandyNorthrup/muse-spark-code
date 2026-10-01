@@ -2368,7 +2368,7 @@ export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
 }
 // A conversation as portable JSON for export, import and local share files
 // (M84, PLAN.md D49): one format for all three, validated with zod on both
-// ends, never holding a credential. No hosted sharing.
+// ends, with every known credential shape scrubbed. No hosted sharing.
 export const SESSION_EXPORT_FORMAT = 'muse-spark-session-export'
 export const SESSION_EXPORT_VERSION = 1
 // A file is read whole and its transcript posted to the panel. It holds text

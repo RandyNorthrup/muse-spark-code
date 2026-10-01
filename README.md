@@ -1357,11 +1357,17 @@ the session log.
 **Export, import and share a session.** **Export session as JSON…** (on
 either backend) writes the conversation as a portable file: the same history
 the Markdown export holds, without stored outputs, patches or anything that
-belongs to the running session. Credentials and the key digest are never in
-it, including inside item ids and error labels. Ordinary UUIDs and protocol
-words stay unchanged. Paths (your workspace and home folders wherever they appear, and any
-other absolute path or `file://` link) and account ids (e-mail addresses) are
-redacted by default. The redacted file opens read-only in the editor first,
+belongs to the running session. Credentials of a known shape and the key
+digest are removed from every string, item ids and error labels included:
+API keys and tokens of common services (Meta, GitHub, GitLab, npm, Google,
+AWS, Slack, Stripe-style keys), bearer and basic credentials, JSON Web
+Tokens, private keys, credentials in a URL, and secrets named by their key
+(`PASSWORD=`, `"api_key": …`, `~/.aws/credentials` lines, an Azure
+`AccountKey=`). A secret in any other shape is not recognised and stays, so
+read the preview before you share the file. Ordinary UUIDs and protocol
+words stay unchanged. Paths (your workspace and home folders wherever they
+appear, and any other absolute path or `file://` link) and account ids
+(e-mail addresses) are redacted by default. The redacted file opens read-only in the editor first,
 with how much was redacted; nothing is written until you choose **Save
 redacted…** or **Save without redaction…**. **Muse Spark: Import Session**
 resumes such a file as a new conversation on the Model API backend, on your

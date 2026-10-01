@@ -195,7 +195,7 @@
     "many": "{count} přihlašovacích údajů nebo otisků klíčů odstraněno",
     "other": "{count} přihlašovací údaje nebo otisky klíčů odstraněny"
   },
-  "exportPreviewCredentials": "Přihlašovací údaje ani otisk klíče nejsou nikdy součástí.",
+  "exportPreviewKnownCredentials": "Známé podoby přihlašovacích údajů (klíče API, tokeny, hesla, soukromé klíče) a otisk klíče se vždy odstraní. Tajný údaj v jiné podobě zůstane: před sdílením si soubor přečtěte.",
   "exportTooLarge": "Tato konverzace je na soubor exportu relace příliš dlouhá.",
   "importPreviewTitle": "Import relace",
   "importPreviewDetail": "Z {source}: {messages}. Pokračuje na {model} a začíná v {mode}; pravidla relace, cíle, plány a opravy se zahazují a importovaná historie se považuje za nedůvěryhodnou.",

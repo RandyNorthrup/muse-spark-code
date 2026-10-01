@@ -183,7 +183,7 @@
   "exportPreviewSecrets": {
     "other": "제거된 자격 증명 또는 키 다이제스트 {count}개"
   },
-  "exportPreviewCredentials": "자격 증명과 키 다이제스트는 포함되지 않습니다.",
+  "exportPreviewKnownCredentials": "알려진 형식의 자격 증명(API 키, 토큰, 암호, 개인 키)과 키 다이제스트는 항상 제거됩니다. 다른 형식의 비밀은 남으므로 공유하기 전에 파일을 확인하세요.",
   "exportTooLarge": "이 대화는 세션 내보내기 파일에 담기에는 너무 깁니다.",
   "importPreviewTitle": "세션 가져오기",
   "importPreviewDetail": "{source}에서: {messages}. {model}에서 이어지며 {mode}(으)로 시작하고, 세션 규칙, 목표, 일정, 패치가 삭제되며 가져온 기록은 신뢰할 수 없는 것으로 처리됩니다.",

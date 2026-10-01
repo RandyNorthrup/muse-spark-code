@@ -187,7 +187,7 @@
     "one": "{count} Anmeldeinformation oder Schlüssel-Hash entfernt",
     "other": "{count} Anmeldeinformationen oder Schlüssel-Hashes entfernt"
   },
-  "exportPreviewCredentials": "Anmeldedaten und der Schlüssel-Hash sind niemals enthalten.",
+  "exportPreviewKnownCredentials": "Bekannte Formen von Anmeldedaten (API-Schlüssel, Tokens, Passwörter, private Schlüssel) und der Schlüssel-Hash werden immer entfernt. Ein Geheimnis in anderer Form bleibt: Lesen Sie die Datei, bevor Sie sie weitergeben.",
   "exportTooLarge": "Diese Unterhaltung ist zu lang für eine Sitzungsexportdatei.",
   "importPreviewTitle": "Sitzung importieren",
   "importPreviewDetail": "Von {source}: {messages}. Sie wird mit {model} fortgesetzt und startet im Modus {mode}; Sitzungsregeln, Ziele, Zeitpläne und Patches werden verworfen, und der importierte Verlauf gilt als nicht vertrauenswürdig.",

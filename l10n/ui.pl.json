@@ -195,7 +195,7 @@
     "many": "{count} poświadczeń lub skrótów kluczy usuniętych",
     "other": "{count} poświadczenia lub skróty kluczy usunięte"
   },
-  "exportPreviewCredentials": "Poświadczenia ani skrót klucza nigdy nie są dołączane.",
+  "exportPreviewKnownCredentials": "Znane postacie poświadczeń (klucze API, tokeny, hasła, klucze prywatne) i skrót klucza są zawsze usuwane. Sekret w innej postaci zostaje: przeczytaj plik, zanim go udostępnisz.",
   "exportTooLarge": "Ta rozmowa jest za długa na plik eksportu sesji.",
   "importPreviewTitle": "Importuj sesję",
   "importPreviewDetail": "Z {source}: {messages}. Kontynuuje na {model} i zaczyna w {mode}; reguły sesji, cele, harmonogramy i poprawki są odrzucane, a zaimportowana historia jest traktowana jako niezaufana.",

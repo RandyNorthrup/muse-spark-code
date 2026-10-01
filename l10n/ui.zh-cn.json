@@ -183,7 +183,7 @@
   "exportPreviewSecrets": {
     "other": "已移除 {count} 个凭据或密钥摘要"
   },
-  "exportPreviewCredentials": "凭据和密钥摘要绝不会包含在内。",
+  "exportPreviewKnownCredentials": "已知格式的凭据（API 密钥、令牌、密码、私钥）和密钥摘要始终会被移除。其他格式的机密会保留：分享前请检查文件。",
   "exportTooLarge": "此对话太长，无法写入会话导出文件。",
   "importPreviewTitle": "导入会话",
   "importPreviewDetail": "来自{source}：{messages}。它将在 {model} 上继续，并在{mode}中开始；会话规则、目标、计划和补丁都会被丢弃，导入的历史记录将被视为不可信。",

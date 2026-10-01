@@ -1,5 +1,5 @@
 // Session export, import and share (M84, PLAN.md D49): the portable
-// document is built with credentials always scrubbed and paths and account
+// document is built with known credential shapes always scrubbed and paths and account
 // ids redacted by default; every imported byte is parsed (format, version,
 // schema and caps, unknown fields); and an import becomes a stored session
 // with fresh ids, the caller's mode and model, nothing privileged, and each
@@ -175,6 +175,37 @@ describe('buildSessionExport', () => {
     expect(built.secrets).toBe(5)
     expect(built.paths).toBe(0)
     expect(built.doc.redacted).toBe(false)
+  })
+
+  it('scrubs the credential shapes a tool output shows: Google, npm, Azure, the AWS file, GitLab', () => {
+    // Synthetic values, built here so the secret scanner never sees a whole token.
+    const secrets = [
+      `AIza${'B'.repeat(35)}`,
+      `npm_${'a1'.repeat(18)}`,
+      `${'q1w2'.repeat(22)}==`,
+      'wJalr'.repeat(8),
+      `glpat-${'x'.repeat(20)}`,
+    ] as const
+    const [google, npm, azure, aws, gitlab] = secrets
+    const output = [
+      `maps key ${google}`,
+      `//registry.npmjs.org/:_authToken=${npm}`,
+      `DefaultEndpointsProtocol=https;AccountName=box;AccountKey=${azure};EndpointSuffix=core.windows.net`,
+      `[default]\naws_secret_access_key = ${aws}`,
+      `push with ${gitlab}`,
+    ].join('\n')
+    const built = buildSessionExport(
+      source([{ itemId: 't1', kind: 'toolCall', status: 'completed', visibleOutput: output }]),
+      { redact: true, ...NO_ROOTS },
+    )
+    const text = JSON.stringify(built.doc)
+    for (const secret of secrets) {
+      expect(text).not.toContain(secret)
+    }
+    expect(built.secrets).toBe(secrets.length)
+    expect(built.doc.transcript[0]?.visibleOutput).toContain(
+      'AccountName=box;AccountKey=[redacted];',
+    )
   })
 
   it("redacts this machine's folders to the path's end, whatever the spaces, separators and case", () => {

@@ -241,7 +241,8 @@ export const EN = {
     one: '{count} credential or key digest removed',
     other: '{count} credentials or key digests removed',
   }),
-  exportPreviewCredentials: 'Credentials and the key digest are never included.',
+  exportPreviewKnownCredentials:
+    'Known credential shapes (API keys, tokens, passwords, private keys) and the key digest are always removed. A secret in another shape stays: read the file before you share it.',
   exportTooLarge: 'This conversation is too long for a session export file.',
   importPreviewTitle: 'Import session',
   // {source}: the backend label; {messages}: a message-count line; {model}:

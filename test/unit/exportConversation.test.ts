@@ -115,7 +115,7 @@ describe('exportConversation', () => {
         '2 paths redacted',
         '1 account id redacted',
         '0 credentials or key digests removed',
-        'Credentials and the key digest are never included.',
+        'Known credential shapes (API keys, tokens, passwords, private keys) and the key digest are always removed. A secret in another shape stays: read the file before you share it.',
       ])
       // The preview is the file that is written, byte for byte.
       expect(t.json).toEqual([['muse-share-me-2026-09-24.json', shown?.content]])

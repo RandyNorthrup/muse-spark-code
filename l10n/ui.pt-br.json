@@ -191,7 +191,7 @@
     "many": "{count} credenciais ou hashes de chave removidos",
     "other": "{count} credenciais ou hashes de chave removidos"
   },
-  "exportPreviewCredentials": "Credenciais e o hash da chave nunca são incluídos.",
+  "exportPreviewKnownCredentials": "Formatos conhecidos de credenciais (chaves de API, tokens, senhas, chaves privadas) e o hash da chave são sempre removidos. Um segredo em outro formato permanece: leia o arquivo antes de compartilhá-lo.",
   "exportTooLarge": "Esta conversa é longa demais para um arquivo de exportação de sessão.",
   "importPreviewTitle": "Importar sessão",
   "importPreviewDetail": "De {source}: {messages}. Continua em {model} e começa em {mode}; regras de sessão, metas, agendamentos e patches são descartados, e o histórico importado é tratado como não confiável.",

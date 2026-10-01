@@ -6,10 +6,11 @@
 //   state (stored outputs and patches, child sessions, background handles,
 //   workflow handles) never enters it, nor does the Model API replay: an
 //   import rebuilds what the model reads from the transcript.
-// - Known credential shapes (the log redactor's, and common token, key and
-//   secret shapes) and the key digest are scrubbed from every string,
-//   always. Account ids (e-mail addresses) and paths are redacted by
-//   default. The preview shows the file before anything is written.
+// - Known credential shapes (the log redactor's list, `redactSecrets`) and
+//   the key digest are scrubbed from every string, always; a secret in a
+//   shape the list does not know stays, which is why the preview shows the
+//   file before anything is written. Account ids (e-mail addresses) and
+//   paths are redacted by default.
 // - Every imported byte is parsed: the format and its version first, then
 //   the schema with its caps, then any field the schema does not know,
 //   anywhere in the file, fails the whole file.
@@ -204,31 +205,9 @@ export function parseSessionExport(raw: unknown): SessionExportParse {
 
 // A SHA-256 digest such as the stored session's `accountId`, and any longer
 // hex run around one: cutting a run into 64-character pieces would leave
-// part of a digest behind.
+// part of a digest behind. The credential shapes are the log redactor's
+// (`redactSecrets`), the one list the extension keeps.
 const KEY_DIGEST = /[A-Fa-f0-9]{64,}/g
-// Credential shapes beyond the log redactor's, common in a tool's output
-// (`cat .env`, a config file, an HTTP trace). Each is bounded or anchored
-// on a literal, so it scans in linear time. Over-redaction is the safe side.
-const CREDENTIAL_SHAPES: readonly RegExp[] = [
-  // A PEM private key, its body to the END line.
-  /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----[A-Za-z0-9+/=\s]*(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----)?/g,
-  // GitHub, AWS access key ids, Slack, and `sk-` / `sk_live_` style API keys.
-  /\b(?:gh[pousr]_[A-Za-z0-9]{20,255}|github_pat_\w{20,255})/g,
-  /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
-  /\bxox[abposr]-[A-Za-z0-9-]{10,255}/g,
-  /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{16,255}|\bsk-[\w-]{20,255}/g,
-]
-// A secret named by its key: an upper-case environment name that says so
-// (`GITHUB_TOKEN=`, `AWS_SECRET_ACCESS_KEY:`), an `api-key` header,
-// `Authorization: token …`, a quoted JSON field, or a URL parameter. The
-// value after the name is replaced; the name stays.
-const NAMED_SECRETS: readonly RegExp[] = [
-  /(\b[A-Z][A-Z0-9_]{0,60}(?:SECRET|TOKEN|PASSWORD|PASSWD|API_KEY|APIKEY|ACCESS_KEY|PRIVATE_KEY|CREDENTIALS?)[A-Z0-9_]{0,60}\s{0,5}[=:]\s{0,5}["']?)[^\s"'&,;}]{1,4096}/g,
-  /(\b(?:x-)?api-key\s{0,5}[:=]\s{0,5}["']?)[^\s"'&,;}]{1,4096}/gi,
-  /(\bAuthorization\s{0,5}:\s{0,5}token\s{1,5})[^\s"'&,;}]{1,4096}/gi,
-  /(["'][\w-]{0,40}(?:token|secret|passw(?:or)?d|api[_-]?key|private[_-]?key)["']\s{0,5}:\s{0,5}["'])[^"'\r\n]{1,4096}/gi,
-  /([?&](?:token|key|secret|sig|signature|auth)=)[^&#\s"']{1,4096}/gi,
-]
 // Bounded as RFC 5321 bounds an address's parts, so a long run of word
 // characters (a base64 blob in a tool output) is scanned in linear time.
 const EMAIL_ADDRESS = /[\w.%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g
@@ -275,16 +254,9 @@ function occurrences(text: string, pattern: RegExp): number {
   return text.match(pattern)?.length ?? 0
 }
 
-/** The text with every credential shape replaced by the mark. */
+/** The text with every known credential shape and key digest replaced by the mark. */
 function withoutCredentials(text: string): string {
-  let result = redactSecrets(text).replaceAll(KEY_DIGEST, () => REDACTED_MARK)
-  for (const shape of CREDENTIAL_SHAPES) {
-    result = result.replaceAll(shape, () => REDACTED_MARK)
-  }
-  for (const named of NAMED_SECRETS) {
-    result = result.replaceAll(named, (_match: string, lead: string) => `${lead}${REDACTED_MARK}`)
-  }
-  return result
+  return redactSecrets(text).replaceAll(KEY_DIGEST, () => REDACTED_MARK)
 }
 
 /**
