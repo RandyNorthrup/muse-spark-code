@@ -278,6 +278,24 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   Windows each stdio server runs in a job object that ends its descendants.
   Remote error bodies and authentication challenges stay out of tool
   errors and logs.
+- **Import from other agents.** A repository's `.claude/`, `.codex/` and
+  `.cursor/` entries are read only in a trusted workspace, every path
+  resolved through links and junctions and refused when it leaves the
+  workspace, and they are offered only for that project's files: a
+  repository's MCP servers are shown, never offered for your own Muse Code
+  settings. Nothing is written before you accept the preview; a file is
+  published whole with an exclusive hard link, never replaced, each destination checked
+  against its root again when it is written. Project path components refuse
+  symbolic links and junctions, including dangling links; bounded reads
+  verify the opened file's identity before using its bytes. Rules updates
+  use the atomic writer and refuse a changed prior file or a result past
+  the rules limit. Clipboard access and editor opening recheck project
+  destinations. Muse Code's `settings.json`
+  and `.muse/hooks.json` are never written: their converted entries are
+  masked (every `env` and header value, URL credentials and query values,
+  credential-like arguments and token shapes) for you to paste and fill
+  in. A hook that narrows with `if`, `args` or `shell` is not converted,
+  so nothing is widened.
 - **Web fetch (both backends).** The model can ask the extension to read a
   page. Only `https://` URLs without credentials, of at most 2,048
   characters, on public internet addresses: the name is resolved on the

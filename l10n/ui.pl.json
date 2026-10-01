@@ -188,6 +188,8 @@
   "agentImportSkippedUnreadable": "nie można odczytać pliku docelowego, więc pozostaje bez zmian",
   "agentImportSkippedTooLarge": "AGENTS.md przekroczyłby rozmiar, który wczytuje Muse Code",
   "agentImportSkippedChanged": "jego folder zmienił się po podglądzie, więc nic nie zapisano",
+  "agentImportBusy": "Import jest już otwarty; najpierw odpowiedz na jego pytania.",
+  "agentImportFailed": "Import zatrzymał się z powodu nieoczekiwanego błędu; to, co już zapisano, pozostaje. Kod błędu jest w dzienniku.",
   "agentImportNotApplied": "Nic nie zostało zaimportowane: okno zostało zamknięte, folder zmienił się po podglądzie lub nie udało się zachować punktu kontrolnego.",
   "agentImportUnavailable": "Nie udało się wczytać importu, więc nic nie można zaimportować; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "agentImportPreviewTitle": "Podgląd importu",

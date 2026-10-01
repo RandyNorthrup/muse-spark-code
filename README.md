@@ -548,6 +548,58 @@ session offers Muse Code's `resume-claude` and `resume-codex` skills, the
 palette's Context group has **Continue a Claude Code session** and
 **Continue a Codex session**.
 
+**Import from other agents…** (Customize group, both backends) moves you
+off Claude Code, Codex or Cursor: their MCP servers, Claude Code hooks,
+custom agents, slash commands and rules files, found where each tool keeps
+them and converted to the formats their destination loads.
+
+| From                                                                              | Becomes                                                                                                                                                                 |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slash commands (`.claude/commands`, `~/.codex/prompts`, `.cursor/commands`)       | Skills: the project's `.agents/skills/<id>/SKILL.md`, or your own `~/.config/muse/skills/<id>`                                                                          |
+| Custom agents (`.claude/agents`, `.cursor/agents`)                                | Compatible M76 agents in `.agents/agents/<id>/AGENT.md`, or your own `~/.config/muse/agents/<id>/AGENT.md`; the directory id is the Model API `subagent_spawn` selector |
+| A project's rules (`CLAUDE.md`, `.cursor/rules/*.mdc`, `.cursorrules`)            | Headed sections appended to the project's `AGENTS.md`                                                                                                                   |
+| Your MCP servers (`~/.claude.json`, `~/.codex/config.toml`, `~/.cursor/mcp.json`) | Entries to paste into Muse Code's `settings.json`                                                                                                                       |
+| Claude Code hooks (your `settings.json`, or the project's)                        | Entries to paste into your `settings.json`, or the project's `.muse/hooks.json`                                                                                         |
+
+A read-only preview shows everything first, secret-looking values masked,
+and nothing is written until you choose Import; an existing file is never
+replaced. The extension never writes Muse Code's `settings.json` or
+`.muse/hooks.json`: it copies the masked entries for you, opens the file,
+and you fill in what is masked. A repository's entries are read only in a
+trusted workspace and offered only for that project's files, so a
+repository's own MCP servers are listed but not offered for your settings.
+Your personal `CLAUDE.md` and Codex `AGENTS.md` are Muse Code's own
+`/rules import`. Hooks keep their matchers; a hook that narrows with `if`,
+`args` or `shell`, uses an event Muse Code lacks, or is not a command is
+listed, not converted, as are servers that are turned off or need SSE,
+WebSockets or OAuth.
+
+Claude agents and commands include namespace folders up to three levels;
+an agent's directory prefixes stay in its selector. Agents need M76's
+`name` and `description`, and keep their supported prompt, tool allowlist,
+model, effort and permission ceiling. Unsupported foreign fields, tool
+names, empty or multiline tool lists, and model aliases such as `sonnet`
+are listed without writing a file. Running imported custom agents awaits
+M76 on the Model API backend; the captured Muse Code CLI names no native
+agent folder.
+
+One import runs at a time in this extension host; a second request reports
+that the first is still open. Project destinations
+refuse symbolic links and junctions, even dangling ones, before reading,
+writing or opening them. Files publish whole without replacing anything;
+rules updates stop if the prior file changed or the result would exceed
+64 KiB, preserving the existing rules. Settings that are unreadable,
+oversized or malformed offer no server or hook copies for that file and
+the preview states why. Generated command, agent and project rules files contain the
+same masked values shown in their preview.
+Project publication, clipboard and editor actions recheck live workspace
+trust after file checks; closing the extension stops pending import effects.
+Your own imports remain available in Restricted Mode.
+Earlier checks no longer count as current while project files are being imported.
+Slash commands keep supported description and argument-hint metadata;
+unsupported fields such as `allowed-tools`, `model` or `context` are
+listed without creating a broader skill.
+
 **MCP servers and hooks.** Muse Code reads both from its own settings file
 (`~/.config/muse/settings.json`, or under `XDG_CONFIG_HOME`), and project
 hooks from `.muse/hooks.json`. The extension shows them and never edits them:
@@ -1761,6 +1813,7 @@ What stays in English:
 | Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
+| Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, show servers and hooks masked to copy by hand                        |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
 | Muse Spark: MCP Servers                             | —                                                                                    | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                               |
 | Muse Spark: Hooks                                   | —                                                                                    | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                               |

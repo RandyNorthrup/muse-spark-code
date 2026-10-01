@@ -8,8 +8,8 @@ import {
   type AgentImportDeps,
   type AgentImportPickItem,
   type AgentImportSourceChoice,
-  createImportQueue,
-  type ImportQueue,
+  createImportGate,
+  type ImportGate,
   importFromAgents,
 } from '../../src/host/commands/agentImportCommands'
 import {
@@ -79,7 +79,9 @@ interface Options {
   readonly whileClipboardWritten?: (io: MemoryImportIo, text: string) => void
   /** Shared by two runs in one window; each run gets its own by default. */
   readonly io?: MemoryImportIo
-  readonly exclusive?: ImportQueue
+  readonly gate?: ImportGate
+  /** Replaces the tool picker, which is the first thing an import asks. */
+  readonly pickSource?: () => Promise<AgentImportSourceChoice | undefined>
 }
 
 function run(options: Options = {}) {
@@ -134,8 +136,10 @@ function run(options: Options = {}) {
     },
     ...(options.beginProjectEdit !== undefined && { beginProjectEdit: options.beginProjectEdit }),
     isPresent: io.isPresent,
-    exclusive: options.exclusive ?? createImportQueue(),
-    pickSource: () => Promise.resolve('source' in options ? options.source : 'claudeCode'),
+    gate: options.gate ?? createImportGate(),
+    pickSource:
+      options.pickSource ??
+      (() => Promise.resolve('source' in options ? options.source : 'claudeCode')),
     pickCandidates: (list) => {
       items.push(...list)
       const picked =
@@ -544,26 +548,52 @@ describe('importFromAgents confinement and order', () => {
     expect(flow.logged()).toContain('workspace trust changed')
   })
 
-  it('holds a second import flow until the first preview is answered', async () => {
+  it('tells a second import that one is open, starts nothing, and opens again once the first ends', async () => {
     const answer = Promise.withResolvers<boolean>()
-    const queue = createImportQueue()
+    const gate = createImportGate()
     const io = memoryImportIo({ files: FILES })
-    const first = run({ io, exclusive: queue, confirmation: answer.promise })
-    const second = run({ io, exclusive: queue })
+    const first = run({ io, gate, confirmation: answer.promise })
     try {
       await vi.waitFor(() => {
         expect(first.events).toContain('confirm')
       })
+      const second = run({ io, gate })
+      await second.done
+      // No picker, no preview, nothing written: only the word that one is open.
+      expect(second.events).toEqual([])
       expect(second.previews).toEqual([])
+      expect(second.information).toEqual([UI_TEXT.agentImportBusy])
       expect(io.files.has(`${WS}/AGENTS.md`)).toBe(false)
       answer.resolve(true)
-      await Promise.all([first.done, second.done])
-      expect(second.previews).toHaveLength(1)
+      await first.done
+      expect(io.files.get(`${WS}/AGENTS.md`)?.split('## Imported from Claude Code')).toHaveLength(2)
+      const third = run({ io, gate })
+      await third.done
+      expect(third.previews).toHaveLength(1)
+      expect(third.information.at(-1)).not.toBe(UI_TEXT.agentImportBusy)
       expect(io.files.get(`${WS}/AGENTS.md`)?.split('## Imported from Claude Code')).toHaveLength(2)
     } finally {
       answer.resolve(false)
-      await Promise.all([first.done, second.done])
+      await first.done
     }
+  })
+
+  it('stops on an unforeseen error with its code only, and lets the next import open', async () => {
+    const gate = createImportGate()
+    const failed = run({
+      gate,
+      pickSource: () =>
+        Promise.reject(
+          Object.assign(new Error(`failed reading ${HOME}/.claude.json`), { code: 'EIO' }),
+        ),
+    })
+    await failed.done
+    expect(failed.warnings).toEqual([UI_TEXT.agentImportFailed])
+    expect(failed.logged()).toContain('stopped on an unexpected error (EIO)')
+    expect(failed.logged()).not.toContain('.claude.json')
+    const next = run({ gate })
+    await next.done
+    expect(next.previews).toHaveLength(1)
   })
 
   it.each(['bad JSON', '[]'])(
@@ -621,15 +651,6 @@ describe('importFromAgents confinement and order', () => {
       expect(flow.warnings).toContain(`.muse/hooks.json: ${UI_TEXT.agentImportSkippedOutside}`)
     },
   )
-
-  it('writes two imports accepted at once one after the other: AGENTS.md gains one section', async () => {
-    const io = memoryImportIo({ files: FILES })
-    const queue = createImportQueue()
-    const first = run({ io, exclusive: queue })
-    const second = run({ io, exclusive: queue })
-    await Promise.all([first.done, second.done])
-    expect(io.files.get(`${WS}/AGENTS.md`)?.split('## Imported from Claude Code')).toHaveLength(2)
-  })
 })
 
 // M83 on top of M72 and the approval wait: the folder the preview was made
@@ -766,6 +787,19 @@ describe('importFromAgents: the checkpoint lease and copies (M72)', () => {
     expect(flow.warnings.join('\n')).toContain(UI_TEXT.agentImportSkippedFailed)
   })
 
+  it('says why, and not that it finished, when nothing could be written', async () => {
+    const flow = run({
+      pick: projectOnly,
+      beforeProjectWrite: () => Promise.reject(new Error(UI_TEXT.checkpointFailed)),
+    })
+    await flow.done
+    expect(flow.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(false)
+    expect(flow.information.some((message) => message.startsWith(UI_TEXT.agentImportDone))).toBe(
+      false,
+    )
+    expect(flow.warnings).toEqual([`ship: ${UI_TEXT.agentImportSkippedFailed}`])
+  })
+
   it('stops every later project write once the window’s guard throws', async () => {
     let checks = 0
     const flow = run({
@@ -784,22 +818,26 @@ describe('importFromAgents: the checkpoint lease and copies (M72)', () => {
   })
 })
 
-describe('createImportQueue', () => {
-  it('runs tasks one after another, and a failure does not stop the next', async () => {
-    const queue = createImportQueue()
+describe('createImportGate', () => {
+  it('admits one task at a time, says so when busy, and opens again after a failure', async () => {
+    const gate = createImportGate()
+    const release = Promise.withResolvers<undefined>()
     const order: string[] = []
-    const failing = queue(async () => {
+    const first = gate(async () => {
       order.push('first starts')
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await release.promise
       order.push('first ends')
-      throw new Error('first failed')
     })
-    const next = queue(() => {
-      order.push('second')
-      return Promise.resolve(2)
-    })
-    await expect(failing).rejects.toThrow('first failed')
-    await expect(next).resolves.toBe(2)
-    expect(order).toEqual(['first starts', 'first ends', 'second'])
+    expect(
+      await gate(() => {
+        order.push('second')
+        return Promise.resolve()
+      }),
+    ).toBe(false)
+    release.resolve(undefined)
+    expect(await first).toBe(true)
+    await expect(gate(() => Promise.reject(new Error('failed')))).rejects.toThrow('failed')
+    expect(await gate(() => Promise.resolve())).toBe(true)
+    expect(order).toEqual(['first starts', 'first ends'])
   })
 })

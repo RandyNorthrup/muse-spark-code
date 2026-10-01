@@ -248,6 +248,11 @@ export const EN = {
   // Shown when the import could not start writing at all.
   agentImportNotApplied:
     'Nothing was imported: the window closed, the folder changed after the preview, or the checkpoint could not be kept.',
+  // Shown when an import is asked for while another one waits for its answers.
+  agentImportBusy: 'An import is already open; answer its questions first.',
+  // Shown when the import stopped on an error nothing foresaw.
+  agentImportFailed:
+    'The import stopped on an unexpected error; what was already written stays. The log has the error code.',
   // Shown when the import's own code did not load (a damaged install).
   agentImportUnavailable:
     'The import could not be loaded, so nothing can be imported; reinstall the extension and reload the window. The log has the details.',

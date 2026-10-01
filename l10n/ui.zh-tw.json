@@ -188,6 +188,8 @@
   "agentImportSkippedUnreadable": "無法讀取目標檔案，因此保持不變",
   "agentImportSkippedTooLarge": "會使 AGENTS.md 超出 Muse Code 可載入的大小",
   "agentImportSkippedChanged": "其資料夾在預覽之後發生了變化，因此未寫入",
+  "agentImportBusy": "已有一個匯入處於開啟狀態；請先回答它的問題。",
+  "agentImportFailed": "匯入因未預期的錯誤而停止；已寫入的內容會保留。錯誤代碼在記錄中。",
   "agentImportNotApplied": "未匯入任何內容：視窗已關閉、資料夾在預覽之後發生了變化，或無法保留檢查點。",
   "agentImportUnavailable": "無法載入匯入功能，因此無法匯入任何內容；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "agentImportPreviewTitle": "匯入預覽",

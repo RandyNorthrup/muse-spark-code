@@ -160,6 +160,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `html-encoding-sniffer`                                                                              | 6.0.0                             | M69: the HTML standard's encoding sniffing (byte order mark, the Content-Type charset, the 1,024-byte `<meta>` prescan) for web fetch's HTML, as jsdom uses it. MIT; one dependency, `@exodus/bytes` ^1.6 (MIT; 1.15.2 locked through jsdom, published 2026-09-21, inside the 7-day window: the lockfile pins it, as for `@muse-code/sdk`; its optional `@noble/hashes` peer is not used by the `encoding-lite` entry the sniffer imports); published 2025-12-26; `npm audit` clean. Says Node ≥ 20.19 (ESM); bundled into `dist/pageWorker.js` only and run on Node 20.18.3. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                                      |
 | `playwright-core`                                                                                    | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
+| `smol-toml`                                                                                          | 1.8.0                             | Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.                                                                                                                                                                                                              |
 
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
@@ -8436,7 +8437,10 @@ repository in the extension's own storage, never the workspace's
     the user folder. The folder follows Muse Code's own convention if its
     binary or docs name one (D13: no invented file names); otherwise the
     name chosen is recorded in D13 as the extension's own. Claude Code's
-    and Codex's formats are imported (M83).
+    and Codex's formats are imported (M83). M83, built first, writes
+    imported agents to `.agents/agents/<id>/AGENT.md` and
+    `<config>/muse/agents/<id>/AGENT.md` (`PROJECT_AGENTS_DIR_SEGMENTS`,
+    `PERSONAL_AGENTS_DIR_SEGMENTS`): M76 loads from there, or moves both.
   - Built-in agents:
     - **Explore**: read-only, context-saving;
     - **Reviewer**: built in M70, and becomes the first definition in
@@ -8827,6 +8831,25 @@ independent review and the full candidate gates remain required.**
 
 ### M83 — Import from other agents (D49)
 
+**Status 2026-09-30: ported to the M72 release candidate; lane verification in progress.**
+Worktree `muse-extension-m83`, branch `feature/m83-import`, starts at
+`1fd98aaf`; the initial port is `6eba5169`. The prepared integration tree
+and archived work are read-only sources. The original uncommitted repair
+is retained: one host-wide import gate refuses a second request while the
+first awaits any answer, and unexpected failures are reported honestly.
+Project import publications use M68's existing begin/finally workspace notices,
+capturing the exact live owner before the first await and counting only a true
+write. Personal imports neither notify this workspace nor load the lazy host.
+The append guard also reaches every native atomic write boundary.
+M76 is being finished separately and is not imported into this lane. The
+existing import validator checks its planned agent format until M76's
+canonical reader is available. Focused checks and red drills belong to this
+lane; independent review and full multi-platform gates belong to the lead.
+The named `muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is unavailable
+on this machine; the lane brief, prepared source and preserved evidence
+provide the recovery context. No model or network call is needed.
+The 2026-09-28 certification is historical (`docs/certification/m83.md`).
+
 - **Goal.** Switching to Muse Spark Code takes minutes.
 - **Scope.**
   - Import from Claude Code, Codex and Cursor, beyond M30's skills and
@@ -8852,9 +8875,123 @@ independent review and the full candidate gates remain required.**
 - **Acceptance.** Nothing is written before the preview is accepted; the
   CLI's settings and hooks files are never written; a project's entries are
   never offered for user files.
+  - **Filesystem review, 2026-09-29:** retain import serialization and
+    completed conversion fixes. Project destination reads, appends and
+    editor opens refuse every symbolic link or junction below the workspace
+    root, including dangling links. Bounded reads verify the opened file's
+    identity before reading bytes. New files publish whole and exclusively;
+    rules append through the existing atomic writer only while the file
+    still holds the text used to select fresh sections and its resulting
+    bytes stay within the rules limit. Recheck copy destinations after the
+    clipboard await and before opening. Verify with real temporary files,
+    Windows junctions, held concurrent imports and meaningful red drills.
+    The host-wide gate covers the complete flow, including clipboard/editor
+    actions; a second request is refused as busy. A trust revocation while the preview waits aborts a project
+    import before applying its accepted plan.
+    - **Independent review repair, 2026-09-29:** every project publication
+      rechecks live workspace trust after asynchronous file checks and
+      immediately before the hard link or atomic rename. Clipboard and
+      editor actions recheck the same trust and the activation lifetime;
+      shutdown prevents every later import side effect. User imports remain
+      available in Restricted Mode. Mask the complete project rules section
+      before planning, including heading and frontmatter-derived text, so
+      accepted preview bytes and published `AGENTS.md` bytes agree. Add held
+      real-file publication and clipboard tests; verification remains queued.
+    - Imported agents use M76's planned `<id>/AGENT.md` directory layout.
+      The bounded import validator checks supported metadata until M76's
+      canonical reader lands; M76 runtime admission remains a lead-owned dependency.
+      Folder prefixes namespace the selector, while compatible frontmatter
+      and prompt semantics stay intact. Missing required metadata, unknown
+      restrictions, empty or unsupported tool lists and foreign model
+      aliases are listed as unsupported and never written. No imported
+      field raises approval mode. These managed agents run on Model API;
+      D13's captured CLI still names no native agent folder. Generated
+      command and agent files are masked before planning, so the accepted
+      preview and applied bytes agree.
+      Commands carrying metadata the native skill does not support are
+      listed as unsupported rather than losing restrictions in conversion.
 - **Tests.** Fixture folders for each tool, and a drill for the scope
   rule.
 - **Size.** S.
+- **As built (decisions).** A first draft by Muse Code (5094e6b4) was
+  reviewed and largely rewritten; the certification record lists what
+  changed and why.
+  - **Sources, from each tool's documentation (2026-09-28) and Muse Code
+    1.4.0-R4302.1's bundled `migrate` skill.** Claude Code: user and
+    local-scope MCP servers in `~/.claude.json` (`mcpServers`,
+    `projects[<root>].mcpServers`, the drive letter matched in either
+    case; the file's account and usage data are parsed past and dropped),
+    project servers in `.mcp.json`, hooks in `~/.claude/settings.json` and
+    the project's `.claude/settings.json` and `settings.local.json`,
+    agents and commands (namespaced subfolders, three deep) in `agents/`
+    and `commands/`, rules in the project's `CLAUDE.md` and
+    `.claude/CLAUDE.md`; `CLAUDE_CONFIG_DIR` honoured. Codex:
+    `config.toml` `[mcp_servers.*]` (read with `smol-toml`, D3), prompts
+    in `~/.codex/prompts` (Codex has no project prompts), `CODEX_HOME`
+    honoured when absolute and refused with a warning when relative; the
+    project's root `AGENTS.md` is Muse Code's own rules file, so it is not
+    a source. Cursor: `mcp.json`, `agents/` and `commands/` in `~/.cursor`
+    and the project's `.cursor`, rules in `.cursor/rules/*.mdc` (their
+    `description` and `globs` kept in the section) and `.cursorrules`.
+    Cursor's and Codex's hooks are not read: their events do not share
+    Muse Code's names.
+  - **The scope rule.** The user's own folders go only to the user's
+    files; they are theirs, so links in them are followed. A repository's
+    folders are read only in a trusted workspace that is not the home
+    folder itself, every path confined by its canonical form
+    (`confineWorkspacePath`, D24), and go only to that project's files.
+    Muse Code reads MCP servers only from the user's `settings.json`
+    (M31), so a repository's servers are listed and never offered there.
+    The user's `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` are Muse
+    Code's own `/rules import` (it names both files; the user rules file's
+    name is Q9), so they are listed and not offered for a project's
+    `AGENTS.md`.
+  - **Preview first, nothing replaced.** A read-only Markdown document
+    (M15's read-only documents, now opened before the CLI features are
+    built) shows every file whole, every appended section, every copy text
+    and every entry left out with its reason, beside a non-modal
+    notification that asks, so the preview stays readable; nothing is
+    written until Import. A file is created with `wx` (an exclusive
+    open), each destination confined again at the moment of writing, a
+    project's to the workspace root itself (not its `.agents` folder, so a
+    linked `.agents` is refused); a rules section is appended only if its
+    heading is not in `AGENTS.md` when it is written.
+  - **Never written: Muse Code's `settings.json` and `.muse/hooks.json`
+    (D17, D30).** MCP entries are the `migrate` skill's shape: `type:
+"stdio"` or `"streamable-http"`, always `mode: "optional"`, Codex's
+    `enabled`, `tool_timeout_sec`, `startup_timeout_sec`, `enabled_tools`
+    and `disabled_tools` copied, every other field named as not carried
+    over; `sse`, `ws`, `sdk`, OAuth and header helpers are not converted,
+    nor is a server turned off. Hook entries keep their matcher (Muse
+    Code's matchers take Claude Code's tool names for its own tools),
+    except where Claude Code ignores one (`UserPromptSubmit`,
+    `PostToolBatch`, `Stop`); a handler converts only as a plain `command`
+    with `timeout` (at most 600 s), `async` and `statusMessage`, so nothing
+    that narrowed (`if`, `args`, `shell`) is widened. The copy text is the
+    whole file when it is missing (`schema_version: 1` for the settings),
+    else the members to merge, with a warning for the legacy
+    `mcp_servers` key; it is copied and the file opened (unsaved at its
+    path when missing, so the user saves it).
+  - **Masking.** Every `env` and header value whole; URL user-info and
+    query values; the value after a credential-like flag or in a
+    credential-like assignment; the log redactor's shapes and the token
+    shapes it lacks (GitHub, OpenAI and Anthropic, Slack, AWS, Google,
+    Stripe). Entries are masked when converted, so no unmasked value is
+    kept. Parse failures are logged in fixed words: `JSON.parse` and
+    `smol-toml` messages can quote the file.
+  - **Custom agents before M76.** The agent files land in
+    `.agents/agents/<id>/AGENT.md` and `<config>/muse/agents/<id>/AGENT.md`,
+    M76's planned extension-owned layout. The directory id is the planned
+    selector passed to `subagent_spawn`; frontmatter name is presentation.
+    Import checks supported fields and tool restrictions; incompatible
+    entries are shown as unsupported. Runtime use awaits M76 integration.
+    Muse Code's own agents stay native; the
+    captured CLI names no user agent folder.
+  - No new setting, no model call, no paid use: D49's paid-call rules do
+    not apply. Restricted Mode reads and offers only the user's own
+    files. `agentImportKindHook` and `agentImportKindAgent` join
+    `l10n/untranslated.json` only for the languages that use the English
+    word.
 
 ### M84 — Session export, import and share (D49)
 
@@ -9389,9 +9526,11 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
-| File                                            | Construct                        | Reason                                                                                                                                                  | Added      |
-| ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised. | 2026-09-30 |
+| File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Added      |
+| ----------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                                                                      | 2026-09-30 |
+| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` is a function, not its parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                                                                                                  | 2026-09-30 |
+| `src/shared/l10n/enLazy.ts`                     | `{} as UiText`                                                         | The English table's stand-in in the bundles that are handed the display table at their entry (`dist/modelApi.js`, `dist/checkpointStore.js`, `dist/agentImport.js`; D6): an empty object in the table's shape that `setUiText` replaces in full before any word is read. The compiler cannot verify an empty object is a `UiText`; `check-bundle-split` fails a lazy bundle that carries the real table or lacks the stand-in, and `agentImportBundle.test.ts` runs the built bundle over a table with a changed word to show it reads the one it is handed. | 2026-09-30 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

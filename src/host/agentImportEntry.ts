@@ -11,14 +11,14 @@ import type { UiText } from '../shared/l10n/en'
 import { setUiText } from '../shared/l10n/text'
 import {
   type AgentImportHost,
-  createImportQueue,
+  createImportGate,
   importFromAgents as runImport,
 } from './commands/agentImportCommands'
 import { fileImportIo, fileImportWriter, isPathPresent } from './importIo'
 
-// One queue for the extension host: two imports accepted at once write one
-// after the other, the whole flow (pickers, preview, writes, copies) each.
-const importQueue = createImportQueue()
+// One gate for the extension host: a second import asked for while one is
+// open is told so, and starts nothing over the first one's questions.
+const importGate = createImportGate()
 
 export async function importFromAgents(
   host: AgentImportHost,
@@ -34,6 +34,6 @@ export async function importFromAgents(
     io: fileImportIo,
     writer: fileImportWriter,
     isPresent: isPathPresent,
-    exclusive: importQueue,
+    gate: importGate,
   })
 }

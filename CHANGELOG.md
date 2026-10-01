@@ -39,6 +39,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49):
+  **Muse Spark: Import from Other Agents** (palette Customize group, both
+  backends). Slash commands become skills (the project's or your own),
+  custom agents become Markdown for the planned custom agents (M76), a
+  project's `CLAUDE.md`, Cursor rules and `.cursorrules` become headed
+  sections of its `AGENTS.md`. Your MCP servers (`~/.claude.json`, Codex
+  `config.toml`, Cursor `mcp.json`) and Claude Code hooks are converted to
+  Muse Code's entries, masked, copied for you to paste into Muse Code's
+  `settings.json` or the project's `.muse/hooks.json`, which the extension
+  never writes. A read-only preview shows everything first; nothing is
+  written until you choose Import, and an existing file is never replaced.
+  A repository's entries are read only in a trusted workspace, confined to
+  it, and offered only for that project's files. Codex's `config.toml` is
+  read with `smol-toml` 1.8.0, now a runtime dependency.
 - **The agent checks its own edits** (M68, PLAN.md D49). On the Model API
   backend, after each round of tool calls that edited files, the next
   request carries the edited files' errors and warnings from VS Code's

@@ -188,6 +188,8 @@
   "agentImportSkippedUnreadable": "cílový soubor nelze přečíst, proto zůstává beze změny",
   "agentImportSkippedTooLarge": "AGENTS.md by přesáhl velikost, kterou Muse Code načte",
   "agentImportSkippedChanged": "jeho složka se po náhledu změnila, proto se nezapsalo",
+  "agentImportBusy": "Import už je otevřený; nejdřív odpovězte na jeho otázky.",
+  "agentImportFailed": "Import se zastavil kvůli neočekávané chybě; co už bylo zapsáno, zůstává. Kód chyby je v protokolu.",
   "agentImportNotApplied": "Nic se neimportovalo: okno bylo zavřeno, složka se po náhledu změnila nebo se nepodařilo uchovat kontrolní bod.",
   "agentImportUnavailable": "Import se nepodařilo načíst, takže nelze nic importovat; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "agentImportPreviewTitle": "Náhled importu",

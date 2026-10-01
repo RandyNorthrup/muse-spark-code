@@ -188,6 +188,8 @@
   "agentImportSkippedUnreadable": "die Zieldatei konnte nicht gelesen werden, daher bleibt sie unverändert",
   "agentImportSkippedTooLarge": "AGENTS.md würde größer, als Muse Code lädt",
   "agentImportSkippedChanged": "sein Ordner hat sich nach der Vorschau geändert, daher wurde nichts geschrieben",
+  "agentImportBusy": "Ein Import ist bereits geöffnet; beantworten Sie zuerst seine Fragen.",
+  "agentImportFailed": "Der Import wurde wegen eines unerwarteten Fehlers beendet; was schon geschrieben wurde, bleibt bestehen. Das Protokoll nennt den Fehlercode.",
   "agentImportNotApplied": "Es wurde nichts importiert: Das Fenster wurde geschlossen, der Ordner hat sich nach der Vorschau geändert oder der Prüfpunkt konnte nicht gesichert werden.",
   "agentImportUnavailable": "Der Import konnte nicht geladen werden, daher kann nichts importiert werden; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "agentImportPreviewTitle": "Importvorschau",

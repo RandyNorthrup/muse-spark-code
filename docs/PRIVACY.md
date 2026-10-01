@@ -364,6 +364,18 @@ fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- **Import from other agents** (M83) reads other tools' files only when you
+  run it, and only on this machine: Claude Code's `~/.claude.json` (the
+  file is parsed and only its `mcpServers` and this project's `mcpServers`
+  are kept; its account and usage data are dropped), `~/.claude/` and `~/.codex/` (or
+  `CLAUDE_CONFIG_DIR` and `CODEX_HOME`), `~/.cursor/`, and, in a trusted
+  workspace, the repository's own `.claude/`, `.codex/`, `.cursor/`,
+  `.mcp.json`, `CLAUDE.md` and `.cursorrules`. Nothing is sent anywhere
+  and no model is called. The preview, the text copied to the clipboard
+  and the log show secret-looking values masked; the files the import
+  creates keep supported commands, agents and rules with secret-looking
+  values masked, matching the preview. Unsupported agent restrictions are
+  listed without creating an executable file.
 
 ## The agent for other editors
 

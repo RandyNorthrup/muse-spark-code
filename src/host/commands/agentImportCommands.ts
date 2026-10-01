@@ -53,29 +53,27 @@ import type { Logger } from '../logger'
 
 export type AgentImportSourceChoice = AgentImportSource | 'all'
 
-/** Runs tasks one after another, each after the last has settled. */
-export type ImportQueue = <T>(task: () => Promise<T>) => Promise<T>
+/**
+ * Runs the task unless one is already running; false when it is busy. The
+ * gate is held until the whole flow ends, every answer the user owes
+ * included, so a second import never starts over the first one's questions.
+ */
+export type ImportGate = (task: () => Promise<void>) => Promise<boolean>
 
-/** A queue for one window's imports: two accepted at once write one after the other. */
-export function createImportQueue(): ImportQueue {
-  let last: Promise<void> = Promise.resolve()
-  return async <T>(task: () => Promise<T>): Promise<T> => {
-    const previous = last
-    const current = (async () => {
-      await previous
-      return await task()
-    })()
-    last = settled(current)
-    return await current
-  }
-}
-
-/** Resolves once the task has settled either way; its caller sees its failure. */
-async function settled(task: Promise<unknown>): Promise<void> {
-  try {
-    await task
-  } catch {
-    // The next import waits only for this one to finish; the failure is the caller's to report.
+/** One gate for the extension host: only one import is open at a time. */
+export function createImportGate(): ImportGate {
+  let isOpen = false
+  return async (task) => {
+    if (isOpen) {
+      return false
+    }
+    isOpen = true
+    try {
+      await task()
+      return true
+    } finally {
+      isOpen = false
+    }
   }
 }
 
@@ -119,8 +117,8 @@ export interface AgentImportDeps {
   /** Keeps a project file's bytes for a checkpoint restore before it is written (M72). */
   readonly beforeProjectWrite: (absolutePath: string) => Promise<void>
   readonly isPresent: (absolutePath: string) => Promise<boolean>
-  /** Runs one complete import flow at a time in this window (`createImportQueue`). */
-  readonly exclusive: ImportQueue
+  /** Lets one complete import flow run at a time in this host (`createImportGate`). */
+  readonly gate: ImportGate
   /** All three tools, one of them, or undefined when dismissed. */
   readonly pickSource: () => Promise<AgentImportSourceChoice | undefined>
   /** The ids left checked, or undefined when dismissed. */
@@ -149,10 +147,10 @@ export interface AgentImportDeps {
   readonly log: Logger
 }
 
-/** What the VS Code side supplies; the import's own file access and queue come with its bundle. */
+/** What the VS Code side supplies; the import's own file access and gate come with its bundle. */
 export type AgentImportHost = Omit<
   AgentImportDeps,
-  'io' | 'writer' | 'isPresent' | 'exclusive' | 'claudeConfigDir' | 'codexHome'
+  'io' | 'writer' | 'isPresent' | 'gate' | 'claudeConfigDir' | 'codexHome'
 > & {
   /** The extension host's environment: the tools' own folder variables are read from it inside the bundle. */
   readonly environment: Readonly<Record<string, string | undefined>>
@@ -661,25 +659,43 @@ async function applyPlan(
   deps.log.info(
     `${LOG_PREFIX} finished with ${String(applied.written.length)} write(s), ${String(plan.copies.length)} file(s) to paste into, ${String(result.skipped.length)} entr(ies) not imported`,
   )
-  deps.showInformation(
-    [UI_TEXT.agentImportDone, countLines(result).join(DETAIL_SEPARATOR)].join(SENTENCE_SEPARATOR),
-  )
   const refused = applied.skipped.flatMap((skip) => {
     const candidate = selected.find((entry) => entry.id === skip.candidateId)
     return candidate === undefined ? [] : [`${candidate.label}: ${reasonLabel(skip.reason)}`]
   })
+  // An import that wrote nothing and has nothing to paste says why, not that it finished.
+  if (applied.written.length === 0 && plan.copies.length === 0 && refused.length > 0) {
+    deps.showWarning(refused.join(LIST_SEPARATOR))
+    return
+  }
+  deps.showInformation(
+    [UI_TEXT.agentImportDone, countLines(result).join(DETAIL_SEPARATOR)].join(SENTENCE_SEPARATOR),
+  )
   if (refused.length > 0) {
     deps.showWarning(refused.join(LIST_SEPARATOR))
   }
 }
 
 export async function importFromAgents(deps: AgentImportDeps): Promise<void> {
-  await deps.exclusive(async () => {
-    await runImport(deps)
-  })
+  let isBusy: boolean
+  try {
+    isBusy = !(await deps.gate(async () => {
+      await runImport(deps)
+    }))
+  } catch (error: unknown) {
+    // Every file and folder failure is handled where it happens; this is what was not foreseen.
+    deps.log.warn(`${LOG_PREFIX} stopped on an unexpected error (${importErrorCode(error)})`)
+    if (deps.isActive()) {
+      deps.showWarning(UI_TEXT.agentImportFailed)
+    }
+    return
+  }
+  if (isBusy && deps.isActive()) {
+    deps.showInformation(UI_TEXT.agentImportBusy)
+  }
 }
 
-/** The queue includes pickers, preview, confirmation, writes and clipboard/editor actions. */
+/** The whole flow: pickers, preview, confirmation, writes and clipboard/editor actions. */
 async function runImport(deps: AgentImportDeps): Promise<void> {
   const choice = await deps.pickSource()
   if (choice === undefined || !deps.isActive()) {

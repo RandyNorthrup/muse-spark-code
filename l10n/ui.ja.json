@@ -188,6 +188,8 @@
   "agentImportSkippedUnreadable": "書き込み先のファイルを読み取れなかったため、変更しません",
   "agentImportSkippedTooLarge": "AGENTS.md が Muse Code の読み込めるサイズを超えます",
   "agentImportSkippedChanged": "プレビューの後でフォルダーが変わったため、書き込まれませんでした",
+  "agentImportBusy": "インポートがすでに開いています。先にその質問に答えてください。",
+  "agentImportFailed": "予期しないエラーでインポートが停止しました。すでに書き込まれたものはそのまま残ります。エラー コードはログにあります。",
   "agentImportNotApplied": "何もインポートされませんでした。ウィンドウが閉じられたか、プレビューの後でフォルダーが変わったか、チェックポイントを保持できませんでした。",
   "agentImportUnavailable": "インポートを読み込めなかったため、何もインポートできません。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
   "agentImportPreviewTitle": "インポートのプレビュー",

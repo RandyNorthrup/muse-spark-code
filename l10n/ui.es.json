@@ -188,6 +188,8 @@
   "agentImportSkippedUnreadable": "no se pudo leer el archivo de destino, así que se deja como está",
   "agentImportSkippedTooLarge": "AGENTS.md superaría el tamaño que carga Muse Code",
   "agentImportSkippedChanged": "su carpeta cambió después de la vista previa, así que no se escribió",
+  "agentImportBusy": "Ya hay una importación abierta; responda primero a sus preguntas.",
+  "agentImportFailed": "La importación se detuvo por un error inesperado; lo que ya se escribió permanece. El registro tiene el código de error.",
   "agentImportNotApplied": "No se importó nada: la ventana se cerró, la carpeta cambió después de la vista previa o no se pudo conservar el punto de control.",
   "agentImportUnavailable": "No se pudo cargar la importación, así que no se puede importar nada; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "agentImportPreviewTitle": "Vista previa de la importación",

@@ -33,7 +33,6 @@ import {
   fileImportWriter,
   isPathPresent,
 } from '../../src/host/importIo'
-import { createImportQueue } from '../../src/host/commands/agentImportCommands'
 import {
   AGENT_IMPORT_ROOT_CHANGED_CODE,
   RULES_FILE_MAX_BYTES,
@@ -421,7 +420,7 @@ describe('real import path boundaries', () => {
     expect(await fileImportIo.readFile(target, 10)).toEqual({ status: 'tooLarge' })
   })
 
-  it('serializes two accepted real-file rules imports across the held read-and-append', async () => {
+  it('appends one section when two imports race for one file, the loser keeping its hands off', async () => {
     const workspace = path.join(folders.root, 'queued-rules')
     await mkdir(workspace)
     const target = path.join(workspace, 'AGENTS.md')
@@ -440,26 +439,26 @@ describe('real import path boundaries', () => {
         await fileImportWriter.appendText(...args)
       },
     }
-    const queue = createImportQueue()
+    // The window's own gate allows one import at a time; another window has none.
     const write = await projectWrite(workspace, target)
-    const first = queue(async () => await applyImportWrites([write], writer, process.platform))
-    const second = queue(async () => await applyImportWrites([write], writer, process.platform))
+    const first = applyImportWrites([write], writer, process.platform)
     try {
       await firstAppend.promise
-      expect(appends).toBe(1)
       expect(await readFile(target, 'utf8')).toBe('Existing rules.\n')
+      // The other window finishes while the first waits at its append, having read the file.
+      const second = await applyImportWrites([write], writer, process.platform)
+      expect(second.written).toHaveLength(1)
       resume.resolve(undefined)
-      const [one, two] = await Promise.all([first, second])
-      expect(one.written).toHaveLength(1)
-      expect(two.written).toEqual([])
-      expect(two.skipped).toEqual([{ candidateId: 'a', reason: 'exists' }])
+      const one = await first
+      expect(one.written).toEqual([])
+      expect(one.failures).toEqual([{ absolutePath: target, code: 'ESTALE' }])
+      expect(one.skipped).toEqual([{ candidateId: 'a', reason: 'failed' }])
       const text = await readFile(target, 'utf8')
       expect(text).toContain('Existing rules.\n')
       expect(text.split('## A')).toHaveLength(2)
-      expect(appends).toBe(1)
     } finally {
       resume.resolve(undefined)
-      await Promise.all([first, second])
+      await first
     }
   })
 })

@@ -188,6 +188,8 @@
   "agentImportSkippedUnreadable": "hedef dosya okunamadı, bu yüzden olduğu gibi bırakılıyor",
   "agentImportSkippedTooLarge": "AGENTS.md, Muse Code’un yüklediği boyutu aşardı",
   "agentImportSkippedChanged": "klasörü önizlemeden sonra değiştiği için yazılmadı",
+  "agentImportBusy": "Zaten açık bir içe aktarma var; önce onun sorularını yanıtlayın.",
+  "agentImportFailed": "İçe aktarma beklenmeyen bir hata nedeniyle durdu; daha önce yazılanlar kalır. Hata kodu günlükte.",
   "agentImportNotApplied": "Hiçbir şey içe aktarılmadı: pencere kapandı, klasör önizlemeden sonra değişti veya denetim noktası korunamadı.",
   "agentImportUnavailable": "İçe aktarma yüklenemedi, bu yüzden hiçbir şey içe aktarılamıyor; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "agentImportPreviewTitle": "İçe aktarma önizlemesi",
