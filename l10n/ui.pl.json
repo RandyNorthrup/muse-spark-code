@@ -207,7 +207,7 @@
   "shareFailed": "Nie można otworzyć udostępnionego pliku",
   "shareMetaLine": "Udostępniono z {backend} · {time}",
   "shareReadOnly": "Tylko do odczytu: nic w tym pliku nie może wpłynąć na Twój obszar roboczy.",
-  "shareRedacted": "Ścieżki i identyfikatory kont zostały ukryte.",
+  "shareMarkedRedacted": "Plik podaje, że ścieżki i identyfikatory kont zostały ukryte; nie jest to tutaj sprawdzane.",
   "transferTooLarge": "Plik jest większy, niż może być eksport sesji.",
   "transferFileMissing": "Wybrany plik już nie istnieje.",
   "transferEmpty": "Plik nie zawiera rozmowy.",

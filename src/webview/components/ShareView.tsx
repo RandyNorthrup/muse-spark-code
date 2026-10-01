@@ -19,6 +19,7 @@ export interface ShareViewProps {
   readonly exportedAt: string
   readonly sourceBackend: BackendKind
   readonly modelId: string
+  /** The file's own claim, which anyone can set: shown as its claim, never vouched for. */
   readonly redacted: boolean
   readonly items: readonly ItemSnapshot[]
   readonly onClose: () => void
@@ -55,7 +56,9 @@ export function ShareView({
         {meta} · {modelId}
       </p>
       <p className="share-meta">
-        {redacted ? `${UI_TEXT.shareReadOnly} ${UI_TEXT.shareRedacted}` : UI_TEXT.shareReadOnly}
+        {redacted
+          ? `${UI_TEXT.shareReadOnly} ${UI_TEXT.shareMarkedRedacted}`
+          : UI_TEXT.shareReadOnly}
       </p>
       {sections.map((section) => (
         <section key={section.key} className="share-section">

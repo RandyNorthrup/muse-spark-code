@@ -84,7 +84,10 @@ export const sessionExportSchema = z.object({
   version: z.literal(SESSION_EXPORT_VERSION),
   exportedAt: z.iso.datetime(),
   sourceBackend: z.enum(BACKEND_KINDS),
-  /** Whether paths and account ids were redacted when the file was written. */
+  /**
+   * Whether paths and account ids were redacted when the file was written:
+   * the writer's claim, which a reader cannot check.
+   */
   redacted: z.boolean(),
   name: z.optional(z.string()),
   /** The model the conversation ran on; informational, an import never takes it. */

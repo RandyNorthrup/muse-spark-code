@@ -199,7 +199,7 @@
   "shareFailed": "Paylaşılan dosya açılamadı",
   "shareMetaLine": "{backend} kaynağından paylaşıldı · {time}",
   "shareReadOnly": "Salt okunur: bu dosyadaki hiçbir şey çalışma alanınızı etkileyemez.",
-  "shareRedacted": "Yollar ve hesap kimlikleri gizlendi.",
+  "shareMarkedRedacted": "Dosya, yolların ve hesap kimliklerinin gizlendiğini belirtiyor; bu burada denetlenmez.",
   "transferTooLarge": "Dosya, bir oturum dışa aktarımının olabileceğinden daha büyük.",
   "transferFileMissing": "Seçilen dosya artık yok.",
   "transferEmpty": "Dosyada konuşma yok.",

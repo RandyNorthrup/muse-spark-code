@@ -195,7 +195,7 @@
   "shareFailed": "无法打开共享文件",
   "shareMetaLine": "共享自{backend} · {time}",
   "shareReadOnly": "只读：此文件中的任何内容都无法作用于你的工作区。",
-  "shareRedacted": "路径和帐户 ID 已隐去。",
+  "shareMarkedRedacted": "该文件声称路径和帐户 ID 已隐去；此处不作核实。",
   "transferTooLarge": "文件超过了会话导出文件的大小上限。",
   "transferFileMissing": "所选文件已不存在。",
   "transferEmpty": "文件中没有对话。",

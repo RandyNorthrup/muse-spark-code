@@ -203,7 +203,7 @@
   "shareFailed": "No se pudo abrir el archivo compartido",
   "shareMetaLine": "Compartido desde {backend} · {time}",
   "shareReadOnly": "Solo lectura: nada de este archivo puede actuar sobre su área de trabajo.",
-  "shareRedacted": "Las rutas y los ID de cuenta se ocultaron.",
+  "shareMarkedRedacted": "El archivo indica que las rutas y los ID de cuenta se ocultaron; aquí no se comprueba.",
   "transferTooLarge": "El archivo es más grande de lo que puede ser una exportación de sesión.",
   "transferFileMissing": "El archivo elegido ya no existe.",
   "transferEmpty": "El archivo no contiene ninguna conversación.",

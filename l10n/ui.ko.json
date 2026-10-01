@@ -195,7 +195,7 @@
   "shareFailed": "공유 파일을 열지 못했습니다",
   "shareMetaLine": "{backend}에서 공유 · {time}",
   "shareReadOnly": "읽기 전용: 이 파일의 어떤 내용도 작업 영역에 영향을 줄 수 없습니다.",
-  "shareRedacted": "경로와 계정 ID는 가려졌습니다.",
+  "shareMarkedRedacted": "이 파일에는 경로와 계정 ID를 가렸다고 표시되어 있지만, 여기서는 확인하지 않습니다.",
   "transferTooLarge": "파일이 세션 내보내기의 최대 크기보다 큽니다.",
   "transferFileMissing": "선택한 파일이 더 이상 없습니다.",
   "transferEmpty": "파일에 대화가 없습니다.",

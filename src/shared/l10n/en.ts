@@ -261,7 +261,9 @@ export const EN = {
   // {backend}: the backend label; {time}: a date and time.
   shareMetaLine: 'Shared from {backend} · {time}',
   shareReadOnly: 'Read-only: nothing in this file can act on your workspace.',
-  shareRedacted: 'Paths and account ids were redacted.',
+  // The file's own `redacted` flag, which anyone can set: reported, never vouched for.
+  shareMarkedRedacted:
+    'The file says its paths and account ids were redacted; that is not checked here.',
   // Why a picked file was refused, after "could not be imported/opened: ".
   transferTooLarge: 'The file is larger than a session export can be.',
   transferFileMissing: 'The picked file no longer exists.',

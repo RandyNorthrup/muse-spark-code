@@ -207,7 +207,7 @@
   "shareFailed": "Sdílený soubor se nepodařilo otevřít",
   "shareMetaLine": "Sdíleno z {backend} · {time}",
   "shareReadOnly": "Jen ke čtení: nic v tomto souboru nemůže zasáhnout do vašeho pracovního prostoru.",
-  "shareRedacted": "Cesty a ID účtů byly skryty.",
+  "shareMarkedRedacted": "Soubor uvádí, že cesty a ID účtů byly skryty; zde se to neověřuje.",
   "transferTooLarge": "Soubor je větší, než může být export relace.",
   "transferFileMissing": "Vybraný soubor už neexistuje.",
   "transferEmpty": "Soubor neobsahuje žádnou konverzaci.",

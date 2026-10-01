@@ -203,7 +203,7 @@
   "shareFailed": "Il file condiviso non può essere aperto",
   "shareMetaLine": "Condiviso da {backend} · {time}",
   "shareReadOnly": "Sola lettura: niente in questo file può agire sulla tua area di lavoro.",
-  "shareRedacted": "Percorsi e ID account sono stati oscurati.",
+  "shareMarkedRedacted": "Il file dichiara che percorsi e ID account sono stati oscurati; qui non viene verificato.",
   "transferTooLarge": "Il file è più grande di quanto possa essere un’esportazione di sessione.",
   "transferFileMissing": "Il file scelto non esiste più.",
   "transferEmpty": "Il file non contiene alcuna conversazione.",

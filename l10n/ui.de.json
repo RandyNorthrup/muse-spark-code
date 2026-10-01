@@ -199,7 +199,7 @@
   "shareFailed": "Die Freigabedatei konnte nicht geöffnet werden",
   "shareMetaLine": "Geteilt von {backend} · {time}",
   "shareReadOnly": "Schreibgeschützt: Nichts in dieser Datei kann auf Ihren Arbeitsbereich wirken.",
-  "shareRedacted": "Pfade und Konto-IDs wurden entfernt.",
+  "shareMarkedRedacted": "Laut der Datei wurden Pfade und Konto-IDs entfernt; das wird hier nicht geprüft.",
   "transferTooLarge": "Die Datei ist größer, als ein Sitzungsexport sein kann.",
   "transferFileMissing": "Die ausgewählte Datei gibt es nicht mehr.",
   "transferEmpty": "Die Datei enthält keine Unterhaltung.",

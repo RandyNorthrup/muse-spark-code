@@ -203,7 +203,7 @@
   "shareFailed": "Le fichier partagé n’a pas pu être ouvert",
   "shareMetaLine": "Partagé depuis {backend} · {time}",
   "shareReadOnly": "Lecture seule : rien dans ce fichier ne peut agir sur votre espace de travail.",
-  "shareRedacted": "Les chemins et les identifiants de compte ont été masqués.",
+  "shareMarkedRedacted": "Le fichier indique que les chemins et les identifiants de compte ont été masqués ; ce n’est pas vérifié ici.",
   "transferTooLarge": "Le fichier est plus volumineux qu’un export de session ne peut l’être.",
   "transferFileMissing": "Le fichier choisi n’existe plus.",
   "transferEmpty": "Le fichier ne contient aucune conversation.",

@@ -2433,9 +2433,14 @@ describe('App: Model API scheduled prompts (M52)', () => {
     const dialog = screen.getByRole('dialog', { name: 'Shared over' })
     expect(within(dialog).getByText('Hi there')).toBeInTheDocument()
     expect(within(dialog).getByText('Tool: read_file')).toBeInTheDocument()
+    // The file's `redacted: true` is anyone's to set: the view reports it as
+    // the file's claim and never states it as fact.
     expect(
-      within(dialog).getByText(`${UI_TEXT.shareReadOnly} ${UI_TEXT.shareRedacted}`),
+      within(dialog).getByText(
+        'Read-only: nothing in this file can act on your workspace. The file says its paths and account ids were redacted; that is not checked here.',
+      ),
     ).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Paths and account ids were redacted/)).toBeNull()
     // Every code block copies (the tool's arguments and output are blocks too),
     // and nothing here can reach the editor or a session.
     const copies = within(dialog).getAllByRole('button', { name: UI_TEXT.copyCode })

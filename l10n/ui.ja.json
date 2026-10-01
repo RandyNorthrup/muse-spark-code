@@ -195,7 +195,7 @@
   "shareFailed": "共有ファイルを開けませんでした",
   "shareMetaLine": "{backend} から共有 · {time}",
   "shareReadOnly": "読み取り専用: このファイルの内容がワークスペースに作用することはありません。",
-  "shareRedacted": "パスとアカウント ID は伏せ字になっています。",
+  "shareMarkedRedacted": "このファイルにはパスとアカウント ID を伏せ字にしたと記載されていますが、ここでは確認していません。",
   "transferTooLarge": "ファイルがセッションのエクスポートの上限を超えています。",
   "transferFileMissing": "選んだファイルはもう存在しません。",
   "transferEmpty": "ファイルに会話がありません。",

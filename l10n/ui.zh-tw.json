@@ -195,7 +195,7 @@
   "shareFailed": "無法開啟共用檔案",
   "shareMetaLine": "共享自{backend} · {time}",
   "shareReadOnly": "唯讀：此檔案中的任何內容都無法作用於你的工作區。",
-  "shareRedacted": "路徑和帳戶 ID 已隱去。",
+  "shareMarkedRedacted": "此檔案聲稱路徑和帳戶 ID 已隱去；此處不作核實。",
   "transferTooLarge": "檔案超過了工作階段匯出檔案的大小上限。",
   "transferFileMissing": "所選檔案已不存在。",
   "transferEmpty": "檔案中沒有對話。",
