@@ -4259,6 +4259,53 @@ describe('ConversationController: session history (M6)', () => {
     })
   })
 
+  it('implements a plan written over imported history as untrusted: a mode that asks, never "approved" (M84)', async () => {
+    const t = setup({
+      initialPermissionMode: 'auto',
+      hasApprovalUi: true,
+      transferFileContent: transferFile(),
+    })
+    let nextId = 0
+    const { api, controller } = modelApiController(t, { newId: () => `id${String(++nextId)}` })
+    await controller.handle({ type: 'importSession' })
+    // The user relaxes it to Plan, and the imported history steers the plan.
+    await controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+    api.script({ text: '# Clean up\n\n1. Delete the build folder.' })
+    await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'Plan', attachmentIds: [] })
+    await vi.waitFor(() => {
+      expect(agentEvents(t).some((event) => event.type === 'turnCompleted')).toBe(true)
+    })
+    const reply = agentEvents(t).findLast(
+      (event) => event.type === 'itemCompleted' && event.item.kind === 'agentMessage',
+    )
+    const { info } = latestAcceptedModelTurn(t)
+    if (reply?.type !== 'itemCompleted' || info.sessionId === undefined) {
+      throw new Error('expected the plan reply')
+    }
+    api.script({ text: 'Done' })
+    t.surface.posted.length = 0
+    await controller.handle({
+      type: 'implementPlan',
+      sourceSessionId: info.sessionId,
+      itemId: reply.item.itemId,
+    })
+    await vi.waitFor(() => {
+      expect(api.responseBodies()).toHaveLength(2)
+    })
+    // Manual, as for a plan file, though the starting mode is Auto.
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      permissionMode: 'manual',
+    })
+    expect(notices(t)).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: fill(UI_TEXT.planFromImportedMode, { mode: UI_TEXT.permissionModes.manual }),
+    })
+    const body = JSON.stringify(api.responseBodies()[1])
+    expect(body).toContain(MODEL_TEXT.planBriefFromFile.slice(0, 40))
+    expect(body).not.toContain('The user approved the plan')
+  })
+
   it('refuses a file it cannot use before asking anything (M84)', async () => {
     const failed = 'The session could not be imported'
     const cases: readonly [Parameters<typeof setup>[0], 'error' | 'info', string][] = [

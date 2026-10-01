@@ -9086,6 +9086,15 @@ independent review, normal latest-main ancestry and complete gates remain pendin
     the import itself and every later resume, restore after a reload and
     fork; the restart-recovery path keeps the panel's own mode, which the
     user chose. A notice says why.
+    - **Plans from imported history (lead decision, 2026-10-01, RV84 #2).**
+      A Plan-mode reply written in a conversation that holds imported
+      history is untrusted content, as a plan picked from a file is:
+      "Implement in a fresh conversation" builds its brief as not approved
+      (`planBriefFromFile` for the model) and starts in
+      `untrustedBriefMode()`, with its own notice (`planFromImportedMode`).
+      The controller knows such sessions from `adopt`
+      (`importedSessionIds`). M74's `/handoff` must take the same flag when
+      it lands.
   - **Share view.** The file's items render in a modal through the Markdown
     export's per-item sections (`transcriptItemMarkdown`); `MarkdownView`
     and `CodeBlock` take Insert and Apply as optional, and the share view

@@ -1374,7 +1374,9 @@ resumes such a file as a new conversation on the Model API backend, on your
 own model: the file never picks one. It starts in Manual (or Plan when that
 is your initial mode), whatever `museSpark.initialPermissionMode` says, and
 does so every time the conversation is opened again, forked or restored;
-only your own mode change relaxes it. It drops session rules, goals,
+only your own mode change relaxes it. A plan written in such a conversation
+is untrusted as a plan file is: **Implement in a fresh conversation** starts
+it in Manual (or Plan) too. It drops session rules, goals,
 schedules, todos and patches, and the model reads each imported turn as
 untrusted data in a message of yours, never as its own replies or tool calls.
 The ACP agent also applies this safe start to stored sessions marked imported

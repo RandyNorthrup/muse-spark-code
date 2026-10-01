@@ -908,6 +908,9 @@ export const EN = {
   // {mode}: the permission mode's name.
   planFromFileMode:
     'A plan picked from Plans… starts in {mode}: the file comes from the workspace, so the conversation asks before it acts.',
+  // M84: a plan written in a conversation that holds imported history.
+  planFromImportedMode:
+    'A plan from a conversation with imported history starts in {mode}: that history is untrusted, so the new conversation asks before it acts.',
   planOpen: 'Open',
   plansItem: 'Plans…',
   plansItemDetail: 'Saved plans in .agents/plans: open one or implement it',

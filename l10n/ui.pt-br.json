@@ -699,6 +699,7 @@
   "planUnshownCharacters": "Este plano contém um caractere de controle ou de formatação (como uma inversão de direção do texto ou um caractere de largura zero) que faz o painel mostrá-lo de outro jeito que o modelo o leria, então ele não é salvo nem iniciado.",
   "planMarkdownUnavailable": "Não foi possível carregar o leitor de planos, então os planos não são salvos, listados nem implementados; reinstale a extensão e recarregue a janela. O log tem os detalhes.",
   "planFromFileMode": "Um plano escolhido em Planos… começa no modo {mode}: o arquivo vem do espaço de trabalho, então a conversa pergunta antes de agir.",
+  "planFromImportedMode": "Um plano de uma conversa com histórico importado começa no modo {mode}: esse histórico não é confiável, então a nova conversa pergunta antes de agir.",
   "planOpen": "Abrir",
   "plansItem": "Planos…",
   "plansItemDetail": "Planos salvos em .agents/plans: abra um ou implemente-o",

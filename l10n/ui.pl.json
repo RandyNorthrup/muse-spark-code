@@ -715,6 +715,7 @@
   "planUnshownCharacters": "Ten plan zawiera znak sterujący lub formatujący (np. wymuszenie kierunku tekstu albo znak o zerowej szerokości), przez który panel pokazuje go inaczej, niż odczytałby go model, dlatego nie jest zapisywany ani uruchamiany.",
   "planMarkdownUnavailable": "Nie udało się wczytać czytnika planów, więc plany nie są zapisywane, wyświetlane ani wdrażane; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "planFromFileMode": "Plan wybrany z Planów… zaczyna w trybie {mode}: plik pochodzi z obszaru roboczego, więc rozmowa pyta przed działaniem.",
+  "planFromImportedMode": "Plan z rozmowy z zaimportowaną historią zaczyna w trybie {mode}: tej historii nie można ufać, więc nowa rozmowa pyta przed działaniem.",
   "planOpen": "Otwórz",
   "plansItem": "Plany…",
   "plansItemDetail": "Zapisane plany w .agents/plans: otwórz jeden lub go wdróż",

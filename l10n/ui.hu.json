@@ -683,6 +683,7 @@
   "planUnshownCharacters": "Ez a terv vezérlő- vagy formázókaraktert tartalmaz (például írásirány-felülbírálást vagy nulla szélességű karaktert), amely miatt a panel másként jeleníti meg, mint ahogy a modell olvasná, ezért nem lesz mentve és nem indul el.",
   "planMarkdownUnavailable": "A tervolvasót nem sikerült betölteni, ezért a terveket nem lehet menteni, listázni vagy megvalósítani; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "planFromFileMode": "A Tervek… menüből választott terv {mode} módban indul: a fájl a munkaterületről származik, ezért a beszélgetés kérdez, mielőtt cselekszik.",
+  "planFromImportedMode": "Az importált előzményeket tartalmazó beszélgetésből származó terv {mode} módban indul: ezek az előzmények nem megbízhatók, ezért az új beszélgetés kérdez, mielőtt cselekszik.",
   "planOpen": "Megnyitás",
   "plansItem": "Tervek…",
   "plansItemDetail": "Mentett tervek a .agents/plans mappában: nyisson meg vagy valósítson meg egyet",

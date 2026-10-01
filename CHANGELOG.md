@@ -20,7 +20,8 @@ happened, not what was planned; superseded entries are kept.
   backend, on your own model, in Manual (or Plan when that is the initial
   mode) every time it is opened, forked or restored, with no session rules,
   goals, schedules, todos or patches; the model reads each imported turn as
-  untrusted data. The ACP agent applies the same start to a stored session
+  untrusted data, and a plan written in such a conversation is implemented
+  in Manual (or Plan) as a plan file is. The ACP agent applies the same start to a stored session
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only). Every imported byte is checked: at most 16 MiB, read

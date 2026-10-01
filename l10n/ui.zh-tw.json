@@ -667,6 +667,7 @@
   "planUnshownCharacters": "此計畫包含控制字元或格式字元（如文字方向覆寫或零寬字元），使面板的顯示與模型讀到的內容不同，因此不會儲存或啟動。",
   "planMarkdownUnavailable": "無法載入計畫讀取器，因此無法儲存、列出或實作計畫；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "planFromFileMode": "從「計畫…」中選擇的計畫以{mode}模式開始：檔案來自工作區，因此對話在行動前會先詢問。",
+  "planFromImportedMode": "來自含匯入歷程記錄之對話的計畫以{mode}模式開始：該歷程記錄不可信，因此新對話在行動前會先詢問。",
   "planOpen": "開啟",
   "plansItem": "計畫…",
   "plansItemDetail": "儲存在 .agents/plans 中的計畫：開啟或實作",

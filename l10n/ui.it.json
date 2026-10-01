@@ -699,6 +699,7 @@
   "planUnshownCharacters": "Questo piano contiene un carattere di controllo o di formato (come un cambio di direzione del testo o un carattere a larghezza zero) per cui il pannello lo mostra diversamente da come lo leggerebbe il modello, quindi non viene salvato né avviato.",
   "planMarkdownUnavailable": "Non è stato possibile caricare il lettore dei piani, quindi i piani non vengono salvati, elencati né attuati; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "planFromFileMode": "Un piano scelto da Piani… parte in modalità {mode}: il file proviene dall’area di lavoro, quindi la conversazione chiede prima di agire.",
+  "planFromImportedMode": "Un piano da una conversazione con cronologia importata parte in modalità {mode}: quella cronologia non è attendibile, quindi la nuova conversazione chiede prima di agire.",
   "planOpen": "Apri",
   "plansItem": "Piani…",
   "plansItemDetail": "Piani salvati in .agents/plans: aprine uno o attualo",

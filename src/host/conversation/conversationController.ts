@@ -591,9 +591,10 @@ export interface ConversationBrief {
   readonly todos: readonly TodoItem[]
   /**
    * Whether the user approved this content here: a Plan-mode reply of this
-   * panel's conversation. Anything else (a file from the workspace) is
-   * untrusted content (PLAN.md D49): the conversation starts in a mode that
-   * asks, whatever `museSpark.initialPermissionMode` says.
+   * panel's conversation. Anything else (a file from the workspace, or a
+   * reply in a conversation that holds imported history, M84) is untrusted
+   * content (PLAN.md D49): the conversation starts in a mode that asks,
+   * whatever `museSpark.initialPermissionMode` says.
    */
   readonly isApproved: boolean
 }
@@ -702,6 +703,13 @@ export class ConversationController {
   private isSideChat: boolean
   /** Muse Code does not persist a side marker: this panel may resume only its own fork. */
   private readonly sideSessionIds = new Set<string>()
+  /**
+   * Sessions this panel opened that hold imported history (M84, PLAN.md
+   * D49), forks included: a plan written in one is untrusted content. Every
+   * such session passes through `adopt`; a resume after a restart only
+   * reopens a session this panel already had.
+   */
+  private readonly importedSessionIds = new Set<string>()
   private effort: EffortLevel = DEFAULT_EFFORT
   private isThinkingEnabled = true
   private activeTurnId: string | undefined
@@ -2442,6 +2450,7 @@ export class ConversationController {
     // change relaxes it, and only until it is opened again.
     const isImported = loaded.record.imported === true
     if (isImported) {
+      this.importedSessionIds.add(loaded.session.sessionId)
       this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
       this.postComposerState()
     }
@@ -3156,7 +3165,9 @@ export class ConversationController {
       if (!brief.brief.isApproved) {
         this.say(
           'info',
-          fill(UI_TEXT.planFromFileMode, { mode: UI_TEXT.permissionModes[this.permissionMode] }),
+          fill(source.kind === 'file' ? UI_TEXT.planFromFileMode : UI_TEXT.planFromImportedMode, {
+            mode: UI_TEXT.permissionModes[this.permissionMode],
+          }),
         )
       }
       // MSP has no todo command: the brief asked the model to list the steps.
@@ -3198,8 +3209,11 @@ export class ConversationController {
       const { relativePath } = outcome.saved
       const { markdown, text } = outcome
       const bytes = new TextEncoder().encode(markdown.briefText(text))
+      // A reply written over imported history (M84) may be that history's
+      // doing: untrusted, as a plan file is, so the new conversation asks.
+      const isApproved = !this.importedSessionIds.has(source.sessionId)
       return {
-        brief: planBrief(relativePath, bytes, planSteps(markdown, text), true),
+        brief: planBrief(relativePath, bytes, planSteps(markdown, text), isApproved),
         relativePath,
         hasRawHtml: markdown.hasRawHtml(text),
       }

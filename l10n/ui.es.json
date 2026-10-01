@@ -699,6 +699,7 @@
   "planUnshownCharacters": "Este plan contiene un carácter de control o de formato (como un cambio de dirección del texto o un carácter de ancho cero) que hace que el panel lo muestre de otro modo que como lo leería el modelo, así que no se guarda ni se inicia.",
   "planMarkdownUnavailable": "No se pudo cargar el lector de planes, así que los planes no se guardan, no se listan ni se implementan; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "planFromFileMode": "Un plan elegido en Planes… empieza en {mode}: el archivo viene del área de trabajo, así que la conversación pregunta antes de actuar.",
+  "planFromImportedMode": "Un plan de una conversación con historial importado empieza en {mode}: ese historial no es de confianza, así que la nueva conversación pregunta antes de actuar.",
   "planOpen": "Abrir",
   "plansItem": "Planes…",
   "plansItemDetail": "Planes guardados en .agents/plans: abra uno o impleméntelo",

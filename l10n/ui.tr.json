@@ -683,6 +683,7 @@
   "planUnshownCharacters": "Bu plan, panelin onu modelin okuyacağından farklı göstermesine yol açan bir denetim veya biçim karakteri (yön geçersiz kılma ya da sıfır genişlikli karakter gibi) içeriyor; bu yüzden kaydedilmiyor ve başlatılmıyor.",
   "planMarkdownUnavailable": "Plan okuyucu yüklenemedi, bu yüzden planlar kaydedilmiyor, listelenmiyor veya uygulanmıyor; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "planFromFileMode": "Planlar… üzerinden seçilen bir plan {mode} modunda başlar: dosya çalışma alanından geldiği için konuşma bir şey yapmadan önce sorar.",
+  "planFromImportedMode": "İçe aktarılmış geçmiş içeren bir konuşmadan gelen plan {mode} modunda başlar: bu geçmiş güvenilir değildir, bu yüzden yeni konuşma bir şey yapmadan önce sorar.",
   "planOpen": "Aç",
   "plansItem": "Planlar…",
   "plansItemDetail": ".agents/plans içindeki kayıtlı planlar: birini açın veya uygulayın",
