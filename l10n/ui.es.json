@@ -1406,6 +1406,7 @@
   "checkpointTooLarge": "hay más de {size} MiB de archivos cambiados que copiar",
   "checkpointFailed": "el punto de control falló",
   "checkpointNoGit": "no se encontró git en el PATH",
+  "checkpointPathTooLong": "la ruta del espacio de trabajo o de la carpeta de almacenamiento de esta extensión es demasiado larga para git",
   "checkpointsModelApiOnly": "La restauración de archivos y Rehacer requieren una sesión conectada de Model API. Los puntos de control de Muse Code son de solo lectura.",
   "checkpointsNativeUnsafe": "La restauración de archivos y Rehacer no están disponibles porque un proceso nativo del espacio de trabajo o una ventana desconocida podrían seguir editando archivos. No se ha verificado el cierre de los procesos; se requiere recuperación confirmada.",
   "checkpointsLegacyReadOnly": "Este mensaje tiene un punto de control antiguo. Los registros guardados siguen siendo legibles; restaurar archivos requiere una captura actual protegida de forma segura.",

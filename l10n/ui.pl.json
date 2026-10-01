@@ -1442,6 +1442,7 @@
   "checkpointTooLarge": "ponad {size} MiB zmienionych plików do skopiowania",
   "checkpointFailed": "punkt kontrolny się nie powiódł",
   "checkpointNoGit": "nie znaleziono git w PATH",
+  "checkpointPathTooLong": "ścieżka obszaru roboczego lub folderu magazynu tego rozszerzenia jest zbyt długa dla git",
   "checkpointsModelApiOnly": "Przywracanie plików i Ponów wymagają połączonej sesji Model API. Punkty kontrolne Muse Code są tylko do odczytu.",
   "checkpointsNativeUnsafe": "Przywracanie plików i Ponów są niedostępne, ponieważ natywny proces obszaru roboczego lub nieznane okno mogą nadal edytować pliki. Zakończenie procesów nie zostało potwierdzone; wymagane jest potwierdzone odzyskiwanie.",
   "checkpointsLegacyReadOnly": "Ta wiadomość ma starszy punkt kontrolny. Zapisane dane pozostają czytelne; przywracanie plików wymaga aktualnej, bezpiecznie chronionej kopii.",

@@ -1442,6 +1442,7 @@
   "checkpointTooLarge": "ke zkopírování je přes {size} MiB změněných souborů",
   "checkpointFailed": "kontrolní bod selhal",
   "checkpointNoGit": "git nebyl v PATH nalezen",
+  "checkpointPathTooLong": "cesta k pracovnímu prostoru nebo k úložné složce tohoto rozšíření je pro git příliš dlouhá",
   "checkpointsModelApiOnly": "Obnovení souborů a Znovu vyžadují připojenou relaci Model API. Kontrolní body Muse Code jsou jen pro čtení.",
   "checkpointsNativeUnsafe": "Obnovení souborů a Znovu nejsou k dispozici, protože nativní proces pracovního prostoru nebo neznámé okno mohou stále upravovat soubory. Ukončení procesů není ověřeno; je nutné potvrzené obnovení.",
   "checkpointsLegacyReadOnly": "Tato zpráva má starší kontrolní bod. Uložené záznamy zůstávají čitelné; obnovení souborů vyžaduje nový bezpečně chráněný snímek.",

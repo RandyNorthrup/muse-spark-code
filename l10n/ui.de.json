@@ -1370,6 +1370,7 @@
   "checkpointTooLarge": "über {size} MiB geänderter Dateien zu kopieren",
   "checkpointFailed": "Der Prüfpunkt ist fehlgeschlagen",
   "checkpointNoGit": "git wurde im PATH nicht gefunden",
+  "checkpointPathTooLong": "Der Pfad des Arbeitsbereichs oder des Speicherordners dieser Erweiterung ist für git zu lang",
   "checkpointsModelApiOnly": "Dateiwiederherstellung und Wiederholen erfordern eine verbundene Model-API-Sitzung. Muse-Code-Prüfpunkte sind schreibgeschützt.",
   "checkpointsNativeUnsafe": "Dateiwiederherstellung und Wiederholen sind nicht verfügbar, weil ein nativer Arbeitsbereichsprozess oder ein unbekanntes Fenster noch Dateien bearbeiten könnte. Das vollständige Prozessende ist nicht nachgewiesen; eine bestätigte Wiederherstellung ist erforderlich.",
   "checkpointsLegacyReadOnly": "Diese Nachricht hat einen alten Prüfpunkt. Gespeicherte Einträge bleiben lesbar; eine Dateiwiederherstellung benötigt eine aktuelle sicher abgesicherte Aufnahme.",

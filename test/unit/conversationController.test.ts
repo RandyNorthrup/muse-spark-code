@@ -35,7 +35,7 @@ import {
   type GoalCommandVerb,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { fill } from '../../src/shared/l10n/text'
+import { fill, plural } from '../../src/shared/l10n/text'
 import { textFileDisplay } from '../../src/shared/textFileDisplay'
 import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/plans/planDocument'
 import { briefText, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
@@ -296,6 +296,8 @@ function setup(
     restoreOutcome?: RestoreOutcome
     /** The answer to the file restore / code rewind confirmation (M72). */
     confirmsFileAction?: boolean
+    /** A revert that refuses (a stale patch): it answers with a warning. */
+    refusesRevert?: boolean
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -603,7 +605,11 @@ function setup(
       },
       revert: (itemId: string, patchJson: string) => {
         reviews.push(['revert', itemId, patchJson])
-        return Promise.resolve([{ level: 'info' as const, text: `reverted ${itemId}` }])
+        return Promise.resolve([
+          options.refusesRevert === true
+            ? { level: 'warning' as const, text: `could not revert ${itemId}` }
+            : { level: 'info' as const, text: `reverted ${itemId}` },
+        ])
       },
     },
     openDocument: (title: string, content: string) => {
@@ -2462,6 +2468,28 @@ describe('ConversationController: editor integration (M5)', () => {
     })
     expect(declined.reviews).toEqual([])
     expect(declined.server.requestsFor('session/fork')).toHaveLength(0)
+  })
+
+  it('does not fork, or call the code rewound, when an edit could not be reverted (M72)', async () => {
+    const t = withHistory({ refusesRevert: true })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({
+      type: 'rewindCode',
+      edits: [{ itemId: 'c1', outputRef: 'tool_patch-1' }],
+      fork: { lastTurnId: 't1', attachmentEpoch: 1 },
+    })
+    expect(t.reviews).toHaveLength(1)
+    expect(t.server.requestsFor('session/fork')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.rewindNotDone,
+    })
+    expect(t.surface.posted).not.toContainEqual(
+      expect.objectContaining({ text: plural(UI_TEXT.rewindDone, 1) }),
+    )
   })
 
   it('forks with no edits to rewind, saying so, and starts afresh for a cut before the first turn (M72)', async () => {

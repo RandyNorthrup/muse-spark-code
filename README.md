@@ -1272,6 +1272,9 @@ the panel say git was not found.
   add/remove also use native admission before normal repository hooks can run.
   Pure plan-file publication/stage cleanup and file-review Revert hold the
   same file-edit lease through their actual I/O, retaining ownership checks.
+  So do the Memory view's new note, delete and index line, and a
+  conversation export you save inside the workspace; a note outside the
+  workspace (your personal memory) takes no project lease.
   Automatic prompt Git facts suppress configured fsmonitor, signature and
   clean/process helpers per command, with bounded names-only discovery and
   live admission. Ordinary Git configuration remains intact; those reads
@@ -1290,12 +1293,16 @@ the panel say git was not found.
   separate activity mark through its real promise, including background, `!`
   and child work. Normal process exit or pipe drain does not prove every
   descendant stopped, so current launched-process runners leave unsafe
-  presence too. File restore/Redo refuses these windows and old/unknown peers.
+  presence too. A shell that could not start at all (no interpreter on
+  `PATH`, or the operating system refused the start) proves no process exists
+  and leaves none. File restore/Redo refuses these windows and old/unknown peers.
   Closing a server, terminal or window, owner PID death and heartbeat age cannot clear
   that uncertainty. Intentional background work is kept running.
 - **Ignored files.** They are not copied wholesale. A file the Model API's
   edit and write tools (or the image tools) are about to change is copied
-  first, so a restore brings it back. A shell command's changes are found
+  first, so a restore brings it back; so is an ignored project memory note
+  the memory tools or the Memory view are about to change or delete, with
+  its `MEMORY.md`. A shell command's changes are found
   afterwards by comparing the ignored files' sizes and times at the turn's
   start and end. A restore deletes the ignored files the turn created and
   lists the ones it changed without an earlier copy as **Not restorable**; it
@@ -1313,7 +1320,12 @@ the panel say git was not found.
   outside its ignore rules gets no checkpoints, and a turn that would copy
   more than 512 MiB of changed files gets none; the panel says why. The
   ignored-file scan looks at 5,000 files at most, and an ignored folder with
-  more than 1,000 files (`node_modules`) is left out whole.
+  more than 1,000 files (`node_modules`) is left out whole. git cannot open a
+  path past its own limit (260 characters on Windows, 1,024 on macOS, 4,096
+  elsewhere), so on Windows a workspace path over 258 characters, or a
+  checkpoint folder over 240, gets no checkpoints, and the panel says the
+  path is too long for git; paths within those limits work, long ones
+  included.
 - **Cleanup.** Archiving a conversation deletes its checkpoints (in
   Restricted Mode, its records at once and its copies the next time the
   folder is trusted). A conversation keeps
@@ -1408,7 +1420,10 @@ runs while the workspace is in Restricted Mode, and a command that could not
 run comes back to the prompt with the reason. On Muse Code it runs through
 the CLI's own shell and sandbox (a missing Windows sandbox offers the setup,
 as the shell tool does); on the Model API backend it runs through the shell
-tool's runner, for ten minutes at most, and its row has a **Stop**.
+tool's runner, for ten minutes at most, and its row has a **Stop**. There it
+is checked once more at its real start (your Stop, the workspace's trust, the
+conversation and the window still standing); a command refused at that point
+says **The command did not run**, and the agent is told nothing about it.
 While a Model API command is still running, another surface sharing that
 session shows its row and can stop it. A session loaded in another VS Code
 window shows the saved row as interrupted, since that window cannot

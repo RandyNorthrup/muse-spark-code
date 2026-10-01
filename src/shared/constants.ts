@@ -690,6 +690,30 @@ export const CHECKPOINT_STALE_LOCK_MS = 5 * 60 * 1000
 // The checkpoint folder holds copies of untracked and ignored files: it is
 // the user's alone, and so are the lock and presence files in it.
 export const CHECKPOINT_STORAGE_MODE = 0o700
+// The longest path (terminator included) git takes: its PATH_MAX, which is
+// Windows' MAX_PATH there. `core.longpaths` lifts it only after git has read
+// its configuration, so it cannot reach the repository's own path: that one
+// must fit as the platform spells it (measured with git 2.52.0.windows.1).
+export const GIT_PATH_MAX_WINDOWS = 260
+export const GIT_PATH_MAX_DARWIN = 1024
+export const GIT_PATH_MAX_DEFAULT = 4096
+// git refuses a `GIT_DIR` of PATH_MAX - 40 characters or more (setup.c); a
+// repository that is longer is named relative to the working directory.
+export const GIT_DIR_ENVIRONMENT_MARGIN = 40
+// Even so, git opens `<git dir>/objects` by that path: the terminator and
+// those eight characters must fit.
+export const GIT_DIR_CONTENTS_MARGIN = 9
+// git changes into the work tree, and into the repository it creates, so
+// both must be shorter than PATH_MAX by the terminator and one more.
+export const GIT_CHANGE_DIRECTORY_MARGIN = 2
+// The initializer folder beside `shadow.git`: a prefix and this many digits
+// of the window's hashed id. Short, so its path stays below the limit above.
+export const CHECKPOINT_INITIALIZER_PREFIX = '.i-'
+export const CHECKPOINT_INITIALIZER_DIGITS = 12
+// An initializer is removed right after git was stopped or failed: Windows
+// can hold one of its files a moment longer, so the removal retries.
+export const CHECKPOINT_REMOVE_RETRIES = 5
+export const CHECKPOINT_REMOVE_RETRY_MS = 200
 // Current windows in one canonical-root/global-storage namespace share CAS
 // refs. Presence is refreshed this often. Only a known safe dead owner is
 // collected; unknown/native/process uncertainty never expires. Failed writes
@@ -2819,6 +2843,7 @@ export const MODEL_TEXT = {
   checkSkipRejected: 'the user rejected it',
   checkSkipHookDenied: 'a hook denied it',
   checkSkipRefused: 'the permission mode refuses shell commands',
+  checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
   checkSkipRestricted: 'shell commands are disabled while the workspace is in Restricted Mode',
   checkSkipUnsafePath:
     'a path starts with "-" or "@", or holds a control character or a character the shell would read as syntax, so it cannot be passed safely',

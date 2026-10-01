@@ -571,8 +571,14 @@ describe('activation builds the memory through the checkpointed composition (M72
     // The exports the user places are written under the same lease, the same
     // guard, and the workspace root and platform the restore compares with.
     expect(source).toMatch(
-      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{ root: workspaceRoot, platform: process\.platform \},\s*fsPath,\s*work,\s*\)/,
+      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{\s*root: checkpointRoot\?\.canonicalRoot \?\? workspaceRoot,\s*displayRoot: workspaceRoot,\s*platform: process\.platform,?\s*\},\s*fsPath,\s*work,\s*\)/,
     )
+    // Sessions, the CLI's working directory and memory are keyed by the folder as
+    // VS Code spells it, as they always were: opening a workspace through a link,
+    // a junction or a mapped drive must not hide the conversations saved under
+    // that spelling. Only the checkpoint store takes the canonical root.
+    expect(source).toMatch(/const workspaceRoot = firstFolderPath\(\)/)
+    expect(source).not.toMatch(/const workspaceRoot = checkpointRoot/)
     expect(source).not.toContain('new MemoryStore(')
     expect(source).not.toContain('createMemoryIo(')
   })

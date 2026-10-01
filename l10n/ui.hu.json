@@ -1370,6 +1370,7 @@
   "checkpointTooLarge": "több mint {size} MiB módosított fájlt kellene másolni",
   "checkpointFailed": "az ellenőrzőpont nem sikerült",
   "checkpointNoGit": "a git nem található a PATH-ban",
+  "checkpointPathTooLong": "a munkaterület vagy a bővítmény tárolómappájának elérési útja túl hosszú a git számára",
   "checkpointsModelApiOnly": "A fájlok visszaállításához és az Újra művelethez csatlakoztatott Model API-munkamenet szükséges. A Muse Code ellenőrzőpontjai csak olvashatók.",
   "checkpointsNativeUnsafe": "A fájlok visszaállítása és az Újra nem érhető el, mert egy natív munkaterületi folyamat vagy egy ismeretlen ablak még szerkeszthet fájlokat. A folyamatok leállítása nem igazolt; megerősített helyreállítás szükséges.",
   "checkpointsLegacyReadOnly": "Ehhez az üzenethez régi ellenőrzőpont tartozik. A mentett rekordok olvashatók maradnak; a fájlok visszaállításához új, biztonságosan védett rögzítés szükséges.",

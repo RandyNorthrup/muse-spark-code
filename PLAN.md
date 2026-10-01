@@ -2903,8 +2903,9 @@ workspace's prefix).
   identity is needed.
 - **Ignored files.** A bounded scan of sizes and times at each turn's start
   and end finds what the turn created, changed or deleted; the Model API's
-  write tools and the image tools copy a file just before they write it
-  (`withCheckpointCopies`). A restore deletes created ignored files,
+  write tools, the image tools and the memory tools (with the Memory view's
+  delete) copy a file just before they write it (`withCheckpointCopies`,
+  `createCheckpointedMemory`). A restore deletes created ignored files,
   restores copied ones and lists the rest as not restorable; what it
   overwrites or deletes is copied for its Redo.
 - **Links.** Git for Windows walks into junctions (checked with git
@@ -2920,7 +2921,10 @@ workspace's prefix).
 - **Windows.** Independent records use CAS refs, with an index, pins,
   tool copies and presence per window. File restores reserve one shared
   CAS ref. Recent objects receive a prune grace period; an archive is
-  durable before returning (M72 Built, "Windows sharing a store").
+  durable before returning (M72 Built, "Windows sharing a store"). Git's
+  path limits are met in the store itself: the repository is made in a short
+  folder and published by one rename, a long path is named relative, and a
+  path git cannot open is refused with a message (M72, "Long storage paths").
 
 ### D60 — Muse Spark Code beyond VS Code: the IDE compatibility program (2026-09-26)
 
@@ -3198,6 +3202,21 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   that proof. Explicit confirmed removal of only a stale unsafe presence file
   preserves saved checkpoints. No paid/live capture is authorized by this
   implementation; investigate a bounded future proof separately.
+- **M72 hooks:** should a hook get a final admission of its own? Today none:
+  SessionEnd hooks run on purpose while the Host closes, hook settings are
+  user-global and not trust gated, and Stop is honoured through the signal; the
+  wrapper's activity mark still fences Restore. Default: unchanged.
+- **M72 long storage paths:** should a checkpoint folder over 240 characters
+  (Windows) be served by moving the repository? That would change the hashed
+  namespace. Default: refuse with the `checkpointPathTooLong` message.
+- **M72 dirty buffers in other windows:** a restore refuses a file with unsaved
+  changes in the window that restores, but an idle peer window on the same folder
+  publishes only that it is open, so its unsaved buffer of a file the restore
+  overwrites or deletes is not known. VS Code keeps that buffer and reports the
+  file changed on disk at its next save (it asks before overwriting), so nothing
+  is silently lost. Should every window publish its unsaved paths in its
+  presence file, so a restore refuses them too? Default: unchanged, recorded as
+  a limit (Codex, `a424e526`).
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -7766,6 +7785,40 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M72 — Turn checkpoints (D49)
 
+**Correction batch before 0.10.0, 2026-09-30 (built and lane-verified; the
+four-rig gate, hosted CI and the release are open).** Seven commits on the
+verified `9c4ac7d3` (`docs/certification/m72.md`, "Correction batch before
+0.10.0", holds every drill with its hash):
+
+- **Memory** (`cfe57534`, `80b768f4`): the batch described next. The
+  activation wiring test now pins the exact guard expressions (a no-op
+  `captureGuard` fails it), which the independent verifier found missing. Its
+  other finding, that `withCheckpointEditAt` decides containment lexically
+  against the canonical root while the store also accepts the display root, was
+  right for the export edit (a save dialog returns VS Code’s spelling) and is
+  fixed in `e78a949d`: containment holds for either spelling. The project memory
+  scope was never affected (its path is built from the root it is compared
+  with).
+- **The user's `!` and a shell that never started** (`e593ebe4`, `1fd98aaf`):
+  see "Final admission for the user's `!` command" below.
+- **git's path limits** (`62c856d8`): see "Long storage paths" below.
+- **Test infrastructure** (`c5fec8dc`, `dd4daa8f`): on macOS and Linux the
+  integration tests use a short user-data folder only when the default would
+  not fit a Unix socket path (macOS caps it at 104 bytes), and the macOS worker
+  cap is typed so that `typecheck:host` passes; it failed at the base and would
+  have failed `npm run quality`.
+
+Measured by `npm run build` on `62c856d8`: extension 591.7 of 600 KiB, Model
+API 398.5 of 400 (1.5 KiB left: anything that lands in `ModelApiHost.ts` needs
+its size re-checked), checkpoint store 188.5 of 225; no budget moved. **Open:**
+the final four-rig gate (Windows host, Windows VM, Mac mini and Kubuntu, each a
+literal `npm run quality` on the exact tree), hosted CI, the protected merge and
+the release; the independent verifier of the git path lane had not reported.
+**Owner decisions still open** (§3): native/process exclusion, whether hooks
+should get a final admission of their own, and whether a storage path over 240
+characters should ever be served by moving the repository (today it is refused
+with a clear message).
+
 **Actual memory composition and GUI admission batch, 2026-09-30 (built; aggregate
 gates and platform runs open).** Activation built Muse Code's
 memory over the raw tool I/O while the guarded owning fixture composed a
@@ -7923,6 +7976,36 @@ core/shellResult module, preserving the original tools type export. Eager
 host adapters import only that tiny value; they cannot pull LAZY_ONLY tools
 into the extension. Existing type consumers and outcome behavior are unchanged.
 
+**Final admission for the user's `!` command and proof for a shell that never
+started (2026-09-30).** The Model API session's explicit `!` command (M46) was
+the one shell entry that reached the checkpoint wrapper and the native adapter
+with no final admission: after its initial Restricted Mode check, the activity
+mark and the adapter's Windows assembly wait could end with nothing asking the
+current trust, the session or the Host closing. It now passes its own callback
+as the sixth `runShell` argument and refuses on the user's own stop, session
+disposal, Host closing and current trust. It does not take the model's rules:
+the running turn, its Stop and the permission mode (Plan included) never
+decide an explicit `!`, and a started command keeps its outcome. A refused
+entry ran nothing: its row reads "The command did not run" and the model is told
+nothing. Separately, a command that could not start at all carries
+`isWorkspaceShutdownProven` through `unstartedShell()` in `core/shellResult`:
+no interpreter on `PATH`, a missing PowerShell (a spawn that failed with no
+pid), the hook shell, and `spawn` itself throwing (a NUL in the command, a
+command line past the operating system's limit; `startProcess` in `toolIo.ts`).
+The failure stays a failure. A launched command, an error event after launch
+and a normal exit never carry the proof, so the wrapper still records native
+uncertainty for any real launch. A failure before entry (the activity mark
+cannot be made) is a `ShellEntryError`: the user shell path treats it as a
+no-entry outcome and tells the model nothing, while a failure after the command
+ran stays a plain `Error` and is still told. Out of scope by design: hooks (no
+workspace-trust gate; SessionEnd runs while the Host is closing; Stop is
+honoured through the signal) and Muse Code's `session/userShell`, which the CLI
+runs in its own process, guarded only by the controller's Restricted Mode check
+and the native startup fence. A throw from `assertWorkspaceCurrent` stays
+unproven and conservative; only the ACP runtime composes it, and it has no
+checkpoint wrapper, so no false sticky state is reachable (revisit if the two
+are ever combined).
+
 **Measured checkpoint bundle split (D6, verification pending).** Literal
 `npm run build` on 0.10.0 `addc6870` produced extension 638.2 KiB, exceeding
 the unchanged 600 KiB budget; Model API 397.9/400 KiB and every other existing
@@ -7962,10 +8045,45 @@ packaging drills are completing in owned disposable copies. These are scoped
 results, not full-quality, platform or release/channel certification; those
 remain the lead's next gate. No product source awaits a new feature decision.
 
-**Status 2026-09-28: built** on `feature/m72-checkpoints` (D51,
-`docs/certification/m72.md`); not yet merged. The mechanism is a shadow
-repository in the extension's own storage, never the workspace's
-`.git`.
+**Long storage paths (2026-09-30, measured with git 2.52.0.windows.1).**
+`core.longpaths` is read only after git has opened the repository, so the
+repository's own path must fit PATH_MAX as written: a `GIT_DIR` of PATH_MAX-40
+(220) characters or fewer is taken absolute (`'$GIT_DIR' too big` beyond);
+written relative, `<git dir>/objects` must still fit in 259 (repository 251 or
+less, storage 240 or less); the work tree and a repository being made are
+changed into, so 258 or less. No spelling, working directory, gitfile or option
+reaches beyond, and the hashed namespace and identity hashes stay as they are.
+The old initializer (`shadow-<uuid>.initializing`, 56 characters) also ran
+`git init` without the scoped option, which fails from 235 characters; the
+frozen 90ff host run hit that at 242 with a repository of only 195. ShadowGit
+now makes the repository in a short unique folder in the storage folder itself
+(`.i-` plus 12 digits of sha256 of the window's id: same folder, so same volume
+through links and junctions, and one atomic rename), with scoped
+`core.longpaths`; removes it in a `finally` whether init failed, was cancelled
+or lost the publication race; and sweeps one a dead window left once it is
+older than `CHECKPOINT_STALE_LOCK_MS`. While the repository path is PATH_MAX-40
+or shorter every command keeps the absolute `GIT_DIR` and the work tree as its
+directory; beyond that it is named `shadow.git` with the storage folder as
+directory, `GIT_WORK_TREE` and `GIT_INDEX_FILE` stay absolute (a relative index
+is invalid after git changes into the work tree), and `hash-object`'s file
+argument is named in full because it opens files from where it started. A
+repository over PATH_MAX-9 or a work tree over PATH_MAX-2 is refused before any
+file is made or git is started, as capture refusal `pathTooLong` with UI text
+`checkpointPathTooLong` (14 tables, machine-made). PATH_MAX is the platform's
+(260, 1024, 4096) unless a test lowers it (`gitPathMax` dep), so both decisions
+are by length. No store created by an earlier build is affected (storage of 177
+characters or less). Tests: `checkpointLongPaths.test.ts` over real git; the
+tests' independent reads use one helper that scopes `core.longpaths`. Sixteen
+on-purpose breaks and an equivalence drill (the relative spelling forced across
+20 suites) are in the certification record. Limits kept: `git worktree add` and
+the workspace-cwd metadata runners cannot use a workspace over 258 characters,
+and window presence files are written before the path check.
+
+**Status 2026-09-30: built** on `feature/m72-checkpoints` (PR #55, first built
+2026-09-28) and integrated on `integrate/m72-on-24ff` for 0.10.0 (D51,
+`docs/certification/m72.md`); not yet merged: the final four-rig gate, hosted CI
+and the release are open. The mechanism is a shadow repository in the
+extension's own storage, never the workspace's `.git`.
 
 - **Goal.** Undo is cheap, and complete wherever the extension saw the
   change coming; where it could not, it says exactly what it left.
@@ -9539,7 +9657,7 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn` (`detect-child-process`)                    | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                                                                                                                                                                                                                                                                                                                                                                                    | 2026-09-22 |
+| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`) | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
 | `src/host/backend/searchWorker.ts`       | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
 | `src/host/voice/dictationHost.ts`        | `nosemgrep` on two `spawn` calls (`detect-child-process`)          | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
 | `native/darwin/Dictation.swift`          | `unsafeBitCast(symbol, to: SetDisclaim.self)`                      | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
@@ -9604,7 +9722,10 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
   file whole, so no note is ever half written; residual risk: Muse Code and
   the extension writing the same note in the same instant keep only one of
   the two writes. Notes reach every later session, the personal scope every
-  project, so a model's write asks in Manual (Muse Code's does not).
+  project, so a model's write asks in Manual (Muse Code's does not). Under
+  turn checkpoints (M72) the memory tools' and the view's writes keep a copy
+  of an ignored project note first, and the view's create and trash hold the
+  restore lease (personal notes outside the workspace take none).
 - Turn checkpoints (M72, D51) copy the workspace's files into the
   extension's workspace storage, and an ignored file (a `.env`) only when
   the extension's own tools are about to write it or a restore overwrites
@@ -10115,7 +10236,9 @@ four-platform full gates, so the release tag can name the tested main tree.
 PR63's evaluation work and the other unfinished branches follow this release;
 they are not release prerequisites. The release includes the already merged
 multi-IDE work with its documented Preview limits, code intelligence, web
-fetch, verify loop and plan files, together with the verified M72 changes.
+fetch, verify loop and plan files, together with the verified M72 changes and
+its 2026-09-30 correction batch (memory copies and leases, the `!` command's
+final admission, git's path limits; `docs/certification/m72.md`).
 No new paid calls are part of release verification. Do not tag or claim
 publication until the candidate passes independent review, exact-tree local
 platform checks and hosted checks and lands through its protected PR.
