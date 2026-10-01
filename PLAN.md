@@ -8625,7 +8625,8 @@ extension's own storage, never the workspace's `.git`.
   as untrusted in the model prompt. Recheck trust before agent loading and
   discard a catalogue completed after trust withdrawal. Restore the missing certification record
   with current lane checks and red/restored proofs; lead-owned aggregate and
-  platform gates remain open. The brief's handoff path is missing.
+  platform gates remain open. The brief's handoff was missing during this
+  review; the lead restored it before the 2026-10-01 resume.
   The inherited retained-surface checkpoint test must await its existing
   preparation hook before its model-request assertion; repeated lane runs
   raced real Git setup. Preserve its request deadline, test timeout and
@@ -8644,6 +8645,15 @@ extension's own storage, never the workspace's `.git`.
   Codex's formats through `parseAgentFile`; neither is part of this
   milestone.
 - **Decisions taken while building.**
+  - **Final lane verification 2026-09-30.** Merged the current candidate
+    `8d59fb5c` in `486f33c2`. All required lane gates passed: five typecheck
+    projects, changed-file lint/format, dead code, duplication, localization,
+    host API, build and 891 tests in 15 non-live files. Nineteen intentional
+    failures proved the guards and bundle gate; exact SHA-256 restoration
+    and green reruns are in `docs/certification/m76.md`. Final sizes are
+    extension 595.8/600 KiB, Model API 337.4/400 and checkpoint store
+    192.7/225. The handoff was restored and read on resume; full quality,
+    independent review, four-machine and release gates remain lead-owned.
   - **The folder** is the extension's own (D13's addendum): the CLI names
     none.
   - **One loader.** `src/core/context/catalogFiles.ts` serves skills and
