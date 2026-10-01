@@ -636,7 +636,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     goal: z.optional(z.string()),
     todos: z.array(z.string()),
   }),
-  // The confirm's admission result. Correlation protects a newer dialog.
+  // A request's or a confirm's admission result. Correlation protects a
+  // newer draft or dialog: only an accepted request clears the composer's
+  // `/handoff …`, and a refused confirm keeps the dialog.
   z.object({
     type: z.literal('handoffCommandResult'),
     requestId: z.string(),

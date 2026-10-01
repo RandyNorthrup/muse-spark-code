@@ -65,12 +65,21 @@ function dialogText() {
   return screen.getByLabelText<HTMLTextAreaElement>(UI_TEXT.handoffDialogBody)
 }
 
+function composerText() {
+  return screen.getByLabelText<HTMLTextAreaElement>('Message Muse').value
+}
+
+/** The host's answer to the `/handoff` request REQUEST_ID: taken, unless refused. */
+function admit(isAccepted = true) {
+  deliver({ type: 'handoffCommandResult', requestId: REQUEST_ID, accepted: isAccepted })
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
 
 describe('/handoff (M74)', () => {
-  it('posts the command with its goal and clears the draft, sending nothing', () => {
+  it('posts the command with its goal, sending nothing, and clears the draft only once the host takes it', () => {
     const postMessage = renderPanel()
     submit('/handoff Ship it Friday')
     expect(postMessage).toHaveBeenCalledWith({
@@ -79,7 +88,36 @@ describe('/handoff (M74)', () => {
       goal: 'Ship it Friday',
     })
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
-    expect(screen.getByLabelText<HTMLTextAreaElement>('Message Muse').value).toBe('')
+    // Not answered yet: the command stays, and a second Enter sends nothing.
+    expect(composerText()).toBe('/handoff Ship it Friday')
+    fireEvent.keyDown(screen.getByLabelText('Message Muse'), { key: 'Enter' })
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'requestHandoff'),
+    ).toHaveLength(1)
+    admit()
+    expect(composerText()).toBe('')
+  })
+
+  it('keeps a refused handoff in the composer, its goal not lost, ready to send again', () => {
+    const postMessage = renderPanel()
+    submit('/handoff Ship it Friday')
+    // Refused (Muse Code, a running reply, a side chat): the host said why.
+    admit(false)
+    expect(composerText()).toBe('/handoff Ship it Friday')
+    fireEvent.keyDown(screen.getByLabelText('Message Muse'), { key: 'Enter' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'requestHandoff',
+      requestId: 'handoff:local-1:2',
+      goal: 'Ship it Friday',
+    })
+  })
+
+  it('keeps a draft edited while the host answered, even when it takes the command', () => {
+    renderPanel()
+    submit('/handoff Ship it Friday')
+    fireEvent.change(screen.getByLabelText('Message Muse'), { target: { value: 'Something else' } })
+    admit()
+    expect(composerText()).toBe('Something else')
   })
 
   it('posts the command without a goal', () => {
@@ -91,13 +129,14 @@ describe('/handoff (M74)', () => {
   it('shows the brief and the open items it seeds before anything starts; Start sends the edited brief back', () => {
     const postMessage = renderPanel()
     submit('/handoff Ship it')
+    admit()
     expect(screen.queryByRole('dialog')).toBeNull()
     deliver({ ...READY, goal: 'Ship it', todos: ['Ship it', 'Tell the team'] })
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent(UI_TEXT.handoffDialogBody)
     expect(dialog).toHaveTextContent(fill(UI_TEXT.handoffRequestCardWithGoal, { goal: 'Ship it' }))
     expect(dialogText().value).toBe(BRIEF)
-    // Everything of the model's the new conversation reads is on screen (D49).
+    // All the model wrote that the new conversation reads is on screen (D49).
     const items = within(screen.getByRole('list', { name: UI_TEXT.todoTitle })).getAllByRole(
       'listitem',
     )
@@ -119,6 +158,7 @@ describe('/handoff (M74)', () => {
   it('keeps the dialog when the host refuses the confirm, and drops it when the conversation clears', () => {
     const postMessage = renderPanel()
     submitCommand('/handoff')
+    admit()
     deliver(READY)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.handoffConfirm }))
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -128,10 +168,11 @@ describe('/handoff (M74)', () => {
     })
     // Refused: the edited brief is not lost, and Start can be pressed again.
     fireEvent.change(dialogText(), { target: { value: 'Edited brief.' } })
-    deliver({ type: 'handoffCommandResult', requestId: REQUEST_ID, accepted: false })
+    admit(false)
     expect(dialogText().value).toBe('Edited brief.')
+    expect(screen.getByRole('button', { name: UI_TEXT.handoffConfirm })).toBeEnabled()
     // Accepted: the new conversation clears the dialog with the transcript.
-    deliver({ type: 'handoffCommandResult', requestId: REQUEST_ID, accepted: true })
+    admit()
     deliver({ type: 'conversationCleared' })
     expect(screen.queryByRole('dialog')).toBeNull()
   })
@@ -139,6 +180,7 @@ describe('/handoff (M74)', () => {
   it('cancels the handoff without starting anything', () => {
     const postMessage = renderPanel()
     submitCommand('/handoff')
+    admit()
     deliver(READY)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'cancelHandoff', requestId: REQUEST_ID })
@@ -151,6 +193,7 @@ describe('/handoff (M74)', () => {
   it('ignores a result for another request', () => {
     renderPanel()
     submitCommand('/handoff')
+    admit()
     deliver(READY)
     deliver({ type: 'handoffCommandResult', requestId: 'handoff:other:9', accepted: false })
     expect(dialogText().value).toBe(BRIEF)

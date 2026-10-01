@@ -8454,8 +8454,10 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
   ) {
     const { t, api, controller } = conversation
     api.script({ text: 'on it' })
+    // The confirm's own result: the request's, under the same id, came before.
+    const before = t.surface.posted.length
     await controller.handle({ type: 'confirmHandoff', requestId, brief })
-    expect(t.surface.posted).toContainEqual({
+    expect(t.surface.posted.slice(before)).toContainEqual({
       type: 'handoffCommandResult',
       requestId,
       accepted: true,
@@ -8481,6 +8483,10 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       attachments: [],
     })
     expect(card?.type === 'briefSubmitted' && card.localId.startsWith('handoff-')).toBe(true)
+    // The command was taken, so the composer may let it go.
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+      { type: 'handoffCommandResult', requestId: 'h1', accepted: true },
+    ])
     // The model was asked for the distilled brief, with the goal and the
     // untrusted-content rule (PLAN.md D49). Both sides are JSON text, so
     // the expectation is encoded the same way.
@@ -8608,6 +8614,10 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     )
     for (const refused of [museCode, emptySetup, sideSetup]) {
       expect(refused.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+      // Refused: the composer keeps the typed command and its goal.
+      expect(
+        refused.surface.posted.filter((posted) => posted.type === 'handoffCommandResult'),
+      ).toEqual([{ type: 'handoffCommandResult', requestId: 'h1', accepted: false }])
     }
   })
 
@@ -8631,6 +8641,11 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     })
     expect(await lastModelNotice(t, controller, handoff('h1'))).toBe(UI_TEXT.handoffWaitTurn)
     expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    expect(t.surface.posted).toContainEqual({
+      type: 'handoffCommandResult',
+      requestId: 'h1',
+      accepted: false,
+    })
     release.resolve(undefined)
     await running
     // Both turns done: the first and the held one.
@@ -8679,6 +8694,10 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     await distil(conversation, 'h1')
     expect(await lastModelNotice(t, controller, handoff('h2'))).toBe(UI_TEXT.handoffBusy)
     expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+      { type: 'handoffCommandResult', requestId: 'h1', accepted: true },
+      { type: 'handoffCommandResult', requestId: 'h2', accepted: false },
+    ])
   })
 
   it('owns the handoff before held host preparation so a second request cannot submit', async () => {

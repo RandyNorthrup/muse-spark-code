@@ -442,12 +442,12 @@ export function App({
   )
   // `/handoff …` is a command to the backend, not a message (M74): the
   // host cards the accepted request itself, and the brief comes back as a
-  // dialog before anything starts. The draft clears on submit, as for
-  // `/loop` (M52).
+  // dialog before anything starts. The draft clears only once the host
+  // accepts it, as for `/goal` (M45): a refused handoff keeps its goal.
   const onHandoff = useCallback(
     (goal: string | undefined) => {
       const requestId = `handoff:${newLocalId()}:${String(++nextHandoffRequestId.current)}`
-      dispatch({ type: 'draftChanged', draft: '' })
+      dispatch({ type: 'handoffSubmitted', requestId })
       postMessage({
         type: 'requestHandoff',
         requestId,
@@ -528,6 +528,10 @@ export function App({
     // either backend (the host says where it cannot run).
     const handoff = parseHandoffPrompt(text)
     if (handoff !== undefined) {
+      // Sent already and not yet answered: a second Enter sends nothing.
+      if (current.pendingHandoffCommand?.draftRevision === current.draftRevision) {
+        return
+      }
       onHandoff(handoff.goal)
       setIsPinnedToEnd(true)
       return

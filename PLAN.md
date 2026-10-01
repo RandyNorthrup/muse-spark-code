@@ -8643,6 +8643,10 @@ Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
     (`surfaceReady` posts its `handoffReady` again, RV74 finding 3): the
     host keeps the handoff, so without its dialog every later `/handoff`
     would answer "already running".
+  - The composer keeps `/handoff …` until the host answers
+    (`handoffCommandResult`, RV74 finding 4), as for `/goal`: a refused
+    handoff keeps its typed goal; an accepted one clears the draft unless
+    it was edited meanwhile.
   - Model API backend only: on Muse Code the command says it is
     unavailable there. Side chats are refused; one handoff runs at a time;
     a running turn is waited for; an oversized (over 256 KB) or empty

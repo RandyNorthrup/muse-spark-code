@@ -176,6 +176,9 @@ export interface UiState {
       }
     | undefined
   readonly goalEditRevision: number
+  /** A `/handoff …` awaiting host admission (M74): only an accepted one clears its draft. */
+  readonly pendingHandoffCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
   /** The handoff dialog (M74): the brief to review, edit and confirm. */
   readonly handoff:
     | {
@@ -299,6 +302,8 @@ export type UiAction =
   | { readonly type: 'goalEditChanged'; readonly draft: string }
   | { readonly type: 'goalEditCanceled' }
   | { readonly type: 'goalEditSubmitted'; readonly requestId: string; readonly objective: string }
+  /** `/handoff …` sent from the composer (M74), awaiting the host's admission. */
+  | { readonly type: 'handoffSubmitted'; readonly requestId: string }
   /** The handoff dialog's edits and Start (M74); Cancel dismisses it. */
   | { readonly type: 'handoffChanged'; readonly draft: string }
   | { readonly type: 'handoffConfirming' }
@@ -370,6 +375,7 @@ export const initialUiState: UiState = {
   pendingGoalCommand: undefined,
   goalEdit: undefined,
   goalEditRevision: 0,
+  pendingHandoffCommand: undefined,
   handoff: undefined,
   focusRequests: 0,
   pendingInsert: undefined,
@@ -1721,6 +1727,7 @@ function clearedConversation(state: UiState): UiState {
     attachmentSettlements: [],
     pendingGoalCommand: undefined,
     goalEdit: undefined,
+    pendingHandoffCommand: undefined,
     handoff: undefined,
     childTranscripts: {},
     childOwners: {},
@@ -2087,6 +2094,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           goal,
           ...editor,
           pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
+          pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
           schedules: isSameSession ? state.schedules : [],
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
@@ -2178,6 +2186,17 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
     case 'handoffCommandResult': {
+      // The request's admission (M74): a refused `/handoff …` stays in the
+      // composer, its goal not lost; an accepted one clears it, if unedited.
+      const command = state.pendingHandoffCommand
+      if (command?.requestId === message.requestId) {
+        return {
+          ...state,
+          pendingHandoffCommand: undefined,
+          draft:
+            message.accepted && state.draftRevision === command.draftRevision ? '' : state.draft,
+        }
+      }
       const pending = state.handoff
       if (pending?.requestId !== message.requestId) {
         return state
@@ -2375,6 +2394,12 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         },
       }
     }
+    case 'handoffSubmitted': {
+      return {
+        ...state,
+        pendingHandoffCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
     case 'handoffChanged': {
       const pending = state.handoff
       return pending === undefined
@@ -2416,6 +2441,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           draft: '',
           draftRevision: state.draftRevision + 1,
           pendingGoalCommand: undefined,
+          pendingHandoffCommand: undefined,
           attachments: [],
           reference: undefined,
         },

@@ -3379,15 +3379,30 @@ export class ConversationController {
   }
 
   /**
-   * `/handoff …` (M74): ask the model, as the user's own turn in this
-   * conversation, for a distilled brief. Model API only: Muse Code
-   * compacts itself. The brief lands in the dialog through
-   * `finishHandoff`; nothing starts before the user confirms it.
+   * `/handoff …` (M74): the host says whether it took the command
+   * (`handoffCommandResult`, correlated by `requestId`), and the composer
+   * keeps the typed command until it did, so a refused handoff keeps its
+   * goal, as `/goal` does.
    */
   private async requestHandoff(requestId: string, goal: string | undefined): Promise<void> {
+    let isAccepted = false
+    try {
+      isAccepted = await this.distilHandoff(requestId, goal)
+    } finally {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: isAccepted })
+    }
+  }
+
+  /**
+   * Asks the model, as the user's own turn in this conversation, for a
+   * distilled brief: true once that turn was accepted. Model API only:
+   * Muse Code compacts itself. The brief lands in the dialog through
+   * `finishHandoff`; nothing starts before the user confirms it.
+   */
+  private async distilHandoff(requestId: string, goal: string | undefined): Promise<boolean> {
     if (this.isSideChat) {
       this.notice('info', UI_TEXT.handoffSideChat)
-      return
+      return false
     }
     const previous = this.pendingHandoff
     if (previous !== undefined && !this.isCurrentHandoff(previous)) {
@@ -3395,11 +3410,11 @@ export class ConversationController {
     }
     if (this.pendingHandoff !== undefined) {
       this.notice('info', UI_TEXT.handoffBusy)
-      return
+      return false
     }
     if (this.activeTurnId !== undefined) {
       this.notice('info', UI_TEXT.handoffWaitTurn)
-      return
+      return false
     }
     const generation = this.sendInvalidationEpoch
     const pending: PendingHandoff = {
@@ -3417,11 +3432,11 @@ export class ConversationController {
     try {
       const host = await this.deps.ensureHost()
       if (!this.canDistilHandoff(pending)) {
-        return
+        return false
       }
       if (host.info.kind !== 'modelApi') {
         this.notice('info', UI_TEXT.handoffUnavailable)
-        return
+        return false
       }
       if (
         this.session === undefined &&
@@ -3429,7 +3444,7 @@ export class ConversationController {
         this.sessionOpening === undefined
       ) {
         this.notice('info', UI_TEXT.handoffEmpty)
-        return
+        return false
       }
       const session = await this.sessionForAction()
       if (
@@ -3437,16 +3452,16 @@ export class ConversationController {
         !this.canDistilHandoff(pending) ||
         !this.isCurrentSessionAction(session, generation)
       ) {
-        return
+        return false
       }
       pending.session = session
       const history = await host.readSession(session.sessionId)
       if (!this.canDistilHandoff(pending) || !this.isCurrentSessionAction(session, generation)) {
-        return
+        return false
       }
       if (history.items.length === 0) {
         this.notice('info', UI_TEXT.handoffEmpty)
-        return
+        return false
       }
       const cardText = this.handoffCardText(goal)
       const localId = `${HANDOFF_LOCAL_ID_PREFIX}${this.deps.newAttachmentId()}`
@@ -3473,7 +3488,7 @@ export class ConversationController {
         !this.isCurrentHandoff(pending) ||
         !this.isCurrentSessionAction(pending.session, generation)
       ) {
-        return
+        return false
       }
       pending.turnId = sent.turnId
       this.deps.log.info(`Handoff ${requestId} distilling in turn ${sent.turnId}`)
@@ -3482,10 +3497,12 @@ export class ConversationController {
         // no completion event will arrive for it: read its reply now.
         await this.finishHandoff(sent.turnId)
       }
+      return true
     } catch (error: unknown) {
       if (this.isCurrentHandoff(pending)) {
         this.handoffFailed(error)
       }
+      return false
     } finally {
       if (this.pendingHandoff === pending && pending.turnId === undefined) {
         this.pendingHandoff = undefined

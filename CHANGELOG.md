@@ -25,7 +25,8 @@ happened, not what was planned; superseded entries are kept.
   show (a direction override, a zero-width character) starts in a mode
   that asks, and the panel says so. A handoff from Plan mode stays in
   Plan. Model API backend only (on Muse Code the
-  command says it is unavailable there); side chats are refused; one
+  command says it is unavailable there); a refused `/handoff` stays in
+  the prompt with its goal; side chats are refused; one
   handoff runs at a time; a running turn is waited for; an oversized (over
   256 KB) or empty brief is refused with the reason. No new setting:
   nothing automatic runs. Automatic compaction, the hidden follow-up and
