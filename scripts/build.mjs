@@ -41,6 +41,10 @@ const isWatch = args.has('--watch')
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+// One immutable English fallback shared by Node bundles; each keeps its own
+// mutable installed-language state. The browser keeps its fallback bundled.
+const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
+const UI_TEXT_OUTFILE = 'dist/uiText.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
@@ -68,6 +72,19 @@ const BROWSER_TARGET = 'chrome128'
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
 
+/** @type {import('esbuild').Plugin} */
+const sharedUiText = {
+  name: 'shared-ui-text',
+  setup(build) {
+    // esbuild sends this filter to Go RE2, which rejects JavaScript's u flag.
+    build.onResolve({ filter: /\/en$/ }, (args) =>
+      path.resolve(args.resolveDir, `${args.path}.ts`) === path.resolve(UI_TEXT_ENTRY)
+        ? { path: './uiText.js', external: true }
+        : undefined,
+    )
+  },
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const common = {
   bundle: true,
@@ -81,6 +98,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
+  plugins: [sharedUiText],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -92,6 +110,7 @@ const hostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
+  plugins: [sharedUiText],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -102,6 +121,7 @@ const modelApiOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
+  plugins: [sharedUiText],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -112,6 +132,7 @@ const planMarkdownOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
+  plugins: [sharedUiText],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -133,6 +154,7 @@ const searchWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
+  plugins: [sharedUiText],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -143,6 +165,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
+  plugins: [sharedUiText],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -150,6 +173,16 @@ const acpOptions = {
   target: AGENT_NODE_TARGET,
   external: ['@napi-rs/keyring'],
   banner: { js: '#!/usr/bin/env node' },
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const uiTextOptions = {
+  ...common,
+  entryPoints: [UI_TEXT_ENTRY],
+  outfile: UI_TEXT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -203,6 +236,7 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
+    esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
@@ -216,6 +250,7 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
+    uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
@@ -242,6 +277,7 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
+  reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))

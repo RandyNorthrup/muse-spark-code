@@ -33,6 +33,15 @@ beforeAll(async () => {
     `module.exports = { workspace: { isTrusted: true }, window: { showQuickPick: async (_items, options) => { require('node:fs').writeFileSync(${JSON.stringify(path.join(built.folder, 'picker.json'))}, JSON.stringify(options)); } } }\n`,
   )
   await build({
+    entryPoints: [path.resolve('src/shared/l10n/en.ts')],
+    outfile: path.join(built.folder, 'uiText.js'),
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    logLevel: 'silent',
+  })
+  await build({
     entryPoints: [path.resolve('src/host/agentImportEntry.ts')],
     outfile: built.file,
     bundle: true,
@@ -40,6 +49,19 @@ beforeAll(async () => {
     external: ['vscode'],
     format: 'cjs',
     target: 'node20.18',
+    plugins: [
+      {
+        name: 'shared-ui-text',
+        setup: (builder) => {
+          builder.onResolve({ filter: /\/en$/ }, (args) =>
+            path.resolve(args.resolveDir, `${args.path}.ts`) ===
+            path.resolve('src/shared/l10n/en.ts')
+              ? { path: './uiText.js', external: true }
+              : undefined,
+          )
+        },
+      },
+    ],
     logLevel: 'silent',
   })
 })
@@ -121,6 +143,14 @@ describe('agentImportLoader', () => {
 })
 
 describe('the shipped import bundle', () => {
+  it('loads the shared English fallback without copying it into the importer', () => {
+    const text = readFileSync(built.file, 'utf8')
+    expect(text).toContain('require("./uiText.js")')
+    expect(text).not.toContain(UI_TEXT.crashTitle)
+    expect(text).not.toContain(UI_TEXT.agentImportPreviewIntro)
+    expect(readFileSync(path.join(built.folder, 'uiText.js'), 'utf8')).toContain(UI_TEXT.crashTitle)
+  })
+
   it('is the module the loader accepts', () => {
     const loaded = agentImportLoader({
       bundlePath: built.file,

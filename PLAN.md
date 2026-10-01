@@ -223,10 +223,25 @@ quality`) and as a CI job.
 | `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
 | `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
 | `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
+| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                          |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
 the script and changes with it, with a CHANGELOG entry.
+
+**Amendment (2026-09-30): one English fallback for the Node bundles.**
+The approved `build/shared-ui-text` approach (`44d920fd`, lead decision 2)
+emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
+the Model API backend, the checkpoint store, the import bundle and the ACP agent require it
+beside their bundles; each still owns its mutable installed-language state.
+The browser and integration-test bundles retain their inline fallback. The
+development build writes the table beside the extension, so the integration
+host needs no additional `.vscode-test.mjs` launch option. The VSIX allowlist,
+ACP packager and both CI member lists include it. Existing bundle caps stay
+unchanged; the table has its own 100 KiB cap and split checks. Runtime proof
+and every before/after size are in
+[`docs/certification/shared-ui-text.md`](docs/certification/shared-ui-text.md).
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and
@@ -256,14 +271,16 @@ instead.
   (now `src/core/workspacePath.ts`) and the goal record
   (`modelapi/goalRecord.ts`) moved out of the backend's modules so that the
   activation bundle takes only them.
-- **Two copies of shared code.** Each bundle has its own copy of what both
-  import (44 inputs, 129 KiB of `modelApi.js`: the English table, constants,
+- **Shared code and per-bundle state.** Each bundle has its own copy of what both
+  import (originally 44 inputs, 129 KiB of `modelApi.js`: constants,
   zod, the key client…). What that could break was audited (M57): the three
   errors a host throws to the conversation controller are tested by name and
   field (`isGoalRefusedError` and its two siblings in `agentBackend.ts`), not
   `instanceof`, which a lint rule now refuses in `src/`; the display
   language's table and locale are module state, so the factory installs the
-  activation bundle's before it builds anything. The rest of the audit is in
+  activation bundle's before it builds anything. Since the approved shared-table
+  amendment, the immutable English fallback is loaded from `dist/uiText.js`
+  rather than copied into each Node bundle. The rest of the audit is in
   `docs/certification/m57.md`.
 - **Budget for `dist/modelApi.js`: 400 KiB**, 295.6 KiB measured plus about a
   third. The Model API work already planned lands here; M50's MCP client

@@ -1,0 +1,24 @@
+[
+  {
+    "beforeSha256": "960e836cb216f10a68262f47f5d4ceeda7e97157a678595af2313204216975e8",
+    "expectedDiagnostic": "dist/agentImport.js duplicates src/shared/l10n/en.ts",
+    "source": "dist/meta/agentImport.json",
+    "afterSha256": "960e836cb216f10a68262f47f5d4ceeda7e97157a678595af2313204216975e8",
+    "restoredExit": 0,
+    "name": "shared-importer-duplicate",
+    "mutatedExit": 1,
+    "mutatedSha256": "d4899162eb7bd5a19b4b560a3a3b17be7efa115fe8fddf3ded183d18a837769c",
+    "baselineExit": 0
+  },
+  {
+    "beforeSha256": "960e836cb216f10a68262f47f5d4ceeda7e97157a678595af2313204216975e8",
+    "expectedDiagnostic": "dist/agentImport.js no longer loads the shared English table",
+    "source": "dist/meta/agentImport.json",
+    "afterSha256": "960e836cb216f10a68262f47f5d4ceeda7e97157a678595af2313204216975e8",
+    "restoredExit": 0,
+    "name": "shared-importer-missing",
+    "mutatedExit": 1,
+    "mutatedSha256": "0227c11ddb0b3124a0df9cf60c9e14ab2fb55f6957012d7671a50eaeabb99ce0",
+    "baselineExit": 0
+  }
+]

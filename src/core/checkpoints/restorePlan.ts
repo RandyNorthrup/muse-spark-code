@@ -176,14 +176,14 @@ function workTreeStep(change: TreeChange): RestoreStep {
   }
 }
 
-/** Whether the file existed before the first of these turns, and its bytes were kept. */
-function hasEarlierCopy(entry: MergedIgnored | undefined): boolean {
-  return (
-    entry !== undefined &&
-    entry.first.kind !== 'created' &&
-    entry.first.preImage !== undefined &&
-    entry.first.preImage !== null
-  )
+/**
+ * Whether the ignored journal shows the file existed before the first of these
+ * turns. Then it is never a tree deletion: the journal restores it from the bytes
+ * kept, or refuses it (`noEarlierCopy`) when a shell command changed it and none
+ * were kept, rather than deleting a file that predates the turns.
+ */
+function wasPresentBefore(entry: MergedIgnored | undefined): boolean {
+  return entry !== undefined && entry.first.kind !== 'created'
 }
 
 /** The steps and refusals for the ignored files the turns changed. */
@@ -227,10 +227,9 @@ export function planRestore(input: RestoreInput): RestorePlan {
   const mergedIgnored = mergeIgnored(input.ignoredTurns)
   for (const change of input.changes) {
     // A file the turn made visible to git (its `.gitignore` changed) reads as added
-    // in the trees, yet it existed before and the tool copied its bytes: those
-    // bytes put it back, where deleting it would be refused as an ignored path and
-    // leave the edit behind. The ignored journal decides it, not the trees.
-    if (change.before === undefined && hasEarlierCopy(mergedIgnored.get(change.path))) {
+    // in the trees, yet it existed before: the ignored journal decides it (restored
+    // from kept bytes, or refused), never a deletion of a file that predates the turns.
+    if (change.before === undefined && wasPresentBefore(mergedIgnored.get(change.path))) {
       continue
     }
     handled.add(change.path)

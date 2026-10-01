@@ -213,6 +213,32 @@ const CHECKPOINT_ONLY = [
   'src/core/checkpoints/restorePlan.ts',
 ]
 const checkpointStore = inputsOf(CHECKPOINT_STORE)
+// The English fallback is shared; installed-language state stays in each bundle.
+const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
+const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
+const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+const uiText = inputsOf(UI_TEXT)
+if (!uiText.has(ENGLISH_TABLE)) {
+  problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
+}
+for (const bundle of [
+  BUNDLES.activation,
+  BUNDLES.modelApi,
+  BUNDLES.acp,
+  CHECKPOINT_STORE,
+  AGENT_IMPORT,
+]) {
+  const inputs = inputsOf(bundle)
+  if (inputs.has(ENGLISH_TABLE)) {
+    problems.push(`${bundle.output} duplicates ${ENGLISH_TABLE}`)
+  }
+  const { outputs } = JSON.parse(readFileSync(bundle.metafile, 'utf8'))
+  if (
+    outputs[bundle.output].imports.every((entry) => entry.path !== './uiText.js' || !entry.external)
+  ) {
+    problems.push(`${bundle.output} no longer loads the shared English table`)
+  }
+}
 for (const file of CHECKPOINT_ONLY) {
   for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
     if (inputs.has(file)) {
@@ -224,7 +250,6 @@ for (const file of CHECKPOINT_ONLY) {
   }
 }
 // M83: the import from other agents loads on the first import.
-const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
   'src/host/commands/agentImportCommands.ts',
@@ -310,3 +335,4 @@ console.log(
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
+console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
