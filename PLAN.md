@@ -8597,12 +8597,20 @@ Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
   label; `/handoff` shows the brief before the new conversation starts.
 - **Tests.** The fake Model API across a compaction, and its M75 run.
 - **Size.** M.
-- **Built 2026-09-28: `/handoff` only** (certification
-  `docs/certification/m74.md`). The rest of this section — automatic
-  compaction (when, what survives, which thread), the hidden todo-summary
-  follow-up, the memory flush — is NOT built: no code, setting or path for
-  any of them exists, and the section's own gate keeps them on an M75
-  paired-evaluation run. Decisions taken:
+- **Built: `/handoff` only** (certification `docs/certification/m74.md`).
+- **Not built: automatic compaction, the hidden todo follow-up and the
+  memory flush** (RV74 finding 2). No code, setting or path for any of
+  them exists. They are blocked, not put off: the Gate above lets
+  compaction and the follow-up land only with a passing M75 run, and the
+  flush runs before a compaction; M75, the paired evaluation, is itself
+  unbuilt (its section has no "Built" note); and Q-M74 (§3) is open: the
+  owner has not chosen the billable-call and consent contract for a
+  model call the extension would make outside the user's own turn. So
+  the Acceptance ("compaction never drops the todo list or an untrusted
+  label") and the Tests ("the fake Model API across a compaction, and its
+  M75 run") are not met, and M74 is not complete. `/handoff` ships
+  without the gate, as the Gate says.
+- **Decisions taken for `/handoff`:**
   - **Continuation 2026-09-29, verification held:** give a handoff one
     owned operation before any preparation await; keep its session and
     conversation generation current through preparation, and refuse a
