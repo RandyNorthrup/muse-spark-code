@@ -586,7 +586,7 @@ describe('EditReview for the review pane (M70)', () => {
     expect(await setup({}, { workspaceRoot: undefined }).review.describe(PATCH)).toMatchObject([
       { refusal: UI_TEXT.editReviewNeedsFolder },
     ])
-    expect(await t.review.describe('nope')).toEqual([])
+    await expect(t.review.describe('nope')).rejects.toThrow(UI_TEXT.editNoPatch)
   })
 
   it('reverts one hunk and leaves the other; both reverted, the file is as it was', async () => {

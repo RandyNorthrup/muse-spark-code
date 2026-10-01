@@ -115,9 +115,11 @@ describe('the review bundle (M70)', () => {
     expect(load).not.toHaveBeenCalled()
   })
 
-  it('reads the edit review through the bundleâ€™s own copy', async () => {
+  it('reads the edit review through the bundle’s own copy', async () => {
     const review = lazyReview(deps())
-    await expect(review.editReview.describe('not a patch document')).resolves.toEqual([])
+    await expect(review.editReview.describe('not a patch document')).rejects.toThrow(
+      UI_TEXT.editNoPatch,
+    )
   })
 
   it('refuses with the reason, and logs the cause, when the bundle is missing or is not the review', () => {
@@ -135,7 +137,7 @@ describe('the review bundle (M70)', () => {
     expect(logLines(channel).join('\n')).toContain('does not export the review')
   })
 
-  it('requires the bundleâ€™s factory to be a function', () => {
+  it('requires the bundle’s factory to be a function', () => {
     expect(isReviewBundle(undefined)).toBe(false)
     expect(isReviewBundle(null)).toBe(false)
     expect(isReviewBundle({ createReviewFeatures: true })).toBe(false)

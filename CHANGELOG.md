@@ -61,6 +61,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Unreadable stored patches refuse edit description and count as omitted
+  edits in the review pane, including beside valid patches.
 - Reviewer system instructions omit repository-owned git metadata, retaining
   date and workspace rules; git material stays in its untrusted turn block.
 - Revert rechecks dirty editor buffers inside checkpoint write/delete

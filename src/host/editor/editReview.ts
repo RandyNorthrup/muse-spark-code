@@ -366,7 +366,10 @@ export class EditReview implements EditReviewActions {
    */
   public async describe(patchJson: string): Promise<readonly DescribedFile[]> {
     const { workspaceRoot } = this.deps
-    const files = patchFilesOf(patchJson) ?? []
+    const files = patchFilesOf(patchJson)
+    if (files === undefined) {
+      throw new Error(UI_TEXT.editNoPatch)
+    }
     const described: DescribedFile[] = []
     for (const [fileIndex, file] of files.entries()) {
       const resolved =

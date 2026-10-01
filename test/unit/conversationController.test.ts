@@ -68,6 +68,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
+import { EditReview } from '../../src/host/editor/editReview'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakePlanFiles } from './helpers/fakePlanFiles'
 import {
@@ -7575,6 +7576,58 @@ describe('ConversationController: review (M70)', () => {
       },
     })
   }
+
+  it.each([false, true])(
+    'counts an unreadable patch as omitted, valid sibling=%s (RV70 finding 5)',
+    async (hasValidEdit) => {
+      const reader = new EditReview({
+        platform: 'linux',
+        workspaceRoot: '/ws',
+        readFile: () => Promise.resolve(undefined),
+        realPath: (file) => Promise.resolve(file),
+        hasUnsavedChanges: () => false,
+        writeFile: () => Promise.resolve(),
+        deleteFile: () => Promise.resolve(),
+        openDiff: () => Promise.resolve(),
+        log: new FakeLogOutputChannel(),
+      })
+      const t = paneSetup(reader.describe.bind(reader))
+      await t.send('warm', 'hello')
+      t.server.handle('item/readOutput', (params) => {
+        const content =
+          params['outputRef'] === 'valid'
+            ? JSON.stringify({ files: [{ path: 'notes.md', hunks: [] }] })
+            : 'truncated-json'
+        return {
+          content,
+          encoding: 'utf8',
+          mediaType: 'application/json',
+          offsetBytes: 0,
+          byteLen: new TextEncoder().encode(content).length,
+          eof: true,
+        }
+      })
+      await t.controller.handle({
+        type: 'readReviewChanges',
+        requestId: 'malformed-pane',
+        edits: [
+          ...(hasValidEdit ? [{ itemId: 'good', outputRef: 'valid' }] : []),
+          { itemId: 'bad', outputRef: 'corrupt' },
+        ],
+      })
+      const answer = t.surface.posted.findLast((message) => message.type === 'reviewChanges')
+      expect(answer).toMatchObject({
+        type: 'reviewChanges',
+        requestId: 'malformed-pane',
+        omittedEdits: 1,
+      })
+      if (answer?.type !== 'reviewChanges') {
+        throw new Error('review pane did not answer')
+      }
+      expect(answer.files.map((file) => file.path)).toEqual(hasValidEdit ? ['notes.md'] : [])
+      t.controller.dispose()
+    },
+  )
 
   it.each([true, false])(
     'waits for an ordinary Plan request before review admission, accepted=%s',

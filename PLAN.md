@@ -7798,6 +7798,11 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   the repository is absent or unavailable. Ordinary-turn formatting stays.
   Commit-subject regression fails before repair and when system metadata is
   reintroduced; 22 owning tests pass after SHA-256-exact restoration.
+- **RV70 finding 5 verified (M70c).** Unreadable descriptions throw the
+  existing localized refusal, entering the pane's existing omission path.
+  Sole and mixed corrupt patches are counted honestly; the real bundle test
+  now requires refusal. Four before/mutated failures, 372 restored owning
+  tests, byte-exact SHA-256. No new UI key or parser shape.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:

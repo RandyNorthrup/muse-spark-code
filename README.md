@@ -818,7 +818,8 @@ Review what the agent did before it lands, on both backends.
   window on the folder refuses a file restore while it writes). Overlapping
   reverts of the same file run in order and rebuild from its latest saved
   bytes. The pane lists at most 200 edits and 20,000 diff lines, counting
-  omitted edits even when the first patch exceeds the limit. **Comment on a
+  omitted edits even when the first patch exceeds the limit. Unreadable stored
+  patches count toward that omission notice. **Comment on a
   line** sends your comment to the agent with that line and the lines
   around it: into the running turn, or as your next message.
 - **A review is a turn.** It is marked running and takes its turn
