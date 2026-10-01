@@ -43,9 +43,14 @@ export function createSessionTransferFiles(): SessionTransferFiles {
       if (bytes === undefined) {
         return { kind: 'tooLarge' }
       }
-      // Invalid UTF-8 throws rather than reading as replacement characters;
-      // a byte-order mark is dropped.
-      return { kind: 'read', content: new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
+      // Invalid UTF-8 is refused rather than read as replacement characters,
+      // in the panel's language (the decoder's own message is English); a
+      // byte-order mark is dropped.
+      try {
+        return { kind: 'read', content: new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
+      } catch {
+        throw new Error(UI_TEXT.textFileInvalid)
+      }
     },
     async confirmImport(title, detail) {
       return (

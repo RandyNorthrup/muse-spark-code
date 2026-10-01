@@ -176,9 +176,11 @@ describe('createSessionTransferFiles', () => {
     expect(workspace.fs.readFile).not.toHaveBeenCalled()
   })
 
-  it('throws on bytes that are not UTF-8', async () => {
+  it('refuses bytes that are not UTF-8 with the translated text, not the decoder’s', async () => {
     await pick('invalid-utf8.json', new Uint8Array([0xc3, 0x28]))
-    await expect(createSessionTransferFiles().pickTransferFile('t')).rejects.toThrow()
+    await expect(createSessionTransferFiles().pickTransferFile('t')).rejects.toThrow(
+      new Error(UI_TEXT.textFileInvalid),
+    )
   })
 
   it('confirms an import only on its own button', async () => {
