@@ -3503,7 +3503,6 @@ export class ConversationController {
     if (pending?.turnId !== turnId || pending.brief !== undefined) {
       return
     }
-    const { requestId, goal } = pending
     try {
       const host = await this.deps.ensureHost()
       const session = pending.session
@@ -3530,24 +3529,36 @@ export class ConversationController {
         this.notice('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
         return
       }
-      const todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       pending.brief = text
-      pending.todos = todos
-      // The open items show in the dialog too, so before Start the user sees
-      // all the model wrote that the new conversation reads (D49).
-      this.post({
-        type: 'handoffReady',
-        requestId,
-        brief: text,
-        ...(goal !== undefined && { goal }),
-        todos: todos.map((todo) => todo.text),
-      })
+      pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
+      this.postHandoffReady()
     } catch (error: unknown) {
       if (this.isCurrentHandoff(pending)) {
         this.pendingHandoff = undefined
         this.handoffFailed(error)
       }
     }
+  }
+
+  /**
+   * The waiting brief's dialog: posted when the distillation turn completed,
+   * and again to a rebuilt panel, whose dialog went with its webview while
+   * the brief waits here, so a later `/handoff` is never refused as busy
+   * with nothing to answer. The open items show in it too, so before Start
+   * the user sees all the model wrote that the new conversation reads (D49).
+   */
+  private postHandoffReady(): void {
+    const pending = this.pendingHandoff
+    if (pending?.brief === undefined) {
+      return
+    }
+    this.post({
+      type: 'handoffReady',
+      requestId: pending.requestId,
+      brief: pending.brief,
+      ...(pending.goal !== undefined && { goal: pending.goal }),
+      todos: pending.todos.map((todo) => todo.text),
+    })
   }
 
   /**
@@ -5462,6 +5473,9 @@ export class ConversationController {
     for (const attachment of this.attachments.list()) {
       this.post({ type: 'attachmentAdded', attachment })
     }
+    // A waiting handoff's dialog (M74), after the surface state, whose
+    // clearing of a stale restored conversation would drop it again.
+    this.postHandoffReady()
     void this.warmModels()
     this.postStartupNotice()
   }

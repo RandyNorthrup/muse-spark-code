@@ -8642,6 +8642,37 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     expect(ready).toMatchObject({ type: 'handoffReady', requestId: 'h1', brief: BRIEF })
   })
 
+  it('brings a waiting brief back to a rebuilt panel, so a later handoff is never stuck busy', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller } = conversation
+    // Rebuilt while the distillation turn runs: no brief yet, no dialog.
+    const release = Promise.withResolvers<unknown>()
+    api.script({ hold: release.promise, text: BRIEF })
+    await controller.handle(handoff('h1', 'Ship it'))
+    t.surface.posted.length = 0
+    controller.surfaceReady()
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    release.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(true)
+    })
+    // Rebuilt with the dialog open: the dialog went with the webview, the
+    // brief waits here, and the dialog comes back for it, after the surface
+    // state that may clear a stale restored conversation.
+    t.surface.posted.length = 0
+    controller.surfaceReady()
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffReady')).toEqual([
+      { type: 'handoffReady', requestId: 'h1', brief: BRIEF, goal: 'Ship it', todos: [] },
+    ])
+    const kinds = t.surface.posted.map((posted) => posted.type)
+    expect(kinds.indexOf('handoffReady')).toBeGreaterThan(kinds.indexOf('surfaceState'))
+    // The restored dialog's Start goes through, and then nothing waits.
+    await confirmEdited(conversation, 'h1')
+    t.surface.posted.length = 0
+    controller.surfaceReady()
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+  })
+
   it('refuses a second handoff while its brief waits', async () => {
     const conversation = await handoffConversation()
     const { t, controller } = conversation

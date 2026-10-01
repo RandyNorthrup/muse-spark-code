@@ -8639,6 +8639,10 @@ Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
     does), and the panel names the mode. A handoff from a conversation in
     Plan mode stays in Plan (`ConversationBrief.shouldKeepPlanMode`), whatever
     either rule says.
+  - A brief waiting in its dialog comes back to a rebuilt panel
+    (`surfaceReady` posts its `handoffReady` again, RV74 finding 3): the
+    host keeps the handoff, so without its dialog every later `/handoff`
+    would answer "already running".
   - Model API backend only: on Muse Code the command says it is
     unavailable there. Side chats are refused; one handoff runs at a time;
     a running turn is waited for; an oversized (over 256 KB) or empty

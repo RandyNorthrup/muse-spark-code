@@ -15,7 +15,8 @@ happened, not what was planned; superseded entries are kept.
   the brief, and the new conversation is told what that means. The brief
   opens in a dialog before anything starts, with the open items the new
   todo list will hold: review it, edit it, then start the new
-  conversation, or cancel and nothing starts. Starting leaves the old
+  conversation, or cancel and nothing starts; a reloaded panel shows it
+  again. Starting leaves the old
   conversation in History and seeds the new one through the plan brief
   path, with the open items (never completed or dropped ones) as its todo
   list before the first request. The model wrote the brief, so the new
