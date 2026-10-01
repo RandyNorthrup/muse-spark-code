@@ -22,6 +22,12 @@ and limits. This document is a preparation record, not proof of publication.
 - M72 turn checkpoints and the shared owner, Stop, trust, disposal and native
   command-entry fixes described in [M72](m72.md). Stored file restore and
   Redo require an attached Model API session and confirmed process safety.
+- The M72 correction batch of 2026-09-30: memory writes keep checkpoint copies
+  and the Memory view holds the restore lease, the user's `!` command is
+  admitted again at its real start, a shell that could not start no longer
+  blocks Restore, long Windows paths work or are refused with a message, and
+  two test-infrastructure fixes. Its drills, hashes, verifier answers and
+  known limits are in [M72](m72.md#correction-batch-before-0100-2026-09-30).
 - Existing Windows Muse Code limitations remain as documented. No new model
   calls or paid feature purchases are part of these release checks.
 

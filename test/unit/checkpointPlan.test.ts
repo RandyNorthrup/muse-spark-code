@@ -99,6 +99,32 @@ describe('git listings (M72)', () => {
 })
 
 describe('planRestore (M72)', () => {
+  it.each([
+    [
+      'an ignored file the turn made visible to git is put back from the kept bytes, not deleted',
+      'changed',
+      blob('pre'),
+    ],
+    ['a file the turn created is still deleted', 'created', undefined],
+  ] as const)('%s', (_name, kind, preImage) => {
+    const plan = planRestore(
+      input({
+        changes: [{ path: 'cache.txt', before: undefined, after: blob('edited') }],
+        ignoredTurns: [
+          [{ path: 'cache.txt', kind, preImage, startStat: stat(3), endStat: stat(7) }],
+        ],
+        currentStat: new Map([['cache.txt', stat(7)]]),
+      }),
+    )
+    expect(plan.refused).toEqual([])
+    expect(plan.steps).toHaveLength(1)
+    expect(plan.steps[0]).toMatchObject(
+      kind === 'changed'
+        ? { path: 'cache.txt', target: blob('pre'), isIgnoreChecked: false }
+        : { path: 'cache.txt', target: null, isIgnoreChecked: true },
+    )
+  })
+
   it('writes changed and deleted files back and deletes the added ones', () => {
     const plan = planRestore(
       input({

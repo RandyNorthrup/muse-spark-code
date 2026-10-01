@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rm, stat, utimes } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { processGitProcess } from '../../src/host/git'
 import { CHECKPOINT_FILE_MAX_BYTES, CHECKPOINT_PRUNE_GRACE_MS } from '../../src/shared/constants'
 import {
   captured,
@@ -132,6 +133,65 @@ describe('CheckpointStore over a git repository (M72)', () => {
       expect(await read(h.root, '.env')).toBe('SECRET=1\n')
       // The copies live in the extension's storage only.
       expect(await isPresent(h.storage, 'shadow.git/HEAD')).toBe(true)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it.each([
+    { failures: 1, isLogged: false },
+    { failures: 2, isLogged: true },
+  ])(
+    'reports a completed restore when letting go of its lease fails $failures time(s), and restores again',
+    async ({ failures, isLogged }) => {
+      let remaining = failures
+      const real = processGitProcess()
+      const h = await harness({
+        gitProcess: async (args, options) => {
+          if (
+            remaining > 0 &&
+            args.includes('update-ref') &&
+            args.includes('-d') &&
+            args.some((arg) => arg.endsWith('restore-active'))
+          ) {
+            remaining -= 1
+            throw new Error('Unable to create restore-active.lock')
+          }
+          return await real(args, options)
+        },
+      })
+      await write(h.root, 'a.txt', 'one\n')
+      await turn(h, 't1', async () => {
+        await write(h.root, 'a.txt', 'two\n')
+      })
+      done(await restoreOutcome(h.store, 't1'))
+      expect(await read(h.root, 'a.txt')).toBe('one\n')
+      expect(remaining).toBe(0)
+      const wasWarned = h.log.warn.mock.calls.some(([line]) =>
+        String(line).includes('restore lease could not be released'),
+      )
+      expect(wasWarned).toBe(isLogged)
+      // A lease this window still holds is its own leftover: the next restore takes it over.
+      await turn(h, 't2', async () => {
+        await write(h.root, 'a.txt', 'three\n')
+      })
+      done(await restoreOutcome(h.store, 't2'))
+      expect(await read(h.root, 'a.txt')).toBe('one\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'copies an ignored file whose name begins with two dots, and restores it',
+    async () => {
+      const h = await harness()
+      await write(h.root, '.gitignore', '..cache\n')
+      await write(h.root, '..cache', 'one\n')
+      await turn(h, 't1', async () => {
+        await h.store.beforeToolWrite(path.join(h.root, '..cache'))
+        await write(h.root, '..cache', 'two\n')
+      })
+      done(await restoreOutcome(h.store, 't1'))
+      expect(await read(h.root, '..cache')).toBe('one\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )

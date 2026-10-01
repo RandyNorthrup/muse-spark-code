@@ -4417,6 +4417,9 @@ export class ModelApiSession implements AgentSession {
         exitCode: null,
         isTimedOut: false,
         isCancelled: false,
+        // Failed before entry: no process existed, so it is a refusal, not a run
+        // (no hooks around it, no command failure told to the model).
+        ...(error instanceof ShellEntryError && { isEntryRefused: true as const }),
       }
     }
   }

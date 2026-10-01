@@ -1277,6 +1277,7 @@
   "checkpointTooLarge": "需要复制的已更改文件超过 {size} MiB",
   "checkpointFailed": "检查点失败",
   "checkpointNoGit": "在 PATH 中找不到 git",
+  "checkpointPathTooLong": "工作区或此扩展存储文件夹的路径对 git 来说太长",
   "checkpointsModelApiOnly": "文件恢复和重做需要已连接的 Model API 会话。Muse Code 检查点仅供读取。",
   "checkpointsNativeUnsafe": "原生工作区进程或未知窗口可能仍在编辑文件，因此文件恢复和重做不可用。尚未证明进程已完全停止；需要经确认的恢复处理。",
   "checkpointsLegacyReadOnly": "此消息具有旧检查点。已保存的记录仍可读取；文件恢复需要当前受到安全保护的快照。",
