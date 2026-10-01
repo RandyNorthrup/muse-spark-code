@@ -78,6 +78,27 @@ export function isSameRelative(left: string, right: string, platform: NodeJS.Pla
     : left === right
 }
 
+/**
+ * Whether a folder or the file on the requested spelling of a path is a link or
+ * a junction. Letter case alone does not tell: a case-folding volume resolves
+ * `readme.md` to `README.md` with no link, while on a case-sensitive one (macOS
+ * offers both) `foo` may be a link to `Foo`.
+ */
+async function hasLinkOnTheWay(root: string, relative: string): Promise<boolean> {
+  let current = root
+  for (const segment of relative.split(/[\\/]/u)) {
+    current = path.join(current, segment)
+    const stats = await lstatOrUndefined(current)
+    if (stats === undefined) {
+      return false
+    }
+    if (stats.isSymbolicLink()) {
+      return true
+    }
+  }
+  return false
+}
+
 /** What is at the path, links not followed; undefined when nothing is. */
 export async function lstatOrUndefined(absolutePath: string): Promise<Stats | undefined> {
   try {
@@ -198,7 +219,11 @@ async function unlinked(
     target.log.warn(`Checkpoint restore refused ${relative}: ${resolution.reason}`)
     return undefined
   }
-  if (!isSameRelative(resolution.canonical, resolution.relative, target.platform)) {
+  if (
+    resolution.canonical !== resolution.relative &&
+    (!isSameRelative(resolution.canonical, resolution.relative, target.platform) ||
+      (await hasLinkOnTheWay(target.workspaceRoot, resolution.relative)))
+  ) {
     target.log.warn(`Checkpoint restore refused ${relative}: a link or junction is on the way`)
     return undefined
   }

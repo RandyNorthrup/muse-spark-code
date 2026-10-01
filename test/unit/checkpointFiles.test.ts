@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { chmod, mkdir, readFile, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -153,6 +153,69 @@ describe('applyFileStep (M72)', () => {
       )
       const plain = await stat(file)
       expect(plain.mode & 0o777).toBe(0o600)
+    },
+  )
+})
+
+/** Whether the temporary folder's volume tells `a` from `A`. */
+function isCaseSensitiveVolume(): boolean {
+  const probe = path.join(base, `case-${randomUUID()}`)
+  writeFileSync(probe, 'probe')
+  return !existsSync(probe.toUpperCase())
+}
+
+describe('a restore on a volume that tells letter case apart (M72)', () => {
+  it.skipIf(!isCaseSensitiveVolume())(
+    'never writes through a link that differs from its target only in letter case',
+    async () => {
+      const root = path.join(base, randomUUID())
+      await mkdir(path.join(root, 'Foo'), { recursive: true })
+      await writeFile(path.join(root, 'Foo', 'x.txt'), 'the user’s file\n')
+      await symlink(path.join(root, 'Foo'), path.join(root, 'foo'), 'dir')
+      // macOS offers case-sensitive volumes too: the restore must not fold case blindly.
+      const target = {
+        workspaceRoot: root,
+        platform: 'darwin' as const,
+        log: new FakeLogOutputChannel(),
+      }
+      const result = await applyFileStep(
+        target,
+        {
+          path: 'foo/x.txt',
+          target: blob('overwritten\n'),
+          expect: { kind: 'blob', oid: oidOf('the user’s file\n') },
+        },
+        Buffer.from('overwritten\n'),
+        undefined,
+      )
+      expect(result).toBe('linked')
+      expect(await readFile(path.join(root, 'Foo', 'x.txt'), 'utf8')).toBe('the user’s file\n')
+    },
+  )
+
+  it.skipIf(isCaseSensitiveVolume())(
+    'still writes a file named in another letter case on a volume that folds it',
+    async () => {
+      const root = path.join(base, randomUUID())
+      await mkdir(path.join(root, 'Foo'), { recursive: true })
+      await writeFile(path.join(root, 'Foo', 'x.txt'), 'the user’s file\n')
+      const target = {
+        workspaceRoot: root,
+        platform: process.platform,
+        log: new FakeLogOutputChannel(),
+      }
+      const result = await applyFileStep(
+        target,
+        {
+          path: 'foo/X.TXT',
+          target: blob('restored\n'),
+          expect: { kind: 'blob', oid: oidOf('the user’s file\n') },
+        },
+        Buffer.from('restored\n'),
+        undefined,
+      )
+      expect(result).toBe('done')
+      expect(await readFile(path.join(root, 'Foo', 'x.txt'), 'utf8')).toBe('restored\n')
     },
   )
 })
