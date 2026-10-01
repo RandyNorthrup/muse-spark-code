@@ -463,6 +463,11 @@ happened, not what was planned; superseded entries are kept.
   was refused) is left alone, not rewritten. Unarchiving a conversation
   keeps its new checkpoints even if the clock was set back. Checkpoint
   storage that a link or junction puts inside the workspace is refused.
+  What the extension writes for you while a turn runs (Create AGENTS.md, a
+  Markdown export, a saved plan, a Revert, a note the Memory view creates or
+  trashes) is yours too. A restore leaves alone what an earlier turn of the
+  same conversation, still running in another window, changed, and what a
+  turn of a window that closed mid-turn may have changed.
 
 - **Rewind code to here asks first** (M72), in the same confirmation as a
   file restore. **Fork conversation and rewind code** is now one action:
