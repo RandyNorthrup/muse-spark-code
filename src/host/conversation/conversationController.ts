@@ -3561,12 +3561,14 @@ export class ConversationController {
    * The waiting brief's dialog: posted when the distillation turn completed,
    * and again to a rebuilt panel, whose dialog went with its webview while
    * the brief waits here, so a later `/handoff` is never refused as busy
-   * with nothing to answer. The open items show in it too, so before Start
-   * the user sees all the model wrote that the new conversation reads (D49).
+   * with nothing to answer; never one whose conversation is gone (a restart
+   * left it stale), which the next request drops. The open items show in it
+   * too, so before Start the user sees all the model wrote that the new
+   * conversation reads (D49).
    */
   private postHandoffReady(): void {
     const pending = this.pendingHandoff
-    if (pending?.brief === undefined) {
+    if (pending?.brief === undefined || !this.isCurrentHandoff(pending)) {
       return
     }
     this.post({

@@ -141,6 +141,11 @@ describe('/handoff (M74)', () => {
       'listitem',
     )
     expect(items.map((item) => item.textContent)).toEqual(['Ship it', 'Tell the team'])
+    // Behind the dialog the panel takes no input (M25), and an emptied
+    // brief cannot be started.
+    expect(screen.getByLabelText('Message Muse').closest('[inert]')).not.toBeNull()
+    fireEvent.change(dialogText(), { target: { value: ' \n ' } })
+    expect(screen.getByRole('button', { name: UI_TEXT.handoffConfirm })).toBeDisabled()
     // Nothing started: no new conversation, no message sent.
     expect(postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'clearConversation' }),
@@ -191,12 +196,18 @@ describe('/handoff (M74)', () => {
   })
 
   it('ignores a result for another request', () => {
-    renderPanel()
+    const postMessage = renderPanel()
     submitCommand('/handoff')
     admit()
     deliver(READY)
+    // Starting: a refusal for another request does not reopen Start.
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.handoffConfirm }))
     deliver({ type: 'handoffCommandResult', requestId: 'handoff:other:9', accepted: false })
+    expect(screen.getByRole('button', { name: UI_TEXT.handoffConfirm })).toBeDisabled()
     expect(dialogText().value).toBe(BRIEF)
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'confirmHandoff'),
+    ).toHaveLength(1)
     // No open items: no list.
     expect(screen.queryByRole('list', { name: UI_TEXT.todoTitle })).toBeNull()
   })

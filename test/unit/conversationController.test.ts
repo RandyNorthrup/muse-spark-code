@@ -8879,6 +8879,72 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     },
   )
 
+  it("refuses an emptied brief and another request's confirm, and the waiting brief still starts", async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    // Emptied in the dialog: refused with the reason, nothing cleared.
+    await expectConfirmRefused(t, controller, 'h1', ' \n ')
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.handoffEmpty })
+    // A confirm naming another request starts nothing.
+    await expectConfirmRefused(t, controller, 'h-other', EDITED)
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    await confirmEdited(conversation, 'h1')
+  })
+
+  it('refuses a conversation whose history holds nothing yet', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller, host } = conversation
+    const readSession = host.readSession.bind(host)
+    const reading = vi.spyOn(host, 'readSession').mockImplementationOnce(async (sessionId) => ({
+      ...(await readSession(sessionId)),
+      items: [],
+    }))
+    try {
+      expect(await lastModelNotice(t, controller, handoff('h1'))).toBe(UI_TEXT.handoffEmpty)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    } finally {
+      reading.mockRestore()
+    }
+  })
+
+  it('frees the handoff when its distillation turn is stopped, saying nothing started', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller } = conversation
+    const release = Promise.withResolvers<unknown>()
+    api.script({ hold: release.promise, text: BRIEF })
+    await controller.handle(handoff('h1'))
+    await controller.handle({ type: 'cancelTurn' })
+    release.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(notices(t).map((notice) => notice.text)).toContain(UI_TEXT.handoffInterrupted)
+    })
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    // The slot is free: the next handoff runs.
+    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  })
+
+  it('holds no slot and restores no dialog for a brief whose conversation is gone', async () => {
+    const restarted = await handoffConversation()
+    await distil(restarted, 'h1')
+    // The backend restarted: the waiting brief is stale, so a rebuilt panel
+    // gets no dialog for it and a new request is not "already running".
+    await restarted.controller.backendStopping(false)
+    restarted.t.surface.posted.length = 0
+    restarted.controller.surfaceReady()
+    expect(restarted.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    expect(await lastModelNotice(restarted.t, restarted.controller, handoff('h2'))).not.toBe(
+      UI_TEXT.handoffBusy,
+    )
+    // A new conversation drops the waiting brief: no dialog comes back for it.
+    const cleared = await handoffConversation()
+    await distil(cleared, 'h1')
+    await cleared.controller.handle({ type: 'clearConversation' })
+    cleared.t.surface.posted.length = 0
+    cleared.controller.surfaceReady()
+    expect(cleared.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+  })
+
   it('cancels the brief and lets a later handoff through; a stale confirm starts nothing', async () => {
     const conversation = await handoffConversation()
     const { t, controller } = conversation
