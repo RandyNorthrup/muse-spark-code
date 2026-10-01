@@ -16,21 +16,21 @@ happened, not what was planned; superseded entries are kept.
   opens in a dialog before anything starts, with the open items the new
   todo list will hold: review it, edit it, then start the new
   conversation, or cancel and nothing starts; a reloaded panel shows it
-  again. Starting leaves the old
-  conversation in History and seeds the new one through the plan brief
-  path, with the open items (never completed or dropped ones) as its todo
-  list before the first request. The model wrote the brief, so the new
-  conversation starts in your starting mode only when the dialog showed
-  all of it: a brief or an item holding a character the dialog does not
-  show (a direction override, a zero-width character) starts in a mode
-  that asks, and the panel says so. A handoff from Plan mode stays in
-  Plan. Model API backend only (on Muse Code the
-  command says it is unavailable there); a refused `/handoff` stays in
-  the prompt with its goal; side chats are refused; one
-  handoff runs at a time; a running turn is waited for; an oversized (over
-  256 KB) or empty brief is refused with the reason. No new setting:
-  nothing automatic runs. Automatic compaction, the hidden follow-up and
-  memory flush stay unbuilt and off.
+  again. Starting leaves the old conversation in History and seeds the
+  new one through the plan brief path, with the open items (never
+  completed or dropped ones) as its todo list before the first request.
+  The model wrote the brief, so the new conversation starts in your
+  starting mode only when the dialog showed all of it: a brief or an item
+  holding a character the dialog does not show (a direction override, a
+  zero-width character) starts in a mode that asks, and the panel says
+  so. A handoff from Plan mode stays in Plan. Model API backend only (on
+  Muse Code the command says it is unavailable there). Side chats are
+  refused; one handoff runs at a time; a `/handoff` while a reply runs is
+  refused ("Wait for the reply to finish, or stop it, first."), nothing
+  queued; an oversized (over 256 KB) or empty brief is refused with the
+  reason; a refused `/handoff` stays in the prompt with its goal. No new
+  setting: nothing automatic runs. Automatic compaction, the hidden
+  follow-up and memory flush stay unbuilt and off.
 
 ## [0.10.0] - 2026-09-30
 

@@ -8621,7 +8621,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     }
   })
 
-  it('waits for a running turn before distilling', async () => {
+  it('refuses a handoff while a reply runs, queuing nothing, and takes one once it is done', async () => {
     const conversation = await handoffConversation()
     const { t, api, controller } = conversation
     const release = Promise.withResolvers<unknown>()
@@ -8652,7 +8652,9 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     await vi.waitFor(() => {
       expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
     })
-    // The turn done, the handoff runs.
+    // Nothing was queued: the refused request starts no turn of its own.
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    // Asked again once the reply is done, the handoff runs.
     const ready = await distil(conversation, 'h1')
     expect(ready).toMatchObject({ type: 'handoffReady', requestId: 'h1', brief: BRIEF })
   })

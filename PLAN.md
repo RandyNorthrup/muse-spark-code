@@ -8649,9 +8649,10 @@ Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
     it was edited meanwhile.
   - Model API backend only: on Muse Code the command says it is
     unavailable there. Side chats are refused; one handoff runs at a time;
-    a running turn is waited for; an oversized (over 256 KB) or empty
-    brief is refused with the reason. No new setting: nothing automatic
-    runs.
+    a `/handoff` while a reply runs is refused ("Wait for the reply to
+    finish, or stop it, first."; nothing waits or queues, RV74 finding 8);
+    an oversized (over 256 KB) or empty brief is refused with the reason.
+    No new setting: nothing automatic runs.
   - **Integrated 2026-09-30 on the release candidate**
     (`feature/m74-handoff`, certification `docs/certification/m74.md`):
     the prepared change ported with `git apply --3way temp/port.patch`;
