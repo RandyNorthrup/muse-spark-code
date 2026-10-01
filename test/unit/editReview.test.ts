@@ -1,6 +1,7 @@
 import path from 'node:path'
 import os from 'node:os'
-import { realpathSync, symlinkSync, unlinkSync } from 'node:fs'
+import { readFileSync, realpathSync, symlinkSync, unlinkSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { mkdir, mkdtemp, readFile, realpath, unlink, writeFile } from 'node:fs/promises'
 import { executeTool } from '../../src/core/backends/modelapi/tools'
 import { memoryToolIo } from './helpers/fakeToolIo'
@@ -12,6 +13,8 @@ import {
   stripExtendedLengthPrefix,
 } from '../../src/host/editor/editReview'
 import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
+import { createCheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
@@ -22,6 +25,133 @@ const PATCH =
 const CREATED =
   '{"files":[{"path":"new.txt","hunks":[{"oldStart":0,"oldLines":0,"newStart":1,"newLines":1,"lines":["+hi"]}]}]}'
 const ESCAPING = '{"files":[{"path":"../outside.txt","hunks":[]}]}'
+
+type ReviewWrites = Pick<EditReviewDeps, 'writeFile' | 'deleteFile'>
+
+/** Function signatures belong to this tree's activation adapters, not external input. */
+function isReviewWrites(value: unknown): value is ReviewWrites {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'writeFile' in value &&
+    typeof value.writeFile === 'function' &&
+    'deleteFile' in value &&
+    typeof value.deleteFile === 'function'
+  )
+}
+
+/** Execute the actual activation callbacks, over fake VS Code I/O and the real lease. */
+function activationReviewWrites(bindings: Readonly<Record<string, unknown>>): ReviewWrites {
+  const source = readFileSync(new URL('../../src/extension.ts', import.meta.url), 'utf8')
+  const review = source.indexOf('const review = lazyReview(')
+  const start = source.indexOf('writeFile: async', review)
+  const end = source.indexOf('openDiff: async', start)
+  if (review === -1 || start < review || end <= start) {
+    throw new Error('activation review adapters were not found')
+  }
+  const value: unknown = runInNewContext(`({${source.slice(start, end)}})`, bindings)
+  if (!isReviewWrites(value)) {
+    throw new Error('activation review adapters are not callable')
+  }
+  return value
+}
+
+describe('activation review checkpoint admission (RV70 finding 3)', () => {
+  it.each([
+    { action: 'write', isAlias: false },
+    { action: 'delete', isAlias: false },
+    { action: 'write', isAlias: true },
+    { action: 'delete', isAlias: true },
+  ] as const)(
+    'refuses a dirty buffer acquired during $action admission, alias=$isAlias',
+    async ({ action, isAlias }) => {
+      let isDirty = false
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      const checkpoints = createCheckpointPort({
+        isNamespaceKnown: () => true,
+        store: undefined,
+        isWorkspaceTrusted: () => true,
+        isEnabled: () => false,
+        hasGit: () => false,
+      })
+      const marks: boolean[] = []
+      vi.spyOn(checkpoints, 'markTurn').mockImplementation(async (_key, isRunning) => {
+        marks.push(isRunning)
+        if (!isRunning) {
+          return
+        }
+
+        entered.resolve(undefined)
+        await released.promise
+      })
+      const write = vi.fn(() => Promise.resolve())
+      const remove = vi.fn(() => Promise.resolve())
+      const complete = vi.fn()
+      const check = vi.fn<() => void>()
+      const name = isAlias ? 'link.md' : 'notes.md'
+      const hasUnsavedChanges = (file: string) => isDirty && file === `/ws/${name}`
+      const adapters = activationReviewWrites({
+        checkpoints,
+        withCheckpointEdit,
+        UI_TEXT,
+        fill,
+        TextEncoder,
+        backend: { workspaceActionGuard: () => check },
+        nativeStarts: { signal: new AbortController().signal },
+        toolIo: { hasUnsavedChanges },
+        vscode: {
+          Uri: { file: (file: string) => file },
+          workspace: { fs: { writeFile: write, delete: remove } },
+        },
+      })
+      const review = new EditReview({
+        platform: 'linux',
+        workspaceRoot: '/ws',
+        readFile: () => Promise.resolve('after\n'),
+        realPath: (file) => Promise.resolve(file === `/ws/${name}` ? '/ws/notes.md' : file),
+        hasUnsavedChanges,
+        ...adapters,
+        beginEdit: () => complete,
+        openDiff: () => Promise.resolve(),
+        log: new FakeLogOutputChannel(),
+      })
+      const patch = JSON.stringify({
+        files: [
+          {
+            path: name,
+            hunks: [
+              {
+                oldStart: action === 'write' ? 1 : 0,
+                oldLines: action === 'write' ? 1 : 0,
+                newStart: 1,
+                newLines: 1,
+                lines: action === 'write' ? ['-before', '+after'] : ['+after'],
+              },
+            ],
+          },
+        ],
+      })
+      const reverting = Promise.allSettled([review.revertHunk('edit', patch, 0, 0)])
+      await entered.promise
+      isDirty = true
+      released.resolve(undefined)
+      expect(await reverting).toEqual([
+        {
+          status: 'rejected',
+          reason: expect.objectContaining({
+            message: fill(UI_TEXT.editUnsavedChanges, { path: name }),
+          }),
+        },
+      ])
+      expect(write).not.toHaveBeenCalled()
+      expect(remove).not.toHaveBeenCalled()
+      expect(complete).toHaveBeenCalledWith(false)
+      expect(marks).toEqual([true, false])
+      expect(check).toHaveBeenCalledTimes(2)
+    },
+  )
+})
 
 function setup(
   files: Record<string, string>,
@@ -53,13 +183,15 @@ function setup(
     realPath: (fsPath) => Promise.resolve(options.realPaths?.[fsPath] ?? fsPath),
     hasUnsavedChanges: options.hasUnsavedChanges ?? (() => false),
     ...(options.beginEdit !== undefined && { beginEdit: options.beginEdit }),
-    writeFile: async (fsPath, content) => {
+    writeFile: async (fsPath, content, assertCanWrite) => {
       await options.beforeWrite?.(fsPath)
+      assertCanWrite()
       writes.push([fsPath, content])
       disk.set(fsPath, content)
     },
-    deleteFile: async (fsPath) => {
+    deleteFile: async (fsPath, assertCanWrite) => {
       await options.beforeDelete?.(fsPath)
+      assertCanWrite()
       deleted.push(fsPath)
       disk.delete(fsPath)
     },

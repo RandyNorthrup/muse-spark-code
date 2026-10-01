@@ -812,7 +812,8 @@ Review what the agent did before it lands, on both backends.
   included, change by change. **Accept** marks a change; **Revert** takes
   that one change out of the file as it is now, or says why it cannot (the
   file changed since, or its editor has unsaved changes). Save or discard
-  unsaved changes before trying Revert again. A revert is an edit of the
+  unsaved changes before trying Revert again. This is checked again before the
+  write or deletion, including when you edit a linked buffer while Revert waits. A revert is an edit of the
   workspace like any other: it writes through turn checkpoints (another
   window on the folder refuses a file restore while it writes). Overlapping
   reverts of the same file run in order and rebuild from its latest saved

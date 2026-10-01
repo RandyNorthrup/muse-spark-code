@@ -1152,18 +1152,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       realPath: canonicalPath,
       hasUnsavedChanges: (fsPath) => toolIo.hasUnsavedChanges(fsPath),
       beginEdit: (file) => modelApi.beginExternalEdit(undefined, [file]),
-      writeFile: async (fsPath, content) => {
+      writeFile: async (fsPath, content, assertCanWrite) => {
         const check = backend.workspaceActionGuard(nativeStarts.signal)
         await withCheckpointEdit(checkpoints, check, async () => {
+          assertCanWrite()
           await vscode.workspace.fs.writeFile(
             vscode.Uri.file(fsPath),
             new TextEncoder().encode(content),
           )
         })
       },
-      deleteFile: async (fsPath) => {
+      deleteFile: async (fsPath, assertCanWrite) => {
         const check = backend.workspaceActionGuard(nativeStarts.signal)
         await withCheckpointEdit(checkpoints, check, async () => {
+          assertCanWrite()
           await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
         })
       },

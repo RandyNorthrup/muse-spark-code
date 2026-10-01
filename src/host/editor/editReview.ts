@@ -27,9 +27,10 @@ export interface EditReviewDeps {
   readonly hasUnsavedChanges: (fsPath: string) => boolean
   /** Manual writes invalidate all live verification without creating an own edit round. */
   readonly beginEdit?: (file: EditedFile) => (wasWritten: boolean) => void
-  readonly writeFile: (fsPath: string, content: string) => Promise<void>
-  /** Move to the trash (a file the edit created). */
-  readonly deleteFile: (fsPath: string) => Promise<void>
+  /** Invoke the original/canonical editor guard immediately before I/O, after admission. */
+  readonly writeFile: (fsPath: string, content: string, assertCanWrite: () => void) => Promise<void>
+  /** Move to the trash after invoking the same final editor guard. */
+  readonly deleteFile: (fsPath: string, assertCanWrite: () => void) => Promise<void>
   /** `vscode.diff(before, after, title)`; `beforeUri` is a `muse-edit:` URI string. */
   readonly openDiff: (beforeUri: string, fsPath: string, title: string) => Promise<void>
   readonly log: Logger
@@ -294,6 +295,12 @@ export class EditReview implements EditReviewActions {
       if (nowRefusal !== undefined) {
         return { isReverted: false, notices: [nowRefusal] }
       }
+      const assertCanWrite = () => {
+        const unsaved = this.unsavedNotice(resolved)
+        if (unsaved !== undefined) {
+          throw new Error(unsaved.text)
+        }
+      }
       const complete = this.deps.beginEdit?.({
         relative: resolved.canonicalRelativePath,
         absolute: resolved.canonicalPath,
@@ -301,9 +308,9 @@ export class EditReview implements EditReviewActions {
       let wasWritten = false
       try {
         if (rebuilt.isCreatedFile) {
-          await this.deps.deleteFile(resolved.canonicalPath)
+          await this.deps.deleteFile(resolved.canonicalPath, assertCanWrite)
         } else {
-          await this.deps.writeFile(resolved.canonicalPath, rebuilt.content)
+          await this.deps.writeFile(resolved.canonicalPath, rebuilt.content, assertCanWrite)
         }
         wasWritten = true
       } finally {

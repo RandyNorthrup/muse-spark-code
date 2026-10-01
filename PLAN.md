@@ -7782,6 +7782,14 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   fail without the guard; full controller file passes 331 tests after exact
   restoration. M57's real bundle fixture is built in its existing setup hook,
   retaining its deadline and goal-refusal assertions.
+- **RV70 finding 3 verified (M70c).** Revert binds its existing
+  dirty-buffer predicate to both original and canonical paths and passes it
+  to the write/delete adapter. The adapter invokes it after checkpoint
+  admission, immediately before I/O. This port argument is needed because
+  the adapter receives only the canonical target and cannot otherwise recheck
+  a dirty buffer opened through a link. No new option or helper module.
+  All four regression cases failed before repair. Predicate/write/delete
+  guard drills each restored all 32 owning tests with matching SHA-256.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:

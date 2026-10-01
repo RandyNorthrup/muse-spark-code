@@ -61,6 +61,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Revert rechecks dirty editor buffers inside checkpoint write/delete
+  admission, including the original linked editor path, before touching disk.
 - Late review acknowledgements are fenced to the submitted session and
   generation before checkpoint or turn acceptance, so a cleared conversation
   cannot inherit an old running turn.

@@ -341,7 +341,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   it). The review pane's Revert writes back through the same workspace
   confinement as Edit Review (canonical path, links and junctions), refuses
   a file whose editor has unsaved changes, serializes writes to one file,
-  and runs as a checkpointed edit like any other explicit edit.
+  and runs as a checkpointed edit like any other explicit edit. Its writer and
+  deletion adapter invoke the original/canonical dirty-buffer predicate inside
+  that admission, immediately before I/O; a buffer dirtied during the wait
+  refuses the operation and releases the activity lease.
 - **Prompt injection.** Workspace files, rules and skills reach the model by
   design in a trusted workspace, and so do fetched web pages (marked as
   untrusted content); the permission modes and the approval cards are the
