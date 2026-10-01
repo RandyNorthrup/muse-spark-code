@@ -849,7 +849,12 @@ export class CheckpointStore {
         continue
       }
       const relative = path.relative(root, absolutePath)
-      const isOutside = relative === '' || relative.startsWith('..') || path.isAbsolute(relative)
+      // A segment, not a prefix: a file named `..cache` is inside the workspace.
+      const isOutside =
+        relative === '' ||
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative)
       if (!isOutside) {
         return relative.split(path.sep).join(SEPARATOR)
       }
@@ -1366,7 +1371,10 @@ export class CheckpointStore {
       const theirs = windowOf(other)
       return turns.some((turn) => {
         const ours = windowOf(turn)
-        return theirs.start < ours.end && theirs.end > ours.start
+        // Turns that touch at one tick count as overlapping: the clock is in
+        // milliseconds and two windows' clocks are not exact, so an edit may
+        // sit on either side of the shared tick.
+        return theirs.start <= ours.end && theirs.end >= ours.start
       })
     })
     for (const other of overlapping) {
@@ -1848,7 +1856,9 @@ export class CheckpointStore {
         )
         const owner = lease?.owner
         const live = await this.presence.liveWindows()
-        if (owner !== undefined && !live.has(owner)) {
+        // Its own lease while no restore runs here (they are serial) is a leftover
+        // of a release that failed; a gone window's lease is taken over as well.
+        if (owner !== undefined && (owner === this.instance || !live.has(owner))) {
           try {
             await shadow.run(['update-ref', '-d', RESTORE_REF, previous])
           } catch (error: unknown) {
@@ -1898,9 +1908,35 @@ export class CheckpointStore {
       keep = pinned
       return await task(fresh)
     } finally {
-      await shadow.run(['update-ref', '-d', RESTORE_REF, keep], {
-        signal: new AbortController().signal,
-      })
+      await this.releaseRestoreLease(shadow, keep)
+    }
+  }
+
+  /**
+   * Lets go of this window's restore lease. It runs after the files were
+   * restored, so a failure here (a ref lock held for a moment) must not replace
+   * the restore's outcome with a failure and hide its Redo: it is tried once
+   * more, then logged. A lease this window still holds is taken over by its next
+   * restore (see `withRestore`).
+   */
+  private async releaseRestoreLease(shadow: ShadowGit, keep: string): Promise<void> {
+    const release = () =>
+      shadow.run(['update-ref', '-d', RESTORE_REF, keep], { signal: new AbortController().signal })
+    try {
+      await release()
+      return
+    } catch {
+      // Tried once more below.
+    }
+    await new Promise<undefined>((resolve) => {
+      setTimeout(() => {
+        resolve(undefined)
+      }, CHECKPOINT_PUBLISH_RETRY_MS)
+    })
+    try {
+      await release()
+    } catch (error: unknown) {
+      this.deps.log.warn(`The restore lease could not be released: ${failureForLog(error)}`)
     }
   }
 

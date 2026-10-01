@@ -411,6 +411,22 @@ describe('approvals', () => {
 })
 
 describe('promptParts', () => {
+  it('reads a file whose name begins with two dots as inside the folder', () => {
+    const dotted = pathToFileURL(path.join(CWD, '..cache')).href
+    const parent = pathToFileURL(path.resolve(CWD, '..', 'x.ts')).href
+    const result = promptParts(
+      [
+        { type: 'resource_link', uri: dotted, name: '..cache' },
+        { type: 'resource_link', uri: parent, name: 'x.ts' },
+      ],
+      CWD,
+    )
+    expect(result.ok && result.parts).toEqual([
+      { type: 'text', text: '@..cache' },
+      { type: 'text', text: parent },
+    ])
+  })
+
   it('takes text, images, links inside the folder as mentions and attached text as context', () => {
     const inside = pathToFileURL(path.join(CWD, 'src', 'app.ts')).href
     const outside = pathToFileURL(path.resolve('/elsewhere/x.ts')).href

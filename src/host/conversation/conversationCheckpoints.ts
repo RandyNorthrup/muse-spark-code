@@ -90,15 +90,6 @@ const REFUSAL_ORDER: readonly RefusalReason[] = [
   'notInCheckpoint',
   'failed',
 ]
-// Refusals that leave the files short of the checkpoint for a reason the
-// user can act on; the others (no copy kept, never in a checkpoint) cannot
-// be undone by trying again.
-const INCOMPLETE_REASONS: ReadonlySet<RefusalReason> = new Set([
-  'unsaved',
-  'changedAfter',
-  'failed',
-])
-
 /** Names, the first few spelled out and the rest counted. */
 function namedList(paths: readonly string[]): string {
   const shown = paths.slice(0, CHECKPOINT_NAMED_FILES_MAX).join(LIST_SEPARATOR)
@@ -646,8 +637,10 @@ export class ConversationCheckpoints {
       })
       return {
         isRestored: outcome.ok,
-        isComplete:
-          outcome.ok && outcome.refused.every((refusal) => !INCOMPLETE_REASONS.has(refusal.reason)),
+        // Any file left as it is makes the restore incomplete, as the confirmation
+        // says: a file with no copy kept or never in the checkpoint, and ignored
+        // files whose changes could not all be put back, included.
+        isComplete: outcome.ok && outcome.refused.length === 0 && !outcome.isIgnoredIncomplete,
         post: this.notices(outcome, UI_TEXT.restoreDone),
       }
     } catch (error: unknown) {

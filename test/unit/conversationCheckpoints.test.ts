@@ -347,6 +347,33 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
     ])
   })
 
+  it.each([
+    ['a clean restore', {}, true],
+    [
+      'a file with no earlier copy',
+      { refused: [{ path: 'a.ts', reason: 'noEarlierCopy' }] },
+      false,
+    ],
+    [
+      'a file never in the checkpoint',
+      { refused: [{ path: 'a.ts', reason: 'notInCheckpoint' }] },
+      false,
+    ],
+    ['an unsaved file', { refused: [{ path: 'a.ts', reason: 'unsaved' }] }, false],
+    ['ignored files that could not all be put back', { isIgnoredIncomplete: true }, false],
+  ] as const)(
+    'lets the conversation rewind only when no file is left behind: %s',
+    async (_name, overrides, isComplete) => {
+      const { checkpoints } = harness({
+        backend: () => 'modelApi',
+        restore: () => Promise.resolve(restored(overrides)),
+      })
+      await checkpoints.sessionChanged('s1')
+      const report = await checkpoints.restore('s1', 't1')
+      expect(report.isComplete).toBe(isComplete)
+    },
+  )
+
   it('says when another window on the folder runs a turn, or a checkpoint fails', async () => {
     const outcomes: RestoreOutcome[] = [
       { ok: false, reason: 'captureFailed' },
