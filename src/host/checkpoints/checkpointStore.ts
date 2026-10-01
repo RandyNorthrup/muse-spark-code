@@ -2049,6 +2049,11 @@ export class CheckpointStore {
     return this.hasUnprovedLocalWork() || this.isPeerUnsafe
   }
 
+  /** A turn of this window has its start recorded and its end not yet: its end takes the tools' copies. */
+  public get hasOpenTurn(): boolean {
+    return this.openTurns.size > 0
+  }
+
   /** Actual I/O completion did not prove every workspace-capable descendant stopped. */
   public async markUnprovenProcess(): Promise<void> {
     this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())

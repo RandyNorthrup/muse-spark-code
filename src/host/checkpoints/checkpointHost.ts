@@ -77,6 +77,7 @@ export type CheckpointStoreApi = Pick<
   | 'beforeToolWrite'
   | 'isStoragePath'
   | 'isNativeUnsafe'
+  | 'hasOpenTurn'
   | 'markNativeBackend'
   | 'markUnprovenProcess'
 >
@@ -121,6 +122,13 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
     const posture = availability()
     return posture === 'on' || posture === 'off' ? deps.store : undefined
   }
+  /**
+   * The store while the tools' copies are taken: with the setting on, or while
+   * a turn recorded before it went off is still open, since that turn's end
+   * (which runs whatever the setting) needs them to put ignored files back.
+   */
+  const copyStore = (): CheckpointStoreApi | undefined =>
+    onStore() ?? (gitStore()?.hasOpenTurn === true ? deps.store : undefined)
   return {
     isNativeUnsafe: () => deps.store?.isNativeUnsafe === true,
     markNativeBackend: async () => {
@@ -215,7 +223,7 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       if (deps.store?.isStoragePath(absolutePath) === true) {
         throw new Error(MODEL_TEXT.checkpointStorageWrite)
       }
-      await onStore()?.beforeToolWrite(absolutePath)
+      await copyStore()?.beforeToolWrite(absolutePath)
     },
   }
 }

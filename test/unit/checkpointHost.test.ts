@@ -3,8 +3,9 @@ import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { turnKey } from '../../src/core/checkpoints/turnKey'
 import { ShellEntryError } from '../../src/core/shellResult'
 import {
   type CheckpointPort,
@@ -27,6 +28,15 @@ import {
   GitMissingError,
   processGitProcess,
 } from '../../src/host/git'
+import {
+  harness,
+  isPresent,
+  read,
+  REAL_GIT_TIMEOUT_MS,
+  removeCheckpointFolders,
+  restoreOutcome,
+  write,
+} from './helpers/checkpointHarness'
 import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
 import { removeFolder } from './helpers/temporaryFolders'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -46,6 +56,7 @@ function fakeStore() {
   }
   const store: CheckpointStoreApi = {
     isNativeUnsafe: false,
+    hasOpenTurn: false,
     isStoragePath: () => false,
     markNativeBackend: () => done('native'),
     markUnprovenProcess: () => done('unproved'),
@@ -450,6 +461,65 @@ describe('withCheckpointCopies (M72)', () => {
     expect(calls).toEqual(['copy /ws/.env', 'copy /ws/image.png', 'copy /ws/.env'])
     expect(writes).toEqual([])
   })
+})
+
+describe('the setting switched off while a turn is under way (M72)', () => {
+  afterEach(removeCheckpointFolders)
+
+  const ENV_BEFORE = 'KEY=before\n'
+
+  /** A real store with an ignored `.env`, behind a port whose setting the test flips. */
+  async function switchable() {
+    const h = await harness()
+    await write(h.root, '.gitignore', '.env\n')
+    await write(h.root, '.env', ENV_BEFORE)
+    const setting = { isEnabled: true }
+    const port = createCheckpointPort({
+      isNamespaceKnown: () => true,
+      store: h.store,
+      isWorkspaceTrusted: () => true,
+      isEnabled: () => setting.isEnabled,
+      hasGit: () => true,
+    })
+    const io = withCheckpointCopies(
+      { ...noopToolIo, writeFile: (file, content) => writeFile(file, content) },
+      port,
+    )
+    return { h, setting, port, io }
+  }
+
+  it(
+    'keeps copying for a turn whose start was recorded, so its restore puts an ignored file back',
+    async () => {
+      const { h, setting, port, io } = await switchable()
+      await prepareCheckpointTurn(port, 's1', 't1', h.log)
+      setting.isEnabled = false
+      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
+      await port.endTurn('s1', 't1')
+      await port.markTurn(turnKey('s1', 't1'), false)
+      setting.isEnabled = true
+      expect(await restoreOutcome(port, 't1')).toMatchObject({
+        ok: true,
+        changed: ['.env'],
+        refused: [],
+      })
+      expect(await read(h.root, '.env')).toBe(ENV_BEFORE)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'takes no copy with the setting off and no recorded turn open',
+    async () => {
+      const { h, setting, port, io } = await switchable()
+      setting.isEnabled = false
+      await prepareCheckpointTurn(port, 's1', 't1', h.log)
+      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
+      expect(await isPresent(h.storage, 'staging')).toBe(false)
+      expect(await read(h.root, '.env')).toBe('KEY=after\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
 })
 
 describe('withCheckpointEditAt (M72)', () => {
