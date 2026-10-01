@@ -17,6 +17,7 @@ import { createCheckpointedMemory } from '../../src/host/backend/checkpointedMem
 import { systemPath } from '../../src/host/backend/memoryIo'
 import { createToolIo } from '../../src/host/backend/toolIo'
 import {
+  asUserEdit,
   createCheckpointPort,
   withCheckpointEditAt,
 } from '../../src/host/checkpoints/checkpointHost'
@@ -107,10 +108,11 @@ async function setup(options: SetupOptions = {}) {
     captureGuard: () => manager.workspaceActionGuard(lifetime.signal),
   })
   const features = createMemoryFeatures({
-    store: memory.store,
+    store: memory.viewStore,
     log: h.log,
     edit: memory.edit,
     beforeDelete: memory.beforeDelete,
+    afterDelete: memory.afterDelete,
   })
   return {
     h,
@@ -165,6 +167,12 @@ function trashFor(before: () => Promise<void> = () => Promise.resolve()) {
 async function ownedNote(t: Setup): Promise<void> {
   await write(t.h.root, OWNED, OWNED_TEXT)
   await write(t.h.root, INDEX, INDEX_TEXT)
+}
+
+/** The model's memory tool changes the owned note: a write of the turn's own. */
+async function modelEditsOwnedNote(t: Setup): Promise<void> {
+  const owned = await place(t.memory.store, 'project', 'owned.md')
+  await t.memory.store.edit(owned, { old_str: 'original', new_str: 'late' })
 }
 
 /** The turn restored: the note and its index are as they were before it. */
@@ -238,8 +246,7 @@ describe('Muse Code memory as activation composes it (M72)', () => {
       const t = await setup()
       await ownedNote(t)
       await turn(t.h, 't1', async () => {
-        const owned = await place(t.memory.store, 'project', 'owned.md')
-        await t.memory.store.edit(owned, { old_str: 'original', new_str: 'late' })
+        await modelEditsOwnedNote(t)
         const added = await place(t.memory.store, 'project', 'added.md')
         await t.memory.store.add(added, { content: 'added memory\n', description: 'Added' })
         expect(await read(t.h.root, OWNED)).toBe('late memory\n')
@@ -289,7 +296,7 @@ describe('Muse Code memory as activation composes it (M72)', () => {
   )
 
   it(
-    'keeps a note the view trashes, and its index, for a restore',
+    "leaves a note the view trashed while a turn ran, and its index, to the user on that turn's restore",
     async () => {
       const t = await setup()
       await ownedNote(t)
@@ -300,7 +307,39 @@ describe('Muse Code memory as activation composes it (M72)', () => {
         expect(await isPresent(t.h.root, OWNED)).toBe(false)
         expect(await read(t.h.root, INDEX)).toBe('')
       })
-      await restoreOwnedNote(t)
+      const restored = await restoreTurn(t.h.store, 't1')
+      expect(restored.refused).toEqual([
+        { path: INDEX, reason: 'changedAfter' },
+        { path: OWNED, reason: 'changedAfter' },
+      ])
+      expect(await isPresent(t.h.root, OWNED)).toBe(false)
+      expect(await read(t.h.root, INDEX)).toBe('')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    "leaves a note the view created while a turn ran to the user, and restores the model's memory edit",
+    async () => {
+      const t = await setup()
+      await ownedNote(t)
+      await turn(t.h, 't1', async () => {
+        await modelEditsOwnedNote(t)
+        // The user's new note, from the view.
+        pickRows('action:new', 'project')
+        typeNote('tabs', 'Indentation')
+        await t.features.showMemory()
+      })
+      const restored = await restoreTurn(t.h.store, 't1')
+      expect(restored.refused).toEqual([
+        { path: INDEX, reason: 'changedAfter' },
+        { path: `${NOTES}/tabs.md`, reason: 'changedAfter' },
+      ])
+      expect(await read(t.h.root, OWNED)).toBe(OWNED_TEXT)
+      expect(await read(t.h.root, `${NOTES}/tabs.md`)).toBe(
+        '---\ndescription: Indentation\n---\n\n',
+      )
+      expect(await read(t.h.root, INDEX)).toBe(`${INDEX_TEXT}- [tabs](tabs.md) | Indentation\n`)
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -490,7 +529,7 @@ describe('Muse Code memory as activation composes it (M72)', () => {
   )
 })
 
-/** A write of one export file, held inside its lease until `release`. */
+/** A write of one export file, as activation wires it, held inside its lease until `release`. */
 async function heldExport(t: Setup, file: string) {
   const holding = Promise.withResolvers<undefined>()
   const release = Promise.withResolvers<undefined>()
@@ -499,11 +538,11 @@ async function heldExport(t: Setup, file: string) {
     () => undefined,
     { root: t.h.root, platform: process.platform },
     file,
-    async () => {
+    asUserEdit(t.port, file, async () => {
       holding.resolve(undefined)
       await release.promise
       await writeFile(file, '# Exported\n')
-    },
+    }),
   )
   await Promise.race([holding.promise, finished(editing)])
   return {
@@ -550,6 +589,25 @@ describe('an export the user places (M72)', () => {
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
+  it(
+    "leaves an export written into the workspace while a turn ran to the user on that turn's restore",
+    async () => {
+      const t = await setup()
+      await write(t.h.root, 'a.txt', 'a0\n')
+      await turn(t.h, 't1', async () => {
+        await write(t.h.root, 'a.txt', 'a1\n')
+        const held = await heldExport(t, path.join(t.h.root, 'export.md'))
+        held.release()
+        await held.editing
+      })
+      const restored = await restoreTurn(t.h.store, 't1')
+      expect(restored.refused).toEqual([{ path: 'export.md', reason: 'changedAfter' }])
+      expect(await read(t.h.root, 'export.md')).toBe('# Exported\n')
+      expect(await read(t.h.root, 'a.txt')).toBe('a0\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
 })
 
 describe('activation builds the memory through the checkpointed composition (M72)', () => {
@@ -561,7 +619,10 @@ describe('activation builds the memory through the checkpointed composition (M72
       'utf8',
     )
     expect(source).toMatch(/createCheckpointedMemory\(\s*toolIo,\s*checkpoints,/)
-    expect(source).toMatch(/edit:\s*memory\.edit,\s*beforeDelete:\s*memory\.beforeDelete,/)
+    // The view writes as the user (M72); the model's memory tools as the turn.
+    expect(source).toMatch(
+      /store:\s*memory\.viewStore,\s*log,\s*edit:\s*memory\.edit,\s*beforeDelete:\s*memory\.beforeDelete,\s*afterDelete:\s*memory\.afterDelete,/,
+    )
     expect(source).toMatch(/memory:\s*memory\.store,/)
     // The guard the memory captures for each mutation is the window's own
     // native-start guard, not a no-op.
@@ -571,8 +632,24 @@ describe('activation builds the memory through the checkpointed composition (M72
     // The exports the user places are written under the same lease, the same
     // guard, and the workspace root and platform the restore compares with.
     expect(source).toMatch(
-      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{\s*root: checkpointRoot\?\.canonicalRoot \?\? workspaceRoot,\s*displayRoot: workspaceRoot,\s*platform: process\.platform,?\s*\},\s*fsPath,\s*work,\s*\)/,
+      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{\s*root: checkpointRoot\?\.canonicalRoot \?\? workspaceRoot,\s*displayRoot: workspaceRoot,\s*platform: process\.platform,?\s*\},\s*fsPath,\s*asUserEdit\(checkpoints, fsPath, work\),\s*\)/,
     )
+    // What else the extension writes in the user's name is noted as theirs
+    // once written (M72): Create AGENTS.md and Revert's write, Revert's
+    // delete, and a plan's publication or stale-stage removal.
+    expect(source).toMatch(
+      /const writeUserFile = async \(check: \(\) => void, fsPath: string, content: string\) => \{\s*await withCheckpointEdit\(\s*checkpoints,\s*check,\s*asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*await vscode\.workspace\.fs\.writeFile\(/,
+    )
+    expect(source).toMatch(
+      /writeFile: async \(fsPath, content\) => \{\s*await writeUserFile\(backend\.workspaceActionGuard\(nativeStarts\.signal\), fsPath, content\)/,
+    )
+    expect(source).toMatch(
+      /writeFile: \(fsPath, content\) => writeUserFile\(check, fsPath, content\),/,
+    )
+    expect(source).toMatch(
+      /asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*await vscode\.workspace\.fs\.delete\(/,
+    )
+    expect(source).toMatch(/noteUserWrite: \(fsPath\) => \{\s*checkpoints\.noteUserSave\(fsPath\)/)
     // Sessions, the CLI's working directory and memory are keyed by the folder as
     // VS Code spells it, as they always were: opening a workspace through a link,
     // a junction or a mapped drive must not hide the conversations saved under

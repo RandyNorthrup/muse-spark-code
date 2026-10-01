@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRulesFile } from '../../src/host/commands/createRulesFile'
-import { type CheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
+import {
+  asUserEdit,
+  type CheckpointPort,
+  withCheckpointEdit,
+} from '../../src/host/checkpoints/checkpointHost'
 import { UI_TEXT } from '../../src/shared/constants'
 import { processGitProcess } from '../../src/host/git'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import {
   changedFileTurn,
   checkpointPort,
+  done,
   type Harness,
   harness,
   holdRestoreRef,
@@ -15,6 +20,7 @@ import {
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   restoreOutcome,
+  turn,
   write,
 } from './helpers/checkpointHarness'
 
@@ -38,10 +44,15 @@ function templateAction(
       isWorkspaceTrusted: () => isTrusted,
       fileExists: isFilePresent,
       runInit: () => undefined,
+      // As activation wires it: under the lease, and the user's once written.
       writeFile: async (file, content) => {
-        await withCheckpointEdit(port, check, async () => {
-          await writeFile(file, content)
-        })
+        await withCheckpointEdit(
+          port,
+          check,
+          asUserEdit(port, file, async () => {
+            await writeFile(file, content)
+          }),
+        )
       },
       openFile: () => Promise.resolve(),
       showInformation: () => undefined,
@@ -139,6 +150,25 @@ describe('Create AGENTS.md pure template admission (M72)', () => {
       await refused
       expect(action.writeFile).not.toHaveBeenCalled()
       expect(await isPresent(h.root, 'AGENTS.md')).toBe(false)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    "leaves the AGENTS.md the user created while a turn ran to them on that turn's restore",
+    async () => {
+      const h = await harness()
+      await write(h.root, 'a.txt', 'a0\n')
+      const action = templateAction(h, checkpointPort(h), new AbortController().signal)
+      await turn(h, 't1', async () => {
+        await write(h.root, 'a.txt', 'a1\n')
+        await action.run()
+      })
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([{ path: 'AGENTS.md', reason: 'changedAfter' }])
+      expect(await read(h.root, 'AGENTS.md')).toContain('##')
+      // The turn's own change still goes back.
+      expect(await read(h.root, 'a.txt')).toBe('a0\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )

@@ -3288,7 +3288,15 @@ export class ConversationController {
     message: Extract<ConversationMessage, { type: 'restoreFiles' }>,
   ): Promise<void> {
     const { session } = this
-    if (session?.sessionId !== message.sourceSessionId) {
+    const { rewind } = message
+    // The panel sends one turn for both: a stale or forged message whose
+    // rewind names another card or conversation than the files is refused
+    // before anything is asked or changed, as one for another conversation is.
+    if (
+      session?.sessionId !== message.sourceSessionId ||
+      (rewind !== undefined &&
+        (rewind.sourceSessionId !== message.sourceSessionId || rewind.turnId !== message.turnId))
+    ) {
       return
     }
     if (this.sessionKind !== 'modelApi') {
@@ -3299,7 +3307,6 @@ export class ConversationController {
       this.notice('info', UI_TEXT.restoreTurnRunning)
       return
     }
-    const { rewind } = message
     if (!(await this.checkpoints.confirmRestore(rewind !== undefined))) {
       return
     }

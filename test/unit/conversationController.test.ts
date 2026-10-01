@@ -8256,6 +8256,37 @@ describe('ConversationController: turn checkpoints (M72)', () => {
     expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.attachmentUnreadable })
   })
 
+  it('asks, restores and rewinds nothing when the rewind names another turn or conversation', async () => {
+    const t = withHistory({ checkpointAvailability: 'on', backendKind: 'modelApi' })
+    // Two served cards, each one a rewind could validly go back to.
+    serveHistoryItems(t, [
+      historyUserItem('u1', 't1', 'edit it'),
+      historyUserItem('u2', 't2', 'and again'),
+    ])
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    const before = t.surface.posted.length
+    // A stale or forged pair: the files of t2 with the rewind of t1's card,
+    // and the files of t1 with a rewind in another conversation.
+    await t.controller.handle({
+      type: 'restoreFiles',
+      sourceSessionId: 's1',
+      turnId: 't2',
+      rewind: BOTH_REWIND,
+    })
+    await t.controller.handle({
+      type: 'restoreFiles',
+      sourceSessionId: 's1',
+      turnId: 't1',
+      rewind: { ...BOTH_REWIND, sourceSessionId: 'other' },
+    })
+    expect(t.fileConfirmations).toEqual([])
+    expect(t.checkpointCalls.filter((call) => call.startsWith('restore'))).toEqual([])
+    expect(t.server.requestsFor('session/fork')).toEqual([])
+    expect(t.surface.posted.slice(before)).toEqual([])
+  })
+
   it('leaves the conversation when the restore failed or left files short', async () => {
     const outcomes: readonly RestoreOutcome[] = [
       { ok: false, reason: 'noCheckpoint' },

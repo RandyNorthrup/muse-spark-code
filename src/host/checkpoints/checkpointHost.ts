@@ -337,6 +337,27 @@ export async function withCheckpointEditAt<T>(
 }
 
 /**
+ * `work` as a write or delete the extension makes in the user's name (a
+ * command they ran, a Revert they pressed): once it is done its path is the
+ * user's, as their own save is. `workspace.fs` saves no document, so VS
+ * Code's save event never sees these writes; noted here, a turn running
+ * meanwhile neither takes the file for its own nor undoes it on a restore.
+ * The model's writes (its tools, its memory) never come through here: they
+ * are the turn's, and its restore puts them back.
+ */
+export function asUserEdit<T>(
+  checkpoints: CheckpointPort,
+  absolutePath: string,
+  work: () => Promise<T>,
+): () => Promise<T> {
+  return async () => {
+    const result = await work()
+    checkpoints.noteUserSave(absolutePath)
+    return result
+  }
+}
+
+/**
  * The tools' file access with a checkpoint copy before every write: the
  * Model API's `write_file` and `edit_file`, and a generated image's new file.
  */
