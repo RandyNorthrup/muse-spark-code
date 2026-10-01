@@ -3421,10 +3421,9 @@ export class ConversationController {
       this.notice('info', UI_TEXT.handoffBusy)
       return false
     }
-    if (this.activeTurnId !== undefined) {
-      this.notice('info', UI_TEXT.handoffWaitTurn)
-      return false
-    }
+    // A running reply refuses the request in `canDistilHandoff`, after the
+    // host lookup and again after each later await, so no path sends the
+    // distillation beside it.
     const generation = this.sendInvalidationEpoch
     const pending: PendingHandoff = {
       requestId,
