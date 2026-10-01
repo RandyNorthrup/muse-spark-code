@@ -675,6 +675,7 @@
   "handoffFailed": "Não foi possível preparar a transferência",
   "handoffTooLarge": "O resumo é maior que {size} KB; inicie a nova conversa manualmente.",
   "handoffChangedNotStarted": "A transferência não foi iniciada: a conversa mudou nesse meio-tempo.",
+  "handoffUnshownMode": "A nova conversa começa no modo {mode}: o resumo contém um caractere de controle ou de formatação (como uma inversão de direção do texto ou um caractere de largura zero) que a caixa de diálogo não mostra, então você não o viu por inteiro.",
   "planOpenFailed": "Não foi possível abrir o plano",
   "sideChatSessionOnly": "Este chat paralelo só pode abrir outras conversas paralelas.",
   "renameFailed": "Não foi possível renomear a conversa",

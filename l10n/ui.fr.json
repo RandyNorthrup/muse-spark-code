@@ -675,6 +675,7 @@
   "handoffFailed": "Le transfert n’a pas pu être préparé",
   "handoffTooLarge": "Le résumé dépasse {size} Ko ; démarrez la nouvelle conversation à la main.",
   "handoffChangedNotStarted": "Le transfert n’a pas démarré : la conversation a changé entre-temps.",
+  "handoffUnshownMode": "La nouvelle conversation démarre en mode {mode} : le résumé contient un caractère de contrôle ou de mise en forme (un forçage de sens d’écriture ou un caractère sans chasse, par exemple) que la boîte de dialogue n’affiche pas ; vous ne l’avez donc pas vu en entier.",
   "planOpenFailed": "Impossible d’ouvrir le plan",
   "sideChatSessionOnly": "Cette discussion parallèle ne peut ouvrir que d’autres discussions parallèles.",
   "renameFailed": "Impossible de renommer la conversation",

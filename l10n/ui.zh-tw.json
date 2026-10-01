@@ -649,6 +649,7 @@
   "handoffFailed": "無法準備移交",
   "handoffTooLarge": "摘要超過 {size} KB；請手動開始新的對話。",
   "handoffChangedNotStarted": "移交未開始：對話在此期間發生了變化。",
+  "handoffUnshownMode": "新的對話以{mode}模式開始：摘要包含對話方塊不顯示的控制字元或格式字元（如文字方向覆寫或零寬字元），因此您沒有看到它的全部內容。",
   "planOpenFailed": "無法開啟計畫",
   "sideChatSessionOnly": "此旁聊只能開啟其他旁聊對話。",
   "renameFailed": "無法重新命名對話",

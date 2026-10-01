@@ -588,6 +588,12 @@ export interface ConversationBrief {
    * asks, whatever `museSpark.initialPermissionMode` says.
    */
   readonly isApproved: boolean
+  /**
+   * Whether the new conversation stays in Plan mode, whatever the above
+   * says: a handoff from a Plan-mode conversation (M74) never leaves Plan
+   * for a mode that acts.
+   */
+  readonly shouldKeepPlanMode: boolean
 }
 
 /** What `send` takes from a brief for its first message. */
@@ -652,21 +658,26 @@ function planBrief(
     },
     todos: steps.map((step) => ({ text: step, status: PLAN_TODO_PENDING_STATUS })),
     isApproved,
+    shouldKeepPlanMode: false,
   }
 }
 
 /**
  * A distilled brief as a conversation's brief (M74): the reviewed text
  * itself is the first message — no file travels — with the goal and the
- * open items as the model's note. The brief was distilled in the user's
- * own conversation and reviewed before anything started, so it starts
- * approved, in the starting mode; the [untrusted] labels it carries keep
- * their meaning through the note (PLAN.md D49).
+ * open items as the model's note. The model wrote it, so it counts as
+ * approved, and starts in the starting mode, only when the dialog showed
+ * the user all of it before Start: the brief and the open items it lists,
+ * neither holding a character the dialog does not show. Otherwise it is
+ * untrusted content and starts in a mode that asks, as a plan file does; a
+ * handoff from Plan mode stays in Plan. The [untrusted] labels it carries
+ * keep their meaning through the note (PLAN.md D49).
  */
 function handoffBrief(
   briefText: string,
   goal: string | undefined,
   todos: readonly TodoItem[],
+  shouldKeepPlanMode: boolean,
 ): ConversationBrief {
   return {
     label: 'handoff brief',
@@ -686,7 +697,9 @@ function handoffBrief(
       return `${lead} ${list}`
     },
     todos,
-    isApproved: true,
+    isApproved:
+      !hasUnshownCharacters(briefText) && todos.every((todo) => !hasUnshownCharacters(todo.text)),
+    shouldKeepPlanMode,
   }
 }
 
@@ -3100,6 +3113,14 @@ export class ConversationController {
     return this.deps.initialPermissionMode === PLAN_MODE ? PLAN_MODE : FALLBACK_MODE
   }
 
+  /** The mode a brief's conversation starts in: Plan where the brief keeps it, else by its trust. */
+  private briefStartMode(brief: ConversationBrief): PermissionMode {
+    if (brief.shouldKeepPlanMode) {
+      return PLAN_MODE
+    }
+    return brief.isApproved ? this.briefMode() : this.untrustedBriefMode()
+  }
+
   /**
    * Starts a new conversation on this backend from a brief (M79; M74's
    * `/handoff` reuses it). The attachment is checked before anything is
@@ -3147,7 +3168,7 @@ export class ConversationController {
     }
     this.deps.log.info(`Starting a new conversation from the brief ${brief.label}`)
     this.clear()
-    this.permissionMode = brief.isApproved ? this.briefMode() : this.untrustedBriefMode()
+    this.permissionMode = this.briefStartMode(brief)
     this.postComposerState()
     // The same checks on the emptied store as on the staged one above.
     const added =
@@ -3512,11 +3533,14 @@ export class ConversationController {
       const todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       pending.brief = text
       pending.todos = todos
+      // The open items show in the dialog too, so before Start the user sees
+      // all the model wrote that the new conversation reads (D49).
       this.post({
         type: 'handoffReady',
         requestId,
         brief: text,
         ...(goal !== undefined && { goal }),
+        todos: todos.map((todo) => todo.text),
       })
     } catch (error: unknown) {
       if (this.isCurrentHandoff(pending)) {
@@ -3530,7 +3554,9 @@ export class ConversationController {
    * The handoff dialog's Start: the reviewed brief seeds a new
    * conversation through the same path as a plan's (M79's
    * `startFromBrief`): the old conversation is left as it is, and the
-   * brief alone is the first message, with the open items as its list.
+   * brief alone is the first message, with the open items as its list. Its
+   * mode is `handoffBrief`'s: the starting mode only for a brief the dialog
+   * showed whole, and Plan kept from a Plan-mode conversation.
    */
   private async confirmHandoff(requestId: string, brief: string): Promise<void> {
     const pending = this.pendingHandoff
@@ -3556,13 +3582,15 @@ export class ConversationController {
       return
     }
     pending.isStarting = true
+    const seeded = handoffBrief(
+      brief,
+      pending.goal,
+      pending.todos,
+      this.permissionMode === PLAN_MODE,
+    )
     let started: BriefStart
     try {
-      started = await this.startFromBrief(
-        handoffBrief(brief, pending.goal, pending.todos),
-        generation,
-        () => this.isCurrentHandoff(pending),
-      )
+      started = await this.startFromBrief(seeded, generation, () => this.isCurrentHandoff(pending))
     } catch (error: unknown) {
       this.post({ type: 'handoffCommandResult', requestId, accepted: false })
       if (this.isCurrentHandoff(pending)) {
@@ -3584,6 +3612,12 @@ export class ConversationController {
     }
     this.dropHandoff(pending)
     this.post({ type: 'handoffCommandResult', requestId, accepted: true })
+    if (!seeded.isApproved) {
+      this.say(
+        'info',
+        fill(UI_TEXT.handoffUnshownMode, { mode: UI_TEXT.permissionModes[this.permissionMode] }),
+      )
+    }
   }
 
   /** The handoff dialog's Cancel: the brief is dropped, nothing starts. */

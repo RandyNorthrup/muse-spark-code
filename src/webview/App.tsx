@@ -1687,6 +1687,7 @@ export function App({
     state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
+        todos={state.handoff.todos}
         draft={state.handoff.draft}
         isConfirming={state.handoff.isConfirming}
         onChange={onHandoffChanged}

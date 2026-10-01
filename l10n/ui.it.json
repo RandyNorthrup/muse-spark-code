@@ -675,6 +675,7 @@
   "handoffFailed": "Impossibile preparare il passaggio",
   "handoffTooLarge": "Il riepilogo supera i {size} KB; avvia la nuova conversazione a mano.",
   "handoffChangedNotStarted": "Il passaggio non è stato avviato: la conversazione è cambiata nel frattempo.",
+  "handoffUnshownMode": "La nuova conversazione parte in modalità {mode}: il riepilogo contiene un carattere di controllo o di formato (come un cambio di direzione del testo o un carattere a larghezza zero) che la finestra di dialogo non mostra, quindi non l’hai visto per intero.",
   "planOpenFailed": "Impossibile aprire il piano",
   "sideChatSessionOnly": "Questa chat laterale può aprire solo altre chat laterali.",
   "renameFailed": "Non è stato possibile rinominare la conversazione",

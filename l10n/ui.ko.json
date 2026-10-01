@@ -649,6 +649,7 @@
   "handoffFailed": "인계를 준비하지 못했습니다",
   "handoffTooLarge": "요약이 {size}KB를 초과합니다. 새 대화는 직접 시작하세요.",
   "handoffChangedNotStarted": "인계가 시작되지 않았습니다. 그 사이에 대화가 바뀌었습니다.",
+  "handoffUnshownMode": "새 대화는 {mode} 모드로 시작합니다. 요약에 대화 상자가 표시하지 않는 제어 문자 또는 서식 문자(방향 재정의나 폭이 없는 문자 등)가 있어 전체를 확인하지 못했습니다.",
   "planOpenFailed": "계획을 열 수 없습니다",
   "sideChatSessionOnly": "이 사이드 채팅에서는 사이드 채팅 대화만 열 수 있습니다.",
   "renameFailed": "대화 이름을 바꿀 수 없습니다",

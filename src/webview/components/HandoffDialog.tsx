@@ -1,6 +1,8 @@
 // The handoff dialog (M74, PLAN.md D49): the distilled brief before the new
 // conversation starts. The user reviews it, edits it if needed, then starts
-// the new conversation with it, or cancels and nothing starts.
+// the new conversation with it, or cancels and nothing starts. The open
+// items its todo list starts with are listed too, so the user sees all the
+// model wrote that the new conversation reads.
 
 import type { ChangeEvent } from 'react'
 import { UI_TEXT } from '../../shared/constants'
@@ -9,6 +11,8 @@ import { Modal } from './Modal'
 
 export interface HandoffDialogProps {
   readonly goal: string | undefined
+  /** The open items the new conversation's todo list starts with. */
+  readonly todos: readonly string[]
   /** The brief as edited. */
   readonly draft: string
   readonly isConfirming: boolean
@@ -23,6 +27,7 @@ const BRIEF_ROWS = 12
 
 export function HandoffDialog({
   goal,
+  todos,
   draft,
   isConfirming,
   isInert = false,
@@ -50,6 +55,21 @@ export function HandoffDialog({
           disabled={isConfirming}
           onChange={onDraftChange}
         />
+        {todos.length === 0 ? null : (
+          <>
+            <p id="handoff-todos" className="handoff-label">
+              {UI_TEXT.todoTitle}
+            </p>
+            <ul className="handoff-todos" aria-labelledby="handoff-todos">
+              {todos.map((todo, index) => (
+                // Two items may share a text (M25); the position tells them apart.
+                <li key={`${String(index)}:${todo}`} dir="auto">
+                  {todo}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <div className="handoff-actions">
           <button
             type="button"

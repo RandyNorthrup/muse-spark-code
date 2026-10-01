@@ -626,13 +626,15 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The command's admission result. Correlation protects a newer composer draft.
   z.object({ type: z.literal('goalCommandResult'), requestId: z.string(), accepted: z.boolean() }),
-  // `/handoff` (M74): the distilled brief is ready to review. Nothing starts
-  // until the user confirms it; the dialog sends the edited text back.
+  // `/handoff` (M74): the distilled brief is ready to review, with the open
+  // items the new conversation's todo list starts with. Nothing starts until
+  // the user confirms it; the dialog sends the edited text back.
   z.object({
     type: z.literal('handoffReady'),
     requestId: z.string(),
     brief: z.string(),
     goal: z.optional(z.string()),
+    todos: z.array(z.string()),
   }),
   // The confirm's admission result. Correlation protects a newer dialog.
   z.object({

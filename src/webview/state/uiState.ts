@@ -182,6 +182,8 @@ export interface UiState {
         readonly requestId: string
         readonly brief: string
         readonly goal: string | undefined
+        /** The open items the new conversation's todo list starts with, shown read-only. */
+        readonly todos: readonly string[]
         readonly draft: string
         readonly isConfirming: boolean
       }
@@ -2169,6 +2171,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           requestId: message.requestId,
           brief: message.brief,
           goal: message.goal,
+          todos: message.todos,
           draft: message.brief,
           isConfirming: false,
         },

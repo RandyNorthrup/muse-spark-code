@@ -204,8 +204,20 @@ describe('parseHostToWebviewMessage', () => {
     ],
     ['sendFailed', { type: 'sendFailed', localId: 'l', reason: 'no' }],
     ['goalCommandResult', { type: 'goalCommandResult', requestId: 'g1', accepted: false }],
-    ['handoffReady', { type: 'handoffReady', requestId: 'h1', brief: 'Goal: x.', goal: 'Ship it' }],
-    ['handoffReady without a goal', { type: 'handoffReady', requestId: 'h1', brief: 'Goal: x.' }],
+    [
+      'handoffReady',
+      {
+        type: 'handoffReady',
+        requestId: 'h1',
+        brief: 'Goal: x.',
+        goal: 'Ship it',
+        todos: ['Ship it'],
+      },
+    ],
+    [
+      'handoffReady without a goal',
+      { type: 'handoffReady', requestId: 'h1', brief: 'Goal: x.', todos: [] },
+    ],
     ['handoffCommandResult', { type: 'handoffCommandResult', requestId: 'h1', accepted: true }],
     ['agentEvent', { type: 'agentEvent', event: { type: 'turnStarted', turnId: 't' } }],
     [
@@ -298,7 +310,11 @@ describe('parseHostToWebviewMessage', () => {
       'briefSubmitted without its local id',
       { type: 'briefSubmitted', localId: '', text: 'x', attachments: [] },
     ],
-    ['handoff ready without the brief', { type: 'handoffReady', requestId: 'h1' }],
+    ['handoff ready without the brief', { type: 'handoffReady', requestId: 'h1', todos: [] }],
+    [
+      'handoff ready without its open items',
+      { type: 'handoffReady', requestId: 'h1', brief: 'Goal: x.' },
+    ],
     ['handoff result without acceptance', { type: 'handoffCommandResult', requestId: 'h1' }],
   ])('rejects %s', (_label, input) => {
     expect(parseHostToWebviewMessage(input).ok).toBe(false)

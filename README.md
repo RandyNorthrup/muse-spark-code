@@ -406,13 +406,23 @@ turn in the current conversation — for a distilled brief of it: the goal,
 the decisions, the files touched, the open work and the todo list. Anything
 drawn from tool output, fetched pages or imported files is marked
 `[untrusted]` in the brief, and the new conversation is told what that
-means. The brief opens in a dialog before anything starts: review it, edit
-it if you need to, then **Start new conversation**, or **Cancel** and
-nothing starts. Starting leaves the old conversation in History and seeds
-the new one with the brief alone — the goal and the open items travel in
-its note, and on the Model API backend the open items become the todo list
-before the first request. The generated or edited brief may be up to 256 KB
-in UTF-8. Cancel closes a handoff before the new conversation commits.
+means. The brief opens in a dialog before anything starts, with the open
+items the new todo list will hold under **Tasks**: review it, edit it if
+you need to, then **Start new conversation**, or **Cancel** and nothing
+starts. Starting leaves the old conversation in History and seeds the new
+one with the brief alone — the goal and the open items travel in its note,
+and on the Model API backend the open items become the todo list before
+the first request. The generated or edited brief may be up to 256 KB in
+UTF-8. Cancel closes a handoff before the new conversation commits.
+
+The model wrote the brief, so the new conversation starts in your
+starting mode (`museSpark.initialPermissionMode`, as an implemented plan
+does: Manual when that is Plan, never Bypass in a remote window) only
+when the dialog showed you all of it. A brief or an open item holding a
+character the dialog does not show (a direction override, a zero-width
+character) starts in a mode that asks, Manual (Plan when that is your
+starting mode), and the panel names the mode. A handoff from a
+conversation in Plan mode stays in Plan.
 
 Automatic compaction, the hidden follow-up and memory flush are not
 built: only manual `/handoff` is available.

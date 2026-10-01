@@ -8627,6 +8627,18 @@ Automatic compaction, hidden follow-up and memory flush stay unbuilt/off.
     tool-output, fetched-page and imported-file content `[untrusted]` in
     the brief, and the seeded note tells the new conversation what the
     label means (D49).
+  - **The start mode (RV74 finding 1; the lead's decision, 2026-10-01).**
+    The model wrote the brief, so it counts as approved, and starts in the
+    starting mode as an approved plan does (`briefMode`: Manual when that
+    is Plan, never Bypass in a remote window), only when the dialog showed
+    the user all of it before Start: the whole brief, and the open items
+    it seeds, which the dialog lists under Tasks, with no character the
+    dialog does not show (`hasUnshownCharacters`: a control or format
+    character). Otherwise it is untrusted content and starts in the
+    asking mode (`untrustedBriefMode`, as a plan picked from Plans…
+    does), and the panel names the mode. A handoff from a conversation in
+    Plan mode stays in Plan (`ConversationBrief.shouldKeepPlanMode`), whatever
+    either rule says.
   - Model API backend only: on Muse Code the command says it is
     unavailable there. Side chats are refused; one handoff runs at a time;
     a running turn is waited for; an oversized (over 256 KB) or empty

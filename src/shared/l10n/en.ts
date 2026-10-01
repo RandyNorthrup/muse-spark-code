@@ -872,6 +872,10 @@ export const EN = {
   handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
   handoffChangedNotStarted:
     'The handoff was not started: the conversation changed in the meantime.',
+  // {mode}: the permission mode's name. The model wrote the brief, so it
+  // starts in the starting mode only when the dialog showed all of it.
+  handoffUnshownMode:
+    'The new conversation starts in {mode}: the brief holds a control or format character (such as a direction override or a zero-width character) that the dialog does not show, so you did not see all of it.',
   planOpenFailed: 'Could not open the plan',
   sideChatSessionOnly: 'This side chat can open only side-chat conversations.',
   renameFailed: 'Could not rename the conversation',

@@ -8360,8 +8360,9 @@ interface HandoffConversation {
 async function handoffConversation(
   firstReply?: ScriptedReply,
   beforeEnsureHost?: () => Promise<void>,
+  options: Parameters<typeof setup>[0] = {},
 ): Promise<HandoffConversation> {
-  const t = setup({})
+  const t = setup(options)
   let nextId = 0
   const { api, controller, host } = modelApiController(t, {
     newId: () => `id${String(++nextId)}`,
@@ -8379,6 +8380,17 @@ async function handoffConversation(
   })
   return { t, api, controller, host }
 }
+
+/** The permission mode the panel was last told: the new conversation's, after a Start. */
+function lastMode(conversation: HandoffConversation) {
+  return conversation.t.surface.posted
+    .flatMap((posted) => (posted.type === 'composerState' ? [posted.permissionMode] : []))
+    .at(-1)
+}
+
+/** Characters the handoff dialog does not show as the model reads them (D49). */
+const ZERO_WIDTH_SPACE = 0x20_0b
+const RIGHT_TO_LEFT_OVERRIDE = 0x20_2e
 
 /** Hold exactly the next host lookup after the conversation has been prepared. */
 function holdNextHandoffHost() {
@@ -8435,10 +8447,14 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
   }
 
   /** Start the edited brief as `requestId`'s new conversation, and require the accept. */
-  async function confirmEdited(conversation: HandoffConversation, requestId: string) {
+  async function confirmEdited(
+    conversation: HandoffConversation,
+    requestId: string,
+    brief: string = EDITED,
+  ) {
     const { t, api, controller } = conversation
     api.script({ text: 'on it' })
-    await controller.handle({ type: 'confirmHandoff', requestId, brief: EDITED })
+    await controller.handle({ type: 'confirmHandoff', requestId, brief })
     expect(t.surface.posted).toContainEqual({
       type: 'handoffCommandResult',
       requestId,
@@ -8450,7 +8466,13 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     const conversation = await handoffConversation()
     const { t, api } = conversation
     const ready = await distil(conversation, 'h1', 'Ship it')
-    expect(ready).toEqual({ type: 'handoffReady', requestId: 'h1', brief: BRIEF, goal: 'Ship it' })
+    expect(ready).toEqual({
+      type: 'handoffReady',
+      requestId: 'h1',
+      brief: BRIEF,
+      goal: 'Ship it',
+      todos: [],
+    })
     // The request turn's card, in the user's language.
     const card = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
     expect(card).toMatchObject({
@@ -8482,7 +8504,9 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       ],
     })
     const { t, api, controller } = conversation
-    await distil(conversation, 'h1', 'Ship it')
+    // The dialog lists the open items it will seed, so the user sees them before Start.
+    const ready = await distil(conversation, 'h1', 'Ship it')
+    expect(ready).toMatchObject({ type: 'handoffReady', todos: ['Polish the tile'] })
     api.script({ text: 'on it' })
     t.surface.posted.length = 0
     await controller.handle({ type: 'confirmHandoff', requestId: 'h1', brief: EDITED })
@@ -8513,6 +8537,55 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     expect(body).toContain('1. Polish the tile')
     expect(body).not.toContain('Already shipped tile')
     expect(body).not.toContain('did the thing')
+  })
+
+  it('starts a brief the dialog showed whole in the starting mode, and one hiding a character in a mode that asks (D49)', async () => {
+    const options = { initialPermissionMode: 'auto', hasApprovalUi: true } as const
+    // Seen whole and started from the dialog: the starting mode, said nothing.
+    const seen = await handoffConversation(undefined, undefined, options)
+    await distil(seen, 'h1')
+    await confirmEdited(seen, 'h1')
+    expect(lastMode(seen)).toBe('auto')
+    expect(notices(seen.t).map((notice) => notice.text)).not.toContain(
+      fill(UI_TEXT.handoffUnshownMode, { mode: UI_TEXT.permissionModes.auto }),
+    )
+    const asking = fill(UI_TEXT.handoffUnshownMode, { mode: UI_TEXT.permissionModes.manual })
+    // A zero-width character in the brief the user started: not all of it was seen.
+    const hiddenInBrief = await handoffConversation(undefined, undefined, options)
+    await distil(hiddenInBrief, 'h1')
+    await confirmEdited(hiddenInBrief, 'h1', `${EDITED}${String.fromCodePoint(ZERO_WIDTH_SPACE)}`)
+    expect(lastMode(hiddenInBrief)).toBe('manual')
+    expect(notices(hiddenInBrief.t).at(-1)).toMatchObject({ level: 'info', text: asking })
+    // A direction override in an open item the dialog listed: the same.
+    const overridden = `Polish ${String.fromCodePoint(RIGHT_TO_LEFT_OVERRIDE)}elit eht`
+    const hiddenInTodo = await handoffConversation(
+      {
+        text: 'did the thing',
+        calls: [
+          {
+            name: 'todo_write',
+            arguments: JSON.stringify({ items: [{ text: overridden, status: 'pending' }] }),
+          },
+        ],
+      },
+      undefined,
+      options,
+    )
+    expect(await distil(hiddenInTodo, 'h1')).toMatchObject({ todos: [overridden] })
+    await confirmEdited(hiddenInTodo, 'h1')
+    expect(lastMode(hiddenInTodo)).toBe('manual')
+    expect(notices(hiddenInTodo.t).at(-1)).toMatchObject({ level: 'info', text: asking })
+  })
+
+  it('keeps a handoff from Plan mode in Plan, whatever the starting mode', async () => {
+    const conversation = await handoffConversation(undefined, undefined, {
+      initialPermissionMode: 'auto',
+      hasApprovalUi: true,
+    })
+    await conversation.controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+    await distil(conversation, 'h1')
+    await confirmEdited(conversation, 'h1')
+    expect(lastMode(conversation)).toBe('plan')
   })
 
   it('refuses where it cannot run, starting nothing', async () => {
@@ -8597,6 +8670,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
         type: 'handoffReady',
         requestId: 'h1',
         brief: BRIEF,
+        todos: [],
       })
     })
     expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)

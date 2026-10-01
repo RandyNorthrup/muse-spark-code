@@ -688,6 +688,7 @@
   "handoffFailed": "Předání se nepodařilo připravit",
   "handoffTooLarge": "Shrnutí je větší než {size} KB; spusťte novou konverzaci ručně.",
   "handoffChangedNotStarted": "Předání nebylo spuštěno: konverzace se mezitím změnila.",
+  "handoffUnshownMode": "Nová konverzace začíná v režimu {mode}: shrnutí obsahuje řídicí nebo formátovací znak (například přepnutí směru textu nebo znak nulové šířky), který dialog nezobrazuje, takže jste ho neviděli celé.",
   "planOpenFailed": "Plán se nepodařilo otevřít",
   "sideChatSessionOnly": "Tento vedlejší chat může otevřít pouze vedlejší chaty.",
   "renameFailed": "Konverzaci se nepodařilo přejmenovat",

@@ -3,7 +3,7 @@
 // host's brief opens a dialog before anything starts, and Start sends the
 // edited brief back while Cancel drops it.
 
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -13,6 +13,13 @@ import { testSettings } from './helpers/fakes'
 
 const REQUEST_ID = 'handoff:local-1:1'
 const BRIEF = '## Goal\nShip it.\n\n## Todo list\n- [ ] Ship it'
+/** The host's brief for REQUEST_ID, with no open items. */
+const READY: Extract<HostToWebviewMessage, { type: 'handoffReady' }> = {
+  type: 'handoffReady',
+  requestId: REQUEST_ID,
+  brief: BRIEF,
+  todos: [],
+}
 
 function deliver(data: HostToWebviewMessage) {
   act(() => {
@@ -81,15 +88,20 @@ describe('/handoff (M74)', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'requestHandoff', requestId: REQUEST_ID })
   })
 
-  it('shows the brief before anything starts; Start sends the edited brief back', () => {
+  it('shows the brief and the open items it seeds before anything starts; Start sends the edited brief back', () => {
     const postMessage = renderPanel()
     submit('/handoff Ship it')
     expect(screen.queryByRole('dialog')).toBeNull()
-    deliver({ type: 'handoffReady', requestId: REQUEST_ID, brief: BRIEF, goal: 'Ship it' })
+    deliver({ ...READY, goal: 'Ship it', todos: ['Ship it', 'Tell the team'] })
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent(UI_TEXT.handoffDialogBody)
     expect(dialog).toHaveTextContent(fill(UI_TEXT.handoffRequestCardWithGoal, { goal: 'Ship it' }))
     expect(dialogText().value).toBe(BRIEF)
+    // Everything of the model's the new conversation reads is on screen (D49).
+    const items = within(screen.getByRole('list', { name: UI_TEXT.todoTitle })).getAllByRole(
+      'listitem',
+    )
+    expect(items.map((item) => item.textContent)).toEqual(['Ship it', 'Tell the team'])
     // Nothing started: no new conversation, no message sent.
     expect(postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'clearConversation' }),
@@ -107,7 +119,7 @@ describe('/handoff (M74)', () => {
   it('keeps the dialog when the host refuses the confirm, and drops it when the conversation clears', () => {
     const postMessage = renderPanel()
     submitCommand('/handoff')
-    deliver({ type: 'handoffReady', requestId: REQUEST_ID, brief: BRIEF })
+    deliver(READY)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.handoffConfirm }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'confirmHandoff',
@@ -127,7 +139,7 @@ describe('/handoff (M74)', () => {
   it('cancels the handoff without starting anything', () => {
     const postMessage = renderPanel()
     submitCommand('/handoff')
-    deliver({ type: 'handoffReady', requestId: REQUEST_ID, brief: BRIEF })
+    deliver(READY)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'cancelHandoff', requestId: REQUEST_ID })
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -139,8 +151,10 @@ describe('/handoff (M74)', () => {
   it('ignores a result for another request', () => {
     renderPanel()
     submitCommand('/handoff')
-    deliver({ type: 'handoffReady', requestId: REQUEST_ID, brief: BRIEF })
+    deliver(READY)
     deliver({ type: 'handoffCommandResult', requestId: 'handoff:other:9', accepted: false })
     expect(dialogText().value).toBe(BRIEF)
+    // No open items: no list.
+    expect(screen.queryByRole('list', { name: UI_TEXT.todoTitle })).toBeNull()
   })
 })
