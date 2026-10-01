@@ -46,6 +46,7 @@ function fakeStore() {
   }
   const store: CheckpointStoreApi = {
     isNativeUnsafe: false,
+    isStoragePath: () => false,
     markNativeBackend: () => done('native'),
     markUnprovenProcess: () => done('unproved'),
     capture: () => {

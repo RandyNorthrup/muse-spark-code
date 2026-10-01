@@ -15,6 +15,7 @@ import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   type CheckpointAvailability,
+  MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -74,6 +75,7 @@ export type CheckpointStoreApi = Pick<
   | 'queueForget'
   | 'maintain'
   | 'beforeToolWrite'
+  | 'isStoragePath'
   | 'isNativeUnsafe'
   | 'markNativeBackend'
   | 'markUnprovenProcess'
@@ -208,6 +210,11 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await gitStore()?.maintain()
     },
     beforeToolWrite: async (absolutePath) => {
+      // The store's own files (the repository's configuration among them) are never a
+      // tool's to write, whatever the setting: a filter planted there runs as the user.
+      if (deps.store?.isStoragePath(absolutePath) === true) {
+        throw new Error(MODEL_TEXT.checkpointStorageWrite)
+      }
       await onStore()?.beforeToolWrite(absolutePath)
     },
   }

@@ -2731,6 +2731,7 @@ export const MODEL_TEXT = {
   checkSkipRejected: 'the user rejected it',
   checkSkipHookDenied: 'a hook denied it',
   checkSkipRefused: 'the permission mode refuses shell commands',
+  checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
   checkSkipRestricted: 'shell commands are disabled while the workspace is in Restricted Mode',
   checkSkipUnsafePath:
     'a path starts with "-" or "@", or holds a control character or a character the shell would read as syntax, so it cannot be passed safely',

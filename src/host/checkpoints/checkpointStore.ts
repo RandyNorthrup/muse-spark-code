@@ -44,7 +44,7 @@ import type { Buffer } from 'node:buffer'
 import type { BackendKind } from '../../core/agent/agentBackend'
 import { turnKey } from '../../core/checkpoints/turnKey'
 import { createHash } from 'node:crypto'
-import { rmSync } from 'node:fs'
+import { rmSync, type Stats } from 'node:fs'
 import { copyFile, mkdir, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -91,7 +91,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import { isMissingPath } from '../canonicalPath'
+import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { isGitExitError, isGitMissingError, type GitProcess } from '../git'
 import type { Logger } from '../logger'
 import {
@@ -132,9 +132,12 @@ import {
   writeRecord,
 } from './recordRefs'
 import {
+  checkpointStorageRoot,
   indexFileInstance,
+  isWithinFolder,
   ShadowGit,
   ShadowPathTooLongError,
+  ShadowStorageInWorkspaceError,
   withoutGitVariables,
 } from './shadowGit'
 import { WindowPresence } from './windowPresence'
@@ -566,10 +569,33 @@ export class CheckpointStore {
       { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
     )
     shadow.assertFits()
+    shadow.assertSeparate()
     await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
     await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
     this.opened = { shadow, top, prefix }
     return { opened: this.opened }
+  }
+
+  /**
+   * The shadow repository for a turn's start, or undefined where none can ever
+   * exist: a path git cannot use, or storage and workspace holding one another.
+   * Every window of that folder meets the same refusal, so no restore can be
+   * running elsewhere and the message goes ahead with no checkpoint (a capture
+   * says so); any other failure still stops the message.
+   */
+  private async openIfUsable(): Promise<Opened | undefined> {
+    try {
+      const { opened } = await this.open()
+      return opened
+    } catch (error: unknown) {
+      if (
+        error instanceof ShadowPathTooLongError ||
+        error instanceof ShadowStorageInWorkspaceError
+      ) {
+        return undefined
+      }
+      throw error
+    }
   }
 
   /**
@@ -1188,8 +1214,39 @@ export class CheckpointStore {
     }
     await mkdir(this.stagingDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
     const staged = path.join(this.stagingDir, this.deps.newId())
-    await copyFile(absolute, staged)
+    await this.copyInsideWorkspace(absolute, staged, stats)
     return { staged, isExecutable, stat }
+  }
+
+  /**
+   * Copies a workspace file into staging, and keeps the copy only if it came from
+   * the workspace: a parent folder replaced by a link or a junction after the
+   * tool's own check would otherwise stage a file from outside it. The parent is
+   * resolved first and the copy is taken through that resolved path; afterwards the
+   * file and its parent are looked at again, and a copy that cannot be vouched for
+   * is deleted at once, so no outside bytes are retained.
+   */
+  private async copyInsideWorkspace(
+    absolute: string,
+    staged: string,
+    before: Stats,
+  ): Promise<void> {
+    const parent = await canonicalPath(path.dirname(absolute))
+    if (!isWithinFolder(parent, this.deps.workspaceRoot)) {
+      throw new Error(UI_TEXT.checkpointFailed)
+    }
+    await copyFile(path.join(parent, path.basename(absolute)), staged)
+    const after = await lstatOrUndefined(absolute)
+    const isSame =
+      after?.isFile() === true &&
+      after.ino === before.ino &&
+      after.dev === before.dev &&
+      (await canonicalPath(path.dirname(absolute))) === parent
+    if (isSame) {
+      return
+    }
+    await rm(staged, { force: true })
+    throw new Error(UI_TEXT.checkpointFailed)
   }
 
   /** The first copy the tools took of each file since the turn began, and each file's state now. */
@@ -1959,6 +2016,16 @@ export class CheckpointStore {
     })
   }
 
+  /** Takes this window's native fence back after a startup that was refused, and says so. */
+  private async withdrawNativeFence(): Promise<void> {
+    this.runningTurns.delete(CHECKPOINT_NATIVE_WINDOW)
+    try {
+      await this.presence.publish(this.publishedTurns())
+    } catch (error: unknown) {
+      this.deps.log.warn(`The native fence could not be withdrawn: ${failureForLog(error)}`)
+    }
+  }
+
   /** Native/process uncertainty in this window or a freshly observed peer. */
   public get isNativeUnsafe(): boolean {
     return this.hasUnprovedLocalWork() || this.isPeerUnsafe
@@ -1980,6 +2047,8 @@ export class CheckpointStore {
     if (this.stopping.signal.aborted) {
       throw new Error(UI_TEXT.sendMarkFailed)
     }
+    // A fence an earlier start set stays: only the one this call sets is withdrawn.
+    const isFirstStart = !this.runningTurns.has(CHECKPOINT_NATIVE_WINDOW)
     this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())
     this.startHeartbeat()
     try {
@@ -1988,6 +2057,13 @@ export class CheckpointStore {
         throw new Error(UI_TEXT.restoreTurnElsewhere)
       }
     } catch (error: unknown) {
+      // The callers start nothing after a rejection, so no process exists to
+      // outlive it: leaving the fence would keep this window and its peers
+      // `nativeUnsafe` (and, since dispose keeps an unproved presence file, across
+      // restarts) with nothing running.
+      if (isFirstStart) {
+        await this.withdrawNativeFence()
+      }
       if (error instanceof Error && error.message === UI_TEXT.restoreTurnElsewhere) {
         throw error
       }
@@ -2108,8 +2184,8 @@ export class CheckpointStore {
     try {
       await this.presence.publish(this.publishedTurns())
       if (isRunning && canRunGit) {
-        const { opened } = await this.open()
-        if ((await refValue(opened.shadow, RESTORE_REF)) !== undefined) {
+        const opened = await this.openIfUsable()
+        if (opened !== undefined && (await refValue(opened.shadow, RESTORE_REF)) !== undefined) {
           throw new Error(UI_TEXT.restoreTurnElsewhere)
         }
       } else if (isRunning && (await this.hasReservedFiles())) {
@@ -2159,6 +2235,11 @@ export class CheckpointStore {
         .filter((record) => record.sessionId === sessionId)
         .map((record) => record.turnId)
     })
+  }
+
+  /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
+  public isStoragePath(absolutePath: string): boolean {
+    return isWithinFolder(absolutePath, checkpointStorageRoot(this.deps.storageDir))
   }
 
   /**

@@ -525,6 +525,26 @@ happened, not what was planned; superseded entries are kept.
   could not all be put back now keep the conversation from being rewound, as the
   confirmation says.
 
+- **The checkpoint storage is never the model’s to edit** (M72). Checkpoints
+  refuse a workspace that holds their storage (a profile folder opened as a
+  workspace), and the tools refuse every file inside the checkpoint storage, so
+  no file the model writes can change the repository a turn’s end runs git on.
+
+- **A checkpoint copy never takes a file from outside the workspace** (M72), even
+  when a folder was replaced by a link after the tool’s check.
+
+- **Fork conversation and rewind code stops when an edit cannot be reverted**
+  (M72), instead of forking away from the history the code still matches.
+
+- **A check that never started is reported as not run** (M68/M72), not as a
+  failed command with hooks around it.
+
+- **A native start that a restore refuses no longer blocks restores** (M72);
+  nothing started, so the window is not marked unsafe.
+
+- **A file a turn made visible to git is put back from the copy kept** (M72),
+  when a `.gitignore` change made an ignored file show up as new.
+
 - **A `!` command is checked again at its real start** (M72). On the Model
   API backend, a `!` command you typed could still start after the workspace
   lost trust, after your Stop, or while the window was closing, when a

@@ -120,6 +120,32 @@ export class ShadowPathTooLongError extends Error {
   }
 }
 
+/**
+ * The checkpoint storage and the workspace hold one another, so the model's file
+ * tools could rewrite the repository's own configuration (a clean filter runs as
+ * the user at the turn's end). Nothing was made or run.
+ */
+export class ShadowStorageInWorkspaceError extends Error {
+  public constructor() {
+    super('the checkpoint storage and the workspace overlap')
+    this.name = 'ShadowStorageInWorkspaceError'
+  }
+}
+
+/** Whether `candidate` is `folder` or below it, by path segment and the platform's own case rules. */
+export function isWithinFolder(candidate: string, folder: string): boolean {
+  const relative = path.relative(folder, candidate)
+  return (
+    relative === '' ||
+    (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  )
+}
+
+/** The folder of every checkpoint namespace this extension keeps: no tool writes there. */
+export function checkpointStorageRoot(storageDir: string): string {
+  return path.dirname(storageDir)
+}
+
 /** The folder a window's initializer is made in: a short name, unique to the window. */
 function initializerName(instance: string): string {
   const digest = createHash('sha256').update(instance).digest('hex')
@@ -376,6 +402,19 @@ export class ShadowGit {
     const top = this.layout.top.length
     if (top > this.directoryMax) {
       throw new ShadowPathTooLongError('workspace', top, this.directoryMax)
+    }
+  }
+
+  /**
+   * Refuses a workspace that holds the checkpoint storage (or is held by it): the
+   * model's file tools could then rewrite `shadow.git/config` and the like, and a
+   * filter they install runs as the user. Checked before any file is made.
+   */
+  public assertSeparate(): void {
+    const { storageDir, top } = this.layout
+    // Any namespace's storage inside the workspace, or the workspace inside this storage.
+    if (isWithinFolder(checkpointStorageRoot(storageDir), top) || isWithinFolder(top, storageDir)) {
+      throw new ShadowStorageInWorkspaceError()
     }
   }
 
