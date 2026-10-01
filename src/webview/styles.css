@@ -2721,11 +2721,6 @@ body {
   padding-top: var(--ms-gap);
 }
 
-.share-heading {
-  margin: 0 0 var(--ms-gap);
-  font-size: 1em;
-}
-
 /* Reduced motion (M25): every animation and transition in the panel stops,
    not only the microphone's pulse. */
 @media (prefers-reduced-motion: reduce) {

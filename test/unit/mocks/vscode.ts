@@ -116,7 +116,6 @@ export const workspace = {
     writeFile: vi.fn<typeof vscode.workspace.fs.writeFile>(),
     // The Memory view's delete, to the trash (M49).
     delete: vi.fn<typeof vscode.workspace.fs.delete>(),
-    // Reading a picked session-export file within its size cap (M84).
     // The verify loop (M68): when a shown file was written, and what it holds.
     stat: vi.fn<typeof vscode.workspace.fs.stat>(),
     readFile: vi.fn<typeof vscode.workspace.fs.readFile>(),
