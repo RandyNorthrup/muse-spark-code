@@ -1226,6 +1226,7 @@
   "usagePaidSubagentReported": "Estimation des jetons déclarés : {cost}",
   "usagePaidTotal": "Total estimé des fonctionnalités payantes",
   "usagePaidNote": "Estimation d’après les prix publiés par Meta, relevés le {date}, pour cette fenêtre depuis son ouverture ; le tableau de bord dev.meta.ai fait foi pour la facture.",
+  "agentToolNotOffered": "Cet outil ne figure pas dans la liste des outils autorisés de cet agent. Utilisez uniquement les outils proposés dans ses instructions.",
   "subagentPaidOff": "Les sous-agents payants sont désactivés. Activez-les et acceptez le prix avant de lancer une tâche enfant.",
   "subagentConsentDeclined": "La tâche enfant payante n’a pas été approuvée.",
   "subagentContributorBlocked": "L’agent personnalisé nomme un modèle de niveau contributeur, qui ne peut pas s’exécuter tant que cet espace de travail est confidentiel (museSpark.confidentialWorkspace).",

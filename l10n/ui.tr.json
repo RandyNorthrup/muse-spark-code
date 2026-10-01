@@ -1193,6 +1193,7 @@
   "usagePaidSubagentReported": "Bildirilen token tahmini: {cost}",
   "usagePaidTotal": "Tahmini ücretli toplam",
   "usagePaidNote": "Bu pencere açıldığından beri, Meta'nın yayımladığı fiyatlara dayalı tahmin; asıl fatura dev.meta.ai panosundadır. Fiyatların okunduğu tarih: {date}.",
+  "agentToolNotOffered": "Bu araç, bu aracının izin verilen araçlar listesinde yok. Yalnızca aracının talimatlarında sunulan araçları kullanın.",
   "subagentPaidOff": "Ücretli alt ajanlar kapalı. Alt görevi başlatmadan önce etkinleştirip fiyatı kabul edin.",
   "subagentConsentDeclined": "Ücretli alt görev onaylanmadı.",
   "subagentContributorBlocked": "Özel aracı, bu çalışma alanı gizliyken çalıştırılamayan bir katkıcı katmanı modeli adlandırıyor (museSpark.confidentialWorkspace).",

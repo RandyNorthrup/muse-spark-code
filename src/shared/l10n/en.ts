@@ -1547,6 +1547,8 @@ export const EN = {
     'Estimated at Meta’s published prices, read on {date}, for this window since it opened; the dev.meta.ai dashboard is the bill.',
   subagentPaidOff:
     'Paid subagents are off. Enable them and accept the price before starting a child task.',
+  agentToolNotOffered:
+    'This tool is not in this agent’s allowlist. Use only the tools offered in its instructions.',
   subagentConsentDeclined: 'The paid child task was not approved.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',

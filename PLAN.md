@@ -8588,6 +8588,12 @@ extension's own storage, never the workspace's `.git`.
   No candidate merge this round. Focused tests run on rigs in slot `m76`;
   serial local lane gates run before handoff. Full quality and editor/platform
   certification remain lead-owned under `common.md`.
+  **Lane result:** all three findings reproduced on `eb606fcb`, fixed with
+  fake HTTP, and drilled with byte-exact restoration. The final affected
+  suites passed 813 tests on Kubuntu; all eight required serial Windows
+  checks passed, including the production build within every existing cap.
+  `docs/certification/m76.md` records the original failures, five drills and
+  gate receipts. No candidate merge was performed this round.
 
 - **Goal.** Specialised agents with their own prompt, tools, model or
   effort, and permissions.
@@ -9506,6 +9512,14 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**M76b lane boundary (2026-10-01):** the owner's `common.md` explicitly
+forbids a full `npm run quality` or full unit run in this shared lane and
+assigns aggregate quality, coverage, accessibility, editor/platform and
+release gates to the lead. `M76b.md` also excludes the candidate merge this
+round. Finding commits use normal lint/format/secret hooks; the required
+focused tests and eight local lane checks pass. These results do not close
+the lead's remaining certification gates or change any gate configuration.
 
 **Merge goal progress (2026-09-29, America/Los_Angeles):** PR #32 merged at
 17:31 (`fefb6068`), PR #57/M67 at 18:20 (`4c35e73e`), and PR #52/M69 at

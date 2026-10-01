@@ -542,7 +542,8 @@ once, when the conversation starts.
   load.
 - **What an agent can do.** It can only narrow what the session already has.
   A tool outside its `tools` list is not offered and, if the model names it
-  anyway, refused, memory tools included; automatic check commands need
+  anyway, refused, memory tools included. Allowlist refusals use the installed
+  display language. Automatic check commands need
   `run_checks` or the platform shell in the list, and `then_run` (which
   runs any command line) needs the shell. A
   `permission-mode` wider than the session's gets the session's, and a mode

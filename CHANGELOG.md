@@ -48,6 +48,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Custom-agent allowlist refusals show translated UI text in every supported
+  display language while the model's tool result remains English.
+
 - Custom-agent spawn admission uses the effective child tool set, excluding
   parent-only questions, todos/goals and subagent controls. An empty
   intersection sends no paid child request; mixed lists retain usable tools.

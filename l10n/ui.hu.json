@@ -1193,6 +1193,7 @@
   "usagePaidSubagentReported": "Jelentett tokenek becsült költsége: {cost}",
   "usagePaidTotal": "A fizetős funkciók becsült összege",
   "usagePaidNote": "Becslés a Meta által közzétett árak alapján (lekérdezve: {date}), erre az ablakra a megnyitása óta; a tényleges számla a dev.meta.ai irányítópultján látható.",
+  "agentToolNotOffered": "Ez az eszköz nem szerepel az ügynök engedélyezett eszközeinek listáján. Csak az utasításaiban felkínált eszközöket használja.",
   "subagentPaidOff": "A fizetős alügynökök ki vannak kapcsolva. Az alfeladat indítása előtt kapcsolja be őket, és fogadja el az árat.",
   "subagentConsentDeclined": "A fizetős alfeladatot nem hagyták jóvá.",
   "subagentContributorBlocked": "Az egyéni ügynök közreműködői szintű modellt nevez meg, amely nem futhat, amíg ez a munkaterület bizalmas (museSpark.confidentialWorkspace).",

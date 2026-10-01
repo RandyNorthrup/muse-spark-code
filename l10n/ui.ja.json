@@ -1160,6 +1160,7 @@
   "usagePaidSubagentReported": "報告されたトークンの推定費用：{cost}",
   "usagePaidTotal": "有料機能の推定合計",
   "usagePaidNote": "このウィンドウを開いてからの、Meta が公開している価格に基づく推定値です。請求額は dev.meta.ai ダッシュボードで確認してください。価格の取得日: {date}。",
+  "agentToolNotOffered": "このツールは、このエージェントの許可リストに含まれていません。エージェントの指示で提供されているツールのみを使用してください。",
   "subagentPaidOff": "有料サブエージェントはオフです。子タスクを始める前に有効にして料金を承認してください。",
   "subagentConsentDeclined": "有料の子タスクは承認されませんでした。",
   "subagentContributorBlocked": "カスタムエージェントがコントリビューターレベルのモデルを指定しています。このワークスペースが機密扱いの間は実行できません (museSpark.confidentialWorkspace)。",

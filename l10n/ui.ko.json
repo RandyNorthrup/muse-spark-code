@@ -1160,6 +1160,7 @@
   "usagePaidSubagentReported": "보고된 토큰 예상 비용: {cost}",
   "usagePaidTotal": "예상 유료 합계",
   "usagePaidNote": "이 창을 연 이후의 사용량을 Meta가 게시한 가격으로 계산한 추정치입니다. 실제 청구 금액은 dev.meta.ai 대시보드를 확인하세요. 가격 확인 날짜: {date}.",
+  "agentToolNotOffered": "이 도구는 이 에이전트의 허용 목록에 없습니다. 에이전트의 지침에 제시된 도구만 사용하세요.",
   "subagentPaidOff": "유료 하위 에이전트가 꺼져 있습니다. 하위 작업을 시작하기 전에 활성화하고 가격을 승인하세요.",
   "subagentConsentDeclined": "유료 하위 작업이 승인되지 않았습니다.",
   "subagentContributorBlocked": "사용자 지정 에이전트가 기여자 등급 모델을 지정했는데, 이 작업 영역이 기밀인 동안에는 실행할 수 없습니다(museSpark.confidentialWorkspace).",

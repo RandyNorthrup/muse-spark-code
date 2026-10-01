@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -80,6 +80,7 @@ import { countLogged } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
+import { loadUiTable } from '../../src/host/l10n'
 
 const ROOT = '/ws'
 
@@ -7009,6 +7010,37 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(store.saved.get(session.sessionId)?.children?.[0]?.session.agent).toMatchObject({
       toolAllowlist: ['read_file'],
     })
+  })
+
+  it('localizes an allowlist refusal with the installed German table (RV76 P3)', async () => {
+    const t = setupSubagents()
+    try {
+      const loaded = await loadUiTable({
+        language: 'de',
+        readExtensionFile: () =>
+          Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
+        log: t.log,
+      })
+      expect(loaded.locale).toBe('de')
+      const { session, events } = await startApprovedSubagentSession(t)
+      await spawnExploreAndWait(t, session)
+      scriptChildWrite(t, 'refused-de.txt', 'x', 'refused_de_write', 'Child done.')
+      await session.messageSubagent('subagent-1', 'Try writing', true)
+      await waitForChildSummary(session, 'Child done.')
+      const translated =
+        'Dieses Werkzeug steht nicht auf der Zulassungsliste dieses Agenten. Verwenden Sie nur die in seinen Anweisungen angebotenen Werkzeuge.'
+      expect(toolRows(events).find((row) => row.tool === 'write_file')).toMatchObject({
+        status: 'failed',
+        visibleOutput: translated,
+        failureReason: translated,
+      })
+      expect(outputFor(childBodies(t).at(-1), 'refused_de_write')).toMatchObject({
+        output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      })
+      expect(t.files.has(`${ROOT}/refused-de.txt`)).toBe(false)
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 
   it.each([

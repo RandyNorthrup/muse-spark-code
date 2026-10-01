@@ -1226,6 +1226,7 @@
   "usagePaidSubagentReported": "Estimación de tokens registrados: {cost}",
   "usagePaidTotal": "Total estimado de las funciones de pago",
   "usagePaidNote": "Estimación con los precios que Meta publica, consultados el {date}, para esta ventana desde que se abrió; la factura es la del panel de dev.meta.ai.",
+  "agentToolNotOffered": "Esta herramienta no está en la lista de herramientas permitidas de este agente. Usa solo las herramientas que se ofrecen en sus instrucciones.",
   "subagentPaidOff": "Los subagentes de pago están desactivados. Actívelos y acepte el precio antes de iniciar una tarea secundaria.",
   "subagentConsentDeclined": "No se aprobó la tarea secundaria de pago.",
   "subagentContributorBlocked": "El agente personalizado nombra un modelo de nivel de colaborador, que no puede ejecutarse mientras este espacio de trabajo sea confidencial (museSpark.confidentialWorkspace).",

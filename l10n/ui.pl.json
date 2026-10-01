@@ -1259,6 +1259,7 @@
   "usagePaidSubagentReported": "Szacunkowy koszt zgłoszonych tokenów: {cost}",
   "usagePaidTotal": "Szacowany koszt płatnych funkcji",
   "usagePaidNote": "Szacunek według opublikowanych przez Meta cen (odczytanych {date}) dla tego okna od jego otwarcia; rachunkiem jest pulpit dev.meta.ai.",
+  "agentToolNotOffered": "Tego narzędzia nie ma na liście dozwolonych narzędzi tego agenta. Używaj tylko narzędzi udostępnionych w jego instrukcjach.",
   "subagentPaidOff": "Płatni podagenci są wyłączeni. Włącz ich i zaakceptuj cenę przed rozpoczęciem zadania podrzędnego.",
   "subagentConsentDeclined": "Płatne zadanie podrzędne nie zostało zatwierdzone.",
   "subagentContributorBlocked": "Agent niestandardowy wskazuje model w warstwie współtwórcy, który nie może działać, dopóki ten obszar roboczy jest poufny (museSpark.confidentialWorkspace).",

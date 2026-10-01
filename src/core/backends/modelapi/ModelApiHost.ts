@@ -842,8 +842,8 @@ function pressureFor(used: number, window: number): string {
   return fraction >= CONTEXT_PRESSURE_MEDIUM ? PRESSURE_MEDIUM : PRESSURE_LOW
 }
 
-function toolFailure(reason: string): ToolOutcome {
-  return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+function toolFailure(reason: string, visibleReason = reason): ToolOutcome {
+  return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
 
 /** A web fetch that did not happen: the model's reason, the row's in the user's language. */
@@ -4946,7 +4946,10 @@ export class ModelApiSession implements AgentSession {
     // The allowlist binds every dispatcher, including memory's specialized
     // path: definitions alone cannot stop a model calling a tool by name.
     if (this.agent?.toolAllowlist !== undefined && !this.agent.toolAllowlist.includes(call.name)) {
-      return { outcome: toolFailure(MODEL_TEXT.agentToolNotOffered), isRejected: false }
+      return {
+        outcome: toolFailure(MODEL_TEXT.agentToolNotOffered, UI_TEXT.agentToolNotOffered),
+        isRejected: false,
+      }
     }
     if (isMemoryTool(call.name)) {
       return await this.decideAndRunMemory(
