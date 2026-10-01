@@ -6888,15 +6888,16 @@ export class ModelApiSession implements AgentSession {
     if (mode !== 'denyUnmatched' && this.isSideChat) {
       return Promise.reject(new Error(UI_TEXT.sideChatPlanOnly))
     }
-    if (!(APPROVAL_MODES as readonly string[]).includes(mode)) {
+    const approvalMode = APPROVAL_MODES.find((known) => known === mode)
+    if (approvalMode === undefined) {
       return Promise.reject(new Error(`unknown approval mode ${mode}`))
     }
     // A custom agent's ceiling survives a session mode switch (M76 review):
     // the child re-narrows instead of running wider than its definition.
     this.permissions.setMode(
       this.agent?.approvalMode === undefined
-        ? (mode as ApprovalMode)
-        : narrowApprovalMode(mode as ApprovalMode, this.agent.approvalMode),
+        ? approvalMode
+        : narrowApprovalMode(approvalMode, this.agent.approvalMode),
     )
     for (const child of this.children.values()) {
       void child.session.setApprovalMode(mode)

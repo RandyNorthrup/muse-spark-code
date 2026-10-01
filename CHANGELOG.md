@@ -55,11 +55,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Project context files read through the canonical path confinement approved.
+  Replacing an agent/skill/rules alias with an outside link between check and
+  read no longer redirects the read outside the workspace.
 - Custom-agent creation rechecks workspace trust after contributor and paid
   consent waits. Revoking trust while the popup is open creates no child
   and makes no paid child-model request. The loader checks trust before it
   starts and discards a catalogue completed after trust withdrawal. Agent
   role prompts explicitly label their content as untrusted.
+- The retained-surface checkpoint test waits for its real preparation hook
+  before checking the model request. Request and test deadlines and restore
+  assertions are unchanged; cold Git setup no longer races the observation.
 
 ## [0.10.0] - 2026-09-30
 

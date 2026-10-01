@@ -562,6 +562,8 @@ once, when the conversation starts.
   files load only in a trusted workspace: a session that loses trust offers
   no agent, including when trust is revoked during the paid-use popup, and a resumed child's
   project role is left out while the workspace is untrusted.
+  Project files are read through their approved canonical path, so replacing
+  the original link or junction after confinement does not redirect the read.
 - **The model runs one** through `subagent_spawn` with `agent` set to its id;
   the catalogue appears in its instructions only while paid subagents are on.
   On the CLI backend Muse Code reads its own agents and this extension sends

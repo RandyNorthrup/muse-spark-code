@@ -115,13 +115,17 @@ export async function readContextText(
   confineTo: string | undefined,
   maxBytes?: number,
 ): Promise<ContextText | undefined> {
+  let readPath = absolutePath
   if (confineTo !== undefined) {
     const resolution = await confineWorkspacePath(confineTo, absolutePath, deps.platform, deps.io)
     if (!resolution.ok) {
       return { ok: false, reason: `is refused: ${resolution.reason}` }
     }
+    // Read the path that was checked: a project alias may be replaced with
+    // an outside link or junction while canonical resolution awaits.
+    readPath = resolution.checkedAbsolute
   }
-  const bytes = await deps.io.readFile(absolutePath, maxBytes)
+  const bytes = await deps.io.readFile(readPath, maxBytes)
   if (bytes === undefined) {
     return undefined
   }

@@ -1184,9 +1184,12 @@ describe('Model API turn checkpoint admission (M72)', () => {
         hasGit: () => true,
         isEnabled: () => true,
       })
+      const prepared = Promise.withResolvers<undefined>()
       const t = setup({
-        beforeTurnRuns: (sessionId, turnId) =>
-          prepareCheckpointTurn(port, sessionId, turnId, h.log),
+        beforeTurnRuns: async (sessionId, turnId) => {
+          await prepareCheckpointTurn(port, sessionId, turnId, h.log)
+          prepared.resolve(undefined)
+        },
         afterTurnRuns: async (sessionId, turnId) => {
           await port.endTurn(sessionId, turnId)
           await port.markTurn(`${sessionId}\0${turnId}`, false)
@@ -1221,6 +1224,9 @@ describe('Model API turn checkpoint admission (M72)', () => {
         const pending = await closing.beforeTurn(session.sessionId)
         const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
         closing.accepted(pending, started.turnId, true)
+        // A model request follows real Git preparation; wait for that
+        // prerequisite before starting the existing request deadline.
+        await prepared.promise
         await vi.waitFor(() => {
           expect(t.api.responseBodies()).toHaveLength(1)
         })

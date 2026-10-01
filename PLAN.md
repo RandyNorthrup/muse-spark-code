@@ -8626,6 +8626,14 @@ extension's own storage, never the workspace's `.git`.
   discard a catalogue completed after trust withdrawal. Restore the missing certification record
   with current lane checks and red/restored proofs; lead-owned aggregate and
   platform gates remain open. The brief's handoff path is missing.
+  The inherited retained-surface checkpoint test must await its existing
+  preparation hook before its model-request assertion; repeated lane runs
+  raced real Git setup. Preserve its request deadline, test timeout and
+  restore assertions. Record the two test-only session casts in §8 and
+  select a known approval-mode member without an unchecked cast.
+  Read the canonical file that confinement approved, rather than resolving
+  the project alias again after a symlink/junction may have changed; a link
+  swap regression must keep outside prompt text out of the catalogue.
 - **Status 2026-09-30: built on `feature/m76-agents`** over the M72 release
   candidate (`1fd98aaf`), after a first build on 2026-09-28 (Muse Code) and
   a resume that ported it over main `32709441`; the record is
@@ -9644,6 +9652,10 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 | `src/runtime/main.ts`                    | `nosemgrep` on `spawn` (`detect-child-process`)                    | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
 | -------------------------------------    | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/verifyEditor.test.ts`         | `as unknown as` on five `vscode` stubs                             | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+
+| File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
+| -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/modelApiHost.test.ts` | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
 
 ## 9. Security assumptions and accepted residual risk
 

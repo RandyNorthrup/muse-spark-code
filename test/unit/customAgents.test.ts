@@ -23,7 +23,7 @@ import {
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
 } from '../../src/shared/constants'
-import { loaderDeps } from './helpers/fakeContextIo'
+import { loaderDeps, memoryContextIo, memoryTree } from './helpers/fakeContextIo'
 
 const ROOT = '/ws'
 const USER_ROOT = '/ws/.home/.config/muse/agents'
@@ -325,6 +325,30 @@ describe('loadAgents', () => {
     expect(load.warnings).toEqual([
       `project agent huge skipped: AGENT.md is over the ${String(AGENT_FILE_MAX_BYTES)} byte limit`,
     ])
+  })
+
+  it('reads the approved canonical file when a project link changes after confinement', async () => {
+    const alias = `${ROOT}/.agents/agents/scout`
+    const links = { [alias]: `${ROOT}/kept/scout` }
+    const files = memoryTree(
+      { 'kept/scout/AGENT.md': agentFile('scout', 'Kept', '', 'Confined prompt') },
+      ROOT,
+    )
+    files.set('/outside/scout/AGENT.md', agentFile('scout', 'Outside', '', 'Outside prompt'))
+    const inner = memoryContextIo(files, links)
+    const io = {
+      ...inner,
+      realPath: async (file: string) => {
+        const checked = await inner.realPath(file)
+        // The link was inside when checked; another process replaces it
+        // before the read. Reading the alias again would expose outside text.
+        if (file === `${alias}/AGENT.md`) links[alias] = '/outside/scout'
+        return checked
+      },
+    }
+    const load = await loadAgents({ io, platform: 'linux' }, roots)
+    expect(load.agents.find((agent) => agent.id === 'scout')?.body).toBe('Confined prompt')
+    expect(load.warnings).toEqual([])
   })
 
   it('loads at most AGENT_MAX_FILES files, naming each one left out', async () => {
