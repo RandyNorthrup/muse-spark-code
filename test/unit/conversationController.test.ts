@@ -8784,6 +8784,62 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     }
   })
 
+  it("says once, on the request's card, that a turn started during its send refused it", async () => {
+    // Holds the send's first host lookup once the request's card is up.
+    const watched: { t?: ReturnType<typeof setup> } = {}
+    let hasHeld = false
+    const entered = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    const conversation = await handoffConversation(undefined, async () => {
+      const isCardUp =
+        watched.t?.surface.posted.some((posted) => posted.type === 'briefSubmitted') === true
+      if (hasHeld || !isCardUp) {
+        return
+      }
+      hasHeld = true
+      entered.resolve(undefined)
+      await released.promise
+    })
+    const { t, api, controller } = conversation
+    watched.t = t
+    const ordinaryReleased = Promise.withResolvers<unknown>()
+    const requesting = controller.handle(handoff('h1'))
+    try {
+      await entered.promise
+      api.script({ hold: ordinaryReleased.promise, text: 'ordinary reply' })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'ordinary',
+        text: 'continue normally',
+        attachmentIds: [],
+      })
+      released.resolve(undefined)
+      await requesting
+      // The card failed with the reason; no notice repeats it.
+      const card = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+      const said = [
+        ...notices(t).map((notice) => notice.text),
+        ...t.surface.posted.flatMap((posted) =>
+          posted.type === 'sendFailed' &&
+          card?.type === 'briefSubmitted' &&
+          posted.localId === card.localId
+            ? [posted.reason]
+            : [],
+        ),
+      ]
+      expect(said.filter((text) => text === UI_TEXT.handoffWaitTurn)).toHaveLength(1)
+      expect(notices(t).map((notice) => notice.text)).not.toContain(UI_TEXT.handoffWaitTurn)
+      expect(t.surface.posted).toContainEqual({
+        type: 'handoffCommandResult',
+        requestId: 'h1',
+        accepted: false,
+      })
+    } finally {
+      released.resolve(undefined)
+      ordinaryReleased.resolve(undefined)
+    }
+  })
+
   it('cancels a held Start before commit and preserves a newer handoff operation', async () => {
     const gate = holdNextHandoffHost()
     const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)

@@ -3913,7 +3913,9 @@ export class ConversationController {
         if (handoff !== undefined && !this.isCurrentHandoff(handoff)) {
           throw new Error(UI_TEXT.turnStoppedByRestart)
         }
-        if (handoff !== undefined && !hasSubmittedHandoff && !this.canDistilHandoff(handoff)) {
+        // A turn that started meanwhile refuses the handoff's request once,
+        // as the reason its card failed, with no notice besides (M74).
+        if (handoff !== undefined && !hasSubmittedHandoff && this.activeTurnId !== undefined) {
           throw new Error(UI_TEXT.handoffWaitTurn)
         }
       }
