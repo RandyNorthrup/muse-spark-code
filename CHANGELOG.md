@@ -61,6 +61,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Late review acknowledgements are fenced to the submitted session and
+  generation before checkpoint or turn acceptance, so a cleared conversation
+  cannot inherit an old running turn.
 - Review admission waits for an ordinary permission-mode request to settle;
   a refused request cannot launch a review under the preceding backend mode.
 

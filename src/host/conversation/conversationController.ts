@@ -3905,18 +3905,21 @@ export class ConversationController {
         },
       ]
       this.deps.log.info(`Review of the ${request.scope} scope (${request.focus}) starting`)
-      const submission = await this.runResuming(host, session, (current) =>
-        this.submitReview(
+      let submittedSession = session
+      const submission = await this.runResuming(host, session, (current) => {
+        submittedSession = current
+        return this.submitReview(
           current,
           parts,
           text,
           generation,
           isGitReview(request),
           isMaterialCurrent,
-        ),
-      )
-      if (this.isDisposed) {
-        return
+        )
+      })
+      // A dropped session's pending command may still acknowledge its turn.
+      if (!this.isCurrentSessionAction(submittedSession, generation)) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
       }
       if (material !== undefined) {
         this.noteReviewMaterial(material)

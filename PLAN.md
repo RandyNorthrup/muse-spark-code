@@ -7776,6 +7776,12 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   controller fixtures now arrange held admission before the retarget action;
   retained Model API checkpoint test waits for actual admission (331 pass).
   Deadlines and assertions unchanged; proof in `docs/certification/m70.md`.
+- **RV70 finding 2 verified (M70c).** Track the submitted session, including
+  owned resume recovery, and apply the current session/generation fence after
+  acknowledgement before accepting its capture/turn. Clear and retire cases
+  fail without the guard; full controller file passes 331 tests after exact
+  restoration. M57's real bundle fixture is built in its existing setup hook,
+  retaining its deadline and goal-refusal assertions.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:

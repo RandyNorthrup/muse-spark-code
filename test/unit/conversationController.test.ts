@@ -7325,9 +7325,10 @@ describe('ConversationController: scheduled prompts (M52)', () => {
 })
 
 describe('ConversationController: the Model API bundle (M57, PLAN.md D6)', () => {
-  const bundle = { folder: '' }
-  beforeAll(() => {
+  const bundle = { folder: '', file: '' }
+  beforeAll(async () => {
     bundle.folder = mkdtempSync(path.join(tmpdir(), 'muse-controller-bundle-'))
+    bundle.file = await buildModelApiBundle(bundle.folder)
   })
   afterAll(() => removeFolder(bundle.folder))
 
@@ -7344,7 +7345,7 @@ describe('ConversationController: the Model API bundle (M57, PLAN.md D6)', () =>
           ids += 1
           return `bundle-${String(ids)}`
         },
-        bundlePath: await buildModelApiBundle(bundle.folder),
+        bundlePath: bundle.file,
       }),
     )
     const controller = new ConversationController({
@@ -7600,6 +7601,68 @@ describe('ConversationController: review (M70)', () => {
           expect.objectContaining({ type: 'sendFailed', localId: 'r1' }),
         )
       }
+      t.controller.dispose()
+    },
+  )
+
+  /** A dropped session's command may resolve without owning the current conversation. */
+  it.each(['clearConversation', 'backendStopping'] as const)(
+    'refuses a late review acknowledgement after %s (RV70 finding 2)',
+    async (action) => {
+      const t = reviewSetup({ initialPermissionMode: 'plan', checkpointAvailability: 'on' })
+      t.server.silence('turn/start')
+      const reviewing = startReview(t, '/review the cache')
+      await vi.waitFor(() => {
+        expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+      })
+      const request = t.server.requestsFor('turn/start')[0]
+      if (action === 'clearConversation') {
+        await t.controller.handle({ type: action })
+      } else {
+        await t.controller.backendStopping(false)
+      }
+      t.server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: request?.id,
+          result: {
+            turnId: 'old-review-turn',
+            status: 'accepted',
+            commandId: request?.params?.['commandId'],
+          },
+        })}\n`,
+      )
+      await reviewing
+      await settle()
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'turnAccepted', localId: 'r1' }),
+      )
+      expect(t.checkpointCalls).not.toContain('record s1 old-review-turn')
+      expect(t.surface.posted).toContainEqual({
+        type: 'sendFailed',
+        localId: 'r1',
+        reason: UI_TEXT.turnStoppedByRestart,
+      })
+      const currentReview = startReview(t, '/review the current cache', 'r2')
+      await vi.waitFor(() => {
+        expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+      })
+      const currentRequest = t.server.requestsFor('turn/start')[1]
+      t.server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: currentRequest?.id,
+          result: {
+            turnId: 't1',
+            status: 'accepted',
+            commandId: currentRequest?.params?.['commandId'],
+          },
+        })}\n`,
+      )
+      await currentReview
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'turnAccepted', localId: 'r2' }),
+      )
       t.controller.dispose()
     },
   )

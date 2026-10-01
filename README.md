@@ -826,6 +826,8 @@ Review what the agent did before it lands, on both backends.
   then goes into the review turn, and only one review starts at a time.
   A pending permission-mode request settles before review admission; a refused
   request refuses that review instead of trusting the panel's optimistic label.
+  A review reply arriving after you clear or switch conversations cannot mark
+  the current conversation running or accept the old turn checkpoint.
 
 ## Scheduled prompts (Model API)
 
