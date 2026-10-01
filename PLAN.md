@@ -8966,7 +8966,26 @@ independent review and the full candidate gates remain required.**
 
 ### M83 — Import from other agents (D49)
 
-**Round 2 status, 2026-10-01: blocked by the hard import-bundle cap.**
+**Status 2026-10-01: RV83b repairs done; lead certification pending.**
+The importer cap blocker below is fixed: the lead's `6db3cc9d` imports
+`zod/mini`, as the converter does (importer 104.0/125 KiB; seven import
+suites, 190 tests passed on Kubuntu). The second independent review (RV83b,
+`57d01413`→`6db3cc9d`) found RV83 findings 2–4 fixed and finding 1 only in
+part: a query value in quote marks or backticks (`?signature='…'`) left the
+credential after the mask in MCP arguments and rules (P1), and this status
+was stale (P3). `maskText` now takes a quoted value onto its URL before the
+one `maskUrl` masks it: a closed quote, parts a shell joins (`'a'"b"`), and
+a quote left open where a value starts. The mark the URL is wrapped in still
+closes it, so the text around it is kept. The new pattern is linear. Eight
+new regressions failed on `6db3cc9d` and pass now; four red drills are 0/1/0
+with byte-exact SHA-256 restores. Scoped checks pass: five type projects,
+changed-file ESLint/Prettier, zero jscpd clones, localization, and the build
+(importer 104.4/125 KiB). The eight import test files pass on Kubuntu
+(202 tests). Lead next action: full quality, native VS Code import UI, other
+platforms and M76 runtime admission. Details are in
+`docs/certification/m83b.md`.
+
+**Round 2 status (historical), 2026-10-01: blocked by the hard import-bundle cap.**
 Removal `04b3859f`, approved shared-table merge `a6672749`, and RV83 fixes
 `757a4773`, `328e10df`, `4e83666e`, `490c2cc9` are committed. The initial
 shared build passed; final build on `490c2cc9` failed at **530.7/125 KiB**
@@ -8978,11 +8997,9 @@ stopping, so no code repair, cap/layout change or rerun followed the failure.
 Seven final scoped checks pass (five type projects, changed-file lint and
 format, knip, zero duplication, localization, host API); the final affected
 suite batch did not run because build failed first. Per-finding tests and
-28 red/restored drills passed on their recorded source snapshots. Lead next
-action: reconcile the helper with the existing lightweight Zod usage, then
-rerun build and the pending scoped suites before full quality/native/editor
-and platform certification. Details and actual gate exits are in
-`docs/certification/m83b.md` and `docs/certification/m83b-gates.json`.
+28 red/restored drills passed on their recorded source snapshots. The lead
+reconciled the helper in `6db3cc9d` (above). Details and actual gate exits
+are in `docs/certification/m83b.md` and `docs/certification/m83b-gates.json`.
 
 **Round 2 repair scope (2026-10-01, M83b):** remove the lane's empty
 English-table stand-in, then merge the approved `build/shared-ui-text`

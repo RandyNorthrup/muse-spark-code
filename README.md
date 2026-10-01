@@ -564,8 +564,9 @@ them and converted to the formats their destination loads.
 A read-only preview shows everything first, secret-looking values masked,
 and nothing is written until you choose Import; an existing file is never
 replaced. The extension never writes Muse Code's `settings.json` or
-`.muse/hooks.json`. URL user-info and query values are masked even inside
-command arguments, prompts and rules; copied and published text stays masked.
+`.muse/hooks.json`. URL user-info and query values, quoted or not, are masked
+even inside command arguments, prompts and rules; copied and published text
+stays masked.
 It copies the masked entries for you and opens the file. It rechecks whether
 the file exists before clipboard and editor actions. A file
 created while the preview waits opens for merging; a vanished file opens

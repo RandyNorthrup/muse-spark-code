@@ -514,5 +514,81 @@
       "temp/m83b/p4-editor-outcome-red.log",
       "temp/m83b/p4-editor-outcome-restored.log"
     ]
+  },
+  {
+    "name": "p1b-quoted-values",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts", "test/unit/agentImportCommands.test.ts"],
+    "mutation": "  return end",
+    "replacement": "  return plainEnd",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "in MCP arguments, CLAUDE.md links and shell snippets",
+    "beforeSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "mutatedSha256": "948c9fad7aa27b97d22753b826494e21ff44234c466cbb15906e07c6dc6fea9a",
+    "afterSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "logs": [
+      "temp/m83b/p1b-quoted-values-baseline.log",
+      "temp/m83b/p1b-quoted-values-red.log",
+      "temp/m83b/p1b-quoted-values-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-wrap-close",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts", "test/unit/agentImportCommands.test.ts"],
+    "mutation": "text.charAt(end) === wrap && !WORD_CHARACTER",
+    "replacement": "false && !WORD_CHARACTER",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "keeps the text around a URL",
+    "beforeSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "mutatedSha256": "90260af47dbc44ac47704a9918867b97f23d676062ceeaf65d9364475cae816c",
+    "afterSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "logs": [
+      "temp/m83b/p1b-wrap-close-baseline.log",
+      "temp/m83b/p1b-wrap-close-red.log",
+      "temp/m83b/p1b-wrap-close-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-shell-join",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts", "test/unit/agentImportCommands.test.ts"],
+    "mutation": "!WORD_CHARACTER.test(text.charAt(end + 1))",
+    "replacement": "true",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "masks a value the shell joins from quoted parts",
+    "beforeSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "mutatedSha256": "660e0495f37d54dee1a1b730543e47143dfa624e536dd411f05ab6849cf35cb2",
+    "afterSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "logs": [
+      "temp/m83b/p1b-shell-join-baseline.log",
+      "temp/m83b/p1b-shell-join-red.log",
+      "temp/m83b/p1b-shell-join-restored.log"
+    ]
+  },
+  {
+    "name": "p1b-open-value",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts", "test/unit/agentImportCommands.test.ts"],
+    "mutation": "|(?<==)(?:'[^\\s<>']+|\"[^\\s<>\"]+|`[^\\s<>`]+)",
+    "replacement": "",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "or one whose quote never closes",
+    "beforeSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "mutatedSha256": "f09e3a03fade863843f283c24d53be9c622251d3ba04e3a4b668c228eb97c64d",
+    "afterSha256": "f43af0b7e493f5d7a836bb7c680171f9ef6cbcb84e22454338a2fda7cf3e0f70",
+    "logs": [
+      "temp/m83b/p1b-open-value-baseline.log",
+      "temp/m83b/p1b-open-value-red.log",
+      "temp/m83b/p1b-open-value-restored.log"
+    ]
   }
 ]

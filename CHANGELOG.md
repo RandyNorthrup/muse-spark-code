@@ -27,9 +27,10 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - M83 review repairs are implemented, with scoped regression/drill evidence.
-  Integration remains blocked by the importer's final 530.7/125 KiB build;
-  the lane stopped at the brief's hard-cap checkpoint. See
-  `docs/certification/m83b.md`; these repairs are not release certification.
+  Their final round-2 build failed at 530.7/125 KiB for the importer (an
+  accidental full `zod` import); importing `zod/mini`, as the converter does,
+  brought it to 104.0 KiB, and the second review's quoted-URL fix to 104.4 KiB.
+  See `docs/certification/m83b.md`; these repairs are not release certification.
 - Refused copy-only imports now count as not imported in notifications and logs.
   A fully refused import reports its counts as a warning without a success
   completion; native editor safety refusals also reach the result.
@@ -42,6 +43,11 @@ happened, not what was planned; superseded entries are kept.
 - URL credentials inside imported MCP arguments, commands, prompts and rules
   now use the same masking as dedicated server URL fields. Preview, clipboard
   and published rules keep the masked values, including opaque query values.
+- A query value in quote marks or backticks (`?signature='…'`), or joined from
+  quoted parts as a shell joins them, is now masked whole in imported MCP
+  arguments, commands and rules; before, the value after the opening mark was
+  shown. The mark a URL is wrapped in still ends it, so a closing quote, a
+  Markdown link's parenthesis and the rest of the line are kept.
 - Removed M83's temporary empty English-table stand-in and its build plugin.
   The lead-approved shared `dist/uiText.js` contract replaces this approach;
   the importer uses the same runtime fallback as the other Node bundles.

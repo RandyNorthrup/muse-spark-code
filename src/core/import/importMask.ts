@@ -46,16 +46,53 @@ const COMMAND_FLAG_VALUE = new RegExp(
 const COMMAND_ASSIGNMENT = new RegExp(String.raw`\b(\w*${CREDENTIAL}\w*=)${VALUE}`, 'gi')
 const QUERY_SEPARATOR = '&'
 const QUERY_ASSIGN = '='
+// A URL in text runs to whitespace, `<`, `>` or a quote mark or backtick, as
+// the close of a shell argument or a Markdown code span ends it...
 const URL_IN_TEXT = /\b[a-z][a-z\d+.-]*:\/\/[^\s<>"'`]+/giu
+// ...unless the mark quotes part of a value (`?signature='x'`), which a shell
+// joins into one word with the text either side (`'a'"b"`): a closed quote
+// goes on the URL, and so does one left open where a value starts, after `=`,
+// as far as a URL can run. Whitespace ends both, so a stray mark never takes
+// the rest of a sentence.
+const QUOTED_URL_VALUE =
+  /(?:'[^\s<>']*'|"[^\s<>"]*"|`[^\s<>`]*`|(?<==)(?:'[^\s<>']+|"[^\s<>"]+|`[^\s<>`]+))[^\s<>"'`]*/uy
+// After the mark a URL is wrapped in, a word character carries the value on,
+// as in the shell's `'https://…?k='value''`; anything else closes the wrap.
+const WORD_CHARACTER = /\w/u
 const URL_TRAILING_PUNCTUATION = /[),.;]+$/u
 
 /** Free text (a command line, a file's body) with every secret-looking value masked. */
 export function maskText(text: string, mask: string): string {
-  const urlsMasked = text.replaceAll(URL_IN_TEXT, (url) => {
+  let urlsMasked = ''
+  let copied = 0
+  for (const found of text.matchAll(URL_IN_TEXT)) {
+    // A URL inside a quoted value was masked with the URL that holds it.
+    if (found.index < copied) {
+      continue
+    }
+    const end = urlEnd(text, found.index, found.index + found[0].length)
+    const url = text.slice(found.index, end)
     const suffix = URL_TRAILING_PUNCTUATION.exec(url)?.[0] ?? ''
-    return `${maskUrl(url.slice(0, url.length - suffix.length), mask)}${suffix}`
-  })
-  return maskPlainText(urlsMasked, mask)
+    urlsMasked += `${text.slice(copied, found.index)}${maskUrl(url.slice(0, url.length - suffix.length), mask)}${suffix}`
+    copied = end
+  }
+  return maskPlainText(`${urlsMasked}${text.slice(copied)}`, mask)
+}
+
+// Where a URL found at `start` ends: past each quoted part, unless its mark
+// is the one the URL is wrapped in and closes the wrap (`curl "https://…?q="`,
+// `fetch("https://…?q=")`, `["https://…?q=1","https://…"]`).
+function urlEnd(text: string, start: number, plainEnd: number): number {
+  const wrap = text.charAt(start - 1)
+  let end = plainEnd
+  QUOTED_URL_VALUE.lastIndex = end
+  while (QUOTED_URL_VALUE.test(text)) {
+    if (text.charAt(end) === wrap && !WORD_CHARACTER.test(text.charAt(end + 1))) {
+      break
+    }
+    end = QUOTED_URL_VALUE.lastIndex
+  }
+  return end
 }
 
 // Shared final sweep: maskUrl uses it directly so embedded URLs do not recurse.

@@ -505,6 +505,37 @@ describe('importFromAgents', () => {
     expect(flow.logged()).not.toContain(secret)
   })
 
+  it.each(["'", '"', '`'])(
+    'masks a query value in %s marks whole in MCP arguments, CLAUDE.md links and shell snippets',
+    async (mark) => {
+      const secret = 'opaque-demo-value'
+      const url = `https://example.test/mcp?signature=${mark}${secret}${mark}&tenant=demo`
+      const masked = `https://example.test/mcp?signature=${UI_TEXT.agentImportMasked}&tenant=${UI_TEXT.agentImportMasked}`
+      // A shell argument wrapped in the other kind of mark.
+      const wrap = mark === '"' ? "'" : '"'
+      const rules = (shown: string): string =>
+        `Read [service](${shown}).\n\n\`\`\`sh\ncurl -s ${wrap}${shown}${wrap} -o out.json\ncurl -s ${shown} | jq .\n\`\`\`\n`
+      const flow = run({
+        files: {
+          [`${HOME}/.claude.json`]: JSON.stringify({
+            mcpServers: { remote: { command: 'npx', args: ['mcp-remote', url] } },
+          }),
+          [`${WS}/CLAUDE.md`]: rules(url),
+        },
+      })
+      await flow.done
+      const published = flow.io.files.get(`${WS}/AGENTS.md`)
+      expect(flow.previews.join('\n')).not.toContain(secret)
+      expect(flow.clipboard.join('\n')).not.toContain(secret)
+      expect(published).not.toContain(secret)
+      expect(flow.logged()).not.toContain(secret)
+      expect(flow.previews.join('\n')).toContain(masked)
+      expect(flow.clipboard.join('\n')).toContain(masked)
+      // Published whole, with the text around each URL as it was.
+      expect(published).toBe(`## Imported from Claude Code (CLAUDE.md)\n\n${rules(masked)}`)
+    },
+  )
+
   it('notifies only project skill publication and rules append through the production flow', async () => {
     const complete = vi.fn<(wasWritten: boolean) => void>()
     const beginProjectEdit = vi.fn<ImportWriteNotice>(() => complete)

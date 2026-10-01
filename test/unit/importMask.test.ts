@@ -17,6 +17,69 @@ describe('maskText', () => {
     expect(maskText(masked, MASK)).toBe(expected)
   })
 
+  it.each(["'", '"', '`'])(
+    'masks a query value in %s marks whole, in arguments, links and shell snippets',
+    (mark) => {
+      const secret = 'opaque-demo-value'
+      const url = `https://example.test/mcp?signature=${mark}${secret}${mark}&tenant=demo`
+      // A shell argument wrapped in the other kind of mark.
+      const wrap = mark === '"' ? "'" : '"'
+      const shown = maskUrl(url, MASK)
+      expect(shown).toBe(`https://example.test/mcp?signature=${MASK}&tenant=${MASK}`)
+      expect(maskArgs(['mcp-remote', url], MASK)).toEqual(['mcp-remote', shown])
+      expect(maskText(`Read [service](${url}).`, MASK)).toBe(`Read [service](${shown}).`)
+      expect(maskText(`curl -s ${wrap}${url}${wrap} -o out.json`, MASK)).toBe(
+        `curl -s ${wrap}${shown}${wrap} -o out.json`,
+      )
+      expect(maskText(`curl -s ${url} | jq .`, MASK)).toBe(`curl -s ${shown} | jq .`)
+    },
+  )
+
+  it('masks a value the shell joins from quoted parts, or one whose quote never closes', () => {
+    const secret = 'opaque-demo-value'
+    const url = 'https://example.test/mcp?signature='
+    expect(
+      [
+        `curl '${url}'${secret}''`,
+        `curl "${url}"${secret}"" -o out.json`,
+        `curl ${url}''${secret}''`,
+        `curl ${url}demo'${secret}'`,
+        `curl ${url}'demo'"${secret}"`,
+        `[service](${url}'${secret})`,
+      ].map((text) => maskText(text, MASK)),
+    ).toEqual([
+      `curl '${url}${MASK}'`,
+      `curl "${url}${MASK}" -o out.json`,
+      `curl ${url}${MASK}`,
+      `curl ${url}${MASK}`,
+      `curl ${url}${MASK}`,
+      `[service](${url}${MASK})`,
+    ])
+  })
+
+  it('keeps the text around a URL: closing marks, link parentheses and the rest of the sentence', () => {
+    const kept = [
+      `curl "https://example.test/mcp?q=" -o out.json`,
+      `fetch("https://example.test/mcp?q=") and then 'done'`,
+      `{"url":"https://example.test/mcp?q=1","next":"page"}`,
+      'See `https://example.test/mcp?q=` and "notes".',
+      `"See https://example.test/mcp?q=1", he said; it's at https://example.test/it's/here.`,
+      `Set https://example.test/mcp?q=' and 'x' later.`,
+      `[docs](https://example.test/mcp?q='x'), then "more" text.`,
+      `curl 'https://example.test/docs' -H 'Accept: text/plain'`,
+    ]
+    expect(kept.map((text) => maskText(text, MASK))).toEqual([
+      `curl "https://example.test/mcp?q=${MASK}" -o out.json`,
+      `fetch("https://example.test/mcp?q=${MASK}") and then 'done'`,
+      `{"url":"https://example.test/mcp?q=${MASK}","next":"page"}`,
+      `See \`https://example.test/mcp?q=${MASK}\` and "notes".`,
+      `"See https://example.test/mcp?q=${MASK}", he said; it's at https://example.test/it's/here.`,
+      `Set https://example.test/mcp?q=${MASK}' and 'x' later.`,
+      `[docs](https://example.test/mcp?q=${MASK}), then "more" text.`,
+      `curl 'https://example.test/docs' -H 'Accept: text/plain'`,
+    ])
+  })
+
   it.each([
     [
       'Bearer',
