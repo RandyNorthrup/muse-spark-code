@@ -75,12 +75,6 @@ two.
 - **Rewind the conversation, or take a side chat.** Any sent message can
   branch the conversation before itself; **Side chat** opens a Plan-mode
   branch without stopping the main one.
-- **Plans as files.** A Plan-mode reply can be saved to `.agents/plans/`,
-  or implemented in a fresh conversation, with the plan's steps as the
-  todo list ([Plans as files](#plans-as-files)).
-- **Handoff to a new conversation.** `/handoff` asks the model to distil the
-  conversation into a brief; you review and edit it, then start the new
-  conversation with it ([Handoff](#handoff-to-a-new-conversation)).
 - **More of Muse Code in the panel.** A row for every tool Muse Code runs,
   workflows as live cards, goals, and background tasks you can stop.
 - **Behind a corporate network.** Muse Code gets VS Code's proxy,

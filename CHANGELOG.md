@@ -150,18 +150,6 @@ happened, not what was planned; superseded entries are kept.
   refused when its folder was swapped for a link or junction after it was
   checked (`createFileExclusively` checks again after making the folder and
   before publishing).
-- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
-  optionally with a goal after it, asks the model — as your own turn in the
-  current conversation — for a distilled brief of it (the goal, the
-  decisions, the files touched, the open work, the todo list). The brief
-  opens in a dialog before anything starts: review it, edit it, then start
-  the new conversation with it, or cancel and nothing starts. Starting
-  leaves the old conversation in History and seeds the new one through the
-  same path as a plan's brief, with the open items as its todo list on the
-  Model API backend. Content drawn from tool output, fetched pages or
-  imported files is marked `[untrusted]` in the brief, and the new
-  conversation is told what that means. Model API backend only: on Muse
-  Code the command says it is unavailable there.
 - **Web fetch on both backends** (M69, PLAN.md D49; folds in M44b). The
   model can read one public web page it found or you named: `web_fetch` on
   the Model API backend, and `mcp__ide__webFetch` on Muse Code, whose own
