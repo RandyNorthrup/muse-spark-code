@@ -4235,7 +4235,12 @@ describe('ConversationController: session history (M6)', () => {
       })
       expect(t.surface.posted).toContainEqual(untrustedNotice(label))
       const history = t.surface.posted.find((message) => message.type === 'historyLoaded')
-      expect(history).toMatchObject({ items: [{ text: 'Hi' }, { text: 'Hello' }], goal: null })
+      // Marked imported, so the panel offers Copy only on its code.
+      expect(history).toMatchObject({
+        items: [{ text: 'Hi' }, { text: 'Hello' }],
+        goal: null,
+        imported: true,
+      })
     }
   })
 
@@ -4252,6 +4257,9 @@ describe('ConversationController: session history (M6)', () => {
     await reopened.handle({ type: 'resumeSession', sessionId: 'imported-1' })
     expect(other.surface.posted).toContainEqual({ ...composerState, permissionMode: 'manual' })
     expect(other.surface.posted).toContainEqual(untrustedNotice('Manual'))
+    expect(other.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'historyLoaded', sessionId: 'imported-1', imported: true }),
+    )
     await reopened.handle({ type: 'setPermissionMode', mode: 'auto' })
     expect(other.surface.posted.findLast((message) => message.type === 'composerState')).toEqual({
       ...composerState,

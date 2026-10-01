@@ -1379,6 +1379,8 @@ is untrusted as a plan file is: **Implement in a fresh conversation** starts
 it in Manual (or Plan) too. It drops session rules, goals,
 schedules, todos and patches, and the model reads each imported turn as
 untrusted data in a message of yours, never as its own replies or tool calls.
+The panel offers Copy only on such a conversation's code blocks, never
+Insert or Apply, as in a share file.
 The ACP agent also applies this safe start to stored sessions marked imported
 before advertising their mode or replaying history.
 **Muse Spark: Open Share File** reads such a file read-only in the panel:

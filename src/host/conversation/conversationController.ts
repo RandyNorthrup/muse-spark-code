@@ -2401,6 +2401,8 @@ export class ConversationController {
       // A turn still running keeps its Stop and its steering (D26).
       ...(activeTurnId !== undefined && { activeTurnId }),
       ...(planTurns.size > 0 && { planTurnIds: [...planTurns] }),
+      // Someone else's file (M84): the panel offers no Insert or Apply on it.
+      ...(this.importedSessionIds.has(sessionId) && { imported: true }),
     })
   }
 

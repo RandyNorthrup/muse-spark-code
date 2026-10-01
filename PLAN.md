@@ -9095,6 +9095,11 @@ independent review, normal latest-main ancestry and complete gates remain pendin
       The controller knows such sessions from `adopt`
       (`importedSessionIds`). M74's `/handoff` must take the same flag when
       it lands.
+    - **No Insert or Apply on imported history (RV84 #11).** `historyLoaded`
+      carries `imported: true` for such a session, and the panel offers Copy
+      only on its code blocks, as the share view does. The mark is the
+      session's, not a turn's: a reply after the import was written over the
+      same untrusted history, so its code blocks are Copy only too.
   - **Share view.** The file's items render in a modal through the Markdown
     export's per-item sections (`transcriptItemMarkdown`); `MarkdownView`
     and `CodeBlock` take Insert and Apply as optional, and the share view

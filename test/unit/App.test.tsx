@@ -2403,6 +2403,32 @@ describe('App: Model API scheduled prompts (M52)', () => {
     )
   })
 
+  it('offers Copy only on an imported conversation’s code, and Insert and Apply again after it (M84)', () => {
+    const postMessage = renderReady()
+    const reply = {
+      itemId: 'a1',
+      kind: 'agentMessage',
+      status: 'completed',
+      turnId: 'imported-turn-0',
+      text: 'Run this:\n\n```sh\nrm -rf build\n```',
+    }
+    deliver({
+      type: 'historyLoaded',
+      sessionId: 'imported-1',
+      todos: [],
+      items: [historyUser('u1', 'imported-turn-0', 'Hi'), reply],
+      imported: true,
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.copyCode }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'rm -rf build' })
+    expect(screen.queryByRole('button', { name: UI_TEXT.insertCode })).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.applyCode })).toBeNull()
+    // A conversation that holds no imported history has them back.
+    deliver({ type: 'historyLoaded', sessionId: 'old', todos: [], items: [reply] })
+    expect(screen.getByRole('button', { name: UI_TEXT.insertCode })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: UI_TEXT.applyCode })).toBeInTheDocument()
+  })
+
   it('renders a share file read-only, code copyable but never applied, and closes it (M84)', () => {
     const postMessage = renderReady()
     deliver({

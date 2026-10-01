@@ -1448,7 +1448,8 @@ export function App({
           onReadImage={onReadImage}
           onOpenLink={onOpenExternal}
           onCopy={onCopy}
-          onInsert={onInsert}
+          // Imported history (M84) is someone else's file: Copy only, as in a share file.
+          onInsert={state.isImported ? undefined : onInsert}
           onReadOutput={onReadOutput}
           onOpenOutput={onOpenOutput}
           onDecide={onDecide}
@@ -1458,7 +1459,7 @@ export function App({
           onMoveToBackground={onMoveToBackground}
           onStopTask={onStopTask}
           canStopUserShell={state.auth.backend === 'modelApi'}
-          onApply={onApply}
+          onApply={state.isImported ? undefined : onApply}
           onOpenEditDiff={onOpenEditDiff}
           onOpenFile={onOpenFile}
           onRefuseLink={onRefuseLink}

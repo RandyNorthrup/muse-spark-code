@@ -3319,4 +3319,18 @@ describe('uiReducer: share files read-only (M84)', () => {
     const cleared = uiReducer(opened, { type: 'conversationCleared' })
     expect(cleared.share).toBeUndefined()
   })
+
+  it('marks a conversation that holds imported history until another one replaces it', () => {
+    const imported = host({
+      type: 'historyLoaded',
+      sessionId: 'imported-1',
+      items: [],
+      todos: [],
+      imported: true,
+    })
+    expect(reduceAll([imported]).isImported).toBe(true)
+    const other = host({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
+    expect(reduceAll([imported, other]).isImported).toBe(false)
+    expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
+  })
 })

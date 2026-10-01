@@ -559,6 +559,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // The turns of these items this panel sent in Plan mode (M79): their user
     // cards keep `isPlanTurn`, so a reload keeps Save plan and Implement.
     planTurnIds: z.optional(z.array(z.string())),
+    // The session holds imported history (M84, PLAN.md D49): its code
+    // blocks offer Copy only, as a share file's do.
+    imported: z.optional(z.literal(true)),
   }),
   // Account & usage (M8): the backend this window runs on and the
   // subscription window the CLI last observed (absent on a key, or before

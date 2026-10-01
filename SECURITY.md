@@ -335,9 +335,11 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   rules, goals, schedules, patches or ids), hands the model each imported
   turn as untrusted data in a user message, and opens the conversation in
   Manual (or Plan) every time, whatever the initial mode; only the user's
-  own mode change relaxes it. A share file renders read-only: its code
-  blocks have no Insert or Apply, and its links go through the same
-  http, https and mailto filter as a reply's.
+  own mode change relaxes it; a plan written in it is implemented as
+  untrusted content, in that asking mode too. A share file renders
+  read-only: its code blocks have no Insert or Apply, nor do an imported
+  conversation's, and its links go through the same http, https and mailto
+  filter as a reply's.
 - **Release pipeline.** A tag is released only when it names the manifest
   version and points at a commit on `main`; the Marketplace PAT reaches one
   step, after an install that runs no package scripts; no checkout keeps a

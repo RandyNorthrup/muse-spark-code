@@ -290,6 +290,11 @@ export interface UiState {
   readonly pendingClearEchoes: number
   /** A local share file open read-only (M84); undefined when none is open. */
   readonly share: SharePreview | undefined
+  /**
+   * The conversation in the transcript holds imported history (M84, the
+   * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
+   */
+  readonly isImported: boolean
 }
 
 export type UiAction =
@@ -412,6 +417,7 @@ export const initialUiState: UiState = {
   pendingRestore: undefined,
   pendingClearEchoes: 0,
   share: undefined,
+  isImported: false,
 }
 
 const SUMMARY_FIELD_PREFIX = 'summary.'
@@ -1743,6 +1749,7 @@ function clearedConversation(state: UiState): UiState {
     outputPages: {},
     toolImages: {},
     share: undefined,
+    isImported: false,
   }
 }
 
@@ -2090,6 +2097,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
           attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
           isSideChat: message.sideChat ?? state.isSideChat,
+          isImported: message.imported === true,
           sessionId: message.sessionId,
           restoredSessionId: undefined,
           title: message.name,
