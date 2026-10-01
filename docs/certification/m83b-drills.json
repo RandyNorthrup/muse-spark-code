@@ -39,5 +39,290 @@
       "temp/m83b/p1-url-red.log",
       "temp/m83b/p1-url-restored.log"
     ]
+  },
+  {
+    "name": "p2-trust",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "return scan.input.isActive() && (origin === 'user' || scan.input.isWorkspaceTrusted())",
+    "replacement": "return scan.input.isActive()",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "mutatedSha256": "e1ff324be8243c4bac0d6d4d89a896be1634f55001f5c381981db7f6f069e42f",
+    "afterSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "logs": [
+      "temp/m83b/p2-trust-baseline.log",
+      "temp/m83b/p2-trust-red.log",
+      "temp/m83b/p2-trust-restored.log"
+    ]
+  },
+  {
+    "name": "p2-active",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "return scan.input.isActive() && (origin === 'user' || scan.input.isWorkspaceTrusted())",
+    "replacement": "return origin === 'user' || scan.input.isWorkspaceTrusted()",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops scanning and opens no candidate picker after deactivation",
+    "beforeSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "mutatedSha256": "f3ee653333f80d6e065dcce8a0f1df34b91c2dfb9145fb6020b2e9361e98e376",
+    "afterSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "logs": [
+      "temp/m83b/p2-active-baseline.log",
+      "temp/m83b/p2-active-red.log",
+      "temp/m83b/p2-active-restored.log"
+    ]
+  },
+  {
+    "name": "p2-origin",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!canReadOrigin(scan, origin)) {",
+    "replacement": "if (false) {",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "mutatedSha256": "7ffbfeff41e44b7673cba1a87232880ec13d38f36610ecbf09203f8652639428",
+    "afterSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "logs": [
+      "temp/m83b/p2-origin-baseline.log",
+      "temp/m83b/p2-origin-red.log",
+      "temp/m83b/p2-origin-restored.log"
+    ]
+  },
+  {
+    "name": "p2-read-continuation",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!(await isConfined(scan, absolutePath, origin)) || !canReadOrigin(scan, origin)) {",
+    "replacement": "if (!(await isConfined(scan, absolutePath, origin))) {",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "mutatedSha256": "57da5133a707038c56a34cdf089b48a72a56fb015f011a86f3b0b1487ada2f84",
+    "afterSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "logs": [
+      "temp/m83b/p2-read-continuation-baseline.log",
+      "temp/m83b/p2-read-continuation-red.log",
+      "temp/m83b/p2-read-continuation-restored.log"
+    ]
+  },
+  {
+    "name": "p2-list-continuation",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!(await isConfined(scan, directory, origin)) || !canReadOrigin(scan, origin)) {",
+    "replacement": "if (!(await isConfined(scan, directory, origin))) {",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "mutatedSha256": "8703d926f5b1ff459ceae6c603a669ff0efa73cee1888fd4c64deefc7a3e0ef6",
+    "afterSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "logs": [
+      "temp/m83b/p2-list-continuation-baseline.log",
+      "temp/m83b/p2-list-continuation-red.log",
+      "temp/m83b/p2-list-continuation-restored.log"
+    ]
+  },
+  {
+    "name": "p2-project-eligibility",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImport.test.ts"],
+    "mutation": "if (!input.isActive() || !input.isWorkspaceTrusted() || input.workspaceRoot === undefined) {",
+    "replacement": "if (input.workspaceRoot === undefined) {",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "does not resolve project folders without live",
+    "beforeSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "mutatedSha256": "993039242397bd65bd6e302a42cec06d6896994f31ec1c1cac12685f4830897b",
+    "afterSha256": "6f18eacd04d0b4b333a04b54f98f0ce9b17c9985450aa097cd4bd3578fc8937a",
+    "logs": [
+      "temp/m83b/p2-project-eligibility-baseline.log",
+      "temp/m83b/p2-project-eligibility-red.log",
+      "temp/m83b/p2-project-eligibility-restored.log"
+    ]
+  },
+  {
+    "name": "p2-initial-ui",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!deps.isActive()) {\n    return\n  }\n  // Bind",
+    "replacement": "// Bind",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "opens no pending prompt after deactivation",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "9b46236ebbc27d2688bf19d9ba0d3fe0fa0f9b28b373d8c47fba0eddb144b633",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-initial-ui-baseline.log",
+      "temp/m83b/p2-initial-ui-red.log",
+      "temp/m83b/p2-initial-ui-restored.log"
+    ]
+  },
+  {
+    "name": "p2-root-ui",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!deps.isActive()) {\n    return\n  }\n  const choice =",
+    "replacement": "const choice =",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "opens no pending prompt after deactivation",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "d14fa69993befc0a9caa4424ce5a1c29a9ceec60c098baa1371678cba1dea9f7",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-root-ui-baseline.log",
+      "temp/m83b/p2-root-ui-red.log",
+      "temp/m83b/p2-root-ui-restored.log"
+    ]
+  },
+  {
+    "name": "p2-scan-ui",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!deps.isActive()) {\n    return\n  }\n  for (const warning of scan.warnings)",
+    "replacement": "for (const warning of scan.warnings)",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops scanning and opens no candidate picker after deactivation",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "601fbe6281aeedae12659c67a3b9c1ac3475996adb44bfb3c8d62778f62e5c72",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-scan-ui-baseline.log",
+      "temp/m83b/p2-scan-ui-red.log",
+      "temp/m83b/p2-scan-ui-restored.log"
+    ]
+  },
+  {
+    "name": "p2-candidate-ui",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (picked === undefined || picked.length === 0 || !deps.isActive()) {",
+    "replacement": "if (picked === undefined || picked.length === 0) {",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "opens no pending prompt after deactivation",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "890ad9d23b965a7c1f36b1d699656d31ac81641c487e088b69a4b1b602c5fa32",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-candidate-ui-baseline.log",
+      "temp/m83b/p2-candidate-ui-red.log",
+      "temp/m83b/p2-candidate-ui-restored.log"
+    ]
+  },
+  {
+    "name": "p2-preview-ui",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!deps.isActive()) {\n    return\n  }\n  if (plan.writes.length === 0 && plan.copies.length === 0)",
+    "replacement": "if (plan.writes.length === 0 && plan.copies.length === 0)",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "opens no pending prompt after deactivation",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "302b4d714a41e17cf99a34ca9f4738e1e61ee4b161bcb7baa24be1db361f6d19",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-preview-ui-baseline.log",
+      "temp/m83b/p2-preview-ui-red.log",
+      "temp/m83b/p2-preview-ui-restored.log"
+    ]
+  },
+  {
+    "name": "p2-plan-start",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {\n    return { status: 'outside' }\n  }\n  if (isProject",
+    "replacement": "if (isProject",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "ac6f65efc6a8df37a9a6423b5588ae28e0db2a07f5849de7d2e32e6975bc757e",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-plan-start-baseline.log",
+      "temp/m83b/p2-plan-start-red.log",
+      "temp/m83b/p2-plan-start-restored.log"
+    ]
+  },
+  {
+    "name": "p2-plan-continuation",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {\n    return { status: 'outside' }\n  }\n  try {",
+    "replacement": "try {",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "9202bb374f189d9e1dc88f30731ce52e9c4b9dec44309b86c85a4d586ab2a6c2",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-plan-continuation-baseline.log",
+      "temp/m83b/p2-plan-continuation-red.log",
+      "temp/m83b/p2-plan-continuation-restored.log"
+    ]
+  },
+  {
+    "name": "p2-hooks-start",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "hooksFile === undefined ||\n    !deps.isActive() ||\n    !deps.isWorkspaceTrusted() ||",
+    "replacement": "hooksFile === undefined ||",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "886a9a3ed9773e903f20d75178a331c8778ac5aafe0054fc89cab9be7d01f059",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-hooks-start-baseline.log",
+      "temp/m83b/p2-hooks-start-red.log",
+      "temp/m83b/p2-hooks-start-restored.log"
+    ]
+  },
+  {
+    "name": "p2-hooks-continuation",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!deps.isActive() || !deps.isWorkspaceTrusted()) {\n    return 'outside'\n  }",
+    "replacement": "",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "stops reading project sources when trust is revoked",
+    "beforeSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "mutatedSha256": "e82e6c7a32eaffdd16c54b9e24a56712aa9bc6ad2ba07e26f3cab6652c6cdeec",
+    "afterSha256": "1be40d18f79cc27d98c8bcdeea5ddb396dd1698def4632c63a93a4e04ba9621b",
+    "logs": [
+      "temp/m83b/p2-hooks-continuation-baseline.log",
+      "temp/m83b/p2-hooks-continuation-red.log",
+      "temp/m83b/p2-hooks-continuation-restored.log"
+    ]
   }
 ]

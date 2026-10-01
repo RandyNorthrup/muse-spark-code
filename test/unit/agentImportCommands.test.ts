@@ -75,6 +75,8 @@ interface Options {
   readonly whilePreviewed?: (io: MemoryImportIo) => void
   /** Runs after scanning, while the candidate picker is open. */
   readonly whilePicking?: (io: MemoryImportIo) => void
+  /** Runs after the preview editor opens, before the next prompt. */
+  readonly whilePreviewOpened?: () => void
   /** Runs when the user answers the copy prompt, before the file opens. */
   readonly whileCopying?: (io: MemoryImportIo) => void
   /** Runs during clipboard access, after the copy path's first check. */
@@ -154,6 +156,7 @@ function run(options: Options = {}) {
     openPreview: (title, markdown) => {
       events.push(`preview ${title}`)
       previews.push(markdown)
+      options.whilePreviewOpened?.()
       return Promise.resolve()
     },
     confirmImport: (message) => {
@@ -227,6 +230,136 @@ function projectHooksOnly(items: readonly AgentImportPickItem[]): readonly strin
 }
 
 describe('importFromAgents', () => {
+  it.each([
+    'personal read',
+    'project read',
+    'confinement',
+    'directory confinement',
+    'directory listing',
+    'plan confinement',
+    'hooks confinement',
+  ])('stops reading project sources when trust is revoked during %s', async (phase) => {
+    const io = memoryImportIo({ files: FILES })
+    let isTrusted = true
+    let didRevoke = false
+    const afterRevocation: string[] = []
+    const revoke = () => {
+      isTrusted = false
+      didRevoke = true
+    }
+    const readFile = io.readFile
+    io.readFile = async (...args) => {
+      const [file] = args
+      if (!isTrusted && file.startsWith(`${WS}/`)) afterRevocation.push(file)
+      const read = await readFile(...args)
+      if (
+        (phase === 'personal read' && file === `${HOME}/.claude.json`) ||
+        (phase === 'project read' && file === `${WS}/.mcp.json`)
+      )
+        revoke()
+      return read
+    }
+    const realPath = io.realPath
+    io.realPath = async (file) => {
+      if (!isTrusted && file.startsWith(`${WS}/`)) afterRevocation.push(file)
+      const resolved = await realPath(file)
+      if (phase === 'confinement' && file === `${WS}/.mcp.json`) revoke()
+      if (phase === 'directory confinement' && file === `${WS}/.claude/commands`) revoke()
+      return resolved
+    }
+    const listDirectory = io.listDirectory
+    io.listDirectory = async (directory) => {
+      if (!isTrusted && directory.startsWith(`${WS}/`)) afterRevocation.push(directory)
+      const entries = await listDirectory(directory)
+      if (phase === 'directory listing' && directory === `${WS}/.claude/commands`) revoke()
+      return entries
+    }
+    const assertSafePath = io.assertSafePath
+    io.assertSafePath = async (...args) => {
+      await assertSafePath(...args)
+      if (
+        (phase === 'plan confinement' && args[0] === `${WS}/AGENTS.md`) ||
+        (phase === 'hooks confinement' && args[0] === `${WS}/.muse/hooks.json`)
+      )
+        revoke()
+    }
+    const flow = run({
+      io: {
+        ...io,
+        isPresent: async (file) => {
+          if (!isTrusted && file.startsWith(`${WS}/`)) afterRevocation.push(file)
+          return await io.isPresent(file)
+        },
+      },
+      trust: () => isTrusted,
+      pick: (items) =>
+        items
+          .filter((item) => item.description.includes(UI_TEXT.agentImportUserFiles))
+          .map((item) => item.id),
+    })
+    await flow.done
+    expect(didRevoke).toBe(true)
+    expect(afterRevocation).toEqual([])
+    expect(flow.clipboard.length).toBe(1)
+  })
+
+  it('stops scanning and opens no candidate picker after deactivation during a personal read', async () => {
+    const io = memoryImportIo({ files: FILES })
+    let isActive = true
+    const readFile = io.readFile
+    io.readFile = async (...args) => {
+      const read = await readFile(...args)
+      if (args[0] === `${HOME}/.claude.json`) isActive = false
+      return read
+    }
+    const pick = vi.fn(() => [])
+    const flow = run({ io, isActive: () => isActive, pick })
+    await flow.done
+    expect(io.reads).toEqual([`${HOME}/.claude.json`])
+    expect(pick).not.toHaveBeenCalled()
+    expect(flow.events).toEqual([])
+    expect(flow.information).toEqual([])
+  })
+
+  it.each(['initial', 'root', 'candidate', 'preview'])(
+    'opens no pending prompt after deactivation at %s',
+    async (phase) => {
+      const io = memoryImportIo({ files: FILES })
+      let isActive = phase !== 'initial'
+      const identifyRoot = io.identifyRoot
+      const identify = vi.fn(async (root: string) => {
+        const identity = await identifyRoot(root)
+        if (phase === 'root') isActive = false
+        return identity
+      })
+      io.identifyRoot = identify
+      const presence = vi.fn(io.isPresent)
+      const pickSource = vi.fn(() => Promise.resolve('claudeCode' as const))
+      const flow = run({
+        io: { ...io, isPresent: presence },
+        isActive: () => isActive,
+        pickSource,
+        whilePicking: () => {
+          if (phase === 'candidate') isActive = false
+        },
+        whilePreviewOpened: () => {
+          if (phase === 'preview') isActive = false
+        },
+      })
+      await flow.done
+      if (phase === 'initial' || phase === 'root') {
+        expect(pickSource).not.toHaveBeenCalled()
+        if (phase === 'initial') expect(identify).not.toHaveBeenCalled()
+      } else if (phase === 'candidate') {
+        expect(io.reads).not.toContain(SETTINGS)
+        expect(presence).not.toHaveBeenCalled()
+      }
+      expect(flow.questions).toEqual([])
+      expect(flow.clipboard).toEqual([])
+      expect(flow.information).toEqual([])
+    },
+  )
+
   it('masks opaque URL query values in MCP arguments and published CLAUDE.md rules', async () => {
     const secret = 'opaque-demo-value'
     const url = `https://example.test/mcp?signature=${secret}&tenant=demo`

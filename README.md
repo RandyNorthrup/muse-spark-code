@@ -568,7 +568,9 @@ replaced. The extension never writes Muse Code's `settings.json` or
 command arguments, prompts and rules; copied and published text stays masked.
 It copies the masked entries for you, opens the file,
 and you fill in what is masked. A repository's entries are read only in a
-trusted workspace and offered only for that project's files, so a
+trusted workspace and offered only for that project's files. Trust revocation
+stops further project reads during the scan. Closing the activation stops
+further scan reads and pending import prompts. A
 repository's own MCP servers are listed but not offered for your settings.
 Your personal `CLAUDE.md` and Codex `AGENTS.md` are Muse Code's own
 `/rules import`. Hooks keep their matchers; a hook that narrows with `if`,

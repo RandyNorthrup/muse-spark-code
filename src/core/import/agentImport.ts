@@ -110,7 +110,8 @@ export interface ImportScanInput {
   /** `CODEX_HOME` as the environment gives it. */
   readonly codexHome: string | undefined
   readonly workspaceRoot: string | undefined
-  readonly isWorkspaceTrusted: boolean
+  readonly isWorkspaceTrusted: () => boolean
+  readonly isActive: () => boolean
   readonly sources: readonly AgentImportSource[]
   /** The word masked values show as. */
   readonly mask: string
@@ -255,12 +256,19 @@ function add(scan: Scan, found: Found): void {
   scan.candidates.push({ ...found, id, dropped: found.dropped ?? [] })
 }
 
-/** A repository's path confined to the workspace; a user's own path as it is. */
+/** Live permission to read this source; personal sources remain available without trust. */
+function canReadOrigin(scan: Scan, origin: ImportOrigin): boolean {
+  return scan.input.isActive() && (origin === 'user' || scan.input.isWorkspaceTrusted())
+}
+
 async function isConfined(
   scan: Scan,
   absolutePath: string,
   origin: ImportOrigin,
 ): Promise<boolean> {
+  if (!canReadOrigin(scan, origin)) {
+    return false
+  }
   const root = scan.input.workspaceRoot
   if (origin === 'user' || root === undefined) {
     return origin === 'user'
@@ -284,7 +292,7 @@ async function readText(
   origin: ImportOrigin,
   maxBytes: number = AGENT_IMPORT_FILE_MAX_BYTES,
 ): Promise<string | undefined> {
-  if (!(await isConfined(scan, absolutePath, origin))) {
+  if (!(await isConfined(scan, absolutePath, origin)) || !canReadOrigin(scan, origin)) {
     return undefined
   }
   let read: ImportRead
@@ -328,7 +336,7 @@ async function listEntries(
   directory: string,
   origin: ImportOrigin,
 ): Promise<readonly ImportDirEntry[]> {
-  if (!(await isConfined(scan, directory, origin))) {
+  if (!(await isConfined(scan, directory, origin)) || !canReadOrigin(scan, origin)) {
     return []
   }
   let entries: readonly ImportDirEntry[] | undefined
@@ -915,7 +923,7 @@ async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
  */
 async function shouldReadProject(scan: Scan): Promise<boolean> {
   const { input } = scan
-  if (!input.isWorkspaceTrusted || input.workspaceRoot === undefined) {
+  if (!input.isActive() || !input.isWorkspaceTrusted() || input.workspaceRoot === undefined) {
     return false
   }
   try {

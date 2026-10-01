@@ -26,6 +26,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Imports recheck live trust and activation at scan read/list boundaries.
+  Losing trust stops project-source reads while personal imports remain
+  available; deactivation stops scanning and every pending picker or prompt.
 - URL credentials inside imported MCP arguments, commands, prompts and rules
   now use the same masking as dedicated server URL fields. Preview, clipboard
   and published rules keep the masked values, including opaque query values.

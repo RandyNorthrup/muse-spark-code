@@ -147,7 +147,8 @@ describe('fileImportWriter', () => {
       claudeConfigDir: undefined,
       codexHome: undefined,
       workspaceRoot: workspace,
-      isWorkspaceTrusted: true,
+      isWorkspaceTrusted: () => true,
+      isActive: () => true,
       sources: ['claudeCode'],
       mask: UI_TEXT.agentImportMasked,
     })

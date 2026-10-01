@@ -383,10 +383,16 @@ async function readPlanFile(
   project: ImportProjectRoot | undefined,
   isProject: boolean,
 ): Promise<ImportPlanFile> {
+  if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
+    return { status: 'outside' }
+  }
   if (isProject && (await projectStanding(deps, absolutePath, project)) !== 'inside') {
     deps.log.warn(
       `${LOG_PREFIX} ${shownPath(deps, absolutePath)} is unsafe or outside the workspace`,
     )
+    return { status: 'outside' }
+  }
+  if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
     return { status: 'outside' }
   }
   let read: ImportRead
@@ -535,7 +541,14 @@ async function hooksFileState(
   hooksFile: string | undefined,
   project: ImportProjectRoot | undefined,
 ): Promise<ImportPlanState['hooksFile']> {
-  if (hooksFile === undefined || (await projectStanding(deps, hooksFile, project)) !== 'inside') {
+  if (
+    hooksFile === undefined ||
+    !deps.isActive() ||
+    !deps.isWorkspaceTrusted() ||
+    (await projectStanding(deps, hooksFile, project)) !== 'inside' ||
+    !deps.isActive() ||
+    !deps.isWorkspaceTrusted()
+  ) {
     return 'outside'
   }
   return (await deps.isPresent(hooksFile)) ? 'present' : 'missing'
@@ -687,6 +700,9 @@ export async function importFromAgents(deps: AgentImportDeps): Promise<void> {
 
 /** The whole flow: pickers, preview, confirmation, writes and clipboard/editor actions. */
 async function runImport(deps: AgentImportDeps): Promise<void> {
+  if (!deps.isActive()) {
+    return
+  }
   // Bind the request before either picker waits; the scan and accepted plan
   // must not acquire a replacement root after the user selected its entries.
   let project: ImportProjectRoot | undefined
@@ -699,6 +715,9 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
         `${LOG_PREFIX} the workspace folder could not be identified (${importErrorCode(error)})`,
       )
     }
+  }
+  if (!deps.isActive()) {
+    return
   }
   const choice = await deps.pickSource()
   if (choice === undefined || !deps.isActive()) {
@@ -716,10 +735,14 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     claudeConfigDir: deps.claudeConfigDir,
     codexHome: deps.codexHome,
     workspaceRoot: deps.workspaceRoot,
-    isWorkspaceTrusted: isTrusted,
+    isWorkspaceTrusted: deps.isWorkspaceTrusted,
+    isActive: deps.isActive,
     sources: choice === 'all' ? AGENT_IMPORT_SOURCES : [choice],
     mask,
   })
+  if (!deps.isActive()) {
+    return
+  }
   for (const warning of scan.warnings) {
     deps.log.warn(`${LOG_PREFIX} ${warning}`)
   }
@@ -734,7 +757,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
   const picked = await deps.pickCandidates(
     scan.candidates.map((candidate) => pickItemOf(deps, candidate)),
   )
-  if (picked === undefined || picked.length === 0) {
+  if (picked === undefined || picked.length === 0 || !deps.isActive()) {
     return
   }
   const selected = scan.candidates.filter((candidate) => picked.includes(candidate.id))
@@ -746,6 +769,9 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     `${UI_TEXT.agentImportPreviewTitle}${PREVIEW_EXTENSION}`,
     previewMarkdown(deps, plan, selected, mask),
   )
+  if (!deps.isActive()) {
+    return
+  }
   if (plan.writes.length === 0 && plan.copies.length === 0) {
     deps.showInformation(UI_TEXT.agentImportNoneImportable)
     return

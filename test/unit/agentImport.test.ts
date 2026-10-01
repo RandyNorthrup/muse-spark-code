@@ -3,7 +3,7 @@
 // user's files, a repository's only to that project's files and only in a
 // trusted workspace, every repository path confined to the workspace.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   applyImportWrites,
   type ImportCandidate,
@@ -78,7 +78,8 @@ function input(
     claudeConfigDir: undefined,
     codexHome: undefined,
     workspaceRoot: WS,
-    isWorkspaceTrusted: true,
+    isWorkspaceTrusted: () => true,
+    isActive: () => true,
     sources: ALL_SOURCES,
     mask: MASK,
     ...overrides,
@@ -113,6 +114,24 @@ function summary(candidates: readonly ImportCandidate[]): readonly string[] {
 }
 
 describe('scanAgentImports', () => {
+  it.each(['trust', 'activation'])(
+    'does not resolve project folders without live %s',
+    async (guard) => {
+      const setup = input(
+        { files: FIXTURES },
+        {
+          isWorkspaceTrusted: () => guard !== 'trust',
+          isActive: () => guard !== 'activation',
+        },
+      )
+      const realPath = vi.fn(setup.io.realPath)
+      setup.io.realPath = realPath
+      await scanAgentImports(setup)
+      expect(realPath).not.toHaveBeenCalled()
+      if (guard === 'activation') expect(setup.io.reads).toEqual([])
+    },
+  )
+
   it('finds every tool’s entries and sends each only where its scope allows', async () => {
     const scan = await scanAgentImports(input({ files: FIXTURES }))
     expect(summary(scan.candidates)).toEqual([
@@ -141,7 +160,7 @@ describe('scanAgentImports', () => {
   })
 
   it('reads no repository file in an untrusted workspace (the scope drill)', async () => {
-    const setup = input({ files: FIXTURES }, { isWorkspaceTrusted: false })
+    const setup = input({ files: FIXTURES }, { isWorkspaceTrusted: () => false })
     const scan = await scanAgentImports(setup)
     expect(scan.candidates.length).toBeGreaterThan(0)
     expect(scan.candidates.every((candidate) => candidate.origin === 'user')).toBe(true)
