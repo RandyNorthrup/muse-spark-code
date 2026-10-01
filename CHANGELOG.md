@@ -48,6 +48,11 @@ happened, not what was planned; superseded entries are kept.
   character precedes). The session export runs them over whole
   conversations. Text with none of the credential literals (most log lines)
   now skips the patterns in one scan.
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
 
 ## [0.10.0] - 2026-09-30
 
@@ -586,6 +591,13 @@ happened, not what was planned; superseded entries are kept.
 
 - **A file a turn made visible to git is put back from the copy kept** (M72),
   when a `.gitignore` change made an ignored file show up as new.
+
+- **The model picker lists the models again after a new, resumed or forked
+  conversation** (0.9.1 regression). Every conversation change threw away the
+  backend’s model list, so the picker showed nothing to choose (only the pill’s
+  current model) until the next message, and the context meter lost the model’s
+  window. The list now belongs to the backend: only a backend that stops or exits,
+  or a sign-in change, clears it.
 
 - **A `!` command is checked again at its real start** (M72). On the Model
   API backend, a `!` command you typed could still start after the workspace

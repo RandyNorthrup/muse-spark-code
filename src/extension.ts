@@ -561,6 +561,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             workspaceRoot: checkpointRoot.canonicalRoot,
             displayRoot: workspaceRoot,
             storageDir: checkpointRoot.storageDir,
+            // Every window's checkpoint storage: no tool writes below it (Codex, PR #55).
+            storageRoot: path.join(context.globalStorageUri.fsPath, CHECKPOINTS_DIR),
             platform: process.platform,
             git: processGitProcess(),
             env: process.env,

@@ -132,8 +132,8 @@ import {
   writeRecord,
 } from './recordRefs'
 import {
-  checkpointStorageRoot,
   indexFileInstance,
+  isInShadowRepository,
   isWithinFolder,
   ShadowGit,
   ShadowPathTooLongError,
@@ -248,6 +248,11 @@ export interface CheckpointStoreDeps {
   readonly heartbeatMs?: number
   /** The longest path git takes: the platform's own unless a test lowers it to reach the limits. */
   readonly gitPathMax?: number
+  /**
+   * The folder that holds every window's checkpoint storage (the extension's
+   * `checkpoints` folder): no tool writes below it. This store's own folder by default.
+   */
+  readonly storageRoot?: string
   readonly log: Logger
 }
 
@@ -565,7 +570,14 @@ export class CheckpointStore {
     const { storageDir, platform } = this.deps
     const { top, prefix } = await this.placeOf()
     const shadow = new ShadowGit(
-      { storageDir, top, platform, instance: this.instance, gitPathMax: this.deps.gitPathMax },
+      {
+        storageDir,
+        top,
+        platform,
+        instance: this.instance,
+        gitPathMax: this.deps.gitPathMax,
+        storageRoot: this.deps.storageRoot,
+      },
       { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
     )
     shadow.assertFits()
@@ -2057,14 +2069,14 @@ export class CheckpointStore {
         throw new Error(UI_TEXT.restoreTurnElsewhere)
       }
     } catch (error: unknown) {
-      // The callers start nothing after a rejection, so no process exists to
-      // outlive it: leaving the fence would keep this window and its peers
-      // `nativeUnsafe` (and, since dispose keeps an unproved presence file, across
-      // restarts) with nothing running.
-      if (isFirstStart) {
-        await this.withdrawNativeFence()
-      }
+      // A restore that refuses the start is proof nothing started (the callers start
+      // nothing after a rejection): leaving the fence would keep this window and its
+      // peers `nativeUnsafe`, across restarts, with nothing running. Any other
+      // failure (the presence could not be written) stays fenced: fail closed.
       if (error instanceof Error && error.message === UI_TEXT.restoreTurnElsewhere) {
+        if (isFirstStart) {
+          await this.withdrawNativeFence()
+        }
         throw error
       }
       this.deps.log.warn(`Native startup checkpoint admission failed: ${failureForLog(error)}`)
@@ -2239,7 +2251,11 @@ export class CheckpointStore {
 
   /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
   public isStoragePath(absolutePath: string): boolean {
-    return isWithinFolder(absolutePath, checkpointStorageRoot(this.deps.storageDir))
+    return (
+      isInShadowRepository(absolutePath) ||
+      isWithinFolder(absolutePath, this.deps.storageDir) ||
+      (this.deps.storageRoot !== undefined && isWithinFolder(absolutePath, this.deps.storageRoot))
+    )
   }
 
   /**

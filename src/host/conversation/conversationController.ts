@@ -675,6 +675,8 @@ export class ConversationController {
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
   private modelListing: Promise<void> | undefined
+  /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
+  private modelGeneration = 0
   private skills: readonly SkillOption[] | undefined
   private skillsRefresh: Promise<void> | undefined
   private readonly attachments: AttachmentStore
@@ -994,19 +996,11 @@ export class ConversationController {
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
     this.attachmentGeneration += 1
     this.sessionOpening = undefined
-    const didHaveModels = this.models !== undefined
     const didHaveSkills = this.skills !== undefined
-    this.models = undefined
-    this.modelListing = undefined
     this.skills = undefined
     this.skillsRefresh = undefined
-    if (!this.isDisposed) {
-      if (didHaveModels) {
-        this.post({ type: 'modelList', models: [] })
-      }
-      if (didHaveSkills) {
-        this.post({ type: 'skillList', skills: [] })
-      }
+    if (didHaveSkills && !this.isDisposed) {
+      this.post({ type: 'skillList', skills: [] })
     }
     if (!isOwnedRecovery) {
       this.sendInvalidationEpoch += 1
@@ -1945,12 +1939,27 @@ export class ConversationController {
     }
   }
 
+  /**
+   * The catalogue belongs to the backend, not to a conversation: a new, resumed or
+   * forked conversation keeps it (it once emptied the picker until the next send).
+   * Only a backend that stops or exits, or a sign-in change, forgets it.
+   */
+  private forgetModels(): void {
+    const didHaveModels = this.models !== undefined
+    this.modelGeneration += 1
+    this.models = undefined
+    this.modelListing = undefined
+    if (didHaveModels && !this.isDisposed) {
+      this.post({ type: 'modelList', models: [] })
+    }
+  }
+
   /** One `model/list` at a time: the warm-up and the first send may overlap (M15). */
   private async ensureModels(host: AgentHost): Promise<void> {
     if (this.models !== undefined) {
       return
     }
-    const listing = this.modelListing ?? this.listModels(host, this.attachmentGeneration)
+    const listing = this.modelListing ?? this.listModels(host, this.modelGeneration)
     this.modelListing = listing
     try {
       await listing
@@ -1963,7 +1972,7 @@ export class ConversationController {
 
   private async listModels(host: AgentHost, generation: number): Promise<void> {
     const listed = await host.listModels()
-    if (this.isDisposed || this.attachmentGeneration !== generation) {
+    if (this.isDisposed || this.modelGeneration !== generation) {
       return
     }
     const models = this.deps.isConfidentialWorkspace()
@@ -4881,11 +4890,13 @@ export class ConversationController {
       }
       case 'signOut': {
         this.dropSession()
+        this.forgetModels()
         await this.deps.auth.signOut()
         break
       }
       case 'retryBackend': {
         this.dropSession()
+        this.forgetModels()
         // Check again is a click: the CLI is asked afresh, and macOS may ask
         // it about a Keychain sign-in.
         await this.deps.auth.checkAgain()
@@ -5378,6 +5389,7 @@ export class ConversationController {
       }
       this.rememberForResume(isConversationEnding ? undefined : session)
       this.dropSession(false)
+      this.forgetModels()
       this.listWatch.forget()
       this.usageWatch.forget()
       this.usageHost = undefined
@@ -5403,6 +5415,7 @@ export class ConversationController {
     this.rememberForResume(this.session)
     this.endTurnLocally('failed', `${UI_TEXT.hostExited} (${exit.description})`)
     this.dropSession(false)
+    this.forgetModels()
     this.listWatch.forget()
     this.usageWatch.forget()
     this.usageHost = undefined
@@ -5424,6 +5437,7 @@ export class ConversationController {
     this.deltaTimer = undefined
     this.pendingDelta = undefined
     this.dropSession()
+    this.forgetModels()
     this.listWatch.dispose()
     this.usageWatch.dispose()
     this.usageHost = undefined
