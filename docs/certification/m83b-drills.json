@@ -20,5 +20,24 @@
     "mutatedExit": 1,
     "mutatedSha256": "0227c11ddb0b3124a0df9cf60c9e14ab2fb55f6957012d7671a50eaeabb99ce0",
     "baselineExit": 0
+  },
+  {
+    "name": "p1-url",
+    "source": "src/core/import/importMask.ts",
+    "tests": ["test/unit/importMask.test.ts", "test/unit/agentImportCommands.test.ts"],
+    "mutation": "return `${maskUrl(url.slice(0, url.length - suffix.length), mask)}${suffix}`",
+    "replacement": "return url",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "uses the URL field masker for URLs inside commands and Markdown",
+    "beforeSha256": "1f9b89354a0f7d9673150734a1e8d0b1250d3013d87e2f2ebfdfeea0684715f0",
+    "mutatedSha256": "014f48e63f245907364c06611c7ec7f0af9ac8b0c863a3686ad2b0f9f80b09b5",
+    "afterSha256": "1f9b89354a0f7d9673150734a1e8d0b1250d3013d87e2f2ebfdfeea0684715f0",
+    "logs": [
+      "temp/m83b/p1-url-baseline.log",
+      "temp/m83b/p1-url-red.log",
+      "temp/m83b/p1-url-restored.log"
+    ]
   }
 ]

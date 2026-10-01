@@ -227,6 +227,29 @@ function projectHooksOnly(items: readonly AgentImportPickItem[]): readonly strin
 }
 
 describe('importFromAgents', () => {
+  it('masks opaque URL query values in MCP arguments and published CLAUDE.md rules', async () => {
+    const secret = 'opaque-demo-value'
+    const url = `https://example.test/mcp?signature=${secret}&tenant=demo`
+    const masked = `https://example.test/mcp?signature=${UI_TEXT.agentImportMasked}&tenant=${UI_TEXT.agentImportMasked}`
+    const flow = run({
+      files: {
+        [`${HOME}/.claude.json`]: JSON.stringify({
+          mcpServers: { remote: { command: 'npx', args: ['mcp-remote', url] } },
+        }),
+        [`${WS}/CLAUDE.md`]: `Read [service](${url}).\n`,
+      },
+    })
+    await flow.done
+    expect(flow.previews[0]).toContain(masked)
+    expect(flow.previews.join('\n')).not.toContain(secret)
+    expect(flow.clipboard.join('\n')).toContain(masked)
+    expect(flow.clipboard.join('\n')).not.toContain(secret)
+    expect(flow.io.files.get(`${WS}/AGENTS.md`)).toBe(
+      `## Imported from Claude Code (CLAUDE.md)\n\nRead [service](${masked}).\n`,
+    )
+    expect(flow.logged()).not.toContain(secret)
+  })
+
   it('notifies only project skill publication and rules append through the production flow', async () => {
     const complete = vi.fn<(wasWritten: boolean) => void>()
     const beginProjectEdit = vi.fn<ImportWriteNotice>(() => complete)

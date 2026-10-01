@@ -564,7 +564,9 @@ them and converted to the formats their destination loads.
 A read-only preview shows everything first, secret-looking values masked,
 and nothing is written until you choose Import; an existing file is never
 replaced. The extension never writes Muse Code's `settings.json` or
-`.muse/hooks.json`: it copies the masked entries for you, opens the file,
+`.muse/hooks.json`. URL user-info and query values are masked even inside
+command arguments, prompts and rules; copied and published text stays masked.
+It copies the masked entries for you, opens the file,
 and you fill in what is masked. A repository's entries are read only in a
 trusted workspace and offered only for that project's files, so a
 repository's own MCP servers are listed but not offered for your settings.

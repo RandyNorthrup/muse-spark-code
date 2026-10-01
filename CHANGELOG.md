@@ -26,6 +26,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- URL credentials inside imported MCP arguments, commands, prompts and rules
+  now use the same masking as dedicated server URL fields. Preview, clipboard
+  and published rules keep the masked values, including opaque query values.
 - Removed M83's temporary empty English-table stand-in and its build plugin.
   The lead-approved shared `dist/uiText.js` contract replaces this approach;
   the importer uses the same runtime fallback as the other Node bundles.

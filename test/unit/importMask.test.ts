@@ -8,6 +8,15 @@ import { SYNTHETIC } from './helpers/syntheticTokens'
 const MASK = '[masked]'
 
 describe('maskText', () => {
+  it('uses the URL field masker for URLs inside commands and Markdown, idempotently', () => {
+    const url =
+      'https://demo:opaque-user-value@example.test/mcp?signature=opaque-demo-value&tenant=demo'
+    const expected = `curl "${maskUrl(url, MASK)}"; [service](${maskUrl(url, MASK)}).`
+    const masked = maskText(`curl "${url}"; [service](${url}).`, MASK)
+    expect(masked).toBe(expected)
+    expect(maskText(masked, MASK)).toBe(expected)
+  })
+
   it.each([
     [
       'Bearer',

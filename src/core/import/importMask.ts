@@ -46,9 +46,20 @@ const COMMAND_FLAG_VALUE = new RegExp(
 const COMMAND_ASSIGNMENT = new RegExp(String.raw`\b(\w*${CREDENTIAL}\w*=)${VALUE}`, 'gi')
 const QUERY_SEPARATOR = '&'
 const QUERY_ASSIGN = '='
+const URL_IN_TEXT = /\b[a-z][a-z\d+.-]*:\/\/[^\s<>"'`]+/giu
+const URL_TRAILING_PUNCTUATION = /[),.;]+$/u
 
 /** Free text (a command line, a file's body) with every secret-looking value masked. */
 export function maskText(text: string, mask: string): string {
+  const urlsMasked = text.replaceAll(URL_IN_TEXT, (url) => {
+    const suffix = URL_TRAILING_PUNCTUATION.exec(url)?.[0] ?? ''
+    return `${maskUrl(url.slice(0, url.length - suffix.length), mask)}${suffix}`
+  })
+  return maskPlainText(urlsMasked, mask)
+}
+
+// Shared final sweep: maskUrl uses it directly so embedded URLs do not recurse.
+function maskPlainText(text: string, mask: string): string {
   return redactSecrets(text)
     .replaceAll(REDACTOR_MARK, () => mask)
     .replaceAll(TOKEN_SHAPE, () => mask)
@@ -84,7 +95,7 @@ export function maskUrl(url: string, mask: string): string {
     parsed.searchParams.keys(),
     (name) => `${encodeURIComponent(name)}${QUERY_ASSIGN}${mask}`,
   ).join(QUERY_SEPARATOR)
-  return maskText(
+  return maskPlainText(
     `${parsed.protocol}//${userInfo}${parsed.host}${parsed.pathname}${query === '' ? '' : `?${query}`}`,
     mask,
   )
