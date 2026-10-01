@@ -225,13 +225,19 @@ function isCaseSensitiveVolume(): boolean {
   return !existsSync(probe.toUpperCase())
 }
 
+/** A workspace holding `Foo/x.txt` with the user's text. */
+async function workspaceWithFoo(): Promise<string> {
+  const root = path.join(base, randomUUID())
+  await mkdir(path.join(root, 'Foo'), { recursive: true })
+  await writeFile(path.join(root, 'Foo', 'x.txt'), 'the user’s file\n')
+  return root
+}
+
 describe('a restore on a volume that tells letter case apart (M72)', () => {
   it.skipIf(!isCaseSensitiveVolume())(
     'never writes through a link that differs from its target only in letter case',
     async () => {
-      const root = path.join(base, randomUUID())
-      await mkdir(path.join(root, 'Foo'), { recursive: true })
-      await writeFile(path.join(root, 'Foo', 'x.txt'), 'the user’s file\n')
+      const root = await workspaceWithFoo()
       await symlink(path.join(root, 'Foo'), path.join(root, 'foo'), 'dir')
       // macOS offers case-sensitive volumes too: the restore must not fold case blindly.
       const target = {
@@ -257,9 +263,7 @@ describe('a restore on a volume that tells letter case apart (M72)', () => {
   it.skipIf(isCaseSensitiveVolume())(
     'still writes a file named in another letter case on a volume that folds it',
     async () => {
-      const root = path.join(base, randomUUID())
-      await mkdir(path.join(root, 'Foo'), { recursive: true })
-      await writeFile(path.join(root, 'Foo', 'x.txt'), 'the user’s file\n')
+      const root = await workspaceWithFoo()
       const target = {
         workspaceRoot: root,
         platform: process.platform,
