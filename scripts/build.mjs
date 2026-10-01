@@ -19,9 +19,7 @@
 //
 // The review (M70) is a third, dist/review.js: git's material for `/review`,
 // its turn text and the Plan-mode hold, required the first time a review
-// starts. It and the Model API bundle install the activation bundle's display
-// table before they run, so neither carries the English one (see
-// scripts/lib/withoutEnglishTable.mjs).
+// starts. Its factory installs the activation bundle's display language before use.
 //
 // A production build also writes each shipped bundle's esbuild metafile to
 // dist/meta/ (M26, PLAN.md D29): the list of every source file that went in,
@@ -39,7 +37,6 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
-import { withoutEnglishTable } from './lib/withoutEnglishTable.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -103,7 +100,6 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
-  plugins: [withoutEnglishTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -114,7 +110,6 @@ const reviewOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
-  plugins: [withoutEnglishTable],
 }
 
 /** @type {import('esbuild').BuildOptions} */

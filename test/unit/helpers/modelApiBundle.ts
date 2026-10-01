@@ -1,14 +1,10 @@
 // dist/modelApi.js as the production build makes it (M57, PLAN.md D6): the
 // entry bundled by esbuild into a folder the test owns, in the build's
 // format, platform and target, for tests that load the Model API backend the
-// way the extension does, with Node's own `require`. Like the build it
-// carries no English table of its own: the factory installs the caller's
-// (scripts/lib/withoutEnglishTable.mjs). Async, because esbuild's synchronous
-// build takes no plugins.
+// way the extension does, with Node's own `require`.
 
 import path from 'node:path'
 import { build } from 'esbuild'
-import { withoutEnglishTable } from '../../../scripts/lib/withoutEnglishTable.mjs'
 import { MODEL_API_BUNDLE_FILE, PAGE_WORKER_FILE } from '../../../src/shared/constants'
 
 /** Builds the backend and its page worker into `folder`; returns the backend's path. */
@@ -25,7 +21,6 @@ export async function buildModelApiBundle(folder: string): Promise<string> {
     format: 'cjs',
     // The extension host of the floor, VS Code 1.99 (scripts/build.mjs, PLAN.md M62).
     target: 'node20.18',
-    plugins: [withoutEnglishTable],
     logLevel: 'silent',
   })
   return file

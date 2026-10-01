@@ -1,15 +1,14 @@
 // The review's own bundle (M70, PLAN.md D6): src/host/review/reviewEntry.ts
 // built with esbuild into a temporary folder, in the production build's
-// format, platform and target and without the English table, then required by
+// format, platform and target, then required by
 // `lazyReview` with Node's own `require`, as activate requires dist/review.js.
 // A review that cannot load is never skipped: it says so, until one loads.
 
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { withoutEnglishTable } from '../../scripts/lib/withoutEnglishTable.mjs'
 import { reviewTurnText } from '../../src/core/review/reviewPrompt'
 import { requireFile } from '../../src/host/lazyBundle'
 import { createLogger } from '../../src/host/logger'
@@ -34,7 +33,6 @@ beforeAll(async () => {
     platform: 'node',
     format: 'cjs',
     target: 'node20.18',
-    plugins: [withoutEnglishTable],
     logLevel: 'silent',
   })
 })
@@ -83,15 +81,7 @@ describe('the review bundle (M70)', () => {
     expect(load).toHaveBeenCalledOnce()
   })
 
-  it('carries the review and the Reviewer’s text but no English table of its own', () => {
-    const source = readFileSync(built.file, 'utf8')
-    // The review turn's English is in the bundle; the panel's English table is not.
-    expect(source).toContain('Review the changes described below as a code reviewer')
-    expect(source).not.toContain(EN.reviewRestricted)
-    expect(source).not.toContain(EN.checkpointsOff)
-  })
-
-  it('reads the table the activation bundle installed, never an English copy', async () => {
+  it('reads the table the activation bundle installed, before it reads a string', async () => {
     setUiText({ ...EN, reviewCancelled: 'localized cancelled' }, 'de')
     const review = lazyReview(deps())
     const hold = review.createHold({
@@ -125,7 +115,7 @@ describe('the review bundle (M70)', () => {
     expect(load).not.toHaveBeenCalled()
   })
 
-  it('reads the edit review through the bundle’s own copy', async () => {
+  it('reads the edit review through the bundleâ€™s own copy', async () => {
     const review = lazyReview(deps())
     await expect(review.editReview.describe('not a patch document')).resolves.toEqual([])
   })
@@ -145,7 +135,7 @@ describe('the review bundle (M70)', () => {
     expect(logLines(channel).join('\n')).toContain('does not export the review')
   })
 
-  it('requires the bundle’s factory to be a function', () => {
+  it('requires the bundleâ€™s factory to be a function', () => {
     expect(isReviewBundle(undefined)).toBe(false)
     expect(isReviewBundle(null)).toBe(false)
     expect(isReviewBundle({ createReviewFeatures: true })).toBe(false)

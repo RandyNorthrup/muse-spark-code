@@ -299,8 +299,7 @@ entry or any file of the parser's packages (`micromark*`, `mdast-util-*`,
 the reader also writes the brief (`mdast-util-to-markdown`, the version
 remark-gfm's writer resolves to): 139.0 KiB.
 
-**Amendment (M70, 2026-09-30): the review is a bundle of its own, and the
-lazily loaded bundles carry no English table.** At the M72 candidate
+**Amendment (M70, 2026-09-30): the review is a bundle of its own.** At the M72 candidate
 (`1fd98aaf`) `dist/extension.js` was 591.6 KiB of its 600 and
 `dist/modelApi.js` 398.4 of its 400. M70 as first ported added 30.1 KiB to
 the activation bundle and 9.9 KiB to the Model API bundle: the review's code
@@ -323,24 +322,12 @@ every bundle that carries `MODEL_TEXT`).
 - **`REVIEW_MODEL_TEXT`** is the review's model text as a block of its own
   beside `MODEL_TEXT`, so a bundle that never reviews does not carry it (a
   single object cannot be tree-shaken by key).
-- **No English table in the Model API and review bundles.** Their factories
-  already install the activation bundle's table before anything reads a
-  string (M57's audit), so the English one `text.ts` starts from is never
-  read there. `scripts/lib/withoutEnglishTable.mjs` is an esbuild plugin that
-  loads an empty `EN` in its place (72 KiB of `dist/modelApi.js`), used by the
-  production build and by the tests that build these bundles. The
-  bundle-split gate fails when either carries the table, or the activation
-  bundle does not. A bundle that reads `UI_TEXT` and loads after activation
-  does the same; the checkpoint store's (`dist/checkpointStore.js`) and the
-  ACP agent's keep theirs.
 - **Session-only model text** is `MODEL_API_MODEL_TEXT`, a separate block
   beside `MODEL_TEXT`: 57 existing keys used only by `ModelApiHost` (one is
   also read by the lazy MCP pool), with every word unchanged. Activation
   and the ACP loader can discard this unused object. The split gate rejects
   the session text's return to either loader. This repairs M70's initial
   603.7 KiB activation overflow without raising any cap.
-  The English-table plugin's declaration is included in the host compiler
-  project so the normal type-aware lint gate also checks that boundary.
 - **Measured** (lane production build, after merging M72 candidate `54a1eaf5`):
   `dist/extension.js` 599.4/600 KiB, `dist/modelApi.js` 331.8/400,
   `dist/review.js` 40.8/50, `dist/checkpointStore.js` 190.3/225,
@@ -7751,6 +7738,21 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M70 — Review (D49)
 
+- **Shared-table decision (M70c, 2026-10-01).** Remove the lane's empty-table
+  build workaround in its own commit, then merge approved `build/shared-ui-text`
+  (`44d920fd`). Every Node bundle loads `dist/uiText.js`; review stays lazy
+  with its unchanged 50 KiB cap. No other build-layout change. Build before
+  further fixes; stop and report if any cap is exceeded.
+- **Independent review follow-up (M70b, 2026-10-01).** Reproduce RV70 findings
+  1–5 before fixing: wait for ordinary mode admission; fence late review
+  acknowledgements to their submitted session/generation; recheck dirty buffers
+  inside checkpoint write/delete admission; omit git metadata from Reviewer
+  system instructions; report unreadable pane patches as omitted edits.
+  Reuse existing mode settlement, session fences, dirty predicate, environment
+  formatter and pane omission path. One commit per finding, guard drills with
+  byte-exact SHA-256 restoration. Run the two reported failing suites alone and
+  resolve any isolated failures without changing deadlines. No M72 merge this
+  round; full quality and installed-editor checks remain the lead's gates.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:

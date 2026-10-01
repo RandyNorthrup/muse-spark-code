@@ -50,7 +50,7 @@ export type ReviewTurnFeatures = Omit<ReviewFeatures, 'editReview'>
  * activation bundle, nothing compared by identity across the two (M57's audit).
  */
 export interface ReviewBundleDeps {
-  /** The installed table and its language (PLAN.md D33); the bundle has no English of its own. */
+  /** The installed table and its language (PLAN.md D33); installed before the factory builds. */
   readonly uiText: UiText
   readonly uiLocale: string
   readonly collector: ReviewCollectorDeps

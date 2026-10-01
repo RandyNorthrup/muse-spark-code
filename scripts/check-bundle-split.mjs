@@ -21,10 +21,6 @@
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
 //   requires the first time one is used.
-// - the English table (src/shared/l10n/en.ts, 72 KiB and growing) is in
-//   dist/modelApi.js or dist/review.js, which install the activation
-//   bundle's table before they run and so carry an empty one
-//   (scripts/lib/withoutEnglishTable.mjs), or is missing from dist/extension.js.
 //
 // Exits 1 on any problem.
 //
@@ -261,25 +257,6 @@ for (const file of REVIEW_ONLY) {
     problems.push(`${REVIEW.output} no longer carries ${file}`)
   }
 }
-// The bundles that install the activation bundle's display table carry the
-// empty one the build's plugin loads, a few bytes; the activation bundle's
-// is the whole English table.
-const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
-const ENGLISH_STUB_MAX_BYTES = 64
-for (const [output, inputs] of [
-  [BUNDLES.modelApi.output, modelApi],
-  [REVIEW.output, review],
-]) {
-  const bytes = inputs.get(ENGLISH_TABLE) ?? 0
-  if (bytes > ENGLISH_STUB_MAX_BYTES) {
-    problems.push(
-      `${output} carries the English table (${String(bytes)} bytes of ${ENGLISH_TABLE}); it installs the activation bundle's (scripts/lib/withoutEnglishTable.mjs)`,
-    )
-  }
-}
-if ((activation.get(ENGLISH_TABLE) ?? 0) <= ENGLISH_STUB_MAX_BYTES) {
-  problems.push(`${BUNDLES.activation.output} does not carry the English table`)
-}
 function hasPrefix(inputs, prefix) {
   for (const input of inputs.keys()) {
     if (input.startsWith(prefix)) {
@@ -342,5 +319,5 @@ console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
 )
 console.log(
-  `ok   ${REVIEW.output}: carries the review and edit review; ${BUNDLES.activation.output} keeps the loader; ${BUNDLES.modelApi.output} and ${REVIEW.output} carry no English table`,
+  `ok   ${REVIEW.output}: carries the review and edit review; ${BUNDLES.activation.output} keeps the loader`,
 )

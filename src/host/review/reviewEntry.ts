@@ -6,8 +6,7 @@
 // loads at activation. Like the Model API bundle it carries its own copy of
 // every module it shares with dist/extension.js, the display language's table
 // among them, so the factory installs the activation bundle's table before it
-// builds anything (the English one is not in this bundle at all, see
-// scripts/lib/withoutEnglishTable.mjs).
+// builds anything.
 
 import { PlanModeHold } from '../../core/review/planModeHold'
 import { reviewTurnText } from '../../core/review/reviewPrompt'

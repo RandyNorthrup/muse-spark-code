@@ -46,13 +46,9 @@ happened, not what was planned; superseded entries are kept.
   Revert) are the new `dist/review.js` (40.8 KiB, budget 50), required the
   first time one is used; a module that cannot be loaded refuses the review
   with `reviewUnavailable` and the log has the cause.
-- **`dist/modelApi.js` and `dist/review.js` carry no English table.** They
-  install the activation bundle's display table before they run (the Model
-  API bundle since M57), so the build gives them an empty one instead of a
-  second 72 KiB copy: `dist/modelApi.js` is 331.8 KiB (398.4 before M70, of
-  its 400), and the bundle-split gate fails the build if an English table
-  comes back into either. The review's model text is a block of its own
-  (`REVIEW_MODEL_TEXT`), so the bundles that never review do not carry it.
+- Removed M70's empty English-table build workaround in preparation for the
+  approved shared `dist/uiText.js` fallback. Review model text remains in
+  `REVIEW_MODEL_TEXT` so bundles that never review do not carry it.
 - The review's git calls run as the prompt's git facts do
   (`GIT_METADATA_OPTIONS`: no fsmonitor hook, no signature program, and
   `--no-replace-objects`, so a replace ref cannot show other commits than
