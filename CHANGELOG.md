@@ -7,6 +7,26 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Browser check** (M81, PLAN.md D49). After a web change the model can
+  open a page of your local dev server in a headless system Chrome or
+  Edge, optionally click and type through up to eight steps, and read back
+  the console errors and the failed requests; on the Model API backend it
+  also sees a screenshot (`browser_check`). Muse Code gets the same check
+  as text through the extension's `ide` server (`mcp__ide__browserCheck`),
+  confirmed in the extension's own dialog before every call. The browser
+  runs over its debugging pipe, never a network port, in a temporary
+  profile that is deleted afterwards, and every request beyond this
+  computer is blocked: by the browser's request interception for pages,
+  frames, workers and redirects, and by a proxy that does not exist for
+  everything else. Only you widen it, in the machine-scoped
+  `museSpark.browserCheckExtraHosts` or on a card or in the dialog for one
+  check; never the model. No Chrome or Edge installed: the check says so.
+- The browser check's runner ships as a bundle of its own,
+  `dist/browserCheck.js` (budget 50 KiB, 37.8 KiB when built), loaded on
+  the first check.
+
 ### Fixed
 
 - The Node bundles share their English fallback as `dist/uiText.js`, while

@@ -30,7 +30,7 @@ two.
 [Permission modes](#permission-modes) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
-[The panel](#the-panel) ·
+[Browser check](#browser-check) · [The panel](#the-panel) ·
 [Voice dictation](#voice-dictation) · [Paid features](#paid-features) ·
 [Languages](#languages) ·
 [Limits](#limits) ·
@@ -981,6 +981,48 @@ Meta's paid web search.
   refusal, and a network where only the proxy can look names up cannot use
   web fetch.
 
+## Browser check
+
+After changing a web page, the model can open it from your local dev server
+in a headless browser and see it working: `browser_check` on the Model API
+backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
+
+- **What comes back.** The console errors (and uncaught exceptions) and the
+  failed requests (a network error, or an HTTP status of 400 or more), up to
+  20 of each; on the Model API backend also a screenshot, which the model
+  sees as it sees an image `read_file` read. Muse Code gets text only until
+  a capture shows that an `ide` tool's image reaches its model. Before the
+  page is read, the model may run up to eight click or type steps, each
+  naming a CSS selector. A check ends after 60 seconds; a page still loading
+  after 15 is read as it stands.
+- **The browser.** Your installed Google Chrome or Microsoft Edge (none
+  installed: the check says so; nothing is bundled). It runs headless, talks
+  to the extension over its debugging pipe and never opens a network port,
+  and uses a temporary profile that is deleted afterwards, never yours. It
+  ends with the check, when you press Stop, and when the window closes.
+- **Where a page may go.** Only this computer: `localhost`, `127.x.x.x` and
+  `[::1]`. A host name is never looked up, so a name that resolves elsewhere,
+  or even to this computer, is blocked unless you widen it. Every request
+  the page makes beyond that (its scripts and images, frames, workers,
+  redirects) is blocked inside the browser, and everything else (a
+  WebSocket, a preconnect) is sent to a proxy that does not exist; the row
+  lists what was blocked. To let checks reach other hosts, name them in
+  `museSpark.browserCheckExtraHosts` (machine-scoped: plain host names or IP
+  addresses, no ports, paths or wildcards). The model can never widen it.
+- **Asking.** On the Model API backend the check is judged per host like web
+  fetch: Manual and Auto ask on a card naming the URL, "Always allow in
+  this session" covers that host, Bypass runs it, Plan refuses it and
+  Restricted Mode turns it off. A host beyond this computer and the setting
+  always gets a card, Bypass included; allowing it lets that check (or,
+  with "Always allow", that host for the session) be reached. On Muse Code
+  the extension asks in its own dialog before every check, naming a host
+  beyond this computer, and offers the tool only in a trusted workspace
+  whose `museSpark.sandboxNetwork` is not `restricted`.
+- **Untrusted content.** What the page produced (where it ended up, its
+  console, its requests) reaches the model between markers the page cannot
+  know, as untrusted data. The row shows the counts and the entries in your
+  language; on Muse Code the row shows the tool's English text.
+
 ## The panel
 
 **Composer.**
@@ -1802,6 +1844,7 @@ immediately. The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiPromptCacheRetention`, `turnCheckpoints`,
+`browserCheckExtraHosts`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 and the five paid features, `modelApiWebSearch`, `modelApiImageGeneration`,
 `modelApiVoice`, `modelApiSubagents` and `modelApiScheduledPrompts`) are
@@ -1846,6 +1889,7 @@ Bypass at once.
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
+| `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): hosts beyond this computer a checked page may open and reach, as plain host names or IP addresses (no ports, paths or wildcards; one that is not refuses the list); empty means this computer only, unless you allow a host on a card or in the dialog for one check. Only you widen it, never the model. Machine-scoped                                                                                                                                                           |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -1983,6 +2027,12 @@ stopped and the next message resumes the same session.
   writes can carry what the conversation holds; the approval names it whole.
   Only public `https://` addresses are fetched, the address checked is the
   address used, and the log names the host only.
+- The [browser check](#browser-check) runs your page in a headless Chrome
+  or Edge with a temporary profile, never yours, over the browser's
+  debugging pipe, never a network port. What the page shows, logs and
+  requests goes to the model as tool output; on the Model API backend that
+  includes a screenshot of the page, sent to Meta with the next request.
+  The page reaches nothing beyond this computer unless you widen it.
 - Workspace rules, skill files and the memory snapshot are read only in a
   trusted workspace; on the Model API backend their text is part of what
   goes to Meta with each request, on the CLI backend Muse Code sends them

@@ -114,6 +114,18 @@ security notes for contributors are in `PLAN.md` §9.
   prefix, which carries nothing of yours. Web fetch
   is free: it is not Meta's paid web search. The log names the host and the
   outcome, never the path, the query or the page.
+- **Browser check (both backends, M81).** When the model asks to check a
+  page (`browser_check` on the Model API backend, `mcp__ide__browserCheck`
+  on Muse Code), the extension opens it in your installed Chrome or Edge,
+  headless, in a temporary profile that is deleted afterwards (never your
+  profile, cookies or passwords). The page's console errors, its failed and
+  blocked requests and where it ended up go to the model like any other
+  tool output, and on the Model API backend so does a screenshot of the
+  page, sent to Meta with the next request. The page reaches only this
+  computer, plus the hosts you list in `museSpark.browserCheckExtraHosts`
+  or allow for one check; host names are never looked up. The browser
+  talks to the extension over a pipe, never a network port, and is told to
+  send no background, sync or update traffic. The check is free.
 - **Hooks on the Model API backend (off by default).** With
   `museSpark.modelApiHooks` on, the hook commands in Muse Code's settings
   run on your machine as you, outside the agent's sandbox. That means your
