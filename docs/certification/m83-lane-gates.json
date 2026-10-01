@@ -1,7 +1,8 @@
 {
-  "date": "2026-10-01T05:40:57.843Z",
-  "sourceCommit": "66706553874a9f68ddfbbb3f392c32a5ee3aa88b",
-  "releaseCandidate": "1e8fbbdea38fcdeede96a5ba32d243303bf1aab4",
+  "date": "2026-10-01T06:15:31.991Z",
+  "sourceCommit": "d4ad53a326e768a47f72d83e4b06875be8e6b832",
+  "releaseCandidate": "8d59fb5c58377439cfc67f71a963353c97aa3133",
+  "previousReceiptCommit": "fd836d63",
   "environment": {
     "platform": "win32",
     "node": "v24.20.0",
@@ -15,7 +16,7 @@
       "name": "typecheck",
       "command": ["npm", "run", "typecheck"],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-typecheck.log",
+      "log": "temp/m83-lane/lazy-ui-typecheck.log",
       "logSha256": "1e2d94b0a2132315fa450d5355814f4519f9f4c1c545d9853de91a1ae58fb76a"
     },
     {
@@ -41,8 +42,6 @@
         "src/host/agentImportEntry.ts",
         "src/host/agentImportHost.ts",
         "src/host/canonicalPath.ts",
-        "src/host/checkpoints/checkpointStore.ts",
-        "src/host/checkpoints/shadowGit.ts",
         "src/host/cliFeatures.ts",
         "src/host/commands/agentImportCommands.ts",
         "src/host/conversation/conversationController.ts",
@@ -60,10 +59,8 @@
         "test/unit/agentImportWorkspaceEdits.test.ts",
         "test/unit/canonicalPath.test.ts",
         "test/unit/checkpointNativeCommands.test.ts",
-        "test/unit/checkpointStorageGuards.test.ts",
         "test/unit/cliFeatures.test.ts",
         "test/unit/helpers/agentImportDeps.ts",
-        "test/unit/helpers/checkpointHarness.ts",
         "test/unit/helpers/memoryImportIo.ts",
         "test/unit/helpers/syntheticTokens.ts",
         "test/unit/importConvert.test.ts",
@@ -72,7 +69,7 @@
         "test/unit/paletteRegistry.test.ts"
       ],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-eslint.log",
+      "log": "temp/m83-lane/closure-eslint.log",
       "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
@@ -89,9 +86,10 @@
         "SECURITY.md",
         "docs/PRIVACY.md",
         "docs/certification/README.md",
-        "docs/certification/m72.md",
         "docs/certification/m83-lane-drills.json",
+        "docs/certification/m83-lane-gates.json",
         "docs/certification/m83.md",
+        "docs/ide-compatibility/host-api.md",
         "eslint.config.mjs",
         "knip.jsonc",
         "l10n/ui.cs.json",
@@ -142,8 +140,6 @@
         "src/host/agentImportEntry.ts",
         "src/host/agentImportHost.ts",
         "src/host/canonicalPath.ts",
-        "src/host/checkpoints/checkpointStore.ts",
-        "src/host/checkpoints/shadowGit.ts",
         "src/host/cliFeatures.ts",
         "src/host/commands/agentImportCommands.ts",
         "src/host/conversation/conversationController.ts",
@@ -161,10 +157,8 @@
         "test/unit/agentImportWorkspaceEdits.test.ts",
         "test/unit/canonicalPath.test.ts",
         "test/unit/checkpointNativeCommands.test.ts",
-        "test/unit/checkpointStorageGuards.test.ts",
         "test/unit/cliFeatures.test.ts",
         "test/unit/helpers/agentImportDeps.ts",
-        "test/unit/helpers/checkpointHarness.ts",
         "test/unit/helpers/memoryImportIo.ts",
         "test/unit/helpers/syntheticTokens.ts",
         "test/unit/importConvert.test.ts",
@@ -173,43 +167,43 @@
         "test/unit/paletteRegistry.test.ts"
       ],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-format-supported.log",
+      "log": "temp/m83-lane/closure-format.log",
       "logSha256": "f20510a9da4717c51c4cffee6d0dd88d6c9a723d0a83711d01216f5b48961283"
     },
     {
       "name": "deadcode",
       "command": ["npm", "run", "deadcode"],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-deadcode.log",
+      "log": "temp/m83-lane/closure-deadcode.log",
       "logSha256": "32d03c4959c7106fcd39a95a5f71d40ce10802b5b3028e72437f21f382abe59e"
     },
     {
       "name": "duplication",
       "command": ["npx", "--no-install", "jscpd"],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-duplication.log",
-      "logSha256": "8ce8b49f6b35df3792336635637cb3437c69b662fc245f3e6b960b6baf3ca8f6"
+      "log": "temp/m83-lane/lazy-ui-duplication.log",
+      "logSha256": "d9d78248d77d88391e5bc3929cc4c5347370bbe8e55fc2a41c42f56f5e6be713"
     },
     {
       "name": "localization",
       "command": ["npm", "run", "check:l10n"],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-l10n.log",
+      "log": "temp/m83-lane/closure-l10n.log",
       "logSha256": "f0911f629691bd67158fff612de25088c3b8d762a7a9560fb309e170f9c6fbfd"
     },
     {
       "name": "host-api",
       "command": ["npm", "run", "check:host-api"],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-host-api.log",
+      "log": "temp/m83-lane/closure-host-api.log",
       "logSha256": "221d3440794cadfb7ab2a872a3a1056a5c47bfb40be9f7ee9b89c7d2b8434dbb"
     },
     {
       "name": "production-build",
       "command": ["npm", "run", "build"],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-build.log",
-      "logSha256": "4a1ddfd6de1c4eda508b96cedb0bd51cd053d437756dedda17836ad7bf815d45"
+      "log": "temp/m83-lane/closure-build.log",
+      "logSha256": "8a6e367a9f66d1a1d71e15b0e60bea12bb4c38e60f9d7e9e74593eca32890bd7"
     },
     {
       "name": "vitest",
@@ -231,25 +225,25 @@
         "test/unit/checkpointNativeCommands.test.ts"
       ],
       "exitCode": 0,
-      "log": "temp/m83-lane/final-vitest.log",
-      "logSha256": "e1f2f4928544702f151bcfacc62f0b4910b695557f5a4f265d8ac7dce0c2d655"
+      "log": "temp/m83-lane/closure-vitest.log",
+      "logSha256": "38f12746da194c0758aa6361f4478dca8578e33a404d7541dc070e46ec03d8a8"
     }
   ],
   "testSummary": {
     "filesPassed": 11,
-    "testsPassed": 218,
+    "testsPassed": 219,
     "existingUnavailableFileSymlinkCases": 3
   },
   "drills": {
-    "passed": 20,
+    "passed": 23,
     "record": "docs/certification/m83-lane-drills.json",
-    "sha256": "dc95eb558b20723fef5771988db107a9e4a3b875db7e1aae42204bb10f529659"
+    "sha256": "e4ded88fbd96fc452a7761c3ea2b670e8efc81590771290cdb2d532ef3da3e3e"
   },
   "buildBytes": {
-    "extension.js": 614280,
+    "extension.js": 612881,
     "modelApi.js": 334366,
-    "checkpointStore.js": 121453,
-    "agentImport.js": 102885
+    "checkpointStore.js": 121537,
+    "agentImport.js": 104974
   },
   "fingerprints": [
     {
@@ -418,7 +412,7 @@
     },
     {
       "path": "scripts/build.mjs",
-      "sha256": "598eaaa41801082d9a289ee36cb4d1d0cf8cf7ceed596d158710d61607b1e189"
+      "sha256": "0c7db9bf5bc44557dbb9c53e4fe6ed15af6c2093a981b55c37100686ab57a037"
     },
     {
       "path": "scripts/check-bundle-size.mjs",
@@ -470,19 +464,19 @@
     },
     {
       "path": "src/extension.ts",
-      "sha256": "00a8f14f9c0f20eaaa553c9161bf4408f6cd7cad3ef8ce5b8c376f24c1f273a0"
+      "sha256": "109a4b04118918e6119fa165e8ad15e19135cfbf7efac88f071af61c028095f2"
     },
     {
       "path": "src/host/agentImportBundle.ts",
-      "sha256": "f5e6d15e1028ff4e7af584d27e6dc0e642a182637b849b2ef56ca115539e5c59"
+      "sha256": "e27a29a9f62d721396dff230acd13fa809f792831b0492a0f92aaa9ea065d590"
     },
     {
       "path": "src/host/agentImportEntry.ts",
-      "sha256": "98b6e01cffa4df13c5991f957d6b49ec6e337cf172eb014feaaa4d49bb930696"
+      "sha256": "a9ca8a8e9ab244953adf353d7411668db1fed121335794a99e52d57ff0aede86"
     },
     {
       "path": "src/host/agentImportHost.ts",
-      "sha256": "acb337114857dbb32091eda656091e2a8ebd463c1c0cb02d30e564117f001245"
+      "sha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9"
     },
     {
       "path": "src/host/canonicalPath.ts",
@@ -490,11 +484,11 @@
     },
     {
       "path": "src/host/checkpoints/checkpointStore.ts",
-      "sha256": "16734216c41e0ad6e45307f361333f1fbcb0c99f7d31848f55389d26c65b4705"
+      "sha256": "9f56a40d898f8e8ae1ca8d01d33543ef9ae247d47d449baac22885d6fcc56f7b"
     },
     {
       "path": "src/host/checkpoints/shadowGit.ts",
-      "sha256": "2b8028a58695ec809ec98bcd516a3cdab57d08b9864146438d08082830011fb0"
+      "sha256": "dc4f8a03c1e5a96b621fd353073620d07bc4a483e48f7b732af90b2ff34d5de3"
     },
     {
       "path": "src/host/cliFeatures.ts",
@@ -506,7 +500,7 @@
     },
     {
       "path": "src/host/conversation/conversationController.ts",
-      "sha256": "a615f3eceaefcb20651cd78520cb6db3b77fbb75c105bb0e67f4791796653e3e"
+      "sha256": "5c496be99bf9177cc65aabf0a3e5ec5a7d788e5d807ffc4057818fedd882e9f5"
     },
     {
       "path": "src/host/importIo.ts",
@@ -515,6 +509,10 @@
     {
       "path": "src/host/lazyBundle.ts",
       "sha256": "abf34fbcda129bd471b5f6fe46766810e24841e6313f5f1ec3c430785acdf68b"
+    },
+    {
+      "path": "src/host/popups.ts",
+      "sha256": "31c176ab87bc4b4b1b1caa763782924da1009013fe8c1ddc9789ce9f4ca73603"
     },
     {
       "path": "src/shared/constants.ts",
@@ -527,6 +525,10 @@
     {
       "path": "src/shared/l10n/enLazy.ts",
       "sha256": "7123fdeff10db5edf8967a86715cb493ba24e95855c086a292986781d70d930a"
+    },
+    {
+      "path": "src/shared/l10n/text.ts",
+      "sha256": "d28576bfd1d11385b4076c95b530d65368149d5b0a33496763ffb5a4846dc77c"
     },
     {
       "path": "src/shared/palette.ts",
@@ -550,7 +552,7 @@
     },
     {
       "path": "test/unit/agentImportBundle.test.ts",
-      "sha256": "b9175a8ab40b354aedb8a417525773a1bf4531a97ce6bcde8458bb9883391277"
+      "sha256": "718f77fe20a9da247bbe5a19519628349261762e180c82a72fbf5d2bd27a76c0"
     },
     {
       "path": "test/unit/agentImportCommands.test.ts",
@@ -558,7 +560,7 @@
     },
     {
       "path": "test/unit/agentImportWorkspaceEdits.test.ts",
-      "sha256": "63f70fcfcf93c96723072a05d572c238f8d72ca2c1f059d841f28e1bca1866cf"
+      "sha256": "68753dffedb5a3b0b2c22356c63e68ccfdec650cabc2b9fd2704625165887d10"
     },
     {
       "path": "test/unit/canonicalPath.test.ts",
@@ -570,7 +572,7 @@
     },
     {
       "path": "test/unit/checkpointStorageGuards.test.ts",
-      "sha256": "947c0b39e3fa4e4e3e23eb3a3dd1c9f49caa34d06c3b62d5b74a0122dec4be89"
+      "sha256": "aa7024ec05a72dc7d431d414ee80607ca8876e34d99c171f1d1c8f4035abf6cd"
     },
     {
       "path": "test/unit/cliFeatures.test.ts",
@@ -578,11 +580,11 @@
     },
     {
       "path": "test/unit/helpers/agentImportDeps.ts",
-      "sha256": "6732efeb32220b86690dfca215f77683b4950dfa2d15edbc1b102c20bf5872af"
+      "sha256": "9124f586ecd6ea7b67fbbbdd245883246afcdc831efb1522a9f97f7d465a45e7"
     },
     {
       "path": "test/unit/helpers/checkpointHarness.ts",
-      "sha256": "9d2349531aa7373c203bc7cfdd0ad929329a6e0b0497cccae2f629eed3cf756a"
+      "sha256": "2a494b294fc1f666664c0189f48f7b1ed2ac515beae03b741d8dec6d2f226249"
     },
     {
       "path": "test/unit/helpers/memoryImportIo.ts",
@@ -627,5 +629,5 @@
     "M76 runtime admission not integrated",
     "Named PR32 handoff unavailable; brief, prepared sources and archive used"
   ],
-  "scope": "Current merged code and affected tests. Later changes are documentation only; this is not release certification."
+  "scope": "New scoped receipt for the named 8d59fb5c release-candidate snapshot plus the lazy UI repair. Full release certification remains lead-owned. Later changes are documentation only."
 }

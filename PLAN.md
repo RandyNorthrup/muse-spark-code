@@ -8966,29 +8966,32 @@ lane; independent review and full multi-platform gates belong to the lead.
 The named `muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is unavailable
 on this machine; the lane brief, prepared source and preserved evidence
 provide the recovery context. No model or network call is needed.
-`667dd5fa` completes the request-root review: the folder is bound before
-the tool/candidate pickers, retained during canonical rules staging, and
-checked before loading and after loading a hooks document. Each regression
-was observed failing first. Twenty guard drills fail as intended, restore
-byte-exact by SHA-256, then pass. Merge `66706553` joins release candidate
-`8e9d3a1e`; `origin/main` did not contain that candidate, so it was not
-substituted. All prescribed scoped gates pass on this merged code: five
-typecheck projects, changed-file ESLint/Prettier, knip, zero jscpd clones,
-localization (zero problems), regenerated host API record, production
-build and eleven affected test files (218 passed; three existing Windows
-file-symlink skips remain unproved). The activation bundle is 614,280 bytes
-(599.9 of 600 KiB); import stays lazy at 100.5 of 125 KiB. See
-`docs/certification/m83.md` and its gate/drill JSON receipts. Full quality,
-independent review, remaining platforms and M76 runtime admission stay
-lead-owned; no push or live/paid call ran.
-Later candidate updates `1e8fbbde` and `8d59fb5c` were normally joined.
-The latter pushed activation to 600.1 KiB (build exit 1). M83 therefore
-moves its existing picker/editor implementation into `dist/agentImport.js`,
-leaving a synchronous loader shim at activation. No cap changes or new
-bundle are needed. The bundle validates both its UI entry and injected
-flow entry; its table is installed before either entry shows text. The
-real built-module test must prove the UI entry uses the handed table and
-retains pre-await owner capture. Refreshed candidate evidence follows.
+`667dd5fa` closes the request-root gaps; `66706553` joins candidate
+`8e9d3a1e`, `dec33da2` joins checkpoint protection `1e8fbbde`, and
+`940acc25` joins catalog retention `8d59fb5c`. Verification is pinned to
+that named snapshot while the lead continues integration. `origin/main`
+did not contain the candidate when the required join began.
+
+The catalog update pushed activation to 600.1 KiB (build exit 1). Fix
+`d4ad53a3` leaves a synchronous activation shim and tree-shakes the existing
+picker/editor implementation into `dist/agentImport.js`. No new bundle,
+dependency, option or cap change is needed. Both entry functions are
+validated, and the display table is installed before either one shows
+text. A real built-module test proves localization and pre-await owner
+capture. Twenty-three guard drills fail as intended, restore exact source
+bytes by SHA-256 and pass again.
+
+All prescribed scoped checks pass on this source: five type projects,
+changed-file ESLint/Prettier, knip, zero jscpd clones, localization and
+host API inventory with zero problems, production build and eleven
+owned/affected test files (219 passed; three existing Windows file-symlink
+cases remain unproved). Activation is 612,881 bytes (598.5/600 KiB);
+import 102.5/125 KiB, Model API 326.5/400 KiB and checkpoint store
+118.7/225 KiB. Full quality, independent review, other platforms and M76
+runtime admission remain lead-owned. No push or live/paid call ran.
+Current receipts: `docs/certification/m83-lane-gates.json` and
+`docs/certification/m83-lane-drills.json`. Prior gate records stay in Git
+history and describe their own source snapshots.
 The 2026-09-28 certification is historical (`docs/certification/m83.md`).
 
 - **Goal.** Switching to Muse Spark Code takes minutes.
