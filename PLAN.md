@@ -10139,3 +10139,12 @@ size and time only (a chmod alone goes unseen), a repository deep in an
 ignored folder past the folder scan limit is not found, two windows on one
 conversation can take the same count, and the shadow `info/exclude` is
 shared by the folder's windows (the next capture corrects a stale copy).
+
+**Fourth Codex review of PR #55 (2026-10-01).** Four threads on `a5a4b1ac`
+(one P1, one security P2, two P2), all real, all fixed with tests and drills
+(`docs/certification/m72.md`, "Codex review of `a5a4b1ac`"). A checkpoint
+record gains one more optional field, `userSaves`: the files the user saved
+in the turn's window while it ran, which a restore refuses. Release rule set
+by the lead after this round: a later Codex finding that is neither a P1 nor
+a security finding is recorded as a known limit and fixed in 0.10.1, so the
+release does not wait on review rounds that only find edge cases.

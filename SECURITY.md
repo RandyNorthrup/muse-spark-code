@@ -76,7 +76,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   host's `GIT_*` variables removed, no system or global configuration, hooks
   pointed at an empty folder, fsmonitor off, and every conversion attribute
   unset, so no clean or smudge filter a repository names ever runs; its
-  folder is 0700 on macOS and Linux. Each window owns its index, pinned
+  folder is 0700 on macOS and Linux. No checkpoint is taken when the
+  storage and the workspace hold one another, compared as written and as
+  resolved through links and junctions, and the tools never write inside
+  the storage, so a model cannot plant a hook or filter there. Each window owns its index, pinned
   captures, staged copies and presence; records use Git compare-and-swap
   refs, and a file restore/Redo claims one shared CAS ref before changes.
   Cleanup preserves a live window's resources and recent unreferenced

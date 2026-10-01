@@ -457,7 +457,12 @@ happened, not what was planned; superseded entries are kept.
   copies for that turn. On a case-sensitive macOS volume, a link that
   differs from its target only in letter case is refused. A window's first
   message is no longer sometimes refused ("could not tell other windows …")
-  when the checkpoint repository was still being set up.
+  when the checkpoint repository was still being set up. A file you save in
+  the editor while a turn runs is yours: restoring that turn leaves it as
+  you saved it. An ignored file a tool copied but never changed (its write
+  was refused) is left alone, not rewritten. Unarchiving a conversation
+  keeps its new checkpoints even if the clock was set back. Checkpoint
+  storage that a link or junction puts inside the workspace is refused.
 
 - **Rewind code to here asks first** (M72), in the same confirmation as a
   file restore. **Fork conversation and rewind code** is now one action:
