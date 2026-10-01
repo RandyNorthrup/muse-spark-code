@@ -56,7 +56,7 @@ import {
   GIT_PATH_MAX_DEFAULT,
   GIT_PATH_MAX_WINDOWS,
 } from '../../shared/constants'
-import { isMissingPath } from '../canonicalPath'
+import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { writeFileAtomically } from '../fsAtomic'
 import type { GitProcess } from '../git'
 
@@ -152,6 +152,15 @@ export function isWithinFolder(candidate: string, folder: string): boolean {
   return (
     relative === '' ||
     (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  )
+}
+
+/** Any checkpoint storage inside the workspace, or the workspace inside this storage. */
+function isTangled(storageRoot: string, storage: string, workspace: string): boolean {
+  return (
+    isWithinFolder(storageRoot, workspace) ||
+    isWithinFolder(storage, workspace) ||
+    isWithinFolder(workspace, storage)
   )
 }
 
@@ -433,18 +442,20 @@ export class ShadowGit {
 
   /**
    * Refuses a workspace that holds the checkpoint storage (or is held by it): the
-   * model's file tools could then rewrite `shadow.git/config` and the like, and a
-   * filter they install runs as the user. Checked before any file is made.
+   * model's file tools could then rewrite `shadow.git/config` or plant a hook,
+   * and git would run it as the user. Checked before any file is made, on the
+   * paths as written and as resolved: a link or junction on the way to the
+   * storage (VS Code's own profile folder, say) can put it inside the workspace.
    */
-  public assertSeparate(): void {
+  public async assertSeparate(): Promise<void> {
     const { storageDir, top } = this.layout
     const root = this.layout.storageRoot ?? storageDir
-    // Any checkpoint storage inside the workspace, or the workspace inside this storage.
-    if (
-      isWithinFolder(root, top) ||
-      isWithinFolder(storageDir, top) ||
-      isWithinFolder(top, storageDir)
-    ) {
+    const [realRoot, realStorage, realTop] = await Promise.all([
+      canonicalPath(root),
+      canonicalPath(storageDir),
+      canonicalPath(top),
+    ])
+    if (isTangled(root, storageDir, top) || isTangled(realRoot, realStorage, realTop)) {
       throw new ShadowStorageInWorkspaceError()
     }
   }

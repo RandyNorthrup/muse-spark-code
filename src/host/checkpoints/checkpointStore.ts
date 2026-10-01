@@ -635,7 +635,7 @@ export class CheckpointStore {
       { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
     )
     shadow.assertFits()
-    shadow.assertSeparate()
+    await shadow.assertSeparate()
     await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
     await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
     return { shadow, top, prefix }
