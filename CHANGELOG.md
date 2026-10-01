@@ -455,7 +455,9 @@ happened, not what was planned; superseded entries are kept.
   global excludes file are read again before every capture. Switching
   `museSpark.turnCheckpoints` off during a turn still keeps the tools'
   copies for that turn. On a case-sensitive macOS volume, a link that
-  differs from its target only in letter case is refused.
+  differs from its target only in letter case is refused. A window's first
+  message is no longer sometimes refused ("could not tell other windows …")
+  when the checkpoint repository was still being set up.
 
 - **Rewind code to here asks first** (M72), in the same confirmation as a
   file restore. **Fork conversation and rewind code** is now one action:
