@@ -375,3 +375,53 @@ describe('what the user saves while a turn runs (M72)', () => {
     REAL_GIT_TIMEOUT_MS,
   )
 })
+
+describe('what a restore cannot know about another window’s turn (M72)', () => {
+  it(
+    'never undoes a turn numbered at once with the restored one, whichever the refs list first',
+    async () => {
+      const h = await harness()
+      const second = h.reopen()
+      await write(h.root, 'x.txt', 'x0\n')
+      await write(h.root, 'y.txt', 'y0\n')
+      // Ref names are hashes: "after" lists before "before", the order a tie is left to.
+      await h.store.record('s1', 'before', await captured(h.store))
+      await second.record('s1', 'after', await captured(second))
+      await write(h.root, 'x.txt', 'x1\n')
+      await h.store.endTurn('s1', 'before')
+      await write(h.root, 'y.txt', 'y1\n')
+      await second.endTurn('s1', 'after')
+      // Both windows read the conversation's records before either wrote: one number.
+      rewriteRecord(h.storage, 's1', 'after', (key, value) => (key === 'sequence' ? 1 : value))
+      const outcome = done(await restoreOutcome(second, 'after'))
+      expect(outcome.refused).toEqual([{ path: 'x.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'x.txt')).toBe('x1\n')
+      expect(await read(h.root, 'y.txt')).toBe('y0\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'refuses an ignored file it would put back when a blamed turn left no list of its ignored changes',
+    async () => {
+      let isPeerAlive = true
+      const h = await harness({ isProcessAlive: (pid) => pid !== GONE_PID || isPeerAlive })
+      const peer = h.reopen(GONE_PID)
+      await write(h.root, '.gitignore', '.env\n')
+      await write(h.root, '.env', 'KEY=0\n')
+      await peer.record('s2', 'peer', await captured(peer))
+      await h.store.record('s1', 't1', await captured(h.store))
+      // This turn's tool copies .env and writes it; the other window's turn
+      // writes it after, and that window goes before its end is recorded.
+      await h.store.beforeToolWrite(path.join(h.root, '.env'))
+      await write(h.root, '.env', 'KEY=mine\n')
+      await write(h.root, '.env', 'KEY=peer\n')
+      isPeerAlive = false
+      await h.store.endTurn('s1', 't1')
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toContainEqual({ path: '.env', reason: 'changedAfter' })
+      expect(await read(h.root, '.env')).toBe('KEY=peer\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})

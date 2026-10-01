@@ -1646,6 +1646,15 @@ export class CheckpointStore {
         changed.add(change.path)
       }
     }
+    // A blamed turn whose end no window recorded left no list of the ignored
+    // files it changed, which git's trees cannot show: any ignored file these
+    // turns would put back may have been changed by it since, so none is.
+    if (blamed.some(({ record }) => record.ignored === undefined)) {
+      const ignoredPaths = turns.flatMap((turn) => turn.record.ignored?.changes ?? [])
+      for (const change of ignoredPaths) {
+        changed.add(change.path)
+      }
+    }
     return { changed, uncertain }
   }
 
@@ -2542,7 +2551,21 @@ export class CheckpointStore {
         setup.records.checkpoints.filter((record) => record.sessionId === request.sessionId),
       )
       const selected = ordered.findIndex((turn) => turn.record.id === checkpoint.id)
-      const turns = ordered.slice(selected)
+      // A turn another window numbered at once with the checkpoint's (the
+      // same `sequence`) may have started first, whatever order the refs list
+      // them in: it is never undone with the checkpoint's turn, only blamed,
+      // as an earlier turn still running is.
+      const target = ordered[selected]
+      const isTied = (turn: TurnSpan) =>
+        turn !== target &&
+        turn.isNumbered &&
+        target?.isNumbered === true &&
+        turn.start === target.start
+      const turns = ordered.slice(selected).filter((turn) => !isTied(turn))
+      const earlier = [
+        ...ordered.slice(0, selected),
+        ...ordered.slice(selected).filter((turn) => isTied(turn)),
+      ]
       const capture = await this.captureNow(setup, false)
       if (!capture.ok) {
         return {
@@ -2554,12 +2577,7 @@ export class CheckpointStore {
       }
       const current = capture.snapshot
       const changes = await this.diff(setup.shadow, checkpoint.start.tree, current.tree)
-      const outside = await this.changedOutside(
-        setup,
-        ordered.slice(0, selected),
-        turns,
-        current.tree,
-      )
+      const outside = await this.changedOutside(setup, earlier, turns, current.tree)
       const ignoredTurns = turns.map((turn) => turn.record.ignored?.changes ?? [])
       const currentStat = new Map<string, FileStat | null>()
       for (const change of ignoredTurns.flat()) {
