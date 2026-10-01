@@ -495,6 +495,61 @@ describe('CheckpointStore beyond a plain repository (M72)', () => {
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
+  it.each([
+    { gitEntry: 'folder', isGitDirElsewhere: false },
+    { gitEntry: 'file', isGitDirElsewhere: true },
+  ])(
+    'leaves out whole a repository an ignore rule hides, its .git a $gitEntry, and restores no tool write in any repository',
+    async ({ isGitDirElsewhere }) => {
+      const h = await harness()
+      const repositoryAt = async (relative: string) => {
+        const folder = path.join(h.root, relative)
+        await mkdir(folder, { recursive: true })
+        if (!isGitDirElsewhere) {
+          runGit(folder, ['init', '-q'])
+          return
+        }
+        // A `.git` file names a repository kept elsewhere, as a worktree's or a submodule's does.
+        const gitDir = path.join(path.dirname(h.root), 'git-dirs', relative)
+        await mkdir(gitDir, { recursive: true })
+        runGit(folder, ['init', '-q', '--separate-git-dir', gitDir])
+      }
+      await write(h.root, '.gitignore', 'vendor/\ndeps/\n')
+      // An ignored folder that is a repository, one inside an ignored folder, and an untracked one.
+      const repositories = ['vendor', 'deps/pkg', 'tools']
+      for (const relative of repositories) {
+        await repositoryAt(relative)
+        await write(h.root, `${relative}/lib.c`, 'int x;\n')
+      }
+      await write(h.root, 'deps/plain.js', 'plain v1\n')
+      await turn(h, 't1', async () => {
+        for (const relative of [
+          ...repositories.map((folder) => `${folder}/lib.c`),
+          'deps/plain.js',
+        ]) {
+          await h.store.beforeToolWrite(path.join(h.root, relative))
+          await write(h.root, relative, 'written by a tool\n')
+        }
+        await write(h.root, 'deps/pkg/by-command.c', 'a shell command\n')
+      })
+      const after = await captured(h.store)
+      expect(after.coverage).toEqual({ skipped: [], repositories: ['deps/pkg', 'tools', 'vendor'] })
+      expect([...after.inventory.files].map(([relative]) => relative)).toEqual(['deps/plain.js'])
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(await read(h.root, 'deps/plain.js')).toBe('plain v1\n')
+      for (const relative of repositories) {
+        expect(await read(h.root, `${relative}/lib.c`)).toBe('written by a tool\n')
+      }
+      expect(await read(h.root, 'deps/pkg/by-command.c')).toBe('a shell command\n')
+      expect(outcome.refused).toEqual([
+        { path: 'deps/pkg/lib.c', reason: 'notInCheckpoint' },
+        { path: 'tools/lib.c', reason: 'notInCheckpoint' },
+        { path: 'vendor/lib.c', reason: 'notInCheckpoint' },
+      ])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
 })
 
 describe('CheckpointStore lifecycle (M72)', () => {

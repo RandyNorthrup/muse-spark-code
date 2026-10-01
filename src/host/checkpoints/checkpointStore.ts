@@ -1157,7 +1157,7 @@ export class CheckpointStore {
         }
       }
       const reachableIgnoredFolders = ignoredFolders.filter((relative) => isReachable(relative))
-      const inventory = await scanIgnored(
+      const scan = await scanIgnored(
         this.deps.workspaceRoot,
         ignoredFiles.filter((relative) => isReachable(relative)),
         reachableIgnoredFolders,
@@ -1171,9 +1171,13 @@ export class CheckpointStore {
           tree: synced.tree,
           coverage: {
             skipped: [...skipped, ...linked].toSorted(byText),
-            repositories: repositories.filter((relative) => isReachable(relative)).toSorted(byText),
+            // Git names an untracked repository; one an ignore rule hides, the scan finds.
+            repositories: [
+              ...repositories.filter((relative) => isReachable(relative)),
+              ...scan.repositories,
+            ].toSorted(byText),
           },
-          inventory,
+          inventory: scan.inventory,
           createdAt: this.deps.now(),
           pin: undefined,
           folders,

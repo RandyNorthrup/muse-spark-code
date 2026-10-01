@@ -621,7 +621,7 @@ describe('the ignored-file scan (M72)', () => {
     for (let index = 0; index <= CHECKPOINT_IGNORED_FOLDER_MAX_FILES; index += 1) {
       await writeFile(path.join(root, 'huge', `f${String(index)}`), '')
     }
-    const inventory = await scanIgnored(root, ['.env'], ['dist', 'huge'])
+    const { inventory } = await scanIgnored(root, ['.env'], ['dist', 'huge'])
     const scanned = [...inventory.files].map(([key]) => key).toSorted((a, b) => a.localeCompare(b))
     expect(scanned).toEqual(['.env', 'dist/a.js'])
     expect(inventory.files.get('.env')?.size).toBe(3)

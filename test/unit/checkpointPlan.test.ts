@@ -289,6 +289,38 @@ describe('planRestore (M72)', () => {
     } satisfies RestorePlan)
   })
 
+  it('refuses an ignored file a tool copied inside a repository of its own, at either end', () => {
+    const copied = (relative: string): IgnoredChange => ({
+      path: relative,
+      kind: 'changed',
+      preImage: blob('before'),
+      startStat: stat(1),
+      endStat: stat(2),
+    })
+    const plan = planRestore(
+      input({
+        ignoredTurns: [
+          [copied('cloned/a.c'), copied('deps/pkg/index.js'), copied('deps/plain.js')],
+        ],
+        coverage: {
+          checkpoint: { skipped: [], repositories: ['deps/pkg'] },
+          current: { skipped: [], repositories: ['cloned', 'deps/pkg'] },
+        },
+        currentStat: new Map([
+          ['cloned/a.c', stat(2)],
+          ['deps/pkg/index.js', stat(2)],
+          ['deps/plain.js', stat(2)],
+        ]),
+      }),
+    )
+    expect(plan.steps.map((step) => step.path)).toEqual(['deps/plain.js'])
+    expect(plan.refused).toEqual([
+      { path: 'cloned', reason: 'notInCheckpoint' },
+      { path: 'cloned/a.c', reason: 'notInCheckpoint' },
+      { path: 'deps/pkg/index.js', reason: 'notInCheckpoint' },
+    ])
+  })
+
   it('refuses an ignored file another conversation changed meanwhile', () => {
     const plan = planRestore(
       input({
