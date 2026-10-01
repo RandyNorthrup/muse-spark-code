@@ -8645,9 +8645,16 @@ extension's own storage, never the workspace's `.git`.
     and the actual Node bundles load English successfully. The joined
     checkpoint fixture's two clones were removed by shared setup and
     expected blob data, preserving assertions and platform conditions.
-    Current sizes: extension 523.4/600 KiB, Model API 337.4/400, checkpoint
-    store 120.4/225 and shared table 73.0/100. The candidate advanced to
-    `d09d472f` during tests; join and focused refresh follow before handoff.
+    Final sizes: extension 523.4/600 KiB, Model API 337.4/400, checkpoint
+    store 120.6/225 and shared table 73.0/100. Merged the final candidate
+    `d09d472f` in `80a33895`, retaining its mode-aware expectations and the
+    shared fixtures. All nine lane checks passed again on the affected
+    join: five-project types, affected lint/format, knip, zero clones,
+    localization, host API, build and 50 checkpoint tests in four files
+    (six inherited platform skips). The current runtime smoke passed;
+    installed ACP, Model API and shared-table bytes match the final build.
+    Full quality, independent review and platform/release gates remain
+    lead-owned; no lane check is pending or red.
   - **Prior lane verification 2026-09-30.** Merged the current candidate
     `8d59fb5c` in `486f33c2`. All required lane gates passed: five typecheck
     projects, changed-file lint/format, dead code, duplication, localization,
