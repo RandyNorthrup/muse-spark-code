@@ -4268,38 +4268,17 @@ describe('ConversationController: session history (M6)', () => {
   })
 
   it('implements a plan written over imported history as untrusted: a mode that asks, never "approved" (M84)', async () => {
-    const t = setup({
-      initialPermissionMode: 'auto',
-      hasApprovalUi: true,
-      transferFileContent: transferFile(),
-    })
-    let nextId = 0
-    const { api, controller } = modelApiController(t, { newId: () => `id${String(++nextId)}` })
-    await controller.handle({ type: 'importSession' })
-    // The user relaxes it to Plan, and the imported history steers the plan.
-    await controller.handle({ type: 'setPermissionMode', mode: 'plan' })
-    api.script({ text: '# Clean up\n\n1. Delete the build folder.' })
-    await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'Plan', attachmentIds: [] })
-    await vi.waitFor(() => {
-      expect(agentEvents(t).some((event) => event.type === 'turnCompleted')).toBe(true)
-    })
-    const reply = agentEvents(t).findLast(
-      (event) => event.type === 'itemCompleted' && event.item.kind === 'agentMessage',
+    const { t, api, controller, source } = await modelApiPlan(
+      '# Clean up\n\n1. Delete the build folder.',
+      'Plan',
+      { initialPermissionMode: 'auto', hasApprovalUi: true, transferFileContent: transferFile() },
+      async (imported) => {
+        await imported.handle({ type: 'importSession' })
+        // The user relaxes it to Plan, and the imported history steers the plan.
+        await imported.handle({ type: 'setPermissionMode', mode: 'plan' })
+      },
     )
-    const { info } = latestAcceptedModelTurn(t)
-    if (reply?.type !== 'itemCompleted' || info.sessionId === undefined) {
-      throw new Error('expected the plan reply')
-    }
-    api.script({ text: 'Done' })
-    t.surface.posted.length = 0
-    await controller.handle({
-      type: 'implementPlan',
-      sourceSessionId: info.sessionId,
-      itemId: reply.item.itemId,
-    })
-    await vi.waitFor(() => {
-      expect(api.responseBodies()).toHaveLength(2)
-    })
+    await implementModelApiPlan({ t, api, controller, source })
     // Manual, as for a plan file, though the starting mode is Auto.
     expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
       permissionMode: 'manual',
@@ -7600,11 +7579,21 @@ async function noticesOf(t: ReturnType<typeof setup>, message: ConversationMessa
   return notices(t)
 }
 
+/** The panel in Plan mode, as a Plan-mode reply needs it. */
+const PLAN_MODE_SETUP = { initialPermissionMode: 'plan', hasApprovalUi: true } as const
+
 /** A Model API conversation whose latest reply, from a Plan-mode turn, is `plan`. */
-async function modelApiPlan(plan: string, prompt: string) {
-  const t = setup({ initialPermissionMode: 'plan', hasApprovalUi: true })
+async function modelApiPlan(
+  plan: string,
+  prompt: string,
+  options: Parameters<typeof setup>[0] = PLAN_MODE_SETUP,
+  /** Runs before the prompt (an import, M84) and leaves the panel in Plan mode. */
+  beforePrompt?: (controller: ConversationController) => Promise<void>,
+) {
+  const t = setup(options)
   let nextId = 0
   const { api, controller } = modelApiController(t, { newId: () => `id${String(++nextId)}` })
+  await beforePrompt?.(controller)
   api.script({ text: plan })
   await controller.handle({ type: 'sendMessage', localId: 'l1', text: prompt, attachmentIds: [] })
   await vi.waitFor(() => {
@@ -7623,6 +7612,21 @@ async function modelApiPlan(plan: string, prompt: string) {
     controller,
     source: { sourceSessionId: info.sessionId, itemId: reply.item.itemId },
   }
+}
+
+/** Implement in a fresh conversation on a `modelApiPlan` reply, once its first request is sent. */
+async function implementModelApiPlan({
+  t,
+  api,
+  controller,
+  source,
+}: Awaited<ReturnType<typeof modelApiPlan>>): Promise<void> {
+  api.script({ text: 'Done' })
+  t.surface.posted.length = 0
+  await controller.handle({ type: 'implementPlan', ...source })
+  await vi.waitFor(() => {
+    expect(api.responseBodies()).toHaveLength(2)
+  })
 }
 
 function chooses(t: ReturnType<typeof setup>, action: 'open' | 'implement'): void {
@@ -8004,12 +8008,7 @@ describe('ConversationController: plans as files (M79)', () => {
     await controller.handle({ type: 'savePlan', ...source })
     const planPath = `.agents/plans/${planFileName(new Date(NOW), 'dark-mode', 1)}`
     expect(t.planFiles.files.get(`/ws/${planPath}`)).toBe(plan)
-    api.script({ text: 'Done' })
-    t.surface.posted.length = 0
-    await controller.handle({ type: 'implementPlan', ...source })
-    await vi.waitFor(() => {
-      expect(api.responseBodies()).toHaveLength(2)
-    })
+    await implementModelApiPlan({ t, api, controller, source })
     const posted = t.surface.posted
     const todoIndex = posted.findIndex(
       (message) => message.type === 'agentEvent' && message.event.type === 'todoChanged',

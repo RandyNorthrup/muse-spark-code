@@ -180,6 +180,26 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       defaultUri: vscode.Uri.file(path.join(deps.workspaceRoot ?? homedir(), fileName)),
       filters: { [filterName]: [extension] },
     })
+  /**
+   * Asks where to save an export and writes it there under the edit lease
+   * and action guard (M72), Markdown and portable JSON alike; undefined,
+   * with nothing written, when the dialog is dismissed.
+   */
+  const saveExport = async (
+    fileName: string,
+    filterName: string,
+    extension: string,
+    content: string,
+  ): Promise<vscode.Uri | undefined> => {
+    const target = await saveTarget(fileName, filterName, extension)
+    if (target === undefined) {
+      return undefined
+    }
+    await deps.editFile(target.fsPath, async () => {
+      await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
+    })
+    return target
+  }
   return {
     showMcpServers: () => showMcpServers(configDeps()),
     showHooks: () => showHooks(configDeps()),
@@ -219,25 +239,23 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       }),
     exports: {
       saveMarkdown: async (fileName, content) => {
-        const target = await saveTarget(fileName, MARKDOWN_FILTER, EXPORT_FILE_EXTENSIONS.markdown)
+        const target = await saveExport(
+          fileName,
+          MARKDOWN_FILTER,
+          EXPORT_FILE_EXTENSIONS.markdown,
+          content,
+        )
         if (target === undefined) {
           return
         }
-        await deps.editFile(target.fsPath, async () => {
-          await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
-        })
         deps.log.info(`Exported the conversation to ${target.toString()}`)
         await vscode.window.showTextDocument(target, { preview: false })
       },
       saveJson: async (fileName, content) => {
-        const target = await saveTarget(fileName, JSON_FILTER, EXPORT_FILE_EXTENSIONS.json)
+        const target = await saveExport(fileName, JSON_FILTER, EXPORT_FILE_EXTENSIONS.json, content)
         if (target === undefined) {
           return
         }
-        // The same lease and action guard as the Markdown export (M72).
-        await deps.editFile(target.fsPath, async () => {
-          await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
-        })
         deps.log.info(`Exported the session as JSON to ${target.toString()}`)
         await offerToOpen(target)
       },
