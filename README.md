@@ -566,8 +566,11 @@ and nothing is written until you choose Import; an existing file is never
 replaced. The extension never writes Muse Code's `settings.json` or
 `.muse/hooks.json`. URL user-info and query values are masked even inside
 command arguments, prompts and rules; copied and published text stays masked.
-It copies the masked entries for you, opens the file,
-and you fill in what is masked. A repository's entries are read only in a
+It copies the masked entries for you and opens the file. It rechecks whether
+the file exists before clipboard and editor actions. A file
+created while the preview waits opens for merging; a vanished file opens
+unsaved. The settings copy and its instructions use the current file state;
+you fill in what is masked. A repository's entries are read only in a
 trusted workspace and offered only for that project's files. Trust revocation
 stops further project reads during the scan. Closing the activation stops
 further scan reads and pending import prompts. A

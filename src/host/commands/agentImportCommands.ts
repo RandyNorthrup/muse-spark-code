@@ -17,6 +17,7 @@ import { fenced } from '../../core/export/transcriptMarkdown'
 import { decodeContextText } from '../../core/context/contextFiles'
 import {
   applyImportWrites,
+  copyForCurrentFile,
   type ImportApplyResult,
   type ImportCandidate,
   type ImportCopy,
@@ -447,6 +448,11 @@ async function offerCopies(deps: AgentImportDeps, plan: ImportPlan): Promise<voi
     if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
       continue
     }
+    const currentCopy = copyForCurrentFile(copy, !(await deps.isPresent(copy.absolutePath)))
+    // Existence awaited too: keep the clipboard behind the live path/trust checks.
+    if (!(await isCopyTargetSafe(deps, currentCopy, plan.projectRoot))) {
+      continue
+    }
     // The awaited path check returned to this continuation: keep the
     // clipboard entry itself behind a fresh synchronous project guard.
     if (!deps.isActive()) {
@@ -458,18 +464,29 @@ async function offerCopies(deps: AgentImportDeps, plan: ImportPlan): Promise<voi
     }
     if (choice === 'copy') {
       // The clipboard holds the masked text; the masked values are filled in by hand.
-      await deps.copyText(copy.text)
+      await deps.copyText(currentCopy.text)
       if (deps.isActive()) {
-        deps.showInformation(UI_TEXT.agentImportCopied)
+        deps.showInformation(
+          [
+            UI_TEXT.agentImportCopied,
+            currentCopy.isNewFile
+              ? UI_TEXT.agentImportPreviewNewFile
+              : UI_TEXT.agentImportPreviewMerge,
+          ].join(SENTENCE_SEPARATOR),
+        )
       }
     }
     // Clipboard access awaits: the destination may have changed meanwhile.
     if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
       continue
     }
+    const isExisting = await deps.isPresent(copy.absolutePath)
+    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
+      continue
+    }
     await deps.openTarget(
       copy.absolutePath,
-      !copy.isNewFile,
+      isExisting,
       async () => await isCopyTargetSafe(deps, copy, plan.projectRoot),
     )
   }

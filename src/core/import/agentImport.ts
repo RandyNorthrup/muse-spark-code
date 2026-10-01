@@ -24,6 +24,7 @@
 //
 // Pure: every file access is injected. No model call.
 
+import { z } from 'zod'
 import {
   AGENT_FILE_MAX_BYTES,
   AGENT_FILE_NAME,
@@ -1080,6 +1081,23 @@ function copyJson(
   header: Readonly<Record<string, unknown>>,
 ): string {
   return JSON.stringify({ ...header, ...members }, undefined, JSON_INDENT)
+}
+
+/** Reconcile the accepted copy with live existence without changing its imported members. */
+export function copyForCurrentFile(copy: ImportCopy, isNewFile: boolean): ImportCopy {
+  if (copy.isNewFile === isNewFile) {
+    return copy
+  }
+  if (copy.file === 'hooks') {
+    return { ...copy, isNewFile }
+  }
+  const members = z.record(z.string(), z.unknown()).parse(JSON.parse(copy.text))
+  delete members['schema_version']
+  return {
+    ...copy,
+    isNewFile,
+    text: copyJson(members, isNewFile ? { schema_version: SETTINGS_SCHEMA_VERSION } : {}),
+  }
 }
 
 /** Whether a rules file already holds a section under this heading line. */

@@ -26,6 +26,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Copy-only imports recheck target existence before clipboard and editor actions.
+  Newly created targets open for merging; deleted targets open unsaved. Settings
+  copy text and instructions use the current whole-file or merge form.
 - Imports recheck live trust and activation at scan read/list boundaries.
   Losing trust stops project-source reads while personal imports remain
   available; deactivation stops scanning and every pending picker or prompt.

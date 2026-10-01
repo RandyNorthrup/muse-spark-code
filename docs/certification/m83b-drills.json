@@ -324,5 +324,119 @@
       "temp/m83b/p2-hooks-continuation-red.log",
       "temp/m83b/p2-hooks-continuation-restored.log"
     ]
+  },
+  {
+    "name": "p3-copy-existence",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "copyForCurrentFile(copy, !(await deps.isPresent(copy.absolutePath)))",
+    "replacement": "copy",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "uses current copy-target existence after",
+    "beforeSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "mutatedSha256": "8dc3956f7df27122b8fe3fdc9320cbaa6a1d2daf9ce685939339d0fdd3900616",
+    "afterSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "logs": [
+      "temp/m83b/p3-copy-existence-baseline.log",
+      "temp/m83b/p3-copy-existence-red.log",
+      "temp/m83b/p3-copy-existence-restored.log"
+    ]
+  },
+  {
+    "name": "p3-editor-existence",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "copy.absolutePath,\n      isExisting,",
+    "replacement": "copy.absolutePath,\n      !copy.isNewFile,",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "uses current copy-target existence after",
+    "beforeSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "mutatedSha256": "18d05cc277797ddd7ce3dadade6a4236e89c4fc54018fbbe13046e65f32fe7cf",
+    "afterSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "logs": [
+      "temp/m83b/p3-editor-existence-baseline.log",
+      "temp/m83b/p3-editor-existence-red.log",
+      "temp/m83b/p3-editor-existence-restored.log"
+    ]
+  },
+  {
+    "name": "p3-settings-header",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "text: copyJson(members, isNewFile ? { schema_version: SETTINGS_SCHEMA_VERSION } : {}),",
+    "replacement": "text: copy.text,",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "uses current copy-target existence after",
+    "beforeSha256": "973eea240d3b9fdc379bcdca65df1cca35525151658081d03da17c1d1d814032",
+    "mutatedSha256": "3bf85b7c4e2c9c5a4e320ae6669c85568a047b7414b926776233358a8cc5edd5",
+    "afterSha256": "973eea240d3b9fdc379bcdca65df1cca35525151658081d03da17c1d1d814032",
+    "logs": [
+      "temp/m83b/p3-settings-header-baseline.log",
+      "temp/m83b/p3-settings-header-red.log",
+      "temp/m83b/p3-settings-header-restored.log"
+    ]
+  },
+  {
+    "name": "p3-hooks-form",
+    "source": "src/core/import/agentImport.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (copy.file === 'hooks') {\n    return { ...copy, isNewFile }\n  }",
+    "replacement": "",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "uses current copy-target existence after",
+    "beforeSha256": "973eea240d3b9fdc379bcdca65df1cca35525151658081d03da17c1d1d814032",
+    "mutatedSha256": "bfa07598f6b9725bef9946389c2a21440c4aea5afb3d0e4e5dc1a666b1e7d02c",
+    "afterSha256": "973eea240d3b9fdc379bcdca65df1cca35525151658081d03da17c1d1d814032",
+    "logs": [
+      "temp/m83b/p3-hooks-form-baseline.log",
+      "temp/m83b/p3-hooks-form-red.log",
+      "temp/m83b/p3-hooks-form-restored.log"
+    ]
+  },
+  {
+    "name": "p3-clipboard-continuation",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "if (!(await isCopyTargetSafe(deps, currentCopy, plan.projectRoot))) {\n      continue\n    }",
+    "replacement": "",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "refuses project copy actions after existence await",
+    "beforeSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "mutatedSha256": "bb423fb66cefde52f19751e16170282b8d6df7bfc1b85b486f81bd8b55c8f708",
+    "afterSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "logs": [
+      "temp/m83b/p3-clipboard-continuation-baseline.log",
+      "temp/m83b/p3-clipboard-continuation-red.log",
+      "temp/m83b/p3-clipboard-continuation-restored.log"
+    ]
+  },
+  {
+    "name": "p3-editor-continuation",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "tests": ["test/unit/agentImportCommands.test.ts"],
+    "mutation": "const isExisting = await deps.isPresent(copy.absolutePath)\n    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {\n      continue\n    }",
+    "replacement": "const isExisting = await deps.isPresent(copy.absolutePath)",
+    "baselineExit": 0,
+    "mutatedExit": 1,
+    "restoredExit": 0,
+    "expectedDiagnostic": "refuses project copy actions after existence await",
+    "beforeSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "mutatedSha256": "7562bc9fd4363a816b93b03169188842138d18973e751c4f78235793f68c4417",
+    "afterSha256": "ddea5f912a7f7d5616ef0e841a7d2b9b00696d2d539b61b7c21e631e5726ebd2",
+    "logs": [
+      "temp/m83b/p3-editor-continuation-baseline.log",
+      "temp/m83b/p3-editor-continuation-red.log",
+      "temp/m83b/p3-editor-continuation-restored.log"
+    ]
   }
 ]

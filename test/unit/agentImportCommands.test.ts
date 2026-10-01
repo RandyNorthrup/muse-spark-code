@@ -84,6 +84,8 @@ interface Options {
   /** Shared by two runs in one window; each run gets its own by default. */
   readonly io?: MemoryImportIo
   readonly gate?: ImportGate
+  /** Replaces the target existence read, including its awaited continuation. */
+  readonly presence?: AgentImportDeps['isPresent']
   /** Replaces the tool picker, which is the first thing an import asks. */
   readonly pickSource?: () => Promise<AgentImportSourceChoice | undefined>
 }
@@ -139,7 +141,7 @@ function run(options: Options = {}) {
       },
     },
     ...(options.beginProjectEdit !== undefined && { beginProjectEdit: options.beginProjectEdit }),
-    isPresent: io.isPresent,
+    isPresent: options.presence ?? io.isPresent,
     gate: options.gate ?? createImportGate(),
     pickSource:
       options.pickSource ??
@@ -230,6 +232,104 @@ function projectHooksOnly(items: readonly AgentImportPickItem[]): readonly strin
 }
 
 describe('importFromAgents', () => {
+  it.each([
+    { at: 1, change: 'root' },
+    { at: 1, change: 'trust' },
+    { at: 1, change: 'activation' },
+    { at: 2, change: 'root' },
+    { at: 2, change: 'trust' },
+    { at: 2, change: 'activation' },
+  ])(
+    'refuses project copy actions after existence await $at loses $change',
+    async ({ at, change }) => {
+      const io = memoryImportIo({ files: FILES })
+      let isCopying = false
+      let isTrusted = true
+      let isActive = true
+      let reads = 0
+      const opening = vi.fn()
+      const flow = run({
+        io,
+        pick: projectHooksOnly,
+        trust: () => isTrusted,
+        isActive: () => isActive,
+        whileCopying: () => {
+          isCopying = true
+        },
+        whileOpening: opening,
+        presence: async (file) => {
+          const isPresent = await io.isPresent(file)
+          if (isCopying && file === `${WS}/.muse/hooks.json` && ++reads === at) {
+            if (change === 'root') io.links.set(WS, '/other')
+            else if (change === 'trust') isTrusted = false
+            else isActive = false
+          }
+          return isPresent
+        },
+      })
+      await flow.done
+      expect(reads).toBe(at)
+      expect(flow.clipboard).toHaveLength(at === 1 ? 0 : 1)
+      expect(opening).not.toHaveBeenCalled()
+      expect(flow.opened).toEqual([])
+    },
+  )
+
+  it.each([
+    { phase: 'preview', startsExisting: false },
+    { phase: 'preview', startsExisting: true },
+    { phase: 'copy prompt', startsExisting: false },
+    { phase: 'copy prompt', startsExisting: true },
+    { phase: 'clipboard', startsExisting: false },
+    { phase: 'clipboard', startsExisting: true },
+  ])(
+    'uses current copy-target existence after $phase (initially $startsExisting)',
+    async ({ phase, startsExisting }) => {
+      const existingSettings = JSON.stringify({
+        schema_version: 1,
+        mcpServers: { existing: { command: 'keep' } },
+      })
+      const existingHooks = JSON.stringify({
+        hooks: { Stop: [{ hooks: [{ type: 'command', command: 'keep' }] }] },
+      })
+      const targets = { [SETTINGS]: existingSettings, [`${WS}/.muse/hooks.json`]: existingHooks }
+      const changeTargets = (io: MemoryImportIo) => {
+        for (const [file, text] of Object.entries(targets)) {
+          if (startsExisting) io.files.delete(file)
+          else io.files.set(file, text)
+        }
+      }
+      const flow = run({
+        files: { ...FILES, ...(startsExisting && targets) },
+        pick: (items) => [
+          ...projectHooksOnly(items),
+          ...items.filter((item) => item.label === 'github').map((item) => item.id),
+        ],
+        ...(phase === 'preview' && { whilePreviewed: changeTargets }),
+        ...(phase === 'copy prompt' && { whileCopying: changeTargets }),
+        ...(phase === 'clipboard' && { whileClipboardWritten: changeTargets }),
+      })
+      await flow.done
+      expect(flow.opened).toEqual([
+        [SETTINGS, !startsExisting],
+        [`${WS}/.muse/hooks.json`, !startsExisting],
+      ])
+      expect(JSON.parse(flow.clipboard[0] ?? '')).toHaveProperty('mcpServers.github')
+      const isCopyForNewFile = phase === 'clipboard' ? !startsExisting : startsExisting
+      expect(flow.information[0]).toBe(
+        `${UI_TEXT.agentImportCopied} ${isCopyForNewFile ? UI_TEXT.agentImportPreviewNewFile : UI_TEXT.agentImportPreviewMerge}`,
+      )
+      if (isCopyForNewFile)
+        expect(JSON.parse(flow.clipboard[0] ?? '')).toHaveProperty('schema_version', 1)
+      else expect(JSON.parse(flow.clipboard[0] ?? '')).not.toHaveProperty('schema_version')
+      expect(JSON.parse(flow.clipboard[1] ?? '')).not.toHaveProperty('schema_version')
+      expect(flow.io.files.get(SETTINGS)).toBe(startsExisting ? undefined : existingSettings)
+      expect(flow.io.files.get(`${WS}/.muse/hooks.json`)).toBe(
+        startsExisting ? undefined : existingHooks,
+      )
+    },
+  )
+
   it.each([
     'personal read',
     'project read',
