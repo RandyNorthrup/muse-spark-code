@@ -264,6 +264,7 @@ export const EN = {
   shareRedacted: 'Paths and account ids were redacted.',
   // Why a picked file was refused, after "could not be imported/opened: ".
   transferTooLarge: 'The file is larger than a session export can be.',
+  transferFileMissing: 'The picked file no longer exists.',
   transferEmpty: 'The file holds no conversation.',
   transferNotAnExport: 'The file is not a Muse Spark session export.',
   transferLocalFileOnly: 'Session import and sharing require a local file on the extension host.',

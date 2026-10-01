@@ -30,12 +30,16 @@ export function createSessionTransferFiles(): SessionTransferFiles {
         throw new Error(UI_TEXT.transferLocalFileOnly)
       }
       const expectedCanonicalPath = await canonicalPath(target.fsPath)
-      const { bytes } = await readPickedFile(
+      const { bytes, isMissing } = await readPickedFile(
         target.fsPath,
         SESSION_EXPORT_MAX_BYTES,
         expectedCanonicalPath,
         SESSION_EXPORT_MAX_BYTES,
       )
+      // Moved or deleted (a sync client) between the dialog and the read.
+      if (isMissing) {
+        throw new Error(UI_TEXT.transferFileMissing)
+      }
       if (bytes === undefined) {
         return { kind: 'tooLarge' }
       }

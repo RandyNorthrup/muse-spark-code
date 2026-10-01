@@ -197,6 +197,7 @@
   "shareReadOnly": "只读：此文件中的任何内容都无法作用于你的工作区。",
   "shareRedacted": "路径和帐户 ID 已隐去。",
   "transferTooLarge": "文件超过了会话导出文件的大小上限。",
+  "transferFileMissing": "所选文件已不存在。",
   "transferEmpty": "文件中没有对话。",
   "transferNotAnExport": "该文件不是 Muse Spark 会话导出文件。",
   "transferLocalFileOnly": "导入和分享会话需要扩展宿主上的本地文件。",

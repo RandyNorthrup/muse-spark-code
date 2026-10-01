@@ -201,6 +201,7 @@
   "shareReadOnly": "Schreibgeschützt: Nichts in dieser Datei kann auf Ihren Arbeitsbereich wirken.",
   "shareRedacted": "Pfade und Konto-IDs wurden entfernt.",
   "transferTooLarge": "Die Datei ist größer, als ein Sitzungsexport sein kann.",
+  "transferFileMissing": "Die ausgewählte Datei gibt es nicht mehr.",
   "transferEmpty": "Die Datei enthält keine Unterhaltung.",
   "transferNotAnExport": "Die Datei ist kein Muse Spark-Sitzungsexport.",
   "transferLocalFileOnly": "Sitzungsimport und Freigabe erfordern eine lokale Datei auf dem Erweiterungshost.",

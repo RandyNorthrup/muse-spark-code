@@ -148,6 +148,15 @@ describe('createSessionTransferFiles', () => {
     }
   })
 
+  it('says a picked file that is gone before it is read is missing, not too large', async () => {
+    // Moved or deleted (a sync client) between the dialog and the read.
+    vi.mocked(window.showOpenDialog).mockResolvedValueOnce([Uri.file(path.join(root, 'gone.json'))])
+    await expect(createSessionTransferFiles().pickTransferFile('t')).rejects.toThrow(
+      new Error(UI_TEXT.transferFileMissing),
+    )
+    expect(workspace.fs.readFile).not.toHaveBeenCalled()
+  })
+
   it('keeps the JSON cap for a picked file with a PDF header', async () => {
     await pick(
       'pdf-shaped.json',

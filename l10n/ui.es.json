@@ -205,6 +205,7 @@
   "shareReadOnly": "Solo lectura: nada de este archivo puede actuar sobre su área de trabajo.",
   "shareRedacted": "Las rutas y los ID de cuenta se ocultaron.",
   "transferTooLarge": "El archivo es más grande de lo que puede ser una exportación de sesión.",
+  "transferFileMissing": "El archivo elegido ya no existe.",
   "transferEmpty": "El archivo no contiene ninguna conversación.",
   "transferNotAnExport": "El archivo no es una exportación de sesión de Muse Spark.",
   "transferLocalFileOnly": "Importar y compartir sesiones requiere un archivo local en el host de la extensión.",

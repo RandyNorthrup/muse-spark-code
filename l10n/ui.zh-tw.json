@@ -197,6 +197,7 @@
   "shareReadOnly": "唯讀：此檔案中的任何內容都無法作用於你的工作區。",
   "shareRedacted": "路徑和帳戶 ID 已隱去。",
   "transferTooLarge": "檔案超過了工作階段匯出檔案的大小上限。",
+  "transferFileMissing": "所選檔案已不存在。",
   "transferEmpty": "檔案中沒有對話。",
   "transferNotAnExport": "該檔案不是 Muse Spark 工作階段匯出檔案。",
   "transferLocalFileOnly": "匯入和分享工作階段需要擴充功能主機上的本機檔案。",

@@ -209,6 +209,7 @@
   "shareReadOnly": "Jen ke čtení: nic v tomto souboru nemůže zasáhnout do vašeho pracovního prostoru.",
   "shareRedacted": "Cesty a ID účtů byly skryty.",
   "transferTooLarge": "Soubor je větší, než může být export relace.",
+  "transferFileMissing": "Vybraný soubor už neexistuje.",
   "transferEmpty": "Soubor neobsahuje žádnou konverzaci.",
   "transferNotAnExport": "Soubor není export relace Muse Spark.",
   "transferLocalFileOnly": "Import a sdílení relací vyžaduje místní soubor na hostiteli rozšíření.",

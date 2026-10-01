@@ -201,6 +201,7 @@
   "shareReadOnly": "Salt okunur: bu dosyadaki hiçbir şey çalışma alanınızı etkileyemez.",
   "shareRedacted": "Yollar ve hesap kimlikleri gizlendi.",
   "transferTooLarge": "Dosya, bir oturum dışa aktarımının olabileceğinden daha büyük.",
+  "transferFileMissing": "Seçilen dosya artık yok.",
   "transferEmpty": "Dosyada konuşma yok.",
   "transferNotAnExport": "Dosya bir Muse Spark oturum dışa aktarımı değil.",
   "transferLocalFileOnly": "Oturum içe aktarma ve paylaşma için uzantı ana bilgisayarında yerel bir dosya gerekir.",

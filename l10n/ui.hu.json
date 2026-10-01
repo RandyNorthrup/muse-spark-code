@@ -201,6 +201,7 @@
   "shareReadOnly": "Csak olvasható: a fájl semmilyen tartalma nem hathat a munkaterületére.",
   "shareRedacted": "Az útvonalak és a fiókazonosítók ki lettek takarva.",
   "transferTooLarge": "A fájl nagyobb, mint amekkora egy munkamenet-export lehet.",
+  "transferFileMissing": "A kiválasztott fájl már nem létezik.",
   "transferEmpty": "A fájl nem tartalmaz beszélgetést.",
   "transferNotAnExport": "A fájl nem Muse Spark munkamenet-export.",
   "transferLocalFileOnly": "A munkamenetek importálásához és megosztásához helyi fájl szükséges a bővítmény gazdagépén.",
