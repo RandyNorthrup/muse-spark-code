@@ -251,8 +251,14 @@ describe('createCliFeatures', () => {
     await expect(t.features.exports.saveMarkdown('muse-x.md', '# X\n')).rejects.toThrow(
       'the window closed',
     )
+    // The portable JSON export too (M84).
+    vi.mocked(window.showSaveDialog).mockResolvedValueOnce(Uri.file('/ws/muse-x.json'))
+    await expect(t.features.exports.saveJson('muse-x.json', '{}')).rejects.toThrow(
+      'the window closed',
+    )
     expect(workspace.fs.writeFile).not.toHaveBeenCalled()
     expect(window.showTextDocument).not.toHaveBeenCalled()
+    expect(window.showInformationMessage).not.toHaveBeenCalled()
   })
 
   it('previews a portable export read-only, then asks how to save it (M84)', async () => {
@@ -281,12 +287,18 @@ describe('createCliFeatures', () => {
     expect(workspace.fs.writeFile).not.toHaveBeenCalled()
   })
 
-  it('saves portable JSON where the user chose and opens it on request (M84)', async () => {
+  it('saves portable JSON where the user chose, under the edit lease, and opens it on request (M84)', async () => {
     const t = setup()
     const target = Uri.file('/ws/muse-x.json')
     vi.mocked(window.showSaveDialog).mockResolvedValueOnce(target)
+    vi.mocked(workspace.fs.writeFile).mockImplementation(() => {
+      t.edits.push('write')
+      return Promise.resolve()
+    })
     vi.mocked(inform).mockResolvedValueOnce('Open')
     await t.features.exports.saveJson('muse-x.json', '{"a":1}')
+    // The checkpoint lease and the action guard hold the write, as for Markdown (M72).
+    expect(t.edits).toEqual(['open /ws/muse-x.json', 'write', 'close'])
     expect(vi.mocked(window.showSaveDialog).mock.calls[0]?.[0]).toMatchObject({
       filters: { JSON: ['json'] },
     })

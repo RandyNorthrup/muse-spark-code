@@ -234,7 +234,10 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
         if (target === undefined) {
           return
         }
-        await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
+        // The same lease and action guard as the Markdown export (M72).
+        await deps.editFile(target.fsPath, async () => {
+          await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
+        })
         deps.log.info(`Exported the session as JSON to ${target.toString()}`)
         await offerToOpen(target)
       },
