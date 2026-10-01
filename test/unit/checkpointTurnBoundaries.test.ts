@@ -17,26 +17,39 @@ import {
 
 afterEach(removeCheckpointFolders)
 
-/**
- * Rewrites a turn's stored record as a 0.10.0 candidate wrote it: the same
- * record with no turn numbers.
- */
-function asWrittenUnnumbered(storage: string, sessionId: string, turnId: string): void {
+/** A window whose extension host is gone: its presence no longer counts. */
+const GONE_PID = 424_242
+
+/** Rewrites a turn's stored record, each field through `replace` (a JSON replacer). */
+function rewriteRecord(
+  storage: string,
+  sessionId: string,
+  turnId: string,
+  replace: (key: string, value: unknown) => unknown,
+): void {
   const id = createHash('sha256')
     .update(JSON.stringify([sessionId, turnId]))
     .digest('hex')
   const ref = `refs/muse-spark/record/checkpoint-${id}`
   const json = shadowGit(storage, ['cat-file', '-p', `${ref}:record.json`])
-  const unnumbered = JSON.stringify(JSON.parse(json), (key, value: unknown) =>
-    key === 'sequence' || key === 'endSequence' ? undefined : value,
-  )
-  const blob = shadowGit(storage, ['hash-object', '-w', '--stdin'], unnumbered).trim()
+  const rewritten = JSON.stringify(JSON.parse(json), replace)
+  const blob = shadowGit(storage, ['hash-object', '-w', '--stdin'], rewritten).trim()
   const entries = shadowGit(storage, ['ls-tree', ref])
     .split('\n')
     .filter((line) => line !== '')
     .map((line) => (line.endsWith('\trecord.json') ? `100644 blob ${blob}\trecord.json` : line))
   const tree = shadowGit(storage, ['mktree'], `${entries.join('\n')}\n`).trim()
   shadowGit(storage, ['update-ref', ref, tree])
+}
+
+/**
+ * Rewrites a turn's stored record as a 0.10.0 candidate wrote it: the same
+ * record with no turn numbers.
+ */
+function asWrittenUnnumbered(storage: string, sessionId: string, turnId: string): void {
+  rewriteRecord(storage, sessionId, turnId, (key, value) =>
+    key === 'sequence' || key === 'endSequence' ? undefined : value,
+  )
 }
 
 /**
@@ -123,6 +136,148 @@ describe('turns of one conversation that overlap (M72)', () => {
       for (const name of ['a', 'b', 'c', 'n']) {
         expect(await read(h.root, `${name}.txt`)).toBe(`${name}0\n`)
       }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+describe('one conversation open in two windows (M72)', () => {
+  it.each([
+    { numbered: 'after the restored turn’s start', endSequence: undefined },
+    // The later turn's start is the conversation's second number.
+    { numbered: 'at once with the restored turn’s start', endSequence: 2 },
+  ])(
+    'refuses an earlier turn’s edit made after the restored turn started, its end numbered $numbered, and restores the restored turn’s own',
+    async ({ endSequence }) => {
+      const h = await harness()
+      const second = h.reopen()
+      await write(h.root, 'x.txt', 'x0\n')
+      await write(h.root, 'y.txt', 'y0\n')
+      // The first window's turn starts; the conversation's next one starts
+      // in the second window while it runs.
+      await h.store.record('s1', 'early', await captured(h.store))
+      await second.record('s1', 'later', await captured(second))
+      // The earlier turn edits x after that start, then ends.
+      await write(h.root, 'x.txt', 'x1\n')
+      await h.store.endTurn('s1', 'early')
+      await write(h.root, 'y.txt', 'y1\n')
+      await second.endTurn('s1', 'later')
+      if (endSequence !== undefined) {
+        // Both windows read the conversation's records before either wrote.
+        rewriteRecord(h.storage, 's1', 'early', (key, value) =>
+          key === 'endSequence' ? endSequence : value,
+        )
+      }
+      const outcome = done(await restoreOutcome(second, 'later'))
+      // The earlier turn is not undone, so its edit stays, named.
+      expect(outcome.refused).toEqual([{ path: 'x.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'x.txt')).toBe('x1\n')
+      expect(await read(h.root, 'y.txt')).toBe('y0\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'refuses everything since an earlier turn whose window went before its end was seen',
+    async () => {
+      const h = await harness({ isProcessAlive: (pid) => pid !== GONE_PID })
+      const gone = h.reopen(GONE_PID)
+      await write(h.root, 'x.txt', 'x0\n')
+      await write(h.root, 'y.txt', 'y0\n')
+      await gone.record('s1', 'early', await captured(gone))
+      await h.store.record('s1', 'later', await captured(h.store))
+      // The earlier turn edits x after the later one started; its end is never seen.
+      await write(h.root, 'x.txt', 'x1\n')
+      await write(h.root, 'y.txt', 'y1\n')
+      await h.store.endTurn('s1', 'later')
+      const outcome = done(await restoreOutcome(h.store, 'later'))
+      // Its end may have come at any time up to now, so even the later
+      // turn's own edit of y cannot be told from it.
+      expect(outcome.refused).toEqual([
+        { path: 'x.txt', reason: 'changedAfter' },
+        { path: 'y.txt', reason: 'changedAfter' },
+      ])
+      expect(await read(h.root, 'x.txt')).toBe('x1\n')
+      expect(await read(h.root, 'y.txt')).toBe('y1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'lets an earlier turn that ended before the restored turn started add nothing',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'x.txt', 'x0\n')
+      await turn(h, 'early', () => write(h.root, 'x.txt', 'x1\n'))
+      await turn(h, 'later', () => write(h.root, 'x.txt', 'x2\n'))
+      const outcome = done(await restoreOutcome(h.store, 'later'))
+      expect(outcome.refused).toEqual([])
+      expect(await read(h.root, 'x.txt')).toBe('x1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+/**
+ * Another conversation's turn starts, then this one's; the other edits f
+ * while this one runs, and its window goes before its end is seen.
+ * `meanwhile` runs next; then this turn edits y, ends, and is restored.
+ */
+async function restoreAfterPeerWent(
+  meanwhile: (h: Harness) => Promise<void>,
+): Promise<{ readonly h: Harness; readonly outcome: ReturnType<typeof done> }> {
+  let clock = 1000
+  let isPeerAlive = true
+  const h = await harness({
+    now: () => clock,
+    isProcessAlive: (pid) => pid !== GONE_PID || isPeerAlive,
+  })
+  const peer = h.reopen(GONE_PID)
+  await write(h.root, 'f.txt', 'f0\n')
+  await write(h.root, 'y.txt', 'y0\n')
+  await peer.record('s2', 'peer', await captured(peer))
+  clock = 2000
+  await h.store.record('s1', 't1', await captured(h.store))
+  await write(h.root, 'f.txt', 'f1\n')
+  isPeerAlive = false
+  clock = 3000
+  await meanwhile(h)
+  await write(h.root, 'y.txt', 'y1\n')
+  clock = 4000
+  await h.store.endTurn('s1', 't1')
+  return { h, outcome: done(await restoreOutcome(h.store, 't1')) }
+}
+
+describe('another conversation’s turn whose window went before its end was seen (M72)', () => {
+  it(
+    'refuses what changed while the restored turn ran when that conversation never went on',
+    async () => {
+      const { h, outcome } = await restoreAfterPeerWent(() => Promise.resolve())
+      // Its end may have come at any time up to now: this turn's own edit of
+      // y cannot be told from it either.
+      expect(outcome.refused).toEqual([
+        { path: 'f.txt', reason: 'changedAfter' },
+        { path: 'y.txt', reason: 'changedAfter' },
+      ])
+      expect(await read(h.root, 'f.txt')).toBe('f1\n')
+      expect(await read(h.root, 'y.txt')).toBe('y1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'blames on it only what changed before its conversation’s next turn started',
+    async () => {
+      const { h, outcome } = await restoreAfterPeerWent(async ({ reopen }) => {
+        // The other conversation goes on in another window: its next turn
+        // starts, so the turn before it had ended; it changes nothing.
+        const reopened = reopen()
+        await reopened.record('s2', 'next', await captured(reopened))
+        await reopened.endTurn('s2', 'next')
+      })
+      expect(outcome.refused).toEqual([{ path: 'f.txt', reason: 'changedAfter' }])
+      expect(await read(h.root, 'f.txt')).toBe('f1\n')
+      expect(await read(h.root, 'y.txt')).toBe('y0\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )

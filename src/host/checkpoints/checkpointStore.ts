@@ -17,7 +17,7 @@
 //   the rest as not restorable.
 // - A restore undoes the conversation's turns from the chosen one on, file
 //   by file (restorePlan.ts). A file changed outside those turns (between
-//   them, after them, by another conversation's overlapping turn), with
+//   them, after them, by an overlapping turn the restore does not undo), with
 //   unsaved editor changes, or changed while the restore runs is refused and
 //   listed. The redo record is saved before the first file changes and cut
 //   to what was done at the end, so a restore that stops part way still
@@ -403,6 +403,25 @@ function nextTurnNumber(records: readonly CheckpointRecord[], sessionId: string)
       : [],
   )
   return Math.max(0, ...numbers) + 1
+}
+
+/** Each turn's next one in its conversation's order, by record id. */
+function nextTurns(records: readonly CheckpointRecord[]): ReadonlyMap<string, CheckpointRecord> {
+  const conversations = new Map<string, CheckpointRecord[]>()
+  for (const record of records) {
+    conversations.set(record.sessionId, [...(conversations.get(record.sessionId) ?? []), record])
+  }
+  const next = new Map<string, CheckpointRecord>()
+  for (const conversation of conversations.values()) {
+    const ordered = inTurnOrder(conversation)
+    for (const [index, turn] of ordered.entries()) {
+      const following = ordered[index + 1]
+      if (following !== undefined) {
+        next.set(turn.record.id, following.record)
+      }
+    }
+  }
+  return next
 }
 
 /** The task once the one before it settled, whichever way. */
@@ -1507,15 +1526,19 @@ export class CheckpointStore {
 
   /**
    * Paths these turns did not change themselves: in a gap between them and
-   * after the last, and every path another conversation's turn changed while
-   * one of them ran. Turns that overlap (a subagent's turn that started
-   * before its parent's ended) make one stretch, which ends where the last of
-   * them to end did; only a gap between stretches is outside them. A turn
-   * whose end was not seen counts everything up to the next capture as its
-   * own; when it closes a stretch, those paths are `uncertain`.
+   * after the last, every path another conversation's turn changed while
+   * one of them ran, and every path an `earlier` turn of their own
+   * conversation changed when it was still running as the first of them
+   * started (the conversation open in two windows): it is not undone. Turns
+   * that overlap (a subagent's turn that started before its parent's ended)
+   * make one stretch, which ends where the last of them to end did; only a
+   * gap between stretches is outside them. A turn whose end was not seen
+   * counts everything up to the next capture as its own; when it closes a
+   * stretch, those paths are `uncertain`.
    */
   private async changedOutside(
     setup: Setup,
+    earlier: readonly TurnSpan[],
     turns: readonly TurnSpan[],
     currentTree: string,
   ): Promise<{ readonly changed: ReadonlySet<string>; readonly uncertain: ReadonlySet<string> }> {
@@ -1556,11 +1579,25 @@ export class CheckpointStore {
       changed.add(saved)
     }
     const now = this.deps.now()
-    // A turn's time: from its start capture to its end; to now while it
-    // runs; an end an earlier window never saw is taken as its start.
+    const nextTurn = nextTurns(setup.records.checkpoints)
+    // Where a turn ends, as far as is known: at its end; now while it runs.
+    // An end no window saw (its window went first) came by the start of its
+    // conversation's next turn, as the conversation went on; with no next
+    // turn, it may be as late as now.
+    const endOf = (record: CheckpointRecord) => {
+      const following =
+        record.endedAt === undefined && !this.isOpen(setup, record)
+          ? nextTurn.get(record.id)
+          : undefined
+      return {
+        at: record.endedAt ?? following?.createdAt ?? now,
+        tree: record.end?.tree ?? following?.start.tree ?? currentTree,
+      }
+    }
+    // A turn's time: from its start capture to its end.
     const windowOf = (record: CheckpointRecord) => ({
       start: record.createdAt,
-      end: record.endedAt ?? (this.isOpen(setup, record) ? now : record.createdAt),
+      end: endOf(record).at,
     })
     const sessionId = records[0]?.sessionId
     const overlapping = setup.records.checkpoints.filter((other) => {
@@ -1576,11 +1613,31 @@ export class CheckpointStore {
         return theirs.start <= ours.end && theirs.end >= ours.start
       })
     })
-    for (const other of overlapping) {
-      const otherEnd = other.end?.tree ?? currentTree
+    // An earlier turn of this conversation overlaps when its end has the
+    // first turn's start number or a later one (an equal number: both were
+    // numbered at once, in two windows), or no window saw its end, which may
+    // then have come at any time since. A 0.10.0 candidate's record never
+    // overlaps a numbered turn: those builds ran before this one.
+    const [first] = turns
+    const earlierOverlapping =
+      first === undefined
+        ? []
+        : earlier.filter(
+            (turn) =>
+              turn.isNumbered === first.isNumbered &&
+              (turn.end === undefined || turn.end >= first.start),
+          )
+    const blamed = [
+      ...overlapping.map((other) => ({ record: other, endTree: endOf(other).tree })),
+      ...earlierOverlapping.map(({ record }) => ({
+        record,
+        endTree: record.end?.tree ?? currentTree,
+      })),
+    ]
+    for (const { record, endTree } of blamed) {
       const theirChanges = [
-        ...(await this.diff(setup.shadow, other.start.tree, otherEnd)),
-        ...(other.ignored?.changes ?? []),
+        ...(await this.diff(setup.shadow, record.start.tree, endTree)),
+        ...(record.ignored?.changes ?? []),
       ]
       for (const change of theirChanges) {
         changed.add(change.path)
@@ -2481,7 +2538,8 @@ export class CheckpointStore {
       const ordered = inTurnOrder(
         setup.records.checkpoints.filter((record) => record.sessionId === request.sessionId),
       )
-      const turns = ordered.slice(ordered.findIndex((turn) => turn.record.id === checkpoint.id))
+      const selected = ordered.findIndex((turn) => turn.record.id === checkpoint.id)
+      const turns = ordered.slice(selected)
       const capture = await this.captureNow(setup, false)
       if (!capture.ok) {
         return {
@@ -2493,7 +2551,12 @@ export class CheckpointStore {
       }
       const current = capture.snapshot
       const changes = await this.diff(setup.shadow, checkpoint.start.tree, current.tree)
-      const outside = await this.changedOutside(setup, turns, current.tree)
+      const outside = await this.changedOutside(
+        setup,
+        ordered.slice(0, selected),
+        turns,
+        current.tree,
+      )
       const ignoredTurns = turns.map((turn) => turn.record.ignored?.changes ?? [])
       const currentStat = new Map<string, FileStat | null>()
       for (const change of ignoredTurns.flat()) {
