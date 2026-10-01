@@ -30,6 +30,7 @@ happened, not what was planned; superseded entries are kept.
   after checkpoint admission.
 - The conversation controller keeps its Git adapter contract portable;
   its type imports no longer reach the VS Code adapter.
+- Git's existing error-detail bound now lives with the shared tunables.
 
 ## [0.10.0] - 2026-09-30
 

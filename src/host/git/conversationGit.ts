@@ -28,6 +28,7 @@ import {
   PULL_REQUEST_TITLE_MAX_CHARS,
   GIT_FORM_FILES_SHOWN,
   GIT_PROMPT_COMMITS_MAX,
+  STDERR_SHOWN_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
 import type {
@@ -162,7 +163,6 @@ const COMPLETED_TERMINAL = 'completed'
 const AGENT_MESSAGE_KIND = 'agentMessage'
 const HEAD_REF = 'HEAD'
 const LINE_BREAK = /\r?\n/
-const STDERR_SHOWN_CHARS = 1000
 
 /** Immutable comparison: Git's state objects may be replaced or mutated while a dialog waits. */
 function changedPaths(changes: readonly GitChange[]): readonly string[] {

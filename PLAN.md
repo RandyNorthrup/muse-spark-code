@@ -7777,6 +7777,23 @@ sessions and uses the canonical root only for checkpoints. Its removed
 `displayRoot` local left M71's window argument unresolved; pass the same
 selected `workspaceRoot` into Git and update the activation wiring assertion.
 The merge hook and compiler caught this seam before a merge commit.
+**Lane implementation complete, bounded verification passed.** Source
+commit `55f5e55f` follows the separate build commit. Join `7decc32c` contains
+candidate `669e8301`; all serial checks requested by `common.md` pass on the
+joined source, with 826 owning tests in 29 files and zero skips. All sixteen
+M71 accessibility pages pass; fresh held/commit/300 px PR renders were
+inspected. The final ACP tarball installs offline and its runtime smoke,
+the extension/Model API smoke and both package file lists pass. Final sizes
+and exact limits are in `docs/certification/m71.md`. No code blocker remains;
+the lead still owns independent review, full quality/coverage/security,
+actual editor, four-platform and hosted checks. The POST 201/GET schema,
+`repo` scope and terminology decisions remain unchanged.
+The final policy pass places M71's existing 1,000-character Git error-detail
+limit in `src/shared/constants.ts` as rule 5 requires. Its name, value and
+behavior are unchanged. All serial source checks were rerun successfully
+after the relocation, including 826 tests with zero skips; reported sizes
+remain unchanged. The five installed ACP bundles match that final build
+byte-for-byte, and the runtime smoke passes again.
 
 The host-API gate also found the recovered controller's type import reaches
 `vscode` through the Git adapter. Keep the controller portable: declare its
@@ -7785,7 +7802,7 @@ then have the adapter implement that injected contract. Do not weaken the
 host-API gate or introduce another module. Existing controller/Git behavior
 tests and the normal host-API check must pass after this boundary repair.
 
-**Release-candidate lane, 2026-09-30 (verification in progress).** Continue
+**Previous-run release-candidate checkpoint, 2026-09-30 (historical).** Continue
 the partial port on `feature/m71-git-prs`, based on `1fd98aaf`; preserve the
 prepared `754082e651` behavior and recorded owner decisions. Five typechecks
 and 811 owning tests passed on the recovered source; one existing genuine

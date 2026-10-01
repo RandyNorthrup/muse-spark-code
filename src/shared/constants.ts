@@ -790,6 +790,8 @@ export const GIT_PROMPT_COMMITS_MAX = 50
 export const GIT_PROMPT_FILES_MAX = 200
 // The commit form names this many changed files and counts the rest.
 export const GIT_FORM_FILES_SHOWN = 20
+// Dynamic Git error detail stays bounded before it reaches the panel.
+export const STDERR_SHOWN_CHARS = 1000
 // A pull request someone else wrote is checked out under the extension's
 // own storage, in this folder (M71).
 export const PULL_REQUEST_WORKTREES_DIR = 'pr-worktrees'
