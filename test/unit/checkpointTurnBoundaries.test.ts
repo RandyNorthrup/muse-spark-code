@@ -178,27 +178,21 @@ describe('one conversation open in two windows (M72)', () => {
   )
 
   it(
-    'refuses everything since an earlier turn whose window went before its end was seen',
+    'bounds an earlier turn whose window went before its end was seen at the next turn (a reload)',
     async () => {
       const h = await harness({ isProcessAlive: (pid) => pid !== GONE_PID })
       const gone = h.reopen(GONE_PID)
       await write(h.root, 'x.txt', 'x0\n')
       await write(h.root, 'y.txt', 'y0\n')
       await gone.record('s1', 'early', await captured(gone))
-      await h.store.record('s1', 'later', await captured(h.store))
-      // The earlier turn edits x after the later one started; its end is never seen.
+      // The earlier turn edits x; then its window goes (a reload) and the
+      // conversation goes on in the next one.
       await write(h.root, 'x.txt', 'x1\n')
-      await write(h.root, 'y.txt', 'y1\n')
-      await h.store.endTurn('s1', 'later')
+      await turn(h, 'later', () => write(h.root, 'y.txt', 'y1\n'))
       const outcome = done(await restoreOutcome(h.store, 'later'))
-      // Its end may have come at any time up to now, so even the later
-      // turn's own edit of y cannot be told from it.
-      expect(outcome.refused).toEqual([
-        { path: 'x.txt', reason: 'changedAfter' },
-        { path: 'y.txt', reason: 'changedAfter' },
-      ])
+      expect(outcome.refused).toEqual([])
       expect(await read(h.root, 'x.txt')).toBe('x1\n')
-      expect(await read(h.root, 'y.txt')).toBe('y1\n')
+      expect(await read(h.root, 'y.txt')).toBe('y0\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )

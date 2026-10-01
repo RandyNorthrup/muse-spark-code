@@ -1615,9 +1615,12 @@ export class CheckpointStore {
     })
     // An earlier turn of this conversation overlaps when its end has the
     // first turn's start number or a later one (an equal number: both were
-    // numbered at once, in two windows), or no window saw its end, which may
-    // then have come at any time since. A 0.10.0 candidate's record never
-    // overlaps a numbered turn: those builds ran before this one.
+    // numbered at once, in two windows), or it is still running elsewhere.
+    // An end no window saw, its window gone, came by the start of its
+    // conversation's next turn, as above, so no later than the first's: a
+    // window reloaded mid-turn does not block every later restore. The limit:
+    // the conversation open in two windows, one gone mid-turn while the other
+    // went on. A 0.10.0 candidate's record never overlaps a numbered turn.
     const [first] = turns
     const earlierOverlapping =
       first === undefined
@@ -1625,7 +1628,9 @@ export class CheckpointStore {
         : earlier.filter(
             (turn) =>
               turn.isNumbered === first.isNumbered &&
-              (turn.end === undefined || turn.end >= first.start),
+              (turn.end === undefined
+                ? this.isOpen(setup, turn.record)
+                : turn.end >= first.start),
           )
     const blamed = [
       ...overlapping.map((other) => ({ record: other, endTree: endOf(other).tree })),
