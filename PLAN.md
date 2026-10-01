@@ -8949,11 +8949,11 @@ independent review and the full candidate gates remain required.**
 
 ### M83 — Import from other agents (D49)
 
-**Status 2026-09-30: ported to the M72 release candidate; lane verification in progress.**
+**Status 2026-09-30: lane complete on the current M72 candidate; lead certification pending.**
 Worktree `muse-extension-m83`, branch `feature/m83-import`, starts at
 `1fd98aaf`; the initial port is `6eba5169`. The prepared integration tree
 and archived work are read-only sources. The original uncommitted repair
-is retained: one host-wide import gate refuses a second request while the
+is saved in `3dd3a450`: one host-wide import gate refuses a second request while the
 first awaits any answer, and unexpected failures are reported honestly.
 Project import publications use M68's existing begin/finally workspace notices,
 capturing the exact live owner before the first await and counting only a true
@@ -8966,11 +8966,21 @@ lane; independent review and full multi-platform gates belong to the lead.
 The named `muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is unavailable
 on this machine; the lane brief, prepared source and preserved evidence
 provide the recovery context. No model or network call is needed.
-Remaining root review covers the entire request: bind the folder before
-the tool/candidate pickers, retain that binding during rules staging even
-when the atomic writer uses a canonical path, and check a hooks target
-before the editor loads it as well as before showing it. Each repair gets
-a regression observed failing first and a byte-restored guard drill.
+`667dd5fa` completes the request-root review: the folder is bound before
+the tool/candidate pickers, retained during canonical rules staging, and
+checked before loading and after loading a hooks document. Each regression
+was observed failing first. Twenty guard drills fail as intended, restore
+byte-exact by SHA-256, then pass. Merge `66706553` joins release candidate
+`8e9d3a1e`; `origin/main` did not contain that candidate, so it was not
+substituted. All prescribed scoped gates pass on this merged code: five
+typecheck projects, changed-file ESLint/Prettier, knip, zero jscpd clones,
+localization (zero problems), regenerated host API record, production
+build and eleven affected test files (218 passed; three existing Windows
+file-symlink skips remain unproved). The activation bundle is 614,280 bytes
+(599.9 of 600 KiB); import stays lazy at 100.5 of 125 KiB. See
+`docs/certification/m83.md` and its gate/drill JSON receipts. Full quality,
+independent review, remaining platforms and M76 runtime admission stay
+lead-owned; no push or live/paid call ran.
 The 2026-09-28 certification is historical (`docs/certification/m83.md`).
 
 - **Goal.** Switching to Muse Spark Code takes minutes.
