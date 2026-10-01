@@ -1628,9 +1628,7 @@ export class CheckpointStore {
         : earlier.filter(
             (turn) =>
               turn.isNumbered === first.isNumbered &&
-              (turn.end === undefined
-                ? this.isOpen(setup, turn.record)
-                : turn.end >= first.start),
+              (turn.end === undefined ? this.isOpen(setup, turn.record) : turn.end >= first.start),
           )
     const blamed = [
       ...overlapping.map((other) => ({ record: other, endTree: endOf(other).tree })),
