@@ -8388,6 +8388,20 @@ function lastMode(conversation: HandoffConversation) {
     .at(-1)
 }
 
+/** An ordinary message whose reply is held: a turn running beside a handoff. */
+async function startOrdinaryTurn(
+  conversation: HandoffConversation,
+  hold: Promise<unknown>,
+): Promise<void> {
+  conversation.api.script({ hold, text: 'ordinary reply' })
+  await conversation.controller.handle({
+    type: 'sendMessage',
+    localId: 'ordinary',
+    text: 'continue normally',
+    attachmentIds: [],
+  })
+}
+
 /** Characters the handoff dialog does not show as the model reads them (D49). */
 const ZERO_WIDTH_SPACE = 0x20_0b
 const RIGHT_TO_LEFT_OVERRIDE = 0x20_2e
@@ -8444,6 +8458,15 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(true)
     })
     return t.surface.posted.find((posted) => posted.type === 'handoffReady')
+  }
+
+  /** A handoff `h1` whose distillation turn runs, its reply held until `release`. */
+  async function heldDistillation(goal?: string) {
+    const conversation = await handoffConversation()
+    const release = Promise.withResolvers<unknown>()
+    conversation.api.script({ hold: release.promise, text: BRIEF })
+    await conversation.controller.handle(handoff('h1', goal))
+    return { conversation, release }
   }
 
   /** Start the edited brief as `requestId`'s new conversation, and require the accept. */
@@ -8660,12 +8683,9 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
   })
 
   it('brings a waiting brief back to a rebuilt panel, so a later handoff is never stuck busy', async () => {
-    const conversation = await handoffConversation()
-    const { t, api, controller } = conversation
     // Rebuilt while the distillation turn runs: no brief yet, no dialog.
-    const release = Promise.withResolvers<unknown>()
-    api.script({ hold: release.promise, text: BRIEF })
-    await controller.handle(handoff('h1', 'Ship it'))
+    const { conversation, release } = await heldDistillation('Ship it')
+    const { t, controller } = conversation
     t.surface.posted.length = 0
     controller.surfaceReady()
     expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
@@ -8752,7 +8772,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
 
   it('refuses distillation when an ordinary turn starts during the history read', async () => {
     const conversation = await handoffConversation()
-    const { t, api, controller, host } = conversation
+    const { t, controller, host } = conversation
     const entered = Promise.withResolvers<undefined>()
     const historyReleased = Promise.withResolvers<undefined>()
     const ordinaryReleased = Promise.withResolvers<unknown>()
@@ -8765,13 +8785,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     const preparing = controller.handle(handoff('h1'))
     try {
       await entered.promise
-      api.script({ hold: ordinaryReleased.promise, text: 'ordinary reply' })
-      await controller.handle({
-        type: 'sendMessage',
-        localId: 'ordinary',
-        text: 'continue normally',
-        attachmentIds: [],
-      })
+      await startOrdinaryTurn(conversation, ordinaryReleased.promise)
       expect(t.surface.posted).toContainEqual(
         expect.objectContaining({ type: 'turnAccepted', localId: 'ordinary' }),
       )
@@ -8802,19 +8816,13 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       entered.resolve(undefined)
       await released.promise
     })
-    const { t, api, controller } = conversation
+    const { t, controller } = conversation
     watched.t = t
     const ordinaryReleased = Promise.withResolvers<unknown>()
     const requesting = controller.handle(handoff('h1'))
     try {
       await entered.promise
-      api.script({ hold: ordinaryReleased.promise, text: 'ordinary reply' })
-      await controller.handle({
-        type: 'sendMessage',
-        localId: 'ordinary',
-        text: 'continue normally',
-        attachmentIds: [],
-      })
+      await startOrdinaryTurn(conversation, ordinaryReleased.promise)
       released.resolve(undefined)
       await requesting
       // The card failed with the reason; no notice repeats it.
@@ -8909,11 +8917,8 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
   })
 
   it('frees the handoff when its distillation turn is stopped, saying nothing started', async () => {
-    const conversation = await handoffConversation()
-    const { t, api, controller } = conversation
-    const release = Promise.withResolvers<unknown>()
-    api.script({ hold: release.promise, text: BRIEF })
-    await controller.handle(handoff('h1'))
+    const { conversation, release } = await heldDistillation()
+    const { t, controller } = conversation
     await controller.handle({ type: 'cancelTurn' })
     release.resolve(undefined)
     await vi.waitFor(() => {
