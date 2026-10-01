@@ -1377,8 +1377,16 @@ export class CheckpointStore {
       const mode = entry.copy.entry.isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE
       imported.set(entry.relative, { mode, oid })
     }
-    const changes = new Map(scanned.map((change) => [change.path, change]))
+    const unchanged = await this.endsAsCopied(setup, wanted, imported)
+    const changes = new Map(
+      scanned
+        .filter((change) => !unchanged.has(change.path))
+        .map((change) => [change.path, change]),
+    )
     for (const [relative, copy] of wanted) {
+      if (unchanged.has(relative)) {
+        continue
+      }
       const preImage = copy.entry.staged === null ? null : imported.get(relative)
       const scannedChange = changes.get(relative)
       if (scannedChange !== undefined) {
@@ -1409,6 +1417,38 @@ export class CheckpointStore {
     return [...changes]
       .map(([, change]) => change)
       .toSorted((left, right) => byText(left.path, right.path))
+  }
+
+  /**
+   * The copied files that end the turn holding their copy's bytes: the tool's
+   * write never landed (refused at its last check) or wrote the same bytes.
+   * They are no change, so a restore leaves them alone rather than replacing
+   * them (a new inode and times, a broken hard link, a Redo of nothing).
+   */
+  private async endsAsCopied(
+    setup: Setup,
+    wanted: readonly (readonly [string, TurnCopy])[],
+    imported: ReadonlyMap<string, BlobRef>,
+  ): Promise<ReadonlySet<string>> {
+    // Only a file still at its copy's size can hold its copy's bytes.
+    const sameSize = wanted.filter(
+      ([relative, copy]) =>
+        imported.has(relative) &&
+        copy.endStat !== null &&
+        copy.endStat.size === copy.entry.stat?.size,
+    )
+    if (sameSize.length === 0) {
+      return new Set()
+    }
+    const hashed = await setup.shadow.text(['hash-object', '--no-filters', '--stdin-paths'], {
+      input: sameSize.map(([relative]) => `${this.absoluteOf(relative)}${LINE_FEED}`).join(''),
+    })
+    const oids = hashed.split(LINE_FEED)
+    return new Set(
+      sameSize
+        .filter(([relative], index) => oids[index] === imported.get(relative)?.oid)
+        .map(([relative]) => relative),
+    )
   }
 
   /**
