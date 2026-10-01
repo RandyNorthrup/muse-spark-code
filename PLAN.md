@@ -10126,3 +10126,16 @@ Bound macOS file-worker concurrency to four in the existing Vitest config;
 keep every file, assertion, isolation setting, coverage threshold and timeout.
 The final full run must prove the complete suite with this resource bound.
 No unrelated machine process is stopped to make a gate pass.
+
+**Third Codex review of PR #55 (2026-10-01, owner: "fix all 7, then
+release").** Seven P2 threads on `669e8301`, all real, each fixed with a test
+that fails without it and a recorded drill (`docs/certification/m72.md`,
+"Codex review of `669e8301`"). One record format change: a checkpoint record
+gains optional `sequence` and `endSequence`, a per-conversation count that
+orders turns instead of the clock. Records a 0.10.0 candidate wrote have
+neither and are ordered first, by their clock; older builds ignore the
+fields. Known limits kept and recorded there: ignored-file steps compare
+size and time only (a chmod alone goes unseen), a repository deep in an
+ignored folder past the folder scan limit is not found, two windows on one
+conversation can take the same count, and the shadow `info/exclude` is
+shared by the folder's windows (the next capture corrects a stale copy).

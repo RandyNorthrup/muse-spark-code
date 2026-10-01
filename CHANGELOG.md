@@ -7,7 +7,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-## [0.10.0] - 2026-09-30
+## [0.10.0] - 2026-10-01
 
 ### Highlights
 
@@ -443,6 +443,19 @@ happened, not what was planned; superseded entries are kept.
   and without git on `PATH`; the menu says which. With Muse Code on
   Windows, which cannot fork, the menu offers **Restore files to here** and
   says why the conversation rewind is missing.
+- **A restore keeps more of what you did since** (the third Codex review of
+  PR #55). A restore or Redo leaves a file whose execute bit you changed
+  since the turn, even with the same bytes. A subagent's turn that outlives
+  its parent's no longer makes the parent's own edits read as changed
+  outside the turns. A conversation's turns are ordered by their own count,
+  not the clock, so two turns in one millisecond or a clock set back never
+  pull an earlier turn into a restore. A repository an ignore rule hides is
+  left out whole like any nested repository, and no tool write inside a
+  nested repository is restored. The repository's `info/exclude` and your
+  global excludes file are read again before every capture. Switching
+  `museSpark.turnCheckpoints` off during a turn still keeps the tools'
+  copies for that turn. On a case-sensitive macOS volume, a link that
+  differs from its target only in letter case is refused.
 
 - **Rewind code to here asks first** (M72), in the same confirmation as a
   file restore. **Fork conversation and rewind code** is now one action:
