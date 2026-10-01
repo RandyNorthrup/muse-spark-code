@@ -89,6 +89,35 @@ async function thrownBy(work: () => Promise<unknown>): Promise<unknown> {
   return undefined
 }
 
+/** A wrapped shell whose activity mark fails when it opens ('entry') or when it closes ('close'). */
+async function runWithFailingMark(failAt: 'entry' | 'close') {
+  const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+  const failing: CheckpointPort = {
+    ...port,
+    markTurn: (_key, isRunning) =>
+      isRunning === (failAt === 'entry')
+        ? Promise.reject(new Error('the store is gone'))
+        : Promise.resolve(),
+  }
+  const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
+  const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
+  const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+  return { error, work }
+}
+
+/** The checkpoint calls an edit of this path makes in a workspace reached through a link. */
+async function leaseCallsFor(file: string) {
+  const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+  await withCheckpointEditAt(
+    port,
+    vi.fn(),
+    { root: '/real/ws', displayRoot: '/link/ws', platform: 'linux' },
+    file,
+    () => Promise.resolve(),
+  )
+  return calls
+}
+
 const PROVEN_SHELL = {
   stdout: '',
   stderr: '',
@@ -363,30 +392,14 @@ describe('withCheckpointCopies (M72)', () => {
   )
 
   it('throws a ShellEntryError, and starts nothing, when the activity mark cannot be made', async () => {
-    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
-    const failing: CheckpointPort = {
-      ...port,
-      markTurn: (_key, isRunning) =>
-        isRunning ? Promise.reject(new Error('the store is gone')) : Promise.resolve(),
-    }
-    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
-    const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+    const { error, work } = await runWithFailingMark('entry')
     expect(error).toBeInstanceOf(ShellEntryError)
     expect(error).toMatchObject({ message: UI_TEXT.checkpointFailed })
     expect(work).not.toHaveBeenCalled()
   })
 
   it('throws a plain Error when the checkpoint cannot be closed after the command ran', async () => {
-    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
-    const failing: CheckpointPort = {
-      ...port,
-      markTurn: (_key, isRunning) =>
-        isRunning ? Promise.resolve() : Promise.reject(new Error('the store is gone')),
-    }
-    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
-    const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+    const { error, work } = await runWithFailingMark('close')
     expect(error).toMatchObject({ message: UI_TEXT.checkpointFailed })
     expect(error).not.toBeInstanceOf(ShellEntryError)
     expect(work).toHaveBeenCalledOnce()
@@ -486,27 +499,11 @@ describe('withCheckpointEditAt (M72)', () => {
     ['the display spelling of a linked workspace', '/link/ws/a.md'],
     ['the canonical spelling', '/real/ws/a.md'],
   ])('holds the lease for a path in %s', async (_name, file) => {
-    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
-    await withCheckpointEditAt(
-      port,
-      vi.fn(),
-      { root: '/real/ws', displayRoot: '/link/ws', platform: 'linux' },
-      file,
-      () => Promise.resolve(),
-    )
-    expect(calls).toHaveLength(2)
+    expect(await leaseCallsFor(file)).toHaveLength(2)
   })
 
   it('takes no lease for a path beside both spellings of the workspace', async () => {
-    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
-    await withCheckpointEditAt(
-      port,
-      vi.fn(),
-      { root: '/real/ws', displayRoot: '/link/ws', platform: 'linux' },
-      '/link/ws-other/a.md',
-      () => Promise.resolve(),
-    )
-    expect(calls).toEqual([])
+    expect(await leaseCallsFor('/link/ws-other/a.md')).toEqual([])
   })
 
   it('folds the letter case of a Windows path, as the file system does', async () => {
