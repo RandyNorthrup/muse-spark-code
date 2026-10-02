@@ -21,7 +21,6 @@ happened, not what was planned; superseded entries are kept.
   inactive/unknown fields are dropped by name. Existing files and running
   turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
   1.8.0 in the existing lazy importer bundle. Lead certification pending.
-
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
