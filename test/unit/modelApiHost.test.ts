@@ -10425,7 +10425,7 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
     expect(runHook).not.toHaveBeenCalled()
   })
 
-  it('rejects, keeping no session, when the host closes during the SessionStart hook (RV84c C1)', async () => {
+  it('rejects, keeping no session, when the host closes during its SessionStart hook (RV84c C1)', async () => {
     const hookRun = Promise.withResolvers<Awaited<ReturnType<typeof hookReply>>>()
     const runHook = vi.fn(() => hookRun.promise)
     const t = setup({ hooks: hooksFor('SessionStart', 'on-resume'), runHook })
@@ -10439,6 +10439,114 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
     await closing
     expect(t.host.sessionCount).toBe(0)
   })
+})
+
+// Every other opening of a conversation, as the import's (RV84c C1's class):
+// a sign-out or the host closing while the hooks load, or the host closing
+// during the SessionStart hook, leaves no new session and runs no hook.
+const OPENINGS = ['start', 'resume', 'fork'] as const
+type Opening = (typeof OPENINGS)[number]
+
+/** A saved conversation to open again; let go of first when the opening is a resume. */
+async function savedConversation(
+  t: ReturnType<typeof setup>,
+  opening: Opening,
+): Promise<ModelApiSession> {
+  const { session, turnDone } = await startSession(t)
+  await answerFirst(t, session, turnDone)
+  await t.host.flush()
+  if (opening === 'resume') {
+    session.dispose()
+  }
+  return session
+}
+
+function open(
+  t: ReturnType<typeof setup>,
+  opening: Opening,
+  saved: AgentSession,
+): Promise<unknown> {
+  switch (opening) {
+    case 'start': {
+      return t.host.startSession({
+        workspaceRoot: ROOT,
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'promptUnmatched',
+      })
+    }
+    case 'resume': {
+      return t.host.resumeSession(saved.sessionId, 'muse-spark-1.3')
+    }
+    case 'fork': {
+      return t.host.forkSession(saved.sessionId, 'muse-spark-1.3')
+    }
+  }
+}
+
+describe('ModelApiHost: a sign-out or close while a conversation opens (RV84c C1 class)', () => {
+  it.each(
+    OPENINGS.flatMap((opening) =>
+      (['signOut', 'close'] as const).map((change) => [opening, change] as const),
+    ),
+  )(
+    '%s: %s while the hooks load leaves no new session and runs no hook',
+    async (opening, change) => {
+      const loading = Promise.withResolvers<readonly HookDefinition[]>()
+      let isHeld = false
+      const loadHooks = vi.fn(() => (isHeld ? loading.promise : Promise.resolve([])))
+      const runHook = vi.fn(() => hookReply())
+      let accountId: string | undefined = FAKE_MODEL_API_ACCOUNT_ID
+      const t = setup({
+        store: memorySessionStore(),
+        loadHooks,
+        runHook,
+        getAccountId: () => Promise.resolve(accountId),
+      })
+      const saved = await savedConversation(t, opening)
+      const before = t.host.sessionCount
+      isHeld = true
+      const opened = open(t, opening, saved)
+      await vi.waitFor(() => {
+        expect(loadHooks).toHaveBeenCalledTimes(2)
+      })
+      let closing: Promise<void> | undefined
+      if (change === 'signOut') {
+        accountId = undefined
+      } else {
+        closing = t.host.close()
+      }
+      loading.resolve(hooksFor('SessionStart', 'on-open'))
+      await expect(opened).rejects.toThrow()
+      await closing
+      expect(runHook).not.toHaveBeenCalled()
+      expect(t.host.sessionCount).toBe(change === 'close' ? 0 : before)
+    },
+  )
+
+  it.each(OPENINGS)(
+    '%s: the host closing during the SessionStart hook leaves no session',
+    async (opening) => {
+      let hooks: readonly HookDefinition[] = []
+      const hookRun = Promise.withResolvers<Awaited<ReturnType<typeof hookReply>>>()
+      const runHook = vi.fn(() => hookRun.promise)
+      const t = setup({
+        store: memorySessionStore(),
+        loadHooks: () => Promise.resolve(hooks),
+        runHook,
+      })
+      const saved = await savedConversation(t, opening)
+      hooks = hooksFor('SessionStart', 'on-open')
+      const opened = open(t, opening, saved)
+      await vi.waitFor(() => {
+        expect(runHook).toHaveBeenCalled()
+      })
+      const closing = t.host.close()
+      hookRun.resolve(await hookReply())
+      await expect(opened).rejects.toThrow()
+      await closing
+      expect(t.host.sessionCount).toBe(0)
+    },
+  )
 })
 
 // --- Web fetch (M69, PLAN.md D49) ---

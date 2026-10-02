@@ -7565,6 +7565,11 @@ export class ModelApiHost implements AgentHost {
     if (isSideChatRequired && stored.sideChat !== true) {
       throw new Error(UI_TEXT.sideChatSessionOnly)
     }
+    const hooks = stored.sideChat === true ? [] : await this.sessionHooks()
+    // Loading the hooks may outlast a sign-out or the host closing: checked
+    // again before the session exists and its SessionStart hook runs.
+    await this.requireAccountId()
+    this.refuseWhileClosing()
     // Another surface may have brought it back while the file was read.
     const revived = this.sessions.get(sessionId)
     if (revived !== undefined) {
@@ -7578,12 +7583,19 @@ export class ModelApiHost implements AgentHost {
       stored.modelId,
       stored.sideChat === true ? 'denyUnmatched' : stored.approvalMode,
       sessionId,
-      stored.sideChat === true ? [] : await this.sessionHooks(),
+      hooks,
       'resume',
       stored.sideChat === true,
     )
-    session.adopt(stored)
-    await session.startHooks()
+    // The caller checks the account and the closing again after the
+    // SessionStart hook; a hook that fails leaves no session behind.
+    try {
+      session.adopt(stored)
+      await session.startHooks()
+    } catch (error: unknown) {
+      session.dispose()
+      throw error
+    }
     return session
   }
 
@@ -7631,7 +7643,7 @@ export class ModelApiHost implements AgentHost {
     const hooks = await this.sessionHooks()
     // Loading the hooks may outlast a sign-out or the host closing: both are
     // checked again before the session exists and its SessionStart hook runs
-    // (RV84c C1), as `startSession` checks the account.
+    // (RV84c C1), as every other opening checks them.
     await this.requireAccountId()
     this.refuseWhileClosing()
     const session = this.create(
@@ -7718,7 +7730,9 @@ export class ModelApiHost implements AgentHost {
       throw new Error(`unknown approval mode ${options.approvalMode}`)
     }
     const hooks = options.sideChat === true ? [] : await this.sessionHooks()
+    // Loading the hooks may outlast a sign-out or the host closing.
     await this.requireAccountId()
+    this.refuseWhileClosing()
     const session = this.create(
       options.modelId,
       options.sideChat === true ? 'denyUnmatched' : (options.approvalMode as ApprovalMode),
@@ -7730,6 +7744,7 @@ export class ModelApiHost implements AgentHost {
     try {
       await session.startHooks()
       await this.requireAccountId()
+      this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()
       throw error
@@ -7809,6 +7824,7 @@ export class ModelApiHost implements AgentHost {
     const session = await this.revive(sessionId, options?.requireSideChat === true)
     try {
       await this.requireAccountId()
+      this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()
       throw error
@@ -7832,7 +7848,9 @@ export class ModelApiHost implements AgentHost {
     let hooks: readonly HookDefinition[]
     try {
       hooks = isSideChat ? [] : await this.sessionHooks()
+      // Loading the hooks may outlast a sign-out or the host closing.
       await this.requireAccountId()
+      this.refuseWhileClosing()
     } catch (error: unknown) {
       if (live === undefined) {
         source.dispose()
@@ -7851,6 +7869,7 @@ export class ModelApiHost implements AgentHost {
       source.copyInto(fork, lastTurnId)
       await fork.startHooks()
       await this.requireAccountId()
+      this.refuseWhileClosing()
       if (isSideChat) {
         await this.persist(fork, true)
       } else {
