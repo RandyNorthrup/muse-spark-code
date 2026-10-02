@@ -3255,6 +3255,15 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   is silently lost. Should every window publish its unsaved paths in its
   presence file, so a restore refuses them too? Default: unchanged, recorded as
   a limit (Codex, `a424e526`).
+- **M73/M75 live key (answered 2026-10-02):** the owner approved the spend
+  and this handling for M73's run: the test key decrypted from its DPAPI
+  file in memory and piped to `auth set`'s standard input only, the run, and
+  `auth clear` in a `finally` (`docs/certification/m73.md`). The harness's
+  key source is unchanged.
+- **M73 Evidence-Preserving Reducer:** a paid model call (D48), but the M75
+  evaluation fails any task on which a paid use happens. Should the
+  evaluation gain a priced, counted paid arm for it, or should the reducer be
+  judged by its own D48 consent without an M75 run? Default: not built.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -8663,6 +8672,32 @@ evaluation is authorized by these repairs.
 
 ### M73 — Observation packing (D49)
 
+- **First review (RV73) repaired, 2026-10-02.** Four findings, each with a
+  regression and red drills (`docs/certification/m73.md`):
+  - A recalled page is framed as untrusted tool data (D49 "Untrusted
+    content"): it names the tool its call named, carries the notice, and
+    sits between fresh random markers outside the unchanged slice, so an
+    interior page of a `web_fetch` result keeps its boundary.
+  - The ledger survives resume: the stored session keeps an optional
+    `packedTokensAvoided` (a non-negative whole number; older files resume
+    at zero), restored into the store while the outputs and their send
+    counts start fresh.
+  - The live run records its packing acceptance in the report
+    (`packingEngagement`, verdict `fail` when a long-output task never
+    packed) before it prints or writes it.
+  - The recall row's heading and refusals are `UI_TEXT` in all fifteen
+    tables, counts through `Intl`; the recalled text is shown as it was
+    and the model's text stays `MODEL_TEXT`.
+- **Main integration, 2026-10-02 (M73m).** Merge `origin/main` at
+  `44b76f24` into `feature/m73-packing`, preserving final M75 behavior and
+  main's changelog entries. Kubuntu passed the owning M73/M75 suites
+  (14 files, 627 tests), all five type projects and the code-intelligence
+  fixture, scoped lint, formatting, dead code, duplication, localization,
+  host API, cycles and production build. The build needed a private copy
+  of the rig's linked dependencies for its path-based bundle-split check;
+  no source or gate changed. Results are in `docs/certification/m73.md`;
+  full quality and the live paired evaluation remain the lead's gates.
+  No live or paid run is authorized.
 - **Goal.** Long sessions stop resending large old tool outputs.
 - **Scope.**
   - NVIDIA SoL-Pi's ObservationPack design, implemented for the Model API:
@@ -8685,6 +8720,53 @@ evaluation is authorized by these repairs.
   happens once per output; the ledger matches the tokens left out.
 - **Tests.** The fake Model API with long outputs, and its M75 run.
 - **Size.** S.
+- **Status 2026-10-02: shipped off by default after its M75 run passed.**
+  Built 2026-10-01 on
+  `feature/m73-packing`, from M75's merged head. What is in it:
+  - `src/core/backends/modelapi/observationPack.ts`: one session's store.
+    An output over 8,000 characters rides whole for 2 requests, then as a
+    placeholder (its call id, characters, lines, a token estimate, its
+    first 4 and last 4 lines, bounded under the threshold); the swap is
+    sticky, so the placeholder is the same text every request. A request
+    counts once it is really sent, at the client's last step before
+    `fetch` (`ResponseAttemptGuard.onRequestStarted`), and an HTTP retry of
+    the same request counts once. `recall_output(id, offset)` pages the
+    original back 4,000 characters at a time, never splitting a character;
+    the replay keeps every original (placeholders never commit), so a
+    restored session packs again from the whole outputs; a compaction
+    forgets the store's originals and keeps the ledger.
+  - The host builds the store only while its `observationPacking` dep is
+    on and never for a subagent, which is also refused `recall_output`
+    (a read-class tool: no card). The dep is read when a session is
+    created or resumed: `museSpark.modelApiObservationPacking` (since its
+    run passed, below) or the M75 arm.
+  - The ledger rides on `tokenUsage` (`packedTokensAvoided`) to Account &
+    usage's Tokens section, "Packing saved (estimate)", shown only while a
+    session packs; the estimate is 4 characters a token, net of what the
+    placeholder still costs.
+  - The M75 side: the `packing` arm (`src/core/eval/mechanisms.ts`); two
+    long-output tasks in the task set (`accept-long-middle-value`,
+    `heldout-long-middle-rule`: a 512-record evidence file whose middle
+    record is needed after two more requests), so the set is twelve tasks,
+    seven accept and five held-out, under the same 0.75 floors (6 of 7, 4
+    of 5); results record the ledger and successful recalls; the live run
+    passes only if packing engaged on every long-output task it ran
+    (`unengagedLongOutputTasks`).
+  - **Not built: the Evidence-Preserving Reducer.** The evaluation refuses
+    every paid use (D48), so it cannot measure a paid reducer, and the gate
+    forbids shipping what is not measured (§3).
+  - **The M75 run passed (2026-10-02, after the RV73 repairs):** both
+    arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+    engaged on both long-output tasks, 111 model calls on the contributor
+    model for $0.0156 (`docs/certification/m73-run.md`). On the long-output
+    tasks packing sent 39% fewer input tokens at about the same cost: what
+    it leaves out was mostly read from the cache. So, as the gate says,
+    the setting was added, off by default and machine-scoped:
+    `museSpark.modelApiObservationPacking` (VS Code only; the ACP agent
+    does not pack).
+  - The WIP of `integrate/m73-m75-join-20260930` (staged tree `d52b6a9a`)
+    is archived as `_archive-2026-10-01/m73-m75-join-wip`; what was kept
+    and dropped is in `docs/certification/m73.md`.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 

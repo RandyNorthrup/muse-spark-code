@@ -37,6 +37,37 @@ happened, not what was planned; superseded entries are kept.
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
   disk.
+- **Observation packing, off by default** (M73, PLAN.md D49;
+  `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
+  API backend, a tool output over 8,000 characters rides whole for two
+  requests, then as a short placeholder (its id, size, and first and last
+  lines) that stays the same on every later request, so the prompt cache
+  breaks once per output; `recall_output(id, offset)` pages the original
+  back, and the conversation itself always keeps the whole output.
+  Account & usage shows the estimated tokens saved. A conversation reads
+  the setting when it starts or is reopened. The evaluation gains the
+  `packing` arm and two long-output tasks (twelve tasks: seven accept,
+  five held-out), and a packing run passes only if it packed on each
+  long-output task. Its M75 run passed before the setting was added: both
+  arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+  engaged on both long-output tasks (39% fewer input tokens there, about
+  the same cost), 111 model calls for $0.0156 in all
+  (`docs/certification/m73-run.md`). The Evidence-Preserving Reducer is
+  not built (PLAN.md §3).
+  - **A recalled page is untrusted tool data.** Each page names the tool
+    that returned it and comes with the untrusted-data notice, between
+    fresh random markers around the unchanged slice, so a page from the
+    middle of a fetched web page keeps its boundary.
+  - **The savings ledger survives a resume.** A saved conversation keeps
+    its total; one saved before the total was kept resumes at zero.
+  - **The recall row speaks the display language.** Its heading and its
+    refusals are in the installed language, with counts in its number
+    format; the recalled text is shown as it was, and the model's text
+    stays English.
+  - **The live report records the packing acceptance.** The report says
+    whether packing engaged on each long-output task, and a run that holds
+    the floors without packing is recorded as failed in both its JSON and
+    its Markdown.
 
 ### Changed
 
