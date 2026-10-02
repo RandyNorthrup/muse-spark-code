@@ -7,8 +7,48 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
+  token-saving mechanism must pass before it ships (M73, M74). Ten small
+  repository fixtures (six accept, four held-out), each judged by a
+  verifier that runs the fixed code, so any correct fix passes however it
+  is spelled. Each task runs on the extension's own Model API harness in
+  an empty temporary workspace, on the contributor model only; attempts,
+  tokens and cost are counted from the requests actually sent, and each
+  arm is held against capability floors fixed in advance (0.75 per
+  split). `npm run test:e2e:live:eval` runs it, opt-in and never in CI.
+  The baseline passed all ten tasks in 39 model calls for $0.0041
+  (`docs/certification/m75-baseline.md`).
+  - **Its key stays out of every environment.** The live run reads the
+    Model API key from the ACP agent's OS credential entry inside the
+    enabled test, never from its own environment, an argument or a file,
+    and the shell commands the model runs get an environment without any
+    credential variable (`withoutCredentials`).
+  - **It stops when a sent call cannot be priced.** Missing, invalid or
+    unsafe usage counts, or an ambiguous request failure, close the run's
+    shared budget for every later task and arm.
+  - **Arms take turns going first.** Task by task the arm order rotates, so
+    the prompt cache one arm warms cannot be counted as another arm's
+    saving.
+  - **Reports are version 2;** the version-1 baseline still reads, with
+    the two counts it never recorded shown as not recorded. A workspace
+    that cannot be created reports only an error code, never a path.
+
+### Changed
+
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
+
 ### Fixed
 
+- **The ACP agent reaches npm.** The release workflow passed its package as
+  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
+  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
+  npm. The path now starts with `./`.
 - **Windows hooks no longer wait on PowerShell's module scan.** The
   PowerShell wrapper that puts each Windows command and hook in its job
   object (M27) loaded the job helper with `Add-Type` and switched output to
@@ -21,10 +61,6 @@ happened, not what was planned; superseded entries are kept.
   makes .NET calls only, so a hook or command starts without any module
   discovery; the helper's self-test and a stopped command's job kill load
   it the same way.
-- **The ACP agent reaches npm.** The release workflow passed its package as
-  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
-  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
-  npm. The path now starts with `./`.
 - **A crafted long line no longer stalls the log.** Every line the
   extension logs passes through its secret redactor, whose JSON Web Token
   pattern read a long word again from every `eyJ` after a dash in it: a
@@ -32,14 +68,6 @@ happened, not what was planned; superseded entries are kept.
   run of dotted words once. A token glued after `_` or a letter
   (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
   the old pattern redacted is left.
-
-### Changed
-
-- The Node bundles share their English fallback as `dist/uiText.js`, while
-  installed-language state stays local to each bundle. The VSIX and ACP
-  tarball include it, and CI checks both package member lists. Existing
-  bundle caps remain unchanged; runtime smoke checks cover the extension,
-  Model API bundle and the agent installed from its tarball.
 
 ## [0.10.0] - 2026-10-01
 
