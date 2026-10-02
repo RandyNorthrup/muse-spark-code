@@ -470,6 +470,7 @@ describe('M72 native common owner guards (M86 port)', () => {
     async () => {
       const t = await setup(true, true)
       const held = Promise.withResolvers<undefined>()
+      const published = Promise.withResolvers<undefined>()
       t.api.script(
         { calls: [{ name: 'read_file', arguments: '{"path":"source.ts"}' }] },
         {
@@ -480,12 +481,17 @@ describe('M72 native common owner guards (M86 port)', () => {
             },
           ],
         },
-        { text: 'done', hold: held.promise },
+        {
+          text: 'done',
+          hold: held.promise,
+          onRequest: () => {
+            published.resolve(undefined)
+          },
+        },
       )
       await send(t)
-      await vi.waitFor(async () => {
-        expect(await readFile(t.source, 'utf8')).toBe('const answer = 2;\n')
-      })
+      await published.promise
+      expect(await readFile(t.source, 'utf8')).toBe('const answer = 2;\n')
       const checkpoint = t.recordedTurns[0]
       if (checkpoint?.kind !== 'recording') {
         throw new Error('expected a recorded Model API turn')

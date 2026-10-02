@@ -1,6 +1,6 @@
 // Pre-merge M86 regressions: real Git/files and deterministic publication barriers.
-import { execFileSync } from 'node:child_process'
-import { mkdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
+import { mkdir, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
@@ -301,12 +301,20 @@ describe('M86 pre-merge fixes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
       const filename = 'checkpoint-long-filename.txt'
       await turn(h, 't1', (tool) => tool(filename, 'after\n'))
       const file = path.join(h.root, filename)
-      const short = execFileSync('cmd.exe', ['/d', '/c', `for %I in ("${file}") do @echo %~sI`], {
+      const command = spawnSync('cmd.exe', ['/d', '/c', `for %I in ("${file}") do @echo %~sI`], {
         encoding: 'utf8',
-      }).trim()
+        windowsVerbatimArguments: true,
+        windowsHide: true,
+      })
+      expect(command.error).toBeUndefined()
+      expect(command.status).toBe(0)
+      const short = command.stdout.trim()
       expect(short).not.toBe(file)
       expect(short).toMatch(/~\d/u)
-      expect(await canonical.canonicalPath(short)).toBe(await canonical.canonicalPath(file))
+      const longIdentity = await stat(file)
+      const shortIdentity = await stat(short)
+      expect(shortIdentity.dev).toBe(longIdentity.dev)
+      expect(shortIdentity.ino).toBe(longIdentity.ino)
       expect(
         await h.store.restore({
           backend: () => 'modelApi',
@@ -315,7 +323,8 @@ describe('M86 pre-merge fixes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
           transcriptTurnIds: ['t1'],
           unsavedPaths: () => [short],
         }),
-      ).toMatchObject({ ok: true, refused: [{ path: filename, reason: 'unsaved' }] })
+      ).toMatchObject({ ok: true, changed: [], refused: [{ path: filename, reason: 'unsaved' }] })
+      expect(await read(h.root, filename)).toBe('after\n')
     },
   )
 

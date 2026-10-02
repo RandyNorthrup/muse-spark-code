@@ -1,5 +1,5 @@
 import { mkdir, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import * as atomic from '../../src/host/fsAtomic'
 import type { ShellResult, ToolIo } from '../../src/core/backends/modelapi/tools'
@@ -36,6 +36,7 @@ import {
   storedUnits,
   toolWrite,
   turn,
+  recordingOf,
   twoFileTurn,
   write,
 } from './helpers/checkpointHarness'
@@ -401,10 +402,9 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
             file === path.join(h.root, 'a.txt')
               ? {
                   ...options,
-                  realPath: async (target) => {
-                    const canonical = await fs.realpath(target)
+                  staged: async (staged) => {
+                    await options.staged?.(staged)
                     backend = undefined
-                    return canonical
                   },
                 }
               : options,
@@ -772,18 +772,26 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
         await tool('a.txt', 'a1\n')
         await tool('b.txt', 'b1\n')
       })
-      const outcome = await h.store.restore({
-        backend: () => 'modelApi',
-        sessionId: 's1',
-        turnId: 't1',
-        transcriptTurnIds: ['t1'],
-        unsavedPaths: () => {
-          if (readFileSync(path.join(h.root, 'a.txt'), 'utf8') === 'a0\n') {
-            h.store.dispose()
-          }
-          return []
-        },
-      })
+      const journal = recordingOf(h.store).journal
+      const appendIntent = journal.appendIntent.bind(journal)
+      const stopAfterIntent = vi
+        .spyOn(journal, 'appendIntent')
+        .mockImplementation(async (entry) => {
+          await appendIntent(entry)
+          if (entry.owner.unitKind === 'batch' && entry.path === 'b.txt') h.store.dispose()
+        })
+      let outcome: Awaited<ReturnType<typeof h.store.restore>>
+      try {
+        outcome = await h.store.restore({
+          backend: () => 'modelApi',
+          sessionId: 's1',
+          turnId: 't1',
+          transcriptTurnIds: ['t1'],
+          unsavedPaths: () => [],
+        })
+      } finally {
+        stopAfterIntent.mockRestore()
+      }
       expect(outcome).toMatchObject({
         ok: true,
         changed: ['a.txt'],

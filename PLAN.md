@@ -9421,12 +9421,13 @@ to the release candidate is described below.
 
 ### M86 — Restore by the tools' own writes (D63)
 
-- **Status.** In progress, lanes L1–L4. No completed certification is
-  claimed; [m86.md](docs/certification/m86.md) tracks pending evidence.
+- **Status.** In progress: F07 shared-journal metadata retirement needs the
+  design choice in section 3, and full milestone certification remains open.
+  [m86.md](docs/certification/m86.md) records the fix-batch gates and drills.
 - **M86FIX pre-merge batch.** Deduplicated eight reviews in the lead scratchpad
-  `m86/FIX-PLAN.md`. Repair confinement, durability, retention, Redo
-  completeness and child/background seams; strengthen real-recorder and
-  deterministic tests. All tests, typechecks and builds run on the three
+  `m86/FIX-PLAN.md`. Repaired confinement, durability, unit/copy retention,
+  Redo completeness and child/background seams; strengthened real-recorder
+  and deterministic tests. All tests, typechecks and builds run on the three
   rigs. Results and red drills belong in [m86.md](docs/certification/m86.md).
 - **Goal.** Restore files without guessing who changed them.
 - **Design.** [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md) and
