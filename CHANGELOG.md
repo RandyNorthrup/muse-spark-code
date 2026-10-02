@@ -32,7 +32,20 @@ happened, not what was planned; superseded entries are kept.
   never quotes the file. Nothing is uploaded: sharing is a file on your
   disk.
 
+### Changed
+
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
+
 ### Fixed
+
+- **The ACP agent reaches npm.** The release workflow passed its package as
+  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
+  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
+  npm. The path now starts with `./`.
 
 - **The log redacts more credential shapes.** The output channel's
   redactor and the session export now share one list
@@ -48,13 +61,8 @@ happened, not what was planned; superseded entries are kept.
   character precedes). The session export runs them over whole
   conversations. Text with none of the credential literals (most log lines)
   now skips the patterns in one scan.
-- The Node bundles share their English fallback as `dist/uiText.js`, while
-  installed-language state stays local to each bundle. The VSIX and ACP
-  tarball include it, and CI checks both package member lists. Existing
-  bundle caps remain unchanged; runtime smoke checks cover the extension,
-  Model API bundle and the agent installed from its tarball.
 
-## [0.10.0] - 2026-09-30
+## [0.10.0] - 2026-10-01
 
 ### Highlights
 
@@ -63,7 +71,7 @@ happened, not what was planned; superseded entries are kept.
 - **The agent checks its own edits.** After edits, the language servers' errors and your check commands reach the next request (Model API backend).
 - **Web fetch.** The model reads one public HTTPS page on either backend, fetched from your machine and free.
 - **Plans as files.** Save a Plan-mode reply to `.agents/plans/` and implement it in a fresh conversation.
-- **Turn checkpoints.** Restore files, the conversation or both, then redo; the copies never touch your `.git` (stored restore needs a Model API session).
+- **Turn checkpoints (Preview, off by default).** Restore files, the conversation or both, then redo; the copies never touch your `.git` (stored restore needs a Model API session). Turn them on with `museSpark.turnCheckpoints`; their restore is being rebuilt on the tools' own writes (PLAN.md D63).
 - **Every paid use asks first.** A popup (Allow once, Allow always in this workspace, Deny) in every mode, Bypass included.
 - **A lighter start.** The Model API backend is a bundle of its own, loaded only when a conversation uses it.
 - **VS Code 1.99 or newer** (was 1.125), so editors built on VS Code 1.99 or later can install the extension.
@@ -485,11 +493,39 @@ happened, not what was planned; superseded entries are kept.
   newest checkpoints and 20 redo records per conversation for 50
   conversations, within `museSpark.cleanupPeriodDays`, applied each time the
   window opens. The checkpoint folder is 0700 on macOS and Linux.
-- **`museSpark.turnCheckpoints`** (machine-scoped, on by default) turns them
-  off. They are off in Restricted Mode, where the extension runs no git,
+- **`museSpark.turnCheckpoints`** (machine-scoped, a Preview, off by
+  default) turns them on. They are off in Restricted Mode, where the extension runs no git,
   and without git on `PATH`; the menu says which. With Muse Code on
   Windows, which cannot fork, the menu offers **Restore files to here** and
   says why the conversation rewind is missing.
+- **A restore keeps more of what you did since** (the third Codex review of
+  PR #55). A restore or Redo leaves a file whose execute bit you changed
+  since the turn, even with the same bytes. A subagent's turn that outlives
+  its parent's no longer makes the parent's own edits read as changed
+  outside the turns. A conversation's turns are ordered by their own count,
+  not the clock, so two turns in one millisecond or a clock set back never
+  pull an earlier turn into a restore. A repository an ignore rule hides is
+  left out whole like any nested repository, and no tool write inside a
+  nested repository is restored. The repository's `info/exclude` and your
+  global excludes file are read again before every capture. Switching
+  `museSpark.turnCheckpoints` off during a turn still keeps the tools'
+  copies for that turn. On a case-sensitive macOS volume, a link that
+  differs from its target only in letter case is refused. A window's first
+  message is no longer sometimes refused ("could not tell other windows …")
+  when the checkpoint repository was still being set up. A file you save in
+  the editor while a turn runs is yours: restoring that turn leaves it as
+  you saved it. An ignored file a tool copied but never changed (its write
+  was refused) is left alone, not rewritten. Unarchiving a conversation
+  keeps its new checkpoints even if the clock was set back. Checkpoint
+  storage that a link or junction puts inside the workspace is refused.
+  What the extension writes for you while a turn runs (Create AGENTS.md, a
+  Markdown export, a saved plan, a Revert, a note the Memory view creates or
+  trashes) is yours too. A restore leaves alone what an earlier turn of the
+  same conversation, still running in another window, changed, and what a
+  turn of a window that closed mid-turn may have changed. A file you save in
+  any window on the folder while a turn runs, even one with no turn of its
+  own and even while the turn's first checkpoint is being taken, is yours
+  too.
 
 - **Rewind code to here asks first** (M72), in the same confirmation as a
   file restore. **Fork conversation and rewind code** is now one action:
@@ -538,6 +574,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A very long log line no longer stalls the extension.** Hiding
+  credentials in a log line took time that grew with the square of a long
+  run of dotted or dashed words with no URL in it (3.5 s for 40,000
+  characters); it is now linear.
 - **Memory notes keep restore copies, and the Memory view cannot overlap
   another window's restore** (M72). The Model API's memory tools and the
   Memory view now copy an ignored project note and its `MEMORY.md` before

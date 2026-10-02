@@ -50,10 +50,11 @@ function makeBase(): string {
  * temporary folder puts the refs' files past 260 characters, which git on
  * Windows opens only with it.
  */
-export function shadowGit(storage: string, args: readonly string[]): string {
+export function shadowGit(storage: string, args: readonly string[], input?: string): string {
   return execFileSync('git', ['-c', 'core.longpaths=true', '--git-dir', 'shadow.git', ...args], {
     cwd: storage,
     encoding: 'utf8',
+    ...(input !== undefined && { input }),
   })
 }
 

@@ -16,6 +16,8 @@ export interface MemoryFeatureDeps {
   readonly edit: MemoryEdit
   /** Keeps a note's bytes for a checkpoint restore before it is deleted. */
   readonly beforeDelete: (absolutePath: string) => Promise<void>
+  /** The note is in the trash: the removal is the user's (M72). */
+  readonly afterDelete: (absolutePath: string) => void
 }
 
 export interface MemoryFeatures {
@@ -57,6 +59,7 @@ export function createMemoryFeatures(deps: MemoryFeatureDeps): MemoryFeatures {
           // VS Code's delete has no publication callback: the guard speaks last, right before it.
           assertCanWrite()
           await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+          deps.afterDelete(fsPath)
           deps.log.info(`Memory note moved to the trash: ${fsPath}`)
         },
         openDocs: () => {

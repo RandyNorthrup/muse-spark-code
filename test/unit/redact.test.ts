@@ -70,6 +70,9 @@ const SHAPES: readonly (readonly [shape: string, text: string, redacted: string]
   ['a signed URL', 'x.example/f?sig=abc123&v=1', 'x.example/f?sig=[redacted]&v=1'],
 ]
 
+// A linear scan of 100,000 characters takes milliseconds; the quadratic one took seconds.
+const LINEAR_SCAN_MS = 1000
+
 describe('redactSecrets', () => {
   it('redacts Meta Model API keys wherever they appear', () => {
     expect(redactSecrets('key=LLM|1234567890|abcDEF-123_xyz done')).toBe('key=[redacted] done')
@@ -117,6 +120,9 @@ describe('redactSecrets', () => {
     expect(redactSecrets('fetch https://user:hunter2@proxy.local:8080/x')).toBe(
       'fetch https://[redacted]@proxy.local:8080/x',
     )
+    expect(redactSecrets(`${'x'.repeat(31)}://user:hunter2@host`)).toBe(
+      `${'x'.repeat(31)}://[redacted]@host`,
+    )
   })
 
   it('scans a long dotted run in linear time (M84 exports whole conversations)', () => {
@@ -126,7 +132,7 @@ describe('redactSecrets', () => {
     expect(redactSecrets(`${run} https://user:pw@example.com`)).toBe(
       `${run} https://[redacted]@example.com`,
     )
-    expect(performance.now() - started).toBeLessThan(2000)
+    expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
   })
 
   it('leaves ordinary text untouched', () => {

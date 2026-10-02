@@ -307,7 +307,9 @@ export const SETTING_DEFAULTS = {
   modelApiRepoMap: false,
   // A checkpoint of the workspace's files at each turn boundary (M72): it
   // runs git on every turn and copies files into the extension's storage.
-  turnCheckpoints: true,
+  // Preview, off until the user turns it on: its restore is being rebuilt
+  // on the tools' own writes (PLAN.md D63).
+  turnCheckpoints: false,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -721,6 +723,18 @@ export const CHECKPOINT_REMOVE_RETRY_MS = 200
 // are retried after the short wait.
 export const CHECKPOINT_HEARTBEAT_MS = 15_000
 export const CHECKPOINT_PUBLISH_RETRY_MS = 1000
+// Each window shares the files the user saves in it with the other windows
+// on the folder (a turn running in one of them reads them at its end): the
+// newest save of each file, kept this long and at most this many files. A
+// turn that runs longer than the keep time (far over any turn's length), or
+// that started before a save the count let go of, cannot know every save: a
+// restore leaves every file it changed alone.
+export const CHECKPOINT_PEER_SAVE_KEEP_MS = 24 * 60 * 60 * 1000
+export const CHECKPOINT_PEER_SAVES_MAX = 500
+// A file's modification time can trail the clock: file systems stamp it from
+// a coarser clock (a timer tick on Windows, two seconds on FAT). A saves file
+// that cannot be read counts for a turn when it was written this close before.
+export const CHECKPOINT_FILE_TIME_SLACK_MS = 2000
 // Record JSON blobs read in one bounded cat-file batch.
 export const CHECKPOINT_RECORD_READ_BATCH = 500
 // `git prune` spares objects younger than this: another window may have
