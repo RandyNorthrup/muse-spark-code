@@ -88,6 +88,7 @@ import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { createCliFeatures } from './host/cliFeatures'
+import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
@@ -750,6 +751,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       )
     }, nativeStarts.signal)
   }
+  // Tool outputs open as read-only documents (M15), the tab named through the
+  // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
+  // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
+  // An export's preview (M84) opens the same way: read-only, never on disk.
+  const outputDocuments = new OutputDocumentStore()
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(OUTPUT_DOCUMENT_SCHEME, {
+      provideTextDocumentContent: (uri) => outputDocuments.get(uri.query) ?? '',
+    }),
+  )
+  const openDocument = async (title: string, content: string): Promise<void> => {
+    const id = outputDocuments.add(content)
+    const uri = vscode.Uri.from({ scheme: OUTPUT_DOCUMENT_SCHEME, path: `/${title}`, query: id })
+    const document = await vscode.workspace.openTextDocument(uri)
+    await vscode.window.showTextDocument(document, { preview: true })
+  }
+
   // Skills, imports and export (M30): the CLI by absolute path, in the
   // environment `muse serve` gets, from the workspace root.
   const cliFeatures = createCliFeatures({
@@ -795,6 +813,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     museSettingsPath: () => museSettingsPath(museConfig()),
     workspaceRoot,
+    openPreview: openDocument,
     restartBackend: () => restartBackend('asked for after a skills or MCP change'),
     // On the Model API backend the MCP servers view shows them as this
     // window runs them (M50).
@@ -1111,22 +1130,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })()
     return ideServerStart
   }
-  // Tool outputs open as read-only documents (M15), the tab named through the
-  // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
-  // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
-  const outputDocuments = new OutputDocumentStore()
-  context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(OUTPUT_DOCUMENT_SCHEME, {
-      provideTextDocumentContent: (uri) => outputDocuments.get(uri.query) ?? '',
-    }),
-  )
-  const openDocument = async (title: string, content: string): Promise<void> => {
-    const id = outputDocuments.add(content)
-    const uri = vscode.Uri.from({ scheme: OUTPUT_DOCUMENT_SCHEME, path: `/${title}`, query: id })
-    const document = await vscode.workspace.openTextDocument(uri)
-    await vscode.window.showTextDocument(document, { preview: true })
-  }
-
   // A tool row's path opens the file with the changed lines selected and
   // revealed (M16), as Claude Code's file links do.
   const openFile = async (
@@ -1706,6 +1709,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             ? museVoiceSetup
             : undefined,
         exports: cliFeatures.exports,
+        transferFiles: createSessionTransferFiles(),
         plans,
         // The palette's paid-feature toggles (M33): on goes through the price confirmation.
         setPaidFeature: async (feature, isOn) => {
@@ -2155,6 +2159,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       await controllerFor(surface).handle({ type: 'exportConversation', format: 'markdown' })
     }),
+    // Import and share (M84): listed only while a Muse panel is in view.
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.importSession,
+      forActiveConversation((controller) => controller.handle({ type: 'importSession' })),
+    ),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.openShareFile,
+      forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
+    ),
   )
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
 }

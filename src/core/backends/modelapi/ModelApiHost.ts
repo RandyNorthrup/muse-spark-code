@@ -230,6 +230,7 @@ import {
   type ToolClass,
   verdictFor,
 } from './permissions'
+import { sanitizeImportedSession, type SessionExport } from '../../export/sessionTransfer'
 import {
   headerOf,
   recordOf,
@@ -1479,6 +1480,8 @@ export class ModelApiSession implements AgentSession {
   public turnCount = 0
   public status: string = IDLE
   public forkedFrom: string | undefined
+  /** Built from an imported file, or forked from such a session (M84, PLAN.md D49). */
+  public imported = false
 
   public constructor(
     public readonly sessionId: string,
@@ -7599,6 +7602,7 @@ export class ModelApiSession implements AgentSession {
       turnCount: this.turnCount,
       forkedFrom: this.forkedFrom === undefined ? null : { sessionId: this.forkedFrom },
       workspaceRoot: this.deps.sessionWorkspaceRoot ?? this.deps.workspaceRoot,
+      ...(this.imported && { imported: true }),
     }
   }
 
@@ -7619,6 +7623,7 @@ export class ModelApiSession implements AgentSession {
       version: STORED_SESSION_VERSION,
       sessionId: this.sessionId,
       ...(this.isSideChat && { sideChat: true }),
+      ...(this.imported && { imported: true }),
       workspaceRoot: this.deps.sessionWorkspaceRoot ?? this.deps.workspaceRoot,
       modelId: this.modelId,
       approvalMode: this.permissions.currentMode,
@@ -7705,6 +7710,7 @@ export class ModelApiSession implements AgentSession {
     this.goal = this.isSideChat ? undefined : stored.goal
     this.firstPrompt = stored.firstPrompt
     this.forkedFrom = stored.forkedFrom
+    this.imported = stored.imported === true
     this.createdAt = stored.createdAt
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
@@ -7819,6 +7825,8 @@ export class ModelApiSession implements AgentSession {
     target.turnCount = target.turnIds.length
     target.firstPrompt = this.firstPrompt
     target.forkedFrom = this.sessionId
+    // A fork carries the imported history, so it asks as its source does (M84).
+    target.imported = this.imported
     target.effort = this.effort
     // The goal as it stands goes with the fork (M45): a goal has no history
     // to cut, so a fork from an earlier turn gets today's goal too.
@@ -7921,6 +7929,13 @@ export class ModelApiHost implements AgentHost {
     }
     this.accountIdValue = current
     return current
+  }
+
+  /** A closing host takes no new session: one made now would outlive `close`. */
+  private refuseWhileClosing(): void {
+    if (this.isClosing) {
+      throw new AbortedError()
+    }
   }
 
   private ownedSnapshot(snapshot: StoredSession): StoredSession {
@@ -8081,6 +8096,11 @@ export class ModelApiHost implements AgentHost {
     if (isSideChatRequired && stored.sideChat !== true) {
       throw new Error(UI_TEXT.sideChatSessionOnly)
     }
+    const hooks = stored.sideChat === true ? [] : await this.sessionHooks()
+    // Loading the hooks may outlast a sign-out or the host closing: checked
+    // again before the session exists and its SessionStart hook runs.
+    await this.requireAccountId()
+    this.refuseWhileClosing()
     // Another surface may have brought it back while the file was read.
     const revived = this.sessions.get(sessionId)
     if (revived !== undefined) {
@@ -8094,12 +8114,19 @@ export class ModelApiHost implements AgentHost {
       stored.modelId,
       stored.sideChat === true ? 'denyUnmatched' : stored.approvalMode,
       sessionId,
-      stored.sideChat === true ? [] : await this.sessionHooks(),
+      hooks,
       'resume',
       stored.sideChat === true,
     )
-    session.adopt(stored)
-    await session.startHooks()
+    // The caller checks the account and the closing again after the
+    // SessionStart hook; a hook that fails leaves no session behind.
+    try {
+      session.adopt(stored)
+      await session.startHooks()
+    } catch (error: unknown) {
+      session.dispose()
+      throw error
+    }
     return session
   }
 
@@ -8123,6 +8150,54 @@ export class ModelApiHost implements AgentHost {
     } catch (error: unknown) {
       this.deps.log.warn(`The MCP servers could not be started: ${describe(error)}`)
     }
+  }
+
+  /**
+   * Resume a parsed export as a new session (M84, PLAN.md D49): a fresh id
+   * (which severs schedules), the caller's asking mode and model, no rules,
+   * goals, todos, schedules or patches, each imported turn handed to the
+   * model as untrusted data, and the session marked imported. The save
+   * stamps the current key's digest, so only this key reopens it.
+   */
+  public async importSession(
+    doc: SessionExport,
+    options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
+  ): Promise<LoadedSession> {
+    await this.requireAccountId()
+    const stored = sanitizeImportedSession(doc, {
+      sessionId: this.deps.newId(),
+      workspaceRoot: this.deps.workspaceRoot,
+      approvalMode: options.approvalMode,
+      modelId: options.modelId,
+      now: new Date(this.deps.now()).toISOString(),
+    })
+    const hooks = await this.sessionHooks()
+    // Loading the hooks may outlast a sign-out or the host closing: both are
+    // checked again before the session exists and its SessionStart hook runs
+    // (RV84c C1), as every other opening checks them.
+    await this.requireAccountId()
+    this.refuseWhileClosing()
+    const session = this.create(
+      stored.modelId,
+      stored.approvalMode,
+      stored.sessionId,
+      hooks,
+      'resume',
+      false,
+    )
+    try {
+      session.adopt(stored)
+      await session.startHooks()
+      await this.requireAccountId()
+      this.refuseWhileClosing()
+    } catch (error: unknown) {
+      session.dispose()
+      throw error
+    }
+    void this.persist(session)
+    this.announce(session)
+    void this.startMcpServers()
+    return this.loaded(session)
   }
 
   /** Reads the store once; this window's sessions then include the stored ones. */
@@ -8186,7 +8261,9 @@ export class ModelApiHost implements AgentHost {
       throw new Error(`unknown approval mode ${options.approvalMode}`)
     }
     const hooks = options.sideChat === true ? [] : await this.sessionHooks()
+    // Loading the hooks may outlast a sign-out or the host closing.
     await this.requireAccountId()
+    this.refuseWhileClosing()
     const session = this.create(
       options.modelId,
       options.sideChat === true ? 'denyUnmatched' : (options.approvalMode as ApprovalMode),
@@ -8198,6 +8275,7 @@ export class ModelApiHost implements AgentHost {
     try {
       await session.startHooks()
       await this.requireAccountId()
+      this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()
       throw error
@@ -8277,6 +8355,7 @@ export class ModelApiHost implements AgentHost {
     const session = await this.revive(sessionId, options?.requireSideChat === true)
     try {
       await this.requireAccountId()
+      this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()
       throw error
@@ -8300,7 +8379,9 @@ export class ModelApiHost implements AgentHost {
     let hooks: readonly HookDefinition[]
     try {
       hooks = isSideChat ? [] : await this.sessionHooks()
+      // Loading the hooks may outlast a sign-out or the host closing.
       await this.requireAccountId()
+      this.refuseWhileClosing()
     } catch (error: unknown) {
       if (live === undefined) {
         source.dispose()
@@ -8319,6 +8400,7 @@ export class ModelApiHost implements AgentHost {
       source.copyInto(fork, lastTurnId)
       await fork.startHooks()
       await this.requireAccountId()
+      this.refuseWhileClosing()
       if (isSideChat) {
         await this.persist(fork, true)
       } else {

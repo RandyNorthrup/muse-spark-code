@@ -149,7 +149,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       code intelligence and the repo map, web fetch's
                       public-address checks and HTML converter, the verify
                       loop's check commands, diagnostics report and the files
-                      it never opens because tools run them, the checkpoint restore plan)
+                      it never opens because tools run them, the checkpoint
+                      restore plan, the paired efficiency evaluation)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`
@@ -173,7 +174,8 @@ resources/            the walkthrough
 test/unit/**          vitest (node + jsdom via docblock); `vscode` is mocked
 test/e2e/**           the fake Muse Code CLI driven through the real backend;
                       the opt-in live drills (the Muse Code CLI; the Model
-                      API sweep, which bills the owner's key)
+                      API sweep and the M75 evaluation, which bill the
+                      owner's key)
 test/integration/**   @vscode/test-cli, runs inside VS Code, over the workspace
                       test/fixtures/workspace (code-intel/ is a TypeScript
                       project its language service reads)

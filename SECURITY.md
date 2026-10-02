@@ -338,12 +338,34 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   an untrusted workspace no agent is offered and a project file's prompt is
   left out of a resumed child's instructions. A model writing an agent file
   is a protected write (`.agents/**`) and asks in every mode but Bypass.
+
+- **Imported sessions (M84).** A session-export file may come from anyone.
+  Parser failures do not quote the file, and field names are scrubbed before
+  bounded validation details reach notices or logs. Export scrubbing covers
+  every string value, including arbitrary ids and error labels, and removes
+  the credential shapes the log redactor knows (`src/core/redact.ts`, the
+  one list) and the key digest; a secret in any other shape is not
+  recognised, so the redacted file is shown before it is saved. Ordinary
+  UUIDs and protocol words stay intact. The share view's section keys include
+  their position and import remints ids, so redacted ids carry no live reference.
+  It is parsed whole before use: at most 16 MiB and 20,000 items, the known
+  format and version, and no field the schema does not name. An import
+  takes nothing privileged from it (no permission mode, model, session
+  rules, goals, schedules, patches or ids), hands the model each imported
+  turn as untrusted data in a user message, and opens the conversation in
+  Manual (or Plan) every time, whatever the initial mode; only the user's
+  own mode change relaxes it; a plan written in it is implemented as
+  untrusted content, in that asking mode too. A share file renders
+  read-only: its code blocks have no Insert or Apply, nor do an imported
+  conversation's, and its links go through the same http, https and mailto
+  filter as a reply's.
 - **Release pipeline.** A tag is released only when it names the manifest
   version and points at a commit on `main`; the Marketplace PAT reaches one
   step, after an install that runs no package scripts; no checkout keeps a
   token; every job has a timeout.
 - **The macOS dictation helper** is ad-hoc signed, not notarised (owner
-  decision); VS Code's installer does not quarantine it, so Gatekeeper does
-  not assess it.
+  decision); it is not quarantined when VS Code installs the extension, so
+  Gatekeeper normally does not assess it; a copy that carries the quarantine
+  attribute is assessed and refused.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.

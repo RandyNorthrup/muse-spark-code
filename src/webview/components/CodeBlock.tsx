@@ -1,8 +1,9 @@
 // A fenced code block: language tag, highlighted body, Copy, Insert at
-// cursor and Apply (replace the editor selection). The highlighting is
-// memoised on the code, and a block still streaming (its fence not closed
-// yet) shows plain text until it closes (M25), so a long block is not
-// re-highlighted whole on every delta.
+// cursor and Apply (replace the editor selection); a read-only view (a share
+// file, M84) passes neither of the last two and shows Copy alone. The
+// highlighting is memoised on the code, and a block still streaming (its
+// fence not closed yet) shows plain text until it closes (M25), so a long
+// block is not re-highlighted whole on every delta.
 
 import { useMemo } from 'react'
 import { UI_TEXT } from '../../shared/constants'
@@ -17,8 +18,10 @@ export interface CodeBlockProps {
   /** The label as written (a plan's whole info string, M79) in place of the resolved language. */
   readonly label?: string | undefined
   readonly onCopy: (text: string) => void
-  readonly onInsert: (text: string) => void
-  readonly onApply: (text: string) => void
+  /** Absent in a read-only view: the button is not shown. */
+  readonly onInsert?: ((text: string) => void) | undefined
+  /** Absent in a read-only view: the button is not shown. */
+  readonly onApply?: ((text: string) => void) | undefined
 }
 
 export function CodeBlock({
@@ -53,24 +56,28 @@ export function CodeBlock({
           >
             {isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyCode}
           </button>
-          <button
-            type="button"
-            className="code-block-button"
-            onClick={() => {
-              onInsert(code)
-            }}
-          >
-            {UI_TEXT.insertCode}
-          </button>
-          <button
-            type="button"
-            className="code-block-button"
-            onClick={() => {
-              onApply(code)
-            }}
-          >
-            {UI_TEXT.applyCode}
-          </button>
+          {onInsert === undefined ? null : (
+            <button
+              type="button"
+              className="code-block-button"
+              onClick={() => {
+                onInsert(code)
+              }}
+            >
+              {UI_TEXT.insertCode}
+            </button>
+          )}
+          {onApply === undefined ? null : (
+            <button
+              type="button"
+              className="code-block-button"
+              onClick={() => {
+                onApply(code)
+              }}
+            >
+              {UI_TEXT.applyCode}
+            </button>
+          )}
         </span>
       </div>
       <pre className="code-block-body">

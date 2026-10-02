@@ -95,3 +95,22 @@ export function nextPermissionMode(mode: PermissionMode, canBypass: boolean): Pe
 export function isPermissionMode(value: string): value is PermissionMode {
   return (PERMISSION_MODES as readonly string[]).includes(value)
 }
+
+// The modes that ask before a command runs: Manual asks, Plan refuses.
+const ASKING_MODES: ReadonlySet<PermissionMode> = new Set(['manual', 'plan'])
+
+/**
+ * The mode a conversation built on untrusted content opens in (PLAN.md D49,
+ * M84): the current mode when it already asks, else Manual, or Plan when
+ * `museSpark.initialPermissionMode` is Plan, whatever else that setting
+ * says. Only the user's own mode change relaxes it.
+ */
+export function untrustedStartMode(
+  current: PermissionMode,
+  initial: PermissionMode,
+): PermissionMode {
+  if (ASKING_MODES.has(current)) {
+    return current
+  }
+  return initial === 'plan' ? 'plan' : 'manual'
+}

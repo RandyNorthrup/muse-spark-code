@@ -193,7 +193,9 @@ security notes for contributors are in `PLAN.md` §9.
   under System Settings > Privacy & Security > Microphone / Speech
   Recognition. Where macOS offers no way for the helper to ask under its
   own name, it asks as Visual Studio Code, the app that starts it.
-  Dictation is off in remote windows.
+  Dictation is off when the extension runs on a remote extension host (in a
+  remote window it runs there by default); the microphone is never reached
+  across the remote connection.
 - **The paid features (off unless you turn them on).** Each is billed to
   your Model API key, never to your Muse Code subscription, and each asks
   you to accept its price when you turn it on, then asks again in a popup
@@ -242,9 +244,9 @@ settings. When neither Muse Code's environment nor
 Code VS Code's `http.proxy` and `http.noProxy` (loopback always bypassed),
 so Muse Code's requests use the same proxy; Diagnostics reports only
 whether a proxy is set, never its address. **Muse Spark: Diagnostics** runs
-`muse config status`, which reads Muse Code's managed configuration on this
-machine and contacts no one. The public-issue report includes only recognized source and generation
-fields, never raw configuration or failed-command output.
+`muse config status` to read Muse Code's managed configuration on this
+machine. The public-issue report includes only recognized source and
+generation fields, never raw configuration or failed-command output.
 
 ## Credentials
 
@@ -371,6 +373,24 @@ fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- A session export (M84) is written only where you save it, after its
+  redacted form opened read-only in the editor. It holds the conversation's
+  messages, thinking and tool calls with their arguments and visible output,
+  the session's name, the model's name and the backend. The key digest and
+  every credential of a shape the extension knows (the log redactor's list:
+  common services' keys and tokens, bearer credentials, private keys,
+  secrets named by their key) are removed, and by default every e-mail
+  address and absolute path is replaced, including in item ids and error
+  labels: your workspace and home folders to the path's end, spaces and
+  all, and any other absolute path, in any script, to its first space (what
+  follows a space is left as a word). A secret in any other shape is not recognised and stays, which is
+  why the file is shown before it is saved. Ordinary UUIDs and protocol
+  words remain intact. **Save without redaction…** keeps paths and e-mail
+  addresses.
+  Validation failures use localized refusals and scrubbed, bounded field
+  names instead of JSON parser snippets from the picked file.
+  Importing or opening a share file reads the one file you pick; nothing
+  is uploaded, and there is no hosted sharing.
 
 ## The agent for other editors
 
