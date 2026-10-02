@@ -283,6 +283,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('scheduleRun'), id: z.string(), occurrenceMs: z.number() }),
   // "/export" and "Export session log…" (M30): Markdown, or Muse Code's JSON log.
   z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
+  // "Import session…" and "Open share file…" (M84): a portable JSON file
+  // picked on the host; the import resumes it on the Model API backend.
+  z.object({ type: z.literal('importSession') }),
+  z.object({ type: z.literal('openShareFile') }),
   // The palette opened: (re)load the session's skills.
   z.object({ type: z.literal('listSkills') }),
   // @-mention menu: `requestId` lets the webview drop stale answers.
@@ -555,6 +559,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // The turns of these items this panel sent in Plan mode (M79): their user
     // cards keep `isPlanTurn`, so a reload keeps Save plan and Implement.
     planTurnIds: z.optional(z.array(z.string())),
+    // The session holds imported history (M84, PLAN.md D49): its code
+    // blocks offer Copy only, as a share file's do.
+    imported: z.optional(z.literal(true)),
   }),
   // Account & usage (M8): the backend this window runs on and the
   // subscription window the CLI last observed (absent on a key, or before
@@ -572,6 +579,17 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('childTranscript'),
     sessionId: z.string(),
     name: z.optional(z.string()),
+    items: z.array(itemSnapshotSchema),
+  }),
+  // A local share file rendered read-only (M84, PLAN.md D49): the panel
+  // shows it in a modal that can act on nothing. `exportedAt` is ISO 8601.
+  z.object({
+    type: z.literal('sharePreview'),
+    title: z.string(),
+    exportedAt: z.string(),
+    sourceBackend: z.enum(BACKEND_KINDS),
+    modelId: z.string(),
+    redacted: z.boolean(),
     items: z.array(itemSnapshotSchema),
   }),
   // Voice dictation (M9): sent on surfaceReady and on every change. `reason`
