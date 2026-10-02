@@ -79,6 +79,34 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
+- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
+  optionally with a goal after it, asks the model — as your own turn in the
+  current conversation — for a distilled brief: the goal, the decisions,
+  the files touched, the open work and the todo list. Anything drawn from
+  tool output, fetched pages or imported files is marked `[untrusted]` in
+  the brief, and the new conversation is told what that means. The brief
+  opens in a dialog before anything starts, with the open items the new
+  todo list will hold: review it, edit it, then start the new
+  conversation, or cancel and nothing starts; a reloaded panel shows it
+  again, and a brief that is ready while Account & usage, the Agent map or a share file
+  is open waits until you close it. Starting leaves the old conversation
+  in History and seeds the new one through the plan brief path, with the
+  open items (never completed or dropped ones) as its todo list before
+  the first request. The model wrote the brief, so the new conversation
+  starts in your starting mode only when the dialog showed all of it: a
+  brief or an item holding a character the dialog does not show (a
+  direction override, a zero-width character) starts in a mode that asks,
+  and the panel says so. A handoff from Plan mode stays in Plan. Model API
+  backend only (on Muse Code the command says it is unavailable there).
+  Side chats are refused; one handoff runs at a time; a `/handoff` while a
+  reply runs is refused ("Wait for the reply to finish, or stop it,
+  first."), nothing queued; an oversized (over 256 KB) or empty brief is
+  refused with the reason; a refused `/handoff` stays in the prompt with
+  its goal. While a new API key is being activated, a Start is refused
+  before anything is left and the brief stays to start again, Cancel
+  still works, and a brief that arrives meanwhile opens with the next
+  `/handoff`. No new setting: nothing automatic runs. Automatic
+  compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
 ### Fixed
 
@@ -107,6 +135,24 @@ happened, not what was planned; superseded entries are kept.
   opening overtook (a second conversation opened before the first had
   loaded) still switched the panel to Plan; only the opening that lands
   sets the mode now.
+- **A `/goal` refused while a Model API key is activated no longer
+  sticks.** While a key was being activated, with the panel still reading
+  signed in, a `/goal …` from the prompt or a goal edit was refused with
+  only a notice and never answered, so the panel kept waiting for it:
+  Enter on the same command sent nothing and the goal strip's Save stayed
+  disabled, even once the key was active. The same happened when the
+  activation or a backend restart came while the command was starting,
+  before the backend had it. Every such refusal is now answered: the
+  command stays in the prompt, and sending it again works. When the
+  activation or the restart came after the backend had the command, the
+  panel now says it may or may not have taken effect, keeps it in the
+  prompt, and reads the goal back from the backend before the
+  conversation's next action, so the session goal shows where it stands.
+- **Implement in a fresh conversation no longer leaves the conversation
+  for nothing.** When a new API key was being activated while a plan's
+  Implement looked up the backend, the current conversation was left
+  before the start was refused. The start is now refused first, with the
+  reason, and the conversation stays.
 
 ## [0.10.1] - 2026-10-02
 

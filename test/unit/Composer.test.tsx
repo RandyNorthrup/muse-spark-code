@@ -1036,6 +1036,25 @@ describe('Composer "/" menus (M38)', () => {
     expect(props.onCyclePermissionMode).toHaveBeenCalledOnce()
   })
 
+  it('leaves `/handoff ` in the prompt for its goal (M74)', () => {
+    const commands: readonly SlashCommand[] = [
+      { name: 'handoff', detail: 'Distil this conversation', action: { type: 'startHandoff' } },
+    ]
+    const { props, view, textarea } = renderComposer({ slashCommands: commands })
+    textarea.focus()
+    const typed = type(view, props, '/han')
+    expect(slashNames()).toEqual(['/handoff'])
+    // Enter and Tab both ready the command for its goal; nothing runs.
+    expect(fireEvent.keyDown(typed, { key: 'Enter' })).toBe(false)
+    expect(props.onDraftChange).toHaveBeenLastCalledWith('/handoff ')
+    expect(props.onSlashCommand).not.toHaveBeenCalled()
+    type(view, props, '/han')
+    expect(fireEvent.keyDown(typed, { key: 'Tab' })).toBe(false)
+    expect(props.onDraftChange).toHaveBeenLastCalledWith('/handoff ')
+    expect(props.onSlashCommand).not.toHaveBeenCalled()
+    expect(props.onSubmit).not.toHaveBeenCalled()
+  })
+
   it('closes on Escape keeping the text, and with no match Enter sends the text', () => {
     const { props, view, textarea } = renderComposer()
     textarea.focus()
