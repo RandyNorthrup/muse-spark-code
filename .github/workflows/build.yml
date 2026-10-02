@@ -19,7 +19,9 @@ jobs:
   quality:
     name: quality (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # The whole job's budget, not a test's: the Windows runner needed ~29 min
+    # by 0.10.0 and was cut off mid-accessibility gate at 30 (2026-10-01).
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

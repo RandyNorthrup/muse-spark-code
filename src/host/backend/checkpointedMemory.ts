@@ -8,10 +8,13 @@
 //   until their native promises settle, so another window's restore cannot
 //   overlap them. A scope outside the workspace (Muse Code's personal data
 //   folders) takes no project lease and keeps only the lifetime guard;
-// - a note is copied before the view moves it to the trash.
+// - a note is copied before the view moves it to the trash;
+// - what the view writes or trashes is the user's, as their own save is: a
+//   turn running meanwhile does not own it. The model's tools write through
+//   `store`, whose writes stay the turn's to restore.
 
 import type { ToolIo } from '../../core/backends/modelapi/tools'
-import { MemoryStore, type MemoryStoreDeps } from '../../core/memory/memoryStore'
+import { type MemoryIo, MemoryStore, type MemoryStoreDeps } from '../../core/memory/memoryStore'
 import {
   type CheckpointPort,
   withCheckpointCopies,
@@ -29,11 +32,31 @@ export interface CheckpointedMemoryDeps extends Omit<MemoryStoreDeps, 'io'> {
 }
 
 export interface CheckpointedMemory {
+  /** The model's memory tools' store. */
   readonly store: MemoryStore
+  /** The Memory view's store: each file it writes is noted as the user's once written. */
+  readonly viewStore: MemoryStore
   /** The Memory view's mutations: the pure lease for notes under the workspace, held until the work settles. */
   readonly edit: MemoryEdit
   /** Keeps a note's bytes for a restore before the view deletes it. */
   readonly beforeDelete: (absolutePath: string) => Promise<void>
+  /** The view trashed the note at the user's word: the removal is theirs. */
+  readonly afterDelete: (absolutePath: string) => void
+}
+
+/** `io` whose completed writes are noted as the user's. */
+function userWrites(io: MemoryIo, checkpoints: CheckpointPort): MemoryIo {
+  return {
+    ...io,
+    writeFile: async (absolutePath, content, assertCanWrite) => {
+      await io.writeFile(absolutePath, content, assertCanWrite)
+      checkpoints.noteUserSave(absolutePath)
+    },
+    createFile: async (absolutePath, content, checkedPath, assertCanWrite) => {
+      await io.createFile(absolutePath, content, checkedPath, assertCanWrite)
+      checkpoints.noteUserSave(absolutePath)
+    },
+  }
 }
 
 export function createCheckpointedMemory(
@@ -42,15 +65,14 @@ export function createCheckpointedMemory(
   deps: CheckpointedMemoryDeps,
 ): CheckpointedMemory {
   const { captureGuard, ...storeDeps } = deps
-  const store = new MemoryStore({
-    ...storeDeps,
-    io: createMemoryIo(withCheckpointCopies(files, checkpoints), {
-      warn: storeDeps.warn,
-      beforeCreate: (absolutePath) => checkpoints.beforeToolWrite(absolutePath),
-    }),
+  const io = createMemoryIo(withCheckpointCopies(files, checkpoints), {
+    warn: storeDeps.warn,
+    beforeCreate: (absolutePath) => checkpoints.beforeToolWrite(absolutePath),
   })
+  const store = new MemoryStore({ ...storeDeps, io })
   return {
     store,
+    viewStore: new MemoryStore({ ...storeDeps, io: userWrites(io, checkpoints) }),
     edit: async (scope, work) => {
       const check = captureGuard()
       check()
@@ -64,5 +86,8 @@ export function createCheckpointedMemory(
       )
     },
     beforeDelete: (absolutePath) => checkpoints.beforeToolWrite(absolutePath),
+    afterDelete: (absolutePath) => {
+      checkpoints.noteUserSave(absolutePath)
+    },
   }
 }
