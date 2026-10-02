@@ -25,6 +25,13 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
+- **A crafted long line no longer stalls the log.** Every line the
+  extension logs passes through its secret redactor, whose JSON Web Token
+  pattern read a long word again from every `eyJ` after a dash in it: a
+  64,000-character line of `eyJa-eyJa-…` took seconds. It now reads each
+  run of dotted words once. A token glued after `_` or a letter
+  (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
+  the old pattern redacted is left.
 
 ## [0.10.0] - 2026-10-01
 
