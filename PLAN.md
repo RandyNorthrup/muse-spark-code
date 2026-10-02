@@ -7777,23 +7777,35 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 ### M71 — Git and pull requests (D49)
 
 **Main join, M71m, 2026-10-02 (bounded verification complete; lead gates
-open).** The pending merge joins main `2a03a79b` (M84 and 0.10.1) into M71
+open).** Merge `a08bd8d4` joins main `2a03a79b` (M84 and 0.10.1) into M71
 `4e0d8ba0`, preserving Git/held-checkout and session export/import/share.
-Main's redactor is retained byte for byte with both branches' tests; the
-host API record is regenerated on Kubuntu. Both README sections and main's
-released changelog bytes are retained. Owning suites pass on Kubuntu
-(1,680) and Windows 11 (1,132), with the existing genuine short-name fixture
-skipped. Final App and compiled-bundle refreshes pass on both rigs. An
-import-handler drill exposed missing App routing assertions; import and
-share now have assertions, and five semantic mutations fail then restore
-green with exact source hashes. All five types, changed-file lint/format,
-knip, zero-clone duplication, localization, host API and the production
-build pass on Kubuntu. The build's linked-dependency artifact is resolved
-with a private copy in this lane's rig slot. Real-time Playwright/axe
+Main's redactor rule list retains M71 credential coverage through the
+compatibility follow-up below. The host API record is regenerated on
+Kubuntu. Both README sections and main's released changelog bytes remain.
+Final owning suites pass on Kubuntu (45 files, 1,695 tests) and Windows 11
+(33 files, 1,153 tests), with the existing genuine short-name skip and the
+compiled Model API bundle included. Import/share routing assertions and
+nine exact-restored semantic drills pass. All five types, scoped lint and
+formatting, knip, zero-clone duplication, localization, host API and the
+production build pass on the final source. Real-time Playwright/axe
 measures 20 owning pages with zero failures; the CLI virtual-time runner
 still produces no measurements, deferred in section 7. Proof and limits:
 `docs/certification/m71.md`, M71m main join. The lead retains full quality,
 editor/hosted checks and publication; this lane does not push.
+
+**M71m redactor compatibility follow-up (2026-10-02, bounded proof complete).**
+The final pattern comparison found M71 coverage missing from main: the
+`xoxe-` Slack prefix, complete suffixes past 255 characters, and whole legacy
+encrypted PEM blocks with Proc-Type/DEK-Info headers. Preserve all seven
+M71 Slack prefixes and complete linear suffixes in the existing rule;
+retain main's bounded PEM edge names and mask complete bodies first.
+The prefilter and export slicer remain unchanged. Nine regressions expose
+all three missing behaviors before repair. The existing 4,000-case slicing
+differential catches an edge consumed by an earlier rule; PEM-first order
+preserves equivalence. Four exact-restored compatibility drills pass,
+as do all 102 redactor cases and both complete owning batches above.
+All requested static/build checks were refreshed successfully. The repair
+is a follow-up commit; the completed merge is not rewritten.
 
 **Pre-push repair, M71f, 2026-10-02 (bounded lane verified; lead review
 and full gates open).** P2-1 and P3-1/2/3 in `m71-prepush.md` are repaired:

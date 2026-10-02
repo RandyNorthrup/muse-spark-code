@@ -65,6 +65,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The merged credential redactor retains M71's complete Slack tokens,
+  including `xoxe-` and long suffixes, and complete legacy encrypted PEM
+  blocks with their header lines.
+
 - **The log redacts more credential shapes.** The output channel's
   redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
   API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines

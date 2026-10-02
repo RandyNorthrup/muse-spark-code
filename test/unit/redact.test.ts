@@ -324,6 +324,38 @@ describe('redactSecrets', () => {
     )
   })
 
+  it.each(['a', 'b', 'e', 'o', 'p', 'r', 's'])(
+    'keeps the M71 Slack prefix xox%s in the merged redactor',
+    (prefix) => {
+      const token = `xox${prefix}-${'1'.repeat(12)}`
+      expect(redactSecrets(`slack ${token} end`)).toBe('slack [redacted] end')
+    },
+  )
+
+  it('redacts the whole M71 Slack token beyond the old main rule cap', () => {
+    const token = `xoxb-${'1'.repeat(300)}`
+    expect(redactSecrets(`slack ${token} end`)).toBe('slack [redacted] end')
+  })
+
+  it('keeps legacy encrypted PEM headers inside the M71 whole-block redaction', () => {
+    const text = [
+      'before',
+      pemEdge('BEGIN'),
+      'Proc-Type: 4,ENCRYPTED',
+      `DEK-Info: AES-256-CBC,${'0'.repeat(32)}`,
+      '',
+      'A'.repeat(64),
+      pemEdge('END'),
+      'after',
+    ].join('\n')
+    expect(redactSecrets(text)).toBe('before\n[redacted]\nafter')
+    expect(
+      redactableSlices(text, 16)
+        .map((slice) => redactSecrets(slice))
+        .join(''),
+    ).toBe('before\n[redacted]\nafter')
+  })
+
   it('leaves near misses alone', () => {
     const text = 'ghp_short, github_pat_x, AKIA123 and xoxb-1 stay'
     expect(redactSecrets(text)).toBe(text)
