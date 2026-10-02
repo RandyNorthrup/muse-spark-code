@@ -16,7 +16,7 @@ happened, not what was planned; superseded entries are kept.
 - **The agent checks its own edits.** After edits, the language servers' errors and your check commands reach the next request (Model API backend).
 - **Web fetch.** The model reads one public HTTPS page on either backend, fetched from your machine and free.
 - **Plans as files.** Save a Plan-mode reply to `.agents/plans/` and implement it in a fresh conversation.
-- **Turn checkpoints.** Restore files, the conversation or both, then redo; the copies never touch your `.git` (stored restore needs a Model API session).
+- **Turn checkpoints (Preview, off by default).** Restore files, the conversation or both, then redo; the copies never touch your `.git` (stored restore needs a Model API session). Turn them on with `museSpark.turnCheckpoints`; their restore is being rebuilt on the tools' own writes (PLAN.md D63).
 - **Every paid use asks first.** A popup (Allow once, Allow always in this workspace, Deny) in every mode, Bypass included.
 - **A lighter start.** The Model API backend is a bundle of its own, loaded only when a conversation uses it.
 - **VS Code 1.99 or newer** (was 1.125), so editors built on VS Code 1.99 or later can install the extension.
@@ -438,8 +438,8 @@ happened, not what was planned; superseded entries are kept.
   newest checkpoints and 20 redo records per conversation for 50
   conversations, within `museSpark.cleanupPeriodDays`, applied each time the
   window opens. The checkpoint folder is 0700 on macOS and Linux.
-- **`museSpark.turnCheckpoints`** (machine-scoped, on by default) turns them
-  off. They are off in Restricted Mode, where the extension runs no git,
+- **`museSpark.turnCheckpoints`** (machine-scoped, a Preview, off by
+  default) turns them on. They are off in Restricted Mode, where the extension runs no git,
   and without git on `PATH`; the menu says which. With Muse Code on
   Windows, which cannot fork, the menu offers **Restore files to here** and
   says why the conversation rewind is missing.

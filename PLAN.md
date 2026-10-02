@@ -3192,6 +3192,31 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   (M66). `docs/ide-compatibility/hosts.md` tracks each editor's route and
   status.
 
+### D63 — Turn checkpoints ship as a Preview, and the restore is rebuilt on the tools' own writes (2026-10-01)
+
+- **What happened.** PR #55 went through seven Codex review rounds. From
+  the third on, every round found new P1 races of one family: the restore
+  undoes the difference between whole-workspace captures, so it must decide
+  which changes were the turn's and which were the user's, another window's,
+  a subagent's, a dead window's, or the clock's. Each fix closed one case and
+  opened ground for the next (4, 6, 5 and 6 new findings in rounds 4 to 7).
+  The owner's rule from 2026-09-28 (a third round means redesign, not
+  patching) applied from round three and was not raised; the owner raised it.
+- **Decision (owner, 2026-10-01).** 0.10.0 ships with `museSpark.turnCheckpoints`
+  off by default and marked Preview: a user who turns it on gets M72 as
+  certified, with its limits recorded in `docs/certification/m72.md`. The
+  restore is rebuilt in M86 on the model's own tool writes, and the setting
+  goes back on by default only with M86.
+- **The new design (M86).** Each write a model tool makes records the file's
+  bytes before and after (the tools already copy a file before writing it).
+  A restore puts a file back only when it still holds exactly the bytes the
+  tool left; any other content (a user's save in any window, another
+  window's turn, a shell command, a later tool write it does not undo) is
+  refused and named. Ownership is never inferred from captures, so the
+  multi-window, overlap, tie and clock races cannot arise. A shell command's
+  changes are listed, not undone, as Claude Code's own rewind does; this
+  narrows D51, which promised to undo them.
+
 ## 3. Open questions (need the owner)
 
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
@@ -9040,6 +9065,32 @@ independent review and the full candidate gates remain required.**
   The capture needs a TypeSafe key only the owner can create, so M85 waits
   for it.
 - **Size.** M.
+
+### M86 — Restore by the tools' own writes (D63)
+
+- **Goal.** Restore files without guessing who changed them.
+- **Scope.**
+  - Every model tool write (`write_file`, `edit_file`, the image tools, the
+    memory tools, `rename_symbol`) records, per turn, each file's bytes
+    before (or absent) and after, keyed by the turn; the records live in the
+    existing checkpoint storage (CAS refs) and survive a reload.
+  - "Restore files to here" undoes, newest first, the recorded writes of the
+    chosen turn onward: a file is written back only when its current bytes
+    (and execute bit) equal the last recorded "after"; anything else is
+    refused and named, as is every file a shell command changed (found by the
+    existing captures, listed, never undone).
+  - Redo keeps its current meaning on the same records.
+  - The whole-tree attribution in `changedOutside` (gaps, stretches, peer
+    windows, saves files, unseen ends) is removed; captures remain only to
+    list what shell commands changed.
+- **Acceptance.** No restore writes a file whose bytes differ from what a
+  tool of the restored turns left there; every M72 Codex finding from rounds
+  3 to 7 is covered by a test of the new design or is moot by construction.
+- **Tests.** The M72 restore tests that still apply, rewritten on the new
+  records; the round 3 to 7 scenarios (user saves in any window, peer turns,
+  dead windows, ties, clock moves) each as a refusal test.
+- **Release.** `museSpark.turnCheckpoints` defaults on again with M86.
+- **Size.** L.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
