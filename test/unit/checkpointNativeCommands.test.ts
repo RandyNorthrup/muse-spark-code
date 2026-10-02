@@ -67,6 +67,7 @@ function startFamily(
         editFile: async (_fsPath, work) => await work(),
         agentImport: inertAgentImport(),
         openDocument: () => Promise.resolve(),
+        openPreview: () => Promise.resolve(),
         restartBackend: () => Promise.resolve(),
         modelApiMcp: () => undefined,
         modelApiHooks: () => undefined,

@@ -931,6 +931,7 @@ Section B of the audit (D24), plus the lifecycle rows of section G.
 | The CLI's config root drifts from the sign-in check (Claude Code #66499)            | An `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moved the CLI's credentials and settings, but the extension looked under the host's own environment.                                                                                                                                                                                                                                                    | The credential file, `settings.json` and the personal skill root are read under the CLI's environment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | The terminal environment (Cline #7793)                                              | The Model API shell ignored `terminal.integrated.env.*`.                                                                                                                                                                                                                                                                                                                                                         | Applied as VS Code's terminal applies it (`${env:…}`, `${workspaceFolder}`, `null` removes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `windowsHide` on every spawn                                                        | Every spawn the extension makes hides its window; the SDK's own `spawnMspConnection` has no such option and spawns without it (VS Code's extension host has a hidden console, which children inherit, so no window shows). Filed as meta-models/muse-code-sdk#34 (2026-09-23).                                                                                                                                   | Recorded; nothing the extension can pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| A slow start is killed, and its failure shown by every waiter (0.10.1)              | On a CPU-starved machine (an activation that took 211 s) `muse serve` missed the 30 s handshake deadline and was killed though its process still ran; each caller waiting on that one start (six skill listings from the palette and slash menu, the warm-up) showed its own "That did not work" card for the same failure.                                                                                      | A process still running at 30 s gets one longer wait, 120 s in all (`withSlowDeadline`, `MSP_SLOW_HANDSHAKE_TIMEOUT_MS`); one that exits fails at once. The controller shows a failure once (`shownFailures`, by the error the shared start rejected every waiter with): a message on its own card, another action's card, else the warm-up's notice after every other waiter had its turn; skill listings only log. The next action starts afresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ### D26 — The audit: protocol and backend semantics (2026-09-23)
 
@@ -9438,11 +9439,29 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
 
 ### M84 — Session export, import and share (D49)
 
+**Status 2026-10-02: the follow-up review RV84c and the Muse review fixed on
+`feature/m84-export`; the four-machine gate remains the lead's.** The RV84
+findings are fixed one commit each, with tests and red drills recorded from
+this tree in `docs/certification/m84.md`, as are the drills of the
+2026-09-29 repairs that had not run (R1 to R6). RV84 #10 and #14, open on
+2026-10-01, are now fixed too (see "Follow-up reviews" below), as is #9's
+single-string residual. The `m84-share.png` capture was taken on Kubuntu
+on 2026-10-02 (the accessibility gate passed on its `share` scenario).
+Not run on this tree: `npm run quality`, the whole accessibility gate, the
+other harness shots and the integration tests. The port had put `extension.js` and `modelApi.js` over
+their size budgets. They are back under after merging
+`build/shared-ui-text`, the shared English table (`15f847a4`). The
+redaction prefilter is proven a superset of every rule (`5df6d5c2`).
+History: original `c2eb4da2` and the repair drafts are preserved; the port
+to the release candidate is described below.
+
 - **Goal.** A conversation can move between machines and people.
 - **Scope.**
-  - Export a conversation as JSON. Credentials and the key digest are
-    always left out; account ids and paths are redacted by default. A
-    preview shows the file first.
+  - Export a conversation as JSON. Credentials of a known shape (the log
+    redactor's list, `src/core/redact.ts`) and the key digest are always
+    left out; account ids and paths are redacted by default. A preview
+    shows the file first, since a secret in another shape is not
+    recognised.
   - Import resumes on the Model API. It drops the permission mode, session
     rules, goals, schedules and patches, and marks the imported turns as
     untrusted. It starts in Manual, or in Plan when
@@ -9451,13 +9470,224 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
   - A local share file, rendered read-only in the panel.
   - No hosted sharing.
 - **Backends.** The Model API resumes; Muse Code exports its own log (M30).
-- **Acceptance.** An export never holds a credential or the key digest;
+- **Acceptance.** An export never holds the key digest or a credential of
+  a known shape (amended 2026-10-01 after RV84 #1: "never a credential" is
+  not something a pattern list can promise, so the UI and docs say which
+  shapes are removed and that the preview is the check for the rest);
   an import starts in Manual (or Plan) even when the initial mode is Auto,
   Edit automatically or Bypass, with no session rules, goals, schedules
   or patches.
+  - **Completion review, 2026-09-29:** finish `transferInvalidField` in
+    all fourteen translations. JSON syntax failures expose only an
+    existing localized refusal; unknown/invalid field details scrub known
+    secrets, paths and account ids before their bounded display. Scrub
+    every exported string, including arbitrary item ids and error labels;
+    legitimate UUIDs and enum words stay intact. The share view already
+    keys items by position and id, and import already mints fresh ids, so
+    no new identity format is needed. Extend the existing transfer/import
+    tests and prove the four guards fail under mutations before relying
+    on them; earlier certificates remain tied to their earlier trees.
+    (Done 2026-10-01: drills R1 to R6 in `docs/certification/m84.md`.)
+    PR #32 integration must honor `record.imported` in ACP load/resume/fork
+    before `matchAdvertised` sets a backend mode; reuse `untrustedStartMode`
+    instead of advertising configured Auto/Bypass for imported history.
+    A source handoff against `muse-extension-m69-integrate`'s
+    `src/acp/agent.ts` is prepared outside the checkout. It passes the
+    loaded record's imported flag into adoption and uses the existing
+    `untrustedStartMode` before mode matching or replay. Draft tests cover
+    imported load/resume after explicit relaxation and ordinary configured
+    modes. ACP has no fork endpoint: verify M84's real backend fork/restart
+    marker preservation and then safe ACP load of the marked fork.
 - **Tests.** Round trips with zod on both ends, and drills for each
   dropped field.
 - **Size.** S.
+- **Status 2026-09-28: built on `feature/m84-export`; `docs/certification/m84.md`.**
+  A Muse Code instance drafted it (contributor model); Claude reviewed and
+  reworked the draft. Decisions taken:
+  - **One format** (`muse-spark-session-export`, version 1,
+    `src/core/export/sessionTransfer.ts`) for export, import and share. It
+    holds the history the Markdown export reads (`readSession`, both
+    backends) with only the fields a reader needs. Live state (stored
+    outputs and patches, child sessions, background and workflow handles,
+    `modelVisibleContent`, `children`) and the Model API replay stay out.
+  - **Scrubbing.** Every string in the document, ids included, goes
+    through `redactSecrets` and a 64-hex digest pattern,
+    always. By default paths and e-mail addresses are redacted too:
+    `file://` URIs, then this machine's own roots (workspace folders and the
+    home folder, matched in either separator and any case, to the path's
+    end, so a user name with a space goes), then absolute POSIX, drive and
+    UNC paths. Placeholders are English (`MODEL_TEXT`), since the model reads
+    them after an import. The e-mail pattern is bounded (RFC 5321 lengths)
+    and `redact.ts`'s URL user-info scheme is bounded, so a long run of
+    word characters scans in linear time.
+    Ordinary UUIDs and enum words remain unchanged. Share section keys
+    include their position; import remints ids, and live-state references
+    stay excluded, so redacting a sensitive id needs no identity mapping.
+  - **Preview first.** The redacted file opens as a read-only in-memory
+    document (the output-document scheme, never on disk), then a modal
+    names what was redacted and offers **Save redacted…**, **Save without
+    redaction…** or close. The suggested file name comes from the redacted
+    title. A file over the import cap is not written (`tooLarge`).
+  - **Every imported byte parsed.** The file is read only under 16 MiB
+    (bounded through one checked descriptor) and as strict UTF-8; the header
+    names another format or version by name; the schema caps the
+    transcript at 20,000 items and wants an ISO 8601 date; and any field
+    the schema does not keep, anywhere, refuses the whole file (the parse
+    is compared with what was read, as zod strips unknown keys).
+    - **Independent file-reader repair, 2026-09-29:** picker reads use the
+      existing checked descriptor reader on local `file:` URIs. The JSON
+      cap applies even when bytes resemble a PDF; other providers fail with
+      an explicit localized refusal instead of whole-file allocation.
+      Draft real-file cases cover growth after metadata, opened-path
+      replacement, oversize input, strict UTF-8 and unchanged source bytes.
+      Tests and red drills remain queued until verifier allocation.
+      (Run 2026-10-01: drills R4a, R4b and R5 in
+      `docs/certification/m84.md`; a file gone before the read is now
+      reported as missing, RV84 #6, and one that is not UTF-8 gets the
+      translated `textFileInvalid`, RV84 #7.)
+  - **Import** (`ModelApiHost.importSession`, Model API only): fresh
+    session, turn and item ids (turns start at each user message), the
+    user's current model (the file's model id is informational; D49: nothing
+    in it picks a model), the default effort, no goal, todos, outputs,
+    children or usage; session rules are per session in memory, so none
+    survive. The model is handed each imported turn as one user-role
+    message: a lead marking it untrusted (the first also carries the full
+    note) and the turn's items as JSON, never as assistant, developer,
+    reasoning or tool-call items, so nothing in the file speaks with more
+    authority than the user's data.
+  - **Asking every time.** The stored session keeps `imported: true`, and a
+    fork copies it. The controller's `adopt` opens such a session in
+    `untrustedStartMode`: the current mode when it already asks (Manual or
+    Plan), else Manual, or Plan when the initial mode is Plan. That covers
+    the import itself and every later resume, restore after a reload and
+    fork; the restart-recovery path keeps the panel's own mode, which the
+    user chose. A notice says why.
+    - **Plans from imported history (lead decision, 2026-10-01, RV84 #2).**
+      A Plan-mode reply written in a conversation that holds imported
+      history is untrusted content, as a plan picked from a file is:
+      "Implement in a fresh conversation" builds its brief as not approved
+      (`planBriefFromFile` for the model) and starts in
+      `untrustedBriefMode()`, with its own notice (`planFromImportedMode`).
+      The controller knows such sessions from `adopt`
+      (`importedSessionIds`). M74's `/handoff` must take the same flag when
+      it lands.
+    - **Export scrub cost (RV84 #9).** The scrub ran synchronously on the
+      extension host. Measured 2026-10-01 on the Mac mini, a 4 MiB
+      conversation (paths under a local root) held the event loop 1.4 s in
+      one go, 0.35 ms/KiB (Windows 11 VM: 2.5 s), so 16 MiB was seconds of a
+      frozen window. Three changes: `foldText` stopped allocating an array
+      per character (half the time); a literal prefilter in `redactSecrets`
+      (`MAY_HOLD_SECRET`) lets text with no credential literal skip the 24
+      patterns in one scan, the e-mail pattern runs only on text with an
+      `@`, and the digest pattern starts only at a hex run's start; and
+      `buildSessionExport` is async and yields (`setImmediate`, not a timer:
+      Windows' ~15 ms tick) after each 64 KiB of text. The same 4 MiB now
+      takes 0.37 s, holding the loop at most 11 ms (Windows VM: 0.42 s, at
+      most 14 ms). A long string is cut too (2026-10-02,
+      `redactableSlices`), but only just after a line break that no
+      credential runs across, so each pattern sees whole what it would see
+      in the whole string; a single line longer than a slice (a pasted
+      16 MiB line) still holds the loop for its own scrub, about 0.5 s.
+    - **No Insert or Apply on imported history (RV84 #11).** `historyLoaded`
+      carries `imported: true` for such a session, and the panel offers Copy
+      only on its code blocks, as the share view does. The mark is the
+      session's, not a turn's: a reply after the import was written over the
+      same untrusted history, so its code blocks are Copy only too.
+  - **Share view.** The file's items render in a modal through the Markdown
+    export's per-item sections (`transcriptItemMarkdown`); `MarkdownView`
+    and `CodeBlock` take Insert and Apply as optional, and the share view
+    passes neither. Links go through the host's http, https and mailto
+    filter; relative links are refused.
+  - No paid call is involved (local files only), so D48 needs no consent.
+    No live model check was run: the import sends user-role `input_text`
+    messages, a shape the backend already sends (`noteItem`).
+  - **Port to the release candidate, 2026-10-01** (`feature/m84-export`,
+    from `temp/port.patch` against main `32709441`): applied with
+    `--exclude` for the six files `git apply --3way` cannot take (five new
+    files plus `docs/certification/m84.md`, applied directly; the
+    `m84-share.png` hunk is a content-less stub, so the capture is marked
+    to-retake in `docs/certification/m84.md`). Four conflicts kept both
+    sides: the candidate's 0.10.0/M72 entries and the patch's M84 entries in
+    `CHANGELOG.md`; `editFile` (M72 checkpoint lease, kept: a workspace
+    Markdown export still goes through `withCheckpointEditAt`; the JSON
+    export did not until RV84 #5) beside `openPreview`
+    (M84) in `CliFeatureDeps`, its tests and their setups. Decisions taken
+    in the port: `Promise.withResolvers<void>` became `<undefined>` with
+    `resolve(undefined)` (the gate's `no-invalid-void-type`); the
+    remote-provider refusal test uses a literal remote URI (the shared mock's
+    `Uri.parse` keeps `file`); the two new ACP load tests share a
+    `loadOldSession` helper (the duplication gate); and the `vscode`
+    dialogs moved to `src/host/conversation/transferDialogs.ts`, leaving
+    `sessionImport.ts` portable for the host-API gate (its tests split the
+    same way). `docs/ide-compatibility/host-api.md` regenerated: 26
+    commands, 17 adapter files, 264 APIs. No new escape hatches (PLAN.md
+    §8 needs no row). Checks that ran green: format, ESLint (incl. css),
+    PSScriptAnalyzer, all five typechecks, knip, jscpd, dpdm, check:host-api,
+    and the M84 unit suites. `check:l10n`'s own code reports 0 problems over
+    14 tables, 104 manifest strings and 328 sources when its l10n modules are
+    loaded via tsc instead of esbuild. Not runnable in this sandbox:
+    `npm run check:l10n` (the esbuild binary's file reads are denied),
+    `npm run build`/integration tests/`test:a11y`/harness shots (same cause,
+    no browser), and seven unit tests that fail identically on pristine HEAD
+    here: six real-git checkpoint captures plus the esbuild-bundled M57
+    goal test (environmental, unrelated to M84). These checks ran on the
+    port tree in that sandbox; the record for the tree after RV84 is
+    `docs/certification/m84.md` (2026-10-01).
+  - **Independent review RV84, 2026-10-01.** Fourteen findings; the fixes
+    are one commit each on `feature/m84-export` (#1 credential shapes and
+    honest claims, #2 lead decision on plan briefs, #4 changelog, #5 JSON
+    export lease, #6 missing file, #7 UTF-8 refusal, #8 share-view claim,
+    #9 scrub cost, #11 Insert and Apply on imported history, #12 dead CSS),
+    #3 is the rewritten certification, and #13 needs no change: the D60
+    gate (`check:host-api`) holds only `src/core`, `src/shared`,
+    `src/webview`, `src/acp`, `src/runtime` and the `PORTABLE_HOST` files
+    to the boundary, so an adapter file in `src/host/conversation/` is
+    allowed and recorded (17 files, 0 problems). Sibling dialogs live in
+    `src/host/*Features.ts`; moving `transferDialogs.ts` beside the export
+    dialogs in `cliFeatures.ts` is a tidy-up for the lead to choose. #10
+    and #14 were left open that day and fixed on 2026-10-02 (below).
+  - **Follow-up reviews, 2026-10-02 (RV84c, Codex; the Muse review).**
+    Fixed with a test and a red drill each (`docs/certification/m84.md`):
+    - **C1, import after sign-out or close.** `importSession` loads the
+      hooks, then checks the account and the host's closing again before
+      the session exists, and the closing once more after its SessionStart
+      hook, as `startSession` checks the account.
+    - **C2, Unicode paths.** An absolute POSIX path's segments take any
+      character outside ASCII that is not white space (`/srv/私密`,
+      `/Users/José`, emoji folders); drive and UNC paths already did.
+    - **C3, a share file that crashed the panel.** The fence's length is
+      found in a loop (`Math.max(...runs)` threw a RangeError on 200,000
+      runs), and each share section renders inside its own error boundary,
+      which says so in its place and logs the error.
+    - **Imported mode on a stale opening (Muse).** `adopt` applies the
+      imported mode and mark only once the opening is still current, so an
+      imported session overtaken by another opening leaves neither. The
+      mark goes with its session when the panel drops it; a restart's resume
+      reads it again from the record, and a plan reply carries the flag it
+      was read with.
+    - **RV84 #10, an import past the window.** Decision: refuse, not cut.
+      The text an import hands the model is counted high, one token per
+      UTF-8 byte, against `MODEL_API_IMPORT_MAX_REPLAY_BYTES` (the window
+      less the reserve named text attachments keep, 786,432 bytes). A file
+      over it is refused before the confirmation, naming both sizes
+      (`importReplayTooLarge`, 14 tables), and `sanitizeImportedSession`
+      refuses it too. Importing only the latest turns would show history
+      the model never saw; the file can still be read as a share file.
+    - **RV84 #14, the share view's single pass.** It renders
+      `SHARE_VIEW_PAGE_ITEMS` (200) items at a time, with Show more.
+    - **RV84 #9's residual.** Long strings are scrubbed in line-break
+      slices (above).
+    - **Lead decisions on the same class (released behaviour, one
+      CHANGELOG Fixed entry).** `startSession`, `resumeSession` (its
+      `revive`) and `forkSession` check the account and the closing after
+      their hooks load and again after their SessionStart hook, as the
+      import does; a SessionStart hook that fails in `revive` leaves no
+      session. `adopt` switches a side chat to Plan only after its last
+      currency check, beside the imported mode.
+    - **0.10.1's JWT fix carried in.** The JWT rule is 0.10.1's linear
+      dotted-words scan (`redactTokens`), so a token glued after `-` is
+      redacted again; its tests (glued tokens, the differential against the
+      old pattern, 128,000-character timing) are kept.
 
 ### M85 — TypeSafe assist, experimental and opt in (D50)
 

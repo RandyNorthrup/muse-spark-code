@@ -1039,7 +1039,14 @@ function livePanel(rig: Rig): LivePanel {
     isRestorable: false,
     dictation: { isAvailable: false, reason: 'no microphone in the live sweep' },
     museVoice: () => undefined,
-    exports: { saveMarkdown: unreached, saveSessionLog: unreached },
+    exports: {
+      saveMarkdown: unreached,
+      saveSessionLog: unreached,
+      saveJson: unreached,
+      previewExport: unreached,
+      localRoots: () => [rig.workspace],
+    },
+    transferFiles: { pickTransferFile: unreached, confirmImport: unreached },
     plans: createPlanFiles({
       workspaceRoot: rig.workspace,
       platform: process.platform,

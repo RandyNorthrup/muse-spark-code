@@ -24,7 +24,14 @@ printf '{\n  "museSpark.museBinaryPath": "%s",\n  "security.workspace.trust.enab
   npx theia start --hostname 127.0.0.1 --port "$port" --plugins=local-dir:plugins "$work/workspace") \
   > "$work/theia.log" 2>&1 &
 server=$!
-trap 'kill "$server" 2>/dev/null || true; pkill -f "$work/app" 2>/dev/null || true' EXIT
+# At exit, while Theia still runs: the configuration folder's listing
+# (the extension's storage, its checkpoint repository among it, without
+# git's objects) as names, sizes and times, never a file's contents.
+# hosts.yml keeps it when the check fails.
+listing() {
+  find "$work/config" -not -path '*/objects/*' -printf '%TT %10s %p\n' > "$work/storage.txt" 2>&1 || true
+}
+trap 'listing; kill "$server" 2>/dev/null || true; pkill -f "$work/app" 2>/dev/null || true' EXIT
 tries=0
 until grep -q "Theia app listening" "$work/theia.log"; do
   tries=$((tries + 1))

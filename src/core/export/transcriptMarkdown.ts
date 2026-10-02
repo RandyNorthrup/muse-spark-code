@@ -45,11 +45,12 @@ const COMPLETED = 'completed'
 
 /** A code fence longer than any backtick run inside `text`, so the block cannot end early. */
 export function fenced(text: string, language = ''): string {
-  // A loop, not a spread: Math.max takes its arguments on the stack, and
-  // 128,000 runs overflow it.
+  // A loop, not `Math.max(...runs)`: a shared file's tool output can hold
+  // hundreds of thousands of runs, past the engine's argument limit (a
+  // RangeError that took the whole panel down, RV84c C3).
   let longest = 0
-  for (const [run] of text.matchAll(BACKTICK_RUN)) {
-    longest = Math.max(longest, run.length)
+  for (const match of text.matchAll(BACKTICK_RUN)) {
+    longest = Math.max(longest, match[0].length)
   }
   const fence = '`'.repeat(Math.max(MIN_FENCE, longest + 1))
   return `${fence}${language}\n${text}\n${fence}`
@@ -203,7 +204,11 @@ function agentSection(item: ItemSnapshot): string | undefined {
   return lines.join('\n')
 }
 
-function sectionOf(item: ItemSnapshot): string | undefined {
+/**
+ * One item as its section of the Markdown export; undefined for items the
+ * panel hides. The share view (M84) renders a shared file with it too.
+ */
+export function transcriptItemMarkdown(item: ItemSnapshot): string | undefined {
   switch (item.kind) {
     case USER_MESSAGE: {
       return userSection(item)
@@ -242,7 +247,7 @@ export function renderTranscriptMarkdown(input: TranscriptExport): string {
     `- ${fill(UI_TEXT.exportTimeLine, { time: input.exportedAt })}`,
   ].join('\n')
   const sections = input.items.flatMap((item) => {
-    const section = sectionOf(item)
+    const section = transcriptItemMarkdown(item)
     return section === undefined ? [] : [section]
   })
   return `${[header, '---', ...sections].join('\n\n')}\n`

@@ -4,6 +4,7 @@ import {
   fenced,
   renderTranscriptMarkdown,
   type TranscriptExport,
+  transcriptItemMarkdown,
 } from '../../src/core/export/transcriptMarkdown'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import { EN } from '../../src/shared/l10n/en'
@@ -164,6 +165,19 @@ describe('renderTranscriptMarkdown', () => {
   it('fences output longer than any backtick run inside it', () => {
     const markdown = render([item({ kind: 'toolCall', tool: 't', visibleOutput: 'a ```` b ` c' })])
     expect(markdown).toContain('`````\na ```` b ` c\n`````')
+  })
+
+  it('fences an output of 200,000 backtick runs, past the engine’s argument limit (RV84c C3)', () => {
+    // The review's share file: 400 KB, well under the import cap.
+    const output = '` '.repeat(200_000)
+    const section = transcriptItemMarkdown(
+      item({ kind: 'toolCall', tool: 't', visibleOutput: output }),
+    )
+    expect(section).toContain(`\`\`\`\n${output}\n\`\`\``)
+    const longest = `${output}${'`'.repeat(7)}`
+    expect(render([item({ kind: 'toolCall', tool: 't', visibleOutput: longest })])).toContain(
+      `${'`'.repeat(8)}\n${longest}\n${'`'.repeat(8)}`,
+    )
   })
 })
 

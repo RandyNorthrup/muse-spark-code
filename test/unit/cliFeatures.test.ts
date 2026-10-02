@@ -1,6 +1,6 @@
 import { mkdtempSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import type * as vscode from 'vscode'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,7 @@ import { env, Uri, window, workspace } from 'vscode'
 import type { ProcessResult } from '../../src/host/backend/sandboxSetup'
 import { type CliFeatureDeps, createCliFeatures } from '../../src/host/cliFeatures'
 import { inertAgentImport } from './helpers/agentImportDeps'
+import { UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { inform, pickMany, pickOne } from './helpers/vscodeViews'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -53,6 +54,7 @@ function setup(
   /** The lease and the write, in the order they happened. */
   const edits: string[] = []
   const terminals: [readonly string[], string][] = []
+  const previews: [string, string][] = []
   let restarts = 0
   const features = createCliFeatures({
     agentImport: inertAgentImport(),
@@ -79,6 +81,10 @@ function setup(
           edits.push('close')
         }
       }),
+    openPreview: (title, content) => {
+      previews.push([title, content])
+      return Promise.resolve()
+    },
     restartBackend: () => {
       restarts += 1
       return Promise.resolve()
@@ -89,7 +95,7 @@ function setup(
     openDocument: () => Promise.resolve(),
     log: new FakeLogOutputChannel(),
   })
-  return { features, runs, terminals, edits, restarts: () => restarts }
+  return { features, runs, terminals, edits, previews, restarts: () => restarts }
 }
 
 const folder = mkdtempSync(path.join(tmpdir(), 'muse-cli-features-'))
@@ -248,8 +254,75 @@ describe('createCliFeatures', () => {
     await expect(t.features.exports.saveMarkdown('muse-x.md', '# X\n')).rejects.toThrow(
       'the window closed',
     )
+    // The portable JSON export too (M84).
+    vi.mocked(window.showSaveDialog).mockResolvedValueOnce(Uri.file('/ws/muse-x.json'))
+    await expect(t.features.exports.saveJson('muse-x.json', '{}')).rejects.toThrow(
+      'the window closed',
+    )
     expect(workspace.fs.writeFile).not.toHaveBeenCalled()
     expect(window.showTextDocument).not.toHaveBeenCalled()
+    expect(window.showInformationMessage).not.toHaveBeenCalled()
+  })
+
+  it('previews a portable export read-only, then asks how to save it (M84)', async () => {
+    const t = setup()
+    const preview = { fileName: 'muse-x.json', content: '{}', detail: 'counts' }
+    const answers = [
+      [UI_TEXT.exportPreviewRedacted, 'redacted'],
+      [UI_TEXT.exportPreviewFull, 'full'],
+      [undefined, 'dismissed'],
+    ] as const
+    for (const [button, choice] of answers) {
+      vi.mocked(inform).mockResolvedValueOnce(button)
+      expect(await t.features.exports.previewExport(preview)).toBe(choice)
+    }
+    expect(t.previews).toEqual([
+      ['muse-x.json', '{}'],
+      ['muse-x.json', '{}'],
+      ['muse-x.json', '{}'],
+    ])
+    expect(window.showInformationMessage).toHaveBeenCalledWith(
+      UI_TEXT.exportPreviewTitle,
+      { modal: true, detail: 'counts' },
+      UI_TEXT.exportPreviewRedacted,
+      UI_TEXT.exportPreviewFull,
+    )
+    expect(workspace.fs.writeFile).not.toHaveBeenCalled()
+  })
+
+  it('saves portable JSON where the user chose, under the edit lease, and opens it on request (M84)', async () => {
+    const t = setup()
+    const target = Uri.file('/ws/muse-x.json')
+    vi.mocked(window.showSaveDialog).mockResolvedValueOnce(target)
+    vi.mocked(workspace.fs.writeFile).mockImplementation(() => {
+      t.edits.push('write')
+      return Promise.resolve()
+    })
+    vi.mocked(inform).mockResolvedValueOnce('Open')
+    await t.features.exports.saveJson('muse-x.json', '{"a":1}')
+    // The checkpoint lease and the action guard hold the write, as for Markdown (M72).
+    expect(t.edits).toEqual(['open /ws/muse-x.json', 'write', 'close'])
+    expect(vi.mocked(window.showSaveDialog).mock.calls[0]?.[0]).toMatchObject({
+      filters: { JSON: ['json'] },
+    })
+    expect(workspace.fs.writeFile).toHaveBeenCalledWith(target, new TextEncoder().encode('{"a":1}'))
+    expect(window.showTextDocument).toHaveBeenCalledWith(target, { preview: false })
+    vi.mocked(window.showSaveDialog).mockResolvedValueOnce(undefined)
+    await t.features.exports.saveJson('muse-y.json', '{}')
+    expect(workspace.fs.writeFile).toHaveBeenCalledTimes(1)
+  })
+
+  it("names this machine's folders for an export to redact: the workspace's and the home folder (M84)", () => {
+    const t = setup()
+    Reflect.set(workspace, 'workspaceFolders', [
+      { uri: Uri.file('/ws/app'), name: 'app', index: 0 },
+    ])
+    try {
+      expect(t.features.exports.localRoots()).toEqual([Uri.file('/ws/app').fsPath, homedir()])
+    } finally {
+      Reflect.set(workspace, 'workspaceFolders', undefined)
+    }
+    expect(t.features.exports.localRoots()).toEqual([homedir()])
   })
 
   it('has the CLI write the session log, and opens it on request', async () => {

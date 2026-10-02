@@ -50,6 +50,34 @@ happened, not what was planned; superseded entries are kept.
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
   disk.
+
+### Fixed
+
+- **The log redacts more credential shapes.** The output channel's
+  redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
+  API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
+  (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
+  `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
+  upper-case variable, a header, a JSON field or a URL parameter.
+- **A long dotted line no longer stalls the log.** The redactor's URL
+  credentials pattern took quadratic time on a long run such as `a.b.c.…`;
+  its scheme is now bounded. Text with none of the credential literals
+  (most log lines) now skips the patterns in one scan.
+- **A conversation no longer opens while the Model API backend closes or
+  after you sign out, and an overtaken side chat leaves no Plan mode.**
+  Starting, resuming or forking a conversation loaded the hooks, then made
+  the session and ran its SessionStart hook without checking again that
+  the backend was not closing (or, when resuming, that you were still
+  signed in). Both are checked now, before the session exists and again
+  after its SessionStart hook. And a side chat whose opening another
+  opening overtook (a second conversation opened before the first had
+  loaded) still switched the panel to Plan; only the opening that lands
+  sets the mode now.
+
+## [0.10.1] - 2026-10-02
+
+### Added
+
 - **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
   token-saving mechanism must pass before it ships (M73, M74). Ten small
   repository fixtures (six accept, four held-out), each judged by a
@@ -102,33 +130,6 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
-- **A crafted long line no longer stalls the log.** Every line the
-  extension logs passes through its secret redactor, whose JSON Web Token
-  pattern read a long word again from every `eyJ` after a dash in it: a
-  64,000-character line of `eyJa-eyJa-…` took seconds. It now reads each
-  run of dotted words once. A token glued after `_` or a letter
-  (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
-  the old pattern redacted is left.
-- **The log redacts more credential shapes.** The output channel's
-  redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
-  API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
-  (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
-  `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
-  upper-case variable, a header, a JSON field or a URL parameter.
-- **A long dotted line no longer stalls the log.** The redactor's URL
-  credentials pattern took quadratic time on a long run such as `a.b.c.…`;
-  its scheme is now bounded. Text with none of the credential literals
-  (most log lines) now skips the patterns in one scan.
-- **A conversation no longer opens while the Model API backend closes or
-  after you sign out, and an overtaken side chat leaves no Plan mode.**
-  Starting, resuming or forking a conversation loaded the hooks, then made
-  the session and ran its SessionStart hook without checking again that
-  the backend was not closing (or, when resuming, that you were still
-  signed in). Both are checked now, before the session exists and again
-  after its SessionStart hook. And a side chat whose opening another
-  opening overtook (a second conversation opened before the first had
-  loaded) still switched the panel to Plan; only the opening that lands
-  sets the mode now.
 - **A slow Muse Code start is waited for, and a failed one is shown once.**
   On a machine short of CPU, `muse serve` could miss its 30-second
   handshake and was ended, and every action waiting on that start showed
@@ -140,6 +141,17 @@ happened, not what was planned; superseded entries are kept.
   says it only when nothing else did, and the skill listings of the
   palette and the slash menu only log it. The next action starts Muse
   Code afresh.
+- **A crafted long line no longer stalls the log.** Every line the
+  extension logs passes through its secret redactor, whose JSON Web Token
+  pattern read a long word again from every `eyJ` after a dash in it: a
+  64,000-character line of `eyJa-eyJa-…` took seconds. It now reads each
+  run of dotted words once. A token glued after `_` or a letter
+  (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
+  the old pattern redacted is left.
+- Documentation: corrected the Bypass row of the permission-mode table (paid
+  uses still ask), the remote-window Bypass description in the Restricted Mode
+  text, and the Diagnostics, dictation and macOS helper claims in PRIVACY and
+  SECURITY; cited Meta's source for the PDF page limits.
 
 ## [0.10.0] - 2026-10-01
 

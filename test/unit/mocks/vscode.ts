@@ -91,6 +91,8 @@ export const window = {
   showWarningMessage: vi.fn<typeof vscode.window.showWarningMessage>(),
   showInputBox: vi.fn<typeof vscode.window.showInputBox>(),
   showSaveDialog: vi.fn<typeof vscode.window.showSaveDialog>(),
+  // Picking a session-export file to import or read (M84).
+  showOpenDialog: vi.fn<typeof vscode.window.showOpenDialog>(),
   showTextDocument: vi.fn<typeof vscode.window.showTextDocument>(),
   // The editors on screen: the verify loop shows a file only when none does (M68).
   visibleTextEditors: [] as readonly vscode.TextEditor[],
@@ -108,6 +110,8 @@ export class TabInputText implements vscode.TabInputText {
 
 export const workspace = {
   isTrusted: true,
+  // The folders an export redacts (M84); none unless a test sets them.
+  workspaceFolders: undefined as readonly vscode.WorkspaceFolder[] | undefined,
   fs: {
     writeFile: vi.fn<typeof vscode.workspace.fs.writeFile>(),
     // The Memory view's delete, to the trash (M49).
