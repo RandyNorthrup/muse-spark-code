@@ -8722,7 +8722,8 @@ evaluation is authorized by these repairs.
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
 **Main merge, 2026-10-02 (M74m).** Merge `origin/main` at `2a03a79b`
-(M84, M75 and 0.10.1) into the handoff branch at `aa37274e`. Keep both
+(M84, M75 and 0.10.1) into the handoff branch at `aa37274e` (`91329eb8`),
+then include PR #74's documentation audit at `2067d2f9`. Keep both
 features and the released changelog unchanged. Share files join the
 handoff's one-modal rule: a waiting or edited brief stays in state while
 the share is open, then opens with focus when it closes. Both arrival
