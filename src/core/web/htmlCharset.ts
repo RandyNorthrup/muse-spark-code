@@ -12,7 +12,7 @@
 
 import { TextDecoder } from 'node:util'
 import sniffHtmlEncoding from 'html-encoding-sniffer'
-import { decodeIn, encodingOf, UndecodableText } from './textDecoding'
+import { bomEncodingOf, decodeIn, encodingOf, UndecodableText } from './textDecoding'
 
 const FALLBACK_ENCODING = 'utf8'
 // Handed to the sniffer as its fallback, so a sniff that found nothing is known.
@@ -33,9 +33,14 @@ export interface DecodedHtml {
 
 /** The encoding a byte order mark or the header makes certain, if either does. */
 function certainEncoding(bytes: Uint8Array, headerCharset: string | undefined): string | undefined {
-  const found = sniffHtmlEncoding(bytes, {
-    xml: true,
-    ...(headerCharset !== undefined && { transportLayerEncodingLabel: headerCharset }),
+  const bom = bomEncodingOf(bytes)
+  if (bom !== undefined) return bom
+  if (headerCharset === undefined) return undefined
+  // v7 also sniffs XML declarations/signatures in HTML mode, even with a
+  // zero meta-prescan limit. Empty bytes normalize only the transport label;
+  // the real page is prescanned below, with tentative confidence.
+  const found = sniffHtmlEncoding(new Uint8Array(), {
+    transportLayerEncodingLabel: headerCharset,
     defaultEncoding: NOTHING_FOUND,
   })
   return found === NOTHING_FOUND ? undefined : found
@@ -50,14 +55,7 @@ function sniff(
   if (certain !== undefined) {
     return { encoding: certain, isTentative: false }
   }
-  let prescanned: string
-  try {
-    prescanned = sniffHtmlEncoding(bytes, { defaultEncoding: NOTHING_FOUND })
-  } catch {
-    // html-encoding-sniffer 6.0.0 throws on a malformed `<meta>` content
-    // (`charset=` with nothing after it): the prescan then found nothing.
-    prescanned = NOTHING_FOUND
-  }
+  const prescanned = sniffHtmlEncoding(bytes, { defaultEncoding: NOTHING_FOUND })
   return {
     encoding: prescanned === NOTHING_FOUND ? FALLBACK_ENCODING : prescanned,
     isTentative: true,

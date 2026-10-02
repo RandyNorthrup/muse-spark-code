@@ -24,8 +24,9 @@ export interface MarkdownViewProps {
   /** A link to a file outside the workspace (M25). */
   readonly onRefuseLink?: (() => void) | undefined
   readonly onCopy: (text: string) => void
-  readonly onInsert: (text: string) => void
-  readonly onApply: (text: string) => void
+  /** Code blocks' Insert and Apply; absent in a read-only view (a share file, M84). */
+  readonly onInsert?: ((text: string) => void) | undefined
+  readonly onApply?: ((text: string) => void) | undefined
   /** A plan reply (M79): shown with every part the brief would carry. */
   readonly isPlan?: boolean
 }

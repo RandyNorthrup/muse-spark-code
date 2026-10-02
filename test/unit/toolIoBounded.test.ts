@@ -77,17 +77,23 @@ it('bounds picked bytes when a selected file grows after handle metadata', async
   const target = path.join(root, 'picked.pdf')
   await growAfterOpenMetadata(target, Buffer.alloc(9, 0x62))
 
-  await expect(readPickedFile(target, 4)).resolves.toEqual({ bytes: undefined, isPdf: false })
+  await expect(readPickedFile(target, 4)).resolves.toEqual({
+    bytes: undefined,
+    isPdf: false,
+    isMissing: false,
+  })
   await expect(readPickedFile(target, 9)).resolves.toEqual({
     bytes: Buffer.alloc(9, 0x62),
     isPdf: false,
+    isMissing: false,
   })
 })
 
-it('keeps missing picked files as an undefined result', async () => {
+it('keeps missing picked files as an undefined result, said to be missing', async () => {
   await expect(readPickedFile(path.join(root, 'missing.pdf'), 4)).resolves.toEqual({
     bytes: undefined,
     isPdf: false,
+    isMissing: true,
   })
 })
 
@@ -110,12 +116,18 @@ it('keeps non-PDF image and text caps at the host read boundary', async () => {
   await expect(readPickedFile(image, MAX_IMAGE_BYTES)).resolves.toEqual({
     bytes: undefined,
     isPdf: false,
+    isMissing: false,
   })
   await expect(readPickedFile(text, MAX_TEXT_ATTACHMENT_BYTES)).resolves.toEqual({
     bytes: undefined,
     isPdf: false,
+    isMissing: false,
   })
-  await expect(readPickedFile(text, 0)).resolves.toEqual({ bytes: undefined, isPdf: false })
+  await expect(readPickedFile(text, 0)).resolves.toEqual({
+    bytes: undefined,
+    isPdf: false,
+    isMissing: false,
+  })
 })
 
 it('bounds a tool-row image that grows after its open handle reports the old size', async () => {
