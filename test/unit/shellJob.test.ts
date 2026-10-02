@@ -81,8 +81,12 @@ describe('shellJobAssembly (M27)', () => {
     expect(powershell.scripts).toHaveLength(2)
     expect(powershell.scripts[0]).toContain('-OutputType Library')
     expect(powershell.scripts[1]).toContain(`::Join('${SHELL_JOB_NAME_PREFIX}`)
-    // It loads the assembly as each command's join does, so it proves that load.
-    expect(powershell.scripts[1]?.split('; ', 1)[0]).toBe(loadJobAssembly(path.join(folder, name)))
+    // It loads the assembly as each command's join does, so it proves that
+    // load, and a failing load or join cannot reach the answer.
+    expect(powershell.scripts[1]?.split('; ', 1)[0]).toBe(
+      `try { ${loadJobAssembly(path.join(folder, name))}`,
+    )
+    expect(powershell.scripts[1]).toMatch(/'joined' \} catch \{ exit 1 \}$/)
     expect(logged).toEqual([])
     // A later window finds it compiled and only tests it.
     const later = fakePowerShell()
@@ -118,6 +122,32 @@ describe('shellJobAssembly (M27)', () => {
     )
     expect(logged[0]).toContain('ended with taskkill and a sweep for its orphans')
   })
+
+  it.skipIf(process.platform !== 'win32')(
+    'gives no assembly when real Windows PowerShell cannot load the one it found',
+    async () => {
+      // A file where the assembly should be that is not one: the load throws,
+      // and PowerShell would carry on to the next statement without `try`.
+      const storageDir = await storage('unloadable')
+      const csharp = await readJobSource('shellJob')
+      await mkdir(path.join(storageDir, SHELL_JOB_FOLDER))
+      await writeFile(
+        path.join(storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp)),
+        'not an assembly',
+      )
+      const logged: string[] = []
+      const assembly = await shellJobAssembly({
+        readJobSource,
+        storageDir,
+        systemRoot: process.env.SystemRoot ?? String.raw`C:\Windows`,
+        log: (message) => {
+          logged.push(message)
+        },
+      })()
+      expect(assembly).toBeUndefined()
+      expect(logged[0]).toMatch(/^Windows job objects are unavailable/)
+    },
+  )
 
   it('says so when the compile itself fails, leaving no half-made file', async () => {
     const storageDir = await storage('broken')

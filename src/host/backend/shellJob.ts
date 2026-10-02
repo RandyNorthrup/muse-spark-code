@@ -82,13 +82,15 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
       await removeStaleJobs(ASSEMBLY, assembly, deps.log)
     }
     // Loading the type and joining a job, as a command does, proves both
-    // work and the system lets a process start a job of its own here.
+    // work and the system lets a process start a job of its own here. A
+    // failing .NET call ends only its own statement in PowerShell, so the
+    // answer is inside `try`: a load or join that fails never says joined.
     const powershell = windowsPowerShell(deps.systemRoot)
     const answer = await run(
       powershell.file,
       [
         ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-        `${loadJobAssembly(assembly)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(`${SHELL_JOB_NAME_PREFIX}${randomUUID()}`)}); '${JOINED}'`,
+        `try { ${loadJobAssembly(assembly)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(`${SHELL_JOB_NAME_PREFIX}${randomUUID()}`)}); '${JOINED}' } catch { exit 1 }`,
       ],
       powershell.env,
     )
