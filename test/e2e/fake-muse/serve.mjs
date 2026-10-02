@@ -21,8 +21,10 @@
 //
 // Environment: MUSE_FAKE_FINGERPRINT (the SDK's pinned schema fingerprint,
 // so the handshake raises no warning), MUSE_FAKE_START=crash (exit 3 before
-// the handshake, the spawn-failure drill) or =silent (read the handshake and
-// never answer it, the wedged-CLI drill of PLAN.md D25). Node built-ins
+// the handshake, the spawn-failure drill), =silent (read the handshake and
+// never answer it, the wedged-CLI drill of PLAN.md D25), =slow (answer it
+// after MUSE_FAKE_START_MS) or =dying (never answer it, and exit 1 after
+// MUSE_FAKE_START_MS). Node built-ins
 // only: the file is copied beside the executable the resolver spawns.
 //
 // The credential file under XDG_CONFIG_HOME (never the developer's own) is
@@ -897,8 +899,16 @@ const handlers = {
   },
 }
 
-const isSilent = env['MUSE_FAKE_START'] === 'silent'
+const startMode = env['MUSE_FAKE_START']
+const startDelayMs = Number(env['MUSE_FAKE_START_MS'] ?? '0')
+const isSilent = startMode === 'silent' || startMode === 'dying'
 const isAccountReadSilentAfterStart = env['MUSE_FAKE_ACCOUNT_READ'] === 'silentAfterStart'
+
+if (startMode === 'dying') {
+  setTimeout(() => {
+    exit(DIE_EXIT_CODE)
+  }, startDelayMs)
+}
 
 function handle(frame) {
   if (isSilent || frame.id === undefined) {
@@ -906,9 +916,20 @@ function handle(frame) {
     // silent host answers nothing at all.
     return
   }
+  if (startMode === 'slow' && frame.method === 'initialize') {
+    // A start on a starved machine: the handshake answered late (0.10.1).
+    setTimeout(() => {
+      answer(frame)
+    }, startDelayMs)
+    return
+  }
   if (isAccountReadSilentAfterStart && state.isLoginStarted && frame.method === 'account/read') {
     return
   }
+  answer(frame)
+}
+
+function answer(frame) {
   const handler = handlers[frame.method]
   if (handler === undefined) {
     send({

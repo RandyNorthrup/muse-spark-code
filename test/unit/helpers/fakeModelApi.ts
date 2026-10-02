@@ -37,6 +37,11 @@ export interface ScriptedSearch {
 export interface ScriptedReply {
   /** Hold this response while concurrent sessions run (M48 capacity tests). */
   readonly hold?: Promise<unknown>
+  /**
+   * Called as this reply's request arrives, before any hold: a test waits on
+   * the request itself rather than polling for it under a fixed deadline.
+   */
+  readonly onRequest?: () => void
   readonly text?: string
   readonly searches?: readonly ScriptedSearch[]
   /** The text's `url_citation` annotations (M33). */
@@ -511,6 +516,7 @@ export function fakeModelApi(): FakeModelApi {
       }
       const reply = replies[Math.min(consumed, replies.length - 1)] ?? { text: 'ok' }
       consumed += 1
+      reply.onRequest?.()
       if (reply.networkError !== undefined) {
         const code = reply.networkErrorCode
         return Promise.reject(
