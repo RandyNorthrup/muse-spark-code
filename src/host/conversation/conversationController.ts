@@ -428,9 +428,10 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'setPaidFeature',
   'savePlan',
   'implementPlan',
+  // A handoff's Cancel is not here (M74): releasing an operation the panel
+  // owns needs no admission, and the panel has already closed its dialog.
   'requestHandoff',
   'confirmHandoff',
-  'cancelHandoff',
 ])
 const QUEUED_DISPOSITION = 'queued'
 const TOOL_CALL_KIND = 'toolCall'
@@ -712,6 +713,8 @@ interface PendingHandoff {
   /** The brief, once the distillation turn completed and it was shown. */
   brief: string | undefined
   todos: readonly TodoItem[]
+  /** The completed turn's reply being read back as the brief. */
+  isReadingBrief: boolean
   isStarting: boolean
   readonly generation: number
 }
@@ -3165,6 +3168,12 @@ export class ConversationController {
     if (generation !== this.sendInvalidationEpoch || this.isDisposed || !canStart()) {
       return { status: 'changed' }
     }
+    // Admission may have closed during the lookup (a key activation):
+    // refused before anything is left, so the plan or the handoff's
+    // reviewed brief stays to start again.
+    if (this.refuseAction() !== undefined) {
+      return { status: 'refused' }
+    }
     if (brief.attachment !== undefined && !this.canUsePlans()) {
       return { status: 'refused' }
     }
@@ -3381,6 +3390,17 @@ export class ConversationController {
     )
   }
 
+  /**
+   * The one check after every await of a handoff's request, brief read and
+   * Start (M74): the operation still owns the slot in the same
+   * conversation (`isCurrentHandoff`), and the backend still admits it.
+   * Where only admission fails (a key activation), the operation is
+   * refused but kept, its brief and dialog intact, to be retried.
+   */
+  private isStillCurrent(pending: PendingHandoff): boolean {
+    return this.isCurrentHandoff(pending) && this.isAuthAdmitted()
+  }
+
   private dropHandoff(pending: PendingHandoff): void {
     if (this.pendingHandoff === pending) {
       this.pendingHandoff = undefined
@@ -3388,7 +3408,11 @@ export class ConversationController {
   }
 
   private canDistilHandoff(pending: PendingHandoff): boolean {
-    if (!this.isCurrentHandoff(pending)) {
+    if (!this.isStillCurrent(pending)) {
+      // Admission closed meanwhile: refused with the reason.
+      if (this.isCurrentHandoff(pending)) {
+        this.notice('warning', UI_TEXT.notSignedInReason)
+      }
       return false
     }
     if (this.activeTurnId !== undefined) {
@@ -3429,7 +3453,11 @@ export class ConversationController {
       this.dropHandoff(previous)
     }
     if (this.pendingHandoff !== undefined) {
-      this.notice('info', UI_TEXT.handoffBusy)
+      // A brief whose read admission put off is read now, and its dialog
+      // is the answer; otherwise this request waits on a running one.
+      if (!this.readWaitingBrief()) {
+        this.notice('info', UI_TEXT.handoffBusy)
+      }
       return false
     }
     // A running reply refuses the request in `canDistilHandoff`, after the
@@ -3444,6 +3472,7 @@ export class ConversationController {
       session: this.session,
       brief: undefined,
       todos: [],
+      isReadingBrief: false,
       isStarting: false,
     }
     // This operation owns the slot before host/session/history preparation can yield.
@@ -3499,14 +3528,11 @@ export class ConversationController {
         cardText,
         pending,
       )
-      // One guard for the send's outcome and the conversation's currency:
-      // a restart while it ran leaves no handoff behind.
-      if (
-        !sent.isAccepted ||
-        sent.turnId === undefined ||
-        !this.isCurrentHandoff(pending) ||
-        !this.isCurrentSessionAction(pending.session, generation)
-      ) {
+      // The send's outcome and the operation's ownership: a restart while
+      // it ran leaves no handoff behind. Admission closing once the turn
+      // was taken leaves the operation waiting for it: the turn is the
+      // backend's, and its brief is read when admission is back.
+      if (!sent.isAccepted || sent.turnId === undefined || !this.isCurrentHandoff(pending)) {
         return false
       }
       pending.turnId = sent.turnId
@@ -3536,19 +3562,25 @@ export class ConversationController {
    */
   private async finishHandoff(turnId: string): Promise<void> {
     const pending = this.pendingHandoff
-    if (pending?.turnId !== turnId || pending.brief !== undefined) {
+    if (pending?.turnId !== turnId || pending.brief !== undefined || pending.isReadingBrief) {
       return
     }
+    pending.isReadingBrief = true
     try {
+      // While admission is closed the operation waits, its turn done, and
+      // `readWaitingBrief` reads the brief when the panel next asks.
+      if (!this.isStillCurrent(pending)) {
+        return
+      }
       const host = await this.deps.ensureHost()
       const session = pending.session
-      if (session === undefined || !this.isCurrentHandoff(pending)) {
+      if (session === undefined || !this.isStillCurrent(pending)) {
         return
       }
       const history = await host.readSession(session.sessionId)
-      // The single currency check: a restart, a stop, or a cancel while
-      // the read ran leaves no brief behind.
-      if (!this.isCurrentHandoff(pending)) {
+      // A restart, a stop, or a cancel while the read ran leaves no brief
+      // behind; admission closing leaves it to be read again.
+      if (!this.isStillCurrent(pending)) {
         return
       }
       const reply = history.items.findLast(
@@ -3573,7 +3605,29 @@ export class ConversationController {
         this.pendingHandoff = undefined
         this.handoffFailed(error)
       }
+    } finally {
+      pending.isReadingBrief = false
     }
+  }
+
+  /**
+   * A distillation turn that completed while admission was closed (M74):
+   * its brief is read now, when the backend admits it again. True when a
+   * read started, so the dialog is on its way.
+   */
+  private readWaitingBrief(): boolean {
+    const pending = this.pendingHandoff
+    if (
+      pending?.turnId === undefined ||
+      pending.brief !== undefined ||
+      pending.isReadingBrief ||
+      !this.finishedTurns.has(pending.turnId) ||
+      !this.isStillCurrent(pending)
+    ) {
+      return false
+    }
+    void this.finishHandoff(pending.turnId)
+    return true
   }
 
   /**
@@ -3938,6 +3992,11 @@ export class ConversationController {
         }
         if (handoff !== undefined && !this.isCurrentHandoff(handoff)) {
           throw new Error(UI_TEXT.turnStoppedByRestart)
+        }
+        // Nor is its request sent once admission closed (M74): refused as
+        // the reason its card failed, and the composer keeps the command.
+        if (handoff !== undefined && !hasSubmittedHandoff && !this.isAuthAdmitted()) {
+          throw new Error(UI_TEXT.notSignedInReason)
         }
         // A turn that started meanwhile refuses the handoff's request once,
         // as the reason its card failed, with no notice besides (M74).
@@ -5602,8 +5661,10 @@ export class ConversationController {
       this.post({ type: 'attachmentAdded', attachment })
     }
     // A waiting handoff's dialog (M74), after the surface state, whose
-    // clearing of a stale restored conversation would drop it again.
+    // clearing of a stale restored conversation would drop it again; or
+    // its brief, when admission put the read off.
     this.postHandoffReady()
+    this.readWaitingBrief()
     void this.warmModels()
     this.postStartupNotice()
   }

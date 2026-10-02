@@ -8597,26 +8597,28 @@ extension's own storage, never the workspace's `.git`.
 **Status, 2026-10-02 (this tree, `feature/m74-handoff`).** Manual
 `/handoff` is built: ported onto the release candidate (`41ed14bf` on
 `8e9d3a1e`), fixed for the ten findings of the RV74 review (one commit
-per finding) and for RV74c's (a refusal at the sign-in guard answered,
-one modal at a time, the withdrawn-distillation guard tested), and merged
-with `main` at `2a30b1a0` with its shared-table fixes kept as `main` has
-them (certification `docs/certification/m74.md`). Automatic compaction,
-the hidden todo follow-up and the memory flush are not built (see "Not
-built" below), so M74 is not complete. On this tree the M74 test files
-(nine files, 785 tests with the M45 goal fixes below) pass on the kubuntu
-and Mac mini rigs; every M74 guard was broken on purpose, seen red and
-restored byte for byte (sha256), or is recorded as backed by another
-check (four are; O17, the
-one that had neither, now has its test); and the typechecks (host, unit,
+per finding), for RV74c's (a refusal at the sign-in guard answered, one
+modal at a time, the withdrawn-distillation guard tested) and for
+RV71x's (Cancel and Start while admission is held: the handoff as one
+owned operation), and merged with `main` at `3614409e`, its shared-table
+fixes kept as `main` has them (certification
+`docs/certification/m74.md`). Automatic compaction, the hidden todo
+follow-up and the memory flush are not built (see "Not built" below), so
+M74 is not complete. On this tree the M74 test files (nine files, 791
+tests with the M45 goal fixes below) pass on the kubuntu and Mac mini
+rigs; every M74 guard was broken on purpose, seen red and restored byte
+for byte (sha256), or is recorded as backed by another check (five are;
+O17, the one that had neither, now has its test); and the typechecks (host, unit,
 webview), `eslint` and Prettier on the changed files, `check:l10n`,
-`check:host-api`, `deadcode`, `jscpd` and the `handoff`, `usage` and
-`agents` accessibility scenarios pass on kubuntu. The handoff had pushed
+`check:host-api`, `deadcode` and `jscpd` pass on kubuntu, and so did
+the `handoff`, `usage` and `agents` accessibility scenarios at RV74c (the
+webview has not changed since). The handoff had pushed
 `dist/extension.js` and `dist/modelApi.js` over their caps (601.3 and
 401.3 KiB); the lead's fix, the shared English table
 (`build/shared-ui-text`, merged at `f5f9006f`), brings every bundle
 within its unchanged cap (on this tree, kubuntu: `dist/extension.js`
-529.0 of 600 KiB, `dist/modelApi.js` 327.7 of 400, `dist/uiText.js` 74.1
-of 100, `dist/webview/main.js` 782.5 of 900). Where `node_modules` is a
+531.0 of 600 KiB, `dist/modelApi.js` 328.0 of 400, `dist/uiText.js` 74.3
+of 100, `dist/webview/main.js` 782.7 of 900). Where `node_modules` is a
 junction (the Windows host) or a link to another checkout (the kubuntu
 rig's test worktree), the build's split check reports the page worker's
 parser packages missing: esbuild names them by the link's target, outside
@@ -8723,6 +8725,16 @@ integration tests, a production build with a real `node_modules` and
     `goalOutcomeUnknown` (it may or may not have taken effect), and the
     goal is read back from the backend before the conversation's next
     action (drills G59–G61).
+  - The handoff is one owned operation (RV71x N5, N6; the lead's rule,
+    2026-10-02). Cancel is never auth-gated: releasing an operation the
+    panel owns needs no admission. After every await of the request, the
+    brief read and Start, one check (`isStillCurrent`: generation,
+    session, ownership and admission) runs, and nothing is cleared or
+    left before it passes; Start's lives in the shared `startFromBrief`,
+    so M79's Implement gets it too. A refusal for admission leaves the
+    operation waiting with its dialog intact: Start works again once
+    admission returns, and a brief whose read admission put off is read
+    on the next `/handoff` or a rebuilt panel.
   - One modal at a time (RV74c N2): a brief that arrives while Account &
     usage, the Agent map or the install confirmation is open waits,
     unmounted, until that dialog closes, then opens with the focus, so

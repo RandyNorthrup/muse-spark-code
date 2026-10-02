@@ -7808,6 +7808,31 @@ describe('ConversationController: plans as files (M79)', () => {
     expect(retried.planFiles.files.size).toBe(0)
   })
 
+  it('refuses to implement when admission closes during the new conversation’s host lookup, leaving this one', async () => {
+    // Closes admission at the first host lookup after the plan was saved:
+    // the brief's own, before anything is left (a key activation).
+    const holder: { t?: ReturnType<typeof setup> } = {}
+    let hasClosed = false
+    const t = await museCodePlan({
+      beforeEnsureHost: () => {
+        const current = holder.t
+        if (!hasClosed && current !== undefined && current.planFiles.files.size > 0) {
+          hasClosed = true
+          current.auth.isAdmitted = false
+        }
+        return Promise.resolve()
+      },
+    })
+    holder.t = t
+    t.surface.posted.length = 0
+    await t.controller.handle(IMPLEMENT)
+    expect(hasClosed).toBe(true)
+    expect(t.surface.posted.some((message) => message.type === 'conversationCleared')).toBe(false)
+    expect(t.surface.posted.some((message) => message.type === 'briefSubmitted')).toBe(false)
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+  })
+
   it('implements the approved plan in a fresh Muse Code conversation: English for the model, the plan as named text, the steps left to the model', async () => {
     const t = await museCodePlan()
     t.surface.posted.length = 0
@@ -8561,6 +8586,14 @@ async function expectConfirmRefused(
   expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
 }
 
+/** `requestId` refused for closed admission: the reason said, and refused its only answer. */
+function expectAdmissionRefusal(t: ReturnType<typeof setup>, requestId: string): void {
+  expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+  expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+    { type: 'handoffCommandResult', requestId, accepted: false },
+  ])
+}
+
 interface HandoffConversation {
   readonly t: ReturnType<typeof setup>
   readonly api: FakeModelApi
@@ -8708,6 +8741,18 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
     // The slot is free: the next handoff runs.
     expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  }
+
+  /** The dialog for `h1`'s brief, with no goal and no open items, once posted. */
+  async function expectBriefReady(t: ReturnType<typeof setup>) {
+    await vi.waitFor(() => {
+      expect(t.surface.posted).toContainEqual({
+        type: 'handoffReady',
+        requestId: 'h1',
+        brief: BRIEF,
+        todos: [],
+      })
+    })
   }
 
   it("distils the conversation as the user's own turn and shows the brief before anything starts", async () => {
@@ -8985,14 +9030,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       gate.release()
     }
     await first
-    await vi.waitFor(() => {
-      expect(t.surface.posted).toContainEqual({
-        type: 'handoffReady',
-        requestId: 'h1',
-        brief: BRIEF,
-        todos: [],
-      })
-    })
+    await expectBriefReady(t)
     expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
   })
 
@@ -9206,10 +9244,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     t.surface.posted.length = 0
     await controller.handle(handoff('h1', 'Ship it'))
     // Refused with the reason, and answered, so the composer's command is free again.
-    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
-    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
-      { type: 'handoffCommandResult', requestId: 'h1', accepted: false },
-    ])
+    expectAdmissionRefusal(t, 'h1')
     expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
     // Admission back: the same command, sent again, runs.
     t.auth.isAdmitted = true
@@ -9223,6 +9258,116 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     t.auth.isAdmitted = true
     await confirmEdited(conversation, 'h2')
   })
+
+  it('releases a brief cancelled while admission is held, so the next handoff runs once it returns', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    t.auth.isAdmitted = false
+    // The panel closed its dialog: releasing the operation needs no admission.
+    await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+    expect(notices(t).map((notice) => notice.text)).not.toContain(UI_TEXT.notSignedInReason)
+    t.auth.isAdmitted = true
+    t.surface.posted.length = 0
+    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  })
+
+  it('refuses a Start whose admission closes during its host lookup, leaving the conversation and the reviewed brief to start again', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, api, controller } = conversation
+    await distil(conversation, 'h1')
+    const before = api.responseBodies().length
+    t.surface.posted.length = 0
+    gate.hold()
+    const start = controller.handle({ type: 'confirmHandoff', requestId: 'h1', brief: EDITED })
+    try {
+      await gate.entered
+      t.auth.isAdmitted = false
+    } finally {
+      gate.release()
+    }
+    await start
+    // Nothing left or sent: refused with the reason, the operation waiting.
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    expect(api.responseBodies()).toHaveLength(before)
+    expectAdmissionRefusal(t, 'h1')
+    // Admission back: the same reviewed brief starts.
+    t.auth.isAdmitted = true
+    await confirmEdited(conversation, 'h1')
+  })
+
+  it('refuses a request whose admission closes during its send, before the model has it, and frees the slot', async () => {
+    // Closes admission at the send's first host lookup once the request's card is up.
+    const watched: { t?: ReturnType<typeof setup> } = {}
+    let hasClosed = false
+    const conversation = await handoffConversation(undefined, () => {
+      const isCardUp =
+        watched.t?.surface.posted.some((posted) => posted.type === 'briefSubmitted') === true
+      if (!hasClosed && isCardUp && watched.t !== undefined) {
+        hasClosed = true
+        watched.t.auth.isAdmitted = false
+      }
+      return Promise.resolve()
+    })
+    const { t, api, controller } = conversation
+    watched.t = t
+    const before = api.responseBodies().length
+    await controller.handle(handoff('h1'))
+    expect(hasClosed).toBe(true)
+    // The card failed with the reason; the model never had the request.
+    const card = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'sendFailed',
+        localId: card?.type === 'briefSubmitted' ? card.localId : '',
+        reason: UI_TEXT.notSignedInReason,
+      }),
+    )
+    expect(api.responseBodies()).toHaveLength(before)
+    expect(t.surface.posted).toContainEqual({
+      type: 'handoffCommandResult',
+      requestId: 'h1',
+      accepted: false,
+    })
+    t.auth.isAdmitted = true
+    t.surface.posted.length = 0
+    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  })
+
+  it.each([
+    { trigger: 'the next /handoff', isRebuilt: false },
+    { trigger: 'a rebuilt panel', isRebuilt: true },
+  ])(
+    'puts off reading a brief while admission is closed, and reads it for $trigger once it returns',
+    async ({ isRebuilt }) => {
+      const { conversation, release } = await heldDistillation()
+      const { t, controller } = conversation
+      // The distillation turn completes while a key activation holds admission.
+      t.auth.isAdmitted = false
+      release.resolve(undefined)
+      await vi.waitFor(() => {
+        expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+      })
+      await settle()
+      expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+      t.auth.isAdmitted = true
+      t.surface.posted.length = 0
+      if (isRebuilt) {
+        controller.surfaceReady()
+      } else {
+        await controller.handle(handoff('h2'))
+        // Answered by the waiting brief's dialog, not run, and not called busy.
+        expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual(
+          [{ type: 'handoffCommandResult', requestId: 'h2', accepted: false }],
+        )
+        expect(notices(t).map((notice) => notice.text)).not.toContain(UI_TEXT.handoffBusy)
+      }
+      await expectBriefReady(t)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    },
+  )
 
   it('holds no slot and restores no dialog for a brief whose conversation is gone', async () => {
     const restarted = await handoffConversation()

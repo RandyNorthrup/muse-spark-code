@@ -32,8 +32,11 @@ happened, not what was planned; superseded entries are kept.
   reply runs is refused ("Wait for the reply to finish, or stop it,
   first."), nothing queued; an oversized (over 256 KB) or empty brief is
   refused with the reason; a refused `/handoff` stays in the prompt with
-  its goal. No new setting: nothing automatic runs. Automatic compaction,
-  the hidden follow-up and memory flush stay unbuilt and off.
+  its goal. While a new API key is being activated, a Start is refused
+  before anything is left and the brief stays to start again, Cancel
+  still works, and a brief that arrives meanwhile opens with the next
+  `/handoff`. No new setting: nothing automatic runs. Automatic
+  compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
 ### Changed
 
@@ -81,6 +84,11 @@ happened, not what was planned; superseded entries are kept.
   panel now says it may or may not have taken effect, keeps it in the
   prompt, and reads the goal back from the backend before the
   conversation's next action, so the session goal shows where it stands.
+- **Implement in a fresh conversation no longer leaves the conversation
+  for nothing.** When a new API key was being activated while a plan's
+  Implement looked up the backend, the current conversation was left
+  before the start was refused. The start is now refused first, with the
+  reason, and the conversation stays.
 
 ## [0.10.0] - 2026-10-01
 
