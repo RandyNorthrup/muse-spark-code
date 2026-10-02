@@ -20,11 +20,16 @@ happened, not what was planned; superseded entries are kept.
   profile that is deleted afterwards, and every request beyond this
   computer is blocked: by the browser's request interception for pages,
   frames, workers and redirects, and by a proxy that does not exist for
-  everything else. Only you widen it, in the machine-scoped
-  `museSpark.browserCheckExtraHosts` or on a card or in the dialog for one
-  check; never the model. No Chrome or Edge installed: the check says so.
+  everything else; every frame and worker is watched from its first line,
+  and a WebSocket or an answer from beyond stops the check. Where an
+  administrator's policy sets a proxy or cloud management for Chrome or
+  Edge (registry, managed policy files, managed preferences), or cannot be
+  read, the check refuses to start. Only you widen it, in the
+  machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
+  dialog for one check; never the model. No Chrome or Edge installed: the
+  check says so.
 - The browser check's runner ships as a bundle of its own,
-  `dist/browserCheck.js` (budget 50 KiB, 37.8 KiB when built), loaded on
+  `dist/browserCheck.js` (budget 50 KiB, 44.5 KiB when built), loaded on
   the first check.
 
 ### Fixed

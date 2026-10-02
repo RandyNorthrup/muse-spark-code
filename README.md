@@ -1006,7 +1006,13 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   the page makes beyond that (its scripts and images, frames, workers,
   redirects) is blocked inside the browser, and everything else (a
   WebSocket, a preconnect) is sent to a proxy that does not exist; the row
-  lists what was blocked. To let checks reach other hosts, name them in
+  lists what was blocked. Every frame and worker the page starts is
+  watched from its first line: a WebSocket beyond this computer, or an
+  answer from beyond, stops the check and nothing from the page comes
+  back. On a computer where an administrator's policy sets a proxy (or
+  cloud management) for Chrome or Edge, which would override that block,
+  or where the policy cannot be read, the check refuses to start and says
+  where the policy is. To let checks reach other hosts, name them in
   `museSpark.browserCheckExtraHosts` (machine-scoped: plain host names or IP
   addresses, no ports, paths or wildcards). The model can never widen it.
 - **Asking.** On the Model API backend the check is judged per host like web
@@ -2032,7 +2038,9 @@ stopped and the next message resumes the same session.
   debugging pipe, never a network port. What the page shows, logs and
   requests goes to the model as tool output; on the Model API backend that
   includes a screenshot of the page, sent to Meta with the next request.
-  The page reaches nothing beyond this computer unless you widen it.
+  The page reaches nothing beyond this computer unless you widen it; where
+  an administrator's proxy policy would override that, the check does not
+  start.
 - Workspace rules, skill files and the memory snapshot are read only in a
   trusted workspace; on the Model API backend their text is part of what
   goes to Meta with each request, on the CLI backend Muse Code sends them

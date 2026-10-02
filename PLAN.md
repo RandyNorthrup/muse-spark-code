@@ -252,6 +252,9 @@ It uses the shared English table like the other Node bundles, and the split
 gate keeps the runner out of the other three. With the shared table and M81:
 extension 529.6, Model API 335.6, checkpoint store 122.1, ACP agent 719.0,
 English table 74.7 KiB ([`docs/certification/m81.md`](docs/certification/m81.md)).
+After the RV81 fixes (the policy reads, the target watch, the bounds) the
+browser bundle is 44.5 KiB of its unchanged 50, extension 531.2, Model API
+336.8.
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and
@@ -8919,10 +8922,11 @@ independent review and the full candidate gates remain required.**
 
 **Status 2026-10-01: built and certified** (`docs/certification/m81.md`),
 ported from the 2026-09-28 draft (`b51c5f4c`) and largely rebuilt on the
-release candidate. Decisions taken while building:
+release candidate; the independent review RV81 (one P1, four P2) fixed the
+same day, each with a test and a red drill. Decisions taken while building:
 
-- **Two blocks beyond loopback.** The Fetch domain is enabled on the
-  browser target, not the page, so it pauses every request of every
+- **Two blocks beyond loopback, and a watch.** The Fetch domain is enabled
+  on the browser target, not the page, so it pauses every request of every
   target (the page, frames in other processes, dedicated and service
   workers, each redirect leg; probed on Chrome 150, Edge 154 and the
   154 headless shell), and fails each one that is not http(s) to an
@@ -8931,9 +8935,40 @@ release candidate. Decisions taken while building:
   exist (`--proxy-server=http://127.0.0.1:9`), bypassed only for
   loopback and the allowed hosts; `<-loopback>` removes Chrome's implicit
   bypass, which includes link-local 169.254.0.0/16. WebRTC may not send
-  UDP outside the proxy. Should anything from beyond still answer the
-  page (a response, a redirect, a WebSocket handshake), the check stops
-  and returns nothing from the page.
+  UDP outside the proxy. Every target is watched (RV81): the browser and
+  each target it attaches auto-attach every target they start
+  (`waitForDebuggerOnStart`, flattened), and each is held until its
+  Network events (and Fetch, where it has the domain; a worker does not)
+  are on; one whose watch cannot be set up, or one past
+  `BROWSER_CHECK_MAX_TARGETS` (64), is never let run. A WebSocket or
+  WebTransport beyond the allowed hosts from any of them, or any answer
+  from beyond (a response, a redirect), stops the check and returns
+  nothing from the page.
+- **Refused under a managed proxy policy (RV81).** Mandatory policy
+  outranks the command line, so before any browser starts the check reads
+  where Chrome and Edge keep it (Windows: HKLM and HKCU
+  `SOFTWARE\Policies\Google\Chrome` and `…\Microsoft\Edge`, both registry
+  views, through `reg.exe`; Linux: every file in the Chrome, Chromium and
+  Edge `managed` folders; macOS: the machine's and the user's forced
+  preferences in `/Library/Managed Preferences`, through `plutil`), and
+  refuses with a translated reason, starting nothing, if any policy named
+  Proxy… or a cloud management enrollment token (also its token file on
+  Linux and macOS) is there, or if a location that exists cannot be read.
+  Recommended policy ranks below the command line and is not read. Every
+  location is read for both browsers, whichever was found.
+- **One modal, one scope (RV81).** On Muse Code an open modal is shared
+  only by a call of the same URL and the same widening and allowed hosts,
+  and the setting is read again after the answer: a call whose scope
+  changed meanwhile opens nothing.
+- **An ended check sends nothing more (RV81).** A deadline, a Stop, a leak
+  or a dead pipe closes the CDP connection at once, rejecting every call
+  still waiting, before the browser's kill is awaited; each step checks
+  the connection first.
+- **Bounds on what the page controls (RV81).** A CDP message's whole
+  length is checked against 32 MiB before it is joined or parsed; the URLs
+  of requests in flight are kept per session, cut to 500 characters,
+  dropped when the request finishes or fails, and at most
+  `BROWSER_CHECK_MAX_TRACKED_REQUESTS` (512) at once.
 - **Names are never looked up.** Loopback is `localhost`, 127.0.0.0/8 or
   `[::1]` as the URL parser writes them; any other name, including one
   that resolves to loopback, is beyond loopback until the user widens it.
@@ -8957,8 +8992,8 @@ release candidate. Decisions taken while building:
   and Windows).
 - **Its own bundle**, `dist/browserCheck.js` (D6 amendment), and the shared
   English table (`dist/uiText.js`) taken in as its prerequisite.
-- **Left out:** console errors and failed requests of frames in other
-  processes and of workers (the gate still covers their requests); a
+- **Left out:** console errors of frames in other processes and of
+  workers (their requests are gated, and their failed ones listed); a
   bundled browser.
 
 - **Goal.** The model sees its web change working.
@@ -9637,14 +9672,23 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
   Chrome or Edge, over the debugging pipe, in a temporary profile. Its
   requests beyond loopback and the widened hosts are failed by the
   browser-wide Fetch gate, and everything else that leaves the browser goes
-  to a proxy that does not exist. Residual risk: an administrator's proxy
-  policy outranks the command line, so on such a machine a WebSocket or a
-  preconnect beyond loopback could reach the network through that proxy
-  (HTTP requests stay failed by Fetch, and a WebSocket answer from beyond
-  stops the check before anything from the page is returned). A window that
-  dies mid-check leaves its profile folder in the OS temporary folder (the
-  browser itself exits with its pipe). The page runs as any page in a
-  browser does; the check does not make the user's dev server safer.
+  to a proxy that does not exist; a machine whose administrator's policy
+  could replace that proxy (a proxy policy, a cloud enrollment token, or a
+  policy location that cannot be read) is refused before any browser
+  starts, and a WebSocket or WebTransport beyond loopback from any frame or
+  worker stops the check. Residual risk: a proxy the check cannot see
+  (cloud policy from an enrollment whose token was removed afterwards, a
+  policy-installed extension's proxy setting, which outranks the command
+  line, though extensions are disabled and a fresh profile has none to
+  load) would carry a WebSocket's handshake (its URL and query) and a
+  preconnect's TCP connection out: the stop comes when the browser reports
+  the socket, about a millisecond before it connects (probed), so the
+  bytes sent before the kill cannot be taken back, and a preconnect is
+  never reported at all. HTTP requests stay failed by Fetch either way. A
+  window that dies mid-check leaves its profile folder in the OS temporary
+  folder (the browser itself exits with its pipe). The page runs as any
+  page in a browser does; the check does not make the user's dev server
+  safer.
 - The `ide` server's browser check widens to a host beyond loopback only
   with the user's answer in the extension's modal; a Model API check only
   with a card for that host (Bypass included) or an "always" chosen on one.

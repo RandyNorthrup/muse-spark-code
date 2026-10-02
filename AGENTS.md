@@ -134,7 +134,7 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       (dist/planMarkdown.js, loaded on the first plan action),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page), the
-                      browser check's processes and bundle entry
+                      browser check's processes, policy reads and bundle entry
                       (dist/browserCheck.js, loaded on the first check),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
@@ -149,7 +149,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       dictation, Muse Voice, the paid gate, network failures,
                       code intelligence and the repo map, web fetch's
                       public-address checks and HTML converter, the browser
-                      check's address rule, CDP pipe and run, the verify
+                      check's address rule, managed-policy check, CDP pipe
+                      and run, the verify
                       loop's check commands, diagnostics report and the files
                       it never opens because tools run them, the checkpoint restore plan)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the

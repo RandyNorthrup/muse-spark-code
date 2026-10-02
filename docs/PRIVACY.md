@@ -123,9 +123,15 @@ security notes for contributors are in `PLAN.md` §9.
   tool output, and on the Model API backend so does a screenshot of the
   page, sent to Meta with the next request. The page reaches only this
   computer, plus the hosts you list in `museSpark.browserCheckExtraHosts`
-  or allow for one check; host names are never looked up. The browser
-  talks to the extension over a pipe, never a network port, and is told to
-  send no background, sync or update traffic. The check is free.
+  or allow for one check; host names are never looked up. Before starting
+  the browser the extension reads where an administrator's policy for
+  Chrome or Edge is kept (the registry's policy keys on Windows, the
+  managed policy folders on Linux, the managed preferences on macOS), only
+  to see whether a proxy or cloud management is set; it refuses the check
+  if one is, and the refusal the model reads names only where the policy
+  is and the policy's name, never its value. The browser talks to
+  the extension over a pipe, never a network port, and is told to send no
+  background, sync or update traffic. The check is free.
 - **Hooks on the Model API backend (off by default).** With
   `museSpark.modelApiHooks` on, the hook commands in Muse Code's settings
   run on your machine as you, outside the agent's sandbox. That means your
