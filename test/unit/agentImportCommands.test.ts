@@ -17,6 +17,7 @@ import {
   HOOK_CONFIG_MAX_BYTES,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { CREDENTIAL_LEAKS, leakSecret, ORDINARY_LINES } from './helpers/credentialLeaks'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { type MemoryImportIo, memoryImportIo } from './helpers/memoryImportIo'
 import { SYNTHETIC } from './helpers/syntheticTokens'
@@ -482,16 +483,16 @@ describe('importFromAgents', () => {
     },
   )
 
-  it('masks opaque URL query values in MCP arguments and published CLAUDE.md rules', async () => {
+  it('masks an opaque URL query from its mark to the line’s end in MCP arguments and published rules', async () => {
     const secret = 'opaque-demo-value'
     const url = `https://example.test/mcp?signature=${secret}&tenant=demo`
-    const masked = `https://example.test/mcp?signature=${UI_TEXT.agentImportMasked}&tenant=${UI_TEXT.agentImportMasked}`
+    const masked = `https://example.test/mcp?${UI_TEXT.agentImportMasked}`
     const flow = run({
       files: {
         [`${HOME}/.claude.json`]: JSON.stringify({
           mcpServers: { remote: { command: 'npx', args: ['mcp-remote', url] } },
         }),
-        [`${WS}/CLAUDE.md`]: `Read [service](${url}).\n`,
+        [`${WS}/CLAUDE.md`]: `Read [service](${url}).\nThe next line stays.\n`,
       },
     })
     await flow.done
@@ -500,41 +501,53 @@ describe('importFromAgents', () => {
     expect(flow.clipboard.join('\n')).toContain(masked)
     expect(flow.clipboard.join('\n')).not.toContain(secret)
     expect(flow.io.files.get(`${WS}/AGENTS.md`)).toBe(
-      `## Imported from Claude Code (CLAUDE.md)\n\nRead [service](${masked}).\n`,
+      `## Imported from Claude Code (CLAUDE.md)\n\nRead [service](${masked}\nThe next line stays.\n`,
     )
     expect(flow.logged()).not.toContain(secret)
   })
 
-  it.each(["'", '"', '`'])(
-    'masks a query value in %s marks whole in MCP arguments, CLAUDE.md links and shell snippets',
-    async (mark) => {
-      const secret = 'opaque-demo-value'
-      const url = `https://example.test/mcp?signature=${mark}${secret}${mark}&tenant=demo`
-      const masked = `https://example.test/mcp?signature=${UI_TEXT.agentImportMasked}&tenant=${UI_TEXT.agentImportMasked}`
-      // A shell argument wrapped in the other kind of mark.
-      const wrap = mark === '"' ? "'" : '"'
-      const rules = (shown: string): string =>
-        `Read [service](${shown}).\n\n\`\`\`sh\ncurl -s ${wrap}${shown}${wrap} -o out.json\ncurl -s ${shown} | jq .\n\`\`\`\n`
-      const flow = run({
-        files: {
-          [`${HOME}/.claude.json`]: JSON.stringify({
-            mcpServers: { remote: { command: 'npx', args: ['mcp-remote', url] } },
-          }),
-          [`${WS}/CLAUDE.md`]: rules(url),
-        },
-      })
-      await flow.done
-      const published = flow.io.files.get(`${WS}/AGENTS.md`)
-      expect(flow.previews.join('\n')).not.toContain(secret)
-      expect(flow.clipboard.join('\n')).not.toContain(secret)
-      expect(published).not.toContain(secret)
-      expect(flow.logged()).not.toContain(secret)
-      expect(flow.previews.join('\n')).toContain(masked)
-      expect(flow.clipboard.join('\n')).toContain(masked)
-      // Published whole, with the text around each URL as it was.
-      expect(published).toBe(`## Imported from Claude Code (CLAUDE.md)\n\n${rules(masked)}`)
-    },
-  )
+  it('masks every reported credential leak in MCP arguments, hooks and published rules', async () => {
+    const leaks = CREDENTIAL_LEAKS.map((leak, index) => ({
+      name: leak.name,
+      secret: leakSecret(index),
+      text: leak.text(leakSecret(index)),
+    }))
+    const flow = run({
+      files: {
+        [`${HOME}/.claude.json`]: JSON.stringify({
+          mcpServers: Object.fromEntries(
+            leaks.map((leak, index) => [
+              `leak${String(index)}`,
+              { command: 'sh', args: ['-c', leak.text] },
+            ]),
+          ),
+        }),
+        [`${HOME}/.claude/settings.json`]: JSON.stringify({
+          hooks: {
+            Stop: [{ hooks: leaks.map((leak) => ({ type: 'command', command: leak.text })) }],
+          },
+        }),
+        [`${WS}/CLAUDE.md`]: `${[...ORDINARY_LINES, ...leaks.map((leak) => leak.text)].join('\n')}\n`,
+      },
+    })
+    await flow.done
+    const published = flow.io.files.get(`${WS}/AGENTS.md`) ?? ''
+    const copied: unknown = JSON.parse(flow.clipboard[0] ?? '')
+    // Every server and hook reached the copy, and every rules line the file.
+    const last = String(leaks.length - 1)
+    expect(copied).toHaveProperty(`mcpServers.leak${last}.args.0`, '-c')
+    expect(copied).toHaveProperty(`hooks.Stop.${last}.hooks.0.type`, 'command')
+    for (const leak of leaks) {
+      expect(flow.previews.join('\n'), leak.name).not.toContain(leak.secret)
+      expect(flow.clipboard.join('\n'), leak.name).not.toContain(leak.secret)
+      expect(published, leak.name).not.toContain(leak.secret)
+      expect(flow.logged(), leak.name).not.toContain(leak.secret)
+    }
+    for (const line of ORDINARY_LINES) {
+      expect(published).toContain(`\n${line}\n`)
+    }
+    expect(published.split(UI_TEXT.agentImportMasked)).toHaveLength(leaks.length + 1)
+  })
 
   it('notifies only project skill publication and rules append through the production flow', async () => {
     const complete = vi.fn<(wasWritten: boolean) => void>()
@@ -609,7 +622,7 @@ describe('importFromAgents', () => {
             hooks: [
               {
                 type: 'command',
-                command: `curl -H "Authorization: Bearer ${UI_TEXT.agentImportMasked}"`,
+                command: `curl -H "Authorization: ${UI_TEXT.agentImportMasked}`,
               },
             ],
           },

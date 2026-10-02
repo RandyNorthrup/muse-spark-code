@@ -253,7 +253,8 @@ describe('hooks', () => {
           event: 'PostToolUse',
           group: {
             matcher: 'Edit',
-            hooks: [{ type: 'command', command: `TOKEN=${MASK} notify.sh`, async: true }],
+            // From the credential's value to the end of the line, failing closed.
+            hooks: [{ type: 'command', command: `TOKEN=${MASK}`, async: true }],
           },
         },
         dropped: [],

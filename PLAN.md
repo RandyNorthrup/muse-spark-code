@@ -8966,7 +8966,33 @@ independent review and the full candidate gates remain required.**
 
 ### M83 — Import from other agents (D49)
 
-**Status 2026-10-01: RV83b repairs done; lead certification pending.**
+**Status 2026-10-01 (round 3): masking redesigned; lead certification pending.**
+The third independent review (RV83c, `6db3cc9d`→`a895dbb4`) found credentials
+still shown through shell word-joining (`'…?k='-value`, `'…'"value"`),
+whitespace inside a quoted value, the name and scheme length caps (which
+failed open), and two quadratic scans (13.8 s and 3.0 s for 64,000
+characters on Kubuntu). At the third round the masker was redesigned
+instead of patched (the owner's rule): free text now fails closed, line by
+line. From a line's first credential cue to the line's end, everything is
+masked. The cues are a URL (`://`) with a `?` or `@` before the next
+whitespace, a name holding a credential word followed by `=`, `:` or
+whitespace, and a known token shape, now including a JSON Web Token's start.
+An argument is masked the same way as one line, and the argument after a bare
+credential flag is masked whole. Dedicated `env`, header and URL fields are
+unchanged. The quote and shell-join helpers and every length cap are removed;
+`redact.ts` is untouched. A shared table of every reported leak (33 cases) is
+checked through `maskText`, `maskArgs` and the production flow. The preview,
+clipboard, published `AGENTS.md` and log hold no secret, and ordinary lines
+stay unchanged. Against `a895dbb4`'s masker, 41 of 139 tests fail. Fourteen
+guard drills on Kubuntu go red and restore byte-exact by SHA-256. Long lines
+of 64,000 characters take 15–132 ms on the Windows host, and nine import
+test files pass 260 tests on Kubuntu and the Mac mini. Scoped checks pass:
+five type projects, ESLint, Prettier, zero jscpd clones, host API, knip,
+localization and the build (importer 104.1/125 KiB). Lead next action: full quality, a fresh review, native VS
+Code import UI, other platforms and M76 runtime admission. Details are in
+`docs/certification/m83b.md`, "RV83c: masking redesigned".
+
+**Round 2 follow-up status (historical), 2026-10-01: RV83b repairs done.**
 The importer cap blocker below is fixed: the lead's `6db3cc9d` imports
 `zod/mini`, as the converter does (importer 104.0/125 KiB; seven import
 suites, 190 tests passed on Kubuntu). The second independent review (RV83b,
@@ -9190,12 +9216,16 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
     else the members to merge, with a warning for the legacy
     `mcp_servers` key; it is copied and the file opened (unsaved at its
     path when missing, so the user saves it).
-  - **Masking.** Every `env` and header value whole; URL user-info and
-    query values; the value after a credential-like flag or in a
-    credential-like assignment; the log redactor's shapes and the token
-    shapes it lacks (GitHub, OpenAI and Anthropic, Slack, AWS, Google,
-    Stripe). Entries are masked when converted, so no unmasked value is
-    kept. Parse failures are logged in fixed words: `JSON.parse` and
+  - **Masking.** Every `env` and header value whole; a URL field's
+    user-info and query values. Free text (MCP arguments, hook commands,
+    prompts, rules) fails closed, line by line (round 3, RV83c): from a
+    line's first credential cue to its end. The cues are a URL with a query or
+    user-info, a credential-like name followed by `=`, `:` or whitespace, and
+    the token shapes the log redactor lacks (GitHub, OpenAI and Anthropic,
+    Slack, AWS, Google, Stripe, a JSON Web Token's start). Each argument
+    counts as a line, the one after a bare credential flag is masked whole,
+    and the log redactor sweeps what is left. Entries are masked when
+    converted, so no unmasked value is kept. Parse failures are logged in fixed words: `JSON.parse` and
     `smol-toml` messages can quote the file.
   - **Custom agents before M76.** The agent files land in
     `.agents/agents/<id>/AGENT.md` and `<config>/muse/agents/<id>/AGENT.md`,

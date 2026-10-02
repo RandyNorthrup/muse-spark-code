@@ -564,9 +564,12 @@ them and converted to the formats their destination loads.
 A read-only preview shows everything first, secret-looking values masked,
 and nothing is written until you choose Import; an existing file is never
 replaced. The extension never writes Muse Code's `settings.json` or
-`.muse/hooks.json`. URL user-info and query values, quoted or not, are masked
-even inside command arguments, prompts and rules; copied and published text
-stays masked.
+`.muse/hooks.json`. In command arguments, prompts and rules, a line is masked
+from its first credential-looking value to its end: a URL's query or
+user-info, a value after a name such as `GITHUB_TOKEN=`, `--api-key` or
+`Authorization:`, or a known token. Harmless text after it is sometimes
+masked too, so check the preview. Server `env`, header and URL values are
+masked whole; copied and published text stays masked.
 It copies the masked entries for you and opens the file. It rechecks whether
 the file exists before clipboard and editor actions. A file
 created while the preview waits opens for merging; a vanished file opens

@@ -29,7 +29,8 @@ happened, not what was planned; superseded entries are kept.
 - M83 review repairs are implemented, with scoped regression/drill evidence.
   Their final round-2 build failed at 530.7/125 KiB for the importer (an
   accidental full `zod` import); importing `zod/mini`, as the converter does,
-  brought it to 104.0 KiB, and the second review's quoted-URL fix to 104.4 KiB.
+  brought it to 104.0 KiB, the second review's quoted-URL fix to 104.4 KiB,
+  and the third review's masking redesign to 104.1 KiB.
   See `docs/certification/m83b.md`; these repairs are not release certification.
 - Refused copy-only imports now count as not imported in notifications and logs.
   A fully refused import reports its counts as a warning without a success
@@ -40,20 +41,20 @@ happened, not what was planned; superseded entries are kept.
 - Imports recheck live trust and activation at scan read/list boundaries.
   Losing trust stops project-source reads while personal imports remain
   available; deactivation stops scanning and every pending picker or prompt.
-- URL credentials inside imported MCP arguments, commands, prompts and rules
-  now use the same masking as dedicated server URL fields. Preview, clipboard
-  and published rules keep the masked values, including opaque query values.
-- A query value in quote marks or backticks (`?signature='…'`), or joined from
-  quoted parts as a shell joins them, is now masked whole in imported MCP
-  arguments, commands and rules; before, the value after the opening mark was
-  shown. The mark a URL is wrapped in still ends it, so a closing quote, a
-  Markdown link's parenthesis and the rest of the line are kept.
-- Masking imported text now takes linear time. A long run of dotted, dashed
-  or credential-like words with no URL in it took time that grew with the
-  square or cube of its length (35 s for 5,000 characters of `-key-key…`).
-  It now takes milliseconds. The masker's URL scheme is at most 32
-  characters, as the log redactor's is, and its credential flag and
-  assignment names at most 31 characters after the credential word.
+- **Imported text is masked failing closed, line by line** (M83, third
+  review). In MCP arguments, hook commands, prompts and rules, everything from
+  a line's first credential cue to the end of the line is masked: a URL with
+  a query (from just after `?`) or user-info (from just after `://`), a
+  credential-like name (`GITHUB_TOKEN`, `--api-key`, `"client_secret"`,
+  `Authorization`) followed by `=`, `:` or whitespace, or a known token shape.
+  An argument is masked the same way, as one line. This replaces this cycle's
+  earlier attempts to find where a value ends: three reviews found credentials
+  shown through quote marks, a shell's word-joining, whitespace inside a
+  quoted value, and name and scheme length caps. Harmless text after a cue is
+  sometimes masked too (`keyboard shortcuts`); the preview shows it. Masking
+  takes linear time: each reported slow line of 64,000 characters takes
+  milliseconds (one took 13.8 s). Server `env`, header and URL fields are
+  still masked whole, their names, host and path kept.
 - Removed M83's temporary empty English-table stand-in and its build plugin.
   The lead-approved shared `dist/uiText.js` contract replaces this approach;
   the importer uses the same runtime fallback as the other Node bundles.
