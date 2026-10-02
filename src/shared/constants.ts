@@ -2481,9 +2481,14 @@ export const WINDOWS_POWERSHELL_RELATIVE_PATH = String.raw`System32\WindowsPower
 // Windows PowerShell 5.1 writes a redirected stdout in the OEM code page
 // ("héllo ✓" came back "h�llo ?", probed 2026-09-23 under Node's
 // windowsHide); this runs first and makes its output, and what it pipes to
-// native commands, UTF-8 without a BOM (PLAN.md D27).
+// native commands, UTF-8 without a BOM (PLAN.md D27). It names no command:
+// a cmdlet such as `New-Object` is found by module auto-loading, which,
+// without PowerShell's module analysis cache, first analyses every module
+// on the module path (20 to over 60 s on GitHub's Windows runner, whose
+// cache is reached only through `PSModuleAnalysisCachePath`, a variable a
+// hook's narrow environment does not carry).
 export const WINDOWS_POWERSHELL_UTF8_PREAMBLE =
-  '$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; '
+  '$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); '
 // Windows PowerShell running one inline script (the UAC relaunch for the
 // sandbox setup); `-NonInteractive` turns any prompt into an error.
 export const WINDOWS_POWERSHELL_COMMAND_ARGS = [

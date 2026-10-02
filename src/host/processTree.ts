@@ -312,6 +312,16 @@ export async function sweepExitedTree(
   await sweepOrphans(pid, diedAt, startedAt, deps.systemRoot, deps)
 }
 
+/**
+ * The statement that loads the job helper's assembly, through .NET rather
+ * than `Add-Type`: a cmdlet is found by module auto-loading, which without
+ * a module analysis cache analyses every module on the module path before
+ * the statement can run (20 s and more on GitHub's Windows runner, M51).
+ */
+export function loadJobAssembly(assemblyPath: string): string {
+  return `[void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)})`
+}
+
 /** Terminates the command's job: false (logged) when that could not be done. */
 async function didTerminateJob(
   job: ShellJob,
@@ -320,7 +330,7 @@ async function didTerminateJob(
   deps: ProcessTreeDeps,
 ): Promise<boolean> {
   const powershell = windowsPowerShell(systemRoot)
-  const script = `Add-Type -Path ${powerShellQuoted(job.assemblyPath)}; if ([${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(job.name)}, ${String(KILLED_EXIT_CODE)})) { '${TERMINATED}' } else { '${ABSENT}' }`
+  const script = `${loadJobAssembly(job.assemblyPath)}; if ([${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(job.name)}, ${String(KILLED_EXIT_CODE)})) { '${TERMINATED}' } else { '${ABSENT}' }`
   try {
     const output = await (deps.run ?? runProgram)(
       powershell.file,
