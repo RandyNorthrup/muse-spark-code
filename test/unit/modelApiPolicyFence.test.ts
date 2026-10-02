@@ -1,8 +1,11 @@
-// The dispatcher's live policy fence (M78, the lead's choke-point decision):
-// every tool the dispatcher knows by name, and the external ones (an MCP
-// server's, the IDE's), run through the host with the call's own I/O held
-// while a file deny, a mode change or a trust change lands. The outcome is
-// refused, and nothing the call brought back reaches any request. A tool the
+// The dispatcher's live policy fence (M78, the lead's choke-point decisions
+// after RV78f and RV78g): every tool the dispatcher knows by name, and the
+// external ones (an MCP server's, the IDE's), run through the host with the
+// call's own I/O held while a file deny, a mode change or a trust change
+// lands. The outcome is refused, and nothing the call brought back reaches
+// any request. Each row runs again with a deny on a file the call never
+// touches: an outcome that names every file it carries is delivered, one that
+// cannot (a command's, a server's, a child's) is refused. A tool the
 // dispatcher learns fails the first case until it has a row here.
 
 import { Buffer } from 'node:buffer'
@@ -47,6 +50,10 @@ const PDF = pdfFixture(1)
 const MCP_TOOL = 'mcp__docs__lookup'
 const IDE_TOOL = 'mcp__ide__getDiagnostics'
 const CHILD = 'subagent-1'
+// A file no call reads: a deny on it moves only the file policy's revision.
+const ELSEWHERE = 'elsewhere/never-read.txt'
+// What a child's reply quotes: its parent's model may see it only while the policy stands.
+const CHILD_QUOTE = `child read ${MARKER}`
 const FILES: Readonly<Record<string, string>> = {
   'private.txt': `needle ${MARKER}\n`,
   'notes.txt': `before ${MARKER}\n`,
@@ -95,6 +102,7 @@ type HoldPoint =
   | 'afterWrite'
   | 'realPath'
   | 'imageFill'
+  | 'imageReserve'
   | 'memoryRead'
   | 'memoryAfterWrite'
   | 'service'
@@ -114,7 +122,10 @@ type Hold =
   | { readonly at: 'event'; readonly when: (event: AgentEvent) => boolean }
   /** `get_goal`: the clock it reads is its one input after admission. */
   | { readonly at: 'clock' }
-  /** No I/O and no callback between its admission and the fence: nothing can race it. */
+  /**
+   * No I/O and no callback between its admission and the fence: nothing can
+   * race it. Checked: no fake I/O advances between its row's start and end.
+   */
   | { readonly at: 'none'; readonly reason: string }
 
 type Change =
@@ -143,6 +154,10 @@ interface FenceCase {
   readonly change: Change
   /** What must reach no request: the marker unless said; null where the outcome carries only what the model sent. */
   readonly leak?: string | null
+  /** The outcome names every file it carries (`touched.complete`): a deny elsewhere leaves it. */
+  readonly isComplete?: true
+  /** Refused before the image request: no request is made and nothing is billed. */
+  readonly isEgress?: true
 }
 
 const spawn: Call = {
@@ -170,6 +185,7 @@ function childControl(tool: string, args: unknown): FenceCase {
     replies: [{ text: 'child done' }],
     hold: { at: 'event', when: isChildUpdated },
     change: { kind: 'trust' },
+    // The wait before it delivered the child's reply, as it should.
     leak: null,
   }
 }
@@ -180,6 +196,7 @@ const CASES: readonly FenceCase[] = [
     args: { path: 'private.txt' },
     hold: { at: 'readFile', ...at('private.txt') },
     change: { kind: 'deny', path: 'private.txt' },
+    isComplete: true,
   },
   {
     tool: 'read_file',
@@ -188,6 +205,7 @@ const CASES: readonly FenceCase[] = [
     hold: { at: 'readBytes' },
     change: { kind: 'deny', path: 'photo.png' },
     leak: PNG.toString('base64'),
+    isComplete: true,
   },
   {
     tool: 'read_file',
@@ -196,18 +214,21 @@ const CASES: readonly FenceCase[] = [
     hold: { at: 'readBytes' },
     change: { kind: 'deny', path: 'doc.pdf' },
     leak: Buffer.from(PDF).toString('base64'),
+    isComplete: true,
   },
   {
     tool: 'list_files',
     args: {},
     hold: { at: 'listFiles' },
     change: { kind: 'deny', path: LISTED },
+    isComplete: true,
   },
   {
     tool: 'search',
     args: { pattern: 'needle' },
     hold: { at: 'searchFiles' },
     change: { kind: 'deny', path: 'private.txt' },
+    isComplete: true,
   },
   {
     tool: 'write_file',
@@ -215,12 +236,24 @@ const CASES: readonly FenceCase[] = [
     hold: { at: 'afterWrite', ...at('fresh.txt') },
     change: { kind: 'deny', path: 'fresh.txt' },
     leak: null,
+    isComplete: true,
   },
   {
     tool: 'edit_file',
     args: { path: 'notes.txt', find: 'before', replace: 'after' },
     hold: { at: 'afterWrite', ...at('notes.txt') },
     change: { kind: 'deny', path: 'notes.txt' },
+    // The model hears it edited the file; the file's text is on the row only.
+    leak: null,
+    isComplete: true,
+  },
+  {
+    tool: 'edit_file',
+    variant: 'then_run',
+    args: { path: 'notes.txt', find: 'before', replace: 'after', then_run: 'npm test' },
+    // The command's output joins the edit's: a deny anywhere refuses it.
+    hold: { at: 'shell' },
+    change: { kind: 'deny', path: ELSEWHERE },
   },
   {
     tool: 'bash',
@@ -269,24 +302,48 @@ const CASES: readonly FenceCase[] = [
     args: { id: 'deploy' },
     hold: { at: 'realPath', ...at('SKILL.md') },
     change: { kind: 'trust' },
+    isComplete: true,
   },
   {
     tool: 'generate_image',
     args: { prompt: 'a cat', path: 'cat.png' },
     hold: { at: 'imageFill' },
     change: { kind: 'deny', path: 'cat.png' },
+    isComplete: true,
+  },
+  {
+    tool: 'generate_image',
+    variant: 'egress',
+    args: { prompt: 'a cat', path: 'cat.png' },
+    hold: { at: 'imageReserve' },
+    change: { kind: 'deny', path: 'cat.png' },
+    isComplete: true,
+    isEgress: true,
   },
   {
     tool: 'edit_image',
     args: { prompt: 'brighten', images: ['photo.png'], path: 'edited.png' },
     hold: { at: 'imageFill' },
     change: { kind: 'deny', path: 'photo.png' },
+    isComplete: true,
+  },
+  {
+    tool: 'edit_image',
+    variant: 'egress',
+    args: { prompt: 'brighten', images: ['photo.png'], path: 'edited.png' },
+    hold: { at: 'imageReserve' },
+    change: { kind: 'deny', path: 'photo.png' },
+    // The source's bytes, as the request would carry them.
+    leak: PNG.toString('base64'),
+    isComplete: true,
+    isEgress: true,
   },
   {
     tool: 'read_memory',
     args: { scope: 'project', path: 'note.md' },
     hold: { at: 'memoryRead', ...at('note.md') },
     change: { kind: 'deny', path: '.agents/memory/note.md' },
+    isComplete: true,
   },
   {
     tool: 'add_memory',
@@ -294,12 +351,16 @@ const CASES: readonly FenceCase[] = [
     hold: { at: 'memoryAfterWrite', ...at('fresh.md') },
     change: { kind: 'deny', path: '.agents/memory/fresh.md' },
     leak: null,
+    isComplete: true,
   },
   {
     tool: 'edit_memory',
     args: { scope: 'project', path: 'note.md', old_str: 'keep', new_str: 'kept' },
     hold: { at: 'memoryAfterWrite', ...at('note.md') },
     change: { kind: 'deny', path: '.agents/memory/note.md' },
+    // Muse Code's answer to an edit names the note, not its text.
+    leak: null,
+    isComplete: true,
   },
   {
     tool: 'create_goal',
@@ -335,19 +396,20 @@ const CASES: readonly FenceCase[] = [
   {
     tool: 'subagent_spawn',
     args: spawn.args,
-    // The child's request and the parent's next one share these text replies.
-    replies: [{ text: 'child done' }],
+    // The child's request and the parent's next one share these text replies;
+    // the child's quote must not reach the parent once trust is gone.
+    replies: [{ text: CHILD_QUOTE }, { text: 'done' }],
     hold: { at: 'event', when: isChildRow },
     change: { kind: 'trust' },
-    leak: null,
   },
   {
     tool: 'subagent_wait',
     args: waitForChild.args,
     before: [spawn],
+    // The child quotes private.txt (RV78g P3-5): its wait and its drained
+    // result are both refused once that file is denied.
     hold: { at: 'childReply' },
-    change: { kind: 'trust' },
-    leak: null,
+    change: { kind: 'deny', path: 'private.txt' },
   },
   {
     tool: 'subagent_status',
@@ -427,6 +489,7 @@ const CASES: readonly FenceCase[] = [
     hold: { at: 'afterWrite', ...at('src/a.ts') },
     change: { kind: 'deny', path: 'src/a.ts' },
     leak: null,
+    isComplete: true,
   },
   {
     tool: MCP_TOOL,
@@ -442,13 +505,22 @@ const CASES: readonly FenceCase[] = [
   },
 ]
 
+/** A fixture with nothing held, for a flow one held call cannot show. */
+const UNHELD: FenceCase = {
+  tool: 'subagent_status',
+  args: {},
+  hold: { at: 'none', reason: 'nothing is held' },
+  change: { kind: 'trust' },
+}
+
 function label(c: FenceCase): string {
   return c.variant === undefined ? c.tool : `${c.tool} (${c.variant})`
 }
 
 /** The language services, each answer held at the case's gate when it holds there. */
-function heldService(service: LanguageServiceHost, isHeld: boolean, held: Gate) {
+function heldService(service: LanguageServiceHost, isHeld: boolean, held: Gate, count: () => void) {
   const after = async <T>(answer: () => Promise<T>): Promise<T> => {
+    count()
     if (isHeld) await held.hold()
     return await answer()
   }
@@ -475,36 +547,54 @@ function fixture(c: FenceCase) {
   const target = 'path' in c.hold ? c.hold.path : undefined
   const isAt = (where: HoldPoint, path: string) =>
     point === where && (target === undefined || path.endsWith(target))
+  // Every I/O any tool can make, counted: a row that claims none is checked.
+  const counter = { io: 0 }
+  const count = () => {
+    counter.io += 1
+  }
   const base = heldShellToolIo(FILES, ROOT)
   base.binaries.set(`${ROOT}/photo.png`, PNG)
   base.binaries.set(`${ROOT}/doc.pdf`, PDF)
   const io: typeof base = {
     ...base,
     readFile: async (...args: Parameters<ToolIo['readFile']>) => {
+      count()
       if (isAt('readFile', args[0])) await held.hold()
       return await base.readFile(...args)
     },
     readBytes: async (...args: Parameters<ToolIo['readBytes']>) => {
+      count()
       if (isAt('readBytes', args[0])) await held.hold()
       return await base.readBytes(...args)
     },
     listFiles: async () => {
+      count()
       if (point === 'listFiles') await held.hold()
       return await base.listFiles()
     },
     searchFiles: async (job) => {
+      count()
       if (point === 'searchFiles') await held.hold()
       return await base.searchFiles(job)
     },
     writeFile: async (...args: Parameters<ToolIo['writeFile']>) => {
+      count()
       await base.writeFile(...args)
       if (isAt('afterWrite', args[0])) await held.hold()
     },
     realPath: async (path) => {
+      count()
       if (isAt('realPath', path)) await held.hold()
       return await base.realPath(path)
     },
+    runShell: async (...args: Parameters<ToolIo['runShell']>) => {
+      count()
+      return await base.runShell(...args)
+    },
     reserveFile: async (...args: Parameters<ToolIo['reserveFile']>) => {
+      count()
+      // Before the image request: its egress fence judges what lands here.
+      if (point === 'imageReserve') await held.hold()
       const reservation = await base.reserveFile(...args)
       return {
         fill: async (bytes) => {
@@ -517,9 +607,11 @@ function fixture(c: FenceCase) {
   }
   const memory = memoryStoreOver(io.files, {
     beforeRead: async (path) => {
+      count()
       if (isAt('memoryRead', path)) await held.hold()
     },
     afterWrite: async (path) => {
+      count()
       if (isAt('memoryAfterWrite', path)) await held.hold()
     },
   }).store
@@ -533,11 +625,13 @@ function fixture(c: FenceCase) {
     description: 'Problems',
     inputSchema: { type: 'object' },
     call: async () => {
+      count()
       if (point === 'ide') await held.hold()
       return `No diagnostics. ${MARKER}`
     },
   }
   const webFetch: WebFetcher = async (url) => {
+    count()
     if (point === 'fetch') await held.hold()
     const text = `Fetched ${url}. ${MARKER}`
     return {
@@ -572,6 +666,7 @@ function fixture(c: FenceCase) {
     formatAfterEdit: () => Promise.resolve(undefined),
   }
   const clock: { onRead?: (() => void) | undefined } = {}
+  const paidUses: PaidFeature[] = []
   let time = 1_000_000
   let ids = 0
   const log = new FakeLogOutputChannel()
@@ -579,6 +674,9 @@ function fixture(c: FenceCase) {
     ...disabledPaidFeatures,
     isPaidFeatureOn: (feature) => PAID.has(feature),
     allowsPaidUse: () => Promise.resolve(true),
+    notePaidUse: (feature) => {
+      paidUses.push(feature)
+    },
     client: fakeModelApiClient(api, log),
     log,
     workspaceRoot: ROOT,
@@ -609,12 +707,14 @@ function fixture(c: FenceCase) {
     mcpServers: mcp,
     ideTools: [ide],
     webFetch,
-    codeIntel: heldService(service, point === 'service', held),
+    codeIntel: heldService(service, point === 'service', held, count),
     // The checks would run after every edit: only the case that runs them has them.
     ...(c.tool === 'run_checks' && { verify }),
     loadHooks: () => Promise.resolve([]),
   })
-  return { api, io, host, state, held, clock, mcp }
+  // The I/O so far: the fakes' counter, the MCP server's calls and every request.
+  const ioCount = () => counter.io + mcp.calls.length + api.requests.length
+  return { api, io, host, state, held, clock, mcp, paidUses, ioCount }
 }
 type Fixture = ReturnType<typeof fixture>
 
@@ -658,8 +758,17 @@ function outputOf(f: Fixture, callId: string): string | undefined {
   return undefined
 }
 
-async function runCase(c: FenceCase): Promise<Fixture> {
+/** The I/O count as the case's own row started and as it completed. */
+interface IoAround {
+  start?: number
+  end?: number
+}
+
+async function runCase(
+  c: FenceCase,
+): Promise<{ readonly f: Fixture; readonly ioAround: IoAround }> {
   const f = fixture(c)
+  const ioAround: IoAround = {}
   const session = (await f.host.startSession({
     workspaceRoot: ROOT,
     modelId: 'muse-spark-1.3',
@@ -674,8 +783,12 @@ async function runCase(c: FenceCase): Promise<Fixture> {
   session.onEvent((event) => {
     if (event.type === 'turnStarted') turnId ??= event.turnId
     if (event.type === 'turnCompleted' && event.turnId === turnId) isDone = true
+    if (event.type === 'itemCompleted' && event.item.tool === c.tool) {
+      ioAround.end = f.ioCount()
+    }
     if (event.type === 'itemStarted' && event.item.kind === 'toolCall') {
       isArmed = event.item.tool === c.tool
+      if (isArmed) ioAround.start = f.ioCount()
       if (isArmed && hold.at === 'clock') {
         f.clock.onRead = () => {
           land(c.change, f, setMode)
@@ -702,7 +815,7 @@ async function runCase(c: FenceCase): Promise<Fixture> {
     hold.at === 'childReply'
       ? [
           {
-            text: 'child done',
+            text: CHILD_QUOTE,
             onRequest: () => {
               void f.held.hold()
             },
@@ -745,7 +858,37 @@ async function runCase(c: FenceCase): Promise<Fixture> {
     expect(isDone).toBe(true)
   })
   await session.settled()
-  return f
+  return { f, ioAround }
+}
+
+/**
+ * The row again with a deny on a file the call never touches (RV78g): only
+ * the file policy's revision moves. A complete outcome is delivered; an
+ * opaque one is refused.
+ */
+function elsewhereRow(c: FenceCase): FenceCase {
+  return {
+    ...c,
+    variant: c.variant === undefined ? 'deny elsewhere' : `${c.variant}, deny elsewhere`,
+    change: { kind: 'deny', path: ELSEWHERE },
+  }
+}
+
+const HELD = CASES.filter((c) => c.hold.at !== 'none')
+// Rows whose change already is a deny elsewhere need no second run.
+const ELSEWHERE_ROWS = HELD.filter(
+  (c) => !(c.change.kind === 'deny' && c.change.path === ELSEWHERE),
+).map((c) => elsewhereRow(c))
+
+/** Asserts the row's outcome was refused and nothing it brought back reached a request. */
+function expectRefused(c: FenceCase, f: Fixture): void {
+  expect(outputOf(f, 'fenced')).toContain(
+    `Error: ${c.tool} ${MODEL_TEXT.toolRefusedByPolicyChange}`,
+  )
+  const leak = c.leak === undefined ? MARKER : c.leak
+  if (leak !== null) {
+    expect(JSON.stringify(f.api.requests)).not.toContain(leak)
+  }
 }
 
 const ALL_TOOLS: ToolDefinitionOptions = {
@@ -776,17 +919,37 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
     }
   })
 
-  it.each(CASES.filter((c) => c.hold.at !== 'none').map((c) => [label(c), c] as const))(
+  it.each(HELD.map((c) => [label(c), c] as const))(
     '%s: refused once the change lands, nothing it brought back sent',
     async (_label, c) => {
-      const f = await runCase(c)
+      const { f } = await runCase(c)
       try {
-        expect(outputOf(f, 'fenced')).toContain(
-          `Error: ${c.tool} ${MODEL_TEXT.toolRefusedByPolicyChange}`,
-        )
-        const leak = c.leak === undefined ? MARKER : c.leak
-        if (leak !== null) {
-          expect(JSON.stringify(f.api.requests)).not.toContain(leak)
+        expectRefused(c, f)
+        if (c.isEgress === true) {
+          // Refused before its request (RV78g P3-4): nothing sent, nothing billed.
+          expect(f.api.requests.filter((request) => request.path.startsWith('/images'))).toEqual([])
+          expect(f.paidUses).toEqual([])
+        }
+      } finally {
+        await f.host.close()
+      }
+    },
+  )
+
+  it.each(ELSEWHERE_ROWS.map((c) => [label(c), c] as const))(
+    '%s: a complete outcome is delivered, an opaque one refused',
+    async (_label, c) => {
+      const { f } = await runCase(c)
+      try {
+        if (c.isComplete !== true) {
+          expectRefused(c, f)
+          return
+        }
+        expect(outputOf(f, 'fenced')).not.toContain(MODEL_TEXT.toolRefusedByPolicyChange)
+        // What it read did reach the model: the deny elsewhere left it.
+        const delivered = c.leak === undefined ? MARKER : c.leak
+        if (delivered !== null) {
+          expect(JSON.stringify(f.api.requests)).toContain(delivered)
         }
       } finally {
         await f.host.close()
@@ -795,10 +958,12 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
   )
 
   it.each(CASES.filter((c) => c.hold.at === 'none').map((c) => [label(c), c] as const))(
-    '%s: nothing can land between its admission and the fence, so it runs as admitted',
+    '%s: makes no I/O between its admission and the fence, so it runs as admitted',
     async (_label, c) => {
-      const f = await runCase(c)
+      const { f, ioAround } = await runCase(c)
       try {
+        expect(ioAround.start).toBeDefined()
+        expect(ioAround.end).toBe(ioAround.start)
         const output = outputOf(f, 'fenced')
         expect(output).toBeDefined()
         expect(output).not.toContain(MODEL_TEXT.toolRefusedByPolicyChange)
@@ -807,4 +972,109 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
       }
     },
   )
+
+  it("withholds a child's result drained after the file policy moved, outside any call (RV78g P1)", async () => {
+    const { f, session, turnEnd } = await unheldSession()
+    const childHold = Promise.withResolvers<undefined>()
+    const childAsked = Promise.withResolvers<undefined>()
+    f.api.script(
+      {
+        calls: [
+          call('spawn', spawn),
+          // A wait that times out at once: the child finishes after the parent's turn.
+          call('wait', { name: 'subagent_wait', args: { subagent_id: CHILD, timeout_ms: 1 } }),
+        ],
+      },
+      {
+        text: CHILD_QUOTE,
+        onRequest: () => {
+          childAsked.resolve(undefined)
+        },
+        hold: childHold.promise,
+      },
+      { text: 'parent goes on' },
+    )
+    try {
+      await turnEnd(await session.sendTurn([{ type: 'text', text: 'delegate' }]))
+      await childAsked.promise
+      f.state.settings = { ...NO_RULES, repositoryRules: { denyRead: ['private.txt'] } }
+      childHold.resolve(undefined)
+      await vi.waitFor(() => {
+        expect(
+          session.history().items.find((item) => item.kind === 'subagent')?.controlStatus,
+        ).toBe('resultReady')
+      })
+      f.api.script({ text: 'fine' })
+      await turnEnd(await session.sendTurn([{ type: 'text', text: 'and now?' }]))
+      const sent = JSON.stringify(f.api.requests)
+      expect(sent).not.toContain(MARKER)
+      expect(sent).toContain(`${CHILD}: ${MODEL_TEXT.subagentResultWithheld}`)
+    } finally {
+      childHold.resolve(undefined)
+      await session.settled()
+      await f.host.close()
+    }
+  })
+
+  it("refuses a child's result in status and read_result once the policy moved since its spawn (RV78g P2-1)", async () => {
+    const { f, session, turnEnd } = await unheldSession()
+    // The deny lands after the wait, before the calls that read the result are let in.
+    session.onEvent((event) => {
+      if (event.type === 'itemCompleted' && event.item.tool === 'subagent_wait') {
+        f.state.settings = { ...NO_RULES, repositoryRules: { denyRead: [ELSEWHERE] } }
+      }
+    })
+    f.api.script(
+      {
+        calls: [
+          call('spawn', spawn),
+          call('wait', waitForChild),
+          call('status', { name: 'subagent_status', args: {} }),
+          call('read', { name: 'subagent_read_result', args: { subagent_id: CHILD } }),
+        ],
+      },
+      { text: 'child done' },
+      { text: 'done' },
+    )
+    try {
+      await turnEnd(await session.sendTurn([{ type: 'text', text: 'delegate' }]))
+      expect(outputOf(f, 'wait')).not.toContain(MODEL_TEXT.toolRefusedByPolicyChange)
+      for (const [callId, tool] of [
+        ['status', 'subagent_status'],
+        ['read', 'subagent_read_result'],
+      ] as const) {
+        expect(outputOf(f, callId)).toContain(
+          `Error: ${tool} ${MODEL_TEXT.toolRefusedByPolicyChange}`,
+        )
+      }
+    } finally {
+      await session.settled()
+      await f.host.close()
+    }
+  })
 })
+
+/** A scripted call of `made` with its own call id. */
+function call(callId: string, made: Call) {
+  return { name: made.name, arguments: JSON.stringify(made.args), callId }
+}
+
+/** A Bypass session on the fixture with nothing held, and a wait for one of its own turns' end. */
+async function unheldSession() {
+  const f = fixture(UNHELD)
+  const session = (await f.host.startSession({
+    workspaceRoot: ROOT,
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })) as ModelApiSession
+  const ended = new Set<string>()
+  session.onEvent((event) => {
+    if (event.type === 'turnCompleted') ended.add(event.turnId)
+  })
+  const turnEnd = async (submitted: { readonly turnId: string }) => {
+    await vi.waitFor(() => {
+      expect(ended.has(submitted.turnId)).toBe(true)
+    })
+  }
+  return { f, session, turnEnd }
+}

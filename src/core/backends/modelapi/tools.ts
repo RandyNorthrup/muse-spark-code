@@ -305,15 +305,26 @@ export interface VisibleFile {
 /**
  * The workspace files a call touched (M78), for the dispatcher's live policy
  * fence: the policy as it stands when the outcome is built must still allow
- * every one of them, or nothing from the call reaches the model.
+ * every one of them, or nothing from the call reaches the model. An outcome
+ * that names no files, or may carry text from files it cannot name (a
+ * command's output, a server's, a child's), is incomplete: it fails closed,
+ * refused if the file policy changed at all since the call was let in.
  */
 export interface TouchedFiles {
   /** Each file as named and after links are resolved, workspace-relative (or absolute under an extra root). */
   readonly names: readonly string[]
+  /** True only when the outcome provably carries nothing from any file but `names`. */
+  readonly complete: boolean
   /** The permission profile's extra root a file was read under. */
   readonly extraRoot?: string
   /** A read recorded as seen (D27), by absolute path: forgotten when its outcome is refused. */
   readonly seen?: string
+  /**
+   * The file-policy revisions under which earlier work this outcome carries
+   * was done (a child's, since its spawn): each must still stand, or the
+   * outcome is refused. Undefined is a revision nobody recorded.
+   */
+  readonly revisions?: readonly (string | undefined)[]
 }
 
 export interface ToolOutcome {
@@ -1027,6 +1038,7 @@ async function readFile(
   // Every outcome from here on, a failure included, comes from the file.
   const touched: TouchedFiles = {
     names: [resolved.relative, resolved.canonical],
+    complete: true,
     ...(resolved.extraRoot !== undefined && { extraRoot: resolved.extraRoot }),
   }
   const visual = visualKindOf(resolved.relative)
@@ -1108,7 +1120,7 @@ async function located(
 
 /** A file an edit wrote, as the dispatcher's fence judges it (M78). */
 function touchedBy(file: { readonly relative: string; readonly canonical: string }): TouchedFiles {
-  return { names: [file.relative, file.canonical] }
+  return { names: [file.relative, file.canonical], complete: true }
 }
 
 /** Why an edit must not touch this file now, or undefined (D27). */
@@ -1316,7 +1328,7 @@ async function search(
     })),
   })
   // Every candidate, searched or not: its name may be in a hit or a count.
-  const touched: TouchedFiles = { names: candidates }
+  const touched: TouchedFiles = { names: candidates, complete: true }
   if (!outcome.ok) {
     return { ...failure(outcome.reason), touched }
   }
@@ -1354,7 +1366,11 @@ async function listFiles(
     files.length > shown.length ? `\n[${String(files.length - shown.length)} more files]` : ''
   const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
   // Every file listed, shown or counted.
-  return { output: clip(body), visibleOutput: clip(body), touched: { names: files } }
+  return {
+    output: clip(body),
+    visibleOutput: clip(body),
+    touched: { names: files, complete: true },
+  }
 }
 
 async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Promise<ToolOutcome> {

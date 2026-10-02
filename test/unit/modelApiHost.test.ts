@@ -13229,12 +13229,126 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
     held.release()
     await turnDone()
     expect(t.api.editBodies()).toEqual([])
+    // No image request at all left (RV78g P3-4).
+    expect(t.api.requests.filter((request) => request.path.startsWith('/images'))).toEqual([])
     expect(JSON.stringify(t.api.requests)).not.toContain(source.toString('base64'))
     expect(toolOutput(t, 'e1')).toBe(`Error: edit_image ${MODEL_TEXT.toolRefusedByPolicyChange}`)
     // Nothing was sent, so the claim settles at nothing and nothing is billed.
     expect(settled).toEqual([0])
     expect(t.paidUses).toEqual([])
     expect(t.io.binaries.has(`${ROOT}/out.png`)).toBe(false)
+  })
+
+  it('ends add_memory as a stop when Stop comes while its index line is written (RV78g P2-3)', async () => {
+    const write = heldWait()
+    const t = setup({
+      beforeMemoryWrite: async (path) => {
+        if (path.endsWith('/MEMORY.md')) await write.hold()
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [ADD_DEPLOY] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'remember' }])
+    await write.entered
+    const stopping = session.cancel()
+    write.release()
+    await stopping
+    await turnDone()
+    expect(completedRow(events, 'add_memory')).toMatchObject({
+      status: 'cancelled',
+      visibleOutput: MODEL_TEXT.toolCancelledByStop,
+    })
+    // The note itself was published before the Stop; its index line was not.
+    expect(t.files.has(`${ROOT}/.agents/memory/deploy.md`)).toBe(true)
+    expect(t.files.has(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(false)
+  })
+
+  it('keeps a note reported written when only its new index line is denied during the write (RV78)', async () => {
+    let settings = m78Settings()()
+    const write = heldWait()
+    const t = setup({
+      permissionSettings: () => settings,
+      beforeMemoryWrite: async (path) => {
+        if (path.endsWith('/MEMORY.md')) await write.hold()
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [ADD_DEPLOY] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'remember' }])
+    await write.entered
+    settings = { ...settings, repositoryRules: { denyRead: ['.agents/memory/MEMORY.md'] } }
+    write.release()
+    await turnDone()
+    expect(toolOutput(t, 'call_add')).toBe(DEPLOY_WRITTEN)
+    expect(completedRow(events, 'add_memory')).toMatchObject({ status: 'completed' })
+    expect(t.files.has(`${ROOT}/.agents/memory/deploy.md`)).toBe(true)
+    expect(t.files.has(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(false)
+  })
+
+  it("judges a stored child's result after a resume by the revision its child ran under (RV78g P1)", async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store, permissionSettings: m78Settings() })
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: JSON.stringify({ role: 'worker', objective: 'Look around' }),
+            callId: 'spawn',
+          },
+          {
+            name: 'subagent_wait',
+            arguments: '{"subagent_id":"subagent-1","timeout_ms":5000}',
+            callId: 'wait',
+          },
+        ],
+      },
+      { text: 'child done' },
+      { text: 'parent done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForIdleResponses(t, session, 3)
+    await t.host.flush()
+    const stored = await store.load(session.sessionId)
+    expect(stored?.children?.map((child) => child.id)).toEqual(['subagent-1'])
+    const revision = stored?.children?.[0]?.policyRevision
+    expect(revision).toMatch(/^[a-f0-9]{64}$/)
+    if (stored === undefined || revision === undefined) {
+      throw new Error('expected a saved child with its revision')
+    }
+    session.dispose()
+    const lead = MODEL_TEXT.subagentResult
+    const pending = [
+      {
+        childId: 'subagent-1',
+        text: `${lead}\nsubagent-1: CURRENT-RESULT`,
+        policyRevision: revision,
+      },
+      { childId: 'subagent-1', text: `${lead}\nsubagent-1: STALE-RESULT`, policyRevision: 'stale' },
+      `${lead}\nsubagent-1: LEGACY-RESULT`,
+    ]
+    for (const [settings, delivered] of [
+      [m78Settings(), true],
+      [m78Settings('', { denyRead: ['elsewhere'] }), false],
+    ] as const) {
+      // A store of its own: the other run's host may still save its session.
+      const resumedStore = memorySessionStore()
+      resumedStore.saved.set(session.sessionId, { ...stored, pendingChildResults: pending })
+      const resumedHost = setupSubagents({ store: resumedStore, permissionSettings: settings })
+      await resumedHost.host.load()
+      const resumed = await resumedHost.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      const turns = watchTurns(resumed.session)
+      resumedHost.api.script({ text: 'fine' })
+      await resumed.session.sendTurn([{ type: 'text', text: 'and now?' }])
+      await turns.turnDone()
+      const sent = JSON.stringify(resumedHost.api.responseBodies())
+      expect(sent.includes('CURRENT-RESULT')).toBe(delivered)
+      expect(sent).not.toContain('STALE-RESULT')
+      expect(sent).not.toContain('LEGACY-RESULT')
+      expect(sent.split(MODEL_TEXT.subagentResultWithheld).length - 1).toBe(delivered ? 2 : 3)
+      resumed.session.dispose()
+    }
   })
 })
 

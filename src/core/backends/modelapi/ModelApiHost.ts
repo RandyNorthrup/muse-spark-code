@@ -6,6 +6,7 @@
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import type {
   AgentEvent,
   ApprovalSubject,
@@ -171,7 +172,7 @@ import type { McpTool } from '../../mcp'
 import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import { approvalHost, checkPageUrl } from '../../web/pageUrl'
-import type { MemoryStore } from '../../memory/memoryStore'
+import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
 import { type CodeIntelDeps, CodeIntelRefusal } from '../../codeIntel/codeIntelQuery'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
 import type { LanguageServiceHost } from '../../codeIntel/languageService'
@@ -259,6 +260,7 @@ import {
   headerOf,
   recordOf,
   type SessionStore,
+  type StoredPendingChildResult,
   type StoredReplayItem,
   type StoredSession,
   type StoredSessionHeader,
@@ -534,6 +536,13 @@ interface ChildRecord {
   nextTaskGrant: ChildTaskGrant | undefined
   /** Any state change invalidates a modal opened before it. */
   revision: number
+  /**
+   * The file policy's revision at the spawn's admission (M78, the RV78g
+   * review): the child's results quote what it read since, so they reach
+   * the parent's model only while the policy is still that revision.
+   * Undefined for a child saved before revisions were recorded.
+   */
+  readonly policyRevision: string | undefined
 }
 
 /** One consented child task; only in memory, never in the session snapshot. */
@@ -682,6 +691,8 @@ interface Admission {
   readonly query: PermissionQuery
   readonly judgement: PermissionJudgement
   readonly isTrusted: boolean
+  /** The file policy's revision then (`filePolicyRevision`), for an outcome that cannot name its files. */
+  readonly revision: string
 }
 
 /**
@@ -1039,6 +1050,44 @@ function questionResultText(reply: QuestionReply): string {
       return `${MODEL_TEXT.clarificationLead}\n${reply.text}`
     }
   }
+}
+
+/** A child's result waiting for the parent's next request, with the revision its child ran under. */
+interface PendingChildResult {
+  readonly childId: string
+  readonly text: string
+  readonly revision: string | undefined
+}
+
+// The child named on a result's second line (`<lead>\n<id>: …`), for a result saved as plain text.
+const PENDING_RESULT_CHILD = /^[^\n]*\n([^:\n]+):/
+
+/** A stored pending result; one saved as plain text has no revision, so it is withheld. */
+function pendingFromStored(stored: StoredPendingChildResult): PendingChildResult {
+  return typeof stored === 'string'
+    ? {
+        childId: PENDING_RESULT_CHILD.exec(stored)?.[1] ?? SUBAGENT_ID_PREFIX,
+        text: stored,
+        revision: undefined,
+      }
+    : { childId: stored.childId, text: stored.text, revision: stored.policyRevision }
+}
+
+function storedPending(pending: PendingChildResult): StoredPendingChildResult {
+  return {
+    childId: pending.childId,
+    text: pending.text,
+    ...(pending.revision !== undefined && { policyRevision: pending.revision }),
+  }
+}
+
+/**
+ * What an outcome carrying children's results touched (M78, the RV78g
+ * review): no file it can name, and each child's work since its spawn, which
+ * must still be the file policy's revision.
+ */
+function childResultsTouched(children: readonly ChildRecord[]): TouchedFiles {
+  return { names: [], complete: false, revisions: children.map((child) => child.policyRevision) }
 }
 
 function subagentFailure(reason: string): ToolOutcome {
@@ -1592,7 +1641,7 @@ export class ModelApiSession implements AgentSession {
   private readonly queuedTurns: QueuedTurn[] = []
   private readonly children = new Map<string, ChildRecord>()
   private readonly spawnCommands = new Map<string, string>()
-  private readonly pendingChildResults: string[] = []
+  private readonly pendingChildResults: PendingChildResult[] = []
   private childTaskGrant: ChildTaskGrant | undefined
   private readonly admitChildAttempt = (
     keyDigest: string | undefined,
@@ -2015,8 +2064,17 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * Completed children's results into the replay, each only while the file
+   * policy is still the revision its child was spawned under (M78, the RV78g
+   * review): a result quotes what its child read, and a deny or trust change
+   * since withholds it, after a resume too. The model is told it was.
+   */
   private drainChildResults(): void {
-    for (const text of this.pendingChildResults.splice(0)) {
+    for (const pending of this.pendingChildResults.splice(0)) {
+      const text = this.isRevisionCurrent([pending.revision])
+        ? pending.text
+        : `${MODEL_TEXT.subagentResult}\n${pending.childId}: ${MODEL_TEXT.subagentResultWithheld}`
       this.replay.push({
         turnId: this.turnIds.at(-1) ?? this.sessionId,
         item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
@@ -4166,7 +4224,8 @@ export class ModelApiSession implements AgentSession {
       visibleOutput: `Loaded skill ${skill.id} (${skill.source})`,
     }
     if (skill.source !== PROJECT_SKILL_SOURCE) {
-      return loaded
+      // Muse Code's own folder: no file the workspace's rules name.
+      return { ...loaded, touched: { names: [], complete: true } }
     }
     const file = await confineWorkspacePath(
       this.deps.workspaceRoot,
@@ -4180,7 +4239,7 @@ export class ModelApiSession implements AgentSession {
     const names = [file.relative, file.canonical]
     return this.policy().files.isDenied(names)
       ? deniedPath(file.relative)
-      : { ...loaded, touched: { names } }
+      : { ...loaded, touched: { names, complete: true } }
   }
 
   /**
@@ -4221,6 +4280,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<ToolOutcome> {
     const touched: TouchedFiles = {
       names: [plan.target, ...plan.sources].flatMap((file) => [file.relative, file.canonical]),
+      complete: true,
     }
     for (const path of [plan.target, ...plan.sources]) {
       const current = await confineWorkspacePath(
@@ -4568,9 +4628,11 @@ export class ModelApiSession implements AgentSession {
         ...(text !== '' && { text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }),
         ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
       }
-      this.pendingChildResults.push(
-        `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
-      )
+      this.pendingChildResults.push({
+        childId: child.id,
+        text: `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
+        revision: child.policyRevision,
+      })
       this.emit(event)
       this.updateChild(child)
       if (child.followupAfterStop !== undefined) {
@@ -4768,9 +4830,11 @@ export class ModelApiSession implements AgentSession {
         }
         child.pendingMessages.length = 0
         child.session.childTaskGrant = undefined
-        this.pendingChildResults.push(
-          `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ summary: messages.model, text: messages.model, errorKind: `subagent_${refusal}` })}`,
-        )
+        this.pendingChildResults.push({
+          childId: child.id,
+          text: `${MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ summary: messages.model, text: messages.model, errorKind: `subagent_${refusal}` })}`,
+          revision: child.policyRevision,
+        })
         this.updateChild(child)
         continue
       }
@@ -4792,6 +4856,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     turnId: string,
     grant: ChildTaskGrant | undefined,
+    policyRevision: string,
   ): ToolOutcome {
     if (grant === undefined) {
       return childTaskFailure('consentDeclined')
@@ -4866,6 +4931,7 @@ export class ModelApiSession implements AgentSession {
       followupAfterStop: undefined,
       nextTaskGrant: undefined,
       revision: 0,
+      policyRevision,
     }
     child.onEvent((event) => {
       this.childEvent(record, event)
@@ -4904,6 +4970,7 @@ export class ModelApiSession implements AgentSession {
       return {
         output: JSON.stringify({ subagent_id: child.id, state: child.state, result: child.result }),
         visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+        touched: childResultsTouched([child]),
       }
     }
     const state = await new Promise<'ready' | 'timeout' | 'aborted'>((resolve) => {
@@ -4939,6 +5006,7 @@ export class ModelApiSession implements AgentSession {
         result: child.result,
       }),
       visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+      touched: childResultsTouched([child]),
     }
   }
 
@@ -4946,6 +5014,7 @@ export class ModelApiSession implements AgentSession {
     turnId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    admission: Admission,
     grant?: ChildTaskGrant,
   ): Promise<ToolOutcome> {
     if (this.isSubagent) {
@@ -4953,7 +5022,7 @@ export class ModelApiSession implements AgentSession {
     }
     const args = argumentsOf(call)
     if (call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
-      return this.spawnChild(call, turnId, grant)
+      return this.spawnChild(call, turnId, grant, admission.revision)
     }
     if (call.name === MODEL_API_SUBAGENT_TOOLS.status) {
       const parsed = statusArgs.safeParse(args)
@@ -4970,6 +5039,7 @@ export class ModelApiSession implements AgentSession {
         state: SubagentState
         result: ChildRecord['result']
       }[] = []
+      const listed: ChildRecord[] = []
       for (const child of this.children.values()) {
         if (parsed.data.subagent_id !== undefined && child.id !== parsed.data.subagent_id) {
           continue
@@ -4978,6 +5048,7 @@ export class ModelApiSession implements AgentSession {
         if (statusFilter && statusFilter !== 'all' && child.state !== statusFilter) {
           continue
         }
+        listed.push(child)
         children.push({
           subagent_id: child.id,
           role: child.role,
@@ -4989,6 +5060,7 @@ export class ModelApiSession implements AgentSession {
       return {
         output: JSON.stringify({ subagents: children }),
         visibleOutput: plural(UI_TEXT.agentsCount, children.length),
+        touched: childResultsTouched(listed),
       }
     }
     if (call.name === MODEL_API_SUBAGENT_TOOLS.wait) {
@@ -5058,6 +5130,7 @@ export class ModelApiSession implements AgentSession {
       return {
         output: JSON.stringify({ subagent_id: child.id, result: child.result }),
         visibleOutput: child.result?.summary ?? '',
+        touched: childResultsTouched([child]),
       }
     }
     if (call.name === MODEL_API_SUBAGENT_TOOLS.cancel) {
@@ -5096,7 +5169,7 @@ export class ModelApiSession implements AgentSession {
       return { outcome: await this.performExternal(external, call, signal) }
     }
     if (isSubagentTool(call.name)) {
-      return { outcome: await this.runSubagentTool(turnId, call, signal, childGrant) }
+      return { outcome: await this.runSubagentTool(turnId, call, signal, admission, childGrant) }
     }
     switch (call.name) {
       case MODEL_API_TOOLS.askUser: {
@@ -5712,8 +5785,8 @@ export class ModelApiSession implements AgentSession {
         output: `${MODEL_TEXT.runChecksLead}\n\n${section}`,
         visibleOutput: section,
         verifySummary: { files: checked, checks: runs.map((run) => run.summary) },
-        // What the checks ran over: their output may quote any of it (M78).
-        touched: { names: checked },
+        // What the checks ran over; their output may quote any file (M78).
+        touched: { names: checked, complete: false },
       },
       hookEffects: effects,
     }
@@ -5811,27 +5884,69 @@ export class ModelApiSession implements AgentSession {
 
   /** What let a call in, captured at its admission for the fences that judge it again (M78). */
   private admitted(query: PermissionQuery, judgement: PermissionJudgement): Admission {
-    return { query, judgement, isTrusted: this.deps.isWorkspaceTrusted() }
+    return {
+      query,
+      judgement,
+      isTrusted: this.deps.isWorkspaceTrusted(),
+      revision: this.filePolicyRevision(),
+    }
+  }
+
+  /**
+   * The file policy's revision (M78, the RV78g review): a digest of the
+   * profile, its deny-read globs, deny-all and extra roots, and the
+   * workspace's trust. Any change to any of them is a new revision. A digest
+   * rather than a counter, so a child's result stored with its revision is
+   * judged by the same rule after a restart, and no glob or root is stored.
+   */
+  private filePolicyRevision(): string {
+    const { profileName, files } = this.policy()
+    const facts = [
+      profileName ?? null,
+      files.denyGlobs,
+      files.isDenyAll,
+      files.extraRoots,
+      this.deps.isWorkspaceTrusted(),
+    ]
+    return createHash('sha256').update(JSON.stringify(facts)).digest('hex')
+  }
+
+  /**
+   * Whether work done under each of `revisions` may still reach the model:
+   * only while the file policy is that revision now. One nobody recorded
+   * (a child or result saved before revisions were) may not.
+   */
+  private isRevisionCurrent(revisions: readonly (string | undefined)[]): boolean {
+    const now = this.filePolicyRevision()
+    return revisions.every((revision) => revision === now)
   }
 
   /**
    * The dispatcher's live policy fence (M78, the lead's choke-point
-   * decision): every call's outcome, from every tool, built-in or external,
-   * judged again by `policyRefusal` over its admission and the files it
-   * touched, synchronously, right before the outcome is built for the model.
-   * A tool that reports no files is judged on its verdict, the mode and the
-   * trust alone. A refusal replaces the outcome, so nothing from the call
-   * reaches the model; a read it recorded as seen is forgotten, and a write
-   * it had already made is said to stay. A call refused before admission did
-   * nothing, and a rejection (`isRejected`) brought nothing back: the caller
-   * passes either as it is, in its own words.
+   * decisions after RV78f and RV78g): every call's outcome, from every tool,
+   * built-in or external, judged again synchronously, right before the
+   * outcome is built for the model. `policyRefusal` judges its admission and
+   * the files it touched. An outcome whose `touched` is not complete (no
+   * list, or a command's, a server's, a child's text) cannot name what it
+   * quotes, so it fails closed: refused if the file policy's revision moved
+   * at all since the call was let in, or since any earlier work it carries
+   * (`touched.revisions`). A refusal replaces the outcome, so nothing from
+   * the call reaches the model; a read it recorded as seen is forgotten, and
+   * a write it had already made is said to stay. A call refused before
+   * admission did nothing, and a rejection (`isRejected`) brought nothing
+   * back: the caller passes either as it is, in its own words.
    */
   private fencedOutcome(admission: Admission | undefined, outcome: ToolOutcome): ToolOutcome {
     if (admission === undefined) {
       return outcome
     }
     const { touched } = outcome
-    const refusal = this.policyRefusal(admission, touched?.names, touched?.extraRoot)
+    const isOpaqueAndMoved =
+      touched?.complete !== true &&
+      !this.isRevisionCurrent([admission.revision, ...(touched?.revisions ?? [])])
+    const refusal =
+      this.policyRefusal(admission, touched?.names, touched?.extraRoot) ??
+      (isOpaqueAndMoved ? policyChangedRefusal(admission.query.toolName) : undefined)
     if (refusal === undefined) {
       return outcome
     }
@@ -6015,7 +6130,7 @@ export class ModelApiSession implements AgentSession {
     isAllowed: () => boolean,
     fence: MemoryFence,
   ): Promise<ToolOutcome> {
-    const touched: TouchedFiles = { names: fence.noteNames }
+    const touched: TouchedFiles = { names: fence.noteNames, complete: true }
     const assertOwner = () => {
       if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
     }
@@ -6033,6 +6148,12 @@ export class ModelApiSession implements AgentSession {
     try {
       outcome = await this.runPlacedMemoryWrite(memory, placed, assertCurrent)
     } catch (error: unknown) {
+      if (error instanceof IndexLineStoppedError) {
+        // The note is published. A Stop ends the call as a stop (the RV78g
+        // review); a refusal of its index line alone keeps it reported written.
+        if (refusal === undefined) throw error.stopped
+        return { output: error.written, visibleOutput: error.written, touched }
+      }
       if (refusal === undefined) throw error
       return refusal
     }
@@ -6194,7 +6315,8 @@ export class ModelApiSession implements AgentSession {
       runCodeIntelRead(tool, call.arguments, { ...deps, canReadFile }, signal),
       signal,
     )
-    return { ...outcome, touched: { names } }
+    // A provider's answer (a hover's text) may quote what no placed file holds.
+    return { ...outcome, touched: { names, complete: false } }
   }
 
   /**
@@ -6290,7 +6412,10 @@ export class ModelApiSession implements AgentSession {
           this.noteEdited(file)
         },
       })
-      return { outcome: { ...outcome, touched: { names: touched } }, isRejected: false }
+      return {
+        outcome: { ...outcome, touched: { names: touched, complete: true } },
+        isRejected: false,
+      }
     } finally {
       for (const complete of completions) {
         complete()
@@ -6696,6 +6821,8 @@ export class ModelApiSession implements AgentSession {
       outcome: {
         ...edit,
         output: `${edit.output}\n\n${MODEL_TEXT.thenRunLead} $ ${line}\n${finished.output}`,
+        // The command's output may quote any file: the outcome can no longer name them all.
+        touched: { names: edit.touched?.names ?? [], complete: false },
         thenRun: {
           command: line,
           outcome: outcomeOf(result),
@@ -8936,7 +9063,7 @@ export class ModelApiSession implements AgentSession {
       ...freshFork,
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       ...(this.pendingChildResults.length > 0 && {
-        pendingChildResults: [...this.pendingChildResults],
+        pendingChildResults: this.pendingChildResults.map((pending) => storedPending(pending)),
       }),
       ...(this.children.size > 0 && {
         children: Array.from(this.children.values(), (child) => ({
@@ -8949,6 +9076,7 @@ export class ModelApiSession implements AgentSession {
           state: child.state,
           ...(child.result !== undefined && { result: child.result }),
           ...(child.terminal !== undefined && { terminal: child.terminal }),
+          ...(child.policyRevision !== undefined && { policyRevision: child.policyRevision }),
           pendingMessages: [...child.pendingMessages],
           session: child.session.snapshot(),
         })),
@@ -8990,7 +9118,9 @@ export class ModelApiSession implements AgentSession {
     this.budgetSpentUsd = stored.budgetSpentUsd ?? 0
     this.budgetAccountId = stored.accountId
     this.status = IDLE
-    this.pendingChildResults.push(...(stored.pendingChildResults ?? []))
+    this.pendingChildResults.push(
+      ...(stored.pendingChildResults ?? []).map((stored) => pendingFromStored(stored)),
+    )
     const savedCommands = Object.entries(stored.spawnCommands ?? {})
     for (const [commandId, childId] of savedCommands) {
       this.spawnCommands.set(commandId, childId)
@@ -9035,6 +9165,7 @@ export class ModelApiSession implements AgentSession {
         followupAfterStop: undefined,
         nextTaskGrant: undefined,
         revision: 0,
+        policyRevision: saved.policyRevision,
       }
       session.onEvent((event) => {
         this.childEvent(record, event)

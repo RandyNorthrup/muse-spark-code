@@ -59,9 +59,19 @@ export interface StoredChild {
     readonly errorKind?: string
   }
   readonly terminal?: string
+  /** The file policy's revision at the spawn (M78): its results reach the parent only under it. */
+  readonly policyRevision?: string
   readonly pendingMessages: readonly string[]
   readonly session: StoredSession
 }
+
+/**
+ * A completed child's result not yet in a request, with the file policy's
+ * revision its child ran under (M78). Plain text is a result saved before
+ * revisions were: it is withheld.
+ */
+export type StoredPendingChildResult =
+  string | { readonly childId: string; readonly text: string; readonly policyRevision?: string }
 
 /** One session on disk. Optional fields are absent, never null. */
 export interface StoredSession {
@@ -103,7 +113,7 @@ export interface StoredSession {
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
-  readonly pendingChildResults?: readonly string[]
+  readonly pendingChildResults?: readonly StoredPendingChildResult[]
   readonly spawnCommands?: Readonly<Record<string, string>>
 }
 
@@ -267,12 +277,24 @@ export const storedSessionSchema = z.object({
           }),
         ),
         terminal: z.optional(z.string()),
+        policyRevision: z.optional(z.string()),
         pendingMessages: z.array(z.string()),
         session: z.object(storedSessionFields),
       }),
     ),
   ),
-  pendingChildResults: z.optional(z.array(z.string())),
+  pendingChildResults: z.optional(
+    z.array(
+      z.union([
+        z.string(),
+        z.object({
+          childId: z.string(),
+          text: z.string(),
+          policyRevision: z.optional(z.string()),
+        }),
+      ]),
+    ),
+  ),
   spawnCommands: z.optional(z.record(z.string(), z.string())),
 })
 
@@ -315,10 +337,11 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     if (!parsedChild.ok) {
       return parsedChild
     }
-    const { result: childResult, terminal, session: _session, ...childRest } = child
+    const { result: childResult, terminal, policyRevision, session: _session, ...childRest } = child
     restoredChildren.push({
       ...childRest,
       session: parsedChild.session,
+      ...(policyRevision !== undefined && { policyRevision }),
       ...(childResult !== undefined && {
         result: {
           summary: childResult.summary,
@@ -345,7 +368,19 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(sideChat === true && { sideChat: true }),
       ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),
-      ...(pendingChildResults !== undefined && { pendingChildResults }),
+      ...(pendingChildResults !== undefined && {
+        pendingChildResults: pendingChildResults.map((pending) =>
+          typeof pending === 'string'
+            ? pending
+            : {
+                childId: pending.childId,
+                text: pending.text,
+                ...(pending.policyRevision !== undefined && {
+                  policyRevision: pending.policyRevision,
+                }),
+              },
+        ),
+      }),
       ...(spawnCommands !== undefined && { spawnCommands }),
     },
   }
