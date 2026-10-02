@@ -87,6 +87,7 @@ const HELD_DEPS = [
   'isPaidUseRemembered',
   'notePaidUse',
   'noteSubagentUsage',
+  'noteReviewerUsage',
 ] as const satisfies readonly (keyof ModelApiHostDeps)[]
 
 /** The mechanism's harness; one that moves a held dependency does not run. */
@@ -155,6 +156,11 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     // A child task that ran is a paid use (D48) the run should have refused;
     // its requests went through the same client, so the trace counts them.
     noteSubagentUsage: () => {
+      counts.paidUses += 1
+    },
+    // So is an Auto review (M78): no paid feature is on, so one that
+    // reported usage ran anyway.
+    noteReviewerUsage: () => {
       counts.paidUses += 1
     },
   }
