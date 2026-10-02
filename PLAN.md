@@ -8716,6 +8716,11 @@ evaluation is authorized by these repairs.
   owning suites, the unit type project and changed-file lint/formatting
   on Kubuntu; full quality remains the lead's gate. Fold both behaviors
   into the existing Unreleased Added entry, with no new setting or API.
+  Both findings are verified: 57 tests across the three owning files,
+  unit typecheck and scoped lint/formatting passed on Kubuntu. Three red
+  drills failed as intended and restored byte-exact; the results and
+  hashes are in `docs/certification/m73.md`. No lane blocker remains;
+  review and aggregate quality belong to the lead before integration.
 
 - **First review (RV73) repaired, 2026-10-02.** Four findings, each with a
   regression and red drills (`docs/certification/m73.md`):
