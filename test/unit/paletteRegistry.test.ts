@@ -122,6 +122,15 @@ function exportActionsOn(backend: PaletteContext['backend']) {
     .map((item) => item.action)
 }
 
+/** Every action the slash group offers on a backend (M84). */
+function slashActionsOn(backend: PaletteContext['backend']) {
+  return (
+    buildPalette({ ...context, backend })
+      .find((group) => group.id === 'slash')
+      ?.items.map((item) => item.action) ?? []
+  )
+}
+
 function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
   return buildPalette({ ...base, backend })
     .find((group) => group.id === 'account')
@@ -269,6 +278,8 @@ describe('buildPalette', () => {
       '/goal',
       '/export',
       'Export session log…',
+      'Export session as JSON…',
+      'Open share file…',
       '/clear',
       '/logout',
       '/usage',
@@ -394,10 +405,21 @@ describe('buildPalette', () => {
     expect(exportActionsOn('museCode')).toEqual([
       { type: 'exportConversation', format: 'markdown' },
       { type: 'exportConversation', format: 'sessionLog' },
+      { type: 'exportConversation', format: 'json' },
     ])
     expect(exportActionsOn('modelApi')).toEqual([
       { type: 'exportConversation', format: 'markdown' },
+      { type: 'exportConversation', format: 'json' },
     ])
+  })
+
+  it('lists portable JSON everywhere, the import only on the Model API backend (M84)', () => {
+    expect(slashActionsOn('museCode')).toContainEqual({ type: 'openShareFile' })
+    expect(slashActionsOn('museCode')).not.toContainEqual({ type: 'importSession' })
+    expect(slashActionsOn('modelApi')).toContainEqual({ type: 'importSession' })
+    expect(slashActionsOn('modelApi')).toContainEqual({ type: 'openShareFile' })
+    expect(slashActionsOn(undefined)).toContainEqual({ type: 'openShareFile' })
+    expect(slashActionsOn(undefined)).not.toContainEqual({ type: 'importSession' })
   })
 
   it('routes every enabled row to a real action', () => {

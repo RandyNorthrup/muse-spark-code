@@ -100,6 +100,7 @@ export const SCENARIOS = [
   'muse-workflow-map',
   'schedules',
   'schedules-narrow',
+  'share',
   'verify',
   'plan',
   'plan-brief',

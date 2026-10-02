@@ -65,6 +65,10 @@ export type PaletteAction =
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
+  /** "Import session…" (M84): resume a portable JSON file on the Model API backend. */
+  | { readonly type: 'importSession' }
+  /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
+  | { readonly type: 'openShareFile' }
   | { readonly type: 'openLog' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
@@ -270,6 +274,32 @@ function exportItems(backend: BackendKind | undefined): readonly PaletteItem[] {
     detail: UI_TEXT.exportDetail,
     action: { type: 'exportConversation', format: 'markdown' },
   }
+  // Portable JSON (M84): importable and shareable from either backend; the
+  // import itself resumes on the Model API backend only.
+  const portable: PaletteItem = {
+    id: 'exportJson',
+    label: UI_TEXT.exportJsonItem,
+    detail: UI_TEXT.exportJsonDetail,
+    action: { type: 'exportConversation', format: 'json' },
+  }
+  const share: PaletteItem = {
+    id: 'openShare',
+    label: UI_TEXT.openShareItem,
+    detail: UI_TEXT.openShareDetail,
+    action: { type: 'openShareFile' },
+  }
+  // An import resumes on the Model API backend (M84), so only it lists the row.
+  const importRow: readonly PaletteItem[] =
+    backend === 'modelApi'
+      ? [
+          {
+            id: 'importSession',
+            label: UI_TEXT.importSessionItem,
+            detail: UI_TEXT.importSessionDetail,
+            action: { type: 'importSession' },
+          },
+        ]
+      : []
   return backend === 'museCode'
     ? [
         markdown,
@@ -279,8 +309,10 @@ function exportItems(backend: BackendKind | undefined): readonly PaletteItem[] {
           detail: UI_TEXT.exportLogDetail,
           action: { type: 'exportConversation', format: 'sessionLog' },
         },
+        portable,
+        share,
       ]
-    : [markdown]
+    : [markdown, portable, ...importRow, share]
 }
 
 /** Model API schedules are extension-owned; Muse Code's native cron has no MSP controls. */

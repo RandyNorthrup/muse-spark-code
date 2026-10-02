@@ -453,14 +453,20 @@ async function readBoundedFile(
 /**
  * Picker bytes use the same single-handle cap as tool reads, on the extension
  * host. A PDF may be as large as `pdfMaxBytes` (a document attachment's
- * limit unless the caller holds every file to `maxBytes`, M79).
+ * limit unless the caller holds every file to `maxBytes`, M79). `bytes` is
+ * undefined for a file over its limit, or one gone since it was picked
+ * (`isMissing`).
  */
 export async function readPickedFile(
   absolutePath: string,
   maxBytes: number,
   expectedCanonicalPath?: string,
   pdfMaxBytes: number = MAX_DOCUMENT_BYTES,
-): Promise<{ readonly bytes: Uint8Array | undefined; readonly isPdf: boolean }> {
+): Promise<{
+  readonly bytes: Uint8Array | undefined
+  readonly isPdf: boolean
+  readonly isMissing: boolean
+}> {
   try {
     const read = await readBoundedFile(
       absolutePath,
@@ -469,10 +475,10 @@ export async function readPickedFile(
       process.platform,
       pdfMaxBytes,
     )
-    return { bytes: read.ok ? read.bytes : undefined, isPdf: read.isPdf }
+    return { bytes: read.ok ? read.bytes : undefined, isPdf: read.isPdf, isMissing: false }
   } catch (error: unknown) {
     if (isMissingFile(error)) {
-      return { bytes: undefined, isPdf: false }
+      return { bytes: undefined, isPdf: false, isMissing: true }
     }
     throw error
   }

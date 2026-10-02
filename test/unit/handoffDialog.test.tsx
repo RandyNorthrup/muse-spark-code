@@ -244,6 +244,46 @@ describe('/handoff (M74)', () => {
     },
   )
 
+  it.each(['before', 'after'])(
+    'keeps the handoff waiting when a share opens %s its brief, restoring focus on close (M84)',
+    (when) => {
+      const postMessage = renderPanel()
+      submitCommand('/handoff')
+      admit()
+      if (when === 'after') {
+        deliver(READY)
+        fireEvent.change(dialogText(), { target: { value: 'Edited brief.' } })
+      }
+      deliver({
+        type: 'sharePreview',
+        title: 'Shared conversation',
+        exportedAt: '2026-09-28T12:00:00.000Z',
+        sourceBackend: 'modelApi',
+        modelId: 'muse-spark-1.3',
+        redacted: true,
+        items: [{ itemId: 'u1', kind: 'userMessage', status: 'completed', text: 'Shared text' }],
+      })
+      if (when === 'before') {
+        deliver(READY)
+      }
+      const share = screen.getByRole('dialog', { name: 'Shared conversation' })
+      expect(modalRoots()).toEqual([share])
+      expect(share.contains(document.activeElement)).toBe(true)
+      expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()
+      fireEvent.keyDown(share, { key: 'Escape' })
+      const dialog = screen.getByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
+      expect(modalRoots()).toEqual([dialog])
+      expect(dialog.contains(document.activeElement)).toBe(true)
+      expect(dialogText().value).toBe(when === 'after' ? 'Edited brief.' : BRIEF)
+      expect(screen.getByLabelText('Message Muse').closest('[inert]')).not.toBeNull()
+      expect(postMessage).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'confirmHandoff' }),
+      )
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
+      expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+    },
+  )
+
   it('ignores a result for another request', () => {
     const postMessage = renderPanel()
     submitCommand('/handoff')
