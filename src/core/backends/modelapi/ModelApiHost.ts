@@ -5374,7 +5374,8 @@ export class ModelApiSession implements AgentSession {
   /**
    * A check or `then_run` command, as the shell tool runs one (M68). A shell
    * that cannot start is a failed run the model is told about, as the user's
-   * own `!` command is (M46), not the end of the turn.
+   * own `!` command is (M46), not the end of the turn; one refused before its
+   * entry (`ShellEntryError`) is a refusal: no hooks, nothing told to the model.
    */
   private async runCommand(
     line: string,
@@ -5398,6 +5399,9 @@ export class ModelApiSession implements AgentSession {
         exitCode: null,
         isTimedOut: false,
         isCancelled: false,
+        // Failed before entry: no process existed, so it is a refusal, not a run
+        // (no hooks around it, no command failure told to the model).
+        ...(error instanceof ShellEntryError && { isEntryRefused: true as const }),
       }
     }
   }

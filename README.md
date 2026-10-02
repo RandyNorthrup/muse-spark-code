@@ -51,7 +51,8 @@ two.
   and run the configured checks, with permission, trust and Stop checked
   before work starts. Formatting and check commands remain opt in.
 - **Plans and turn checkpoints.** Save plans as files and implement them in
-  a fresh conversation. Turn checkpoints capture files on both backends;
+  a fresh conversation. Turn checkpoints (Preview, off by default:
+  `museSpark.turnCheckpoints`) capture files on both backends;
   stored file restore and Redo require an attached Model API session and
   confirmed process safety ([The panel](#the-panel)).
 
@@ -1248,7 +1249,10 @@ rewind button on any sent message (on hover):
 Both **Rewind code to here** and **Restore files to here** ask first, in the
 same confirmation.
 
-**Turn checkpoints.** Captures run on both backends. Stored **Restore files**
+**Turn checkpoints (Preview).** Off by default: turn them on with
+`museSpark.turnCheckpoints`. Their restore is being rebuilt on the tools'
+own writes, so that it never has to tell your changes from the model's
+(PLAN.md D63, M86). Captures run on both backends. Stored **Restore files**
 and **Redo** require the actual connected Model API session and confirmed
 workspace-process safety; Muse Code captures remain read-only. Account
 probes, shell commands and hooks can also close Model API restoration
@@ -1318,6 +1322,9 @@ the panel say git was not found.
   add/remove also use native admission before normal repository hooks can run.
   Pure plan-file publication/stage cleanup and file-review Revert hold the
   same file-edit lease through their actual I/O, retaining ownership checks.
+  So do the Memory view's new note, delete and index line, and a
+  conversation export you save inside the workspace; a note outside the
+  workspace (your personal memory) takes no project lease.
   Automatic prompt Git facts suppress configured fsmonitor, signature and
   clean/process helpers per command, with bounded names-only discovery and
   live admission. Ordinary Git configuration remains intact; those reads
@@ -1336,12 +1343,16 @@ the panel say git was not found.
   separate activity mark through its real promise, including background, `!`
   and child work. Normal process exit or pipe drain does not prove every
   descendant stopped, so current launched-process runners leave unsafe
-  presence too. File restore/Redo refuses these windows and old/unknown peers.
+  presence too. A shell that could not start at all (no interpreter on
+  `PATH`, or the operating system refused the start) proves no process exists
+  and leaves none. File restore/Redo refuses these windows and old/unknown peers.
   Closing a server, terminal or window, owner PID death and heartbeat age cannot clear
   that uncertainty. Intentional background work is kept running.
 - **Ignored files.** They are not copied wholesale. A file the Model API's
   edit and write tools (or the image tools) are about to change is copied
-  first, so a restore brings it back. A shell command's changes are found
+  first, so a restore brings it back; so is an ignored project memory note
+  the memory tools or the Memory view are about to change or delete, with
+  its `MEMORY.md`. A shell command's changes are found
   afterwards by comparing the ignored files' sizes and times at the turn's
   start and end. A restore deletes the ignored files the turn created and
   lists the ones it changed without an earlier copy as **Not restorable**; it
@@ -1359,7 +1370,12 @@ the panel say git was not found.
   outside its ignore rules gets no checkpoints, and a turn that would copy
   more than 512 MiB of changed files gets none; the panel says why. The
   ignored-file scan looks at 5,000 files at most, and an ignored folder with
-  more than 1,000 files (`node_modules`) is left out whole.
+  more than 1,000 files (`node_modules`) is left out whole. git cannot open a
+  path past its own limit (260 characters on Windows, 1,024 on macOS, 4,096
+  elsewhere), so on Windows a workspace path over 258 characters, or a
+  checkpoint folder over 240, gets no checkpoints, and the panel says the
+  path is too long for git; paths within those limits work, long ones
+  included.
 - **Cleanup.** Archiving a conversation deletes its checkpoints (in
   Restricted Mode, its records at once and its copies the next time the
   folder is trusted). A conversation keeps
@@ -1454,7 +1470,10 @@ runs while the workspace is in Restricted Mode, and a command that could not
 run comes back to the prompt with the reason. On Muse Code it runs through
 the CLI's own shell and sandbox (a missing Windows sandbox offers the setup,
 as the shell tool does); on the Model API backend it runs through the shell
-tool's runner, for ten minutes at most, and its row has a **Stop**.
+tool's runner, for ten minutes at most, and its row has a **Stop**. There it
+is checked once more at its real start (your Stop, the workspace's trust, the
+conversation and the window still standing); a command refused at that point
+says **The command did not run**, and the agent is told nothing about it.
 While a Model API command is still running, another surface sharing that
 session shows its row and can stop it. A session loaded in another VS Code
 window shows the saved row as interrupted, since that window cannot
@@ -2019,7 +2038,7 @@ Bypass at once.
 | `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, outside the agent's sandbox, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                                                                                                                                                                                                 |
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                             |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                       |
-| `turnCheckpoints`                 | `true`      | A capture of the workspace's files at each turn's start and end. Stored **Restore files to here** and Redo require an attached Model API session and confirmed process safety (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                    |
+| `turnCheckpoints`                 | `false`     | Preview. A capture of the workspace's files at each turn's start and end. Stored **Restore files to here** and Redo require an attached Model API session and confirmed process safety (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                           |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -2435,10 +2454,17 @@ through the `Intl` helpers beside them. Text for the model is `MODEL_TEXT`
 and stays English. Escape hatches
 (`eslint-disable`, `@ts-expect-error`, casts) need an inline reason and a row
 in `PLAN.md` §8. Bundle budgets: 600 KiB for the extension, 400 KiB for the
-Model API backend's own bundle, 225 KiB for the checkpoint store, 50 KiB for
+Model API backend's own bundle, 225 KiB for the checkpoint store, 100 KiB for
+the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
 web fetch's page converter worker, 900 KiB for the webview, and 850 KiB for
 the ACP agent (`dist/acp.js`).
+
+After a production build and an offline install of the ACP tarball,
+`node scripts/check-ui-text.mjs <installed-package-root>` checks runtime
+loading in the extension, Model API bundle and installed agent without
+starting an editor or making a model call. See the
+[build record](docs/certification/shared-ui-text.md).
 
 **Environment variables.** Credentials live in SecretStorage, never in
 files. `.env.example` documents `META_API_KEY`, which the Muse Code CLI

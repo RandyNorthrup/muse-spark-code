@@ -3,8 +3,9 @@ import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { turnKey } from '../../src/core/checkpoints/turnKey'
 import { ShellEntryError } from '../../src/core/shellResult'
 import {
   type CheckpointPort,
@@ -27,6 +28,15 @@ import {
   GitMissingError,
   processGitProcess,
 } from '../../src/host/git'
+import {
+  harness,
+  isPresent,
+  read,
+  REAL_GIT_TIMEOUT_MS,
+  removeCheckpointFolders,
+  restoreOutcome,
+  write,
+} from './helpers/checkpointHarness'
 import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
 import { removeFolder } from './helpers/temporaryFolders'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -46,6 +56,8 @@ function fakeStore() {
   }
   const store: CheckpointStoreApi = {
     isNativeUnsafe: false,
+    hasOpenTurn: false,
+    isStoragePath: () => false,
     markNativeBackend: () => done('native'),
     markUnprovenProcess: () => done('unproved'),
     capture: () => {
@@ -69,8 +81,12 @@ function fakeStore() {
       return Promise.resolve({ ok: false as const, reason: 'redoGone' as const })
     },
     forgetSession: (sessionId) => done(`forget ${sessionId}`),
+    unforgetSession: (sessionId) => done(`unforget ${sessionId}`),
     queueForget: (sessionId) => done(`queue ${sessionId}`),
     maintain: () => done('maintain'),
+    noteUserSave: (absolutePath) => {
+      calls.push(`saved ${absolutePath}`)
+    },
     beforeToolWrite: (absolutePath) => {
       calls.push(`copy ${absolutePath}`)
       return Promise.reject(new Error('the staging folder is full'))
@@ -89,6 +105,35 @@ async function thrownBy(work: () => Promise<unknown>): Promise<unknown> {
   return undefined
 }
 
+/** A wrapped shell whose activity mark fails when it opens ('entry') or when it closes ('close'). */
+async function runWithFailingMark(failAt: 'entry' | 'close') {
+  const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+  const failing: CheckpointPort = {
+    ...port,
+    markTurn: (_key, isRunning) =>
+      isRunning === (failAt === 'entry')
+        ? Promise.reject(new Error('the store is gone'))
+        : Promise.resolve(),
+  }
+  const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
+  const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
+  const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+  return { error, work }
+}
+
+/** The checkpoint calls an edit of this path makes in a workspace reached through a link. */
+async function leaseCallsFor(file: string) {
+  const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+  await withCheckpointEditAt(
+    port,
+    vi.fn(),
+    { root: '/real/ws', displayRoot: '/link/ws', platform: 'linux' },
+    file,
+    () => Promise.resolve(),
+  )
+  return calls
+}
+
 const PROVEN_SHELL = {
   stdout: '',
   stderr: '',
@@ -103,6 +148,8 @@ const NO_SNAPSHOT = {
   coverage: { skipped: [], repositories: [] },
   inventory: { files: new Map(), skippedFolders: [], isPartial: false },
   createdAt: 0,
+  startedAt: 0,
+  startedWallAt: 0,
   pin: 'refs/muse-spark/pin/1',
   folders: [],
 }
@@ -189,7 +236,15 @@ describe('createCheckpointPort (M72)', () => {
     await port.redo({ backend: () => 'modelApi', restoreId: 'r1', unsavedPaths: () => [] })
     await port.forgetSession('s1')
     await port.maintain()
-    expect(calls).toEqual(['release', 'end s1', 'redo', 'forget s1', 'maintain'])
+    port.noteUserSave('/ws/mine.txt')
+    expect(calls).toEqual([
+      'release',
+      'end s1',
+      'redo',
+      'forget s1',
+      'maintain',
+      'saved /ws/mine.txt',
+    ])
   })
 
   it('says when git is missing, and runs none', async () => {
@@ -363,30 +418,14 @@ describe('withCheckpointCopies (M72)', () => {
   )
 
   it('throws a ShellEntryError, and starts nothing, when the activity mark cannot be made', async () => {
-    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
-    const failing: CheckpointPort = {
-      ...port,
-      markTurn: (_key, isRunning) =>
-        isRunning ? Promise.reject(new Error('the store is gone')) : Promise.resolve(),
-    }
-    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
-    const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+    const { error, work } = await runWithFailingMark('entry')
     expect(error).toBeInstanceOf(ShellEntryError)
     expect(error).toMatchObject({ message: UI_TEXT.checkpointFailed })
     expect(work).not.toHaveBeenCalled()
   })
 
   it('throws a plain Error when the checkpoint cannot be closed after the command ran', async () => {
-    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
-    const failing: CheckpointPort = {
-      ...port,
-      markTurn: (_key, isRunning) =>
-        isRunning ? Promise.resolve() : Promise.reject(new Error('the store is gone')),
-    }
-    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
-    const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
+    const { error, work } = await runWithFailingMark('close')
     expect(error).toMatchObject({ message: UI_TEXT.checkpointFailed })
     expect(error).not.toBeInstanceOf(ShellEntryError)
     expect(work).toHaveBeenCalledOnce()
@@ -438,6 +477,65 @@ describe('withCheckpointCopies (M72)', () => {
   })
 })
 
+describe('the setting switched off while a turn is under way (M72)', () => {
+  afterEach(removeCheckpointFolders)
+
+  const ENV_BEFORE = 'KEY=before\n'
+
+  /** A real store with an ignored `.env`, behind a port whose setting the test flips. */
+  async function switchable() {
+    const h = await harness()
+    await write(h.root, '.gitignore', '.env\n')
+    await write(h.root, '.env', ENV_BEFORE)
+    const setting = { isEnabled: true }
+    const port = createCheckpointPort({
+      isNamespaceKnown: () => true,
+      store: h.store,
+      isWorkspaceTrusted: () => true,
+      isEnabled: () => setting.isEnabled,
+      hasGit: () => true,
+    })
+    const io = withCheckpointCopies(
+      { ...noopToolIo, writeFile: (file, content) => writeFile(file, content) },
+      port,
+    )
+    return { h, setting, port, io }
+  }
+
+  it(
+    'keeps copying for a turn whose start was recorded, so its restore puts an ignored file back',
+    async () => {
+      const { h, setting, port, io } = await switchable()
+      await prepareCheckpointTurn(port, 's1', 't1', h.log)
+      setting.isEnabled = false
+      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
+      await port.endTurn('s1', 't1')
+      await port.markTurn(turnKey('s1', 't1'), false)
+      setting.isEnabled = true
+      expect(await restoreOutcome(port, 't1')).toMatchObject({
+        ok: true,
+        changed: ['.env'],
+        refused: [],
+      })
+      expect(await read(h.root, '.env')).toBe(ENV_BEFORE)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'takes no copy with the setting off and no recorded turn open',
+    async () => {
+      const { h, setting, port, io } = await switchable()
+      setting.isEnabled = false
+      await prepareCheckpointTurn(port, 's1', 't1', h.log)
+      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
+      expect(await isPresent(h.storage, 'staging')).toBe(false)
+      expect(await read(h.root, '.env')).toBe('KEY=after\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
 describe('withCheckpointEditAt (M72)', () => {
   const linux = { root: '/ws', platform: 'linux' } as const
 
@@ -480,6 +578,17 @@ describe('withCheckpointEditAt (M72)', () => {
     })
     expect(calls).toEqual(['work'])
     expect(check).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['the display spelling of a linked workspace', '/link/ws/a.md'],
+    ['the canonical spelling', '/real/ws/a.md'],
+  ])('holds the lease for a path in %s', async (_name, file) => {
+    expect(await leaseCallsFor(file)).toHaveLength(2)
+  })
+
+  it('takes no lease for a path beside both spellings of the workspace', async () => {
+    expect(await leaseCallsFor('/link/ws-other/a.md')).toEqual([])
   })
 
   it('folds the letter case of a Windows path, as the file system does', async () => {
@@ -526,7 +635,7 @@ describe('the ignored-file scan (M72)', () => {
     for (let index = 0; index <= CHECKPOINT_IGNORED_FOLDER_MAX_FILES; index += 1) {
       await writeFile(path.join(root, 'huge', `f${String(index)}`), '')
     }
-    const inventory = await scanIgnored(root, ['.env'], ['dist', 'huge'])
+    const { inventory } = await scanIgnored(root, ['.env'], ['dist', 'huge'])
     const scanned = [...inventory.files].map(([key]) => key).toSorted((a, b) => a.localeCompare(b))
     expect(scanned).toEqual(['.env', 'dist/a.js'])
     expect(inventory.files.get('.env')?.size).toBe(3)

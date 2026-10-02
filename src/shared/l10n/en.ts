@@ -687,6 +687,8 @@ export const EN = {
   checkpointTooLarge: 'over {size} MiB of changed files to copy',
   checkpointFailed: 'the checkpoint failed',
   checkpointNoGit: 'git was not found on PATH',
+  checkpointPathTooLong:
+    'the path of the workspace or of this extension’s storage folder is too long for git',
   resumedNotice: 'Resumed',
   historyUnavailable: 'The conversation history could not be loaded',
   historyNotServed: 'The earlier messages of this conversation could not be shown',

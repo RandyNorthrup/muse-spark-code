@@ -76,7 +76,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   host's `GIT_*` variables removed, no system or global configuration, hooks
   pointed at an empty folder, fsmonitor off, and every conversion attribute
   unset, so no clean or smudge filter a repository names ever runs; its
-  folder is 0700 on macOS and Linux. Each window owns its index, pinned
+  folder is 0700 on macOS and Linux. No checkpoint is taken when the
+  storage and the workspace hold one another, compared as written and as
+  resolved through links and junctions, and the tools never write inside
+  the storage, so a model cannot plant a hook or filter there. Each window owns its index, pinned
   captures, staged copies and presence; records use Git compare-and-swap
   refs, and a file restore/Redo claims one shared CAS ref before changes.
   Cleanup preserves a live window's resources and recent unreferenced
@@ -96,7 +99,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   mark until its actual promise settles; without locally owned full shutdown
   proof it first publishes sticky unsafe presence. Current launched-process
   runners provide no such proof: normal exit, pipe drain, native host/window
-  close and owner PID death do not prove all descendants stopped. Native,
+  close and owner PID death do not prove all descendants stopped. A shell
+  that could not start at all (no interpreter on `PATH`, `spawn` refused by the
+  operating system or throwing) proves that no process exists and publishes no
+  unsafe presence. Native,
   active-on-crash and old/unknown presence never age-expire into safety.
   Restoration is refused until explicit confirmed recovery removes only the
   exact stale unsafe presence JSON; saved records/refs/history are preserved.

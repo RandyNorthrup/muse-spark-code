@@ -20,6 +20,8 @@ export interface LegacyCheckpointDeps {
   readonly git: GitProcess
   readonly env: NodeJS.ProcessEnv
   readonly signal: AbortSignal
+  /** The longest path git takes: the platform's own unless a test lowers it. */
+  readonly gitPathMax?: number
 }
 
 /** Read old per-workspace refs in place; no prepare, presence, cleanup or migration. */
@@ -48,6 +50,7 @@ export async function legacyCheckpointTurns(
       top: deps.workspaceRoot,
       platform: deps.platform,
       instance: 'legacy-reader',
+      gitPathMax: deps.gitPathMax,
     },
     { git: deps.git, env: deps.env, signal: deps.signal },
   )

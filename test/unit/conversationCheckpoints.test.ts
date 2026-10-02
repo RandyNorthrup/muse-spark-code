@@ -27,6 +27,8 @@ function snapshot(tree: string, skipped: readonly string[] = []): Snapshot {
     coverage: { skipped, repositories: [] },
     inventory: { files: new Map(), skippedFolders: [], isPartial: false },
     createdAt: 0,
+    startedAt: 0,
+    startedWallAt: 0,
     pin: `refs/muse-spark/pin/${tree}`,
     folders: [],
   }
@@ -90,7 +92,9 @@ function harness(options: HarnessOptions = {}) {
     restore: options.restore ?? (() => Promise.resolve({ ok: false, reason: 'noCheckpoint' })),
     redo: options.redo ?? (() => Promise.resolve({ ok: false, reason: 'redoGone' })),
     forgetSession: () => Promise.resolve(),
+    unforgetSession: () => Promise.resolve(),
     maintain: () => Promise.resolve(),
+    noteUserSave: () => undefined,
     beforeToolWrite: () => Promise.resolve(),
   }
   const posted: HostToWebviewMessage[] = []
@@ -266,7 +270,7 @@ describe('ConversationCheckpoints (M72)', () => {
 
 describe('ConversationCheckpoints when things go wrong (M72)', () => {
   it('says once per reason why a turn has no checkpoint', async () => {
-    const reasons = ['tooManyFiles', 'tooLarge', 'noGit', 'noGit'] as const
+    const reasons = ['tooManyFiles', 'tooLarge', 'noGit', 'noGit', 'pathTooLong'] as const
     const { checkpoints, notices } = harness({
       capture: (count) =>
         Promise.resolve({ ok: false, reason: reasons[count - 1] ?? 'failed', detail: 'x' }),
@@ -283,6 +287,7 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
         fill(UI_TEXT.checkpointTooLarge, { size: CHECKPOINT_CAPTURE_MAX_BYTES / BYTES_PER_MIB }),
       ),
       unavailable(UI_TEXT.checkpointNoGit),
+      unavailable(UI_TEXT.checkpointPathTooLong),
     ])
   })
 
@@ -346,6 +351,33 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
     ])
   })
 
+  it.each([
+    ['a clean restore', {}, true],
+    [
+      'a file with no earlier copy',
+      { refused: [{ path: 'a.ts', reason: 'noEarlierCopy' }] },
+      false,
+    ],
+    [
+      'a file never in the checkpoint',
+      { refused: [{ path: 'a.ts', reason: 'notInCheckpoint' }] },
+      false,
+    ],
+    ['an unsaved file', { refused: [{ path: 'a.ts', reason: 'unsaved' }] }, false],
+    ['ignored files that could not all be put back', { isIgnoredIncomplete: true }, false],
+  ] as const)(
+    'lets the conversation rewind only when no file is left behind: %s',
+    async (_name, overrides, isComplete) => {
+      const { checkpoints } = harness({
+        backend: () => 'modelApi',
+        restore: () => Promise.resolve(restored(overrides)),
+      })
+      await checkpoints.sessionChanged('s1')
+      const report = await checkpoints.restore('s1', 't1')
+      expect(report.isComplete).toBe(isComplete)
+    },
+  )
+
   it('says when another window on the folder runs a turn, or a checkpoint fails', async () => {
     const outcomes: RestoreOutcome[] = [
       { ok: false, reason: 'captureFailed' },
@@ -383,6 +415,20 @@ describe('ConversationCheckpoints when things go wrong (M72)', () => {
     report.post()
     expect(notices).toEqual([
       ['error', `${UI_TEXT.restoreFailed}: ${UI_TEXT.checkpointNoGit}`, undefined],
+    ])
+  })
+
+  it('names a path git cannot use as the reason a restore could not start', async () => {
+    const { checkpoints, notices } = harness({
+      backend: () => 'modelApi',
+      restore: () =>
+        Promise.resolve({ ok: false, reason: 'captureFailed', captureRefusal: 'pathTooLong' }),
+    })
+    await checkpoints.sessionChanged('s1')
+    const report = await checkpoints.restore('s1', 't1')
+    report.post()
+    expect(notices).toEqual([
+      ['error', `${UI_TEXT.restoreFailed}: ${UI_TEXT.checkpointPathTooLong}`, undefined],
     ])
   })
 

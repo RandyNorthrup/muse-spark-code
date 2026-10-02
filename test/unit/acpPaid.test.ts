@@ -63,8 +63,22 @@ function selected(optionId: string) {
   return { outcome: { outcome: 'selected' as const, optionId } }
 }
 
+/**
+ * The real files, so the real back-off between rename attempts: Windows
+ * Defender can hold a fresh temporary file past five attempts with no wait
+ * (the host's full gate failed once that way). A wait happens only on a retry.
+ */
 function fileStore(file: string, log = logger()) {
-  return paidGrantFile({ file, log, sleep: () => Promise.resolve() })
+  return paidGrantFile({
+    file,
+    log,
+    sleep: (ms) =>
+      new Promise<undefined>((resolve) => {
+        setTimeout(() => {
+          resolve(undefined)
+        }, ms)
+      }),
+  })
 }
 
 /** Two processes starting from one explicit web-search grant. */

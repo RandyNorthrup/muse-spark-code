@@ -56,9 +56,13 @@ export interface Refusal {
   readonly reason: RefusalReason
 }
 
-/** What a file must still be just before a step changes it. */
+/**
+ * What a file must still be just before a step changes it. A blob's mode
+ * counts as much as its bytes: the step writes the checkpoint's execute bit,
+ * so a chmod since the capture would be undone.
+ */
 export type Expectation =
-  | { readonly kind: 'blob'; readonly oid: string }
+  | { readonly kind: 'blob'; readonly oid: string; readonly mode: string }
   | { readonly kind: 'absent' }
   | { readonly kind: 'stat'; readonly stat: FileStat }
 
@@ -171,9 +175,21 @@ function workTreeStep(change: TreeChange): RestoreStep {
     path: change.path,
     target: change.before ?? null,
     expect:
-      change.after === undefined ? { kind: 'absent' } : { kind: 'blob', oid: change.after.oid },
+      change.after === undefined
+        ? { kind: 'absent' }
+        : { kind: 'blob', oid: change.after.oid, mode: change.after.mode },
     isIgnoreChecked: change.before === undefined,
   }
+}
+
+/**
+ * Whether the ignored journal shows the file existed before the first of these
+ * turns. Then it is never a tree deletion: the journal restores it from the bytes
+ * kept, or refuses it (`noEarlierCopy`) when a shell command changed it and none
+ * were kept, rather than deleting a file that predates the turns.
+ */
+function wasPresentBefore(entry: MergedIgnored | undefined): boolean {
+  return entry !== undefined && entry.first.kind !== 'created'
 }
 
 /** The steps and refusals for the ignored files the turns changed. */
@@ -192,7 +208,14 @@ function ignoredSteps(
     // What the file was before the first of these turns touched it.
     const before = first.kind === 'created' ? null : first.preImage
     const expect: Expectation = now === null ? { kind: 'absent' } : { kind: 'stat', stat: now }
+    // A tool's copy is taken wherever it writes; a repository of its own (or
+    // anything else a capture left out) is still not the checkpoint's to change.
     if (
+      !isCovered(input.coverage.checkpoint, ignoredPath) ||
+      !isCovered(input.coverage.current, ignoredPath)
+    ) {
+      refused.push({ path: ignoredPath, reason: 'notInCheckpoint' })
+    } else if (
       entry.isTouchedBetween ||
       !isSameStat(now, entry.endStat) ||
       input.changedOutsideTurns.has(ignoredPath)
@@ -214,7 +237,14 @@ export function planRestore(input: RestoreInput): RestorePlan {
   const steps: RestoreStep[] = []
   const refused: Refusal[] = []
   const handled = new Set<string>()
+  const mergedIgnored = mergeIgnored(input.ignoredTurns)
   for (const change of input.changes) {
+    // A file the turn made visible to git (its `.gitignore` changed) reads as added
+    // in the trees, yet it existed before: the ignored journal decides it (restored
+    // from kept bytes, or refused), never a deletion of a file that predates the turns.
+    if (change.before === undefined && wasPresentBefore(mergedIgnored.get(change.path))) {
+      continue
+    }
     handled.add(change.path)
     if (
       !isCovered(input.coverage.checkpoint, change.path) ||
