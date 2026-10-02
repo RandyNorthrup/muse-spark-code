@@ -626,10 +626,10 @@ export const EN = {
   forkedNotice: 'Forked into a new conversation.',
   rewindImagesUnavailable: 'Some images from this message could not be restored.',
   rewindBeforeCompaction: 'Cannot rewind before the latest compaction.',
-  // Turn checkpoints (M72): the user card's menu, the confirmations, the result.
+  // Turn checkpoints (M86): the user card's menu, the confirmations, the result.
   restoreFilesToHere: 'Restore files to here',
   checkpointsModelApiOnly:
-    'File restore and Redo require a connected Model API session. Muse Code checkpoints are read-only.',
+    'File restore and Redo require a connected Model API session. Only the model’s own file-tool edits are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone.',
   checkpointsLegacyReadOnly:
     'This message has a legacy checkpoint. Its saved records remain readable; file restoration needs a current safely fenced capture.',
   checkpointsNativeUnsafe:
@@ -642,7 +642,7 @@ export const EN = {
     'Rewinding the conversation is not available with Muse Code on Windows',
   restoreConfirmTitle: 'Restore the files to before this message?',
   restoreConfirmDetail:
-    'What the turns from this message on changed is put back, untracked files and pre-copied ignored files included; ignored files they created are deleted. A file changed by something else in the meantime, or with unsaved changes, is left as it is and named. Redo puts back what the restore changed.',
+    'Only the model’s own file-tool edits from this message on are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Files with unsaved changes are left as they are and named. Redo puts back what the restore changed.',
   restoreConfirmAction: 'Restore files',
   rewindCodeConfirmTitle: 'Rewind the code to before this message?',
   rewindCodeConfirmDetail:
@@ -650,7 +650,7 @@ export const EN = {
   rewindCodeConfirmAction: 'Rewind code',
   restoreBothConfirmTitle: 'Restore the files and rewind the conversation to before this message?',
   restoreBothConfirmDetail:
-    'The files are restored first, as Restore files does; then the conversation branches before this message and its prompt returns to the composer. If a file is left as it is, the conversation is not rewound. The original conversation stays in History.',
+    'Only the model’s own file-tool edits from this message on are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Then the conversation branches before this message and its prompt returns to the composer. If a file is refused, the conversation is not rewound. The original conversation stays in History.',
   restoreBothConfirmAction: 'Restore and rewind',
   rewindNotDone: 'The conversation was not rewound.',
   restoreDone: forms({
@@ -664,14 +664,27 @@ export const EN = {
   redoGone: 'This restore can no longer be redone.',
   restoreRefusedUnsaved: 'Left as they are, with unsaved changes: {files}',
   restoreRefusedChanged: 'Left as they are, changed by something else in the meantime: {files}',
-  restoreRefusedNotCovered: 'Left as they are, not in the checkpoint: {files}',
-  restoreRefusedNoCopy: 'Not restorable, no copy from before the turn was kept: {files}',
+  restoreRefusedBetween:
+    "Left as they are, changed by something else between the model's edits: {files}",
+  restoreRefusedOrderUnknown:
+    'Left as they are, edited from more than one window in an order that cannot be told: {files}',
+  restoreRefusedLinked: 'Left as they are, reached through a link or junction: {files}',
+  restoreRefusedNotKept: 'Not restorable, the earlier version was not kept: {files}',
+  restoreRefusedTooLarge: 'Not restorable, too large to keep a copy of: {files}',
   restoreRefusedFailed: 'Could not be changed: {files}',
-  restoreUnsure:
-    'Restored, but a turn’s end was not recorded, so these may also have undone later changes: {files}',
+  restoreUnchanged: forms({
+    one: 'Already as before: {count} file.',
+    other: 'Already as before: {count} files.',
+  }),
+  restoreWritesIncomplete:
+    "Nothing was restored: some of these turns' edits were not fully recorded (a reload or crash mid-edit, or file checkpoints were off).",
+  restoreLegacyInRange:
+    'Nothing was restored: some of these turns were recorded by an earlier version, which this one cannot restore.',
+  restoreLegacyWindowOpen:
+    'Another window runs an older version of Muse Spark; reload it, then try again.',
+  restoreCommandsNote:
+    'Commands, hooks or MCP tools ran in these turns; files they changed are not undone. Check your version control.',
   namedFilesMore: '{files} (+{count})',
-  restoreIgnoredIncomplete:
-    'Some ignored files these turns changed were not tracked and are left as they are.',
   restoreNoCheckpoint: 'This message has no file checkpoint any more.',
   restoreTurnRunning: 'Wait until no turn is running in this window, then try again.',
   restoreTurnElsewhere:
