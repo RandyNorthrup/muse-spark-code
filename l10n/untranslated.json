@@ -38,7 +38,9 @@
       "pdfLabel",
       "loopItem",
       "namedFilesMore",
-      "exportThenRunSkipped"
+      "exportThenRunSkipped",
+      "execUsage",
+      "execScanUsage"
     ],
     "cs": [
       "groupModel",

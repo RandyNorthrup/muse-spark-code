@@ -159,7 +159,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   { pattern: PEM_PRIVATE_KEY, literals: ['private key'], replace: mark },
   // GitHub tokens, GitLab personal access tokens, npm tokens.
   {
-    pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,255}|github_pat_\w{20,255})/g,
+    pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,})/g,
     literals: ['ghp_', 'gho_', 'ghu_', 'ghs_', 'ghr_', 'github_pat_'],
     replace: mark,
   },
@@ -169,7 +169,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   { pattern: /\bAIza[\w-]{35}/g, literals: ['aiza'], replace: mark },
   // AWS access key ids, Slack tokens, and `sk-` / `sk_live_` style API keys.
   { pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, literals: ['akia', 'asia'], replace: mark },
-  { pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,255}/g, literals: ['xox'], replace: mark },
+  { pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/g, literals: ['xox'], replace: mark },
   {
     pattern: /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{16,255}|\bsk-[\w-]{20,255}/g,
     literals: ['_live_', '_test_', 'sk-'],
@@ -263,18 +263,45 @@ export const SECRET_RULES: readonly SecretRule[] = [
 export const MAY_HOLD_SECRET =
   /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=/i
 
-export function redactSecrets(text: string): string {
-  if (!MAY_HOLD_SECRET.test(text)) {
-    return text
-  }
+function redactWith(text: string, literals: readonly string[], matched?: () => void): string {
   let result = text
+  const ordered = [...new Set(literals)]
+    .filter((value) => value !== '')
+    .toSorted((a, b) => b.length - a.length)
+  for (const literal of ordered) {
+    result = result.replaceAll(literal, () => {
+      matched?.()
+      return REDACTED_MARK
+    })
+  }
+  if (!MAY_HOLD_SECRET.test(result)) {
+    return result
+  }
   for (const rule of SECRET_RULES) {
     // A function, so no `$` sequence in the mark is interpreted.
-    result = result.replaceAll(rule.pattern, (match: string, lead: string, quote: string) =>
-      rule.replace(match, lead, quote),
-    )
+    result = result.replaceAll(rule.pattern, (match: string, lead: string, quote: string) => {
+      const replacement = rule.replace(match, lead, quote)
+      if (replacement !== match) {
+        matched?.()
+      }
+      return replacement
+    })
   }
   return result
+}
+
+/** Exact run keys precede patterns, including legacy keys containing percent signs. */
+export function redactSecrets(text: string, literals: readonly string[] = []): string {
+  return redactWith(text, literals)
+}
+
+/** Counts only changed, nonoverlapping matches in the same order as redaction. */
+export function countSecretMatches(text: string, literals: readonly string[]): number {
+  let count = 0
+  redactWith(text, literals, () => {
+    count += 1
+  })
+  return count
 }
 
 // --- Long text in slices (RV84 #9) ---

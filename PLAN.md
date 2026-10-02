@@ -8989,6 +8989,18 @@ independent review and the full candidate gates remain required.**
 
 ### M80 — Headless and CI (D49)
 
+**Lane A, 2026-10-02:** implement the frozen scratchpad `m80/SPEC.md` v4
+§5.1/§9 and the M80A brief only. Pure argument/result/event/output/fd/key/scanner
+modules, literal-first redaction, constants, all 14 translations and deterministic
+schemas compile independently; `cliArgs` and `main` remain unchanged. F1 parses
+ASCII decimal budget strings directly into safe integer micro-USD (at most six
+fractional digits); accounting identities use that integer domain, and B rounds
+sub-micro reservations/charges upward. F2's observed terminal/reason/usage payload
+on transport settlement is B's task. Evidence and guard drills live in
+[the lane A record](docs/certification/m80.md). This does not close M80, full
+quality, engine/Action/packaging/host acceptance or L/LA/LR. D still owns replacing
+the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
+
 - **Goal.** The agent runs where the editor does not.
 - **Scope.**
   - An `exec` mode in the ACP agent's package:
@@ -9957,6 +9969,10 @@ remain available.
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
+| ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
 
 M72's `src/host/checkpoints/checkpointStoreBundle.ts` uses the type predicate
 `isCheckpointStoreBundle`: the required module is unknown; both exported

@@ -713,7 +713,8 @@
     "package:acp": "node scripts/build.mjs --production && node scripts/package-acp.mjs",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
-    "security:sast": "node scripts/sast.mjs"
+    "security:sast": "node scripts/sast.mjs",
+    "schema:exec": "node scripts/exec-schema.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [

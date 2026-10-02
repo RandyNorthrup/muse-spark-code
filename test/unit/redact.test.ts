@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  countSecretMatches,
   MAY_HOLD_SECRET,
   redactableSlices,
   redactSecrets,
@@ -423,6 +424,24 @@ const SLICE_MAX_PIECES = 40
 const SLICE_MAX_CHARS = 24
 // How many cases must hold a match that a cut at every line break would split.
 const SLICE_FLOOR = 200
+
+describe('M80 countSecretMatches (A19/A21)', () => {
+  it('uses literal-first coverage and counts overlapping patterns only once', () => {
+    const key = 'LLM|123|before%after+/.=$&'
+    expect(countSecretMatches(`${key} Bearer abc.def`, ['', key, key])).toBe(2)
+    expect(countSecretMatches('api_key="secret words"', [])).toBe(1)
+    expect(countSecretMatches('token count 123 0123456789abcdef c29tZQ== [redacted]', [])).toBe(0)
+    expect(countSecretMatches(`key=${key}`, [key])).toBe(1)
+  })
+  it.each(['ghp_', 'gho_', 'ghu_', 'ghs_', 'ghr_', 'github_pat_', 'xoxb-'])(
+    'removes the entire long %s token',
+    (prefix) => {
+      const secret = prefix + 'a'.repeat(1000)
+      expect(redactSecrets(secret)).toBe('[redacted]')
+      expect(countSecretMatches(secret, [])).toBe(1)
+    },
+  )
+})
 
 describe('redactableSlices', () => {
   it('cuts only where the pieces redact as the whole text does', () => {

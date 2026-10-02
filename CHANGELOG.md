@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **M80 headless contract foundation (lane A):** independent argument parsing,
+  versioned result/event validation, text/JSON/JSONL output, bounded async fd
+  writers, cancellable stdin key/prompt readers and a counts-only secret scanner.
+  Budget strings parse directly into integer micro-USD; cut-short messages are
+  withheld whole, tool text is refused and exact run keys are scrubbed before
+  patterns, including structured credential fields before JSON serialization.
+  GitHub/Slack token patterns now cover long tokens. All 14 UI tables
+  include the new text. `npm run schema:exec` generates the committed JSON schemas.
+  The `exec` and `scan-secrets` CLI wiring, engine, Action and full M80 acceptance
+  remain pending in the other lanes.
+
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every

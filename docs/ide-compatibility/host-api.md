@@ -352,7 +352,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:crypto`          | 22    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 17    |
+| `node:fs`              | 18    |
 | `node:fs/promises`     | 26    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
@@ -361,7 +361,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:os`              | 5     |
 | `node:path`            | 55    |
 | `node:process`         | 1     |
-| `node:stream`          | 6     |
+| `node:stream`          | 8     |
 | `node:string_decoder`  | 1     |
 | `node:timers/promises` | 1     |
 | `node:tls`             | 1     |

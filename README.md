@@ -2439,3 +2439,24 @@ via PayPal. Thank you!
 - [docs/PRIVACY.md](docs/PRIVACY.md): what leaves your machine.
 - [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).
+
+### M80 headless contracts (lane A)
+
+The independent M80 contracts are implemented; `exec` and `scan-secrets` are
+not wired into the executable yet. This delivery supplies their parser, output
+and key/scanner modules for the next implementation lane. It does not claim
+headless command, Action or registry-path support.
+
+`npm run schema:exec` deterministically regenerates
+[the result schema](docs/schemas/exec-result-v1.schema.json) and
+[the event schema](docs/schemas/exec-event-v1.schema.json); append `-- --check`
+to check exact committed bytes. Both commands passed on the Kubuntu rig.
+The schemas expose required fields, enums and status/signal conditionals;
+`x-runtime-invariants` names checks JSON Schema cannot express (integer cost
+identities and output sequencing), enforced by the production zod boundaries
+and sink. Budget input is unsigned ASCII decimal, positive and at most $20,
+with at most six fractional digits, converted directly to integer micro-USD.
+
+See [M80 lane A evidence](docs/certification/m80.md) for tests, deliberate breaks,
+platform results and remaining work. The lead still owns the full integrated
+gates and live receipts.
