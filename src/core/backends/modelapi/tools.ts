@@ -69,16 +69,8 @@ import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
-export interface ShellResult {
-  readonly stdout: string
-  readonly stderr: string
-  readonly exitCode: number | null
-  readonly isTimedOut: boolean
-  /** Stopped because the turn was (the Stop button, PLAN.md D25). */
-  readonly isCancelled: boolean
-  /** The command exceeded its per-stream byte budget (M51 hooks). */
-  readonly isOutputTooLarge?: boolean
-}
+import type { ShellResult } from '../../shellResult'
+export type { ShellResult } from '../../shellResult'
 
 /**
  * A running command's time limit, which its caller can lift (M46, PLAN.md
@@ -156,7 +148,12 @@ export interface ToolIo {
     expectedCanonicalPath?: string,
   ): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
-  writeFile(absolutePath: string, content: string, expectedCanonicalPath?: string): Promise<void>
+  writeFile(
+    absolutePath: string,
+    content: string,
+    expectedCanonicalPath?: string,
+    assertCanWrite?: () => void,
+  ): Promise<void>
   /**
    * `writeFile`, only while the file still holds the text whose fingerprint
    * is `expectedFingerprint`, compared immediately before the rename (M68,
@@ -170,6 +167,7 @@ export interface ToolIo {
       readonly expectedCanonicalPath: string
       /** Refused when an editor holds unsaved text at any of them, checked just before the rename. */
       readonly unsavedAt: readonly string[]
+      readonly assertCanWrite?: () => void
     },
   ): Promise<ConditionalWrite>
   /** Whether anything (a file, a folder, a link) is at the path. */
@@ -192,6 +190,9 @@ export interface ToolIo {
   /**
    * A timeout or the signal kills the whole process tree (PLAN.md D25);
    * `limit` lets the caller lift the timeout while it runs (M46).
+   * `assertCanRun` is the owner's final admission, asked at the real entry
+   * after every wait of the adapter and the checkpoint wrapper: a throw
+   * refuses the command, which starts nothing (`isEntryRefused`).
    */
   runShell(
     command: string,
@@ -199,6 +200,7 @@ export interface ToolIo {
     timeoutMs: number,
     signal?: AbortSignal,
     limit?: ShellTimeLimit,
+    assertCanRun?: () => void,
   ): Promise<ShellResult>
   /** An explicitly enabled M51 hook, with JSON stdin and a cleared environment. */
   runHook?(
@@ -246,6 +248,10 @@ export interface ToolContext {
   readonly seen: Map<string, string>
   /** Format on edit (M68); present only while it is on. */
   readonly formatter?: EditFormatter
+  /** Captured owner admission, rechecked by the actual writer after its awaits. */
+  readonly assertCanWrite?: (target: FormatTarget) => void
+  /** Captured shell owner at the final native entry, after adapter waits. */
+  readonly assertCanRun?: () => void
 }
 
 /** A file an edit just wrote, as format on edit sees it (M68). */
@@ -260,6 +266,7 @@ export interface FormatTarget {
 
 /** Format on edit (M68): the formatter over a written file, and where its failures go. */
 export interface EditFormatter {
+  readonly assertCanWrite?: (target: FormatTarget) => void
   /** The text the file's formatter makes of what the edit wrote, or undefined for none. */
   readonly format: (target: FormatTarget, text: string) => Promise<string | undefined>
   /** A formatted text that could not be written back, for the log. */
@@ -715,7 +722,15 @@ async function formatWritten(
   context: ToolContext,
 ): Promise<string> {
   const { formatter } = context
-  const formatted = await formatter?.format(target, written)
+  let formatted: string | undefined
+  try {
+    formatted = await formatter?.format(target, written)
+  } catch (error: unknown) {
+    formatter?.warn(
+      `Format on edit failed; the edit stays as written: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    return written
+  }
   if (formatter === undefined || formatted === undefined || formatted === written) {
     return written
   }
@@ -735,7 +750,14 @@ async function formatWritten(
       target.checkedAbsolute,
       fingerprint(written),
       formatted,
-      { expectedCanonicalPath: target.checkedAbsolute, unsavedAt: paths },
+      {
+        expectedCanonicalPath: target.checkedAbsolute,
+        unsavedAt: paths,
+        assertCanWrite: () => {
+          context.signal?.throwIfAborted()
+          formatter.assertCanWrite?.(target)
+        },
+      },
     )
     if (wrote === 'changed') {
       formatter.warn(
@@ -1004,6 +1026,34 @@ function editRefusal(
     : undefined
 }
 
+function writeAdmission(target: FormatTarget, context: ToolContext): () => void {
+  return () => {
+    context.signal?.throwIfAborted()
+    if (
+      context.io.hasUnsavedChanges(target.absolute) ||
+      context.io.hasUnsavedChanges(target.checkedAbsolute)
+    )
+      throw new Error(`${target.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+    context.assertCanWrite?.(target)
+  }
+}
+
+async function publishText(
+  file: FormatTarget,
+  written: string,
+  context: ToolContext,
+): Promise<string> {
+  await context.io.writeFile(
+    file.checkedAbsolute,
+    written,
+    file.checkedAbsolute,
+    writeAdmission(file, context),
+  )
+  const final = await formatWritten(written, file, context)
+  context.seen.set(file.absolute, fingerprint(final))
+  return final
+}
+
 async function writeFile(
   args: z.infer<typeof writeFileArgs>,
   context: ToolContext,
@@ -1016,11 +1066,9 @@ async function writeFile(
   if (refusal !== undefined) {
     return refusal
   }
-  const { before, relative, absolute, checkedAbsolute } = file
+  const { before, relative, absolute } = file
   if (before === undefined) {
-    await context.io.writeFile(checkedAbsolute, args.content, checkedAbsolute)
-    const created = await formatWritten(args.content, file, context)
-    context.seen.set(absolute, fingerprint(created))
+    const created = await publishText(file, args.content, context)
     return patchOutcome(
       relative,
       undefined,
@@ -1044,9 +1092,7 @@ async function writeFile(
       ? `${normalized}${LF}`
       : normalized
   const after = fileText(text, shape)
-  await context.io.writeFile(checkedAbsolute, after, checkedAbsolute)
-  const final = await formatWritten(after, file, context)
-  context.seen.set(absolute, fingerprint(final))
+  const final = await publishText(file, after, context)
   return patchOutcome(
     relative,
     modelText(before, shape),
@@ -1064,7 +1110,7 @@ async function editFile(
   if (!file.ok) {
     return file.outcome
   }
-  const { before, relative, absolute, checkedAbsolute } = file
+  const { before, relative } = file
   if (before === undefined) {
     return failure(`file not found: ${relative}`)
   }
@@ -1090,9 +1136,7 @@ async function editFile(
   }
   const updated = `${current.slice(0, first)}${replace}${current.slice(first + find.length)}`
   const after = fileText(updated, shape)
-  await context.io.writeFile(checkedAbsolute, after, checkedAbsolute)
-  const final = await formatWritten(after, file, context)
-  context.seen.set(absolute, fingerprint(final))
+  const final = await publishText(file, after, context)
   return patchOutcome(
     relative,
     current,
@@ -1212,6 +1256,7 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     timeoutMs,
     context.signal,
     context.limit,
+    context.assertCanRun,
   )
   return shellOutcome(result, timeoutMs)
 }

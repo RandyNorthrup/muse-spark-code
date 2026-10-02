@@ -211,16 +211,17 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact               | Budget (minified, uncompressed)                                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`    | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                     |
-| `dist/modelApi.js`     | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                            |
-| `dist/searchWorker.js` | ≤ 50 KiB                                                                                                                        |
-| `dist/pageWorker.js`   | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)      |
-| `dist/webview/main.js` | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                  |
-| `.vsix`                | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                               |
-| `dist/acp.js`          | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
-| `dist/planMarkdown.js` | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                     |
+| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                            |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                        |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)      |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                  |
+| `.vsix`                   | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                               |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
@@ -2849,6 +2850,81 @@ only the extension-side uses reach it.
   a documented weak spot, so at most a warning signal.
 - Any use as the coding model.
 
+### D51 — Turn checkpoints live in a shadow repository (M72, 2026-09-28)
+
+M72 captures the workspace's files at turn boundaries on both backends, in
+a git repository or not. Destructive stored restoration currently requires
+a connected Model API session and confirmed process safety; native captures
+remain read-only until pre-edit/full shutdown exclusion is proved. The plan
+review of PR #50 and the security review added three
+constraints: nothing may land in the workspace's `.git` (a `push --mirror`
+would carry an untracked or ignored secret such as `.env`); the git that
+takes checkpoints runs with hooks and fsmonitor off and none of the user's
+configuration or the workspace's filters; and ignored files are covered
+only as far as the extension saw the change coming.
+
+**Considered: hidden refs in the workspace repository.** Trees built with
+`write-tree` on a temporary index (`GIT_INDEX_FILE`) and kept by refs under
+`refs/muse-spark/checkpoints/…`. It shares the user's objects and stat
+cache, but it writes objects and refs into the user's `.git`, where
+`push --mirror`, `for-each-ref` and `log --all` see them, and it runs under
+the user's repository config and attributes (autocrlf, LFS and other clean
+and smudge filters). Refused on both counts.
+
+**Taken: a shadow repository in the extension's own storage.** The resumed
+M72 implementation uses `<global storage>/checkpoints/<canonical-root-key>/shadow.git`
+for current-version windows, preserving prior workspace-specific stores as
+read-only history. It is a bare repository whose work
+tree is the workspace (or the repository top when the workspace is a folder
+of one, so its `.gitignore` files apply, with every path kept to the
+workspace's prefix).
+
+- **Isolation.** Every command runs with an environment stripped of the
+  host's `GIT_*` variables, `GIT_CONFIG_NOSYSTEM`, an empty
+  `GIT_CONFIG_GLOBAL`, a `HOME` in storage, `GIT_ATTR_NOSYSTEM`,
+  `GIT_OPTIONAL_LOCKS=0`, `core.hooksPath` at an empty folder,
+  `core.fsmonitor=false` and `core.untrackedCache=false`. The shadow's
+  `info/attributes`, which outranks every `.gitattributes`, unsets `text`,
+  `eol`, `filter`, `ident` and `working-tree-encoding`, so no filter runs
+  and bytes are copied as they are (CRLF files, LFS files, `text=auto`).
+  git is found by absolute path (D24). Only the workspace's
+  `info/exclude` and the user's global excludes file are read, as ignore
+  patterns.
+- **Objects.** No alternates: the shadow keeps its own copies, so the
+  user's `gc` can never break a checkpoint and nothing of ours is written
+  or freshened in `.git`. A private index keeps stat data, so a capture
+  hashes only what changed since the last one; the first capture of a
+  workspace hashes everything outside its ignore rules, within the caps.
+- **Records.** Checkpoint and redo JSON is parsed with zod and stored in
+  a tree with its captured trees and blobs under `refs/muse-spark/record/<id>`.
+  Creation, updates and deletion use Git compare-and-swap. Each window has
+  its own index and pending-capture refs. Trees, not commits: no author
+  identity is needed.
+- **Ignored files.** A bounded scan of sizes and times at each turn's start
+  and end finds what the turn created, changed or deleted; the Model API's
+  write tools, the image tools and the memory tools (with the Memory view's
+  delete) copy a file just before they write it (`withCheckpointCopies`,
+  `createCheckpointedMemory`). A restore deletes created ignored files,
+  restores copied ones and lists the rest as not restorable; what it
+  overwrites or deletes is copied for its Redo.
+- **Links.** Git for Windows walks into junctions (checked with git
+  2.52.0.windows.1), so git's own listing cannot be trusted there: a
+  capture leaves out every path under a folder link or junction and names
+  the link, and a restore refuses any path whose canonical form is not the
+  canonical root plus the path.
+- **Restricted Mode.** No checkpoints: the extension runs no git in an
+  untrusted workspace (D24), and a copy store without git would still read
+  and duplicate an untrusted tree's files for no gain the user asked for.
+  The menu says so. Archiving there drops the conversation's records at
+  once (no git); the next trusted window deletes their refs and copies.
+- **Windows.** Independent records use CAS refs, with an index, pins,
+  tool copies and presence per window. File restores reserve one shared
+  CAS ref. Recent objects receive a prune grace period; an archive is
+  durable before returning (M72 Built, "Windows sharing a store"). Git's
+  path limits are met in the store itself: the repository is made in a short
+  folder and published by one rename, a long path is named relative, and a
+  path git cannot open is refused with a message (M72, "Long storage paths").
+
 ### D60 — Muse Spark Code beyond VS Code: the IDE compatibility program (2026-09-26)
 
 The owner (2026-09-26) handed over a plan, "Muse Spark Code — IDE
@@ -3116,7 +3192,55 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   (M66). `docs/ide-compatibility/hosts.md` tracks each editor's route and
   status.
 
+### D63 — Turn checkpoints ship as a Preview, and the restore is rebuilt on the tools' own writes (2026-10-01)
+
+- **What happened.** PR #55 went through seven Codex review rounds. From
+  the third on, every round found new P1 races of one family: the restore
+  undoes the difference between whole-workspace captures, so it must decide
+  which changes were the turn's and which were the user's, another window's,
+  a subagent's, a dead window's, or the clock's. Each fix closed one case and
+  opened ground for the next (4, 6, 5 and 6 new findings in rounds 4 to 7).
+  The owner's rule from 2026-09-28 (a third round means redesign, not
+  patching) applied from round three and was not raised; the owner raised it.
+- **Decision (owner, 2026-10-01).** 0.10.0 ships with `museSpark.turnCheckpoints`
+  off by default and marked Preview: a user who turns it on gets M72 as
+  certified, with its limits recorded in `docs/certification/m72.md`. The
+  restore is rebuilt in M86 on the model's own tool writes, and the setting
+  goes back on by default only with M86.
+- **The new design (M86).** Each write a model tool makes records the file's
+  bytes before and after (the tools already copy a file before writing it).
+  A restore puts a file back only when it still holds exactly the bytes the
+  tool left; any other content (a user's save in any window, another
+  window's turn, a shell command, a later tool write it does not undo) is
+  refused and named. Ownership is never inferred from captures, so the
+  multi-window, overlap, tie and clock races cannot arise. A shell command's
+  changes are listed, not undone, as Claude Code's own rewind does; this
+  narrows D51, which promised to undo them.
+
 ## 3. Open questions (need the owner)
+
+- **M72 native/process exclusion:** what upstream pre-edit fence and locally
+  owned full-descendant shutdown proof can make native/command/hook snapshots
+  destructively restorable? Current availability refuses unproved process
+  state; no wire field, primary exit, pipe drain or dead window PID supplies
+  that proof. Explicit confirmed removal of only a stale unsafe presence file
+  preserves saved checkpoints. No paid/live capture is authorized by this
+  implementation; investigate a bounded future proof separately.
+- **M72 hooks:** should a hook get a final admission of its own? Today none:
+  SessionEnd hooks run on purpose while the Host closes, hook settings are
+  user-global and not trust gated, and Stop is honoured through the signal; the
+  wrapper's activity mark still fences Restore. Default: unchanged.
+- **M72 long storage paths:** should a checkpoint folder over 240 characters
+  (Windows) be served by moving the repository? That would change the hashed
+  namespace. Default: refuse with the `checkpointPathTooLong` message.
+- **M72 dirty buffers in other windows:** a restore refuses a file with unsaved
+  changes in the window that restores, but an idle peer window on the same folder
+  publishes only that it is open, so its unsaved buffer of a file the restore
+  overwrites or deletes is not known. VS Code keeps that buffer and reports the
+  file changed on disk at its next save (it asks before overwriting), so nothing
+  is silently lost. Should every window publish its unsaved paths in its
+  presence file, so a restore refuses them too? Default: unchanged, recorded as
+  a limit (Codex, `a424e526`).
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -7685,6 +7809,306 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M72 — Turn checkpoints (D49)
 
+**Correction batch before 0.10.0, 2026-09-30 (built and lane-verified; the
+four-rig gate, hosted CI and the release are open).** Seven commits on the
+verified `9c4ac7d3` (`docs/certification/m72.md`, "Correction batch before
+0.10.0", holds every drill with its hash):
+
+- **Memory** (`cfe57534`, `80b768f4`): the batch described next. The
+  activation wiring test now pins the exact guard expressions (a no-op
+  `captureGuard` fails it), which the independent verifier found missing. Its
+  other finding, that `withCheckpointEditAt` decides containment lexically
+  against the canonical root while the store also accepts the display root, was
+  right for the export edit (a save dialog returns VS Code’s spelling) and is
+  fixed in `e78a949d`: containment holds for either spelling. The project memory
+  scope was never affected (its path is built from the root it is compared
+  with).
+- **The user's `!` and a shell that never started** (`e593ebe4`, `1fd98aaf`):
+  see "Final admission for the user's `!` command" below.
+- **git's path limits** (`62c856d8`): see "Long storage paths" below.
+- **Test infrastructure** (`c5fec8dc`, `dd4daa8f`): on macOS and Linux the
+  integration tests use a short user-data folder only when the default would
+  not fit a Unix socket path (macOS caps it at 104 bytes), and the macOS worker
+  cap is typed so that `typecheck:host` passes; it failed at the base and would
+  have failed `npm run quality`.
+
+Measured by `npm run build` on `62c856d8`: extension 591.7 of 600 KiB, Model
+API 398.5 of 400 (1.5 KiB left: anything that lands in `ModelApiHost.ts` needs
+its size re-checked), checkpoint store 188.5 of 225; no budget moved. **Open:**
+the final four-rig gate (Windows host, Windows VM, Mac mini and Kubuntu, each a
+literal `npm run quality` on the exact tree), hosted CI, the protected merge and
+the release; the independent verifier of the git path lane had not reported.
+**Owner decisions still open** (§3): native/process exclusion, whether hooks
+should get a final admission of their own, and whether a storage path over 240
+characters should ever be served by moving the repository (today it is refused
+with a clear message).
+
+**Actual memory composition and GUI admission batch, 2026-09-30 (built; aggregate
+gates and platform runs open).** Activation built Muse Code's
+memory over the raw tool I/O while the guarded owning fixture composed a
+checkpointed one, so a replacement of an ignored project note or of its
+`MEMORY.md` took no checkpoint copy, an exclusive creation (which has no
+ToolIo call) took none either, and the Memory view's creation and trash held
+no restore lease. One small composition, `createCheckpointedMemory`
+(`host/backend/checkpointedMemory.ts`), is now the only place activation
+builds the store, and the regression tests build it too:
+
+- Replacements (an existing note, an edit, `MEMORY.md`) go through
+  `withCheckpointCopies` with the original guard. An exclusive creation
+  awaits the same `beforeToolWrite` copy, then publishes with no-clobber and
+  the same guard. The accepted-first-write rule is kept: a note already
+  published stays when a later index guard refuses, with the honest index
+  warning.
+- The view's creation, trash and index line run under the pure edit lease
+  (`withCheckpointEditAt`) until their native promises settle, with one guard
+  captured when the action starts (`backend.workspaceActionGuard`, the same as
+  Create AGENTS.md and the review revert). The guard is handed through
+  `Store.create` and `Store.forget` to the atomic publication callbacks. A
+  note is copied before the trash (`beforeDelete`), and the guard speaks last
+  right before VS Code's delete, which has no callback seam. A trashed note
+  stays trashed when the index guard refuses, and the failure is reported.
+- Whether a scope takes the lease is decided by its folder, not its name:
+  only a scope under the workspace folder does (the project scope; Muse
+  Code's personal folders when the window is opened on the home). The rest
+  keep only the lifetime guard, so no project lease is taken for a path no
+  restore writes. The view has no trust gate, as before, so it still works
+  in Restricted Mode (the lease publishes its mark there too, with no git).
+- A conversation export the user places is written through the same lease
+  when its file lies in the workspace (`cliFeatures` `editFile`); the
+  writer inventory found no other raw workspace writer: the Model API tools,
+  the IDE image tools and memory copy first; plans, the review revert,
+  Create AGENTS.md and exports hold the lease; hooks and shell commands mark
+  activity; CLI commands, worktrees and terminals use the native startup
+  fence; sessions, schedules and the job helpers write the extension's own
+  storage; the ACP agent is an independent process outside the guarantee.
+- `src/extension.ts` has no unit run (its coverage is the integration
+  suite), so a wiring test holds it to the composition: no `new MemoryStore`
+  or `createMemoryIo` in activation, the view gets the composition's lease
+  and copy, and exports go through `withCheckpointEditAt`.
+
+Held-GUI controls run real git, real native I/O, the real store and a second
+window: a held creation or trash is refused a peer window's restore
+(`turnElsewhere`) and lets it through after settlement; a personal path
+outside the workspace takes no lease and a restore proceeds meanwhile; a
+revoked window refuses before the delete or the publication; a failed copy
+stops both; and a restore puts back the ignored note, its index and the
+trashed note. Eighteen on-purpose breaks of these guards each failed their
+intended tests and restored byte-exact (the certification record names the
+hashes). No new transaction, policy, dependency or native resolver framework.
+
+**Whole-suite correction batch, 2026-09-30 (verified).** Four controller
+expectations predated the required checkpoint-state row. Their exact old
+auth/composer/model/session/skills/attachment order is kept, with the
+explicit `noFolder`, blocked Restore/Redo, empty legacy/current turn lists
+and relevant session identity added at the actual emission point. The
+side-session clearing test asserts the complete new message sequence rather
+than a position from the end. The webview's `checkpointState` messages carry
+`legacyTurnIds`. Nothing filters the new row and no assertion was weakened.
+This is a fixture contract correction, not a product behavior change: the
+five owning files (controller, conversation checkpoints, App, UI state,
+protocol) pass 636 of 636, and removing the session id or the legacy turn
+ids from the emitted row fails four and five controller tests on the exact
+expectations.
+
+**Release-blocking memory-owner repair, 2026-09-30 (bounded proof complete).** The
+old memory-tool branch bypassed the captured call admission used by ordinary
+file edits. After approval it awaits placement, note reads and checkpoint
+preimages, but its existing/new note and index writes received no turn guard.
+The repair threads the existing original-call Stop, mode, trust, session-disposal and
+Host-closing predicate through `runMemoryCall`, `MemoryStore` and `MemoryIo`
+to the existing atomic replacement/no-clobber publication callback. Recheck
+after memory preparation; reads create no mutation notices or write grants.
+Every new-note index publication carries the same admission. Keep an already
+published note if a later index guard refuses, with the existing honest
+index warning; do not roll back accepted bytes or invent index success.
+Real checkpoint preimage and native publication fixtures cover held
+Stop/mode/trust/disposal/Host-close refusal, unchanged-owner success and index
+completion/refusal. Old `85cedad0` published actual late bytes after Stop,
+mode and trust changes. Exact `e908e825` passed five types, 400 owning tests
+in four files, owned lint, whole-repository duplication (605 files, zero
+clones) and 14 localization tables. Four external guard-removal controls
+showed green → red → restored green with exact hashes restored. Initial
+fixture narrowing, startup interference, lint and clones were fixed without
+changing assertions or gates. Lead full quality/final release proof remains
+required; the per-milestone record carries the exact receipts. No policy,
+dependency, native resolver or general transaction framework is added.
+
+**Common Stop/lifetime join, 2026-09-30 (bounded proof passed; aggregate gates open).** Preserve
+the reviewed `c19a4955` checkpoint implementation and apply only the proved
+ordinary-write, formatter, rename and automatic-diagnostics owner guards.
+Capture the actual active turn object, call, mode and initial trust before
+awaits; recheck the same owner at native publication and result release.
+Forward the optional ordinary-write guard through checkpoint preimage copies
+and compose it with runtime directory ownership in the existing atomic path.
+Conditional checkpoint callbacks, preimages, pure leases and captured Plan
+recorders stay intact. A denied late formatter retains the successful initial
+edit and its patch. Rename refuses before its first actual write after owner
+changes, while preserving its established finish-after-first-write Stop rule.
+Host closing fences publication before awaited SessionEnd work. Diagnostics
+and configured checks with revoked ownership/trust are refused or withheld,
+never reported clean; Restricted ordinary reads/edits retain their contract.
+This branch has no M78 profiles or M82 budget feature: use its existing
+permission engine and add no such settings or whole Host replacement.
+Native held-checkpoint and atomic-stage controls plus the current M72 suites
+passed the assigned Windows VM proof after the lead reassigned Kubuntu to
+M75. Five type projects, scoped lint, all 14 locales and zero duplication
+passed on behavior tree `f6e7e854d8b6a37738e82484b39c23b3dbe0ace2`.
+The final seven-file rebind passed 504 tests; the earlier full 27-file owning
+selection passed 757 with six explicit Windows skips on `8b272cb3`, before
+only production naming/declaration placement and typed fixture deduplication
+changed. Fourteen disposable mutations failed their intended assertions;
+31 selected tests passed before and after exact restoration. Removing the
+required Host closing callback also failed the constructor contract at
+TS2345 and restored exactly. The certification record names hashes/receipts.
+Initial factory, fixture, polling, parallel-timing, lint and clone failures
+are retained; no threshold, deadline, ignore, dependency or rule was weakened.
+The final evidence-doc reconciliation resumes from the user-paused checkpoint;
+it changes no behavior and reuses those valid proofs. Final independent
+review, verified latest-main join and aggregate/platform/installed gates
+remain open; no partial unverified M75 snapshot is joined here.
+The checkpoint shell wrapper adds another await before command entry; its
+optional final command callback therefore runs after the pure activity mark
+and again after the native adapter's awaited Windows assembly preparation.
+A refusal before entry releases the mark without claiming an unknown process;
+the native adapter reports proven cancellation with no workspace process.
+Existing commands, hooks, permissions, signal and runtime identity checks
+remain in their paths. Held-mark/assembly negatives and an actual unchanged
+local command must prove that forwarding before merge certification.
+The same callback reaches ordinary model shell calls through ToolContext.
+Original call/batch admission is passed through explicit path preparation,
+every sequential check and then_run rather than recaptured after a changed
+mode or trust. Completed commands retain their actual exit status; unstarted
+commands are refused and revoked results create no current ledger grant.
+M46's explicit background move retains its existing separate controller:
+only the exact still-owned controller may outlive the parent turn, while
+captured mode/trust, command Stop, session disposal and Host close still hold.
+Multi-check, explicit-path and held-background controls bind these seams.
+
+**Independent no-entry classification follow-up (verification pending).**
+The f6 review found a captured-owner refusal after checkpoint admission or
+Windows assembly reported as a ran failed/cancelled check. Carry explicit
+locally proven entry-refusal evidence through the existing ShellResult;
+only the wrapper/native callback boundary may set it, never model/MSP data.
+runCommand preserves it and runVerifyCommand reports notRun/refused from
+that evidence. A null exit code or cancellation alone cannot imply no entry.
+Already-started commands retain their actual exit outcome after revocation.
+Extend held-mark/actual-assembly summaries and a launched/cancelled control;
+prove only the new classification removals, preserving the valid 14 earlier
+reds and original paused receipts. No new policy or ownership registry.
+The common result interface and no-entry constructor live in the neutral
+core/shellResult module, preserving the original tools type export. Eager
+host adapters import only that tiny value; they cannot pull LAZY_ONLY tools
+into the extension. Existing type consumers and outcome behavior are unchanged.
+
+**Final admission for the user's `!` command and proof for a shell that never
+started (2026-09-30).** The Model API session's explicit `!` command (M46) was
+the one shell entry that reached the checkpoint wrapper and the native adapter
+with no final admission: after its initial Restricted Mode check, the activity
+mark and the adapter's Windows assembly wait could end with nothing asking the
+current trust, the session or the Host closing. It now passes its own callback
+as the sixth `runShell` argument and refuses on the user's own stop, session
+disposal, Host closing and current trust. It does not take the model's rules:
+the running turn, its Stop and the permission mode (Plan included) never
+decide an explicit `!`, and a started command keeps its outcome. A refused
+entry ran nothing: its row reads "The command did not run" and the model is told
+nothing. Separately, a command that could not start at all carries
+`isWorkspaceShutdownProven` through `unstartedShell()` in `core/shellResult`:
+no interpreter on `PATH`, a missing PowerShell (a spawn that failed with no
+pid), the hook shell, and `spawn` itself throwing (a NUL in the command, a
+command line past the operating system's limit; `startProcess` in `toolIo.ts`).
+The failure stays a failure. A launched command, an error event after launch
+and a normal exit never carry the proof, so the wrapper still records native
+uncertainty for any real launch. A failure before entry (the activity mark
+cannot be made) is a `ShellEntryError`: the user shell path treats it as a
+no-entry outcome and tells the model nothing, while a failure after the command
+ran stays a plain `Error` and is still told. Out of scope by design: hooks (no
+workspace-trust gate; SessionEnd runs while the Host is closing; Stop is
+honoured through the signal) and Muse Code's `session/userShell`, which the CLI
+runs in its own process, guarded only by the controller's Restricted Mode check
+and the native startup fence. A throw from `assertWorkspaceCurrent` stays
+unproven and conservative; only the ACP runtime composes it, and it has no
+checkpoint wrapper, so no false sticky state is reachable (revisit if the two
+are ever combined).
+
+**Measured checkpoint bundle split (D6, verification pending).** Literal
+`npm run build` on 0.10.0 `addc6870` produced extension 638.2 KiB, exceeding
+the unchanged 600 KiB budget; Model API 397.9/400 KiB and every other existing
+bundle were below their budgets. Preserve that real failure and move only
+checkpoint implementation behind a dedicated shipped CommonJS entry using
+the existing requireFile/checked-loader pattern. The extension keeps a thin
+typed API and neutral turn key; the factory synchronously installs activation
+UI_TEXT/uiLocale before constructing the real store. Constructor/getter,
+maintain, namespace safety, process/startup admission and dispose remain
+synchronous or awaited exactly as before. Loading occurs when activation
+constructs a known-namespace store, including before its initial maintain;
+this is a code-bundle split, not a claim of wholly lazy activation behavior.
+The bundle must ship in the VSIX, source/metafile split gate, notices and size
+inventory. Its new bounded budget will be set from measured implementation
+bytes with documented headroom; no existing threshold is raised. Real built
+factory, missing/malformed refusal and repaired-load controls plus literal
+build/size/split and deliberate failures must prove the boundary.
+
+The injected activation GitProcess keeps its original local error objects.
+The new checkpoint bundle has separate copies of GitMissingError/GitExitError,
+so checkpoint catch paths must use the error's checked name and exit fields,
+not custom-class identity. Reuse host/git.ts for these structural guards,
+preserving stderr/message and all CAS/error handling. Exercise actual built
+factory capture with native Git and an exit-1 config control, plus the native
+missing-Git error crossing the factory boundary; deliberate guard removal
+must fail those semantics. No process-error wrapper or alternate store.
+
+Actual scoped proof on `a8d25f02`: all five type projects and lint passed;
+literal `npm run build` exited 0, including size, split, host globals and
+81-package notices. Extension 590.5/600 KiB, Model API 398.1/400,
+checkpoint store 186.8/225. Six real built-module controls passed. The
+fixture-only `e908e825` rebind has identical production/native/script/package
+inputs; all five types, lint, whole duplication (605 files, zero clones),
+14 locales and 79 controls plus 447 owning tests passed. Three new no-entry
+classification removals fired at intended assertions; new loader/Git and
+packaging drills are completing in owned disposable copies. These are scoped
+results, not full-quality, platform or release/channel certification; those
+remain the lead's next gate. No product source awaits a new feature decision.
+
+**Long storage paths (2026-09-30, measured with git 2.52.0.windows.1).**
+`core.longpaths` is read only after git has opened the repository, so the
+repository's own path must fit PATH_MAX as written: a `GIT_DIR` of PATH_MAX-40
+(220) characters or fewer is taken absolute (`'$GIT_DIR' too big` beyond);
+written relative, `<git dir>/objects` must still fit in 259 (repository 251 or
+less, storage 240 or less); the work tree and a repository being made are
+changed into, so 258 or less. No spelling, working directory, gitfile or option
+reaches beyond, and the hashed namespace and identity hashes stay as they are.
+The old initializer (`shadow-<uuid>.initializing`, 56 characters) also ran
+`git init` without the scoped option, which fails from 235 characters; the
+frozen 90ff host run hit that at 242 with a repository of only 195. ShadowGit
+now makes the repository in a short unique folder in the storage folder itself
+(`.i-` plus 12 digits of sha256 of the window's id: same folder, so same volume
+through links and junctions, and one atomic rename), with scoped
+`core.longpaths`; removes it in a `finally` whether init failed, was cancelled
+or lost the publication race; and sweeps one a dead window left once it is
+older than `CHECKPOINT_STALE_LOCK_MS`. While the repository path is PATH_MAX-40
+or shorter every command keeps the absolute `GIT_DIR` and the work tree as its
+directory; beyond that it is named `shadow.git` with the storage folder as
+directory, `GIT_WORK_TREE` and `GIT_INDEX_FILE` stay absolute (a relative index
+is invalid after git changes into the work tree), and `hash-object`'s file
+argument is named in full because it opens files from where it started. A
+repository over PATH_MAX-9 or a work tree over PATH_MAX-2 is refused before any
+file is made or git is started, as capture refusal `pathTooLong` with UI text
+`checkpointPathTooLong` (14 tables, machine-made). PATH_MAX is the platform's
+(260, 1024, 4096) unless a test lowers it (`gitPathMax` dep), so both decisions
+are by length. No store created by an earlier build is affected (storage of 177
+characters or less). Tests: `checkpointLongPaths.test.ts` over real git; the
+tests' independent reads use one helper that scopes `core.longpaths`. Sixteen
+on-purpose breaks and an equivalence drill (the relative spelling forced across
+20 suites) are in the certification record. Limits kept: `git worktree add` and
+the workspace-cwd metadata runners cannot use a workspace over 258 characters,
+and window presence files are written before the path check.
+
+**Status 2026-09-30: built** on `feature/m72-checkpoints` (PR #55, first built
+2026-09-28) and integrated on `integrate/m72-on-24ff` for 0.10.0 (D51,
+`docs/certification/m72.md`); not yet merged: the final four-rig gate, hosted CI
+and the release are open. The mechanism is a shadow repository in the
+extension's own storage, never the workspace's `.git`.
+
 - **Goal.** Undo is cheap, and complete wherever the extension saw the
   change coming; where it could not, it says exactly what it left.
 - **Scope.**
@@ -7724,8 +8148,378 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 - **Tests.** A temporary repository per test, with drills for the
   workspace `.git` guard and the not-restorable list.
 - **Size.** M.
+- **Built (2026-09-28).**
+  - **Resume 2026-09-29 (`e73e8549`, safe-availability verification pending; integration open).** Finish the
+    existing shadow-ref redesign rather than reintroduce `store.lock`:
+    checkpoint and redo JSON live in their own CAS refs, each window owns
+    its index/pins/staged copies and presence, archives are written before
+    returning, and prune keeps recent objects while another window writes
+    their refs. Port tests that still import the removed lock or read the
+    removed `records.json`. Prove independent stores preserve each other's
+    records and live captures, ignored preimages survive until their end
+    record is durable, archives survive window close, folder preservation,
+    stopped restores retain Redo, and localized failures reveal no storage
+    paths. Recheck queued/scheduled turn admission and state the remote
+    Muse Code event limit honestly. Evidence belongs in `m72.md`; the old
+    lock receipts remain historical, not certification of this redesign.
+    A restore/redo reserves a single shadow ref by CAS before file work,
+    rechecks running windows after admission and lets the reservation go
+    only if still its own. Model API turns await their running mark before
+    hooks, shell commands or model calls, including queued and scheduled
+    turns. Checkpoint identity is the session/turn pair so simultaneous
+    windows cannot create two records for one turn.
+    A known process that is still alive retains its presence and resources;
+    heartbeat age alone cannot prove it gone. Native, unresolved activity and
+    unreadable/old presence do not expire, even on owner PID death, without
+    confirmed native shutdown. A reused process id can delay ordinary
+    fenced-window cleanup; deleting unproved copies or reservations is refused.
+    Cleanup defers record deletion and prune while a live restore owns its
+    reservation. Admission reserves first, then rereads records/archives and
+    pins that fresh source view before touching files, so cleanup cannot
+    remove old source blobs during setup.
+    A failed ref command is observed before it is called a conflict: if
+    the ref already names the exact tree just written, the write succeeded.
+    Model API admission awaits an existing turn record, or capture and
+    record creation, before edits. The independent resume review also
+    requires staging/index enumeration before a fresh presence read, and
+    preserving a redo's applied report if trimming its original record fails.
+    Failed end writes pin the complete pending record tree under the owning
+    window until final persistence, protecting ignored preimages beyond the
+    prune grace. Empty-folder cleanup errors after a committed file delete
+    are logged without dropping that applied step or its Redo preimage.
+    All Model API turns, including paid children and queued child follow-ups,
+    await admission and keep their mark until completion. Child records use
+    the top parent's session id for archive/retention and their own unique
+    turn id, so a child outliving its parent still blocks a restore.
+    Fresh host/unit types and nine checkpoint suites pass (111 tests,
+    3 POSIX-only skips); the unchanged Model API source passes its full
+    301-test owning suite. Independent read-only review closes the storage
+    and child-admission findings. Full quality, cross-platform checks and
+    the native Muse Code pre-event exclusion limit remain integration work;
+    the certification record names the source-bound focused receipts.
+    **Safe destructive availability correction (2026-09-29, before code).**
+    Stored checkpoint Restore/Redo is offered only for the actual attached
+    Model API session. The host and store recheck server-owned session/backend
+    admission and trust before mutation; unknown/disconnected identities fail
+    closed. Muse Code captures/listing remain read-only. Before any agent
+    `muse serve` startup, its manager awaits a persistent native marker in
+    existing window presence and checks the shared restore reservation without
+    launching Git in Restricted Mode. This applies with checkpoints off and
+    remains through native idle/queued/scheduled/child work. Current stores
+    attest the startup fence through a fixed presence word; old/unknown peers
+    cannot attest it and block destructive operations. Native/unknown presence
+    is not discarded on age, extension PID death, host exit or store disposal:
+    SDK exit/close proves the server exited, not every native descendant.
+    No automatic full native shutdown proof exists here. Recovery requires
+    explicit user confirmation that all native workspace work has stopped,
+    closing its old window so it cannot republish or restart native work,
+    then removing only that exact unsafe presence JSON under `checkpoints/windows`.
+    Saved record refs, captures, Redo and history remain. Verify this narrow
+    owned-fixture recovery procedure before documenting it. Preserve the
+    prior focused receipts as historical,
+    add real-storage mixed-window and held-reservation startup tests plus
+    fake-host admission/barrier tests and red/restored proof. No new lock,
+    dependency, wire field or paid capture.
+    The existing atomic writer also receives a synchronous pre-commit check
+    for checkpoint writes, after its awaited canonical-path checks and just
+    before each rename attempt. Backend/trust revocation during temporary-file
+    preparation cannot commit an old restore into a new session.
+    The same native barrier also covers the account-only workspace-cwd
+    `muse serve` process. No capture proves its autonomous scheduler inert.
+    Initialize checkpoint admission before authentication can request that
+    host; preserve required auth probes and their cwd. A probe therefore can
+    conservatively close Model API restore availability too, as the UI/docs
+    must state. Reuse the manager's single admission callback at both spawn
+    sites, with no private SDK process handles.
+    Locally owned shell/hook work also outlives Model API turn boundaries:
+    background commands and `!` commands can run after the parent turn ends;
+    SessionStart/SessionEnd hooks can run outside a turn. Extend only the
+    existing `withCheckpointCopies` I/O wrapper to publish a unique activity
+    mark before `runShell`/`runHook` and clear it after the real I/O promise
+    settles. The shared wrapped I/O covers children and stays active with
+    capture off. Real-store held-activity tests and red/restored proof must
+    show Restore/Redo refusal, startup exclusion under CAS, and no mark
+    released at the outer row acknowledgement.
+    The existing runner's normal primary exit/drain is not proof that all
+    descendants stopped. Without positive locally owned shutdown provenance
+    on its internal ShellResult, shell/hook completion first publishes the
+    same sticky unsafe presence and only then clears its transient activity
+    mark. Current runners provide no such full-tree proof. Active activity
+    markers also survive owner death/disposal; they cannot disappear into
+    false safety after a crash. Pure file-tool Model API sessions remain
+    eligible; commands/hooks/account probes can conservatively close that
+    availability. Keep intentional background jobs intact. No automatic
+    release, native wire field or new containment framework.
+    Independent rereview found two remaining ownership bypasses. Fence the
+    existing Model API local stdio MCP factory before actual spawn with the
+    same persistent native barrier; adapt only the local spawn seam to await
+    it, without protocol/schema changes. Externally managed HTTP MCP services,
+    editors and independent processes remain outside this ownership guarantee.
+    Also make the surface checkpoint tracker passive for Model API actual
+    turns: core admission/end callbacks own their canonical mark and end
+    capture. Latch ownership when tracking a session/turn so closing one
+    retained surface cannot clear an actual turn still running elsewhere.
+    Only pending panel captures remain surface-owned. Real retained-session
+    and MCP startup/idle regressions must prove both bypasses closed.
+    Current workspace-specific storage also splits fences when two VS Code
+    workspace identities name one physical folder. Before store/auth/spawn,
+    resolve the native canonical directory and use the existing memory
+    workspace-key helper (Windows-normalized/case-folded) under the extension's
+    global storage. All current-version windows sharing that canonical root,
+    user/profile/global-storage namespace share the existing store/CAS/presence.
+    Unknown/unreadable roots fail closed. Preserve old workspace-specific
+    stores in place as read-only legacy; use existing record readers without
+    prepare/cleanup/migration, show legacy IDs as read-only, never move active
+    fences or delete history. Older versions, different profiles/users/machines,
+    remote HTTP MCP, independent processes and editors are outside that fence
+    guarantee. Real two-identity/native-alias/unknown-root tests are required.
+    The factory closure audit also found short CLI skills/import/export and
+    sandbox commands, plus extension-managed interactive/auth/MCP/installer terminals.
+    Await the same persistent startup marker before execFile or terminal
+    creation (a shell profile can run immediately), keeping absent-CLI return
+    semantics. Existing callback contracts accept awaited void/boolean
+    promises; check the application shutdown signal and manager generation
+    after admission before invoking the actual factory. Terminal disposal,
+    command exit and owner death do not clear uncertainty. Prove each CLI,
+    sandbox and terminal family with held durable admission/real restore refs
+    and no-launch after shutdown; no new process-tree framework or wire field.
+    The bounded closure search found Create AGENTS.md's `muse init` callback
+    too. Gate it through the same native startup path; refusal propagates and
+    never becomes absent CLI/template fallback. The explicit pure template
+    write uses existing active presence admission, checks shutdown and manager
+    generation after the await, and releases only after its FS promise settles;
+    it does not promote a process marker. Preserve its Restricted Mode action
+    while running no Git there. Test held missing-file lookup, real restore
+    reservation and late shutdown before either writer begins.
+    The final bounded factory pass includes extension-managed Git worktree
+    add/remove: normal repository configuration can run checkout hooks and
+    leave workspace-capable descendants. Route only those exact mutation
+    argument forms through the existing persistent startup admission; keep
+    ordinary Git metadata reads and user hooks unchanged. After admission,
+    resolve the owned workspace and Git cwd, verify the cwd contains that
+    workspace, and recheck application lifetime/manager generation immediately
+    before Git. Pass that checked canonical cwd to the actual runner; a
+    retargeted caller alias must never select another repository after the
+    check. Prove a real post-checkout canary, refusal under a real restore
+    ref and no Git after late shutdown. Freeze this writer inventory before
+    current-main integration and fresh affected verification.
+    Current-main integration adds M79's explicit plan publication and stale
+    stage cleanup, plus the existing file-review revert write/delete seam.
+    These pure workspace mutations use the same actual-promise file-edit
+    lease, including success/failure and held-restore/late-close cases. Keep
+    M79's captured owner/trust/lifetime checks and no-clobber/inode cleanup
+    intact; admission does not grant ownership of another writer's stage.
+    Automatic prompt environment status/log can also execute configured Git
+    fsmonitor, signature or clean/process helpers. Use M70/M77's scoped
+    suppression: empty fsmonitor (legacy-compatible), signature/maintenance
+    off, and bounded names-only filter discovery with per-command clean,
+    process and required overrides. Keep ordinary user Git unchanged. Each
+    actual metadata process holds existing checkpoint activity through its
+    promise and rechecks trust, lifetime and owned cwd immediately before
+    spawn; discovery failure refuses facts, never means no helpers. Harmless
+    real helper canaries must execute under ordinary Git and remain absent
+    under environment reads; held restore, late trust/lifetime and cwd cases
+    prove admission. Keep shared suppression parsing in the existing Git
+    module for the later M70/M77 joins, without a new process framework.
+    The portable ACP process has no stored checkpoint restore surface or
+    VS Code profile namespace. Its required startup policy explicitly records
+    that independent-editor boundary; it does not claim shared VS Code
+    admission or publish a fabricated fence. Keep the extension's managed
+    startup callback required. ACP writes, like other independent editors,
+    are outside the current VS Code checkpoint exclusion guarantee.
+    The joined M68 conditional file writer keeps its fingerprint, unsaved
+    text and captured-owner checks, with M72's preimage wrapper reaching
+    `writeFileIfUnchanged` too. Atomic writes retain both live predicates
+    after awaits and immediately before rename, and support snapshot bytes
+    without changing conditional text/fingerprint semantics. Keep M68's
+    shared edit registry, plan captured owner and verify settings/ports.
+    Independent joined-main review found plan trust/lifetime withdrawal after
+    awaited admission/staging could still publish. Capture the actual plan
+    workspace/trust/lifetime predicate, pass it through the existing PlanIo
+    edit callback and into native no-clobber mkdir/stage/publication checks,
+    and check it immediately before stale-stage removal. Reuse the existing
+    staged callback for real held-stage regressions. Restricted explicit
+    Revert/template policy stays unchanged; plan saves keep their existing
+    trusted-only policy. Preserve M68 captured owner and M79 stage identity.
+    The joined restore review also found a saved/dirty file could change
+    during atomic staging, after its initial expectation check. Reuse M68's
+    conditional writer with a restore-specific current-file predicate, raw
+    byte/absent/stat expectations, and fresh dirty/backend/cancel checks at
+    publication. Recheck canonical/unlinked deletion destinations after the
+    awaited file check, and cleanup folders before rmdir. Preserve executable
+    bits and durable partial Redo. Real held-stage edits, dirty editors and
+    parent link swaps must refuse writes; document the same narrow last
+    comparison-to-syscall residual as the existing native conditional writer.
+    The existing readonly menu note remains semantic and keyboard accessible;
+    constrain that menu to the viewport and wrap long localized safety/legacy
+    reasons. Register native, legacy and narrow read-only fixtures in the
+    existing harness inventory so the accessibility gate reaches these states;
+    verify actual narrow browser viewport bounds before integration. Reuse
+    the existing component and harness.
+  - **Where.** `src/host/checkpoints/` (the shadow repository, the store,
+    the ignored scan, the records, the port and the tool-write wrapper),
+    `src/core/checkpoints/` (git output parsers and the pure restore plan),
+    `src/host/conversation/conversationCheckpoints.ts` (a conversation's
+    captures, restore, redo and notices), the protocol's `restoreFiles`,
+    `redoRestore` and `checkpointState`, and the user card's menu.
+  - **When a capture is taken.** Before a message that starts a turn is
+    sent, so the turn's first edit cannot precede it; the turn takes the
+    oldest waiting capture, whichever of its start and its acknowledgement
+    comes first. A turn no message of the panel started (a queued message,
+    a scheduled run) is captured when it starts. Model API admission waits
+    for that capture and record before edits; Muse Code events cannot wait.
+    Each turn's end is captured too, including a turn the backend
+    stopped (D25), a conversation that left the panel and a panel that
+    closed. A steered message takes none.
+  - **What a restore undoes.** The difference between the chosen turn's
+    start capture and a capture taken now, less every path that changed
+    between the conversation's turns or after the last (the user's work)
+    and every path another conversation's turn changed while one of these
+    ran (their times overlap), refused as "changed by something else in the
+    meantime". Ignored files follow the turns' recorded changes, with the
+    stat continuity check between turns. A path added since the checkpoint
+    that the restored ignore rules name was an ignored file then and stays.
+    A link, a folder link or junction (Git for Windows walks into one, so a
+    capture drops every path under it), a file over 16 MiB and a nested
+    repository are left out and named. Folders a restore empties are
+    removed only if they were not there at the checkpoint: git trees hold no
+    empty folder, so the capture before a turn also records the folders it
+    holds no file of (`ls-files --others --directory`, an untracked folder
+    listed whole standing for everything below it, plus the ignored and
+    linked ones; up to 10,000, past which, or for a record without the
+    list, a restore removes no folder). Limit: a folder the turns made
+    inside a listed folder counts as there (the listing collapses an
+    untracked folder), so it is left, empty. HEAD, the index, the stash and
+    branches are never touched.
+  - **Windows sharing a store (2026-09-29 redesign).** Each window owns
+    its index, pins, staged copies and atomic presence file. Checkpoint and
+    redo JSON live inside trees under `refs/muse-spark/record/<id>`; updates
+    and deletions compare the previously read ref, and a checkpoint's id is
+    derived from its session/turn pair. Independent windows cannot overwrite
+    each other's records or create duplicate checkpoints for one turn. A
+    restore/redo claims `refs/muse-spark/restore-active` by CAS, rechecks
+    running windows, and releases only its own value; a crashed reservation
+    is taken over only after its owner's presence is gone. Every store
+    publishes presence before creating its refs. Shadow initialization uses
+    a private completed directory then an atomic rename, so two first uses
+    do not race Git's configuration or hook templates.
+    - Panel submissions await a running mark. Model API turns additionally
+      await admission before hooks, edits or requests, including queued and
+      scheduled runs, and refuse a failed mark. Muse Code's remote events
+      cannot delay its engine; exclusion before an autonomous start event
+      arrives remains unverified, so its destructive checkpoint operations
+      are unavailable. Locally owned shell/hook activity and account-only
+      serve are fenced too; unproved shutdown keeps them unavailable until
+      exact confirmed recovery, as stated in the README.
+    - Tool preimages stay until the end record persists. A failed end write
+      keeps its completed boundary and copies; the next store operation
+      retries that metadata without capturing later user edits. Presence
+      retains that unfinished end until it persists.
+    - Archiving writes a separate atomic archive file before returning,
+      including in Restricted Mode. Every window hides older captures at
+      once; trusted cleanup deletes their record refs. Prune retains objects
+      younger than `CHECKPOINT_PRUNE_GRACE_MS` (one hour), so another window's
+      in-flight objects are protected.
+    - Closing stops file work before the next mutation, finishes only Redo
+      metadata and reservation release, then removes presence and staging.
+      Presence remains live until in-flight work settles. Empty directories
+      present at the original boundary are preserved as before.
+  - **Each step** (review of 4ce27cb8): the redo record of every step is
+    saved, with its keep ref, before the first file changes; `.gitignore`
+    files are written first, then the ignore check (paths given as `./…`,
+    never pathspec magic), then deletions, then writes, so a case-only
+    rename and a file↔folder swap come back. Just before its step each file
+    is re-checked: unsaved in an editor or notebook (asked again), its
+    canonical path equal to the canonical root plus the path (no link or
+    junction on the way), and its content the blob (SHA-1 computed in
+    process), absence or size-and-time the plan expects. A step that fails
+    or throws is reported as "could not be changed"; the record is then cut
+    to what was done. Blobs are read in batches of at most 32 MiB. Writes
+    keep the file's permissions and set only its execute bits.
+  - **Redo** records what the restore replaced and what it left, and puts
+    back only files still as the restore left them. A redo is recorded the
+    same way, so it can be redone. What a redo could not do stays in its
+    record (the button stays); a spent record is deleted. The button waits
+    for the host's answer.
+  - **Turns running.** A restore or redo waits for no turn: it is refused
+    while any turn of the window runs (recorded or not, checked again after
+    the confirmation). A turn whose end was never recorded makes its
+    restored paths "unsure", named in the notice.
+  - **Rewind conversation and restore files** is one action: one modal that
+    names both, the conversation's checks (M53) before any file changes,
+    the restore, and the rewind only when every file was restored; the
+    report is posted after the fork so the new transcript carries it and
+    its Redo (tied to the restore's id, not the conversation). **Fork
+    conversation and rewind code** is one `rewindCode` message with `fork`:
+    confirm, revert, fork.
+  - **Cleanup.** Every window open (activation and trust granted) runs
+    `maintain`: stale git locks older than five minutes (more than git's
+    two-minute timeout) are cleared, keep refs no record names and the pins
+    and tool copies of windows that are gone dropped and pruned, and
+    retention applied with the setting on or off. Archiving in Restricted
+    Mode drops the conversation's records at once with no git (under the
+    store lock); its refs go at the next trusted `maintain`. Captures are
+    pinned until recorded or let go; a capture older than its
+    conversation's archive is not recorded. Closing the window ends every
+    git still running and removes its presence. The folder is 0700 on POSIX.
+  - **The menu.** A turn with a checkpoint (its first card) offers **Restore
+    files to here** and **Rewind conversation and restore files** beside
+    M6's fork, M53's rewind and M13's code rewind; a turn without one keeps
+    M13's **Fork conversation and rewind code**. Disabled rows say why a
+    choice is missing (Restricted Mode, the setting off, git not on `PATH`,
+    Muse Code on Windows); a turn offers **Restore** only while checkpoints
+    are on. **Rewind code to here** now asks in the same modal.
+  - **Bounds.** 50,000 files outside the ignore rules and 512 MiB of changed
+    files per capture (beyond them the turn has no checkpoint and the panel
+    says why, once per conversation and reason); 16 MiB per file; the
+    ignored scan at 5,000 files, and an ignored folder over 1,000 files left
+    out whole; 500 ignored changes per turn. Retention: 100 checkpoints per
+    conversation, 50 conversations, 20 redo records per conversation, and
+    `museSpark.cleanupPeriodDays`. Archiving a conversation deletes its
+    checkpoints and prunes at once; retention prunes at most every ten
+    minutes.
+  - **Setting.** `museSpark.turnCheckpoints`, machine-scoped, on by
+    default.
+  - **Limits (resumed candidate).** A Muse Code queued or scheduled turn's
+    capture races its start (the remote backend does not wait), so stored
+    destructive Restore/Redo is available only to an actual attached Model
+    API session with confirmed process safety. Native/account and local stdio
+    MCP startup, or shell/hook completion without full-tree proof, durably
+    closes that availability. Unknown/crashed activity never expires into
+    safety. Current-version windows sharing the canonical first folder and
+    extension global-storage namespace coordinate across workspace identities;
+    older versions, other profiles/users/machines, independently managed
+    editors/processes and remote HTTP MCP services are outside that guarantee.
+    Saved old workspace-specific history remains read-only. On Muse Code
+    the extension cannot copy an ignored file before the CLI's own tools
+    write it, so such a change is listed as not restorable. Failed end
+    persistence freezes the original end boundary and staged preimages until
+    retry is durable, keeping restores refused in the meantime. A file swapped between its
+    re-check and its write is the same residual as the Model API tools'.
+    Dirty notebooks are read from VS Code's notebook documents, which the
+    unit tests do not reach (extension wiring). The first capture of a
+    large workspace hashes all of it once.
 
 ### M75 — Paired efficiency evaluation (D49)
+
+**PR63 second review round and the 0.10.0 merge (2026-10-01):** main
+(`90ec399e`, 0.10.0 and the npm path fix) merged in; its [Unreleased]
+`### Fixed` kept, M75's entry under `### Added`. Three threads closed:
+
+- **No credential variable in the model's shell commands.** Both live
+  harnesses build their tool access through `liveToolIo`
+  (`test/e2e/evalLiveSupport.ts`), whose environment is
+  `withoutCredentials(process.env)`, as for every process the ACP agent
+  starts; the cards are allowed without a person reading them, so another
+  provider's key in the owner's shell must not reach a tool's output.
+- **Arms take turns going first.** The task at index i starts with arm
+  i mod arms, so the prompt cache a task's first run warms (the same system
+  prompt and message) is not credited to one arm; each v2 result records
+  its `order` (1 = first), shown in the report, absent from v1.
+- **The task selection is read inside the enabled test only**
+  (`liveEvalSelection`, which refuses while live tests are off without
+  reading anything), so a stale `MUSE_EVAL_TASKS` cannot fail the default
+  run; the outer deadline allows the whole task set.
 
 **PR63 final review, 2026-09-30 (repairs pending):** close the four reported
 boundaries before merge. The opt-in live evaluator reads its credential from
@@ -8398,6 +9192,32 @@ independent review and the full candidate gates remain required.**
   for it.
 - **Size.** M.
 
+### M86 — Restore by the tools' own writes (D63)
+
+- **Goal.** Restore files without guessing who changed them.
+- **Scope.**
+  - Every model tool write (`write_file`, `edit_file`, the image tools, the
+    memory tools, `rename_symbol`) records, per turn, each file's bytes
+    before (or absent) and after, keyed by the turn; the records live in the
+    existing checkpoint storage (CAS refs) and survive a reload.
+  - "Restore files to here" undoes, newest first, the recorded writes of the
+    chosen turn onward: a file is written back only when its current bytes
+    (and execute bit) equal the last recorded "after"; anything else is
+    refused and named, as is every file a shell command changed (found by the
+    existing captures, listed, never undone).
+  - Redo keeps its current meaning on the same records.
+  - The whole-tree attribution in `changedOutside` (gaps, stretches, peer
+    windows, saves files, unseen ends) is removed; captures remain only to
+    list what shell commands changed.
+- **Acceptance.** No restore writes a file whose bytes differ from what a
+  tool of the restored turns left there; every M72 Codex finding from rounds
+  3 to 7 is covered by a test of the new design or is moot by construction.
+- **Tests.** The M72 restore tests that still apply, rewritten on the new
+  records; the round 3 to 7 scenarios (user saves in any window, peer turns,
+  dead windows, ties, clock moves) each as a refusal test.
+- **Release.** `museSpark.turnCheckpoints` defaults on again with M86.
+- **Size.** L.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -8895,9 +9715,21 @@ remain available.
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
+M72's `src/host/checkpoints/checkpointStoreBundle.ts` uses the type predicate
+`isCheckpointStoreBundle`: the required module is unknown; both exported
+functions must exist. Their parameter/result types cannot be checked at
+runtime and are trusted only because entry, loader and package come from one
+source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
+it with Node require, exercises real activity/disposal and installed language,
+and refuses missing/malformed modules before repairing them (2026-09-30).
+
+| File                                            | Construct                        | Reason                                                                                                                                                  | Added      |
+| ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised. | 2026-09-30 |
+
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn` (`detect-child-process`)                    | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string.                                                                                                                                                                                                                                                                                                                                                                                                                    | 2026-09-22 |
+| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`) | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
 | `src/host/backend/searchWorker.ts`       | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
 | `src/host/voice/dictationHost.ts`        | `nosemgrep` on two `spawn` calls (`detect-child-process`)          | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
 | `native/darwin/Dictation.swift`          | `unsafeBitCast(symbol, to: SetDisclaim.self)`                      | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
@@ -8962,7 +9794,22 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
   file whole, so no note is ever half written; residual risk: Muse Code and
   the extension writing the same note in the same instant keep only one of
   the two writes. Notes reach every later session, the personal scope every
-  project, so a model's write asks in Manual (Muse Code's does not).
+  project, so a model's write asks in Manual (Muse Code's does not). Under
+  turn checkpoints (M72) the memory tools' and the view's writes keep a copy
+  of an ignored project note first, and the view's create and trash hold the
+  restore lease (personal notes outside the workspace take none).
+- Turn checkpoints (M72, D51) copy the workspace's files into the
+  extension's workspace storage, and an ignored file (a `.env`) only when
+  the extension's own tools are about to write it or a restore overwrites
+  or deletes it (for Redo). The copies never enter the workspace's `.git`,
+  stay on the machine in a folder that is 0700 on POSIX, and go with the
+  conversation, the retention bounds (applied at every window open) or the
+  storage directory. Residual risk: whoever can read VS Code's storage
+  directory as the user can read them, as they can the workspace itself. A
+  restore refuses any path with a link or junction on the way and
+  re-checks each file's content just before changing it; a file swapped
+  for a link between that check and the write is the same residual as the
+  Model API tools'.
 - Opening files for their diagnostics (M68): VS Code's language servers
   report only on shown files, and showing a file can make an extension load
   its configuration as code. The verify loop never shows or formats a
@@ -9452,3 +10299,84 @@ of as a mismatch warning. The full gate passed on `9c2cdce` (2,507 tests,
 `v0.9.1`; release run 36358973778 passed every job (tag checks, the seven
 build jobs, GitHub Release, Marketplace publish), and the GitHub Release
 carries `muse-spark-code-0.9.1.vsix` (1,162,362 bytes).
+
+**0.10.0 preparation (2026-09-30, owner authorized).** Release is the
+current priority. Finish and independently review M72's shared Stop/lifetime
+fixes on current main, then publish 0.10.0. Prepare the manifest, lockfile,
+changelog and release documentation in the same PR55 candidate before its
+four-platform full gates, so the release tag can name the tested main tree.
+PR63's evaluation work and the other unfinished branches follow this release;
+they are not release prerequisites. The release includes the already merged
+multi-IDE work with its documented Preview limits, code intelligence, web
+fetch, verify loop and plan files, together with the verified M72 changes and
+its 2026-09-30 correction batch (memory copies and leases, the `!` command's
+final admission, git's path limits; `docs/certification/m72.md`).
+No new paid calls are part of release verification. Do not tag or claim
+publication until the candidate passes independent review, exact-tree local
+platform checks and hosted checks and lands through its protected PR.
+After tagging, verify actual GitHub VSIX and ACP downloads, Marketplace,
+Open VSX and npm `muse-spark-code-acp`: published version, downloaded payload
+and integrity, isolated installation and activation, with recorded Windows
+host, Windows VM, Mac mini and Kubuntu smoke results. A skipped publish or
+successful workflow alone does not close any distribution channel.
+
+The first full gate on `05db3711` exposed a missing manual-entry registration:
+plain knip reported `src/host/checkpoints/checkpointStoreEntry.ts` as unused.
+Register that actual built entry alongside the existing Model API and plan
+entries in knip and in dpdm's cycle command. These are graph entrypoints,
+not ignores; existing rules and thresholds remain in force. The compiled
+factory's native capture and no-git controls already passed before this run.
+
+The owner's complete failure scan also covers CI package assertions: require
+both the plan-reader and checkpoint-store bundles in the VSIX, and the Model
+API/page-worker bundles plus the two Windows shell job sources in ACP. These
+already ship; missing-member controls must prove the package checks reject
+their omission. Keep Plans as files in the 0.10.0 README summary, rather than
+the earlier 0.9.0 summary. Collect every remaining gate/runtime result before
+the next combined correction candidate and full platform run.
+
+The Mac's full coverage run timed out five CPU-heavy cases at the unchanged
+five-second deadline. Each exact case and all 109 assertions in the three
+owning suites passed with V8 coverage under that deadline when isolated.
+Bound macOS file-worker concurrency to four in the existing Vitest config;
+keep every file, assertion, isolation setting, coverage threshold and timeout.
+The final full run must prove the complete suite with this resource bound.
+No unrelated machine process is stopped to make a gate pass.
+
+**Third Codex review of PR #55 (2026-10-01, owner: "fix all 7, then
+release").** Seven P2 threads on `669e8301`, all real, each fixed with a test
+that fails without it and a recorded drill (`docs/certification/m72.md`,
+"Codex review of `669e8301`"). One record format change: a checkpoint record
+gains optional `sequence` and `endSequence`, a per-conversation count that
+orders turns instead of the clock. Records a 0.10.0 candidate wrote have
+neither and are ordered first, by their clock; older builds ignore the
+fields. Known limits kept and recorded there: ignored-file steps compare
+size and time only (a chmod alone goes unseen), a repository deep in an
+ignored folder past the folder scan limit is not found, two windows on one
+conversation can take the same count, and the shadow `info/exclude` is
+shared by the folder's windows (the next capture corrects a stale copy).
+
+**Fourth Codex review of PR #55 (2026-10-01).** Four threads on `a5a4b1ac`
+(one P1, one security P2, two P2), all real, all fixed with tests and drills
+(`docs/certification/m72.md`, "Codex review of `a5a4b1ac`"). A checkpoint
+record gains one more optional field, `userSaves`: the files the user saved
+in the turn's window while it ran, which a restore refuses. Release rule set
+by the lead after this round: a later Codex finding that is neither a P1 nor
+a security finding is recorded as a known limit and fixed in 0.10.1, so the
+release does not wait on review rounds that only find edge cases.
+
+**0.10.0 released (2026-10-02, tag `v0.10.0` on main `bdfb651e`, release run 36947244221).**
+PR #55 merged after seven Codex rounds; turn checkpoints ship as a Preview, off by
+default (D63). The first run's Windows quality job hit a known intermittent
+60 s hang in a real-shell hook test (root cause under investigation for 0.10.1)
+and was rerun. Published: the GitHub Release (`muse-spark-code-0.10.0.vsix`,
+1,619,488 bytes, SHA-256 `666f89b3ca93519a5272c21cb6a9ff1971202db7d452af96eff4a103d5e64a5b`;
+`muse-spark-code-acp-0.10.0.tgz`, 805,211 bytes, `96c56cfa…f946`), the VS Code
+Marketplace and Open VSX (its first publish; namespace `RandyNorthrup`
+created, not yet verified), both serving the identical VSIX. npm failed: the
+workflow passed `release/…tgz`, which npm read as a GitHub owner/repo (fixed
+by PR #66; the owner chose to let `muse-spark-code-acp` reach npm first with
+0.10.1). Install smoke: the released VSIX installs as 0.10.0 on the Windows
+host, the Windows 11 VM, the Mac mini and Kubuntu (throwaway profiles); no
+machine has code-server for a panel check, which CI's Hosts run on the tag
+covered (run 36947211712).

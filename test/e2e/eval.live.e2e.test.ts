@@ -13,15 +13,17 @@
 // a shell command the model runs nor a verifier receives the stored key; it is never
 // printed or written, and the run checks that no log line, task folder or
 // report holds it. A shell command the model runs is allowed once, in the
-// task's folder, as the owner's user, as in the sweep; the verifier runs
-// the code the model wrote the same way, with an empty environment. Neither
-// is a sandbox. Run `npm run build:dev` first: the search tool's worker is
-// the built one.
+// task's folder, as the owner's user, as in the sweep, with the environment
+// less every credential variable; the verifier runs the code the model wrote
+// the same way, with an empty environment. Neither is a sandbox. Run
+// `npm run build:dev` first: the search tool's worker is the built one.
 //
 //   MUSE_EVAL_TASKS   comma-separated task ids; every task when unset
 //   MUSE_EVAL_REPORT  a path without extension: the report goes to
 //                     <path>.json and <path>.md, prettier-formatted; the
 //                     Markdown is printed either way
+//
+// Both are read inside the enabled test only (`liveEvalSelection`).
 
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -30,18 +32,15 @@ import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { format, resolveConfig } from 'prettier'
 import { describe, expect, it } from 'vitest'
-import * as z from 'zod/mini'
 import {
   formatEvalReportJson,
   formatEvalReportMarkdown,
   type EvalReport,
 } from '../../src/core/eval/report'
 import { runPairedEval, type EvalArm } from '../../src/core/eval/runner'
-import { EVAL_TASKS, type EvalTask } from '../../src/core/eval/tasks'
-import { listWorkspaceFiles } from '../../src/core/eval/workspace'
+import { EVAL_TASKS } from '../../src/core/eval/tasks'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
-import { createToolIo } from '../../src/host/backend/toolIo'
 import { createLogger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
 import { MODEL_API_BASE_URL, SEARCH_WORKER_FILE } from '../../src/shared/constants'
@@ -52,36 +51,17 @@ import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
 import {
   assertNoLiveKeyEnvironment,
   evalRunTimeoutMs,
+  liveEvalSelection,
+  liveToolIo,
   loadEvalLiveCredentials,
 } from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
 assertNoLiveKeyEnvironment(process.env, IS_ENABLED)
 
-const selectionSchema = z.object({
-  MUSE_EVAL_TASKS: z.optional(z.string()),
-  MUSE_EVAL_REPORT: z.optional(z.string()),
-})
-const selection = selectionSchema.parse({
-  MUSE_EVAL_TASKS: process.env['MUSE_EVAL_TASKS'],
-  MUSE_EVAL_REPORT: process.env['MUSE_EVAL_REPORT'],
-})
 const SEARCH_WORKER = path.join(process.cwd(), 'dist', SEARCH_WORKER_FILE)
 // Room beyond each run's own limits for the harness to start and stop.
 const RUN_MARGIN_MS = 60_000
-
-/** The tasks MUSE_EVAL_TASKS names, in task-set order; an unknown id stops the run. */
-function selectedTasks(): readonly EvalTask[] {
-  const wanted = (selection.MUSE_EVAL_TASKS ?? '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter((id) => id !== '')
-  const unknown = wanted.filter((id) => EVAL_TASKS.every((task) => task.id !== id))
-  if (unknown.length > 0) {
-    throw new Error(`unknown eval tasks: ${unknown.join(', ')}`)
-  }
-  return wanted.length === 0 ? EVAL_TASKS : EVAL_TASKS.filter((task) => wanted.includes(task.id))
-}
 
 async function writeReport(result: EvalReport, target: string): Promise<void> {
   mkdirSync(path.dirname(target), { recursive: true })
@@ -96,12 +76,12 @@ async function writeReport(result: EvalReport, target: string): Promise<void> {
 }
 
 describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', () => {
-  const tasks = selectedTasks()
   const arms: readonly [EvalArm, ...EvalArm[]] = [{ name: 'baseline' }]
 
   it(
     'runs the task set on the contributor model and records the report',
     async () => {
+      const { tasks, reportPath } = liveEvalSelection(process.env, IS_ENABLED)
       expect(existsSync(SEARCH_WORKER) ? 'built' : 'run npm run build:dev first').toBe('built')
       const credentials = await loadEvalLiveCredentials(IS_ENABLED)
       const channel = new FakeLogOutputChannel()
@@ -134,16 +114,13 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
             log,
           },
           toolIo: (workspace) =>
-            createToolIo({
-              platform: process.platform,
-              listFiles: () => listWorkspaceFiles(workspace),
-              systemRoot: process.env['SystemRoot'],
+            liveToolIo({
+              workspace,
               env: () => process.env,
               searchWorkerPath: SEARCH_WORKER,
               log: (message) => {
                 log.warn(message)
               },
-              unsavedFiles: () => [],
               shellJobAssembly: jobAssembly,
             }),
           contextIo: fileContextIo,
@@ -174,11 +151,13 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       }
       expect(leaks).toEqual([])
       process.stderr.write(`${credentials.redact(markdown)}\n`)
-      if (selection.MUSE_EVAL_REPORT !== undefined) {
-        await writeReport(result, path.resolve(selection.MUSE_EVAL_REPORT))
+      if (reportPath !== undefined) {
+        await writeReport(result, path.resolve(reportPath))
       }
       expect(result.verdict).not.toBe('fail')
     },
-    evalRunTimeoutMs(tasks.length, arms.length, RUN_MARGIN_MS),
+    // The selection is read inside the test, so the deadline allows the
+    // whole task set: a run of fewer tasks ends sooner.
+    evalRunTimeoutMs(EVAL_TASKS.length, arms.length, RUN_MARGIN_MS),
   )
 })

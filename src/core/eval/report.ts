@@ -43,14 +43,17 @@ export const evalTaskResultSchema = z.object({
   questions: z.number(),
   /** Paid uses the harness asked for, each refused. */
   paidRefusals: z.number(),
+  /** Where this arm's run of the task fell among the arms: 1 when it went first. */
+  order: z.number(),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
-// Version 1 never recorded these counts. A value cannot be relabelled as legacy.
+// Version 1 never recorded these. A value cannot be relabelled as legacy.
 const legacyTaskResultSchema = z.object({
   ...evalTaskFields,
   questions: z.optional(z.never()),
   paidRefusals: z.optional(z.never()),
+  order: z.optional(z.never()),
 })
 
 export const evalSplitSummarySchema = z.object({
@@ -159,12 +162,12 @@ function armLines(arm: ReportArm): string[] {
     lines.push(`Mechanism: ${arm.mechanism}`, ``)
   }
   lines.push(
-    `| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards | Questions | Paid refused |`,
-    `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`,
+    `| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards | Questions | Paid refused | Order |`,
+    `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`,
   )
   for (const result of arm.results) {
     lines.push(
-      `| ${result.taskId} | ${result.split} | ${result.passed ? 'yes' : 'no'} | ${result.terminal} | ${String(result.attempts)} | ${String(result.requests)} | ${String(result.inputTokens)} | ${String(result.cachedTokens)} | ${String(result.outputTokens)} | ${formatCost(result.costUsd)} | ${String(result.toolCalls)} | ${String(result.approvals)} | ${recordedCount(result.questions)} | ${recordedCount(result.paidRefusals)} |`,
+      `| ${result.taskId} | ${result.split} | ${result.passed ? 'yes' : 'no'} | ${result.terminal} | ${String(result.attempts)} | ${String(result.requests)} | ${String(result.inputTokens)} | ${String(result.cachedTokens)} | ${String(result.outputTokens)} | ${formatCost(result.costUsd)} | ${String(result.toolCalls)} | ${String(result.approvals)} | ${recordedCount(result.questions)} | ${recordedCount(result.paidRefusals)} | ${recordedCount(result.order)} |`,
     )
   }
   lines.push(``)

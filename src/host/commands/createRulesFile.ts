@@ -30,7 +30,7 @@ function firstLine(text: string): string {
   return text.trim().split(/\r?\n/, 1)[0] ?? ''
 }
 
-/** Runs `muse init`; true when it wrote the file. Never throws. */
+/** Absent/exited CLI may select the template; refused startup propagates. */
 async function didCliWriteFile(deps: CreateRulesFileDeps, target: string): Promise<boolean> {
   const running = deps.isWorkspaceTrusted() ? deps.runInit() : undefined
   if (running === undefined) {

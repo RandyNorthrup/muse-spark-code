@@ -62,27 +62,46 @@ export interface PlanIoOptions {
   readonly now: () => number
   /** Replace the hard-link call in a deterministic publication test. */
   readonly publish?: (stage: string, target: string) => Promise<void>
+  /** The extension's actual-promise checkpoint lease for workspace mutations. */
+  readonly edit?: (work: (assertCanWrite?: () => void) => Promise<void>) => Promise<void>
+  /**
+   * A file this plan action (the user's) published or removed: a turn running
+   * meanwhile does not own it, and its restore leaves it as it is (M72).
+   */
+  readonly noteUserWrite?: (absolutePath: string) => void
+  /** Existing no-clobber stage boundary, injectable for live-owner regressions. */
+  readonly staged?: () => Promise<void>
 }
 
 /** The plan store's file access: no-clobber creation, bounded checked reads, entries by kind. */
 export function createPlanIo(options: PlanIoOptions): PlanIo {
   const { log } = options
+  const edit =
+    options.edit ??
+    (async (work: (assertCanWrite?: () => void) => Promise<void>) => {
+      await work()
+    })
   return {
     realPath: canonicalPath,
     async createFile(absolutePath, content) {
       try {
-        await createFileExclusively(absolutePath, content, {
-          mode: PLAN_FILE_MODE,
-          // The path is the checked canonical target: its folder is the checked folder.
-          expectedDirectory: path.dirname(absolutePath),
-          // The stage's name holds the plan's, which is the user's words: not logged (M39).
-          warn: (_stage, isPublished, error) => {
-            const when = isPublished ? 'after the plan was published' : 'after the save failed'
-            log.warn(
-              `A plan's hidden stage could not be removed ${when} (${String(errorCode(error))})`,
-            )
-          },
-          ...(options.publish !== undefined && { publish: options.publish }),
+        await edit(async (assertCanWrite) => {
+          await createFileExclusively(absolutePath, content, {
+            mode: PLAN_FILE_MODE,
+            // The path is the checked canonical target: its folder is the checked folder.
+            expectedDirectory: path.dirname(absolutePath),
+            // The stage's name holds the plan's, which is the user's words: not logged (M39).
+            warn: (_stage, isPublished, error) => {
+              const when = isPublished ? 'after the plan was published' : 'after the save failed'
+              log.warn(
+                `A plan's hidden stage could not be removed ${when} (${String(errorCode(error))})`,
+              )
+            },
+            ...(options.publish !== undefined && { publish: options.publish }),
+            ...(options.staged !== undefined && { staged: options.staged }),
+            ...(assertCanWrite !== undefined && { assertCanWrite }),
+          })
+          options.noteUserWrite?.(absolutePath)
         })
         return true
       } catch (error: unknown) {
@@ -97,32 +116,36 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
       readPickedFile(absolutePath, maxBytes, expectedCanonicalPath, maxBytes),
     listEntries: listPlanEntries,
     async removeStaleStages(absolutePath) {
-      const entries = await listPlanEntries(absolutePath)
-      let removed = 0
-      for (const entry of entries) {
-        if (entry.kind !== 'file' || !STAGE_NAME.test(entry.name)) {
-          continue
-        }
-        const stage = path.join(absolutePath, entry.name)
-        try {
-          const stats = await lstat(stage)
-          if (stats.isFile() && options.now() - stats.mtimeMs > PLAN_STAGE_STALE_MS) {
-            if (
-              !isSamePath(await canonicalPath(stage), stage, process.platform) ||
-              !(await isOwnedFile(stage, stats))
-            ) {
-              continue
-            }
-            await rm(stage, { force: true })
-            removed += 1
+      await edit(async (assertCanWrite) => {
+        const entries = await listPlanEntries(absolutePath)
+        let removed = 0
+        for (const entry of entries) {
+          if (entry.kind !== 'file' || !STAGE_NAME.test(entry.name)) {
+            continue
           }
-        } catch (error: unknown) {
-          log.warn(`A stale plan stage could not be removed (${String(errorCode(error))})`)
+          const stage = path.join(absolutePath, entry.name)
+          try {
+            const stats = await lstat(stage)
+            if (stats.isFile() && options.now() - stats.mtimeMs > PLAN_STAGE_STALE_MS) {
+              if (
+                !isSamePath(await canonicalPath(stage), stage, process.platform) ||
+                !(await isOwnedFile(stage, stats))
+              ) {
+                continue
+              }
+              assertCanWrite?.()
+              await rm(stage, { force: true })
+              options.noteUserWrite?.(stage)
+              removed += 1
+            }
+          } catch (error: unknown) {
+            log.warn(`A stale plan stage could not be removed (${String(errorCode(error))})`)
+          }
         }
-      }
-      if (removed > 0) {
-        log.info(`Removed ${String(removed)} stale plan stage(s)`)
-      }
+        if (removed > 0) {
+          log.info(`Removed ${String(removed)} stale plan stage(s)`)
+        }
+      })
     },
   }
 }

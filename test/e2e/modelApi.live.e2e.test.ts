@@ -46,6 +46,7 @@ import { crc32, deflateSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentSession, TurnPart } from '../../src/core/agent/agentBackend'
+import { createCheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import type {
   CodeLocation,
   CodeSymbol,
@@ -58,7 +59,6 @@ import { type Usage, usageSchema } from '../../src/core/backends/modelapi/schema
 import { parseSse } from '../../src/core/backends/modelapi/sse'
 import { personalSkillsRoot } from '../../src/core/context/skills'
 import { diagnosticsTool } from '../../src/core/diagnostics'
-import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import { readImageInfo } from '../../src/core/imageDimensions'
 import { memoryDataRoot } from '../../src/core/memory/memoryLocation'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
@@ -78,7 +78,6 @@ import { createMemoryIo, systemPath } from '../../src/host/backend/memoryIo'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { museSettingsPath } from '../../src/host/backend/museSettings'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
-import { createToolIo } from '../../src/host/backend/toolIo'
 import { processGitRunner } from '../../src/host/git'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
@@ -128,6 +127,7 @@ import { FAKE_MCP_SERVER, fixtureJobLifecycle } from '../unit/helpers/mcpFixture
 import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
 import {
   assertNoLiveKeyEnvironment,
+  liveToolIo,
   loadEvalLiveCredentials,
   type EvalLiveCredentials,
 } from './evalLiveSupport'
@@ -671,14 +671,12 @@ async function openRig(options: RigOptions): Promise<Rig> {
   const channel = new FakeLogOutputChannel()
   const log = createLogger(channel)
   const isTrusted = () => options.isTrusted ?? true
-  const toolIo = createToolIo({
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
-    listFiles: () => listWorkspaceFiles(workspace),
+  // The model's shell commands get no credential variable (liveToolIo).
+  const toolIo = liveToolIo({
+    workspace,
     env: () => process.env,
     // Built by `npm run build:dev`; no case here needs the search tool.
     searchWorkerPath: path.join(process.cwd(), 'dist', SEARCH_WORKER_FILE),
-    unsavedFiles: () => [],
     log: (message) => {
       log.warn(message)
     },
@@ -769,6 +767,8 @@ async function openRig(options: RigOptions): Promise<Rig> {
       createMcpServers: (workspaceRoot, newPool) =>
         newPool(
           modelApiMcpPoolDeps({
+            // Independent opt-in drill, without a shared VS Code checkpoint store.
+            beforeWorkspaceProcessStart: () => Promise.resolve(),
             workspaceRoot,
             settingsPath: () => settingsPath,
             isWorkspaceTrusted: isTrusted,
@@ -966,6 +966,16 @@ function livePanel(rig: Rig): LivePanel {
     })
   }
   const controller = new ConversationController({
+    checkpoints: createCheckpointPort({
+      store: undefined,
+      isNamespaceKnown: () => true,
+      isWorkspaceTrusted: () => true,
+      isEnabled: () => false,
+      hasGit: () => false,
+    }),
+    unsavedPaths: () => [],
+    // This editor-free live harness offers no stored-checkpoint file action.
+    confirmFileAction: () => Promise.resolve(false),
     surface,
     auth: {
       current: signedIn,

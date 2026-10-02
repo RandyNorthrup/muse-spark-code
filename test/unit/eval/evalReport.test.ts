@@ -29,6 +29,7 @@ function result(overrides: Partial<EvalTaskResult>): EvalTaskResult {
     approvals: 0,
     questions: 0,
     paidRefusals: 0,
+    order: 1,
     ...overrides,
   }
 }
@@ -108,11 +109,12 @@ describe('eval report', () => {
       for (const task of baseline.results) {
         expect(Object.hasOwn(task, 'questions')).toBe(false)
         expect(Object.hasOwn(task, 'paidRefusals')).toBe(false)
+        expect(Object.hasOwn(task, 'order')).toBe(false)
       }
     }
     expect(JSON.parse(formatEvalReportJson(parsed))).toEqual(original)
     const markdown = formatEvalReportMarkdown(parsed)
-    expect(markdown).toContain('| not recorded | not recorded |')
+    expect(markdown).toContain('| not recorded | not recorded | not recorded |')
     expect(markdown).not.toContain('undefined')
   })
 
@@ -135,7 +137,7 @@ describe('eval report', () => {
     expect(evalReportSchema.safeParse({ ...sample(), version: 1 }).success).toBe(false)
   })
 
-  it.each(['questions', 'paidRefusals'] as const)(
+  it.each(['questions', 'paidRefusals', 'order'] as const)(
     'requires recorded %s in version two',
     (field) => {
       const report = sample()
@@ -150,7 +152,7 @@ describe('eval report', () => {
     },
   )
 
-  it.each(['questions', 'paidRefusals'] as const)(
+  it.each(['questions', 'paidRefusals', 'order'] as const)(
     'refuses a nonnumeric recorded %s in version two',
     (field) => {
       const task = { ...result({}), [field]: 'not recorded' }
@@ -169,7 +171,7 @@ describe('eval report', () => {
       'Model: muse-spark-1.3-contributor · generated 2026-09-28T00:00:00.000Z · verdict: fail',
     )
     expect(markdown).toContain(
-      '| accept-off-by-one | accept | yes | completed | 3 | 3 | 600 | 200 | 40 | $0.0001 | 2 | 0 |',
+      '| accept-off-by-one | accept | yes | completed | 3 | 3 | 600 | 200 | 40 | $0.0001 | 2 | 0 | 0 | 0 | 1 |',
     )
     expect(markdown).toContain(
       'accept: 1/1 passed (100%), 3 attempts in 3 requests, 600 input (0 cached) + 40 output tokens, $0.0001.',

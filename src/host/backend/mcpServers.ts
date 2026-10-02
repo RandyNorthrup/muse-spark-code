@@ -8,11 +8,14 @@
 import type { McpPoolDeps } from '../../core/backends/modelapi/mcp/pool'
 import { environmentValue } from '../../core/backends/musecode/launch'
 import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
+import { UI_TEXT } from '../../shared/constants'
 import { readTextIfPresent } from '../cliFeatures'
 import type { Logger } from '../logger'
 import { isExistingDirectory, isExistingFile, mcpServerSpawner } from './mcpProcess'
 
 export interface ModelApiMcpDeps {
+  /** Awaited before a workspace-capable local stdio process can start. */
+  readonly beforeWorkspaceProcessStart: () => Promise<void>
   readonly workspaceRoot: string
   /** Muse Code's settings file where `muse serve` would read it. */
   readonly settingsPath: () => string
@@ -28,23 +31,30 @@ export interface ModelApiMcpDeps {
 }
 
 export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
+  const spawn = mcpServerSpawner({
+    platform: deps.platform,
+    systemRoot: environmentValue(deps.env(), deps.platform, 'SystemRoot'),
+    jobExecutablePath: deps.jobExecutablePath,
+    env: deps.env,
+    isExistingFile,
+    isExistingDirectory,
+    log: (message) => {
+      deps.log.warn(message)
+    },
+  })
   return {
     readSettings: () => readMcpServerEntries(readTextIfPresent(deps.settingsPath())),
     lookupEnv: (name) => environmentValue(deps.env(), deps.platform, name),
     isWorkspaceTrusted: deps.isWorkspaceTrusted,
     workspaceRoot: deps.workspaceRoot,
     platform: deps.platform,
-    spawn: mcpServerSpawner({
-      platform: deps.platform,
-      systemRoot: environmentValue(deps.env(), deps.platform, 'SystemRoot'),
-      jobExecutablePath: deps.jobExecutablePath,
-      env: deps.env,
-      isExistingFile,
-      isExistingDirectory,
-      log: (message) => {
-        deps.log.warn(message)
-      },
-    }),
+    spawn: async (launch, cwd, isCancelled) => {
+      await deps.beforeWorkspaceProcessStart()
+      if (isCancelled?.() === true || !deps.isWorkspaceTrusted()) {
+        throw new Error(UI_TEXT.questionCancelled)
+      }
+      return spawn(launch, cwd)
+    },
     fetch: deps.fetch,
     clientVersion: deps.clientVersion,
     log: deps.log,

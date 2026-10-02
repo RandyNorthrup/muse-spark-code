@@ -140,7 +140,7 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       fetch), VS Code's language services, the MCP servers'
                       spawner, the network posture, web fetch's pinned
                       transport and the verify loop's editor side: settled
-                      diagnostics and format on edit)
+                      diagnostics, format on edit and turn checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client and tools, the MCP client,
                       context, Muse Code's memory, export, worktrees, usage,
@@ -148,8 +148,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       code intelligence and the repo map, web fetch's
                       public-address checks and HTML converter, the verify
                       loop's check commands, diagnostics report and the files
-                      it never opens because tools run them, the paired efficiency
-                      evaluation and observation packing)
+                      it never opens because tools run them, the checkpoint
+                      restore plan, the paired efficiency evaluation)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`

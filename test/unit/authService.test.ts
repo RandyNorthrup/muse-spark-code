@@ -18,6 +18,13 @@ import { fill } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from './helpers/credentialShapes'
 import { FakeLogOutputChannel, memorySecrets, unexpectedWarning } from './helpers/fakes'
+import { fakeMuseCodeManager } from './helpers/museCodeManager'
+import {
+  harness as checkpointHarness,
+  holdRestoreRef,
+  removeCheckpointFolders,
+  REAL_GIT_TIMEOUT_MS,
+} from './helpers/checkpointHarness'
 
 const CREDENTIAL_PATH = '/home/u/.config/muse/auth.json'
 
@@ -42,9 +49,7 @@ interface Harness {
   readonly restartBackend: ReturnType<
     typeof vi.fn<(isConversationEnding: boolean) => Promise<void>>
   >
-  readonly runInTerminal: ReturnType<
-    typeof vi.fn<(cliPath: string, args: readonly string[]) => void>
-  >
+  readonly runInTerminal: ReturnType<typeof vi.fn<AuthServiceDeps['runInTerminal']>>
   readonly runDeviceSignIn: ReturnType<
     typeof vi.fn<
       (
@@ -53,7 +58,9 @@ interface Harness {
       ) => Promise<DeviceSignInOutcome>
     >
   >
-  readonly runInstallerInTerminal: ReturnType<typeof vi.fn<() => void>>
+  readonly runInstallerInTerminal: ReturnType<
+    typeof vi.fn<AuthServiceDeps['runInstallerInTerminal']>
+  >
   readonly logoutHoldState: { isHeld: boolean }
 }
 
@@ -78,14 +85,14 @@ function harness(overrides: Partial<AuthServiceDeps> = {}): Harness {
   const restartBackend = vi.fn<(isConversationEnding: boolean) => Promise<void>>(() =>
     Promise.resolve(),
   )
-  const runInTerminal = vi.fn<(cliPath: string, args: readonly string[]) => void>()
+  const runInTerminal = vi.fn<AuthServiceDeps['runInTerminal']>()
   const runDeviceSignIn = vi.fn<
     (
       signal: AbortSignal,
       onCode: (url: string, code: string) => void,
     ) => Promise<DeviceSignInOutcome>
   >(() => Promise.resolve('timedOut'))
-  const runInstallerInTerminal = vi.fn<() => void>()
+  const runInstallerInTerminal = vi.fn<AuthServiceDeps['runInstallerInTerminal']>()
   const logoutHoldState = { isHeld: false }
   let clock = 0
   const deps: AuthServiceDeps = {
@@ -1045,6 +1052,123 @@ describe('AuthService: a switch of backends ends the running one’s conversatio
     await h.service.signOut()
     await expect(h.service.signIn('apiKey')).resolves.toMatchObject({ backend: 'modelApi' })
     expect(h.restartBackend.mock.calls).toEqual([[true], [false]])
+  })
+})
+
+afterEach(removeCheckpointFolders)
+
+async function heldInstallerAdmission() {
+  const native = await checkpointHarness()
+  const entered = Promise.withResolvers<undefined>()
+  const resume = Promise.withResolvers<undefined>()
+  const manager = fakeMuseCodeManager({
+    beforeWorkspaceHostStart: async () => {
+      entered.resolve(undefined)
+      await resume.promise
+      await native.store.markNativeBackend()
+    },
+  })
+  return { native, entered, resume, manager }
+}
+
+describe('AuthService native terminal checkpoint startup (M72)', () => {
+  it(
+    'awaits the durable installer fence before actual terminal creation',
+    async () => {
+      const { native, entered, resume, manager } = await heldInstallerAdmission()
+      const h = harness()
+      h.facts.cliPresent = false
+      const createTerminal = vi.fn(() => {
+        h.facts.cliPresent = true
+      })
+      h.runInstallerInTerminal.mockImplementation(() =>
+        manager.startWorkspaceCommand(createTerminal, new AbortController().signal),
+      )
+      const starting = h.service.installMuseCode()
+      try {
+        await entered.promise
+        expect(createTerminal).not.toHaveBeenCalled()
+      } finally {
+        resume.resolve(undefined)
+      }
+      await starting
+      expect(createTerminal).toHaveBeenCalledOnce()
+      expect(native.store.isNativeUnsafe).toBe(true)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'creates no installer terminal under a real restore reservation',
+    async () => {
+      const native = await checkpointHarness()
+      await holdRestoreRef(native)
+      const manager = fakeMuseCodeManager({
+        beforeWorkspaceHostStart: () => native.store.markNativeBackend(),
+      })
+      const h = harness()
+      h.facts.cliPresent = false
+      const createTerminal = vi.fn(() => undefined)
+      h.runInstallerInTerminal.mockImplementation(() =>
+        manager.startWorkspaceCommand(createTerminal, new AbortController().signal),
+      )
+      expect(await h.service.installMuseCode()).toMatchObject({ installState: 'failed' })
+      expect(createTerminal).not.toHaveBeenCalled()
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it.each(['window closed', 'manager disposed'])(
+    'creates no installer terminal when %s during awaited admission',
+    async (reason) => {
+      const { entered, resume, manager } = await heldInstallerAdmission()
+      const lifetime = new AbortController()
+      const h = harness()
+      h.facts.cliPresent = false
+      const createTerminal = vi.fn(() => undefined)
+      h.runInstallerInTerminal.mockImplementation(() =>
+        manager.startWorkspaceCommand(createTerminal, lifetime.signal),
+      )
+      const starting = h.service.installMuseCode()
+      try {
+        await entered.promise
+        if (reason === 'window closed') {
+          lifetime.abort()
+        } else {
+          await manager.dispose()
+        }
+      } finally {
+        resume.resolve(undefined)
+      }
+      expect(await starting).toMatchObject({ installState: 'failed' })
+      expect(createTerminal).not.toHaveBeenCalled()
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it('awaits terminal logout admission instead of reporting a pending shell as started', async () => {
+    const h = withLogoutFallback(harness())
+    h.facts.cli = 'signedIn'
+    await h.service.refresh()
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    h.runInTerminal.mockImplementation(() => {
+      entered.resolve(undefined)
+      return resume.promise
+    })
+    let hasFinished = false
+    const finishing = (async () => {
+      await h.service.signOut()
+      hasFinished = true
+    })()
+    try {
+      await entered.promise
+      expect(hasFinished).toBe(false)
+    } finally {
+      resume.resolve(undefined)
+    }
+    await finishing
+    expect(h.service.current.detail).toBe(EN.signOutPending)
   })
 })
 

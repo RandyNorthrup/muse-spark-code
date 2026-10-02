@@ -29,6 +29,7 @@ function servers(settings: string | undefined, settingsPath?: string) {
   }
   const source = new McpServerPool(
     modelApiMcpPoolDeps({
+      beforeWorkspaceProcessStart: () => Promise.resolve(),
       workspaceRoot: folder,
       settingsPath: () => file,
       isWorkspaceTrusted: () => true,

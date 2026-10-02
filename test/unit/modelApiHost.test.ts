@@ -55,6 +55,20 @@ import type {
 import { removeFolder } from './helpers/temporaryFolders'
 import { parseHookConfig, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ShellEntryError } from '../../src/core/shellResult'
+import { ConversationCheckpoints } from '../../src/host/conversation/conversationCheckpoints'
+import {
+  createCheckpointPort,
+  prepareCheckpointTurn,
+} from '../../src/host/checkpoints/checkpointHost'
+import {
+  captured,
+  harness as checkpointHarness,
+  read as checkpointRead,
+  removeCheckpointFolders,
+  write as checkpointWrite,
+  REAL_GIT_TIMEOUT_MS,
+} from './helpers/checkpointHarness'
 import { type FakeMcpSource, fakeMcpSource } from './helpers/fakeMcpSource'
 import type { McpCallOutcome } from '../../src/core/backends/modelapi/mcp/functions'
 import { countLogged } from './helpers/logText'
@@ -210,6 +224,8 @@ function setup(
     memoryLinks?: Record<string, string>
     /** The window's web fetch (M69); none unless a test gives one. */
     webFetch?: ModelApiHostDeps['webFetch']
+    beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
+    afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
@@ -300,6 +316,8 @@ function setup(
     hookNotificationDelayMs: options.hookNotificationDelayMs,
     memory,
     webFetch: options.webFetch,
+    beforeTurnRuns: options.beforeTurnRuns,
+    afterTurnRuns: options.afterTurnRuns,
   })
   return {
     api,
@@ -1115,6 +1133,239 @@ describe('ModelApiHost: catalogue and sessions', () => {
     const input = JSON.stringify(t.api.responseBodies().at(-1)?.['input'])
     expect(input).toContain(`data:application/pdf;base64,${base64Data}`)
     expect(input).toContain('One more question')
+  })
+})
+
+describe('Model API turn checkpoint admission (M72)', () => {
+  it(
+    'keeps a retained Model API turn fenced after one of two surfaces closes',
+    async () => {
+      const h = await checkpointHarness()
+      const port = createCheckpointPort({
+        isNamespaceKnown: () => true,
+        store: h.store,
+        isWorkspaceTrusted: () => true,
+        hasGit: () => true,
+        isEnabled: () => true,
+      })
+      const t = setup({
+        beforeTurnRuns: (sessionId, turnId) =>
+          prepareCheckpointTurn(port, sessionId, turnId, h.log),
+        afterTurnRuns: async (sessionId, turnId) => {
+          await port.endTurn(sessionId, turnId)
+          await port.markTurn(`${sessionId}\0${turnId}`, false)
+        },
+      })
+      const { session, turnDone } = await startSession(t)
+      const { session: retained } = await t.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      const closing = new ConversationCheckpoints({
+        port,
+        backend: (id) => (id === session.sessionId ? 'modelApi' : undefined),
+        post: () => undefined,
+        notice: () => undefined,
+        confirm: () => Promise.resolve(true),
+        unsavedPaths: () => [],
+        log: h.log,
+      })
+      await closing.sessionChanged(session.sessionId)
+      await checkpointWrite(h.root, 'a.txt', 'a0\n')
+      await h.store.record(session.sessionId, 'earlier', await captured(h.store))
+      await checkpointWrite(h.root, 'a.txt', 'a1\n')
+      await h.store.endTurn(session.sessionId, 'earlier')
+      const hold = Promise.withResolvers<undefined>()
+      t.api.script({ hold: hold.promise, text: 'actual retained turn finished' })
+      const stop = session.onEvent((event) => {
+        if (event.type === 'turnStarted') {
+          closing.turnStarted(session.sessionId, event.turnId)
+        } else if (event.type === 'turnCompleted') {
+          closing.turnCompleted(event.turnId)
+        }
+      })
+      try {
+        const pending = await closing.beforeTurn(session.sessionId)
+        const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
+        closing.accepted(pending, started.turnId, true)
+        await vi.waitFor(() => {
+          expect(t.api.responseBodies()).toHaveLength(1)
+        })
+        await closing.sessionChanged(undefined)
+        session.dispose()
+        const other = h.reopen()
+        expect(
+          await other.restore({
+            backend: () => 'modelApi',
+            sessionId: retained.sessionId,
+            turnId: 'earlier',
+            unsavedPaths: () => [],
+          }),
+        ).toEqual({ ok: false, reason: 'turnElsewhere' })
+        expect(await checkpointRead(h.root, 'a.txt')).toBe('a1\n')
+        const done = turnDone()
+        hold.resolve(undefined)
+        await done
+        const afterTurn = await other.restore({
+          backend: () => 'modelApi',
+          sessionId: retained.sessionId,
+          turnId: 'earlier',
+          unsavedPaths: () => [],
+        })
+        expect(afterTurn.ok).toBe(true)
+      } finally {
+        hold.resolve(undefined)
+        stop()
+        retained.dispose()
+        await t.host.close()
+        await removeCheckpointFolders()
+      }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it('keeps a child outliving its parent marked under the parent checkpoint session', async () => {
+    const child = Promise.withResolvers<undefined>()
+    const active = new Map<string, string>()
+    const t = setupSubagents({
+      beforeTurnRuns: async (sessionId, turnId) => {
+        active.set(turnId, sessionId)
+        if (turnId.includes(':subagent-')) {
+          await child.promise
+        }
+      },
+      afterTurnRuns: (sessionId, turnId) => {
+        expect(active.get(turnId)).toBe(sessionId)
+        active.delete(turnId)
+        return Promise.resolve()
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"worker","objective":"Check files"}',
+            callId: 'spawn',
+          },
+        ],
+      },
+      { text: 'Parent finished' },
+      { text: 'Child finished' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await vi.waitFor(() => {
+      expect(session.status).toBe('idle')
+      expect(active.size).toBe(1)
+    })
+    const [held] = active
+    expect(held?.[0]).toContain(':subagent-')
+    expect(held?.[1]).toBe(session.sessionId)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    child.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(active.size).toBe(0)
+    })
+    expect(t.api.responseBodies()).toHaveLength(3)
+    await t.host.close()
+  })
+  it('awaits the queued turn’s mark before hooks or a model request', async () => {
+    const admission = Promise.withResolvers<undefined>()
+    const calls: string[] = []
+    const hook = vi.fn(() => permitHook())
+    const t = setup({
+      beforeTurnRuns: async (_sessionId, turnId) => {
+        calls.push(turnId)
+        if (calls.length === 2) {
+          await admission.promise
+        }
+      },
+      hooks: hooksFor('PreLLMCall', 'checked'),
+      runHook: hook,
+    })
+    const { session, events } = await startSession(t)
+    const firstReply = Promise.withResolvers<undefined>()
+    t.api.script({ hold: firstReply.promise, text: 'first' }, { text: 'queued' })
+    await session.sendTurn([{ type: 'text', text: 'first' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    const queued = await session.sendTurn([{ type: 'text', text: 'second' }])
+    expect(queued.disposition).toBe('queued')
+    const hookCount = hook.mock.calls.length
+    expect(hookCount).toBeGreaterThan(0)
+    firstReply.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(calls).toHaveLength(2)
+    })
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(hook.mock.calls).toHaveLength(hookCount)
+    admission.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+    })
+    expect(t.api.responseBodies()).toHaveLength(2)
+    await t.host.close()
+  })
+
+  it('awaits a scheduled turn’s mark before hooks or its model request', async () => {
+    const admission = Promise.withResolvers<undefined>()
+    const marked = vi.fn(() => admission.promise)
+    const hook = vi.fn(() => permitHook())
+    let now = 1_000_000
+    const disk = createFileScheduleStore({
+      directory: path.join(scheduleRoot, 'checkpoint-admission'),
+      now: () => now,
+      log: new FakeLogOutputChannel(),
+    })
+    const t = setup({
+      store: memorySessionStore(),
+      scheduleStore: disk,
+      paid: ['scheduledPrompts'],
+      beforeTurnRuns: marked,
+      hooks: hooksFor('PreLLMCall', 'checked'),
+      runHook: hook,
+    })
+    const { session, events } = await startSession(t)
+    const { schedules, job } = await dueSchedule(t, session)
+    now = job.nextFireAtMs + 1
+    t.api.script({ text: 'scheduled' })
+    await schedules.run(job.id, job.nextFireAtMs, confirmedRun(job, session))
+    await vi.waitFor(() => {
+      expect(marked).toHaveBeenCalledTimes(1)
+    })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(hook).not.toHaveBeenCalled()
+    admission.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+    })
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(hook).toHaveBeenCalled()
+    await t.host.close()
+  })
+
+  it('refuses a failed mark without hooks, model calls or arbitrary storage paths', async () => {
+    const stopped = vi.fn(() => Promise.resolve())
+    const hook = vi.fn(() => permitHook())
+    const t = setup({
+      beforeTurnRuns: () => Promise.reject(new Error('EACCES /private/profile/windows/store')),
+      afterTurnRuns: stopped,
+      hooks: hooksFor('PreLLMCall', 'checked'),
+      runHook: hook,
+    })
+    const { session, events } = await startSession(t)
+    t.api.script({ text: 'must not run' })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+    })
+    expect(events.find((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      reason: UI_TEXT.sendMarkFailed,
+    })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(hook).not.toHaveBeenCalled()
+    expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('/private/profile')
+    expect(stopped).toHaveBeenCalledTimes(1)
+    await t.host.close()
   })
 })
 
@@ -9099,6 +9350,207 @@ describe('ModelApiSession: the user’s own shell commands (M46)', () => {
     await expect(session.runUserShell('ls')).rejects.toThrow(UI_TEXT.userShellRestricted)
     expect(io.shellCalls).toHaveLength(0)
     expect(events).toHaveLength(0)
+  })
+})
+
+/**
+ * A held shell whose entry waits, as the checkpoint activity mark and the
+ * Windows job assembly do (M72), before the command's final admission.
+ */
+function preparingShell() {
+  const held = heldShellToolIo({}, ROOT)
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const io: typeof held = {
+    ...held,
+    runShell: async (...args: Parameters<ToolIo['runShell']>) => {
+      entered.resolve(undefined)
+      await release.promise
+      return await held.runShell(...args)
+    },
+  }
+  return { held, io, entered, release }
+}
+
+type EntryChange = 'trust' | 'stop' | 'dispose' | 'hostClose'
+
+/** A `!` command waiting to enter, and what the test changes before it does. */
+async function waitingUserShell(approvalMode = 'promptUnmatched') {
+  const prepared = preparingShell()
+  const options = { io: prepared.io, isTrusted: true }
+  const t = setup(options)
+  const started = await startSession(t, approvalMode)
+  await started.session.runUserShell('ls')
+  await prepared.entered.promise
+  const itemId = userShellStarts(started.events)[0]?.item.itemId ?? ''
+  const hostClose = Promise.withResolvers<undefined>()
+  const hostEnd = Promise.withResolvers<undefined>()
+  let closing: Promise<void> | undefined
+  const change = async (kind: EntryChange): Promise<void> => {
+    switch (kind) {
+      case 'trust': {
+        options.isTrusted = false
+        break
+      }
+      case 'stop': {
+        await started.session.stopTask(itemId)
+        break
+      }
+      case 'dispose': {
+        started.session.dispose()
+        break
+      }
+      case 'hostClose': {
+        // The Host is closing while SessionEnd is still held: the session is not yet disposed.
+        vi.spyOn(started.session, 'endHooks').mockImplementation(async () => {
+          hostClose.resolve(undefined)
+          await hostEnd.promise
+        })
+        closing = t.host.close()
+        await hostClose.promise
+        break
+      }
+    }
+  }
+  /** Lets the waiting entry go: the command is admitted or refused now. */
+  const enter = () => {
+    prepared.release.resolve(undefined)
+  }
+  /** Ends a held SessionEnd, after the row has settled, so the Host closes for real. */
+  const settle = async () => {
+    hostEnd.resolve(undefined)
+    await closing
+  }
+  return { ...prepared, ...started, t, options, itemId, change, enter, settle }
+}
+
+describe('ModelApiSession: the user’s own shell at its real entry (M72)', () => {
+  it.each(['trust', 'stop', 'dispose', 'hostClose'] as const)(
+    'runs nothing when %s changes while its entry waits, and says it did not run',
+    async (kind) => {
+      const r = await waitingUserShell()
+      await r.change(kind)
+      r.enter()
+      await vi.waitFor(() => {
+        expect(r.session.history().items.find((item) => item.itemId === r.itemId)?.status).not.toBe(
+          'inProgress',
+        )
+      })
+      expect(r.held.shellCalls).toHaveLength(0)
+      expect(r.held.runs).toHaveLength(0)
+      const row = r.session.history().items.find((item) => item.itemId === r.itemId)
+      expect(row).toMatchObject({ kind: 'userShell', commandText: 'ls' })
+      expect(row?.status).toBe(kind === 'stop' || kind === 'dispose' ? 'cancelled' : 'failed')
+      if (kind !== 'stop' && kind !== 'dispose') {
+        expect(row).toMatchObject({
+          visibleOutput: UI_TEXT.userShellFailed,
+          failureReason: UI_TEXT.userShellFailed,
+        })
+      }
+      expect(row?.exitCode).toBeUndefined()
+      await r.settle()
+    },
+  )
+
+  it('tells the model nothing about a command that never entered', async () => {
+    const r = await waitingUserShell()
+    await r.change('trust')
+    r.enter()
+    await completionOf(r.events, r.itemId)
+    r.options.isTrusted = true
+    r.t.api.script({ text: 'Nothing ran.' })
+    await r.session.sendTurn([{ type: 'text', text: 'what happened?' }])
+    await r.turnDone()
+    expect(
+      requestInput(r.t, 0).some((item) => noteText(item)?.startsWith(MODEL_TEXT.userShellLead)),
+    ).toBe(false)
+  })
+
+  it.each([
+    { when: 'before it could enter', error: new ShellEntryError('no mark'), isTold: false },
+    { when: 'after it ran', error: new Error('no close'), isTold: true },
+  ])('a shell that throws $when: the model is told = $isTold', async ({ error, isTold }) => {
+    const io = { ...heldShellToolIo({}, ROOT), runShell: () => Promise.reject(error) }
+    const t = setup({ io })
+    const { session, turnDone } = await startSession(t)
+    await session.runUserShell('git commit -am x')
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'userShell')?.status).toBe(
+        'failed',
+      )
+    })
+    t.api.script({ text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'what happened?' }])
+    await turnDone()
+    expect(
+      requestInput(t, 0).some((item) => noteText(item)?.startsWith(MODEL_TEXT.userShellLead)),
+    ).toBe(isTold)
+  })
+
+  it('refuses a command started on a session that was already disposed', async () => {
+    const held = heldShellToolIo({}, ROOT)
+    const t = setup({ io: held })
+    const { session } = await startSession(t)
+    session.dispose()
+    await session.runUserShell('ls')
+    await vi.waitFor(() => {
+      expect(session.history().items.find((item) => item.kind === 'userShell')).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.userShellFailed,
+      })
+    })
+    expect(held.shellCalls).toHaveLength(0)
+  })
+
+  it('enters with the owner unchanged and keeps its own outcome', async () => {
+    const r = await waitingUserShell()
+    r.enter()
+    await vi.waitFor(() => {
+      expect(r.held.runs).toHaveLength(1)
+    })
+    r.held.runs[0]?.finish({ stdout: 'listed', exitCode: 0 })
+    expect(await completionOf(r.events, r.itemId)).toMatchObject({
+      status: 'completed',
+      visibleOutput: 'listed',
+    })
+  })
+
+  it('keeps an entered command’s outcome when trust is withdrawn afterwards', async () => {
+    const r = await waitingUserShell()
+    r.enter()
+    await vi.waitFor(() => {
+      expect(r.held.runs).toHaveLength(1)
+    })
+    r.options.isTrusted = false
+    r.held.runs[0]?.finish({ stdout: 'already running', exitCode: 0 })
+    expect(await completionOf(r.events, r.itemId)).toMatchObject({
+      status: 'completed',
+      visibleOutput: 'already running',
+    })
+  })
+
+  it('enters after the running turn is stopped and Plan mode is on: a `!` is the user’s own', async () => {
+    const prepared = preparingShell()
+    const t = setup({ io: prepared.io })
+    const { session, events } = await startSession(t)
+    t.api.script({ calls: [{ name: 'write_file', arguments: '{"path":"n.txt","content":"x"}' }] })
+    await session.sendTurn([{ type: 'text', text: 'write n.txt' }])
+    await approvalRequest(events, 0)
+    await session.runUserShell('ls')
+    await prepared.entered.promise
+    await session.setApprovalMode('denyUnmatched')
+    await session.cancel()
+    prepared.release.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(prepared.held.runs).toHaveLength(1)
+    })
+    expect(prepared.held.runs[0]?.signal?.aborted).toBe(false)
+    prepared.held.runs[0]?.finish({ stdout: 'listed', exitCode: 0 })
+    const [started] = userShellStarts(events)
+    expect(await completionOf(events, started?.item.itemId ?? '')).toMatchObject({
+      status: 'completed',
+      visibleOutput: 'listed',
+    })
   })
 })
 

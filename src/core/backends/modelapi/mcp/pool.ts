@@ -95,7 +95,11 @@ export interface McpPoolDeps {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /** Starts a stdio server in `cwd`; throws when it cannot be started at all. */
-  readonly spawn: (launch: McpStdioLaunch, cwd: string) => McpChildProcess
+  readonly spawn: (
+    launch: McpStdioLaunch,
+    cwd: string,
+    isCancelled?: () => boolean,
+  ) => McpChildProcess | Promise<McpChildProcess>
   readonly fetch: typeof fetch
   readonly clientVersion: string
   readonly log: CoreLogger
@@ -201,9 +205,13 @@ export class McpServerPool implements McpToolSource {
       : p.resolve(this.deps.workspaceRoot, launch.cwd)
   }
 
-  private transportFor(spec: McpServerSpec, launch: McpLaunch): McpTransport {
+  private async transportFor(
+    spec: McpServerSpec,
+    launch: McpLaunch,
+    isCancelled: () => boolean,
+  ): Promise<McpTransport> {
     if (launch.transport === MCP_TRANSPORTS.stdio) {
-      return new McpStdioTransport(this.deps.spawn(launch, this.cwdOf(launch)), {
+      return new McpStdioTransport(await this.deps.spawn(launch, this.cwdOf(launch), isCancelled), {
         name: spec.name,
         framing: launch.framing,
         log: this.deps.log,
@@ -246,7 +254,13 @@ export class McpServerPool implements McpToolSource {
   /** Starts the server and lists its tools; the state says connected only if nothing ended it meanwhile. */
   private async open(server: LiveServer, launch: McpLaunch): Promise<void> {
     const { spec } = server
-    const connection = new McpConnection(this.transportFor(spec, launch), {
+    const isCancelled = () => this.isClosed || server.state.status !== 'starting'
+    const transport = await this.transportFor(spec, launch, isCancelled)
+    if (isCancelled()) {
+      await transport.close()
+      throw new McpError('the servers were closed while it started')
+    }
+    const connection = new McpConnection(transport, {
       name: spec.name,
       clientVersion: this.deps.clientVersion,
       log: this.deps.log,

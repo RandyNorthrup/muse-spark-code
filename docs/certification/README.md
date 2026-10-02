@@ -1,5 +1,8 @@
 # Certification records
 
+[0.10.0 release preparation](release-0.10.0.md) tracks the current candidate
+and the still-open checks for every distribution channel.
+
 [PR #51 Android/Termux regression tests](pr51-termux-tests.md) records the
 contributor test scope and resumed integration proof, separate from a real
 Android installation or microphone certification.
@@ -86,3 +89,4 @@ The PNGs beside the records are that day's harness renders.
 - [M62a, M62b](m62.md): the VS Code floor at 1.99, from an API and Node audit, tested in VSCodium and code-server; Eclipse Theia 1.75 (PLAN.md M62, A8)
 - [M63a–M63c](m63.md): the ACP agent for other editors, the Model API key in the OS credential store, and the agent's package; Zed, Emacs with agent-shell, Neovim with CodeCompanion, JupyterLab with Jupyter AI; the editors' MCP servers; the host checks in CI (PLAN.md D61, D62)
 - [PR #32 joined with M57 and M58](pr32-integration.md): the ACP agent loads `dist/modelApi.js`, each paid use asks in the editor, the agent's budget, networks and proxies, the key store on the owner's Windows 11 VM and Mac mini (PLAN.md D6, D62, Q66)
+- [M72](m72.md): turn checkpoints in a shadow repository: restore files, the conversation or both, and redo (PLAN.md D51)

@@ -110,9 +110,17 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** ACP has no VS Code checkpoint store: record the independent-editor startup policy. */
+function independentEditorStartupPolicy(log: Logger): Promise<void> {
+  log.trace('ACP native startup is outside the VS Code checkpoint namespace and restore guarantee')
+  return Promise.resolve()
+}
+
 function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
   const { options, log } = deps
   return new MuseCodeBackendManager({
+    // This records the actual scope boundary; it does not certify a VS Code fence.
+    beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
     extensionVersion: deps.version,
     getConfiguredBinaryPath: () => options.museBinary,

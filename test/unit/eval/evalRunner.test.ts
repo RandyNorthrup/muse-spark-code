@@ -8,6 +8,7 @@ import {
   EVAL_REPORT_VERSION,
   EVAL_TURN_NOT_RUN,
   EVAL_ROOT_MASK,
+  SETTING_DEFAULTS,
 } from '../../../src/shared/constants'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
 import { EVAL_TASKS, evalTasksOfSplit, type EvalTask } from '../../../src/core/eval/tasks'
@@ -187,10 +188,13 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const runWith = async (losses: number) => {
       const { api, deps } = rig()
       api.script(
-        ...heldout.flatMap((task, index) => [
-          ...canonical(task),
-          ...(index < losses ? IDLE : canonical(task)),
-        ]),
+        ...heldout.flatMap((task, index) => {
+          const mechanism = index < losses ? IDLE : canonical(task)
+          // The arms take turns going first: odd tasks start with the mechanism.
+          return index % 2 === 0
+            ? [...canonical(task), ...mechanism]
+            : [...mechanism, ...canonical(task)]
+        }),
       )
       return await runPairedEval(heldout, [BASELINE, RECHECK], deps)
     }
@@ -209,6 +213,29 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(
       two.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'heldout'),
     ).toMatchObject({ passRate: 0.5, held: false })
+  })
+
+  it('lets the arms take turns going first, so no arm inherits the cache another warmed', async () => {
+    const { api, deps } = rig()
+    const tasks = EVAL_TASKS.slice(0, 4)
+    api.script(...tasks.flatMap(() => [...IDLE, ...IDLE]))
+    const report = await runPairedEval(tasks, [BASELINE, RECHECK], deps)
+    expect(report.arms.map((arm) => arm.results.map((result) => result.order))).toEqual([
+      [1, 2, 1, 2],
+      [2, 1, 2, 1],
+    ])
+    // The requests as sent: the mechanism's is the one keeping its cache 24 hours.
+    const plain = SETTING_DEFAULTS.modelApiPromptCacheRetention
+    expect(api.responseBodies().map((body) => body['prompt_cache_retention'])).toEqual([
+      plain,
+      '24h',
+      '24h',
+      plain,
+      plain,
+      '24h',
+      '24h',
+      plain,
+    ])
   })
 
   it('masks the task’s folder in a failure the report keeps', async () => {

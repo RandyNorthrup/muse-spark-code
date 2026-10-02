@@ -8,7 +8,7 @@
 // only the row it changes. The rows carry no alert roles: the app's single
 // live region reads failures and turn ends out once (M25).
 
-import { memo, type ReactNode, useDeferredValue, useRef, useState } from 'react'
+import { memo, type ReactNode, useDeferredValue, useMemo, useRef, useState } from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
@@ -70,7 +70,22 @@ export interface TranscriptProps {
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
+  /** "Fork conversation and rewind code": one host action, the rewind then the fork (M72). */
+  readonly onForkRewind?: ((entryId: string) => void) | undefined
   readonly onRewindConversation?: ((entryId: string) => void) | undefined
+  /**
+   * Turn checkpoints (M72): the turns with one, their card's "Restore files"
+   * and "Rewind conversation and restore files", and a restore's Redo.
+   */
+  readonly checkpointTurnIds?: ReadonlySet<string> | undefined
+  readonly legacyCheckpointTurnIds?: ReadonlySet<string> | undefined
+  readonly onRestoreFiles?: ((entryId: string) => void) | undefined
+  readonly onRestoreBoth?: ((entryId: string) => void) | undefined
+  readonly onRedo?: ((entryId: string, restoreId: string) => void) | undefined
+  /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
+  readonly restoreNote?: string | undefined
+  /** Why the menu offers no conversation rewind (Muse Code on Windows, D26), or none. */
+  readonly conversationNote?: string | undefined
   /** A still-running turn has no settled replay for a steered user card. */
   readonly activeTurnId?: string | undefined
   /** A reply's actions menu (M17); absent while no session exists. */
@@ -87,16 +102,37 @@ export interface TranscriptProps {
   readonly onCloseQuoteMenu?: (() => void) | undefined
 }
 
-type RewindChoice = 'fork' | 'rewind' | 'both' | 'conversation'
+type RewindChoice = 'fork' | 'conversation' | 'restore' | 'rewind' | 'restoreBoth' | 'forkRewind'
 
-/** The rows of the user card's menu, in Claude Code's order. */
+/**
+ * The rows of the user card's menu, in Claude Code's order. A turn with a
+ * checkpoint (M72) offers "Restore files" and the conversation rewind with
+ * it; one without keeps M13's fork and code rewind together.
+ */
 function rewindMenu(): readonly { readonly id: RewindChoice; readonly label: string }[] {
   return [
     { id: 'fork', label: UI_TEXT.forkFromHere },
     { id: 'conversation', label: UI_TEXT.rewindConversationToHere },
+    { id: 'restore', label: UI_TEXT.restoreFilesToHere },
     { id: 'rewind', label: UI_TEXT.rewindCodeToHere },
-    { id: 'both', label: UI_TEXT.forkAndRewind },
+    { id: 'restoreBoth', label: UI_TEXT.rewindAndRestore },
+    { id: 'forkRewind', label: UI_TEXT.forkAndRewind },
   ]
+}
+
+/** The first user card of each turn: the one a turn's checkpoint belongs to (M72). */
+function turnOpeners(entries: readonly TranscriptEntry[]): ReadonlySet<string> {
+  const seen = new Set<string>()
+  const openers = new Set<string>()
+  for (const entry of entries) {
+    if (entry.kind !== 'user' || entry.turnId === undefined || seen.has(entry.turnId)) {
+      continue
+    }
+
+    seen.add(entry.turnId)
+    openers.add(entry.id)
+  }
+  return openers
 }
 
 type StepEntry = Extract<TranscriptEntry, { kind: 'tool' | 'reasoning' }>
@@ -147,13 +183,23 @@ const UserCard = memo(function UserCard({
   entry,
   onFork,
   onRewind,
+  onForkRewind,
   onRewindConversation,
+  onRestoreFiles,
+  onRestoreBoth,
+  restoreNote,
+  conversationNote,
   quoteMenu,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'user' }>
   readonly onFork: ((entryId: string) => void) | undefined
   readonly onRewind: ((entryId: string) => void) | undefined
+  readonly onForkRewind: ((entryId: string) => void) | undefined
   readonly onRewindConversation: ((entryId: string) => void) | undefined
+  readonly onRestoreFiles: ((entryId: string) => void) | undefined
+  readonly onRestoreBoth: ((entryId: string) => void) | undefined
+  readonly restoreNote: string | undefined
+  readonly conversationNote: string | undefined
   readonly quoteMenu: ReactNode
 }) {
   const hasChips =
@@ -168,23 +214,43 @@ const UserCard = memo(function UserCard({
   const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
   // Without fork (a host that refuses it, D26) the menu offers the rewind alone.
   const hasMenu = onRewind !== undefined && entry.status === 'sent'
-  const menuRows = rewindMenu().filter(
-    (row) =>
-      row.id === 'rewind' ||
-      (row.id === 'conversation' && onRewindConversation !== undefined) ||
-      ((row.id === 'fork' || row.id === 'both') && onFork !== undefined),
-  )
+  const offered: Readonly<Record<RewindChoice, boolean>> = {
+    fork: onFork !== undefined,
+    conversation: onRewindConversation !== undefined,
+    restore: onRestoreFiles !== undefined,
+    rewind: true,
+    restoreBoth: onRestoreBoth !== undefined,
+    forkRewind: onForkRewind !== undefined && onRestoreFiles === undefined,
+  }
+  const menuRows = rewindMenu().filter((row) => offered[row.id])
+  const notes = [restoreNote, conversationNote].filter((note) => note !== undefined)
   const choose = (choice: RewindChoice) => {
     setMenuOpen(false)
-    if (choice === 'conversation') {
-      onRewindConversation?.(entry.id)
-      return
-    }
-    if (choice !== 'fork') {
-      onRewind?.(entry.id)
-    }
-    if (choice !== 'rewind') {
-      onFork?.(entry.id)
+    switch (choice) {
+      case 'conversation': {
+        onRewindConversation?.(entry.id)
+        break
+      }
+      case 'restore': {
+        onRestoreFiles?.(entry.id)
+        break
+      }
+      case 'restoreBoth': {
+        onRestoreBoth?.(entry.id)
+        break
+      }
+      case 'fork': {
+        onFork?.(entry.id)
+        break
+      }
+      case 'rewind': {
+        onRewind?.(entry.id)
+        break
+      }
+      case 'forkRewind': {
+        onForkRewind?.(entry.id)
+        break
+      }
     }
   }
   return (
@@ -256,6 +322,16 @@ const UserCard = memo(function UserCard({
                 >
                   {row.label}
                 </button>
+              ))}
+              {notes.map((note) => (
+                <div
+                  key={note}
+                  role="menuitem"
+                  aria-disabled="true"
+                  className="rewind-menu-item rewind-menu-note"
+                >
+                  {note}
+                </div>
               ))}
             </div>
           ) : null}
@@ -577,6 +653,40 @@ function OtherRow({
 
 const MemoOtherRow = memo(OtherRow)
 
+/**
+ * A file restore's notice with its Redo (M72): unavailable while the host
+ * answers, gone once spent, kept when a file could not be put back yet.
+ */
+const RestoreNotice = memo(function RestoreNotice({
+  entry,
+  restoreId,
+  onRedo,
+}: {
+  readonly entry: Extract<TranscriptEntry, { kind: 'notice' }>
+  readonly restoreId: string
+  readonly onRedo: (entryId: string, restoreId: string) => void
+}) {
+  return (
+    <li className={`notice notice-${entry.level}`}>
+      {entry.text}
+      {entry.isRedoUsed === true ? null : (
+        <button
+          type="button"
+          className="notice-action"
+          title={UI_TEXT.redoLabel}
+          aria-label={UI_TEXT.redoLabel}
+          disabled={entry.isRedoPending === true}
+          onClick={() => {
+            onRedo(entry.id, restoreId)
+          }}
+        >
+          {UI_TEXT.redoAction}
+        </button>
+      )}
+    </li>
+  )
+})
+
 function TranscriptList(props: TranscriptProps) {
   const {
     entries,
@@ -603,7 +713,15 @@ function TranscriptList(props: TranscriptProps) {
     onRefuseLink,
     onFork,
     onRewind,
+    onForkRewind,
     onRewindConversation,
+    checkpointTurnIds,
+    legacyCheckpointTurnIds,
+    onRestoreFiles,
+    onRestoreBoth,
+    onRedo,
+    restoreNote,
+    conversationNote,
     activeTurnId,
     onReply,
     planReplyId,
@@ -614,6 +732,7 @@ function TranscriptList(props: TranscriptProps) {
     onCopyQuote,
     onCloseQuoteMenu,
   } = props
+  const openers = useMemo(() => turnOpeners(entries), [entries])
   const quoteMenuFor = (entryId: string): ReactNode =>
     quoteMenuEntryId === entryId &&
     onQuote !== undefined &&
@@ -654,17 +773,30 @@ function TranscriptList(props: TranscriptProps) {
     switch (entry.kind) {
       case 'user': {
         const canForkHere = forkCutBefore(entries, entry.id) !== undefined
+        const canRewindHere =
+          canForkHere && entry.turnId !== activeTurnId && !hasFileAttachment(entry.attachments)
+        const hasCheckpoint =
+          entry.turnId !== undefined &&
+          checkpointTurnIds?.has(entry.turnId) === true &&
+          openers.has(entry.id)
         return (
           <UserCard
             key={entry.id}
             entry={entry}
             onFork={canForkHere ? onFork : undefined}
             onRewind={onRewind}
-            onRewindConversation={
-              canForkHere && entry.turnId !== activeTurnId && !hasFileAttachment(entry.attachments)
-                ? onRewindConversation
-                : undefined
+            onForkRewind={canForkHere ? onForkRewind : undefined}
+            onRewindConversation={canRewindHere ? onRewindConversation : undefined}
+            onRestoreFiles={hasCheckpoint ? onRestoreFiles : undefined}
+            onRestoreBoth={hasCheckpoint && canRewindHere ? onRestoreBoth : undefined}
+            restoreNote={
+              !hasCheckpoint &&
+              entry.turnId !== undefined &&
+              legacyCheckpointTurnIds?.has(entry.turnId) === true
+                ? UI_TEXT.checkpointsLegacyReadOnly
+                : restoreNote
             }
+            conversationNote={conversationNote}
             quoteMenu={quoteMenuFor(entry.id)}
           />
         )
@@ -705,6 +837,18 @@ function TranscriptList(props: TranscriptProps) {
       }
       case 'workflow': {
         return <WorkflowRow key={entry.id} entry={entry} />
+      }
+      case 'notice': {
+        return onRedo === undefined || entry.redoRestoreId === undefined ? (
+          <MemoOtherRow key={entry.id} entry={entry} />
+        ) : (
+          <RestoreNotice
+            key={entry.id}
+            entry={entry}
+            restoreId={entry.redoRestoreId}
+            onRedo={onRedo}
+          />
+        )
       }
       default: {
         return <MemoOtherRow key={entry.id} entry={entry} />

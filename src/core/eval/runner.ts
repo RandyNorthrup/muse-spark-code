@@ -1,9 +1,12 @@
-// The M75 paired runner (PLAN.md D49): every task runs once per arm, the
-// baseline first and then each mechanism, task by task so both arms of a
-// pair run under the same conditions. Each run gets a fresh workspace, a
-// fresh harness and its own trace; the verifier then judges the files the
-// turn left. Each arm's pass rate per split is held against the capability
-// floors fixed in advance, and an arm below either floor fails the run.
+// The M75 paired runner (PLAN.md D49): every task runs once per arm, task by
+// task so both arms of a pair run under the same conditions. The arms take
+// turns going first: a task's first run warms Meta's prompt cache with the
+// system prompt and message every arm of that task sends, so a fixed order
+// would credit the later arm with cached tokens it did not earn. Each run
+// gets a fresh workspace, a fresh harness and its own trace; the verifier
+// then judges the files the turn left. Each arm's pass rate per split is
+// held against the capability floors fixed in advance, and an arm below
+// either floor fails the run.
 
 import { ModelApiClient, type ModelApiClientDeps } from '../backends/modelapi/client'
 import type { ToolIo } from '../backends/modelapi/tools'
@@ -145,6 +148,7 @@ async function runTask(
   arm: EvalArm,
   deps: EvalRunDeps,
   budget: EvalBudget,
+  order: number,
 ): Promise<EvalTaskResult> {
   const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
   const steps: string[] = []
@@ -188,7 +192,14 @@ async function runTask(
     approvals: outcome?.approvals ?? 0,
     questions: outcome?.questions ?? 0,
     paidRefusals: outcome?.paidRefusals ?? 0,
+    order,
   }
+}
+
+/** The arms in the order they run the task at `index`: each task starts one arm further on. */
+function runOrder<T>(runs: readonly T[], index: number): T[] {
+  const first = index % runs.length
+  return [...runs.slice(first), ...runs.slice(0, first)]
 }
 
 function sum(results: readonly EvalTaskResult[], pick: (result: EvalTaskResult) => number) {
@@ -235,9 +246,9 @@ export async function runPairedEval(
 ): Promise<EvalReport> {
   const budget: EvalBudget = { spentUsd: 0 }
   const runs = arms.map((arm) => ({ arm, results: [] as EvalTaskResult[] }))
-  for (const task of tasks) {
-    for (const run of runs) {
-      run.results.push(await runTask(task, run.arm, deps, budget))
+  for (const [index, task] of tasks.entries()) {
+    for (const [position, run] of runOrder(runs, index).entries()) {
+      run.results.push(await runTask(task, run.arm, deps, budget, position + 1))
     }
   }
   const reports: EvalArmReport[] = runs.map(({ arm, results }) => ({

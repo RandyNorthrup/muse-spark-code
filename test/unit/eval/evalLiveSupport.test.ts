@@ -1,9 +1,15 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   assertNoLiveKeyEnvironment,
   evalRunTimeoutMs,
+  liveEvalSelection,
+  liveToolIo,
   loadEvalLiveCredentials,
 } from '../../e2e/evalLiveSupport'
+import { EVAL_TASKS } from '../../../src/core/eval/tasks'
 import {
   EVAL_TURN_TIMEOUT_MS,
   EVAL_VERIFY_TIMEOUT_MS,
@@ -12,6 +18,7 @@ import {
 } from '../../../src/shared/constants'
 import { memorySecrets } from '../helpers/fakes'
 import { FAKE_MODEL_API_ACCOUNT_ID, FAKE_MODEL_API_KEY } from '../helpers/fakeModelApi'
+import { removeFolder } from '../helpers/temporaryFolders'
 
 const native = vi.hoisted(() => ({
   open: vi.fn<(service: string, account: string, options: unknown) => void>(),
@@ -167,6 +174,74 @@ describe('secure live Model API credentials', () => {
       },
     })
     await expect(credentials.apiKey()).resolves.toBeUndefined()
+  })
+})
+
+// A real shell (PowerShell on Windows) starting Node; slow on a busy runner.
+const SHELL_TIMEOUT_MS = 60_000
+// Prints the three variables as the command sees them; no quote or `$`
+// inside, so sh and PowerShell pass it to Node alike.
+const PRINT_ENVIRONMENT =
+  'node -e "process.stdout.write(JSON.stringify([process.env.OPENAI_API_KEY ?? null, process.env.META_API_KEY ?? null, process.env.MUSE_EVAL_PROBE ?? null]))"'
+
+describe('live tool access', () => {
+  it(
+    'gives a shell command the model runs no credential variable, and the rest unchanged',
+    async () => {
+      const workspace = mkdtempSync(path.join(tmpdir(), 'muse-eval-live-io-'))
+      try {
+        const io = liveToolIo({
+          workspace,
+          env: () => ({
+            ...process.env,
+            OPENAI_API_KEY: 'sentinel-openai',
+            META_API_KEY: 'sentinel-meta',
+            MUSE_EVAL_PROBE: 'kept',
+          }),
+          searchWorkerPath: path.join(workspace, 'searchWorker.js'),
+          log: () => {
+            // Nothing here kills a process tree.
+          },
+          shellJobAssembly: undefined,
+        })
+        const result = await io.runShell(PRINT_ENVIRONMENT, workspace, SHELL_TIMEOUT_MS)
+        expect(result).toMatchObject({ exitCode: 0, isTimedOut: false })
+        expect(JSON.parse(result.stdout.trim())).toEqual([null, null, 'kept'])
+      } finally {
+        await removeFolder(workspace)
+      }
+    },
+    SHELL_TIMEOUT_MS,
+  )
+})
+
+describe('live eval selection', () => {
+  it('reads nothing while live tests are off, so a stale selection cannot fail the default run', () => {
+    const read = vi.fn(() => 'no-such-task')
+    const env: NodeJS.ProcessEnv = {}
+    Object.defineProperty(env, 'MUSE_EVAL_TASKS', { get: read })
+    expect(() => liveEvalSelection(env, false)).toThrow('not enabled')
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('stops an enabled run on an unknown task id', () => {
+    expect(() =>
+      liveEvalSelection({ MUSE_EVAL_TASKS: 'accept-off-by-one, no-such-task' }, true),
+    ).toThrow('unknown eval tasks: no-such-task')
+  })
+
+  it('runs every task when unset, and the named ones in task-set order', () => {
+    expect(liveEvalSelection({}, true)).toEqual({ tasks: EVAL_TASKS, reportPath: undefined })
+    const [first, second] = EVAL_TASKS
+    if (first === undefined || second === undefined) {
+      throw new Error('the task set is too small')
+    }
+    expect(
+      liveEvalSelection(
+        { MUSE_EVAL_TASKS: ` ${second.id},,${first.id} `, MUSE_EVAL_REPORT: 'out/report' },
+        true,
+      ),
+    ).toEqual({ tasks: [first, second], reportPath: 'out/report' })
   })
 })
 

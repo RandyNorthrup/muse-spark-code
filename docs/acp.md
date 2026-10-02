@@ -8,6 +8,12 @@ calls, the plan and the permission prompts; the agent runs Muse Code (or
 the Meta Model API) the way the VS Code panel does. It is unofficial and not
 endorsed by Meta.
 
+Stored turn-checkpoint file Restore/Redo is a VS Code extension feature. The
+standalone ACP agent has no checkpoint store in the VS Code profile and does
+not share that window admission namespace. Treat its workspace writes as an
+independent editor/process when using VS Code checkpoints in the same folder;
+the extension's exclusion guarantee does not cover those simultaneous writes.
+
 On the Model API backend, `web_fetch` reads public HTTPS pages using the
 same address checks, pinned connections and bounded page-converter worker
 as the extension. It is available only in a trusted workspace and follows
