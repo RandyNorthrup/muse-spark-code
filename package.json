@@ -609,6 +609,12 @@
           "description": "%config.modelApiRepoMap.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiObservationPacking": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.modelApiObservationPacking.description%",
+          "scope": "machine"
+        },
         "museSpark.turnCheckpoints": {
           "type": "boolean",
           "default": false,

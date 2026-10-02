@@ -8,9 +8,19 @@ import {
   liveEvalSelection,
   liveToolIo,
   loadEvalLiveCredentials,
+  unengagedLongOutputTasks,
+  withPackingEngagement,
 } from '../../e2e/evalLiveSupport'
+import {
+  type EvalReport,
+  evalReportSchema,
+  formatEvalReportJson,
+  formatEvalReportMarkdown,
+} from '../../../src/core/eval/report'
 import { EVAL_TASKS } from '../../../src/core/eval/tasks'
 import {
+  EVAL_MODEL_ID,
+  EVAL_REPORT_VERSION,
   EVAL_TURN_TIMEOUT_MS,
   EVAL_VERIFY_TIMEOUT_MS,
   KEYRING_SERVICE,
@@ -242,6 +252,96 @@ describe('live eval selection', () => {
         true,
       ),
     ).toEqual({ tasks: [first, second], reportPath: 'out/report' })
+  })
+})
+
+/** A report whose `packing` arm ran every task, with the ledger given per task. */
+function packingReport(saved: Readonly<Record<string, number>>): EvalReport {
+  const results = EVAL_TASKS.map((task) => ({
+    taskId: task.id,
+    title: task.title,
+    split: task.split,
+    passed: true,
+    terminal: 'completed',
+    failures: [],
+    attempts: 1,
+    requests: 1,
+    inputTokens: 1,
+    cachedTokens: 0,
+    outputTokens: 1,
+    costUsd: 0,
+    toolCalls: 0,
+    approvals: 0,
+    questions: 0,
+    paidRefusals: 0,
+    order: 1,
+    recalls: 0,
+    ...(saved[task.id] !== undefined && { packedTokensAvoided: saved[task.id] }),
+  }))
+  return {
+    version: EVAL_REPORT_VERSION,
+    model: EVAL_MODEL_ID,
+    generatedAt: '2026-10-01T00:00:00.000Z',
+    arms: [{ name: 'packing', results, summaries: [] }],
+    floors: [],
+    verdict: 'pass',
+  }
+}
+
+describe('a packing run engaged', () => {
+  const longIds = EVAL_TASKS.filter((task) => task.isLongOutput === true).map((task) => task.id)
+
+  it('needs a packed placeholder on every long-output task it ran, and only those', () => {
+    const everyLong = Object.fromEntries(longIds.map((id) => [id, 500]))
+    expect(unengagedLongOutputTasks(packingReport(everyLong), 'packing', EVAL_TASKS)).toEqual([])
+    const [first, ...rest] = longIds
+    expect(
+      unengagedLongOutputTasks(
+        packingReport({ [first ?? '']: 0, ...Object.fromEntries(rest.map((id) => [id, 500])) }),
+        'packing',
+        EVAL_TASKS,
+      ),
+    ).toEqual([first])
+    expect(unengagedLongOutputTasks(packingReport({}), 'packing', EVAL_TASKS)).toEqual(longIds)
+  })
+
+  it('counts an arm missing from the report as never engaged', () => {
+    const everyLong = Object.fromEntries(longIds.map((id) => [id, 500]))
+    expect(unengagedLongOutputTasks(packingReport(everyLong), 'other', EVAL_TASKS)).toEqual(longIds)
+  })
+
+  it('records a run whose floors pass but which never packed as failed, in both artifacts', () => {
+    // Every task passed and no floor fell, yet no long-output task packed.
+    const floorsPass = packingReport({})
+    expect(floorsPass.verdict).toBe('pass')
+    const report = withPackingEngagement(floorsPass, 'packing', EVAL_TASKS)
+    expect(report.verdict).toBe('fail')
+    const json = evalReportSchema.parse(JSON.parse(formatEvalReportJson(report)))
+    expect(json.verdict).toBe('fail')
+    expect(json.version === EVAL_REPORT_VERSION ? json.packingEngagement : undefined).toEqual({
+      arm: 'packing',
+      longOutputTasks: longIds,
+      unengaged: longIds,
+      held: false,
+    })
+    const markdown = formatEvalReportMarkdown(report)
+    expect(markdown).toContain('verdict: fail')
+    expect(markdown).not.toContain('verdict: pass')
+    expect(markdown).toContain(`| packing | ${longIds.join(', ')} | ${longIds.join(', ')} | no |`)
+  })
+
+  it('leaves the verdict to the floors when packing engaged on every long-output task', () => {
+    const everyLong = Object.fromEntries(longIds.map((id) => [id, 500]))
+    const report = withPackingEngagement(packingReport(everyLong), 'packing', EVAL_TASKS)
+    expect(report.verdict).toBe('pass')
+    expect(formatEvalReportMarkdown(report)).toContain(
+      `| packing | ${longIds.join(', ')} | none | yes |`,
+    )
+    // A selection without long-output tasks has nothing to engage.
+    const small = EVAL_TASKS.filter((task) => task.isLongOutput !== true)
+    const smallReport = withPackingEngagement(packingReport({}), 'packing', small)
+    expect(smallReport.verdict).toBe('pass')
+    expect(formatEvalReportMarkdown(smallReport)).toContain('| packing | none | none | yes |')
   })
 })
 

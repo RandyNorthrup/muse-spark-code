@@ -187,6 +187,21 @@ export interface UiState {
       }
     | undefined
   readonly goalEditRevision: number
+  /** A `/handoff …` awaiting host admission (M74): only an accepted one clears its draft. */
+  readonly pendingHandoffCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
+  /** The handoff dialog (M74): the brief to review, edit and confirm. */
+  readonly handoff:
+    | {
+        readonly requestId: string
+        readonly brief: string
+        readonly goal: string | undefined
+        /** The open items the new conversation's todo list starts with, shown read-only. */
+        readonly todos: readonly string[]
+        readonly draft: string
+        readonly isConfirming: boolean
+      }
+    | undefined
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
   /** Text waiting to be inserted at the composer caret, if any. */
@@ -305,6 +320,12 @@ export type UiAction =
   | { readonly type: 'goalEditChanged'; readonly draft: string }
   | { readonly type: 'goalEditCanceled' }
   | { readonly type: 'goalEditSubmitted'; readonly requestId: string; readonly objective: string }
+  /** `/handoff …` sent from the composer (M74), awaiting the host's admission. */
+  | { readonly type: 'handoffSubmitted'; readonly requestId: string }
+  /** The handoff dialog's edits and Start (M74); Cancel dismisses it. */
+  | { readonly type: 'handoffChanged'; readonly draft: string }
+  | { readonly type: 'handoffConfirming' }
+  | { readonly type: 'handoffDismissed' }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
@@ -374,6 +395,8 @@ export const initialUiState: UiState = {
   pendingGoalCommand: undefined,
   goalEdit: undefined,
   goalEditRevision: 0,
+  pendingHandoffCommand: undefined,
+  handoff: undefined,
   focusRequests: 0,
   pendingInsert: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
@@ -1478,6 +1501,9 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
           inputTokens: event.inputTokens,
           outputTokens: event.outputTokens,
           ...(event.cachedTokens !== undefined && { cachedTokens: event.cachedTokens }),
+          ...(event.packedTokensAvoided !== undefined && {
+            packedTokensAvoided: event.packedTokensAvoided,
+          }),
         },
       }
     }
@@ -1726,6 +1752,11 @@ function clearedConversation(state: UiState): UiState {
     attachmentSettlements: [],
     pendingGoalCommand: undefined,
     goalEdit: undefined,
+    pendingHandoffCommand: undefined,
+    handoff: undefined,
+    // A handoff dialog that goes with the conversation (its Start took)
+    // hands the focus back to the prompt (M74).
+    focusRequests: state.handoff === undefined ? state.focusRequests : state.focusRequests + 1,
     childTranscripts: {},
     childOwners: {},
     strayItems: {},
@@ -2107,6 +2138,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           goal,
           ...editor,
           pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
+          pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
           schedules: isSameSession ? state.schedules : [],
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
@@ -2181,6 +2213,42 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             ? undefined
             : { ...edit, pending: undefined },
       }
+    }
+    case 'handoffReady': {
+      // The distilled brief, before anything starts (M74): the dialog
+      // shows it for review, and Start sends the edited text back.
+      return {
+        ...state,
+        handoff: {
+          requestId: message.requestId,
+          brief: message.brief,
+          goal: message.goal,
+          todos: message.todos,
+          draft: message.brief,
+          isConfirming: false,
+        },
+      }
+    }
+    case 'handoffCommandResult': {
+      // The request's admission (M74): a refused `/handoff …` stays in the
+      // composer, its goal not lost; an accepted one clears it, if unedited.
+      const command = state.pendingHandoffCommand
+      if (command?.requestId === message.requestId) {
+        return {
+          ...state,
+          pendingHandoffCommand: undefined,
+          draft:
+            message.accepted && state.draftRevision === command.draftRevision ? '' : state.draft,
+        }
+      }
+      const pending = state.handoff
+      if (pending?.requestId !== message.requestId) {
+        return state
+      }
+      // Accepted: the new conversation clears the dialog with the
+      // transcript (`conversationCleared`). Refused: the dialog stays, so
+      // the edited brief is not lost, and Start can be pressed again.
+      return message.accepted ? state : { ...state, handoff: { ...pending, isConfirming: false } }
     }
     case 'sendFailed': {
       // A refused message's images (M25): back in the composer when the host
@@ -2370,6 +2438,31 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         },
       }
     }
+    case 'handoffSubmitted': {
+      return {
+        ...state,
+        pendingHandoffCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
+    case 'handoffChanged': {
+      const pending = state.handoff
+      return pending === undefined
+        ? state
+        : { ...state, handoff: { ...pending, draft: action.draft } }
+    }
+    case 'handoffConfirming': {
+      const pending = state.handoff
+      return pending === undefined || pending.isConfirming
+        ? state
+        : { ...state, handoff: { ...pending, isConfirming: true } }
+    }
+    case 'handoffDismissed': {
+      // Closed, the dialog hands the focus back to the prompt, as Usage
+      // and the Agent map do.
+      return state.handoff === undefined
+        ? state
+        : { ...state, handoff: undefined, focusRequests: state.focusRequests + 1 }
+    }
     case 'insertRequested': {
       return withInsert(state, action.text)
     }
@@ -2396,6 +2489,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           draft: '',
           draftRevision: state.draftRevision + 1,
           pendingGoalCommand: undefined,
+          pendingHandoffCommand: undefined,
           attachments: [],
           reference: undefined,
         },
