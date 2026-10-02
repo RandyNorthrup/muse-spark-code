@@ -27,7 +27,12 @@ function managerOn(
   store: SessionStore | undefined,
   log = new FakeLogOutputChannel(),
   hooks?: HookFixture,
-  mcp: Pick<ModelApiBackendManagerDeps, 'createMcpServers' | 'ideTools'> = {},
+  extra: Partial<
+    Pick<
+      ModelApiBackendManagerDeps,
+      'createMcpServers' | 'ideTools' | 'isObservationPackingOn' | 'newId'
+    >
+  > = {},
 ) {
   const api = fakeModelApi()
   return {
@@ -46,7 +51,7 @@ function managerOn(
         // built dist/modelApi.js is modelApiBundle.test.ts's.
         bundlePath: 'src/host/backend/modelApiEntry.ts',
         loadBundle: () => modelApiEntry,
-        ...mcp,
+        ...extra,
       }),
     ),
   }
@@ -218,6 +223,50 @@ describe('ModelApiBackendManager', () => {
     expect(log.warn).toHaveBeenCalledWith(
       'Hooks: settings.json: invalid JSON; user and managed hooks are off',
     )
+  })
+
+  it('hands the host the packing setting, read when each conversation starts (M73)', async () => {
+    let isPacking = false
+    let ids = 0
+    const m = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      isObservationPackingOn: () => isPacking,
+      newId: () => {
+        ids += 1
+        return `id-${String(ids)}`
+      },
+    })
+    const host = await m.manager.ensureHost()
+    const start = async () => {
+      const session = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'onRequest',
+      })
+      if (!(session instanceof ModelApiSession)) {
+        throw new TypeError('expected the Model API session')
+      }
+      return session
+    }
+    // A packing conversation keeps a ledger with its session; one that
+    // does not pack has none.
+    const before = await start()
+    isPacking = true
+    const after = await start()
+    expect(before.snapshot().packedTokensAvoided).toBeUndefined()
+    expect(after.snapshot().packedTokensAvoided).toBe(0)
+    await m.manager.dispose()
+    // The default, with no setting handed over, packs nothing.
+    const plain = manager('/ws')
+    const plainHost = await plain.manager.ensureHost()
+    const session = await plainHost.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'onRequest',
+    })
+    expect(session instanceof ModelApiSession ? session.snapshot().packedTokensAvoided : 0).toBe(
+      undefined,
+    )
+    await plain.manager.dispose()
   })
 
   it('creates one host per window, lists its models, and forgets it on dispose', async () => {

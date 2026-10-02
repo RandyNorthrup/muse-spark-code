@@ -7,6 +7,7 @@
 
 import { ModelApiClient, type ModelApiClientDeps } from '../../../src/core/backends/modelapi/client'
 import { createHash } from 'node:crypto'
+import * as z from 'zod/mini'
 import type { CoreLogger } from '../../../src/core/logging'
 
 export interface ScriptedCall {
@@ -449,6 +450,28 @@ export function fakeModelApiClientSettings(log: CoreLogger): Omit<ModelApiClient
 
 export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
   return new ModelApiClient({ ...fakeModelApiClientSettings(log), fetch: api.fetch })
+}
+
+const responseOutputSchema = z.object({
+  type: z.literal('function_call_output'),
+  call_id: z.optional(z.string()),
+  output: z.string(),
+})
+
+/** The string tool outputs the `index`th `POST /responses` carried, by call id. */
+export function responseOutputsByCall(api: FakeModelApi, index: number): Map<string, string> {
+  const input = api.responseBodies()[index]?.['input']
+  const found = new Map<string, string>()
+  if (!Array.isArray(input)) {
+    return found
+  }
+  for (const item of input) {
+    const parsed = responseOutputSchema.safeParse(item)
+    if (parsed.success && parsed.data.call_id !== undefined) {
+      found.set(parsed.data.call_id, parsed.data.output)
+    }
+  }
+  return found
 }
 
 export function fakeModelApi(): FakeModelApi {
