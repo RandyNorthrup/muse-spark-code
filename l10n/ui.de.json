@@ -1315,16 +1315,10 @@
   "restoreTurnElsewhere": "In einem anderen VS Code-Fenster für diesen Ordner läuft ein Durchlauf oder eine Dateiwiederherstellung. Versuchen Sie es erneut, sobald der Vorgang abgeschlossen ist.",
   "sendMarkFailed": "Die Nachricht wurde nicht gesendet: Dieses Fenster konnte anderen Fenstern mit diesem Ordner nicht mitteilen, dass ein Durchgang beginnt.",
   "restoreFailed": "Die Dateien konnten nicht wiederhergestellt werden",
-  "checkpointLeftOut": "Der Dateiprüfpunkt hat ausgelassen: {files}",
-  "checkpointUnavailable": "Kein Dateiprüfpunkt für diesen Durchgang: {reason}",
-  "checkpointTooManyFiles": "Der Arbeitsbereich hat mehr als {count} Dateien außerhalb seiner Ignorierregeln",
-  "checkpointTooLarge": "über {size} MiB geänderter Dateien zu kopieren",
   "checkpointFailed": "Der Prüfpunkt ist fehlgeschlagen",
-  "checkpointNoGit": "git wurde im PATH nicht gefunden",
-  "checkpointPathTooLong": "Der Pfad des Arbeitsbereichs oder des Speicherordners dieser Erweiterung ist für git zu lang",
   "checkpointsModelApiOnly": "Dateiwiederherstellung und Wiederholen erfordern eine verbundene Model-API-Sitzung. Nur Änderungen durch die eigenen Dateiwerkzeuge des Modells werden rückgängig gemacht, solange jede Datei noch genau den vom Modell hinterlassenen Inhalt hat. Änderungen durch Befehle, Hooks, MCP-Werkzeuge, Ihre eigenen Bearbeitungen und Schreibvorgänge anderer Fenster werden niemals rückgängig gemacht.",
-  "checkpointsNativeUnsafe": "Dateiwiederherstellung und Wiederholen sind nicht verfügbar, weil ein nativer Arbeitsbereichsprozess oder ein unbekanntes Fenster noch Dateien bearbeiten könnte. Das vollständige Prozessende ist nicht nachgewiesen; eine bestätigte Wiederherstellung ist erforderlich.",
-  "checkpointsLegacyReadOnly": "Diese Nachricht hat einen alten Prüfpunkt. Gespeicherte Einträge bleiben lesbar; eine Dateiwiederherstellung benötigt eine aktuelle sicher abgesicherte Aufnahme.",
+  "checkpointsNativeUnsafe": "Dateiwiederherstellung und Wiederholen sind nicht verfügbar, solange eine Muse Code-Sitzung oder ein Fenster, das seine Änderungen nicht aufzeichnet, noch Dateien ändern könnte. Schließen Sie dieses Fenster oder laden Sie es neu und versuchen Sie es erneut.",
+  "checkpointsLegacyReadOnly": "Diese Nachricht wurde von einer früheren Version von Muse Spark aufgezeichnet. Ihre Dateien können nicht wiederhergestellt werden.",
   "verifyErrors": {
     "one": "{count} Fehler",
     "other": "{count} Fehler"

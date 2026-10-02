@@ -1315,16 +1315,10 @@
   "restoreTurnElsewhere": "Egy másik VS Code-ablakban kör vagy fájl-visszaállítás fut ehhez a mappához. Próbáld újra, miután befejeződött.",
   "sendMarkFailed": "Az üzenet nem lett elküldve: ez az ablak nem tudta jelezni a mappát megnyitó többi ablaknak, hogy kör indul.",
   "restoreFailed": "Nem sikerült visszaállítani a fájlokat",
-  "checkpointLeftOut": "A fájl-ellenőrzőpont kihagyta: {files}",
-  "checkpointUnavailable": "Ehhez a körhöz nincs fájl-ellenőrzőpont: {reason}",
-  "checkpointTooManyFiles": "a munkaterületen több mint {count} fájl van a kizárási szabályain kívül",
-  "checkpointTooLarge": "több mint {size} MiB módosított fájlt kellene másolni",
   "checkpointFailed": "az ellenőrzőpont nem sikerült",
-  "checkpointNoGit": "a git nem található a PATH-ban",
-  "checkpointPathTooLong": "a munkaterület vagy a bővítmény tárolómappájának elérési útja túl hosszú a git számára",
   "checkpointsModelApiOnly": "A fájlok visszaállításához és az Újra használatához csatlakoztatott Model API-munkamenet szükséges. Csak a modell saját fájleszközeinek módosításai vonhatók vissza, amíg minden fájl pontosan a modell által hátrahagyott tartalmat őrzi. A parancsok, hookok és MCP-eszközök változtatásai, az Ön módosításai és más ablakok írásai soha nem vonhatók vissza.",
-  "checkpointsNativeUnsafe": "A fájlok visszaállítása és az Újra nem érhető el, mert egy natív munkaterületi folyamat vagy egy ismeretlen ablak még szerkeszthet fájlokat. A folyamatok leállítása nem igazolt; megerősített helyreállítás szükséges.",
-  "checkpointsLegacyReadOnly": "Ehhez az üzenethez régi ellenőrzőpont tartozik. A mentett rekordok olvashatók maradnak; a fájlok visszaállításához új, biztonságosan védett rögzítés szükséges.",
+  "checkpointsNativeUnsafe": "A fájlok visszaállítása és az Újra nem érhető el, amíg egy Muse Code-munkamenet vagy egy olyan ablak, amely nem rögzíti a módosításait, még módosíthat fájlokat. Zárja be vagy töltse újra azt az ablakot, majd próbálja ismét.",
+  "checkpointsLegacyReadOnly": "Ezt az üzenetet a Muse Spark egy korábbi verziója rögzítette. A fájljai nem állíthatók vissza.",
   "verifyErrors": {
     "one": "{count} hiba",
     "other": "{count} hiba"

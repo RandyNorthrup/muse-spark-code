@@ -1278,16 +1278,10 @@
   "restoreTurnElsewhere": "此文件夹的另一个 VS Code 窗口正在运行轮次或文件恢复。请在完成后重试。",
   "sendMarkFailed": "消息未发送：此窗口无法告知打开此文件夹的其他窗口有一轮即将开始。",
   "restoreFailed": "无法还原文件",
-  "checkpointLeftOut": "文件检查点未包含：{files}",
-  "checkpointUnavailable": "此轮没有文件检查点：{reason}",
-  "checkpointTooManyFiles": "工作区中忽略规则之外的文件超过 {count} 个",
-  "checkpointTooLarge": "需要复制的已更改文件超过 {size} MiB",
   "checkpointFailed": "检查点失败",
-  "checkpointNoGit": "在 PATH 中找不到 git",
-  "checkpointPathTooLong": "工作区或此扩展存储文件夹的路径对 git 来说太长",
   "checkpointsModelApiOnly": "文件还原和重做需要已连接的 Model API 会话。 仅撤销模型自身文件工具的编辑，而且只有各文件仍与模型留下的内容完全一致时才会撤销。命令、钩子、MCP 工具的更改、你自己的编辑以及其他窗口的写入均不会撤销。",
-  "checkpointsNativeUnsafe": "原生工作区进程或未知窗口可能仍在编辑文件，因此文件恢复和重做不可用。尚未证明进程已完全停止；需要经确认的恢复处理。",
-  "checkpointsLegacyReadOnly": "此消息具有旧检查点。已保存的记录仍可读取；文件恢复需要当前受到安全保护的快照。",
+  "checkpointsNativeUnsafe": "Muse Code 会话或不记录其编辑的窗口仍可能更改文件，因此文件还原和重做不可用。请关闭或重新加载该窗口后再试。",
+  "checkpointsLegacyReadOnly": "此消息由旧版 Muse Spark 记录。其文件无法还原。",
   "verifyErrors": {
     "other": "{count} 个错误"
   },

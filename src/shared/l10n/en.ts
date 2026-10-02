@@ -631,9 +631,9 @@ export const EN = {
   checkpointsModelApiOnly:
     'File restore and Redo require a connected Model API session. Only the model’s own file-tool edits are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone.',
   checkpointsLegacyReadOnly:
-    'This message has a legacy checkpoint. Its saved records remain readable; file restoration needs a current safely fenced capture.',
+    'This message was recorded by an earlier version of Muse Spark. Its files cannot be restored.',
   checkpointsNativeUnsafe:
-    'File restore and Redo are unavailable because a native workspace process or an unknown window may still edit files. Process shutdown is unproved; confirmed recovery is required.',
+    'File restore and Redo are unavailable while a Muse Code session, or a window that does not record its edits, may still change files. Close or reload that window, then try again.',
   rewindAndRestore: 'Rewind conversation and restore files',
   checkpointsRestricted: 'File checkpoints are off in Restricted Mode',
   checkpointsOff: 'File checkpoints are off in settings',
@@ -692,14 +692,7 @@ export const EN = {
   sendMarkFailed:
     'The message was not sent: this window could not tell other windows on this folder that a turn is starting.',
   restoreFailed: 'Could not restore the files',
-  checkpointLeftOut: 'The file checkpoint left out: {files}',
-  checkpointUnavailable: 'No file checkpoint for this turn: {reason}',
-  checkpointTooManyFiles: 'the workspace has more than {count} files outside its ignore rules',
-  checkpointTooLarge: 'over {size} MiB of changed files to copy',
   checkpointFailed: 'the checkpoint failed',
-  checkpointNoGit: 'git was not found on PATH',
-  checkpointPathTooLong:
-    'the path of the workspace or of this extension’s storage folder is too long for git',
   resumedNotice: 'Resumed',
   historyUnavailable: 'The conversation history could not be loaded',
   historyNotServed: 'The earlier messages of this conversation could not be shown',

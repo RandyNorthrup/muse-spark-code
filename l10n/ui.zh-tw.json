@@ -1278,16 +1278,10 @@
   "restoreTurnElsewhere": "此資料夾的另一個 VS Code 視窗正在執行回合或檔案還原。請在完成後重試。",
   "sendMarkFailed": "訊息未傳送：此視窗無法告知開啟此資料夾的其他視窗有回合即將開始。",
   "restoreFailed": "無法還原檔案",
-  "checkpointLeftOut": "檔案檢查點未包含：{files}",
-  "checkpointUnavailable": "此回合沒有檔案檢查點：{reason}",
-  "checkpointTooManyFiles": "工作區中忽略規則之外的檔案超過 {count} 個",
-  "checkpointTooLarge": "需要複製的已變更檔案超過 {size} MiB",
   "checkpointFailed": "檢查點失敗",
-  "checkpointNoGit": "在 PATH 中找不到 git",
-  "checkpointPathTooLong": "工作區或此擴充功能儲存資料夾的路徑對 git 來說太長",
   "checkpointsModelApiOnly": "檔案還原與重做需要已連線的 Model API 工作階段。 僅還原模型自身檔案工具的編輯，而且只有各檔案仍與模型留下的內容完全一致時才會還原。命令、掛鉤、MCP 工具的變更、你自己的編輯以及其他視窗的寫入均不會還原。",
-  "checkpointsNativeUnsafe": "原生工作區處理程序或未知視窗可能仍在編輯檔案，因此檔案還原和重做無法使用。尚未證明處理程序已完全停止；需要經確認的復原處理。",
-  "checkpointsLegacyReadOnly": "此訊息具有舊檢查點。已儲存的記錄仍可讀取；檔案還原需要目前受到安全保護的快照。",
+  "checkpointsNativeUnsafe": "Muse Code 工作階段或不記錄其編輯的視窗仍可能變更檔案，因此檔案還原和重做無法使用。請關閉或重新載入該視窗後再試。",
+  "checkpointsLegacyReadOnly": "此訊息由舊版 Muse Spark 記錄。其檔案無法還原。",
   "verifyErrors": {
     "other": "{count} 個錯誤"
   },

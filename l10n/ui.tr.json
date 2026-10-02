@@ -1315,16 +1315,10 @@
   "restoreTurnElsewhere": "Bu klasör için başka bir VS Code penceresinde bir tur veya dosya geri yükleme işlemi çalışıyor. İşlem tamamlandıktan sonra yeniden deneyin.",
   "sendMarkFailed": "İleti gönderilmedi: bu pencere, bu klasörü açan diğer pencerelere bir turun başladığını bildiremedi.",
   "restoreFailed": "Dosyalar geri yüklenemedi",
-  "checkpointLeftOut": "Dosya denetim noktası şunları dışarıda bıraktı: {files}",
-  "checkpointUnavailable": "Bu tur için dosya denetim noktası yok: {reason}",
-  "checkpointTooManyFiles": "çalışma alanında yok sayma kurallarının dışında {count} dosyadan fazlası var",
-  "checkpointTooLarge": "kopyalanacak değişen dosyalar {size} MiB’ı aşıyor",
   "checkpointFailed": "denetim noktası başarısız oldu",
-  "checkpointNoGit": "git PATH’te bulunamadı",
-  "checkpointPathTooLong": "çalışma alanının veya bu uzantının depolama klasörünün yolu git için çok uzun",
   "checkpointsModelApiOnly": "Dosya geri yükleme ve Yinele için bağlı bir Model API oturumu gerekir. Yalnızca modelin kendi dosya araçlarının düzenlemeleri, her dosya modelin bıraktığı içeriği hâlâ tam olarak içeriyorsa geri alınır. Komutların, kancaların ve MCP araçlarının değişiklikleri, kendi düzenlemeleriniz ve diğer pencerelerin yazmaları hiçbir zaman geri alınmaz.",
-  "checkpointsNativeUnsafe": "Yerel bir çalışma alanı işlemi veya bilinmeyen bir pencere dosyaları hâlâ düzenleyebileceğinden dosya geri yükleme ve Yinele kullanılamaz. İşlemlerin sonlanması kanıtlanmadı; doğrulanmış kurtarma gerekir.",
-  "checkpointsLegacyReadOnly": "Bu iletinin eski bir denetim noktası var. Kaydedilen kayıtlar okunabilir kalır; dosya geri yükleme için güncel ve güvenle korunan bir yakalama gerekir.",
+  "checkpointsNativeUnsafe": "Bir Muse Code oturumu veya düzenlemelerini kaydetmeyen bir pencere dosyaları hâlâ değiştirebileceği sürece dosya geri yükleme ve Yinele kullanılamaz. O pencereyi kapatın veya yeniden yükleyin, sonra tekrar deneyin.",
+  "checkpointsLegacyReadOnly": "Bu ileti Muse Spark’ın eski bir sürümüyle kaydedildi. Dosyaları geri yüklenemez.",
   "verifyErrors": {
     "one": "{count} hata",
     "other": "{count} hata"
