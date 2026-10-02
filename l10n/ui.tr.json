@@ -1345,6 +1345,7 @@
   },
   "thenRunLabel": "Ardından çalıştırıldı",
   "thenRunNotRun": "Çalıştırılmadı: {reason}",
+  "hookInputNoCommand": "Hook’un güncellenmiş girdisi bir komut belirtmiyor.",
   "thenRunTimedOut": "Süre sınırında durduruldu",
   "checksStoppedNotice": {
     "one": "Denetimler {count} düzeltme turundan sonra da başarısız oldu; bir sonraki mesajınıza kadar otomatik olarak çalışmayacaklar.",

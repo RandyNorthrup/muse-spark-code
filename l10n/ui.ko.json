@@ -1307,6 +1307,7 @@
   },
   "thenRunLabel": "이어서 실행함",
   "thenRunNotRun": "실행 안 됨: {reason}",
+  "hookInputNoCommand": "훅이 업데이트한 입력에 명령이 없습니다.",
   "thenRunTimedOut": "시간 제한에서 중지됨",
   "checksStoppedNotice": {
     "other": "수정을 {count}번 연속으로 해도 검사가 실패해서 다음 메시지까지 더 이상 자동으로 실행하지 않습니다."

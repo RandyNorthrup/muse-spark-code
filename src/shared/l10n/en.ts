@@ -1634,6 +1634,8 @@ export const EN = {
   thenRunLabel: 'Then ran',
   // {reason}: one of checkSkips, with the user's or the hook's words after it.
   thenRunNotRun: 'Not run: {reason}',
+  // After "a hook denied it": the hook rewrote the command into none.
+  hookInputNoCommand: 'The hook’s updated input names no command.',
   thenRunTimedOut: 'Stopped at its time limit',
   // The command could not start or ended without an exit code.
   thenRunNoExitCode: 'Failed without an exit code',

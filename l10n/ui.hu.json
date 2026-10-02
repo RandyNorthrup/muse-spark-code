@@ -1345,6 +1345,7 @@
   },
   "thenRunLabel": "Utána futtatva",
   "thenRunNotRun": "Nem futott: {reason}",
+  "hookInputNoCommand": "A hook frissített bemenete nem nevez meg parancsot.",
   "thenRunTimedOut": "Az időkorlátnál leállítva",
   "checksStoppedNotice": {
     "one": "Az ellenőrzések {count} javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan.",

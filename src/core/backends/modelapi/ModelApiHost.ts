@@ -3458,6 +3458,50 @@ export class ModelApiSession implements AgentSession {
       : { tools }
   }
 
+  /**
+   * A spawn that starts no child (M76 review): refused for its arguments or
+   * the conversation's limit, or a repeat of an earlier spawn's `command_id`,
+   * which answers with that child. Settled before the contributor yes and the
+   * paid-use popup, which ask only for a child that would start. None of it
+   * can change while they wait: a turn's calls run one at a time, only a spawn
+   * adds a child or a command id, and a child cannot spawn. Undefined when the
+   * spawn starts a child.
+   */
+  private settledSpawn(call: FunctionCallItem): ToolOutcome | undefined {
+    const parsed = spawnArgs.safeParse(argumentsOf(call))
+    if (!parsed.success) {
+      return subagentFailure('invalid subagent_spawn arguments')
+    }
+    if (parsed.data.worktree_isolation !== undefined && parsed.data.worktree_isolation !== false) {
+      return subagentFailure('worktree isolation is unavailable on this backend')
+    }
+    const prior =
+      parsed.data.command_id === undefined
+        ? undefined
+        : this.spawnCommands.get(parsed.data.command_id)
+    const child = prior === undefined ? undefined : this.childById(prior)
+    if (child !== undefined) {
+      if (
+        child.role !== parsed.data.role ||
+        child.objective !== parsed.data.objective ||
+        child.agentId !== parsed.data.agent
+      ) {
+        return subagentFailure('command_id was already used for a different spawn')
+      }
+      return {
+        output: JSON.stringify({
+          subagent_id: child.id,
+          state: child.state,
+          child_session_id: child.session.sessionId,
+        }),
+        visibleOutput: `${child.role}: ${childStateLabel(child.state)}`,
+      }
+    }
+    return this.children.size >= SUBAGENT_MAX_PER_CONVERSATION
+      ? subagentFailure('subagent limit reached for this conversation')
+      : undefined
+  }
+
   /** Every new task buys a fresh bounded grant; a running note does not. */
   private childTaskFor(
     call: FunctionCallItem,
@@ -3720,36 +3764,8 @@ export class ModelApiSession implements AgentSession {
     if ('error' in narrowed) {
       return subagentFailure(narrowed.error)
     }
-    if (parsed.data.worktree_isolation !== undefined && parsed.data.worktree_isolation !== false) {
-      return subagentFailure('worktree isolation is unavailable on this backend')
-    }
-    const prior =
-      parsed.data.command_id === undefined
-        ? undefined
-        : this.spawnCommands.get(parsed.data.command_id)
-    if (prior !== undefined) {
-      const child = this.childById(prior)
-      if (child !== undefined) {
-        if (
-          child.role !== parsed.data.role ||
-          child.objective !== parsed.data.objective ||
-          child.agentId !== parsed.data.agent
-        ) {
-          return subagentFailure('command_id was already used for a different spawn')
-        }
-        return {
-          output: JSON.stringify({
-            subagent_id: child.id,
-            state: child.state,
-            child_session_id: child.session.sessionId,
-          }),
-          visibleOutput: `${child.role}: ${childStateLabel(child.state)}`,
-        }
-      }
-    }
-    if (this.children.size >= SUBAGENT_MAX_PER_CONVERSATION) {
-      return subagentFailure('subagent limit reached for this conversation')
-    }
+    // Isolation, a reused command_id and the limit were settled before the
+    // popups by settledSpawn, and cannot have changed since.
     const id = `${SUBAGENT_ID_PREFIX}${String(this.children.size + 1)}`
     const child = new ModelApiSession(
       `${this.sessionId}:${id}`,
@@ -4290,7 +4306,12 @@ export class ModelApiSession implements AgentSession {
     if (pre.updatedInput !== undefined) {
       const updated = pre.updatedInput['command']
       if (typeof updated !== 'string' || updated.trim() === '') {
-        return { kind: 'skipped', skip: 'hookDenied', detail: MODEL_TEXT.hookInputNoCommand }
+        return {
+          kind: 'skipped',
+          skip: 'hookDenied',
+          detail: MODEL_TEXT.hookInputNoCommand,
+          visibleDetail: UI_TEXT.hookInputNoCommand,
+        }
       }
       line = updated
       ruleCommand = updated
@@ -5052,6 +5073,12 @@ export class ModelApiSession implements AgentSession {
     const verdict = this.verdictWithHook(query, shouldForceApproval)
     if (verdict === 'deny') {
       return this.refusedByMode(call)
+    }
+    // A spawn that would start no child asks nothing (M76 review, D48).
+    const settled =
+      call.name === MODEL_API_SUBAGENT_TOOLS.spawn ? this.settledSpawn(call) : undefined
+    if (settled !== undefined) {
+      return { outcome: settled, isRejected: false }
     }
     let childGrant: ChildTaskGrant | undefined
     if (childTask !== undefined) {

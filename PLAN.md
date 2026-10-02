@@ -8630,6 +8630,16 @@ extension's own storage, never the workspace's `.git`.
   before failing: it is now refused before both, and met again at child
   creation, since the offered tools can change while a popup waits. Three
   drills restored byte-exact; joined origin/main `2a30b1a0` first.
+  **Lead decision, same review:** the same two kinds, older than M76, fixed
+  too (owner rule: no deferrals). `settledSpawn` settles a spawn that starts
+  no child (worktree isolation, a `command_id` reused for a different task,
+  the per-conversation limit) before the contributor yes and the paid-use
+  popup, and a retry under the same `command_id` answers with that child
+  without asking again. No re-check follows the popups: a turn's calls run
+  one at a time, only a spawn adds a child or a command id, and a child
+  cannot spawn. M68's `hookInputNoCommand` gets a `UI_TEXT` key in all 14
+  tables for the `then_run` line; the model keeps `MODEL_TEXT`. Five drills
+  restored byte-exact.
 
 - **Goal.** Specialised agents with their own prompt, tools, model or
   effort, and permissions.

@@ -71,6 +71,17 @@ happened, not what was planned; superseded entries are kept.
   question asks (they used to ask first), and is met again after them;
   it sends no paid child request. Mixed lists retain usable tools.
 
+- **A spawn that starts no child asks nothing** (Model API backend). One past
+  the 64 children of a conversation, one asking for worktree isolation, or
+  one reusing an earlier spawn's command id for a different task is refused
+  before the paid-use popup or the contributor question; a retry of the
+  same spawn under its command id answers with that child without asking
+  again. Each used to ask first.
+
+- When your PreToolUse hook rewrites a `then_run` command into one that
+  names no command, the line under the edit says so in your display
+  language; it was English. The model is still told in English.
+
 - Custom agents retain their Manual or Edit automatically policy through
   parsing, saving, resume, fork and approval routing. A Manual child's write
   asks even under an Edit automatically parent; the reverse remains Manual.

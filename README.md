@@ -1509,7 +1509,11 @@ tokens, the background tasks, and each agent's own transcript.
   Model API key; their tokens count in the conversation's usage. Paid
   subagents are off by default. Enabling them accepts the published model
   rates; each new child task then asks again before it starts, including in
-  Bypass mode. Plan refuses the task. One approval allows at most four actual
+  Bypass mode. Plan refuses the task. A spawn that would start no child asks
+  nothing: one past the 64, one asking for worktree isolation, or one reusing
+  an earlier spawn's command id for a different task is refused first, and a
+  retry of the same spawn under its command id answers with that child.
+  One approval allows at most four actual
   response requests, including retries and tool rounds. A running note uses
   that same allowance; a follow-up or reopen needs a new approval. This is
   a request limit, not a dollar limit. Failed requests without a usage report

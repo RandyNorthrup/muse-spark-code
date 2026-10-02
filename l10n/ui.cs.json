@@ -1421,6 +1421,7 @@
   },
   "thenRunLabel": "Poté spuštěno",
   "thenRunNotRun": "Nespuštěno: {reason}",
+  "hookInputNoCommand": "Upravený vstup háčku neuvádí žádný příkaz.",
   "thenRunTimedOut": "Zastaveno po vypršení časového limitu",
   "checksStoppedNotice": {
     "one": "Kontroly selhaly i po {count} pokusu o opravu, takže se automaticky nespustí až do vaší další zprávy.",

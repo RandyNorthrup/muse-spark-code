@@ -1383,6 +1383,7 @@
   },
   "thenRunLabel": "Poi eseguito",
   "thenRunNotRun": "Non eseguito: {reason}",
+  "hookInputNoCommand": "L’input aggiornato dell’hook non indica alcun comando.",
   "thenRunTimedOut": "Arrestato al limite di tempo",
   "checksStoppedNotice": {
     "one": "I controlli non riuscivano ancora dopo {count} ciclo di correzioni, quindi non verranno più eseguiti automaticamente fino al tuo prossimo messaggio.",

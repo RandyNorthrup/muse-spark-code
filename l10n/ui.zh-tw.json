@@ -1307,6 +1307,7 @@
   },
   "thenRunLabel": "隨後執行",
   "thenRunNotRun": "未執行：{reason}",
+  "hookInputNoCommand": "鉤子更新後的輸入未指定命令。",
   "thenRunTimedOut": "已在時間限制處停止",
   "checksStoppedNotice": {
     "other": "連續修正 {count} 次後檢查仍然失敗，在你傳送下一則訊息之前不再自動執行檢查。"

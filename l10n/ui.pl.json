@@ -1421,6 +1421,7 @@
   },
   "thenRunLabel": "Następnie uruchomiono",
   "thenRunNotRun": "Nie uruchomiono: {reason}",
+  "hookInputNoCommand": "Zaktualizowane dane wejściowe hooka nie podają żadnego polecenia.",
   "thenRunTimedOut": "Zatrzymano po upływie limitu czasu",
   "checksStoppedNotice": {
     "one": "Sprawdzenia nadal kończyły się błędem po {count} rundzie poprawek, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie.",

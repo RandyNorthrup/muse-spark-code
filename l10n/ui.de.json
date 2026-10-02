@@ -1345,6 +1345,7 @@
   },
   "thenRunLabel": "Danach ausgeführt",
   "thenRunNotRun": "Nicht ausgeführt: {reason}",
+  "hookInputNoCommand": "Die geänderte Eingabe des Hooks nennt keinen Befehl.",
   "thenRunTimedOut": "Beim Zeitlimit angehalten",
   "checksStoppedNotice": {
     "one": "Die Prüfungen schlugen auch nach {count} Korrekturrunde fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch.",

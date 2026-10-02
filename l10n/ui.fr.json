@@ -1383,6 +1383,7 @@
   },
   "thenRunLabel": "Puis exécuté",
   "thenRunNotRun": "Non exécuté : {reason}",
+  "hookInputNoCommand": "L’entrée mise à jour du hook n’indique aucune commande.",
   "thenRunTimedOut": "Arrêté à sa limite de temps",
   "checksStoppedNotice": {
     "one": "Les vérifications échouaient encore après {count} série de corrections ; elles ne seront plus lancées automatiquement avant votre prochain message.",

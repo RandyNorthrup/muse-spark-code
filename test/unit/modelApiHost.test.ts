@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -17,6 +17,7 @@ import {
   MODEL_API_TOOLS,
   MODEL_TEXT,
   SCHEDULE_LIFETIME_MS,
+  SUBAGENT_MAX_PER_CONVERSATION,
   type PaidFeature,
   type PromptCacheRetention,
   UI_TEXT,
@@ -80,9 +81,11 @@ import { countLogged } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
-import { loadUiTable } from '../../src/host/l10n'
+import { installGerman, restoreEnglish } from './helpers/germanTable'
 
 const ROOT = '/ws'
+// Long enough for a turn that spawns the conversation's whole limit of children.
+const SPAWN_LIMIT_WAIT_MS = 4000
 
 /** A child turn carries its task marker; prompt-cache keys now name shared prefixes. */
 function isChildRequest(body: unknown): boolean {
@@ -6140,6 +6143,90 @@ describe('ModelApiSession subagents (M48)', () => {
     expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(1)
   })
 
+  // A spawn that starts no child asks nothing: neither the contributor yes
+  // nor the paid-use popup (M76 review, D48).
+  it('answers a retried command id without asking again, and refuses a reused one unasked (M76 review)', async () => {
+    const confirm = vi.fn((_modelId: string) => Promise.resolve(true))
+    const t = setupBigAgent({ confirmContributorModel: confirm })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script(
+      bigCommandSpawn('Big task', 'first_spawn'),
+      { text: 'Child done.' },
+      { text: 'Ready.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    expect([t.paidRequests.length, confirm.mock.calls.length]).toEqual([1, 1])
+    t.api.script(bigCommandSpawn('Big task', 'retried_spawn'), { text: 'Same child.' })
+    await session.sendTurn([{ type: 'text', text: 'retry' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'retried_spawn')).toMatchObject({
+      output: expect.stringContaining('"subagent_id":"subagent-1"'),
+    })
+    t.api.script(bigCommandSpawn('Other task', 'reused_spawn'), { text: 'Refused.' })
+    await session.sendTurn([{ type: 'text', text: 'reuse' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'reused_spawn')).toMatchObject({
+      output: 'Error: command_id was already used for a different spawn',
+    })
+    expect([t.paidRequests.length, confirm.mock.calls.length]).toEqual([1, 1])
+    expect(childBodies(t)).toHaveLength(1)
+    expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(1)
+  })
+
+  it('refuses worktree isolation before any popup (M76 review)', async () => {
+    const confirm = vi.fn((_modelId: string) => Promise.resolve(true))
+    const t = setupBigAgent({ confirmContributorModel: confirm })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    await runRefusedSpawn(t, session, turnDone, {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: JSON.stringify({
+            role: 'worker',
+            objective: 'Big task',
+            agent: 'big',
+            worktree_isolation: true,
+          }),
+          callId: 'isolated_spawn',
+        },
+      ],
+    })
+    expect(confirm).not.toHaveBeenCalled()
+    expect(t.paidRequests).toEqual([])
+    expect(outputFor(t.api.responseBodies().at(-1), 'isolated_spawn')).toMatchObject({
+      output: 'Error: worktree isolation is unavailable on this backend',
+    })
+  })
+
+  it('refuses a spawn past the conversation limit before any popup (M76 review)', async () => {
+    const t = setupSubagents()
+    const { session } = await startSession(t, 'promptUnmatched')
+    const calls = Array.from({ length: SUBAGENT_MAX_PER_CONVERSATION + 1 }, (_, index) => ({
+      name: 'subagent_spawn',
+      arguments: JSON.stringify({ role: `worker-${String(index)}`, objective: 'Task' }),
+      callId: `limit-${String(index)}`,
+    }))
+    t.api.script({ calls }, { text: 'Done.' })
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    // A child's turn ends too, so the parent's is read from its second request.
+    const parentBodies = () => t.api.responseBodies().filter((body) => !isChildRequest(body))
+    await vi.waitFor(
+      () => {
+        expect(parentBodies()).toHaveLength(2)
+      },
+      { timeout: SPAWN_LIMIT_WAIT_MS },
+    )
+    expect(t.paidRequests).toHaveLength(SUBAGENT_MAX_PER_CONVERSATION)
+    const parent = parentBodies()
+    expect(
+      outputFor(parent.at(-1), `limit-${String(SUBAGENT_MAX_PER_CONVERSATION)}`),
+    ).toMatchObject({ output: 'Error: subagent limit reached for this conversation' })
+    expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(
+      SUBAGENT_MAX_PER_CONVERSATION,
+    )
+  })
+
   it('runs at most eight children and starts the ninth when a slot opens', async () => {
     const t = setupSubagents()
     const { session } = await startApprovedSubagentSession(t)
@@ -6787,6 +6874,19 @@ function setupBigAgent(options: {
   return setupSubagents({ ...options, files: bigAgentFiles() })
 }
 
+/** A `subagent_spawn` of the contributor-model agent, always under command id `same`. */
+function bigCommandSpawn(objective: string, callId: string): ScriptedReply {
+  return {
+    calls: [
+      {
+        name: 'subagent_spawn',
+        arguments: JSON.stringify({ role: 'worker', objective, agent: 'big', command_id: 'same' }),
+        callId,
+      },
+    ],
+  }
+}
+
 /** The contributor-model agent file. */
 function bigAgentFiles(): Record<string, string> {
   return {
@@ -7015,13 +7115,7 @@ describe('ModelApiSession custom agents (M76)', () => {
   it('localizes an allowlist refusal with the installed German table (RV76 P3)', async () => {
     const t = setupSubagents()
     try {
-      const loaded = await loadUiTable({
-        language: 'de',
-        readExtensionFile: () =>
-          Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-        log: t.log,
-      })
-      expect(loaded.locale).toBe('de')
+      expect(await installGerman(t.log)).toBe('de')
       const { session, events } = await startApprovedSubagentSession(t)
       await spawnExploreAndWait(t, session)
       scriptChildWrite(t, 'refused-de.txt', 'x', 'refused_de_write', 'Child done.')
@@ -7039,7 +7133,7 @@ describe('ModelApiSession custom agents (M76)', () => {
       })
       expect(t.files.has(`${ROOT}/refused-de.txt`)).toBe(false)
     } finally {
-      setUiText(EN, BASE_LOCALE)
+      restoreEnglish()
     }
   })
 
@@ -7056,12 +7150,7 @@ describe('ModelApiSession custom agents (M76)', () => {
       },
     })
     try {
-      await loadUiTable({
-        language: 'de',
-        readExtensionFile: () =>
-          Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-        log: t.log,
-      })
+      expect(await installGerman(t.log)).toBe('de')
       const { session, events } = await startApprovedSubagentSession(t)
       await spawnAgentAndWait(
         t,
@@ -7091,7 +7180,7 @@ describe('ModelApiSession custom agents (M76)', () => {
         output: expect.stringContaining(MODEL_TEXT.agentToolNotOffered),
       })
     } finally {
-      setUiText(EN, BASE_LOCALE)
+      restoreEnglish()
     }
   })
 
