@@ -13,10 +13,16 @@ happened, not what was planned; superseded entries are kept.
   written by the user's Muse turn, explicit commit/push consent, GitHub PR
   creation and conversation-linked checks. Push never uses force. A foreign
   PR opens in its own held worktree, with project configuration and shell
-  access off until the extension's trust card is confirmed. Native checkout
-  disables external filters and hooks; physical-owner and lifetime guards
-  refuse stale operations. Commit, push, PR fetch and checkout use checkpoint
-  process admission.
+  access off until the extension's trust card is confirmed. Git never checks
+  a foreign PR out: the worktree is added with `--no-checkout`, its index
+  read from the commit, and its files written by the extension exactly as
+  stored, so no filter, hook or conversion runs wherever Git's configuration
+  defines one. Paths that would leave the worktree, name `.git`, use a name
+  the platform cannot hold or collide where case does not count refuse the
+  checkout whole, as do PRs over 20,000 entries or 250 MB. A trusted parent
+  record never releases a held PR below it. Physical-owner and lifetime
+  guards refuse stale operations. Commit, push, PR fetch and checkout use
+  checkpoint process admission.
 
 ### Changed
 

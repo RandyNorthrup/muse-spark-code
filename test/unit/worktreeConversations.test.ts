@@ -137,6 +137,38 @@ describe('holdFor (M71): held by location, let go only by a confirmed record', (
     },
   )
 
+  it.each([false, true])(
+    'keeps a pull request held below a trusted parent record, whatever their order (%s)',
+    (isReversed) => {
+      // The card trusted a window opened on the held root itself; then a pull
+      // request was checked out below it, recorded after it.
+      const trustedParent = record({
+        folder: HELD_ROOT,
+        pullRequest: undefined,
+        isHeld: false,
+        trustConfirmedAt: 5,
+      })
+      const stored = withRecord(withRecord([], trustedParent, 'win32'), record({}), 'win32')
+      const records = isReversed ? stored.toReversed() : stored
+      expect(holdFor([FOLDER], [HELD_ROOT], records, 'win32')).toEqual({
+        folder: FOLDER,
+        pullRequest: PULL_REQUEST,
+      })
+      expect(holdFor([String.raw`${FOLDER}\src`], [HELD_ROOT], records, 'win32')?.folder).toBe(
+        FOLDER,
+      )
+      // The parent's own window keeps the trust the card gave it.
+      expect(holdFor([HELD_ROOT], [HELD_ROOT], records, 'win32')).toBeUndefined()
+      // A pull request trusted in its own card, under the trusted parent, is let go.
+      const trustedChild = withRecord(
+        records,
+        record({ isHeld: false, trustConfirmedAt: 6 }),
+        'win32',
+      )
+      expect(holdFor([FOLDER], [HELD_ROOT], trustedChild, 'win32')).toBeUndefined()
+    },
+  )
+
   it('never holds a window outside the held root, whatever a record says', () => {
     expect(
       holdFor(

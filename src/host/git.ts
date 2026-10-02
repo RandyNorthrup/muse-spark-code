@@ -7,8 +7,6 @@
 
 import { type ExecFileOptions, execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
@@ -31,11 +29,13 @@ const CONFIG_OPTION = '-c'
 const OPTION_MARK = '-'
 const FILTER_SEPARATOR = '\u{0}'
 const FILTER_KEY = /^filter\.([^=\p{Cc}]+)\.(?:clean|process|required)$/u
-const CHECKOUT_FILTER_KEY = /^filter\.(.+)\.(?:clean|smudge|process|required)$/iu
 const CHECKOUT_HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
-const ATTRIBUTE_FILTER = /(?:^|\s)filter=([^\s]+)/gu
-const ATTRIBUTE_FILTER_NAME = /^[\w.-]+$/u
-const SAFE_CHECKOUT_ARGS = [
+/**
+ * Every git a held pull request's checkout runs (heldCheckout.ts) runs with
+ * these: no hooks, no fsmonitor, no replacement objects, no automatic
+ * maintenance or garbage collection.
+ */
+export const UNTRUSTED_CHECKOUT_OPTIONS: readonly string[] = [
   '--no-replace-objects',
   '-c',
   'core.hooksPath=/dev/null',
@@ -119,11 +119,19 @@ function gitLocator(
   }
 }
 
+/** The extension's git environment: no optional locks, and never a credential prompt. */
+export function quietGitEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return { ...env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
+}
+
 export interface GitRunnerDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
-  /** Only a foreign PR's checkout before its separate trust confirmation. */
+  /**
+   * Only the git that lists, adds and indexes someone else's pull request
+   * before its separate trust confirmation (heldCheckout.ts).
+   */
   readonly isUntrustedCheckout?: boolean
   /** `execFile` as a promise of stdout; rejects on a failure, a timeout or a non-zero exit. */
   readonly execFile: (
@@ -135,13 +143,13 @@ export interface GitRunnerDeps {
 
 type ExecFile = GitRunnerDeps['execFile']
 
-/** Git's configuration key parts come from a foreign repository: unusable ones refuse the checkout. */
+/** An old git, or a configured name the overrides cannot spell: the checkout is refused. */
 function checkoutRefusal(): Error {
   // Configuration keys and exec errors may contain private details.
   return new Error(UI_TEXT.openPullRequestFiltersUnavailable)
 }
 
-/** The per-command overrides that turn off hooks and filters need Git 2.36 or newer. */
+/** The per-command overrides that turn off hooks and fsmonitor need Git 2.36 or newer. */
 async function requireCheckoutSafeGit(
   execFile: ExecFile,
   git: string,
@@ -167,135 +175,44 @@ async function requireCheckoutSafeGit(
 }
 
 /**
- * The options that keep a foreign pull request's checkout from running
- * programs: no hooks, no fsmonitor, no replacement objects, no automatic
- * maintenance, and every configured filter and named hook switched off.
- * Filter/hook command values are never read. The attributes-file path is
- * read only to find the selectors whose drivers must also be switched off.
+ * The options that keep the untrusted lane's git from running programs: the
+ * fixed ones above, and every named hook the configuration where it runs
+ * defines switched off (hook commands are never read). The lane never
+ * checks a tree out (heldCheckout.ts writes the files), so no filter needs
+ * switching off.
  */
 async function checkoutOverrides(
   execFile: ExecFile,
   git: string,
   options: ExecFileOptions,
-  args: readonly string[],
-  deps: Pick<GitRunnerDeps, 'platform' | 'env'>,
   check?: () => void,
 ): Promise<readonly string[]> {
-  const read = async (query: readonly string[]) => {
-    check?.()
-    let output: string
-    try {
-      output = await execFile(git, [...SAFE_CHECKOUT_ARGS, ...query], options)
-    } catch {
-      throw checkoutRefusal()
-    }
-    check?.()
-    return output
+  check?.()
+  let configuration: string
+  try {
+    configuration = await execFile(
+      git,
+      [...UNTRUSTED_CHECKOUT_OPTIONS, 'config', '--null', '--name-only', '--list'],
+      options,
+    )
+  } catch {
+    throw checkoutRefusal()
   }
-  const configuration = await read(['config', '--null', '--name-only', '--list'])
-  const names = configuration.split('\0')
-  const drivers = new Set(
-    names.flatMap((name) => {
-      const driver = CHECKOUT_FILTER_KEY.exec(name)?.[1]
-      return driver === undefined ? [] : [driver]
-    }),
-  )
-  if (args[0] === 'worktree' && args[1] === 'add') {
-    // Attribute selectors also name filters enabled only by the destination's
-    // conditional includes. Read the foreign tree, never the current checkout.
-    const commit = args.at(-1)
-    if (commit === undefined || !/^[\da-f]{40}(?:[\da-f]{24})?$/u.test(commit)) {
-      throw checkoutRefusal()
-    }
-    const addAttributes = (text: string) => {
-      for (const line of text.split(/\r?\n/u)) {
-        if (line.trimStart().startsWith('#')) continue
-        // The first field is a pattern (possibly C-quoted), never an attribute.
-        const attributes = /^\s*(?:"(?:\\.|[^"\\])*"|[^\s]+)\s+(.*)$/u.exec(line)?.[1] ?? ''
-        // Includes [attr] macros without evaluating patterns or include conditions.
-        for (const match of attributes.matchAll(ATTRIBUTE_FILTER)) {
-          const name = match[1] ?? ''
-          if (!ATTRIBUTE_FILTER_NAME.test(name) || name.length > GIT_FILTER_NAME_MAX_CHARS) {
-            throw checkoutRefusal()
-          }
-          drivers.add(name)
-          if (drivers.size > GIT_FILTER_NAMES_MAX) throw checkoutRefusal()
-        }
-      }
-    }
-    const tree = await read(['ls-tree', '-r', '-z', '--name-only', commit])
-    const files = tree.split('\0')
-    for (const file of files) {
-      if (file === '.gitattributes' || file.endsWith('/.gitattributes')) {
-        addAttributes(await read(['cat-file', 'blob', `${commit}:${file}`]))
-      }
-    }
-    const p = deps.platform === 'win32' ? path.win32 : path.posix
-    const infoPath = await read([
-      'rev-parse',
-      '--path-format=absolute',
-      '--git-path',
-      'info/attributes',
-    ])
-    const info = infoPath.replace(/\r?\n$/u, '')
-    const attributesPath = await read([
-      'config',
-      '--null',
-      '--path',
-      '--default',
-      '',
-      '--get',
-      'core.attributesFile',
-    ])
-    const configured = attributesPath.split('\0', 1)[0] ?? ''
-    const home =
-      environmentValue(deps.env, deps.platform, 'HOME') ??
-      environmentValue(deps.env, deps.platform, 'USERPROFILE')
-    // Git treats an empty XDG_CONFIG_HOME as unset, not as the current directory.
-    const givenXdg = environmentValue(deps.env, deps.platform, 'XDG_CONFIG_HOME')
-    const xdg =
-      (givenXdg === '' ? undefined : givenXdg) ??
-      (home === undefined ? undefined : p.join(home, '.config'))
-    const defaultAttributes = xdg === undefined ? undefined : p.join(xdg, 'git', 'attributes')
-    const global = configured === '' ? defaultAttributes : configured
-    for (const file of [info, global]) {
-      if (file === undefined || file === '') continue
-      check?.()
-      let text: string
-      try {
-        text = await readFile(p.resolve(String(options.cwd), file), 'utf8')
-      } catch (error: unknown) {
-        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
-        throw checkoutRefusal()
-      }
-      check?.()
-      addAttributes(text)
-    }
-  }
+  check?.()
   // New Git can configure named hooks independently of core.hooksPath.
   const hooks = new Set(
-    names.flatMap((name) => {
+    configuration.split('\0').flatMap((name) => {
       const hook = CHECKOUT_HOOK_KEY.exec(name)?.[1]
       return hook === undefined ? [] : [hook]
     }),
   )
   // -c splits at its first '='; such subsection names cannot be represented
   // by these per-command overrides. Never guess an escape.
-  if ([...drivers, ...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
+  if ([...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
     throw checkoutRefusal()
   }
   return [
-    ...SAFE_CHECKOUT_ARGS,
-    ...[...drivers].flatMap((driver) => [
-      '-c',
-      `filter.${driver}.clean=`,
-      '-c',
-      `filter.${driver}.smudge=`,
-      '-c',
-      `filter.${driver}.process=`,
-      '-c',
-      `filter.${driver}.required=false`,
-    ]),
+    ...UNTRUSTED_CHECKOUT_OPTIONS,
     ...[...hooks].flatMap((hook) => [
       '-c',
       `hook.${hook}.enabled=false`,
@@ -317,11 +234,7 @@ export function createGitRunner(
   timeoutMs?: number,
   beforeRun?: () => void,
 ) => Promise<string> {
-  const env: NodeJS.ProcessEnv = {
-    ...deps.env,
-    GIT_OPTIONAL_LOCKS: '0',
-    GIT_TERMINAL_PROMPT: '0',
-  }
+  const env = quietGitEnvironment(deps.env)
   const gitPath = gitLocator(deps)
   // The git whose version was accepted; a failed read is asked again next time.
   let supportedGit: string | undefined
@@ -347,10 +260,7 @@ export function createGitRunner(
         supportedGit = git
       }
       beforeRun?.()
-      invocation = [
-        ...(await checkoutOverrides(deps.execFile, git, options, args, deps, beforeRun)),
-        ...args,
-      ]
+      invocation = [...(await checkoutOverrides(deps.execFile, git, options, beforeRun)), ...args]
     }
     // Metadata discovery awaits; current trust/ownership checks directly precede process entry.
     beforeRun?.()
@@ -418,6 +328,12 @@ export interface GitProcessOptions {
   readonly timeoutMs: number
   /** Aborting ends the command (the window closing). */
   readonly signal?: AbortSignal
+  /**
+   * Takes stdout as it comes instead of collecting it (M71's held checkout):
+   * git waits until each chunk's promise settles, a rejection ends the
+   * command with that error, and the result is empty.
+   */
+  readonly onStdout?: (chunk: Buffer) => Promise<void>
 }
 
 /** One git command's stdout as bytes; rejects on a failure, a timeout or a non-zero exit. */
@@ -432,9 +348,10 @@ export interface GitProcessDeps {
 }
 
 /**
- * git with stdin and binary stdout (M72's checkpoints): found as the other
- * runner finds it, no console window, stdout capped at GIT_OUTPUT_MAX_BYTES
- * and stderr at GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
+ * git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
+ * found as the other runner finds it, no console window, collected stdout
+ * capped at GIT_OUTPUT_MAX_BYTES (a taker bounds its own) and stderr at
+ * GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
  * passes the complete environment, so nothing of the extension host's own
  * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
  */
@@ -473,7 +390,33 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         fail(new Error(`git ${command} was stopped: the window is closing`))
       }
       options.signal?.addEventListener('abort', onAbort, { once: true })
+      // A taker's chunks, one at a time and in order. A pause does not stop
+      // chunks already read, and the child closes once its last chunk is
+      // emitted, not taken: the command settles after this chain.
+      let taking = Promise.resolve()
+      const takeInTurn = async (
+        previous: Promise<void>,
+        take: (chunk: Buffer) => Promise<void>,
+        chunk: Buffer,
+      ): Promise<void> => {
+        await previous
+        try {
+          // Nothing reaches the taker after a failure.
+          if (failure === undefined) {
+            await take(chunk)
+          }
+        } catch (error: unknown) {
+          fail(error instanceof Error ? error : new Error(String(error)))
+        }
+        child.stdout.resume()
+      }
       child.stdout.on('data', (chunk: Buffer) => {
+        const take = options.onStdout
+        if (take !== undefined) {
+          child.stdout.pause()
+          taking = takeInTurn(taking, take, chunk)
+          return
+        }
         size += chunk.length
         if (size > GIT_OUTPUT_MAX_BYTES) {
           fail(new Error(`git ${command} wrote more than ${String(GIT_OUTPUT_MAX_BYTES)} bytes`))
@@ -495,9 +438,8 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       child.on('error', (error) => {
         fail(error)
       })
-      child.on('close', (code) => {
-        clearTimeout(timer)
-        options.signal?.removeEventListener('abort', onAbort)
+      const settle = async (code: number | null): Promise<void> => {
+        await taking
         if (failure !== undefined) {
           reject(failure)
         } else if (code === 0) {
@@ -505,6 +447,11 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         } else {
           reject(new GitExitError(code ?? -1, stderr, command))
         }
+      }
+      child.on('close', (code) => {
+        clearTimeout(timer)
+        options.signal?.removeEventListener('abort', onAbort)
+        void settle(code)
       })
       child.stdin.end(options.input ?? '')
     })

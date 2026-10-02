@@ -5,9 +5,10 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { GitHubClient } from '../../src/core/git/github'
 import { worktreeFolder } from '../../src/core/worktrees'
-import { processGitRunner } from '../../src/host/git'
+import { processGitProcess, processGitRunner } from '../../src/host/git'
 import { ConversationGit } from '../../src/host/git/conversationGit'
 import { captureGitOwner, type GitRepository } from '../../src/host/git/gitExtension'
+import { createHeldCheckout } from '../../src/host/git/heldCheckout'
 import { openPullRequestInConversation } from '../../src/host/git/pullRequestCheckout'
 import { WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -106,7 +107,13 @@ async function checkoutThroughAlias(
     repository: () => Promise.resolve(repository),
     captureGitOwner,
     runGit: observe(git, false),
-    runUntrustedGit: observe(safeGit, true),
+    checkOutHeld: createHeldCheckout({
+      platform: process.platform,
+      runGit: observe(safeGit, true),
+      gitProcess: processGitProcess(),
+      env: gitEnv,
+      log: new FakeLogOutputChannel(),
+    }),
     admit: (start) => start(),
     githubToken: () => Promise.resolve(FAKE_GITHUB_TOKEN),
     github: new GitHubClient({
@@ -154,8 +161,15 @@ describe('physical Git ownership (M71)', { timeout: REAL_GIT_TIMEOUT_MS }, () =>
     const result = await checkoutThroughAlias('unchanged', 'none')
     expect(result.errors).toEqual([])
     expect(result.opened).toHaveLength(1)
-    expect(result.calls).toEqual([fixture.first, fixture.first])
-    const head = await git(['rev-parse', 'HEAD'], result.opened[0] ?? '')
+    const opened = result.opened[0] ?? ''
+    // The head check, the listing and the add run in the repository; only the index is filled in the worktree.
+    expect(result.calls).toEqual([
+      fixture.first,
+      fixture.first,
+      fixture.first,
+      realpathSync.native(opened),
+    ])
+    const head = await git(['rev-parse', 'HEAD'], opened)
     expect(head.trim()).toBe(fixture.head)
   })
 

@@ -110,6 +110,14 @@ export function worktreeAddDetachedArgs(folder: string, commit: string): readonl
   return ['worktree', 'add', '--detach', folder, commit]
 }
 
+/**
+ * The same with nothing checked out (M71: someone else's pull request, whose
+ * files the extension writes itself, so no checkout filter or hook runs).
+ */
+export function worktreeAddHeldArgs(folder: string, commit: string): readonly string[] {
+  return ['worktree', 'add', '--no-checkout', '--detach', folder, commit]
+}
+
 export function worktreeRemoveArgs(folder: string, isForced: boolean): readonly string[] {
   return ['worktree', 'remove', ...(isForced ? ['--force'] : []), folder]
 }

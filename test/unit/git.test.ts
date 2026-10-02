@@ -1,7 +1,8 @@
 import type { ExecFileOptions } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import { createGitRunner } from '../../src/host/git'
+import { worktreeAddHeldArgs } from '../../src/core/worktrees'
+import { createGitRunner, UNTRUSTED_CHECKOUT_OPTIONS } from '../../src/host/git'
 
 function runner(env: NodeJS.ProcessEnv, installed: ReadonlySet<string>) {
   const calls: { file: string; args: readonly string[]; options: ExecFileOptions }[] = []
@@ -33,35 +34,32 @@ function safeRunner(reply: (args: readonly string[]) => Promise<string>) {
   return { run, calls }
 }
 
+/** The untrusted lane over a configuration that names only `name`. */
+function configuredWith(name: string) {
+  return safeRunner((args) =>
+    Promise.resolve(args[0] === '--version' ? 'git version 2.50.1\n' : `${name}\0`),
+  )
+}
+
 describe('createGitRunner (D24)', () => {
-  it('ignores filter-like pattern text and reads selectors after a quoted path', async () => {
-    const { run, calls } = safeRunner((args) => {
-      if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
-      if (args.includes('ls-tree')) return Promise.resolve('.gitattributes\0')
-      return Promise.resolve(
-        args.includes('cat-file')
-          ? '"filter=path=only file" filter=canary\n# ignored filter=unsafe=name\n'
-          : '',
-      )
-    })
-    await run(['worktree', 'add', '--detach', '/held/pr', 'a'.repeat(40)], '/ws')
-    expect(calls.at(-1)).toContain('filter.canary.smudge=')
-    expect(calls.at(-1)?.some((arg) => arg.includes('path=only'))).toBe(false)
-  })
-  it.each(['filter.driver=unsafe.smudge', 'hook.driver=unsafe.command'])(
-    'refuses an unrepresentable program name %s before native checkout',
+  it.each(['hook.driver=unsafe.command', 'hook.tab\tname.event'])(
+    'refuses an unrepresentable hook name %j before running a complete held command',
     async (key) => {
-      const { run, calls } = safeRunner((args) =>
-        Promise.resolve(args[0] === '--version' ? 'git version 2.50.1\n' : `${key}\0`),
-      )
-      await expect(run(['worktree', 'add'], '/ws')).rejects.toThrow(
+      const held = worktreeAddHeldArgs('/held/pr', 'a'.repeat(40))
+      const refused = configuredWith(key)
+      await expect(refused.run(held, '/ws')).rejects.toThrow(
         UI_TEXT.openPullRequestFiltersUnavailable,
       )
-      expect(calls.some((args) => args.includes('worktree'))).toBe(false)
+      expect(refused.calls.some((args) => args.includes('worktree'))).toBe(false)
+      // The same command runs when the name can be spelled: only the name refused it.
+      const control = configuredWith('hook.driver.command')
+      await control.run(held, '/ws')
+      expect(control.calls.at(-1)).toEqual(expect.arrayContaining(['hook.driver.enabled=false']))
+      expect(control.calls.at(-1)?.slice(-held.length)).toEqual(held)
     },
   )
 
-  it('skips all discovered external filter lanes while retaining ordinary Git invocation policy', async () => {
+  it('switches named hooks off, reads no filter or attribute, and leaves ordinary Git alone', async () => {
     const { run, calls } = safeRunner((args) => {
       if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
       return Promise.resolve(
@@ -70,50 +68,40 @@ describe('createGitRunner (D24)', () => {
           : '',
       )
     })
-    await run(['worktree', 'add', '--detach', '/held/pr', 'a'.repeat(40)], '/ws')
-    const checkout = calls.at(-1)
-    expect(checkout).toEqual(
-      expect.arrayContaining([
-        '--no-replace-objects',
-        'core.hooksPath=/dev/null',
-        'core.fsmonitor=false',
-        'maintenance.auto=false',
-        'gc.auto=0',
-        'filter.canary.clean=',
-        'filter.canary.smudge=',
-        'filter.canary.process=',
-        'filter.canary.required=false',
-        'hook.checkout-canary.enabled=false',
-        'hook.checkout-canary.event=',
-      ]),
-    )
-    expect(calls.find((args) => args.includes('config'))).toContain('--name-only')
-    expect(calls.find((args) => args.includes('config'))).not.toContain('--get')
+    await run(['read-tree', 'a'.repeat(40)], '/held/pr')
+    expect(calls).toHaveLength(3)
+    const command = calls.at(-1)
+    expect(command).toEqual([
+      ...UNTRUSTED_CHECKOUT_OPTIONS,
+      '-c',
+      'hook.checkout-canary.enabled=false',
+      '-c',
+      'hook.checkout-canary.event=',
+      'read-tree',
+      'a'.repeat(40),
+    ])
+    expect(UNTRUSTED_CHECKOUT_OPTIONS).toEqual([
+      '--no-replace-objects',
+      '-c',
+      'core.hooksPath=/dev/null',
+      '-c',
+      'core.fsmonitor=false',
+      '-c',
+      'maintenance.auto=false',
+      '-c',
+      'gc.auto=0',
+    ])
+    expect(calls[1]).toEqual([
+      ...UNTRUSTED_CHECKOUT_OPTIONS,
+      'config',
+      '--null',
+      '--name-only',
+      '--list',
+    ])
     const ordinary = runner({ PATH: '/usr/bin' }, new Set(['/usr/bin/git']))
     await ordinary.run(['status'], '/ws')
     expect(ordinary.calls[0]?.args).toEqual(['status'])
   })
-
-  it.each(['driver=unsafe', 'driver"unsafe'])(
-    'refuses an unsafe filter selector %s found only in the foreign tree',
-    async (name) => {
-      const commit = 'a'.repeat(40)
-      const { run, calls } = safeRunner((args) => {
-        if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
-        if (args.includes('ls-tree')) return Promise.resolve('nested/.gitattributes\0')
-        return Promise.resolve(
-          args.includes('cat-file') ? `[attr]foreign filter=${name}\n*.dat foreign\n` : '',
-        )
-      })
-      await expect(run(['worktree', 'add', '--detach', '/held/pr', commit], '/ws')).rejects.toThrow(
-        UI_TEXT.openPullRequestFiltersUnavailable,
-      )
-      expect(calls.some((args) => args.includes('worktree'))).toBe(false)
-      expect(calls.find((args) => args.includes('cat-file'))).toContain(
-        `${commit}:nested/.gitattributes`,
-      )
-    },
-  )
 
   it('enters no checkout after trust ends during names-only configuration discovery', async () => {
     const entered = Promise.withResolvers<undefined>()

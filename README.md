@@ -753,28 +753,36 @@ also unavailable while a pull request worktree is held.
     card above the composer, whatever VS Code's own workspace trust says.
     Other extensions follow VS Code's trust, which this extension cannot
     lower, and the card says so.
-    Checkout also disables external clean/smudge/process filters, fsmonitor,
-    configured checkout programs and automatic maintenance, using Git 2.36
-    or newer. The confirmation names this consequence: LFS pointers and
-    other stored filter input stay unfiltered. Git's built-in newline,
-    ident and encoding conversions still apply. Trusting does not rerun
-    filters automatically; no filter conversion is performed by the extension.
-    Program names that cannot be represented safely in per-command Git
-    configuration are refused before checkout, with no key or command echoed.
-    Filter overrides cover names selected by every `.gitattributes` in the
-    foreign commit (including attribute macros), the repository's shared
-    `info/attributes`, and its effective global attributes file, as well as
-    source configuration. Command-line overrides suppress filters enabled
-    only by a linked worktree's conditional includes; no shared attribute
-    file is changed. Native fixtures prove this conditional-include case.
-    Attribute-selected driver names use ASCII letters, digits, dots, underscores
-    and hyphens; unsupported names refuse checkout before trust. Default
-    global attributes are found even when `XDG_CONFIG_HOME` is empty.
+    Git never checks it out. The worktree is added with `--no-checkout`, its
+    index is filled from the commit with `git read-tree` (which touches no
+    file and runs no filter), and the extension writes every file itself,
+    byte for byte as the commit stores it, from one `git cat-file --batch`.
+    So no clean, smudge or process filter, hook or conversion runs, wherever
+    your Git configuration defines it (a conditional include that applies
+    only inside the new worktree, an attributes file it names, or the pull
+    request's own `.gitattributes`). The confirmation says what this means:
+    LFS files stay pointers and line endings stay as committed; a symbolic
+    link becomes a file holding its target (as Git writes one where links
+    are off), and a submodule an empty folder. Trusting the worktree does
+    not rewrite them. Every Git command of this checkout runs with hooks,
+    fsmonitor, replacement objects and automatic maintenance off (Git 2.36
+    or newer); none runs in the worktree once a byte of the pull request is
+    in it, and nothing of the extension runs Git there while it is held.
+    The pull request is refused whole, before anything is written, when a
+    path would leave the worktree, name `.git` (in any case, or as `.git.`,
+    `.git ` or `GIT~1`), use a name Windows cannot hold (on Windows), or
+    collide with another path where letter case does not count (Windows and
+    macOS); or when it has more than 20,000 files and folders or 250 MB.
+    Each file is created without replacing anything, in a folder whose
+    canonical path must be the worktree's: a link or junction on the way
+    refuses the checkout, and the half-written worktree is removed.
 - **Held PR ceiling.** Implementing an approved reply or a saved plan cannot lift a held PR
   worktree out of Plan mode. Worktree Git actions and IDE web fetch also
   honor this extension's hold until its trust card is accepted.
   The backend's first workspace folder decides project trust. A confirmed
-  worktree in another folder never releases that first folder's hold.
+  worktree in another folder never releases that first folder's hold, and
+  a confirmed folder above a pull request's worktree never releases it:
+  the deepest record decides.
   Worktree creation/removal rechecks trust and the owning activation after
   pickers, discard confirmations and native metadata waits.
 - **Restricted Mode.** None of this runs there, and the panel says why:

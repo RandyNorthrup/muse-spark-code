@@ -71,6 +71,34 @@ describe('the git forms in the webview (M71)', () => {
     expect(withDone(busy, 'commit', true).form).toBeUndefined()
   })
 
+  it.each(['commit', 'pullRequest'] as const)(
+    'frees Write with Muse when the %s form opens again while its draft is awaited',
+    (kind) => {
+      const open = (git: typeof initialGitUiState) =>
+        kind === 'commit' ? withCommitForm(git, COMMIT) : withPullRequestForm(git, PULL_REQUEST)
+      const field = kind === 'commit' ? 'message' : 'title'
+      const typed = withFormEdit(open(initialGitUiState), { field, value: 'Typed' })
+      const waiting = withGeneration(typed, 'old-local-id')
+      expect(waiting.form?.generation).toBe('old-local-id')
+      // The host opened a new form; the old draft's reply is never posted to it.
+      const reopened = open(waiting)
+      expect(reopened.form).toMatchObject({ kind, [field]: 'Typed', generation: undefined })
+      // Through the reducer, as the host's message arrives.
+      const state = uiReducer(
+        { ...initialUiState, git: waiting },
+        {
+          type: 'hostMessage',
+          at: 0,
+          message:
+            kind === 'commit'
+              ? { type: 'gitCommitForm', form: COMMIT }
+              : { type: 'gitPullRequestForm', form: PULL_REQUEST },
+        },
+      )
+      expect(state.git.form?.generation).toBeUndefined()
+    },
+  )
+
   it('gives Generate back only for the message that asked', () => {
     const waiting = withGeneration(withCommitForm(initialGitUiState, COMMIT), 'l1')
     expect(withSendFailed(waiting, 'l2')).toBe(waiting)

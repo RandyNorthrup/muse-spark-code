@@ -530,9 +530,17 @@ export const EN = {
   openPullRequestHeldDetail:
     'Someone else wrote it: it is checked out under Muse Spark’s own storage, and the new window holds the conversation in Plan mode, with this worktree’s project rules, skills, hooks and MCP servers off, until you trust it there.',
   openPullRequestUnfilteredDetail:
-    'External Git filters are skipped before trust. LFS pointers and other stored filter input remain unfiltered; Git’s built-in newline and encoding conversions still apply. Trusting the worktree does not automatically rerun its filters.',
+    'Git does not check it out: its files are written exactly as the commit stores them, so no Git filter, hook or conversion runs. LFS files stay pointers and line endings stay as committed; links become files holding their target, and submodules empty folders. Trusting the worktree does not rewrite them.',
   openPullRequestFiltersUnavailable:
     'Safe pull request checkout cannot disable repository programs with this Git version or configuration. Git 2.36 or newer is required. Nothing was checked out.',
+  openPullRequestUnsafePath:
+    'The pull request has a path a held checkout does not write: {path}. Nothing was checked out.',
+  openPullRequestPathCollision:
+    '{first} and {second} would be the same file or folder here. Nothing was checked out.',
+  openPullRequestTooLarge:
+    'The pull request is larger than a held checkout writes (at most {files} files and folders, {size} in all). Nothing was checked out.',
+  openPullRequestUnreadable:
+    'Git did not give back the pull request’s files as its tree lists them.',
   openPullRequestAction: 'Open',
   openPullRequestExisting:
     'Pull request #{number} is already checked out. Open it, at the commit it was checked out at?',

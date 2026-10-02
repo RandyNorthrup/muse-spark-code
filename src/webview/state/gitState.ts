@@ -49,7 +49,12 @@ export function withGitState(git: GitUiState, state: GitState): GitUiState {
   return { ...git, state }
 }
 
-/** The host opened the commit form: a form already open keeps what was typed. */
+/**
+ * The host opened the commit form: a form already open keeps what was
+ * typed, but not a draft it was waiting for. Opening again started a new
+ * form on the host, which never fills it with the earlier form's draft, so
+ * Write with Muse is free again.
+ */
 export function withCommitForm(git: GitUiState, facts: CommitFormFacts): GitUiState {
   const open = git.form?.kind === 'commit' ? git.form : undefined
   return {
@@ -61,11 +66,12 @@ export function withCommitForm(git: GitUiState, facts: CommitFormFacts): GitUiSt
       // Nothing staged: every change goes in, as the form says.
       includeUnstaged: open?.includeUnstaged ?? facts.staged === 0,
       isBusy: false,
-      generation: open?.generation,
+      generation: undefined,
     },
   }
 }
 
+/** The same for the pull request form. */
 export function withPullRequestForm(git: GitUiState, facts: PullRequestFormFacts): GitUiState {
   const open = git.form?.kind === 'pullRequest' ? git.form : undefined
   return {
@@ -78,7 +84,7 @@ export function withPullRequestForm(git: GitUiState, facts: PullRequestFormFacts
       base: open?.base ?? facts.base,
       isDraft: open?.isDraft ?? true,
       isBusy: false,
-      generation: open?.generation,
+      generation: undefined,
     },
   }
 }

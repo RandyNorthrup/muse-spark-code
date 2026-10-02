@@ -354,7 +354,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 24    |
+| `node:buffer`          | 25    |
 | `node:child_process`   | 8     |
 | `node:crypto`          | 24    |
 | `node:dns`             | 1     |

@@ -38,7 +38,7 @@ export interface GitWindowDeps {
   readonly github: GitHubClient
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
   readonly runGit: PullRequestCheckoutDeps['runGit']
-  readonly runUntrustedGit: PullRequestCheckoutDeps['runGit']
+  readonly checkOutHeld: PullRequestCheckoutDeps['checkOutHeld']
   /** This activation still owns the window, including across native metadata waits. */
   readonly isCurrent: () => boolean
   /** The window's admission for a process that may write the workspace (M72): hooks run in a commit or a push. */
@@ -185,7 +185,7 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
     repository,
     captureGitOwner,
     runGit: deps.runGit,
-    runUntrustedGit: deps.runUntrustedGit,
+    checkOutHeld: deps.checkOutHeld,
     admit: deps.admit,
     githubToken: deps.githubToken,
     github: deps.github,

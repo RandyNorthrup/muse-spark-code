@@ -131,6 +131,8 @@ export interface WorktreeHold {
  * holds it. Only a record for that worktree whose trust the user confirmed
  * in the card lets it go; no other record does, whatever it says (a branch
  * made from the pull request inside that folder is someone else's code too).
+ * The deepest record holding the root decides: a trusted folder above a pull
+ * request (the held root itself, say) never lets that pull request go.
  */
 export function holdFor(
   roots: readonly string[],
@@ -141,7 +143,12 @@ export function holdFor(
   // The held root itself counts: it holds every pull request checked out there.
   for (const root of roots) {
     if (heldRoots.every((held) => !isWithinFolder(root, held, platform))) continue
-    const record = records.find((entry) => isWithinFolder(root, entry.folder, platform))
+    const holding = records.filter((entry) => isWithinFolder(root, entry.folder, platform))
+    // The records holding one root are all above it, so the deepest lies within every other.
+    const deepest = holding.filter((entry) =>
+      holding.every((other) => isWithinFolder(entry.folder, other.folder, platform)),
+    )
+    const record = deepest.find((entry) => entry.trustConfirmedAt === undefined) ?? deepest[0]
     if (record?.trustConfirmedAt === undefined) {
       return { folder: record?.folder ?? root, pullRequest: record?.pullRequest }
     }

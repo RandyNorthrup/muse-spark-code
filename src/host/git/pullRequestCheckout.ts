@@ -6,6 +6,7 @@
 //
 // A pull request the user did not author is adversarial content until the
 // user says otherwise: its worktree goes under the extension's own storage,
+// git never checks it out (heldCheckout.ts writes its files as stored),
 // and the window that opens on it is held (core/worktreeConversations.ts)
 // until the user trusts that worktree in the extension's own card
 // (`confirmWorktreeTrust`), whatever VS Code's trust says. The user's own
@@ -34,6 +35,7 @@ import {
   type CaptureGitOwner,
   type GitRepository,
 } from './gitExtension'
+import type { HeldCheckout } from './heldCheckout'
 import type { WindowHold, WorktreeRegistry } from './worktreeRegistry'
 
 export interface PullRequestCheckoutDeps {
@@ -52,8 +54,12 @@ export interface PullRequestCheckoutDeps {
     timeoutMs?: number,
     beforeRun?: () => void,
   ) => Promise<string>
-  /** Foreign PR checkout: external filters and checkout programs stay off. */
-  readonly runUntrustedGit: PullRequestCheckoutDeps['runGit']
+  /**
+   * Someone else's pull request: added with nothing checked out and its
+   * files written by the extension (heldCheckout.ts), so no checkout filter,
+   * conversion or hook of git's runs on them.
+   */
+  readonly checkOutHeld: HeldCheckout
   /** Fetch helpers and checkout filters may write: use the window's checkpoint process admission. */
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
@@ -324,18 +330,20 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
   try {
     await deps.admit(async () => {
       check()
-      await (isOwn ? deps.runGit : deps.runUntrustedGit)(
-        // A relative core.hooksPath can resolve to executable code from this
-        // PR in the new worktree; the trust card has not approved that code.
-        [
-          '-c',
-          `core.hooksPath=${deps.platform === 'win32' ? 'NUL' : '/dev/null'}`,
-          ...worktreeAddDetachedArgs(folder, pullRequest.headSha),
-        ],
-        cwd,
-        GIT_WORKTREE_TIMEOUT_MS,
-        check,
-      )
+      await (isOwn
+        ? deps.runGit(
+            // A relative core.hooksPath can resolve to executable code from
+            // this PR in the new worktree; the trust card has not approved that code.
+            [
+              '-c',
+              `core.hooksPath=${deps.platform === 'win32' ? 'NUL' : '/dev/null'}`,
+              ...worktreeAddDetachedArgs(folder, pullRequest.headSha),
+            ],
+            cwd,
+            GIT_WORKTREE_TIMEOUT_MS,
+            check,
+          )
+        : deps.checkOutHeld(folder, pullRequest.headSha, cwd, check))
     })
   } catch (error: unknown) {
     await deps.registry.remove(folder)

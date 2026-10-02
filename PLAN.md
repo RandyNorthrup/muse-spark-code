@@ -7775,6 +7775,43 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M71 — Git and pull requests (D49)
 
+**Structural fix, review round 3 (RV71c), 2026-10-02 (built; lead review,
+merge and full gates open).** The confirmation review found the
+filter-enumeration design still open in four ways (the real caller's `-c`
+prefix skipped attribute discovery; a destination-only include could name
+`core.attributesFile`; the attribute parser disagreed with Git's on quotes
+and whitespace; the name-refusal tests were vacuous). Lead decision: stop
+enumerating filter drivers. Someone else's pull request is materialized
+without Git's checkout pipeline: `git worktree add --no-checkout --detach`
+in the untrusted lane (no hooks, fsmonitor, replacement objects or
+maintenance; named hooks the configuration defines switched off), the
+index from `git read-tree <sha>` run in the new worktree, then every file
+written by the extension from one streamed `git cat-file --batch`, raw,
+through the existing exclusive writer (`createFileExclusively`, now also
+taking bytes) after `confineWorkspacePath` and a canonical-spelling check.
+No Git command runs in the worktree after its first foreign byte, and the
+held window's own Git features already show the held message. The listing
+(`ls-tree -r -z --full-tree --long`) is refused whole before anything is
+created for: empty, `.` or `..` segments, any `.git` form (case-insensitive,
+trailing dots/spaces, `GIT~1`, HFS-ignorable characters), backslashes,
+undecodable names, Windows-illegal names on Windows, folded collisions
+(case and NFC on Windows/macOS; file-versus-folder and duplicates
+everywhere), unknown modes, and more than `HELD_CHECKOUT_MAX_ENTRIES`
+(20,000) entries or `HELD_CHECKOUT_MAX_BYTES` (250 MB). Mode 100755 sets the
+execute bit on POSIX, 120000 becomes a file holding the link text, 160000
+an empty folder. A failure after the add removes the worktree with
+`worktree remove --force` (no status, so no filter), when trust still holds.
+Deleted: the attribute parser, the attribute/info/global-attributes
+discovery, every filter override of the untrusted lane and their tests
+(RV71c 1–3 and 6 disappear by construction). `createGitProcess` gained a
+paced stdout taker; a native probe showed a child closes before a paused
+taker finishes, so takes are chained and the command settles after the
+chain. Also fixed: `holdFor` lets the deepest containing record decide (a
+trusted parent never releases a held PR below it; RV71c 4), and reopening
+a commit or PR form clears the webview's pending-generation marker so Write
+with Muse is free again (RV71c 5). Proof: `docs/certification/m71.md`,
+"Structural fix, review round 3".
+
 **Independent review repair, M71b, 2026-10-01 (bounded lane complete).**
 The six findings in `RV71.report.md` at `badbe5bb` are accepted for repair:
 bind held trust to each root and select the backend's first workspace folder;
@@ -8026,10 +8063,14 @@ review and full local/hosted gates remain required. Decisions taken in the build
 - **Someone else's pull request.** Fetched as `pull/<n>/head` through the
   Git extension, checked that GitHub's head commit arrived, and added
   detached under `<globalStorage>/pr-worktrees/<n>-<repo digest>`, recorded
-  before the folder exists. A window whose folder, as given or resolved
+  before the folder exists. Git never checks it out (RV71c, 2026-10-02):
+  `worktree add --no-checkout`, `read-tree <sha>`, and the extension writes
+  each file from one `cat-file --batch` exactly as stored
+  (`core/git/heldTree.ts`, `host/git/heldCheckout.ts`). A window whose folder, as given or resolved
   through links, is under that root is held at activation, by location
   alone; only a record whose trust the user confirmed in the card
-  (`trustConfirmedAt`) lets it go. Held means: Plan mode (the Modes menu
+  (`trustConfirmedAt`) lets it go, and the deepest record holding the
+  folder decides. Held means: Plan mode (the Modes menu
   and Shift+Tab refused), no `!` commands, and every place that loads the
   project's configuration reads "untrusted" (Muse Code starts with
   `--disable-shell` in place of `--trust-workspace`; the Model API backend

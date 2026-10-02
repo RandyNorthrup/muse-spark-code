@@ -23,6 +23,14 @@ const ROOT = '/repos/muse'
 const STORAGE = '/home/me/.config/Code/User/globalStorage/ext'
 const REPOSITORY = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
 
+// How the fake records a held checkout among the git calls.
+const HELD_CHECKOUT = 'checkOutHeld'
+
+/** A worktree add, or a held checkout: whatever creates the pull request's folder. */
+function isCheckout(args: readonly string[]): boolean {
+  return args.includes('worktree') || args[0] === HELD_CHECKOUT
+}
+
 interface Options {
   readonly typed?: string | undefined
   readonly confirms?: readonly boolean[]
@@ -63,16 +71,20 @@ function setup(options: Options = {}) {
       if (options.failGit?.(args) === true) {
         return Promise.reject(new Error(`fatal: ${args[0] ?? ''} failed`))
       }
-      if (args.includes('worktree')) {
+      if (isCheckout(args)) {
         recordsAtAdd.push(memento.values.get('museSpark.worktreeConversations'))
-        created.add(String(args[5]))
+        created.add(String(args.at(-2)))
       }
       const pull = options.typed?.endsWith('/56') === true ? CAPTURED_PULL_OWN : CAPTURED_PULL_FORK
       return Promise.resolve(args[0] === 'rev-parse' ? pull.head.sha : '')
     },
     githubToken: () =>
       Promise.resolve(options.isSignedOut === true ? undefined : FAKE_GITHUB_TOKEN),
-    runUntrustedGit: (...args) => deps.runGit(...args),
+    // The held checkout's own git and writes are heldCheckout.test.ts's; here it is one call.
+    checkOutHeld: async (folder, commit, cwd, check) => {
+      check()
+      await deps.runGit([HELD_CHECKOUT, folder, commit], cwd)
+    },
     admit: (start) => start(),
     github: new GitHubClient({
       fetch: github.fetch,
@@ -147,8 +159,8 @@ describe('Open a pull request in a conversation (M71)', () => {
       expect(isAdmitted).toBe(true)
       return fetch(options)
     })
-    const run = t.deps.runUntrustedGit
-    vi.spyOn(t.deps, 'runUntrustedGit').mockImplementation((...args) => {
+    const run = t.deps.checkOutHeld
+    vi.spyOn(t.deps, 'checkOutHeld').mockImplementation((...args) => {
       expect(isAdmitted).toBe(true)
       return run(...args)
     })
@@ -169,7 +181,7 @@ describe('Open a pull request in a conversation (M71)', () => {
     })
     await openPullRequestInConversation(t.deps)
     expect(t.repository.calls.filter((call) => call.method === 'fetch')).toHaveLength(stopAt - 1)
-    expect(t.gitCalls.some((args) => args.includes('worktree'))).toBe(false)
+    expect(t.gitCalls.some((args) => isCheckout(args))).toBe(false)
     expect(t.opened).toEqual([])
     expect(
       parseWorktreeRegistry(t.memento.values.get(GLOBAL_STATE_KEYS.worktreeConversations)),
@@ -191,7 +203,7 @@ describe('Open a pull request in a conversation (M71)', () => {
     })
     await openPullRequestInConversation(t.deps)
     expect(t.repository.calls.filter((call) => call.method === 'fetch')).toHaveLength(1)
-    expect(t.gitCalls.some((args) => args.includes('worktree'))).toBe(false)
+    expect(t.gitCalls.some((args) => isCheckout(args))).toBe(false)
     expect(t.opened).toEqual([])
     expect(t.messages.at(-1)?.[1]).toContain(UI_TEXT.gitOperationChanged)
   })
@@ -257,11 +269,11 @@ describe('Open a pull request in a conversation (M71)', () => {
       const ordinary = '/repos/muse.worktrees/topic'
       const running = openPullRequestInConversation({
         ...t.deps,
-        runUntrustedGit: async (...args) => {
+        checkOutHeld: async (...args) => {
           started.resolve(undefined)
           await held.promise
           if (isFailed) throw new Error('Owned checkout failed')
-          return await t.deps.runUntrustedGit(...args)
+          await t.deps.checkOutHeld(...args)
         },
       })
       await started.promise
@@ -314,10 +326,14 @@ describe('Open a pull request in a conversation (M71)', () => {
     await openPullRequestInConversation({
       ...t.deps,
       runGit: (args) => {
-        if (args.includes('worktree')) {
+        if (isCheckout(args)) {
           adds += 1
         }
         return Promise.resolve('1'.repeat(40))
+      },
+      checkOutHeld: () => {
+        adds += 1
+        return Promise.resolve()
       },
     })
     expect(adds).toBe(0)
@@ -363,18 +379,12 @@ describe('Open a pull request in a conversation (M71)', () => {
     expect(t.repository.calls.find((call) => call.method === 'fetch')?.args).toEqual([
       { remote: 'origin', ref: 'pull/51/head' },
     ])
+    // Never git's checkout: the held checkout writes the files (heldCheckout.test.ts).
     expect(t.gitCalls).toEqual([
       ['rev-parse', '--verify', 'FETCH_HEAD^{commit}'],
-      [
-        '-c',
-        'core.hooksPath=/dev/null',
-        'worktree',
-        'add',
-        '--detach',
-        HELD_FOLDER,
-        CAPTURED_PULL_FORK.head.sha,
-      ],
+      [HELD_CHECKOUT, HELD_FOLDER, CAPTURED_PULL_FORK.head.sha],
     ])
+    expect(t.confirmations[0]?.[1]).toContain(UI_TEXT.openPullRequestUnfilteredDetail)
     expect(HELD_FOLDER.startsWith(`${STORAGE}/pr-worktrees/`)).toBe(true)
     const record = t.registry.recordFor(HELD_FOLDER)
     expect(record).toMatchObject({
@@ -464,7 +474,7 @@ describe('Open a pull request in a conversation (M71)', () => {
     await openPullRequestInConversation(fetchFails.deps)
     expect(fetchFails.messages.at(-1)?.[1]).toContain('could not be fetched')
     expect(fetchFails.registry.records()).toEqual([])
-    const checkoutFails = setup({ failGit: (args) => args.includes('worktree') })
+    const checkoutFails = setup({ failGit: isCheckout })
     await openPullRequestInConversation(checkoutFails.deps)
     expect(checkoutFails.messages.at(-1)?.[1]).toContain('could not create the worktree')
     expect(checkoutFails.registry.records()).toEqual([])
@@ -477,7 +487,7 @@ describe('Open a pull request in a conversation (M71)', () => {
     const again = { ...t.deps, confirm: () => Promise.resolve(true) }
     await openPullRequestInConversation(again)
     expect(t.opened).toEqual([HELD_FOLDER, HELD_FOLDER])
-    expect(t.gitCalls.filter((args) => args.includes('worktree'))).toHaveLength(1)
+    expect(t.gitCalls.filter((args) => isCheckout(args))).toHaveLength(1)
     const stranger = setup({ existing: [HELD_FOLDER] })
     await openPullRequestInConversation(stranger.deps)
     expect(stranger.opened).toEqual([])

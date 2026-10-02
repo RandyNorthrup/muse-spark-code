@@ -620,7 +620,8 @@ export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 export const GIT_TIMEOUT_MS = 15_000
 /** Boolean fsmonitor=false is supported from Git 2.36. */
 export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
-// `git worktree add` checks a whole tree out, and `remove` deletes one (M32).
+// `git worktree add` checks a whole tree out, and `remove` deletes one (M32);
+// a held checkout's listing, index and writes share the same bound (M71).
 export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
 // What a failed git call's error keeps of its stderr (M72's process runner).
 export const GIT_STDERR_MAX_CHARS = 4096
@@ -809,6 +810,17 @@ export const STDERR_SHOWN_CHARS = 1000
 // A pull request someone else wrote is checked out under the extension's
 // own storage, in this folder (M71).
 export const PULL_REQUEST_WORKTREES_DIR = 'pr-worktrees'
+// The extension writes such a checkout itself (core/git/heldTree.ts): at
+// most this many files and folders, and this many bytes in all; a bigger
+// pull request is refused before anything is written.
+export const HELD_CHECKOUT_MAX_ENTRIES = 20_000
+export const HELD_CHECKOUT_MAX_BYTES = 250_000_000
+// git's modes for a symbolic link and a submodule in a tree.
+export const GIT_MODE_SYMLINK = '120000'
+export const GIT_MODE_GITLINK = '160000'
+// The modes a held checkout creates a file with, before the umask, as git does.
+export const HELD_FILE_MODE = 0o666
+export const HELD_EXECUTABLE_MODE = 0o777
 // The conversations whose pull request is remembered, newest first.
 export const PULL_REQUEST_LINKS_KEPT = 200
 

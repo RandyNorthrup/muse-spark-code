@@ -93,6 +93,7 @@ import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
 import { ConversationGit } from './host/git/conversationGit'
 import { githubTokenReader } from './host/git/githubSession'
 import { createGitWindow } from './host/git/gitWindow'
+import { createHeldCheckout } from './host/git/heldCheckout'
 import { PullRequestLinks } from './host/git/pullRequestLinks'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -1446,7 +1447,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     githubToken: githubTokenReader(log),
     runGit,
-    runUntrustedGit: processGitRunner({ isUntrustedCheckout: true }),
+    // Someone else's pull request: no git checkout; the extension writes its files (M71).
+    checkOutHeld: createHeldCheckout({
+      platform: process.platform,
+      runGit: processGitRunner({ isUntrustedCheckout: true }),
+      gitProcess: processGitProcess(),
+      env: process.env,
+      log,
+    }),
     isCurrent: () => !nativeStarts.signal.aborted,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
