@@ -10377,7 +10377,7 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
   it('hands the model the imported turns as user-role data before the new message', async () => {
     const t = setup({ newId: () => 'imported-1' })
     const loaded = await t.host.importSession(await exportDoc(), OPTIONS)
-    const { turnDone } = watchTurns(loaded.session)
+    const { turnDone } = watchSessionTurns(loaded.session)
     t.api.script({ text: 'I will check first.' })
     await loaded.session.sendTurn([{ type: 'text', text: 'Carry on' }])
     await turnDone()
