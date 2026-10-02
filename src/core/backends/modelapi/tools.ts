@@ -253,6 +253,16 @@ export interface ToolContext {
    * folders outside the workspace `read_file` may read. None when absent.
    */
   readonly files?: FileRules
+  /**
+   * The live policy fence (M78): asked when a read has completed and before
+   * what it read can reach the model, with the names of every file it
+   * touched (as named and after links are resolved) and, for a file read
+   * under one of the profile's extra roots, that root. The policy as it
+   * stands then judges the call again; its refusal replaces the outcome, so
+   * nothing read is returned. `files` above is the policy the call was let
+   * in under, which an await may have outlived.
+   */
+  readonly readFence?: (names: readonly string[], extraRoot?: string) => ToolOutcome | undefined
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
   /**
@@ -926,6 +936,7 @@ async function readVisual(
   file: { readonly relative: string; readonly checkedAbsolute: string },
   kind: 'pdf' | 'image',
   context: ToolContext,
+  fence: () => ToolOutcome | undefined,
 ): Promise<ToolOutcome> {
   let bytes: Uint8Array | undefined
   try {
@@ -940,7 +951,13 @@ async function readVisual(
       throw error
     }
     const modelReason = error instanceof Error ? error.message : String(error)
-    return failure(modelReason, fill(UI_TEXT.toolVisualReadFailed, { path: file.relative }))
+    return (
+      fence() ?? failure(modelReason, fill(UI_TEXT.toolVisualReadFailed, { path: file.relative }))
+    )
+  }
+  const refused = fence()
+  if (refused !== undefined) {
+    return refused
   }
   if (bytes === undefined) {
     return failure(
@@ -963,12 +980,12 @@ function isDenied(
  * The path `read_file` reads: in the workspace, or given absolute under an
  * extra root of the permission profile (M78), confined to that root as the
  * workspace confines its own (links resolved). Such a file is named by its
- * absolute path, forward slashes.
+ * absolute path, forward slashes, and carries the root it was confined to.
  */
 async function readablePath(
   given: string,
   context: ToolContext,
-): Promise<Awaited<ReturnType<typeof confineWorkspacePath>>> {
+): Promise<Awaited<ReturnType<typeof confineWorkspacePath>> & { readonly extraRoot?: string }> {
   const inWorkspace = await confineWorkspacePath(
     context.workspaceRoot,
     given,
@@ -983,7 +1000,7 @@ async function readablePath(
   for (const root of roots) {
     const underRoot = await confineWorkspacePath(root, given, context.platform, context.io)
     if (underRoot.ok) {
-      return { ...underRoot, relative: underRoot.absolute.replaceAll(p.sep, '/') }
+      return { ...underRoot, relative: underRoot.absolute.replaceAll(p.sep, '/'), extraRoot: root }
     }
   }
   return inWorkspace
@@ -1000,11 +1017,18 @@ async function readFile(
   if (isDenied(resolved, context)) {
     return failure(`${resolved.relative} ${MODEL_TEXT.pathDeniedByPolicy}`)
   }
+  const fence = () =>
+    context.readFence?.([resolved.relative, resolved.canonical], resolved.extraRoot)
   const visual = visualKindOf(resolved.relative)
   if (visual !== undefined) {
-    return await readVisual(resolved, visual, context)
+    return await readVisual(resolved, visual, context, fence)
   }
   const raw = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
+  // Before the file is recorded as seen: a refused read leaves no trace.
+  const refused = fence()
+  if (refused !== undefined) {
+    return refused
+  }
   if (raw === undefined) {
     return failure(`file not found: ${resolved.relative}`)
   }
@@ -1266,6 +1290,10 @@ async function search(
       absolute: p.join(context.workspaceRoot, ...relative.split('/')),
     })),
   })
+  const refused = context.readFence?.(candidates)
+  if (refused !== undefined) {
+    return refused
+  }
   if (!outcome.ok) {
     return failure(outcome.reason)
   }
@@ -1297,6 +1325,10 @@ async function listFiles(
     files = await listMatching(context, args.glob)
   } catch (error: unknown) {
     return failure(error instanceof Error ? error.message : String(error))
+  }
+  const refused = context.readFence?.(files)
+  if (refused !== undefined) {
+    return refused
   }
   const shown = files.slice(0, limit)
   const tail =

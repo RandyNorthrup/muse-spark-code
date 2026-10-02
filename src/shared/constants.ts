@@ -2846,6 +2846,10 @@ export const MODEL_TEXT = {
     'memory is not available while the workspace is in Restricted Mode; trust the workspace to use it',
   // M78 (PLAN.md D49): the user's command rules and permission profile.
   toolRefusedByRule: 'refused by a command rule the user set',
+  // After `{tool} `: the live policy fence refused it at its process entry,
+  // its file read or its memory note; nothing it produced is reported.
+  toolRefusedByPolicyChange:
+    'refused: the user’s permission settings changed while it was in progress and no longer allow it',
   pathDeniedByPolicy:
     'is refused: the user’s permission settings deny the file tools this path; do not try to read it another way',
   codeIntelPolicyRefused: 'File permission rules refuse this code intelligence operation.',

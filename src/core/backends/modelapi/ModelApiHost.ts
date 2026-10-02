@@ -666,6 +666,22 @@ interface Performed {
 /** A captured call owner; only an explicitly moved, still-owned background shell may outlive its turn. */
 type CallAdmission = (canRunDetached?: boolean) => boolean
 
+/**
+ * What let a call in under the permission policy (M78), for its live policy
+ * fence: the call as the engine judges it, and the engine's judgement once
+ * it was admitted (after any card), with no hook's question folded in.
+ */
+interface Admission {
+  readonly query: PermissionQuery
+  readonly judgement: PermissionJudgement
+}
+
+/** A memory call's live policy fence: what admitted it, and every name its notes go by. */
+interface MemoryFence {
+  readonly admission: Admission
+  readonly names: readonly string[]
+}
+
 /** What a check covers: the files passed to it, or the whole project (M68). */
 function checkScope(check: CheckCommandSetting, files: readonly EditedFile[]): CheckScope {
   return check.changedFiles === true && files.length > 0 ? files : 'project'
@@ -1122,6 +1138,15 @@ function refusedByRule(call: FunctionCallItem, judgement: PermissionJudgement): 
 /** A path the permission settings deny the file tools (M78). */
 function deniedPath(display: string): ToolOutcome {
   return toolFailure(`${display} ${MODEL_TEXT.pathDeniedByPolicy}`)
+}
+
+/** A call the permission settings stopped allowing at its I/O (M78): the model's reason, the row's in the user's language. */
+function policyChangedRefusal(toolName: string): ToolOutcome {
+  return {
+    output: `Error: ${toolName} ${MODEL_TEXT.toolRefusedByPolicyChange}`,
+    visibleOutput: UI_TEXT.policyChangedRefused,
+    failureReason: UI_TEXT.policyChangedRefused,
+  }
 }
 
 function refusedOutcome(
@@ -4249,13 +4274,16 @@ export class ModelApiSession implements AgentSession {
    * D39). Until it moves, the turn's Stop ends it and its time limit holds;
    * once moved, the call answers the model at once, the command runs on with
    * no limit, and only its own stop (its row, Stop all, the session closing)
-   * ends it.
+   * ends it. The live policy fence (M78) is asked at the real process entry,
+   * after every wait of the adapter; its refusal replaces the refused entry's
+   * result, which would read as a stop the user never made.
    */
   private async runShellCall(
     itemId: string,
     call: FunctionCallItem,
     turnSignal: AbortSignal,
     isAllowed: CallAdmission,
+    admission: Admission,
   ): Promise<Performed> {
     const stop = new AbortController()
     const onTurnStop = () => {
@@ -4266,18 +4294,25 @@ export class ModelApiSession implements AgentSession {
     }
     turnSignal.addEventListener('abort', onTurnStop, { once: true })
     const limit = new ShellTimeLimit()
-    const running = executeTool(call.name, call.arguments, {
-      workspaceRoot: this.deps.workspaceRoot,
-      platform: this.deps.platform,
-      io: this.deps.io,
-      signal: stop.signal,
-      limit,
-      seen: this.seenFiles,
-      assertCanRun: () => {
-        if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
-          throw new AbortedError()
-      },
-    })
+    let refusal: ToolOutcome | undefined
+    const run = async (): Promise<ToolOutcome> => {
+      const outcome = await executeTool(call.name, call.arguments, {
+        workspaceRoot: this.deps.workspaceRoot,
+        platform: this.deps.platform,
+        io: this.deps.io,
+        signal: stop.signal,
+        limit,
+        seen: this.seenFiles,
+        assertCanRun: () => {
+          if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
+            throw new AbortedError()
+          refusal ??= this.policyRefusal(admission)
+          if (refusal !== undefined) throw new AbortedError()
+        },
+      })
+      return refusal ?? outcome
+    }
+    const running = run()
     // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
     const moved = new Promise<undefined>((resolve) => {
       this.foregroundShells.set(itemId, () => {
@@ -4958,6 +4993,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     goalCommandRevision: number,
     isAllowed: CallAdmission,
+    admission: Admission,
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
@@ -5006,7 +5042,7 @@ export class ModelApiSession implements AgentSession {
         return { outcome: this.runGoal(call) }
       }
       case shellToolFor(this.deps.platform).name: {
-        return await this.runShellCall(itemId, call, signal, isAllowed)
+        return await this.runShellCall(itemId, call, signal, isAllowed, admission)
       }
       case VERIFY_TOOLS.runChecks: {
         return await this.runChecksCall(itemId, call, signal, isAllowed)
@@ -5026,6 +5062,7 @@ export class ModelApiSession implements AgentSession {
             signal,
             seen: this.seenFiles,
             files: this.policy().files,
+            readFence: (names, extraRoot) => this.policyRefusal(admission, names, extraRoot),
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
@@ -5641,6 +5678,39 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
+   * The live policy fence (M78, the RV78 review), asked by each I/O boundary
+   * at the moment of its I/O: a shell command's process entry, a read that
+   * has completed before what it read can reach a request, a memory note's
+   * read or write. A decision taken before an await never lets the I/O
+   * through: the policy as it stands now (its rules, its profile and the
+   * mode) judges the call again. What ran with no question must still be
+   * allowed. An answered ask must not now be refused, nor newly settled by a
+   * rule or the profile (a hook's or the Auto reviewer's answer cannot
+   * answer that). No file it touches may now be denied, nor read under an
+   * extra root the profile no longer has. Undefined while all of that
+   * holds; otherwise the refusal that replaces whatever the call produced.
+   */
+  private policyRefusal(
+    admission: Admission,
+    names: readonly string[] = [],
+    extraRoot?: string,
+  ): ToolOutcome | undefined {
+    const policy = this.policy()
+    const now = this.permissions.judge(admission.query, policy)
+    const was = admission.judgement
+    const isAdmitted =
+      now.verdict === 'allow' ||
+      (now.verdict === 'ask' &&
+        was.verdict === 'ask' &&
+        (now.settledBy === undefined || now.settledBy === was.settledBy))
+    // No names (a shell command) is no file: a deny-all profile denies files, not commands.
+    const isFileRefused =
+      (names.length > 0 && policy.files.isDenied(names)) ||
+      (extraRoot !== undefined && !policy.files.extraRoots.includes(extraRoot))
+    return isAdmitted && !isFileRefused ? undefined : policyChangedRefusal(admission.query.toolName)
+  }
+
+  /**
    * The engine's judgement under the policy. A hook may add a card to an
    * allow, never override a denial; a question it demands is the user's,
    * never the Auto reviewer's.
@@ -5673,17 +5743,21 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  /** An add may update its index; check both possible targets without an existence shortcut. */
+  /**
+   * An add may update its index; check both possible targets without an
+   * existence shortcut. The refusal, or the fence the call's reads and
+   * writes must still pass: every name checked here, under this judgement.
+   */
   private async memoryRefusal(
     memory: MemoryStore,
     placed: PlacedMemoryCall,
     call: FunctionCallItem,
     signal: AbortSignal,
-  ): Promise<CallResult | undefined> {
+  ): Promise<{ readonly refusal: CallResult } | { readonly fence: MemoryFence }> {
     const places = [placed.place]
     if (placed.call.tool === 'add' && placed.place.scope === PROJECT_MEMORY_SCOPE) {
       const index = await memory.locate(PROJECT_MEMORY_SCOPE, MEMORY_INDEX_FILE)
-      if (!index.ok) return { outcome: toolFailure(index.reason), isRejected: true }
+      if (!index.ok) return { refusal: { outcome: toolFailure(index.reason), isRejected: true } }
       places.push(index.value)
     }
     const names: string[] = []
@@ -5695,22 +5769,26 @@ export class ModelApiSession implements AgentSession {
         this.deps.platform,
         this.deps.io,
       )
-      if (!confined.ok) return { outcome: toolFailure(confined.reason), isRejected: true }
+      if (!confined.ok)
+        return { refusal: { outcome: toolFailure(confined.reason), isRejected: true } }
       names.push(place.display, confined.relative, confined.canonical)
     }
     signal.throwIfAborted()
     if (!this.deps.isWorkspaceTrusted())
-      return { outcome: toolFailure(MODEL_TEXT.memoryRestrictedMode), isRejected: true }
+      return {
+        refusal: { outcome: toolFailure(MODEL_TEXT.memoryRestrictedMode), isRejected: true },
+      }
     const policy = this.policy()
     const denied = names.find((name) => policy.files.isDenied([name]))
-    if (denied !== undefined) return { outcome: deniedPath(denied), isRejected: true }
+    if (denied !== undefined) return { refusal: { outcome: deniedPath(denied), isRejected: true } }
     const query: PermissionQuery = {
       toolName: call.name,
       toolClass: placed.call.tool === 'read' ? 'read' : 'edit',
     }
-    return this.permissions.judge(query, policy).verdict === 'deny'
-      ? this.refusedByMode(call)
-      : undefined
+    const judgement = this.permissions.judge(query, policy)
+    return judgement.verdict === 'deny'
+      ? { refusal: this.refusedByMode(call) }
+      : { fence: { admission: { query, judgement }, names } }
   }
 
   /**
@@ -5739,8 +5817,8 @@ export class ModelApiSession implements AgentSession {
     if (!placed.ok) {
       return { outcome: toolFailure(placed.reason), isRejected: false }
     }
-    const placedRefusal = await this.memoryRefusal(memory, placed.value, call, signal)
-    if (placedRefusal !== undefined) return placedRefusal
+    const placedCheck = await this.memoryRefusal(memory, placed.value, call, signal)
+    if ('refusal' in placedCheck) return placedCheck.refusal
     if (toolClass !== 'read' || shouldForceApproval) {
       const subject: ApprovalSubject =
         toolClass === 'read'
@@ -5761,32 +5839,62 @@ export class ModelApiSession implements AgentSession {
       // the note is located again after the approval (review of PR #36).
       const replaced = await placeMemoryCall(memory, call.name, call.arguments)
       if (!isAllowed()) throw new AbortedError()
-      if (replaced.ok) {
-        const freshRefusal = await this.memoryRefusal(memory, replaced.value, call, signal)
-        if (freshRefusal !== undefined) return freshRefusal
+      if (!replaced.ok) {
+        return { outcome: toolFailure(replaced.reason), isRejected: false }
       }
+      const freshCheck = await this.memoryRefusal(memory, replaced.value, call, signal)
+      if ('refusal' in freshCheck) return freshCheck.refusal
       return {
-        outcome: replaced.ok
-          ? await this.runPlacedMemoryCall(memory, replaced.value, isAllowed)
-          : toolFailure(replaced.reason),
+        outcome: await this.runFencedMemoryCall(
+          memory,
+          replaced.value,
+          isAllowed,
+          freshCheck.fence,
+        ),
         isRejected: false,
       }
     }
     return {
-      outcome: await this.runPlacedMemoryCall(memory, placed.value, isAllowed),
+      outcome: await this.runFencedMemoryCall(memory, placed.value, isAllowed, placedCheck.fence),
       isRejected: false,
     }
+  }
+
+  /**
+   * A placed memory call under its live policy fence (M78), asked with the
+   * owner's at every MemoryIo read and write and around them. A refusal
+   * replaces a read, or a write refused before it published; a note already
+   * written when its new index line was refused stays reported as written,
+   * its index line logged as not written, as an index with unsaved changes is.
+   */
+  private async runFencedMemoryCall(
+    memory: MemoryStore,
+    placed: PlacedMemoryCall,
+    isAllowed: () => boolean,
+    fence: MemoryFence,
+  ): Promise<ToolOutcome> {
+    let refusal: ToolOutcome | undefined
+    const assertCurrent = () => {
+      if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
+      refusal ??= this.policyRefusal(fence.admission, fence.names)
+      if (refusal !== undefined) throw new AbortedError()
+    }
+    let outcome: ToolOutcome
+    try {
+      outcome = await this.runPlacedMemoryCall(memory, placed, assertCurrent)
+    } catch (error: unknown) {
+      if (refusal === undefined) throw error
+      return refusal
+    }
+    return refusal !== undefined && outcome.failureReason !== undefined ? refusal : outcome
   }
 
   /** Memory writes can change a check's named input, including a new note's index. */
   private async runPlacedMemoryCall(
     memory: MemoryStore,
     placed: PlacedMemoryCall,
-    isAllowed: () => boolean,
+    assertCurrent: () => void,
   ): Promise<ToolOutcome> {
-    const assertCurrent = () => {
-      if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
-    }
     assertCurrent()
     if (placed.call.tool === 'read') {
       const outcome = await runMemoryCall(memory, placed, assertCurrent)
@@ -6203,6 +6311,8 @@ export class ModelApiSession implements AgentSession {
     if (deniedNow !== undefined) {
       return { outcome: deniedPath(deniedNow.relative), isRejected: true }
     }
+    // What the call's own I/O boundaries judge again when they reach the I/O.
+    const admission: Admission = { query, judgement: currentJudgement }
     // Every live session hears the names before perform can write or format.
     // Completion advances their state again, including on a failed write.
     const completeEdit =
@@ -6221,6 +6331,7 @@ export class ModelApiSession implements AgentSession {
         signal,
         goalCommandRevision,
         isAllowed,
+        admission,
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,

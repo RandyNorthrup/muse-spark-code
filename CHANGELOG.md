@@ -77,6 +77,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Permission settings changed mid-call now stop the call at its I/O
+  (M78).** A shell command, file read or memory note was judged before an
+  await and not again: a command a rule allowed still ran after a forbid
+  rule, an ask rule or a profile arrived while its process was starting; a
+  file read finished under the old rules and its text reached the model
+  after a new deny-read; a memory edit was written after its note was
+  denied. One live policy fence now judges the call again under the current
+  rules, profile and mode at the process entry, after every read completes
+  (`read_file`, images and PDFs, `list_files`, `search`) and at every
+  memory read and write. A call the settings no longer allow is refused with
+  a reason in the user's language, and nothing it read is sent.
+
 - Approval cards retain the Auto reviewer's and command rule's explanation
   through webview delivery, later approval stages and saved-state restoration.
 

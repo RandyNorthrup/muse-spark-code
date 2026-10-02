@@ -1410,6 +1410,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "approvalProfileNote": "権限プロファイルが有効です。ファイルルールの対象外の呼び出しは承認を求めます。",
   "codeIntelPolicyRefused": "ファイル権限により、このコード解析操作は拒否されました。",
+  "policyChangedRefused": "処理中に権限設定が変更され、この操作は許可されなくなりました。拒否され、その内容はモデルに送信されていません。",
   "permissionProfileInvalidData": "無効または未対応のプロファイルデータです。",
   "approvalAskRuleNote": "コマンド ルールにより、このコマンドは毎回確認します。",
   "approvalAskRuleWhy": "コマンド ルールにより、このコマンドは毎回確認します: {why}",

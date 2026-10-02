@@ -246,6 +246,8 @@ function setup(
     hasMemory?: boolean
     /** Folders the memory fake reports as links to elsewhere (M49). */
     memoryLinks?: Record<string, string>
+    /** Where a memory note's replacement waits before its final assertion (M78's fence). */
+    beforeMemoryWrite?: (path: string) => Promise<void>
     /** The command rules and permission profiles (M78), read at each call. */
     permissionSettings?: () => PermissionSettings
     /** The window's web fetch (M69); none unless a test gives one. */
@@ -284,6 +286,9 @@ function setup(
       : memoryStoreOver(io.files, {
           platform: options.platform ?? 'linux',
           ...(options.memoryLinks !== undefined && { links: options.memoryLinks }),
+          ...(options.beforeMemoryWrite !== undefined && {
+            beforeWrite: options.beforeMemoryWrite,
+          }),
         }).store
   let ids = 0
   let clock = 1_000_000
@@ -12574,6 +12579,185 @@ describe('ModelApiSession: permission profiles (M78, PLAN.md D49)', () => {
     })
     await answer(session, request, 'abort')
     await turnDone()
+  })
+})
+
+/** A wait the test holds open: `hold` marks it entered, then waits for `release`. */
+function heldWait() {
+  const entered = Promise.withResolvers<undefined>()
+  const released = Promise.withResolvers<undefined>()
+  return {
+    entered: entered.promise,
+    hold: async () => {
+      entered.resolve(undefined)
+      await released.promise
+    },
+    release: () => {
+      released.resolve(undefined)
+    },
+  }
+}
+
+/** The user's rules of these tests with `npm test` allowed too. */
+function npmTestAllowed(): PermissionSettings {
+  const settings = m78Settings()()
+  return {
+    ...settings,
+    commandRules: [
+      ...settings.commandRules,
+      { pattern: ['npm', 'test'], decision: 'allow', match: ['npm test'] },
+    ],
+  }
+}
+
+const SYNTHETIC_PRIVATE = 'SYNTHETIC-PRIVATE-TEXT'
+
+/** The row a refused call completed with. */
+function completedRow(events: readonly AgentEvent[], tool: string) {
+  return events.find(
+    (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+      event.type === 'itemCompleted' && event.item.tool === tool,
+  )?.item
+}
+
+describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 review)', () => {
+  it.each([
+    [
+      'a repository forbid rule',
+      (settings: PermissionSettings): PermissionSettings => ({
+        ...settings,
+        repositoryRules: {
+          commandRules: [{ pattern: ['npm', 'test'], decision: 'forbid', match: ['npm test'] }],
+        },
+      }),
+    ],
+    [
+      'a repository ask rule',
+      (settings: PermissionSettings): PermissionSettings => ({
+        ...settings,
+        repositoryRules: {
+          commandRules: [{ pattern: ['npm', 'test'], decision: 'ask', match: ['npm test'] }],
+        },
+      }),
+    ],
+    [
+      'a permission profile',
+      (settings: PermissionSettings): PermissionSettings => ({ ...settings, profile: 'locked' }),
+    ],
+  ])(
+    'refuses a rule-allowed command at its held process entry once %s applies',
+    async (_change, tighten) => {
+      let settings = npmTestAllowed()
+      const base = memoryToolIo({}, ROOT)
+      const entry = heldWait()
+      // The real adapter awaits the Windows job assembly here, before its final admission.
+      const io: MemoryToolIo = {
+        ...base,
+        runShell: async (...args: Parameters<ToolIo['runShell']>) => {
+          await entry.hold()
+          return await base.runShell(...args)
+        },
+      }
+      const t = setup({ io, permissionSettings: () => settings })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'test' }])
+      await entry.entered
+      settings = tighten(settings)
+      entry.release()
+      await turnDone()
+      expect(t.shellCalls).toEqual([])
+      expect(hasApprovalCard(events)).toBe(false)
+      expect(toolOutput(t, 'sh1')).toBe(`Error: bash ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+      expect(completedRow(events, 'bash')).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.policyChangedRefused,
+      })
+    },
+  )
+
+  it.each([
+    ['read_file', '{"path":"private.txt"}'],
+    ['list_files', '{}'],
+    // The model's own arguments are sent back: the pattern is not the private text.
+    ['search', '{"pattern":"PRIVATE"}'],
+  ])(
+    'discards what %s read once the repository denies the file during the read',
+    async (tool, args) => {
+      let settings = m78Settings()()
+      const base = memoryToolIo({ 'private.txt': SYNTHETIC_PRIVATE, 'src/a.ts': 'x' }, ROOT)
+      const read = heldWait()
+      const io: MemoryToolIo = {
+        ...base,
+        readFile: async (...readArgs: Parameters<ToolIo['readFile']>) => {
+          const [absolutePath] = readArgs
+          if (absolutePath.endsWith('private.txt')) await read.hold()
+          return await base.readFile(...readArgs)
+        },
+        listFiles: async () => {
+          if (tool === 'list_files') await read.hold()
+          return await base.listFiles()
+        },
+        searchFiles: async (job) => {
+          await read.hold()
+          return await base.searchFiles(job)
+        },
+      }
+      const t = setup({ io, permissionSettings: () => settings })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      t.api.script({ calls: [{ name: tool, arguments: args, callId: 'r1' }] }, { text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'look' }])
+      await read.entered
+      settings = { ...settings, repositoryRules: { denyRead: ['private.txt'] } }
+      read.release()
+      await turnDone()
+      expect(toolOutput(t, 'r1')).toBe(`Error: ${tool} ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+      expect(completedRow(events, tool)).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.policyChangedRefused,
+      })
+      expect(JSON.stringify(t.api.responseBodies())).not.toContain(SYNTHETIC_PRIVATE)
+    },
+  )
+
+  it('refuses a memory edit whose note the repository denies while its write waits', async () => {
+    let settings = m78Settings()()
+    const write = heldWait()
+    const t = setup({
+      files: { '.agents/memory/note.md': 'before' },
+      permissionSettings: () => settings,
+      beforeMemoryWrite: write.hold,
+    })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'edit_memory',
+            arguments: JSON.stringify({
+              scope: 'project',
+              path: 'note.md',
+              old_str: 'before',
+              new_str: 'after',
+            }),
+            callId: 'm1',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'remember' }])
+    await write.entered
+    settings = { ...settings, repositoryRules: { denyRead: ['.agents/memory/note.md'] } }
+    write.release()
+    await turnDone()
+    expect(t.files.get(`${ROOT}/.agents/memory/note.md`)).toBe('before')
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(toolOutput(t, 'm1')).toBe(`Error: edit_memory ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+    expect(completedRow(events, 'edit_memory')).toMatchObject({
+      status: 'failed',
+      visibleOutput: UI_TEXT.policyChangedRefused,
+    })
   })
 })
 

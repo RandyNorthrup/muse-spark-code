@@ -8735,6 +8735,29 @@ JSON ledger format; converting the project plan is outside this lane.
 
 ### M78 — Auto, made safe (D49)
 
+**RV78 review fix, 2026-10-02: one live policy fence at every I/O.** The
+independent review found one class in three places: the command and file
+policy was decided before an await and not judged again at the I/O. A
+rule-allowed shell command still entered its process after a forbid rule,
+an ask rule or a profile arrived during the Windows job assembly's load; a
+read finished under the old file rules and its text reached the model; a
+memory note was written after its path was denied. The lead's decision:
+one fence, `ModelApiHost.policyRefusal`, called at the moment of each I/O
+with the current compiled policy (rules, profile, mode) for that exact
+operation. It runs inside `ToolIo.runShell`'s final admission callback (as
+`runVerifyCommand` already fenced checks), after every read used to build
+model input completes (`read_file` text and its images and PDFs,
+`list_files`, `search`), and inside every MemoryIo read/write assertion.
+What ran with no question must still be allowed; an answered ask must not
+now be refused nor newly settled by a rule or the profile; no touched file
+may now be denied, nor read under an extra root the profile dropped. A
+refusal replaces the outcome (the model gets `toolRefusedByPolicyChange`,
+the row `policyChangedRefused`, in English and all 14 translated tables),
+so nothing read is sent. A note already written when its new index line
+was refused stays reported as written, its index line logged as not
+written. Held-boundary regressions and three red drills are in
+`docs/certification/m78.md`.
+
 **Final lane receipt, 2026-10-01/02.** Implemented on the release candidate
 with the approved shared English fallback (PR #67 tip `909db6736`, merged
 as `3375e828`; the named shared branch was deleted by the lead). The required

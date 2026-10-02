@@ -24,6 +24,8 @@ export interface MemoryIoOptions {
   readonly platform?: NodeJS.Platform
   /** A competing writer placed a file after the store's first read. */
   readonly beforeCreate?: (path: string, files: Map<string, string>) => void
+  /** A replacement waits here, before its owner's final assertion, as a real write's awaits do. */
+  readonly beforeWrite?: (path: string) => Promise<void>
 }
 
 function forward(absolutePath: string): string {
@@ -50,14 +52,16 @@ export function memoryIoOver(files: Map<string, string>, options: MemoryIoOption
         : Promise.resolve(files.get(key))
     },
     hasUnsavedChanges: (absolutePath) => options.unsaved?.has(through(absolutePath)) === true,
-    writeFile: (absolutePath, content, assertCanWrite) => {
+    writeFile: async (absolutePath, content, assertCanWrite) => {
       const key = through(absolutePath)
       if (options.unwritable?.has(key) === true) {
-        return Promise.reject(new Error(`EACCES: permission denied, open '${key}'`))
+        throw new Error(`EACCES: permission denied, open '${key}'`)
+      }
+      if (options.beforeWrite !== undefined) {
+        await options.beforeWrite(key)
       }
       assertCanWrite?.()
       files.set(key, content)
-      return Promise.resolve()
     },
     createFile: (absolutePath, content, _checkedPath, assertCanWrite) => {
       const key = through(absolutePath)

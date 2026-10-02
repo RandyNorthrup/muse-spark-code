@@ -983,7 +983,11 @@ cached prompt map. VS Code's language providers maintain their own indexes;
 these rules govern the extension's reads and returned information.
 `museSpark.modelApiRepositoryRules` can add only ask/forbid command
 rules and file denials; it cannot add an allow, choose a wider profile or
-grant an extra root. These controls apply to the Model API; Muse Code uses
+grant an extra root. A change to these settings also reaches calls already
+in flight: each is judged again at its shell process's entry, after its file
+read completes and at each memory read or write, and one the new settings
+no longer allow is refused, with nothing it read sent to the model. These
+controls apply to the Model API; Muse Code uses
 its own captured native policy contract.
 
 `museSpark.modelApiAutoReviewer` is an off-by-default paid opt-in. Every

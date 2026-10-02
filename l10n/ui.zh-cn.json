@@ -1410,6 +1410,7 @@
   "exportThenRunSkipped": "then_run `{command}`：{outcome}",
   "approvalProfileNote": "权限配置方案已启用。超出其文件规则的调用会请求批准。",
   "codeIntelPolicyRefused": "文件权限拒绝此代码分析操作。",
+  "policyChangedRefused": "权限设置在此操作进行期间发生了变化，已不再允许它。该操作已被拒绝，其任何内容都未发送给模型。",
   "permissionProfileInvalidData": "配置方案数据无效或不受支持。",
   "approvalAskRuleNote": "您的命令规则每次都会就此命令询问。",
   "approvalAskRuleWhy": "您的命令规则每次都会就此命令询问：{why}",

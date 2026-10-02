@@ -1455,6 +1455,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "approvalProfileNote": "Ein Berechtigungsprofil ist aktiv. Aufrufe außerhalb seiner Dateiregeln fragen nach.",
   "codeIntelPolicyRefused": "Dateiberechtigungen verweigern diese Codeanalyse.",
+  "policyChangedRefused": "Die Berechtigungseinstellungen haben sich währenddessen geändert und erlauben dies nicht mehr. Es wurde abgelehnt, und nichts davon wurde an das Modell gesendet.",
   "permissionProfileInvalidData": "Ungültige oder nicht unterstützte Profildaten.",
   "approvalAskRuleNote": "Ihre Befehlsregel fragt bei diesem Befehl jedes Mal nach.",
   "approvalAskRuleWhy": "Ihre Befehlsregel fragt bei diesem Befehl jedes Mal nach: {why}",

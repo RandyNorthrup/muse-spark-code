@@ -1500,6 +1500,7 @@
   "exportThenRunSkipped": "then_run `{command}` : {outcome}",
   "approvalProfileNote": "Un profil d’autorisations est actif. Les appels hors de ses règles de fichiers demandent une approbation.",
   "codeIntelPolicyRefused": "Les permissions de fichiers refusent cette opération d’analyse de code.",
+  "policyChangedRefused": "Les paramètres d’autorisation ont changé pendant l’opération et ne l’autorisent plus. Elle a été refusée et rien n’en a été envoyé au modèle.",
   "permissionProfileInvalidData": "Données de profil invalides ou non prises en charge.",
   "approvalAskRuleNote": "Votre règle de commande demande votre accord pour cette commande à chaque fois.",
   "approvalAskRuleWhy": "Votre règle de commande demande votre accord pour cette commande à chaque fois : {why}",
