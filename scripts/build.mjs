@@ -78,8 +78,10 @@ const sharedUiText = {
   name: 'shared-ui-text',
   setup(build) {
     // esbuild sends this filter to Go RE2, which rejects JavaScript's u flag.
-    build.onResolve({ filter: /\/en$/ }, (args) =>
-      path.resolve(args.resolveDir, `${args.path}.ts`) === path.resolve(UI_TEXT_ENTRY)
+    // `en`, `en.js` and `en.ts` all name the table's TypeScript source.
+    build.onResolve({ filter: /\/en(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve(UI_TEXT_ENTRY)
         ? { path: './uiText.js', external: true }
         : undefined,
     )

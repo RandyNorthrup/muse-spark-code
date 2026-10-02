@@ -17,7 +17,7 @@
 //   the rest as not restorable.
 // - A restore undoes the conversation's turns from the chosen one on, file
 //   by file (restorePlan.ts). A file changed outside those turns (between
-//   them, after them, by another conversation's overlapping turn), with
+//   them, after them, by an overlapping turn the restore does not undo), with
 //   unsaved editor changes, or changed while the restore runs is refused and
 //   listed. The redo record is saved before the first file changes and cut
 //   to what was done at the end, so a restore that stops part way still
@@ -30,9 +30,11 @@
 //   window's objects in flight survive. A turn (or a message about to start
 //   one) is published as running in the window's presence file before it may
 //   edit a file (windowPresence.ts), and stays published until its end is
-//   recorded; a tool's copy of a file goes to the window's own staging
-//   folder and is kept until the turn's end has it; an archive is a file of
-//   its own, written before the archive returns (checkpointArchives.ts).
+//   recorded; the user's saves in each window go to a saves file beside its
+//   presence, which every turn's end reads; a tool's copy of a file goes to
+//   the window's own staging folder and is kept until the turn's end has it;
+//   an archive is a file of its own, written before the archive returns
+//   (checkpointArchives.ts).
 //   Within a window, one operation runs at a time.
 // - No restore or redo runs while any turn runs, in this window or in
 //   another live one.
@@ -80,6 +82,7 @@ import {
   CHECKPOINT_FENCED_WINDOW,
   CHECKPOINT_NATIVE_WINDOW,
   CHECKPOINT_ACTIVITY_PREFIX,
+  CHECKPOINT_PEER_SAVE_KEEP_MS,
   CHECKPOINT_PRUNE_GRACE_MS,
   CHECKPOINT_PRUNE_INTERVAL_MS,
   CHECKPOINT_PUBLISH_RETRY_MS,
@@ -150,6 +153,17 @@ export interface Snapshot {
   readonly coverage: Coverage
   readonly inventory: IgnoredInventory
   readonly createdAt: number
+  /**
+   * When the capture began, before it read any file, on the window's own
+   * clock (`monotonicNow`): a save or a tool's copy from then on may postdate
+   * what it read. Never recorded: it means nothing to another window.
+   */
+  readonly startedAt: number
+  /**
+   * When the capture began on the wall clock the folder's windows share: the
+   * other windows' saves from then on count for the turn it starts.
+   */
+  readonly startedWallAt: number
   /** The ref that keeps the capture from pruning until it is recorded or let go. */
   readonly pin: string | undefined
   /** The folders it holds no file of (a capture before a turn); undefined when unknown. */
@@ -240,6 +254,13 @@ export interface CheckpointStoreDeps {
   /** `museSpark.cleanupPeriodDays`: records older than this go; 0 keeps them by age. */
   readonly retentionDays: () => number
   readonly now: () => number
+  /**
+   * The window's own clock, which never goes back as `now` can (the wall
+   * clock set back): it orders the window's turn starts, tool copies and
+   * saves among themselves, and nothing else. `performance.now()` unless a
+   * test sets it.
+   */
+  readonly monotonicNow?: () => number
   readonly newId: () => string
   /** This extension host's process, and whether another window's still runs. */
   readonly pid: number
@@ -258,6 +279,7 @@ export interface CheckpointStoreDeps {
 
 /** A copy of a file taken, with no lock, just before the extension wrote it. */
 interface JournalEntry {
+  /** When, on the window's own clock (`monotonicNow`). */
   readonly at: number
   /** The staged copy; null: there was no file; undefined: none taken (over the limit, a link). */
   readonly staged: string | null | undefined
@@ -277,13 +299,20 @@ interface TurnCopy {
  */
 interface OpenTurn {
   readonly id: string
-  readonly createdAt: number
+  /** When its start capture began, on the window's own clock (`monotonicNow`). */
+  readonly startedAt: number
+  /** When its start capture began, on the wall clock: the other windows' saves since count. */
+  readonly startedWallAt: number
   readonly inventory: IgnoredInventory
+  /** The files the user saved in this window while it ran: theirs, not the turn's. */
+  readonly userSaves: Set<string>
 }
 
 /** A completed end capture whose ref write can be retried without recapturing later user edits. */
 interface PendingEnd {
   readonly record: CheckpointRecord
+  /** Its turn's `startedAt`: the tools' copies since then stay until the end is written. */
+  readonly startedAt: number
   readonly kept: KeptObjects
   readonly previous: string
   readonly pin: string
@@ -403,6 +432,25 @@ function nextTurnNumber(records: readonly CheckpointRecord[], sessionId: string)
   return Math.max(0, ...numbers) + 1
 }
 
+/** Each turn's next one in its conversation's order, by record id. */
+function nextTurns(records: readonly CheckpointRecord[]): ReadonlyMap<string, CheckpointRecord> {
+  const conversations = new Map<string, CheckpointRecord[]>()
+  for (const record of records) {
+    conversations.set(record.sessionId, [...(conversations.get(record.sessionId) ?? []), record])
+  }
+  const next = new Map<string, CheckpointRecord>()
+  for (const conversation of conversations.values()) {
+    const ordered = inTurnOrder(conversation)
+    for (const [index, turn] of ordered.entries()) {
+      const following = ordered[index + 1]
+      if (following !== undefined) {
+        next.set(turn.record.id, following.record)
+      }
+    }
+  }
+  return next
+}
+
 /** The task once the one before it settled, whichever way. */
 async function afterSettled<T>(previous: Promise<unknown>, task: () => Promise<T>): Promise<T> {
   try {
@@ -451,13 +499,19 @@ function refusalFor(result: Exclude<StepResult, 'done'>): RefusalReason {
 
 export class CheckpointStore {
   private queue: Promise<unknown> = Promise.resolve()
-  private opened: Opened | undefined
+  /** The shadow repository's setup: under way, or done. */
+  private opening: Promise<Opened> | undefined
   private hasTidied = false
   private place: { readonly top: string; readonly prefix: string } | undefined
   /** Each recorded turn of this window not yet ended, by turn key. */
   private readonly openTurns = new Map<string, OpenTurn>()
-  /** Every turn running in the window, and every message about to start one, as published, with when. */
+  /**
+   * Every turn running in the window, and every message about to start one,
+   * as published, with when (on the window's own clock, `monotonicNow`).
+   */
   private readonly runningTurns = new Map<string, number>()
+  /** The user's saves while anything runs here (when: `monotonicNow`), for a turn whose record comes next. */
+  private recentSaves: readonly { readonly relative: string; readonly at: number }[] = []
   private readonly journal = new Map<string, JournalEntry[]>()
   private readonly pendingEnds = new Map<string, PendingEnd>()
   private readonly stopping = new AbortController()
@@ -482,6 +536,15 @@ export class CheckpointStore {
       sleep: pause,
       signal: this.presenceStopping.signal,
     })
+  }
+
+  /**
+   * Now on the window's own clock. Turn starts, tool copies and saves are
+   * compared with one another by it, never with `now`, so the wall clock
+   * set back cannot put one of them before an event it followed.
+   */
+  private monotonicNow(): number {
+    return this.deps.monotonicNow?.() ?? performance.now()
   }
 
   private publishedTurns(): readonly string[] {
@@ -596,11 +659,30 @@ export class CheckpointStore {
     return this.place
   }
 
-  /** The shadow repository, set up the first time. */
+  /**
+   * The shadow repository, set up the first time. A running mark opens it
+   * outside the queue, so the first read can be setting it up at that very
+   * moment (a window's first message starts both): every caller shares the
+   * one setup under way. Two would each `git init` in this window's one
+   * initializer folder, and the first to finish moves it away under the
+   * other. A setup that failed is not kept: the next caller tries again.
+   */
   private async open(): Promise<{ readonly opened: Opened }> {
-    if (this.opened !== undefined) {
-      return { opened: this.opened }
+    this.opening ??= this.setUpOnce()
+    return { opened: await this.opening }
+  }
+
+  /** `setUp`, forgotten when it fails, before any caller hears of it. */
+  private async setUpOnce(): Promise<Opened> {
+    try {
+      return await this.setUp()
+    } catch (error: unknown) {
+      this.opening = undefined
+      throw error
     }
+  }
+
+  private async setUp(): Promise<Opened> {
     const { storageDir, platform } = this.deps
     const { top, prefix } = await this.placeOf()
     const shadow = new ShadowGit(
@@ -615,11 +697,10 @@ export class CheckpointStore {
       { git: this.deps.git, env: this.deps.env, signal: this.stopping.signal },
     )
     shadow.assertFits()
-    shadow.assertSeparate()
+    await shadow.assertSeparate()
     await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
     await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
-    this.opened = { shadow, top, prefix }
-    return { opened: this.opened }
+    return { shadow, top, prefix }
   }
 
   /**
@@ -702,8 +783,12 @@ export class CheckpointStore {
     )
   }
 
-  /** The staging folders and index files of windows that are gone, and files of earlier builds. */
+  /**
+   * The staging folders and index files of windows that are gone, their
+   * saves files once no turn can need them, and files of earlier builds.
+   */
   private async dropGoneFiles(): Promise<void> {
+    await this.presence.dropGoneSaves(this.deps.now())
     const stagingRoot = path.join(this.deps.storageDir, STAGING_DIR)
     let staged: string[] = []
     try {
@@ -972,17 +1057,18 @@ export class CheckpointStore {
   }
 
   /**
-   * When each turn of this window began: its record's capture, or the time
-   * it (or its message) was published as running. A tool's copy is taken
-   * and kept for any of them, even before the turn's record exists.
+   * When each turn of this window began, on its own clock (`monotonicNow`):
+   * its start capture, or the time it (or its message) was published as
+   * running. A tool's copy is taken and kept for any of them, even before
+   * the turn's record exists.
    */
   private runningSince(): readonly number[] {
     return [
-      ...Array.from(this.openTurns.values(), (turn) => turn.createdAt),
+      ...Array.from(this.openTurns.values(), (turn) => turn.startedAt),
       ...Array.from(this.runningTurns, ([key, at]) =>
         key === CHECKPOINT_NATIVE_WINDOW ? Infinity : at,
       ),
-      ...Array.from(this.pendingEnds.values(), (pending) => pending.record.createdAt),
+      ...Array.from(this.pendingEnds.values(), (pending) => pending.startedAt),
     ]
   }
 
@@ -1135,6 +1221,10 @@ export class CheckpointStore {
    * `shouldListFolders` (a capture before a turn), the folders it holds no file of.
    */
   private async captureNow(setup: Setup, shouldListFolders: boolean): Promise<CaptureResult> {
+    // Taken before any file is read: a save that lands while the capture runs
+    // may be missing from it, so it counts as made after the turn's start.
+    const startedAt = this.monotonicNow()
+    const startedWallAt = this.deps.now()
     try {
       await setup.shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
       // Every capture (a turn's start and end, a restore's) goes through here: the
@@ -1213,6 +1303,8 @@ export class CheckpointStore {
           },
           inventory: scan.inventory,
           createdAt: this.deps.now(),
+          startedAt,
+          startedWallAt,
           pin: undefined,
           folders,
         },
@@ -1305,11 +1397,14 @@ export class CheckpointStore {
     throw new Error(UI_TEXT.checkpointFailed)
   }
 
-  /** The first copy the tools took of each file since the turn began, and each file's state now. */
-  private async copiesSince(createdAt: number): Promise<ReadonlyMap<string, TurnCopy>> {
+  /**
+   * The first copy the tools took of each file since the turn began (its
+   * `startedAt`), and each file's state now.
+   */
+  private async copiesSince(startedAt: number): Promise<ReadonlyMap<string, TurnCopy>> {
     const copies = new Map<string, TurnCopy>()
     for (const [relative, entries] of this.journal) {
-      const entry = entries.find((candidate) => candidate.at >= createdAt)
+      const entry = entries.find((candidate) => candidate.at >= startedAt)
       if (entry === undefined) {
         continue
       }
@@ -1358,8 +1453,16 @@ export class CheckpointStore {
       const mode = entry.copy.entry.isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE
       imported.set(entry.relative, { mode, oid })
     }
-    const changes = new Map(scanned.map((change) => [change.path, change]))
+    const unchanged = await this.endsAsCopied(setup, wanted, imported)
+    const changes = new Map(
+      scanned
+        .filter((change) => !unchanged.has(change.path))
+        .map((change) => [change.path, change]),
+    )
     for (const [relative, copy] of wanted) {
+      if (unchanged.has(relative)) {
+        continue
+      }
       const preImage = copy.entry.staged === null ? null : imported.get(relative)
       const scannedChange = changes.get(relative)
       if (scannedChange !== undefined) {
@@ -1390,6 +1493,38 @@ export class CheckpointStore {
     return [...changes]
       .map(([, change]) => change)
       .toSorted((left, right) => byText(left.path, right.path))
+  }
+
+  /**
+   * The copied files that end the turn holding their copy's bytes: the tool's
+   * write never landed (refused at its last check) or wrote the same bytes.
+   * They are no change, so a restore leaves them alone rather than replacing
+   * them (a new inode and times, a broken hard link, a Redo of nothing).
+   */
+  private async endsAsCopied(
+    setup: Setup,
+    wanted: readonly (readonly [string, TurnCopy])[],
+    imported: ReadonlyMap<string, BlobRef>,
+  ): Promise<ReadonlySet<string>> {
+    // Only a file still at its copy's size can hold its copy's bytes.
+    const sameSize = wanted.filter(
+      ([relative, copy]) =>
+        imported.has(relative) &&
+        copy.endStat !== null &&
+        copy.endStat.size === copy.entry.stat?.size,
+    )
+    if (sameSize.length === 0) {
+      return new Set()
+    }
+    const hashed = await setup.shadow.text(['hash-object', '--no-filters', '--stdin-paths'], {
+      input: sameSize.map(([relative]) => `${this.absoluteOf(relative)}${LINE_FEED}`).join(''),
+    })
+    const oids = hashed.split(LINE_FEED)
+    return new Set(
+      sameSize
+        .filter(([relative], index) => oids[index] === imported.get(relative)?.oid)
+        .map(([relative]) => relative),
+    )
   }
 
   /**
@@ -1444,15 +1579,19 @@ export class CheckpointStore {
 
   /**
    * Paths these turns did not change themselves: in a gap between them and
-   * after the last, and every path another conversation's turn changed while
-   * one of them ran. Turns that overlap (a subagent's turn that started
-   * before its parent's ended) make one stretch, which ends where the last of
-   * them to end did; only a gap between stretches is outside them. A turn
-   * whose end was not seen counts everything up to the next capture as its
-   * own; when it closes a stretch, those paths are `uncertain`.
+   * after the last, every path another conversation's turn changed while
+   * one of them ran, and every path an `earlier` turn of their own
+   * conversation changed when it was still running as the first of them
+   * started (the conversation open in two windows): it is not undone. Turns
+   * that overlap (a subagent's turn that started before its parent's ended)
+   * make one stretch, which ends where the last of them to end did; only a
+   * gap between stretches is outside them. A turn whose end was not seen
+   * counts everything up to the next capture as its own; when it closes a
+   * stretch, those paths are `uncertain`.
    */
   private async changedOutside(
     setup: Setup,
+    earlier: readonly TurnSpan[],
     turns: readonly TurnSpan[],
     currentTree: string,
   ): Promise<{ readonly changed: ReadonlySet<string>; readonly uncertain: ReadonlySet<string> }> {
@@ -1487,12 +1626,31 @@ export class CheckpointStore {
       await gapAfter(closing.turn.record, currentTree)
     }
     const records = turns.map((turn) => turn.record)
+    // What the user saved while a turn ran is theirs, whatever the trees say.
+    const userSaves = records.flatMap((record) => record.userSaves ?? [])
+    for (const saved of userSaves) {
+      changed.add(saved)
+    }
     const now = this.deps.now()
-    // A turn's time: from its start capture to its end; to now while it
-    // runs; an end an earlier window never saw is taken as its start.
+    const nextTurn = nextTurns(setup.records.checkpoints)
+    // Where a turn ends, as far as is known: at its end; now while it runs.
+    // An end no window saw (its window went first) came by the start of its
+    // conversation's next turn, as the conversation went on; with no next
+    // turn, it may be as late as now.
+    const endOf = (record: CheckpointRecord) => {
+      const following =
+        record.endedAt === undefined && !this.isOpen(setup, record)
+          ? nextTurn.get(record.id)
+          : undefined
+      return {
+        at: record.endedAt ?? following?.createdAt ?? now,
+        tree: record.end?.tree ?? following?.start.tree ?? currentTree,
+      }
+    }
+    // A turn's time: from its start capture to its end.
     const windowOf = (record: CheckpointRecord) => ({
       start: record.createdAt,
-      end: record.endedAt ?? (this.isOpen(setup, record) ? now : record.createdAt),
+      end: endOf(record).at,
     })
     const sessionId = records[0]?.sessionId
     const overlapping = setup.records.checkpoints.filter((other) => {
@@ -1508,13 +1666,45 @@ export class CheckpointStore {
         return theirs.start <= ours.end && theirs.end >= ours.start
       })
     })
-    for (const other of overlapping) {
-      const otherEnd = other.end?.tree ?? currentTree
+    // An earlier turn of this conversation overlaps when its end has the
+    // first turn's start number or a later one (an equal number: both were
+    // numbered at once, in two windows), or it is still running elsewhere.
+    // An end no window saw, its window gone, came by the start of its
+    // conversation's next turn, as above, so no later than the first's: a
+    // window reloaded mid-turn does not block every later restore. The limit:
+    // the conversation open in two windows, one gone mid-turn while the other
+    // went on. A 0.10.0 candidate's record never overlaps a numbered turn.
+    const [first] = turns
+    const earlierOverlapping =
+      first === undefined
+        ? []
+        : earlier.filter(
+            (turn) =>
+              turn.isNumbered === first.isNumbered &&
+              (turn.end === undefined ? this.isOpen(setup, turn.record) : turn.end >= first.start),
+          )
+    const blamed = [
+      ...overlapping.map((other) => ({ record: other, endTree: endOf(other).tree })),
+      ...earlierOverlapping.map(({ record }) => ({
+        record,
+        endTree: record.end?.tree ?? currentTree,
+      })),
+    ]
+    for (const { record, endTree } of blamed) {
       const theirChanges = [
-        ...(await this.diff(setup.shadow, other.start.tree, otherEnd)),
-        ...(other.ignored?.changes ?? []),
+        ...(await this.diff(setup.shadow, record.start.tree, endTree)),
+        ...(record.ignored?.changes ?? []),
       ]
       for (const change of theirChanges) {
+        changed.add(change.path)
+      }
+    }
+    // A blamed turn whose end no window recorded left no list of the ignored
+    // files it changed, which git's trees cannot show: any ignored file these
+    // turns would put back may have been changed by it since, so none is.
+    if (blamed.some(({ record }) => record.ignored === undefined)) {
+      const ignoredPaths = turns.flatMap((turn) => turn.record.ignored?.changes ?? [])
+      for (const change of ignoredPaths) {
         changed.add(change.path)
       }
     }
@@ -1858,6 +2048,43 @@ export class CheckpointStore {
   }
 
   /**
+   * The files the user saved while a turn ran: in this window, and in the
+   * folder's other windows since its start capture (read after its end
+   * capture, so a save that capture holds is in). When the other windows'
+   * saves are not all known (a saves file that cannot be read, a save let go
+   * of, a turn past the keep time), every file the turn changed counts as
+   * saved: a restore leaves it alone rather than undo a save it cannot see.
+   */
+  private async userSavesOf(
+    shadow: ShadowGit,
+    record: CheckpointRecord,
+    start: OpenTurn,
+    end: { readonly at: number; readonly tree: string | undefined },
+    ignored: readonly IgnoredChange[],
+  ): Promise<string[]> {
+    const saved = new Set(start.userSaves)
+    const peers = await this.presence.peerSaves(start.startedWallAt)
+    for (const relative of peers.saved) {
+      saved.add(relative)
+    }
+    const isPastKeep = end.at - start.startedWallAt > CHECKPOINT_PEER_SAVE_KEEP_MS
+    if (isPastKeep || peers.unknown.length > 0) {
+      const unknown = isPastKeep
+        ? [...peers.unknown, 'the turn ran past the keep time']
+        : peers.unknown
+      this.deps.log.warn(
+        `Checkpoint at the end of turn ${record.turnId}: the other windows' saves are not all known (${unknown.join(', ')}); a restore leaves every file the turn changed alone`,
+      )
+      const changes =
+        end.tree === undefined ? [] : await this.diff(shadow, record.start.tree, end.tree)
+      for (const change of [...changes, ...ignored]) {
+        saved.add(change.path)
+      }
+    }
+    return [...saved].toSorted(byText)
+  }
+
+  /**
    * Records a turn's end: the end capture, the ignored files it changed and
    * the tools' copies, from the record as it was read (only this window
    * ends its turns). A record deleted meanwhile (archived, or dropped by
@@ -1893,6 +2120,13 @@ export class CheckpointStore {
     )
     const isScanWhole =
       ended !== undefined && !start.inventory.isPartial && !ended.inventory.isPartial
+    const userSaves = await this.userSavesOf(
+      setup.shadow,
+      record,
+      start,
+      { at: endedAt, tree: ended?.tree },
+      kept,
+    )
     const updated: CheckpointRecord = {
       ...record,
       ...(ended !== undefined && {
@@ -1901,6 +2135,7 @@ export class CheckpointStore {
       endedAt,
       endSequence: nextTurnNumber(setup.records.checkpoints, record.sessionId),
       ignored: { changes: [...kept], isComplete: isScanWhole && kept.length === changes.length },
+      ...(userSaves.length > 0 && { userSaves }),
     }
     const trees = [
       { name: 'start', tree: record.start.tree },
@@ -1908,6 +2143,7 @@ export class CheckpointStore {
     ]
     const ending = {
       record: updated,
+      startedAt: start.startedAt,
       kept: { trees, blobs: preImages },
       previous: keep,
       pin: `${this.pinPrefix}end-${start.id}`,
@@ -2101,6 +2337,17 @@ export class CheckpointStore {
     }
   }
 
+  /**
+   * Shares this window's saves with the folder's other windows, whose turns'
+   * ends read them. Before the shadow repository exists no turn has a start
+   * capture a save could follow, so nothing is written.
+   */
+  private async shareSaves(): Promise<void> {
+    if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) !== undefined) {
+      await this.presence.writeSaves()
+    }
+  }
+
   /** Native/process uncertainty in this window or a freshly observed peer. */
   public get isNativeUnsafe(): boolean {
     return this.hasUnprovedLocalWork() || this.isPeerUnsafe
@@ -2111,9 +2358,46 @@ export class CheckpointStore {
     return this.openTurns.size > 0
   }
 
+  /**
+   * The user saved a file in this window: VS Code's save writes the user's own
+   * bytes (the tools write files directly and save no document). While a turn
+   * runs here the file is the user's, not the turn's: the turn's end record
+   * names it, and a restore leaves it as it is. A save from the moment a
+   * turn's start capture begins (the capture may have read the file before
+   * it) to the turn's record counts for that turn too. Every save is shared
+   * with the other windows on the folder (this one may run no turn at all),
+   * stamped by the wall clock they share; a write that fails is logged,
+   * never the caller's.
+   */
+  public noteUserSave(absolutePath: string): void {
+    const relative = this.relativeOf(absolutePath)
+    if (relative === undefined) {
+      return
+    }
+    const at = this.deps.now()
+    if (!this.stopping.signal.aborted) {
+      this.presence.noteSave(relative, at)
+      void this.shareSaves().catch((error: unknown) => {
+        this.deps.log.warn(`A save was not shared with the other windows: ${failureForLog(error)}`)
+      })
+    }
+    const since = Math.min(Infinity, ...this.runningSince())
+    if (since === Infinity) {
+      return
+    }
+    for (const turn of this.openTurns.values()) {
+      turn.userSaves.add(relative)
+    }
+    // Only what a turn not yet recorded could still need is kept.
+    this.recentSaves = [
+      ...this.recentSaves.filter((save) => save.at >= since),
+      { relative, at: this.monotonicNow() },
+    ]
+  }
+
   /** Actual I/O completion did not prove every workspace-capable descendant stopped. */
   public async markUnprovenProcess(): Promise<void> {
-    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())
+    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.monotonicNow())
     this.startHeartbeat()
     await this.presence.publish(this.publishedTurns())
   }
@@ -2129,7 +2413,7 @@ export class CheckpointStore {
     }
     // A fence an earlier start set stays: only the one this call sets is withdrawn.
     const isFirstStart = !this.runningTurns.has(CHECKPOINT_NATIVE_WINDOW)
-    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.deps.now())
+    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.monotonicNow())
     this.startHeartbeat()
     try {
       await this.presence.publish(this.publishedTurns())
@@ -2230,8 +2514,15 @@ export class CheckpointStore {
         }
         this.openTurns.set(turnKey(sessionId, turnId), {
           id,
-          createdAt: snapshot.createdAt,
+          startedAt: snapshot.startedAt,
+          startedWallAt: snapshot.startedWallAt,
           inventory: snapshot.inventory,
+          // Saved since its start capture began, before this record existed.
+          userSaves: new Set(
+            this.recentSaves
+              .filter((save) => save.at >= snapshot.startedAt)
+              .map((save) => save.relative),
+          ),
         })
         await this.presence.publish(this.publishedTurns())
         await this.retain(setup)
@@ -2259,7 +2550,7 @@ export class CheckpointStore {
     }
     this.runningTurns.delete(key)
     if (isRunning) {
-      this.runningTurns.set(key, this.deps.now())
+      this.runningTurns.set(key, this.monotonicNow())
     }
     this.startHeartbeat()
     try {
@@ -2297,7 +2588,7 @@ export class CheckpointStore {
       return
     }
     const endedAt = this.deps.now()
-    const copies = await this.copiesSince(start.createdAt)
+    const copies = await this.copiesSince(start.startedAt)
     await this.serial(async () => {
       await this.finishTurn(await this.ready(), start, endedAt, copies)
     })
@@ -2363,7 +2654,7 @@ export class CheckpointStore {
       }
       throw new Error(UI_TEXT.checkpointFailed)
     }
-    this.journal.set(relative, [...entries, { at: this.deps.now(), ...copy }])
+    this.journal.set(relative, [...entries, { at: this.monotonicNow(), ...copy }])
   }
 
   /** Puts the workspace's files back as they were before the turn. */
@@ -2383,7 +2674,22 @@ export class CheckpointStore {
       const ordered = inTurnOrder(
         setup.records.checkpoints.filter((record) => record.sessionId === request.sessionId),
       )
-      const turns = ordered.slice(ordered.findIndex((turn) => turn.record.id === checkpoint.id))
+      const selected = ordered.findIndex((turn) => turn.record.id === checkpoint.id)
+      // A turn another window numbered at once with the checkpoint's (the
+      // same `sequence`) may have started first, whatever order the refs list
+      // them in: it is never undone with the checkpoint's turn, only blamed,
+      // as an earlier turn still running is.
+      const target = ordered[selected]
+      const isTied = (turn: TurnSpan) =>
+        turn !== target &&
+        turn.isNumbered &&
+        target?.isNumbered === true &&
+        turn.start === target.start
+      const turns = ordered.slice(selected).filter((turn) => !isTied(turn))
+      const earlier = [
+        ...ordered.slice(0, selected),
+        ...ordered.slice(selected).filter((turn) => isTied(turn)),
+      ]
       const capture = await this.captureNow(setup, false)
       if (!capture.ok) {
         return {
@@ -2395,7 +2701,7 @@ export class CheckpointStore {
       }
       const current = capture.snapshot
       const changes = await this.diff(setup.shadow, checkpoint.start.tree, current.tree)
-      const outside = await this.changedOutside(setup, turns, current.tree)
+      const outside = await this.changedOutside(setup, earlier, turns, current.tree)
       const ignoredTurns = turns.map((turn) => turn.record.ignored?.changes ?? [])
       const currentStat = new Map<string, FileStat | null>()
       for (const change of ignoredTurns.flat()) {
@@ -2519,6 +2825,22 @@ export class CheckpointStore {
     await this.serial(async () => {
       await this.tidy(await this.ready(), true)
     })
+  }
+
+  /**
+   * The conversation was unarchived: its archive files go, so its new
+   * checkpoints are kept again whatever the clock did meanwhile (an archive
+   * hides what was made at or before its time). Plain files, no lock and no
+   * git, as the archive itself; records it hid and no window deleted yet are
+   * listed again with their conversation.
+   */
+  public async unforgetSession(sessionId: string): Promise<void> {
+    const archives = await readArchives(this.deps.storageDir)
+    for (const entry of archives) {
+      if (entry.archive.sessionId === sessionId) {
+        await removeArchive(entry)
+      }
+    }
   }
 
   /**

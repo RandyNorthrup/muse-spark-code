@@ -30,6 +30,9 @@ function setup(initial: Record<string, string> = {}) {
       })
     },
     beforeDelete,
+    afterDelete: (absolutePath) => {
+      order.push(`trashed ${absolutePath}`)
+    },
   })
   return { files, log, features, order, guard, beforeDelete }
 }
@@ -96,11 +99,13 @@ describe('createMemoryFeatures (M49)', () => {
     pickIds('note:1', 'delete')
     vi.mocked(confirmModal).mockResolvedValue('Delete')
     await t.features.showMemory()
-    expect(t.order.slice(0, 4)).toEqual([
+    // Only once it is in the trash is the removal noted as the user's (M72).
+    expect(t.order.slice(0, 5)).toEqual([
       'lease project',
       `copy ${PROJECT}/a.md`,
       'guard',
       'delete',
+      `trashed ${PROJECT}/a.md`,
     ])
     // The index update, inside the same lease, carries the guard as well.
     expect(t.order.indexOf('guard', t.order.indexOf('delete'))).toBeGreaterThan(0)
@@ -117,6 +122,7 @@ describe('createMemoryFeatures (M49)', () => {
     vi.mocked(confirmModal).mockResolvedValue('Delete')
     await t.features.showMemory()
     expect(workspace.fs.delete).not.toHaveBeenCalled()
+    expect(t.order.filter((step) => step.startsWith('trashed'))).toEqual([])
     expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('- [a](a.md) | A\n')
     expect(window.showErrorMessage).toHaveBeenCalledWith(
       'The memory could not be changed: the window closed',

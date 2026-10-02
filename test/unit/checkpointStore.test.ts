@@ -336,6 +336,30 @@ describe('CheckpointStore and ignored files (M72)', () => {
   )
 
   it(
+    'leaves alone an ignored file a tool copied but never changed, and restores one rewritten at its size',
+    async () => {
+      const h = await harness()
+      await write(h.root, '.gitignore', '.env\n.secret\n')
+      await write(h.root, '.env', 'KEY=before\n')
+      await write(h.root, '.secret', 'abc\n')
+      await turn(h, 't1', async () => {
+        // The write was refused after its copy: the file is as it was.
+        await h.store.beforeToolWrite(path.join(h.root, '.env'))
+        // The same size, other bytes: a change.
+        await h.store.beforeToolWrite(path.join(h.root, '.secret'))
+        await write(h.root, '.secret', 'xyz\n')
+      })
+      const before = await stat(path.join(h.root, '.env'))
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.changed).toEqual(['.secret'])
+      expect(await read(h.root, '.secret')).toBe('abc\n')
+      const after = await stat(path.join(h.root, '.env'))
+      expect([after.ino, after.mtimeMs]).toEqual([before.ino, before.mtimeMs])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
     'leaves unrelated ignored content alone, and a big ignored folder out of the scan',
     async () => {
       const h = await harness()

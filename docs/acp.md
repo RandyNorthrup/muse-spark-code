@@ -227,6 +227,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 - **Modes**: Manual, Edit automatically, Plan, Auto (and Bypass permissions
   with its flag), as in the panel. A session loaded or resumed runs in the
   mode the editor is told, not the one it last ran in.
+  Stored sessions marked imported start in Manual (or Plan when that is the
+  configured initial mode) before mode mapping and history replay; an imported
+  Auto or Bypass choice is never restored automatically.
 - **Settings**: the model and the reasoning effort. A session loaded or
   resumed runs on the model and effort the editor is shown; one last run
   on a model the agent does not list moves to the default. A session the

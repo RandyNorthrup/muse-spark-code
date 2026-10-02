@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
 | `enabledApiProposals`              | none                                                                                                                         |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`                                                                                         |
-| `contributes`                      | `commands` (24), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (26), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -70,7 +70,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (262)
+## VS Code API used at run time (266)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -361,7 +361,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:string_decoder`  | 1     |
 | `node:timers/promises` | 1     |
 | `node:tls`             | 1     |
-| `node:url`             | 2     |
+| `node:url`             | 3     |
 | `node:util`            | 5     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |

@@ -81,8 +81,12 @@ function fakeStore() {
       return Promise.resolve({ ok: false as const, reason: 'redoGone' as const })
     },
     forgetSession: (sessionId) => done(`forget ${sessionId}`),
+    unforgetSession: (sessionId) => done(`unforget ${sessionId}`),
     queueForget: (sessionId) => done(`queue ${sessionId}`),
     maintain: () => done('maintain'),
+    noteUserSave: (absolutePath) => {
+      calls.push(`saved ${absolutePath}`)
+    },
     beforeToolWrite: (absolutePath) => {
       calls.push(`copy ${absolutePath}`)
       return Promise.reject(new Error('the staging folder is full'))
@@ -144,6 +148,8 @@ const NO_SNAPSHOT = {
   coverage: { skipped: [], repositories: [] },
   inventory: { files: new Map(), skippedFolders: [], isPartial: false },
   createdAt: 0,
+  startedAt: 0,
+  startedWallAt: 0,
   pin: 'refs/muse-spark/pin/1',
   folders: [],
 }
@@ -230,7 +236,15 @@ describe('createCheckpointPort (M72)', () => {
     await port.redo({ backend: () => 'modelApi', restoreId: 'r1', unsavedPaths: () => [] })
     await port.forgetSession('s1')
     await port.maintain()
-    expect(calls).toEqual(['release', 'end s1', 'redo', 'forget s1', 'maintain'])
+    port.noteUserSave('/ws/mine.txt')
+    expect(calls).toEqual([
+      'release',
+      'end s1',
+      'redo',
+      'forget s1',
+      'maintain',
+      'saved /ws/mine.txt',
+    ])
   })
 
   it('says when git is missing, and runs none', async () => {
