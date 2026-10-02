@@ -57,7 +57,6 @@ happened, not what was planned; superseded entries are kept.
   the ACP agent's Model API hosts.
 - Model API session-only model text is a separate constants block, allowing
   activation to discard it and fit Review under the unchanged 600 KiB cap.
-
 - The Node bundles share their English fallback as `dist/uiText.js`, while
   installed-language state stays local to each bundle. The VSIX and ACP
   tarball include it, and CI checks both package member lists. Existing
@@ -70,7 +69,6 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
-
 - Unreadable stored patches refuse edit description and count as omitted
   edits in the review pane, including beside valid patches.
 - Reviewer system instructions omit repository-owned git metadata, retaining
@@ -82,8 +80,6 @@ happened, not what was planned; superseded entries are kept.
   cannot inherit an old running turn.
 - Review admission waits for an ordinary permission-mode request to settle;
   a refused request cannot launch a review under the preceding backend mode.
-
-
 - **Revert on an edit no longer overwrites unsaved editor changes** (M70).
   Edit review's Revert and the pane's hunk Revert refuse a file whose editor
   is dirty (the file itself or a link to it), recheck that and the
