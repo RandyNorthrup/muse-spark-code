@@ -123,7 +123,7 @@ import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import {
   ConversationCheckpoints,
   type NoticeLevel,
-  type PendingCapture,
+  type PendingMark,
 } from './conversationCheckpoints'
 import {
   type ConversationExports,
@@ -3281,8 +3281,53 @@ export class ConversationController {
   }
 
   /**
-   * "Restore files to here" (M72), and with `rewind` the conversation too
-   * ("Rewind conversation and restore files"), once the files are restored.
+   * The transcript's turn ids of the conversation from `turnId` on, with
+   * every turn of the child sessions those turns started, theirs included
+   * (M86, spec 3.2): a restore goes ahead only when each has a record.
+   * Undefined when the transcript cannot be read or does not hold the turn.
+   */
+  private async transcriptTurnIds(
+    host: AgentHost,
+    sessionId: string,
+    turnId: string,
+  ): Promise<readonly string[] | undefined> {
+    const history = await host.readSession(sessionId)
+    const start = history.items.findIndex((item) => item.turnId === turnId)
+    if (start === -1 || history.mode === HISTORY_MODE_NONE) {
+      return undefined
+    }
+    const turnIds = new Set<string>()
+    const children: string[] = []
+    const take = (items: readonly ItemSnapshot[]) => {
+      for (const item of items) {
+        if (item.turnId !== undefined) {
+          turnIds.add(item.turnId)
+        }
+        if (item.kind === SUBAGENT_ITEM_KIND && item.childSessionId !== undefined) {
+          children.push(item.childSessionId)
+        }
+      }
+    }
+    take(history.items.slice(start))
+    const read = new Set<string>()
+    for (let child = children.shift(); child !== undefined; child = children.shift()) {
+      if (read.has(child)) {
+        continue
+      }
+      read.add(child)
+      const childHistory = await host.readSession(child)
+      if (childHistory.mode === HISTORY_MODE_NONE) {
+        return undefined
+      }
+      take(childHistory.items)
+    }
+    return [...turnIds]
+  }
+
+  /**
+   * "Restore files to here" (M72, M86), and with `rewind` the conversation
+   * too ("Rewind conversation and restore files"), once the files are
+   * restored.
    */
   private async restoreFiles(
     message: Extract<ConversationMessage, { type: 'restoreFiles' }>,
@@ -3327,7 +3372,21 @@ export class ConversationController {
         return
       }
     }
-    const report = await this.checkpoints.restore(session.sessionId, message.turnId)
+    let turnIds: readonly string[] | undefined
+    try {
+      turnIds = await this.transcriptTurnIds(
+        await this.deps.ensureHost(),
+        session.sessionId,
+        message.turnId,
+      )
+    } catch (error: unknown) {
+      this.deps.log.warn(`The transcript for a restore could not be read: ${describe(error)}`)
+    }
+    if (turnIds === undefined || this.session !== session || this.isTurnRunning()) {
+      this.notice('warning', UI_TEXT.restoreFailed)
+      return
+    }
+    const report = await this.checkpoints.restore(session.sessionId, message.turnId, turnIds)
     if (prepared === undefined) {
       report.post()
       return
@@ -3350,9 +3409,20 @@ export class ConversationController {
     return this.activeTurnId !== undefined
   }
 
-  /** A restore's Redo (M72): never while a turn runs here. */
-  private async redoRestore(restoreId: string): Promise<void> {
-    if (this.session === undefined || this.sessionKind !== 'modelApi') {
+  /**
+   * A restore's Redo (M72, M86): never while a turn runs here, and only for
+   * the conversation shown, which the request names (the store also checks
+   * that the restore was that conversation's).
+   */
+  private async redoRestore(
+    message: Extract<ConversationMessage, { type: 'redoRestore' }>,
+  ): Promise<void> {
+    const { restoreId, sourceSessionId } = message
+    if (this.session?.sessionId !== sourceSessionId) {
+      this.post({ type: 'restoreRedone', restoreId, isSpent: false })
+      return
+    }
+    if (this.sessionKind !== 'modelApi') {
       this.notice('warning', UI_TEXT.checkpointsModelApiOnly)
       this.post({ type: 'restoreRedone', restoreId, isSpent: false })
       return
@@ -3362,7 +3432,7 @@ export class ConversationController {
       this.post({ type: 'restoreRedone', restoreId, isSpent: false })
       return
     }
-    await this.checkpoints.redo(restoreId)
+    await this.checkpoints.redo(restoreId, sourceSessionId)
   }
 
   private buildParts(text: string, attachmentIds: readonly string[]): readonly TurnPart[] {
@@ -3482,8 +3552,8 @@ export class ConversationController {
   ): Promise<SendOutcome> {
     const isComposerMessage = brief === undefined
     let seededSession: AgentSession | undefined
-    // The capture this message's turn takes (M72), dropped if it is not sent.
-    let checkpoint: PendingCapture | undefined
+    // The running mark this message's turn takes over (M72), dropped if it is not sent.
+    let checkpoint: PendingMark | undefined
     try {
       const sendEpoch = this.sendInvalidationEpoch
       const session = await this.sessionForAction(localId, isComposerMessage)
@@ -3568,7 +3638,7 @@ export class ConversationController {
       }
       // Whether this message starts a Plan-mode turn: its reply may be a plan (M79).
       const isPlanModeSend = this.permissionMode === PLAN_MODE
-      // The checkpoint before a turn this message starts (M72); a message
+      // The running mark before a turn this message starts (M72); a message
       // that steers or queues behind a running turn takes none.
       if (this.activeTurnId === undefined && !this.isSideChat) {
         checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
@@ -4825,7 +4895,7 @@ export class ConversationController {
         break
       }
       case 'redoRestore': {
-        await this.redoRestore(message.restoreId)
+        await this.redoRestore(message)
         break
       }
       case 'openSideChat': {

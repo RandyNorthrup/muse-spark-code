@@ -6,7 +6,6 @@ import { checkpointLocation } from '../../src/host/checkpoints/checkpointLocatio
 import { legacyCheckpointTurns } from '../../src/host/checkpoints/legacyCheckpoints'
 import { processGitProcess } from '../../src/host/git'
 import {
-  captured,
   restoreOutcome,
   harness,
   read,
@@ -16,6 +15,7 @@ import {
   storedRecords,
   turn,
   write,
+  writeLegacyRecord,
 } from './helpers/checkpointHarness'
 
 afterEach(removeCheckpointFolders)
@@ -27,7 +27,7 @@ async function workspaceFolders() {
   return h
 }
 
-describe('checkpoint canonical-root storage (M72)', () => {
+describe('checkpoint canonical-root storage (M72, M86)', () => {
   it(
     'shares real records and native barriers across two workspace storage identities',
     async () => {
@@ -46,9 +46,7 @@ describe('checkpoint canonical-root storage (M72)', () => {
       const first = h.reopenAt(one.storageDir, one.canonicalRoot)
       const second = h.reopenAt(two.storageDir, two.canonicalRoot)
       await write(h.root, 'a.txt', 'a0\n')
-      await first.record('s1', 't1', await captured(first))
-      await write(h.root, 'a.txt', 'a1\n')
-      await first.endTurn('s1', 't1')
+      await turn({ store: first, root: h.root }, 't1', (tool) => tool('a.txt', 'a1\n'))
       expect(await second.turns('s1')).toEqual(['t1'])
       await second.markNativeBackend()
       expect(await restoreOutcome(first, 't1')).toEqual({ ok: false, reason: 'nativeUnsafe' })
@@ -91,7 +89,13 @@ describe('checkpoint canonical-root storage (M72)', () => {
     'reads legacy refs and records.json without changing refs, bytes, fences or history',
     async () => {
       const h = await workspaceFolders()
-      await turn(h, 't1', () => write(h.root, 'a.txt', 'old capture\n'))
+      await turn(h, 't1', (tool) => tool('a.txt', 'a unit of this version\n'))
+      writeLegacyRecord(h.storage, h.top, {
+        kind: 'checkpoint',
+        id: 'm72',
+        sessionId: 's1',
+        turnId: 'm72-turn',
+      })
       const legacyFile = path.join(h.storage, 'records.json')
       const legacyText = JSON.stringify({
         version: 1,
@@ -117,7 +121,7 @@ describe('checkpoint canonical-root storage (M72)', () => {
           },
           's1',
         ),
-      ).toEqual(['legacy-file-turn', 't1'])
+      ).toEqual(['legacy-file-turn', 'm72-turn'])
       expect(shadowRefs(h.storage)).toEqual(refs)
       expect(storedRecords(h.storage)).toEqual(records)
       expect(await readFile(legacyFile, 'utf8')).toBe(legacyText)

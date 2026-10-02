@@ -16,7 +16,8 @@ import type {
   CheckpointStore,
   CheckpointStoreDeps,
 } from '../../src/host/checkpoints/checkpointStore'
-import { GitExitError, GitMissingError, processGitProcess } from '../../src/host/git'
+import { WriteJournal } from '../../src/host/checkpoints/writeJournal'
+import { GitMissingError, processGitProcess } from '../../src/host/git'
 import { requireFile } from '../../src/host/lazyBundle'
 import {
   CHECKPOINT_FENCED_WINDOW,
@@ -63,42 +64,36 @@ async function storeDeps(): Promise<CheckpointStoreDeps> {
     newId: () => randomUUID(),
     pid: process.pid,
     isProcessAlive: () => true,
+    openJournal: (instance) => new WriteJournal({ storageDir: h.storage, instance }),
     log: h.log,
   }
 }
 
-describe('the checkpoint store bundle (M72)', () => {
+describe('the checkpoint store bundle (M72, M86)', () => {
   it(
-    'captures with native Git while preserving an activation-copy exit-one config error',
+    'starts and ends a unit with native Git through the built factory',
     async () => {
       const deps = await storeDeps()
-      const nativeGit = processGitProcess()
       const store = checkpointStoreLoader({
         bundlePath: built.file,
         log: deps.log,
-      })().createCheckpointStore(
-        {
-          ...deps,
-          git: async (args, options) => {
-            if (args.includes('core.excludesFile')) throw new GitExitError(1, '', 'config')
-            return await nativeGit(args, options)
-          },
-        },
-        UI_TEXT,
-        uiLocale(),
-      )
+      })().createCheckpointStore(deps, UI_TEXT, uiLocale())
       stores.push(store)
-      writeFileSync(path.join(deps.workspaceRoot, 'owned.txt'), 'captured native bytes')
-      const captured = await store.capture()
-      expect(captured).toMatchObject({ ok: true })
-      if (!captured.ok) throw new Error('Expected real native capture')
-      await store.release(captured.snapshot)
+      const unit = {
+        instance: store.instance,
+        sessionId: 's1',
+        unitKind: 'turn',
+        unitId: 't1',
+      } as const
+      await expect(store.startUnit(unit)).resolves.toEqual({ sequence: 1 })
+      await store.endUnit(unit, { ranProcesses: false })
+      expect(await store.turns('s1')).toEqual(['t1'])
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'captures in the relative repository spelling and refuses a path git cannot open, through the built factory',
+    'records in the relative repository spelling and refuses a path git cannot open, through the built factory',
     async () => {
       const deps = await storeDeps()
       const module = checkpointStoreLoader({ bundlePath: built.file, log: deps.log })()
@@ -121,11 +116,13 @@ describe('the checkpoint store bundle (M72)', () => {
         uiLocale(),
       )
       stores.push(relative)
-      writeFileSync(path.join(deps.workspaceRoot, 'owned.txt'), 'captured native bytes')
-      const captured = await relative.capture()
-      expect(captured).toMatchObject({ ok: true })
-      if (!captured.ok) throw new Error('Expected real native capture')
-      await relative.release(captured.snapshot)
+      const unit = {
+        instance: relative.instance,
+        sessionId: 's1',
+        unitKind: 'turn',
+        unitId: 't1',
+      } as const
+      await expect(relative.startUnit(unit)).resolves.toEqual({ sequence: 1 })
       // Only the repository's commands carry GIT_DIR, and every one is relative.
       expect([...gitDirs].filter((dir) => dir !== undefined)).toEqual(['shadow.git'])
       const refused = module.createCheckpointStore(
@@ -134,15 +131,12 @@ describe('the checkpoint store bundle (M72)', () => {
         uiLocale(),
       )
       stores.push(refused)
-      await expect(refused.capture()).resolves.toMatchObject({
-        ok: false,
-        reason: 'pathTooLong',
-      })
+      await expect(refused.turns('s1')).rejects.toThrow('storage path is')
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
-  it('keeps activation-copy missing-Git refusal distinct from a failed capture', async () => {
+  it('passes a missing Git through to the caller, which tells it from a failure', async () => {
     const deps = await storeDeps()
     const store = checkpointStoreLoader({
       bundlePath: built.file,
@@ -156,7 +150,7 @@ describe('the checkpoint store bundle (M72)', () => {
       uiLocale(),
     )
     stores.push(store)
-    await expect(store.capture()).resolves.toMatchObject({ ok: false, reason: 'noGit' })
+    await expect(store.turns('s1')).rejects.toBeInstanceOf(GitMissingError)
   })
 
   it('loads once at construction and preserves immediate activity, safety and disposal', async () => {

@@ -1,27 +1,23 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
-import { copyFile, mkdir, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
-import { turnKey } from '../../src/core/checkpoints/turnKey'
+import type { Owner } from '../../src/core/checkpoints/toolWrites'
 import { ShellEntryError } from '../../src/core/shellResult'
 import {
   type CheckpointPort,
   type CheckpointStoreApi,
   createCheckpointPort,
+  finishCheckpointTurn,
   prepareCheckpointTurn,
   withCheckpointCopies,
+  withCheckpointEdit,
   withCheckpointEditAt,
 } from '../../src/host/checkpoints/checkpointHost'
-import { ignoredChanges, scanIgnored } from '../../src/host/checkpoints/ignoredScan'
-import {
-  CHECKPOINT_IGNORED_FOLDER_MAX_FILES,
-  CHECKPOINT_IGNORED_SCAN_MAX_FILES,
-  type CheckpointAvailability,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { type CheckpointAvailability, MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import {
   createGitProcess,
   GitExitError,
@@ -30,11 +26,12 @@ import {
 } from '../../src/host/git'
 import {
   harness,
-  isPresent,
   read,
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   restoreOutcome,
+  storedUnit,
+  toolWrite,
   write,
 } from './helpers/checkpointHarness'
 import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
@@ -55,22 +52,24 @@ function fakeStore() {
     return Promise.resolve()
   }
   const store: CheckpointStoreApi = {
+    instance: 'this-window',
     isNativeUnsafe: false,
-    hasOpenTurn: false,
-    isStoragePath: () => false,
+    isStoragePath: (absolutePath) => absolutePath.startsWith('/storage/'),
     markNativeBackend: () => done('native'),
     markUnprovenProcess: () => done('unproved'),
-    capture: () => {
-      calls.push('capture')
-      return Promise.resolve({ ok: false as const, reason: 'failed' as const, detail: 'x' })
+    startUnit: (owner) => {
+      calls.push(`start ${owner.sessionId} ${owner.unitId}`)
+      return Promise.resolve({ sequence: 1 })
     },
-    release: () => done('release'),
-    record: (sessionId) => done(`record ${sessionId}`),
+    endUnit: (owner, end) => done(`end ${owner.unitId} ${String(end.ranProcesses)}`),
     markTurn: (key, isRunning) => done(`mark ${key} ${String(isRunning)}`),
-    endTurn: (sessionId) => done(`end ${sessionId}`),
     turns: () => {
       calls.push('turns')
       return Promise.resolve(['t1'])
+    },
+    legacyTurns: () => {
+      calls.push('legacy')
+      return Promise.resolve(['m72'])
     },
     restore: () => {
       calls.push('restore')
@@ -84,13 +83,6 @@ function fakeStore() {
     unforgetSession: (sessionId) => done(`unforget ${sessionId}`),
     queueForget: (sessionId) => done(`queue ${sessionId}`),
     maintain: () => done('maintain'),
-    noteUserSave: (absolutePath) => {
-      calls.push(`saved ${absolutePath}`)
-    },
-    beforeToolWrite: (absolutePath) => {
-      calls.push(`copy ${absolutePath}`)
-      return Promise.reject(new Error('the staging folder is full'))
-    },
   }
   return { store, calls }
 }
@@ -143,18 +135,10 @@ const PROVEN_SHELL = {
   isWorkspaceShutdownProven: true as const,
 }
 
-const NO_SNAPSHOT = {
-  tree: 't',
-  coverage: { skipped: [], repositories: [] },
-  inventory: { files: new Map(), skippedFolders: [], isPartial: false },
-  createdAt: 0,
-  startedAt: 0,
-  startedWallAt: 0,
-  pin: 'refs/muse-spark/pin/1',
-  folders: [],
-}
-
-function portOver(posture: { isTrusted: boolean; isEnabled: boolean; hasGit: boolean }) {
+function portOver(
+  posture: { isTrusted: boolean; isEnabled: boolean; hasGit: boolean },
+  log = new FakeLogOutputChannel(),
+) {
   const { store, calls } = fakeStore()
   const port = createCheckpointPort({
     isNamespaceKnown: () => true,
@@ -162,23 +146,32 @@ function portOver(posture: { isTrusted: boolean; isEnabled: boolean; hasGit: boo
     isWorkspaceTrusted: () => posture.isTrusted,
     isEnabled: () => posture.isEnabled,
     hasGit: () => posture.hasGit,
+    legacyTurns: () => {
+      calls.push('older legacy')
+      return Promise.resolve(['m70', 'm72'])
+    },
+    log,
   })
-  return { port, calls }
+  return { port, calls, store }
 }
 
-/** A port that neither takes a capture nor offers a turn or a restore. */
+const OWNER: Owner = { instance: 'this-window', sessionId: 's1', unitKind: 'turn', unitId: 't1' }
+
+/** A port that neither records a unit nor offers a turn or a restore. */
 async function expectNothingOffered(
   port: CheckpointPort,
   availability: CheckpointAvailability,
 ): Promise<void> {
   expect(port.availability()).toBe(availability)
-  expect(await port.capture()).toBeUndefined()
+  expect(await port.startTurnUnit('s1', 't1', false)).toBeUndefined()
   expect(await port.turns('s1')).toEqual([])
+  expect(await port.legacyTurns('s1')).toEqual([])
   expect(
     await port.restore({
       backend: () => 'modelApi',
       sessionId: 's1',
       turnId: 't1',
+      transcriptTurnIds: ['t1'],
       unsavedPaths: () => [],
     }),
   ).toEqual({
@@ -187,7 +180,7 @@ async function expectNothingOffered(
   })
 }
 
-describe('createCheckpointPort (M72)', () => {
+describe('createCheckpointPort (M72, M86)', () => {
   it('refuses unknown canonical namespaces before any process or turn can start', async () => {
     const { store, calls } = fakeStore()
     const port = createCheckpointPort({
@@ -196,6 +189,7 @@ describe('createCheckpointPort (M72)', () => {
       isWorkspaceTrusted: () => true,
       isEnabled: () => true,
       hasGit: () => true,
+      log: new FakeLogOutputChannel(),
     })
     await expectNothingOffered(port, 'noFolder')
     await expect(port.markNativeBackend()).rejects.toThrow(UI_TEXT.checkpointsNativeUnsafe)
@@ -216,58 +210,67 @@ describe('createCheckpointPort (M72)', () => {
     const { port, calls } = portOver({ isTrusted: false, isEnabled: true, hasGit: true })
     await expectNothingOffered(port, 'restricted')
     expect(
-      await port.redo({ backend: () => 'modelApi', restoreId: 'r1', unsavedPaths: () => [] }),
+      await port.redo({
+        backend: () => 'modelApi',
+        sourceSessionId: 's1',
+        restoreId: 'r1',
+        unsavedPaths: () => [],
+      }),
     ).toEqual({
       ok: false,
       reason: 'unavailable',
     })
-    await port.endTurn('s1', 't1')
+    expect(await port.startTurnUnit('s1', 'child', true)).toBeUndefined()
+    await port.endUnit(OWNER, { ranProcesses: false })
     await port.maintain()
     await port.forgetSession('s1')
     await port.markTurn('k1', true)
     expect(calls).toEqual(['queue s1', 'mark k1 true'])
   })
 
-  it('with the setting off takes and offers nothing new, but finishes what is under way', async () => {
+  it('with the setting off records nothing new, but ends what is under way and a child of a recording turn', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
     await expectNothingOffered(port, 'off')
-    await port.record('s1', 't1', NO_SNAPSHOT)
-    await port.endTurn('s1', 't1')
-    await port.redo({ backend: () => 'modelApi', restoreId: 'r1', unsavedPaths: () => [] })
+    expect(await port.startTurnUnit('s1', 'child', true)).toEqual({
+      instance: 'this-window',
+      sessionId: 's1',
+      unitKind: 'turn',
+      unitId: 'child',
+    })
+    await port.endUnit(OWNER, { ranProcesses: true })
+    await port.redo({
+      backend: () => 'modelApi',
+      sourceSessionId: 's1',
+      restoreId: 'r1',
+      unsavedPaths: () => [],
+    })
     await port.forgetSession('s1')
     await port.maintain()
-    port.noteUserSave('/ws/mine.txt')
-    expect(calls).toEqual([
-      'release',
-      'end s1',
-      'redo',
-      'forget s1',
-      'maintain',
-      'saved /ws/mine.txt',
-    ])
+    expect(calls).toEqual(['start s1 child', 'end t1 true', 'redo', 'forget s1', 'maintain'])
   })
 
   it('says when git is missing, and runs none', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: false })
     expect(port.availability()).toBe('noGit')
-    expect(await port.capture()).toBeUndefined()
+    expect(await port.startTurnUnit('s1', 't1', false)).toBeUndefined()
     await port.maintain()
     expect(calls).toEqual([])
   })
 
-  it('takes and offers checkpoints when on', async () => {
+  it('records and offers units when on, and lists both versions’ legacy turns once', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     expect(port.availability()).toBe('on')
-    await port.capture()
-    await port.record('s1', 't1', NO_SNAPSHOT)
+    expect(await port.startTurnUnit('s1', 't1', false)).toEqual(OWNER)
     expect(await port.turns('s1')).toEqual(['t1'])
+    expect(await port.legacyTurns('s1')).toEqual(['m70', 'm72'])
     await port.restore({
       backend: () => 'modelApi',
       sessionId: 's1',
       turnId: 't1',
+      transcriptTurnIds: ['t1'],
       unsavedPaths: () => [],
     })
-    expect(calls).toEqual(['capture', 'record s1', 'turns', 'restore'])
+    expect(calls).toEqual(['start s1 t1', 'turns', 'older legacy', 'legacy', 'restore'])
   })
 
   it('has no folder to checkpoint without a store', async () => {
@@ -277,77 +280,122 @@ describe('createCheckpointPort (M72)', () => {
       isWorkspaceTrusted: () => true,
       isEnabled: () => true,
       hasGit: () => true,
+      log: new FakeLogOutputChannel(),
     })
     expect(port.availability()).toBe('noFolder')
-    expect(await port.capture()).toBeUndefined()
+    expect(await port.startTurnUnit('s1', 't1', false)).toBeUndefined()
+  })
+
+  it('refuses a tool write into the checkpoint storage whatever the setting', () => {
+    for (const isEnabled of [true, false]) {
+      const { port } = portOver({ isTrusted: true, isEnabled, hasGit: true })
+      expect(() => {
+        port.refuseStorageWrite('/storage/shadow.git/config')
+      }).toThrow(MODEL_TEXT.checkpointStorageWrite)
+      expect(() => {
+        port.refuseStorageWrite('/ws/a.txt')
+      }).not.toThrow()
+    }
+  })
+
+  it('withdraws a mark without throwing, and logs what failed', async () => {
+    const log = new FakeLogOutputChannel()
+    const { port, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true }, log)
+    store.markTurn = () => Promise.reject(new Error('the presence folder is read-only'))
+    await expect(port.withdrawMark('k1')).resolves.toBeUndefined()
+    expect(JSON.stringify(log.warn.mock.calls)).toContain('not withdrawn')
   })
 })
 
-describe('prepareCheckpointTurn (M72)', () => {
-  it('awaits capture and durable record before admitting queued or scheduled edits', async () => {
-    const { store, calls } = fakeStore()
-    const captured = Promise.withResolvers<undefined>()
+describe('prepareCheckpointTurn and finishCheckpointTurn (M86)', () => {
+  it('awaits the unit’s record before admitting queued or scheduled edits', async () => {
+    const { port, calls, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     const persisted = Promise.withResolvers<undefined>()
-    store.capture = async () => {
-      calls.push('capture')
-      await captured.promise
-      return { ok: true, snapshot: NO_SNAPSHOT }
-    }
-    store.record = async () => {
-      calls.push('record')
+    store.startUnit = async () => {
+      calls.push('start')
       await persisted.promise
+      return { sequence: 1 }
     }
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => true,
-      hasGit: () => true,
-    })
     let isAdmitted = false
     const preparation = (async () => {
       await prepareCheckpointTurn(port, 's1', 't2', new FakeLogOutputChannel())
       isAdmitted = true
     })()
     await vi.waitFor(() => {
-      expect(calls).toContain('capture')
-    })
-    expect(isAdmitted).toBe(false)
-    captured.resolve(undefined)
-    await vi.waitFor(() => {
-      expect(calls).toContain('record')
+      expect(calls).toContain('start')
     })
     expect(isAdmitted).toBe(false)
     persisted.resolve(undefined)
     await preparation
     expect(isAdmitted).toBe(true)
+    expect(calls).toEqual(['mark s1\0t2 true', 'start'])
   })
 
-  it('reuses the checkpoint already captured for the panel submission', async () => {
-    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
-    await prepareCheckpointTurn(port, 's1', 't1', new FakeLogOutputChannel())
-    expect(calls).toEqual(['mark s1\0t1 true', 'turns'])
-  })
-
-  it('releases a refused preimage and logs failure kind without storage paths', async () => {
-    const { store, calls } = fakeStore()
-    store.capture = () => Promise.resolve({ ok: true, snapshot: NO_SNAPSHOT })
-    store.record = () => Promise.reject(new Error('EACCES /private/profile/store'))
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => true,
-      hasGit: () => true,
+  it('marks a turn running and records nothing while checkpoints are off', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    expect(await prepareCheckpointTurn(port, 's1', 't1', new FakeLogOutputChannel())).toEqual({
+      kind: 'off',
     })
+    expect(calls).toEqual(['mark s1\0t1 true'])
+  })
+
+  it('says a record failed, logging its kind without storage paths', async () => {
+    const { port, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    store.startUnit = () => Promise.reject(new Error('EACCES /private/profile/store'))
     const log = new FakeLogOutputChannel()
-    await prepareCheckpointTurn(port, 's1', 't2', log)
-    expect(calls).toContain('release')
+    expect(await prepareCheckpointTurn(port, 's1', 't2', log)).toEqual({ kind: 'failed' })
     expect(JSON.stringify(log.warn.mock.calls)).not.toContain('/private/profile')
+  })
+
+  it('ends a recording unit before withdrawing its mark, and keeps the mark when the end fails', async () => {
+    const { port, calls, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    await finishCheckpointTurn(
+      port,
+      's1',
+      't1',
+      { kind: 'recording', owner: OWNER },
+      {
+        ranProcesses: true,
+      },
+    )
+    await finishCheckpointTurn(port, 's1', 't2', { kind: 'off' }, { ranProcesses: false })
+    expect(calls).toEqual(['end t1 true', 'mark s1\0t1 false', 'mark s1\0t2 false'])
+    calls.length = 0
+    store.endUnit = () => Promise.reject(new Error('the seal failed'))
+    await expect(
+      finishCheckpointTurn(
+        port,
+        's1',
+        't1',
+        { kind: 'recording', owner: OWNER },
+        {
+          ranProcesses: false,
+        },
+      ),
+    ).rejects.toThrow('the seal failed')
+    expect(calls).toEqual([])
   })
 })
 
-describe('withCheckpointCopies (M72)', () => {
+describe('withCheckpointEdit (M72, M86)', () => {
+  it('V: reports a completed edit as done when its lease cannot be let go, and logs it', async () => {
+    const log = new FakeLogOutputChannel()
+    const { port, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true }, log)
+    store.markTurn = (_key, isRunning) =>
+      isRunning ? Promise.resolve() : Promise.reject(new Error('the presence write failed'))
+    await expect(withCheckpointEdit(port, vi.fn(), () => Promise.resolve('edited'))).resolves.toBe(
+      'edited',
+    )
+    // Logged by its kind only, never its text (rule 8).
+    expect(JSON.stringify(log.warn.mock.calls)).toContain('A running mark was not withdrawn yet')
+    // A failed edit still fails with its own error.
+    await expect(
+      withCheckpointEdit(port, vi.fn(), () => Promise.reject(new Error('EPERM'))),
+    ).rejects.toThrow('EPERM')
+  })
+})
+
+describe('withCheckpointCopies (M72, M86)', () => {
   it('awaits an activity mark before starting shell or hook work', async () => {
     const { store, calls } = fakeStore()
     const entered = Promise.withResolvers<undefined>()
@@ -365,17 +413,9 @@ describe('withCheckpointCopies (M72)', () => {
       isWorkspaceTrusted: () => true,
       isEnabled: () => false,
       hasGit: () => true,
+      log: new FakeLogOutputChannel(),
     })
-    const work = vi.fn(() =>
-      Promise.resolve({
-        stdout: '',
-        stderr: '',
-        exitCode: 0,
-        isTimedOut: false,
-        isCancelled: false,
-        isWorkspaceShutdownProven: true as const,
-      }),
-    )
+    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
     const io = withCheckpointCopies(
       { ...noopToolIo, runShell: enteringShell(work), runHook: work },
       port,
@@ -443,94 +483,67 @@ describe('withCheckpointCopies (M72)', () => {
     expect(result.exitCode).toBe(0)
   })
 
-  it('copies before each tool write, and a copy that fails fails the write', async () => {
-    const { store, calls } = fakeStore()
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => true,
-      hasGit: () => true,
-    })
+  it('refuses a tool write into the checkpoint storage before it starts, and records nothing', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     const writes: string[] = []
     const io: ToolIo = {
       ...noopToolIo,
       writeFile: (absolutePath) => {
         writes.push(absolutePath)
-        calls.push(`write ${absolutePath}`)
         return Promise.resolve()
       },
     }
     const wrapped = withCheckpointCopies(io, port)
-    await expect(wrapped.writeFile('/ws/.env', 'KEY=1')).rejects.toThrow(
-      'the staging folder is full',
+    await expect(wrapped.writeFile('/storage/shadow.git/config', 'x')).rejects.toThrow(
+      MODEL_TEXT.checkpointStorageWrite,
     )
-    await expect(wrapped.reserveFile('/ws/image.png')).rejects.toThrow('the staging folder is full')
+    await expect(wrapped.reserveFile('/storage/image.png')).rejects.toThrow(
+      MODEL_TEXT.checkpointStorageWrite,
+    )
     await expect(
-      wrapped.writeFileIfUnchanged('/ws/.env', 'expected', 'KEY=2', {
-        expectedCanonicalPath: '/ws/.env',
+      wrapped.writeFileIfUnchanged('/storage/a', 'expected', 'x', {
+        expectedCanonicalPath: '/storage/a',
         unsavedAt: [],
       }),
-    ).rejects.toThrow('the staging folder is full')
-    expect(calls).toEqual(['copy /ws/.env', 'copy /ws/image.png', 'copy /ws/.env'])
-    expect(writes).toEqual([])
+    ).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
+    await wrapped.writeFile('/ws/a.txt', 'x')
+    expect(writes).toEqual(['/ws/a.txt'])
+    expect(calls).toEqual([])
   })
 })
 
-describe('the setting switched off while a turn is under way (M72)', () => {
+describe('a unit under way when the setting goes off (M86)', () => {
   afterEach(removeCheckpointFolders)
 
-  const ENV_BEFORE = 'KEY=before\n'
-
-  /** A real store with an ignored `.env`, behind a port whose setting the test flips. */
-  async function switchable() {
-    const h = await harness()
-    await write(h.root, '.gitignore', '.env\n')
-    await write(h.root, '.env', ENV_BEFORE)
-    const setting = { isEnabled: true }
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store: h.store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => setting.isEnabled,
-      hasGit: () => true,
-    })
-    const io = withCheckpointCopies(
-      { ...noopToolIo, writeFile: (file, content) => writeFile(file, content) },
-      port,
-    )
-    return { h, setting, port, io }
-  }
-
   it(
-    'keeps copying for a turn whose start was recorded, so its restore puts an ignored file back',
+    'ends a unit that started recording, so its restore puts the file back once the setting is on again',
     async () => {
-      const { h, setting, port, io } = await switchable()
-      await prepareCheckpointTurn(port, 's1', 't1', h.log)
+      const h = await harness()
+      await write(h.root, '.env', 'KEY=before\n')
+      const setting = { isEnabled: true }
+      const port = createCheckpointPort({
+        isNamespaceKnown: () => true,
+        store: h.store,
+        isWorkspaceTrusted: () => true,
+        isEnabled: () => setting.isEnabled,
+        hasGit: () => true,
+        log: new FakeLogOutputChannel(),
+      })
+      const recording = await prepareCheckpointTurn(port, 's1', 't1', h.log)
+      if (recording.kind !== 'recording') {
+        throw new Error('expected a recording turn')
+      }
       setting.isEnabled = false
-      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
-      await port.endTurn('s1', 't1')
-      await port.markTurn(turnKey('s1', 't1'), false)
+      await toolWrite(h.store, recording.owner, h.root, '.env', 'KEY=after\n')
+      await finishCheckpointTurn(port, 's1', 't1', recording, { ranProcesses: false })
+      expect(storedUnit(h.storage, 't1').status).toBe('complete')
       setting.isEnabled = true
       expect(await restoreOutcome(port, 't1')).toMatchObject({
         ok: true,
         changed: ['.env'],
         refused: [],
       })
-      expect(await read(h.root, '.env')).toBe(ENV_BEFORE)
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'takes no copy with the setting off and no recorded turn open',
-    async () => {
-      const { h, setting, port, io } = await switchable()
-      setting.isEnabled = false
-      await prepareCheckpointTurn(port, 's1', 't1', h.log)
-      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
-      expect(await isPresent(h.storage, 'staging')).toBe(false)
-      expect(await read(h.root, '.env')).toBe('KEY=after\n')
+      expect(await read(h.root, '.env')).toBe('KEY=before\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -625,58 +638,6 @@ describe('withCheckpointEditAt (M72)', () => {
   )
 })
 
-describe('the ignored-file scan (M72)', () => {
-  it('reads sizes and times, walks a small ignored folder, and leaves out a large one', async () => {
-    const root = path.join(base, 'scan')
-    await mkdir(path.join(root, 'dist'), { recursive: true })
-    await mkdir(path.join(root, 'huge'), { recursive: true })
-    await writeFile(path.join(root, '.env'), 'A=1')
-    await writeFile(path.join(root, 'dist', 'a.js'), 'x')
-    for (let index = 0; index <= CHECKPOINT_IGNORED_FOLDER_MAX_FILES; index += 1) {
-      await writeFile(path.join(root, 'huge', `f${String(index)}`), '')
-    }
-    const { inventory } = await scanIgnored(root, ['.env'], ['dist', 'huge'])
-    const scanned = [...inventory.files].map(([key]) => key).toSorted((a, b) => a.localeCompare(b))
-    expect(scanned).toEqual(['.env', 'dist/a.js'])
-    expect(inventory.files.get('.env')?.size).toBe(3)
-    expect(inventory.skippedFolders).toEqual(['huge'])
-    expect(inventory.isPartial).toBe(false)
-    expect(CHECKPOINT_IGNORED_SCAN_MAX_FILES).toBeGreaterThan(CHECKPOINT_IGNORED_FOLDER_MAX_FILES)
-  })
-
-  it('tells created, changed and deleted files apart, and says nothing where it did not look', () => {
-    const start = {
-      files: new Map([
-        ['kept.log', { size: 1, mtimeMs: 1 }],
-        ['changed.log', { size: 1, mtimeMs: 1 }],
-        ['deleted.log', { size: 1, mtimeMs: 1 }],
-      ]),
-      skippedFolders: ['node_modules'],
-      isPartial: false,
-    }
-    const end = {
-      files: new Map([
-        ['kept.log', { size: 1, mtimeMs: 1 }],
-        ['changed.log', { size: 2, mtimeMs: 5 }],
-        ['new.log', { size: 3, mtimeMs: 6 }],
-        ['node_modules/x/added.js', { size: 1, mtimeMs: 6 }],
-      ]),
-      skippedFolders: [],
-      isPartial: false,
-    }
-    expect(ignoredChanges(start, end)).toEqual([
-      {
-        path: 'changed.log',
-        kind: 'changed',
-        startStat: { size: 1, mtimeMs: 1 },
-        endStat: { size: 2, mtimeMs: 5 },
-      },
-      { path: 'deleted.log', kind: 'deleted', startStat: { size: 1, mtimeMs: 1 }, endStat: null },
-      { path: 'new.log', kind: 'created', startStat: null, endStat: { size: 3, mtimeMs: 6 } },
-    ])
-  })
-})
-
 describe('createGitProcess (M72)', () => {
   const git = processGitProcess()
   const env = process.env
@@ -698,17 +659,17 @@ describe('createGitProcess (M72)', () => {
   })
 
   it('rejects when git is only reachable relatively, without running anything', async () => {
-    const spawn = vi.fn()
+    const spawnFake = vi.fn()
     const relative = createGitProcess({
       platform: 'linux',
       env: { PATH: '.:bin' },
       fileExists: () => true,
-      spawn,
+      spawn: spawnFake,
     })
     await expect(
       relative(['status'], { cwd: base, env: {}, timeoutMs: 1000 }),
     ).rejects.toBeInstanceOf(GitMissingError)
-    expect(spawn).not.toHaveBeenCalled()
+    expect(spawnFake).not.toHaveBeenCalled()
   })
 
   it('ends a running command when the window closes, and starts none after', async () => {

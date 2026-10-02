@@ -1,176 +1,160 @@
-import {
-  chmod,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  stat,
-  symlink,
-  utimes,
-  writeFile,
-} from 'node:fs/promises'
+import { chmod, mkdir, readFile, stat, symlink, utimes, writeFile, rename } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as atomic from '../../src/host/fsAtomic'
 import {
   BYTES_PER_MIB,
-  CHECKPOINT_IGNORED_SCAN_MAX_FILES,
   CHECKPOINT_STALE_LOCK_MS,
   CHECKPOINT_STORAGE_MODE,
 } from '../../src/shared/constants'
-import { GitMissingError, type GitProcess, processGitProcess } from '../../src/host/git'
+import { processGitProcess } from '../../src/host/git'
 import { turnKey } from '../../src/host/checkpoints/checkpointStore'
 import {
-  captured,
   restoreOutcome,
   harness,
   isPresent,
-  leftovers,
   namesIn,
+  owner,
   read,
   REAL_GIT_TIMEOUT_MS,
   redoRestore,
   removeCheckpointFolders,
   restoreTurn,
-  storedRecords,
+  shadowGit,
+  shadowRefs,
+  storedUnits,
+  toolWrite,
   turn,
+  twoConversations,
+  twoFileTurn,
   write,
 } from './helpers/checkpointHarness'
 
-// The guards the review of 4ce27cb8 asked for (M72), over real git: links
-// and junctions, deletions before writes, a restore that stops part way, a
-// redo that cannot do everything, overlapping conversations, pinned
-// captures, the cleanup that runs when a window opens.
+// The guards over real git (M72, M86): links and junctions, deletions before
+// writes, a restore that stops part way, a Redo that cannot do everything,
+// overlapping conversations, the cleanup that runs when a window opens.
 afterEach(async () => {
   await removeCheckpointFolders()
 })
+vi.mock('../../src/host/fsAtomic', async (importOriginal) => ({
+  ...(await importOriginal<typeof atomic>()),
+}))
 
 const realGit = processGitProcess()
 const GONE_PID = 424_242
-const WRITE_BATCH = 500
 const SHA256_HEX_LENGTH = 64
 // How long the first `git init` waits for a second setup to reach its own:
 // one gets there in milliseconds when the setup is not shared.
 const SECOND_SETUP_WAIT_MS = 1000
+const CASE_FOLDING = new Set<NodeJS.Platform>(['win32', 'darwin'])
 
-/** The real git, failing the commands `shouldFail` names. */
-function failingGit(shouldFail: (args: readonly string[]) => boolean): GitProcess {
-  return async (args, options) => {
-    if (shouldFail(args)) {
-      throw new Error('the test failed this git command')
-    }
-    return await realGit(args, options)
-  }
-}
-
-describe('CheckpointStore and links (M72)', () => {
+describe('CheckpointStore and links (M72, M86)', () => {
   it(
-    'leaves out a folder a turn linked in, and never restores through it',
+    'leaves a file the tools wrote alone once a junction leads to it, and never writes through it',
     async () => {
       const h = await harness()
       await write(h.root, 'c/x.txt', 'the user’s file\n')
-      await turn(h, 't1', async () => {
-        await symlink(path.join(h.root, 'c'), path.join(h.root, 'a'), 'junction')
-      })
+      await turn(h, 't1', (tool) => tool('a/x.txt', 'written by the tool\n'))
+      // The user swaps the tool's folder for a junction to their own.
+      await rename(path.join(h.root, 'a'), path.join(h.root, 'old-a'))
+      await symlink(path.join(h.root, 'c'), path.join(h.root, 'a'), 'junction')
       const outcome = await restoreTurn(h.store, 't1')
       expect(await read(h.root, 'c/x.txt')).toBe('the user’s file\n')
       expect(outcome.changed).toEqual([])
-      expect(outcome.refused).toEqual([{ path: 'a', reason: 'notInCheckpoint' }])
-      const after = await captured(h.store)
-      expect(after.coverage.skipped).toEqual(['a'])
+      expect(outcome.refused).toEqual([{ path: 'a/x.txt', reason: 'linked' }])
     },
     REAL_GIT_TIMEOUT_MS,
   )
 })
 
-describe('CheckpointStore order of steps (M72)', () => {
+describe('CheckpointStore order of steps (M72, M86)', () => {
   it(
-    'restores a case-only rename and a file swapped for a folder',
+    'puts back a file the tools swapped for a folder, deleting before writing, and redoes it',
     async () => {
       const h = await harness()
-      await write(h.root, 'Readme.md', 'readme\n')
       await write(h.root, 'x', 'a file\n')
-      await turn(h, 't1', async () => {
-        await rename(path.join(h.root, 'Readme.md'), path.join(h.root, 'README.md'))
-        await rm(path.join(h.root, 'x'))
-        await write(h.root, 'x/y.txt', 'now a folder\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('x', null)
+        await tool('x/y.txt', 'now a folder\n')
       })
       const outcome = await restoreTurn(h.store, 't1')
       expect(outcome.refused).toEqual([])
-      expect(await namesIn(h.root)).toContain('Readme.md')
-      expect(await namesIn(h.root)).not.toContain('README.md')
-      expect(await read(h.root, 'Readme.md')).toBe('readme\n')
       expect(await read(h.root, 'x')).toBe('a file\n')
       await redoRestore(h.store, outcome.restoreId)
-      expect(await namesIn(h.root)).toContain('README.md')
       expect(await read(h.root, 'x/y.txt')).toBe('now a folder\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
+  it(
+    'merges two spellings that now name one file, as the volume compares names',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'Readme.md', 'readme\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('Readme.md', null)
+        await tool('README.md', 'readme\n')
+      })
+      const outcome = await restoreTurn(h.store, 't1')
+      expect(outcome.refused).toEqual([])
+      if (CASE_FOLDING.has(process.platform)) {
+        // One file, its bytes as they were: nothing to do, whatever its name's case.
+        expect(outcome.unchanged).toEqual(['README.md'])
+        expect(await read(h.root, 'README.md')).toBe('readme\n')
+      } else {
+        // Two files on a volume that tells case apart: each goes back.
+        expect(new Set(outcome.changed)).toEqual(new Set(['README.md', 'Readme.md']))
+        expect(await namesIn(h.root)).toContain('Readme.md')
+        expect(await namesIn(h.root)).not.toContain('README.md')
+      }
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
 })
 
-describe('CheckpointStore failures part way (M72)', () => {
+describe('CheckpointStore failures part way (M72, M86)', () => {
   it(
-    'says what a restore changed before it stopped, and keeps its Redo',
+    'says what a restore changed when a file could not be written, and keeps its Redo',
     async () => {
-      let isFailing = false
-      const h = await harness({
-        gitProcess: failingGit((args) => isFailing && args.includes('check-ignore')),
-      })
-      await write(h.root, '.gitignore', 'old-rule\n')
-      await write(h.root, 'a.txt', 'a0\n')
-      await turn(h, 't1', async () => {
-        await write(h.root, '.gitignore', 'new-rule\n')
-        await write(h.root, 'a.txt', 'a1\n')
-        await write(h.root, 'added.txt', 'new\n')
-      })
-      isFailing = true
-      const outcome = await restoreTurn(h.store, 't1')
-      isFailing = false
-      expect(outcome.changed).toEqual(['.gitignore'])
-      expect(outcome.refused.toSorted((x, y) => x.path.localeCompare(y.path))).toEqual([
-        { path: 'a.txt', reason: 'failed' },
-        { path: 'added.txt', reason: 'failed' },
-      ])
-      expect(outcome.restoreId).toBeDefined()
-      expect(await read(h.root, '.gitignore')).toBe('old-rule\n')
-      await redoRestore(h.store, outcome.restoreId)
-      expect(await read(h.root, '.gitignore')).toBe('new-rule\n')
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'names each added path to the ignore check as a path, never as pathspec magic',
-    async () => {
-      const inputs: string[] = []
-      const h = await harness({
-        gitProcess: async (args, options) => {
-          if (args.includes('check-ignore') && typeof options.input === 'string') {
-            inputs.push(...options.input.split('\0').filter((entry) => entry !== ''))
+      const h = await harness()
+      await twoFileTurn(h)
+      const original = atomic.writeFileIfUnchanged
+      const spy = vi
+        .spyOn(atomic, 'writeFileIfUnchanged')
+        .mockImplementation(async (file, expected, content, options) => {
+          if (file === path.join(h.root, 'b.txt')) {
+            throw new Error('injected write failure')
           }
-          return await realGit(args, options)
-        },
-      })
-      await turn(h, 't1', async () => {
-        await write(h.root, 'added.txt', 'new\n')
-      })
-      await restoreTurn(h.store, 't1')
-      expect(inputs).toEqual(['./added.txt'])
-      expect(await isPresent(h.root, 'added.txt')).toBe(false)
+          return await original(file, expected, content, options)
+        })
+      let outcome: Awaited<ReturnType<typeof restoreTurn>>
+      try {
+        outcome = await restoreTurn(h.store, 't1')
+      } finally {
+        spy.mockRestore()
+      }
+      expect(outcome.changed).toEqual(['a.txt'])
+      expect(outcome.refused).toEqual([{ path: 'b.txt', reason: 'failed' }])
+      expect(outcome.restoreId).toBeDefined()
+      expect(await read(h.root, 'a.txt')).toBe('a0\n')
+      expect(await read(h.root, 'b.txt')).toBe('b1\n')
+      const redo = await redoRestore(h.store, outcome.restoreId)
+      expect(redo.changed).toEqual(['a.txt'])
+      expect(await read(h.root, 'a.txt')).toBe('a1\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'keeps a redo’s undone part: a file changed since the restore stays, and can be redone later',
+    'keeps a Redo’s undone part: a file changed since the restore stays, and can be redone later',
     async () => {
       const h = await harness()
       await write(h.root, 'redone.txt', 'a0\n')
       await write(h.root, 'user.txt', 'b0\n')
-      await turn(h, 't1', async () => {
-        await write(h.root, 'redone.txt', 'a1\n')
-        await write(h.root, 'user.txt', 'b1\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('redone.txt', 'a1\n')
+        await tool('user.txt', 'b1\n')
       })
       const restored = await restoreTurn(h.store, 't1')
       await write(h.root, 'user.txt', 'the user again\n')
@@ -182,6 +166,7 @@ describe('CheckpointStore failures part way (M72)', () => {
       await write(h.root, 'user.txt', 'b0\n')
       const again = await redoRestore(h.store, restored.restoreId)
       expect(again.changed).toEqual(['user.txt'])
+      expect(again.unchanged).toEqual(['redone.txt'])
       expect(again.isRedoSpent).toBe(true)
       expect(await read(h.root, 'user.txt')).toBe('b1\n')
     },
@@ -189,74 +174,56 @@ describe('CheckpointStore failures part way (M72)', () => {
   )
 
   it.skipIf(process.platform === 'win32')(
-    'keeps a file whose execute bit the user changed since the restore out of its redo',
+    'redoes a file whose execute bit the user changed since the restore, and keeps their mode',
     async () => {
       const h = await harness()
       await write(h.root, 'run.sh', 'echo one\n')
-      await turn(h, 't1', async () => {
-        await write(h.root, 'run.sh', 'echo two\n')
-      })
+      await turn(h, 't1', (tool) => tool('run.sh', 'echo two\n'))
       const restored = await restoreTurn(h.store, 't1')
-      // The bytes are as the restore left them; the execute bit is the user's.
       await chmod(path.join(h.root, 'run.sh'), 0o755)
       const redo = await redoRestore(h.store, restored.restoreId)
-      expect(redo.refused).toEqual([{ path: 'run.sh', reason: 'changedAfter' }])
+      expect(redo.changed).toEqual(['run.sh'])
+      expect(await read(h.root, 'run.sh')).toBe('echo two\n')
       const script = await stat(path.join(h.root, 'run.sh'))
-      expect(await read(h.root, 'run.sh')).toBe('echo one\n')
       expect(script.mode & 0o777).toBe(0o755)
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'keeps the redo record on disk before the first file changes',
-    async () => {
-      let storage = ''
-      const restoresOnDisk: number[] = []
-      const h = await harness({
-        gitProcess: async (args, options) => {
-          if (args.includes('check-ignore')) {
-            restoresOnDisk.push(
-              storedRecords(storage).filter((record) => record.kind === 'restore').length,
-            )
-          }
-          return await realGit(args, options)
-        },
-      })
-      storage = h.storage
-      await write(h.root, 'kept.txt', 'k0\n')
-      await turn(h, 't1', async () => {
-        await write(h.root, 'kept.txt', 'k1\n')
-        await write(h.root, 'added.txt', 'new\n')
-      })
-      await restoreTurn(h.store, 't1')
-      // The ignore check runs before any file but a .gitignore changes.
-      expect(restoresOnDisk.at(-1)).toBe(1)
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'says a restore is incomplete when the ignored-file scan reached its limit',
+    'records the batch and journals each write before its file changes',
     async () => {
       const h = await harness()
-      await write(h.root, '.gitignore', '*.log\n')
-      const names = Array.from(
-        { length: CHECKPOINT_IGNORED_SCAN_MAX_FILES + 1 },
-        (_, index) => `f${String(index)}.log`,
-      )
-      for (let start = 0; start < names.length; start += WRITE_BATCH) {
-        await Promise.all(
-          names
-            .slice(start, start + WRITE_BATCH)
-            .map((name) => writeFile(path.join(h.root, name), '')),
-        )
-      }
-      await turn(h, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
+      await write(h.root, 'kept.txt', 'k0\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('kept.txt', 'k1\n')
       })
-      const outcome = await restoreTurn(h.store, 't1')
-      expect(outcome.isIgnoredIncomplete).toBe(true)
+      const seen: { batches: number; isJournaled: boolean }[] = []
+      const original = atomic.writeFileIfUnchanged
+      const spy = vi
+        .spyOn(atomic, 'writeFileIfUnchanged')
+        .mockImplementation(async (file, expected, content, options) => {
+          const journal = await readFile(
+            path.join(h.storage, 'm86', h.store.instance, 'journal.jsonl'),
+            'utf8',
+          )
+          const intents = journal
+            .split('\n')
+            .filter((line) => line.includes('"batch"') && line.includes('"intent"'))
+          seen.push({
+            batches: storedUnits(h.storage).filter((unit) => unit.owner.unitKind === 'batch')
+              .length,
+            isJournaled: intents.some((line) => line.includes('kept.txt')),
+          })
+          return await original(file, expected, content, options)
+        })
+      try {
+        await restoreTurn(h.store, 't1')
+      } finally {
+        spy.mockRestore()
+      }
+      expect(seen).toEqual([{ batches: 1, isJournaled: true }])
+      expect(await read(h.root, 'kept.txt')).toBe('k0\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -274,43 +241,25 @@ describe('CheckpointStore failures part way (M72)', () => {
           return await realGit(args, options)
         },
       })
-      const capture = await h.store.capture()
+      await expect(h.store.turns('s1')).rejects.toThrow('SHA-1')
       expect(wasProbed).toBe(true)
-      expect(capture).toMatchObject({ ok: false, reason: 'failed' })
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'says git is missing rather than that a checkpoint failed',
-    async () => {
-      const h = await harness({
-        gitProcess: () => Promise.reject(new GitMissingError()),
-      })
-      const capture = await h.store.capture()
-      expect(capture.ok || capture.reason).toBe('noGit')
     },
     REAL_GIT_TIMEOUT_MS,
   )
 })
 
-describe('CheckpointStore across conversations and windows (M72)', () => {
+describe('CheckpointStore across conversations and windows (M72, M86)', () => {
   it(
-    'refuses what another conversation’s turn changed while this one ran',
+    'C: refuses a path another conversation wrote between two of this one’s writes',
     async () => {
       const h = await harness()
-      await write(h.root, 'a.txt', 'a0\n')
-      await write(h.root, 'b.txt', 'b0\n')
-      await h.store.record('s1', 't1', await captured(h.store))
-      await h.store.record('s2', 'u1', await captured(h.store))
-      await write(h.root, 'b.txt', 'written by the other conversation\n')
-      await h.store.endTurn('s2', 'u1')
-      await write(h.root, 'a.txt', 'a1\n')
-      await h.store.endTurn('s1', 't1')
+      await twoFileTurn(h)
+      await turn(h, 'u1', (tool) => tool('a.txt', 'the other conversation\n'), 's2')
+      await turn(h, 't2', (tool) => tool('a.txt', 'a2\n'))
       const outcome = await restoreTurn(h.store, 't1')
-      expect(outcome.changed).toEqual(['a.txt'])
-      expect(outcome.refused).toEqual([{ path: 'b.txt', reason: 'changedAfter' }])
-      expect(await read(h.root, 'b.txt')).toBe('written by the other conversation\n')
+      expect(outcome.changed).toEqual(['b.txt'])
+      expect(outcome.refused).toEqual([{ path: 'a.txt', reason: 'changedBetween' }])
+      expect(await read(h.root, 'a.txt')).toBe('a2\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -319,9 +268,7 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
     'refuses to restore while any turn of the window runs, recorded or not',
     async () => {
       const h = await harness()
-      await turn(h, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
-      })
+      await turn(h, 't1', (tool) => tool('a.txt', 'a1\n'))
       await h.store.markTurn(turnKey('s2', 'other'), true)
       expect(await restoreOutcome(h.store, 't1')).toEqual({ ok: false, reason: 'turnRunning' })
       await h.store.markTurn(turnKey('s2', 'other'), false)
@@ -331,44 +278,7 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
   )
 
   it(
-    'keeps a capture waiting for its turn through a prune',
-    async () => {
-      const h = await harness()
-      await write(h.root, 'a.txt', 'unique to the first capture\n')
-      const waiting = await captured(h.store)
-      await write(h.root, 'a.txt', 'moved on\n')
-      await turn(
-        h,
-        'other',
-        async () => {
-          await write(h.root, 'b.txt', 'x\n')
-        },
-        's2',
-      )
-      await captured(h.store)
-      await h.store.forgetSession('s2')
-      await h.store.record('s1', 't1', waiting)
-      await h.store.endTurn('s1', 't1')
-      await restoreTurn(h.store, 't1')
-      expect(await read(h.root, 'a.txt')).toBe('unique to the first capture\n')
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'records no capture taken before its conversation was archived',
-    async () => {
-      const h = await harness()
-      const early = await captured(h.store)
-      await h.store.forgetSession('s1')
-      await h.store.record('s1', 't1', early)
-      expect(await h.store.turns('s1')).toEqual([])
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'keeps the new checkpoints of a conversation unarchived after the clock went back',
+    'keeps the new units of a conversation unarchived after the clock went back',
     async () => {
       let clock = 5000
       const h = await harness({ now: () => clock })
@@ -376,9 +286,7 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       // The clock goes back: everything from now on is "before" the archive.
       clock = 1000
       await h.store.unforgetSession('s1')
-      await turn(h, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
-      })
+      await turn(h, 't1', (tool) => tool('a.txt', 'a1\n'))
       expect(await h.store.turns('s1')).toEqual(['t1'])
     },
     REAL_GIT_TIMEOUT_MS,
@@ -388,49 +296,45 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
     'when a window opens, forgets the conversations archived while it was untrusted',
     async () => {
       const h = await harness()
-      await turn(h, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
-      })
-      await turn(
-        h,
-        'u1',
-        async () => {
-          await write(h.root, 'b.txt', 'b1\n')
-        },
-        's2',
-      )
+      await twoConversations(h)
       // Restricted Mode: no git runs, the archive is queued.
       await h.store.queueForget('s2')
       const reopened = h.reopen()
       await reopened.maintain()
       expect(await reopened.turns('s2')).toEqual([])
       expect(await reopened.turns('s1')).toEqual(['t1'])
-      expect(
-        storedRecords(h.storage).filter((record) => record.kind === 'checkpoint'),
-      ).toHaveLength(1)
+      expect(storedUnits(h.storage).map((unit) => unit.owner.unitId)).toEqual(['t1'])
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'when a window opens, drops the refs no record names, and a crashed window’s pins and copies',
+    'when a window opens, drops what a gone 0.10.0 window kept, and recovers a gone window’s unit',
     async () => {
       const h = await harness({ isProcessAlive: (pid) => pid !== GONE_PID })
       const crashed = h.reopen(GONE_PID)
-      await turn({ store: crashed }, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
-      })
-      await captured(crashed)
-      await crashed.record('s1', 't2', await captured(crashed))
-      await crashed.beforeToolWrite(path.join(h.root, 'a.txt'))
-      expect(await leftovers(h.storage)).toEqual({ pins: 1, staging: 1 })
-      // A crashed window's ephemeral pins and staging go; durable records
-      // remain readable because their JSON and blobs share one CAS ref.
+      // Its turn wrote a file and the window went before the turn ended.
+      const unit = owner(crashed, 't1')
+      await crashed.startUnit(unit)
+      await toolWrite(crashed, unit, h.root, 'a.txt', 'a1\n')
+      // What an M72 window of that instance kept: a capture's pin, its index's
+      // ref and file, and its staged copies.
+      const tree = shadowGit(h.storage, ['mktree'], '').trim()
+      shadowGit(h.storage, ['update-ref', `refs/muse-spark/pin/${crashed.instance}/x`, tree])
+      shadowGit(h.storage, ['update-ref', `refs/muse-spark/work/${crashed.instance}`, tree])
+      await writeFile(path.join(h.storage, `work-${crashed.instance}.index`), 'index\n')
+      await mkdir(path.join(h.storage, 'staging', crashed.instance), { recursive: true })
+      await writeFile(path.join(h.storage, 'staging', crashed.instance, 'copy'), 'copy\n')
+      crashed.dispose()
       await h.store.maintain()
-      expect(
-        storedRecords(h.storage).filter((record) => record.kind === 'checkpoint'),
-      ).toHaveLength(2)
-      expect(await leftovers(h.storage)).toEqual({ pins: 0, staging: 0 })
+      expect(shadowRefs(h.storage).filter((ref) => ref.includes(crashed.instance))).toEqual([])
+      expect(await isPresent(h.storage, `work-${crashed.instance}.index`)).toBe(false)
+      expect(await isPresent(h.storage, `staging/${crashed.instance}`)).toBe(false)
+      expect(storedUnits(h.storage).map((unit) => [unit.owner.unitId, unit.status])).toEqual([
+        ['t1', 'complete'],
+      ])
+      await restoreTurn(h.store, 't1')
+      expect(await isPresent(h.root, 'a.txt')).toBe(false)
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -439,33 +343,17 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
     'clears a lock a git ended mid-command left, once it is older than any git may run',
     async () => {
       const h = await harness({ now: () => Date.now() })
-      await captured(h.store)
+      await h.store.turns('s1')
       const refs = path.join(h.storage, 'shadow.git', 'refs', 'muse-spark')
+      await mkdir(refs, { recursive: true })
       await writeFile(path.join(refs, 'index.lock'), '')
       await mkdir(path.join(refs, 'keep'), { recursive: true })
       await writeFile(path.join(refs, 'keep', 'fresh.lock'), '')
       const past = new Date(Date.now() - CHECKPOINT_STALE_LOCK_MS - 1000)
       await utimes(path.join(refs, 'index.lock'), past, past)
-      // The stale lock on the ref every capture moves would fail them all.
-      await captured(h.reopen())
+      await h.reopen().turns('s1')
       expect(await isPresent(refs, 'index.lock')).toBe(false)
       expect(await isPresent(refs, 'keep/fresh.lock')).toBe(true)
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'names the restored files a turn with no recorded end may not have changed itself',
-    async () => {
-      const h = await harness()
-      await write(h.root, 'a.txt', 'a0\n')
-      await h.store.record('s1', 't1', await captured(h.store))
-      await write(h.root, 'a.txt', 'a1\n')
-      // The window closed before the turn's end was recorded.
-      h.store.dispose()
-      const outcome = await restoreTurn(h.reopen(), 't1')
-      expect(outcome.changed).toEqual(['a.txt'])
-      expect(outcome.unsure).toEqual(['a.txt'])
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -479,9 +367,9 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       for (const [index, name] of names.entries()) {
         await write(h.root, name, Buffer.alloc(size, index + 1))
       }
-      await turn(h, 't1', async () => {
+      await turn(h, 't1', async (tool) => {
         for (const name of names) {
-          await write(h.root, name, 'small\n')
+          await tool(name, 'small\n')
         }
       })
       const outcome = await restoreTurn(h.store, 't1')
@@ -495,12 +383,10 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
   )
 
   it.skipIf(process.platform === 'win32')(
-    'deletes an added file whose name reads as pathspec magic',
+    'deletes a created file whose name reads as pathspec magic',
     async () => {
       const h = await harness()
-      await turn(h, 't1', async () => {
-        await write(h.root, ':!x.txt', 'new\n')
-      })
+      await turn(h, 't1', (tool) => tool(':!x.txt', 'new\n'))
       const outcome = await restoreTurn(h.store, 't1')
       expect(outcome.changed).toEqual([':!x.txt'])
       expect(await isPresent(h.root, ':!x.txt')).toBe(false)
@@ -514,7 +400,7 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       const h = await harness()
       await mkdir(h.storage, { mode: 0o755 })
       await chmod(h.storage, 0o755)
-      await captured(h.store)
+      await h.store.turns('s1')
       const folder = await stat(h.storage)
       expect(folder.mode & 0o777).toBe(CHECKPOINT_STORAGE_MODE)
     },
@@ -523,7 +409,7 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
 })
 
 describe('CheckpointStore first setup (M72)', () => {
-  // A window's first message reads its conversation's checkpoints (in the
+  // A window's first message reads its conversation's records (in the
   // queue) and publishes its running mark (outside it) together: the Theia
   // host check's "the message was not sent" (PR #55).
   it(

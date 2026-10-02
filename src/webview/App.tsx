@@ -998,10 +998,14 @@ export function App({
   )
   const onRedo = useCallback(
     (entryId: string, restoreId: string) => {
+      const sourceSessionId = store.getState().sessionId
+      if (sourceSessionId === undefined) {
+        return
+      }
       dispatch({ type: 'redoRequested', entryId })
-      postMessage({ type: 'redoRestore', restoreId })
+      postMessage({ type: 'redoRestore', restoreId, sourceSessionId })
     },
-    [dispatch, postMessage],
+    [store, dispatch, postMessage],
   )
   const checkpointTurnIds = useMemo(
     () =>

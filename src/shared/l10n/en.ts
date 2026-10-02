@@ -667,6 +667,25 @@ export const EN = {
   restoreRefusedNotCovered: 'Left as they are, not in the checkpoint: {files}',
   restoreRefusedNoCopy: 'Not restorable, no copy from before the turn was kept: {files}',
   restoreRefusedFailed: 'Could not be changed: {files}',
+  restoreRefusedBetween:
+    'Left as they are, changed by something else between the model’s edits: {files}',
+  restoreRefusedOrderUnknown:
+    'Left as they are, edited from more than one window in an order that cannot be told: {files}',
+  restoreRefusedLinked: 'Left as they are, reached through a link or junction: {files}',
+  restoreRefusedNotKept: 'Not restorable, the earlier version was not kept: {files}',
+  restoreRefusedTooLarge: 'Not restorable, too large to keep a copy of: {files}',
+  restoreUnchanged: forms({
+    one: 'Already as before: {count} file.',
+    other: 'Already as before: {count} files.',
+  }),
+  restoreWritesIncomplete:
+    'Nothing was restored: some of these turns’ edits were not fully recorded (a reload or crash mid-edit, or file checkpoints were off).',
+  restoreLegacyInRange:
+    'Nothing was restored: some of these turns were recorded by an earlier version, which this one cannot restore.',
+  restoreLegacyWindowOpen:
+    'Another window runs an older version of Muse Spark; reload it, then try again.',
+  restoreCommandsNote:
+    'Commands, hooks or MCP tools ran in these turns; files they changed are not undone. Check your version control.',
   restoreUnsure:
     'Restored, but a turn’s end was not recorded, so these may also have undone later changes: {files}',
   namedFilesMore: '{files} (+{count})',

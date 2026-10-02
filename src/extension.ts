@@ -94,15 +94,17 @@ import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
-  asUserEdit,
   createCheckpointPort,
+  finishCheckpointTurn,
   prepareCheckpointTurn,
+  type TurnRecording,
   withCheckpointCopies,
   withCheckpointEdit,
   withCheckpointEditAt,
 } from './host/checkpoints/checkpointHost'
 import { turnKey } from './core/checkpoints/turnKey'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
+import { WriteJournal } from './host/checkpoints/writeJournal'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
@@ -541,26 +543,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   } catch {
     log.warn('Checkpoint workspace identity could not be established')
   }
-  // Turn checkpoints (M72, PLAN.md D51): a shadow repository under global
-  // storage, keyed by the canonical first folder. Current-version windows in
-  // this namespace share per-record refs independently of workspace identity.
-  // Captures require trust, git and the setting. Startup admission precedes auth
-  // request any workspace-cwd serve, independently of the capture setting.
-  // Closing the window ends its git; native uncertainty remains durable. Opening
-  // it (or trusting the workspace) applies cleanup and retention.
+  // Turn checkpoints (M72, M86; PLAN.md D51, D63): a shadow repository and
+  // the windows' write journals under global storage, keyed by the canonical
+  // first folder. Current-version windows in this namespace share per-record
+  // refs independently of workspace identity. Recording requires trust, git
+  // and the setting. Startup admission precedes auth request any workspace-cwd
+  // serve, independently of the recording setting. Closing the window ends its
+  // git; native uncertainty remains durable. Opening it (or trusting the
+  // workspace) recovers gone windows' journals and applies cleanup and retention.
   const checkpointBundle = checkpointStoreLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CHECKPOINT_STORE_BUNDLE_FILE)
       .fsPath,
     log,
   })
+  const checkpointStorage = checkpointRoot?.storageDir
   const checkpointStore =
-    checkpointRoot === undefined
+    checkpointRoot === undefined || checkpointStorage === undefined
       ? undefined
       : checkpointBundle().createCheckpointStore(
           {
             workspaceRoot: checkpointRoot.canonicalRoot,
             displayRoot: workspaceRoot,
-            storageDir: checkpointRoot.storageDir,
+            storageDir: checkpointStorage,
+            openJournal: (instance) =>
+              new WriteJournal({ storageDir: checkpointStorage, instance }),
             // Every window's checkpoint storage: no tool writes below it (Codex, PR #55).
             storageRoot: path.join(context.globalStorageUri.fsPath, CHECKPOINTS_DIR),
             platform: process.platform,
@@ -610,19 +616,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
     isEnabled: () => currentSettings().turnCheckpoints,
     hasGit: processGitLocator(),
+    log,
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
-  // The user's saves while a turn runs are theirs: a restore leaves them alone (M72).
-  // The extension's own writes save no document, so every save here is the user's.
-  const noteUserSave = (document: { readonly uri: vscode.Uri }) => {
-    if (document.uri.scheme === FILE_SCHEME) {
-      checkpoints.noteUserSave(document.uri.fsPath)
-    }
-  }
-  context.subscriptions.push(
-    vscode.workspace.onDidSaveTextDocument(noteUserSave),
-    vscode.workspace.onDidSaveNotebookDocument(noteUserSave),
-  )
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
   const credentials = new CredentialStore(context.secrets, (message) => {
@@ -762,7 +758,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           platform: process.platform,
         },
         fsPath,
-        asUserEdit(checkpoints, fsPath, work),
+        work,
       ),
     runCli: (args, timeoutMs) => {
       const resolution = backend.resolveLaunch()
@@ -1146,18 +1142,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     editor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter)
   }
 
-  /** A file the extension writes in the user's name, under the lease: theirs once written (M72). */
+  /** A file the extension writes in the user's name, under the lease; never recorded (M86). */
   const writeUserFile = async (check: () => void, fsPath: string, content: string) => {
-    await withCheckpointEdit(
-      checkpoints,
-      check,
-      asUserEdit(checkpoints, fsPath, async () => {
-        await vscode.workspace.fs.writeFile(
-          vscode.Uri.file(fsPath),
-          new TextEncoder().encode(content),
-        )
-      }),
-    )
+    await withCheckpointEdit(checkpoints, check, async () => {
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(fsPath),
+        new TextEncoder().encode(content),
+      )
+    })
   }
 
   const editReview = new EditReview({
@@ -1171,13 +1163,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     deleteFile: async (fsPath) => {
       const check = backend.workspaceActionGuard(nativeStarts.signal)
-      await withCheckpointEdit(
-        checkpoints,
-        check,
-        asUserEdit(checkpoints, fsPath, async () => {
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-        }),
-      )
+      await withCheckpointEdit(checkpoints, check, async () => {
+        await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+      })
     },
     openDiff: async (beforeUri, fsPath, title) => {
       await vscode.commands.executeCommand(
@@ -1229,8 +1217,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     store: memory.viewStore,
     log,
     edit: memory.edit,
-    beforeDelete: memory.beforeDelete,
-    afterDelete: memory.afterDelete,
   })
   // Plans as files (M79): `.agents/plans/` of the workspace folder, when there is one.
   const plans =
@@ -1248,9 +1234,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 await work(check)
               })
             },
-            noteUserWrite: (fsPath) => {
-              checkpoints.noteUserSave(fsPath)
-            },
           }),
           beginEdit: (file, ownerRecorder) => modelApi.beginExternalEdit(ownerRecorder, [file]),
           captureOwner: (session) => modelApi.captureExternalEditOwner(session),
@@ -1265,13 +1248,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             log,
           }),
         })
+  // Each Model API turn's unit (M86): its record before it runs, its end
+  // folded and sealed after, then its running mark withdrawn.
+  const turnRecordings = new Map<string, TurnRecording>()
   const modelApi = new ModelApiBackendManager({
     log,
-    beforeTurnRuns: (sessionId, turnId) =>
-      prepareCheckpointTurn(checkpoints, sessionId, turnId, log),
+    beforeTurnRuns: async (sessionId, turnId) => {
+      turnRecordings.set(
+        turnKey(sessionId, turnId),
+        await prepareCheckpointTurn(checkpoints, sessionId, turnId, log),
+      )
+    },
     afterTurnRuns: async (sessionId, turnId) => {
-      await checkpoints.endTurn(sessionId, turnId)
-      await checkpoints.markTurn(turnKey(sessionId, turnId), false)
+      const key = turnKey(sessionId, turnId)
+      const recording = turnRecordings.get(key) ?? { kind: 'off' }
+      turnRecordings.delete(key)
+      // Until the Model API host reports what a turn invoked, every turn
+      // counts as having run commands: the restore's note errs on the side of
+      // saying so (M86 wiring, spec section 8).
+      await finishCheckpointTurn(checkpoints, sessionId, turnId, recording, {
+        ranProcesses: true,
+      })
     },
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,

@@ -203,11 +203,11 @@ const CHECKPOINT_ONLY = [
   'src/host/checkpoints/checkpointFiles.ts',
   'src/host/checkpoints/checkpointRecords.ts',
   'src/host/checkpoints/checkpointRetention.ts',
-  'src/host/checkpoints/ignoredScan.ts',
   'src/host/checkpoints/recordRefs.ts',
   'src/host/checkpoints/shadowGit.ts',
   'src/core/checkpoints/gitListings.ts',
-  'src/core/checkpoints/restorePlan.ts',
+  // M86: the engine that decides a restore runs only in the store.
+  'src/core/checkpoints/restoreChain.ts',
 ]
 const checkpointStore = inputsOf(CHECKPOINT_STORE)
 for (const file of CHECKPOINT_ONLY) {

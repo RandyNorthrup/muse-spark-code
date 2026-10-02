@@ -1,4 +1,4 @@
-// Real native writes through M72's checkpoint wrapper and the production Host.
+// Real native writes through the checkpoint wrapper (M72, M86) and the production Host.
 // The Model API, editor provider and command output are offline test transports.
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -26,10 +26,13 @@ import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { createToolIo } from '../../src/host/backend/toolIo'
 import {
   createCheckpointPort,
+  finishCheckpointTurn,
   prepareCheckpointTurn,
+  type TurnRecording,
   withCheckpointCopies,
 } from '../../src/host/checkpoints/checkpointHost'
 import { turnKey } from '../../src/host/checkpoints/checkpointStore'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { fakeLanguageService, KIND, sym } from './helpers/fakeLanguageService'
@@ -70,7 +73,9 @@ async function setup(hasMemory = false) {
     isEnabled: () => true,
     isWorkspaceTrusted: () => settings.isTrusted,
     hasGit: () => true,
+    log: new FakeLogOutputChannel(),
   })
+  const recordings = new Map<string, TurnRecording>()
   let atomicBoundary: (() => void) | undefined
   let assembly: (() => Promise<string | undefined>) | undefined
   const native = createToolIo({
@@ -189,10 +194,15 @@ async function setup(hasMemory = false) {
       isWorkspaceTrusted: () => settings.isTrusted,
       codeIntel,
       verify,
-      beforeTurnRuns: (sessionId, turnId) => prepareCheckpointTurn(port, sessionId, turnId, h.log),
+      beforeTurnRuns: async (sessionId, turnId) => {
+        recordings.set(
+          turnKey(sessionId, turnId),
+          await prepareCheckpointTurn(port, sessionId, turnId, h.log),
+        )
+      },
       afterTurnRuns: async (sessionId, turnId) => {
-        await port.endTurn(sessionId, turnId)
-        await port.markTurn(turnKey(sessionId, turnId), false)
+        const recording = recordings.get(turnKey(sessionId, turnId)) ?? { kind: 'off' }
+        await finishCheckpointTurn(port, sessionId, turnId, recording, { ranProcesses: true })
       },
       bundlePath: 'src/host/backend/modelApiEntry.ts',
       loadBundle: () => modelApiEntry,
@@ -345,14 +355,23 @@ async function enterHeld(
   await arrival
 }
 
+/**
+ * Holds the first tool write after the checkpoint wrapper admitted it and
+ * before the native write starts: where M72 took its copy, and where the
+ * recorder takes its own (M86).
+ */
 function holdPreimage(t: Awaited<ReturnType<typeof setup>>) {
   const entered = Promise.withResolvers<undefined>()
   const release = Promise.withResolvers<undefined>()
-  const before = t.port.beforeToolWrite.bind(t.port)
-  vi.spyOn(t.port, 'beforeToolWrite').mockImplementation(async (file) => {
-    await before(file)
-    entered.resolve(undefined)
-    await release.promise
+  const write = t.native.writeFile.bind(t.native)
+  let isHeld = false
+  vi.spyOn(t.native, 'writeFile').mockImplementation(async (...args) => {
+    if (!isHeld) {
+      isHeld = true
+      entered.resolve(undefined)
+      await release.promise
+    }
+    await write(...args)
   })
   return { entered, release }
 }
@@ -412,7 +431,7 @@ async function refuseHeldCommand(
   }
 }
 
-describe('M72 native common owner guards', () => {
+describe('M72 native common owner guards (M86 port)', () => {
   it.each(['stop', 'mode', 'trust'] as const)(
     'refuses project memory edit after actual checkpoint preimage and %s change',
     async (change) => {
