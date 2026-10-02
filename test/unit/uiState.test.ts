@@ -3291,3 +3291,46 @@ describe('workflow runs in the state (M47)', () => {
     })
   })
 })
+
+describe('uiReducer: share files read-only (M84)', () => {
+  const preview = host({
+    type: 'sharePreview',
+    title: 'Shared over',
+    exportedAt: '2026-09-28T12:00:00.000Z',
+    sourceBackend: 'museCode',
+    modelId: 'muse-spark-1.3',
+    redacted: true,
+    items: [{ itemId: 'u1', kind: 'userMessage', status: 'completed', text: 'Hi' }],
+  })
+
+  it('opens the file, closes it, and drops it with the conversation', () => {
+    const opened = reduceAll([preview])
+    expect(opened.share).toMatchObject({
+      title: 'Shared over',
+      modelId: 'muse-spark-1.3',
+      redacted: true,
+    })
+    expect(opened.share?.items).toHaveLength(1)
+    // A second file replaces the first.
+    const replaced = reduceAll([preview, preview], opened)
+    expect(replaced.share?.items).toHaveLength(1)
+    const closed = uiReducer(opened, { type: 'shareClosed' })
+    expect(closed.share).toBeUndefined()
+    const cleared = uiReducer(opened, { type: 'conversationCleared' })
+    expect(cleared.share).toBeUndefined()
+  })
+
+  it('marks a conversation that holds imported history until another one replaces it', () => {
+    const imported = host({
+      type: 'historyLoaded',
+      sessionId: 'imported-1',
+      items: [],
+      todos: [],
+      imported: true,
+    })
+    expect(reduceAll([imported]).isImported).toBe(true)
+    const other = host({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
+    expect(reduceAll([imported, other]).isImported).toBe(false)
+    expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
+  })
+})

@@ -14,10 +14,11 @@
 // an error thrown from here would be this file's class, not the bundle's.
 //
 // Opt-in only, never in CI: it bills the owner's Model API key. It runs
-// when MUSE_LIVE_MODEL_API=1 with the key in MUSE_LIVE_MODEL_API_KEY, which
-// is taken out of the environment when this file loads, so no process it
-// starts (the shell tool, a hook, the MCP fixture, the speech synthesizer)
-// inherits it; the key is never printed or written, and each case checks
+// when MUSE_LIVE_MODEL_API=1, reading the ACP agent's existing operating
+// system credential entry in this process, inside the enabled suite. The
+// legacy key environment variable is refused when the run is enabled, never read or deleted. No
+// process it starts (shell, hook, MCP fixture or speech synthesizer) receives
+// the stored key; it is never printed or written, and each case checks
 // that no log line, event or file holds it. Every model call is on the
 // contributor tier (muse-spark-1.3-contributor: training is allowed on this
 // throwaway content), subagents included. Each request to api.meta.ai goes
@@ -37,7 +38,6 @@
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -78,7 +78,6 @@ import { createMemoryIo, systemPath } from '../../src/host/backend/memoryIo'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { museSettingsPath } from '../../src/host/backend/museSettings'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
-import { createToolIo } from '../../src/host/backend/toolIo'
 import { processGitRunner } from '../../src/host/git'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
@@ -125,13 +124,24 @@ import { FakeLogOutputChannel, fakeSurface } from '../unit/helpers/fakes'
 import { readJobSource } from '../unit/helpers/jobSource'
 import { logLines } from '../unit/helpers/logText'
 import { FAKE_MCP_SERVER, fixtureJobLifecycle } from '../unit/helpers/mcpFixtures'
-import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
+import {
+  assertNoLiveKeyEnvironment,
+  liveToolIo,
+  loadEvalLiveCredentials,
+  type EvalLiveCredentials,
+} from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
-const KEY_VARIABLE = 'MUSE_LIVE_MODEL_API_KEY'
-const LIVE_KEY = process.env[KEY_VARIABLE] ?? ''
-// Nothing this file starts inherits the key (AGENTS.md rule 8).
-Reflect.deleteProperty(process.env, KEY_VARIABLE)
+assertNoLiveKeyEnvironment(process.env, IS_ENABLED)
+const live: { credentials: EvalLiveCredentials | undefined } = { credentials: undefined }
+
+function credentialsForLiveRun(): EvalLiveCredentials {
+  if (live.credentials === undefined) {
+    throw new Error('The live Model API credential store has not been loaded.')
+  }
+  return live.credentials
+}
 
 const MODEL_ID = 'muse-spark-1.3-contributor'
 const BUDGET_USD = 0.5
@@ -200,7 +210,7 @@ const running = { caseName: 'setup' }
 
 /** Anything this file prints goes through here: the key never reaches the output. */
 function scrub(text: string): string {
-  return LIVE_KEY === '' ? text : text.replaceAll(LIVE_KEY, '[key]')
+  return live.credentials?.redact(text) ?? text
 }
 
 /**
@@ -638,15 +648,6 @@ async function paidFeatures(
   return { gate, usage: new PaidUsage(log) }
 }
 
-async function listWorkspace(workspace: string): Promise<readonly string[]> {
-  const entries = await readdir(workspace, { recursive: true, withFileTypes: true })
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) =>
-      path.relative(workspace, path.join(entry.parentPath, entry.name)).split(path.sep).join('/'),
-    )
-}
-
 async function openRig(options: RigOptions): Promise<Rig> {
   const root = mkdtempSync(path.join(tmpdir(), 'muse-live-modelapi-'))
   const workspace = path.join(root, 'workspace')
@@ -670,14 +671,12 @@ async function openRig(options: RigOptions): Promise<Rig> {
   const channel = new FakeLogOutputChannel()
   const log = createLogger(channel)
   const isTrusted = () => options.isTrusted ?? true
-  const toolIo = createToolIo({
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
-    listFiles: () => listWorkspace(workspace),
+  // The model's shell commands get no credential variable (liveToolIo).
+  const toolIo = liveToolIo({
+    workspace,
     env: () => process.env,
     // Built by `npm run build:dev`; no case here needs the search tool.
     searchWorkerPath: path.join(process.cwd(), 'dist', SEARCH_WORKER_FILE),
-    unsavedFiles: () => [],
     log: (message) => {
       log.warn(message)
     },
@@ -721,7 +720,7 @@ async function openRig(options: RigOptions): Promise<Rig> {
       workspaceRoot: workspace,
       log,
       fetch: liveFetch,
-      getApiKey: () => Promise.resolve(LIVE_KEY),
+      getApiKey: credentialsForLiveRun().apiKey,
       random: Math.random,
       now: Date.now,
       sleep: (ms) => delay(ms),
@@ -847,24 +846,18 @@ function mediaAfterOutput(calls: readonly WireCall[]): string {
   return found.join(' ')
 }
 
-function filesUnder(folder: string): readonly string[] {
-  return readdirSync(folder, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => path.join(entry.parentPath, entry.name))
-}
-
 /** Where the key turned up: a log line, an event, a file the case left. Names only. */
 function keyLeaks(rig: Rig): readonly string[] {
+  const credentials = credentialsForLiveRun()
   const leaks: string[] = []
-  if (logLines(rig.channel).some((line) => line.includes(LIVE_KEY))) {
+  if (logLines(rig.channel).some((line) => credentials.contains(line))) {
     leaks.push('the log')
   }
-  if (rig.watches.some((watch) => JSON.stringify(watch.events).includes(LIVE_KEY))) {
+  if (rig.watches.some((watch) => credentials.contains(JSON.stringify(watch.events)))) {
     leaks.push('the events')
   }
-  const needle = Buffer.from(LIVE_KEY)
   for (const file of filesUnder(rig.root)) {
-    if (readFileSync(file).includes(needle)) {
+    if (credentials.contains(readFileSync(file))) {
       leaks.push(path.relative(rig.root, file))
     }
   }
@@ -1046,7 +1039,14 @@ function livePanel(rig: Rig): LivePanel {
     isRestorable: false,
     dictation: { isAvailable: false, reason: 'no microphone in the live sweep' },
     museVoice: () => undefined,
-    exports: { saveMarkdown: unreached, saveSessionLog: unreached },
+    exports: {
+      saveMarkdown: unreached,
+      saveSessionLog: unreached,
+      saveJson: unreached,
+      previewExport: unreached,
+      localRoots: () => [rig.workspace],
+    },
+    transferFiles: { pickTransferFile: unreached, confirmImport: unreached },
     plans: createPlanFiles({
       workspaceRoot: rig.workspace,
       platform: process.platform,
@@ -1365,8 +1365,8 @@ function recordingCapture(pcm: Buffer): (listener: DictationListener) => Dictati
 // --- the sweep ---
 
 describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () => {
-  beforeAll(() => {
-    expect(LIVE_KEY === '' ? 'no key in the environment' : 'key present').toBe('key present')
+  beforeAll(async () => {
+    live.credentials = await loadEvalLiveCredentials(IS_ENABLED)
     vi.stubGlobal('fetch', meteredFetch)
   })
 
@@ -1905,7 +1905,7 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
                 })
               },
               url: MUSE_VOICE_REALTIME_URL,
-              apiKey: () => Promise.resolve(LIVE_KEY),
+              apiKey: credentialsForLiveRun().apiKey,
               onSeconds: (seconds) => {
                 rig.usage.add('voice', seconds)
               },

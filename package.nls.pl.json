@@ -23,6 +23,8 @@
   "command.manageSkills.title": "Zarządzaj umiejętnościami",
   "command.importSkills.title": "Importuj umiejętności z Claude Code lub Codex",
   "command.exportConversation.title": "Eksportuj rozmowę",
+  "command.importSession.title": "Importuj sesję",
+  "command.openShareFile.title": "Otwórz udostępniony plik",
   "command.mcpServers.title": "Serwery MCP",
   "command.hooks.title": "Hooki",
   "command.memory.title": "Pamięć",

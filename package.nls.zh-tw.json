@@ -23,6 +23,8 @@
   "command.manageSkills.title": "管理技能",
   "command.importSkills.title": "從 Claude Code 或 Codex 匯入技能",
   "command.exportConversation.title": "匯出對話",
+  "command.importSession.title": "匯入工作階段",
+  "command.openShareFile.title": "開啟共用檔案",
   "command.mcpServers.title": "MCP 伺服器",
   "command.hooks.title": "鉤子",
   "command.memory.title": "記憶",
