@@ -2460,11 +2460,6 @@ export class ConversationController {
     }
     this.dropSession()
     const generation = this.sendInvalidationEpoch
-    this.isSideChat = loaded.record.sideChat === true || this.deps.surface.isSideChat === true
-    if (this.isSideChat) {
-      this.permissionMode = 'plan'
-      this.postComposerState()
-    }
     const models = await host.listModels(loaded.session.sessionId)
     if (generation !== this.sendInvalidationEpoch) {
       loaded.session.dispose()
@@ -2499,6 +2494,14 @@ export class ConversationController {
       }
       this.modelId = fallbackId
       this.notice('info', fill(UI_TEXT.contributorResumeFallbackTo, { model: fallbackId }))
+    }
+    // A side chat runs in Plan (M53). Like the imported mode below, applied
+    // only now that this opening is still current: one overtaken by another
+    // opening must leave no mode behind.
+    this.isSideChat = loaded.record.sideChat === true || this.deps.surface.isSideChat === true
+    if (this.isSideChat) {
+      this.permissionMode = 'plan'
+      this.postComposerState()
     }
     // A conversation built on an imported file opens asking, every time and
     // whatever the initial mode (M84, PLAN.md D49): only the user's own mode

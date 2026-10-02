@@ -42,6 +42,7 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { fill, formatBytes, plural } from '../../src/shared/l10n/text'
+import { approvalModeFor } from '../../src/shared/permissionModes'
 import { textFileDisplay } from '../../src/shared/textFileDisplay'
 import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/plans/planDocument'
 import { briefText, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
@@ -4292,52 +4293,68 @@ describe('ConversationController: session history (M6)', () => {
     })
   })
 
-  it('leaves neither Manual nor the imported mark when another opening overtakes an imported one (M84)', async () => {
-    const t = setup({ hasApprovalUi: true, transferFileContent: transferFile() })
-    let nextId = 0
-    const { host, controller } = modelApiController(t, { newId: () => `id${String(++nextId)}` })
-    await controller.handle({ type: 'importSession' })
-    const imported = t.surface.posted.find((message) => message.type === 'historyLoaded')
-    const plain = await host.startSession({
-      workspaceRoot: '/ws',
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'promptUnmatched',
-    })
-    // Another panel, starting in Auto: the imported opening is held at its
-    // first step while the user opens an ordinary conversation.
-    const other = setup({ initialPermissionMode: 'auto', hasApprovalUi: true })
-    const panel = new ConversationController({
-      ...other.deps,
-      ensureHost: () => Promise.resolve(host),
-    })
-    const importedId = imported?.type === 'historyLoaded' ? imported.sessionId : ''
-    const held = Promise.withResolvers<undefined>()
-    const listModels = host.listModels.bind(host)
-    // `adopt` asks for the opened session's models: that request waits.
-    const listing = vi.spyOn(host, 'listModels').mockImplementation(async (sessionId) => {
-      if (sessionId === importedId) {
-        await held.promise
-      }
-      return await listModels(sessionId)
-    })
-    const applied = vi.spyOn(plain, 'setApprovalMode')
-    const overtaken = panel.handle({ type: 'resumeSession', sessionId: importedId })
-    await vi.waitFor(() => {
-      expect(listing).toHaveBeenCalledWith(importedId)
-    })
-    await panel.handle({ type: 'resumeSession', sessionId: plain.sessionId })
-    held.resolve(undefined)
-    await overtaken
-    expect(other.surface.posted).not.toContainEqual({ ...composerState, permissionMode: 'manual' })
-    expect(other.surface.posted).not.toContainEqual(untrustedNotice('Manual'))
-    expect(other.surface.posted.findLast((message) => message.type === 'historyLoaded')).toEqual(
-      expect.not.objectContaining({ imported: true }),
-    )
-    // The ordinary conversation runs in the panel's own Auto, not in Manual.
-    const [mode] = applied.mock.calls.at(-1) ?? []
-    expect(mode).toBeDefined()
-    expect(mode).not.toBe('promptUnmatched')
-  })
+  it.each([
+    ['an imported one', 'imported', 'manual'],
+    ['a side chat', 'sideChat', 'plan'],
+  ] as const)(
+    'leaves no mode or mark behind when another opening overtakes %s (M84, M53)',
+    async (_case, kind, leftover) => {
+      const t = setup({ hasApprovalUi: true, transferFileContent: transferFile() })
+      let nextId = 0
+      const { host, controller } = modelApiController(t, { newId: () => `id${String(++nextId)}` })
+      await controller.handle({ type: 'importSession' })
+      const imported = t.surface.posted.find((message) => message.type === 'historyLoaded')
+      const side = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'denyUnmatched',
+        sideChat: true,
+      })
+      const plain = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'promptUnmatched',
+      })
+      // Another panel, starting in Auto: the first opening is held at its
+      // first step while the user opens an ordinary conversation.
+      const other = setup({ initialPermissionMode: 'auto', hasApprovalUi: true })
+      const panel = new ConversationController({
+        ...other.deps,
+        ensureHost: () => Promise.resolve(host),
+      })
+      const importedId = imported?.type === 'historyLoaded' ? imported.sessionId : ''
+      const heldId = kind === 'sideChat' ? side.sessionId : importedId
+      const held = Promise.withResolvers<undefined>()
+      const listModels = host.listModels.bind(host)
+      // `adopt` asks for the opened session's models: that request waits.
+      const listing = vi.spyOn(host, 'listModels').mockImplementation(async (sessionId) => {
+        if (sessionId === heldId) {
+          await held.promise
+        }
+        return await listModels(sessionId)
+      })
+      const applied = vi.spyOn(plain, 'setApprovalMode')
+      const overtaken = panel.handle({ type: 'resumeSession', sessionId: heldId })
+      await vi.waitFor(() => {
+        expect(listing).toHaveBeenCalledWith(heldId)
+      })
+      await panel.handle({ type: 'resumeSession', sessionId: plain.sessionId })
+      held.resolve(undefined)
+      await overtaken
+      expect(other.surface.posted).not.toContainEqual({
+        ...composerState,
+        permissionMode: leftover,
+      })
+      expect(other.surface.posted).not.toContainEqual(untrustedNotice('Manual'))
+      expect(other.surface.posted.findLast((message) => message.type === 'historyLoaded')).toEqual(
+        expect.not.objectContaining({ imported: true }),
+      )
+      // The ordinary conversation runs in the panel's own Auto.
+      const [mode] = applied.mock.calls.at(-1) ?? []
+      expect(mode).toBeDefined()
+      expect(mode).not.toBe(approvalModeFor(leftover, true))
+    },
+  )
 
   it('refuses a file whose turns the model cannot read in one window, before asking (RV84 #10)', async () => {
     const huge = 'x'.repeat(MODEL_API_IMPORT_MAX_REPLAY_BYTES)
