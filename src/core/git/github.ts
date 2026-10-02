@@ -18,7 +18,9 @@ import {
   GITHUB_CHECKS_PAGE_SIZE,
   GITHUB_MEDIA_TYPE,
   GITHUB_REQUEST_TIMEOUT_MS,
+  UI_TEXT,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { CoreLogger } from '../logging'
 import { networkFailureMessage } from '../networkFailure'
 import type { GitHubRepository } from './githubRemote'
@@ -210,7 +212,7 @@ function kindOf(response: Response): GitHubFailureKind {
 function errorMessage(body: unknown, status: number): string {
   const parsed = errorSchema.safeParse(body)
   if (!parsed.success) {
-    return `GitHub answered ${String(status)}`
+    return fill(UI_TEXT.gitHubAnswered, { status: String(status) })
   }
   const details = (parsed.data.errors ?? []).flatMap((error) => {
     if (error.message !== undefined) {
@@ -364,11 +366,7 @@ export class GitHubClient {
     const parsed = schema.safeParse(value)
     if (!parsed.success) {
       this.deps.log.warn(`GitHub's ${what} did not have the expected shape`)
-      throw new GitHubError(
-        `GitHub's ${what} did not have the expected shape`,
-        'response',
-        undefined,
-      )
+      throw new GitHubError(UI_TEXT.gitHubResponseInvalid, 'response', undefined)
     }
     return parsed.data
   }
@@ -454,7 +452,7 @@ export class GitHubClient {
     sha: string,
   ): Promise<ChecksSummary> {
     if (!isCommitSha(sha)) {
-      throw new GitHubError(`Not a commit id: ${sha}`, 'invalid', undefined)
+      throw new GitHubError(fill(UI_TEXT.gitHubCommitInvalid, { sha }), 'invalid', undefined)
     }
     const commit = `${repositoryPath(repository)}/commits/${sha}`
     const [runs, statuses] = await Promise.all([

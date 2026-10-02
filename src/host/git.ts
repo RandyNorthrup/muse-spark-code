@@ -7,6 +7,8 @@
 
 import { type ExecFileOptions, execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
@@ -31,6 +33,8 @@ const FILTER_SEPARATOR = '\u{0}'
 const FILTER_KEY = /^filter\.([^=\p{Cc}]+)\.(?:clean|process|required)$/u
 const CHECKOUT_FILTER_KEY = /^filter\.(.+)\.(?:clean|smudge|process|required)$/iu
 const CHECKOUT_HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
+const ATTRIBUTE_FILTER = /(?:^|\s)filter=([^\s]+)/gu
+const ATTRIBUTE_FILTER_NAME = /^[\w.-]+$/u
 const SAFE_CHECKOUT_ARGS = [
   '--no-replace-objects',
   '-c',
@@ -166,30 +170,108 @@ async function requireCheckoutSafeGit(
  * The options that keep a foreign pull request's checkout from running
  * programs: no hooks, no fsmonitor, no replacement objects, no automatic
  * maintenance, and every configured filter and named hook switched off.
- * Only the configuration's names are read, never its values.
+ * Filter/hook command values are never read. The attributes-file path is
+ * read only to find the selectors whose drivers must also be switched off.
  */
 async function checkoutOverrides(
   execFile: ExecFile,
   git: string,
   options: ExecFileOptions,
+  args: readonly string[],
+  deps: Pick<GitRunnerDeps, 'platform' | 'env'>,
+  check?: () => void,
 ): Promise<readonly string[]> {
-  let names: readonly string[]
-  try {
-    const output = await execFile(
-      git,
-      [...SAFE_CHECKOUT_ARGS, 'config', '--null', '--name-only', '--list'],
-      options,
-    )
-    names = output.split('\0')
-  } catch {
-    throw checkoutRefusal()
+  const read = async (query: readonly string[]) => {
+    check?.()
+    let output: string
+    try {
+      output = await execFile(git, [...SAFE_CHECKOUT_ARGS, ...query], options)
+    } catch {
+      throw checkoutRefusal()
+    }
+    check?.()
+    return output
   }
+  const configuration = await read(['config', '--null', '--name-only', '--list'])
+  const names = configuration.split('\0')
   const drivers = new Set(
     names.flatMap((name) => {
       const driver = CHECKOUT_FILTER_KEY.exec(name)?.[1]
       return driver === undefined ? [] : [driver]
     }),
   )
+  if (args[0] === 'worktree' && args[1] === 'add') {
+    // Attribute selectors also name filters enabled only by the destination's
+    // conditional includes. Read the foreign tree, never the current checkout.
+    const commit = args.at(-1)
+    if (commit === undefined || !/^[\da-f]{40}(?:[\da-f]{24})?$/u.test(commit)) {
+      throw checkoutRefusal()
+    }
+    const addAttributes = (text: string) => {
+      for (const line of text.split(/\r?\n/u)) {
+        if (line.trimStart().startsWith('#')) continue
+        // The first field is a pattern (possibly C-quoted), never an attribute.
+        const attributes = /^\s*(?:"(?:\\.|[^"\\])*"|[^\s]+)\s+(.*)$/u.exec(line)?.[1] ?? ''
+        // Includes [attr] macros without evaluating patterns or include conditions.
+        for (const match of attributes.matchAll(ATTRIBUTE_FILTER)) {
+          const name = match[1] ?? ''
+          if (!ATTRIBUTE_FILTER_NAME.test(name) || name.length > GIT_FILTER_NAME_MAX_CHARS) {
+            throw checkoutRefusal()
+          }
+          drivers.add(name)
+          if (drivers.size > GIT_FILTER_NAMES_MAX) throw checkoutRefusal()
+        }
+      }
+    }
+    const tree = await read(['ls-tree', '-r', '-z', '--name-only', commit])
+    const files = tree.split('\0')
+    for (const file of files) {
+      if (file === '.gitattributes' || file.endsWith('/.gitattributes')) {
+        addAttributes(await read(['cat-file', 'blob', `${commit}:${file}`]))
+      }
+    }
+    const p = deps.platform === 'win32' ? path.win32 : path.posix
+    const infoPath = await read([
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-path',
+      'info/attributes',
+    ])
+    const info = infoPath.replace(/\r?\n$/u, '')
+    const attributesPath = await read([
+      'config',
+      '--null',
+      '--path',
+      '--default',
+      '',
+      '--get',
+      'core.attributesFile',
+    ])
+    const configured = attributesPath.split('\0', 1)[0] ?? ''
+    const home =
+      environmentValue(deps.env, deps.platform, 'HOME') ??
+      environmentValue(deps.env, deps.platform, 'USERPROFILE')
+    // Git treats an empty XDG_CONFIG_HOME as unset, not as the current directory.
+    const givenXdg = environmentValue(deps.env, deps.platform, 'XDG_CONFIG_HOME')
+    const xdg =
+      (givenXdg === '' ? undefined : givenXdg) ??
+      (home === undefined ? undefined : p.join(home, '.config'))
+    const defaultAttributes = xdg === undefined ? undefined : p.join(xdg, 'git', 'attributes')
+    const global = configured === '' ? defaultAttributes : configured
+    for (const file of [info, global]) {
+      if (file === undefined || file === '') continue
+      check?.()
+      let text: string
+      try {
+        text = await readFile(p.resolve(String(options.cwd), file), 'utf8')
+      } catch (error: unknown) {
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
+        throw checkoutRefusal()
+      }
+      check?.()
+      addAttributes(text)
+    }
+  }
   // New Git can configure named hooks independently of core.hooksPath.
   const hooks = new Set(
     names.flatMap((name) => {
@@ -199,11 +281,7 @@ async function checkoutOverrides(
   )
   // -c splits at its first '='; such subsection names cannot be represented
   // by these per-command overrides. Never guess an escape.
-  if (
-    [...drivers, ...hooks].some(
-      (name) => name.includes('=') || name.includes('\n') || name.includes('\r'),
-    )
-  ) {
+  if ([...drivers, ...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
     throw checkoutRefusal()
   }
   return [
@@ -269,7 +347,10 @@ export function createGitRunner(
         supportedGit = git
       }
       beforeRun?.()
-      invocation = [...(await checkoutOverrides(deps.execFile, git, options)), ...args]
+      invocation = [
+        ...(await checkoutOverrides(deps.execFile, git, options, args, deps, beforeRun)),
+        ...args,
+      ]
     }
     // Metadata discovery awaits; current trust/ownership checks directly precede process entry.
     beforeRun?.()

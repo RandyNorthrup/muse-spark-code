@@ -53,6 +53,22 @@ function unused(): Promise<never> {
   return Promise.reject(new Error('not used by the checkout'))
 }
 
+/** The same destination-only configuration for the native attribute witnesses. */
+async function configureSmudgeFilters(
+  include: string,
+  names: readonly string[],
+  program: string,
+  marker: string,
+): Promise<void> {
+  for (const name of names) {
+    const command = [process.execPath, program, name, marker]
+      .map((arg) => posixQuoted(arg.replaceAll('\\', '/')))
+      .join(' ')
+    await git(['config', '--file', include, `filter.${name}.smudge`, command], fixture.work)
+    await git(['config', '--file', include, `filter.${name}.required`, 'true'], fixture.work)
+  }
+}
+
 beforeAll(async () => {
   fixture.base = await mkdtemp(path.join(tmpdir(), 'muse-m71-pr-'))
   const { base } = fixture
@@ -86,10 +102,17 @@ beforeAll(async () => {
   await chmod(hook, 0o755)
   await writeFile(
     path.join(origin, '.gitattributes'),
-    'payload.dat filter=canary\nexotic.dat filter=canary=unsafe\n',
+    'payload.dat filter=canary\n[attr]foreign filter=macro-canary\nmacro.dat foreign\n',
   )
   await writeFile(path.join(origin, 'payload.dat'), 'stored filter input\n')
   await writeFile(path.join(origin, 'exotic.dat'), 'exotic stored input\n')
+  await writeFile(path.join(origin, 'macro.dat'), 'macro input\n')
+  await mkdir(path.join(origin, 'nested'))
+  await writeFile(
+    path.join(origin, 'nested', '.gitattributes'),
+    'payload.dat filter=nested-canary\n',
+  )
+  await writeFile(path.join(origin, 'nested', 'payload.dat'), 'nested input\n')
   await writeFile(
     path.join(origin, '.filter-canary.cjs'),
     "require('node:fs').appendFileSync(process.argv[3],process.argv[2]+'\\n');if(process.argv[2]==='process')process.exit(1);process.stdin.pipe(process.stdout);\n",
@@ -197,6 +220,8 @@ describe('a pull request checked out with real git (M71)', { timeout: REAL_GIT_T
       .join(' ')
     const key = 'filter.canary=unsafe.smudge'
     await git(['config', key, command], fixture.work)
+    const attributes = path.join(fixture.work, '.git', 'info', 'attributes')
+    await writeFile(attributes, 'exotic.dat filter=canary=unsafe\n')
     try {
       const refused = path.join(fixture.base, 'exotic-refused')
       await expect(
@@ -212,8 +237,106 @@ describe('a pull request checked out with real git (M71)', { timeout: REAL_GIT_T
       expect(await readFile(marker, 'utf8')).toContain('smudge\n')
     } finally {
       await git(['config', '--unset-all', key], fixture.work)
+      await rm(attributes)
     }
   })
+
+  it('disables destination-only conditional filters selected by foreign tree attributes and macros', async () => {
+    await git(['fetch', '-q', 'origin', 'pull/51/head'], fixture.work)
+    const marker = path.join(fixture.base, 'conditional-filter-ran.txt')
+    const program = path.join(fixture.base, 'conditional-pr-program.cjs')
+    await writeFile(
+      program,
+      await git(['show', `${fixture.headSha}:.filter-canary.cjs`], fixture.origin),
+    )
+    const include = path.join(fixture.base, 'destination-filters.config')
+    const directory = await gitOutput(['rev-parse', '--absolute-git-dir'], fixture.work)
+    const kind = process.platform === 'win32' ? 'gitdir/i' : 'gitdir'
+    const condition = `includeIf.${kind}:${directory.replaceAll('\\', '/')}/worktrees/.path`
+    await configureSmudgeFilters(
+      include,
+      ['canary', 'macro-canary', 'nested-canary'],
+      program,
+      marker,
+    )
+    await git(['config', condition, include], fixture.work)
+    try {
+      expect(await git(['config', '--name-only', '--list'], fixture.work)).not.toContain(
+        'filter.canary.smudge',
+      )
+      expect(existsSync(path.join(fixture.work, '.gitattributes'))).toBe(false)
+      const folder = path.join(fixture.base, 'conditional-held')
+      await untrustedGit(worktreeAddDetachedArgs(folder, fixture.headSha), fixture.work)
+      expect(existsSync(marker)).toBe(false)
+      expect(await readFile(path.join(folder, 'macro.dat'), 'utf8')).toBe('macro input\n')
+      const control = path.join(fixture.base, 'conditional-control')
+      await git(
+        ['-c', 'core.hooksPath=/dev/null', ...worktreeAddDetachedArgs(control, fixture.headSha)],
+        fixture.work,
+      )
+      const ran = await readFile(marker, 'utf8')
+      for (const name of ['canary', 'macro-canary', 'nested-canary'])
+        expect(ran).toContain(`${name}\n`)
+    } finally {
+      await git(['config', '--unset-all', condition], fixture.work)
+    }
+  })
+
+  it.each(['configured', 'empty-XDG'])(
+    'disables filters from info and effective global attributes without changing their bytes (%s)',
+    async (mode) => {
+      await git(['fetch', '-q', 'origin', 'pull/51/head'], fixture.work)
+      const info = path.join(fixture.work, '.git', 'info', 'attributes')
+      // Use a portable Windows name; POSIX also witnesses significant trailing spaces.
+      const configured = path.join(
+        fixture.base,
+        process.platform === 'win32' ? ' global.attributes' : ' global.attributes ',
+      )
+      const profile = path.join(fixture.base, 'attribute-profile')
+      const global =
+        mode === 'configured' ? configured : path.join(profile, '.config', 'git', 'attributes')
+      await mkdir(path.dirname(global), { recursive: true })
+      const attributeEnv = { ...gitEnv, HOME: profile, XDG_CONFIG_HOME: '' }
+      const guarded = processGitRunner({ isUntrustedCheckout: true, env: attributeEnv })
+      const controlGit = processGitRunner({ env: attributeEnv })
+      const label = `local-attributes-${mode}`
+      const marker = path.join(fixture.base, `${label}-ran.txt`)
+      const program = path.join(fixture.base, 'attributes-program.cjs')
+      await writeFile(
+        program,
+        await git(['show', `${fixture.headSha}:.filter-canary.cjs`], fixture.origin),
+      )
+      await writeFile(info, '[attr]shared filter=shared-canary\nexotic.dat shared\n')
+      await writeFile(global, 'a.txt filter=global-canary\n')
+      const directory = await gitOutput(['rev-parse', '--absolute-git-dir'], fixture.work)
+      const kind = process.platform === 'win32' ? 'gitdir/i' : 'gitdir'
+      const condition = `includeIf.${kind}:${directory.replaceAll('\\', '/')}/worktrees/.path`
+      const include = path.join(fixture.base, 'attributes-filters.config')
+      await configureSmudgeFilters(include, ['shared-canary', 'global-canary'], program, marker)
+      await git(['config', condition, include], fixture.work)
+      if (mode === 'configured') await git(['config', 'core.attributesFile', global], fixture.work)
+      const original = await Promise.all([readFile(info), readFile(global)])
+      try {
+        const folder = path.join(fixture.base, `${label}-held`)
+        await guarded(worktreeAddDetachedArgs(folder, fixture.headSha), fixture.work)
+        expect(existsSync(marker)).toBe(false)
+        expect(await Promise.all([readFile(info), readFile(global)])).toEqual(original)
+        const control = path.join(fixture.base, `${label}-control`)
+        await controlGit(
+          ['-c', 'core.hooksPath=/dev/null', ...worktreeAddDetachedArgs(control, fixture.headSha)],
+          fixture.work,
+        )
+        const ran = await readFile(marker, 'utf8')
+        expect(ran).toContain('shared-canary\n')
+        expect(ran).toContain('global-canary\n')
+      } finally {
+        await git(['config', '--unset-all', condition], fixture.work)
+        if (mode === 'configured')
+          await git(['config', '--unset-all', 'core.attributesFile'], fixture.work)
+        await rm(info)
+      }
+    },
+  )
 
   it.each(['clean', 'smudge', 'process'] as const)(
     'disables the configured required %s filter while native positive control executes the PR program',

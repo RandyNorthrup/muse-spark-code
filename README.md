@@ -682,8 +682,12 @@ also unavailable while a pull request worktree is held.
   is an ordinary turn of your conversation: nothing is written on its own
   and nothing is billed beyond your turn. The reply fills the form; you edit
   it and press the button.
-  A pull request draft uses the base you edited in the form. Cancelling or
-  reopening a draft cannot attach an older acknowledgement to the new one.
+  A pull request draft uses the base you edited in the form and the fetch
+  remote for its destination repository. For a fork this is its parent,
+  never the fork's older base. A missing base is fetched through checkpoint
+  admission and verified; no matching remote or unresolved ref refuses
+  generation. Cancelling, reopening or successfully committing retires the
+  old form's generation, so its reply cannot fill a later form.
 - **Push.** Always asks, in a dialog naming the remote, its address (any
   credential in it masked), the branch and how many commits go up. It goes
   through VS Code's Git, so your credential helpers and VS Code's sign-in
@@ -708,6 +712,8 @@ also unavailable while a pull request worktree is held.
   repository hooks, signing programs or credential helpers, as the consent
   explains. A Git or GitHub call already started may finish; cancellation
   does not undo a completed commit, push or pull request.
+  If GitHub completes a pull request while Cancel waits, the panel reports
+  success with its URL and stops subsequent linking and status reads.
   Each operation captures the physical repository before lookup and rechecks
   its original and canonical directory identities before Git entry. A
   junction or symbolic link that changes during consent stops the operation,
@@ -754,9 +760,20 @@ also unavailable while a pull request worktree is held.
     filters automatically; no filter conversion is performed by the extension.
     Program names that cannot be represented safely in per-command Git
     configuration are refused before checkout, with no key or command echoed.
+    Filter overrides cover names selected by every `.gitattributes` in the
+    foreign commit (including attribute macros), the repository's shared
+    `info/attributes`, and its effective global attributes file, as well as
+    source configuration. Command-line overrides suppress filters enabled
+    only by a linked worktree's conditional includes; no shared attribute
+    file is changed. Native fixtures prove this conditional-include case.
+    Attribute-selected driver names use ASCII letters, digits, dots, underscores
+    and hyphens; unsupported names refuse checkout before trust. Default
+    global attributes are found even when `XDG_CONFIG_HOME` is empty.
 - **Held PR ceiling.** Implementing an approved reply or a saved plan cannot lift a held PR
   worktree out of Plan mode. Worktree Git actions and IDE web fetch also
   honor this extension's hold until its trust card is accepted.
+  The backend's first workspace folder decides project trust. A confirmed
+  worktree in another folder never releases that first folder's hold.
   Worktree creation/removal rechecks trust and the owning activation after
   pickers, discard confirmations and native metadata waits.
 - **Restricted Mode.** None of this runs there, and the panel says why:

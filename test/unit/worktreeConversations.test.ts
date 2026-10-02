@@ -116,6 +116,27 @@ describe('holdFor (M71): held by location, let go only by a confirmed record', (
     ).toBeDefined()
   })
 
+  it.each([false, true])(
+    'keeps each root held independently of trusted-root order (%s)',
+    (reverse) => {
+      const other = String.raw`${HELD_ROOT}\56-00000000`
+      const trusted = record({ folder: other, isHeld: false, trustConfirmedAt: 5 })
+      const held = record({})
+      const roots = reverse ? [other, FOLDER] : [FOLDER, other]
+      for (const records of [
+        [trusted, held],
+        [held, trusted],
+      ]) {
+        expect(holdFor(roots, [HELD_ROOT], records, 'win32')).toEqual({
+          folder: FOLDER,
+          pullRequest: PULL_REQUEST,
+        })
+        expect(holdFor([FOLDER], [HELD_ROOT], records, 'win32')?.folder).toBe(FOLDER)
+        expect(holdFor([other], [HELD_ROOT], records, 'win32')).toBeUndefined()
+      }
+    },
+  )
+
   it('never holds a window outside the held root, whatever a record says', () => {
     expect(
       holdFor(

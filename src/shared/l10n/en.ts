@@ -420,6 +420,11 @@ export const EN = {
   gitHubOnly: 'Pull requests open on github.com only, and the remote “{remote}” is not there.',
   gitHubSignInDeclined: 'GitHub sign-in was not given, so nothing was sent to GitHub.',
   gitHubFailed: 'The GitHub request failed',
+  gitHubAnswered: 'GitHub answered {status}',
+  gitHubResponseInvalid: 'GitHub returned a response in an unexpected format.',
+  gitHubCommitInvalid: 'Not a commit ID: {sha}',
+  gitDestinationBaseUnavailable:
+    'The destination repository’s base branch could not be found. Add its fetch remote and fetch the base, then try again.',
   gitPullRequestExists:
     'Pull request #{number} is already open for this branch; it is now linked to this conversation.',
   gitPullRequestOpened: 'Opened pull request #{number}: {url}',

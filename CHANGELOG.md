@@ -20,6 +20,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M71 independent review: trust confirmation belongs to its own workspace
+  root, with the backend's first folder deciding project configuration.
+  Foreign checkout discovers filter selectors and macros in the actual
+  commit, shared info attributes and effective global attributes; native
+  conditional-include canaries prove destination-only drivers stay off.
+  Completed commit forms retire their draft generation. Fork PR drafts use
+  a verified destination-remote base, fetching through checkpoint admission
+  if needed. A PR POST completed during Cancel reports success and its URL,
+  then stops later steps. GitHub fallback errors use all 14 translated tables.
+
 - The Node bundles share their English fallback as `dist/uiText.js`, while
   installed-language state stays local to each bundle. The VSIX and ACP
   tarball include it, and CI checks both package member lists. Existing

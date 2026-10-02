@@ -555,9 +555,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const worktreeRegistry = new WorktreeRegistry(context.globalState, process.platform, existsSync)
   const windowHold = new WindowHold(
     holdFor(
-      (vscode.workspace.workspaceFolders ?? []).flatMap((folder) =>
-        pathSpellings(folder.uri.fsPath),
-      ),
+      workspaceRoot === undefined ? [] : pathSpellings(workspaceRoot),
       pathSpellings(heldWorktreesRoot(storageRoot, process.platform)),
       worktreeRegistry.records(),
       process.platform,

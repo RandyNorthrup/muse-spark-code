@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { readFile } from 'node:fs/promises'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
+import { loadUiTable } from '../../src/host/l10n'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import { GitHubClient, GitHubError } from '../../src/core/git/github'
 import {
   CAPTURED_ALREADY_EXISTS,
@@ -39,6 +44,36 @@ function client(github = fakeGitHub()) {
 }
 
 describe('GitHubClient against the captured responses (M71)', () => {
+  it('localizes authored HTTP, schema and commit-ID failures using the installed German table', async () => {
+    const loaded = await loadUiTable({
+      language: 'de',
+      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
+      log: new FakeLogOutputChannel(),
+    })
+    expect(loaded.locale).toBe('de')
+    try {
+      const t = client()
+      const nonJson = new GitHubClient({
+        fetch: () => Promise.resolve(new Response('<html>proxy</html>', { status: 502 })),
+        userAgent: 'muse-spark-code/test',
+        log: t.log,
+      })
+      await expect(nonJson.currentUser(FAKE_GITHUB_TOKEN)).rejects.toThrow(
+        'GitHub antwortete mit 502',
+      )
+      t.github.answer('GET', '/user', { status: 200, body: { login: 'x' } })
+      await expect(t.client.currentUser(FAKE_GITHUB_TOKEN)).rejects.toThrow(
+        'GitHub hat eine Antwort in einem unerwarteten Format zurückgegeben.',
+      )
+      await expect(t.client.checks(FAKE_GITHUB_TOKEN, REPOSITORY, 'bad')).rejects.toThrow(
+        'Keine Commit-ID: bad',
+      )
+      t.github.answer('GET', '/user', { status: 401, body: { message: 'GitHub own words' } })
+      await expect(t.client.currentUser(FAKE_GITHUB_TOKEN)).rejects.toThrow('GitHub own words')
+    } finally {
+      setUiText(EN, 'en')
+    }
+  })
   it('masks the exact authentication token when an error body echoes it', async () => {
     const t = client()
     t.github.answer('GET', '/user', {
@@ -275,7 +310,7 @@ describe('checks (M71)', () => {
   it('refuses a commit id that is not one before asking GitHub', async () => {
     const t = client()
     await expect(t.client.checks(FAKE_GITHUB_TOKEN, REPOSITORY, '../../user')).rejects.toThrow(
-      'Not a commit id',
+      'Not a commit ID',
     )
     expect(t.github.requests).toHaveLength(0)
   })

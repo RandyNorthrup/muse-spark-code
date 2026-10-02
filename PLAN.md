@@ -7750,6 +7750,40 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M71 — Git and pull requests (D49)
 
+**Independent review repair, M71b, 2026-10-01 (bounded lane complete).**
+The six findings in `RV71.report.md` at `badbe5bb` are accepted for repair:
+bind held trust to each root and select the backend's first workspace folder;
+discover checkout filter selectors from the foreign tree's attributes, shared
+info attributes and effective global attributes, including macros, while
+retaining source-config overrides; bind draft generations to their form
+instance and retire them on successful completion; compare fork PR drafts
+against a verified destination-remote base, fetching only through checkpoint
+admission when missing; report a completed PR POST as successful even after
+Cancel, then stop later steps; localize GitHub fallback failures in all 14
+tables. Extend the owning suites and native conditional-include canary,
+then prove each repair by semantic red and exact byte restoration in
+`docs/certification/m71.md`. No merge, push, live call, dependency or gate
+change is authorized in this lane. Serial bounded checks run here; full
+quality and platform/editor certification remain with the lead. Reuse the
+existing canonical plan and its prior structured-ledger deferral.
+
+The final effective-attributes boundary review found that Git treats an empty
+`XDG_CONFIG_HOME` as unset (a native Windows fixture selected the filter in
+`HOME/.config/git/attributes`). Normalize that empty value before the existing
+default lookup; the native configured/global-attributes witness now includes
+the empty-XDG case. This stays within finding 2's required
+effective attributes-file discovery; no new option or helper layer is needed.
+All six repairs have regression and semantic red/restored-green proof. The
+final six owning files pass 128 tests each on Kubuntu, Mac mini and Windows
+11 VM, zero skips; thirteen distinct guard mutations are detected, including
+three refreshed filter mutations on the final runner. All five tsconfigs,
+owned ESLint/Prettier, knip, zero-clone jscpd, localization, normal host-API
+check and production build pass serially on Windows. Generated host-API docs
+reflect only the two standard-library import counts. Final sizes and exact
+restoration hashes are in `docs/certification/m71.md`. No lane code blocker
+remains; no merge is performed. The lead retains full quality, independent
+review, the M72 join and editor/platform/hosted release gates.
+
 **Resumed lane review, 2026-09-30 (in progress).** The shared English table
 is isolated in build commit `28cd4876`; M71 source will follow separately.
 The named PR32 handoff was read and its eleven M72 findings were checked

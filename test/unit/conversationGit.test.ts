@@ -932,6 +932,135 @@ function completed(turnId: string, text: string): AgentEvent[] {
 }
 
 describe('drafts inside the user’s own turn (M71)', () => {
+  it('retires the first commit form draft after a manual commit before opening second.ts', async () => {
+    const repository = fakeRepository({ indexChanges: [change('first.ts')] })
+    const t = setup({ repository })
+    await t.git.handleAction('openCommit')
+    const old = t.git.generationStarting('commitMessage')
+    t.git.generationSubmitted('first-turn', old)
+    await t.git.commit('Manual first commit', false)
+    expect(t.git.isGenerationCurrent(old)).toBe(false)
+    repository.state.indexChanges = [change('second.ts')]
+    await t.git.handleAction('openCommit')
+    for (const event of completed('first-turn', 'Draft for FIRST commit')) t.git.onEvent(event)
+    expect(t.ofType('gitCommitForm').at(-1)?.form.files).toEqual([
+      { path: 'second.ts', isStaged: true },
+    ])
+    expect(t.ofType('gitDraft')).toEqual([])
+  })
+
+  it('keys a pending generation to its form instance when another form opens', async () => {
+    const t = setup({ repository: fakeRepository({ indexChanges: [change('first.ts')] }) })
+    await t.git.handleAction('openCommit')
+    const old = t.git.generationStarting('commitMessage')
+    await t.git.handleAction('openCommit')
+    expect(t.git.isGenerationCurrent(old)).toBe(false)
+    t.git.generationSubmitted('old', old)
+    for (const event of completed('old', 'Earlier form draft')) t.git.onEvent(event)
+    expect(t.ofType('gitDraft')).toEqual([])
+  })
+
+  it('compares a fork draft against upstream main, excluding commits from behind origin main', async () => {
+    const repository = aheadRepository()
+    repository.state.remotes = [
+      { name: 'origin', fetchUrl: 'https://github.com/Piangpi1997/muse-spark-code.git' },
+      { name: 'upstream', fetchUrl: 'https://github.com/RandyNorthrup/muse-spark-code.git' },
+    ]
+    const t = setup({ repository })
+    await openForCreation(t)
+    vi.spyOn(repository, 'log').mockImplementation(({ range }) =>
+      Promise.resolve([
+        {
+          hash: OWN_SHA,
+          message: range === 'upstream/main..HEAD' ? 'My change' : 'Unrelated upstream commit',
+        },
+      ]),
+    )
+    const diff = vi.spyOn(repository, 'diffBetween')
+    const prompt = await t.git.promptFor('pullRequest')
+    expect(prompt).toContain('- My change')
+    expect(prompt).not.toContain('Unrelated upstream commit')
+    expect(diff).toHaveBeenCalledWith('upstream/main', 'HEAD')
+  })
+
+  it('refuses a fork draft without a destination fetch remote instead of falling back to origin', async () => {
+    const repository = aheadRepository()
+    repository.state.remotes = [
+      { name: 'origin', fetchUrl: 'https://github.com/Piangpi1997/muse-spark-code.git' },
+    ]
+    const t = setup({ repository })
+    await openForCreation(t)
+    await expect(t.git.promptFor('pullRequest')).rejects.toThrow(
+      UI_TEXT.gitDestinationBaseUnavailable,
+    )
+    expect(
+      repository.calls.some((call) => ['log', 'diffBetween', 'fetch'].includes(call.method)),
+    ).toBe(false)
+  })
+
+  it('fetches a missing destination base through admission and verifies the ref before diffing', async () => {
+    const t = setup({ repository: aheadRepository() })
+    await openForCreation(t)
+    t.repository.failNext('log', new Error('unknown origin/main'))
+    await expect(t.git.promptFor('pullRequest')).resolves.toContain('Add the parser')
+    expect(t.admissions()).toBe(1)
+    const calls = t.repository.calls.filter((call) =>
+      ['log', 'fetch', 'diffBetween'].includes(call.method),
+    )
+    expect(calls.map((call) => call.method)).toEqual(['log', 'fetch', 'log', 'diffBetween'])
+    expect(calls[1]?.args).toEqual([{ remote: 'origin', ref: 'main' }])
+  })
+
+  it('refuses a destination base still missing after fetch', async () => {
+    const t = setup({ repository: aheadRepository() })
+    await openForCreation(t)
+    vi.spyOn(t.repository, 'log').mockRejectedValue(new Error('unknown base'))
+    await expect(t.git.promptFor('pullRequest')).rejects.toThrow(
+      UI_TEXT.gitDestinationBaseUnavailable,
+    )
+    expect(t.repository.calls.some((call) => call.method === 'diffBetween')).toBe(false)
+  })
+
+  it('starts no destination fetch when trust is lost during checkpoint admission', async () => {
+    const t = setup({ repository: aheadRepository() })
+    await openForCreation(t)
+    t.repository.failNext('log', new Error('unknown base'))
+    vi.spyOn(t.window, 'admit').mockImplementation((start) => {
+      vi.spyOn(t.window, 'isWorkspaceTrusted').mockReturnValue(false)
+      return start()
+    })
+    await expect(t.git.promptFor('pullRequest')).rejects.toThrow(UI_TEXT.gitRestricted)
+    expect(t.repository.calls.some((call) => call.method === 'fetch')).toBe(false)
+  })
+
+  it('reports a PR completed during Cancel as successful with its URL and stops linking', async () => {
+    const t = setup({ repository: aheadRepository() })
+    await openForCreation(t)
+    const original = t.window.github.createPullRequest.bind(t.window.github)
+    vi.spyOn(t.window.github, 'createPullRequest').mockImplementation(async (...args) => {
+      const created = await original(...args)
+      await t.git.handleAction('cancel')
+      return created
+    })
+    const link = vi.spyOn(t.window.links, 'set')
+    await t.git.createPullRequest({
+      title: 'Title',
+      body: '',
+      head: 'docs/how-its-built',
+      base: 'main',
+      isDraft: true,
+    })
+    expect(t.ofType('gitDone')).toEqual([{ type: 'gitDone', form: 'pullRequest', ok: true }])
+    expect(t.notices.at(-1)).toEqual([
+      'info',
+      `Opened draft pull request #56: ${CAPTURED_PULL_OWN.html_url}`,
+    ])
+    expect(link).not.toHaveBeenCalled()
+    expect(t.ofType('gitState').some((message) => message.state.pullRequest !== undefined)).toBe(
+      false,
+    )
+  })
+
   it('keeps the PR form when the conversation attaches its first backend session', async () => {
     const t = setup({ repository: aheadRepository() })
     await openForCreation(t)

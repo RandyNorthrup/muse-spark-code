@@ -130,6 +130,7 @@ export interface GitWindow {
 
 interface Generation {
   readonly id: number
+  readonly formEpoch: number
   readonly kind: GitDraftKind
   turnId: string | undefined
 }
@@ -236,6 +237,7 @@ function pushRefusalText(plan: Extract<PushPlan, { ok: false }>): string {
 export class ConversationGit implements ConversationGitPort {
   private generation: Generation | undefined
   private generationEpoch = 0
+  private formEpoch = 0
   private observedSessionId: string | undefined
   private readonly turnsSeen = new Map<string, TurnSeen>()
   /** The pull request form's facts, for the generation prompt. */
@@ -377,6 +379,7 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   private async openCommitForm(): Promise<void> {
+    this.formEpoch += 1
     this.commitForm = undefined
     const repository = await this.usableRepository()
     if (repository === undefined) {
@@ -573,6 +576,7 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   private async openPullRequestForm(): Promise<void> {
+    this.formEpoch += 1
     this.pullRequestForm = undefined
     this.pullRequestStamp = undefined
     const repository = await this.usableRepository()
@@ -786,10 +790,33 @@ export class ConversationGit implements ConversationGitPort {
     if (!isPlainRefName(comparisonBase)) {
       throw new GitUnavailableError(UI_TEXT.gitBaseInvalid)
     }
-    const baseRef = `${form.remote}/${comparisonBase}`
+    const remote = repository.state.remotes.find((candidate) => {
+      const url = candidate.fetchUrl
+      const destination = url === undefined ? undefined : githubRepositoryOf(url)
+      return (
+        destination !== undefined &&
+        repositoryLabel(destination).toLowerCase() === form.repository.toLowerCase()
+      )
+    })
+    if (remote === undefined || !isPlainRefName(remote.name)) {
+      throw new GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
+    }
+    const baseRef = `${remote.name}/${comparisonBase}`
     try {
       check()
-      const commits = await repository.log({ range: `${baseRef}..${HEAD_REF}` })
+      let commits
+      try {
+        commits = await repository.log({ range: `${baseRef}..${HEAD_REF}` })
+      } catch {
+        check()
+        await this.window.admit(async () => {
+          check()
+          await repository.fetch({ remote: remote.name, ref: comparisonBase })
+          check()
+        })
+        check()
+        commits = await repository.log({ range: `${baseRef}..${HEAD_REF}` })
+      }
       check()
       const changes = await repository.diffBetween(baseRef, HEAD_REF)
       check()
@@ -807,13 +834,7 @@ export class ConversationGit implements ConversationGitPort {
         throw error
       }
       this.window.log.warn(`The branch's commits could not be listed (${gitFailureCode(error)})`)
-      return pullRequestPrompt({
-        head: form.head,
-        base: comparisonBase,
-        commits: undefined,
-        files: undefined,
-        commitsUnavailable: gitFailureText(error),
-      })
+      throw new GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
     }
   }
 
@@ -837,6 +858,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     this.generation = undefined
     this.turnsSeen.clear()
+    if (generation.formEpoch !== this.formEpoch) return
     const reply = seen.terminal === COMPLETED_TERMINAL ? seen.text : undefined
     if (generation.kind === 'commitMessage') {
       const message = reply === undefined ? undefined : commitMessageFrom(reply)
@@ -973,6 +995,9 @@ export class ConversationGit implements ConversationGitPort {
       return
     }
     this.window.log.info('Committed through the git extension')
+    this.formEpoch += 1
+    this.generation = undefined
+    this.turnsSeen.clear()
     this.commitForm = undefined
     const subject = trimmed.split(LINE_BREAK, 1)[0] ?? trimmed
     this.surface.notice(
@@ -1088,7 +1113,6 @@ export class ConversationGit implements ConversationGitPort {
         base,
         isDraft: request.isDraft,
       })
-      this.checkCurrent()
     } catch (error: unknown) {
       this.githubFailure(error)
       done(false)
@@ -1106,7 +1130,17 @@ export class ConversationGit implements ConversationGitPort {
     )
     this.pullRequestForm = undefined
     this.pullRequestStamp = undefined
+    this.formEpoch += 1
+    this.generation = undefined
+    this.turnsSeen.clear()
     done(true)
+    // The POST completed: report its external write even if Cancel arrived.
+    // Ownership/lifetime loss stops linking and status reads, never changes success.
+    try {
+      this.checkCurrent()
+    } catch {
+      return
+    }
     await this.linkPullRequest({
       repository: repositoryLabel(destination.repository),
       number: created.number,
@@ -1232,6 +1266,7 @@ export class ConversationGit implements ConversationGitPort {
    * Throws with the reason in words when it cannot be built.
    */
   public async promptFor(kind: GitDraftKind, base?: string): Promise<string> {
+    const formEpoch = this.formEpoch
     const check = this.activityCheck()
     check()
     const reason = this.unavailableReason()
@@ -1260,7 +1295,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     const checkDraft = () => {
       checkOwned()
-      if (repositoryStamp(repository) !== stamp) {
+      if (repositoryStamp(repository) !== stamp || this.formEpoch !== formEpoch) {
         throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
       }
     }
@@ -1275,13 +1310,20 @@ export class ConversationGit implements ConversationGitPort {
   /** The user's generation message is about to go: its reply is the draft. */
   public generationStarting(kind: GitDraftKind): number {
     this.generationEpoch += 1
-    this.generation = { id: this.generationEpoch, kind, turnId: undefined }
+    this.generation = {
+      id: this.generationEpoch,
+      formEpoch: this.formEpoch,
+      kind,
+      turnId: undefined,
+    }
     this.turnsSeen.clear()
     return this.generationEpoch
   }
 
   public isGenerationCurrent(id: number): boolean {
-    return this.generation?.id === id && this.canPost()
+    return (
+      this.generation?.id === id && this.generation.formEpoch === this.formEpoch && this.canPost()
+    )
   }
 
   /** The message was accepted as `turnId`. */

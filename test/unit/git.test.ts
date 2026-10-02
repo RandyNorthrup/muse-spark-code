@@ -34,6 +34,20 @@ function safeRunner(reply: (args: readonly string[]) => Promise<string>) {
 }
 
 describe('createGitRunner (D24)', () => {
+  it('ignores filter-like pattern text and reads selectors after a quoted path', async () => {
+    const { run, calls } = safeRunner((args) => {
+      if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
+      if (args.includes('ls-tree')) return Promise.resolve('.gitattributes\0')
+      return Promise.resolve(
+        args.includes('cat-file')
+          ? '"filter=path=only file" filter=canary\n# ignored filter=unsafe=name\n'
+          : '',
+      )
+    })
+    await run(['worktree', 'add', '--detach', '/held/pr', 'a'.repeat(40)], '/ws')
+    expect(calls.at(-1)).toContain('filter.canary.smudge=')
+    expect(calls.at(-1)?.some((arg) => arg.includes('path=only'))).toBe(false)
+  })
   it.each(['filter.driver=unsafe.smudge', 'hook.driver=unsafe.command'])(
     'refuses an unrepresentable program name %s before native checkout',
     async (key) => {
@@ -51,7 +65,7 @@ describe('createGitRunner (D24)', () => {
     const { run, calls } = safeRunner((args) => {
       if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
       return Promise.resolve(
-        args.includes('config')
+        args.includes('--name-only')
           ? 'filter.canary.clean\0filter.canary.smudge\0filter.canary.process\0filter.canary.required\0hook.checkout-canary.command\0hook.checkout-canary.event\0'
           : '',
       )
@@ -79,6 +93,27 @@ describe('createGitRunner (D24)', () => {
     await ordinary.run(['status'], '/ws')
     expect(ordinary.calls[0]?.args).toEqual(['status'])
   })
+
+  it.each(['driver=unsafe', 'driver"unsafe'])(
+    'refuses an unsafe filter selector %s found only in the foreign tree',
+    async (name) => {
+      const commit = 'a'.repeat(40)
+      const { run, calls } = safeRunner((args) => {
+        if (args[0] === '--version') return Promise.resolve('git version 2.50.1\n')
+        if (args.includes('ls-tree')) return Promise.resolve('nested/.gitattributes\0')
+        return Promise.resolve(
+          args.includes('cat-file') ? `[attr]foreign filter=${name}\n*.dat foreign\n` : '',
+        )
+      })
+      await expect(run(['worktree', 'add', '--detach', '/held/pr', commit], '/ws')).rejects.toThrow(
+        UI_TEXT.openPullRequestFiltersUnavailable,
+      )
+      expect(calls.some((args) => args.includes('worktree'))).toBe(false)
+      expect(calls.find((args) => args.includes('cat-file'))).toContain(
+        `${commit}:nested/.gitattributes`,
+      )
+    },
+  )
 
   it('enters no checkout after trust ends during names-only configuration discovery', async () => {
     const entered = Promise.withResolvers<undefined>()
@@ -132,11 +167,10 @@ describe('createGitRunner (D24)', () => {
       }
       return Promise.resolve('')
     })
-    await expect(run(['worktree', 'add'], '/ws')).rejects.toThrow(
-      UI_TEXT.openPullRequestFiltersUnavailable,
-    )
+    const args = ['worktree', 'add', '--detach', '/held/pr', 'a'.repeat(40)]
+    await expect(run(args, '/ws')).rejects.toThrow(UI_TEXT.openPullRequestFiltersUnavailable)
     isVersionFailing = false
-    await expect(run(['worktree', 'add'], '/ws')).resolves.toBe('')
+    await expect(run(args, '/ws')).resolves.toBe('')
     expect(calls.filter((args) => args[0] === '--version')).toHaveLength(2)
   })
 

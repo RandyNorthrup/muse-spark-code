@@ -139,16 +139,12 @@ export function holdFor(
   platform: NodeJS.Platform,
 ): WorktreeHold | undefined {
   // The held root itself counts: it holds every pull request checked out there.
-  const insideHeld = roots.find((root) =>
-    heldRoots.some((held) => isWithinFolder(root, held, platform)),
-  )
-  if (insideHeld === undefined) {
-    return undefined
+  for (const root of roots) {
+    if (heldRoots.every((held) => !isWithinFolder(root, held, platform))) continue
+    const record = records.find((entry) => isWithinFolder(root, entry.folder, platform))
+    if (record?.trustConfirmedAt === undefined) {
+      return { folder: record?.folder ?? root, pullRequest: record?.pullRequest }
+    }
   }
-  const record = records.find((entry) =>
-    roots.some((root) => isWithinFolder(root, entry.folder, platform)),
-  )
-  return record?.trustConfirmedAt === undefined
-    ? { folder: record?.folder ?? insideHeld, pullRequest: record?.pullRequest }
-    : undefined
+  return undefined
 }
