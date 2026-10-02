@@ -7043,6 +7043,128 @@ describe('ModelApiSession custom agents (M76)', () => {
     }
   })
 
+  // then_run's line under the edit is the user's (verifyText.ts): the refusal
+  // it appends is said in the installed language, the model's stays English.
+  it('localizes a then_run allowlist refusal with the installed German table (M76 review)', async () => {
+    const t = setupSubagents({
+      files: {
+        '.agents/agents/writer/AGENT.md': agentFile(
+          'writer',
+          'Writes a file',
+          'tools: write_file\n',
+        ),
+      },
+    })
+    try {
+      await loadUiTable({
+        language: 'de',
+        readExtensionFile: () =>
+          Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
+        log: t.log,
+      })
+      const { session, events } = await startApprovedSubagentSession(t)
+      await spawnAgentAndWait(
+        t,
+        session,
+        spawnCallReply('writer', 'Write a file', 'writer', 'spawn_de_then_run'),
+        'Writer ready.',
+      )
+      scriptChildCall(
+        t,
+        {
+          name: 'write_file',
+          arguments: JSON.stringify({ path: 'owned.ts', content: 'x', then_run: 'echo then' }),
+          callId: 'child_de_then_run',
+        },
+        'Writer done.',
+      )
+      await session.messageSubagent('subagent-1', 'Write it', true)
+      await waitForChildSummary(session, 'Writer done.')
+      expect(t.io.shellCalls).toEqual([])
+      expect(toolRows(events).find((row) => row.tool === 'write_file')?.thenRun).toMatchObject({
+        outcome: 'notRun',
+        skip: 'refused',
+        detail:
+          'Dieses Werkzeug steht nicht auf der Zulassungsliste dieses Agenten. Verwenden Sie nur die in seinen Anweisungen angebotenen Werkzeuge.',
+      })
+      expect(outputFor(childBodies(t).at(-1), 'child_de_then_run')).toMatchObject({
+        output: expect.stringContaining(MODEL_TEXT.agentToolNotOffered),
+      })
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
+  })
+
+  // A list that meets none of the session's tools can never run: neither the
+  // contributor yes nor the paid-use popup is asked for it (M76 review).
+  it.each([
+    { name: 'the session model', model: '' },
+    { name: 'a contributor model', model: 'model: muse-spark-1.3-contributor\n' },
+  ])(
+    'refuses an agent whose tools are not offered before any popup: $name (M76 review)',
+    async ({ model }) => {
+      const contributorAsks: string[] = []
+      const t = setupSubagents({
+        files: {
+          '.agents/agents/painter/AGENT.md': agentFile(
+            'painter',
+            'Paints images',
+            `tools: ${MODEL_API_TOOLS.generateImage}\n${model}`,
+          ),
+        },
+        confirmContributorModel: (modelId) => {
+          contributorAsks.push(modelId)
+          return Promise.resolve(true)
+        },
+      })
+      const { session, turnDone } = await startSession(t, 'promptUnmatched')
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('painter', 'Paint', 'painter', 'spawn_unoffered'),
+      )
+      expect(contributorAsks).toEqual([])
+      expect(t.paidRequests).toEqual([])
+      expect(childBodies(t)).toHaveLength(0)
+      expect(outputFor(t.api.responseBodies().at(-1), 'spawn_unoffered')).toMatchObject({
+        output: expect.stringContaining('names no tools this session offers'),
+      })
+    },
+  )
+
+  // What a child is offered can change while the popup is open: the spawn
+  // meets the agent's list again before the child starts.
+  it('refuses a spawn whose agent tools stop being offered during the popup (M76 review)', async () => {
+    const paid: PaidFeature[] = ['subagents', 'imageGeneration']
+    const t = setup({
+      paid,
+      files: {
+        '.agents/agents/painter/AGENT.md': agentFile(
+          'painter',
+          'Paints images',
+          `tools: ${MODEL_API_TOOLS.generateImage}\n`,
+        ),
+      },
+      allowsPaidUse: () => {
+        paid.splice(paid.indexOf('imageGeneration'), 1)
+        return Promise.resolve(true)
+      },
+    })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    await runRefusedSpawn(
+      t,
+      session,
+      turnDone,
+      spawnCallReply('painter', 'Paint', 'painter', 'spawn_lost_tools'),
+    )
+    expect(t.paidRequests).toHaveLength(1)
+    expect(childBodies(t)).toHaveLength(0)
+    expect(outputFor(t.api.responseBodies().at(-1), 'spawn_lost_tools')).toMatchObject({
+      output: expect.stringContaining('names no tools this session offers'),
+    })
+  })
+
   it.each([
     { parent: 'acceptEdits', child: 'manual' },
     { parent: 'manual', child: 'acceptEdits' },

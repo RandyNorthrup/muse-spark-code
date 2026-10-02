@@ -612,7 +612,13 @@ interface VerifyCommand {
 }
 
 type CommandOutcome =
-  | { readonly kind: 'skipped'; readonly skip: CheckSkip; readonly detail?: string }
+  | {
+      readonly kind: 'skipped'
+      readonly skip: CheckSkip
+      readonly detail?: string
+      /** The extension's own detail in the user's language, for the row; the model keeps `detail`. */
+      readonly visibleDetail?: string
+    }
   | { readonly kind: 'ran'; readonly line: string; readonly result: ShellResult }
 
 /** A permission check and the tool, or the refusal. */
@@ -3429,7 +3435,27 @@ export class ModelApiSession implements AgentSession {
       return { error: MODEL_TEXT.agentRestrictedMode }
     }
     const agent = this.context.agent(parsed.data.agent)
-    return agent === undefined ? { error: `unknown agent "${parsed.data.agent}"` } : { agent }
+    if (agent === undefined) {
+      return { error: `unknown agent "${parsed.data.agent}"` }
+    }
+    // A list that meets none of the offered tools can never run: refused
+    // before the contributor yes and the paid-use popup ask for it.
+    const narrowed = this.agentToolAllowlist(agent)
+    return 'error' in narrowed ? narrowed : { agent }
+  }
+
+  /**
+   * The tools a spawn with this agent keeps: its list met with the tools a
+   * child is offered (M76), undefined for the session's own set, or an error
+   * when they meet nothing.
+   */
+  private agentToolAllowlist(
+    agent: AgentDefinition | undefined,
+  ): { readonly tools: readonly string[] | undefined } | { readonly error: string } {
+    const tools = narrowTools(this.offeredToolNames(), agent?.tools)
+    return agent !== undefined && tools?.length === 0
+      ? { error: `agent "${agent.id}" names no tools this session offers` }
+      : { tools }
   }
 
   /** Every new task buys a fresh bounded grant; a running note does not. */
@@ -3688,9 +3714,11 @@ export class ModelApiSession implements AgentSession {
     const mode = this.isSideChat
       ? 'denyUnmatched'
       : narrowApprovalMode(this.permissions.currentMode, spawnAgent?.approvalMode)
-    const toolAllowlist = narrowTools(this.offeredToolNames(), spawnAgent?.tools)
-    if (spawnAgent !== undefined && toolAllowlist?.length === 0) {
-      return subagentFailure(`agent "${spawnAgent.id}" names no tools this session offers`)
+    // Met again: the offered tools may have changed while the popups waited
+    // (an MCP server gone, a paid feature turned off).
+    const narrowed = this.agentToolAllowlist(spawnAgent)
+    if ('error' in narrowed) {
+      return subagentFailure(narrowed.error)
     }
     if (parsed.data.worktree_isolation !== undefined && parsed.data.worktree_isolation !== false) {
       return subagentFailure('worktree isolation is unavailable on this backend')
@@ -3748,7 +3776,7 @@ export class ModelApiSession implements AgentSession {
             id: spawnAgent.id,
             source: spawnAgent.source,
             prompt: spawnAgent.body,
-            toolAllowlist,
+            toolAllowlist: narrowed.tools,
             effort: resolveAgentEffort(modelId, spawnAgent.effort),
             approvalMode: spawnAgent.approvalMode,
             permissionMode: spawnAgent.permissionMode,
@@ -5240,7 +5268,12 @@ export class ModelApiSession implements AgentSession {
             effects,
             isAllowed,
           )
-        : { kind: 'skipped', skip: 'refused', detail: MODEL_TEXT.agentToolNotOffered }
+        : {
+            kind: 'skipped',
+            skip: 'refused',
+            detail: MODEL_TEXT.agentToolNotOffered,
+            visibleDetail: UI_TEXT.agentToolNotOffered,
+          }
     } catch (error: unknown) {
       if (!(error instanceof AbortedError) && !isAbortRequested(signal)) {
         throw error
@@ -5258,6 +5291,9 @@ export class ModelApiSession implements AgentSession {
     }
     if (ran.kind === 'skipped') {
       const reason = skipReason(ran.skip, ran.detail)
+      // The row's line is in the user's language (verifyText.ts); a hook's or
+      // the user's own words are shown as they are.
+      const shown = ran.visibleDetail ?? ran.detail
       return {
         outcome: {
           ...edit,
@@ -5266,7 +5302,7 @@ export class ModelApiSession implements AgentSession {
             command,
             outcome: 'notRun',
             skip: ran.skip,
-            ...(ran.detail !== undefined && ran.detail.trim() !== '' && { detail: ran.detail }),
+            ...(shown !== undefined && shown.trim() !== '' && { detail: shown }),
             output: '',
           },
         },

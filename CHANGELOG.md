@@ -60,11 +60,16 @@ happened, not what was planned; superseded entries are kept.
   npm. The path now starts with `./`.
 
 - Custom-agent allowlist refusals show translated UI text in every supported
-  display language while the model's tool result remains English.
+  display language while the model's tool result remains English: a refused
+  call's row, and the line under an edit whose `then_run` an agent without
+  the shell refused (it was English). A **Check edits** row's body stays the
+  model's English note.
 
 - Custom-agent spawn admission uses the effective child tool set, excluding
   parent-only questions, todos/goals and subagent controls. An empty
-  intersection sends no paid child request; mixed lists retain usable tools.
+  intersection is refused before the paid-use popup or the contributor
+  question asks (they used to ask first), and is met again after them;
+  it sends no paid child request. Mixed lists retain usable tools.
 
 - Custom agents retain their Manual or Edit automatically policy through
   parsing, saving, resume, fork and approval routing. A Manual child's write

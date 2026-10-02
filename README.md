@@ -543,8 +543,10 @@ once, when the conversation starts.
   load.
 - **What an agent can do.** It can only narrow what the session already has.
   A tool outside its `tools` list is not offered and, if the model names it
-  anyway, refused, memory tools included. Allowlist refusals use the installed
-  display language. Automatic check commands need
+  anyway, refused, memory tools included. A refused call's row, and the line
+  under an edit whose `then_run` it refused, use the installed display
+  language; the model is told in English, as is the body of a **Check edits**
+  row, which shows the note the model read. Automatic check commands need
   `run_checks` or the platform shell in the list, and `then_run` (which
   runs any command line) needs the shell. A
   `permission-mode` wider than the session's gets the session's, and a mode
@@ -554,7 +556,8 @@ once, when the conversation starts.
   This policy survives saving, resuming and forking. Admission uses the tools
   the child can actually use: questions, todos/goals and subagent controls
   belong to the parent. A list with no usable child tool fails the spawn
-  before any paid child request.
+  before the paid-use popup or the contributor question asks, so nothing is
+  asked or billed for it.
 - **What it costs.** The run is a paid child task like any subagent (off
   unless paid subagents are on, asking in the paid-use popup before each use,
   Plan refuses it). An agent's `model` goes through the same checks as your

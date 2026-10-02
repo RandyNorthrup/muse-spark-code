@@ -8619,6 +8619,17 @@ extension's own storage, never the workspace's `.git`.
   checks passed, including the production build within every existing cap.
   `docs/certification/m76.md` records the original failures, five drills and
   gate receipts. No candidate merge was performed this round.
+- **Second independent review, 2026-10-01 (M76c).** Two findings, both
+  confirmed by a failing regression first. A `then_run` an agent without
+  the shell refused showed the English model sentence in its localized line
+  under the edit: the row now takes `UI_TEXT`, the model keeps `MODEL_TEXT`.
+  The **Check edits** body is the model's note and stays English like every
+  check sentence in it (its summary line is localized; a check's `detail`
+  is not rendered), so the docs were narrowed to say so. A spawn whose agent
+  lists no offered tool asked the contributor yes and the paid-use popup
+  before failing: it is now refused before both, and met again at child
+  creation, since the offered tools can change while a popup waits. Three
+  drills restored byte-exact; joined origin/main `2a30b1a0` first.
 
 - **Goal.** Specialised agents with their own prompt, tools, model or
   effort, and permissions.
@@ -8722,7 +8733,7 @@ maxBytes)`, which returns at most one byte past the cap and only for a
     that cannot add tools or permissions.
   - **Narrowing only.** The child's allowlist is the agent's list met with
     the tools the session offers (a list that meets nothing fails the spawn
-    loudly) and binds every call before any dispatcher, memory's included;
+    loudly, before any popup asks) and binds every call before any dispatcher, memory's included;
     the mode is the agent's when it is not wider than the session's, in the
     order denyUnmatched < promptUnmatched < onRequest < allowAll (the modes
     menu's order, not `APPROVAL_MODES`'s), and a mode switch re-narrows;
