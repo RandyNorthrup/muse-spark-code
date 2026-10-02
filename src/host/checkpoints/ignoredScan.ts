@@ -4,7 +4,9 @@
 // deleted, including a shell command's, which the extension only sees
 // afterwards. A folder an ignore rule names whole is walked up to
 // CHECKPOINT_IGNORED_FOLDER_MAX_FILES files and left out whole beyond that
-// (node_modules); the scan stops at CHECKPOINT_IGNORED_SCAN_MAX_FILES.
+// (node_modules); the scan stops at CHECKPOINT_IGNORED_SCAN_MAX_FILES. A
+// repository of its own met on the walk is left out whole, as git leaves
+// out an untracked one.
 
 import { lstat, readdir } from 'node:fs/promises'
 import path from 'node:path'
@@ -14,6 +16,7 @@ import {
   CHECKPOINT_IGNORED_SCAN_MAX_FILES,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
+import { hasGit } from './checkpointFiles'
 
 const GIT_FOLDER = '.git'
 const SEPARATOR = '/'
@@ -21,10 +24,30 @@ const SEPARATOR = '/'
 export interface IgnoredInventory {
   /** Workspace-relative path to its size and modification time. */
   readonly files: ReadonlyMap<string, FileStat>
-  /** Folders left out whole: over the folder limit, or past the scan's limit. */
+  /**
+   * Folders left out whole: over the folder limit, past the scan's limit, or
+   * a repository of its own.
+   */
   readonly skippedFolders: readonly string[]
   /** The scan reached its limit: files past it are not known either way. */
   readonly isPartial: boolean
+}
+
+/** What one walk of the ignored files found. */
+interface IgnoredScan {
+  readonly inventory: IgnoredInventory
+  /**
+   * The ignored folders, or folders inside them, that are repositories of
+   * their own: an ignore rule hides them from git's listing, so the walk
+   * finds them, and a checkpoint leaves them out.
+   */
+  readonly repositories: readonly string[]
+}
+
+/** A folder's walk: its regular files, and the repositories of their own below it. */
+interface FolderWalk {
+  readonly files: ReadonlyMap<string, FileStat>
+  readonly repositories: readonly string[]
 }
 
 /** A regular file's stat; undefined for anything else or nothing. */
@@ -40,15 +63,24 @@ export async function regularFileStat(absolutePath: string): Promise<FileStat | 
   }
 }
 
-/** A folder's regular files (links not followed, `.git` skipped), or undefined past `limit`. */
+/**
+ * A folder's regular files (links not followed, `.git` skipped), the folder
+ * itself or any below it that holds `.git` named as a repository and not
+ * walked; undefined past `limit`.
+ */
 async function folderFiles(
   root: string,
   folder: string,
   limit: number,
-): Promise<Map<string, FileStat> | undefined> {
+): Promise<FolderWalk | undefined> {
   const found = new Map<string, FileStat>()
+  const repositories: string[] = []
   const pending = [folder]
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (await hasGit(path.join(root, next))) {
+      repositories.push(next)
+      continue
+    }
     let entries
     try {
       entries = await readdir(path.join(root, next), { withFileTypes: true })
@@ -73,17 +105,21 @@ async function folderFiles(
       }
     }
   }
-  return found
+  return { files: found, repositories }
 }
 
-/** The ignored files `git status` listed, and the files of the folders it named whole. */
+/**
+ * The ignored files `git status` listed, the files of the folders it named
+ * whole, and the repositories of their own among and inside those folders.
+ */
 export async function scanIgnored(
   root: string,
   ignoredFiles: readonly string[],
   ignoredFolders: readonly string[],
-): Promise<IgnoredInventory> {
+): Promise<IgnoredScan> {
   const files = new Map<string, FileStat>()
   const skippedFolders: string[] = []
+  const repositories: string[] = []
   let isPartial = false
   const sortedFiles = ignoredFiles.toSorted((a, b) => a.localeCompare(b))
   for (const relative of sortedFiles) {
@@ -107,11 +143,17 @@ export async function scanIgnored(
       isPartial ||= room < CHECKPOINT_IGNORED_FOLDER_MAX_FILES
       continue
     }
-    for (const [relative, stats] of found) {
+    for (const [relative, stats] of found.files) {
       files.set(relative, stats)
     }
+    repositories.push(...found.repositories)
   }
-  return { files, skippedFolders, isPartial }
+  // The scan does not know a repository's files either way: none of them
+  // reads as created or deleted when a folder becomes or stops being one.
+  return {
+    inventory: { files, skippedFolders: [...skippedFolders, ...repositories], isPartial },
+    repositories,
+  }
 }
 
 function isInFolders(relative: string, folders: readonly string[]): boolean {

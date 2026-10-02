@@ -339,7 +339,7 @@ fields, never raw configuration or failed-command output.
   beside them, one JSON file per prompt with the same digest, plus a small
   receipt for each run you confirmed. Archiving a conversation in the
   History dialog hides it; deleting the directory removes them all.
-- Turn checkpoints (M72, on by default, `museSpark.turnCheckpoints`) are
+- Turn checkpoints (M72, a Preview, off by default, `museSpark.turnCheckpoints`) are
   kept under extension global storage in `checkpoints/<canonical-root-key>`:
   native canonical path (Windows-normalized/case-folded) determines the key
   using the existing workspace hash helper. Current-version windows sharing

@@ -3,6 +3,9 @@ import { redactSecrets } from '../../src/core/redact'
 import { isValidModelApiKey } from '../../src/host/auth/credentialStore'
 import { CURRENT_SHAPE_KEYS, OLDER_SHAPE_KEYS } from './helpers/modelApiKeys'
 
+// A linear scan of 100,000 characters takes milliseconds; the quadratic one took seconds.
+const LINEAR_SCAN_MS = 1000
+
 describe('redactSecrets', () => {
   it('redacts Meta Model API keys wherever they appear', () => {
     expect(redactSecrets('key=LLM|1234567890|abcDEF-123_xyz done')).toBe('key=[redacted] done')
@@ -50,6 +53,17 @@ describe('redactSecrets', () => {
     expect(redactSecrets('fetch https://user:hunter2@proxy.local:8080/x')).toBe(
       'fetch https://[redacted]@proxy.local:8080/x',
     )
+    expect(redactSecrets(`${'x'.repeat(31)}://user:hunter2@host`)).toBe(
+      `${'x'.repeat(31)}://[redacted]@host`,
+    )
+  })
+
+  it('reads a long line of dotted words with no URL in linear time', () => {
+    // Quadratic before the scheme was bounded: about 22 s at this length.
+    const line = 'a.'.repeat(50_000)
+    const started = performance.now()
+    expect(redactSecrets(line)).toBe(line)
+    expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
   })
 
   it('leaves ordinary text untouched', () => {

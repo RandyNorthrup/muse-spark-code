@@ -42,11 +42,27 @@ const checkpointRecordSchema = z.object({
   sessionId: z.string(),
   turnId: z.string(),
   createdAt: z.number(),
+  /**
+   * Where the turn's start falls among its conversation's turns: one count
+   * numbers every start and end the conversation's records hold, so their
+   * order never rests on the clock, which can repeat a millisecond or go
+   * back. Absent in a record a 0.10.0 candidate wrote.
+   */
+  sequence: z.optional(z.number()),
   start: captureSchema,
   /** The capture at the turn's end; absent while it runs, or when the end was not seen. */
   end: z.optional(captureSchema),
   /** When the turn's end was seen (with or without a capture): other conversations' overlap. */
   endedAt: z.optional(z.number()),
+  /** Where the turn's end was seen, on the count `sequence` is on; absent when `endedAt` is. */
+  endSequence: z.optional(z.number()),
+  /**
+   * The files the user saved in any window on the folder while the turn ran
+   * (every file the turn changed, when another window's saves were not all
+   * known): the user's bytes, which a restore leaves alone. Absent when there
+   * were none, and in a record a 0.10.0 candidate wrote.
+   */
+  userSaves: z.optional(z.array(z.string())),
   /** The store (one per window) that recorded it: only it ends the turn. */
   owner: z.optional(z.string()),
   /**
