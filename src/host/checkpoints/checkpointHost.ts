@@ -374,7 +374,7 @@ export async function withCheckpointEditAt<T>(
  * writes (`writeRecorder`), and what else writes through this one (Muse
  * Code's image tools, the extension for the user) is never recorded.
  */
-export function withCheckpointCopies(io: ToolIo, checkpoints: CheckpointPort): ToolIo {
+export function withCheckpointStorageGuard(io: ToolIo, checkpoints: CheckpointPort): ToolIo {
   const finishActivity = async (key: string, isProven: boolean): Promise<void> => {
     try {
       if (!isProven) {

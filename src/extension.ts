@@ -97,7 +97,7 @@ import {
   createCheckpointPort,
   finishCheckpointTurn,
   prepareCheckpointTurn,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
   withCheckpointEdit,
   withCheckpointEditAt,
 } from './host/checkpoints/checkpointHost'
@@ -1021,7 +1021,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // The window's tool io: no tool writes the checkpoint storage, and every
   // command is workspace activity. It records nothing: each Model API turn
   // writes through its own io, made over this one (M86, below).
-  const checkpointedIo = withCheckpointCopies(toolIo, checkpoints)
+  const checkpointedIo = withCheckpointStorageGuard(toolIo, checkpoints)
   // The verify loop (M68, PLAN.md D49): what the language servers report on
   // edited files, which only an editor showing a file makes them do, and the
   // formatter over the Model API backend's edits.

@@ -7,7 +7,7 @@ import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createToolIo } from '../../src/host/backend/toolIo'
-import { withCheckpointCopies } from '../../src/host/checkpoints/checkpointHost'
+import { withCheckpointStorageGuard } from '../../src/host/checkpoints/checkpointHost'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   CHECKPOINT_NATIVE_WINDOW,
@@ -51,7 +51,7 @@ describe('the checkpoint wrapper over a shell that never started (M72)', () => {
         systemRoot: isPosix ? undefined : path.join(h.root, 'no-such-windows'),
         env: () => (isPosix ? { PATH: '' } : {}),
       })
-      const io = withCheckpointCopies(missing, checkpointPort(h))
+      const io = withCheckpointStorageGuard(missing, checkpointPort(h))
       const result = await io.runShell('echo hi', h.root, SHELL_DEFAULT_TIMEOUT_MS)
       expect(result.exitCode).toBeNull()
       expect(result.stderr).not.toBe('')
@@ -73,7 +73,7 @@ describe('the checkpoint wrapper over a shell that never started (M72)', () => {
         systemRoot: process.env['SystemRoot'],
         env: () => ({ PATH: process.env['PATH'] }),
       })
-      const io = withCheckpointCopies(real, checkpointPort(h))
+      const io = withCheckpointStorageGuard(real, checkpointPort(h))
       const command = process.platform === 'win32' ? 'Write-Output launched' : 'printf launched'
       const result = await io.runShell(command, h.root, SHELL_DEFAULT_TIMEOUT_MS)
       expect(result.exitCode).toBe(0)

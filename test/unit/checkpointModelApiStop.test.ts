@@ -28,7 +28,7 @@ import {
   createCheckpointPort,
   finishCheckpointTurn,
   prepareCheckpointTurn,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
 } from '../../src/host/checkpoints/checkpointHost'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { fakeModelApi } from './helpers/fakeModelApi'
@@ -99,7 +99,7 @@ async function setup(hasMemory = false) {
       }),
     ),
   )
-  const io = withCheckpointCopies(native, port)
+  const io = withCheckpointStorageGuard(native, port)
   let memoryStage: (() => Promise<void>) | undefined
   const memoryIo = createMemoryIo(io, {
     warn: (message) => {

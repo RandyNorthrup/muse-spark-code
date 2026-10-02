@@ -20,7 +20,7 @@ import type { ToolIo } from '../../core/backends/modelapi/tools'
 import { MemoryStore, type MemoryStoreDeps, type MemoryWrites } from '../../core/memory/memoryStore'
 import {
   type CheckpointPort,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
   withCheckpointEditAt,
 } from '../checkpoints/checkpointHost'
 import type { OwnerIo } from '../checkpoints/writeRecorder'
@@ -54,7 +54,7 @@ export function createCheckpointedMemory(
   const { captureGuard, ...storeDeps } = deps
   const store = new MemoryStore({
     ...storeDeps,
-    io: createMemoryIo(withCheckpointCopies(files, checkpoints), {
+    io: createMemoryIo(withCheckpointStorageGuard(files, checkpoints), {
       warn: storeDeps.warn,
       aroundCreate: async (absolutePath, _content, _checkedPath, publish) => {
         checkpoints.refuseStorageWrite(absolutePath)

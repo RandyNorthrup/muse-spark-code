@@ -13,7 +13,7 @@ import {
   createCheckpointPort,
   finishCheckpointTurn,
   prepareCheckpointTurn,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
   withCheckpointEdit,
   withCheckpointEditAt,
 } from '../../src/host/checkpoints/checkpointHost'
@@ -108,7 +108,7 @@ async function runWithFailingMark(failAt: 'entry' | 'close') {
         : Promise.resolve(),
   }
   const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-  const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
+  const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, failing)
   const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
   return { error, work }
 }
@@ -212,7 +212,7 @@ describe('createCheckpointPort (M72, M86)', () => {
     await expect(port.markTurn('turn', true)).rejects.toThrow(UI_TEXT.checkpointsNativeUnsafe)
     expect(calls).toEqual([])
     const shell = vi.fn(noopToolIo.runShell)
-    const wrapped = withCheckpointCopies({ ...noopToolIo, runShell: shell }, port)
+    const wrapped = withCheckpointStorageGuard({ ...noopToolIo, runShell: shell }, port)
     await expect(wrapped.runShell('write something', '/ws', 1000)).rejects.toThrow(
       UI_TEXT.checkpointFailed,
     )
@@ -464,7 +464,7 @@ describe('prepareCheckpointTurn and finishCheckpointTurn (M86)', () => {
   })
 })
 
-describe('withCheckpointCopies (M72, M86)', () => {
+describe('withCheckpointStorageGuard (M72, M86)', () => {
   it('awaits an activity mark before starting shell or hook work', async () => {
     const { store, calls } = fakeStore()
     const entered = Promise.withResolvers<undefined>()
@@ -484,7 +484,7 @@ describe('withCheckpointCopies (M72, M86)', () => {
       hasGit: () => true,
     })
     const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-    const io = withCheckpointCopies(
+    const io = withCheckpointStorageGuard(
       { ...noopToolIo, runShell: enteringShell(work), runHook: work },
       port,
     )
@@ -509,7 +509,7 @@ describe('withCheckpointCopies (M72, M86)', () => {
     async (_name, refusal) => {
       const { port, calls } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
       const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-      const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+      const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, port)
       let asked = 0
       const result = await io.runShell('owned fixture', '/ws', 1000, undefined, undefined, () => {
         asked += 1
@@ -542,7 +542,7 @@ describe('withCheckpointCopies (M72, M86)', () => {
   it('runs the wrapped shell once when both entries admit it', async () => {
     const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
     const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+    const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, port)
     const guard = vi.fn()
     const result = await io.runShell('owned fixture', '/ws', 1000, undefined, undefined, guard)
     expect(guard).toHaveBeenCalledTimes(2)
@@ -569,7 +569,7 @@ describe('withCheckpointCopies (M72, M86)', () => {
         return noopToolIo.reserveFile(absolutePath)
       },
     }
-    const wrapped = withCheckpointCopies(io, port)
+    const wrapped = withCheckpointStorageGuard(io, port)
     const options = { expectedCanonicalPath: '/x', unsavedAt: [] }
     const refusal = MODEL_TEXT.checkpointStorageWrite
     await expect(wrapped.writeFile('/storage/config', 'x')).rejects.toThrow(refusal)

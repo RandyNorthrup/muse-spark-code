@@ -5,7 +5,7 @@ import * as atomic from '../../src/host/fsAtomic'
 import type { ShellResult, ToolIo } from '../../src/core/backends/modelapi/tools'
 import {
   createCheckpointPort,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
 } from '../../src/host/checkpoints/checkpointHost'
 import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
 import path from 'node:path'
@@ -123,7 +123,7 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
         return shellResult(false)
       }
       const io: ToolIo = { ...noopToolIo, runShell: enteringShell(work), runHook: work }
-      const wrapped = withCheckpointCopies(io, port)
+      const wrapped = withCheckpointStorageGuard(io, port)
       const hook = wrapped.runHook
       if (hook === undefined) {
         throw new Error('expected hook wrapper')
@@ -170,7 +170,7 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
         isWorkspaceTrusted: () => true,
       })
       // This controlled I/O fixture creates no native process or descendant.
-      const wrapped = withCheckpointCopies(
+      const wrapped = withCheckpointStorageGuard(
         { ...noopToolIo, runShell: enteringShell(() => Promise.resolve(shellResult(true))) },
         port,
       )
@@ -206,7 +206,7 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
         isWorkspaceTrusted: () => false,
       })
       const work = vi.fn(() => Promise.resolve(shellResult(true)))
-      const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+      const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, port)
       await expect(io.runShell('must not start', h.root, REAL_GIT_TIMEOUT_MS)).rejects.toThrow(
         UI_TEXT.checkpointFailed,
       )
