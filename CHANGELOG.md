@@ -9,6 +9,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **M80 packaging and CI integration contract (lane D):** ACP package now
+  ships both generated event/result schemas and the headless guide. A separate
+  private fake-only test tarball preserves production stage/digest and changes
+  only the test bin; it is never released. Built-process and installed-host tests
+  cover help/refusal, stdin/store auth, scanner and POSIX cancellation when B
+  lands. Build/host workflows run these fake-only checks; npm publish alone gets
+  OIDC permission and `--provenance`.
+  The guide specifies strict same-repository CI gates, opt-in bounded images,
+  context-window streamed accounting/idle protection, conservative settlement,
+  verified npm bundle/signer identity, sanitized Git and separate test/apply jobs.
+  Tool text/incomplete prose and whole binary/image/secret-patch limitations are
+  explicit. D64/rules 8/12 name exec **and** scanner stdin readers and initial-env
+  residuals. Engine/Action integration, operational recipes and L/LA/LR remain
+  pending; this entry makes no certification or registry-support claim.
+
 - **M80 headless contract foundation (lane A):** independent argument parsing,
   versioned result/event validation, text/JSON/JSONL output, bounded async fd
   writers, cancellable stdin key/prompt readers and a counts-only secret scanner.

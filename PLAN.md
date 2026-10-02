@@ -2610,6 +2610,10 @@ the price accepted once, then only the row, the badge and the tally).
   Model API backend with a pay-as-you-go key is that consent (D1, D37); the
   popup covers what costs extra beyond it.
 
+**M80 headless amendment (D64):** interactive consent above is unchanged.
+Headless images use the explicit flag, `acceptEdits`, hard cap and per-use
+admission/tally; no remembered grant is accessed. Hosted search is refused.
+
 ### D49 — Coding quality first: what to build next (2026-09-27)
 
 The owner (2026-09-27):
@@ -3047,14 +3051,11 @@ add-generic-password -w` takes it as an argument, visible to `ps`. A
   of its own environment at start (`src/runtime/credentialVariables.ts`)
   and hands them back to Muse Code's processes only, so a shell command,
   a hook, git or a helper never sees one.
-- **AGENTS.md rule 8 (amended 2026-09-28)** names this store as
-  SecretStorage's stand-in outside VS Code (it is the store SecretStorage
-  itself rests on), filled only through `auth set`'s standard input and
-  never passed to a child process. Its one named exception is M80's CI
-  bootstrap: GitHub hands a secret to a step only through its environment
-  or script, so the Action's step shell is the one environment the key is
-  ever in; it pipes the key to `auth set` and unsets it before `exec`
-  starts.
+- **AGENTS.md rule 8 (amended 2026-10-02, D64)** retains local OS-store
+  authentication and names CI's memory-only stdin exception: the trusted
+  launcher feeds only `exec --key-stdin` and the trusted
+  `scan-secrets --key-stdin` child. CI does not use `auth set`, a throwaway
+  keyring or an environment-key fallback inside the agent.
 - **Later**: offering, in VS Code, to copy the key into the OS store for
   the other editors needs the native module in the `.vsix`, so
   per-platform packages (with M64).
@@ -3177,6 +3178,10 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
     lapses in every folder when the agent starts without that feature's
     flag, so turning the flag on again asks again (the panel's grant
     generation, D48, in the agent's terms).
+- **Headless M80 (D64):** `exec` replaces editor questions with denials.
+  Only explicitly flagged, affordable, ordinary image uses in `acceptEdits`
+  may proceed; protected/asking uses are denied. No grant store is touched.
+  Local OS-store auth remains; CI feeds exec and scanner by private stdin.
 - **Networks (Q66, 2026-09-27): loud, not re-routed.** VS Code's proxy and
   certificate settings do not reach the agent, and Node's `fetch` uses the
   environment's proxy only with `NODE_USE_ENV_PROXY=1` (Node 22.21+, 24+).
@@ -3231,7 +3236,45 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   changes are listed, not undone, as Claude Code's own rewind does; this
   narrows D51, which promised to undo them.
 
+### D64 — Headless execution and CI key readers (M80, 2026-10-02)
+
+**The exception: headless runs in CI (M80, PLAN D64).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
+
+Local OS-store authentication is unchanged. Stdin CI uses neither `auth set`
+nor a throwaway keyring nor an environment-key fallback inside the agent.
+One bounded launcher owns diff generation, exec, extraction, patch Git,
+the trusted scanner and publication. Cancellation closes publication, stops
+later children and clears key references in finally; it cannot guarantee
+physical memory zeroization or graceful Windows signal delivery.
+
+Headless paid images require an explicit flag, `acceptEdits`, a hard USD cap
+and per-use ledger admission/settlement. Protected paths and `requiresAsking`
+are denied. No remembered grants, ordinary approval grants or translated-title
+policy decisions apply. Hosted search, voice, subagents and schedules stay off;
+the subscription pays none of these Model API calls. D48/D62's interactive
+popup policy remains in force for interactive sessions.
+
+Admission reserves the documented context-window liability for each attempt,
+including retries, using integer micro-USD and upward rounding (F1).
+Contributor minimum is $0.108135 ($0.118135 with images); standard minimum is
+$1.409024 ($1.419024 with images). Lost or unverified receipts keep their full
+reservation. The conditional billing theorem and provider assumptions are in
+[docs/ci.md](docs/ci.md); no M82 prerequisite or token-count estimator exists.
+
+Proposals, secret-free tests and reviewer-approved push run in separate jobs.
+Text patches publish only after exact staged-byte scanning. Any binary/image
+change withholds the entire patch. Registry installs require npm 11.19.0's
+verified provenance bundle, subject/digest and release-workflow certificate
+identity; unsigned candidate digests provide a different claim.
+
 ## 3. Open questions (need the owner)
+
+- **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
+  flag/hard cap, required real Action receipt, and hosted-search refusal are
+  settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
+  metadata on failure. D-M6 correction: fake W spends $0 actual money;
+  text/review simulates $0.000004, one returned image makes $0.010004, about
+  one cent, under $1.00. No claim of a sub-cent successful image.
 
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
   owned full-descendant shutdown proof can make native/command/hook snapshots
@@ -8987,84 +9030,61 @@ independent review and the full candidate gates remain required.**
   for a stronger plan location (`specs/…/plan.md`, `docs/plans/`), which is
   the model's judgement, not a fixed name (D13).
 
-### M80 — Headless and CI (D49)
+### M80 — Headless and CI (D49, D64)
 
-**Lane A, 2026-10-02:** implement the frozen scratchpad `m80/SPEC.md` v4
-§5.1/§9 and the M80A brief only. Pure argument/result/event/output/fd/key/scanner
-modules, literal-first redaction, constants, all 14 translations and deterministic
-schemas compile independently; `cliArgs` and `main` remain unchanged. F1 parses
-ASCII decimal budget strings directly into safe integer micro-USD (at most six
-fractional digits); accounting identities use that integer domain, and B rounds
-sub-micro reservations/charges upward. F2's observed terminal/reason/usage payload
-on transport settlement is B's task. Evidence and guard drills live in
-[the lane A record](docs/certification/m80.md). This does not close M80, full
-quality, engine/Action/packaging/host acceptance or L/LA/LR. D still owns replacing
-the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
+**Contract:** scratchpad `m80/SPEC.md` v4 plus its F1/F2 lead rulings,
+2026-10-02. M80 builds on M63/D61, independently of M82. It adds one-turn
+`exec` and counts-only `scan-secrets` to the existing ACP package/bin,
+using the existing in-process ACP engine. No new backend entry or UI.
 
-- **Goal.** The agent runs where the editor does not.
-- **Scope.**
-  - An `exec` mode in the ACP agent's package:
-    - a prompt in, JSONL events or a final JSON out;
-    - a schema for the output;
-    - a budget, kept by reservation as in M82, and an attempt cap.
-  - M80 builds on M63 and D61 (PR #32), and on PR #32's amendment of
-    AGENTS.md rule 8, which names the OS credential store as the store
-    outside VS Code (the one SecretStorage itself rests on) and this
-    bootstrap as its one exception.
-  - A GitHub Action for PR review and "fix this" comments, on the user's
-    own runners and key.
-    - It runs only for triggers from the repository's owners, members and
-      collaborators, on branches of the same repository. The key is never
-      present on a job that checks out a fork's code
-      (`pull_request_target` included), and the Action refuses a
-      self-hosted runner on a public repository.
-    - `exec` denies every approval question, has no shell or check tools
-      on PR content, and never uses `--trust-workspace`. A tool process
-      it starts gets no `DBUS_SESSION_BUS_ADDRESS` or other route to the
-      keyring session.
-    - The OS credential store does not protect the key from processes of
-      the same user, which is why nothing from the PR runs beside it.
-  - **The key follows D61 and AGENTS.md rule 8.**
-    - It lives in the operating system's credential store, the one the
-      ACP agent already uses (`@napi-rs/keyring`, filled by
-      `muse-spark-code-acp auth set` from standard input).
-    - Its one way in is `auth set`'s standard input: from the user's
-      terminal locally, from the Action's step shell in CI.
-    - Inside the agent it is never passed as an environment variable, an
-      argument or a file, and never to a process the agent starts (a
-      tool, a check, `exec`'s commands).
-    - A local headless run reads that entry, like the ACP agent.
-    - In CI the Action sets, runs and clears inside one shell: on Linux,
-      one `dbus-run-session` that starts and unlocks a throwaway keyring,
-      pipes the repository secret into `auth set` through standard
-      input, runs `exec`, and clears the entry on exit; on macOS and
-      Windows, the runner's own store, cleared in an always-run step. The
-      entry's account name is unique to the run, so concurrent jobs and a
-      developer's own key on a self-hosted runner never collide.
-    - GitHub hands a secret to a step only through the step's
-      environment or its script, so in CI the Action's own step shell is
-      the one environment the key is ever in. That shell writes it to
-      `auth set`'s standard input and unsets it before `exec` starts; the
-      shell and `auth set` are the only processes that hold it outside
-      the store. PR #32's amendment to AGENTS.md rule 8 names this
-      bootstrap as the exception, and nothing else.
-    - `exec` cannot show D48's popup or M71's push confirmation, so it
-      refuses paid features and never pushes. A "fix this" result leaves
-      as a patch, or a commit pushed by a separate step the repository's
-      owner wrote.
-    - If no store is available, the run stops with that reason; there is
-      no fallback.
-- **Backends.** The Model API with the key from the store. Muse Code only
-  where the CLI is already signed in on that machine; a device sign-in
-  needs a person, so it is not offered in CI.
-- **Acceptance.** A fork's PR or an outside commenter starts nothing;
-  outside the Action's step shell, the key is in no environment, and it is
-  in no argument, file or log; no process `exec` starts gets it or a route
-  to the keyring; `exec` answers every approval question with a denial.
-- **Tests.** `exec` against the fake Model API; the Action's steps in a
-  workflow test on the owner's repository, with a drill for the trigger
-  check.
-- **Size.** M.
+| Lane / receipt | Scope                                                                                    | Current state                                                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A              | Pure arguments/protocol/egress/fd/key/scanner, translations, schemas                     | Delivered in `e39ac9d3`; focused rig gates and deliberate breaks recorded                                                                                     |
+| B              | CLI/scanner lifecycle, real engine, tap, ledger, streaming transport                     | Separate implementation lane; integration pending here                                                                                                        |
+| C              | Gate/install/launcher/sanitized Git/proposal/apply and W workflow                        | Separate implementation lane; integration pending here                                                                                                        |
+| D              | Package/schema distribution, test package, build/release/hosts, E/H tests, documentation | Implemented in `feature/m80-lane-d`; 24 focused guards pass on Kubuntu/Windows, 25 deliberate breaks restored; actionlint and B/C/lead acceptance remain open |
+| L              | Local contributor text/PNG/PDF captures                                                  | Pending lead review and authorized live execution                                                                                                             |
+| LA             | Required real Action candidate using `MUSE_MODEL_API_KEY`                                | Pending secure secret setup and actual run receipt                                                                                                            |
+| LR             | Published npm package provenance and registry Action smoke                               | Pending release; registry support cannot be claimed before this receipt                                                                                       |
+
+- **Exec:** exactly one bounded UTF-8 prompt; `plan` by default or
+  `acceptEdits`; never trust or bypass. Ordinary approval requests and questions
+  are denied. Model API exec starts no tool/shell/check/hook/MCP/Git/web-fetch
+  process. Local Muse Code exec uses the already-signed-in CLI; no login.
+- **Accounting:** every admitted billable HTTP attempt, retry, compaction and
+  image consumes request/cap headroom. Context-window reservations use exact
+  tariff arithmetic, round upward to integer micro-USD, and retain uncertain
+  liability permanently. No counting endpoint, byte heuristic or M82 budget.
+  F2 retains observed terminal/reason/usage on transport loss, which still
+  withholds prose and settles the full reservation. Latest valid response
+  completion plus ACP end_turn authorizes success; missing accounting exits 9.
+- **Keys:** D64 names both trusted stdin readers, exec and the scanner. Local
+  OS-store auth is unchanged. CI never fills a keyring; no other child gets
+  the key or keyring/credential routes. Initial launcher environment inspection
+  and same-user memory inspection remain residual risks.
+- **Images:** off by default; explicit flag + `acceptEdits` + hard budget,
+  per-use admission and returned/refunded/uncertain tally. No remembered grants,
+  hosted search, voice, subagents or schedules; no subscription billing.
+- **Action:** same-repo OWNER/MEMBER/COLLABORATOR triggers only; refuse forks,
+  bots, `pull_request_target`, public self-hosted runners and changed API head.
+  Install trusted package before checkout, use one sanitized Git runner and
+  bounded launcher across all proposal phases. Candidate is unsigned and
+  digest pinned; registry path verifies npm 11.19.0 bundles and signer identity.
+- **Publication:** metadata-only tool events; whole incomplete messages
+  withheld; all output leaves redact exact literals before patterns.
+  Completed/0 alone permits comments and exact scanned text patches. Any binary
+  change (including an unignored generated PNG) withholds the entire patch.
+  Prepare/tests have read permission and no secrets; push uses `muse-apply`
+  maintainer review and exact digest/head/lease checks in its own job.
+- **Acceptance:** A1–A17/A19–A22, D1–D30, P1–P10, L1–L12, G1–G25,
+  E1–E7, H1–H4, W-review/text/image/low-budget/gate/apply, R1–R39,
+  unchanged integrated quality/build/host matrices, L and LA before candidate
+  certification; LR after release before registry-path support.
+  [m80.md](docs/certification/m80.md) carries observed and pending evidence.
+- **Windows limits:** standalone POSIX signal tests are explicitly skipped;
+  argv and injected child-env hashes do not prove full environment-block audit.
+- **Size:** L. Existing bundle caps remain unchanged; final integrated-tree
+  sizes and package/workflow hashes belong to the lead's closing receipt.
 
 ### M81 — Browser check (D49)
 
@@ -9784,6 +9804,32 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**M80 lane D gate boundary (2026-10-02).** The M80D brief overrides the
+full-suite instruction for implementing lanes: rigs only, serial focused tests,
+no `npm run quality`, no live/model calls and no push. The lead owns unchanged
+full quality and build/hosts/action-check matrices on the exact integrated tree.
+No threshold, timeout, ignore, hook or rule is weakened.
+
+B's real exec/scanner CLI and C's test launcher/Action are absent from this frozen
+lane-A-based worktree. E1–E7/H1–H4 built/installed acceptance, actual fake test
+package, recipe operational paths, reviewed immutable Action SHA and L/LA/LR
+remain pending those integrations and lead receipts. The e2e file runs package
+and host-harness guards now; explicit B skips are not success. Supplying an
+installed package activates all built rows, so hosted jobs cannot silently
+certify an old package. Standalone POSIX signal rows still skip on Windows.
+
+Kubuntu has shellcheck at /usr/bin/shellcheck; actionlint remains absent from
+PATH and searched installed locations. The supplied common.md bans network calls
+except npm ci; scoped actionlint install permission was requested asynchronously.
+Until an approved tool is available, actionlint remains open, never substituted
+by Windows-only lint or syntax checks. Lane D's certification records each actual rig result and drill.
+
+The generic feature-delivery validator expects a `quality-ledger` fence and
+reported `input-error` against this established PLAN. Its structural gate is
+deferred; the lane brief's canonical section/ID plan is preserved rather than
+adding a competing ledger or rewriting the roadmap. Inventory succeeded and
+manual readiness review covered v4/F1/F2, ownership, dependencies and claim limits.
 
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,

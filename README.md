@@ -2440,23 +2440,54 @@ via PayPal. Thank you!
 - [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).
 
-### M80 headless contracts (lane A)
+### Headless and CI (M80 integration pending)
 
-The independent M80 contracts are implemented; `exec` and `scan-secrets` are
-not wired into the executable yet. This delivery supplies their parser, output
-and key/scanner modules for the next implementation lane. It does not claim
-headless command, Action or registry-path support.
+Muse Spark Code (Unofficial) gains one-turn `exec` in the existing ACP package,
+a counts-only `scan-secrets` command, versioned JSON/JSONL schemas and a
+same-repository GitHub review/fix Action. Lane A contracts and lane D package
+support are implemented here; executable/Action wiring remains with B/C.
+These command forms document that integration contract, **not current support**:
 
-`npm run schema:exec` deterministically regenerates
-[the result schema](docs/schemas/exec-result-v1.schema.json) and
-[the event schema](docs/schemas/exec-event-v1.schema.json); append `-- --check`
-to check exact committed bytes. Both commands passed on the Kubuntu rig.
-The schemas expose required fields, enums and status/signal conditionals;
-`x-runtime-invariants` names checks JSON Schema cannot express (integer cost
-identities and output sequencing), enforced by the production zod boundaries
-and sink. Budget input is unsigned ASCII decimal, positive and at most $20,
-with at most six fractional digits, converted directly to integer micro-USD.
+```text
+muse-spark-code-acp exec [options] <prompt>
+muse-spark-code-acp exec [options] --prompt-file <path>
+muse-spark-code-acp exec [options] -
+muse-spark-code-acp scan-secrets <file> [--key-stdin]
+```
 
-See [M80 lane A evidence](docs/certification/m80.md) for tests, deliberate breaks,
-platform results and remaining work. The lead still owns the full integrated
-gates and live receipts.
+Exec defaults to Muse Code and Plan. Model API requires `--max-budget-usd`;
+`--output text|json|jsonl`, `--max-requests`, `--timeout`, `--ephemeral`,
+`--permission-mode plan|acceptEdits`, `--model`, `--effort` and bounded
+`--untrusted-file` inputs are described in [the complete guide](docs/ci.md).
+Trust/bypass/hosted search are refused. Local authentication uses the OS store;
+CI feeds only trusted exec and scanner children through private stdin, never
+`auth set` or a key environment variable inside the agent.
+
+Budget strings are positive unsigned ASCII decimals up to $20 with at most
+six fractional digits, parsed directly into integer micro-USD. Contributor
+admission minimum is $0.108135 ($0.118135 with images), standard $1.409024
+($1.419024 with images). Contributor selection requires explicit
+`--allow-contributor-models`; content is eligible for Meta training.
+Images also require `--image-generation`, acceptEdits and hard cap, with per-use
+returned/uncertain tally. Uncertain requests retain full liability. See the
+conditional provider assumptions and theorem, not an unconditional spend claim.
+
+Only verified latest completion authorizes success. Exit 9 means accounting
+unverified. Tool text never leaves exec; cut-short prose is withheld whole.
+The Action withholds the entire fix when any binary/image or detected secret
+occurs. Proposal, secret-free tests and maintainer-approved push use separate
+jobs; read proposal before approving it.
+
+`npm run schema:exec` regenerates [result](docs/schemas/exec-result-v1.schema.json)
+and [event](docs/schemas/exec-event-v1.schema.json) schemas; `-- --check` checks
+committed bytes. Both are shipped in the ACP package's `schemas/` directory.
+`node scripts/package-acp.mjs` runs after production build. The private fake-only
+variant is `node scripts/package-acp-test.mjs` after that packaging step; it needs
+C's test launcher, uses a separate tarball name/digest and is never released.
+D's package fixtures exercise both scripts; actual test-package/engine/host
+commands remain pending their integration receipts.
+
+[ACP guide](docs/acp.md), [CI options and workflow templates](docs/ci.md) and
+[M80 receipts](docs/certification/m80.md#lane-d--packaging-documentation-built-process-and-host-contracts)
+record exact command evidence and blockers. L/LA/LR stay open; npm-registry Action
+support requires the released package's real verified-provenance LR receipt.

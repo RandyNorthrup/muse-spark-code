@@ -188,6 +188,10 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Only the publish job can request the OIDC identity for npm provenance.
+    permissions:
+      contents: read
+      id-token: write
     # The same tag-only environment as the other registries' tokens.
     environment: marketplace
     env:
@@ -210,4 +214,4 @@ jobs:
         if: env.HAS_NPM_TOKEN == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish ./release/muse-spark-code-acp-*.tgz --access public --ignore-scripts
+        run: npm publish ./release/muse-spark-code-acp-*.tgz --access public --ignore-scripts --provenance

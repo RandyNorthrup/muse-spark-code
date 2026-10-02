@@ -208,7 +208,7 @@ Other editors take the same command and arguments in their own agent or
 ACP settings (JetBrains AI Assistant, Xcode's Intelligence settings, Qt
 Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
-## Options
+## Interactive ACP options
 
 | Argument                               | Effect                                                                                                                  |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -355,3 +355,53 @@ not trust.
   unsaved changes in the editor; save before asking it to edit a file you
   have open.
 - MCP servers on the Model API backend.
+
+## Headless execution and scanner (M80 integration pending)
+
+Lane A contracts and D's package distribution exist; B's executable wiring and
+C's Action are separate integrations. These command forms are the frozen
+contract, not a supported-run claim before E/H and L/LA receipts pass:
+
+```text
+muse-spark-code-acp exec [options] <prompt>
+muse-spark-code-acp exec [options] --prompt-file <path>
+muse-spark-code-acp exec [options] -
+muse-spark-code-acp scan-secrets <file> [--key-stdin]
+```
+
+Exec makes one turn, with Plan by default or acceptEdits; trust/bypass and hosted
+search are refused. Muse Code must already be signed in. Local Model API reads
+the existing OS store; --key-stdin is a bounded non-TTY private pipe, held in
+memory only and cleared in finally, without loading native keyring. CI launcher
+feeds exec and the trusted scanner this way; no CI auth set or environment-key
+fallback. The interactive options above retain their existing behavior.
+
+Model API needs a hard USD cap and known priced model; request cap counts every
+billable HTTP attempt, including retries. Context-window liability rounds upward
+to integer micro-USD: contributor $0.108135 minimum ($0.118135 with image flag),
+standard $1.409024 ($1.419024 with image flag). Contributor requires explicit
+opt-in and training eligibility. Images require Model API, explicit flag,
+acceptEdits, budget and per-use admission/tally; no grant store is used.
+
+Outputs are text, one JSON result, or versioned JSONL. Exits: completed 0,
+internal 1, usage/input 2 (no result), auth/backend unavailable 3, failed 4,
+budget/request refusal or breach 5, timeout 6, fail-on-denial 7, incomplete 8,
+accounting unverified 9, SIGINT 130 and SIGTERM 143. Only latest clean verified
+completion plus ACP end_turn authorizes Model API success; uncertain receipts
+retain full reservation. No raw tool text leaves exec; cut-short prose is
+withheld whole. Windows POSIX signal e2e is explicitly skipped.
+
+Scanner is local-only, whole UTF-8 file up to 16 MiB, with a 30-second deadline
+including key/stdout. It prints only match count: 0 clean, 10 found, 2 input/error/
+timeout/cancelled. It never prints a match, path excerpt or secret. It catches
+known patterns and the exact key literal, not every unknown secret.
+
+Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)
+for all options, limits, conditional billing theorem, Action lifecycle and
+pending workflow templates. Schemas ship as `schemas/exec-result-v1.schema.json`
+and `schemas/exec-event-v1.schema.json`; canonical
+[result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v1.schema.json),
+[event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v1.schema.json)
+and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
+use absolute links because this guide ships as npm README. Registry Action
+support still requires post-release LR, beyond unsigned candidate acceptance.
