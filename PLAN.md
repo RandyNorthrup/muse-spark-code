@@ -9170,6 +9170,11 @@ to the release candidate is described below.
     `museSpark.initialPermissionMode` is Plan, whatever else that setting
     says; only the user's own mode change relaxes it.
   - A local share file, rendered read-only in the panel.
+    - M84f: at a true 320 px viewport, code output and every control take
+      keyboard focus with the VS Code focus border; Tab stays in document
+      order, Escape returns to the composer, and nothing overflows the panel.
+      Add `share-narrow` to all four accessibility themes and prove the
+      keyboard regression by a byte-exact red drill (`docs/certification/m84.md`).
   - No hosted sharing.
 - **Backends.** The Model API resumes; Muse Code exports its own log (M30).
 - **Acceptance.** An export never holds the key digest or a credential of

@@ -1671,6 +1671,7 @@ body {
 .steps-toggle:focus-visible,
 .tool-more:focus-visible,
 .code-block-button:focus-visible,
+.code-block-body:focus-visible,
 .question-option:focus-visible,
 .approval-feedback:focus-visible,
 .question-input:focus-visible {
@@ -2647,6 +2648,11 @@ body {
   color: var(--vscode-textLink-foreground);
   line-height: 24px;
   overflow-wrap: anywhere;
+}
+
+.markdown a:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
 /* --- background work, the user's `!` commands, explanations (M46) --- */

@@ -32,7 +32,9 @@ happened, not what was planned; superseded entries are kept.
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
