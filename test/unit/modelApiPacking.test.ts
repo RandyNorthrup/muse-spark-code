@@ -11,15 +11,14 @@ import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
 import { estimatePackTokens } from '../../src/core/backends/modelapi/observationPack'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { memoryContextIo } from './helpers/fakeContextIo'
 import {
-  FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
   fakeModelApiClientSettings,
   type FakeModelApi,
   responseOutputsByCall,
 } from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
+import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
 
 const ROOT = '/ws'
@@ -46,38 +45,13 @@ async function setup(
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo({ 'big.txt': BIG, 'small.txt': SMALL }, ROOT)
-  let ids = 0
-  let clock = 1_000_000
+  const client = new ModelApiClient({
+    ...fakeModelApiClientSettings(log),
+    fetch: api.fetch,
+    ...clientChanges,
+  })
   const host = new ModelApiHost({
-    client: new ModelApiClient({
-      ...fakeModelApiClientSettings(log),
-      fetch: api.fetch,
-      ...clientChanges,
-    }),
-    workspaceRoot: ROOT,
-    platform: 'linux',
-    io,
-    contextIo: memoryContextIo(io.files),
-    newId: () => {
-      ids += 1
-      return `id${String(ids)}`
-    },
-    now: () => {
-      clock += 1000
-      return clock
-    },
-    log,
-    personalSkillsRoot: undefined,
-    isWorkspaceTrusted: () => true,
-    getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
-    describeEnvironment: () => Promise.resolve({ git: undefined }),
-    isPaidFeatureOn: () => false,
-    notePaidUse: () => undefined,
-    promptCacheRetention: () => 'in_memory',
-    allowsPaidUse: () => Promise.resolve(false),
-    isPaidUseRemembered: () => false,
-    noteSubagentUsage: () => undefined,
-    memory: undefined,
+    ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
     ...(isPacking && { observationPacking: true }),
   })
   const session = await host.startSession({
@@ -105,6 +79,26 @@ function scriptReadBig(api: FakeModelApi, reply: string, shouldRetryRead = false
     ...(shouldRetryRead ? [{ httpError: { status: 429 } }] : []),
     { text: reply },
   )
+}
+
+/** The model reads the long file once; the output as it was first sent. */
+async function readBigOnce(harness: Harness): Promise<string | undefined> {
+  scriptReadBig(harness.api, 'read it')
+  await sendText(harness, 'read big.txt')
+  return responseOutputsByCall(harness.api, 1).get('c1')
+}
+
+/**
+ * After an attempt that never went out: nothing was sent, the next request
+ * still carries the output whole, and the ledger saved nothing.
+ */
+async function expectUncounted(harness: Harness, full: string | undefined): Promise<void> {
+  expect(harness.api.responseBodies()).toHaveLength(2)
+  harness.api.script({ text: 'now allowed' })
+  await sendText(harness, 'resume')
+  expect(responseOutputsByCall(harness.api, 2).get('c1')).toBe(full)
+  expect(ledgerOf(harness.events).at(-1)).toBe(0)
+  await harness.host.close()
 }
 
 /** The long read, then three text turns: whole, whole, then packed (or whole by default). */
@@ -261,18 +255,11 @@ describe('observation packing on the host', () => {
     const harness = await setup(true, {
       apiKey: () => Promise.resolve(isKeyMissing ? undefined : 'LLM|1|secret'),
     })
-    scriptReadBig(harness.api, 'read it')
-    await sendText(harness, 'read big.txt')
-    const full = responseOutputsByCall(harness.api, 1).get('c1')
+    const full = await readBigOnce(harness)
     isKeyMissing = true
     await sendText(harness, 'this attempt is refused')
-    expect(harness.api.responseBodies()).toHaveLength(2)
     isKeyMissing = false
-    harness.api.script({ text: 'now allowed' })
-    await sendText(harness, 'resume')
-    expect(responseOutputsByCall(harness.api, 2).get('c1')).toBe(full)
-    expect(ledgerOf(harness.events).at(-1)).toBe(0)
-    await harness.host.close()
+    await expectUncounted(harness, full)
   })
 
   it('does not count Stop while the final SecretStorage key read is held', async () => {
@@ -288,9 +275,7 @@ describe('observation packing on the host', () => {
         return 'LLM|1|secret'
       },
     })
-    scriptReadBig(harness.api, 'read it')
-    await sendText(harness, 'read big.txt')
-    const full = responseOutputsByCall(harness.api, 1).get('c1')
+    const full = await readBigOnce(harness)
     shouldHoldKey = true
     await harness.session.sendTurn([{ type: 'text', text: 'stopped preparation' }])
     await entered.promise
@@ -298,13 +283,8 @@ describe('observation packing on the host', () => {
     released.resolve(undefined)
     await stopping
     await harness.turnDone()
-    expect(harness.api.responseBodies()).toHaveLength(2)
     shouldHoldKey = false
-    harness.api.script({ text: 'now allowed' })
-    await sendText(harness, 'resume')
-    expect(responseOutputsByCall(harness.api, 2).get('c1')).toBe(full)
-    expect(ledgerOf(harness.events).at(-1)).toBe(0)
-    await harness.host.close()
+    await expectUncounted(harness, full)
   })
 
   it('counts an HTTP retry of a whole send as the one request it is', async () => {
