@@ -3,15 +3,38 @@ import { env, Uri, window, workspace } from 'vscode'
 import { createMemoryFeatures } from '../../src/host/memoryFeatures'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { confirmModal, pickOne } from './helpers/vscodeViews'
+import { confirmModal, pickOne, resetMemoryViewMocks } from './helpers/vscodeViews'
 
 const PROJECT = '/ws/.agents/memory'
 
 function setup(initial: Record<string, string> = {}) {
   const files = new Map(Object.entries(initial))
   const log = new FakeLogOutputChannel()
-  const features = createMemoryFeatures({ store: memoryStoreOver(files).store, log })
-  return { files, log, features }
+  /** What the activation's checkpoint composition does, in the order it does it. */
+  const order: string[] = []
+  const guard = { isRevoked: false }
+  const beforeDelete = vi.fn((absolutePath: string) => {
+    order.push(`copy ${absolutePath}`)
+    return Promise.resolve()
+  })
+  const features = createMemoryFeatures({
+    store: memoryStoreOver(files).store,
+    log,
+    edit: async (scope, work) => {
+      order.push(`lease ${scope}`)
+      return await work(() => {
+        order.push('guard')
+        if (guard.isRevoked) {
+          throw new Error('the window closed')
+        }
+      })
+    },
+    beforeDelete,
+    afterDelete: (absolutePath) => {
+      order.push(`trashed ${absolutePath}`)
+    },
+  })
+  return { files, log, features, order, guard, beforeDelete }
 }
 
 /** Each quick pick answers with the row whose id is next in `ids`. */
@@ -24,13 +47,7 @@ function pickIds(...ids: string[]) {
 }
 
 beforeEach(() => {
-  vi.mocked(window.showQuickPick).mockReset()
-  vi.mocked(window.showInputBox).mockReset()
-  vi.mocked(window.showWarningMessage).mockReset()
-  vi.mocked(window.showTextDocument).mockReset()
-  vi.mocked(window.showErrorMessage).mockReset()
-  vi.mocked(window.showInformationMessage).mockReset()
-  vi.mocked(workspace.fs.delete).mockReset()
+  resetMemoryViewMocks()
   vi.mocked(env.openExternal).mockReset()
 })
 
@@ -68,6 +85,60 @@ describe('createMemoryFeatures (M49)', () => {
     })
     expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('')
     expect(t.log.info).toHaveBeenCalledWith(`Memory note moved to the trash: ${PROJECT}/a.md`)
+  })
+
+  it('holds the lease, keeps a copy, then lets the guard speak last before the trash', async () => {
+    const t = setup({
+      [`${PROJECT}/a.md`]: 'A',
+      [`${PROJECT}/MEMORY.md`]: '- [a](a.md) | A\n',
+    })
+    vi.mocked(workspace.fs.delete).mockImplementation(() => {
+      t.order.push('delete')
+      return Promise.resolve()
+    })
+    pickIds('note:1', 'delete')
+    vi.mocked(confirmModal).mockResolvedValue('Delete')
+    await t.features.showMemory()
+    // Only once it is in the trash is the removal noted as the user's (M72).
+    expect(t.order.slice(0, 5)).toEqual([
+      'lease project',
+      `copy ${PROJECT}/a.md`,
+      'guard',
+      'delete',
+      `trashed ${PROJECT}/a.md`,
+    ])
+    // The index update, inside the same lease, carries the guard as well.
+    expect(t.order.indexOf('guard', t.order.indexOf('delete'))).toBeGreaterThan(0)
+    expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('')
+  })
+
+  it('does not trash a note when the guard is revoked after its copy was kept', async () => {
+    const t = setup({ [`${PROJECT}/a.md`]: 'A', [`${PROJECT}/MEMORY.md`]: '- [a](a.md) | A\n' })
+    t.beforeDelete.mockImplementation(() => {
+      t.guard.isRevoked = true
+      return Promise.resolve()
+    })
+    pickIds('note:1', 'delete')
+    vi.mocked(confirmModal).mockResolvedValue('Delete')
+    await t.features.showMemory()
+    expect(workspace.fs.delete).not.toHaveBeenCalled()
+    expect(t.order.filter((step) => step.startsWith('trashed'))).toEqual([])
+    expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('- [a](a.md) | A\n')
+    expect(window.showErrorMessage).toHaveBeenCalledWith(
+      'The memory could not be changed: the window closed',
+    )
+  })
+
+  it('does not trash a note whose checkpoint copy could not be kept', async () => {
+    const t = setup({ [`${PROJECT}/a.md`]: 'A' })
+    t.beforeDelete.mockRejectedValue(new Error('the copy failed'))
+    pickIds('note:0', 'delete')
+    vi.mocked(confirmModal).mockResolvedValue('Delete')
+    await t.features.showMemory()
+    expect(workspace.fs.delete).not.toHaveBeenCalled()
+    expect(window.showErrorMessage).toHaveBeenCalledWith(
+      'The memory could not be changed: the copy failed',
+    )
   })
 
   it('asks for the name and the description in input boxes, then opens the new note', async () => {

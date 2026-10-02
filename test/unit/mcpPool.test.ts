@@ -85,6 +85,31 @@ function silentStartupBatch(): { pool: McpServerPool; starts: string[] } {
 }
 
 describe('McpServerPool (M50)', { timeout: SPAWN_TIMEOUT_MS }, () => {
+  it('passes cancellation through an awaited process-start admission barrier', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    let wasCancelledBeforeSpawn = false
+    const spawn: McpPoolDeps['spawn'] = async (_launch, _cwd, isCancelled) => {
+      entered.resolve(undefined)
+      await resume.promise
+      wasCancelledBeforeSpawn = isCancelled?.() === true
+      throw new Error('owned fixture starts no process')
+    }
+    const { pool: servers } = pool({ held: fake() }, { spawn })
+    const starting = servers.start()
+    let closing: Promise<void> | undefined
+    try {
+      await entered.promise
+      closing = servers.close()
+    } finally {
+      resume.resolve(undefined)
+    }
+    await starting
+    await closing
+    expect(wasCancelledBeforeSpawn).toBe(true)
+    expect(servers.definitions()).toEqual([])
+  })
+
   it('starts at most four servers together, then starts the next batch', async () => {
     const { pool: servers, starts } = silentStartupBatch()
     const starting = servers.start()

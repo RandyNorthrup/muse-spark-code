@@ -303,6 +303,11 @@ export const SETTING_DEFAULTS = {
   // M67 (PLAN.md D49): the repo map in the Model API's system prompt. It
   // spends tokens on every request, so it is off until the user turns it on.
   modelApiRepoMap: false,
+  // A checkpoint of the workspace's files at each turn boundary (M72): it
+  // runs git on every turn and copies files into the extension's storage.
+  // Preview, off until the user turns it on: its restore is being rebuilt
+  // on the tools' own writes (PLAN.md D63).
+  turnCheckpoints: false,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -332,6 +337,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'formatOnEdit',
   // The repo map is billed as prompt tokens on the key (M67): the user's choice.
   'modelApiRepoMap',
+  // What runs on every turn (git) and what is copied out of the workspace (M72).
+  'turnCheckpoints',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -604,6 +611,157 @@ export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 export const GIT_TIMEOUT_MS = 15_000
 // `git worktree add` checks a whole tree out, and `remove` deletes one (M32).
 export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
+// What a failed git call's error keeps of its stderr (M72's process runner).
+export const GIT_STDERR_MAX_CHARS = 4096
+// Automatic prompt facts suppress configured programs; ordinary user Git keeps its policy.
+export const GIT_METADATA_OPTIONS = [
+  '--no-replace-objects',
+  '-c',
+  'core.fsmonitor=',
+  '-c',
+  'log.showSignature=false',
+  '-c',
+  'maintenance.auto=false',
+  '-c',
+  'gc.auto=0',
+  '-c',
+  'core.quotePath=false',
+] as const
+export const GIT_FILTER_NAMES_ARGS = [
+  'config',
+  '--null',
+  '--name-only',
+  '--get-regexp',
+  String.raw`^filter\..*\.(clean|process|required)$`,
+] as const
+export const GIT_FILTER_NAMES_MAX = 200
+export const GIT_FILTER_NAME_MAX_CHARS = 1024
+
+// --- Turn checkpoints (M72, PLAN.md D51) ---
+
+// Under extension global storage, keyed by the canonical first workspace root.
+export const CHECKPOINTS_DIR = 'checkpoints'
+export const TURN_CHECKPOINTS_SETTING = 'museSpark.turnCheckpoints'
+// Whether this window takes checkpoints: on; off in Restricted Mode (no git,
+// D24); off by `museSpark.turnCheckpoints`; no git on PATH; no folder to
+// take them of.
+export const CHECKPOINT_AVAILABILITIES = ['on', 'restricted', 'off', 'noGit', 'noFolder'] as const
+export type CheckpointAvailability = (typeof CHECKPOINT_AVAILABILITIES)[number]
+// What a panel assumes until the host says otherwise: no file restore offered.
+export const CHECKPOINT_INITIAL_AVAILABILITY: CheckpointAvailability = 'noFolder'
+// Presence words owned by this implementation, never Muse Code wire fields.
+export const CHECKPOINT_FENCED_WINDOW = 'fenced-window-v1'
+export const CHECKPOINT_NATIVE_WINDOW = 'native-backend-unsafe'
+export const CHECKPOINT_ACTIVITY_PREFIX = 'workspace-activity:'
+export const CHECKPOINT_RESTORE_BLOCKERS = ['modelApiOnly', 'nativeUnsafe'] as const
+export type CheckpointRestoreBlocker = (typeof CHECKPOINT_RESTORE_BLOCKERS)[number]
+// One git call of a capture or a restore: hashing a large change takes time.
+export const CHECKPOINT_GIT_TIMEOUT_MS = 2 * 60 * 1000
+// A file larger than this is not copied into a checkpoint; the checkpoint
+// names it, and a restore leaves it as it is.
+export const CHECKPOINT_FILE_MAX_BYTES = 16 * 1024 * 1024
+// A workspace with more files outside .gitignore than this gets no
+// checkpoints (the reason says so): listing and checking them every turn
+// would hold up every message.
+export const CHECKPOINT_MAX_FILES = 50_000
+// One capture copies at most this much new content; a bigger change gets no
+// checkpoint for that turn, with the reason.
+export const CHECKPOINT_CAPTURE_MAX_BYTES = 512 * 1024 * 1024
+// The bounded scan of ignored files (size and modification time only): at
+// most this many files in all, and an ignored folder with more files than
+// the second number (node_modules) is left out whole.
+export const CHECKPOINT_IGNORED_SCAN_MAX_FILES = 5000
+export const CHECKPOINT_IGNORED_FOLDER_MAX_FILES = 1000
+// Ignored files one turn is recorded to have created or changed; more are
+// counted, not kept.
+export const CHECKPOINT_IGNORED_CHANGES_MAX = 500
+// Retention: the newest checkpoints of each conversation, the conversations
+// with checkpoints, and the redo records of each conversation. Age follows
+// `museSpark.cleanupPeriodDays` (0: no age limit).
+export const CHECKPOINTS_PER_SESSION_MAX = 100
+export const CHECKPOINT_SESSIONS_MAX = 50
+export const CHECKPOINT_RESTORES_PER_SESSION_MAX = 20
+// Unreferenced copies are pruned at most this often, at once when a
+// conversation's checkpoints are dropped, and when the window opens.
+export const CHECKPOINT_PRUNE_INTERVAL_MS = 10 * 60 * 1000
+// A lock file older than this was left by a git that ended mid-command and
+// is removed. Well over CHECKPOINT_GIT_TIMEOUT_MS, so no running git of a
+// window that closed without stopping its own can lose its lock.
+export const CHECKPOINT_STALE_LOCK_MS = 5 * 60 * 1000
+// The checkpoint folder holds copies of untracked and ignored files: it is
+// the user's alone, and so are the lock and presence files in it.
+export const CHECKPOINT_STORAGE_MODE = 0o700
+// The longest path (terminator included) git takes: its PATH_MAX, which is
+// Windows' MAX_PATH there. `core.longpaths` lifts it only after git has read
+// its configuration, so it cannot reach the repository's own path: that one
+// must fit as the platform spells it (measured with git 2.52.0.windows.1).
+export const GIT_PATH_MAX_WINDOWS = 260
+export const GIT_PATH_MAX_DARWIN = 1024
+export const GIT_PATH_MAX_DEFAULT = 4096
+// git refuses a `GIT_DIR` of PATH_MAX - 40 characters or more (setup.c); a
+// repository that is longer is named relative to the working directory.
+export const GIT_DIR_ENVIRONMENT_MARGIN = 40
+// Even so, git opens `<git dir>/objects` by that path: the terminator and
+// those eight characters must fit.
+export const GIT_DIR_CONTENTS_MARGIN = 9
+// git changes into the work tree, and into the repository it creates, so
+// both must be shorter than PATH_MAX by the terminator and one more.
+export const GIT_CHANGE_DIRECTORY_MARGIN = 2
+// The initializer folder beside `shadow.git`: a prefix and this many digits
+// of the window's hashed id. Short, so its path stays below the limit above.
+export const CHECKPOINT_INITIALIZER_PREFIX = '.i-'
+export const CHECKPOINT_INITIALIZER_DIGITS = 12
+// An initializer is removed right after git was stopped or failed: Windows
+// can hold one of its files a moment longer, so the removal retries.
+export const CHECKPOINT_REMOVE_RETRIES = 5
+export const CHECKPOINT_REMOVE_RETRY_MS = 200
+// Current windows in one canonical-root/global-storage namespace share CAS
+// refs. Presence is refreshed this often. Only a known safe dead owner is
+// collected; unknown/native/process uncertainty never expires. Failed writes
+// are retried after the short wait.
+export const CHECKPOINT_HEARTBEAT_MS = 15_000
+export const CHECKPOINT_PUBLISH_RETRY_MS = 1000
+// Each window shares the files the user saves in it with the other windows
+// on the folder (a turn running in one of them reads them at its end): the
+// newest save of each file, kept this long and at most this many files. A
+// turn that runs longer than the keep time (far over any turn's length), or
+// that started before a save the count let go of, cannot know every save: a
+// restore leaves every file it changed alone.
+export const CHECKPOINT_PEER_SAVE_KEEP_MS = 24 * 60 * 60 * 1000
+export const CHECKPOINT_PEER_SAVES_MAX = 500
+// A file's modification time can trail the clock: file systems stamp it from
+// a coarser clock (a timer tick on Windows, two seconds on FAT). A saves file
+// that cannot be read counts for a turn when it was written this close before.
+export const CHECKPOINT_FILE_TIME_SLACK_MS = 2000
+// Record JSON blobs read in one bounded cat-file batch.
+export const CHECKPOINT_RECORD_READ_BATCH = 500
+// `git prune` spares objects younger than this: another window may have
+// written them for a capture or record it has not yet named by a ref. Far
+// over the time any capture takes (each git call stops at
+// CHECKPOINT_GIT_TIMEOUT_MS).
+export const CHECKPOINT_PRUNE_GRACE_MS = 60 * 60 * 1000
+// How long an archive file is kept (it hides the conversation's records in
+// every window, and stops a capture taken before the archive being
+// recorded), once the records it archived are gone.
+export const CHECKPOINT_FORGOTTEN_KEEP_MS = 24 * 60 * 60 * 1000
+// The folders a capture holds no file of (empty, or only ignored or
+// left-out content) are recorded, up to this many, so a restore never
+// removes a folder that was there before; past it, a restore removes none.
+export const CHECKPOINT_FOLDERS_MAX = 10_000
+// A restore reads the copies it writes back in batches of at most this many
+// bytes (one `git cat-file`'s output is capped at GIT_OUTPUT_MAX_BYTES).
+export const CHECKPOINT_BLOB_BATCH_MAX_BYTES = 32 * 1024 * 1024
+// A capture reads the listed files' sizes this many at a time.
+export const CHECKPOINT_STAT_CONCURRENCY = 64
+// How many file names a restore or skip notice spells out before "and N more".
+export const CHECKPOINT_NAMED_FILES_MAX = 8
+// Git's mode for a regular file and an executable one.
+export const GIT_MODE_FILE = '100644'
+// The length of a SHA-1 object name in hex (the shadow repository's format).
+export const GIT_SHA1_HEX_LENGTH = 40
+export const GIT_MODE_EXECUTABLE = '100755'
+// What git calls an object it does not have in a `cat-file --batch` answer.
+export const GIT_MISSING_OBJECT = 'missing'
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Muse Code CLI / Muse Session Protocol (PLAN.md D1a, §5.4) ---
@@ -1309,6 +1467,8 @@ export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
+// Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
+export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // A glob is matched by a table over pattern × path (no regular expression,
 // PLAN.md D24); the length cap bounds that table.
 export const GLOB_MAX_LENGTH = 256
@@ -2571,6 +2731,8 @@ export const MODEL_TEXT = {
   verifyUncheckedStopped: 'the turn was stopped',
   verifyUncheckedChanged:
     'the file no longer holds what the edit left there, or its path now leads to another file',
+  verifyAccessRefused:
+    'Verification data was withheld because turn ownership, mode or workspace trust changed.',
   verifyDiagnosticsUnavailable: 'The diagnostics could not be read: {reason}',
   verifyChecksHeading: "The user's check commands:",
   checkPassed: '{name}: passed',
@@ -2583,6 +2745,7 @@ export const MODEL_TEXT = {
   checkSkipRejected: 'the user rejected it',
   checkSkipHookDenied: 'a hook denied it',
   checkSkipRefused: 'the permission mode refuses shell commands',
+  checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
   checkSkipRestricted: 'shell commands are disabled while the workspace is in Restricted Mode',
   checkSkipUnsafePath:
     'a path starts with "-" or "@", or holds a control character or a character the shell would read as syntax, so it cannot be passed safely',

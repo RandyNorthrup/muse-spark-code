@@ -13,6 +13,12 @@ export interface WorktreeFeatureDeps {
   readonly workspaceRoot: string | undefined
   /** git by absolute path (git.ts), with an optional per-call timeout. */
   readonly runGit: (args: readonly string[], cwd: string, timeoutMs?: number) => Promise<string>
+  /** Exact add/remove forms can run repository hooks; admit them before Git starts. */
+  readonly mutationGit: (
+    args: readonly string[],
+    cwd: string,
+    timeoutMs?: number,
+  ) => Promise<string>
   readonly log: Logger
 }
 
@@ -26,7 +32,10 @@ export function createWorktreeFeatures(deps: WorktreeFeatureDeps): WorktreeFeatu
     workspaceRoot: deps.workspaceRoot,
     platform: process.platform,
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
-    runGit: deps.runGit,
+    runGit: (args, cwd, timeoutMs) =>
+      args[0] === 'worktree' && (args[1] === 'add' || args[1] === 'remove')
+        ? deps.mutationGit(args, cwd, timeoutMs)
+        : deps.runGit(args, cwd, timeoutMs),
     pathExists: existsSync,
     askBranchName: (validate) =>
       Promise.resolve(

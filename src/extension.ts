@@ -13,7 +13,7 @@ import { confineWorkspacePath } from './core/workspacePath'
 import { readBackendChoice } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
-import { MemoryStore } from './core/memory/memoryStore'
+import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
 import { renderSupportReport } from './core/support/report'
 import { type CliInvocation, isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
@@ -44,7 +44,8 @@ import { createFileSessionStore } from './host/backend/fileSessionStore'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
 import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
-import { createMemoryIo, systemPath } from './host/backend/memoryIo'
+import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
+import { systemPath } from './host/backend/memoryIo'
 import {
   museSettingsPath,
   readDelegationMode,
@@ -91,7 +92,19 @@ import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { showPickOne } from './host/quickPick'
-import { processGitRunner } from './host/git'
+import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
+import {
+  asUserEdit,
+  createCheckpointPort,
+  prepareCheckpointTurn,
+  withCheckpointCopies,
+  withCheckpointEdit,
+  withCheckpointEditAt,
+} from './host/checkpoints/checkpointHost'
+import { turnKey } from './core/checkpoints/turnKey'
+import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
+import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
+import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
   liveFetch,
@@ -133,7 +146,10 @@ import {
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
+  CHECKPOINT_STORE_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
+  CHECKPOINTS_DIR,
+  TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
   PERSONAL_SKILLS_GLOB,
@@ -163,7 +179,7 @@ import {
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
-import { fill } from './shared/l10n/text'
+import { fill, uiLocale } from './shared/l10n/text'
 import type { HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
 
@@ -505,7 +521,108 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .update(key, value, vscode.ConfigurationTarget.Global)
+  // The folder as VS Code spells it: what sessions, the CLI's working
+  // directory and memory have always been keyed by. Only the checkpoint store
+  // uses the canonical root (below), and it accepts both spellings.
   const workspaceRoot = firstFolderPath()
+  const nativeStarts = new AbortController()
+  context.subscriptions.push({
+    dispose: () => {
+      nativeStarts.abort()
+    },
+  })
+  let checkpointRoot: CheckpointLocation | undefined
+  try {
+    checkpointRoot = await checkpointLocation(
+      workspaceRoot,
+      context.globalStorageUri.fsPath,
+      process.platform,
+    )
+  } catch {
+    log.warn('Checkpoint workspace identity could not be established')
+  }
+  // Turn checkpoints (M72, PLAN.md D51): a shadow repository under global
+  // storage, keyed by the canonical first folder. Current-version windows in
+  // this namespace share per-record refs independently of workspace identity.
+  // Captures require trust, git and the setting. Startup admission precedes auth
+  // request any workspace-cwd serve, independently of the capture setting.
+  // Closing the window ends its git; native uncertainty remains durable. Opening
+  // it (or trusting the workspace) applies cleanup and retention.
+  const checkpointBundle = checkpointStoreLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CHECKPOINT_STORE_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
+  const checkpointStore =
+    checkpointRoot === undefined
+      ? undefined
+      : checkpointBundle().createCheckpointStore(
+          {
+            workspaceRoot: checkpointRoot.canonicalRoot,
+            displayRoot: workspaceRoot,
+            storageDir: checkpointRoot.storageDir,
+            // Every window's checkpoint storage: no tool writes below it (Codex, PR #55).
+            storageRoot: path.join(context.globalStorageUri.fsPath, CHECKPOINTS_DIR),
+            platform: process.platform,
+            git: processGitProcess(),
+            env: process.env,
+            retentionDays: () => currentSettings().cleanupPeriodDays,
+            now: () => Date.now(),
+            newId: () => crypto.randomUUID(),
+            pid: process.pid,
+            isProcessAlive,
+            log,
+          },
+          UI_TEXT,
+          uiLocale(),
+        )
+  if (checkpointStore !== undefined) {
+    context.subscriptions.push({
+      dispose: () => {
+        checkpointStore.dispose()
+      },
+    })
+  }
+  const checkpoints = createCheckpointPort({
+    isNamespaceKnown: () => checkpointRoot !== undefined,
+    legacyTurns: async (sessionId) =>
+      checkpointRoot === undefined || context.storageUri === undefined
+        ? []
+        : await checkpointBundle().legacyCheckpointTurns(
+            {
+              storageDir: path.join(context.storageUri.fsPath, CHECKPOINTS_DIR),
+              workspaceRoot: checkpointRoot.canonicalRoot,
+              platform: process.platform,
+              git: processGitProcess(),
+              env: process.env,
+              signal: new AbortController().signal,
+            },
+            sessionId,
+            UI_TEXT,
+            uiLocale(),
+          ),
+    onAvailabilityChanged: () => {
+      for (const controller of controllers.values()) {
+        controller.checkpointAvailabilityChanged()
+      }
+    },
+    store: checkpointStore,
+    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isEnabled: () => currentSettings().turnCheckpoints,
+    hasGit: processGitLocator(),
+  })
+  void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
+  // The user's saves while a turn runs are theirs: a restore leaves them alone (M72).
+  // The extension's own writes save no document, so every save here is the user's.
+  const noteUserSave = (document: { readonly uri: vscode.Uri }) => {
+    if (document.uri.scheme === FILE_SCHEME) {
+      checkpoints.noteUserSave(document.uri.fsPath)
+    }
+  }
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(noteUserSave),
+    vscode.workspace.onDidSaveNotebookDocument(noteUserSave),
+  )
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
   const credentials = new CredentialStore(context.secrets, (message) => {
@@ -569,6 +686,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
   )
   const backend = new MuseCodeBackendManager({
+    beforeWorkspaceHostStart: async () => {
+      await checkpoints.markNativeBackend()
+    },
     log,
     extensionVersion: version,
     getConfiguredBinaryPath: () => currentSettings().museBinaryPath,
@@ -615,40 +735,61 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
    * Terminal), with `museSpark.environmentVariables` as `muse serve` gets
    * them, so it reads the same config home (the review of PR #49).
    */
-  const runCliInTerminal = (
+  const runCliInTerminal = async (
     cliPath: string,
     args: readonly string[],
     options: TerminalLaunchOptions,
-  ): void => {
-    runInTerminal(
-      cliPath,
-      args,
-      options,
-      terminalEnvironment(currentSettings().environmentVariables, process.platform),
-    )
+  ): Promise<void> => {
+    await backend.startWorkspaceCommand(() => {
+      runInTerminal(
+        cliPath,
+        args,
+        options,
+        terminalEnvironment(currentSettings().environmentVariables, process.platform),
+      )
+    }, nativeStarts.signal)
   }
   // Skills, imports and export (M30): the CLI by absolute path, in the
   // environment `muse serve` gets, from the workspace root.
   const cliFeatures = createCliFeatures({
+    editFile: async (fsPath, work) =>
+      await withCheckpointEditAt(
+        checkpoints,
+        backend.workspaceActionGuard(nativeStarts.signal),
+        {
+          root: checkpointRoot?.canonicalRoot ?? workspaceRoot,
+          displayRoot: workspaceRoot,
+          platform: process.platform,
+        },
+        fsPath,
+        asUserEdit(checkpoints, fsPath, work),
+      ),
     runCli: (args, timeoutMs) => {
       const resolution = backend.resolveLaunch()
       return resolution.ok
-        ? runProcess(
-            { command: resolution.launch.command, args },
-            timeoutMs,
-            workspaceRoot,
-            backend.childEnvironment(),
+        ? backend.startWorkspaceCommand(
+            () =>
+              runProcess(
+                { command: resolution.launch.command, args },
+                timeoutMs,
+                workspaceRoot,
+                backend.childEnvironment(),
+              ),
+            nativeStarts.signal,
           )
         : undefined
     },
     // `muse mcp login|logout` (M31): the CLI's own launcher in a terminal,
     // where its browser sign-in and prompts are seen.
-    runCliInTerminal: (args, terminalName) => {
+    runCliInTerminal: async (args, terminalName) => {
       const resolution = backend.resolveLaunch()
       if (!resolution.ok) {
         return false
       }
-      runCliInTerminal(resolution.launch.cliPath, args, { name: terminalName, cwd: workspaceRoot })
+      await runCliInTerminal(resolution.launch.cliPath, args, {
+        name: terminalName,
+        cwd: workspaceRoot,
+      })
       return true
     },
     museSettingsPath: () => museSettingsPath(museConfig()),
@@ -665,12 +806,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     log,
   })
-  const worktrees = createWorktreeFeatures({ workspaceRoot, runGit, log })
+  const worktrees = createWorktreeFeatures({
+    workspaceRoot,
+    runGit,
+    mutationGit: (args, cwd, timeoutMs) =>
+      backend.startWorktreeMutation(
+        cwd,
+        (ownedCwd) => runGit(args, ownedCwd, timeoutMs),
+        nativeStarts.signal,
+      ),
+    log,
+  })
   const sandbox = new SandboxSetup({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
     resolveLaunch: () => backend.resolveLaunch(),
-    run: runProcess,
+    run: async (invocation, timeoutMs) =>
+      await backend.startWorkspaceCommand(
+        async () => await runProcess(invocation, timeoutMs),
+        nativeStarts.signal,
+      ),
     showWarning: async (message, ...choices) =>
       await vscode.window.showWarningMessage(message, ...choices),
     showInformation: (message) => {
@@ -731,25 +886,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       get: () => context.globalState.get<boolean>(GLOBAL_STATE_KEYS.cliLogoutHold) === true,
       set: (isHeld) => context.globalState.update(GLOBAL_STATE_KEYS.cliLogoutHold, isHeld),
     },
-    runInTerminal: (cliPath, args) => {
-      runCliInTerminal(cliPath, args, { name: UI_TEXT.museLoginTerminalName, cwd: undefined })
+    runInTerminal: async (cliPath, args) => {
+      await runCliInTerminal(cliPath, args, {
+        name: UI_TEXT.museLoginTerminalName,
+        cwd: undefined,
+      })
     },
     installCommand:
       process.platform === 'win32' ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix,
-    runInstallerInTerminal: () => {
-      const isWindows = process.platform === 'win32'
-      const systemRoot = process.env['SystemRoot']
-      let shellPath: string | undefined = POSIX_TERMINAL_SHELL
-      if (isWindows) {
-        shellPath =
-          systemRoot === undefined ? undefined : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
-      }
-      const terminal = vscode.window.createTerminal({
-        name: UI_TEXT.installStartAction,
-        ...(shellPath !== undefined && { shellPath }),
-      })
-      terminal.show(true)
-      terminal.sendText(isWindows ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix)
+    runInstallerInTerminal: async () => {
+      await backend.startWorkspaceCommand(() => {
+        const isWindows = process.platform === 'win32'
+        const systemRoot = process.env['SystemRoot']
+        let shellPath: string | undefined = POSIX_TERMINAL_SHELL
+        if (isWindows) {
+          shellPath =
+            systemRoot === undefined
+              ? undefined
+              : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
+        }
+        const terminal = vscode.window.createTerminal({
+          name: UI_TEXT.installStartAction,
+          ...(shellPath !== undefined && { shellPath }),
+        })
+        terminal.show(true)
+        terminal.sendText(isWindows ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix)
+      }, nativeStarts.signal)
     },
     runDeviceSignIn: (signal, onCode) =>
       runDeviceSignIn({
@@ -791,6 +953,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // (awaited, so its host is closed too), then the backends (the review of
   // PR #49).
   lifecycle.shutdown = async () => {
+    nativeStarts.abort()
     accountHosts.close()
     await auth.stopSignIn()
     await restartBackend('the window is closing', true)
@@ -844,6 +1007,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
         .map((document) => document.uri.fsPath),
   })
+  // What the extension's own tools write is copied first, so a restore can
+  // put back an ignored file they changed (M72).
+  const checkpointedIo = withCheckpointCopies(toolIo, checkpoints)
   // The verify loop (M68, PLAN.md D49): what the language servers report on
   // edited files, which only an editor showing a file makes them do, and the
   // formatter over the Model API backend's edits.
@@ -918,7 +1084,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         workspace:
           workspaceRoot === undefined
             ? undefined
-            : { workspaceRoot, platform: process.platform, io: toolIo },
+            : { workspaceRoot, platform: process.platform, io: checkpointedIo },
         client: keyClient,
         confirm: async (plan) => await paid.consent.allows(imageUseRequest(plan)),
         onBilled: () => {
@@ -980,19 +1146,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     editor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter)
   }
 
+  /** A file the extension writes in the user's name, under the lease: theirs once written (M72). */
+  const writeUserFile = async (check: () => void, fsPath: string, content: string) => {
+    await withCheckpointEdit(
+      checkpoints,
+      check,
+      asUserEdit(checkpoints, fsPath, async () => {
+        await vscode.workspace.fs.writeFile(
+          vscode.Uri.file(fsPath),
+          new TextEncoder().encode(content),
+        )
+      }),
+    )
+  }
+
   const editReview = new EditReview({
     platform: process.platform,
     workspaceRoot,
     readFile: readTextFile,
     realPath: canonicalPath,
+    // A Revert the user pressed, a write or a delete: the file is theirs from then on.
     writeFile: async (fsPath, content) => {
-      await vscode.workspace.fs.writeFile(
-        vscode.Uri.file(fsPath),
-        new TextEncoder().encode(content),
-      )
+      await writeUserFile(backend.workspaceActionGuard(nativeStarts.signal), fsPath, content)
     },
     deleteFile: async (fsPath) => {
-      await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+      const check = backend.workspaceActionGuard(nativeStarts.signal)
+      await withCheckpointEdit(
+        checkpoints,
+        check,
+        asUserEdit(checkpoints, fsPath, async () => {
+          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+        }),
+      )
     },
     openDiff: async (beforeUri, fsPath, title) => {
       await vscode.commands.executeCommand(
@@ -1019,13 +1204,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const skillsHome = personalSkillsRoot(museConfig())
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
-  // home `muse serve` sees (`museSpark.environmentVariables` included).
-  const memory = new MemoryStore({
-    io: createMemoryIo(toolIo, {
-      warn: (message) => {
-        log.warn(`Memory: ${message}`)
-      },
-    }),
+  // home `muse serve` sees (`museSpark.environmentVariables` included). Its
+  // writes keep checkpoint copies and the view's edits hold the restore lease (M72).
+  const memory = createCheckpointedMemory(toolIo, checkpoints, {
+    captureGuard: () => backend.workspaceActionGuard(nativeStarts.signal),
     platform: process.platform,
     dataRoot: () =>
       memoryDataRoot({
@@ -1043,7 +1225,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       log.warn(`Memory: ${message}`)
     },
   })
-  const memoryView = createMemoryFeatures({ store: memory, log })
+  const memoryView = createMemoryFeatures({
+    store: memory.viewStore,
+    log,
+    edit: memory.edit,
+    beforeDelete: memory.beforeDelete,
+    afterDelete: memory.afterDelete,
+  })
   // Plans as files (M79): `.agents/plans/` of the workspace folder, when there is one.
   const plans =
     workspaceRoot === undefined
@@ -1051,7 +1239,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       : createPlanFiles({
           workspaceRoot,
           platform: process.platform,
-          io: createPlanIo({ log, now: () => Date.now() }),
+          io: createPlanIo({
+            log,
+            now: () => Date.now(),
+            edit: async (work) => {
+              const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
+              await withCheckpointEdit(checkpoints, check, async () => {
+                await work(check)
+              })
+            },
+            noteUserWrite: (fsPath) => {
+              checkpoints.noteUserSave(fsPath)
+            },
+          }),
           beginEdit: (file, ownerRecorder) => modelApi.beginExternalEdit(ownerRecorder, [file]),
           captureOwner: (session) => modelApi.captureExternalEditOwner(session),
           pick: showPickOne,
@@ -1067,9 +1267,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         })
   const modelApi = new ModelApiBackendManager({
     log,
+    beforeTurnRuns: (sessionId, turnId) =>
+      prepareCheckpointTurn(checkpoints, sessionId, turnId, log),
+    afterTurnRuns: async (sessionId, turnId) => {
+      await checkpoints.endTurn(sessionId, turnId)
+      await checkpoints.markTurn(turnKey(sessionId, turnId), false)
+    },
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
-    io: toolIo,
+    io: checkpointedIo,
     contextIo: fileContextIo,
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
@@ -1107,14 +1313,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             now: () => Date.now(),
             log,
           }),
-    describeEnvironment: () =>
-      describeEnvironment({
-        runGit,
+    describeEnvironment: () => {
+      const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
+      return describeEnvironment({
+        runGit: async (args, cwd) => {
+          const owned = () => {
+            check()
+            if (
+              workspaceRoot === undefined ||
+              !vscode.workspace.isTrusted ||
+              !isSamePath(cwd, workspaceRoot, process.platform)
+            ) {
+              throw new Error(UI_TEXT.checkpointFailed)
+            }
+          }
+          return await withCheckpointEdit(
+            checkpoints,
+            owned,
+            async () => await runGit(args, cwd, undefined, owned),
+          )
+        },
         workspaceRoot,
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
         log,
         now: Date.now,
-      }),
+      })
+    },
     isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
     notePaidUse: (feature, units) => {
       paid.usage.add(feature, units)
@@ -1126,6 +1350,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     createMcpServers: async (root, newPool) =>
       newPool(
         modelApiMcpPoolDeps({
+          beforeWorkspaceProcessStart: () => checkpoints.markNativeBackend(),
           workspaceRoot: root,
           settingsPath: () => museSettingsPath(museConfig()),
           isWorkspaceTrusted: () => vscode.workspace.isTrusted,
@@ -1147,7 +1372,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     noteSubagentUsage: (modelId, usage) => {
       paid.usage.addSubagentUsage(modelId, usage)
     },
-    memory,
+    memory: memory.store,
     // The settings are read at each use; a repository cannot set them (D15).
     verify: {
       isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
@@ -1488,6 +1713,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         forgetPaidUse: async () => {
           await paid.consent.forget()
         },
+        checkpoints,
+        // Text files and notebooks open with unsaved changes, by absolute path (M72).
+        unsavedPaths: () =>
+          [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
+            .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+            .map((document) => document.uri.fsPath),
+        confirmFileAction: async (title, detail, action) =>
+          (await vscode.window.showWarningMessage(title, { modal: true, detail }, action)) ===
+          action,
         // Muse Code checks its own edits (M68): its checks run through its own
         // shell, so none are named while Restricted Mode runs no shell (D13).
         // The diagnostics sentence only for a session that has the ide server.
@@ -1641,6 +1875,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
       }
+      // Checkpoints on or off: every panel's menus follow (M72).
+      if (event.affectsConfiguration(TURN_CHECKPOINTS_SETTING)) {
+        for (const controller of controllers.values()) {
+          controller.checkpointsChanged()
+        }
+      }
       // A paid feature turned on anywhere asks for its price once (D30).
       if (paid.affects(event)) {
         void paid.gate.review().catch(logRejection(log, 'paid feature review'))
@@ -1689,6 +1929,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
       // "Allow always in this workspace" counts only in a trusted one (M58).
       broadcastPaidState()
+      // Checkpoints run from now on, and what was queued while untrusted is cleaned up (M72).
+      void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
+      for (const controller of controllers.values()) {
+        controller.checkpointsChanged()
+      }
     }),
     // Editor-tab conversations come back after a window reload (D15).
     vscode.window.registerWebviewPanelSerializer(CHAT_PANEL_VIEW_TYPE, {
@@ -1713,8 +1958,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await auth.signOut()
       void vscode.window.showInformationMessage(UI_TEXT.signedOutNotice)
     }),
-    registerLoggedCommand(log, COMMAND_IDS.openInTerminal, () => {
-      openMuseTerminal({
+    registerLoggedCommand(log, COMMAND_IDS.openInTerminal, async () => {
+      await openMuseTerminal({
         resolveCli,
         runInTerminal: runCliInTerminal,
         workspaceRoot,
@@ -1724,27 +1969,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       })
     }),
     registerLoggedCommand(log, COMMAND_IDS.createRulesFile, async () => {
+      const check = backend.workspaceActionGuard(nativeStarts.signal)
       await createRulesFile({
         workspaceRoot,
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
         fileExists: isExistingPath,
-        writeFile: async (fsPath, content) => {
-          await vscode.workspace.fs.writeFile(
-            vscode.Uri.file(fsPath),
-            new TextEncoder().encode(content),
-          )
-        },
+        writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
           await vscode.window.showTextDocument(vscode.Uri.file(fsPath))
         },
         runInit: () => {
+          check()
           const resolution = backend.resolveLaunch()
           return workspaceRoot !== undefined && resolution.ok
-            ? runProcess(
-                { command: resolution.launch.command, args: MUSE_INIT_ARGS },
-                MUSE_INIT_TIMEOUT_MS,
-                workspaceRoot,
-              )
+            ? backend.startWorkspaceCommand(() => {
+                check()
+                return runProcess(
+                  { command: resolution.launch.command, args: MUSE_INIT_ARGS },
+                  MUSE_INIT_TIMEOUT_MS,
+                  workspaceRoot,
+                )
+              }, nativeStarts.signal)
             : undefined
         },
         showInformation: (message) => {

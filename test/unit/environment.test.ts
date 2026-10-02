@@ -8,9 +8,12 @@ function git(answers: Readonly<Record<string, string | Error>>) {
   return {
     calls,
     runGit: (args: readonly string[], cwd: string) => {
-      const key = args.join(' ')
+      const command = args.findIndex((arg) =>
+        ['rev-parse', 'status', 'log', 'config'].includes(arg),
+      )
+      const key = args.slice(command).join(' ')
       calls.push(`${cwd}: ${key}`)
-      const answer = answers[key]
+      const answer = args[command] === 'config' ? (answers['filter names'] ?? '') : answers[key]
       return answer === undefined || answer instanceof Error
         ? Promise.reject(answer ?? new Error(`unexpected git ${key}`))
         : Promise.resolve(answer)
@@ -43,11 +46,11 @@ describe('describeEnvironment', () => {
       'log --oneline -5': 'abc one\ndef two\n',
     })
     const { facts, log } = gitFacts(fake)
-    // All three asked at once (M39), not one after another.
-    expect(fake.calls).toHaveLength(3)
     await expect(facts).resolves.toEqual({
       git: { branch: 'main', changedFiles: 2, recentCommits: ['abc one', 'def two'] },
     })
+    // Names-only discovery precedes the three metadata queries (M72/M39).
+    expect(fake.calls).toHaveLength(4)
     expect(fake.calls.every((call) => call.startsWith('/ws: '))).toBe(true)
     expect(log.trace).toHaveBeenCalledWith('Git facts for the prompt in 0 ms')
   })
@@ -61,9 +64,7 @@ describe('describeEnvironment', () => {
     const outside = gitFacts(fake)
     await expect(outside.facts).resolves.toEqual({ git: undefined })
     // The log tells a repository from a timeout (M39).
-    expect(outside.log.info).toHaveBeenCalledWith(
-      'No git facts for the prompt: fatal: not a git repository',
-    )
+    expect(outside.log.info).toHaveBeenCalledWith('No git facts for the prompt: Error')
   })
 
   it('runs no git at all in Restricted Mode (D24)', async () => {

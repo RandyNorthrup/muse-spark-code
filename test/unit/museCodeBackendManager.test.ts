@@ -2,13 +2,20 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as sdk from '@muse-code/sdk'
 import type { EnvironmentVariable } from '../../src/shared/constants'
-import {
+import type {
   MuseCodeBackendManager,
-  type BackendManagerDeps,
+  BackendManagerDeps,
 } from '../../src/host/backend/museCodeBackendManager'
 import { readProxySettings } from '../../src/host/networkPosture'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeMuseCodeManager } from './helpers/museCodeManager'
+
+// Real SDK exports, with one fake spawn boundary that creates no native child.
+vi.mock('@muse-code/sdk', async (importOriginal) => ({
+  ...(await importOriginal<typeof sdk>()),
+}))
 
 const VS_CODE_PROXY = 'https://proxy.example:8443'
 const VS_CODE_NO_PROXY = ['localhost', '127.0.0.1']
@@ -30,20 +37,12 @@ function managerWith(
   log = new FakeLogOutputChannel(),
   overrides: Partial<BackendManagerDeps> = {},
 ): MuseCodeBackendManager {
-  const deps: BackendManagerDeps = {
+  return fakeMuseCodeManager({
     log,
-    extensionVersion: '0.0.0-test',
-    getConfiguredBinaryPath: () => '',
     getEnvironmentVariables: () => configured,
-    workspaceRoot: undefined,
-    getShellSandbox: () => 'off',
-    getSandboxNetwork: () => 'default',
-    userProfileDir: undefined,
-    isWorkspaceTrusted: () => true,
     getProxySettings: () => ({ proxy, noProxy: VS_CODE_NO_PROXY }),
     ...overrides,
-  }
-  return new MuseCodeBackendManager(deps)
+  })
 }
 
 /** The values the child sees under any spelling of `name`. */
@@ -52,6 +51,52 @@ function valuesOf(env: NodeJS.ProcessEnv, name: string): readonly (string | unde
     .filter(([key]) => key.toLowerCase() === name.toLowerCase())
     .map(([, value]) => value)
 }
+
+describe('MuseCodeBackendManager: checkpoint native startup admission (M72)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('awaits the workspace fence before any native spawn, even with no capture setting involved', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(() => {
+      throw new Error('injected fake native spawn')
+    })
+    const manager = managerWith([], VS_CODE_PROXY, new FakeLogOutputChannel(), {
+      getConfiguredBinaryPath: () => process.execPath,
+      beforeWorkspaceHostStart: async () => {
+        entered.resolve(undefined)
+        await resume.promise
+      },
+    })
+    const opening = manager.ensureHost()
+    const settled = expect(opening).rejects.toThrow('injected fake native spawn')
+    try {
+      await entered.promise
+      expect(spawn).not.toHaveBeenCalled()
+    } finally {
+      resume.resolve(undefined)
+    }
+    await settled
+    expect(spawn).toHaveBeenCalledOnce()
+    expect(manager.isRunning).toBe(false)
+    await manager.dispose()
+  })
+
+  it('spawns nothing when native presence or reservation admission is refused', async () => {
+    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(() => {
+      throw new Error('must not spawn')
+    })
+    const manager = managerWith([], VS_CODE_PROXY, new FakeLogOutputChannel(), {
+      getConfiguredBinaryPath: () => process.execPath,
+      beforeWorkspaceHostStart: () => Promise.reject(new Error('injected native fence refusal')),
+    })
+    await expect(manager.ensureHost()).rejects.toThrow('injected native fence refusal')
+    expect(spawn).not.toHaveBeenCalled()
+    expect(manager.isRunning).toBe(false)
+  })
+})
 
 describe('MuseCodeBackendManager: VS Code’s proxy for the CLI (D25)', () => {
   beforeEach(() => {

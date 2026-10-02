@@ -73,6 +73,8 @@ function countAttempts(log: string): number {
 /** One turn on the real CLI: the session id and the streamed reply text. */
 async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; text: string }> {
   const backend = new MuseCodeBackendManager({
+    // Opt-in independent CLI drill: no VS Code checkpoint namespace or restore surface.
+    beforeWorkspaceHostStart: () => Promise.resolve(),
     log: new FakeLogOutputChannel(),
     extensionVersion: '0.0.0-live-e2e',
     getConfiguredBinaryPath: () => '',

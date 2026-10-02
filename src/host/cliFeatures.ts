@@ -35,10 +35,18 @@ export interface CliFeatureDeps {
     timeoutMs: number,
   ) => Promise<ProcessResult> | undefined
   /** The CLI in a VS Code terminal the user watches; false when it is not installed. */
-  readonly runCliInTerminal: (args: readonly string[], terminalName: string) => boolean
+  readonly runCliInTerminal: (
+    args: readonly string[],
+    terminalName: string,
+  ) => boolean | Promise<boolean>
   /** Muse Code's settings file where `muse serve` reads it (`XDG_CONFIG_HOME` honoured). */
   readonly museSettingsPath: () => string
   readonly workspaceRoot: string | undefined
+  /**
+   * Runs a write of `fsPath` (an export the user placed): inside the
+   * workspace folder under the checkpoint lease (M72), elsewhere as it is.
+   */
+  readonly editFile: <T>(fsPath: string, work: () => Promise<T>) => Promise<T>
   /** Stops the hosts; the next message starts them with the new settings (D25). */
   readonly restartBackend: () => Promise<void>
   /**
@@ -202,7 +210,9 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
         if (target === undefined) {
           return
         }
-        await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
+        await deps.editFile(target.fsPath, async () => {
+          await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
+        })
         deps.log.info(`Exported the conversation to ${target.toString()}`)
         await vscode.window.showTextDocument(target, { preview: false })
       },

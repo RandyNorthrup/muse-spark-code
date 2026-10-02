@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -590,6 +590,12 @@
           "default": false,
           "description": "%config.modelApiRepoMap.description%",
           "scope": "machine"
+        },
+        "museSpark.turnCheckpoints": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.turnCheckpoints.description%",
+          "scope": "machine"
         }
       }
     },
@@ -670,7 +676,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/planMarkdownEntry.ts src/webview/main.tsx src/runtime/main.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/webview/main.tsx src/runtime/main.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",

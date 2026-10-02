@@ -1,5 +1,7 @@
+import { tmpdir } from 'node:os'
 import { defineConfig } from '@vscode/test-cli'
 import { minimumVsCodeVersion } from './scripts/lib/vscode-engine.mjs'
+import { launchArgsFor } from './scripts/lib/vscodeTestProfile.mjs'
 
 // Integration tests run inside a real VS Code (Extension Development Host).
 // `npm run build:dev` bundles test/integration/**/*.test.ts to
@@ -15,11 +17,20 @@ const MOCHA_TIMEOUT_MS = 20_000
 const shared = {
   files: 'dist/test/integration/**/*.test.js',
   workspaceFolder: './test/fixtures/workspace',
-  launchArgs: ['--disable-extensions'],
   mocha: { ui: 'tdd', timeout: MOCHA_TIMEOUT_MS, color: true },
 }
 
-export default defineConfig([
-  { ...shared, label: 'stable', version: 'stable' },
-  { ...shared, label: 'minimum', version: minimumVsCodeVersion() },
-])
+// Under a long checkout path (macOS caps a Unix socket path at 104 bytes) each
+// run gets a short user-data directory; see scripts/lib/vscodeTestProfile.mjs.
+function run(label, version) {
+  const launchArgs = launchArgsFor({
+    base: ['--disable-extensions'],
+    label,
+    checkout: process.cwd(),
+    platform: process.platform,
+    tmp: tmpdir(),
+  })
+  return { ...shared, label, version, launchArgs }
+}
+
+export default defineConfig([run('stable', 'stable'), run('minimum', minimumVsCodeVersion())])

@@ -520,7 +520,8 @@ function linkText(uri: string, cwd: string): string {
     return uri
   }
   const relative = path.relative(cwd, absolute)
-  return relative.startsWith('..') || path.isAbsolute(relative)
+  // A segment, not a prefix: a file named `..cache` is inside the folder.
+  return relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)
     ? uri
     : formatMention(relative.split(path.sep).join('/'))
 }

@@ -34,7 +34,9 @@ import {
 } from '../../core/backends/musecode/sandbox'
 import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
 import { clipForLog } from '../../core/logging'
+import { isSamePath } from '../../core/paths'
 import { withDeadline } from '../../core/timeouts'
+import { resolveWorkspacePath } from '../../core/workspacePath'
 import {
   MILLISECONDS_PER_SECOND,
   MSP_CLIENT_NAME,
@@ -50,9 +52,11 @@ import {
   PROXY_VARIABLE_SPELLINGS,
   type SandboxNetworkMode,
   type ShellSandboxMode,
+  UI_TEXT,
 } from '../../shared/constants'
 import { readCredentialFile } from '../auth/cliAccount'
 import type { Logger } from '../logger'
+import { systemPath } from './memoryIo'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
 export interface ProxySettings {
@@ -61,6 +65,8 @@ export interface ProxySettings {
 }
 
 export interface BackendManagerDeps {
+  /** Awaited before any agent host process can edit this workspace. */
+  readonly beforeWorkspaceHostStart: () => Promise<void>
   readonly log: Logger
   readonly extensionVersion: string
   readonly getConfiguredBinaryPath: () => string
@@ -177,6 +183,10 @@ export class MuseCodeBackendManager {
       throw new Error(`${resolution.reason} Searched: ${resolution.searched.join(', ')}`)
     }
     const launch: MuseLaunch = resolution.launch
+    await this.admitWorkspaceHost()
+    if (this.generation !== generation) {
+      throw new Error(UI_TEXT.questionCancelled)
+    }
     const posture = this.shellSandboxPosture()
     this.deps.log.info(
       `Shell sandbox ${posture.isSandboxed ? 'on' : 'off'} (${posture.reason}) for this host`,
@@ -403,6 +413,71 @@ export class MuseCodeBackendManager {
     this.generation += 1
     this.hostPromise = this.spawnOwned(this.generation)
     return this.hostPromise
+  }
+
+  /** Shared by agent and account-only serve startups in this workspace. */
+  public async admitWorkspaceHost(): Promise<void> {
+    await this.deps.beforeWorkspaceHostStart()
+  }
+
+  /** Server-owned lifetime/generation check reused by explicit file edits. */
+  public workspaceActionGuard(signal: AbortSignal, cwd?: string): () => void {
+    const generation = this.generation
+    return () => {
+      if (signal.aborted || this.generation !== generation) {
+        throw new Error(UI_TEXT.questionCancelled)
+      }
+      if (
+        cwd !== undefined &&
+        (!this.deps.isWorkspaceTrusted() ||
+          this.deps.workspaceRoot === undefined ||
+          !isSamePath(cwd, this.deps.workspaceRoot, process.platform))
+      ) {
+        throw new Error(UI_TEXT.checkpointFailed)
+      }
+    }
+  }
+
+  /** CLI commands and terminal shells share the native startup fence. */
+  public async startWorkspaceCommand<T>(
+    start: () => T | Promise<T>,
+    signal: AbortSignal,
+  ): Promise<T> {
+    const check = this.workspaceActionGuard(signal)
+    check()
+    await this.admitWorkspaceHost()
+    check()
+    return await start()
+  }
+
+  /** Worktree mutation may run normal repository hooks; its cwd must own this workspace. */
+  public async startWorktreeMutation(
+    cwd: string,
+    start: (ownedCwd: string) => Promise<string>,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const check = this.workspaceActionGuard(signal)
+    return await this.startWorkspaceCommand(async () => {
+      const workspaceRoot = this.deps.workspaceRoot
+      if (workspaceRoot === undefined) {
+        throw new Error(UI_TEXT.checkpointFailed)
+      }
+      let root: string
+      let folder: string
+      try {
+        ;[root, folder] = await Promise.all([systemPath(workspaceRoot), systemPath(cwd)])
+      } catch {
+        throw new Error(UI_TEXT.checkpointFailed)
+      }
+      check()
+      if (
+        !isSamePath(root, folder, process.platform) &&
+        !resolveWorkspacePath(folder, root, process.platform).ok
+      ) {
+        throw new Error(UI_TEXT.checkpointFailed)
+      }
+      return await start(folder)
+    }, signal)
   }
 
   public get isRunning(): boolean {

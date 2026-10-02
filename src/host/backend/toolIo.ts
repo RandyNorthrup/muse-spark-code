@@ -28,6 +28,7 @@ import type {
   ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
+import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
 import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
@@ -543,15 +544,16 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
     },
-    async writeFile(absolutePath, content, expectedCanonicalPath) {
+    async writeFile(absolutePath, content, expectedCanonicalPath, assertCanWrite) {
       // A new file's folders are created (PLAN.md D26: `write_file` into a
       // missing folder failed); the caller confined the whole path first.
       // The write is atomic (D27): an interrupted one leaves the old file.
       await writeFileAtomically(absolutePath, content, {
         sleep: pause,
-        ...(deps.assertWorkspaceCurrent !== undefined && {
-          assertCanWrite: deps.assertWorkspaceCurrent,
-        }),
+        assertCanWrite: () => {
+          deps.assertWorkspaceCurrent?.()
+          assertCanWrite?.()
+        },
         ...(expectedCanonicalPath !== undefined && { expectedCanonicalPath }),
         platform: deps.platform,
       })
@@ -559,9 +561,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     async writeFileIfUnchanged(absolutePath, expectedFingerprint, content, options) {
       return await writeFileIfUnchanged(absolutePath, expectedFingerprint, content, {
         sleep: pause,
-        ...(deps.assertWorkspaceCurrent !== undefined && {
-          assertCanWrite: deps.assertWorkspaceCurrent,
-        }),
+        assertCanWrite: () => {
+          deps.assertWorkspaceCurrent?.()
+          options.assertCanWrite?.()
+        },
         expectedCanonicalPath: options.expectedCanonicalPath,
         platform: deps.platform,
         isReplaceable: () => options.unsavedAt.every((path) => !hasUnsavedChanges(path)),
@@ -645,20 +648,20 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     listFiles: deps.listFiles,
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
-    async runShell(command, cwd, timeoutMs, signal, limit) {
+    async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
-        return {
-          stdout: '',
-          stderr: `${missing} was not found on the absolute entries of PATH`,
-          exitCode: null,
-          isTimedOut: false,
-          isCancelled: false,
-        }
+        return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
       deps.assertWorkspaceCurrent?.()
+      try {
+        assertCanRun?.()
+      } catch {
+        // No workspace process has started; cancellation is proven at this boundary.
+        return refusedShellEntry()
+      }
       return await runCommand({
         file: interpreter,
         args: shellArguments(deps.platform, command, job),
@@ -679,13 +682,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       const file = deps.platform === 'win32' ? interpreter : hookProgram
       if (hookProgram === undefined || file === undefined) {
-        return {
-          stdout: '',
-          stderr: 'Hook shell is unavailable',
-          exitCode: null,
-          isTimedOut: false,
-          isCancelled: false,
-        }
+        return unstartedShell('Hook shell is unavailable')
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
@@ -772,6 +769,22 @@ export interface CommandRun {
   readonly maxOutputBytes?: number | undefined
 }
 
+/** The spawned process, or the Error spawn threw before any process existed. */
+function startProcess(run: CommandRun) {
+  try {
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
+    return spawn(run.file, [...run.args], {
+      cwd: run.cwd,
+      env: run.env,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      ...treeSpawnOptions(run.tree.platform),
+    })
+  } catch (error: unknown) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
 /**
  * Runs one process to its exit (PLAN.md D25). A timeout or an abort kills
  * the whole process tree, and the result waits for that kill to finish
@@ -782,18 +795,25 @@ export interface CommandRun {
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {
-      resolve({ stdout: '', stderr: '', exitCode: null, isTimedOut: false, isCancelled: true })
+      resolve({
+        stdout: '',
+        stderr: '',
+        exitCode: null,
+        isTimedOut: false,
+        isCancelled: true,
+        isWorkspaceShutdownProven: true,
+      })
       return
     }
     const startedAt = Date.now()
-    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
-    const child = spawn(run.file, [...run.args], {
-      cwd: run.cwd,
-      env: run.env,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      ...treeSpawnOptions(run.tree.platform),
-    })
+    const child = startProcess(run)
+    if (child instanceof Error) {
+      // spawn itself threw (a command line past the operating system's limit,
+      // a NUL in the command): no process was ever created, which is the one
+      // local fact that proves none exists to outlive the result.
+      resolve(unstartedShell(child.message))
+      return
+    }
     const stdout = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
     const stderr = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
     let isTimedOut = false
@@ -818,7 +838,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     run.limit?.bind(() => {
       clearTimeout(timer)
     })
-    const settle = (exitCode: number | null, failure = '') => {
+    const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
       if (isSettled) {
         return
       }
@@ -829,13 +849,14 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       // Our ends of the pipes; whatever still writes to them is not waited for.
       child.stdout.destroy()
       child.stderr.destroy()
-      const result = {
+      const result: ShellResult = {
         stdout: stdout.text(),
         stderr: `${stderr.text()}${failure}`,
         exitCode,
         isTimedOut,
         isCancelled,
         ...(isOutputTooLarge && { isOutputTooLarge }),
+        ...(isUnstarted && { isWorkspaceShutdownProven: true }),
       }
       // killTree never rejects: what it cannot do, it logs.
       void (kill ?? Promise.resolve()).then(() => {
@@ -866,7 +887,10 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       stderr.push(chunk)
     })
     child.on('error', (error) => {
-      settle(null, error.message)
+      // Node leaves the pid undefined only when the spawn itself failed: no
+      // process exists. Any other error (a failed kill, a broken pipe) is a
+      // process that did launch, so it proves nothing.
+      settle(null, error.message, child.pid === undefined)
     })
     child.on('exit', (code) => {
       drain = setTimeout(() => {
