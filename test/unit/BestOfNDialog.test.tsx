@@ -34,8 +34,8 @@ function runWith(overrides: Partial<BestOfNRun> = {}): BestOfNRun {
   }
 }
 
-function renderDialog(overrides: Partial<BestOfNDialogProps> = {}) {
-  const props: BestOfNDialogProps = {
+function dialogProps(overrides: Partial<BestOfNDialogProps> = {}): BestOfNDialogProps {
+  return {
     run: undefined,
     isPaidOn: true,
     defaultPrompt: 'leave a note',
@@ -46,8 +46,24 @@ function renderDialog(overrides: Partial<BestOfNDialogProps> = {}) {
     onClose: vi.fn(),
     ...overrides,
   }
+}
+
+function renderDialog(overrides: Partial<BestOfNDialogProps> = {}) {
+  const props = dialogProps(overrides)
   render(<BestOfNDialog {...props} />)
   return props
+}
+
+/** The dialog, then the run the host's next message leaves it with (the same one when it refused). */
+function renderUpdated(overrides: Partial<BestOfNDialogProps> = {}) {
+  const props = dialogProps(overrides)
+  const { rerender } = render(<BestOfNDialog {...props} />)
+  return {
+    props,
+    update: (run: BestOfNRun | undefined) => {
+      rerender(<BestOfNDialog {...props} run={run} />)
+    },
+  }
 }
 
 describe('BestOfNDialog', () => {
@@ -119,6 +135,33 @@ describe('BestOfNDialog', () => {
     // The side-by-side comparison shows both diffs.
     expect(screen.getByText('left diff')).toBeDefined()
     expect(screen.getByText('right diff')).toBeDefined()
+  })
+
+  it('keeps the form after Start until the host publishes the new run', () => {
+    const t = renderUpdated()
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    expect(t.props.onStart).toHaveBeenCalledOnce()
+    // A refused start is a notice and no update: the dialog keeps what it had.
+    t.update(undefined)
+    expect(screen.getByLabelText('Prompt')).toHaveValue('leave a note')
+    expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled()
+    t.update(runWith())
+    expect(screen.queryByLabelText('Prompt')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Cancel run' })).toBeDefined()
+  })
+
+  it('keeps a reopened form over the finished run when the host refuses its Start', () => {
+    const finished = runWith({ status: 'completed' })
+    const t = renderUpdated({ run: finished, defaultPrompt: '' })
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    expect(screen.getByLabelText('Prompt')).toHaveValue('leave a note')
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    expect(t.props.onStart).toHaveBeenCalledOnce()
+    // An update of the finished run is not the new run.
+    t.update({ ...finished })
+    expect(screen.getByLabelText('Prompt')).toHaveValue('leave a note')
+    t.update(runWith({ runId: 'bon-2' }))
+    expect(screen.queryByLabelText('Prompt')).toBeNull()
   })
 
   it('marks the taken branch and closes with Escape', () => {

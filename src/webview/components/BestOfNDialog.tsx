@@ -1,7 +1,9 @@
 // Best-of-N on the Model API (M77, PLAN.md D49): the same prompt in N
 // worktrees, their diff stats side by side, and "take this one". The form
 // validates the bounds before it sends; the host asks the one paid-use
-// popup, runs the attempts and posts every change back.
+// popup, runs the attempts and posts every change back. The form stays until
+// the host's update brings a run other than the one on screen at Start: a
+// start the host refuses (a notice, no update) leaves it to fix and retry.
 
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import {
@@ -228,6 +230,10 @@ export function BestOfNDialog(props: BestOfNDialogProps) {
   const { run, isPaidOn, defaultPrompt } = props
   const { onStart, onTake, onCancelRun, onClose } = props
   const [isFormOpen, setFormOpen] = useState(run === undefined)
+  // The run on screen when Start was pressed; the host accepted once another arrives.
+  const [startedOver, setStartedOver] = useState<{ readonly runId: string | undefined }>()
+  const isStartAccepted =
+    startedOver !== undefined && run !== undefined && run.runId !== startedOver.runId
   const initial = useMemo(() => defaultBestOfNRequest(defaultPrompt), [defaultPrompt])
   const [prompt, setPrompt] = useState(initial.prompt)
   const [attemptsText, setAttemptsText] = useState(String(initial.attempts))
@@ -334,7 +340,7 @@ export function BestOfNDialog(props: BestOfNDialogProps) {
         disabled={errors.length > 0 || !isPaidOn}
         onClick={() => {
           onStart(prompt.trim(), attempts, ceiling)
-          setFormOpen(false)
+          setStartedOver({ runId: run?.runId })
         }}
       >
         {UI_TEXT.bestOfNStart}
@@ -407,6 +413,7 @@ export function BestOfNDialog(props: BestOfNDialogProps) {
             className="button-secondary"
             onClick={() => {
               setPrompt(run.prompt)
+              setStartedOver(undefined)
               setFormOpen(true)
             }}
             autoFocus
@@ -428,7 +435,7 @@ export function BestOfNDialog(props: BestOfNDialogProps) {
       <div className="palette-header">
         <h2 className="bestofn-title">{UI_TEXT.bestOfNTitle}</h2>
       </div>
-      <ListBody>{isFormOpen ? form : runView}</ListBody>
+      <ListBody>{isFormOpen && !isStartAccepted ? form : runView}</ListBody>
     </div>
   )
 }

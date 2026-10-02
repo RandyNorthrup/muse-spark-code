@@ -60,7 +60,9 @@ happened, not what was planned; superseded entries are kept.
     prompt, the published token rates, the attempt count and the per-attempt
     request ceiling, and the subscription never pays. Each attempt works on
     its own `best-of-n/<run>/<index>` branch; attempts that would ask are
-    declined and counted. Needs a trusted workspace with a folder open.
+    declined and counted. Needs a trusted workspace with a folder open. The
+    form stays open after **Start** until the run begins, so a start that is
+    refused keeps its prompt and numbers beside the reason, ready to retry.
   - Successful attempts compare side by side, and **Apply and stage** takes
     only that attempt's immutable preview: its uncommitted tracked and
     unignored new files, binary changes included, applied and staged as exact
