@@ -49,6 +49,11 @@ belongs to the M71 source; it is not the first commit's build-only delta.
 - `.vscodeignore` now includes the table. The VSIX and ACP lists in
   `.github/workflows/build.yml` require it with exact member matching.
   The local `vsce ls --no-dependencies` file list includes `dist/uiText.js`.
+- CI's package job runs the same smoke on every push: it installs the ACP
+  tarball it just packed (`npm install --ignore-scripts` into the runner's
+  temp folder) and runs `scripts/check-ui-text.mjs` against it and the
+  production bundles. Run locally on Windows 2026-10-01 after merging main:
+  exit 0.
 - Development builds already emit the table beside `extension.js`;
   integration-test bundles do not use the sharing plugin and retain their
   own fallback. `.vscode-test.mjs` therefore needs no change. Real editor
