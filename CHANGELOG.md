@@ -50,6 +50,13 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
+- **A `/goal` refused while a Model API key is activated no longer
+  sticks.** While a key was being activated, with the panel still reading
+  signed in, a `/goal …` from the prompt or a goal edit was refused with
+  only a notice and never answered, so the panel kept waiting for it:
+  Enter on the same command sent nothing and the goal strip's Save stayed
+  disabled, even once the key was active. The refusal is now answered:
+  the command stays in the prompt, and sending it again works.
 
 ## [0.10.0] - 2026-10-01
 

@@ -5143,10 +5143,12 @@ export class ConversationController {
   private async dispatch(message: ConversationMessage): Promise<void> {
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
-      // A handoff's request and Start wait for their result (M74): refused
-      // here too, they hear it, or the composer's command and the dialog's
-      // Start stay waiting after admission returns.
-      if (message.type === 'requestHandoff' || message.type === 'confirmHandoff') {
+      // A command the panel waits on hears the refusal too (M45, M74), or
+      // the prompt's `/goal …` or `/handoff …`, the goal strip's Save and the
+      // handoff dialog's Start stay waiting after admission returns.
+      if (message.type === 'goalCommand') {
+        this.post({ type: 'goalCommandResult', requestId: message.requestId, accepted: false })
+      } else if (message.type === 'requestHandoff' || message.type === 'confirmHandoff') {
         this.post({ type: 'handoffCommandResult', requestId: message.requestId, accepted: false })
       }
       return

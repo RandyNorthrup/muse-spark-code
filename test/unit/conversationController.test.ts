@@ -6574,6 +6574,30 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
     )
   })
 
+  it('answers a /goal refused while a key activation holds admission, and the same /goal goes through once it returns', async () => {
+    const t = setup()
+    t.server.handle('goal/set', accepted)
+    // The panel still reads signed in while the backend's admission is held.
+    t.auth.isAdmitted = false
+    expect(t.auth.snapshot.status).toBe('signedIn')
+    await t.controller.handle(goal('set', 'Ship the parser'))
+    expect(t.server.requestsFor('goal/set')).toHaveLength(0)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+    // Refused and answered, so the prompt keeps the command and can send it again.
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+    ])
+    t.auth.isAdmitted = true
+    await t.controller.handle(goal('set', 'Ship the parser'))
+    expect(t.server.requestsFor('goal/set')[0]?.params).toMatchObject({
+      objective: 'Ship the parser',
+    })
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: true },
+    ])
+  })
+
   it('resumes the session and sends again when the host no longer holds it', async () => {
     const t = setup()
     await t.send('l1', 'hi')

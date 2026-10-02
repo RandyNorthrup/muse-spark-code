@@ -8603,8 +8603,9 @@ with `main` at `2a30b1a0` with its shared-table fixes kept as `main` has
 them (certification `docs/certification/m74.md`). Automatic compaction,
 the hidden todo follow-up and the memory flush are not built (see "Not
 built" below), so M74 is not complete. On this tree the M74 test files
-(nine files, 779 tests) pass on the kubuntu and Mac mini rigs; every M74
-guard was broken on purpose, seen red and restored byte for byte
+(nine files, 780 tests with the M45 goal fix below) pass on the kubuntu
+and Mac mini rigs; every M74 guard was broken on purpose, seen red and
+restored byte for byte
 (sha256), or is recorded as backed by another check (four are; O17, the
 one that had neither, now has its test); and the typechecks (host, unit,
 webview), `eslint` and Prettier on the changed files, `check:l10n`,
@@ -8711,7 +8712,10 @@ integration tests, a production build with a real `node_modules` and
     too (RV74c N1): a request or a Start refused while the backend's
     admission is held (a key activation, with the panel still reading
     signed in) gets `accepted: false`, so the command and Start work
-    again once admission returns.
+    again once admission returns. The same guard now answers M45's
+    `goalCommand` too (released behaviour, the same defect; the lead's
+    decision, 2026-10-02: its own commit and `[Unreleased] ### Fixed`
+    entry; certification `docs/certification/m45.md`, drill G55).
   - One modal at a time (RV74c N2): a brief that arrives while Account &
     usage, the Agent map or the install confirmation is open waits,
     unmounted, until that dialog closes, then opens with the focus, so
