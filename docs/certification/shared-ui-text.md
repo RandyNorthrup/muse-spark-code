@@ -49,6 +49,11 @@ belongs to the M71 source; it is not the first commit's build-only delta.
 - `.vscodeignore` now includes the table. The VSIX and ACP lists in
   `.github/workflows/build.yml` require it with exact member matching.
   The local `vsce ls --no-dependencies` file list includes `dist/uiText.js`.
+- CI's package job runs the same smoke on every push: it installs the ACP
+  tarball it just packed (`npm install --ignore-scripts` into the runner's
+  temp folder) and runs `scripts/check-ui-text.mjs` against it and the
+  production bundles. Run locally on Windows 2026-10-01 after merging main:
+  exit 0.
 - Development builds already emit the table beside `extension.js`;
   integration-test bundles do not use the sharing plugin and retain their
   own fallback. `.vscode-test.mjs` therefore needs no change. Real editor
@@ -76,3 +81,28 @@ each intentional red exited 1. Raw output stays in ignored `dist/lane-m71`.
 The first budget-drill harness expected the wrong diagnostic spelling;
 the gate itself failed correctly and the artifact was restored. The corrected
 diagnostic then completed green/red/restored-green proof. No gate was changed.
+
+## Independent review RV67 (2026-10-01) and its fixes
+
+A read-only Codex review of PR #67 found no shipped consumer broken and
+three gaps, all fixed in this PR:
+
+- **The smoke never loaded the installed agent's Model API bundle**
+  (`--help` starts no backend). `check-ui-text.mjs` now loads
+  `<installed package>/dist/modelApi.js` too. Drill on Windows: its
+  `./uiText.js` require renamed to `./uiText-missing.js` in the installed
+  copy, the check failed with `Cannot find module './uiText-missing.js'`;
+  restored (SHA-256 `d6a7a124776271ae…` before and after), exit 0.
+- **An empty environment did not force English**: with no locale variable
+  the agent takes the runtime's locale, so a runner whose default is a
+  supported language would fail the comparison against valid localized
+  help. The child now gets `LC_ALL=en_US.UTF-8`. Shown on Windows: the same
+  installed agent prints `Verwendung:` with `LC_ALL=de_DE.UTF-8` and
+  `Usage:` with `LC_ALL=en_US.UTF-8`.
+- **The plugin matched only the extensionless spelling** of the table's
+  import; `en.js` (valid under the TypeScript module resolution) inlined the
+  whole table. It now matches `en`, `en.js` and `en.ts`. Drill on Windows:
+  `src/host/l10n.ts` importing `../shared/l10n/en.js`, check-bundle-split
+  exit 0 with the fix and exit 1 with the previous plugin; both files
+  restored byte for byte (SHA-256 `860bf5f082c9ab17…`,
+  `e3e03fa0ee1edd9e…`), then a full production build and split check exit 0.
