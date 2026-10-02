@@ -11170,7 +11170,7 @@ describe('the browser check on the Model API backend (M81)', () => {
   })
 
   it('shows why a check did not finish in the words of the user, and the model its own', async () => {
-    const browser = recordingBrowser(() => ({ ok: false, failure: { kind: 'noBrowser' } }))
+    const browser = recordingBrowser(() => ({ ok: false, failure: { kind: 'runtimeMissing' } }))
     const t = setup({ browserCheck: browser.host })
     const { session, events, turnDone } = await startSession(t, 'allowAll')
     scriptChecks(t, 'http://localhost:3000/')
@@ -11178,9 +11178,9 @@ describe('the browser check on the Model API backend (M81)', () => {
     await turnDone()
     expect(checkRows(events)[0]).toMatchObject({
       status: 'failed',
-      failureReason: UI_TEXT.browserCheckNoBrowser,
+      failureReason: UI_TEXT.browserCheckRuntimeMissing,
     })
-    expect(toolOutput(t, 'check_0')).toBe(`Error: ${MODEL_TEXT.browserCheckNoBrowser}`)
+    expect(toolOutput(t, 'check_0')).toBe(`Error: ${MODEL_TEXT.browserCheckRuntimeMissing}`)
   })
 
   it('ends a check the user stops', async () => {

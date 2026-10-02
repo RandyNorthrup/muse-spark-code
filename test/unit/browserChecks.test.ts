@@ -75,7 +75,7 @@ describe('the browser check bundle (M81)', () => {
     })
     const unavailable = {
       ok: false,
-      failure: { kind: 'browserFailed', detail: 'the browser check could not be loaded' },
+      failure: { kind: 'launch' },
     }
     await expect(checks.check(request())).resolves.toEqual(unavailable)
     await expect(checks.check(request())).resolves.toEqual(unavailable)

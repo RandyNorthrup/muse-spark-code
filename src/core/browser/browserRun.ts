@@ -11,9 +11,7 @@
 // is http(s) to loopback or a host this check may reach; the host is
 // compared by name, never looked up. What Fetch cannot see (a WebSocket, a
 // preconnect, the browser's own traffic) goes to the proxy that does not
-// exist (browserLaunch.ts); a machine whose administrator's policy could
-// replace that proxy is refused before any browser starts
-// (browserManagedPolicy.ts). And every target is watched: the browser and
+// exist (browserLaunch.ts). And every target is watched: the browser and
 // each target it attaches attach every target they start, each held before
 // its first line runs until its Network events (and Fetch, where it has the
 // domain) are on, so a WebSocket beyond those hosts, or any answer from
@@ -25,8 +23,7 @@
 // session or the window closing), or when the browser goes away; the
 // connection is closed at that moment, so nothing more reaches the browser,
 // and the browser is then killed, with everything it started. Pure: the
-// browser, the profile folder, the policy reads and the clock's bounds are
-// injected.
+// browser, the profile folder and the clock's bounds are injected.
 
 import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
@@ -43,7 +40,6 @@ import {
 } from '../../shared/constants'
 import { readImageInfo } from '../imageDimensions'
 import { browserLaunchArgs } from './browserLaunch'
-import type { ManagedPolicyVerdict } from './browserManagedPolicy'
 import { isAllowedRequest, isNetworkUrl } from './browserPolicy'
 import { CdpConnection, CdpError, type CdpEvent, type PipeReader, type PipeWriter } from './cdpPipe'
 import { clipEntry, RequestLog } from './requestLog'
@@ -94,18 +90,92 @@ export interface BrowserScreenshot {
   readonly height: number
 }
 
+// --- The closed failure contract (M81 A1, design spec v4 §5 and the lead's
+// ruling on RVM81v4). Every way a check ends without a report is one of
+// these discriminants; none carries free text, a path, a parser or OS
+// message, a CDP error or a header. The only fields are bounded untrusted
+// data: a page's network error code (`net::ERR_…` only) and the selector a
+// step named. Each backend words a failure itself (browserTool.ts).
+
+/** Why no verified runtime was ready for the check (spec §4). */
+export type PreparationFailure =
+  /** Not installed, and it could not be downloaded now. */
+  | 'runtimeMissing'
+  /** This OS and architecture have no pinned runtime. */
+  | 'runtimeUnsupported'
+  /** The pin is 45 days old or more: an extension update is needed. */
+  | 'runtimeOutdated'
+  /** An archive, executable, receipt or published folder failed verification. */
+  | 'runtimeIntegrity'
+  /** The OS refused to run it (application control, signing, quarantine). */
+  | 'runtimeBlocked'
+  /** The user chose Not now, or the consent prompt lapsed. */
+  | 'runtimeDeclined'
+  /** Preparation passed its 15-minute bound. */
+  | 'preparationTimedOut'
+  /** The approved hosts changed while the check was prepared. */
+  | 'scopeChanged'
+  /** The check stopped being offered (trust, mode, network posture, the runtime setting). */
+  | 'notOffered'
+
+/** Why the check could not trust its own confinement (spec §§3, 6): nothing of the page is returned. */
+export type ConfinementFailure =
+  /** The verified runtime did not start, or its pipe failed during setup. */
+  | 'launch'
+  /** The browser's version, command line or startup targets are not the pin's exact contract. */
+  | 'unrecognized'
+  /** No fresh private profile or browser context (the cookie tripwire included). */
+  | 'profile'
+  /** A routing canary did not reach the owned proxy as expected (route not confirmed). */
+  | 'routeUnconfirmed'
+  /** The browser's resolver rule is not the exact one (resolver rule not confirmed). */
+  | 'resolverUnconfirmed'
+  /** A sign-in challenge reached the browser, or an Authorization header reached a fixture. */
+  | 'signIn'
+  /** WebRTC left the proxy, or its canary could not be confirmed. */
+  | 'webrtc'
+  /** WebTransport was not refused, or a datagram left. */
+  | 'transport'
+  /** A canary could not be calibrated on this machine (a missing fixture or address). */
+  | 'unverifiable'
+  /** A target, frame or worker could not be watched, or there were too many. */
+  | 'unwatchable'
+  /** The audit after the page failed (audit exception): the page's data is discarded. */
+  | 'auditFailed'
+  /** The browser's network service restarted during the check: the page's data is discarded. */
+  | 'restartObserved'
+
+/** How a page run ended without a report. */
+export type PageEnd =
+  /** The page's own navigation was blocked: it went beyond the approved hosts. */
+  | 'pageBlocked'
+  /** The 60-second check lifetime ended. */
+  | 'timedOut'
+  /** A request, redirect or socket reached beyond the approved hosts: nothing is returned. */
+  | 'leaked'
+  /** Stopped by its caller, the session or the window. */
+  | 'cancelled'
+  /** The browser stopped answering or went away during the page run. */
+  | 'browserFailed'
+
 export type BrowserFailure =
-  | { readonly kind: 'noBrowser' | 'pageBlocked' | 'timedOut' | 'leaked' | 'cancelled' }
-  | { readonly kind: 'browserFailed' | 'pageFailed'; readonly detail: string }
+  | { readonly kind: PreparationFailure | ConfinementFailure | PageEnd }
+  /** The page did not load; `netError` matches NET_ERROR (`net::ERR_…`) or is absent. */
+  | { readonly kind: 'pageFailed'; readonly netError: string | undefined }
+  /** A step's selector matched nothing: the model's own selector, bounded. */
   | { readonly kind: 'noElement'; readonly selector: string }
-  /** An administrator's policy that could override the block; nothing started. */
-  | { readonly kind: 'managedPolicy'; readonly where: string }
-  /** A policy location that could not be read; nothing started. */
-  | { readonly kind: 'policyUnreadable'; readonly where: string; readonly detail: string }
 
 export type BrowserCheckResult =
   | { readonly ok: true; readonly report: BrowserCheckReport }
   | { readonly ok: false; readonly failure: BrowserFailure }
+
+/** The only page error text that crosses the boundary. */
+const NET_ERROR = /^net::ERR_[A-Z0-9_]+$/
+
+/** A page's error text as the closed failure keeps it: a `net::ERR_…` code, or nothing. */
+function pageFailed(errorText: string): BrowserFailure {
+  return { kind: 'pageFailed', netError: NET_ERROR.test(errorText) ? errorText : undefined }
+}
 
 /** What runs a check: the host's browser bundle, loaded on the first call. */
 export type BrowserChecker = (request: BrowserCheckRequest) => Promise<BrowserCheckResult>
@@ -130,8 +200,6 @@ export interface BrowserTimings {
 export interface BrowserRunDeps {
   /** The system Chrome or Edge, found anew for each check; undefined when none is installed. */
   readonly findExecutable: () => string | undefined
-  /** Whether an administrator's policy could override the block, read anew for each check. */
-  readonly findManagedPolicy: () => Promise<ManagedPolicyVerdict>
   /** A fresh, empty folder for the profile; never the user's. */
   readonly createProfile: () => Promise<string>
   readonly removeProfile: (directory: string) => Promise<void>
@@ -227,10 +295,6 @@ const STEP_SCRIPT = `(kind, selector, text) => {
   element.dispatchEvent(new Event('change', { bubbles: true }))
   return '${STEP_DONE}'
 }`
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 function ignore(): void {
   // A call whose answer no longer matters: the check has ended.
@@ -654,7 +718,7 @@ class PageCheck {
         failure:
           navigated.errorText === NAVIGATION_BLOCKED
             ? { kind: 'pageBlocked' }
-            : { kind: 'pageFailed', detail: navigated.errorText },
+            : pageFailed(navigated.errorText),
       }
     }
     // A page still loading at the bound is read as it stands.
@@ -734,8 +798,8 @@ class PageCheck {
 async function runPage(page: PageCheck): Promise<BrowserCheckResult> {
   try {
     return await page.run()
-  } catch (error: unknown) {
-    return { ok: false, failure: { kind: 'browserFailed', detail: describe(error) } }
+  } catch {
+    return { ok: false, failure: { kind: 'browserFailed' } }
   }
 }
 
@@ -770,13 +834,13 @@ async function checkUntilEnded(
     end({ kind: 'cancelled' })
   }
   request.signal.addEventListener('abort', onAbort, { once: true })
-  const stopWatchingClose = connection.onClose((reason) => {
-    end({ kind: 'browserFailed', detail: reason.message })
+  const stopWatchingClose = connection.onClose(() => {
+    end({ kind: 'browserFailed' })
   })
   const page = new PageCheck(connection, request, timings, end)
   let checked = ended
   if (request.signal.aborted) {
-    // Stopped while the policy was read, the profile made or the browser started.
+    // Stopped while the profile was made or the browser started.
     end({ kind: 'cancelled' })
   } else {
     checked = runPage(page)
@@ -790,30 +854,6 @@ async function checkUntilEnded(
   }
 }
 
-/** The machine's policy as a refusal, or undefined when none stands in the way. */
-async function policyRefusal(deps: BrowserRunDeps): Promise<BrowserCheckResult | undefined> {
-  let verdict: ManagedPolicyVerdict
-  try {
-    verdict = await deps.findManagedPolicy()
-  } catch (error: unknown) {
-    return { ok: false, failure: { kind: 'browserFailed', detail: describe(error) } }
-  }
-  switch (verdict.kind) {
-    case 'none': {
-      return undefined
-    }
-    case 'found': {
-      return { ok: false, failure: { kind: 'managedPolicy', where: verdict.where } }
-    }
-    case 'unreadable': {
-      return {
-        ok: false,
-        failure: { kind: 'policyUnreadable', where: verdict.where, detail: verdict.detail },
-      }
-    }
-  }
-}
-
 /** One check, from finding the browser to removing its profile. Never throws. */
 export async function runBrowserCheck(
   deps: BrowserRunDeps,
@@ -824,26 +864,21 @@ export async function runBrowserCheck(
   }
   const executable = deps.findExecutable()
   if (executable === undefined) {
-    return { ok: false, failure: { kind: 'noBrowser' } }
-  }
-  // A policy that could override the block refuses the check before anything starts.
-  const refused = await policyRefusal(deps)
-  if (refused !== undefined) {
-    return refused
+    return { ok: false, failure: { kind: 'runtimeMissing' } }
   }
   const timings = { ...DEFAULT_TIMINGS, ...deps.timings }
   let profile: string
   try {
     profile = await deps.createProfile()
-  } catch (error: unknown) {
-    return { ok: false, failure: { kind: 'browserFailed', detail: describe(error) } }
+  } catch {
+    return { ok: false, failure: { kind: 'profile' } }
   }
   try {
     let browser: BrowserProcess
     try {
       browser = deps.spawn(executable, browserLaunchArgs(profile, request.allowedHosts))
-    } catch (error: unknown) {
-      return { ok: false, failure: { kind: 'browserFailed', detail: describe(error) } }
+    } catch {
+      return { ok: false, failure: { kind: 'launch' } }
     }
     const connection = new CdpConnection(browser.writer, browser.reader)
     let result: BrowserCheckResult | undefined

@@ -15,7 +15,6 @@ import path from 'node:path'
 import { Duplex } from 'node:stream'
 import { environmentValue } from '../../core/backends/musecode/launch'
 import { findBrowserExecutable } from '../../core/browser/browserLaunch'
-import { findManagedProxyPolicy } from '../../core/browser/browserManagedPolicy'
 import type { BrowserProcess, BrowserRunDeps } from '../../core/browser/browserRun'
 import {
   BROWSER_PROFILE_PREFIX,
@@ -23,7 +22,6 @@ import {
   BROWSER_PROFILE_REMOVE_RETRY_MS,
 } from '../../shared/constants'
 import { killTree, treeSpawnOptions } from '../processTree'
-import { hostPolicyReaders } from './browserPolicyReaders'
 
 export interface HostBrowserDeps {
   readonly platform: NodeJS.Platform
@@ -105,14 +103,6 @@ export function hostBrowserRunDeps(deps: HostBrowserDeps): BrowserRunDeps {
         variable: (name) => environmentValue(deps.env, deps.platform, name),
         fileExists: existsSync,
       }),
-    findManagedPolicy: async () =>
-      await findManagedProxyPolicy(
-        hostPolicyReaders({
-          platform: deps.platform,
-          env: deps.env,
-          systemRoot: environmentValue(deps.env, deps.platform, SYSTEM_ROOT_VARIABLE),
-        }),
-      ),
     createProfile: async () => await mkdtemp(path.join(tmpdir(), BROWSER_PROFILE_PREFIX)),
     removeProfile: async (directory) => {
       await rm(directory, {

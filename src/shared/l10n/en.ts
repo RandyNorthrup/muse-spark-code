@@ -560,20 +560,59 @@ export const EN = {
   // Why a check did not happen or did not finish.
   browserCheckUrlRefused:
     'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
-  browserCheckNoBrowser:
-    'No Google Chrome or Microsoft Edge was found on this computer. Install one of them to use the browser check.',
-  browserCheckBrowserFailed: 'The browser failed: {detail}',
-  browserCheckPageFailed: 'The page did not load: {detail}',
+  // The runtime's preparation (M81 A1): why no verified browser was ready.
+  browserCheckRuntimeMissing:
+    'The browser check’s browser is not installed and could not be downloaded now. Check the connection and try again.',
+  browserCheckRuntimeUnsupported:
+    'The browser check is not available on this computer. It supports Windows x64, Linux x64 and macOS.',
+  browserCheckRuntimeOutdated:
+    'The browser check’s browser is more than 45 days old. Update Muse Spark Code to use the browser check again.',
+  browserCheckRuntimeIntegrity:
+    'The browser check’s browser does not match the version this extension pins, so it was not started.',
+  browserCheckRuntimeBlocked:
+    'This computer did not allow the browser check’s browser to run (application control or code signing).',
+  browserCheckRuntimeDeclined:
+    'The browser check’s browser was not downloaded, so nothing was opened.',
+  browserCheckPreparationTimedOut:
+    'Getting the browser check’s browser ready took longer than {duration}, so it stopped.',
+  browserCheckScopeChanged:
+    'The hosts the browser check may reach changed while it was getting ready, so nothing was opened. Ask again to check with the new hosts.',
+  browserCheckNotOffered:
+    'The browser check is no longer available here (workspace trust, the permission mode, the network setting or the runtime setting changed), so nothing was opened.',
+  // Its confinement: nothing from the page is shown after any of these.
+  browserCheckLaunch: 'The browser check’s browser could not be started.',
+  browserCheckUnrecognized:
+    'The browser check stopped: the browser did not match the exact version and setup it expects.',
+  browserCheckProfile:
+    'The browser check stopped: it could not set up a fresh private browser profile.',
+  browserCheckRouteUnconfirmed:
+    'The browser check stopped: it could not confirm that the page’s traffic goes only through its own proxy.',
+  browserCheckResolverUnconfirmed:
+    'The browser check stopped: it could not confirm that the browser looks up no host names itself.',
+  browserCheckSignIn:
+    'The browser check stopped: in its own test, a sign-in challenge or credential got past its proxy.',
+  browserCheckWebrtc:
+    'The browser check stopped: it could not confirm that WebRTC stays inside its proxy.',
+  browserCheckTransport:
+    'The browser check stopped: it could not confirm that WebTransport is refused.',
+  browserCheckUnverifiable:
+    'The browser check stopped: it could not run one of its own confinement tests on this computer (for example, it found no network address to test against).',
+  browserCheckUnwatchable:
+    'The browser check stopped: the page started a frame or worker it could not watch.',
+  browserCheckAuditFailed:
+    'The browser check discarded the page’s results: its tests after the page ran did not pass.',
+  browserCheckRestartObserved:
+    'The browser check discarded the page’s results: the browser’s network service restarted during the check.',
+  // The page run.
+  browserCheckBrowserFailed: 'The browser stopped responding during the check.',
+  browserCheckPageFailed: 'The page did not load ({error}).',
+  browserCheckPageFailedUnknown: 'The page did not load.',
   browserCheckPageBlocked:
     'The page did not load: it went to an address beyond this computer, which the browser check blocks.',
   browserCheckTimedOut: 'The browser check did not finish within {duration}.',
   browserCheckNoElement: 'No element on the page matches {selector}, or it takes no text.',
   browserCheckLeaked:
     'The page reached, or tried to reach, beyond this computer in a way the check cannot block, so the browser check was stopped and returned nothing.',
-  browserCheckManagedPolicy:
-    'The browser check did not start: an administrator’s policy for Chrome or Edge ({where}) sets a proxy or cloud management, which would override its block on connections beyond this computer.',
-  browserCheckPolicyUnreadable:
-    'The browser check did not start: it could not read the browser policy at {where} ({detail}), so it cannot tell whether a policy would override its block on connections beyond this computer.',
   browserCheckRestrictedMode:
     'The browser check is off in Restricted Mode. Trust the workspace to use it.',
   textFileTooLarge: 'Text files must be 1 MB or smaller.',

@@ -13,13 +13,17 @@ import {
   BROWSER_CHECK_SELECTOR_MAX_CHARS,
   BROWSER_CHECK_TIMEOUT_MS,
   BROWSER_CHECK_TYPE_TEXT_MAX_CHARS,
+  BROWSER_RUNTIME_PREPARATION_MS,
   MILLISECONDS_PER_SECOND,
   MODEL_TEXT,
+  SECONDS_PER_MINUTE,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
+import type { UiText } from '../../shared/l10n/en'
 import { fill, formatUnit, plural } from '../../shared/l10n/text'
+import { redactSecrets } from '../redact'
 import { type BrowserUrlPlacement, placeBrowserUrl, widenedHost } from './browserPolicy'
 import type {
   BrowserAction,
@@ -171,26 +175,57 @@ export function placeBrowserCall(
   return { ok: true, placement, actions: parsed.data.actions ?? [] }
 }
 
+/** A failure that carries no value: its words are one fixed key in both tables. */
+type FixedFailure = Exclude<
+  BrowserFailure['kind'],
+  'pageFailed' | 'noElement' | 'timedOut' | 'preparationTimedOut' | 'cancelled'
+>
+/** A UI key whose English is one string (no plural forms). */
+type UiStringKey = { [K in keyof UiText]: UiText[K] extends string ? K : never }[keyof UiText]
+type RefusalKey = keyof typeof MODEL_TEXT & UiStringKey
+
+// Every closed failure (browserRun.ts) has its own words; no free text from
+// the browser, the OS or the network reaches the model or the row.
+const FIXED_REFUSALS: Readonly<Record<FixedFailure, RefusalKey>> = {
+  runtimeMissing: 'browserCheckRuntimeMissing',
+  runtimeUnsupported: 'browserCheckRuntimeUnsupported',
+  runtimeOutdated: 'browserCheckRuntimeOutdated',
+  runtimeIntegrity: 'browserCheckRuntimeIntegrity',
+  runtimeBlocked: 'browserCheckRuntimeBlocked',
+  runtimeDeclined: 'browserCheckRuntimeDeclined',
+  scopeChanged: 'browserCheckScopeChanged',
+  notOffered: 'browserCheckNotOffered',
+  launch: 'browserCheckLaunch',
+  unrecognized: 'browserCheckUnrecognized',
+  profile: 'browserCheckProfile',
+  routeUnconfirmed: 'browserCheckRouteUnconfirmed',
+  resolverUnconfirmed: 'browserCheckResolverUnconfirmed',
+  signIn: 'browserCheckSignIn',
+  webrtc: 'browserCheckWebrtc',
+  transport: 'browserCheckTransport',
+  unverifiable: 'browserCheckUnverifiable',
+  unwatchable: 'browserCheckUnwatchable',
+  auditFailed: 'browserCheckAuditFailed',
+  restartObserved: 'browserCheckRestartObserved',
+  pageBlocked: 'browserCheckPageBlocked',
+  leaked: 'browserCheckLeaked',
+  browserFailed: 'browserCheckBrowserFailed',
+}
+
 /** Why a check did not happen or did not finish, for the model and for the row. */
 export function browserRefusal(failure: BrowserFailure): BrowserRefusal {
   switch (failure.kind) {
-    case 'noBrowser': {
-      return { model: MODEL_TEXT.browserCheckNoBrowser, user: UI_TEXT.browserCheckNoBrowser }
-    }
-    case 'browserFailed': {
-      return {
-        model: fill(MODEL_TEXT.browserCheckBrowserFailed, { detail: failure.detail }),
-        user: fill(UI_TEXT.browserCheckBrowserFailed, { detail: failure.detail }),
-      }
-    }
     case 'pageFailed': {
-      return {
-        model: fill(MODEL_TEXT.browserCheckPageFailed, { detail: failure.detail }),
-        user: fill(UI_TEXT.browserCheckPageFailed, { detail: failure.detail }),
-      }
-    }
-    case 'pageBlocked': {
-      return { model: MODEL_TEXT.browserCheckPageBlocked, user: UI_TEXT.browserCheckPageBlocked }
+      const { netError } = failure
+      return netError === undefined
+        ? {
+            model: MODEL_TEXT.browserCheckPageFailedUnknown,
+            user: UI_TEXT.browserCheckPageFailedUnknown,
+          }
+        : {
+            model: fill(MODEL_TEXT.browserCheckPageFailed, { error: netError }),
+            user: fill(UI_TEXT.browserCheckPageFailed, { error: netError }),
+          }
     }
     case 'timedOut': {
       const seconds = BROWSER_CHECK_TIMEOUT_MS / MILLISECONDS_PER_SECOND
@@ -199,30 +234,31 @@ export function browserRefusal(failure: BrowserFailure): BrowserRefusal {
         user: fill(UI_TEXT.browserCheckTimedOut, { duration: formatUnit(seconds, 'second') }),
       }
     }
+    case 'preparationTimedOut': {
+      const minutes =
+        BROWSER_RUNTIME_PREPARATION_MS / (MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE)
+      return {
+        model: fill(MODEL_TEXT.browserCheckPreparationTimedOut, { minutes: String(minutes) }),
+        user: fill(UI_TEXT.browserCheckPreparationTimedOut, {
+          duration: formatUnit(minutes, 'minute'),
+        }),
+      }
+    }
     case 'noElement': {
+      // The model's own selector, bounded by the arguments' schema; redacted
+      // like any text that may reach the log.
+      const selector = redactSecrets(failure.selector)
       return {
-        model: fill(MODEL_TEXT.browserCheckNoElement, { selector: failure.selector }),
-        user: fill(UI_TEXT.browserCheckNoElement, { selector: failure.selector }),
-      }
-    }
-    case 'leaked': {
-      return { model: MODEL_TEXT.browserCheckLeaked, user: UI_TEXT.browserCheckLeaked }
-    }
-    case 'managedPolicy': {
-      return {
-        model: fill(MODEL_TEXT.browserCheckManagedPolicy, { where: failure.where }),
-        user: fill(UI_TEXT.browserCheckManagedPolicy, { where: failure.where }),
-      }
-    }
-    case 'policyUnreadable': {
-      const values = { where: failure.where, detail: failure.detail }
-      return {
-        model: fill(MODEL_TEXT.browserCheckPolicyUnreadable, values),
-        user: fill(UI_TEXT.browserCheckPolicyUnreadable, values),
+        model: fill(MODEL_TEXT.browserCheckNoElement, { selector }),
+        user: fill(UI_TEXT.browserCheckNoElement, { selector }),
       }
     }
     case 'cancelled': {
       return { model: MODEL_TEXT.browserCheckCancelled, user: UI_TEXT.toolStopped }
+    }
+    default: {
+      const key = FIXED_REFUSALS[failure.kind]
+      return { model: MODEL_TEXT[key], user: UI_TEXT[key] }
     }
   }
 }

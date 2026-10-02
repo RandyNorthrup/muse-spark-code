@@ -4,8 +4,7 @@
 // browser process left after a deadline or a stop, and every way out beyond
 // loopback blocked: a server on this machine's own network address counts
 // every connection a page tries (and the widened check shows it can count);
-// a worker's WebSocket out stops the check; and the machine's own browser
-// policy is read without error (the rigs have none).
+// and a worker's WebSocket out stops the check.
 // Runs where a browser is found (or MUSE_TEST_BROWSER names one, as the Mac
 // mini rig's chrome-headless-shell); elsewhere the suite is skipped, and
 // says why in its name.
@@ -17,14 +16,12 @@ import { hostname, networkInterfaces, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { findBrowserExecutable } from '../../src/core/browser/browserLaunch'
-import { findManagedProxyPolicy } from '../../src/core/browser/browserManagedPolicy'
 import {
   type BrowserCheckRequest,
   type BrowserCheckResult,
   type BrowserRunDeps,
   runBrowserCheck,
 } from '../../src/core/browser/browserRun'
-import { hostPolicyReaders } from '../../src/host/browser/browserPolicyReaders'
 import { hostBrowserRunDeps } from '../../src/host/browser/browserProcess'
 import { processesNaming, tcpListenersOf } from './helpers/browserProcesses'
 
@@ -394,17 +391,6 @@ describe.skipIf(EXECUTABLE === undefined)(SUITE, () => {
     },
     LIVE_TIMEOUT_MS,
   )
-
-  it("reads this machine's browser policy: none here, and nothing it could not read (RV81)", async () => {
-    const verdict = await findManagedProxyPolicy(
-      hostPolicyReaders({
-        platform: process.platform,
-        env: process.env,
-        systemRoot: process.env['SystemRoot'],
-      }),
-    )
-    expect(verdict).toEqual({ kind: 'none' })
-  })
 
   it(
     'kills the browser at its deadline and when stopped, leaving no process and no profile',

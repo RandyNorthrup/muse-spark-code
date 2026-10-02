@@ -230,9 +230,9 @@ describe('the ide server browser check (M81)', () => {
   })
 
   it("throws the check's own reason when it did not finish", async () => {
-    const t = setup({ result: { ok: false, failure: { kind: 'noBrowser' } } })
+    const t = setup({ result: { ok: false, failure: { kind: 'runtimeMissing' } } })
     await expect(t.call({ url: 'http://localhost/' })).rejects.toThrow(
-      MODEL_TEXT.browserCheckNoBrowser,
+      MODEL_TEXT.browserCheckRuntimeMissing,
     )
   })
 })

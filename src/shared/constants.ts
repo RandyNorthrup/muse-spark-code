@@ -1405,47 +1405,10 @@ export const BROWSER_CHECK_MAX_TARGETS = 64
 // fails); past the bound the oldest is forgotten. Each URL is cut to
 // BROWSER_CHECK_ENTRY_MAX_CHARS.
 export const BROWSER_CHECK_MAX_TRACKED_REQUESTS = 512
-// Where an administrator's policy for Chrome or Edge can replace the
-// check's dead proxy (browserManagedPolicy.ts). Only mandatory policy outranks
-// the command line; recommended policy ranks below it and is not read.
-// Windows: the policy keys under each hive (HKLM, HKCU), read in both
-// registry views with reg.exe. Linux: every file in each managed folder is a
-// JSON policy file. macOS: the forced preferences a configuration profile
-// installs, for the machine and for the user, read with plutil.
-export const BROWSER_POLICY_WINDOWS_HIVES: readonly string[] = ['HKLM', 'HKCU']
-export const BROWSER_POLICY_WINDOWS_KEYS: readonly string[] = [
-  String.raw`SOFTWARE\Policies\Google\Chrome`,
-  String.raw`SOFTWARE\Policies\Microsoft\Edge`,
-]
-export const BROWSER_POLICY_WINDOWS_VIEWS: readonly string[] = ['/reg:64', '/reg:32']
-export const WINDOWS_REG_RELATIVE_PATH = String.raw`System32\reg.exe`
-export const BROWSER_POLICY_LINUX_FOLDERS: readonly string[] = [
-  '/etc/opt/chrome/policies/managed',
-  '/etc/opt/edge/policies/managed',
-  '/etc/chromium/policies/managed',
-  '/etc/chromium-browser/policies/managed',
-]
-export const BROWSER_POLICY_MACOS_FOLDER = '/Library/Managed Preferences'
-export const BROWSER_POLICY_MACOS_DOMAINS: readonly string[] = [
-  'com.google.Chrome',
-  'com.microsoft.Edge',
-]
-export const MACOS_PLUTIL_PATH = '/usr/bin/plutil'
-// A token file that enrolls Chrome in cloud management, whose policies
-// (a proxy among them) the check cannot read.
-export const BROWSER_POLICY_ENROLLMENT_FILES: Readonly<Record<string, string>> = {
-  linux: '/etc/opt/chrome/policies/enrollment/CloudManagementEnrollmentToken',
-  darwin: '/Library/Google/Chrome/CloudManagementEnrollmentToken',
-}
-// The policies that refuse a check: every proxy policy (ProxyMode,
-// ProxyServerMode, ProxyServer, ProxyPacUrl, ProxyPacMandatory,
-// ProxyBypassList, ProxySettings, and any later one named Proxy…), and the
-// cloud management enrollment token.
-export const BROWSER_POLICY_PROXY_PREFIX = 'proxy'
-export const BROWSER_POLICY_CLOUD_NAMES: readonly string[] = ['cloudmanagementenrollmenttoken']
-// How much of a policy folder is read: files, and bytes in each.
-export const BROWSER_POLICY_FILES_MAX = 64
-export const BROWSER_POLICY_FILE_MAX_BYTES = 4 * BYTES_PER_MIB
+// The runtime's preparation (M81 A1, design spec v4 §4.1): consent, the
+// download and the verification have their own cancellable lifetime,
+// before the check's 60 seconds start.
+export const BROWSER_RUNTIME_PREPARATION_MS = 15 * 60_000
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
 // billed to the key, never to the subscription (D1, D30).
@@ -3083,10 +3046,49 @@ export const MODEL_TEXT = {
     'The screenshot the browser check took of {url} was not delivered because that tool round ended early.',
   browserCheckUrlRefused:
     'only an http:// or https:// URL whose host is a plain name or IP address, with no user name or password, can be opened, such as http://localhost:3000/',
-  browserCheckNoBrowser:
-    'no Google Chrome or Microsoft Edge was found on this computer; the browser check needs one of them installed',
-  browserCheckBrowserFailed: 'the browser failed: {detail}',
-  browserCheckPageFailed: 'the page did not load: {detail}',
+  // The closed failures (M81 A1, browserRun.ts): the runtime's preparation.
+  browserCheckRuntimeMissing:
+    "the browser check's browser runtime is not installed and could not be downloaded now; nothing was opened",
+  browserCheckRuntimeUnsupported:
+    'the browser check is not available on this operating system or processor (it supports Windows x64, Linux x64 and macOS); nothing was opened',
+  browserCheckRuntimeOutdated:
+    "the browser check's pinned browser is too old to use (45 days or more since its release) until the user updates the extension; nothing was opened",
+  browserCheckRuntimeIntegrity:
+    "the browser check's browser failed its integrity check (its files do not match the version this extension pins), so it was not started",
+  browserCheckRuntimeBlocked:
+    "this computer did not allow the browser check's browser to run (application control or code signing); nothing was opened",
+  browserCheckRuntimeDeclined:
+    "the user did not allow the browser check's browser to be downloaded; nothing was opened",
+  browserCheckPreparationTimedOut:
+    "preparing the browser check's browser took longer than {minutes} minutes; nothing was opened",
+  // Its confinement: nothing from the page is returned after any of these.
+  browserCheckLaunch: "the browser check's browser could not be started; nothing was opened",
+  browserCheckUnrecognized:
+    'the browser check stopped before opening the page: the browser did not match the exact version and setup it expects',
+  browserCheckProfile:
+    'the browser check stopped before opening the page: it could not set up a fresh private browser profile',
+  browserCheckRouteUnconfirmed:
+    "the browser check stopped: it could not confirm that the browser's traffic goes only through its own proxy, so nothing from the page is returned",
+  browserCheckResolverUnconfirmed:
+    'the browser check stopped before opening the page: it could not confirm that the browser looks up no host names itself',
+  browserCheckSignIn:
+    'the browser check stopped: in its own test a sign-in challenge or credential got past its proxy, so nothing from the page is returned',
+  browserCheckWebrtc:
+    'the browser check stopped: it could not confirm that WebRTC stays inside its proxy, so nothing from the page is returned',
+  browserCheckTransport:
+    'the browser check stopped: it could not confirm that WebTransport is refused, so nothing from the page is returned',
+  browserCheckUnverifiable:
+    'the browser check stopped: it could not run one of its own confinement tests on this computer (for example, it found no network address to test against), so nothing from the page is returned',
+  browserCheckUnwatchable:
+    'the browser check stopped: the page started a frame or worker that it could not watch, or too many of them, so nothing from the page is returned',
+  browserCheckAuditFailed:
+    "the browser check discarded the page's results: its confinement tests after the page ran did not pass",
+  browserCheckRestartObserved:
+    "the browser check discarded the page's results: the browser's network service restarted during the check",
+  // The page run.
+  browserCheckBrowserFailed: 'the browser stopped responding during the check',
+  browserCheckPageFailed: 'the page did not load: {error}',
+  browserCheckPageFailedUnknown: 'the page did not load',
   browserCheckPageBlocked:
     'the page did not load: it went to an address beyond loopback, which the browser check blocks',
   browserCheckTimedOut: 'the browser check did not finish within {seconds} seconds',
@@ -3094,18 +3096,14 @@ export const MODEL_TEXT = {
     'no element on the page matches the selector {selector}, or a type step named one that takes no text',
   browserCheckLeaked:
     'the page reached, or tried to reach, beyond loopback in a way the check cannot block (a WebSocket, or an answer from beyond), so the check was stopped and nothing from the page is returned',
-  browserCheckManagedPolicy:
-    "the browser check did not start: an administrator's policy for Chrome or Edge ({where}) sets a proxy or cloud management, which overrides the check's block on connections beyond loopback; it cannot run on this computer while that policy is in place",
-  browserCheckPolicyUnreadable:
-    'the browser check did not start: the browser policy at {where} could not be read ({detail}), so it cannot tell whether a policy would override its block on connections beyond loopback',
   browserCheckScopeChanged:
-    'the hosts the browser check may reach changed while the user was being asked (museSpark.browserCheckExtraHosts was edited), so that answer does not cover this check; nothing was opened. Call it again to ask anew',
+    'the hosts the browser check may reach changed while the user was being asked or the browser was being prepared (museSpark.browserCheckExtraHosts was edited), so that answer does not cover this check; nothing was opened. Call it again to ask anew',
   browserCheckRestrictedMode:
     'the browser check is off while the workspace is in Restricted Mode; trust the workspace to enable it',
   browserCheckDeclined: 'the user declined to open this page; nothing was opened',
   browserCheckCancelled: 'cancelled: the call was stopped before the check finished',
   browserCheckNotOffered:
-    'the browser check is no longer offered here (the workspace lost its trust, or museSpark.sandboxNetwork is restricted); nothing was opened',
+    'the browser check is no longer offered here (the workspace lost its trust, the permission mode refuses it, museSpark.sandboxNetwork is restricted, or museSpark.browserCheckRuntime is off); nothing was opened',
 } as const
 
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---

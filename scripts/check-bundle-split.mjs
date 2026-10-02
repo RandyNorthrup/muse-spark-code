@@ -228,10 +228,8 @@ const BROWSER_CHECK = { output: 'dist/browserCheck.js', metafile: 'dist/meta/bro
 const BROWSER_ONLY = [
   'src/host/browser/browserCheckEntry.ts',
   'src/host/browser/browserProcess.ts',
-  'src/host/browser/browserPolicyReaders.ts',
   'src/core/browser/browserRun.ts',
   'src/core/browser/browserLaunch.ts',
-  'src/core/browser/browserManagedPolicy.ts',
   'src/core/browser/requestLog.ts',
   'src/core/browser/cdpPipe.ts',
 ]

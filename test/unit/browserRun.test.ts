@@ -172,7 +172,6 @@ function setup(browser: FakeBrowser, overrides: Partial<BrowserRunDeps> = {}) {
   let created = 0
   const deps: BrowserRunDeps = {
     findExecutable: () => '/usr/bin/google-chrome',
-    findManagedPolicy: () => Promise.resolve({ kind: 'none' }),
     createProfile: () => {
       created += 1
       return Promise.resolve(PROFILE)
@@ -630,7 +629,12 @@ describe('a browser check (M81)', () => {
     for (const [errorText, failure] of [
       [
         'net::ERR_CONNECTION_REFUSED',
-        { kind: 'pageFailed', detail: 'net::ERR_CONNECTION_REFUSED' },
+        { kind: 'pageFailed', netError: 'net::ERR_CONNECTION_REFUSED' },
+      ],
+      // Anything but a net::ERR_ code never crosses the boundary (M81 A1).
+      [
+        'Cannot navigate to invalid URL /home/someone/secret',
+        { kind: 'pageFailed', netError: undefined },
       ],
       ['net::ERR_BLOCKED_BY_CLIENT', { kind: 'pageBlocked' }],
     ] as const) {
@@ -846,14 +850,14 @@ describe('a browser check (M81)', () => {
     })
     expect(await runBrowserCheck(setup(browser).deps, request())).toEqual({
       ok: false,
-      failure: { kind: 'browserFailed', detail: 'the browser closed the debugging pipe' },
+      failure: { kind: 'browserFailed' },
     })
   })
 
   it('refuses a screenshot that is not a PNG', async () => {
     const browser = new FakeBrowser()
     browser.on('Page.captureScreenshot', () => ({ data: Buffer.from('GIF89a').toString('base64') }))
-    expect(await runBrowserCheck(setup(browser).deps, request())).toMatchObject({
+    expect(await runBrowserCheck(setup(browser).deps, request())).toEqual({
       ok: false,
       failure: { kind: 'browserFailed' },
     })
@@ -863,30 +867,10 @@ describe('a browser check (M81)', () => {
     const t = setup(new FakeBrowser(), { findExecutable: () => undefined })
     expect(await runBrowserCheck(t.deps, request())).toEqual({
       ok: false,
-      failure: { kind: 'noBrowser' },
+      failure: { kind: 'runtimeMissing' },
     })
     expect(t.created()).toBe(0)
     expect(t.spawned).toEqual([])
-  })
-
-  it('starts nothing where an administrator’s policy could override the block, or cannot be read (RV81)', async () => {
-    const where = String.raw`HKEY_CURRENT_USER\SOFTWARE\Policies\Google\Chrome (ProxyMode)`
-    const folder = '/etc/opt/chrome/policies/managed'
-    for (const [verdict, failure] of [
-      [
-        { kind: 'found', where },
-        { kind: 'managedPolicy', where },
-      ],
-      [
-        { kind: 'unreadable', where: folder, detail: 'EACCES: permission denied' },
-        { kind: 'policyUnreadable', where: folder, detail: 'EACCES: permission denied' },
-      ],
-    ] as const) {
-      const t = setup(new FakeBrowser(), { findManagedPolicy: () => Promise.resolve(verdict) })
-      expect(await runBrowserCheck(t.deps, request())).toEqual({ ok: false, failure })
-      expect(t.created()).toBe(0)
-      expect(t.spawned).toEqual([])
-    }
   })
 
   it('removes the profile when the browser cannot start, and reports a profile it could not remove', async () => {
@@ -897,7 +881,7 @@ describe('a browser check (M81)', () => {
     })
     expect(await runBrowserCheck(t.deps, request())).toEqual({
       ok: false,
-      failure: { kind: 'browserFailed', detail: 'spawn EACCES' },
+      failure: { kind: 'launch' },
     })
     expect(t.removed).toEqual([PROFILE])
 

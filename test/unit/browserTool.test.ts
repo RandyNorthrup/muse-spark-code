@@ -161,21 +161,15 @@ describe('the browser check tool (M81)', () => {
 
   it('says why a check did not happen or did not finish, to the model and to the user', () => {
     const failures: readonly [BrowserFailure, string, string][] = [
-      [{ kind: 'noBrowser' }, MODEL_TEXT.browserCheckNoBrowser, UI_TEXT.browserCheckNoBrowser],
       [
-        { kind: 'browserFailed', detail: 'spawn EACCES' },
-        'the browser failed: spawn EACCES',
-        'The browser failed: spawn EACCES',
-      ],
-      [
-        { kind: 'pageFailed', detail: 'net::ERR_CONNECTION_REFUSED' },
+        { kind: 'pageFailed', netError: 'net::ERR_CONNECTION_REFUSED' },
         'the page did not load: net::ERR_CONNECTION_REFUSED',
-        'The page did not load: net::ERR_CONNECTION_REFUSED',
+        'The page did not load (net::ERR_CONNECTION_REFUSED).',
       ],
       [
-        { kind: 'pageBlocked' },
-        MODEL_TEXT.browserCheckPageBlocked,
-        UI_TEXT.browserCheckPageBlocked,
+        { kind: 'pageFailed', netError: undefined },
+        'the page did not load',
+        'The page did not load.',
       ],
       [
         { kind: 'timedOut' },
@@ -183,25 +177,63 @@ describe('the browser check tool (M81)', () => {
         'The browser check did not finish within 60s.',
       ],
       [
+        { kind: 'preparationTimedOut' },
+        "preparing the browser check's browser took longer than 15 minutes; nothing was opened",
+        'Getting the browser check’s browser ready took longer than 15m, so it stopped.',
+      ],
+      [
         { kind: 'noElement', selector: '#go' },
         'no element on the page matches the selector #go, or a type step named one that takes no text',
         'No element on the page matches #go, or it takes no text.',
       ],
-      [{ kind: 'leaked' }, MODEL_TEXT.browserCheckLeaked, UI_TEXT.browserCheckLeaked],
       [{ kind: 'cancelled' }, MODEL_TEXT.browserCheckCancelled, UI_TEXT.toolStopped],
-      [
-        { kind: 'managedPolicy', where: '/etc/opt/chrome/policies/managed/p.json (ProxyMode)' },
-        "the browser check did not start: an administrator's policy for Chrome or Edge (/etc/opt/chrome/policies/managed/p.json (ProxyMode)) sets a proxy or cloud management, which overrides the check's block on connections beyond loopback; it cannot run on this computer while that policy is in place",
-        'The browser check did not start: an administrator’s policy for Chrome or Edge (/etc/opt/chrome/policies/managed/p.json (ProxyMode)) sets a proxy or cloud management, which would override its block on connections beyond this computer.',
-      ],
-      [
-        { kind: 'policyUnreadable', where: '/etc/opt/edge/policies/managed', detail: 'EACCES' },
-        'the browser check did not start: the browser policy at /etc/opt/edge/policies/managed could not be read (EACCES), so it cannot tell whether a policy would override its block on connections beyond loopback',
-        'The browser check did not start: it could not read the browser policy at /etc/opt/edge/policies/managed (EACCES), so it cannot tell whether a policy would override its block on connections beyond this computer.',
-      ],
     ]
     for (const [failure, model, user] of failures) {
       expect(browserRefusal(failure), failure.kind).toEqual({ model, user })
     }
+  })
+
+  it('words every other closed failure with its own fixed text, never free text (M81 A1)', () => {
+    const fixed = {
+      runtimeMissing: 'browserCheckRuntimeMissing',
+      runtimeUnsupported: 'browserCheckRuntimeUnsupported',
+      runtimeOutdated: 'browserCheckRuntimeOutdated',
+      runtimeIntegrity: 'browserCheckRuntimeIntegrity',
+      runtimeBlocked: 'browserCheckRuntimeBlocked',
+      runtimeDeclined: 'browserCheckRuntimeDeclined',
+      scopeChanged: 'browserCheckScopeChanged',
+      notOffered: 'browserCheckNotOffered',
+      launch: 'browserCheckLaunch',
+      unrecognized: 'browserCheckUnrecognized',
+      profile: 'browserCheckProfile',
+      routeUnconfirmed: 'browserCheckRouteUnconfirmed',
+      resolverUnconfirmed: 'browserCheckResolverUnconfirmed',
+      signIn: 'browserCheckSignIn',
+      webrtc: 'browserCheckWebrtc',
+      transport: 'browserCheckTransport',
+      unverifiable: 'browserCheckUnverifiable',
+      unwatchable: 'browserCheckUnwatchable',
+      auditFailed: 'browserCheckAuditFailed',
+      restartObserved: 'browserCheckRestartObserved',
+      pageBlocked: 'browserCheckPageBlocked',
+      leaked: 'browserCheckLeaked',
+      browserFailed: 'browserCheckBrowserFailed',
+    } as const
+    const seen = new Set<string>()
+    for (const [kind, key] of Object.entries(fixed)) {
+      const refusal = browserRefusal({ kind: kind as keyof typeof fixed })
+      expect(refusal, kind).toEqual({ model: MODEL_TEXT[key], user: UI_TEXT[key] })
+      expect(refusal.model, kind).not.toMatch(/\{\w+\}/)
+      seen.add(refusal.user)
+    }
+    // Each failure reads differently to the user.
+    expect(seen.size).toBe(Object.keys(fixed).length)
+  })
+
+  it('redacts a credential-shaped selector before it reaches the model or the row', () => {
+    const token = 'ghp_' + 'a'.repeat(36)
+    const refusal = browserRefusal({ kind: 'noElement', selector: `#${token}` })
+    expect(refusal.model).not.toContain(token)
+    expect(refusal.user).not.toContain(token)
   })
 })

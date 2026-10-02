@@ -35,8 +35,6 @@ export interface BrowserChecksDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-const UNAVAILABLE = 'the browser check could not be loaded'
-
 export class BrowserChecks {
   private bundle: BrowserCheckBundle | undefined
   private readonly closing = new AbortController()
@@ -48,7 +46,7 @@ export class BrowserChecks {
     }
     const bundle = this.load()
     if (bundle === undefined) {
-      return { ok: false, failure: { kind: 'browserFailed', detail: UNAVAILABLE } }
+      return { ok: false, failure: { kind: 'launch' } }
     }
     const signal = AbortSignal.any([request.signal, this.closing.signal])
     return await bundle.runBrowserCheck({ ...request, signal }, (message) => {
