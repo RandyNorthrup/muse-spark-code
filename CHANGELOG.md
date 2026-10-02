@@ -59,18 +59,6 @@ happened, not what was planned; superseded entries are kept.
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
 
-- Custom-agent allowlist refusals show translated UI text in every supported
-  display language while the model's tool result remains English: a refused
-  call's row, and the line under an edit whose `then_run` an agent without
-  the shell refused (it was English). A **Check edits** row's body stays the
-  model's English note.
-
-- Custom-agent spawn admission uses the effective child tool set, excluding
-  parent-only questions, todos/goals and subagent controls. An empty
-  intersection is refused before the paid-use popup or the contributor
-  question asks (they used to ask first), and is met again after them;
-  it sends no paid child request. Mixed lists retain usable tools.
-
 - **A spawn that starts no child asks nothing** (Model API backend). One past
   the 64 children of a conversation, one asking for worktree isolation, or
   one reusing an earlier spawn's command id for a different task is refused
@@ -82,22 +70,9 @@ happened, not what was planned; superseded entries are kept.
   names no command, the line under the edit says so in your display
   language; it was English. The model is still told in English.
 
-- Custom agents retain their Manual or Edit automatically policy through
-  parsing, saving, resume, fork and approval routing. A Manual child's write
-  asks even under an Edit automatically parent; the reverse remains Manual.
-
-- Project context files read through the canonical path confinement approved.
+- Project context files are read through the canonical path confinement.
   Replacing an agent/skill/rules alias with an outside link between check and
   read no longer redirects the read outside the workspace.
-- Custom-agent creation rechecks workspace trust after contributor and paid
-  consent waits. Revoking trust while the popup is open creates no child
-  and makes no paid child-model request. The loader checks trust before it
-  starts and discards a catalogue completed after trust withdrawal. Agent
-  role prompts explicitly label their content as untrusted.
-- The retained-surface checkpoint test waits for its real preparation hook
-  before checking the model request. Request and test deadlines and restore
-  assertions are unchanged; cold Git setup no longer races the observation.
-
 ## [0.10.0] - 2026-10-01
 
 ### Highlights
