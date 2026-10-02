@@ -34,8 +34,8 @@ Restore of conversation S from unit U (a turn chosen by the user) onward:
 2. **Completeness** [CM-1, V2-M3, C3-M2]: the host passes the transcript's turn ids of S from U onward, including the
    turn ids of every child session those turns started. A child turn inherits its top turn's recording decision, and a
    child turn whose record cannot be created does not run. Refuse the whole range `writesIncomplete` if any listed turn
-   has no M86 turn record, if any range unit is not complete (section 6.4), or if any
-   journal intent names an owner in the range that has no record.
+   has no M86 turn record, if any range unit is not `complete` (section 6.3), or if any
+   journal intent names an owner in the range that has no record (the store checks this while reading journals).
 3. **Per file F**, take the range's writes to F and order them (section 4). The chain must be unbroken:
    `wᵢ.after == wᵢ₊₁.before` (presence + oid). A foreign write to F whose position in the order is known (same
    instance, by seq) and falls between w₁ and wₙ breaks the chain. [CC-B1, CP-B1, CX-B1]
@@ -123,9 +123,7 @@ At a unit's end the owner io is drained (no new admissions; in-flight writes awa
 then folded, by write id (idempotent across CAS retries and recovery), into the unit's record (CAS ref under
 `refs/muse-spark/m86/`) with its outcome: `done`, `aborted` (only with proof nothing changed: conditional refusal,
 `'changed'`, failure before the rename, a skipped release) or `unsettled` (neither entry, or its entry not durable).
-The record's tree references every blob it needs (tree edges keep them reachable). The record carries `status`:
-`complete` only when no write is unsettled and no `incomplete` marker (section 9) was journaled; else `incomplete`.
-Then `seal` is appended, and only after it the running mark is withdrawn. The folded record is authoritative over the
+The record's tree references every blob it needs (tree edges keep them reachable). The record carries `status`: `complete` when it is sealed (or recovered) with no `incomplete` marker and no unparsed torn journal line; `unsettled` writes do not make it incomplete — they stay as outcomes and rule 6.4 decides them at restore time. Otherwise `incomplete`. Then `seal` is appended, and only after it the running mark is withdrawn. The folded record is authoritative over the
 journal. A seal never settles anything.
 
 ### 6.4 Completeness and unsettled writes

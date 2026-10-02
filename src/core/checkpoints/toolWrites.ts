@@ -71,8 +71,9 @@ export interface UnitRecord {
   readonly createdAt: number
   readonly endedAt?: number | undefined
   /**
-   * `complete`: sealed, no write unsettled, no `incomplete` marker. Anything
-   * else (still running, cut short, past the intent budget) is `incomplete`.
+   * `complete`: sealed (or recovered) with no `incomplete` marker and no
+   * unparsed torn journal line; unsettled writes stay as outcomes and are
+   * decided at restore time (spec 6.4). Otherwise `incomplete`.
    */
   readonly status: 'complete' | 'incomplete'
   /** It invoked a process-starting tool, a hook or an MCP tool, or had a background task alive. */
