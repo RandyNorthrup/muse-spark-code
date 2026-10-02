@@ -4,10 +4,12 @@
 // this uses runs real `git cat-file --batch` at the end.
 
 import { Buffer } from 'node:buffer'
+import { execFile } from 'node:child_process'
 import { existsSync, lstatSync, mkdtempSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import { afterAll, describe, expect, it } from 'vitest'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
 import {
@@ -17,8 +19,12 @@ import {
   UNTRUSTED_CHECKOUT_OPTIONS,
 } from '../../src/host/git'
 import { createHeldCheckout } from '../../src/host/git/heldCheckout'
-import { UI_TEXT } from '../../src/shared/constants'
-import { fill } from '../../src/shared/l10n/text'
+import {
+  HELD_CHECKOUT_MAX_BYTES,
+  HELD_CHECKOUT_MAX_ENTRIES,
+  UI_TEXT,
+} from '../../src/shared/constants'
+import { fill, formatBytes } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -26,6 +32,8 @@ const COMMIT = 'c'.repeat(40)
 const SUBMODULE_COMMIT = '1'.repeat(40)
 // Answers cross chunk boundaries everywhere at this size.
 const CHUNK_BYTES = 7
+const LISTING_OUTPUT_CAP = 64
+const execFileAsync = promisify(execFile)
 const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-m71-held-')))
 const counter = { cases: 0 }
 
@@ -72,6 +80,8 @@ function answersFor(input: string, entries: readonly Entry[]): Buffer {
 }
 
 interface FakeOptions {
+  readonly commit?: string
+  readonly listing?: () => Promise<string>
   /** Replaces what cat-file answers. */
   readonly answer?: (normal: Buffer) => Buffer
   /** Runs once the worktree is added (a link planted, a file already there). */
@@ -104,7 +114,7 @@ async function heldCheckout(entries: readonly Entry[], options: FakeOptions = {}
       beforeRun?.()
       calls.push({ args, cwd })
       if (args[0] === 'ls-tree') {
-        return listingOf(entries)
+        return await (options.listing?.() ?? listingOf(entries))
       }
       if (args[1] === 'add') {
         await mkdir(folder)
@@ -120,7 +130,7 @@ async function heldCheckout(entries: readonly Entry[], options: FakeOptions = {}
     env: { PATH: '/usr/bin' },
     log,
   })
-  const run = checkOut(folder, COMMIT, repository, () => options.check?.(folder))
+  const run = checkOut(folder, options.commit ?? COMMIT, repository, () => options.check?.(folder))
   return { run, calls, folder, repository, log }
 }
 
@@ -139,6 +149,49 @@ const FILES: readonly Entry[] = [
 ]
 
 describe('the held checkout (M71)', () => {
+  it.each(['--help', '', 'c'.repeat(39), 'g'.repeat(40)])(
+    'refuses a non-commit SHA %j before any git runs',
+    async (commit) => {
+      const t = await heldCheckout(FILES, { commit })
+      await expect(t.run).rejects.toThrow(UI_TEXT.openPullRequestFetchFailed)
+      expect(t.calls).toEqual([])
+      expect(existsSync(t.folder)).toBe(false)
+    },
+  )
+
+  it('refuses an overflowing ls-tree listing as too large before adding a worktree', async () => {
+    const t = await heldCheckout(FILES, {
+      // Real execFile maxBuffer failure, with a small injected cap instead of 64 MB.
+      listing: async () => {
+        const { stdout } = await execFileAsync(
+          process.execPath,
+          [
+            '-e',
+            'process.stdout.write(Buffer.from(process.argv[1], "base64"))',
+            Buffer.from(listingOf(FILES)).toString('base64'),
+          ],
+          { encoding: 'utf8', maxBuffer: LISTING_OUTPUT_CAP },
+        )
+        return stdout
+      },
+    })
+    await expect(t.run).rejects.toThrow(
+      fill(UI_TEXT.openPullRequestTooLarge, {
+        files: HELD_CHECKOUT_MAX_ENTRIES,
+        size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
+      }),
+    )
+    expect(t.calls.map((call) => call.args[0])).toEqual(['ls-tree'])
+    expect(existsSync(t.folder)).toBe(false)
+  })
+
+  it('keeps an ordinary ls-tree failure unchanged', async () => {
+    const error = new Error('fatal: listing failed')
+    const t = await heldCheckout(FILES, { listing: () => Promise.reject(error) })
+    await expect(t.run).rejects.toBe(error)
+    expect(existsSync(t.folder)).toBe(false)
+  })
+
   it('writes the commit as stored, running git in the worktree only before its first byte', async () => {
     const t = await heldCheckout(FILES)
     await t.run
@@ -182,7 +235,11 @@ describe('the held checkout (M71)', () => {
     [
       'a missing object',
       (normal: Buffer) =>
-        Buffer.from(normal.toString('latin1').replace(/blob \d+\n[^]*$/u, 'missing\n'), 'latin1'),
+        // Keep the second answer intact, so missing-object and truncation guards are distinct.
+        Buffer.from(
+          normal.toString('latin1').replace(' blob 9\none\r\ntwo\n\n', ' missing\n'),
+          'latin1',
+        ),
     ],
     [
       'another size',

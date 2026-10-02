@@ -20,7 +20,11 @@ happened, not what was planned; superseded entries are kept.
   defines one. Paths that would leave the worktree, name `.git`, use a name
   the platform cannot hold or collide where case does not count refuse the
   checkout whole, as do PRs over 20,000 entries or 250 MB. A trusted parent
-  record never releases a held PR below it. Physical-owner and lifetime
+  record never releases a held PR below it. Concurrent opens of the same
+  held PR preserve the successful checkout's record when another open
+  fails. The held checkout rejects non-commit SHA arguments before Git
+  runs and reports an overflowing tree listing as the existing too-large
+  refusal. Physical-owner and lifetime
   guards refuse stale operations. Commit, push, PR fetch and checkout use
   checkpoint process admission.
 - **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a

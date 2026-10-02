@@ -342,6 +342,53 @@ describe('Open a pull request in a conversation (M71)', () => {
     expect(t.messages.at(-1)?.[1]).toContain('could not be fetched')
   })
 
+  it.each([true, false])(
+    "keeps the winner's record when two opens of the same held PR race; winner publishes first=%s",
+    async (isWinnerFirst) => {
+      const t = setup({ confirms: [true, true] })
+      const firstStarted = Promise.withResolvers<undefined>()
+      const secondStarted = Promise.withResolvers<undefined>()
+      const winnerFinished = Promise.withResolvers<undefined>()
+      const loserFinished = Promise.withResolvers<undefined>()
+      let attempts = 0
+      let publications = 0
+      const deps: PullRequestCheckoutDeps = {
+        ...t.deps,
+        now: () => {
+          publications += 1
+          return publications
+        },
+        checkOutHeld: async (...args) => {
+          attempts += 1
+          const isFirst = attempts === 1
+          const isWinner = isFirst === isWinnerFirst
+          ;(isFirst ? firstStarted : secondStarted).resolve(undefined)
+          await (isWinner ? winnerFinished : loserFinished).promise
+          if (!isWinner) throw new Error('fatal: worktree already exists')
+          await t.deps.checkOutHeld(...args)
+        },
+      }
+      const first = openPullRequestInConversation(deps)
+      await firstStarted.promise
+      const second = openPullRequestInConversation(deps)
+      await secondStarted.promise
+      winnerFinished.resolve(undefined)
+      await (isWinnerFirst ? first : second)
+      loserFinished.resolve(undefined)
+      await Promise.all([first, second])
+      expect(t.opened).toEqual([HELD_FOLDER])
+      expect(t.messages.filter(([kind]) => kind === 'error')).toHaveLength(1)
+      expect(t.registry.records()).toMatchObject([
+        {
+          folder: HELD_FOLDER,
+          createdAt: isWinnerFirst ? 1 : 2,
+          isHeld: true,
+          pullRequest: { number: 51, headSha: CAPTURED_PULL_FORK.head.sha },
+        },
+      ])
+    },
+  )
+
   it('runs no fetch when trust or its remote changes while the checkout modal waits', async () => {
     for (const changed of ['trust', 'remote']) {
       const t = setup()

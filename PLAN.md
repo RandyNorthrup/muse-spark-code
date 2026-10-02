@@ -7776,6 +7776,20 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M71 — Git and pull requests (D49)
 
+**Pre-push repair, M71f, 2026-10-02 (bounded lane verified; lead review
+and full gates open).** P2-1 and P3-1/2/3 in `m71-prepush.md` are repaired:
+failed opens remove only their matching publication and restore a displaced
+pending record, preserving the successful open's identity in both orders;
+`createHeldCheckout` rejects non-commit SHA arguments before Git; an
+`ls-tree` output-cap overflow uses the existing too-large refusal. No new
+dependency, setting or UI text. Three owning files pass 50 tests on both
+Kubuntu and Windows 11; six byte-restored red drills (these three regressions
+plus missing object, trailing byte and truncated BlobAnswers) are recorded
+beside D6 in `docs/certification/m71.md`. Kubuntu tsc and local changed-file
+ESLint/Prettier, dead code, duplication, localization, host API and build
+passed; full quality remains the lead's gate. The shared candidate merge
+is already present at `c0bff49f`.
+
 **Structural fix, review round 3 (RV71c), 2026-10-02 (built; lead review,
 merge and full gates open).** The confirmation review found the
 filter-enumeration design still open in four ways (the real caller's `-c`

@@ -326,7 +326,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
     isHeld: !isOwn,
   }
   // Recorded before the folder exists, so no window ever sees it unrecorded.
-  await deps.registry.put(record)
+  const previous = await deps.registry.put(record)
   try {
     await deps.admit(async () => {
       check()
@@ -346,7 +346,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
         : deps.checkOutHeld(folder, pullRequest.headSha, cwd, check))
     })
   } catch (error: unknown) {
-    await deps.registry.remove(folder)
+    await deps.registry.remove(folder, record.createdAt, previous)
     deps.showFailure(UI_TEXT.worktreeAddFailed, failureText(error))
     return
   }

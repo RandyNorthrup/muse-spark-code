@@ -17,16 +17,20 @@
 import { Buffer } from 'node:buffer'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
+import { isCommitSha } from '../../core/git/github'
 import { foldName, heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
 import { isSamePath } from '../../core/paths'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
   GIT_WORKTREE_TIMEOUT_MS,
+  HELD_CHECKOUT_MAX_BYTES,
+  HELD_CHECKOUT_MAX_ENTRIES,
   HELD_EXECUTABLE_MODE,
   HELD_FILE_MODE,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill, formatBytes } from '../../shared/l10n/text'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
@@ -235,16 +239,34 @@ async function removeWorktree(deps: HeldCheckoutDeps, target: Target): Promise<v
 
 export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
   return async (folder, commit, cwd, check) => {
+    if (!isCommitSha(commit)) {
+      throw new GitUnavailableError(UI_TEXT.openPullRequestFetchFailed)
+    }
     const target: Target = { folder, cwd, check }
-    const tree = heldTree(
-      await deps.runGit(
+    let listing: string
+    try {
+      listing = await deps.runGit(
         ['ls-tree', '-r', '-z', '--full-tree', '--long', commit],
         cwd,
         GIT_WORKTREE_TIMEOUT_MS,
         check,
-      ),
-      deps.platform,
-    )
+      )
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
+      ) {
+        throw new GitUnavailableError(
+          fill(UI_TEXT.openPullRequestTooLarge, {
+            files: HELD_CHECKOUT_MAX_ENTRIES,
+            size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
+          }),
+        )
+      }
+      throw error
+    }
+    const tree = heldTree(listing, deps.platform)
     if (!tree.ok) {
       throw new GitUnavailableError(tree.reason)
     }

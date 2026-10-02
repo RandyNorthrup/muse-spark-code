@@ -32,17 +32,17 @@ export class WorktreeRegistry {
     return parseWorktreeRegistry(this.memento.get(GLOBAL_STATE_KEYS.worktreeConversations))
   }
 
-  private write(update: () => Promise<void>): Promise<void> {
+  private write<T>(update: () => Promise<T>): Promise<T> {
     const previous = this.pendingWrite
     const write = (async () => {
       await previous
-      await update()
+      return await update()
     })()
     this.pendingWrite = this.settled(write)
     return write
   }
 
-  private async settled(write: Promise<void>): Promise<void> {
+  private async settled(write: Promise<unknown>): Promise<void> {
     try {
       await write
     } catch {
@@ -59,20 +59,35 @@ export class WorktreeRegistry {
     return recordFor(this.records(), folder, this.platform)
   }
 
-  public put(record: WorktreeRecord): Promise<void> {
+  /** Returns the replaced record, including a checkout that has not made its folder yet. */
+  public put(record: WorktreeRecord): Promise<WorktreeRecord | undefined> {
     return this.write(async () => {
+      const records = this.stored()
+      const previous = recordFor(records, record.folder, this.platform)
       await this.memento.update(
         GLOBAL_STATE_KEYS.worktreeConversations,
-        withRecord(this.stored(), record, this.platform),
+        withRecord(records, record, this.platform),
       )
+      return previous
     })
   }
 
-  public remove(folder: string): Promise<void> {
+  /** A failed publication rolls back only its own record, preserving a concurrent checkout. */
+  public remove(folder: string, createdAt?: number, previous?: WorktreeRecord): Promise<void> {
     return this.write(async () => {
+      const records = this.stored()
+      if (
+        createdAt !== undefined &&
+        recordFor(records, folder, this.platform)?.createdAt !== createdAt
+      ) {
+        return
+      }
+      const remaining = records.filter(
+        (record) => !isSamePath(record.folder, folder, this.platform),
+      )
       await this.memento.update(
         GLOBAL_STATE_KEYS.worktreeConversations,
-        this.stored().filter((record) => !isSamePath(record.folder, folder, this.platform)),
+        previous === undefined ? remaining : withRecord(remaining, previous, this.platform),
       )
     })
   }
