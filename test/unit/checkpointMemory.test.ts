@@ -640,14 +640,16 @@ describe('activation builds the memory through the checkpointed composition (M72
     expect(source).toMatch(
       /const writeUserFile = async \(check: \(\) => void, fsPath: string, content: string\) => \{\s*await withCheckpointEdit\(\s*checkpoints,\s*check,\s*asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*await vscode\.workspace\.fs\.writeFile\(/,
     )
+    // The review bundle's Revert (M70) rechecks the dirty buffer inside the
+    // same lease and is noted as the user's.
     expect(source).toMatch(
-      /writeFile: async \(fsPath, content\) => \{\s*await writeUserFile\(backend\.workspaceActionGuard\(nativeStarts\.signal\), fsPath, content\)/,
+      /writeFile: async \(fsPath, content, assertCanWrite\) => \{\s*const check = backend\.workspaceActionGuard\(nativeStarts\.signal\)\s*await withCheckpointEdit\(\s*checkpoints,\s*check,\s*asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*assertCanWrite\(\)\s*await vscode\.workspace\.fs\.writeFile\(/,
     )
     expect(source).toMatch(
       /writeFile: \(fsPath, content\) => writeUserFile\(check, fsPath, content\),/,
     )
     expect(source).toMatch(
-      /asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*await vscode\.workspace\.fs\.delete\(/,
+      /asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*assertCanWrite\(\)\s*await vscode\.workspace\.fs\.delete\(/,
     )
     expect(source).toMatch(/noteUserWrite: \(fsPath\) => \{\s*checkpoints\.noteUserSave\(fsPath\)/)
     // Sessions, the CLI's working directory and memory are keyed by the folder as
