@@ -1370,7 +1370,8 @@ Tokens, private keys, credentials in a URL, and secrets named by their key
 `AccountKey=`). A secret in any other shape is not recognised and stays, so
 read the preview before you share the file. Ordinary UUIDs and protocol
 words stay unchanged. Paths (your workspace and home folders wherever they
-appear, and any other absolute path or `file://` link) and account ids
+appear, spaces and all, and any other absolute path or `file://` link, in
+any script, to its first space) and account ids
 (e-mail addresses) are redacted by default. The redacted file opens read-only in the editor first,
 with how much was redacted; nothing is written until you choose **Save
 redacted…** or **Save without redaction…**. **Muse Spark: Import Session**
@@ -1383,13 +1384,19 @@ is untrusted as a plan file is: **Implement in a fresh conversation** starts
 it in Manual (or Plan) too. It drops session rules, goals,
 schedules, todos and patches, and the model reads each imported turn as
 untrusted data in a message of yours, never as its own replies or tool calls.
+A file whose turns are more text than a conversation can start with (counted
+high, one token per UTF-8 byte: 786.4 kB, the allowance named text
+attachments have) is refused before the import is confirmed, with both sizes
+named; it can still be opened as a share file.
 The panel offers Copy only on such a conversation's code blocks, never
 Insert or Apply, as in a share file.
 The ACP agent also applies this safe start to stored sessions marked imported
 before advertising their mode or replaying history.
 **Muse Spark: Open Share File** reads such a file read-only in the panel:
 links and Copy work, code blocks have no Insert or Apply, and nothing in it
-reaches a session. A file is refused whole if it is over 16 MiB, is another
+reaches a session. It shows 200 items at a time, with **Show more** for the
+next, and an item that cannot be rendered says so in its place while the
+rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
 format or a newer version, or holds any field this version does not know.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.

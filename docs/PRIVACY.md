@@ -372,9 +372,11 @@ fields, never raw configuration or failed-command output.
   the session's name, the model's name and the backend. The key digest and
   every credential of a shape the extension knows (the log redactor's list:
   common services' keys and tokens, bearer credentials, private keys,
-  secrets named by their key) are removed, and by default no path or e-mail
-  address stays (they are replaced), including in item ids and error
-  labels. A secret in any other shape is not recognised and stays, which is
+  secrets named by their key) are removed, and by default every e-mail
+  address and absolute path is replaced, including in item ids and error
+  labels: your workspace and home folders to the path's end, spaces and
+  all, and any other absolute path, in any script, to its first space (what
+  follows a space is left as a word). A secret in any other shape is not recognised and stays, which is
   why the file is shown before it is saved. Ordinary UUIDs and protocol
   words remain intact. **Save without redaction…** keeps paths and e-mail
   addresses.

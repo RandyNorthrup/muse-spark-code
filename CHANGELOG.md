@@ -13,20 +13,26 @@ happened, not what was planned; superseded entries are kept.
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
   string including item ids and error labels (a secret in any other shape
-  is not recognised); paths (your own folders included, spaces and all)
-  and account ids are redacted by default, and the redacted file opens
-  read-only in the editor before anything is written. The scrub runs in
-  short slices, so a long conversation never freezes the window. **Muse Spark: Import
+  is not recognised); paths (your own folders included, spaces and all,
+  and any other absolute path in any script) and account ids are redacted
+  by default, and the redacted file opens read-only in the editor before
+  anything is written. The scrub runs in slices of about 64 KiB, a long
+  message cut only between lines no credential runs across, and the window
+  keeps working between them; a single line longer than a slice is still
+  scrubbed in one go (about half a second for 16 MiB). **Muse Spark: Import
   Session** resumes such a file as a new conversation on the Model API
   backend, on your own model, in Manual (or Plan when that is the initial
   mode) every time it is opened, forked or restored, with no session rules,
   goals, schedules, todos or patches; the model reads each imported turn as
   untrusted data, a plan written in such a conversation is implemented in
   Manual (or Plan) as a plan file is, and its code blocks offer Copy only
-  (no Insert or Apply). The ACP agent applies the same start to a stored session
+  (no Insert or Apply). A file whose turns are more text than a
+  conversation can start with (786.4 kB, counted as one token a byte) is
+  refused before the import is confirmed, naming both sizes. The ACP agent applies the same start to a stored session
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
-  and links only). Every imported byte is checked: at most 16 MiB, read
+  and links only), 200 items at a time with Show more; an item that cannot
+  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
@@ -57,10 +63,12 @@ happened, not what was planned; superseded entries are kept.
 - **Secret redaction no longer stalls on long text.** Two log-redaction
   patterns took quadratic time: the URL credentials pattern on a long run
   such as `a.b.c.…` (its scheme is now bounded), and the JSON Web Token
-  pattern on a long `eyJ-eyJ-…` run (it now starts only where no token
-  character precedes). The session export runs them over whole
-  conversations. Text with none of the credential literals (most log lines)
-  now skips the patterns in one scan.
+  pattern on a long `eyJa-eyJa-…` run (0.10.1's fix, carried into the shared
+  list: each run of dotted words is read once, and a token glued after `-`,
+  `_` or a letter is redacted too, where a pattern starting only after a
+  non-token character had missed `x-eyJ…`). The session export runs them
+  over whole conversations. Text with none of the credential literals (most
+  log lines) now skips the patterns in one scan.
 
 ## [0.10.0] - 2026-10-01
 

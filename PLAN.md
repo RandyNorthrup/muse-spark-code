@@ -9014,16 +9014,15 @@ independent review and the full candidate gates remain required.**
 
 ### M84 — Session export, import and share (D49)
 
-**Status 2026-10-01: independent review RV84 fixed on `feature/m84-export`;
-the four-machine gate remains the lead's.** The RV84 findings are fixed
-one commit each, with tests and red drills recorded from this tree in
-`docs/certification/m84.md`, as are the drills of the 2026-09-29 repairs
-that had not run (R1 to R6). Not run on this tree: `npm run quality`,
-the accessibility gate, the harness shots (the `m84-share.png` capture is
-missing) and the integration tests. Open: RV84 #10 (an import past the
-model's window is accepted, confirmed by reading) and #14 (the share view
-renders every item in one pass, confirmed in kind by a jsdom measurement),
-neither fixed. The port had put `extension.js` and `modelApi.js` over
+**Status 2026-10-02: the follow-up review RV84c and the Muse review fixed on
+`feature/m84-export`; the four-machine gate remains the lead's.** The RV84
+findings are fixed one commit each, with tests and red drills recorded from
+this tree in `docs/certification/m84.md`, as are the drills of the
+2026-09-29 repairs that had not run (R1 to R6). RV84 #10 and #14, open on
+2026-10-01, are now fixed too (see "Follow-up reviews" below), as is #9's
+single-string residual. Not run on this tree: `npm run quality`, the
+accessibility gate, the harness shots (the `m84-share.png` capture is
+missing) and the integration tests. The port had put `extension.js` and `modelApi.js` over
 their size budgets. They are back under after merging
 `build/shared-ui-text`, the shared English table (`15f847a4`). The
 redaction prefilter is proven a superset of every rule (`5df6d5c2`).
@@ -9158,9 +9157,11 @@ to the release candidate is described below.
       `buildSessionExport` is async and yields (`setImmediate`, not a timer:
       Windows' ~15 ms tick) after each 64 KiB of text. The same 4 MiB now
       takes 0.37 s, holding the loop at most 11 ms (Windows VM: 0.42 s, at
-      most 14 ms). One string is never cut, so a single huge string (a
-      pasted 16 MiB message) still holds the loop for its own scrub, about
-      0.5 s.
+      most 14 ms). A long string is cut too (2026-10-02,
+      `redactableSlices`), but only just after a line break that no
+      credential runs across, so each pattern sees whole what it would see
+      in the whole string; a single line longer than a slice (a pasted
+      16 MiB line) still holds the loop for its own scrub, about 0.5 s.
     - **No Insert or Apply on imported history (RV84 #11).** `historyLoaded`
       carries `imported: true` for such a session, and the panel offers Copy
       only on its code blocks, as the share view does. The mark is the
@@ -9218,7 +9219,42 @@ to the release candidate is described below.
     allowed and recorded (17 files, 0 problems). Sibling dialogs live in
     `src/host/*Features.ts`; moving `transferDialogs.ts` beside the export
     dialogs in `cliFeatures.ts` is a tidy-up for the lead to choose. #10
-    and #14 stay open (see the status above).
+    and #14 were left open that day and fixed on 2026-10-02 (below).
+  - **Follow-up reviews, 2026-10-02 (RV84c, Codex; the Muse review).**
+    Fixed with a test and a red drill each (`docs/certification/m84.md`):
+    - **C1, import after sign-out or close.** `importSession` loads the
+      hooks, then checks the account and the host's closing again before
+      the session exists, and the closing once more after its SessionStart
+      hook, as `startSession` checks the account.
+    - **C2, Unicode paths.** An absolute POSIX path's segments take any
+      character outside ASCII that is not white space (`/srv/私密`,
+      `/Users/José`, emoji folders); drive and UNC paths already did.
+    - **C3, a share file that crashed the panel.** The fence's length is
+      found in a loop (`Math.max(...runs)` threw a RangeError on 200,000
+      runs), and each share section renders inside its own error boundary,
+      which says so in its place and logs the error.
+    - **Imported mode on a stale opening (Muse).** `adopt` applies the
+      imported mode and mark only once the opening is still current, so an
+      imported session overtaken by another opening leaves neither. The
+      mark goes with its session when the panel drops it; a restart's resume
+      reads it again from the record, and a plan reply carries the flag it
+      was read with.
+    - **RV84 #10, an import past the window.** Decision: refuse, not cut.
+      The text an import hands the model is counted high, one token per
+      UTF-8 byte, against `MODEL_API_IMPORT_MAX_REPLAY_BYTES` (the window
+      less the reserve named text attachments keep, 786,432 bytes). A file
+      over it is refused before the confirmation, naming both sizes
+      (`importReplayTooLarge`, 14 tables), and `sanitizeImportedSession`
+      refuses it too. Importing only the latest turns would show history
+      the model never saw; the file can still be read as a share file.
+    - **RV84 #14, the share view's single pass.** It renders
+      `SHARE_VIEW_PAGE_ITEMS` (200) items at a time, with Show more.
+    - **RV84 #9's residual.** Long strings are scrubbed in line-break
+      slices (above).
+    - **0.10.1's JWT fix carried in.** The JWT rule is 0.10.1's linear
+      dotted-words scan (`redactTokens`), so a token glued after `-` is
+      redacted again; its tests (glued tokens, the differential against the
+      old pattern, 128,000-character timing) are kept.
 
 ### M85 — TypeSafe assist, experimental and opt in (D50)
 
