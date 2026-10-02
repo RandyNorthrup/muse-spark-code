@@ -536,6 +536,14 @@ export const EN = {
   webFetchMoved:
     'The page redirected to {location}, on another host. Muse can fetch it in a new call, which asks again.',
   webFetchRestrictedMode: 'Web fetch is off in Restricted Mode. Trust the workspace to use it.',
+  // Observation packing (M73): a recall_output row's heading above the
+  // recalled text (shown as it was), and why a recall read nothing back.
+  packRecalled: 'Recalled characters {start} to {end} of {total} from packed output {id}',
+  packRecallInvalid: 'The recall request was malformed, so nothing was read back.',
+  packRecallUnknownId:
+    'No packed output in this conversation has the id {id}, so nothing was read back.',
+  packRecallBadOffset:
+    'The offset is not a character position in packed output {id} (0 to {last}), so nothing was read back.',
   textFileTooLarge: 'Text files must be 1 MB or smaller.',
   textFilesOverBudget:
     'Attachments fill Muse Code’s message limit. Remove an attachment or shorten the message.',
@@ -793,6 +801,7 @@ export const EN = {
   usageOutput: 'Output',
   usageCached: 'Cached',
   usageContext: 'Context',
+  usagePackedAvoided: 'Packing saved (estimate)',
   usageNoSession: 'No tokens counted yet in this conversation.',
   usageLoading: 'Reading usage…',
   usageUnavailable: 'Usage could not be read',

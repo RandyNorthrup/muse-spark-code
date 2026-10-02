@@ -157,7 +157,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `rimraf`                                                                                             | 6.1.3                             | Cross-platform clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `axe-core`                                                                                           | 4.13.0                            | The accessibility gate (M37, D32): WCAG 2.0 to 2.2, levels A and AA, run inside the harness page. MPL-2.0; a dev dependency, never bundled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `parse5`                                                                                             | 8.0.1                             | M69 (D49): web fetch parses a page with the HTML standard's own parsing algorithm (the implementation jsdom uses), after four review rounds found a hand-written tokenizer short of it. MIT; one dependency, `entities` ^8 (BSD-2-Clause, 8.1.0 locked, formerly our direct dependency); no peers; published 2026-04-19; already in the lockfile through jsdom and @vscode/vsce; `npm audit` clean. Quadratic on hostile nesting (40,000 nested lists in 73 s), so it runs only in `dist/pageWorker.js`, a worker per page (at most two at once) stopped at 10 s or 512 MiB (D6). `entities` 8 says Node ≥ 20.19 for `require(esm)`; bundled, the worker ran on Node 20.18.3. |
-| `html-encoding-sniffer`                                                                              | 6.0.0                             | M69: the HTML standard's encoding sniffing (byte order mark, the Content-Type charset, the 1,024-byte `<meta>` prescan) for web fetch's HTML, as jsdom uses it. MIT; one dependency, `@exodus/bytes` ^1.6 (MIT; 1.15.2 locked through jsdom, published 2026-09-21, inside the 7-day window: the lockfile pins it, as for `@muse-code/sdk`; its optional `@noble/hashes` peer is not used by the `encoding-lite` entry the sniffer imports); published 2025-12-26; `npm audit` clean. Says Node ≥ 20.19 (ESM); bundled into `dist/pageWorker.js` only and run on Node 20.18.3. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                                      |
+| `html-encoding-sniffer`                                                                              | 7.0.0                             | PR #60: retain HTML BOM/header certainty and tentative meta/XML prescan when upgrading M69's decoder. MIT; no peers; one dependency, `@exodus/bytes` ^1.15.1 (existing 1.15.2 lock unchanged; its optional hash peer is not used by `encoding-lite`); canonical security:audit exits 0, with one later low advisory in existing dev-only serialize-javascript recorded separately. v7 declares Node ^22.13 or >=24; installed on supported tooling Node with no engine bypass, bundled only into `dist/pageWorker.js`. Proved bundled on VS Code 1.99.0 (Node 20.18.3), integration `minimum`. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                     |
 | `playwright-core`                                                                                    | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
 
@@ -3255,6 +3255,15 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   is silently lost. Should every window publish its unsaved paths in its
   presence file, so a restore refuses them too? Default: unchanged, recorded as
   a limit (Codex, `a424e526`).
+- **M73/M75 live key (answered 2026-10-02):** the owner approved the spend
+  and this handling for M73's run: the test key decrypted from its DPAPI
+  file in memory and piped to `auth set`'s standard input only, the run, and
+  `auth clear` in a `finally` (`docs/certification/m73.md`). The harness's
+  key source is unchanged.
+- **M73 Evidence-Preserving Reducer:** a paid model call (D48), but the M75
+  evaluation fails any task on which a paid use happens. Should the
+  evaluation gain a priced, counted paid arm for it, or should the reducer be
+  judged by its own D48 consent without an M75 run? Default: not built.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -8696,6 +8705,32 @@ evaluation is authorized by these repairs.
 
 ### M73 — Observation packing (D49)
 
+- **First review (RV73) repaired, 2026-10-02.** Four findings, each with a
+  regression and red drills (`docs/certification/m73.md`):
+  - A recalled page is framed as untrusted tool data (D49 "Untrusted
+    content"): it names the tool its call named, carries the notice, and
+    sits between fresh random markers outside the unchanged slice, so an
+    interior page of a `web_fetch` result keeps its boundary.
+  - The ledger survives resume: the stored session keeps an optional
+    `packedTokensAvoided` (a non-negative whole number; older files resume
+    at zero), restored into the store while the outputs and their send
+    counts start fresh.
+  - The live run records its packing acceptance in the report
+    (`packingEngagement`, verdict `fail` when a long-output task never
+    packed) before it prints or writes it.
+  - The recall row's heading and refusals are `UI_TEXT` in all fifteen
+    tables, counts through `Intl`; the recalled text is shown as it was
+    and the model's text stays `MODEL_TEXT`.
+- **Main integration, 2026-10-02 (M73m).** Merge `origin/main` at
+  `44b76f24` into `feature/m73-packing`, preserving final M75 behavior and
+  main's changelog entries. Kubuntu passed the owning M73/M75 suites
+  (14 files, 627 tests), all five type projects and the code-intelligence
+  fixture, scoped lint, formatting, dead code, duplication, localization,
+  host API, cycles and production build. The build needed a private copy
+  of the rig's linked dependencies for its path-based bundle-split check;
+  no source or gate changed. Results are in `docs/certification/m73.md`;
+  full quality and the live paired evaluation remain the lead's gates.
+  No live or paid run is authorized.
 - **Goal.** Long sessions stop resending large old tool outputs.
 - **Scope.**
   - NVIDIA SoL-Pi's ObservationPack design, implemented for the Model API:
@@ -8718,6 +8753,53 @@ evaluation is authorized by these repairs.
   happens once per output; the ledger matches the tokens left out.
 - **Tests.** The fake Model API with long outputs, and its M75 run.
 - **Size.** S.
+- **Status 2026-10-02: shipped off by default after its M75 run passed.**
+  Built 2026-10-01 on
+  `feature/m73-packing`, from M75's merged head. What is in it:
+  - `src/core/backends/modelapi/observationPack.ts`: one session's store.
+    An output over 8,000 characters rides whole for 2 requests, then as a
+    placeholder (its call id, characters, lines, a token estimate, its
+    first 4 and last 4 lines, bounded under the threshold); the swap is
+    sticky, so the placeholder is the same text every request. A request
+    counts once it is really sent, at the client's last step before
+    `fetch` (`ResponseAttemptGuard.onRequestStarted`), and an HTTP retry of
+    the same request counts once. `recall_output(id, offset)` pages the
+    original back 4,000 characters at a time, never splitting a character;
+    the replay keeps every original (placeholders never commit), so a
+    restored session packs again from the whole outputs; a compaction
+    forgets the store's originals and keeps the ledger.
+  - The host builds the store only while its `observationPacking` dep is
+    on and never for a subagent, which is also refused `recall_output`
+    (a read-class tool: no card). The dep is read when a session is
+    created or resumed: `museSpark.modelApiObservationPacking` (since its
+    run passed, below) or the M75 arm.
+  - The ledger rides on `tokenUsage` (`packedTokensAvoided`) to Account &
+    usage's Tokens section, "Packing saved (estimate)", shown only while a
+    session packs; the estimate is 4 characters a token, net of what the
+    placeholder still costs.
+  - The M75 side: the `packing` arm (`src/core/eval/mechanisms.ts`); two
+    long-output tasks in the task set (`accept-long-middle-value`,
+    `heldout-long-middle-rule`: a 512-record evidence file whose middle
+    record is needed after two more requests), so the set is twelve tasks,
+    seven accept and five held-out, under the same 0.75 floors (6 of 7, 4
+    of 5); results record the ledger and successful recalls; the live run
+    passes only if packing engaged on every long-output task it ran
+    (`unengagedLongOutputTasks`).
+  - **Not built: the Evidence-Preserving Reducer.** The evaluation refuses
+    every paid use (D48), so it cannot measure a paid reducer, and the gate
+    forbids shipping what is not measured (§3).
+  - **The M75 run passed (2026-10-02, after the RV73 repairs):** both
+    arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+    engaged on both long-output tasks, 111 model calls on the contributor
+    model for $0.0156 (`docs/certification/m73-run.md`). On the long-output
+    tasks packing sent 39% fewer input tokens at about the same cost: what
+    it leaves out was mostly read from the cache. So, as the gate says,
+    the setting was added, off by default and machine-scoped:
+    `museSpark.modelApiObservationPacking` (VS Code only; the ACP agent
+    does not pack).
+  - The WIP of `integrate/m73-m75-join-20260930` (staged tree `d52b6a9a`)
+    is archived as `_archive-2026-10-01/m73-m75-join-wip`; what was kept
+    and dropped is in `docs/certification/m73.md`.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
@@ -9953,6 +10035,35 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**PR #60 compatibility repair (2026-09-30; proven on the floor, release remains first).**
+The owner explicitly included the Dependabot branches in the merge goal.
+Prepare the exact `html-encoding-sniffer` 7.0.0 delta from original bot head
+`f829f28f8ef81265722a9c862f8150e134fa3423` on main `32709441`; root retains
+commit, push and normal-merge ownership. Preserve the original bot head.
+Reuse `bomEncodingOf` and the sniffer's header-label normalization in the canonical HTML charset adapter:
+only a BOM or valid transport header may make HTML decoding certain. The v7
+XML-declaration/signature paths must not freeze an HTML page before its meta
+declaration can take effect. Keep the bounded prescan and existing later-meta
+reparse; write real byte-to-Markdown golden controls before accepting the delta.
+
+Acceptance PR60-A covers BOM/header priority, invalid labels, XML prologues,
+HTML meta priority and later tentative reparse. PR60-B covers UTF-16 signatures
+and malformed/truncated meta through the real sniffer and converter. PR60-C
+requires original-bot/source preservation, fresh peer/audit metadata, scoped
+types/lint/format and assertion red/restored proofs, then the actual packaged
+page worker on Node 20.18.3. Reuse existing worker-floor transport; no model,
+paid call, dependency engine waiver, threshold change or full quality in this
+source lane. Kubuntu bounded work yields to final M72/release gates. Merged
+with main 2a30b1a0 (0.10.0, #66, #67) on 2026-10-02; the full quality gate
+passed on the Mac mini at that head, and hosted CI is the merge gate. Result: sniffer 7 declares Node
+22.13, but bundled into `dist/pageWorker.js` it loads and converts in VS Code
+1.99.0's Node 20.18.3 (the floor), and the integration run's `minimum` label
+now carries the goldens through the shipped bundle. The proof also found one
+defect older than this PR: Node 20.18's `TextDecoder` reads windows-1252 as
+ISO-8859-1 (the euro sign and curly quotes come out as controls), so
+`textDecoding.ts` decodes that table itself on every Node. Receipts, red
+drills and sizes are in `docs/certification/pr60-sniffer7.md`.
 
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,

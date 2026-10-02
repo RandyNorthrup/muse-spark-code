@@ -95,6 +95,12 @@ export interface StoredSession {
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
+  /**
+   * Observation packing's ledger (M73): the estimated tokens packed sends
+   * left out. Absent where the session never packed, and in a file saved
+   * before the ledger was kept, which resumes at zero.
+   */
+  readonly packedTokensAvoided?: number
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -223,6 +229,8 @@ const storedSessionFields = {
     cachedTokens: z.number(),
     reasoningTokens: z.number(),
   }),
+  // Optional, so a session saved before M73 kept its ledger still reads.
+  packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -277,6 +285,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     children,
     pendingChildResults,
     spawnCommands,
+    packedTokensAvoided,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -321,6 +330,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(children !== undefined && { children: restoredChildren }),
       ...(pendingChildResults !== undefined && { pendingChildResults }),
       ...(spawnCommands !== undefined && { spawnCommands }),
+      ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
     },
   }
 }

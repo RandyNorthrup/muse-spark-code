@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import type { EvalReport } from '../../src/core/eval/report'
 import { EVAL_TASKS, type EvalTask } from '../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import {
@@ -15,7 +16,11 @@ import {
 import { createToolIo } from '../../src/host/backend/toolIo'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { keyringSecretStore } from '../../src/runtime/keyStore'
-import { EVAL_TURN_TIMEOUT_MS, EVAL_VERIFY_TIMEOUT_MS } from '../../src/shared/constants'
+import {
+  EVAL_REPORT_VERSION,
+  EVAL_TURN_TIMEOUT_MS,
+  EVAL_VERIFY_TIMEOUT_MS,
+} from '../../src/shared/constants'
 
 const LEGACY_KEY_VARIABLE = 'MUSE_LIVE_MODEL_API_KEY'
 const NOT_ENABLED = 'Live Model API tests are not enabled.'
@@ -160,6 +165,56 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
   return {
     tasks: wanted.length === 0 ? EVAL_TASKS : EVAL_TASKS.filter((task) => wanted.includes(task.id)),
     reportPath: selection.MUSE_EVAL_REPORT,
+  }
+}
+
+/**
+ * The long-output tasks on which an arm never sent a packed placeholder
+ * (M73): a packing run that passes its floors without packing proves
+ * nothing about packing, so its acceptance needs every one of them to have
+ * packed. The arm missing from the report counts as never engaged.
+ */
+export function unengagedLongOutputTasks(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): string[] {
+  const results = report.arms.find((arm) => arm.name === armName)?.results ?? []
+  return tasks
+    .filter((task) => task.isLongOutput === true)
+    .filter((task) => {
+      const saved = results.find((result) => result.taskId === task.id)?.packedTokensAvoided
+      return saved === undefined || saved <= 0
+    })
+    .map((task) => task.id)
+}
+
+/**
+ * The report with M73's packing acceptance recorded in it (PLAN.md M73):
+ * the arm's engagement on the run's long-output tasks, and the verdict
+ * `fail` when it never packed on one, whatever the floors say. Applied
+ * before the report is printed or written, so both artifacts say what the
+ * run's acceptance decided.
+ */
+export function withPackingEngagement(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): EvalReport {
+  if (report.version !== EVAL_REPORT_VERSION) {
+    throw new Error('Packing engagement is recorded only in a current-version report.')
+  }
+  const unengaged = unengagedLongOutputTasks(report, armName, tasks)
+  const isHeld = unengaged.length === 0
+  return {
+    ...report,
+    packingEngagement: {
+      arm: armName,
+      longOutputTasks: tasks.filter((task) => task.isLongOutput === true).map((task) => task.id),
+      unengaged,
+      held: isHeld,
+    },
+    verdict: isHeld ? report.verdict : 'fail',
   }
 }
 

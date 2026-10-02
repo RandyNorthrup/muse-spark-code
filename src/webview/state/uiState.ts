@@ -1501,6 +1501,9 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
           inputTokens: event.inputTokens,
           outputTokens: event.outputTokens,
           ...(event.cachedTokens !== undefined && { cachedTokens: event.cachedTokens }),
+          ...(event.packedTokensAvoided !== undefined && {
+            packedTokensAvoided: event.packedTokensAvoided,
+          }),
         },
       }
     }
