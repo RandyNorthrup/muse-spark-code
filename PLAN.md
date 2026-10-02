@@ -8594,29 +8594,41 @@ extension's own storage, never the workspace's `.git`.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
-**Status, 2026-10-01 (this tree, `feature/m74-handoff`).** Manual
+**Status, 2026-10-02 (this tree, `feature/m74-handoff`).** Manual
 `/handoff` is built: ported onto the release candidate (`41ed14bf` on
-`8e9d3a1e`) and fixed for the ten findings of the RV74 review
-(certification `docs/certification/m74.md`, one commit per finding).
-Automatic compaction, the hidden todo follow-up and the memory flush are
-not built (see "Not built" below), so M74 is not complete. On this tree
-the M74 test files pass on the kubuntu and Mac mini rigs; every M74 guard
-was broken on purpose, seen red and restored byte for byte (sha256), or is
-recorded as backed by another check; and `typecheck`, `eslint`,
-`check:l10n`, `deadcode`, `jscpd` and the `handoff` accessibility scenario
-pass. The handoff had pushed `dist/extension.js` and `dist/modelApi.js`
-over their caps (601.3 and 401.3 KiB); the lead's fix, the shared English
-table (`build/shared-ui-text`, merged at `f5f9006f`), brings every bundle
-within its unchanged cap (`dist/extension.js` 527.9 of 600 KiB,
-`dist/modelApi.js` 327.7 of 400, `dist/uiText.js` 74.1 of 100); on the
-Windows host, whose `node_modules` is a junction, the build's split check
-still reports the page worker's parser packages missing, as it does for
-`44d920fd` alone there (the certification has why). After
-the merge the M74 test files and all 24 checkpoint test files pass on the
-kubuntu and Mac mini rigs (the twelve M72 checkpoint failures and the
+`8e9d3a1e`), fixed for the ten findings of the RV74 review (one commit
+per finding) and for RV74c's (a refusal at the sign-in guard answered,
+one modal at a time, the withdrawn-distillation guard tested), and merged
+with `main` at `2a30b1a0` with its shared-table fixes kept as `main` has
+them (certification `docs/certification/m74.md`). Automatic compaction,
+the hidden todo follow-up and the memory flush are not built (see "Not
+built" below), so M74 is not complete. On this tree the M74 test files
+(nine files, 779 tests) pass on the kubuntu and Mac mini rigs; every M74
+guard was broken on purpose, seen red and restored byte for byte
+(sha256), or is recorded as backed by another check (four are; O17, the
+one that had neither, now has its test); and the typechecks (host, unit,
+webview), `eslint` and Prettier on the changed files, `check:l10n`,
+`check:host-api`, `deadcode`, `jscpd` and the `handoff`, `usage` and
+`agents` accessibility scenarios pass on kubuntu. The handoff had pushed
+`dist/extension.js` and `dist/modelApi.js` over their caps (601.3 and
+401.3 KiB); the lead's fix, the shared English table
+(`build/shared-ui-text`, merged at `f5f9006f`), brings every bundle
+within its unchanged cap (on this tree, kubuntu: `dist/extension.js`
+529.0 of 600 KiB, `dist/modelApi.js` 327.7 of 400, `dist/uiText.js` 74.1
+of 100, `dist/webview/main.js` 782.5 of 900). Where `node_modules` is a
+junction (the Windows host) or a link to another checkout (the kubuntu
+rig's test worktree), the build's split check reports the page worker's
+parser packages missing: esbuild names them by the link's target, outside
+`node_modules/`; they are bundled (the certification has why), and the
+checks the chain then skips (`check-host-globals`,
+`third-party-notices`) pass run by hand. After the shared-table merge the
+M74 test files and all 24 checkpoint test files passed on the kubuntu and
+Mac mini rigs (the twelve M72 checkpoint failures and the
 `checkpointModelApiStop.test.ts` hang seen before it, identical on
-`8e9d3a1e`, are gone). Not run here: `harness:shots`, the integration
-tests and `npm run quality` (the lead's four-machine gate).
+`8e9d3a1e`, were gone); the checkpoint files were not re-run for RV74c,
+which changes no checkpoint code. Not run here: `harness:shots`, the
+integration tests, a production build with a real `node_modules` and
+`npm run quality` (the lead's four-machine gate).
 
 - **Goal.** Hours-long tasks keep their thread without a manual
   `/compact`.
@@ -8695,7 +8707,17 @@ tests and `npm run quality` (the lead's four-machine gate).
   - The composer keeps `/handoff …` until the host answers
     (`handoffCommandResult`, RV74 finding 4), as for `/goal`: a refused
     handoff keeps its typed goal; an accepted one clears the draft unless
-    it was edited meanwhile.
+    it was edited meanwhile. Every refusal answers, the sign-in guard's
+    too (RV74c N1): a request or a Start refused while the backend's
+    admission is held (a key activation, with the panel still reading
+    signed in) gets `accepted: false`, so the command and Start work
+    again once admission returns.
+  - One modal at a time (RV74c N2): a brief that arrives while Account &
+    usage, the Agent map or the install confirmation is open waits,
+    unmounted, until that dialog closes, then opens with the focus, so
+    its Start is never reachable under a dialog that hides it. Closing
+    the handoff dialog (Cancel, or the new conversation clearing it)
+    hands the focus back to the prompt, as the other dialogs do.
   - Model API backend only: on Muse Code the command says it is
     unavailable there. Side chats are refused; one handoff runs at a time;
     a `/handoff` while a reply runs is refused ("Wait for the reply to

@@ -408,7 +408,9 @@ starts. Starting leaves the old conversation in History and seeds the new
 one with the brief alone — the goal and the open items travel in its note,
 and on the Model API backend the open items become the todo list before
 the first request. The generated or edited brief may be up to 256 KB in
-UTF-8. Cancel closes a handoff before the new conversation commits.
+UTF-8. Cancel closes a handoff before the new conversation commits. A
+brief that is ready while Account & usage or the Agent map is open waits
+until you close that dialog, then opens.
 
 The model wrote the brief, so the new conversation starts in your
 starting mode (`museSpark.initialPermissionMode`, as an implemented plan

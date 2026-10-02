@@ -18,8 +18,10 @@ happened, not what was planned; superseded entries are kept.
   opens in a dialog before anything starts, with the open items the new
   todo list will hold: review it, edit it, then start the new
   conversation, or cancel and nothing starts; a reloaded panel shows it
-  again. Starting leaves the old conversation in History and seeds the
-  new one through the plan brief path, with the open items (never
+  again, and a brief that is ready while Account & usage or the Agent map
+  is open waits until you close it. Starting leaves the old conversation
+  in History and seeds the new one through the plan brief path, with the
+  open items (never
   completed or dropped ones) as its todo list before the first request.
   The model wrote the brief, so the new conversation starts in your
   starting mode only when the dialog showed all of it: a brief or an item
