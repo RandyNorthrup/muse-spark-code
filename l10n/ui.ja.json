@@ -1363,7 +1363,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "agentImportPersonalToProject": "個人用ファイルをプロジェクトにコピーすることになります",
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
-  "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？",
+  "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",
   "agentImportEditAction": "ファイルを編集して開く",
   "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。"
 }

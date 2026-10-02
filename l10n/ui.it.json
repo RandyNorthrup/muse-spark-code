@@ -1443,7 +1443,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "agentImportPersonalToProject": "questo copierebbe un file personale nel progetto",
   "agentImportIgnoredToTracked": "questo copierebbe un file ignorato da Git in un file tracciato",
-  "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare?",
+  "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare? Salvarla solo in quel percorso, mai in un altro file.",
   "agentImportEditAction": "Modifica e apri il file",
   "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe."
 }

@@ -1363,7 +1363,7 @@
   "exportThenRunSkipped": "then_run `{command}`：{outcome}",
   "agentImportPersonalToProject": "這會將個人檔案複製到專案中",
   "agentImportIgnoredToTracked": "這會將 Git 忽略的檔案複製到受追蹤的檔案中",
-  "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？",
+  "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？請只儲存到該路徑，切勿儲存到其他檔案。",
   "agentImportEditAction": "編輯並開啟檔案",
   "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。"
 }

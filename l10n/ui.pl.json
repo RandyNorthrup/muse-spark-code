@@ -1483,7 +1483,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "agentImportPersonalToProject": "spowodowałoby to skopiowanie pliku osobistego do projektu",
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
-  "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania?",
+  "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
   "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
 }

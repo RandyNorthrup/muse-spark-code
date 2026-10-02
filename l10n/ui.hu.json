@@ -1403,7 +1403,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "agentImportPersonalToProject": "ez személyes fájlt másolna a projektbe",
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
-  "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre?",
+  "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
   "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
 }

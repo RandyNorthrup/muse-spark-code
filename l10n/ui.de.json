@@ -1403,7 +1403,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "agentImportPersonalToProject": "dadurch würde eine persönliche Datei ins Projekt kopiert",
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
-  "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen?",
+  "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
   "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
 }

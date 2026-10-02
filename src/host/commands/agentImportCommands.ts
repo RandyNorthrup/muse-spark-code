@@ -238,15 +238,17 @@ function skipLabel(skip: ImportSkip): string {
   return reasonLabel(skip.reason)
 }
 
-function sourceScope(candidate: ImportCandidate): string {
-  const scope =
-    candidate.sourceExposure ?? (candidate.origin === 'user' ? 'personal' : 'project-tracked')
+/** Undefined for a source outside home and workspace (or unclassified): its refusal says why. */
+function sourceScope(candidate: ImportCandidate): string | undefined {
+  const scope = candidate.sourceExposure
+  if (scope === undefined) return undefined
   return scope === 'personal' ? UI_TEXT.agentImportUserFiles : UI_TEXT.agentImportProjectFiles
 }
 
 function describeCandidate(candidate: ImportCandidate): string {
-  const scope = sourceScope(candidate)
-  return [kindLabel(candidate), sourceLabel(candidate.source), scope].join(DETAIL_SEPARATOR)
+  return [kindLabel(candidate), sourceLabel(candidate.source), sourceScope(candidate)]
+    .filter((part) => part !== undefined)
+    .join(DETAIL_SEPARATOR)
 }
 
 function shownPath(deps: AgentImportDeps, absolutePath: string): string {
@@ -265,7 +267,7 @@ function pickItemOf(candidate: ImportCandidate): AgentImportPickItem {
     id: candidate.id,
     label: candidate.label,
     description: describeCandidate(candidate),
-    detail: why === undefined ? where : `${where}${DETAIL_SEPARATOR}${why}`,
+    detail: [where, why].filter((part) => part !== undefined).join(DETAIL_SEPARATOR),
     picked: target.kind !== 'none',
   }
 }

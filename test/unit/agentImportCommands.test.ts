@@ -1,8 +1,10 @@
-// The import flow (M83, PLAN.md D49): the preview opens before anything is
-// written and the user's Import is the only way on; Muse Code's settings
-// file and the project's hooks file are never written; an entry that may
-// hold a credential is refused whole and nothing of it is shown, copied,
-// published or logged; every dismissal writes nothing.
+// The import flow (M83, PLAN.md D49 and D64): the preview opens before
+// anything is written and the user's Import is the only way on; Muse Code's
+// settings file and the project's hooks file are never written; an entry is
+// copied whole, its values unchanged, only to a target no more exposed than
+// its source (personal stays personal, git-ignored never becomes tracked),
+// with no credential detection; the preview, picker and log carry metadata
+// only; every dismissal writes nothing.
 
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -598,8 +600,9 @@ describe('importFromAgents', () => {
       `append ${WS}/AGENTS.md`,
       `user ${WS}/AGENTS.md`,
       'release',
-      `offer Open converted entries in ~/.config/muse/settings.json as an unsaved edit for you to review and save?`,
-      `offer Open converted entries in .muse/hooks.json as an unsaved edit for you to review and save?`,
+      // An unsaved edit is bound to its file only until saved: the prompt says where (RV83f P2-2).
+      `offer Open converted entries in ~/.config/muse/settings.json as an unsaved edit for you to review and save? Save it only to that path, never to another file.`,
+      `offer Open converted entries in .muse/hooks.json as an unsaved edit for you to review and save? Save it only to that path, never to another file.`,
     ])
     // The extension never writes Muse Code's settings or the hooks file (D17, D30).
     expect(flow.io.files.has(SETTINGS)).toBe(false)
@@ -673,6 +676,19 @@ describe('importFromAgents', () => {
       'ship',
       'CLAUDE.md',
     ])
+  })
+
+  it('labels a source outside home and workspace by its refusal, not as the user’s or the project’s', async () => {
+    const flow = run({
+      io: memoryImportIo({
+        files: { '/etc/commands/x.md': 'Run.' },
+        links: { [`${HOME}/.claude/commands`]: '/etc/commands' },
+      }),
+    })
+    await flow.done
+    expect(flow.items.map((item) => item.detail)).toEqual([UI_TEXT.agentImportSkippedOutside])
+    expect(flow.items[0]?.description).not.toContain(UI_TEXT.agentImportUserFiles)
+    expect(flow.items[0]?.description).not.toContain(UI_TEXT.agentImportProjectFiles)
   })
 
   it('shows why when nothing checked can be imported, and asks nothing', async () => {

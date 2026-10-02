@@ -193,6 +193,8 @@ interface Scan {
   readonly warnings: string[]
   readonly candidates: ImportCandidate[]
   readonly taken: Set<string>
+  /** Per id base, the first suffix not yet tried: duplicate labels register in O(1) amortized. */
+  readonly nextSuffix: Map<string, number>
 }
 
 interface Found {
@@ -275,8 +277,14 @@ function add(scan: Scan, found: Found): void {
   const base = [found.kind, found.source, found.origin, found.label].join(ID_SEPARATOR)
   const taken = scan.taken
   let id = base
-  for (let index = 2; taken.has(id); index += 1) {
-    id = `${base}${ID_SEPARATOR}${String(index)}`
+  if (taken.has(id)) {
+    // Every suffix below the stored one was taken when tried, and `taken` only grows.
+    let index = scan.nextSuffix.get(base) ?? 2
+    do {
+      id = `${base}${ID_SEPARATOR}${String(index)}`
+      index += 1
+    } while (taken.has(id))
+    scan.nextSuffix.set(base, index)
   }
   taken.add(id)
   scan.candidates.push({ ...found, id, sourceExposure: undefined, dropped: found.dropped ?? [] })
@@ -1021,6 +1029,7 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
     warnings: [],
     candidates: [],
     taken: new Set(),
+    nextSuffix: new Map(),
   }
   const isProjectRead = await shouldReadProject(scan)
   const scanners: Readonly<Record<AgentImportSource, typeof scanCodex>> = {
@@ -1267,8 +1276,12 @@ async function planFile(
     root,
     ...target.relativePath.split('/'),
   )
+  // Only a known project class moves a write onto the workspace; a miss keeps the scope's root.
+  const targetExposure = builder.targetExposures.get(absolutePath)
   const isProject =
-    target.scope === 'project' || builder.targetExposures.get(absolutePath) !== 'personal'
+    target.scope === 'project' ||
+    targetExposure === 'project-local' ||
+    targetExposure === 'project-tracked'
   // Confined to the workspace itself: a linked `.agents` folder that leads out is refused.
   const confinedTo = isProject ? destinations.workspaceRoot : destinations.personalRoot
   if (confinedTo === undefined || (isProject && destinations.workspaceIdentity === undefined)) {
@@ -1426,10 +1439,10 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
   }
 }
 
-/** The least exposed source bounds a grouped publication. */
+/** The least exposed source bounds a grouped publication; an unknown member counts as personal. */
 function sourceExposureOf(builder: PlanBuilder, ids: readonly string[]): ImportExposure {
   const classes = new Set(ids.map((id) => builder.exposures.get(id)))
-  if (classes.has('personal')) return 'personal'
+  if (classes.has('personal') || classes.has(undefined)) return 'personal'
   return classes.has('project-local') ? 'project-local' : 'project-tracked'
 }
 

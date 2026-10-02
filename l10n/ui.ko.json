@@ -1363,7 +1363,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "agentImportPersonalToProject": "개인 파일을 프로젝트로 복사하게 됩니다",
   "agentImportIgnoredToTracked": "Git에서 무시하는 파일을 추적하는 파일로 복사하게 됩니다",
-  "agentImportEditPrompt": "변환한 항목을 {path}에서 저장하지 않은 편집으로 열어 검토하고 저장하시겠습니까?",
+  "agentImportEditPrompt": "변환한 항목을 {path}에서 저장하지 않은 편집으로 열어 검토하고 저장하시겠습니까? 그 경로에만 저장하고 다른 파일에는 저장하지 마십시오.",
   "agentImportEditAction": "파일 편집 및 열기",
   "agentImportPreviewLegacyKey": "파일이 이전 `mcp_servers` 키를 사용합니다. 이 항목을 추가할 때 이름을 `mcpServers`로 바꾸세요. 둘 다 있으면 Muse Code는 어느 것도 로드하지 않습니다."
 }

@@ -220,7 +220,7 @@ export const EN = {
   agentImportPersonalToProject: 'this would copy a personal file into the project',
   agentImportIgnoredToTracked: 'this would copy a git-ignored file into a tracked file',
   agentImportEditPrompt:
-    'Open converted entries in {path} as an unsaved edit for you to review and save?',
+    'Open converted entries in {path} as an unsaved edit for you to review and save? Save it only to that path, never to another file.',
   agentImportEditAction: 'Edit and open the file',
   agentImportDone: 'Import finished.',
   agentImportOpenFile: 'Open the file',

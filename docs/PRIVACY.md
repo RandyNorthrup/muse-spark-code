@@ -382,7 +382,10 @@ fields, never raw configuration or failed-command output.
   are listed as dropped by name. **Residual:** item names remain visible as
   the source tool shows them, including a name that itself contains a
   credential; generated target paths and dropped field names are visible
-  too. Unsupported agent restrictions never create an executable file.
+  too. **Residual:** an unsaved target edit is bound to its file only until
+  you save; the prompt says to save it only to that path, but Save As can
+  still put it in a more exposed file, so where you save it is your choice.
+  Unsupported agent restrictions never create an executable file.
 
 ## The agent for other editors
 

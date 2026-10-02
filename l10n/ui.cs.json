@@ -1483,7 +1483,7 @@
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
   "agentImportPersonalToProject": "tím by se osobní soubor zkopíroval do projektu",
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
-  "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení?",
+  "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",
   "agentImportEditAction": "Upravit a otevřít soubor",
   "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden."
 }
