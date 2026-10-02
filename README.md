@@ -1001,10 +1001,14 @@ workspace's trust also reaches calls already in flight. Whatever any tool
 brings back, an MCP or IDE tool's included, is judged again just before it
 reaches the model, and a call the new settings no longer allow is refused,
 with nothing from it sent; a change it had already written stays, and its
-row says so. A shell command is judged again at its process's entry, a
-memory note at its write, and an image edit's sources right before the
-request leaves the machine. These controls apply to the Model API; Muse Code
-uses its own captured native policy contract.
+row says so. Output that may quote files it cannot list (a shell command's,
+an MCP or IDE tool's, a check's, a subagent's) is refused if any of these
+settings or the trust changed at all while the call ran, and a subagent's
+result is withheld if they changed since it started, after a restart too.
+A shell command is judged again at its process's entry, a memory note at its
+write, and an image edit's sources right before the request leaves the
+machine. These controls apply to the Model API; Muse Code uses its own
+captured native policy contract.
 
 `museSpark.modelApiAutoReviewer` is an off-by-default paid opt-in. Every
 eligible review uses the paid-use popup at the current model's token rates,

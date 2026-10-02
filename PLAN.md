@@ -8873,6 +8873,33 @@ JSON ledger format; converting the project plan is outside this lane.
 
 ### M78 — Auto, made safe (D49)
 
+**RV78g review fix, 2026-10-02: an outcome that cannot name its files fails
+closed.** Muse's review of the choke-point fence found one P1, four P2 and
+four P3, most from one root: the fence trusted `touched`, but a command's,
+a server's, the IDE's or a child's output cannot list every file it quotes.
+The lead's decision: `ToolOutcome.touched` is `{ names, complete }` and
+defaults to incomplete. Only tools whose output provably carries just the
+listed files say complete (`read_file`, `list_files`, `search`, the writes
+and edits with rename, the image tools, memory with its note, `read_skill`).
+The dispatcher judges a complete outcome as before; an incomplete one is
+also refused when the file policy's revision moved at all since admission.
+The revision (`filePolicyRevision`) is a digest of the profile, its
+deny-read globs, deny-all, extra roots and the trust, recorded in each
+`Admission`: a digest, not a counter, so a stored child result is judged the
+same way after a restart, and no glob or root is stored. Each child records
+its spawn admission's revision (persisted with it and with each pending
+result): a drained result is withheld when it moved, after a resume too, and
+`subagent_wait`, `read_result` and `status` carry their children's
+revisions; a result saved before revisions is withheld. `addIndexLine`
+throws its owner's Stop on after logging, so `add_memory` ends as a stop; a
+refusal of the index line alone still keeps the note reported written
+(`IndexLineStoppedError`). The store hands the I/O its caller's own guard
+and asks it once more after a failure. Every table row runs again with a
+deny on a file no call reads (complete rows delivered, opaque rows refused),
+the no-I/O row is checked against the fakes' I/O counters, egress rows
+assert no image request and nothing billed, and the subagent rows quote a
+marker. Seven red drills are in `docs/certification/m78.md`.
+
 **RV78f review fix, 2026-10-02: the fence at its two choke points.** The
 follow-up review found three paths the per-I/O fence missed (an image
 edit's sources sent to Meta after a deny landed during the reservation

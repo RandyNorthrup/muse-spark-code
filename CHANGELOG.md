@@ -22,12 +22,17 @@ happened, not what was planned; superseded entries are kept.
     current rules, profile, mode and workspace trust just before it reaches
     the model. A call they no longer allow is refused with a reason in the
     user's language and nothing from it is sent; a change it had already
-    written stays, and its row says so. A shell command is judged again at
-    its process's entry, a memory note at its write, and an image edit's
-    sources right before the request leaves the machine, so a source denied
-    meanwhile is never sent and nothing is billed. `read_skill` refuses a
-    project skill the file rules deny, and a Stop during a memory read or
-    write ends the call as a stop, not a file error.
+    written stays, and its row says so. Output that may quote files it
+    cannot list (a shell command's, an MCP or IDE tool's, a check's, a
+    subagent's) is refused if any file rule, the profile or the trust
+    changed at all while the call ran, and a subagent's result is withheld
+    if they changed since it started, after a restart too. A shell command
+    is judged again at its process's entry, a memory note at its write, and
+    an image edit's sources right before the request leaves the machine, so
+    a source denied meanwhile is never sent and nothing is billed.
+    `read_skill` refuses a project skill the file rules deny, and a Stop
+    during a memory read or write, its index line included, ends the call
+    as a stop, not a file error.
   - Approval cards retain the Auto reviewer's and command rule's explanation
     through webview delivery, later approval stages and saved-state restoration.
   - **Automatic checks respect revoked file access.** A verification round keeps
