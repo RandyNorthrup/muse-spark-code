@@ -1411,6 +1411,7 @@
   "approvalProfileNote": "權限設定檔已啟用。超出其檔案規則的呼叫會要求核准。",
   "codeIntelPolicyRefused": "檔案權限拒絕此程式碼分析操作。",
   "policyChangedRefused": "權限設定在此操作進行期間已變更，不再允許它。該操作已被拒絕，其任何內容都未傳送給模型。",
+  "policyChangedKeptWrite": "權限設定在此操作進行期間已變更，不再允許它。它的變更已經寫入，並會保留；其任何內容都未傳送給模型。",
   "permissionProfileInvalidData": "設定檔資料無效或不受支援。",
   "approvalAskRuleNote": "您的命令規則每次都會就此命令詢問。",
   "approvalAskRuleWhy": "您的命令規則每次都會就此命令詢問：{why}",

@@ -72,6 +72,7 @@ import {
   OUTPUT_REF_PREFIX,
   PAID_FEATURES,
   PAID_PRICES_USD,
+  PROJECT_SKILLS_DIR_SEGMENTS,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MAX_INTERVAL_MS,
   SCHEDULE_MAX_JOBS_PER_SESSION,
@@ -80,6 +81,7 @@ import {
   SCHEDULE_POLL_INTERVAL_MS,
   SEARCHES_PER_PRICE_UNIT,
   SHELL_DEFAULT_TIMEOUT_MS,
+  SKILL_FILE_NAME,
   type PaidFeature,
   QUESTION_OUTCOME_CLARIFIED,
   type PromptCacheRetention,
@@ -153,7 +155,7 @@ import {
   type TurnSubmission,
 } from '../../agent/agentBackend'
 import type { ContextIo } from '../../context/contextFiles'
-import { type SkillDefinition } from '../../context/skills'
+import { type SkillDefinition, type SkillSource } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
@@ -298,6 +300,7 @@ import {
   toolDefinitions,
   type ToolIo,
   type ToolOutcome,
+  type TouchedFiles,
   type VisibleFile,
 } from './tools'
 import {
@@ -449,6 +452,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
 // The memory scope whose notes are workspace files (`.agents/memory`, M49).
 const PROJECT_MEMORY_SCOPE: MemoryScope = 'project'
+// The skill source whose skills are workspace files (`.agents/skills`, D13).
+const PROJECT_SKILL_SOURCE: SkillSource = 'project'
 
 /** No command rules, no profiles: a host built without the settings (M78). */
 const NO_PERMISSION_SETTINGS: PermissionSettings = {
@@ -668,18 +673,32 @@ type CallAdmission = (canRunDetached?: boolean) => boolean
 
 /**
  * What let a call in under the permission policy (M78), for its live policy
- * fence: the call as the engine judges it, and the engine's judgement once
- * it was admitted (after any card), with no hook's question folded in.
+ * fence: the call as the engine judges it, the engine's judgement once it
+ * was admitted (after any card), with no hook's question folded in, and
+ * whether the workspace was trusted then.
  */
 interface Admission {
   readonly query: PermissionQuery
   readonly judgement: PermissionJudgement
+  readonly isTrusted: boolean
+}
+
+/**
+ * Where the dispatcher learns what let a call in (M78): each path that runs
+ * a call fills it at admission, before the call's first I/O, so the
+ * dispatcher's fence judges whatever the call then brings back.
+ */
+interface AdmissionSlot {
+  admission?: Admission
 }
 
 /** A memory call's live policy fence: what admitted it, and every name its notes go by. */
 interface MemoryFence {
   readonly admission: Admission
+  /** The note's names and, for a project note's add, its index's: what its writes must pass. */
   readonly names: readonly string[]
+  /** The note's own names: the files its outcome comes from. */
+  readonly noteNames: readonly string[]
 }
 
 /** What a check covers: the files passed to it, or the whole project (M68). */
@@ -1147,6 +1166,30 @@ function policyChangedRefusal(toolName: string): ToolOutcome {
     visibleOutput: UI_TEXT.policyChangedRefused,
     failureReason: UI_TEXT.policyChangedRefused,
   }
+}
+
+/**
+ * The dispatcher's refusal of an outcome whose call had already written
+ * (M78): nothing it brought back reaches the model, which is told the
+ * change stays; the row keeps the change's patch, so it can be seen and
+ * reverted.
+ */
+function policyChangedAfterWrite(toolName: string, written: ToolOutcome): ToolOutcome {
+  return {
+    output: `Error: ${toolName} ${MODEL_TEXT.toolRefusedByPolicyChange}${MODEL_TEXT.policyChangeKeptWrite}`,
+    visibleOutput: UI_TEXT.policyChangedKeptWrite,
+    failureReason: UI_TEXT.policyChangedKeptWrite,
+    ...(written.patch !== undefined && { patch: written.patch }),
+  }
+}
+
+/** Whether an outcome reports a write its call already made (M78): a patch, or a write that did not fail. */
+function hasWritten(admission: Admission, outcome: ToolOutcome): boolean {
+  const { toolClass } = admission.query
+  return (
+    outcome.patch !== undefined ||
+    (outcome.failureReason === undefined && (toolClass === 'edit' || toolClass === 'paid'))
+  )
 }
 
 function refusedOutcome(
@@ -4098,8 +4141,15 @@ export class ModelApiSession implements AgentSession {
     return slots === 0 || this.canQueueMedia(chars, slots)
   }
 
-  /** `read_skill`: the body of a catalogue skill, by id; never a path. */
-  private readSkill(call: FunctionCallItem): ToolOutcome {
+  /**
+   * `read_skill`: the body of a catalogue skill, by id; never a path. A
+   * project skill is a workspace file, `.agents/skills/<id>/SKILL.md`, which
+   * the permission settings bind as they bind `read_file` (M78, the RV78f
+   * review): a denied one is refused before anything is returned, and its
+   * names are what the dispatcher's fence judges again. A personal skill
+   * lives in Muse Code's own folder, not the workspace.
+   */
+  private async readSkill(call: FunctionCallItem): Promise<ToolOutcome> {
     const parsed = readSkillArgs.safeParse(argumentsOf(call))
     if (!parsed.success) {
       return toolFailure('invalid arguments: id is required')
@@ -4108,10 +4158,26 @@ export class ModelApiSession implements AgentSession {
     if (skill === undefined) {
       return toolFailure(`${MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
     }
-    return {
+    const loaded: ToolOutcome = {
       output: `Skill ${skill.id}: ${skill.description}\n\n${skill.body}`,
       visibleOutput: `Loaded skill ${skill.id} (${skill.source})`,
     }
+    if (skill.source !== PROJECT_SKILL_SOURCE) {
+      return loaded
+    }
+    const file = await confineWorkspacePath(
+      this.deps.workspaceRoot,
+      [...PROJECT_SKILLS_DIR_SEGMENTS, skill.id, SKILL_FILE_NAME].join('/'),
+      this.deps.platform,
+      this.deps.io,
+    )
+    if (!file.ok) {
+      return toolFailure(file.reason)
+    }
+    const names = [file.relative, file.canonical]
+    return this.policy().files.isDenied(names)
+      ? deniedPath(file.relative)
+      : { ...loaded, touched: { names } }
   }
 
   /**
@@ -4136,8 +4202,23 @@ export class ModelApiSession implements AgentSession {
     })
   }
 
-  /** `generate_image` and `edit_image`, using the approved source bytes and destination. */
-  private async makeImage(plan: ImagePlan, signal: AbortSignal): Promise<ToolOutcome> {
+  /**
+   * `generate_image` and `edit_image`, using the approved source bytes and
+   * destination. The egress fence (M78, the lead's choke-point decision):
+   * the request carries workspace bytes off the machine (an edit's
+   * sources), so the live policy judges the call again, with its target and
+   * every source, inside each attempt's final admission, with no await
+   * between that and the send. A refusal sends nothing, and the paid
+   * reservation is released as for any request that was not sent.
+   */
+  private async makeImage(
+    plan: ImagePlan,
+    signal: AbortSignal,
+    admission: Admission,
+  ): Promise<ToolOutcome> {
+    const touched: TouchedFiles = {
+      names: [plan.target, ...plan.sources].flatMap((file) => [file.relative, file.canonical]),
+    }
     for (const path of [plan.target, ...plan.sources]) {
       const current = await confineWorkspacePath(
         this.deps.workspaceRoot,
@@ -4175,6 +4256,7 @@ export class ModelApiSession implements AgentSession {
     const imageState = { isSent: false, isBilled: false }
     let isRefused = false
     let hasReturned = false
+    let egressRefusal: ToolOutcome | undefined
     try {
       if (scope === undefined && capUsd > 0) {
         await this.onPersisted('budget')
@@ -4205,6 +4287,11 @@ export class ModelApiSession implements AgentSession {
               throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
             }
             claim?.check(this.currentBudgetCap())
+            // The egress fence, last: the client builds and sends with no await.
+            egressRefusal ??= this.policyRefusal(admission, touched.names)
+            if (egressRefusal !== undefined) {
+              throw new AbortedError()
+            }
           },
           {
             onRequestStarted: () => {
@@ -4218,8 +4305,11 @@ export class ModelApiSession implements AgentSession {
         },
       })
       hasReturned = true
-      return outcome
+      return { ...outcome, touched }
     } catch (error: unknown) {
+      if (egressRefusal !== undefined) {
+        return egressRefusal
+      }
       isRefused =
         error instanceof ModelApiError &&
         (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
@@ -5013,7 +5103,7 @@ export class ModelApiSession implements AgentSession {
         return { outcome: this.writeTodos(call) }
       }
       case MODEL_API_TOOLS.readSkill: {
-        return { outcome: this.readSkill(call) }
+        return { outcome: await this.readSkill(call) }
       }
       case MODEL_API_TOOLS.generateImage:
       case MODEL_API_TOOLS.editImage: {
@@ -5021,7 +5111,7 @@ export class ModelApiSession implements AgentSession {
           outcome:
             approvedImagePlan === undefined
               ? toolFailure(MODEL_TEXT.imageGenerationOff)
-              : await this.makeImage(approvedImagePlan, signal),
+              : await this.makeImage(approvedImagePlan, signal, admission),
         }
       }
       case MODEL_API_TOOLS.createGoal:
@@ -5062,7 +5152,6 @@ export class ModelApiSession implements AgentSession {
             signal,
             seen: this.seenFiles,
             files: this.policy().files,
-            readFence: (names, extraRoot) => this.policyRefusal(admission, names, extraRoot),
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
@@ -5614,14 +5703,14 @@ export class ModelApiSession implements AgentSession {
     const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(selected.length, 1))
     const runs = await this.runChecks(itemId, selected, files, signal, effects, share, isAllowed)
     const section = checksSection(runs)
+    const checked = files.map((file) => file.relative)
     return {
       outcome: {
         output: `${MODEL_TEXT.runChecksLead}\n\n${section}`,
         visibleOutput: section,
-        verifySummary: {
-          files: files.map((file) => file.relative),
-          checks: runs.map((run) => run.summary),
-        },
+        verifySummary: { files: checked, checks: runs.map((run) => run.summary) },
+        // What the checks ran over: their output may quote any of it (M78).
+        touched: { names: checked },
       },
       hookEffects: effects,
     }
@@ -5678,17 +5767,21 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
-   * The live policy fence (M78, the RV78 review), asked by each I/O boundary
-   * at the moment of its I/O: a shell command's process entry, a read that
-   * has completed before what it read can reach a request, a memory note's
-   * read or write. A decision taken before an await never lets the I/O
-   * through: the policy as it stands now (its rules, its profile and the
-   * mode) judges the call again. What ran with no question must still be
-   * allowed. An answered ask must not now be refused, nor newly settled by a
-   * rule or the profile (a hook's or the Auto reviewer's answer cannot
-   * answer that). No file it touches may now be denied, nor read under an
-   * extra root the profile no longer has. Undefined while all of that
-   * holds; otherwise the refusal that replaces whatever the call produced.
+   * The live policy fence (M78, the RV78 review and the lead's choke-point
+   * decision). The dispatcher asks it of every call's outcome before the
+   * outcome is built for the model (`fencedOutcome`); a side effect asks it
+   * at the moment it happens: a shell command's process entry, a memory
+   * note's write, the image request that carries workspace bytes off the
+   * machine. A decision taken before an await never lets the I/O through:
+   * the policy as it stands now (its rules, its profile and the mode) and
+   * the workspace's trust judge the call again. What ran with no question
+   * must still be allowed. An answered ask must not now be refused, nor
+   * newly settled by a rule or the profile (a hook's or the Auto reviewer's
+   * answer cannot answer that). A call let in while the workspace was
+   * trusted needs it trusted still. No file it touches may now be denied,
+   * nor read under an extra root the profile no longer has. Undefined while
+   * all of that holds; otherwise the refusal that replaces whatever the call
+   * produced.
    */
   private policyRefusal(
     admission: Admission,
@@ -5703,11 +5796,48 @@ export class ModelApiSession implements AgentSession {
       (now.verdict === 'ask' &&
         was.verdict === 'ask' &&
         (now.settledBy === undefined || now.settledBy === was.settledBy))
+    const isTrustLost = admission.isTrusted && !this.deps.isWorkspaceTrusted()
     // No names (a shell command) is no file: a deny-all profile denies files, not commands.
     const isFileRefused =
       (names.length > 0 && policy.files.isDenied(names)) ||
       (extraRoot !== undefined && !policy.files.extraRoots.includes(extraRoot))
-    return isAdmitted && !isFileRefused ? undefined : policyChangedRefusal(admission.query.toolName)
+    return isAdmitted && !isTrustLost && !isFileRefused
+      ? undefined
+      : policyChangedRefusal(admission.query.toolName)
+  }
+
+  /** What let a call in, captured at its admission for the fences that judge it again (M78). */
+  private admitted(query: PermissionQuery, judgement: PermissionJudgement): Admission {
+    return { query, judgement, isTrusted: this.deps.isWorkspaceTrusted() }
+  }
+
+  /**
+   * The dispatcher's live policy fence (M78, the lead's choke-point
+   * decision): every call's outcome, from every tool, built-in or external,
+   * judged again by `policyRefusal` over its admission and the files it
+   * touched, synchronously, right before the outcome is built for the model.
+   * A tool that reports no files is judged on its verdict, the mode and the
+   * trust alone. A refusal replaces the outcome, so nothing from the call
+   * reaches the model; a read it recorded as seen is forgotten, and a write
+   * it had already made is said to stay. A call refused before admission did
+   * nothing, and a rejection (`isRejected`) brought nothing back: the caller
+   * passes either as it is, in its own words.
+   */
+  private fencedOutcome(admission: Admission | undefined, outcome: ToolOutcome): ToolOutcome {
+    if (admission === undefined) {
+      return outcome
+    }
+    const { touched } = outcome
+    const refusal = this.policyRefusal(admission, touched?.names, touched?.extraRoot)
+    if (refusal === undefined) {
+      return outcome
+    }
+    if (touched?.seen !== undefined) {
+      this.seenFiles.delete(touched.seen)
+    }
+    return hasWritten(admission, outcome)
+      ? policyChangedAfterWrite(admission.query.toolName, outcome)
+      : refusal
   }
 
   /**
@@ -5761,6 +5891,7 @@ export class ModelApiSession implements AgentSession {
       places.push(index.value)
     }
     const names: string[] = []
+    let noteNames: readonly string[] = []
     for (const place of places) {
       if (place.scope !== PROJECT_MEMORY_SCOPE) continue
       const confined = await confineWorkspacePath(
@@ -5771,7 +5902,9 @@ export class ModelApiSession implements AgentSession {
       )
       if (!confined.ok)
         return { refusal: { outcome: toolFailure(confined.reason), isRejected: true } }
-      names.push(place.display, confined.relative, confined.canonical)
+      const placeNames = [place.display, confined.relative, confined.canonical]
+      if (place === placed.place) noteNames = placeNames
+      names.push(...placeNames)
     }
     signal.throwIfAborted()
     if (!this.deps.isWorkspaceTrusted())
@@ -5788,7 +5921,7 @@ export class ModelApiSession implements AgentSession {
     const judgement = this.permissions.judge(query, policy)
     return judgement.verdict === 'deny'
       ? { refusal: this.refusedByMode(call) }
-      : { fence: { admission: { query, judgement }, names } }
+      : { fence: { admission: this.admitted(query, judgement), names, noteNames } }
   }
 
   /**
@@ -5803,6 +5936,7 @@ export class ModelApiSession implements AgentSession {
     toolClass: ToolClass,
     shouldForceApproval: boolean,
     isAllowed: () => boolean,
+    slot: AdmissionSlot,
   ): Promise<CallResult> {
     const { memory } = this.deps
     if (memory === undefined) {
@@ -5844,6 +5978,7 @@ export class ModelApiSession implements AgentSession {
       }
       const freshCheck = await this.memoryRefusal(memory, replaced.value, call, signal)
       if ('refusal' in freshCheck) return freshCheck.refusal
+      slot.admission = freshCheck.fence.admission
       return {
         outcome: await this.runFencedMemoryCall(
           memory,
@@ -5854,6 +5989,7 @@ export class ModelApiSession implements AgentSession {
         isRejected: false,
       }
     }
+    slot.admission = placedCheck.fence.admission
     return {
       outcome: await this.runFencedMemoryCall(memory, placed.value, isAllowed, placedCheck.fence),
       isRejected: false,
@@ -5861,11 +5997,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
-   * A placed memory call under its live policy fence (M78), asked with the
-   * owner's at every MemoryIo read and write and around them. A refusal
-   * replaces a read, or a write refused before it published; a note already
-   * written when its new index line was refused stays reported as written,
-   * its index line logged as not written, as an index with unsaved changes is.
+   * A placed memory call (M78). Its owner (Stop, the turn, the trust) is
+   * asked at every MemoryIo read and write; a write is also judged by the
+   * live policy fence there, at the moment it happens, and a refusal
+   * replaces a write refused before it published. A note already written
+   * when its new index line was refused stays reported as written, its index
+   * line logged as not written, as an index with unsaved changes is. A read
+   * changes nothing: what it read is judged by the dispatcher's fence, which
+   * every outcome crosses, over the note's names.
    */
   private async runFencedMemoryCall(
     memory: MemoryStore,
@@ -5873,34 +6012,39 @@ export class ModelApiSession implements AgentSession {
     isAllowed: () => boolean,
     fence: MemoryFence,
   ): Promise<ToolOutcome> {
+    const touched: TouchedFiles = { names: fence.noteNames }
+    const assertOwner = () => {
+      if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
+    }
+    if (placed.call.tool === 'read') {
+      // The store asks the owner around its read and throws a Stop on.
+      return { ...(await runMemoryCall(memory, placed, assertOwner)), touched }
+    }
     let refusal: ToolOutcome | undefined
     const assertCurrent = () => {
-      if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
+      assertOwner()
       refusal ??= this.policyRefusal(fence.admission, fence.names)
       if (refusal !== undefined) throw new AbortedError()
     }
     let outcome: ToolOutcome
     try {
-      outcome = await this.runPlacedMemoryCall(memory, placed, assertCurrent)
+      outcome = await this.runPlacedMemoryWrite(memory, placed, assertCurrent)
     } catch (error: unknown) {
       if (refusal === undefined) throw error
       return refusal
     }
-    return refusal !== undefined && outcome.failureReason !== undefined ? refusal : outcome
+    return refusal !== undefined && outcome.failureReason !== undefined
+      ? refusal
+      : { ...outcome, touched }
   }
 
   /** Memory writes can change a check's named input, including a new note's index. */
-  private async runPlacedMemoryCall(
+  private async runPlacedMemoryWrite(
     memory: MemoryStore,
     placed: PlacedMemoryCall,
     assertCurrent: () => void,
   ): Promise<ToolOutcome> {
     assertCurrent()
-    if (placed.call.tool === 'read') {
-      const outcome = await runMemoryCall(memory, placed, assertCurrent)
-      assertCurrent()
-      return outcome
-    }
     const paths = [placed.place.absolute]
     if (placed.call.tool === 'add') {
       const index = await memory.locate(placed.place.scope, MEMORY_INDEX_FILE)
@@ -5949,6 +6093,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     shouldForceApproval: boolean,
+    slot: AdmissionSlot,
   ): Promise<CallResult> {
     const fetchPage = this.deps.webFetch
     if (fetchPage === undefined) {
@@ -5988,6 +6133,7 @@ export class ModelApiSession implements AgentSession {
     if (withdrawn !== undefined) {
       return withdrawn
     }
+    slot.admission = this.admitted(query, this.permissions.judge(query, this.policy()))
     const result = await fetchPage(url, signal, () => this.isWebFetchStillAllowed(query))
     // Asked again once the page is in: it reaches the model only while web
     // fetch is still allowed.
@@ -6019,16 +6165,33 @@ export class ModelApiSession implements AgentSession {
     return this.permissions.verdict(query) === 'deny' ? this.refusedByMode(call) : undefined
   }
 
-  /** A read-only code intelligence call (M67): a read in every mode, stopped by Stop. */
+  /**
+   * A read-only code intelligence call (M67): a read in every mode, stopped
+   * by Stop. Every file the live read guard let it read is what it touched
+   * (M78), for the dispatcher's fence.
+   */
   private async readCode(
     tool: Exclude<CodeIntelTool, 'renameSymbol'>,
     call: FunctionCallItem,
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     const deps = this.codeIntelDeps()
-    return deps === undefined
-      ? toolFailure(`unknown tool ${call.name}`)
-      : await unlessStopped(runCodeIntelRead(tool, call.arguments, deps, signal), signal)
+    if (deps === undefined) {
+      return toolFailure(`unknown tool ${call.name}`)
+    }
+    const names: string[] = []
+    const canReadFile: NonNullable<CodeIntelDeps['canReadFile']> = (file) => {
+      const isReadable = deps.canReadFile?.(file) !== false
+      if (isReadable) {
+        names.push(file.relative, file.canonical)
+      }
+      return isReadable
+    }
+    const outcome = await unlessStopped(
+      runCodeIntelRead(tool, call.arguments, { ...deps, canReadFile }, signal),
+      signal,
+    )
+    return { ...outcome, touched: { names } }
   }
 
   /**
@@ -6043,6 +6206,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     shouldForceApproval: boolean,
     isAllowed: () => boolean,
+    slot: AdmissionSlot,
   ): Promise<CallResult> {
     const assertFirstWrite = this.editAdmission(call, isAllowed)
     const deps = this.codeIntelDeps()
@@ -6065,20 +6229,28 @@ export class ModelApiSession implements AgentSession {
       return { outcome: renameRefused(planned), isRejected: false }
     }
     const { plan } = planned
+    const query: PermissionQuery = {
+      toolName: call.name,
+      toolClass: 'edit',
+      isProtected: isProtectedRename(plan),
+    }
     const refusal = await this.judge(
       itemId,
       call,
       signal,
-      { toolName: call.name, toolClass: 'edit', isProtected: isProtectedRename(plan) },
+      query,
       { kind: 'fileWrite', path: renameCardPath(plan), toolName: call.name },
       shouldForceApproval,
     )
     if (refusal !== undefined) {
       return refusal
     }
+    slot.admission = this.admitted(query, this.permissions.judge(query, this.policy()))
     // Every planned name lapses stale grants before the rechecks await I/O.
     // Only successful native writes enter this session's automatic check round.
     const completions: (() => void)[] = []
+    // What the rename read or wrote, each past the live guard (M78's dispatcher fence).
+    const touched: string[] = []
     let hasWritten = false
     try {
       for (const file of plan.files) {
@@ -6108,13 +6280,14 @@ export class ModelApiSession implements AgentSession {
             )
           }
           if (!hasWritten) assertFirstWrite(file)
+          touched.push(file.relative, file.canonical)
         },
         onWritten: (file) => {
           hasWritten = true
           this.noteEdited(file)
         },
       })
-      return { outcome, isRejected: false }
+      return { outcome: { ...outcome, touched: { names: touched } }, isRejected: false }
     } finally {
       for (const complete of completions) {
         complete()
@@ -6122,13 +6295,18 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  /** The permission check and, when it allows, the tool itself. May throw (an abort, an I/O error). */
+  /**
+   * The permission check and, when it allows, the tool itself. May throw (an
+   * abort, an I/O error). Every path that runs the call fills `slot` at its
+   * admission, for the dispatcher's fence (M78).
+   */
   private async decideAndRun(
     turnId: string,
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
+    slot: AdmissionSlot,
     shouldForceApproval = false,
   ): Promise<CallResult> {
     const isAllowed = this.verificationAdmission(signal)
@@ -6155,13 +6333,21 @@ export class ModelApiSession implements AgentSession {
         toolClass,
         shouldForceApproval,
         isAllowed,
+        slot,
       )
     }
     if (toolClass === 'network') {
-      return await this.decideAndRunWebFetch(itemId, call, signal, shouldForceApproval)
+      return await this.decideAndRunWebFetch(itemId, call, signal, shouldForceApproval, slot)
     }
     if (call.name === CODE_INTEL_TOOLS.renameSymbol) {
-      return await this.decideAndRunRename(itemId, call, signal, shouldForceApproval, isAllowed)
+      return await this.decideAndRunRename(
+        itemId,
+        call,
+        signal,
+        shouldForceApproval,
+        isAllowed,
+        slot,
+      )
     }
     if (
       this.isSubagent &&
@@ -6311,8 +6497,9 @@ export class ModelApiSession implements AgentSession {
     if (deniedNow !== undefined) {
       return { outcome: deniedPath(deniedNow.relative), isRejected: true }
     }
-    // What the call's own I/O boundaries judge again when they reach the I/O.
-    const admission: Admission = { query, judgement: currentJudgement }
+    // What the call's side effects and the dispatcher's fence judge again.
+    const admission = this.admitted(query, currentJudgement)
+    slot.admission = admission
     // Every live session hears the names before perform can write or format.
     // Completion advances their state again, including on a failed write.
     const completeEdit =
@@ -6625,6 +6812,7 @@ export class ModelApiSession implements AgentSession {
     }
     this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
+    const slot: AdmissionSlot = {}
     let result: CallResult
     try {
       result =
@@ -6635,6 +6823,7 @@ export class ModelApiSession implements AgentSession {
               effectiveCall,
               signal,
               goalCommandRevision,
+              slot,
               pre.forceApproval,
             )
           : { outcome: toolFailure(pre.blockedReason), isRejected: true }
@@ -6658,8 +6847,11 @@ export class ModelApiSession implements AgentSession {
     if (this.externalTool(effectiveCall.name) === undefined) {
       await this.touchPath(effectiveCall)
     }
-    let { outcome } = result
+    const { admission } = slot
     const { isRejected, running, hookEffects } = result
+    // The one point every outcome crosses: no await from here to the model's
+    // replay. A rejection brought nothing back and keeps its own words.
+    let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
     if (running === undefined) {
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
@@ -6674,7 +6866,7 @@ export class ModelApiSession implements AgentSession {
       }
       this.finishCall(turnId, started, effectiveCall, outcome, status)
     } else {
-      this.continueInBackground(turnId, started, effectiveCall, outcome, running)
+      this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
     }
     for (const context of [...pre.contexts, ...(hookEffects?.contexts ?? [])]) {
       this.replay.push({
@@ -6745,6 +6937,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     outcome: ToolOutcome,
     running: Promise<ToolOutcome>,
+    admission: Admission | undefined,
   ): void {
     const moved: ItemSnapshot = {
       ...started,
@@ -6760,7 +6953,8 @@ export class ModelApiSession implements AgentSession {
     void running
       .catch((error: unknown) => toolFailure(describe(error)))
       .then((final) => {
-        this.endInBackground(moved, call, final)
+        // Its end is an outcome too: the dispatcher's fence judges it as it is told (M78).
+        this.endInBackground(moved, call, this.fencedOutcome(admission, final))
       })
   }
 

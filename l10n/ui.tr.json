@@ -1456,6 +1456,7 @@
   "approvalProfileNote": "Bir izin profili etkin. Dosya kuralları dışındaki çağrılar onay ister.",
   "codeIntelPolicyRefused": "Dosya izinleri bu kod analizi işlemine izin vermiyor.",
   "policyChangedRefused": "İzin ayarları işlem sürerken değişti ve artık buna izin vermiyor. İşlem reddedildi ve modele hiçbir şey gönderilmedi.",
+  "policyChangedKeptWrite": "İzin ayarları işlem sürerken değişti ve artık buna izin vermiyor. Değişikliği zaten yazılmıştı ve yerinde kalıyor; modele hiçbir şey gönderilmedi.",
   "permissionProfileInvalidData": "Geçersiz veya desteklenmeyen profil verileri.",
   "approvalAskRuleNote": "Komut kuralınız bu komut için her seferinde onay ister.",
   "approvalAskRuleWhy": "Komut kuralınız bu komut için her seferinde onay ister: {why}",

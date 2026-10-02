@@ -1546,6 +1546,7 @@
   "approvalProfileNote": "Profil oprávnění je zapnutý. Volání mimo jeho pravidla pro soubory vyžadují potvrzení.",
   "codeIntelPolicyRefused": "Oprávnění k souborům tuto operaci analýzy kódu odmítají.",
   "policyChangedRefused": "Nastavení oprávnění se během probíhající operace změnilo a už ji nepovoluje. Byla odmítnuta a nic z ní nebylo odesláno modelu.",
+  "policyChangedKeptWrite": "Nastavení oprávnění se během probíhající operace změnilo a už ji nepovoluje. Její změna už byla zapsána a zůstává; nic z ní nebylo odesláno modelu.",
   "permissionProfileInvalidData": "Neplatná nebo nepodporovaná data profilu.",
   "approvalAskRuleNote": "Vaše pravidlo příkazů se u tohoto příkazu ptá pokaždé.",
   "approvalAskRuleWhy": "Vaše pravidlo příkazů se u tohoto příkazu ptá pokaždé: {why}",

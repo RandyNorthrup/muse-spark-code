@@ -1456,6 +1456,7 @@
   "approvalProfileNote": "Egy jogosultsági profil aktív. A fájlszabályain kívüli hívások jóváhagyást kérnek.",
   "codeIntelPolicyRefused": "A fájljogosultságok tiltják ezt a kódelemzési műveletet.",
   "policyChangedRefused": "A jogosultsági beállítások a művelet közben megváltoztak, és már nem engedélyezik. A művelet el lett utasítva, és semmi sem jutott el belőle a modellhez.",
+  "policyChangedKeptWrite": "A jogosultsági beállítások a művelet közben megváltoztak, és már nem engedélyezik. A módosítása már ki lett írva, és megmarad; semmi sem jutott el belőle a modellhez.",
   "permissionProfileInvalidData": "Érvénytelen vagy nem támogatott profiladatok.",
   "approvalAskRuleNote": "A parancsszabálya minden alkalommal rákérdez erre a parancsra.",
   "approvalAskRuleWhy": "A parancsszabálya minden alkalommal rákérdez erre a parancsra: {why}",

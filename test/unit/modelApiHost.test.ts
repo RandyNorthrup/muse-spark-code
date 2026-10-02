@@ -249,6 +249,8 @@ function setup(
     memoryLinks?: Record<string, string>
     /** Where a memory note's replacement waits before its final assertion (M78's fence). */
     beforeMemoryWrite?: (path: string) => Promise<void>
+    /** Where a memory note's read waits before the file answers (M78: a Stop meanwhile). */
+    beforeMemoryRead?: (path: string) => Promise<void>
     /** The command rules and permission profiles (M78), read at each call. */
     permissionSettings?: () => PermissionSettings
     /** The window's web fetch (M69); none unless a test gives one. */
@@ -290,6 +292,7 @@ function setup(
           ...(options.beforeMemoryWrite !== undefined && {
             beforeWrite: options.beforeMemoryWrite,
           }),
+          ...(options.beforeMemoryRead !== undefined && { beforeRead: options.beforeMemoryRead }),
         }).store
   let ids = 0
   let clock = 1_000_000
@@ -12813,6 +12816,147 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
       status: 'failed',
       visibleOutput: UI_TEXT.policyChangedRefused,
     })
+  })
+
+  // The RV78f review: the image and PDF reads the fence covers had no case.
+  it.each([
+    ['an image', 'private.png', () => Buffer.concat([SOURCE_PNG, Buffer.from(SYNTHETIC_PRIVATE)])],
+    ['a PDF', 'private.pdf', () => pdfFixture(1)],
+  ])(
+    'discards %s read_file read whole once the repository denies it during the read',
+    async (_kind, name, bytesOf) => {
+      let settings = m78Settings()()
+      const bytes = bytesOf()
+      const base = memoryToolIo({}, ROOT)
+      base.binaries.set(`${ROOT}/${name}`, bytes)
+      const read = heldWait()
+      const io: MemoryToolIo = {
+        ...base,
+        readBytes: async (...readArgs: Parameters<ToolIo['readBytes']>) => {
+          await read.hold()
+          return await base.readBytes(...readArgs)
+        },
+      }
+      const t = setup({ io, permissionSettings: () => settings })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      t.api.script(
+        { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: name }), callId: 'v1' }] },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'look' }])
+      await read.entered
+      settings = { ...settings, repositoryRules: { denyRead: [name] } }
+      read.release()
+      await turnDone()
+      expect(toolOutput(t, 'v1')).toBe(`Error: read_file ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+      expect(completedRow(events, 'read_file')).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.policyChangedRefused,
+      })
+      expect(JSON.stringify(t.api.requests)).not.toContain(Buffer.from(bytes).toString('base64'))
+    },
+  )
+
+  it('refuses a project skill the repository denies before its body is returned (RV78f)', async () => {
+    const t = setup({
+      files: {
+        '.agents/skills/deploy/SKILL.md': skillFile('deploy', 'Ship it', SYNTHETIC_PRIVATE),
+      },
+      permissionSettings: m78Settings('', { denyRead: ['.agents/skills/deploy'] }),
+    })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      { calls: [{ name: 'read_skill', arguments: '{"id":"deploy"}', callId: 'k1' }] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'deploy' }])
+    await turnDone()
+    expect(toolOutput(t, 'k1')).toBe(
+      `Error: .agents/skills/deploy/SKILL.md ${MODEL_TEXT.pathDeniedByPolicy}`,
+    )
+    expect(JSON.stringify(t.api.requests)).not.toContain(SYNTHETIC_PRIVATE)
+  })
+
+  it('reports Stop during a memory read as the stop, not as a file error (RV78f)', async () => {
+    const read = heldWait()
+    const t = setup({
+      files: { '.agents/memory/note.md': SYNTHETIC_PRIVATE },
+      beforeMemoryRead: async (path) => {
+        if (path.endsWith('/note.md')) await read.hold()
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_memory', arguments: '{"scope":"project","path":"note.md"}', callId: 'm2' },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'recall' }])
+    await read.entered
+    const stopping = session.cancel()
+    read.release()
+    await stopping
+    await turnDone()
+    expect(completedRow(events, 'read_memory')).toMatchObject({
+      status: 'cancelled',
+      visibleOutput: MODEL_TEXT.toolCancelledByStop,
+    })
+    t.api.script({ text: 'fine' })
+    await session.sendTurn([{ type: 'text', text: 'something else' }])
+    await turnDone()
+    expect(toolOutput(t, 'm2')).toBe(`Error: ${MODEL_TEXT.toolCancelledByStop}`)
+    expect(JSON.stringify(t.api.requests)).not.toContain(SYNTHETIC_PRIVATE)
+  })
+
+  it('sends no image edit whose source the repository denies during its reservation (RV78f P1)', async () => {
+    let settings = m78Settings()()
+    const store = memorySessionStore()
+    const journal = store.budget
+    if (journal === undefined) throw new Error('Expected a budget journal')
+    const reserve = journal.reserve.bind(journal)
+    const held = heldWait()
+    const settled: number[] = []
+    journal.reserve = async (...args: Parameters<typeof reserve>) => {
+      const claim = await reserve(...args)
+      if (args[2] !== PAID_PRICES_USD.imageGeneration) return claim
+      // The image's own claim: the awaits between approval and the send.
+      await held.hold()
+      return {
+        ...claim,
+        settle: (actualUsd: number, isUnknown?: boolean) => {
+          settled.push(actualUsd)
+          return claim.settle(actualUsd, isUnknown)
+        },
+      }
+    }
+    const source = Buffer.concat([SOURCE_PNG, Buffer.from(SYNTHETIC_PRIVATE)])
+    const t = setup({
+      paid: ['imageGeneration'],
+      sessionBudgetUsd: 1,
+      store,
+      permissionSettings: () => settings,
+    })
+    t.io.binaries.set(`${ROOT}/photo.png`, source)
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      { calls: [editCall({ prompt: 'brighten', images: ['photo.png'], path: 'out.png' }, 'e1')] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'edit' }])
+    await held.entered
+    settings = { ...settings, repositoryRules: { denyRead: ['photo.png'] } }
+    held.release()
+    await turnDone()
+    expect(t.api.editBodies()).toEqual([])
+    expect(JSON.stringify(t.api.requests)).not.toContain(source.toString('base64'))
+    expect(toolOutput(t, 'e1')).toBe(`Error: edit_image ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+    // Nothing was sent, so the claim settles at nothing and nothing is billed.
+    expect(settled).toEqual([0])
+    expect(t.paidUses).toEqual([])
+    expect(t.io.binaries.has(`${ROOT}/out.png`)).toBe(false)
   })
 })
 

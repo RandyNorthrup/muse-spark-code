@@ -1501,6 +1501,7 @@
   "approvalProfileNote": "Há um perfil de permissões ativo. Chamadas fora das regras de arquivos pedem aprovação.",
   "codeIntelPolicyRefused": "As permissões de arquivos recusam esta operação de análise de código.",
   "policyChangedRefused": "As configurações de permissões mudaram enquanto isto estava em andamento e não o permitem mais. Foi recusado, e nada dele foi enviado ao modelo.",
+  "policyChangedKeptWrite": "As configurações de permissões mudaram enquanto isto estava em andamento e não o permitem mais. A alteração já tinha sido gravada e permanece; nada dele foi enviado ao modelo.",
   "permissionProfileInvalidData": "Dados de perfil inválidos ou não compatíveis.",
   "approvalAskRuleNote": "Sua regra de comandos pede confirmação para este comando todas as vezes.",
   "approvalAskRuleWhy": "Sua regra de comandos pede confirmação para este comando todas as vezes: {why}",

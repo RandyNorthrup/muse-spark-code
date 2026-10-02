@@ -1411,6 +1411,7 @@
   "approvalProfileNote": "권한 프로필이 활성화되어 있습니다. 파일 규칙 밖의 호출은 승인을 요청합니다.",
   "codeIntelPolicyRefused": "파일 권한이 이 코드 분석 작업을 거부합니다.",
   "policyChangedRefused": "작업 중에 권한 설정이 변경되어 더 이상 허용되지 않습니다. 작업이 거부되었으며 그 내용은 모델에 전송되지 않았습니다.",
+  "policyChangedKeptWrite": "작업 중에 권한 설정이 변경되어 더 이상 허용되지 않습니다. 변경 내용은 이미 기록되어 그대로 유지됩니다. 그 내용은 모델에 전송되지 않았습니다.",
   "permissionProfileInvalidData": "유효하지 않거나 지원되지 않는 프로필 데이터입니다.",
   "approvalAskRuleNote": "명령 규칙에 따라 이 명령은 매번 확인합니다.",
   "approvalAskRuleWhy": "명령 규칙에 따라 이 명령은 매번 확인합니다: {why}",

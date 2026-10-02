@@ -166,6 +166,42 @@ function failed(reason: string): { readonly ok: false; readonly reason: string }
   return { ok: false, reason }
 }
 
+/**
+ * The caller's assertion as a write passes it to its I/O, watched (M78, the
+ * RV78f review): what it throws (the caller's Stop, or its policy's refusal)
+ * belongs to the caller and is thrown on, never reported as a file error.
+ */
+function ownerAssertion(assertCurrent: (() => void) | undefined): {
+  readonly assert: (() => void) | undefined
+  /** Throws again what the assertion threw, when it threw. */
+  readonly rethrow: () => void
+} {
+  if (assertCurrent === undefined) {
+    return {
+      assert: undefined,
+      rethrow: () => {
+        // Nothing was asserted, so nothing was thrown.
+      },
+    }
+  }
+  let thrown: Error | undefined
+  return {
+    assert: () => {
+      try {
+        assertCurrent()
+      } catch (error: unknown) {
+        thrown = error instanceof Error ? error : new Error(describe(error))
+        throw thrown
+      }
+    },
+    rethrow: () => {
+      if (thrown !== undefined) {
+        throw thrown
+      }
+    },
+  }
+}
+
 function isUnavailable(reason: string): boolean {
   return reason === MODEL_TEXT.memoryNoWorkspace || reason === MODEL_TEXT.memoryNoHome
 }
@@ -289,19 +325,24 @@ export class MemoryStore {
     }
   }
 
-  /** The note's text (undefined when there is none), or why it cannot be read. */
+  /**
+   * The note's text (undefined when there is none), or why it cannot be read.
+   * The caller's assertion throws on: a Stop is never a file error (the
+   * RV78f review).
+   */
   private async readNote(
     place: MemoryNotePlace,
     assertCurrent?: () => void,
   ): Promise<Located<string | undefined>> {
+    assertCurrent?.()
+    let value: string | undefined
     try {
-      assertCurrent?.()
-      const value = await this.deps.io.readFile(place.absolute)
-      assertCurrent?.()
-      return { ok: true, value }
+      value = await this.deps.io.readFile(place.absolute)
     } catch (error: unknown) {
       return failed(describe(error))
     }
+    assertCurrent?.()
+    return { ok: true, value }
   }
 
   /** The scope's index place; throws with the reason when the scope has none. */
@@ -553,23 +594,25 @@ export class MemoryStore {
         return refused
       }
     }
+    assertCurrent?.()
+    const owner = ownerAssertion(assertCurrent)
     try {
-      assertCurrent?.()
       if (existing === undefined) {
         await this.deps.io.createFile(
           place.absolute,
           newNoteText(note),
           place.checked,
-          assertCurrent,
+          owner.assert,
         )
       } else {
         await this.deps.io.writeFile(
           place.absolute,
           appendedText(existing, note.content),
-          assertCurrent,
+          owner.assert,
         )
       }
     } catch (error: unknown) {
+      owner.rethrow()
       return failed(isTaken(error) ? MODEL_TEXT.memoryNoteExists : describe(error))
     }
     if (existing === undefined) {
@@ -606,14 +649,16 @@ export class MemoryStore {
     if (count > 1) {
       return failed(`${MODEL_TEXT.memoryOldStrAmbiguous} ${quoted(change.old_str)}`)
     }
+    assertCurrent?.()
+    const owner = ownerAssertion(assertCurrent)
     try {
-      assertCurrent?.()
       await this.deps.io.writeFile(
         place.absolute,
         text.replace(change.old_str, () => change.new_str),
-        assertCurrent,
+        owner.assert,
       )
     } catch (error: unknown) {
+      owner.rethrow()
       return failed(describe(error))
     }
     return { ok: true, value: written(place, OPERATION_EDIT, MODEL_TEXT.memoryNoteEdited) }

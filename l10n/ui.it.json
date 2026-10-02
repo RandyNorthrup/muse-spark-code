@@ -1501,6 +1501,7 @@
   "approvalProfileNote": "È attivo un profilo di autorizzazioni. Le chiamate fuori dalle sue regole dei file chiedono approvazione.",
   "codeIntelPolicyRefused": "I permessi dei file impediscono questa operazione di analisi del codice.",
   "policyChangedRefused": "Le impostazioni delle autorizzazioni sono cambiate mentre l’operazione era in corso e non la consentono più. È stata rifiutata e nulla è stato inviato al modello.",
+  "policyChangedKeptWrite": "Le impostazioni delle autorizzazioni sono cambiate mentre l’operazione era in corso e non la consentono più. La sua modifica era già stata scritta e rimane; nulla è stato inviato al modello.",
   "permissionProfileInvalidData": "Dati del profilo non validi o non supportati.",
   "approvalAskRuleNote": "La tua regola dei comandi chiede conferma per questo comando ogni volta.",
   "approvalAskRuleWhy": "La tua regola dei comandi chiede conferma per questo comando ogni volta: {why}",

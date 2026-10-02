@@ -1724,10 +1724,13 @@ export const EN = {
   // reviewer on the Model API backend. Why a card asks beyond the mode:
   approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',
   codeIntelPolicyRefused: 'File permissions refuse this code intelligence operation.',
-  // A shell command, file read or memory note the permission settings
-  // stopped allowing while it was waiting on its process or its file.
+  // A tool call the permission settings stopped allowing while it was in
+  // progress: at its process, its write or its request, or once it was done.
   policyChangedRefused:
     'The permission settings changed while this was in progress and no longer allow it. It was refused, and nothing from it was sent to the model.',
+  // The same, for a call whose change was already written by then.
+  policyChangedKeptWrite:
+    'The permission settings changed while this was in progress and no longer allow it. Its change was already written and stays; nothing from it was sent to the model.',
   approvalAskRuleNote: 'Your command rule asks about this command every time.',
   // {why}: the rule's own justification, as the user wrote it.
   approvalAskRuleWhy: 'Your command rule asks about this command every time: {why}',

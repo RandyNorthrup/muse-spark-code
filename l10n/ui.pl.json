@@ -1546,6 +1546,7 @@
   "approvalProfileNote": "Profil uprawnień jest aktywny. Wywołania poza jego regułami plików proszą o zgodę.",
   "codeIntelPolicyRefused": "Uprawnienia do plików odmawiają tej operacji analizy kodu.",
   "policyChangedRefused": "Ustawienia uprawnień zmieniły się w trakcie tej operacji i już na nią nie pozwalają. Została odrzucona i nic z niej nie zostało wysłane do modelu.",
+  "policyChangedKeptWrite": "Ustawienia uprawnień zmieniły się w trakcie tej operacji i już na nią nie pozwalają. Jej zmiana została już zapisana i pozostaje; nic z niej nie zostało wysłane do modelu.",
   "permissionProfileInvalidData": "Nieprawidłowe lub nieobsługiwane dane profilu.",
   "approvalAskRuleNote": "Twoja reguła poleceń za każdym razem pyta o to polecenie.",
   "approvalAskRuleWhy": "Twoja reguła poleceń za każdym razem pyta o to polecenie: {why}",
