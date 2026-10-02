@@ -983,12 +983,16 @@ cached prompt map. VS Code's language providers maintain their own indexes;
 these rules govern the extension's reads and returned information.
 `museSpark.modelApiRepositoryRules` can add only ask/forbid command
 rules and file denials; it cannot add an allow, choose a wider profile or
-grant an extra root. A change to these settings also reaches calls already
-in flight: each is judged again at its shell process's entry, after its file
-read completes and at each memory read or write, and one the new settings
-no longer allow is refused, with nothing it read sent to the model. These
-controls apply to the Model API; Muse Code uses
-its own captured native policy contract.
+grant an extra root. A project skill is a workspace file: `read_skill`
+refuses one these rules deny. A change to these settings, the mode or the
+workspace's trust also reaches calls already in flight. Whatever any tool
+brings back, an MCP or IDE tool's included, is judged again just before it
+reaches the model, and a call the new settings no longer allow is refused,
+with nothing from it sent; a change it had already written stays, and its
+row says so. A shell command is judged again at its process's entry, a
+memory note at its write, and an image edit's sources right before the
+request leaves the machine. These controls apply to the Model API; Muse Code
+uses its own captured native policy contract.
 
 `museSpark.modelApiAutoReviewer` is an off-by-default paid opt-in. Every
 eligible review uses the paid-use popup at the current model's token rates,

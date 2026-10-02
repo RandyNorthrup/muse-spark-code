@@ -8873,6 +8873,36 @@ JSON ledger format; converting the project plan is outside this lane.
 
 ### M78 — Auto, made safe (D49)
 
+**RV78f review fix, 2026-10-02: the fence at its two choke points.** The
+follow-up review found three paths the per-I/O fence missed (an image
+edit's sources sent to Meta after a deny landed during the reservation
+awaits; `read_skill`, which consulted no file rule; MCP and IDE results
+after their await), image and PDF reads with no regression, and a Stop
+during a memory read reported as a file error. The lead's decision: fencing
+tool by tool keeps missing the next tool, so the fence moves to the two
+places every path crosses. **The dispatcher's fence**: `runCall` judges
+every call's outcome, from every tool, built-in or external, with
+`policyRefusal` over the call's `Admission` (its query, its judgement after
+any card, and now the workspace's trust) and the files the outcome reports
+in `ToolOutcome.touched`, synchronously right before the outcome is built
+for the model. Every path that runs a call fills an `AdmissionSlot` at its
+admission; a tool that reports no files is judged on verdict, mode and
+trust alone. A refusal replaces the outcome; a read recorded as seen is
+forgotten; a write already made is said to stay and keeps its patch on the
+row (`UI_TEXT.policyChangedKeptWrite`, 14 tables). A rejection keeps its
+own words. The per-tool post-read `readFence` is gone: reads report what
+they touched instead. Side effects keep their fence at the moment they
+happen: a shell command's process entry, a memory note's write (a read is
+the dispatcher's), and **the egress fence**: the image request judges the
+call again, with its target and every source, inside each attempt's final
+admission, with no await before the send; a refusal sends nothing and
+settles its claim at zero. `read_skill` refuses a denied project skill at
+admission. `MemoryStore` throws its owner's Stop on, for reads and writes.
+A table-driven regression drives every tool the dispatcher knows
+(`classifiedToolNames()`) plus an MCP and an IDE tool with its I/O held
+while a deny, a mode or a trust change lands; receipts and five red drills
+are in `docs/certification/m78.md`.
+
 **RV78 review fix, 2026-10-02: one live policy fence at every I/O.** The
 independent review found one class in three places: the command and file
 policy was decided before an await and not judged again at the I/O. A

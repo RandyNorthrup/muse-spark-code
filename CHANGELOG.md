@@ -17,6 +17,17 @@ happened, not what was planned; superseded entries are kept.
   failure or its circuit breaker. It cannot allow a forbid, an ask rule,
   a protected write or another paid call. Attempt editors stay rooted in their
   worktree; applying a selected snapshot invalidates the original check ledger.
+  - **A settings change reaches calls already in flight.** Whatever any tool
+    brings back, an MCP or IDE tool's included, is judged again under the
+    current rules, profile, mode and workspace trust just before it reaches
+    the model. A call they no longer allow is refused with a reason in the
+    user's language and nothing from it is sent; a change it had already
+    written stays, and its row says so. A shell command is judged again at
+    its process's entry, a memory note at its write, and an image edit's
+    sources right before the request leaves the machine, so a source denied
+    meanwhile is never sent and nothing is billed. `read_skill` refuses a
+    project skill the file rules deny, and a Stop during a memory read or
+    write ends the call as a stop, not a file error.
 
 - **Awareness and budgets** (M82, PLAN.md D49).
   - While the VS Code window is unfocused, a VS Code notification says when
@@ -114,18 +125,6 @@ happened, not what was planned; superseded entries are kept.
   Model API bundle and the agent installed from its tarball.
 
 ### Fixed
-
-- **Permission settings changed mid-call now stop the call at its I/O
-  (M78).** A shell command, file read or memory note was judged before an
-  await and not again: a command a rule allowed still ran after a forbid
-  rule, an ask rule or a profile arrived while its process was starting; a
-  file read finished under the old rules and its text reached the model
-  after a new deny-read; a memory edit was written after its note was
-  denied. One live policy fence now judges the call again under the current
-  rules, profile and mode at the process entry, after every read completes
-  (`read_file`, images and PDFs, `list_files`, `search`) and at every
-  memory read and write. A call the settings no longer allow is refused with
-  a reason in the user's language, and nothing it read is sent.
 
 - Approval cards retain the Auto reviewer's and command rule's explanation
   through webview delivery, later approval stages and saved-state restoration.
