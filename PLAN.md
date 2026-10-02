@@ -9435,9 +9435,9 @@ requires original-bot/source preservation, fresh peer/audit metadata, scoped
 types/lint/format and assertion red/restored proofs, then the actual packaged
 page worker on Node 20.18.3. Reuse existing worker-floor transport; no model,
 paid call, dependency engine waiver, threshold change or full quality in this
-source lane. Kubuntu bounded work yields to final M72/release gates. Final
-M72/main ancestry, independent review, all four full gates and current-head CI
-remain root's later integration obligations. Result: sniffer 7 declares Node
+source lane. Kubuntu bounded work yields to final M72/release gates. Merged
+with main 2a30b1a0 (0.10.0, #66, #67) on 2026-10-02; the full quality gate
+passed on the Mac mini at that head, and hosted CI is the merge gate. Result: sniffer 7 declares Node
 22.13, but bundled into `dist/pageWorker.js` it loads and converts in VS Code
 1.99.0's Node 20.18.3 (the floor), and the integration run's `minimum` label
 now carries the goldens through the shipped bundle. The proof also found one

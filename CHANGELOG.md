@@ -14,13 +14,6 @@ happened, not what was planned; superseded entries are kept.
   tarball include it, and CI checks both package member lists. Existing
   bundle caps remain unchanged; runtime smoke checks cover the extension,
   Model API bundle and the agent installed from its tarball.
-
-### Fixed
-
-- **The ACP agent reaches npm.** The release workflow passed its package as
-  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
-  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
-  npm. The path now starts with `./`.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -29,6 +22,13 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
+
+### Fixed
+
+- **The ACP agent reaches npm.** The release workflow passed its package as
+  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
+  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
+  npm. The path now starts with `./`.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
